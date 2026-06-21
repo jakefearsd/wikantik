@@ -1,15 +1,16 @@
 ---
-cluster: databases
-canonical_id: 01KQ0P44NWS5PXSNGM4DFMM55M
 title: Connection Pooling
+cluster: databases
 type: article
+canonical_id: 01KQ0P44NWS5PXSNGM4DFMM55M
+summary: Technical analysis of multi-layered connection pooling (HikariCP and PgBouncer)
+  in high-throughput distributed systems.
 tags:
 - connection-pooling
 - databases
 - pgbouncer
 - hikaricp
 - performance
-summary: Technical analysis of multi-layered connection pooling (HikariCP and PgBouncer) in high-throughput distributed systems.
 auto-generated: false
 ---
 

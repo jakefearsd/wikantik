@@ -1,18 +1,18 @@
 ---
-cluster: mechanical-engineering
+canonical_id: 01KQ0P44MEW5915XES62BZJKTE
+title: Bearing Mechanics
 tags:
 - mechanical-engineering
 - contact-mechanics
 - tribology
 - bearings
 - ehl
-title: Bearing Mechanics
-canonical_id: 01KQ0P44MEW5915XES62BZJKTE
-summary: A rigorous exploration of bearing mechanics, focusing on Hertzian contact
-  theory, elastohydrodynamic lubrication (EHL), and rolling contact fatigue.
-status: active
-date: '2026-05-15'
+cluster: mechanical-engineering
 type: article
+date: '2026-05-15'
+status: active
+summary: Hertzian contact theory, elastohydrodynamic lubrication (EHL), and rolling
+  contact fatigue in bearing design and failure analysis.
 ---
 # Bearing Design: The Physics of Rolling Contact
 

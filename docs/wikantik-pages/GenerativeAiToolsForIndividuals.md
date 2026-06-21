@@ -1,15 +1,8 @@
 ---
-canonical_id: 01KQ0P44QN4ET5D4QCZYVE7AYM
 date: 2026-03-14T00:00:00Z
 status: active
-summary: Current generative AI tools organised by use case for individuals and small
-  teams — text, code, image, audio, and automation — with honest cost/value assessments
-related:
-- GenerativeAiAdoptionGuide
-- UnderstandingGenerativeAi
-- PracticalPromptEngineering
-- AiAugmentedWorkflows
-- RunningLocalLlms
+summary: Current generative AI tools by use case for individuals and small teams —
+  text, code, image, audio, and automation — with honest cost/value assessments.
 tags:
 - generative-ai
 - productivity
@@ -17,6 +10,14 @@ tags:
 - individual-contributor
 type: article
 cluster: generative-ai
+canonical_id: 01KQ0P44QN4ET5D4QCZYVE7AYM
+related:
+- GenerativeAiAdoptionGuide
+- UnderstandingGenerativeAi
+- PracticalPromptEngineering
+- AiAugmentedWorkflows
+- RunningLocalLlms
+title: Generative AI Tools for Individuals
 ---
 # Generative AI Tools for Individuals
 
@@ -32,7 +33,7 @@ These are the general-purpose AI assistants. For most individuals, one of these 
 |------|-----------|---------|-------------|
 | **Claude** (Anthropic) | Careful reasoning, long context (200K tokens), strong writing, honest about uncertainty | Writing, analysis, coding, research, long document processing | Free tier; Pro ~$20/month |
 | **ChatGPT** (OpenAI) | Broad capabilities, large ecosystem, image generation (DALL-E), browsing, plugins | General-purpose, image work, first-time users | Free tier; Plus ~$20/month |
-| **Gemini** (Google) | Multimodal (text + image + video), Google integration, large context | Google Workspace users, multimodal tasks | Free tier; Advanced ~$20/month |
+| **Gemini** (Google) | Multimodal (text + image + video), Google integration, large context | Google Workspace users, multimodal tasks | Free tier; Advanced ~\$20/month |
 | **Perplexity** | Search-focused AI with citations and source links | Research, fact-checking, questions requiring current information | Free tier; Pro ~$20/month |
 
 **Recommendation for newcomers**: Start with one. Try it for two weeks on real work. Then try another for comparison. Don't subscribe to all four — one or two will cover 90% of your needs. The differences between them matter less than learning to [prompt effectively](PracticalPromptEngineering).
@@ -44,9 +45,9 @@ These are the general-purpose AI assistants. For most individuals, one of these 
 | Tool | How It Works | Best For | Cost |
 |------|-------------|---------|------|
 | **Claude Code** (Anthropic) | CLI-based agentic coding — reads your codebase, writes code, runs tests, commits | Full-feature development, refactoring, complex multi-file changes | Usage-based via API |
-| **GitHub Copilot** | Inline suggestions in your editor, chat interface | Line-by-line code completion, quick implementations | ~$10-19/month |
+| **GitHub Copilot** | Inline suggestions in your editor, chat interface | Line-by-line code completion, quick implementations | ~\$10-19/month |
 | **Cursor** | AI-native code editor (VS Code fork) with deep codebase awareness | Developers who want AI tightly integrated into their editor | Free tier; Pro ~$20/month |
-| **Windsurf** | AI-augmented coding environment | Similar to Cursor with different UX approach | Free tier; Pro ~$15/month |
+| **Windsurf** | AI-augmented coding environment | Similar to Cursor with different UX approach | Free tier; Pro ~\$15/month |
 | **Aider** | Open-source CLI coding assistant | Developers who prefer command-line tools, pairs with any LLM | Free (bring your own API key) |
 
 **The landscape is moving fast here.** The distinction between "chat with code" and "agent that writes code" is blurring. The key question is whether you want AI as a suggestion engine (Copilot) or as an autonomous agent that can make multi-file changes (Claude Code, Cursor Agent mode).
@@ -68,7 +69,7 @@ These are the general-purpose AI assistants. For most individuals, one of these 
 
 | Tool | Function | Best For | Cost |
 |------|----------|---------|------|
-| **ElevenLabs** | Text-to-speech, voice cloning | Narration, podcasts, accessibility | Free tier; ~$5-22/month |
+| **ElevenLabs** | Text-to-speech, voice cloning | Narration, podcasts, accessibility | Free tier; ~\$5-22/month |
 | **Whisper** (OpenAI) | Speech-to-text transcription | Transcribing meetings, interviews, podcasts | Free (runs locally) or via API |
 | **Descript** | Audio/video editing with AI features | Editing podcasts and videos, removing filler words | ~$24/month |
 | **Suno / Udio** | AI music generation | Background music, jingles, creative experimentation | Free tiers available |
@@ -80,7 +81,7 @@ These are the general-purpose AI assistants. For most individuals, one of these 
 
 | Tool | Function | Best For | Cost |
 |------|----------|---------|------|
-| **Zapier / Make** | Connect AI tools to other apps via workflows | Non-developers automating repetitive tasks | Free tiers; paid ~$20-30/month |
+| **Zapier / Make** | Connect AI tools to other apps via workflows | Non-developers automating repetitive tasks | Free tiers; paid ~\$20-30/month |
 | **n8n** | Open-source workflow automation with AI nodes | Developers who want self-hosted automation | Free (self-hosted) |
 | **LangChain / LlamaIndex** | Frameworks for building AI-powered applications | Developers building custom AI tools | Free (open-source) |
 | **Ollama** | Run open-source LLMs locally with a simple API | Local AI inference, privacy, learning | Free |

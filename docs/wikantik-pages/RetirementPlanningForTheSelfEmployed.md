@@ -1,17 +1,18 @@
 ---
-cluster: retirement-planning
 canonical_id: 01KQ0P44VNZJC2XSBFZAJVBX31
 title: Retirement Planning for the Self-Employed
-type: article
 tags:
 - finance
 - retirement
 - tax
 - solo-401k
 - sep-ira
-summary: A detailed comparison of Solo 401(k) and SEP IRA plans, including 2024-2025 contribution limits and SECURE Act 2.0 changes.
-auto-generated: false
+cluster: retirement-planning
+type: article
 date: 2025-02-13T00:00:00Z
+auto-generated: false
+summary: A detailed comparison of Solo 401(k) and SEP IRA plans, including 2024-2025
+  contribution limits and SECURE Act 2.0 changes.
 ---
 
 # Self-Employed Retirement: Solo 401(k) vs. SEP IRA
@@ -31,7 +32,7 @@ The most critical factor for high earners is the "Contribution Ceiling." The Sol
 
 ### Concrete Example: The $100k Earner
 If a freelancer earns $100,000 (net of SE tax):
-- **SEP IRA:** Can only contribute **$20,000** (25% of compensation, after adjustments).
+- **SEP IRA:** Can only contribute **\$20,000** (25% of compensation, after adjustments).
 - **Solo 401(k):** Can contribute **$23,000** (employee) + **$20,000** (employer) = **$43,000**.
 - **Advantage:** The Solo 401(k) allows the freelancer to shelter more than double the income compared to the SEP IRA at this income level.
 
@@ -44,7 +45,7 @@ The SECURE Act 2.0 (passed late 2022) introduced two major changes for the self-
 ## 3. Structural Differentiators
 
 ### The Solo 401(k) (The "Power User" Plan)
-- **Loans:** You can borrow up to 50% of the balance (max $50,000) for any reason.
+- **Loans:** You can borrow up to 50% of the balance (max \$50,000) for any reason.
 - **Roth Option:** Built-in Roth component for employee deferrals.
 - **Deadlines:** Must be established by Dec 31, but contributions can be made until the tax filing deadline.
 

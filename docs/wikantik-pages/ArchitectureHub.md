@@ -1,19 +1,19 @@
 ---
-related:
-- ArchitectureCritique
-- DependencyInjectionPatterns
-- Smalltalk
-cluster: Software Engineering
-canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD3
-type: hub
+status: active
+date: 2026-05-15T00:00:00Z
+summary: Central index for software architecture, design patterns, and system modeling.
 tags:
 - architecture
 - design-patterns
 - software-engineering
 - hub
-summary: Central index for software architecture, design patterns, and system modeling.
-status: active
-date: 2026-05-15T00:00:00Z
+type: hub
+cluster: software-architecture
+canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD3
+related:
+- ArchitectureCritique
+- DependencyInjectionPatterns
+- Smalltalk
 title: Architecture Hub
 ---
 

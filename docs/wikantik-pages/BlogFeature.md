@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44MM1RTKXP2ZAZCPT4KC
-status: deployed
-depends-on:
+cluster: wikantik-development
+title: Blog Feature
+related:
+- WikantikDevelopment
+- AttachmentManagement
 - JspToReactMigration
+type: article
 summary: Blog subsystem with date-prefixed directory storage, composable plugins,
   and split-view editor
+status: active
+date: '2026-04-03'
+canonical_id: 01KQ0P44MM1RTKXP2ZAZCPT4KC
+documents:
+- About
+depends-on:
+- JspToReactMigration
 tags:
 - development
 - blog
 - content-management
 - ui
-type: article
-cluster: wikantik-development
-related:
-- WikantikDevelopment
-- AttachmentManagement
-- JspToReactMigration
-date: '2026-04-03'
-documents:
-- About
 ---
 # Blog Feature
 

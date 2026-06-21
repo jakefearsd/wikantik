@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44QE75GW342DRM0XWMJS
-title: 529 Plans and Education Savings
 type: article
-cluster: personal-finance
 status: active
+cluster: personal-finance
 date: '2026-04-26'
-summary: How 529 plans work, when they are the right vehicle, the alternatives (Coverdell,
-  UGMA/UTMA, Roth IRA, taxable), and the under-funding-vs-over-funding tradeoff with
-  the new SECURE 2.0 rollover provisions.
+title: 529 Plans and Education Savings
+hubs:
+- PersonalFinanceHub
 tags:
 - 529-plan
 - education-savings
 - college-savings
 - personal-finance
 - tax-advantaged-accounts
+summary: How 529 plans work, when they are the right vehicle, the alternatives (Coverdell,
+  UGMA/UTMA, Roth IRA, taxable), and the under-funding-vs-over-funding tradeoff with
+  the new SECURE 2.0 rollover provisions.
 related:
 - PersonalFinanceGuide
 - TaxPlanningFundamentals
 - AccountTypeStrategy
 - HealthSavingsAccounts
-hubs:
-- PersonalFinanceHub
+canonical_id: 01KQ0P44QE75GW342DRM0XWMJS
 ---
 # 529 Plans and Education Savings
 
@@ -52,7 +52,7 @@ Qualified higher-education expenses:
 
 Recently expanded:
 
-- **K–12 tuition**: up to $10K/year per beneficiary at private K–12 schools
+- **K–12 tuition**: up to \$10K/year per beneficiary at private K–12 schools
 - **Apprenticeship programs**: registered with the Department of Labor
 - **Student loan repayment**: lifetime limit $10K per beneficiary
 
@@ -85,7 +85,7 @@ Without state-deduction considerations, several plans are consistently strong:
 - **California ScholarShare 529** — broadly diversified, low cost
 - **Nevada Vanguard 529** — direct Vanguard plan
 
-For state-deduction plans, the math usually favors the in-state plan even if expenses are slightly higher. A 5% state tax deduction on $10K contributions is $500/year — typically more than the expense difference.
+For state-deduction plans, the math usually favors the in-state plan even if expenses are slightly higher. A 5% state tax deduction on \$10K contributions is $500/year — typically more than the expense difference.
 
 ## Contribution strategy
 
@@ -118,7 +118,7 @@ Use a 529 calculator (most plan websites have them) to convert the target balanc
 
 Historically, the major risk of over-funding was paying the 10% penalty + ordinary income tax on excess. This was a real deterrent.
 
-**SECURE 2.0 (2024) added significant flexibility**: starting in 2024, up to $35,000 of unused 529 funds (lifetime) can be rolled to a Roth IRA in the beneficiary's name, subject to:
+**SECURE 2.0 (2024) added significant flexibility**: starting in 2024, up to \$35,000 of unused 529 funds (lifetime) can be rolled to a Roth IRA in the beneficiary's name, subject to:
 
 - The 529 must have been open for 15+ years
 - Annual rollover limited to that year's Roth IRA contribution limit
@@ -144,7 +144,7 @@ The Roth IRA is genuinely flexible — funds not used for education can stay inv
 
 ### Coverdell Education Savings Account (ESA)
 
-- $2,000/year contribution limit (per beneficiary, all sources combined)
+- \$2,000/year contribution limit (per beneficiary, all sources combined)
 - Tax-free growth, tax-free withdrawals for qualified education (broader definition than 529, including K–12)
 - Contributions phase out at higher incomes
 - Generally less useful than 529 due to low limits
@@ -185,7 +185,7 @@ The 2024–25 FAFSA changes (from the FAFSA Simplification Act) made grandparent
 
 ### Single parent, mid-20s, just had a child
 
-Open a 529 immediately to start the 15-year clock for the Roth IRA rollover provision. Contribute modestly ($100–$200/month) while focusing primarily on retirement saving.
+Open a 529 immediately to start the 15-year clock for the Roth IRA rollover provision. Contribute modestly ($100–\$200/month) while focusing primarily on retirement saving.
 
 ### Dual-income parents, ages 30–40, two children
 

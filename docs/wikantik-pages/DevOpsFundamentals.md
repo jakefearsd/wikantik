@@ -1,25 +1,24 @@
 ---
-canonical_id: 01KQ0P44PKG4DMYKKQZX58NC8V
-title: DevOps Fundamentals
-type: article
 cluster: devops-sre
-status: active
 date: '2026-04-26'
-summary: What DevOps actually changed — the shift from siloed dev/ops to shared responsibility,
-  the practices that distinguish DevOps from traditional release engineering, and
-  the cases where the term has been diluted.
+title: DevOps Fundamentals
+hubs:
+- DevOpsAndSreHub
 tags:
 - devops
 - sre
 - automation
 - culture
+summary: What DevOps actually changed — from siloed dev/ops to shared responsibility,
+  and the practices that distinguish it from traditional release engineering.
 related:
 - CiCdPipelines
 - OnCallPractices
 - ToilReductionStrategies
 - CloudNativeApplicationDesign
-hubs:
-- DevOpsAndSreHub
+canonical_id: 01KQ0P44PKG4DMYKKQZX58NC8V
+type: article
+status: active
 ---
 # DevOps Fundamentals
 

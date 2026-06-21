@@ -1,8 +1,17 @@
 ---
+title: 'Support Vector Machines: Kernels and RKHS'
+related:
+- MachineLearning
+- DeepLearningFundamentals
+- NeuralNetworkArchitectures
+- OptimizationAlgorithms
+- MathematicsHub
+- InformationTheory
 cluster: machine-learning
-canonical_id: 01KQ0P44X4R9569FGRE7CAGA6Q
-title: "Support Vector Machines: Kernels and RKHS"
 type: article
+canonical_id: 01KQ0P44X4R9569FGRE7CAGA6Q
+summary: SVM margin maximization, the kernel trick, Reproducing Kernel Hilbert Spaces
+  (RKHS), and Mercer's Theorem for high-dimensional classification.
 tags:
 - machine-learning
 - support-vector-machines
@@ -11,15 +20,7 @@ tags:
 - rkhs
 - duality
 - optimization
-- Mercer-theorem
-summary: A rigorous exploration of Support Vector Machines (SVM), focusing on the theoretical underpinnings of the kernel trick, the geometry of Reproducing Kernel Hilbert Spaces (RKHS), and the application of Mercer's Theorem for high-dimensional classification.
-related:
-- MachineLearning
-- DeepLearningFundamentals
-- NeuralNetworkArchitectures
-- OptimizationAlgorithms
-- MathematicsHub
-- InformationTheory
+- mercer-theorem
 ---
 
 # Support Vector Machines: The Geometry of Implicit Dimensions

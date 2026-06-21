@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44WC3HQY3KGZHXR39CJG
-title: Side Income Strategies
 type: article
 cluster: personal-finance
-status: active
 date: '2026-04-26'
-summary: Realistic ways to add a second income stream — what actually pays, what is
-  marketed but rarely works, and the time-vs-return math that separates real side
-  income from busywork.
+title: Side Income Strategies
+hubs:
+- PersonalFinanceHub
 tags:
 - side-income
 - side-hustle
 - personal-finance
 - income-diversification
 - second-income
+summary: Realistic ways to add a second income stream — what actually pays, what is
+  marketed but rarely works, and the time-vs-return math that separates real side
+  income from busywork.
 related:
 - PersonalFinanceGuide
 - FinancialResilience
 - BudgetingMethods
 - TaxPlanningFundamentals
-hubs:
-- PersonalFinanceHub
+canonical_id: 01KQ0P44WC3HQY3KGZHXR39CJG
+status: active
 ---
 # Side Income Strategies
 

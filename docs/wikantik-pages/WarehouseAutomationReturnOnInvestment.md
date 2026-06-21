@@ -1,8 +1,4 @@
 ---
-cluster: warehouse-automation
-canonical_id: 01KQ0P44YKQT24RNWWHBXPTYDG
-title: Warehouse Automation ROI
-type: article
 tags:
 - logistics
 - automation
@@ -10,9 +6,14 @@ tags:
 - capex
 - opex
 - robotics
-summary: Financial modeling for warehouse automation, detailing CapEx/OpEx trade-offs and ROI calculation for robotics and AS/RS.
-auto-generated: false
+cluster: warehouse-automation
+type: article
 date: 2025-02-13T00:00:00Z
+auto-generated: false
+canonical_id: 01KQ0P44YKQT24RNWWHBXPTYDG
+summary: Financial modeling for warehouse automation, detailing CapEx/OpEx trade-offs
+  and ROI calculation for robotics and AS/RS.
+title: Warehouse Automation ROI
 ---
 
 # Warehouse Automation ROI: CapEx vs. OpEx Modeling

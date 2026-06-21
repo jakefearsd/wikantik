@@ -1,17 +1,11 @@
 ---
-summary: Index of personal-finance pages — budgeting, debt, emergency funds, insurance,
-  taxes, estate planning, credit, housing, and the rest of the day-to-day money work
-  that sits underneath retirement and investing.
+type: hub
+status: active
 date: '2026-04-26'
 cluster: personal-finance
-related:
-- PersonalFinanceGuide
-- RetirementPlanningGuide
-- LowCostIndexFundInvesting
-- WillsAndTrusts
-canonical_id: 01KZHC6PVN4SBQM9R0F3T7K8Y2
-type: hub
-title: PersonalFinanceHub
+title: Personal Finance Hub
+hubs:
+- WealthviewHub
 tags:
 - personal-finance
 - hub
@@ -21,9 +15,33 @@ tags:
 - estate
 - credit
 - housing
-status: active
-hubs:
-- WealthviewHub
+summary: 'Index of personal-finance pages — budgeting, debt, emergency funds, insurance,
+  taxes, estate planning, credit, and housing: the foundation beneath retirement.'
+related:
+- PersonalFinanceGuide
+- RetirementPlanningGuide
+- LowCostIndexFundInvesting
+- WillsAndTrusts
+- FirstJobFinancialChecklist
+- LongTermCareInsurance
+- MortgageStrategies
+- NetWorthTracking
+- SideIncomeStrategies
+- BudgetingMethods
+- CreditScoreOptimization
+- DebtPayoffStrategies
+- FinancialResilience
+- FiveTwentyNinePlansAndEducationSavings
+- IBondsAndTreasuries
+- IdentityTheftProtection
+- InflationProtectionStrategies
+- InsuranceTypesAndCoverage
+- InvestmentPolicyStatement
+- LifeInsuranceTypes
+- RealEstateInvestingBasics
+- TaxPlanningFundamentals
+- USTaxTreatiesWithEuropeanCountries
+canonical_id: 01KZHC6PVN4SBQM9R0F3T7K8Y2
 ---
 # PersonalFinance Hub
 

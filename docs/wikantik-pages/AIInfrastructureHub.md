@@ -1,20 +1,20 @@
 ---
-related:
-- GenerativeAI
-- ComputerVision
-- OpenSourceLLMs
-cluster: Artificial Intelligence
-canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD1
-type: hub
+status: active
+date: 2026-05-15T00:00:00Z
+summary: Central index for AI infrastructure, covering model quantization, CPU/GPU
+  inference, and local LLM deployment.
 tags:
 - ai
 - infrastructure
 - machine-learning
 - hub
-summary: Central index for AI infrastructure, covering model quantization, CPU/GPU
-  inference, and local LLM deployment.
-status: active
-date: 2026-05-15T00:00:00Z
+type: hub
+cluster: generative-ai
+canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD1
+related:
+- GenerativeAI
+- ComputerVision
+- OpenSourceLLMs
 title: AI Infrastructure Hub
 ---
 

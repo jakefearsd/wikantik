@@ -1,10 +1,11 @@
 ---
-canonical_id: 01KQ12YDW7FX23NRJ4T83SQ6PV
-title: Postgresql Advanced Features
 type: article
-cluster: databases
 status: active
+cluster: databases
 date: '2026-04-25'
+title: PostgreSQL Advanced Features
+hubs:
+- DatabasesHub
 tags:
 - postgresql
 - jsonb
@@ -12,17 +13,15 @@ tags:
 - listen-notify
 - pgvector
 - ctes
-summary: The Postgres features that turn it from "a database" into "the only
-  database we need" — JSONB, LISTEN/NOTIFY, range types, CTEs, window functions,
-  pgvector, partitioning, and the reasons not to leave the boundary.
+summary: 'PostgreSQL features beyond basics: JSONB, LISTEN/NOTIFY, range types, CTEs,
+  pgvector, partitioning, logical replication, and when to reach for another store.'
 related:
 - DatabaseDesign
 - DatabaseIndexingStrategies
 - JsonbInPostgresql
 - VectorDatabases
 - DatabasePartitioning
-hubs:
-- DatabasesHub
+canonical_id: 01KQ12YDW7FX23NRJ4T83SQ6PV
 ---
 # PostgreSQL Advanced Features
 

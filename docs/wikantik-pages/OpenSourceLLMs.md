@@ -1,9 +1,21 @@
 ---
+type: article
+status: active
+date: '2026-04-25'
+cluster: agentic-ai
+title: Open Source LLMs
+hubs:
+- AgenticAiHub
+- AIInfrastructureHub
+tags:
+- open-source-llm
+- llama
+- mistral
+- qwen
+- self-hosted
 summary: The open-weights LLM landscape in 2026 — Llama, Mistral, Qwen, DeepSeek,
   the licensing shifts, and the production decisions (which model, what hardware,
   serving stack) that decide whether self-hosting wins or loses.
-date: '2026-04-25'
-cluster: agentic-ai
 related:
 - LLMFineTuning
 - ModelQuantization
@@ -11,18 +23,6 @@ related:
 - CpuInference
 - LlmTokenEconomicsAndPricing
 canonical_id: 01KQEKGDDT00GHX6TY2FARC8PB
-title: Open Source LLMs
-type: article
-tags:
-- open-source-llm
-- llama
-- mistral
-- qwen
-- self-hosted
-hubs:
-- AgenticAiHub
-- AIInfrastructureHub
-status: active
 ---
 # Open Source LLMs
 
@@ -151,7 +151,7 @@ Hardware:
 - **Datacenter**: H100 (80 GB), A100 (40 / 80 GB), H200 (141 GB) — large models.
 - **Apple Silicon**: M2/M3/M4 Ultra with up to 192 GB unified memory — surprising option for medium models on macOS.
 
-For most teams: an A100 80 GB or H100 serves a 70B at INT8 with reasonable batching. ~$3-5/hour cloud, or ~$30k purchase.
+For most teams: an A100 80 GB or H100 serves a 70B at INT8 with reasonable batching. ~\$3-5/hour cloud, or ~$30k purchase.
 
 ## Serving stacks
 

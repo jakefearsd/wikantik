@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44R1YDZQZKWH8PSA1PKW
-title: Identity Theft Protection
 type: article
-cluster: personal-finance
 status: active
+cluster: personal-finance
 date: '2026-04-26'
-summary: Practical layered defenses against identity theft — what actually reduces
-  risk, what services duplicate things you already have for free, and what to do in
-  the first 48 hours if you suspect theft.
+title: Identity Theft Protection
+hubs:
+- PersonalFinanceHub
 tags:
 - identity-theft
 - security
 - personal-finance
 - credit
 - fraud
+summary: Practical layered defenses against identity theft — what actually reduces
+  risk, what services duplicate things you already have for free, and what to do in
+  the first 48 hours if you suspect theft.
 related:
 - PersonalFinanceGuide
 - CreditScoreOptimization
 - FinancialResilience
 - InsuranceTypesAndCoverage
-hubs:
-- PersonalFinanceHub
+canonical_id: 01KQ0P44R1YDZQZKWH8PSA1PKW
 ---
 # Identity Theft Protection
 
@@ -30,7 +30,7 @@ This page is about the practical layered defense, what actually reduces risk, an
 
 ## What identity theft actually costs you
 
-Federal law caps your direct liability for unauthorized credit-card charges at $50, and most issuers waive even that. For debit cards reported within 2 days of unauthorized use, liability is also capped at $50; reporting within 60 days caps it at $500; after 60 days liability can be unlimited.
+Federal law caps your direct liability for unauthorized credit-card charges at \$50, and most issuers waive even that. For debit cards reported within 2 days of unauthorized use, liability is also capped at $50; reporting within 60 days caps it at \$500; after 60 days liability can be unlimited.
 
 The real cost of identity theft is not direct losses. It is:
 

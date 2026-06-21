@@ -1,17 +1,20 @@
 ---
+date: 2025-05-15T00:00:00Z
+summary: Technical patterns for evolving APIs without breaking clients. Covers Semantic
+  Versioning (SemVer), expansion/contraction patterns, and deprecation headers.
 cluster: software-architecture
+auto-generated: false
 canonical_id: 01KQ0P44MA4AT91KBPZG2XDV6E
-title: Backwards Compatibility Strategies
 type: article
+title: Backwards Compatibility Strategies
+status: active
 tags:
 - software-architecture
 - api-design
 - versioning
 - schema-evolution
-status: active
-date: 2025-05-15
-summary: Technical patterns for evolving APIs without breaking clients. Covers Semantic Versioning (SemVer), expansion/contraction patterns, and deprecation headers.
-auto-generated: false
+hubs:
+- BackwardsCompatibilityStrategiesHub
 ---
 
 # Backwards Compatibility: API Evolution

@@ -1,8 +1,16 @@
 ---
+title: 'Geothermal Discovery: A Methodological Framework'
+related:
+- AdventureTravelPlanning
+- BackpackingGuide
+- HealthyOnTheRoadAfter40
+- BestNationalParksForCouples
+- MathematicsHub
 cluster: van-life
-canonical_id: 01KQ0P44QYDFF8CTRP1DYTEARF
-title: "Geothermal Discovery: A Methodological Framework"
 type: article
+canonical_id: 01KQ0P44QYDFF8CTRP1DYTEARF
+summary: Framework for finding undocumented geothermal sites via SAR/hyperspectral
+  anomaly detection, tectonic modeling, and isotope geochemistry field validation.
 tags:
 - van-life
 - road-trip
@@ -10,13 +18,6 @@ tags:
 - remote-sensing
 - geospatial-data-mining
 - isotope-geochemistry
-summary: A rigorous, multi-modal framework for identifying and validating undocumented geothermal sites, focusing on predictive geological modeling, geospatial anomaly detection via SAR/Hyperspectral data, and field validation through isotope geochemistry.
-related:
-- AdventureTravelPlanning
-- BackpackingGuide
-- HealthyOnTheRoadAfter40
-- BestNationalParksForCouples
-- MathematicsHub
 ---
 
 # Geothermal Discovery: The Engineering of Geoscientific Exploration

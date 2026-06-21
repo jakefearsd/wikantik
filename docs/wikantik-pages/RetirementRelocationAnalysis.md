@@ -1,17 +1,20 @@
 ---
+date: 2025-05-15T00:00:00Z
+summary: A quantitative framework for evaluating retirement relocation, focusing on
+  tax arbitrage, state death taxes, and the 'Lock-in Effect'.
 cluster: retirement-planning
+auto-generated: false
 canonical_id: 01KQ0P44VP76869W9QE5G2CYSA
-title: Retirement Relocation Analysis
 type: article
+title: Retirement Relocation Analysis
+status: active
 tags:
 - taxes
 - relocation
 - retirement-planning
 - state-taxes
-status: active
-date: 2025-05-15
-summary: A quantitative framework for evaluating retirement relocation, focusing on tax arbitrage, state death taxes, and the 'Lock-in Effect'.
-auto-generated: false
+hubs:
+- DownsizingInRetirementHub
 ---
 
 # Retirement Relocation: Tax Arbitrage and Domicile Risk
@@ -27,10 +30,10 @@ States fall into three primary categories for retirees:
 
 ## 2. The "State Death Tax" Landscape
 
-Federal estate tax exemptions are currently high (~$13.6M), but many states have much lower "decoupling" thresholds for state-level estate or inheritance taxes.
-*   **Estate Tax:** Levied on the estate before distribution (e.g., MA and OR have thresholds as low as $1M or $2M).
+Federal estate tax exemptions are currently high (~\$13.6M), but many states have much lower "decoupling" thresholds for state-level estate or inheritance taxes.
+*   **Estate Tax:** Levied on the estate before distribution (e.g., MA and OR have thresholds as low as $1M or \$2M).
 *   **Inheritance Tax:** Levied on the beneficiary (e.g., PA, NJ, MD). Rates depend on the relationship of the heir to the deceased.
-*   *Optimization:* Relocating from MA to FL can save an estate with $5M in assets over $300k in state estate taxes alone.
+*   *Optimization:* Relocating from MA to FL can save an estate with $5M in assets over \$300k in state estate taxes alone.
 
 ## 3. Property Tax Volatility and Assessment
 

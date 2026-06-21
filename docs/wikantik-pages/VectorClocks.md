@@ -1,14 +1,15 @@
 ---
-cluster: distributed-systems
-canonical_id: 01KQ0P44YDF71XQT543DJFQZCA
 title: Vector Clocks
+cluster: distributed-systems
 type: article
+canonical_id: 01KQ0P44YDF71XQT543DJFQZCA
+summary: Formal analysis of Vector Clocks for tracking partial ordering and causal
+  consistency in asynchronous distributed systems.
 tags:
 - vector-clocks
 - logical-time
 - causality
 - distributed-systems
-summary: Formal analysis of Vector Clocks for tracking partial ordering and causal consistency in asynchronous distributed systems.
 auto-generated: false
 ---
 

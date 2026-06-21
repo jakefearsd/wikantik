@@ -1,17 +1,18 @@
 ---
-cluster: mechanical-engineering
-canonical_id: 01KQ0P44RS4M625QY4F0XFR5K7
-title: Levers and Mechanical Advantage
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: Three classes of levers, torque equilibrium, and Mechanical Advantage (MA)
+  calculations with efficiency corrections for real systems.
 tags:
 - mechanics
 - physics
 - levers
 - torque
-status: active
-date: 2025-05-15
-summary: A rigorous mathematical analysis of the three classes of levers, torque, and Mechanical Advantage (MA).
+type: article
 auto-generated: false
+cluster: mechanical-engineering
+canonical_id: 01KQ0P44RS4M625QY4F0XFR5K7
+title: Levers and Mechanical Advantage
 ---
 
 # Levers and Mechanical Advantage (MA)

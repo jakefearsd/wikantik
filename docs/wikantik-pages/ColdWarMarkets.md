@@ -1,18 +1,21 @@
 ---
-canonical_id: 01KQ0P44NMWXH7JVGM0EN403SE
-date: '2026-03-14'
-summary: How 44 years of Cold War shaped defence sector investing, oil-geopolitics
-  linkage, and the peace dividend
 cluster: geopolitics-and-finance
+title: Cold War Markets
 related:
 - ConflictsAndEquityMarkets
 - WorldWarTwoMarkets
 - GulfWarMarkets
 - ConflictMarketPatterns
+type: article
+summary: How 44 years of Cold War shaped defence sector investing, oil-geopolitics
+  linkage, and the peace dividend
+status: active
+date: '2026-03-14'
+canonical_id: 01KQ0P44NMWXH7JVGM0EN403SE
+hubs:
+- ConflictMarketPatternsHub
 part-of:
 - ConflictsAndEquityMarkets
-type: article
-status: active
 tags:
 - finance
 - cold-war
@@ -20,8 +23,6 @@ tags:
 - history
 - defence-sector
 - oil-crisis
-hubs:
-- ConflictMarketPatternsHub
 ---
 # The Cold War Era and Equity Markets (1947–1991)
 

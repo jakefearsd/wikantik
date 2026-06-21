@@ -1,18 +1,20 @@
 ---
-canonical_id: 01KQ0P44NXNZ4RNF95JAC2TABN
-summary: Testability refactor from service locator pattern to constructor dependency injection
+date: '2026-03-29'
+status: active
+summary: Testability refactor from service locator pattern to constructor dependency
+  injection
 tags:
 - development
 - testing
 - refactoring
 - dependency-injection
 type: article
-status: deployed
 cluster: wikantik-development
-date: '2026-03-29'
+canonical_id: 01KQ0P44NXNZ4RNF95JAC2TABN
 related:
 - TestStubConversion
 - WikantikDevelopment
+title: Constructor Injection
 ---
 # Constructor Injection
 

@@ -1,6 +1,17 @@
 ---
 date: 2026-03-18T00:00:00Z
+status: active
+summary: Hub for warehouse automation — the software, robotics, and systems that drive
+  modern fulfilment operations, and their known limitations
+tags:
+- warehouse
+- automation
+- robotics
+- logistics
+- supply-chain
 type: hub
+cluster: warehouse-automation
+canonical_id: 01KQ0P44YKQTTF1M0KS2X7DB0Z
 related:
 - WarehouseManagementSystems
 - WarehouseRobotics
@@ -9,17 +20,7 @@ related:
 - WarehouseAiAndMl
 - WarehouseAutomationLimitations
 - OperationsResearchHub
-cluster: warehouse-automation
-tags:
-- warehouse
-- automation
-- robotics
-- logistics
-- supply-chain
-canonical_id: 01KQ0P44YKQTTF1M0KS2X7DB0Z
-summary: Hub for warehouse automation — the software, robotics, and systems that drive
-  modern fulfilment operations, and their known limitations
-status: active
+title: Warehouse Automation
 ---
 # Warehouse Automation
 

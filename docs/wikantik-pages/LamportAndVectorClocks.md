@@ -1,21 +1,25 @@
 ---
-title: Lamport Clocks and Vector Clocks
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: An exploration of logical clocks used to establish event ordering and detect causality in distributed systems without a shared physical clock.
+summary: An exploration of logical clocks used to establish event ordering and detect
+  causality in distributed systems without a shared physical clock.
 tags:
 - distributed-systems
 - causality
 - logic
 - lamport-clocks
 - vector-clocks
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: extension_of, target_id: 01KQEKGD8QYAS6P09AM61S5E2W} # CS Foundations Hub
-- {type: related_to, target_id: 01KS7R8X8QYAS6P09AM61S5E2W} # Generation Clock
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: extension_of
+  target_id: 01KQEKGD8QYAS6P09AM61S5E2W
+- type: related_to
+  target_id: 01KS7R8X8QYAS6P09AM61S5E2W
+cluster: distributed-systems
 canonical_id: 01KS7V3M3QYAS6P09AM61S5E2Z
+title: Lamport Clocks and Vector Clocks
 ---
 
 # Lamport Clocks and Vector Clocks

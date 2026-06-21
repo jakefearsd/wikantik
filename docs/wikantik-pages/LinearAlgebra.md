@@ -1,13 +1,27 @@
 ---
-canonical_id: 01KQ12YDVK5NJ6W7MF9G57GKPQ
-cluster: mathematics
-title: Linear Algebra
-type: article
-tags: [linear-algebra, matrices, eigenvalues, vector-spaces, spectral-theorem, svd, transformations]
 date: '2026-05-09'
 status: active
-summary: A comprehensive guide to Linear Algebra, moving from vectors and matrices to the geometric intuition of transformations, eigendecomposition, and SVD, with real-world applications in computer science and data engineering.
-related: [AbstractAlgebra, DifferentialCalculus, NumericalMethods, MathematicsHub, MachineLearning, ComputerVision]
+summary: Vectors, matrices, and transformations to eigendecomposition and SVD — geometric
+  intuition with applications in search engines, PCA, and quantum computing.
+tags:
+- linear-algebra
+- matrices
+- eigenvalues
+- vector-spaces
+- spectral-theorem
+- svd
+- transformations
+type: article
+canonical_id: 01KQ12YDVK5NJ6W7MF9G57GKPQ
+cluster: mathematics
+related:
+- AbstractAlgebra
+- DifferentialCalculus
+- NumericalMethods
+- MathematicsHub
+- MachineLearning
+- ComputerVision
+title: Linear Algebra
 ---
 
 # Linear Algebra: The Mathematics of Space and Transformation

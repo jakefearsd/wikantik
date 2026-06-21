@@ -1,17 +1,18 @@
 ---
-cluster: warehouse-automation
-canonical_id: 01KQ0P44R7PJZXQ2B9S007Q4GR
-title: Inventory Management Strategies
-type: article
 tags:
 - logistics
 - supply-chain
 - inventory
 - eoq
 - abc-analysis
-summary: Advanced inventory optimization strategies, focusing on ABC analysis and the Economic Order Quantity (EOQ) framework.
-auto-generated: false
+cluster: warehouse-automation
+type: article
 date: 2025-02-13T00:00:00Z
+auto-generated: false
+canonical_id: 01KQ0P44R7PJZXQ2B9S007Q4GR
+summary: Advanced inventory optimization strategies, focusing on ABC analysis and
+  the Economic Order Quantity (EOQ) framework.
+title: Inventory Management Strategies
 ---
 
 # Inventory Management: ABC Analysis and EOQ Frameworks

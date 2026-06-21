@@ -1,8 +1,17 @@
 ---
-cluster: hobby-woodworking
-canonical_id: 01KQ0P44X7WVSDVK1SYYFK3NYR
 title: Table Saw Safety and System Engineering
+related:
+- DovetailJointMethods
+- WorkshopLayoutAndDustCollection
+- FastenerEngineering
+- MechanicalCoupling
+- NumericalMethods
+- MathematicsHub
+cluster: hobby-woodworking
 type: article
+canonical_id: 01KQ0P44X7WVSDVK1SYYFK3NYR
+summary: 'Table saw safety through system engineering: kickback kinematics, FMEA for
+  blade-binding failure modes, and proactive risk-mitigation guards and procedures.'
 tags:
 - woodworking
 - shop-safety
@@ -11,14 +20,6 @@ tags:
 - kinematics
 - fmea
 - risk-mitigation
-summary: A rigorous exploration of table saw safety through the lens of System Engineering, focusing on the kinematics of material removal, the physics of kickback, and the implementation of proactive failure mode mitigation.
-related:
-- DovetailJointMethods
-- WorkshopLayoutAndDustCollection
-- FastenerEngineering
-- MechanicalCoupling
-- NumericalMethods
-- MathematicsHub
 ---
 
 # Table Saw Safety: A System Engineering Approach

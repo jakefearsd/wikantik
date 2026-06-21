@@ -1,9 +1,23 @@
 ---
-date: 2026-03-21T02:00:00Z
 status: active
+type: hub
 hubs:
 - PersonalFinanceHub
 - IndexFundInvestingForEarlyRetirement
+- EuRetirementSavingsGuide
+- LowCostIndexFundInvestingHub
+- TypesofInvestmentAccountsTutorialHub
+- DownsizingInRetirementHub
+date: 2026-03-21T02:00:00Z
+cluster: retirement-planning
+title: Retirement Planning Guide
+tags:
+- retirement
+- financial-planning
+- decumulation
+- tax-strategy
+summary: Strategic decision frameworks for retirement planning — income, taxes, healthcare,
+  and how each choice constrains the others
 related:
 - SocialSecurityClaimingStrategy
 - RothConversionStrategy
@@ -16,15 +30,19 @@ related:
 - MonteCarloRetirementPlanning
 - GuardrailsSpendingStrategy
 - IndexFundInvestingForEarlyRetirement
-cluster: retirement-planning
+- AnnuitiesVsSystematicWithdrawals
+- BondLaddersForRetirementIncome
+- BucketStrategyForRetirement
+- CalculatingYourFiNumber
+- CharitableGivingInRetirement
+- EstatePlanningForRetirees
+- MilitaryRetirementBenefits
+- PartTimeWorkInRetirement
+- PreMedicareBridgeStrategies
+- RetirementPlanningForWomen
+- RetirementSpendingPatterns
+- SecureActRetirementChanges
 canonical_id: 01KQ0P44VPKV01K0CMG0RNZ71A
-type: hub
-tags:
-- retirement
-- financial-planning
-- decumulation
-- tax-strategy
-summary: Strategic decision frameworks for retirement planning — income, taxes, healthcare, and how each choice constrains the others
 ---
 
 

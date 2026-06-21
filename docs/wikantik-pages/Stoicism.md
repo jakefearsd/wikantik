@@ -1,16 +1,17 @@
 ---
-cluster: philosophy
 canonical_id: 01KQ0P44WZ7QEE42XSWE3A1KPZ
 title: Stoicism
-type: article
 tags:
 - resilience
-- OODA-loop
+- ooda-loop
 - engineering
 - stoicism
-date: 2025-05-15
-summary: An integration of Stoic principles with the OODA loop for emotional regulation and decision-making in high-stakes engineering.
+cluster: philosophy
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+summary: Stoic principles integrated with the OODA loop for emotional regulation and
+  rational decision-making in high-stakes engineering and incident response.
 ---
 
 # Stoicism: The OODA Loop and High-Stakes Engineering

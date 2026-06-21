@@ -1,8 +1,17 @@
 ---
+title: 'Supply Chain Visibility: The Architecture of Certainty'
+related:
+- WarehouseAutomationHub
+- SupplyChainAndLogisticsOptimization
+- BlockchainProvenance
+- MachineLearning
+- GeopoliticalRisk
+- MathematicsHub
 cluster: warehouse-automation
-canonical_id: 01KQ0P44X4AWQY22RHVHXZ57HK
-title: "Supply Chain Visibility: The Architecture of Certainty"
 type: article
+canonical_id: 01KQ0P44X4AWQY22RHVHXZ57HK
+summary: 'Supply chain visibility (SCV): multi-modal IoT sensor fusion, DLT-based
+  audit trails, and prescriptive autonomous execution engines for end-to-end transparency.'
 tags:
 - supply-chain
 - visibility
@@ -12,14 +21,6 @@ tags:
 - smart-contracts
 - edge-computing
 - interoperability
-summary: A rigorous exploration of supply chain visibility (SCV) as a cognitive orchestration platform, focusing on the integration of multi-modal IoT sensor fusion, immutable DLT-based audit trails, and the implementation of prescriptive autonomous execution engines.
-related:
-- WarehouseAutomationHub
-- SupplyChainAndLogisticsOptimization
-- BlockchainProvenance
-- MachineLearning
-- GeopoliticalRisk
-- MathematicsHub
 ---
 
 # Supply Chain Visibility: The Architecture of Total Transparency

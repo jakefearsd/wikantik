@@ -1,19 +1,22 @@
 ---
-title: Heartbeat and Lease Patterns
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A set of complementary patterns used to detect node failures (Heartbeat) and manage resource ownership (Lease) in a decentralized environment.
+summary: A set of complementary patterns used to detect node failures (Heartbeat)
+  and manage resource ownership (Lease) in a decentralized environment.
 tags:
 - distributed-systems
 - coordination
 - failure-detection
 - locks
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: related_to, target_id: 01KS7R8X8QYAS6P09AM61S5E2W} # Generation Clock
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: related_to
+  target_id: 01KS7R8X8QYAS6P09AM61S5E2W
+cluster: distributed-systems
 canonical_id: 01KS7S9Y9QYAS6P09AM61S5E2X
+title: Heartbeat and Lease Patterns
 ---
 
 # Heartbeat and Lease Patterns

@@ -1,7 +1,7 @@
 ---
-canonical_id: 01KQRPCRTW9GSE359WVS9FJQRM
-date: 2026-05-03T00:00:00Z
-cluster: devops-sre
+summary: Unified production monitoring standard for Wikantik — OpenTelemetry instrumentation,
+  Prometheus metrics naming, and Grafana dashboard patterns.
+title: Observability and Monitoring Blueprint
 tags:
 - observability
 - monitoring
@@ -11,12 +11,11 @@ tags:
 - metrics
 - health-checks
 - sre
-title: Observability and Monitoring Blueprint
-summary: A unified technical standard for production monitoring across the Wikantik
-  project ecosystem. Defines consistent instrumentation using OpenTelemetry, Prometheus
-  metrics standards, and Grafana dashboard patterns to ensure high-fidelity operational
-  visibility.
+cluster: devops-sre
+type: reference
+date: 2026-05-03T00:00:00Z
 status: active
+canonical_id: 01KQRPCRTW9GSE359WVS9FJQRM
 ---
 
 # Observability & Monitoring: The Unified Blueprint

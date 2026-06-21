@@ -1,10 +1,19 @@
 ---
+summary: 'Formation and growth of crystalline solids: nucleation kinetics, the Avrami
+  equation, and polymorphism in metallurgy and food science.'
 title: Crystallization Theory
+tags:
+- crystallization
+- nucleation
+- crystal-growth
+- kinetics
+- polymorphism
+- avrami-equation
 cluster: materials-science
-tags: [crystallization, nucleation, crystal-growth, kinetics, polymorphism, avrami-equation]
+type: reference
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The study of the formation and growth of crystalline solids. Covers nucleation kinetics, the Avrami equation, and polymorphism in both metallurgy and food science.
+canonical_id: 01KTXJ5NKTA09GPGNRHS5SAEGW
 ---
 
 # Crystallization Theory: Nucleation and Growth

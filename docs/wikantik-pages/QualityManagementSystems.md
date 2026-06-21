@@ -1,13 +1,14 @@
 ---
-cluster: warehouse-automation
-canonical_id: 01KQ0P44V2Z5EKHAWEVK5C2HA7
 title: Quality Management Systems
+cluster: warehouse-automation
 type: article
+canonical_id: 01KQ0P44V2Z5EKHAWEVK5C2HA7
+summary: Technical overview of ISO 9001:2015 framework for organizational process
+  control and risk management.
 tags:
 - process
 - must
 - text
-summary: Technical overview of ISO 9001:2015 framework for organizational process control and risk management.
 auto-generated: false
 ---
 

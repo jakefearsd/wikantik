@@ -1,7 +1,15 @@
 ---
-title: 'Spectral Graph Theory: The Acoustics of Data'
-canonical_id: 01KRQDWQQ02GZH0ZXVZYSDC4QS
-cluster: mathematics
+status: active
+date: '2026-05-15'
+summary: Graph Laplacian eigendecomposition as graph frequencies, spectral clustering,
+  Graph Fourier Transform, and the spectral gap as a measure of network robustness.
+tags:
+- graph-theory
+- linear-algebra
+- gnn
+- spectral-analysis
+- network-science
+type: article
 relations:
 - type: component_of
   target_id: 01KQ2P44XMGA8E1E7GAT4AYV43
@@ -9,18 +17,9 @@ relations:
   target_id: 01KQ12YDVK5NJ6W7MF9G57GKPQ
 - type: component_of
   target_id: 01KRTB67YHJ96D0PBJ1NEJDY23
-type: article
-tags:
-- graph-theory
-- linear-algebra
-- gnn
-- spectral-analysis
-- network-science
-summary: Conceptual introduction to Spectral Graph Theory, treating graphs as physical
-  resonators and eigenvectors of the Laplacian as fundamental vibrational modes for
-  networked data analysis.
-status: active
-date: '2026-05-15'
+canonical_id: 01KRQDWQQ02GZH0ZXVZYSDC4QS
+cluster: mathematics
+title: 'Spectral Graph Theory: The Acoustics of Data'
 ---
 
 # Spectral Graph Theory: The Acoustics of Data

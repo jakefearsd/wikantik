@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44N2KBG3F8213TGFFPF4
-title: Charitable Giving in Retirement
 type: article
-cluster: retirement-planning
 status: active
+cluster: retirement-planning
 date: '2026-04-26'
-summary: How to give in retirement tax-efficiently — qualified charitable distributions
-  (QCDs), donor-advised funds, charitable trusts, and the timing patterns that maximize
-  both impact and tax benefit.
+title: Charitable Giving in Retirement
+hubs:
+- RetirementPlanningGuide
 tags:
 - charitable-giving
 - qcd
 - donor-advised-fund
 - retirement
 - estate-planning
+summary: How to give in retirement tax-efficiently — qualified charitable distributions
+  (QCDs), donor-advised funds, charitable trusts, and the timing patterns that maximize
+  both impact and tax benefit.
 related:
 - WillsAndTrusts
 - TaxPlanningForRetirementAccountWithdrawals
 - RequiredMinimumDistributions
 - EstatePlanningForRetirees
-hubs:
-- RetirementPlanningGuide
+canonical_id: 01KQ0P44N2KBG3F8213TGFFPF4
 ---
 # Charitable Giving in Retirement
 
@@ -34,7 +34,7 @@ The most powerful retirement-specific giving tool.
 
 ### How it works
 
-After age 70.5, you can direct up to $100K/year (indexed to ~$108K in 2025) from your IRA directly to a qualified charity. The amount counts toward your Required Minimum Distribution (RMD) but is excluded from your taxable income.
+After age 70.5, you can direct up to \$100K/year (indexed to ~$108K in 2025) from your IRA directly to a qualified charity. The amount counts toward your Required Minimum Distribution (RMD) but is excluded from your taxable income.
 
 ### Why it matters
 
@@ -48,7 +48,7 @@ For retirees in higher brackets or those who don't itemize anyway, QCD is dramat
 
 - Custodian must transfer directly from IRA to charity
 - Charity must be 501(c)(3); donor-advised funds and private foundations don't qualify
-- $108K limit per spouse (so married couples can do $216K)
+- \$108K limit per spouse (so married couples can do $216K)
 - Counts toward RMD on a dollar-for-dollar basis
 - Reported on Form 1099-R, then excluded on tax return
 

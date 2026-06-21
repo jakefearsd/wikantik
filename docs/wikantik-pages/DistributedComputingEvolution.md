@@ -1,12 +1,8 @@
 ---
-canonical_id: 01KQ0P44PSDYPG5MY8RH2DM5GT
-type: article
-cluster: distributed-systems
-status: active
-summary: Thirty years of distributed computing — from CORBA and client-server to cloud-native
-  microservices, event-driven architecture, and modern best practices for reliability,
-  observability, and scale
 date: '2026-03-20'
+status: active
+summary: 'Thirty years of distributed computing: CORBA and client-server to cloud-native
+  microservices, event-driven architecture, and modern reliability practices.'
 tags:
 - distributed-systems
 - cloud-native
@@ -14,11 +10,15 @@ tags:
 - architecture
 - technology
 - best-practices
+type: article
+cluster: distributed-systems
+canonical_id: 01KQ0P44PSDYPG5MY8RH2DM5GT
 related:
 - TheFutureOfMachineLearning
 - LlmsSinceTwentyTwenty
 - EmbeddedAiOnLimitedHardware
 - FoundationalAlgorithmsForComputerScientists
+title: Distributed Computing Evolution
 ---
 # Distributed Computing Evolution
 

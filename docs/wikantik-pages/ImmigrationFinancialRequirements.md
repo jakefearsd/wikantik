@@ -1,8 +1,19 @@
 ---
-canonical_id: 01KQ0P44R1DZ0X4FSY6XPSFVW2
+date: 2026-03-14T00:00:00Z
 summary: Understanding the I-864 Affidavit of Support — income thresholds, what counts
   as income, joint sponsors, and what to do when you fall short
-date: 2026-03-14T00:00:00Z
+cluster: spousal-green-card
+related:
+- SpousalGreenCardGuide
+- FilingTheI130Petition
+- AdjustmentOfStatusProcess
+- ConsularProcessingPath
+canonical_id: 01KQ0P44R1DZ0X4FSY6XPSFVW2
+part-of:
+- SpousalGreenCardGuide
+type: article
+title: Immigration Financial Requirements (I-864)
+status: active
 tags:
 - immigration
 - green-card
@@ -10,15 +21,7 @@ tags:
 - i-864
 - affidavit-of-support
 - financial
-related:
-- SpousalGreenCardGuide
-- FilingTheI130Petition
-- AdjustmentOfStatusProcess
-- ConsularProcessingPath
-type: article
-cluster: spousal-green-card
-status: active
-part-of:
+hubs:
 - SpousalGreenCardGuide
 ---
 # Immigration Financial Requirements
@@ -43,7 +46,7 @@ The sponsor's household income must meet or exceed **125% of the Federal Poverty
 | 3 | $32,188 |
 | 4 | $38,825 |
 | 5 | $45,463 |
-| 6 | $52,100 |
+| 6 | \$52,100 |
 
 *Alaska and Hawaii have higher thresholds. Check the USCIS I-864P Poverty Guidelines page for current numbers.*
 
@@ -83,7 +86,7 @@ If your income is below the threshold, you can use **assets** to make up the dif
 
 For spousal cases, the multiplier is 3x (not 5x as for other family categories). 
 
-Example: If the threshold is $25,550 and your income is $20,000, the shortfall is $5,550. You would need $5,550 x 3 = $16,650 in net assets.
+Example: If the threshold is $25,550 and your income is \$20,000, the shortfall is $5,550. You would need $5,550 x 3 = $16,650 in net assets.
 
 Acceptable assets include:
 - Savings and checking account balances

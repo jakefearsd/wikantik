@@ -1,24 +1,27 @@
 ---
-canonical_id: 01KQ0P44VYPZ8476AVA9DV9NSB
+cluster: russia-ukraine-war
+title: 'Russia-Ukraine War: Energy Infrastructure War'
+related:
+- RussiaUkraineWarOverview
+- RussiaUkraineWarHumanitarianCrisis
 summary: Russia's systematic campaign against Ukraine's energy infrastructure and
   its devastating impact
+type: article
 date: '2026-03-13'
+status: active
+canonical_id: 01KQ0P44VYPZ8476AVA9DV9NSB
+hubs:
+- RussiaUkraineWarOverview
+part-of:
+- RussiaUkraineWarOverview
 tags:
-- Russia
-- Ukraine
+- russia
+- ukraine
 - war
 - energy
 - infrastructure
 - electricity
 - winter
-related:
-- RussiaUkraineWarOverview
-- RussiaUkraineWarHumanitarianCrisis
-type: article
-cluster: russia-ukraine-war
-status: active
-part-of:
-- RussiaUkraineWarOverview
 ---
 # The Energy Infrastructure War
 

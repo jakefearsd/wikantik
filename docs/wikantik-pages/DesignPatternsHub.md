@@ -1,24 +1,24 @@
 ---
-summary: Index of pages on software design patterns — when each pattern actually applies,
-  the language for naming common solutions, and the cases where the pattern is more
-  about communication than novelty.
+type: hub
+status: active
 date: '2026-04-26'
 cluster: design-patterns
-related:
+title: Design Patterns
+hubs:
 - SoftwareEngineeringPracticesHub
 - JavaHub
-canonical_id: 01KZHC6PVW4SBQM9R0F3T7K8Z9
-type: hub
-title: DesignPatternsHub
 tags:
 - design-patterns
 - software-design
 - hub
 - patterns
 - architecture
-status: active
-hubs:
+summary: Index of software design patterns — when each applies, shared naming vocabulary,
+  and cases where the pattern value is communication rather than novelty.
+related:
 - SoftwareEngineeringPracticesHub
+- JavaHub
+canonical_id: 01KZHC6PVW4SBQM9R0F3T7K8Z9
 ---
 # DesignPatterns Hub
 

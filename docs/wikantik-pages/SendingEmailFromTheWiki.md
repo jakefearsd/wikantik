@@ -1,4 +1,254 @@
 ---
+date: '2026-05-04'
+status: active
+summary: 'Configure Wikantik transactional email (verification, password reset) via
+  SMTP relay: Brevo, SendGrid, Mailjet, Amazon SES, and JNDI session setup.'
+tags:
+- email
+- smtp
+- wikantik-development
+- configuration
+- transactional-email
+type: article
 canonical_id: 01KQ0P44W8B80CNNQM2VFNCFP0
+cluster: wikantik-development
+related:
+- PostgreSQLLocalDeployment
+- DockerDeployment
+title: Sending Email from the Wiki
 ---
----\ncluster: wikantik-development\ncanonical_id: 01KQ0P44W8B80CNNQM2VFNCFP0\ntype: article\ntags:\n- ai\n- technology\nsummary: This guide explains how to configure Wikantik to send transactional emails\n  (account verification, password reset, notifications) from a self-hosted installation.\n---\n# Sending Email from the Wiki\n\nThis guide explains how to configure Wikantik to send transactional emails (account verification, password reset, notifications) from a self-hosted installation.\n\n## Why You Need an Email Relay Service\n\nSending email directly from a home server will fail because:\n- Residential IPs are universally blacklisted by spam filters\n- ISPs typically block outbound port 25\n- No reverse DNS (PTR) record for your IP\n- Emails will land in spam or be rejected outright\n\n  - You need a transactional email relay service.**\n\n---\n\n## Recommended Email Services\n\n    1. 1. Brevo (formerly Sendinblue) - Best Free Tier\n\n- **Free**: 300 emails/day (9,000/month)\n- Excellent deliverability\n- Simple SMTP setup\n- No credit card required for free tier\n- Website: https://www.brevo.com\n\n    1. 2. SendGrid (Twilio) - Most Popular\n\n- **Free**: 100 emails/day forever (3,000/month)\n- Very reliable, well-documented\n- Requires credit card even for free tier\n- Website: https://sendgrid.com\n\n    1. 3. Mailjet\n\n- **Free**: 200 emails/day (6,000/month)\n- Good deliverability\n- Easy setup\n- Website: https://www.mailjet.com\n\n    1. 4. Amazon SES - Cheapest at Scale\n\n- **Cost**: $0.10 per 1,000 emails\n- Requires AWS account\n- More complex setup, but excellent once configured\n- Website: https://aws.amazon.com/ses/\n\n    1. 5. Resend - Modern Option\n\n- **Free**: 3,000 emails/month\n- Modern API, developer-friendly\n- Good deliverability\n- Website: https://resend.com\n\n  - For low volume (few hundred emails per week), Brevo or SendGrid free tiers are more than sufficient.**\n\n---\n\n## Step-by-Step Setup\n\nThis example uses Brevo, but the process is similar for other providers.\n\n### Step 1: Sign Up for Email Service\n\n1. Go to https://www.brevo.com\n2. Create a free account\n3. Verify your email address\n\n### Step 2: Add and Verify Your Sending Domain\n\n1. In Brevo dashboard, go to **Senders \u0026 IP** → **Domains**\n2. Add your domain (e.g., `jakefear.com` or `wiki.jakefear.com`)\n3. Brevo will provide DNS records to add\n\n### Step 3: Configure DNS Records\n\nAdd the DNS records provided by your email service. Typical records include:\n\n| Type | Host | Value | Purpose |\n|------|------|-------|---------|\n| TXT | `@` | `v\u003dspf1 include:sendinblue.com ~all` | SPF - authorizes service to send |\n| TXT | `mail._domainkey` | `k\u003drsa; p\u003dMIGf...` | DKIM - email signing |\n| TXT | `_dmarc` | `v\u003dDMARC1; p\u003dquarantine; rua\u003dmailto:...` | DMARC - policy |\n\n  - Note**: If you already have an SPF record, merge them:\n```\nv\u003dspf1 include:existing.com include:sendinblue.com ~all\n```\n\n### Step 4: Get SMTP Credentials\n\nIn your email service dashboard:\n1. Navigate to SMTP settings\n2. Note down:\n   - SMTP Server (e.g., `smtp-relay.brevo.com`)\n   - Port: `587` (TLS) or `465` (SSL)\n   - Login/Username\n   - Password or API Key\n\n### Step 5: Configure Wikantik\n\nAdd to your `wikantik-custom.properties`:\n\n```properties\n# Email configuration\nmail.from \u003d Wikantik \u003cwiki@yourdomain.com\u003e\nmail.smtp.host \u003d smtp-relay.brevo.com\nmail.smtp.port \u003d 587\nmail.smtp.account \u003d your-login@email.com\nmail.smtp.password \u003d your-smtp-key-here\nmail.smtp.starttls.enable \u003d true\nmail.smtp.timeout \u003d 5000\nmail.smtp.connectiontimeout \u003d 5000\n```\n\n### Step 6: Test Email\n\n1. Restart Tomcat\n2. Create a new user account in Wikantik\n3. Check if verification email arrives\n4. Check your email service dashboard for delivery logs\n\n---\n\n## Alternative: JNDI Configuration (More Secure)\n\nTo keep credentials out of properties files, configure the mail session in Tomcat\u0027s context file.\n\nAdd to your `Wikantik.xml` (in `conf/Catalina/localhost/`):\n\n```xml\n\u003cResource name\u003d\"mail/Session\"\n          auth\u003d\"Container\"\n          type\u003d\"jakarta.mail.Session\"\n          mail.smtp.host\u003d\"smtp-relay.brevo.com\"\n          mail.smtp.port\u003d\"587\"\n          mail.smtp.auth\u003d\"true\"\n          mail.smtp.starttls.enable\u003d\"true\"\n          mail.smtp.user\u003d\"your-login@email.com\"\n          password\u003d\"your-smtp-key-here\"\n          mail.from\u003d\"wiki@yourdomain.com\"/\u003e\n```\n\nWikantik will automatically use the JNDI session `mail/Session` when available.\n\n---\n\n## SMTP Settings by Provider\n\n### Brevo (Sendinblue)\n\n```properties\nmail.smtp.host \u003d smtp-relay.brevo.com\nmail.smtp.port \u003d 587\nmail.smtp.starttls.enable \u003d true\n```\n\n### SendGrid\n\n```properties\nmail.smtp.host \u003d smtp.sendgrid.net\nmail.smtp.port \u003d 587\nmail.smtp.account \u003d apikey\nmail.smtp.password \u003d SG.your-api-key-here\nmail.smtp.starttls.enable \u003d true\n```\n\n### Mailjet\n\n```properties\nmail.smtp.host \u003d in-v3.mailjet.com\nmail.smtp.port \u003d 587\nmail.smtp.starttls.enable \u003d true\n```\n\n### Amazon SES\n\n```properties\nmail.smtp.host \u003d email-smtp.us-east-1.amazonaws.com\nmail.smtp.port \u003d 587\nmail.smtp.starttls.enable \u003d true\n```\n\n---\n\n## Wikantik Mail Properties Reference\n\n| Property | Default | Description |\n|----------|---------|-------------|\n| `mail.from` | `${user.name}@${mail.smtp.host}` | The sender email address |\n| `mail.smtp.host` | `127.0.0.1` | SMTP server hostname |\n| `mail.smtp.port` | `25` | SMTP server port |\n| `mail.smtp.account` | (not set) | SMTP username for authentication |\n| `mail.smtp.password` | (not set) | SMTP password for authentication |\n| `mail.smtp.starttls.enable` | `true` | Enable TLS encryption |\n| `mail.smtp.timeout` | `5000` | Socket I/O timeout (ms) |\n| `mail.smtp.connectiontimeout` | `5000` | Connection timeout (ms) |\n| `jspwiki.mail.jndiname` | `mail/Session` | JNDI name for container-managed session |\n\n---\n\n## Troubleshooting\n\n### Emails Not Sending\n\n1. Check Tomcat logs for mail-related errors\n2. Verify SMTP credentials are correct\n3. Ensure port 587 outbound is not blocked by firewall\n4. Check email service dashboard for rejected/bounced messages\n\n### Emails Going to Spam\n\n1. Verify SPF, DKIM, and DMARC records are properly configured\n2. Use a \"from\" address that matches your verified domain\n3. Allow 24-48 hours for DNS changes to propagate\n4. Check your domain\u0027s reputation at https://mxtoolbox.com\n\n### Authentication Errors\n\n1. Some services require API keys instead of passwords\n2. SendGrid uses `apikey` as the username with API key as password\n3. Ensure special characters in passwords are properly escaped\n\n### Connection Timeouts\n\n1. Try port 465 (SSL) instead of 587 (TLS)\n2. Check if your ISP blocks outbound SMTP ports\n3. Increase timeout values in configuration\n\n---\n\n## Related Documentation\n\n- [PostgreSQL Local Deployment](PostgreSQLLocalDeployment) - Local development setup\n- [Wikantik Properties Reference](https://wiki.wikantik.com/Wiki.jsp?page\u003dDocumentation) - Full configuration options\n",expectedContentHash:
+# Sending Email from the Wiki
+
+This guide explains how to configure Wikantik to send transactional emails (account verification, password reset, notifications) from a self-hosted installation.
+
+## Why You Need an Email Relay Service
+
+Sending email directly from a home server will fail because:
+- Residential IPs are universally blacklisted by spam filters
+- ISPs typically block outbound port 25
+- No reverse DNS (PTR) record for your IP
+- Emails will land in spam or be rejected outright
+
+**You need a transactional email relay service.**
+
+---
+
+## Recommended Email Services
+
+### 1. Brevo (formerly Sendinblue) — Best Free Tier
+
+- **Free**: 300 emails/day (9,000/month)
+- Excellent deliverability
+- Simple SMTP setup
+- No credit card required for free tier
+- Website: https://www.brevo.com
+
+### 2. SendGrid (Twilio) — Most Popular
+
+- **Free**: 100 emails/day forever (3,000/month)
+- Very reliable, well-documented
+- Requires credit card even for free tier
+- Website: https://sendgrid.com
+
+### 3. Mailjet
+
+- **Free**: 200 emails/day (6,000/month)
+- Good deliverability
+- Easy setup
+- Website: https://www.mailjet.com
+
+### 4. Amazon SES — Cheapest at Scale
+
+- **Cost**: $0.10 per 1,000 emails
+- Requires AWS account
+- More complex setup, but excellent once configured
+- Website: https://aws.amazon.com/ses/
+
+### 5. Resend — Modern Option
+
+- **Free**: 3,000 emails/month
+- Modern API, developer-friendly
+- Good deliverability
+- Website: https://resend.com
+
+**For low volume (few hundred emails per week), Brevo or SendGrid free tiers are more than sufficient.**
+
+---
+
+## Step-by-Step Setup
+
+This example uses Brevo, but the process is similar for other providers.
+
+### Step 1: Sign Up for Email Service
+
+1. Go to https://www.brevo.com
+2. Create a free account
+3. Verify your email address
+
+### Step 2: Add and Verify Your Sending Domain
+
+1. In Brevo dashboard, go to **Senders & IP** → **Domains**
+2. Add your domain (e.g., `jakefear.com` or `wiki.jakefear.com`)
+3. Brevo will provide DNS records to add
+
+### Step 3: Configure DNS Records
+
+Add the DNS records provided by your email service. Typical records include:
+
+| Type | Host | Value | Purpose |
+|------|------|-------|---------|
+| TXT | `@` | `v=spf1 include:sendinblue.com ~all` | SPF - authorizes service to send |
+| TXT | `mail._domainkey` | `k=rsa; p=MIGf...` | DKIM - email signing |
+| TXT | `_dmarc` | `v=DMARC1; p=quarantine; rua=mailto:...` | DMARC - policy |
+
+**Note**: If you already have an SPF record, merge them:
+```
+v=spf1 include:existing.com include:sendinblue.com ~all
+```
+
+### Step 4: Get SMTP Credentials
+
+In your email service dashboard:
+1. Navigate to SMTP settings
+2. Note down:
+   - SMTP Server (e.g., `smtp-relay.brevo.com`)
+   - Port: `587` (TLS) or `465` (SSL)
+   - Login/Username
+   - Password or API Key
+
+### Step 5: Configure Wikantik
+
+Add to your `wikantik-custom.properties`:
+
+```properties
+# Email configuration
+mail.from = Wikantik <wiki@yourdomain.com>
+mail.smtp.host = smtp-relay.brevo.com
+mail.smtp.port = 587
+mail.smtp.account = your-login@email.com
+mail.smtp.password = your-smtp-key-here
+mail.smtp.starttls.enable = true
+mail.smtp.timeout = 5000
+mail.smtp.connectiontimeout = 5000
+```
+
+### Step 6: Test Email
+
+1. Restart Tomcat
+2. Create a new user account in Wikantik
+3. Check if verification email arrives
+4. Check your email service dashboard for delivery logs
+
+---
+
+## Alternative: JNDI Configuration (More Secure)
+
+To keep credentials out of properties files, configure the mail session in Tomcat's context file.
+
+Add to your `Wikantik.xml` (in `conf/Catalina/localhost/`):
+
+```xml
+<Resource name="mail/Session"
+          auth="Container"
+          type="jakarta.mail.Session"
+          mail.smtp.host="smtp-relay.brevo.com"
+          mail.smtp.port="587"
+          mail.smtp.auth="true"
+          mail.smtp.starttls.enable="true"
+          mail.smtp.user="your-login@email.com"
+          password="your-smtp-key-here"
+          mail.from="wiki@yourdomain.com"/>
+```
+
+Wikantik will automatically use the JNDI session `mail/Session` when available.
+
+---
+
+## SMTP Settings by Provider
+
+### Brevo (Sendinblue)
+
+```properties
+mail.smtp.host = smtp-relay.brevo.com
+mail.smtp.port = 587
+mail.smtp.starttls.enable = true
+```
+
+### SendGrid
+
+```properties
+mail.smtp.host = smtp.sendgrid.net
+mail.smtp.port = 587
+mail.smtp.account = apikey
+mail.smtp.password = SG.your-api-key-here
+mail.smtp.starttls.enable = true
+```
+
+### Mailjet
+
+```properties
+mail.smtp.host = in-v3.mailjet.com
+mail.smtp.port = 587
+mail.smtp.starttls.enable = true
+```
+
+### Amazon SES
+
+```properties
+mail.smtp.host = email-smtp.us-east-1.amazonaws.com
+mail.smtp.port = 587
+mail.smtp.starttls.enable = true
+```
+
+---
+
+## Wikantik Mail Properties Reference
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `mail.from` | `${user.name}@${mail.smtp.host}` | The sender email address |
+| `mail.smtp.host` | `127.0.0.1` | SMTP server hostname |
+| `mail.smtp.port` | `25` | SMTP server port |
+| `mail.smtp.account` | (not set) | SMTP username for authentication |
+| `mail.smtp.password` | (not set) | SMTP password for authentication |
+| `mail.smtp.starttls.enable` | `true` | Enable TLS encryption |
+| `mail.smtp.timeout` | `5000` | Socket I/O timeout (ms) |
+| `mail.smtp.connectiontimeout` | `5000` | Connection timeout (ms) |
+| `jspwiki.mail.jndiname` | `mail/Session` | JNDI name for container-managed session |
+
+---
+
+## Troubleshooting
+
+### Emails Not Sending
+
+1. Check Tomcat logs for mail-related errors
+2. Verify SMTP credentials are correct
+3. Ensure port 587 outbound is not blocked by firewall
+4. Check email service dashboard for rejected/bounced messages
+
+### Emails Going to Spam
+
+1. Verify SPF, DKIM, and DMARC records are properly configured
+2. Use a "from" address that matches your verified domain
+3. Allow 24-48 hours for DNS changes to propagate
+4. Check your domain's reputation at https://mxtoolbox.com
+
+### Authentication Errors
+
+1. Some services require API keys instead of passwords
+2. SendGrid uses `apikey` as the username with API key as password
+3. Ensure special characters in passwords are properly escaped
+
+### Connection Timeouts
+
+1. Try port 465 (SSL) instead of 587 (TLS)
+2. Check if your ISP blocks outbound SMTP ports
+3. Increase timeout values in configuration
+
+---
+
+## Related Documentation
+
+- [PostgreSQL Local Deployment](PostgreSQLLocalDeployment) — Local development setup
+- [Docker Deployment](DockerDeployment) — Container deployment guide

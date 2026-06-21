@@ -1,15 +1,16 @@
 ---
-cluster: distributed-systems
-canonical_id: 01KQ0P44NAWVZHSMT53N7KE319
 title: Clock Synchronization
+cluster: distributed-systems
 type: article
+canonical_id: 01KQ0P44NAWVZHSMT53N7KE319
+summary: Technical analysis of clock drift, offset estimation (NTP), and precision
+  synchronization (PTP) in distributed clusters.
 tags:
 - clock-synchronization
 - distributed-systems
 - ntp
 - ptp
 - observability
-summary: Technical analysis of clock drift, offset estimation (NTP), and precision synchronization (PTP) in distributed clusters.
 auto-generated: false
 ---
 

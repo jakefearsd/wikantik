@@ -1,8 +1,16 @@
 ---
-cluster: warehouse-automation
-canonical_id: 01KQ0P44SG6Y0NC4YRN48W4XER
 title: Micro Fulfillment Centers
+related:
+- WarehouseAutomationHub
+- SupplyChainAndLogisticsOptimization
+- OperationsResearchHub
+- MachineLearning
+- NumericalMethods
+cluster: warehouse-automation
 type: article
+canonical_id: 01KQ0P44SG6Y0NC4YRN48W4XER
+summary: 'MFCs and Dark Stores as hyper-local urban logistics nodes: P-Median site
+  selection, vertical AS/RS density optimization, and AMR-driven order orchestration.'
 tags:
 - micro-fulfillment
 - dark-stores
@@ -11,13 +19,6 @@ tags:
 - asrs
 - amr
 - facility-location-theory
-summary: A rigorous exploration of Micro-Fulfillment Centers (MFCs) and Dark Stores as hyper-local urban logistics nodes, focusing on P-Median site selection modeling, vertical storage density optimization, and the integration of autonomous mobile robotics (AMRs).
-related:
-- WarehouseAutomationHub
-- SupplyChainAndLogisticsOptimization
-- OperationsResearchHub
-- MachineLearning
-- NumericalMethods
 ---
 
 # Micro-Fulfillment Centers: The Architecture of Hyper-Local Delivery

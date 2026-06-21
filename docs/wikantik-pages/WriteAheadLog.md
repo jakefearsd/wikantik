@@ -1,20 +1,23 @@
 ---
-title: Write-Ahead Log (WAL)
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A fundamental durability pattern that ensures all state changes are persisted to a sequential log before being applied to the data store.
+summary: A fundamental durability pattern that ensures all state changes are persisted
+  to a sequential log before being applied to the data store.
 tags:
 - distributed-systems
 - durability
 - storage-engine
 - paxos
 - raft
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: related_to, target_id: 01KS6S8Z8QYAS6P09AM61S5E2O} # Raft/Consensus
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: related_to
+  target_id: 01KS6S8Z8QYAS6P09AM61S5E2O
+cluster: distributed-systems
 canonical_id: 01KS7M5J8QYAS6P09AM61S5E2T
+title: Write-Ahead Log (WAL)
 ---
 
 # Write-Ahead Log (WAL)

@@ -1,11 +1,18 @@
 ---
+canonical_id: 01KVJMS0Z562HA1KTGD7PA30BE
 title: Data Lakehouse
+tags:
+- data-lakehouse
+- apache-iceberg
+- acid
+- data-engineering
 type: article
 cluster: data-engineering
-status: active
-date: 2026-05-20
-summary: Level 4 of the Data Maturity Lifecycle. Technical deep dive into Apache Iceberg metadata and ACID compliance on object storage.
+date: 2026-05-20T00:00:00Z
 auto-generated: false
+status: active
+summary: Level 4 of the Data Maturity Lifecycle. Technical deep dive into Apache Iceberg
+  metadata and ACID compliance on object storage.
 ---
 
 # Data Lakehouse: Level 4 Maturity

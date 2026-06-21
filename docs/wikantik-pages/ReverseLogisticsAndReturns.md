@@ -1,8 +1,17 @@
 ---
+title: 'Reverse Logistics: The Architecture of Value Recovery'
+related:
+- WarehouseAutomationHub
+- SupplyChainAndLogisticsOptimization
+- OperationsResearchHub
+- MachineLearning
+- BlockchainProvenance
+- MathematicsHub
 cluster: warehouse-automation
-canonical_id: 01KQ0P44VS0K9MZCWK3E90V49W
-title: "Reverse Logistics: The Architecture of Value Recovery"
 type: article
+canonical_id: 01KQ0P44VS0K9MZCWK3E90V49W
+summary: 'Reverse logistics and returns: Product Utility Retention (PUR), Value Decay
+  Function modeling, and Reinforcement Learning for disposition routing.'
 tags:
 - reverse-logistics
 - returns-management
@@ -11,14 +20,6 @@ tags:
 - triage
 - reinforcement-learning
 - disposition-routing
-summary: A rigorous exploration of reverse logistics as a value extraction system, focusing on the Product Utility Retention (PUR) metric, the modeling of Value Decay Functions, and the application of Reinforcement Learning for dynamic disposition routing.
-related:
-- WarehouseAutomationHub
-- SupplyChainAndLogisticsOptimization
-- OperationsResearchHub
-- MachineLearning
-- BlockchainProvenance
-- MathematicsHub
 ---
 
 # Reverse Logistics: The Architecture of Value Recovery

@@ -1,15 +1,16 @@
 ---
-cluster: engineering-leadership
-canonical_id: 01KQ0P44MBET902V219JJZVYQ2
-title: Balanced Scorecard
-type: article
 tags:
 - engineering-leadership
 - strategic-management
 - bsc
 - performance-metrics
 - organizational-design
-summary: A rigorous exploration of the Balanced Scorecard (BSC) framework, focusing on the causal logic of the strategy map, the identification of leading indicators, and the integration of BSC with OKRs and DevOps metrics.
+type: article
+summary: The Balanced Scorecard (BSC) framework — causal logic of the strategy map,
+  leading vs. lagging indicators, and integrating BSC with OKRs and DevOps metrics.
+title: Balanced Scorecard
+cluster: engineering-leadership
+canonical_id: 01KQ0P44MBET902V219JJZVYQ2
 ---
 
 # Balanced Scorecard: The Architecture of Strategic Alignment

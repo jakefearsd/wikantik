@@ -1,15 +1,16 @@
 ---
-cluster: cooking-and-food
-canonical_id: 01KQ0P44N3TC914XEXSVE35F3N
-title: Chocolate Tempering
-type: article
 tags:
 - food-science
 - materials-engineering
 - crystallization
 - polymorphism
 - thermodynamics
-summary: A rigorous exploration of chocolate tempering as a controlled phase transition, focusing on cocoa butter polymorphism, the kinetics of nucleation, and advanced non-thermal crystallization techniques.
+type: article
+summary: Cocoa butter polymorphism, nucleation kinetics, and non-thermal crystallization
+  techniques for achieving Form V crystal structure in chocolate tempering.
+title: Chocolate Tempering
+cluster: cooking-and-food
+canonical_id: 01KQ0P44N3TC914XEXSVE35F3N
 ---
 
 # Chocolate Tempering: The Physics of Crystalline Management

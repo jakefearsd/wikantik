@@ -1,16 +1,17 @@
 ---
-cluster: devops-sre
 canonical_id: 01KQ0P44WE0GVZNGYFJ0NT6TXJ
 title: Site Reliability Engineering
-type: article
 tags:
-- SRE
-- SLO
-- SLI
+- sre
+- slo
+- sli
 - error-budget
-date: 2025-05-15
-summary: A technical guide to the SRE triad—SLIs, SLOs, and Error Budgets—focusing on the math of reliability and the policy of feature freezes.
+cluster: devops-sre
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+summary: A technical guide to the SRE triad—SLIs, SLOs, and Error Budgets—focusing
+  on the math of reliability and the policy of feature freezes.
 ---
 
 # Site Reliability Engineering: SLO Math and Error Budgets

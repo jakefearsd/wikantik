@@ -1,23 +1,26 @@
 ---
-canonical_id: 01KQ0P44S8HP77Q0MRBRDHY3CQ
+date: 2026-03-14T00:00:00Z
 summary: Understanding the visa categories for marriage-based immigration — IR-1,
   CR-1, K-1, and K-3, and why the distinction matters
-date: 2026-03-14T00:00:00Z
+cluster: spousal-green-card
+related:
+- SpousalGreenCardGuide
+- FilingTheI130Petition
+- AdjustmentOfStatusProcess
+- ConsularProcessingPath
+canonical_id: 01KQ0P44S8HP77Q0MRBRDHY3CQ
+part-of:
+- SpousalGreenCardGuide
+type: article
+title: Marriage-Based Immigration Categories
+status: active
 tags:
 - immigration
 - green-card
 - spouse
 - visa-categories
 - uscis
-related:
-- SpousalGreenCardGuide
-- FilingTheI130Petition
-- AdjustmentOfStatusProcess
-- ConsularProcessingPath
-type: article
-cluster: spousal-green-card
-status: active
-part-of:
+hubs:
 - SpousalGreenCardGuide
 ---
 # Marriage-Based Immigration Categories

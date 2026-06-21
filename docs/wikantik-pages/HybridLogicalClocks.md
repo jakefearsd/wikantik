@@ -1,21 +1,25 @@
 ---
-title: Hybrid Logical Clocks (HLC)
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A sophisticated clock pattern that combines physical wall time with logical counters to provide causality-tracking timestamps without specialized hardware.
+summary: A sophisticated clock pattern that combines physical wall time with logical
+  counters to provide causality-tracking timestamps without specialized hardware.
 tags:
 - distributed-systems
 - causality
 - consistency
 - time
 - cockroachdb
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: related_to, target_id: 01KS7V3M3QYAS6P09AM61S5E2Z} # Lamport/Vector Clocks
-- {type: alternative_to, target_id: "TrueTime"}
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: related_to
+  target_id: 01KS7V3M3QYAS6P09AM61S5E2Z
+- type: alternative_to
+  target_id: TrueTime
+cluster: distributed-systems
 canonical_id: 01KS7W4N4R838D4EYVWFA9F36D
+title: Hybrid Logical Clocks (HLC)
 ---
 
 # Hybrid Logical Clocks (HLC)

@@ -1,15 +1,8 @@
 ---
-title: 'Machine Learning for Investing: A Survey'
-cluster: machine-learning
-canonical_id: 01KRTB67YHJ96D0PBJ1NEJDY23
-relations:
-- type: component_of
-  target_id: 01KQ0P44NVFH6WVSSJ39P1PVPB
-- type: component_of
-  target_id: 01KQEKGDDVHTHY07CQ3YKSQ5PA
-- type: extension_of
-  target_id: 01KQ3P44XMGA8E1E7GAT4AYV43
-type: article
+status: active
+date: '2026-05-15'
+summary: Causal Factor Investing, HRP 2025 proofs, Bayesian Neural Networks for uncertainty-aware
+  sizing, and GNNs for supply chain risk in investment management.
 tags:
 - machine-learning
 - investing
@@ -19,12 +12,17 @@ tags:
 - bayesian-neural-networks
 - gnn
 - portfolio-optimization
-summary: A comprehensive 2026 survey of AI/ML in investment management. Covers Causal
-  Factor Investing, Hierarchical Risk Parity (HRP) 2025 proofs, Bayesian Neural Networks
-  for uncertainty-aware sizing, and Graph Neural Networks for systemic supply chain
-  risk.
-status: active
-date: '2026-05-15'
+type: article
+relations:
+- type: component_of
+  target_id: 01KQ0P44NVFH6WVSSJ39P1PVPB
+- type: component_of
+  target_id: 01KQEKGDDVHTHY07CQ3YKSQ5PA
+- type: extension_of
+  target_id: 01KQ3P44XMGA8E1E7GAT4AYV43
+cluster: machine-learning
+canonical_id: 01KRTB67YHJ96D0PBJ1NEJDY23
+title: 'Machine Learning for Investing: A Survey'
 ---
 
 # Machine Learning for Investing: A Survey

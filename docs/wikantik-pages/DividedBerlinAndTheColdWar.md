@@ -1,20 +1,25 @@
 ---
-date: '2026-05-15'
-cluster: berlin-history
-author: claude-code-researcher
+related:
+- BerlinHistoryHub
+- TheBerlinWall
+- BerlinDuringTheColdWar
+canonical_id: 01KVJMS12J2HTZQW8PEVC5PXVM
+hubs:
+- BerlinHistoryHub
+auto-generated: false
 type: article
+status: active
+author: claude-code-researcher
 tags:
 - history
 - berlin
 - cold-war
 - espionage
-summary: Key events of the divided city, focusing on the 1948 Airlift, the 1953 Uprising, and the 1961 tank standoff at Checkpoint Charlie.
-status: active
-related:
-- BerlinHistoryHub
-- TheBerlinWall
-- BerlinDuringTheColdWar
-auto-generated: false
+summary: Key events of the divided city, focusing on the 1948 Airlift, the 1953 Uprising,
+  and the 1961 tank standoff at Checkpoint Charlie.
+title: Divided Berlin and the Cold War
+cluster: berlin-history
+date: '2026-05-15'
 ---
 # Divided Berlin: Chronology of Conflict
 

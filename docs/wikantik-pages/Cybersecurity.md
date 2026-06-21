@@ -1,16 +1,17 @@
 ---
-cluster: security
 canonical_id: 01KQ0P44P64FBZ39K8QDZNSNSQ
 title: Cybersecurity
-type: article
 tags:
 - mitre-attack
 - defense-in-depth
 - security-architecture
 - cybersecurity
-date: 2025-05-15
-summary: A comprehensive guide to Cybersecurity Architecture, the MITRE ATT&CK framework, and defense-in-depth protocols for resilient systems.
+cluster: security
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+summary: MITRE ATT&CK framework, defense-in-depth architecture, and core security
+  protocols (mTLS, ZTA, SIEM/SOAR) for resilient system design.
 ---
 
 # Cybersecurity: MITRE ATT&CK and Defense-in-Depth

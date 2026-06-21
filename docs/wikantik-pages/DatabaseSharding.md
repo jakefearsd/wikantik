@@ -1,20 +1,24 @@
 ---
-title: Database Sharding and Consistent Hashing
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A deep-dive into horizontal partitioning (Sharding) and the mathematical mechanism (Consistent Hashing) that enables elastic scalability with minimal data movement.
+summary: A deep-dive into horizontal partitioning (Sharding) and the mathematical
+  mechanism (Consistent Hashing) that enables elastic scalability with minimal data
+  movement.
 tags:
 - distributed-systems
 - sharding
 - consistent-hashing
 - storage-architecture
 - horizontal-scaling
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: related_to, target_id: 01KS7P9Z8QYAS6P09AM61S5E2V} # Leader/Follower
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: related_to
+  target_id: 01KS7P9Z8QYAS6P09AM61S5E2V
+cluster: distributed-systems
 canonical_id: 01KS7Z7R7U838D4EYVWFA9F36G
+title: Database Sharding and Consistent Hashing
 ---
 
 # Database Sharding and Consistent Hashing

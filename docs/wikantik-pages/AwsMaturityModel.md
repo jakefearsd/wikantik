@@ -1,8 +1,11 @@
 ---
+type: article
+status: active
 date: '2026-05-10'
-summary: An exhaustive engineering guide to AWS adoption — covering the technical
-  bootstrap of Landing Zones (Day 0), operational limits of Control Tower (Day 2),
-  and AI-driven autonomous governance.
+cluster: cloud-platforms
+title: 'AWS Maturity Model: Engineering Bootstrap to Autonomous Governance'
+requires:
+- AWS Control Tower
 tags:
 - aws
 - cloud-maturity
@@ -10,18 +13,14 @@ tags:
 - landing-zone
 - iac
 - finops
-type: article
-canonical_id: 01KR79P88TQM4XWVKQHC1X5RWQ
-cluster: cloud-platforms
+summary: 'AWS adoption phases: Landing Zone + Control Tower SCPs (Day 0), account-vending
+  limits and Transit Gateway topology (Day 1–2), AI-driven autonomous governance.'
 related:
 - AwsFundamentals
 - CloudCostOptimization
 - CloudRoiFramework
 - TerraformFundamentals
-title: 'AWS Maturity Model: Engineering Bootstrap to Autonomous Governance'
-status: active
-requires:
-- AWS Control Tower
+canonical_id: 01KR79P88TQM4XWVKQHC1X5RWQ
 ---
 # AWS Maturity Model: Engineering Bootstrap to Autonomous Governance
 

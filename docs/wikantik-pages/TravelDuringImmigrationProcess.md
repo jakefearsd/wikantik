@@ -1,8 +1,16 @@
 ---
+title: 'Travel During Immigration: The AOS Paradox'
+related:
+- H1bVisaProcess
+- NaturalizationProcess
+- ImmigrationPolicyOverview
+- RiskManagement
+- MathematicsHub
 cluster: immigration
-canonical_id: 01KQ0P44XX7QG0DP0QH8C7B4AW
-title: "Travel During Immigration: The AOS Paradox"
 type: article
+canonical_id: 01KQ0P44XX7QG0DP0QH8C7B4AW
+summary: 'Travel while I-485 AOS is pending: Advanced Parole (I-131) mechanics, intent
+  paradox, abandonment risk modeling, and consular re-entry vulnerabilities.'
 tags:
 - immigration-law
 - travel-authorization
@@ -12,13 +20,6 @@ tags:
 - i-131
 - i-485
 - risk-modeling
-summary: A rigorous exploration of international travel while an Adjustment of Status (AOS) application is pending, focusing on the procedural paradox of intent, the mechanics of Advanced Parole (AP), and the quantitative modeling of abandonment risk.
-related:
-- H1bVisaProcess
-- NaturalizationProcess
-- ImmigrationPolicyOverview
-- RiskManagement
-- MathematicsHub
 ---
 
 # Travel During Immigration: The Jurisprudence of the Travel Gap

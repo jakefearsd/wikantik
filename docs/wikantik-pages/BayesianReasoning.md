@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ12YDSM0FJVYR50JQBGT844
-title: Bayesian Reasoning
 type: article
-cluster: mathematics
 status: active
+cluster: mathematics
 date: '2026-04-25'
+title: Bayesian Reasoning
+hubs:
+- MathematicsHub
 tags:
 - bayesian
 - probability
 - inference
 - mcmc
 - statistics
-summary: A comprehensive guide to Bayesian epistemology, practical reasoning frameworks, geometric shrinkage, and applications like spam filtering and legal probability.
+summary: Bayesian epistemology, MAP as penalized regression, geometric shrinkage,
+  and the base-rate fallacy — with applications in spam filtering and legal probability.
 related:
 - ProbabilityTheory
 - MarkovChainFundamentals
 - LinearAlgebra
 - ClusteringAlgorithms
 - BayesianHyperparameterTuning
-hubs:
-- MathematicsHub
+canonical_id: 01KQ12YDSM0FJVYR50JQBGT844
 ---
 
 # Bayesian Reasoning: Logic Under Uncertainty

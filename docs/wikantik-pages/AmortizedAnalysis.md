@@ -1,14 +1,16 @@
 ---
-cluster: data-structures
-canonical_id: 01KQ0P44KR05W9831EAHEXK7JT
-title: Amortized Analysis
-type: article
 tags:
 - algorithms
 - complexity
 - amortized-analysis
 - data-structures
-summary: A rigorous exploration of amortized analysis techniques, focusing on the Accounting Method, formal proofs for dynamic structures, and the theoretical unification with the Potential Method.
+type: article
+summary: Amortized analysis techniques — Accounting Method, Potential Method, and
+  formal proofs for dynamic structures including dynamic arrays, Fibonacci heaps,
+  and DSU.
+title: Amortized Analysis
+cluster: data-structures
+canonical_id: 01KQ0P44KR05W9831EAHEXK7JT
 ---
 
 # Amortized Analysis: Complexity Accounting and Structural Guarantees

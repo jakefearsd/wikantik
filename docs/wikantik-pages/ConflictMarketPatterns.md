@@ -1,9 +1,6 @@
 ---
-canonical_id: 01KQ0P44NVEKCRM3FA3EDTA9KQ
-date: '2026-03-14'
-summary: 'Cross-cutting analysis of recurring market patterns across all major conflicts:
-  uncertainty premium, sector rotation, recovery speed, policy response importance'
 cluster: geopolitics-and-finance
+title: Conflict Market Patterns
 related:
 - ConflictsAndEquityMarkets
 - WorldWarOneMarkets
@@ -12,10 +9,16 @@ related:
 - GulfWarMarkets
 - WarOnTerrorMarkets
 - RussiaUkraineWarMarkets
+type: article
+summary: 'Cross-cutting analysis of recurring market patterns across all major conflicts:
+  uncertainty premium, sector rotation, recovery speed, policy response importance'
+status: active
+date: '2026-03-14'
+canonical_id: 01KQ0P44NVEKCRM3FA3EDTA9KQ
+hubs:
+- ConflictMarketPatternsHub
 part-of:
 - ConflictsAndEquityMarkets
-type: article
-status: active
 tags:
 - finance
 - equity-markets
@@ -23,8 +26,6 @@ tags:
 - patterns
 - sector-rotation
 - investment-lessons
-hubs:
-- ConflictMarketPatternsHub
 ---
 # Patterns Across Conflicts: What Markets Teach Us About War
 

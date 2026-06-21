@@ -1,17 +1,18 @@
 ---
-cluster: warehouse-automation
-canonical_id: 01KQ0P44RQWXE676639HTNEJYM
-title: Last Mile Delivery Optimization
-type: article
 tags:
 - logistics
 - transportation
 - algorithms
 - tsp
 - routing
-summary: Advanced algorithms for last-mile delivery, focusing on TSP variants and route-density math for urban logistics.
-auto-generated: false
+cluster: warehouse-automation
+type: article
 date: 2025-02-13T00:00:00Z
+auto-generated: false
+canonical_id: 01KQ0P44RQWXE676639HTNEJYM
+summary: Advanced algorithms for last-mile delivery, focusing on TSP variants and
+  route-density math for urban logistics.
+title: Last Mile Delivery Optimization
 ---
 
 # Last Mile Delivery: TSP Algorithms and Route Density

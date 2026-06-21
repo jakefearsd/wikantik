@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44SBDF63NSSJFTH4C7Y5
-date: 2026-03-15T00:00:00Z
-summary: Strategies for maximizing contributions across all available retirement account
-  types, including contribution limits, employer matches, mega backdoor Roth, and
-  prioritization frameworks.
-cluster: retirement-planning
-related:
-- TaxBenefitsOfRetirementAccounts
-- TypesofInvestmentAccountsTutorial
-- HealthSavingsAccounts
-title: Maximizing Retirement Account Contributions
 type: article
-status: published
+status: active
+date: 2026-03-15T00:00:00Z
+cluster: retirement-planning
+title: Maximizing Retirement Account Contributions
+hubs:
+- TypesofInvestmentAccountsTutorialHub
 tags:
 - retirement
 - savings
 - 401k
-- IRA
-- HSA
+- ira
+- hsa
 - contributions
-hubs:
-- TypesofInvestmentAccountsTutorialHub
+summary: Strategies for maximizing contributions across all available retirement account
+  types, including contribution limits, employer matches, mega backdoor Roth, and
+  prioritization frameworks.
+related:
+- TaxBenefitsOfRetirementAccounts
+- TypesofInvestmentAccountsTutorial
+- HealthSavingsAccounts
+canonical_id: 01KQ0P44SBDF63NSSJFTH4C7Y5
 ---
 
 # Maximizing Retirement Account Contributions
@@ -31,13 +31,13 @@ Contribution room in tax-advantaged accounts is a finite, non-renewable resource
 
 | Account | Under 50 | 50+ | 60–63 |
 |---------|---------|-----|-------|
-| 401(k) / 403(b) employee | $23,500 | $31,000 | $34,750 |
+| 401(k) / 403(b) employee | $23,500 | $31,000 | \$34,750 |
 | IRA (Traditional or Roth) | $7,000 | $8,000 | $8,000 |
 | HSA (Individual) | $4,300 | $5,300 | $5,300 |
 | HSA (Family) | $8,550 | $9,550 | $9,550 |
-| 401(k) total (employee + employer) | $70,000 | $77,500 | $81,250 |
+| 401(k) total (employee + employer) | $70,000 | $77,500 | \$81,250 |
 
-SECURE 2.0 introduced a "super catch-up" for ages 60–63 starting in 2025, providing an additional $11,250 in 401(k)/403(b) catch-up contributions (up from $7,500 for the standard 50+ catch-up).
+SECURE 2.0 introduced a "super catch-up" for ages 60–63 starting in 2025, providing an additional $11,250 in 401(k)/403(b) catch-up contributions (up from \$7,500 for the standard 50+ catch-up).
 
 ## The Contribution Priority Framework
 
@@ -53,7 +53,7 @@ If eligible, maximize your HSA next. The [Health Savings Account](HealthSavingsA
 
 ### 3. Roth IRA (Tax-Free Growth)
 
-If your income is below the phase-out thresholds ($150,000–$165,000 single; $236,000–$246,000 married filing jointly for 2025), contribute directly to a Roth IRA. If above, use the Backdoor Roth IRA strategy (see below).
+If your income is below the phase-out thresholds ($150,000–$165,000 single; $236,000–\$246,000 married filing jointly for 2025), contribute directly to a Roth IRA. If above, use the Backdoor Roth IRA strategy (see below).
 
 ### 4. Max Out 401(k) Employee Contributions
 
@@ -61,7 +61,7 @@ Increase your 401(k) contributions to the employee maximum ($23,500 in 2025). Wh
 
 ### 5. Mega Backdoor Roth (If Available)
 
-If your 401(k) plan allows after-tax contributions and in-service distributions or in-plan Roth conversions, you can contribute up to the total 401(k) limit ($70,000 in 2025) minus employee and employer contributions, then convert to Roth.
+If your 401(k) plan allows after-tax contributions and in-service distributions or in-plan Roth conversions, you can contribute up to the total 401(k) limit (\$70,000 in 2025) minus employee and employer contributions, then convert to Roth.
 
 ### 6. Taxable Brokerage Account
 
@@ -78,7 +78,7 @@ For high earners above the Roth IRA income limits:
 
 ## The Mega Backdoor Roth
 
-This strategy allows contributing an additional $35,000+ to Roth accounts beyond normal limits:
+This strategy allows contributing an additional \$35,000+ to Roth accounts beyond normal limits:
 
 1. Make **after-tax contributions** to your 401(k) up to the total annual limit
 2. Immediately convert those after-tax contributions to **Roth** (either in-plan Roth conversion or rollover to Roth IRA)
@@ -97,8 +97,8 @@ If one spouse does not work or earns very little, the working spouse can fund a 
 
 Self-employed individuals and small business owners have additional options:
 
-- **Solo 401(k)**: Both employee ($23,500) and employer (25% of net self-employment income) contributions, up to $70,000 total. Can include Roth contributions.
-- **SEP IRA**: Employer contributions up to 25% of net self-employment income, max $70,000. Simpler to administer than Solo 401(k) but no employee/Roth contributions.
+- **Solo 401(k)**: Both employee (\$23,500) and employer (25% of net self-employment income) contributions, up to $70,000 total. Can include Roth contributions.
+- **SEP IRA**: Employer contributions up to 25% of net self-employment income, max \$70,000. Simpler to administer than Solo 401(k) but no employee/Roth contributions.
 - **SIMPLE IRA**: $16,500 employee contribution ($17,500 if 50+), plus mandatory employer match or contribution. Lower limits but simpler for businesses with employees.
 
 ## Automating Contributions

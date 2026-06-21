@@ -1,17 +1,18 @@
 ---
-cluster: wikantik-development
-canonical_id: 01KQ0P44SXF2N2KAP11ANNF92F
-title: Advanced Search Term Engineering
-type: article
 tags:
 - search
 - rag
 - information-retrieval
 - embeddings
 - query-optimization
-summary: Deep dive into query engineering for RAG systems, moving beyond basic semantic search to expert-grade, multi-faceted retrieval.
+cluster: wikantik-development
+type: article
+date: 2026-04-30T00:00:00Z
 status: active
-date: 2026-04-30
+canonical_id: 01KQ0P44SXF2N2KAP11ANNF92F
+summary: Deep dive into query engineering for RAG systems, moving beyond basic semantic
+  search to expert-grade, multi-faceted retrieval.
+title: Advanced Search Term Engineering
 ---
 # Advanced Search Term Engineering for State-of-the-Art RAG Systems
 

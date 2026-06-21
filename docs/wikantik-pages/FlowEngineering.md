@@ -1,7 +1,7 @@
 ---
-canonical_id: 01KQQ73TY09BCB35TV94P0B9E1
-date: 2026-05-03T00:00:00Z
-cluster: agentic-ai
+summary: 'Flow engineering: constraining LLM agents with explicit DAG state machines
+  (the AlphaCodium pattern) instead of open ReAct loops for robust execution.'
+title: Flow Engineering
 tags:
 - agentic-ai
 - flow-engineering
@@ -10,11 +10,11 @@ tags:
 - alphacodium
 - agent-architecture
 - orchestration
-title: Flow Engineering
-summary: Explores the shift from unconstrained ReAct loops to explicit Flow Engineering.
-  Details how to design deterministic, DAG-based state machines (like the AlphaCodium
-  pattern) to constrain LLM hallucinations and guarantee robust agent execution.
+cluster: agentic-ai
+type: article
+date: 2026-05-03T00:00:00Z
 status: active
+canonical_id: 01KQQ73TY09BCB35TV94P0B9E1
 ---
 
 # Flow Engineering: Taming the Agentic Loop

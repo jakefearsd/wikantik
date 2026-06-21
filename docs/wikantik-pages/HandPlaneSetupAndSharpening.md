@@ -1,8 +1,16 @@
 ---
-cluster: hobby-woodworking
-canonical_id: 01KQ0P44QT7248W7PF6MFZC5HE
 title: Hand Plane Setup and Sharpening
+related:
+- DovetailJointMethods
+- WorkshopLayoutAndDustCollection
+- FastenerEngineering
+- NumericalMethods
+- MathematicsHub
+cluster: hobby-woodworking
 type: article
+canonical_id: 01KQ0P44QT7248W7PF6MFZC5HE
+summary: 'Hand plane mechanics and maintenance: blade-steel metallurgy, tribology
+  of the wood-steel interface, and body calibration for consistent, tear-free cuts.'
 tags:
 - woodworking
 - hand-planes
@@ -10,13 +18,6 @@ tags:
 - metallurgy
 - tribology
 - precision-tuning
-summary: A rigorous exploration of hand plane mechanics and maintenance, focusing on the metallurgy of cutting edges, the tribology of the wood-steel interface, and the systemic calibration of the tool body for sub-micron precision.
-related:
-- DovetailJointMethods
-- WorkshopLayoutAndDustCollection
-- FastenerEngineering
-- NumericalMethods
-- MathematicsHub
 ---
 
 # Hand Plane Mastery: Metallurgy, Tribology, and Systemic Calibration

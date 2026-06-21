@@ -1,21 +1,25 @@
 ---
-title: CQRS and Event Sourcing
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A pair of architectural patterns that separate read and write models (CQRS) and represent state as a sequence of immutable events (Event Sourcing).
+summary: A pair of architectural patterns that separate read and write models (CQRS)
+  and represent state as a sequence of immutable events (Event Sourcing).
 tags:
 - distributed-systems
 - cqrs
 - event-sourcing
 - reactive-systems
 - audit-trail
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: extension_of, target_id: FunctionalProgrammingFoundations}
-- {type: related_to, target_id: 01KS7X5P5S838D4EYVWFA9F36E} # Saga Pattern
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: extension_of
+  target_id: FunctionalProgrammingFoundations
+- type: related_to
+  target_id: 01KS7X5P5S838D4EYVWFA9F36E
+cluster: distributed-systems
 canonical_id: 01KS7Y6Q6T938D4EYVWFA9F36F
+title: CQRS and Event Sourcing
 ---
 
 # CQRS and Event Sourcing

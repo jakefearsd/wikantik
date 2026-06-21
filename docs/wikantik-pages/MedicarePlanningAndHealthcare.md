@@ -1,31 +1,31 @@
 ---
-date: 2026-03-14T00:00:00Z
-summary: Healthcare planning for retirement — the pre-Medicare ACA bridge, Medicare
-  enrollment, IRMAA surcharges, and how healthcare costs connect to Roth conversion
-  and income management decisions
 cluster: retirement-planning
+title: Medicare Planning and Healthcare
 related:
 - RetirementPlanningGuide
 - RothConversionStrategy
 - SocialSecurityClaimingStrategy
 - RetirementWithdrawalSequencing
 - HealthSavingsAccounts
+type: article
+summary: Pre-Medicare ACA bridge, Medicare enrollment, IRMAA surcharges, and how healthcare
+  costs connect to Roth conversion and income management in retirement.
+status: active
+date: 2026-03-14T00:00:00Z
 canonical_id: 01KQ0P44SDB8R1HSQQEHDXG5YT
+hubs:
+- RetirementPlanningGuide
 part-of:
 - RetirementPlanningGuide
-type: article
-status: active
 tags:
 - personal-finance
 - retirement-planning
 - healthcare
 - medicare
-hubs:
-- RetirementPlanningGuide
 ---
 # Medicare Planning and Healthcare in Retirement
 
-Healthcare is the most underestimated retirement expense. A 65-year-old couple retiring today can expect to spend $315,000 or more on healthcare through retirement (Fidelity, 2024 estimate) — and that excludes long-term care. For those retiring before 65, the pre-Medicare gap can cost $15,000-$25,000 per year.
+Healthcare is the most underestimated retirement expense. A 65-year-old couple retiring today can expect to spend \$315,000 or more on healthcare through retirement (Fidelity, 2024 estimate) — and that excludes long-term care. For those retiring before 65, the pre-Medicare gap can cost $15,000-\$25,000 per year.
 
 More importantly, healthcare costs are not independent of your other retirement decisions. Your Roth conversion strategy, Social Security timing, and withdrawal sequencing all affect your healthcare costs through IRMAA surcharges and ACA subsidy calculations.
 
@@ -41,7 +41,7 @@ Premium Tax Credits reduce your monthly premiums based on income relative to the
 |----------------|----------|----------------------------|
 | $20,440 | 100% | Maximum — you may pay $50-100/month total |
 | $40,880 | 200% | Substantial — premiums capped at ~4% of income |
-| $55,000 | 270% | Moderate — premiums capped at ~6% of income |
+| \$55,000 | 270% | Moderate — premiums capped at ~6% of income |
 | $81,760 | 400% | Cliff — above this, no subsidies (pre-2021 rules) |
 
 **Current law (through 2025 extension)**: The "cliff" has been replaced with a cap of 8.5% of income for everyone. This may revert — check current rules.
@@ -57,10 +57,10 @@ Since ACA subsidies are MAGI-based, every dollar of income affects your healthca
 
 **The balancing act**: You want to do Roth conversions during gap years (see [Roth Conversion Strategy](RothConversionStrategy)) but each dollar converted reduces your ACA subsidy. The optimal strategy converts enough to fill low tax brackets while staying below the subsidy cliff (if it exists) or accepting a reasonable subsidy reduction.
 
-**Example**: A couple with $60,000 in annual expenses can:
+**Example**: A couple with \$60,000 in annual expenses can:
 1. Withdraw $60,000 from Roth accounts for living expenses (no MAGI impact)
-2. Convert $40,000 from Traditional to Roth (MAGI = $40,000)
-3. Receive substantial ACA subsidies on that $40,000 income
+2. Convert \$40,000 from Traditional to Roth (MAGI = $40,000)
+3. Receive substantial ACA subsidies on that \$40,000 income
 4. Pay ~12% tax on the conversion
 5. Net result: low healthcare costs, low conversion taxes, steady Roth pipeline
 
@@ -71,10 +71,10 @@ Since ACA subsidies are MAGI-based, every dollar of income affects your healthca
 | Part | Coverage | Cost (2026 approximate) | Enrollment |
 |------|----------|------------------------|------------|
 | Part A | Hospital insurance | $0 for most (paid via payroll taxes) | Automatic at 65 |
-| Part B | Outpatient, doctor visits | ~$185/month base premium | Must enroll — penalty for delay |
+| Part B | Outpatient, doctor visits | ~\$185/month base premium | Must enroll — penalty for delay |
 | Part C | Medicare Advantage (private plans combining A+B+D) | Varies by plan | Optional alternative to Original Medicare |
 | Part D | Prescription drugs | ~$35-55/month | Must enroll — penalty for delay |
-| Medigap | Supplemental insurance for Original Medicare gaps | $100-300/month depending on plan and age | Best selection at 65; medical underwriting later |
+| Medigap | Supplemental insurance for Original Medicare gaps | \$100-300/month depending on plan and age | Best selection at 65; medical underwriting later |
 
 ### Critical Enrollment Windows
 
@@ -97,7 +97,7 @@ Income-Related Monthly Adjustment Amounts (IRMAA) are surcharges on Medicare Par
 | $258,001 - $322,000 | $370 | $67 | $5,184 |
 | $322,001 - $386,000 | $481 | $86 | $8,304 |
 | $386,001 - $750,000 | $592 | $105 | $11,448 |
-| Above $750,000 | $629 | $112 | $12,528 |
+| Above $750,000 | $629 | $112 | \$12,528 |
 
 ### The Two-Year Lag Problem
 
@@ -113,7 +113,7 @@ The interplay between Roth conversions and IRMAA creates a key planning constrai
 
 1. **Before age 63**: Convert aggressively — no IRMAA impact since you won't be on Medicare for 2+ years
 2. **Ages 63-64**: Be careful — conversions now will affect your first years on Medicare
-3. **Age 65+**: Every conversion dollar above the IRMAA threshold costs an additional $1,000-$6,000 per couple in surcharges
+3. **Age 65+**: Every conversion dollar above the IRMAA threshold costs an additional $1,000-\$6,000 per couple in surcharges
 
 See [Roth Conversion Strategy](RothConversionStrategy) for how to size conversions around IRMAA thresholds.
 
@@ -140,13 +140,13 @@ After age 65, you can withdraw HSA funds for *any* purpose without penalty (taxe
 | 55-64 (pre-Medicare) | $6,000-$8,000 | $8,000-$12,000 | $12,000-$20,000+ |
 | 65-74 (Medicare) | $4,000-$6,000 | $6,000-$8,000 | $8,000-$15,000 |
 | 75-84 (Medicare) | $5,000-$8,000 | $8,000-$12,000 | $12,000-$25,000 |
-| 85+ (Medicare) | $8,000-$12,000 | $12,000-$20,000 | $20,000-$40,000+ |
+| 85+ (Medicare) | $8,000-$12,000 | $12,000-$20,000 | $20,000-\$40,000+ |
 
 These include premiums, deductibles, copays, dental, vision, and prescriptions. They exclude long-term care.
 
 ## Long-Term Care: The Elephant in the Room
 
-Medicare does not cover long-term care (nursing homes, assisted living, in-home care). The median annual cost of a private nursing home room is approximately $108,000 (2024). About 50% of people over 65 will need some form of long-term care.
+Medicare does not cover long-term care (nursing homes, assisted living, in-home care). The median annual cost of a private nursing home room is approximately \$108,000 (2024). About 50% of people over 65 will need some form of long-term care.
 
 Options:
 - **Self-insure**: Plan for $200,000-$400,000 in potential long-term care costs

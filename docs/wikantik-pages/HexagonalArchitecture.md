@@ -1,12 +1,20 @@
 ---
-status: official
-cluster: wikantik-development
-type: article
-title: "Ports and Adapters: Hexagonal Architecture"
 date: '2026-05-22'
-summary: A deep dive into Hexagonal Architecture (Ports and Adapters) in Wikantik, focusing on decoupling core domain logic from infrastructure and framework leakage.
-canonical_id: 01KQTD4FF0P3V91F9GMSC7XPV6
+summary: A deep dive into Hexagonal Architecture (Ports and Adapters) in Wikantik,
+  focusing on decoupling core domain logic from infrastructure and framework leakage.
+cluster: wikantik-development
 auto-generated: false
+canonical_id: 01KQTD4FF0P3V91F9GMSC7XPV6
+type: article
+title: 'Ports and Adapters: Hexagonal Architecture'
+status: active
+tags:
+- hexagonal-architecture
+- ports-and-adapters
+- software-architecture
+- decoupling
+hubs:
+- WikantikDevelopment
 ---
 
 # Ports and Adapters: The Hexagonal Core

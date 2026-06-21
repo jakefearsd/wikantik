@@ -1,19 +1,21 @@
 ---
-title: The Black-Scholes Model
-type: article
-cluster: computational-finance
-status: published
+status: active
 date: '2026-05-10'
-summary: A rigorous analysis of the Black-Scholes-Merton equation for options pricing, its partial differential derivation, and implementation in software systems.
+summary: A rigorous analysis of the Black-Scholes-Merton equation for options pricing,
+  its partial differential derivation, and implementation in software systems.
 tags:
 - mathematics
 - quantitative-finance
 - derivatives
 - algorithms
 - pricing-models
+type: article
 relations:
-- {type: related_to, target_id: 01KS8J2Z2A938D4EYVWFA9F36M} # GBM
+- type: related_to
+  target_id: 01KS8J2Z2A938D4EYVWFA9F36M
+cluster: computational-finance
 canonical_id: 01KS8K3Z3B938D4EYVWFA9F36N
+title: The Black-Scholes Model
 ---
 
 # The Black-Scholes Model

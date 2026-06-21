@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS1P8HQ9BY8ZH745S99TH
 title: Numerical Analysis
+tags:
+- numerical-analysis
+- floating-point
+- precision
+- algorithms
+- mixed-precision
+- ai-hardware
+- computational-science
 cluster: computer-science
-tags: [numerical-analysis, floating-point, precision, algorithms, mixed-precision, ai-hardware, computational-science]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The mathematical foundation of scientific computing. Covers algorithms for numerical approximation, the transition to mixed-precision (FP8/FP4) in 2026, and the impact of hardware acceleration on computational stability.
+summary: Mathematical foundation of scientific computing. Covers approximation algorithms,
+  the 2026 mixed-precision shift (FP8/FP4), and hardware acceleration stability.
 ---
 
 # Numerical Analysis: The Math of Approximation

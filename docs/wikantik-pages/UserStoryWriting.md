@@ -1,12 +1,18 @@
 ---
-cluster: software-engineering-practices
 canonical_id: 01KQ0P44Y7MWRMBZR2F1RWN6ZV
-title: "User Story Writing & Specification"
+title: User Story Writing & Specification
+tags:
+- agile
+- requirements
+- gherkin
+- bdd
+- testing
+cluster: software-engineering-practices
 type: article
-tags: [agile, requirements, gherkin, bdd, testing]
-date: 2025-05-15
-summary: A guide to writing rigorous User Stories and Acceptance Criteria using Gherkin syntax, focusing on specification-by-example and automated test mapping.
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+summary: A guide to writing rigorous User Stories and Acceptance Criteria using Gherkin
+  syntax, focusing on specification-by-example and automated test mapping.
 ---
 
 # User Story Writing: The Rigor of Specification
@@ -52,7 +58,7 @@ Feature: Secure Payment Processing
 
 ### Advanced AC: Boundary Value Analysis
 For a "Discount Code" feature:
-*   **AC1:** GIVEN a cart total of $100.00, WHEN code "SAVE10" is applied, THEN total is $90.00.
+*   **AC1:** GIVEN a cart total of \$100.00, WHEN code "SAVE10" is applied, THEN total is \$90.00.
 *   **AC2:** GIVEN a cart total of $0.00, WHEN code "SAVE10" is applied, THEN the system returns an error: "Invalid Cart Total."
 *   **AC3:** GIVEN a code that expired at 23:59:59 yesterday, WHEN applied today at 00:00:01, THEN the system returns error: "Code Expired."
 

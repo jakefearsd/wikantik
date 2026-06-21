@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS1TXCR53GXNBCT20NEJB
 title: Python Language
+tags:
+- programming-languages
+- python
+- ai
+- data-science
+- scripting
+- gil-removal
+- 2026-benchmarks
 cluster: computer-science
-tags: [programming-languages, python, ai, data-science, scripting, gil-removal, 2026-benchmarks]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The 'Lingua Franca' of AI (1991). Born as executable pseudocode, it has become the #1 language globally in 2026, driven by its status as the primary interface for AI and Data Science.
+summary: The lingua franca of AI and data science (1991). Van Rossum's readable language
+  leads via the NumPy/Pandas/PyTorch ecosystem, with GIL removal landing in 2026.
 ---
 
 # The Python Language: The Interface of Intelligence

@@ -1,19 +1,21 @@
 ---
-canonical_id: 01KQ0P44RMQK7627HQ0J02FE6K
-summary: Proposal workflow for AI-suggested knowledge enrichment with human approval and frontmatter write-back
+depends-on:
+- ProvenanceModel
+status: active
+type: article
+part-of:
+- KnowledgeGraphCore
+date: '2026-04-04'
+cluster: wikantik-development
+title: Knowledge Proposals
 tags:
 - development
 - knowledge-graph
 - ai
 - workflow
-type: article
-status: deployed
-cluster: wikantik-development
-date: '2026-04-04'
-part-of:
-- KnowledgeGraphCore
-depends-on:
-- ProvenanceModel
+summary: Proposal workflow for AI-suggested knowledge enrichment with human approval
+  and frontmatter write-back
+canonical_id: 01KQ0P44RMQK7627HQ0J02FE6K
 ---
 # Knowledge Proposals
 

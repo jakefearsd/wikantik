@@ -1,21 +1,24 @@
 ---
+date: '2026-05-15'
+summary: Evolution of Berlin's technology sector from the 1991 founding of Adlershof
+  to the rise of 'Silicon Allee' and major digital enterprises.
 cluster: berlin-history
+related:
+- BerlinArchitecturalHistory
+- BerlinDuringTheColdWar
+- BerlinsTransformationFromMargraviateToCapitalCity
+auto-generated: false
 canonical_id: 01KQ0P44MJTB0AQR49976YAWGN
-title: Berlin Tech Scene
 type: article
+title: Berlin Tech Scene
 tags:
 - berlin
 - innovation
 - venture-capital
 - startups
 - digital-economy
-summary: Evolution of Berlin's technology sector from the 1991 founding of Adlershof to the rise of 'Silicon Allee' and major digital enterprises.
-date: '2026-05-15'
-related:
-- BerlinArchitecturalHistory
-- BerlinDuringTheColdWar
-- BerlinsTransformationFromMargraviateToCapitalCity
-auto-generated: false
+hubs:
+- BerlinHistoryHub
 ---
 # Berlin Tech Scene: From Industrial Hub to Silicon Allee
 

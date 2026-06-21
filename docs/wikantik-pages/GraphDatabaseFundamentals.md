@@ -1,25 +1,25 @@
 ---
-canonical_id: 01KQEKGDB4WDQQX7D2W6Z994KQ
 title: 'Graph Database Fundamentals: Property Graphs, Cypher & Use Cases'
-type: article
-cluster: databases
-status: active
-date: '2026-04-25'
 tags:
 - graph-database
 - neo4j
 - cypher
 - janusgraph
 - property-graph
-summary: 'Graph database fundamentals: the property-graph model, Cypher queries,
-  Neo4j and the alternatives, and when a graph database genuinely beats Postgres.'
+summary: 'Graph database fundamentals: the property-graph model, Cypher queries, Neo4j
+  and the alternatives, and when a graph database genuinely beats Postgres.'
 related:
 - KnowledgeGraphVsRelationalDatabase
 - KnowledgeGraphCompletion
 - DatabaseSharding
 - NoSqlDatabaseTypes
+canonical_id: 01KQEKGDB4WDQQX7D2W6Z994KQ
+type: article
+status: active
 hubs:
 - DatabasesHub
+cluster: databases
+date: '2026-04-25'
 ---
 # Graph Database Fundamentals
 
@@ -90,26 +90,128 @@ GQL (Graph Query Language) standardised in 2024 is the ISO standard inspired hea
 - **Tooling ecosystem.** Less mature than SQL — fewer ORMs, fewer migration tools, fewer dashboards.
 - **Cost.** Commercial offerings (Neo4j Enterprise, TigerGraph) are pricey.
 
-## When a graph database wins
+## When a graph database wins — use cases in depth
 
-Specific cases:
+The useful test is **not** "is my data connected?" — all data is connected. It's: *do my most valuable queries follow chains of relationships whose depth or shape I don't know in advance?* When the answer is yes, a graph database stops being a luxury and starts paying for itself. The domains below are the ones where that reliably happens. For each, note the **killer query** — the one that is natural in Cypher and miserable in SQL.
 
-- **Heavy graph algorithms.** Computing centrality, community detection, PageRank on millions of nodes. Graph DBs (Neo4j with GDS) outperform SQL by orders of magnitude.
-- **Frequent deep traversals.** Recommendation systems with multi-hop "users like you also liked" queries.
-- **Knowledge graphs with rich relationship semantics.** Where every relationship matters and queries traverse many.
-- **Fraud detection.** "Is this user connected to a known fraud ring through any path of length ≤ 5?"
-- **Network/social analysis.** Finding influencers, communities, shortest paths in social or organisational graphs.
+### Fraud rings & anti-money-laundering (AML)
 
-For these, graph DBs are the right tool.
+Money laundering and organised fraud hide in *paths*, not rows: shell accounts, shared devices, shared addresses, and chains of transfers that connect a new account back to a known-bad one.
 
-## When a graph database loses
+- **Killer query:** "Is this account linked to any flagged account within 6 hops of transfers, shared devices, or shared addresses?"
+- **Why graph:** ring/cycle detection and variable-depth reachability are native operations. The SQL equivalent is a recursive-CTE that degrades sharply as depth grows.
 
-- **The graph is shallow.** Most queries are 1-2 hops. SQL handles this fine.
-- **Mixed workloads dominate.** You need transactional CRUD + graph queries; running two DBs is more pain than one Postgres.
-- **You don't need graph algorithms.** "We have related data" is not the same as "we need a graph database."
-- **Team unfamiliarity.** Cypher / GQL is a real learning curve.
+```cypher
+MATCH path = (a:Account {flagged:true})
+             -[:TRANSFER|SHARES_DEVICE|SHARES_ADDRESS*1..6]-
+             (b:Account {id:$newAccount})
+RETURN path LIMIT 1
+```
 
-For most teams, Postgres with a `nodes` and `edges` table works. See [Knowledge Graph vs. Relational Database](KnowledgeGraphVsRelationalDatabase).
+### Recommendation & personalization engines
+
+"Customers like you also bought…" is a multi-hop traversal over a bipartite user–item graph, computed live from a seed node rather than from a pre-baked table.
+
+- **Killer query:** "Find products bought by people who bought what I bought, that I haven't bought yet."
+- **Why graph:** collaborative-filtering patterns are a two-hop traversal; new interactions are reflected immediately with no batch recompute.
+
+```cypher
+MATCH (me:User {id:$u})-[:BOUGHT]->(:Product)<-[:BOUGHT]-(peer:User)-[:BOUGHT]->(rec:Product)
+WHERE NOT (me)-[:BOUGHT]->(rec)
+RETURN rec.name, count(*) AS score
+ORDER BY score DESC LIMIT 10
+```
+
+### Identity, permissions & access control (RBAC / ReBAC)
+
+Authorization is a reachability question: *can this principal reach this resource through any chain of group memberships, roles, and grants?* This is exactly the model behind relationship-based systems like Google Zanzibar.
+
+- **Killer query:** "Can user X access resource Y through any path of memberships and grants?"
+- **Why graph:** org structures nest to arbitrary, irregular depth; the traversal is the permission check.
+
+```cypher
+MATCH (u:User {id:$u})-[:MEMBER_OF|HAS_ROLE|GRANTS*1..8]->(r:Resource {id:$y})
+RETURN count(*) > 0 AS allowed
+```
+
+### Dependency & impact analysis (infrastructure, microservices, software)
+
+Telecom networks, microservice meshes, IT asset inventories, and software dependency trees all ask the same thing when something breaks.
+
+- **Killer query:** "If this switch / service / library fails, what downstream is affected?"
+- **Why graph:** blast radius is a transitive closure over a directed graph of unbounded depth — and the reverse traversal answers "what does this depend on?" for free.
+
+```cypher
+MATCH (svc:Service {id:$s})<-[:DEPENDS_ON*1..]-(affected)
+RETURN DISTINCT affected.name
+```
+
+### Supply chain & bill-of-materials (BOM)
+
+Manufacturing data is inherently multi-tier: components roll up into sub-assemblies into finished goods, across many supplier levels.
+
+- **Killer query:** "Which finished products contain a part from this recalled supplier, at *any* tier?"
+- **Why graph:** the explode/implode of a BOM is variable-depth traversal; tiers are not fixed in advance.
+
+### Master data, entity resolution & customer-360
+
+Records describing the same real-world person, company, or device arrive from many systems and must be linked into one view.
+
+- **Killer query:** "Show every account, device, policy, and household connected to this individual."
+- **Why graph:** entity resolution is link analysis across heterogeneous sources — connections are the product, not a side effect.
+
+### Social & organizational network analysis
+
+Influence, communities, and "degrees of separation" are graph-algorithmic by definition.
+
+- **Killer query:** "Who are the most central people in this network, and what communities do they bridge?"
+- **Why graph:** centrality, community detection, and shortest-path ship as built-in algorithms (e.g., Neo4j Graph Data Science).
+
+### Knowledge graphs & GraphRAG
+
+Entities plus typed relationships power semantic search and retrieval-augmented generation for LLMs, where traversing relationships expands the relevant context.
+
+- **Why graph:** relationship *semantics* are first-class, and a traversal from a matched entity gathers the neighbourhood an answer needs. See [Knowledge Graph vs. Relational Database](KnowledgeGraphVsRelationalDatabase) and [Knowledge Graph Completion](KnowledgeGraphCompletion).
+
+### Routing, logistics & network flow (with a caveat)
+
+Shortest/cheapest path and max-flow are classic graph problems, and graph DBs handle them well.
+
+- **Caveat:** if heavy route *optimization* is your **only** workload, a dedicated routing engine or operations-research solver often beats a graph DBMS. Reach for a graph database when routing is *one of several* graph queries over the same connected data.
+
+> **The common thread:** every case above is variable-depth reachability, pathfinding, or a graph algorithm — not a fixed-shape report. If your headline queries fit that description, a graph database earns its place.
+
+## When NOT to choose a graph database
+
+"We have relationships" is not a reason — every relational schema has foreign keys. The honest question is whether *traversal* is your bottleneck. Where it isn't, another store is simpler, cheaper, and faster. Each anti-pattern below names the tool that actually fits.
+
+- **Shallow, fixed-shape joins (1–2 hops).** Order → Customer → Address. → **Relational (Postgres/MySQL).** Indexed joins are faster and far simpler to operate.
+- **Aggregation / OLAP analytics.** "Sum revenue by region by month across 2B rows." → **Columnar warehouse** (ClickHouse, BigQuery, Snowflake, DuckDB). Graph DBs are weak at large scans and group-bys.
+- **Bounded-depth hierarchies & trees.** Category trees, org charts, threaded comments. → **SQL adjacency list + closure table**, or Postgres `ltree`. A graph DBMS is overkill when depth is small and known.
+- **Document- or blob-centric data.** JSON documents, content, events with few cross-links. → **Document DB** (MongoDB) or **Postgres JSONB**.
+- **Simple key-value / cache / session state.** → **Redis** or another KV store.
+- **Time-series & metrics.** Sensor, telemetry, market ticks. → **Time-series DB** (TimescaleDB, InfluxDB, Prometheus).
+- **Full-text relevance search is the point.** → **Search engine** (Elasticsearch / OpenSearch, Lucene).
+- **High-throughput OLTP where relationships are incidental.** Payments ledger, inventory. → **Relational / NewSQL** — you need ACID throughput, not traversal.
+- **Huge scale needing mature sharding + multi-region ACID.** → **Distributed SQL / NewSQL** (CockroachDB, Spanner, Vitess). Graph partitioning is still less mature — see [Database Sharding](DatabaseSharding).
+- **One-off graph analytics on a static snapshot.** A single centrality or community run for a report. → **A graph-compute library** (NetworkX, igraph, Spark GraphX, cuGraph) — no need to stand up and operate a graph DBMS.
+
+**Rule of thumb:** if you can't name a query that traverses a *variable or unknown* number of hops, you probably don't need a graph database.
+
+## A 60-second litmus test
+
+Score your project. The more rows you land on the left, the more a graph database earns its keep.
+
+| Lean **graph database** | Lean **another store** |
+|---|---|
+| Headline queries traverse 3+ hops, often variable-length | Almost every query is 1–2 hops |
+| You need pathfinding, shortest-path, or cycle detection | You mostly need `GROUP BY` / `SUM` over big tables |
+| Relationships carry properties you actually query | Relationships are just foreign keys you join on |
+| You'll run graph algorithms (PageRank, community, centrality) | You need full-text search or time-series rollups |
+| The shape of connections is irregular and evolving | The schema is tabular and stable |
+| Connected-data queries are your competitive core | Connected data is incidental to a mostly-CRUD app |
+
+**Verdict:** 4+ ticks on the left and a graph database likely pays off. Mostly right-hand ticks — start with Postgres (a `nodes`/`edges` schema, or the Apache AGE extension for Cypher syntax) and migrate only if a concrete query later forces the move.
 
 ## The major options in 2026
 
@@ -225,6 +327,15 @@ Relational databases excel at structured, tabular data and set-based queries; gr
 
 **When should I use a graph database?**
 When you run frequent deep traversals (5+ hops), need built-in graph algorithms (PageRank, community detection, shortest path), or model richly connected domains like fraud rings, recommendations, and social networks. For shallow 1–2 hop queries, Postgres is usually enough.
+
+**What are some real-world graph database use cases?**
+Fraud-ring and anti-money-laundering detection, recommendation engines, identity and permission (reachability) checks, network and dependency/impact analysis, supply-chain and bill-of-materials roll-ups, master-data and entity resolution, social-network analysis, and knowledge graphs / GraphRAG. The common thread is queries that follow chains of relationships of variable or unknown depth.
+
+**When is a graph database overkill — when should I NOT use one?**
+When your queries are shallow (1–2 hops), aggregation-heavy (use a columnar warehouse), document- or key-value-shaped, time-series, or search-centric — or when relationships are merely foreign keys you join on. If you can't name a variable-depth traversal query, skip the graph database.
+
+**Can I run graph queries in Postgres instead?**
+Yes. A `nodes`/`edges` schema with recursive CTEs covers shallow-to-moderate graphs, and the Apache AGE extension adds Cypher syntax on top of Postgres. Most teams should start here and only migrate to a dedicated graph DB when a real query or scale limit forces it.
 
 **What is the most popular graph database?**
 Neo4j is the dominant property-graph database and the safe default for most projects; TigerGraph, JanusGraph, Memgraph, and ArangoDB serve more specialized needs.

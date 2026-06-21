@@ -1,17 +1,18 @@
 ---
-cluster: databases
 canonical_id: 01KQ0P44S9SFH1M8438KT1J0KX
 title: Materialized Views
-type: article
 tags:
 - postgresql
 - materialized-views
 - performance
 - refresh-strategies
-- pg_ivm
-summary: Technical deep dive into Materialized View refresh strategies, focusing on PostgreSQL's CONCURRENTLY mechanism, incremental maintenance (IVM), and the trade-offs of background worker orchestration.
+- pg-ivm
+cluster: databases
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
-date: 2025-05-15
+summary: Materialized view refresh strategies in PostgreSQL — CONCURRENTLY vs atomic
+  swap, pg_ivm incremental maintenance, orchestration trade-offs, and vacuum overhead.
 ---
 # Materialized Views: Query Performance and Persistence
 

@@ -1,23 +1,26 @@
 ---
-canonical_id: 01KQEKGD8QYAS6P09AM61S5E2W
-title: Computer Science Foundations Hub
-type: hub
-cluster: computer-science-foundations
-status: active
 date: '2026-04-29'
-summary: Central index for core computer science theory and systems — covering the theory of computation, complexity, logic, type systems, computer architecture, and the formal foundations of programming languages.
-tags:
-  - computer-science
-  - theory
-  - complexity
-  - logic
-  - architecture
-  - hub
+summary: Central index for core computer science theory and systems — covering the
+  theory of computation, complexity, logic, type systems, computer architecture, and
+  the formal foundations of programming languages.
+cluster: computer-science-foundations
 related:
-  - DataStructuresHub
-  - MathematicsHub
-  - DistributedSystemsHub
-  - SoftwareEngineeringPracticesHub
+- DataStructuresHub
+- MathematicsHub
+- DistributedSystemsHub
+- SoftwareEngineeringPracticesHub
+- MemoryManagementFundamentals
+canonical_id: 01KQEKGD8QYAS6P09AM61S5E2W
+type: hub
+title: Computer Science Foundations Hub
+status: active
+tags:
+- computer-science
+- theory
+- complexity
+- logic
+- architecture
+- hub
 ---
 # Computer Science Foundations Hub
 

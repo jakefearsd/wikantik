@@ -1,23 +1,25 @@
 ---
-canonical_id: 01KQ0P44PBAABJX1RZ5ZPNPEQH
-title: Database Backup Strategies
-type: article
-cluster: databases
-status: active
 date: '2026-04-26'
 summary: How to back up databases that you can actually restore — point-in-time recovery,
   cross-region copies, automated testing of restores, and the practices that prevent
   the worst case (backup that doesn't restore).
-tags:
-- database-backup
-- recovery
-- pitr
-- databases
+cluster: databases
 related:
 - ReadReplicasAndReplication
 - DatabaseConnectionSecurity
 - CloudDisasterRecovery
 - CloudStorageOptions
+canonical_id: 01KQ0P44PBAABJX1RZ5ZPNPEQH
+type: article
+title: Database Backup Strategies
+status: active
+tags:
+- database-backup
+- recovery
+- pitr
+- databases
+hubs:
+- DatabasePerformanceMonitoringHub
 ---
 # Database Backup Strategies
 

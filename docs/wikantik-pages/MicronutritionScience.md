@@ -1,8 +1,16 @@
 ---
-cluster: cooking-and-food
-canonical_id: 01KQ0P44SGTXCX6ZZA33W7H69C
 title: Micronutrition Science
+related:
+- FoodScience
+- FermentationForGutHealth
+- HealthyOnTheRoadAfter40
+- RiskManagement
+- MathematicsHub
+cluster: cooking-and-food
 type: article
+canonical_id: 01KQ0P44SGTXCX6ZZA33W7H69C
+summary: 'Micronutrient biochemistry and absorption kinetics: cofactor cascade dynamics
+  in the Krebs cycle, gut-host axis bioavailability, and nutrigenomics applications.'
 tags:
 - nutrition-science
 - biochemistry
@@ -11,13 +19,6 @@ tags:
 - metabolic-flux
 - nutrigenomics
 - cofactor-cascade
-summary: A rigorous exploration of micronutrient biochemistry and absorption kinetics, focusing on cofactor cascade dynamics in the Krebs cycle, the impact of the gut-host axis on bioavailability, and the integration of nutrigenomics for personalized metabolic optimization.
-related:
-- FoodScience
-- FermentationForGutHealth
-- HealthyOnTheRoadAfter40
-- RiskManagement
-- MathematicsHub
 ---
 
 # Micronutrition Science: The Biochemistry of Metabolic Flux

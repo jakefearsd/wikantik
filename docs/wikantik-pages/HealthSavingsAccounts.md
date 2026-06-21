@@ -1,13 +1,22 @@
 ---
-canonical_id: 01KQ0P44QWAA4M1VPFRKA6C33F
-title: Health Savings Accounts
+date: 2026-03-15T00:00:00Z
+status: active
+summary: Complete guide to Health Savings Accounts as both a healthcare spending tool
+  and a powerful retirement savings vehicle with unique triple tax advantages.
+tags:
+- retirement
+- taxes
+- hsa
+- healthcare
+- investing
 type: article
-tags: [retirement, taxes, HSA, healthcare, investing]
-date: 2026-03-15
-status: published
+canonical_id: 01KQ0P44QWAA4M1VPFRKA6C33F
 cluster: retirement-planning
-summary: Complete guide to Health Savings Accounts as both a healthcare spending tool and a powerful retirement savings vehicle with unique triple tax advantages.
-related: [TaxBenefitsOfRetirementAccounts, MedicarePlanningAndHealthcare, MaximizingRetirementAccountContributions]
+related:
+- TaxBenefitsOfRetirementAccounts
+- MedicarePlanningAndHealthcare
+- MaximizingRetirementAccountContributions
+title: Health Savings Accounts
 ---
 
 # Health Savings Accounts
@@ -65,12 +74,12 @@ This approach allows your HSA investments to compound tax-free for years or deca
 
 ### A Practical Example
 
-Suppose you contribute $4,300 annually for 20 years with 8% average investment returns:
+Suppose you contribute \$4,300 annually for 20 years with 8% average investment returns:
 - **Total contributions**: $86,000
-- **Projected balance**: approximately $197,000
+- **Projected balance**: approximately \$197,000
 - **All withdrawals for medical expenses**: completely tax-free
 
-If you also accumulated $60,000 in out-of-pocket medical receipts over those 20 years, you could withdraw $60,000 at any time for any purpose (the reimbursement covers the medical expenses you already paid).
+If you also accumulated $60,000 in out-of-pocket medical receipts over those 20 years, you could withdraw \$60,000 at any time for any purpose (the reimbursement covers the medical expenses you already paid).
 
 ## HSA After Age 65
 

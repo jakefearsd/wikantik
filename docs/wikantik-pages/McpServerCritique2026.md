@@ -1,15 +1,15 @@
 ---
-canonical_id: 01KQP52GP5G3HH1PC62KQRDFBC
-title: McpServerCritique2026
-summary: A technical critique of the Wikantik MCP servers (Admin and Knowledge) based
-  on active usage and aggressive robustness/security testing.
-type: report
 tags:
 - mcp
 - architecture
 - critique
 - security
 - penetration-testing
+type: article
+summary: A technical critique of the Wikantik MCP servers (Admin and Knowledge) based
+  on active usage and aggressive robustness/security testing.
+title: McpServerCritique2026
+canonical_id: 01KQP52GP5G3HH1PC62KQRDFBC
 cluster: wikantik-development
 ---
 

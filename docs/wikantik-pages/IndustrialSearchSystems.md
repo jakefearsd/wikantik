@@ -1,6 +1,9 @@
 ---
-canonical_id: 01KRQJ71Z3JJ36GZEEJEWTVNP8
-type: article
+status: active
+date: '2026-05-15'
+summary: High-level survey of industrial search system design, covering multi-stage
+  retrieval pipelines, the lexical-semantic gap, and the mathematical foundations
+  of Reciprocal Rank Fusion (RRF).
 tags:
 - search
 - information-retrieval
@@ -8,18 +11,15 @@ tags:
 - hybrid-search
 - rrf
 - nlp
-title: Building Industrial Search Systems
+type: article
 relations:
 - type: component_of
   target_id: 01KQEKG9XWDSFGH7TWHH63NZT
 - type: influenced_by
   target_id: 01KQQ6SGVRSG0BJMX4AKGGF23S
-summary: High-level survey of industrial search system design, covering multi-stage
-  retrieval pipelines, the lexical-semantic gap, and the mathematical foundations
-  of Reciprocal Rank Fusion (RRF).
-status: active
-date: '2026-05-15'
+canonical_id: 01KRQJ71Z3JJ36GZEEJEWTVNP8
 cluster: computer-science
+title: Building Industrial Search Systems
 ---
 
 # Building Industrial Search Systems

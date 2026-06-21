@@ -1,8 +1,17 @@
 ---
+title: 'Woodworking Joinery: Structural Mechanics'
+related:
+- DovetailJointMethods
+- HandPlaneSetupAndSharpening
+- WorkshopLayoutAndDustCollection
+- FastenerEngineering
+- MathematicsHub
+- NumericalMethods
 cluster: hobby-woodworking
-canonical_id: 01KQ0P44Z9ETEZGEE0TRDTYXBX
-title: "Woodworking Joinery: Structural Mechanics"
 type: article
+canonical_id: 01KQ0P44Z9ETEZGEE0TRDTYXBX
+summary: 'Mortise-and-tenon joinery: anisotropic shear stress, tapered load introduction,
+  hygroscopic movement, and adhesive selection for long-lived casework.'
 tags:
 - woodworking
 - joinery
@@ -11,14 +20,6 @@ tags:
 - structural-mechanics
 - material-science
 - craftsmanship
-summary: A rigorous exploration of traditional joinery through the lens of structural mechanics, focusing on the anisotropic shear stress tensor in mortise-and-tenon joints, the optimization of load introduction via tapering, and the material science of hygroscopic movement.
-related:
-- DovetailJointMethods
-- HandPlaneSetupAndSharpening
-- WorkshopLayoutAndDustCollection
-- FastenerEngineering
-- MathematicsHub
-- NumericalMethods
 ---
 
 # Woodworking Joinery: The Architecture of Anisotropic Interfaces

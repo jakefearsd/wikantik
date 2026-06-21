@@ -1,9 +1,20 @@
 ---
+type: article
+date: '2026-04-26'
+cluster: personal-finance
+title: Net Worth Tracking
+hubs:
+- PersonalFinanceHub
+- DebtPayoffStrategies Hub
+tags:
+- net-worth
+- personal-finance
+- tracking
+- household-balance-sheet
+- progress-measurement
 summary: How to measure net worth, how often, what to count, what to ignore, and what
   the trajectory actually tells you. The single most useful aggregate metric for personal
   finance, when used carefully.
-date: '2026-04-26'
-cluster: personal-finance
 related:
 - PersonalFinanceGuide
 - BudgetingMethods
@@ -11,18 +22,7 @@ related:
 - CalculatingYourFiNumber
 - FinancialResilience
 canonical_id: 01KQ0P44SZE8KANR12S3W8QDHS
-type: article
-title: Net Worth Tracking
-tags:
-- net-worth
-- personal-finance
-- tracking
-- household-balance-sheet
-- progress-measurement
 status: active
-hubs:
-- PersonalFinanceHub
-- DebtPayoffStrategies Hub
 ---
 # Net Worth Tracking
 

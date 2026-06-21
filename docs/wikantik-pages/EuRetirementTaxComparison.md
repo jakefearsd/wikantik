@@ -1,8 +1,11 @@
 ---
-canonical_id: 01KQ0P44Q7H3MFVBV6XYPNZPWW
-date: '2026-03-15T00:00:00Z'
 status: active
+type: article
+hubs:
+- EuRetirementSavingsGuide
+date: '2026-03-15T00:00:00Z'
 cluster: retirement-planning
+title: EU Retirement Tax Comparison
 tags:
 - personal-finance
 - retirement-planning
@@ -12,14 +15,14 @@ tags:
 - italy
 - spain
 - tax
+summary: Side-by-side comparison of retirement tax treatment in France, Netherlands,
+  Italy, and Spain
 related:
 - EuRetirementSavingsGuide
 - GermanRetirementSystem
 - RetirementPlanningGuide
 - RetirementWithdrawalSequencing
-type: article
-summary: Side-by-side comparison of retirement tax treatment in France, Netherlands,
-  Italy, and Spain
+canonical_id: 01KQ0P44Q7H3MFVBV6XYPNZPWW
 ---
 # EU Retirement Tax Comparison: France, Netherlands, Italy, and Spain
 

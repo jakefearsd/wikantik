@@ -1,18 +1,19 @@
 ---
-cluster: agentic-ai
-canonical_id: 01KQ0P44RMTA9YY6DXN54MJ6PZ
-title: Knowledge Management With Obsidian
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: A technical guide to Personal Knowledge Management (PKM) using the Zettelkasten
+  method and Obsidian automation via Dataview.
 tags:
 - pkm
 - obsidian
 - zettelkasten
 - dataview
 - automation
-status: active
-date: 2025-05-15
-summary: A technical guide to Personal Knowledge Management (PKM) using the Zettelkasten method and Obsidian automation via Dataview.
+type: article
 auto-generated: false
+cluster: agentic-ai
+canonical_id: 01KQ0P44RMTA9YY6DXN54MJ6PZ
+title: Knowledge Management with Obsidian
 ---
 
 # Obsidian: Zettelkasten and Programmatic Synthesis

@@ -1,17 +1,17 @@
 ---
-summary: Technical guide to the DMAIC framework for process optimization and defect
-  reduction.
-cluster: software-engineering-practices
-auto-generated: false
-canonical_id: 01KQ0P44WG5XG4B5D1WX0J5K2A
-title: Six Sigma Methodology
-type: article
 tags:
 - process
 - measur
 - defect
+cluster: software-engineering-practices
+type: article
 hubs:
 - LeanManufacturingPrinciples Hub
+auto-generated: false
+summary: Technical guide to the DMAIC framework for process optimization and defect
+  reduction.
+canonical_id: 01KQ0P44WG5XG4B5D1WX0J5K2A
+title: Six Sigma Methodology
 ---
 
 # Six Sigma DMAIC for Defect Reduction

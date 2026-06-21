@@ -1,14 +1,20 @@
 ---
-status: official
-cluster: distributed-systems
+status: active
+verified_at: '2026-05-04T21:10:44.598011331Z'
 type: article
-title: PACELC Theorem
 date: '2026-05-04'
+cluster: distributed-systems
+title: PACELC Theorem
+tags:
+- distributed-systems
+- pacelc
+- cap-theorem
+- consistency
+- latency
 summary: An explanation of the PACELC theorem and its application to consistency and
   latency trade-offs in distributed systems.
-canonical_id: 01KQTD79N35VMXHY5M3NJYBS6E
-verified_at: '2026-05-04T21:10:44.598011331Z'
 verified_by: gemini-cli-mcp-client
+canonical_id: 01KQTD79N35VMXHY5M3NJYBS6E
 ---
 # PACELC Theorem
 

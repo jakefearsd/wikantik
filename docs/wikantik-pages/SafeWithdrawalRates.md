@@ -1,8 +1,6 @@
 ---
-date: 2026-03-21T00:00:00Z
-summary: How much you can spend from your portfolio each year — the 4% rule, sequence
-  of returns risk, and modern dynamic strategies like guardrails and VPW
 cluster: retirement-planning
+title: Safe Withdrawal Rates
 related:
 - RetirementPlanningGuide
 - HistoryOfTheFourPercentRule
@@ -12,18 +10,22 @@ related:
 - SocialSecurityClaimingStrategy
 - RetirementWithdrawalSequencing
 - FireMovement
+type: article
+summary: How much you can spend from your portfolio each year — the 4% rule, sequence
+  of returns risk, and modern dynamic strategies like guardrails and VPW
+status: active
+date: 2026-03-21T00:00:00Z
 canonical_id: 01KQ0P44W03Q7AZVT7NR37RTD5
+hubs:
+- RetirementPlanningGuide
+- EuRetirementSavingsGuide
 part-of:
 - RetirementPlanningGuide
-type: article
-status: active
 tags:
 - retirement
 - withdrawal-rates
 - four-percent-rule
 - financial-planning
-hubs:
-- RetirementPlanningGuide
 ---
 # Safe Withdrawal Rates
 
@@ -46,7 +48,7 @@ This became the "4% rule," though it's more accurately a "4% guideline" with imp
 
 **Example**: $1,000,000 portfolio, 3% inflation
 - Year 1: Withdraw $40,000
-- Year 2: Withdraw $41,200 (regardless of whether the portfolio went up or down)
+- Year 2: Withdraw \$41,200 (regardless of whether the portfolio went up or down)
 - Year 3: Withdraw $42,436
 - Continue for 30 years
 
@@ -70,7 +72,7 @@ During withdrawal, order matters enormously. If you experience poor returns earl
 
 ### Concrete Example
 
-**Retiree A and Retiree B** both start with $1,000,000 and withdraw $40,000/year. Both experience the same average return over 20 years. But the sequence differs:
+**Retiree A and Retiree B** both start with \$1,000,000 and withdraw $40,000/year. Both experience the same average return over 20 years. But the sequence differs:
 
 | Year | Retiree A Return | Retiree B Return |
 |------|-----------------|------------------|
@@ -81,7 +83,7 @@ During withdrawal, order matters enormously. If you experience poor returns earl
 | 5 | +18% | -10% |
 | 6 | +22% | -15% |
 
-**Same average return.** But Retiree A withdraws $40K while the portfolio is falling, selling shares at low prices. Those shares are gone forever and cannot participate in the later recovery. Retiree B withdraws while the portfolio is rising, preserving far more capital.
+**Same average return.** But Retiree A withdraws \$40K while the portfolio is falling, selling shares at low prices. Those shares are gone forever and cannot participate in the later recovery. Retiree B withdraws while the portfolio is rising, preserving far more capital.
 
 **After 20 years:**
 - Retiree A: Portfolio depleted
@@ -120,9 +122,9 @@ Guardrails define a corridor for your withdrawal rate. If your actual rate drift
 
 The basic setup: start at 5.0% with a 6.0% upper guardrail and 4.0% lower guardrail, adjusting by 10% when a guardrail is hit.
 
-**Example**: $1M portfolio, $50K initial withdrawal
-- Year 2: Portfolio drops to $750K. Withdrawal rate = $51.5K / $750K = 6.9%. Exceeds 6% guardrail. Cut to $46,350 (10% reduction).
-- Year 5: Portfolio recovers to $1.3M. Withdrawal rate = $48K / $1.3M = 3.7%. Below 4% guardrail. Increase to $52,800 (10% raise).
+**Example**: $1M portfolio, \$50K initial withdrawal
+- Year 2: Portfolio drops to $750K. Withdrawal rate = $51.5K / $750K = 6.9%. Exceeds 6% guardrail. Cut to \$46,350 (10% reduction).
+- Year 5: Portfolio recovers to $1.3M. Withdrawal rate = $48K / $1.3M = 3.7%. Below 4% guardrail. Increase to \$52,800 (10% raise).
 
 Guardrails allow a higher initial rate because spending adjusts. Research shows they reduce failure rates to near zero while providing higher average lifetime spending.
 
@@ -140,7 +142,7 @@ Each year, withdraw a percentage of the current portfolio based on your remainin
 | 70 | 4.8% | $48,000 |
 | 75 | 5.5% | $55,000 |
 | 80 | 6.5% | $65,000 |
-| 85 | 8.0% | $80,000 |
+| 85 | 8.0% | \$80,000 |
 
 VPW can never run out of money (you're always taking a percentage of what remains) but spending varies with portfolio performance. It works best combined with a stable income floor from Social Security.
 
@@ -157,7 +159,7 @@ The floor-and-upside approach pairs naturally with guardrails: use guaranteed in
 
 ## How Social Security Changes the Math
 
-Social Security fundamentally alters safe withdrawal rates because it provides a guaranteed, inflation-adjusted income floor. A retiree with $30,000/year in Social Security and $60,000/year in spending only needs $30,000/year from the portfolio.
+Social Security fundamentally alters safe withdrawal rates because it provides a guaranteed, inflation-adjusted income floor. A retiree with $30,000/year in Social Security and \$60,000/year in spending only needs $30,000/year from the portfolio.
 
 | Portfolio | Spending | SS Income | Portfolio Need | Effective Rate |
 |-----------|----------|-----------|---------------|----------------|

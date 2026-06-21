@@ -1,10 +1,8 @@
 ---
-title: Functional Programming Foundations and Utility
-type: article
-cluster: computer-science-foundations
-status: published
+status: active
 date: '2026-05-10'
-summary: A comprehensive deep-dive into the mathematical foundations, performance trade-offs, and industrial utility of the functional programming paradigm.
+summary: Lambda calculus, category theory, immutability, and the performance trade-offs
+  and industrial utility of the functional programming paradigm.
 tags:
 - functional-programming
 - lambda-calculus
@@ -12,12 +10,19 @@ tags:
 - immutability
 - software-architecture
 - distributed-systems
+type: article
 relations:
-- {type: extension_of, target_id: 01KQEKGD8QYAS6P09AM61S5E2W} # CS Foundations Hub
-- {type: influenced, target_id: ErlangProgrammingLanguage}
-- {type: influenced, target_id: LispProgrammingLanguage}
-- {type: component_of, target_id: DistributedSystemsHub}
+- type: extension_of
+  target_id: 01KQEKGD8QYAS6P09AM61S5E2W
+- type: influenced
+  target_id: ErlangProgrammingLanguage
+- type: influenced
+  target_id: LispProgrammingLanguage
+- type: component_of
+  target_id: DistributedSystemsHub
+cluster: computer-science-foundations
 canonical_id: 01KS6Q8Z8QYAS6P09AM61S5E2M
+title: Functional Programming Foundations and Utility
 ---
 
 # Functional Programming: Foundations, Utility, and Limits

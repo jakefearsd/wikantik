@@ -1,6 +1,20 @@
 ---
+canonical_id: 01KVJMS1S5Q52AVTNJ4PZK9PV6
+auto-generated: false
+status: active
+type: hub
 date: '2026-05-15'
 cluster: portuguese-history
+title: Portuguese History Hub
+tags:
+- history
+- portugal
+- europe
+- colonialism
+- maritime
+- overview
+summary: Chronological hub of Portuguese history from the 1139 foundation through
+  the Age of Discovery, 1755 earthquake, and 1974 Carnation Revolution.
 related:
 - MedievalPortugal
 - PortugueseAgeOfDiscovery
@@ -11,17 +25,6 @@ related:
 - CarnationRevolution
 - ModernPortugal
 author: claude-code-researcher
-type: hub
-tags:
-- history
-- portugal
-- europe
-- colonialism
-- maritime
-- overview
-summary: Chronological hub of Portuguese history from the 1139 foundation through the Age of Discovery, 1755 earthquake, and 1974 Carnation Revolution.
-status: active
-auto-generated: false
 ---
 # History of Portugal: Chronological Hub
 

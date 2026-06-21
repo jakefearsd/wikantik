@@ -1,8 +1,16 @@
 ---
+title: 'Scenic Byways: A Spatio-Temporal Analysis'
+related:
+- BestNationalParksForCouples
+- AdventureTravelPlanning
+- SystemsThinking
+- HotSpringsRoadTrip
+- MathematicsHub
 cluster: van-life
-canonical_id: 01KQ0P44W2F2GZKB3XZZ4BFXGC
-title: "Scenic Byways: A Spatio-Temporal Analysis"
 type: article
+canonical_id: 01KQ0P44W2F2GZKB3XZZ4BFXGC
+summary: Scenic corridor optimization via the Experiential Density Index (EDI), cognitive
+  load pacing, and spatio-temporal weighting for sustained slow travel.
 tags:
 - travel-planning
 - experiential-design
@@ -11,13 +19,6 @@ tags:
 - environmental-psychology
 - edi
 - cognitive-load
-summary: A rigorous exploration of scenic corridor design, focusing on the Experiential Density Index (EDI), the optimization of spatio-temporal stimuli, and the mathematical management of cognitive load for sustained slow travel immersion.
-related:
-- BestNationalParksForCouples
-- AdventureTravelPlanning
-- SystemsThinking
-- HotSpringsRoadTrip
-- MathematicsHub
 ---
 
 # Scenic Corridor Design: The Architecture of Sustained Immersion

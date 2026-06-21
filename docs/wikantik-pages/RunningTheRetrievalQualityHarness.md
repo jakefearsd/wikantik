@@ -1,42 +1,55 @@
 ---
 canonical_id: 01KQ42G7FNHJXBFF246W07JZ3K
 title: Running the Retrieval Quality Harness
+tags:
+- retrieval
+- evaluation
+- runbook
+- agent-context
 type: runbook
 cluster: agent-cookbook
-audience: [agents, humans]
-summary: How to invoke `RetrievalExperimentHarness` manually today, and what the upcoming Phase-5 nightly scheduler will add. Includes how to read the per-mode nDCG / Recall / MRR output and where the eventual Prometheus gauges will land.
-tags:
-  - retrieval
-  - evaluation
-  - runbook
-  - agent-context
+audience:
+- agents
+- humans
 runbook:
   when_to_use:
-    - You are about to land a change that touches retrieval (chunker, embeddings, rerank weights, query parsing)
-    - A user reports anecdotal quality regression and you want a quantitative read
-    - You are calibrating thresholds before Phase 5 schedules nightly runs
+  - You are about to land a change that touches retrieval (chunker, embeddings, rerank
+    weights, query parsing)
+  - A user reports anecdotal quality regression and you want a quantitative read
+  - You are calibrating thresholds before Phase 5 schedules nightly runs
   inputs:
-    - A query set (the design names `core-agent-queries` as the seed — until Phase 5 lands you may need to author one)
-    - The retrieval mode under test (`bm25`, `hybrid`, or `hybrid_graph`)
+  - A query set (the design names `core-agent-queries` as the seed — until Phase 5
+    lands you may need to author one)
+  - The retrieval mode under test (`bm25`, `hybrid`, or `hybrid_graph`)
   steps:
-    - Confirm the harness is on the classpath — class name is `com.wikantik.knowledge.eval.RetrievalExperimentHarness` (or as currently named in the wikantik-knowledge module)
-    - Build with mvn install -DskipITs so the harness has a fresh artifact set
-    - Invoke the harness with your query set and mode — return value is per-query plus aggregate (nDCG@5, nDCG@10, Recall@20, MRR)
-    - Compare to the prior baseline; an absolute drop > 5% in nDCG@5 is the design's alert threshold
-    - Once Phase 5 is shipped, the same call runs nightly on a ScheduledExecutorService and writes to the `retrieval_runs` table
+  - Confirm the harness is on the classpath — class name is `com.wikantik.knowledge.eval.RetrievalExperimentHarness`
+    (or as currently named in the wikantik-knowledge module)
+  - Build with mvn install -DskipITs so the harness has a fresh artifact set
+  - Invoke the harness with your query set and mode — return value is per-query plus
+    aggregate (nDCG@5, nDCG@10, Recall@20, MRR)
+  - Compare to the prior baseline; an absolute drop > 5% in nDCG@5 is the design's
+    alert threshold
+  - Once Phase 5 is shipped, the same call runs nightly on a ScheduledExecutorService
+    and writes to the `retrieval_runs` table
   pitfalls:
-    - Running the harness once and treating the number as authoritative — variance across runs matters; take median of three
-    - Comparing across different query sets — every query set has its own absolute baseline; mode-relative comparisons are the safer signal
-    - Forgetting to rebuild the index after a change to chunker config — stale chunks give stale scores
-    - Using BM25-mode results to evaluate hybrid changes — the modes are independent comparisons
+  - Running the harness once and treating the number as authoritative — variance across
+    runs matters; take median of three
+  - Comparing across different query sets — every query set has its own absolute baseline;
+    mode-relative comparisons are the safer signal
+  - Forgetting to rebuild the index after a change to chunker config — stale chunks
+    give stale scores
+  - Using BM25-mode results to evaluate hybrid changes — the modes are independent
+    comparisons
   related_tools:
-    - /api/search
-    - /knowledge-mcp/search_knowledge
+  - /api/search
+  - /knowledge-mcp/search_knowledge
   references:
-    - RetrievalExperimentHarness
-    - HybridRetrieval
-    - AgentGradeContentDesign
-    - InterpretingHybridRetrievalMetrics
+  - RetrievalExperimentHarness
+  - HybridRetrieval
+  - AgentGradeContentDesign
+  - InterpretingHybridRetrievalMetrics
+summary: How to invoke `RetrievalExperimentHarness` manually — run modes, per-mode
+  nDCG/Recall/MRR output, and the nightly scheduler Phase 5 will add.
 ---
 
 # Running the Retrieval Quality Harness

@@ -1,8 +1,17 @@
 ---
-cluster: remote-host-management
-canonical_id: 01KQ0P44VSRHDN0K8E3G46MEZP
 title: The Re-Integration Protocol
+related:
+- PredictiveMaintenance
+- HomeHardening
+- MonitoringAndAlerting
+- MachineLearning
+- RiskManagement
+- MathematicsHub
+cluster: remote-host-management
 type: article
+canonical_id: 01KQ0P44VSRHDN0K8E3G46MEZP
+summary: 'Owner re-entry into short-term rentals: state-machine transition modeling,
+  IoT mesh anomaly detection, liability transfer, and diagnostic sweep optimization.'
 tags:
 - remote-management
 - asset-management
@@ -11,14 +20,6 @@ tags:
 - anomaly-detection
 - liability-transfer
 - re-integration
-summary: A rigorous exploration of the "transition state" in short-term rentals, focusing on the state-machine modeling of owner re-entry, behavioral anomaly detection via IoT mesh, and the economic optimization of diagnostic sweeps.
-related:
-- PredictiveMaintenance
-- HomeHardening
-- MonitoringAndAlerting
-- MachineLearning
-- RiskManagement
-- MathematicsHub
 ---
 
 # The Re-Integration Protocol: Modeling the Transition to Primary Residency

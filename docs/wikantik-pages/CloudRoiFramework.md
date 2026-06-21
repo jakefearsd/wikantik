@@ -1,4 +1,8 @@
 ---
+status: active
+date: '2026-05-10'
+summary: 'Cloud ROI engineering: Tag-or-Block enforcement (SCPs), Graviton4 price-performance,
+  Effective Savings Rate benchmarks, and unit-economics at Day 0–Day 2+.'
 tags:
 - finops
 - cloud-roi
@@ -16,11 +20,6 @@ related:
 - AwsMaturityModel
 - GcpMaturityModel
 title: 'Cloud ROI Framework: Engineering Execution and Predictive Economics'
-status: active
-date: '2026-05-10'
-summary: An exhaustive engineering guide to maximizing Cloud ROI — from Day 0 'Tag-or-Block'
-  enforcement to Day 2+ predictive unit economics and Graviton4 price-performance
-  benchmarks.
 ---
 # Cloud ROI Framework: Engineering Execution and Predictive Economics
 
@@ -91,7 +90,7 @@ At maturity, the engineering team stops measuring "Total Bill" and begins measur
 
 ### 3.1 Establishing Unit Metrics
 Move from "AWS Cost" to "Cost per Business Transaction."
-*   *FinTech Example*: Cost per Payment Processed ($0.004 target).
+*   *FinTech Example*: Cost per Payment Processed (\$0.004 target).
 *   *SaaS Example*: Cost per Active User per Day.
 
 ### 3.2 AI-Executed FinOps (The 2026 Standard)
@@ -103,7 +102,7 @@ Mature 2026 stacks utilize **AI Executors** to self-fund AI investments.
 
 ## Ⅳ. The ROI "Anti-Patterns" (Day 2 Warnings)
 
-1.  **Over-Engineering Portability**: Spending $500k in engineering hours to be "cloud-agnostic" to save $50k in theoretical lock-in costs. **Rule**: Use native services unless the multi-cloud requirement is regulatory.
+1.  **Over-Engineering Portability**: Spending $500k in engineering hours to be "cloud-agnostic" to save \$50k in theoretical lock-in costs. **Rule**: Use native services unless the multi-cloud requirement is regulatory.
 2.  **Redshift/BigQuery Data Gravity**: Neglecting **Egress Fees**. Moving 1 PB of data between regions can cost ~$20k. ROI calculations must include "Data Locality" as a primary variable.
 3.  **Managed Service Fallacy**: Assuming RDS is always cheaper than EC2 + Postgres. RDS is cheaper in *Ops Hours*, but at extreme scale (>10 TB), the direct license/compute markup of managed services can degrade ROI by 30%.
 

@@ -1,16 +1,17 @@
 ---
-cluster: van-life
-canonical_id: 01KQ0P44X46MVVM8NQH28FE5QQ
-title: Sustainable Tourism Frameworks
-type: article
 tags:
 - sustainability
 - tourism
 - economics
 - ecology
-summary: A technical guide to sustainable tourism, focusing on GSTC certifications, carrying capacity mathematics, and the Limit of Acceptable Change (LAC) framework.
+cluster: van-life
+type: article
+date: 2026-05-09T00:00:00Z
 auto-generated: false
-date: 2026-05-09
+canonical_id: 01KQ0P44X46MVVM8NQH28FE5QQ
+summary: A technical guide to sustainable tourism, focusing on GSTC certifications,
+  carrying capacity mathematics, and the Limit of Acceptable Change (LAC) framework.
+title: Sustainable Tourism Frameworks
 ---
 
 # Sustainable Tourism: Technical Frameworks and Carrying Capacity

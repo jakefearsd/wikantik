@@ -1,10 +1,8 @@
 ---
-canonical_id: 01KQ0P44ZBTB26G1T0B1NJ68D9
-title: Zero Trust Architecture
-type: article
-cluster: security
 status: active
 date: '2026-05-15'
+summary: 'Zero Trust implementation: workload identity via SPIFFE/SPIRE, mTLS for
+  service-to-service auth, and policy-driven microsegmentation with OPA.'
 tags:
 - zero-trust
 - mtls
@@ -12,8 +10,11 @@ tags:
 - spire
 - opa
 - microsegmentation
-summary: Deep-research guide on Zero Trust implementation, focusing on workload identity via SPIFFE/SPIRE, Mutual TLS, and policy-driven microsegmentation with OPA.
+type: article
 auto-generated: false
+canonical_id: 01KQ0P44ZBTB26G1T0B1NJ68D9
+cluster: security
+title: Zero Trust Architecture
 ---
 
 # Zero Trust Architecture

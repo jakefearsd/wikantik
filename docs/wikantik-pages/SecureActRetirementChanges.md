@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44W57CZFQB37CC1EEHDC
-title: SECURE Act Retirement Changes
 type: article
-cluster: retirement-planning
 status: active
+cluster: retirement-planning
 date: '2026-04-26'
-summary: How the SECURE Act (2019) and SECURE 2.0 (2022) changed retirement rules
-  — RMD age, inherited IRA distribution, 529 rollovers, catch-up contributions —
-  and the planning implications.
+title: SECURE Act Retirement Changes
+hubs:
+- RetirementPlanningGuide
 tags:
 - secure-act
 - secure-2
 - retirement-rules
 - rmd
 - inherited-ira
+summary: How the SECURE Act (2019) and SECURE 2.0 (2022) changed retirement rules
+  — RMD age, inherited IRA distribution, 529 rollovers, catch-up contributions — and
+  the planning implications.
 related:
 - RequiredMinimumDistributions
 - TaxPlanningForRetirementAccountWithdrawals
 - EstatePlanningForRetirees
 - FiveTwentyNinePlansAndEducationSavings
-hubs:
-- RetirementPlanningGuide
+canonical_id: 01KQ0P44W57CZFQB37CC1EEHDC
 ---
 # SECURE Act Retirement Changes
 
@@ -59,7 +59,7 @@ For most non-spouse heirs (typically adult children), 10-year payout is the rule
 ### Other changes
 
 - Removed maximum age for IRA contributions (was 70.5)
-- Allowed penalty-free $5K withdrawal for new births/adoptions
+- Allowed penalty-free \$5K withdrawal for new births/adoptions
 - Increased small business retirement plan availability
 
 ## SECURE 2.0 (2022)
@@ -78,7 +78,7 @@ Provides additional years of deferral.
 ### Catch-up contributions
 
 Increased catch-up contributions for ages 60-63 (super catch-up):
-- 401(k): higher of $10K or 150% of standard catch-up (2025: $10K)
+- 401(k): higher of $10K or 150% of standard catch-up (2025: \$10K)
 - IRA: similar increase
 
 For workers in these specific ages, dramatic contribution increases possible.
@@ -91,7 +91,7 @@ Reduces traditional contribution flexibility for high earners but increases Roth
 
 ### 529 to Roth IRA rollover
 
-Up to $35K of unused 529 balance can be rolled to a Roth IRA in the beneficiary's name. Subject to:
+Up to \$35K of unused 529 balance can be rolled to a Roth IRA in the beneficiary's name. Subject to:
 - 529 must have been open 15+ years
 - Annual limit equals annual Roth contribution limit
 - Funds in 529 for 5+ years
@@ -105,7 +105,7 @@ See [FiveTwentyNinePlansAndEducationSavings](FiveTwentyNinePlansAndEducationSavi
 
 - Increased K-12 tuition use (still $10K/year)
 - Apprenticeship programs eligible
-- Student loan repayment ($10K lifetime per beneficiary)
+- Student loan repayment (\$10K lifetime per beneficiary)
 
 ### Roth 401(k) RMDs eliminated
 

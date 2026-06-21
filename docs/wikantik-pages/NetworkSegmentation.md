@@ -1,18 +1,19 @@
 ---
-cluster: security
-canonical_id: 01KQ0P44T0R07N7DE30089MGNW
-title: Network Segmentation
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: VLANs vs. microsegmentation for network isolation — how identity-based policy
+  and workload-level enforcement contain lateral movement blast radius.
 tags:
 - security
 - zero-trust
 - microsegmentation
 - vlan
 - blast-radius
-status: active
-date: 2025-05-15
-summary: A technical guide to network isolation strategies, comparing traditional VLANs with modern microsegmentation to contain 'Blast Radius'.
+type: article
 auto-generated: false
+cluster: security
+canonical_id: 01KQ0P44T0R07N7DE30089MGNW
+title: Network Segmentation
 ---
 
 # Network Segmentation: Containing the Blast Radius

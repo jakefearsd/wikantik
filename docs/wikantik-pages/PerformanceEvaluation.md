@@ -1,12 +1,15 @@
 ---
-cluster: engineering-leadership
-canonical_id: 01KQ0P44THA7009ZPNAY71NC79
-type: article
 tags:
-- uncategorized
-summary: This document outlines the three most likely performance bottlenecks in the
-  Wikantik codebase, based on an in-depth analysis of the project structure and key
-  components.
+- performance
+- engineering-leadership
+- optimization
+- profiling
+type: article
+summary: Performance bottlenecks in wiki systems — file system I/O, search indexing,
+  and rendering pipeline — with optimization strategies for each.
+title: Performance Evaluation
+canonical_id: 01KQ0P44THA7009ZPNAY71NC79
+cluster: engineering-leadership
 ---
 # Performance Evaluation
 

@@ -1,10 +1,19 @@
 ---
+canonical_id: 01KVJMS24VR7S5X1D2Q6RVHAEY
 title: SQL
+tags:
+- programming-languages
+- sql
+- databases
+- relational-model
+- data-engineering
+- 2026-benchmarks
 cluster: computer-science
-tags: [programming-languages, sql, databases, relational-model, data-engineering, 2026-benchmarks]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The 'Lingua Franca' of data (1974). Based on Codd's Relational Model, it defines the declarative standard for data management. In 2026, it remains the #3 most used technology globally.
+summary: The standard language of relational data (1974). Built on Codd's relational
+  model and ACID semantics, SQL absorbed JSONB and distributed (NewSQL) scaling.
 ---
 
 # SQL: The Architecture of Information

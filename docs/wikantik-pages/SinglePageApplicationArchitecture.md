@@ -1,14 +1,15 @@
 ---
-cluster: software-architecture
-canonical_id: 01KQ0P44WDNWC7TWE4XVBFFZ5A
-title: Single Page Application Architecture
-type: article
 tags:
 - architecture
 - spa
 - routing
 - frontend
-summary: A deep dive into Single Page Application (SPA) architecture, focusing on client-side routing, state management, and modern performance optimization techniques like SSR and Resumability.
+type: article
+summary: 'SPA architecture: client-side routing via the History API, state management
+  patterns (Redux, Signals), SSR hydration, code splitting, and Resumability (Qwik).'
+title: Single Page Application Architecture
+cluster: software-architecture
+canonical_id: 01KQ0P44WDNWC7TWE4XVBFFZ5A
 ---
 
 # Single Page Application Architecture: Routing, State, and Performance

@@ -1,4 +1,8 @@
 ---
+status: active
+date: '2026-05-10'
+summary: 'Spanish Treasure Fleet logistics: the Potosí-Seville corridor and Manila
+  Galleon silk-for-silver arbitrage across 250 years of regulated maritime trade.'
 tags:
 - logistics
 - history
@@ -14,11 +18,6 @@ related:
 - CoinCollectingHub
 - WarehouseAutomationHub
 title: 'Spanish Silver Galleons: Logistics of the First Global Currency'
-status: active
-date: '2026-05-10'
-summary: A deep-dive into the intermodal logistics of the Spanish Treasure Fleets,
-  covering the Potosí-to-Seville corridor and the silk-for-silver arbitrage of the
-  Manila Galleons.
 ---
 # Spanish Silver Galleons: Logistics of the First Global Currency
 

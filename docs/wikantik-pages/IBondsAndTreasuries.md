@@ -1,29 +1,29 @@
 ---
-canonical_id: 01KQ0P44R0CKJ9JNYQQK816RQ8
-title: I Bonds and Treasuries
 type: article
-cluster: personal-finance
 status: active
+cluster: personal-finance
 date: '2026-04-26'
-summary: How I bonds, T-bills, T-notes, and TIPS work, where each fits in a household
-  portfolio, and the practical mechanics of buying them at TreasuryDirect or through
-  a brokerage.
+title: I Bonds and Treasuries
+hubs:
+- PersonalFinanceHub
 tags:
 - treasuries
-- I-bonds
-- TIPS
-- T-bills
+- i-bonds
+- tips
+- t-bills
 - personal-finance
 - bonds
 - inflation-protection
+summary: How I bonds, T-bills, T-notes, and TIPS work, where each fits in a household
+  portfolio, and the practical mechanics of buying them at TreasuryDirect or through
+  a brokerage.
 related:
 - PersonalFinanceGuide
 - EmergencyFundStrategies
 - InflationProtectionStrategies
 - AssetAllocationGuide
 - TaxPlanningFundamentals
-hubs:
-- PersonalFinanceHub
+canonical_id: 01KQ0P44R0CKJ9JNYQQK816RQ8
 ---
 # I Bonds and Treasuries
 
@@ -92,7 +92,7 @@ T-bill ladder: a 4/8/13/26/52-week ladder gives you continuous monthly maturitie
 
 ### Inflation protection
 
-I bonds are the cleanest inflation hedge available to retail investors. The 0% real return floor (you cannot lose principal in real terms) plus the variable inflation component gives you an asset that exactly tracks CPI in normal periods and beats it during deflation. The $10K annual limit makes it inadequate for large portfolios but useful as a corner.
+I bonds are the cleanest inflation hedge available to retail investors. The 0% real return floor (you cannot lose principal in real terms) plus the variable inflation component gives you an asset that exactly tracks CPI in normal periods and beats it during deflation. The \$10K annual limit makes it inadequate for large portfolios but useful as a corner.
 
 TIPS provide similar protection at any scale, with daily liquidity and longer maturities. Best held in tax-deferred accounts due to phantom-income issues.
 
@@ -128,7 +128,7 @@ This makes I bonds genuinely good but slightly inflexible. Plan accordingly: do 
 
 ### Annual purchase limit
 
-$10,000 electronic + $5,000 paper per person. Married couples can buy $20K electronic + $10K paper combined. Each child can have their own bonds (in a custodial account).
+$10,000 electronic + \$5,000 paper per person. Married couples can buy $20K electronic + \$10K paper combined. Each child can have their own bonds (in a custodial account).
 
 For larger inflation-protection allocation, TIPS are the alternative.
 
@@ -149,7 +149,7 @@ T-bills are short-duration government debt — useful for cash management at sca
 
 ### How they work
 
-Sold at a discount, redeemed at face value. A 13-week T-bill at 4% yield: you pay $99 today, receive $100 in 13 weeks. The difference is the yield.
+Sold at a discount, redeemed at face value. A 13-week T-bill at 4% yield: you pay $99 today, receive \$100 in 13 weeks. The difference is the yield.
 
 ### Auctions vs. secondary market
 
@@ -182,7 +182,7 @@ TIPS provide inflation protection at scale and longer maturities than I bonds.
 
 Principal adjusts with CPI-U. Interest is a fixed real rate paid semi-annually on the adjusted principal.
 
-If you buy $10K of TIPS at issue and CPI rises 5% in the first year, the principal becomes $10,500. The interest payment in year 2 is the real rate × $10,500.
+If you buy \$10K of TIPS at issue and CPI rises 5% in the first year, the principal becomes $10,500. The interest payment in year 2 is the real rate × \$10,500.
 
 At maturity, you receive the inflation-adjusted principal (or the original principal if there has been deflation, whichever is greater).
 
@@ -204,7 +204,7 @@ For most investors: a TIPS ETF in a tax-deferred account is the simplest path. D
 
 | Vehicle | Maturity | Inflation protection | Liquidity | Annual limit | Tax treatment |
 |---------|----------|---------------------|-----------|--------------|---------------|
-| **I bonds** | 30y max | Yes (best for retail) | 12-month lock; 3-month penalty until 5y | $10K + $5K paper | Federal tax-deferrable; state tax-free |
+| **I bonds** | 30y max | Yes (best for retail) | 12-month lock; 3-month penalty until 5y | $10K + \$5K paper | Federal tax-deferrable; state tax-free |
 | **T-bills** | 4–52 weeks | No | Highly liquid | None | Federal taxable; state tax-free |
 | **T-notes/T-bonds** | 2–30 years | No | Highly liquid (interest rate risk) | None | Federal taxable; state tax-free |
 | **TIPS** | 5–30 years | Yes (any scale) | Highly liquid (interest rate risk) | None | Phantom income in taxable; better in tax-deferred |
@@ -213,7 +213,7 @@ For most investors: a TIPS ETF in a tax-deferred account is the simplest path. D
 
 Sample allocation for a household with $50K of safe-money savings and inflation concerns:
 
-- **Front-line emergency fund** ($15K): HYSA at 4%+ yield
+- **Front-line emergency fund** (\$15K): HYSA at 4%+ yield
 - **Tier 2 emergency fund** ($15K): T-bill ladder (4/8/13/26/52-week rungs)
 - **Inflation protection** ($10K/year): max I bonds via TreasuryDirect
 - **Long-horizon safe money** ($10K): TIPS or TIPS ETF in tax-deferred account if applicable
@@ -223,7 +223,7 @@ This stack produces ~4–5% yield in 2026 conditions, full inflation protection 
 ## Common failure patterns
 
 - **Holding all "safe money" in checking at 0.01%.** Move to HYSA, T-bills, or I bonds.
-- **Skipping I bonds because of the 1-year lock.** $10K/year not used is $10K of inflation protection foregone.
+- **Skipping I bonds because of the 1-year lock.** \$10K/year not used is $10K of inflation protection foregone.
 - **Holding TIPS in taxable accounts.** The phantom income is real and inefficient.
 - **Buying long-dated Treasuries for "safety" without understanding interest-rate risk.** Long T-bonds drop substantially when rates rise.
 - **Ignoring state-tax-free advantage.** For high-tax states, the difference between state-taxable and state-tax-free yields can be 1%+ in effective terms.

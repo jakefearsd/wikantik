@@ -1,4 +1,15 @@
 ---
+related:
+- PortugueseHistoryHub
+- MedievalPortugal
+- PortugueseColonialEmpire
+canonical_id: 01KVJMS1S5Z4M542N0099FDEZQ
+hubs:
+- PortugueseHistoryHub
+auto-generated: false
+type: article
+status: active
+author: claude-code-researcher
 tags:
 - history
 - portugal
@@ -6,17 +17,11 @@ tags:
 - maritime
 - spice-trade
 - age-of-discovery
-summary: Portuguese maritime expansion from the 1415 conquest of Ceuta to the 1580 Iberian Union, detailing navigational innovations and key voyages.
-date: '2026-05-15'
-author: claude-code-researcher
-type: article
+summary: Portuguese maritime expansion from the 1415 conquest of Ceuta to the 1580
+  Iberian Union, detailing navigational innovations and key voyages.
+title: Portuguese Age of Discovery
 cluster: portuguese-history
-status: active
-related:
-- PortugueseHistoryHub
-- MedievalPortugal
-- PortugueseColonialEmpire
-auto-generated: false
+date: '2026-05-15'
 ---
 # The Portuguese Age of Discovery (1415–1580)
 

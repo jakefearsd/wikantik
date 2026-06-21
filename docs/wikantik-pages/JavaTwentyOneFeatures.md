@@ -1,23 +1,26 @@
 ---
-canonical_id: 01KQ0P44RD0W7H088EW5N6NGTP
-title: "The Modern Java Stack: Java 21 LTS"
-type: article
+auto-generated: false
 cluster: java
-status: active
+title: 'The Modern Java Stack: Java 21 LTS'
+related:
+- JavaRecordsAndSealedClasses
+- JavaStreamsAndFunctionalProgramming
+- JavaCollectionsFramework
+- JavaConcurrencyPatterns
+summary: Java 21 LTS features — Virtual Threads, Structured Concurrency, Scoped Values,
+  Pattern Matching, Sequenced Collections, and Generational ZGC.
+type: article
 date: '2026-05-22'
-summary: A comprehensive overview of Java 21's transformative features, including Virtual Threads, Structured Concurrency, Scoped Values, and Pattern Matching.
+status: active
+canonical_id: 01KQ0P44RD0W7H088EW5N6NGTP
+hubs:
+- JavaMemoryManagementHub
 tags:
 - java
 - java-21
 - virtual-threads
 - structured-concurrency
 - pattern-matching
-related:
-- JavaRecordsAndSealedClasses
-- JavaStreamsAndFunctionalProgramming
-- JavaCollectionsFramework
-- JavaConcurrencyPatterns
-auto-generated: false
 ---
 
 # The Modern Java Stack: Java 21 LTS

@@ -1,19 +1,24 @@
 ---
-title: The Roth Conversion Ladder
 type: article
-cluster: index-fund-investing
-status: published
+status: active
 date: '2026-05-10'
-summary: The definitive strategy for accessing retirement funds before age 59.5, featuring an analysis of the dual 5-year rules, withdrawal ordering, and pipeline management.
+cluster: index-fund-investing
+title: The Roth Conversion Ladder
+hubs:
+- IndexFundInvestingForEarlyRetirement
+relations:
+- type: component_of
+  target_id: IndexFundInvestingForEarlyRetirement
+- type: related_to
+  target_id: 01KQ0P44VXGRJWXQXJFE9QSNTX
 tags:
 - personal-finance
 - early-retirement
 - roth-conversion-ladder
 - fire-movement
 - tax-strategy
-relations:
-- {type: component_of, target_id: "IndexFundInvestingForEarlyRetirement"}
-- {type: related_to, target_id: 01KQ0P44VXGRJWXQXJFE9QSNTX} # Roth Conversion Strategy
+summary: The definitive strategy for accessing retirement funds before age 59.5, featuring
+  an analysis of the dual 5-year rules, withdrawal ordering, and pipeline management.
 canonical_id: 01KQ0P44VW76C0E6HNSB8R6EJ8
 ---
 
@@ -61,7 +66,7 @@ If you do not have 5 years of taxable brokerage funds to prime the ladder, secon
 ## 5. Execution Traps
 
 *   **The ACA Subsidy Cliff:** If you use the Affordable Care Act (Obamacare) for health insurance, Roth conversions count as Modified Adjusted Gross Income (MAGI). Converting too much can cost you thousands in lost healthcare subsidies, effectively acting as a massive hidden tax.
-*   **Withholding Taxes:** Never withhold taxes from the conversion itself. If you convert $50,000 and withhold $5,000 for taxes, the IRS treats that $5,000 as an early withdrawal, slapping you with a 10% penalty. Always pay the conversion tax from an outside taxable account.
+*   **Withholding Taxes:** Never withhold taxes from the conversion itself. If you convert \$50,000 and withhold \$5,000 for taxes, the IRS treats that $5,000 as an early withdrawal, slapping you with a 10% penalty. Always pay the conversion tax from an outside taxable account.
 
 ## See Also
 *   [Roth Conversion Strategy](RothConversionStrategy) — Optimizing the tax brackets during the conversion.

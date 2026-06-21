@@ -1,10 +1,8 @@
 ---
-canonical_id: 01KQ12YDW2SSJQ6N3MA8XDETJS
-title: Number Theory
-type: article
-cluster: mathematics
 status: active
 date: 2025-02-13T00:00:00Z
+summary: Advanced Number Theory for cryptographic applications, focusing on prime
+  distribution, modular groups, and the discrete log problem in RSA/ECC.
 tags:
 - mathematics
 - number-theory
@@ -12,8 +10,11 @@ tags:
 - rsa
 - ecc
 - modular-arithmetic
-summary: Advanced Number Theory for cryptographic applications, focusing on prime distribution, modular groups, and the discrete log problem in RSA/ECC.
+type: article
 auto-generated: false
+canonical_id: 01KQ12YDW2SSJQ6N3MA8XDETJS
+cluster: mathematics
+title: Number Theory
 ---
 
 # Number Theory: Cryptographic Foundations and Lattices

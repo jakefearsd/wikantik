@@ -1,18 +1,19 @@
 ---
-cluster: cloud-platforms
-canonical_id: 01KQ0P44R4GVG4MQVMMEVADRKY
-title: Infrastructure as Code
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: IaC declarative vs. imperative paradigms, Terraform state management and
+  locking, Policy as Code (OPA/Sentinel), and multi-cloud orchestration patterns.
 tags:
 - cloud
 - terraform
 - pulumi
 - devops
 - iac
-status: active
-date: 2025-05-15
-summary: Technical guide to Infrastructure as Code (IaC). Covers declarative vs imperative paradigms, state management, and multi-cloud orchestration.
+type: article
 auto-generated: false
+cluster: cloud-platforms
+canonical_id: 01KQ0P44R4GVG4MQVMMEVADRKY
+title: Infrastructure as Code
 ---
 
 # Infrastructure as Code (IaC): Systems Automation

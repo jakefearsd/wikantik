@@ -1,8 +1,16 @@
 ---
-cluster: mechanical-engineering
-canonical_id: 01KQ0P44QZKW4SN4MV0PN179YP
 title: Hydraulics and Pneumatics
+related:
+- GearingSystems
+- BearingMechanics
+- MechanicalCoupling
+- PredictiveMaintenance
+- MathematicsHub
+cluster: mechanical-engineering
 type: article
+canonical_id: 01KQ0P44QZKW4SN4MV0PN179YP
+summary: Non-ideal fluid behavior, polytropic compression thermodynamics, and mechatronic
+  control loops with digital twins for predictive maintenance.
 tags:
 - mechanical-engineering
 - fluid-power
@@ -11,13 +19,6 @@ tags:
 - control-theory
 - mechatronics
 - digital-twin
-summary: A rigorous exploration of fluid power systems, focusing on non-ideal fluid behavior, the thermodynamics of polytropic compression, and the integration of mechatronic control loops and digital twins for predictive maintenance.
-related:
-- GearingSystems
-- BearingMechanics
-- MechanicalCoupling
-- PredictiveMaintenance
-- MathematicsHub
 ---
 
 # Hydraulics and Pneumatics: The Architecture of Fluid Power

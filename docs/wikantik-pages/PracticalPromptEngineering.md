@@ -1,22 +1,23 @@
 ---
-canonical_id: 01KQ0P44TPAYZRNPQS9H6M8183
-summary: How to communicate with LLMs effectively — the principles behind good prompts,
-  common patterns, iteration techniques, and why specificity beats cleverness
+status: active
+type: article
+hubs:
+- MlModelDeploymentHub
 date: 2026-03-14T00:00:00Z
 cluster: generative-ai
+title: Practical Prompt Engineering
+tags:
+- generative-ai
+- productivity
+- prompt-engineering
+summary: How to communicate with LLMs effectively — the principles behind good prompts,
+  common patterns, iteration techniques, and why specificity beats cleverness
 related:
 - GenerativeAiAdoptionGuide
 - UnderstandingGenerativeAi
 - AiAugmentedWorkflows
 - RunningLocalLlms
-type: article
-status: active
-tags:
-- generative-ai
-- productivity
-- prompt-engineering
-hubs:
-- MlModelDeploymentHub
+canonical_id: 01KQ0P44TPAYZRNPQS9H6M8183
 ---
 # Practical Prompt Engineering
 

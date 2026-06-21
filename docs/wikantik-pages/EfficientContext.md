@@ -1,8 +1,16 @@
 ---
-cluster: generative-ai
-canonical_id: 01KQ0P44Q1GRZAM50GV1CFTN7B
 title: Efficient Context Passing
+related:
+- GenerativeAIHub
+- AgenticAiHub
+- TransformerArchitecture
+- RagImplementationPatterns
+- ContextCompression
+cluster: generative-ai
 type: article
+canonical_id: 01KQ0P44Q1GRZAM50GV1CFTN7B
+summary: 'LLM context management: attention bottleneck, hierarchical context stacking,
+  the ACE loop, and Knowledge Graph serialization for compression.'
 tags:
 - generative-ai
 - llm
@@ -11,13 +19,6 @@ tags:
 - agentic-ai
 - rag
 - context-compression
-summary: A rigorous exploration of efficient context management in LLMs, focusing on the attention bottleneck, hierarchical context stacking, the Agentic Context Engineering (ACE) loop, and advanced compression techniques like Knowledge Graph serialization.
-related:
-- GenerativeAIHub
-- AgenticAiHub
-- TransformerArchitecture
-- RagImplementationPatterns
-- ContextCompression
 ---
 
 # Efficient Context: Navigating the Attention Bottleneck

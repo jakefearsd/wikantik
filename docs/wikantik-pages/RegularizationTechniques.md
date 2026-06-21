@@ -1,8 +1,17 @@
 ---
-cluster: machine-learning
-canonical_id: 01KQ0P44VB1P0GCPTPCFDP8XV2
 title: Regularization Techniques
+related:
+- MachineLearning
+- DeepLearningFundamentals
+- NeuralNetworkArchitectures
+- OptimizationAlgorithms
+- MathematicsHub
+- InformationTheory
+cluster: machine-learning
 type: article
+canonical_id: 01KQ0P44VB1P0GCPTPCFDP8XV2
+summary: L1/L2 penalties, Elastic Net, and Dropout for managing the bias-variance
+  tradeoff — with Bayesian interpretations and the math of the generalization gap.
 tags:
 - machine-learning
 - regularization
@@ -12,14 +21,6 @@ tags:
 - ridge
 - l1-l2
 - generalization-gap
-summary: A rigorous exploration of regularization techniques in machine learning, focusing on the bias-variance tradeoff, the induction of sparsity via L1 penalties, the Bayesian foundations of L2, and the structural ensemble dynamics of Dropout.
-related:
-- MachineLearning
-- DeepLearningFundamentals
-- NeuralNetworkArchitectures
-- OptimizationAlgorithms
-- MathematicsHub
-- InformationTheory
 ---
 
 # Regularization: Managing the Generalization Gap

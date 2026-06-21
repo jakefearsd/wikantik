@@ -1,16 +1,17 @@
 ---
-cluster: machine-learning
 canonical_id: 01KQ0P44S50Z07V4E8K8XA6Q43
 title: Machine Learning
-type: article
 tags:
 - backprop
 - scaling-laws
 - bias-variance
 - transformer
-date: 2025-05-15
-summary: A technical deep dive into the Bias-Variance tradeoff, the multivariable calculus of backpropagation, and the modern physics of Transformer scaling laws.
+cluster: machine-learning
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+summary: Bias-variance decomposition, backpropagation via the chain rule, and Transformer
+  scaling laws (Chinchilla) — the mathematical foundations behind modern ML.
 ---
 
 # Machine Learning: Calculus, Tradeoffs, and Scaling Laws

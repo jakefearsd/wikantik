@@ -1,23 +1,23 @@
 ---
-summary: An overview of Computer Vision, focusing on its reliance on Linear Algebra
-  and geometric transformations for image understanding.
-date: 2026-05-15T00:00:00Z
-cluster: Artificial Intelligence
-related:
-- LinearAlgebra
-- AIInfrastructureHub
-canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KO
 type: article
+status: active
+date: 2026-05-15T00:00:00Z
+cluster: machine-learning
 title: 'Computer Vision: Foundations and Geometric Principles'
+hubs:
+- AIInfrastructureHub
 tags:
 - ai
 - computer-vision
 - linear-algebra
 - geometry
 - image-processing
-status: active
-hubs:
+summary: 'Computer Vision foundations: relying on linear algebra and geometric transformations
+  for image understanding, from pixel matrices to 3D projection.'
+related:
+- LinearAlgebra
 - AIInfrastructureHub
+canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KO
 ---
 
 # Computer Vision: Foundations and Geometric Principles

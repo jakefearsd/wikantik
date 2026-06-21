@@ -1,20 +1,4 @@
 ---
-status: active
-part-of:
-- IndexFundInvestingForEarlyRetirement
-date: '2026-03-14'
-cluster: index-fund-investing
-hubs:
-- IndexFundInvestingForEarlyRetirement
-tags:
-- personal-finance
-- investing
-- expense-ratios
-- index-funds
-- FIRE
-- cost-analysis
-summary: Deep dive into how expense ratios compound against investors over decades,
-  with concrete dollar-amount comparisons and actionable steps to minimize costs
 related:
 - IndexFundInvestingForEarlyRetirement
 - IndexFundPortfolioConstruction
@@ -22,7 +6,24 @@ related:
 - ExpenseRatiosAndTheirEffectOnCompounding
 - LowCostIndexFundInvesting
 canonical_id: 01KQ0P44Q95A79EB4J2GCK28P2
+hubs:
+- IndexFundInvestingForEarlyRetirement
+tags:
+- personal-finance
+- investing
+- expense-ratios
+- index-funds
+- fire
+- cost-analysis
 type: article
+status: active
+summary: Deep dive into how expense ratios compound against investors over decades,
+  with concrete dollar-amount comparisons and actionable steps to minimize costs
+title: 'Expense Ratio Deep Dive: How Fund Fees Compound Against You'
+part-of:
+- IndexFundInvestingForEarlyRetirement
+cluster: index-fund-investing
+date: '2026-03-14'
 Concept:
 - AssetAllocation
 ---
@@ -32,24 +33,24 @@ An expense ratio is the annual percentage of your investment that a fund takes t
 
 ## The Math That Changes Everything
 
-Consider two investors who each invest $500 per month for 30 years in funds that return 10% annually before fees:
+Consider two investors who each invest \$500 per month for 30 years in funds that return 10% annually before fees:
 
 | Investor | Fund Expense Ratio | Final Balance | Fees Paid (Lifetime) |
 |----------|-------------------|---------------|---------------------|
 | A | 0.03% (e.g. VTSAX) | $1,086,179 | $9,824 |
 | B | 1.00% (typical active fund) | $942,425 | $153,578 |
-| C | 1.50% (loaded fund + advisor) | $876,505 | $219,498 |
+| C | 1.50% (loaded fund + advisor) | $876,505 | \$219,498 |
 
-Investor A retires with **$143,754 more** than Investor B — and **$209,674 more** than Investor C. The only difference is the expense ratio. Same contributions, same market returns, same time period.
+Investor A retires with **$143,754 more** than Investor B — and **\$209,674 more** than Investor C. The only difference is the expense ratio. Same contributions, same market returns, same time period.
 
 ## Why Expense Ratios Compound Against You
 
 Expense ratios do not simply subtract a flat amount each year. They reduce your balance, which reduces the base on which future returns compound. This creates an exponentially widening gap:
 
-- **Year 1**: The difference between 0.03% and 1.00% on $6,000 is $58. Trivial.
-- **Year 10**: The cumulative drag on $93,000 in contributions has cost you $4,200 in lost growth.
+- **Year 1**: The difference between 0.03% and 1.00% on $6,000 is \$58. Trivial.
+- **Year 10**: The cumulative drag on $93,000 in contributions has cost you \$4,200 in lost growth.
 - **Year 20**: The gap has widened to $38,000.
-- **Year 30**: You have lost $143,754 — more than two years of contributions.
+- **Year 30**: You have lost \$143,754 — more than two years of contributions.
 
 The longer your time horizon, the more devastating high expense ratios become. This is precisely why they matter most for early retirement planners, who are investing for 30-40+ years.
 

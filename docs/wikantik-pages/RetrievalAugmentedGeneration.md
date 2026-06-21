@@ -1,21 +1,25 @@
 ---
-title: Retrieval-Augmented Generation (RAG)
-type: article
-cluster: generative-ai
-status: published
+status: active
 date: '2026-05-10'
-summary: A distributed systems pattern that integrates real-time, domain-specific data into LLM requests to ensure factual accuracy and data freshness.
+summary: A distributed systems pattern that integrates real-time, domain-specific
+  data into LLM requests to ensure factual accuracy and data freshness.
 tags:
 - generative-ai
 - rag
 - distributed-systems
 - vector-databases
 - agentic-ai
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGDAZH3G3X2J4VFM9MP88} # Generative AI Hub
-- {type: related_to, target_id: 01KS7Y6Q6T938D4EYVWFA9F36F} # CQRS/ES
-- {type: extension_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
+- type: component_of
+  target_id: 01KQEKGDAZH3G3X2J4VFM9MP88
+- type: related_to
+  target_id: 01KS7Y6Q6T938D4EYVWFA9F36F
+- type: extension_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+cluster: generative-ai
 canonical_id: 01KS8G0X0Z938D4EYVWFA9F36K
+title: Retrieval-Augmented Generation (RAG)
 ---
 
 # Retrieval-Augmented Generation (RAG)

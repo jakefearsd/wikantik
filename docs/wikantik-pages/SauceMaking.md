@@ -1,8 +1,16 @@
 ---
-cluster: cooking-and-food
-canonical_id: 01KQ0P44W2DJK15ZRZ5F7QAZC5
 title: Sauce Making and Emulsion Theory
+related:
+- FoodScience
+- CheeseProduction
+- ChocolateTempering
+- MaillardReaction
+- MathematicsHub
+cluster: cooking-and-food
 type: article
+canonical_id: 01KQ0P44W2DJK15ZRZ5F7QAZC5
+summary: 'Sauce formulation as interfacial science: colloidal stability (DLVO theory),
+  non-Newtonian rheology of food matrices, and kinetic emulsion stabilization.'
 tags:
 - food-science
 - culinary-technology
@@ -11,13 +19,6 @@ tags:
 - colloidal-systems
 - stabilization
 - interfacial-science
-summary: A rigorous exploration of sauce formulation as a discipline of interfacial science, focusing on the thermodynamics of colloidal stability (DLVO theory), the rheology of non-Newtonian food matrices, and advanced kinetic stabilization mechanisms.
-related:
-- FoodScience
-- CheeseProduction
-- ChocolateTempering
-- MaillardReaction
-- MathematicsHub
 ---
 
 # Sauce Making: The Architecture of the Culinary Matrix

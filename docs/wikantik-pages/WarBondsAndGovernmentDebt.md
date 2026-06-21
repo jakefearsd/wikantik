@@ -1,27 +1,27 @@
 ---
-canonical_id: 01KQ0P44YJAK5XWRCK4S4DJ47R
-title: War Bonds and Government Debt
 type: article
-cluster: geopolitics-and-finance
 status: active
+cluster: geopolitics-and-finance
 date: '2026-04-26'
-summary: How governments finance wars through debt — historical war bonds, modern
-  conflict financing, the impact on bond markets, and the patterns for investors
-  during conflict periods.
+title: War Bonds and Government Debt
+hubs:
+- ConflictMarketPatternsHub
 tags:
 - war-bonds
 - government-debt
 - treasuries
 - conflict-financing
 - bond-markets
+summary: How governments finance wars through debt — historical war bonds, modern
+  conflict financing, the impact on bond markets, and the patterns for investors during
+  conflict periods.
 related:
 - DefenseSectorInvesting
 - GeopoliticalRiskAndInvesting
 - PostConflictReconstructionInvesting
 - IBondsAndTreasuries
 - ConflictMarketPatternsHub
-hubs:
-- ConflictMarketPatternsHub
+canonical_id: 01KQ0P44YJAK5XWRCK4S4DJ47R
 ---
 # War Bonds and Government Debt
 

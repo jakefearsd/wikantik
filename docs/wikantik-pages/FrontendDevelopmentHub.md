@@ -1,22 +1,23 @@
 ---
-canonical_id: 01KZHC6PVT4SBQM9R0F3T7K8Z6
-title: FrontendDevelopmentHub
-type: hub
-cluster: frontend-development
-status: active
 date: '2026-04-26'
-summary: Index of pages on frontend development — CSS architecture, responsive design,
-  rendering strategies, accessibility, web components, and the build tooling that
-  ties it all together.
+summary: CSS architecture, responsive design, rendering strategies, accessibility,
+  web components, and the build tooling for frontend development.
+cluster: frontend-development
+related:
+- WebServicesAndApisHub
+- SoftwareEngineeringPracticesHub
+canonical_id: 01KZHC6PVT4SBQM9R0F3T7K8Z6
+type: hub
+title: Frontend Development Hub
+status: active
 tags:
 - frontend
 - web-development
 - hub
 - css
 - typescript
-related:
+hubs:
 - WebServicesAndApisHub
-- SoftwareEngineeringPracticesHub
 ---
 # FrontendDevelopment Hub
 

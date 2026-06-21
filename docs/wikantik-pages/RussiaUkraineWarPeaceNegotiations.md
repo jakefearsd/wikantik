@@ -1,24 +1,27 @@
 ---
-canonical_id: 01KQ0P44W06EFE76VF5C45QJNQ
+cluster: russia-ukraine-war
+title: 'Russia-Ukraine War: Peace Negotiations'
+related:
+- RussiaUkraineWarOverview
+type: article
 summary: Status of peace negotiations and diplomatic efforts to end the Russia-Ukraine
   war as of March 2026
+status: active
 date: '2026-03-13'
+canonical_id: 01KQ0P44W06EFE76VF5C45QJNQ
+hubs:
+- RussiaUkraineWarOverview
+part-of:
+- RussiaUkraineWarOverview
 tags:
-- Russia
-- Ukraine
+- russia
+- ukraine
 - war
 - diplomacy
 - peace
 - negotiations
-- Trump
+- trump
 - ceasefire
-related:
-- RussiaUkraineWarOverview
-type: article
-cluster: russia-ukraine-war
-status: active
-part-of:
-- RussiaUkraineWarOverview
 ---
 # Peace Negotiations and Diplomatic Efforts
 

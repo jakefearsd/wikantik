@@ -1,23 +1,22 @@
 ---
-canonical_id: 01KQ0P44SEQSJA988GG55DSKAM
-title: Memory Management Fundamentals
 type: article
-cluster: computer-science-foundations
 status: active
+cluster: computer-science-foundations
 date: '2026-04-26'
-summary: Memory management — manual allocation, garbage collection, smart pointers,
-  arenas, and the spectrum of approaches that languages and runtimes use to track
-  who owns what.
+title: Memory Management Fundamentals
+hubs:
+- ComputerScienceFoundationsHub
 tags:
 - memory-management
 - allocation
 - garbage-collection
 - ownership
+summary: Manual allocation, GC, smart pointers, arenas — the spectrum of approaches
+  languages and runtimes use to track ownership and prevent memory bugs.
 related:
 - MemoryArchitectures
 - JavaMemoryManagement
-hubs:
-- ComputerScienceFoundationsHub
+canonical_id: 01KQ0P44SEQSJA988GG55DSKAM
 ---
 # Memory Management Fundamentals
 

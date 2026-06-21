@@ -1,11 +1,10 @@
 ---
+hubs:
+- ContainerSecurity Hub
+date: 2025-05-15T00:00:00Z
 summary: Deep dive into the mathematical models of rate limiting (Token Bucket, Leaky
   Bucket) and production-grade implementation patterns using Redis Lua scripts.
-date: 2025-05-15T00:00:00Z
-cluster: devops-sre
 auto-generated: false
-canonical_id: 01KQ0P44V48HB0H59CESKDZ96Q
-title: Rate Limiting And Throttling
 type: article
 tags:
 - rate
@@ -13,8 +12,9 @@ tags:
 - request
 - algorithms
 - redis
-hubs:
-- ContainerSecurity Hub
+cluster: devops-sre
+canonical_id: 01KQ0P44V48HB0H59CESKDZ96Q
+title: Rate Limiting and Throttling
 ---
 # Digital Gatekeeping
 

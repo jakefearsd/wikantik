@@ -1,21 +1,22 @@
 ---
-cluster: van-life
-canonical_id: 01KQ0P44MK67P6XRCQQDQHS6DH
-title: "Best National Parks for Couples: A Behavioral Framework"
-type: article
-tags:
-- travel-planning
-- behavioral-modeling
-- environmental-psychology
-- road-trip-itinerary
-- risk-management
-summary: A rigorous, multi-variable framework for designing optimal experiential road trips for midlife couples, utilizing the American National Park System as a controlled environment for testing relational resilience and cognitive load management.
+title: 'Best National Parks for Couples: A Behavioral Framework'
 related:
 - AdventureTravelPlanning
 - BackpackingGuide
 - CommunityDisasterPlanning
 - HomeEmergencyPreparedness
 - SystemsThinking
+cluster: van-life
+type: article
+canonical_id: 01KQ0P44MK67P6XRCQQDQHS6DH
+summary: 'Multi-variable framework for national park road trips for couples: biome-psychology
+  mapping, N/P ratio management, and relational resilience.'
+tags:
+- travel-planning
+- behavioral-modeling
+- environmental-psychology
+- road-trip-itinerary
+- risk-management
 ---
 
 # Optimizing National Park Itineraries: A Systems Approach to Relational Resilience

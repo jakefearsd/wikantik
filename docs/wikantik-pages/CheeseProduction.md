@@ -1,17 +1,17 @@
 ---
-cluster: cooking-and-food
+canonical_id: 01KQ0P44N3TX5H5A2WJ2PK6SYW
+title: Cheese Production
 tags:
 - food-science
 - biochemical-engineering
 - fermentation
 - separation-science
-title: Cheese Production
-canonical_id: 01KQ0P44N3TX5H5A2WJ2PK6SYW
-summary: A rigorous exploration of cheese production as a biochemical engineering
-  process, focusing on micelle stability and fermentation kinetics.
-status: active
-date: '2026-05-15'
+cluster: cooking-and-food
 type: article
+date: '2026-05-15'
+status: active
+summary: 'Cheese production as a biochemical engineering process: casein micelle destabilization,
+  LAB fermentation kinetics, and precision fermentation frontiers.'
 ---
 # Cheese Production: The Biochemistry of Matrix Transformation
 

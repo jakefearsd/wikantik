@@ -1,12 +1,24 @@
 ---
-title: Regression Analysis
-type: article
-cluster: mathematics
-status: active
 date: '2026-05-06'
-summary: A detailed exploration of modeling relationships through orthogonal projection, matrix formulation of OLS, and the geometry of the hat matrix.
-tags: [mathematics, statistics, regression, linear-regression, machine-learning, prediction]
-related: [StatisticsFundamentals, StatisticalInference, LinearAlgebra, MathematicsHub]
+status: active
+summary: 'OLS as orthogonal projection: normal equations, the hat matrix, Gauss-Markov
+  theorem, ANOVA decomposition, and ridge regression as a Bayesian Gaussian prior.'
+tags:
+- mathematics
+- statistics
+- regression
+- linear-regression
+- machine-learning
+- prediction
+type: article
+canonical_id: 01KTXJ5PGTZSF7ZS3TY1H32NSS
+cluster: mathematics
+related:
+- StatisticsFundamentals
+- StatisticalInference
+- LinearAlgebra
+- MathematicsHub
+title: Regression Analysis
 ---
 
 # Regression Analysis: The Geometry of Projection

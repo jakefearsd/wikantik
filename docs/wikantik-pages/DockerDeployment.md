@@ -1,14 +1,23 @@
 ---
-summary: Professional Wikantik Deployment with Docker
-canonical_id: 01KQ0P44PWCCMS8D7BBBM6HEZ5
-cluster: cloud-platforms
+title: Docker Deployment
 type: article
-tags:
-- uncategorized
+cluster: cloud-platforms
 hubs:
 - ContainerSecurity Hub
+summary: 'Deploy Wikantik with Docker: environment variables, volume-backed data persistence,
+  daily backup container, and docker-compose example.'
+canonical_id: 01KQ0P44PWCCMS8D7BBBM6HEZ5
+tags:
+- docker
+- deployment
+- cloud-platforms
+- backup
+- self-hosting
 ---
 # Professional Wikantik Deployment with Docker
+
+> 🌐 **Product overview:** [Self-hosting & backup on wikantik.com](https://www.wikantik.com/enterprise/self-hosting-and-backup.html) — a plain-language walkthrough for readers and AI agents.
+
 
 This guide provides a comprehensive walkthrough for deploying a production-ready Wikantik instance using Docker, with a focus on configuration, data persistence, and automated backups.
 

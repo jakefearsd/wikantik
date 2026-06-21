@@ -8,12 +8,12 @@ tags:
 - capacity-planning
 - gatling
 - k6
-date: '2026-05-15'
-summary: Comprehensive strategies for load testing distributed systems, covering open
-  vs. closed workload models, coordinated omission, and capacity planning.
-status: published
 cluster: devops-sre
 type: article
+date: '2026-05-15'
+status: active
+summary: Comprehensive strategies for load testing distributed systems, covering open
+  vs. closed workload models, coordinated omission, and capacity planning.
 ---
 
 # Load Testing Strategies

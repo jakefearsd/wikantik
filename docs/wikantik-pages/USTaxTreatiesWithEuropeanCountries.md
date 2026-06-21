@@ -1,27 +1,26 @@
 ---
-canonical_id: 01KQ0P44Y5GZ7T1PVRHQQBCKHN
-title: US Tax Treaties With European Countries
 type: article
-cluster: personal-finance
 status: active
+cluster: personal-finance
 date: '2026-04-26'
-summary: How US tax treaties with European countries work — what they actually do
-  for individuals, the savings clause that limits relief for US citizens, totalization
-  agreements, and where the practical traps are.
+title: US Tax Treaties with European Countries
+hubs:
+- PersonalFinanceHub
 tags:
 - taxes
 - international-tax
 - tax-treaties
 - expat
 - personal-finance
+summary: 'How US-European tax treaties work: the savings clause limiting relief for
+  US citizens, totalization agreements, and practical traps for dual-status taxpayers.'
 related:
 - PersonalFinanceGuide
 - TaxPlanningFundamentals
 - EuRetirementSavingsGuide
 - EuRetirementTaxComparison
 - GermanRetirementSystem
-hubs:
-- PersonalFinanceHub
+canonical_id: 01KQ0P44Y5GZ7T1PVRHQQBCKHN
 ---
 # US Tax Treaties With European Countries
 
@@ -56,7 +55,7 @@ The two main tools for avoiding double taxation, available to US citizens regard
 
 ### Foreign Earned Income Exclusion (FEIE)
 
-A US tax provision that lets you exclude up to ~$130,000 (2026 indexed) of foreign earned income from US tax, provided you meet either:
+A US tax provision that lets you exclude up to ~\$130,000 (2026 indexed) of foreign earned income from US tax, provided you meet either:
 
 - **Bona fide residence test**: established residence in a foreign country for an entire tax year
 - **Physical presence test**: physically present in a foreign country for at least 330 days in any 12-month period
@@ -180,8 +179,8 @@ This matters mostly for high-net-worth taxpayers or those genuinely on the fence
 
 Beyond the tax itself, US citizens with foreign accounts or assets face significant reporting obligations:
 
-- **FBAR (FinCEN 114)** — required if aggregate foreign accounts exceed $10K at any time during the year. Penalties for non-filing are severe.
-- **FATCA (Form 8938)** — required if specified foreign financial assets exceed thresholds ($50K to $600K depending on filing status and residency).
+- **FBAR (FinCEN 114)** — required if aggregate foreign accounts exceed \$10K at any time during the year. Penalties for non-filing are severe.
+- **FATCA (Form 8938)** — required if specified foreign financial assets exceed thresholds ($50K to \$600K depending on filing status and residency).
 - **PFIC reporting (Form 8621)** — required for any holdings in passive foreign investment companies. Most non-US mutual funds and ETFs are PFICs. The tax treatment is punitive, and the filing burden is substantial.
 
 These reporting requirements exist independently of tax treaties. A US citizen abroad can owe zero US tax but still be required to file FBAR, FATCA, and PFIC forms with severe penalties for omission.

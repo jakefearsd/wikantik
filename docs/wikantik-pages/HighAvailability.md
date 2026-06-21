@@ -1,6 +1,9 @@
 ---
-canonical_id: 01KRQFYP7Y1TEAX48C06A1Z3JR
-type: article
+status: active
+date: '2026-05-15'
+summary: An engineering deep-dive into High Availability (HA) architectures. Covers
+  the mathematical formulation of 'nines', the critical distinction between RTO and
+  RPO, and failover topologies.
 tags:
 - high-availability
 - rto
@@ -8,18 +11,15 @@ tags:
 - resilience
 - failover
 - distributed-systems
-title: 'High Availability: RTO, RPO, and Resilience'
+type: article
 relations:
 - type: component_of
   target_id: 01KQEKG9XWDSFGH7TWHH63NZT
 - type: extension_of
   target_id: 01KQ0P44PSDYPG5MY8RH2DM5GT
-summary: An engineering deep-dive into High Availability (HA) architectures. Covers
-  the mathematical formulation of 'nines', the critical distinction between RTO and
-  RPO, and failover topologies.
-status: active
-date: '2026-05-15'
+canonical_id: 01KRQFYP7Y1TEAX48C06A1Z3JR
 cluster: distributed-systems
+title: 'High Availability: RTO, RPO, and Resilience'
 ---
 
 # High Availability (HA): Engineering for Resilience

@@ -1,8 +1,16 @@
 ---
+title: 'Small Town America: A Field Research Methodology'
+related:
+- BackpackingGuide
+- AdventureTravelPlanning
+- HealthyOnTheRoadAfter40
+- SystemsThinking
+- MathematicsHub
 cluster: van-life
-canonical_id: 01KQ0P44WNGP0HW1394JFS0FJ2
-title: "Small Town America: A Field Research Methodology"
 type: article
+canonical_id: 01KQ0P44WNGP0HW1394JFS0FJ2
+summary: 'Van-based longitudinal field research in rural America: affective topography
+  mapping, Local Economic Dependency Scores (LEDS), and digital divide analysis.'
 tags:
 - van-life
 - sociology
@@ -11,13 +19,6 @@ tags:
 - ethnographic-research
 - economic-resilience
 - digital-divide
-summary: A rigorous methodological framework for longitudinal field research in rural America, focusing on the van as a mobile laboratory, affective topography mapping, the quantification of Local Economic Dependency Scores (LEDS), and the analysis of digital divide vectors.
-related:
-- BackpackingGuide
-- AdventureTravelPlanning
-- HealthyOnTheRoadAfter40
-- SystemsThinking
-- MathematicsHub
 ---
 
 # Small Town America: The Van as a Mobile Research Platform

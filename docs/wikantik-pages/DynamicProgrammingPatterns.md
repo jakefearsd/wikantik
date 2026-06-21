@@ -1,14 +1,15 @@
 ---
-cluster: design-patterns
-canonical_id: 01KQ0P44Q0956FK8VFJPDJN3NB
-title: Dynamic Programming Patterns
-type: article
 tags:
 - algorithms
 - optimization
 - dynamic-programming
 - complexity
-summary: A rigorous exploration of Dynamic Programming (DP) patterns, focusing on optimal substructure, the Principle of Optimality, and advanced optimization techniques like Bitmask DP and the Convex Hull Trick.
+type: article
+summary: 'Dynamic Programming patterns: optimal substructure, Bellman''s Principle
+  of Optimality, Bitmask DP, Interval DP, Convex Hull Trick, and when DP fails.'
+title: Dynamic Programming Patterns
+cluster: design-patterns
+canonical_id: 01KQ0P44Q0956FK8VFJPDJN3NB
 ---
 
 # Dynamic Programming: Patterns of Optimality and Structural Decomposition

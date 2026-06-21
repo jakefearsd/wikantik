@@ -1,8 +1,16 @@
 ---
-cluster: software-architecture
-canonical_id: 01KQ0P44MWST629VMK60FC9H79
 title: Caching Strategies
+related:
+- DataStructuresHub
+- DistributedSystemsHub
+- CapacityModeling
+- MonitoringAndAlerting
+- ConsistentHashing
+cluster: software-architecture
 type: article
+canonical_id: 01KQ0P44MWST629VMK60FC9H79
+summary: 'Multi-tier caching in distributed systems: write-back vs. write-through,
+  cache stampede mitigation, eviction policies, and Redis vs. Memcached trade-offs.'
 tags:
 - software-architecture
 - distributed-systems
@@ -10,13 +18,6 @@ tags:
 - redis
 - performance-optimization
 - low-latency
-summary: A rigorous exploration of caching strategies in distributed systems, focusing on multi-tier architectures, write-back vs. write-through patterns, and the mitigation of cache stampedes in high-throughput environments.
-related:
-- DataStructuresHub
-- DistributedSystemsHub
-- CapacityModeling
-- MonitoringAndAlerting
-- ConsistentHashing
 ---
 
 # Caching Strategies: The Architecture of Instant Availability

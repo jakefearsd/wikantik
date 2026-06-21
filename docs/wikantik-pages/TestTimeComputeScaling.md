@@ -1,7 +1,7 @@
 ---
-canonical_id: 01KQQ73TXJJRDPT07BS6ZPXJTT
-date: 2026-05-03T00:00:00Z
-cluster: agentic-ai
+summary: 'Inference-time compute scaling for System-2 agents: LATS, MCTS, and Process
+  Reward Models that spend more compute on hard problems.'
+title: Test-Time Compute Scaling
 tags:
 - agentic-ai
 - test-time-compute
@@ -11,12 +11,11 @@ tags:
 - openai-o1
 - inference-scaling
 - reasoning
-title: Test-Time Compute Scaling
-summary: A deep exploration of the paradigm shift from pre-training scaling laws to
-  inference scaling laws. Details how System 2 agents use Language Agent Tree Search
-  (LATS), MCTS, and Process Reward Models (PRMs) to dynamically expand compute on
-  difficult problems.
+cluster: agentic-ai
+type: article
+date: 2026-05-03T00:00:00Z
 status: active
+canonical_id: 01KQQ73TXJJRDPT07BS6ZPXJTT
 ---
 
 # Test-Time Compute Scaling: Building System 2 Agents

@@ -1,8 +1,16 @@
 ---
-cluster: agentic-ai
-canonical_id: 01KQ0P44XCQ51WQ5AMZG3704E3
 title: Taxonomy Design Principles
+related:
+- Ontology
+- FormalSemantics
+- CategoryTheory
+- KnowledgeManagementStrategies
+- MathematicsHub
+cluster: agentic-ai
 type: article
+canonical_id: 01KQ0P44XCQ51WQ5AMZG3704E3
+summary: 'Taxonomy design as formal modeling: trees vs. directed acyclic graphs (DAGs)
+  and Description Logics for machine-interpretable classification.'
 tags:
 - taxonomy
 - classification
@@ -11,13 +19,6 @@ tags:
 - information-science
 - graph-theory
 - formal-logic
-summary: A rigorous exploration of taxonomy design as a formal modeling paradigm, focusing on the deconstruction of hierarchical specificity, the transition from Trees to Directed Acyclic Graphs (DAGs), and the application of Description Logics (DLs) for machine-interpretable classification.
-related:
-- Ontology
-- FormalSemantics
-- CategoryTheory
-- KnowledgeManagementStrategies
-- MathematicsHub
 ---
 
 # Taxonomy Design: The Architecture of Structured Knowledge

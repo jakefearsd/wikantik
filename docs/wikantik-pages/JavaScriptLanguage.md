@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS1E0PCF5S3X4EGJH809B
 title: JavaScript Language
+tags:
+- programming-languages
+- javascript
+- v8-engine
+- web-development
+- full-stack
+- typescript
+- 2026-benchmarks
 cluster: computer-science
-tags: [programming-languages, javascript, v8-engine, web-development, full-stack, typescript, 2026-benchmarks]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The 'Engine of the Web' (1995). Created in 10 days by Brendan Eich, it has evolved into the world's most used language, powering both front-end and high-performance server-side runtimes via V8.
+summary: Engine of the web (1995). Created in 10 days by Brendan Eich; evolved into
+  the world's most-used language, powering front-end and server-side via V8.
 ---
 
 # The JavaScript Language: The Universal Runtime

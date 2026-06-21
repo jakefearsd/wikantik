@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44VW6X87E768W5M6KWRT
-title: Robo Advisor Comparison
 type: article
-cluster: index-fund-investing
 status: active
+cluster: index-fund-investing
 date: '2026-04-26'
-summary: What robo-advisors actually do, the cost vs. DIY index investing, the cases
-  where the automation is worth the fee, and the situations where you can replicate
-  the value yourself with no advisor at all.
+title: Robo Advisor Comparison
+hubs:
+- LowCostIndexFundInvestingHub
 tags:
 - robo-advisor
 - automated-investing
 - index-funds
 - portfolio-management
 - fee-analysis
+summary: What robo-advisors actually do, the cost vs. DIY index investing, the cases
+  where the automation is worth the fee, and the situations where you can replicate
+  the value yourself with no advisor at all.
 related:
 - LowCostIndexFundInvesting
 - IndexFundPortfolioConstruction
 - TaxLossHarvesting
 - TargetDateFunds
-hubs:
-- LowCostIndexFundInvestingHub
+canonical_id: 01KQ0P44VW6X87E768W5M6KWRT
 ---
 # Robo Advisor Comparison
 
@@ -53,7 +53,7 @@ The product is investment management — a narrower scope than a financial plann
 | Service | AUM fee | Notes |
 |---------|---------|-------|
 | **Betterment** | 0.25%–0.65% | Standard 0.25%; premium tier with human advisor at 0.65% |
-| **Wealthfront** | 0.25% | Direct indexing for accounts >$100K, software-only |
+| **Wealthfront** | 0.25% | Direct indexing for accounts >\$100K, software-only |
 | **Schwab Intelligent Portfolios** | 0% AUM | Fee comes from cash holdings (which are higher than competitors) |
 | **Fidelity Go** | 0% under $25K, 0.35% above | Tiered model |
 | **Vanguard Digital Advisor** | 0.20% | Vanguard underlying funds, lower cost than independents |
@@ -66,7 +66,7 @@ For 0.25% AUM, what you actually get vs. doing it yourself:
 
 ### Things that are free elsewhere
 
-- Diversified portfolio of index ETFs (you can build this yourself with the same ETFs at $0)
+- Diversified portfolio of index ETFs (you can build this yourself with the same ETFs at \$0)
 - Automatic monthly contributions (any brokerage offers this)
 - Annual rebalancing (you can do this yourself in 15 minutes)
 - Goal tracking dashboards (most brokerages have these)
@@ -82,13 +82,13 @@ The tax-loss harvesting is often the strongest argument. Done well, it can save 
 
 ## When a robo is worth it
 
-### You have a taxable account at meaningful size ($100K+)
+### You have a taxable account at meaningful size (\$100K+)
 
 Tax-loss harvesting at that scale produces real savings. Robos do TLH automatically and systematically; doing it yourself requires monitoring and judgment.
 
 ### You are in a high tax bracket
 
-Higher brackets amplify the value of TLH. A 35%+ federal bracket plus state tax means each $1,000 of harvested losses is worth $400+.
+Higher brackets amplify the value of TLH. A 35%+ federal bracket plus state tax means each $1,000 of harvested losses is worth \$400+.
 
 ### You will not actually do it yourself
 
@@ -110,7 +110,7 @@ A diligent investor with a written IPS, automatic monthly contributions, and dis
 
 ### Large portfolio at low fee elsewhere
 
-A 0.25% AUM fee on a $1M portfolio is $2,500/year. That is real money. At larger sizes, even efficient robos become expensive vs. DIY.
+A 0.25% AUM fee on a $1M portfolio is \$2,500/year. That is real money. At larger sizes, even efficient robos become expensive vs. DIY.
 
 ### Specific portfolio preferences
 
@@ -160,7 +160,7 @@ For the highest-leverage automation: robo handles taxable (where TLH provides va
 - **Comparing robo performance to S&P 500.** Robos hold diversified portfolios that include international and bonds; comparing to a single index is meaningless.
 - **Switching robos to chase fees.** Transferring assets has tax consequences in taxable accounts.
 - **Treating the robo's questionnaire as authoritative.** Risk-tolerance questionnaires are crude; the right allocation depends on your specific situation.
-- **Forgetting that robos charge a fee.** Marketing emphasizes "free" or "low cost" — but 0.25% on $500K is $1,250/year.
+- **Forgetting that robos charge a fee.** Marketing emphasizes "free" or "low cost" — but 0.25% on \$500K is $1,250/year.
 
 ## Further Reading
 

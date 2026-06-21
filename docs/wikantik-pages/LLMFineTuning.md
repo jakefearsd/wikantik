@@ -1,12 +1,12 @@
 ---
-date: '2026-05-24'
-summary: Tactical guide to LLM fine-tuning, focusing on QLoRA hyperparameters, data
-  diversity requirements, and avoiding the "catastrophic forgetting" trap in production.
-cluster: agentic-ai
 auto-generated: false
-canonical_id: 01KQ12YDVGV7J9XMMSMXGZYZNE
 type: article
+status: active
+date: '2026-05-24'
+cluster: agentic-ai
 title: LLM Fine-Tuning
+hubs:
+- FineTuningLargeLanguageModels Hub
 tags:
 - llm
 - fine-tuning
@@ -14,9 +14,9 @@ tags:
 - qlora
 - post-training
 - pytorch
-status: active
-hubs:
-- FineTuningLargeLanguageModels Hub
+summary: Tactical guide to LLM fine-tuning, focusing on QLoRA hyperparameters, data
+  diversity requirements, and avoiding the "catastrophic forgetting" trap in production.
+canonical_id: 01KQ12YDVGV7J9XMMSMXGZYZNE
 ---
 # LLM Fine-Tuning
 
@@ -24,7 +24,7 @@ Fine-tuning is the correct solution for format adherence and style injection, bu
 
 ## The Hierarchy of Model Improvement
 
-1. **Prompt Engineering:** Costs $0.00. Solves 80% of issues.
+1. **Prompt Engineering:** Costs \$0.00. Solves 80% of issues.
 2. **Few-Shot Prompting:** Costs tokens. Solves 10% more.
 3. **RAG:** Costs infra + tokens. Solves factual drift.
 4. **Fine-Tuning:** Costs compute + engineering time. Required only for 99.9% reliability on complex schemas or deep domain vernacular.

@@ -1,21 +1,23 @@
 ---
-canonical_id: 01KQ0P44RG9F6EFB0MPVN81K6S
-summary: Three-tab admin panel for reviewing proposals, browsing nodes, and exploring edges
+depends-on:
+- AdminSecurityUi
+- KnowledgeProposals
+status: active
+type: article
+part-of:
+- KnowledgeGraphCore
+date: '2026-04-04'
+cluster: wikantik-development
+title: Knowledge Admin UI
 tags:
 - development
 - knowledge-graph
 - admin
 - ui
 - react
-type: article
-status: deployed
-cluster: wikantik-development
-date: '2026-04-04'
-part-of:
-- KnowledgeGraphCore
-depends-on:
-- AdminSecurityUi
-- KnowledgeProposals
+summary: Three-tab admin panel for reviewing proposals, browsing nodes, and exploring
+  edges
+canonical_id: 01KQ0P44RG9F6EFB0MPVN81K6S
 ---
 # Knowledge Admin UI
 

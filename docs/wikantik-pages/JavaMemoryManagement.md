@@ -1,23 +1,24 @@
 ---
-canonical_id: 01KQ0P44RA716VK4MYYAJE3WMS
-title: "Java Memory Management: Heap, GC, and JVM Internals"
+auto-generated: false
 type: article
-cluster: java
 status: active
+cluster: java
 date: '2026-05-22'
-summary: A deep dive into JVM memory architecture, covering generational collection, TLAB allocation mechanics, G1/ZGC region management, and production diagnostic patterns.
+title: 'Java Memory Management: Heap, GC, and JVM Internals'
 tags:
 - java
 - memory-management
 - gc
 - jvm-internals
 - performance-tuning
+summary: JVM memory architecture — generational collection, TLAB allocation mechanics,
+  G1/ZGC region management, and production diagnostics for heap leaks and GC tuning.
 related:
 - MemoryArchitectures
 - MemoryManagementFundamentals
 - JavaConcurrencyPatterns
 - PerformanceProfiling
-auto-generated: false
+canonical_id: 01KQ0P44RA716VK4MYYAJE3WMS
 ---
 
 # Java Memory Management: Beyond the Basics

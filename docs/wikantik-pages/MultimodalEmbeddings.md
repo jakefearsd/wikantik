@@ -1,10 +1,20 @@
 ---
-canonical_id: 01KQEKGDDDCQYHZN00W3ZGN3RS
 title: Multimodal Embeddings
+related:
+- EmbeddingsVectorDB
+- VectorDatabases
+- AiPoweredSearch
+- MultiModalAiApplications
+- HybridRetrieval
 type: article
-cluster: agentic-ai
+summary: Unified vector spaces across text, image, and audio. Technical deep dive
+  into CLIP architecture, SigLIP efficiency, and production cross-modal retrieval
+  pipelines.
 status: active
 date: '2026-05-15'
+canonical_id: 01KQEKGDDDCQYHZN00W3ZGN3RS
+hubs:
+- AgenticAiHub
 tags:
 - multimodal
 - embeddings
@@ -12,17 +22,7 @@ tags:
 - vision-language
 - cross-modal-retrieval
 auto-generated: false
-summary: Unified vector spaces across text, image, and audio. Technical deep dive
-  into CLIP architecture, SigLIP efficiency, and production cross-modal retrieval
-  pipelines.
-related:
-- EmbeddingsVectorDB
-- VectorDatabases
-- AiPoweredSearch
-- MultiModalAiApplications
-- HybridRetrieval
-hubs:
-- AgenticAiHub
+cluster: agentic-ai
 ---
 # Multimodal Embeddings
 

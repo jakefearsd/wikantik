@@ -1,13 +1,18 @@
 ---
-status: official
-cluster: wikantik-development
-type: article
-title: User Profile Bio
-date: '2026-05-04'
-summary: A feature overview of the Markdown-enabled user biography system in Wikantik.
-canonical_id: 01KQTD4FHACTTQ9QSQ699X37ZM
+status: active
 verified_at: '2026-05-04T21:10:44.598011331Z'
+type: article
+date: '2026-05-04'
+cluster: wikantik-development
+title: User Profile Bio
+tags:
+- user-profile
+- markdown
+- feature
+- wikantik-development
+summary: A feature overview of the Markdown-enabled user biography system in Wikantik.
 verified_by: gemini-cli-mcp-client
+canonical_id: 01KQTD4FHACTTQ9QSQ699X37ZM
 ---
 # User Profile Bio
 

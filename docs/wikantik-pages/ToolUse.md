@@ -1,13 +1,4 @@
 ---
-cluster: Artificial Intelligence
-related:
-- AgenticArchitecture
-- GoodMcpDesign
-- WritingANewMcpTool
-- FindingTheRightMcpTool
-- ToolCalling
-- McpIntegration
-title: 'Tool Use: Agentic Capabilities and Protocols'
 status: active
 date: 2026-05-15T00:00:00Z
 summary: Technical overview of how AI agents interact with external systems through
@@ -21,7 +12,16 @@ tags:
 - tool-calling
 - function-calling
 type: article
+cluster: agentic-ai
 canonical_id: 01J7KQTCD38PBFSD7TD6ACJFDE
+related:
+- AgenticArchitecture
+- GoodMcpDesign
+- WritingANewMcpTool
+- FindingTheRightMcpTool
+- ToolCalling
+- McpIntegration
+title: 'Tool Use: Agentic Capabilities and Protocols'
 ---
 
 # Tool Use: Agentic Capabilities and Protocols

@@ -1,8 +1,20 @@
 ---
-canonical_id: 01KQ0P44JH68H0RQ7Z5XF7RGEH
+date: 2026-03-14T00:00:00Z
 summary: The adjustment of status pathway for spouses already in the United States
   — concurrent filing, work permits, travel authorization, and what to expect
-date: 2026-03-14T00:00:00Z
+cluster: spousal-green-card
+related:
+- SpousalGreenCardGuide
+- FilingTheI130Petition
+- ImmigrationFinancialRequirements
+- TheGreenCardInterview
+- ConditionalResidenceAndI751
+canonical_id: 01KQ0P44JH68H0RQ7Z5XF7RGEH
+part-of:
+- SpousalGreenCardGuide
+type: article
+title: Adjustment of Status (I-485)
+status: active
 tags:
 - immigration
 - green-card
@@ -10,16 +22,7 @@ tags:
 - adjustment-of-status
 - i-485
 - uscis
-related:
-- SpousalGreenCardGuide
-- FilingTheI130Petition
-- ImmigrationFinancialRequirements
-- TheGreenCardInterview
-- ConditionalResidenceAndI751
-type: article
-cluster: spousal-green-card
-status: active
-part-of:
+hubs:
 - SpousalGreenCardGuide
 ---
 # Adjustment of Status (I-485)
@@ -46,8 +49,8 @@ The power of adjustment of status for spousal cases is concurrent filing — sub
 
 | Form | Purpose | Fee |
 |------|---------|-----|
-| I-130 | Petition for Alien Relative | $535 |
-| I-485 | Application to Adjust Status | $1,440 (includes biometrics) |
+| I-130 | Petition for Alien Relative | \$535 |
+| I-485 | Application to Adjust Status | \$1,440 (includes biometrics) |
 | I-765 | Application for Employment Authorization (EAD) | Included in I-485 fee |
 | I-131 | Application for Advance Parole (travel document) | Included in I-485 fee |
 | I-864 | Affidavit of Support | No fee |

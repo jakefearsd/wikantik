@@ -1,25 +1,24 @@
 ---
-canonical_id: 01KQEKGDC9S1MF41FAFJYKNC42
-title: Knowledge Graph Vs Relational Database
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-25'
+title: Knowledge Graph vs. Relational Database
+hubs:
+- AgenticAiHub
 tags:
 - knowledge-graph
 - relational-database
 - graph-database
 - data-modeling
-summary: When a knowledge graph genuinely fits, when a relational database does
-  the same job better, and the hybrid pattern most production systems end up
-  with.
+summary: When a knowledge graph genuinely fits, when a relational database does the
+  same job better, and the hybrid pattern most production systems end up with.
 related:
 - KnowledgeGraphCompletion
 - GraphDatabaseFundamentals
 - DatabaseDesign
 - RagImplementationPatterns
-hubs:
-- AgenticAiHub
+canonical_id: 01KQEKGDC9S1MF41FAFJYKNC42
 ---
 # Knowledge Graph vs Relational Database
 

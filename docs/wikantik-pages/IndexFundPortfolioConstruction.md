@@ -1,8 +1,6 @@
 ---
-summary: How to build a three-fund portfolio with total market, international, and
-  bond index funds at the lowest possible cost
-date: 2026-03-21T00:00:00Z
 cluster: index-fund-investing
+title: 'Index Fund Portfolio Construction: Building a Three-Fund Portfolio'
 related:
 - IndexFundInvestingForEarlyRetirement
 - AssetAllocationGuide
@@ -10,10 +8,17 @@ related:
 - InvestingInYourTwenties
 - AccountTypeStrategy
 - EarlyRetirementInvestmentPlan
+type: article
+summary: How to build a three-fund portfolio with total market, international, and
+  bond index funds at the lowest possible cost
+status: active
+date: 2026-03-21T00:00:00Z
 canonical_id: 01KQ0P44R3MBX5A75FD4W19QZD
+hubs:
+- IndexFundInvestingForEarlyRetirement
+- LowCostIndexFundInvestingHub
 part-of:
 - IndexFundInvestingForEarlyRetirement
-type: article
 tags:
 - personal-finance
 - investing
@@ -21,9 +26,6 @@ tags:
 - portfolio-construction
 - three-fund-portfolio
 - asset-allocation
-status: active
-hubs:
-- IndexFundInvestingForEarlyRetirement
 ---
 # Building a Portfolio with Low-Cost Index Funds
 
@@ -41,7 +43,7 @@ The three-fund portfolio, popularized by the Bogleheads community (named after V
 | International Total Market | ~8,000 non-US stocks, developed + emerging | VTIAX / VXUS (0.07%) | FTIHX / FZILX (0.06% / 0.00%) | SWISX (0.06%) |
 | US Total Bond Market | ~10,000 investment-grade bonds | VBTLX / BND (0.03%) | FXNAX (0.025%) | SWAGX (0.04%) |
 
-These three funds give you exposure to virtually every publicly traded security on earth, for a blended expense ratio of approximately 0.04%. That is $40 per year on a $100,000 portfolio.
+These three funds give you exposure to virtually every publicly traded security on earth, for a blended expense ratio of approximately 0.04%. That is \$40 per year on a \$100,000 portfolio.
 
 ## Allocation: How Much in Each?
 

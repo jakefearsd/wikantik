@@ -1,13 +1,6 @@
 ---
-tags:
-- personal-finance
-- investing
-- early-retirement
-- FIRE
-- financial-independence
-- savings-rate
-- withdrawal-strategy
-summary: Year-by-year blueprint from first invested dollar to early retirement, covering savings rates, account filling order, and withdrawal planning
+cluster: index-fund-investing
+title: 'Early Retirement Investment Plan: A Year-by-Year FIRE Blueprint'
 related:
 - IndexFundInvestingForEarlyRetirement
 - IndexFundPortfolioConstruction
@@ -15,15 +8,24 @@ related:
 - CompoundingIntuition
 - ExpenseRatioDeepDive
 - RothConversionLadder
-canonical_id: 01KQ0P44Q0D7QA3HR52TFCZ8KF
 type: article
+summary: Year-by-year blueprint from first invested dollar to early retirement, covering
+  savings rates, account filling order, and withdrawal planning
 status: active
-part-of:
-- IndexFundInvestingForEarlyRetirement
 date: 2026-03-21T00:00:00Z
-cluster: index-fund-investing
+canonical_id: 01KQ0P44Q0D7QA3HR52TFCZ8KF
 hubs:
 - IndexFundInvestingForEarlyRetirement
+part-of:
+- IndexFundInvestingForEarlyRetirement
+tags:
+- personal-finance
+- investing
+- early-retirement
+- fire
+- financial-independence
+- savings-rate
+- withdrawal-strategy
 ---
 
 # A Complete Early Retirement Investment Plan
@@ -71,7 +73,7 @@ The savings rate matters more than investment returns. See [Compounding Intuitio
 1. **Build a 3-6 month emergency fund** in a high-yield savings account
 2. **Eliminate high-interest debt** (anything above 6-7% — credit cards, personal loans)
 3. **Contribute to 401(k) up to employer match** — never leave this money on the table
-4. **Open a Roth IRA** at Vanguard, Fidelity, or Schwab and contribute $7,000
+4. **Open a Roth IRA** at Vanguard, Fidelity, or Schwab and contribute \$7,000
 5. **Open a taxable brokerage account** at the same institution
 
 ### Investment Selection
@@ -87,10 +89,10 @@ Follow the [Account Type Strategy](AccountTypeStrategy):
 ## Phase 2: Acceleration (Years 2-10)
 
 ### Actions
-1. **Maximise all tax-advantaged space** ($23,500 401(k) + $7,000 Roth IRA + $4,300 HSA = $34,800/year)
+1. **Maximise all tax-advantaged space** ($23,500 401(k) + $7,000 Roth IRA + $4,300 HSA = \$34,800/year)
 2. **Direct all additional savings to taxable brokerage account**
 3. **Increase income**: Job-hop for raises (average 10-20% vs. 3% internal raises), pursue promotions, develop a side income
-4. **Decrease spending**: Housing and transportation are the two biggest levers. Every $100/month you cut reduces your FIRE number by $30,000
+4. **Decrease spending**: Housing and transportation are the two biggest levers. Every $100/month you cut reduces your FIRE number by \$30,000
 5. **Automate everything**: Set up automatic contributions on each payday so you never see the money in your checking account
 6. **Tax-loss harvest in taxable accounts** when opportunities arise (market drops)
 
@@ -101,12 +103,12 @@ Tracking net worth against these milestones can keep you motivated:
 | Milestone | Significance |
 |-----------|-------------|
 | $0 → $100K | Hardest phase — contributions dominate, market returns feel tiny |
-| $100K → $250K | Returns start to matter — you might earn $10-25K in a good year |
+| $100K → \$250K | Returns start to matter — you might earn $10-25K in a good year |
 | $250K → $500K | Returns can exceed annual contributions — the flywheel is spinning |
 | $500K → $1M | A single good year adds $50-100K — more than most people save |
 | $1M+ | Market returns dwarf contributions — your money is working harder than you |
 
-The first $100K is the hardest. After that, compounding does increasingly heavy lifting.
+The first \$100K is the hardest. After that, compounding does increasingly heavy lifting.
 
 ## Phase 3: Glide Path (2-3 Years Before Retirement)
 
@@ -134,7 +136,7 @@ The first $100K is the hardest. After that, compounding does increasingly heavy 
 
 **Year 1-5 (Roth ladder build-up):**
 1. Live on taxable brokerage account withdrawals
-2. Harvest long-term capital gains in the 0% bracket ($47,025 single / $94,050 married in 2026)
+2. Harvest long-term capital gains in the 0% bracket ($47,025 single / \$94,050 married in 2026)
 3. Roll 401(k) to Traditional IRA
 4. Convert $40,000-50,000/year from Traditional IRA to Roth IRA (staying in the 12% bracket or below)
 5. Keep total income low enough to qualify for ACA premium subsidies

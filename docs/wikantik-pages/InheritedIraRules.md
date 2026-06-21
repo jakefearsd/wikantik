@@ -1,8 +1,16 @@
 ---
-cluster: retirement-planning
-canonical_id: 01KQ0P44R5THAGF1KDWFWKXSQ7
 title: Inherited IRA Rules
+related:
+- RetirementPlanningForLateStarters
+- BackdoorRothStrategies
+- LowCostIndexFundInvestingHub
+- MathematicsHub
+- BusinessMetricsAndKpis
+cluster: retirement-planning
 type: article
+canonical_id: 01KQ0P44R5THAGF1KDWFWKXSQ7
+summary: 'Inherited IRA rules post-SECURE Act: the 10-year depletion mandate, ordinary-income
+  realization, tax-bracket laddering, and sequence-of-returns risk.'
 tags:
 - finance
 - tax-law
@@ -11,13 +19,6 @@ tags:
 - secure-act
 - wealth-transfer
 - rmd
-summary: A rigorous exploration of inherited IRA distribution rules post-SECURE Act, focusing on the 10-year depletion mandate, ordinary income realization, tax bracket laddering, and the mitigation of sequence of returns risk (SORR) in depletion modeling.
-related:
-- RetirementPlanningForLateStarters
-- BackdoorRothStrategies
-- LowCostIndexFundInvestingHub
-- MathematicsHub
-- BusinessMetricsAndKpis
 ---
 
 # Inherited IRA Rules: The Architecture of Accelerated Depletion

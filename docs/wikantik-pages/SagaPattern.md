@@ -1,21 +1,25 @@
 ---
-title: The Saga Pattern
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A pattern for managing distributed transactions across microservices through a sequence of local transactions and compensating actions.
+summary: A pattern for managing distributed transactions across microservices through
+  a sequence of local transactions and compensating actions.
 tags:
 - distributed-systems
 - transactions
 - microservices
 - reliability
 - event-driven
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: alternative_to, target_id: "Two-Phase Commit"}
-- {type: related_to, target_id: 01KS7X5P5S838D4EYVWFA9F36E} # CQRS/ES
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: alternative_to
+  target_id: Two-Phase Commit
+- type: related_to
+  target_id: 01KS7X5P5S838D4EYVWFA9F36E
+cluster: distributed-systems
 canonical_id: 01KS7X5P5S838D4EYVWFA9F36E
+title: The Saga Pattern
 ---
 
 # The Saga Pattern: Distributed Consistency without 2PC

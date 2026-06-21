@@ -1,16 +1,5 @@
 ---
-cluster: software-engineering-practices
-canonical_id: 01KQ0P44TWNJ3RVGR0K4THGCGK
 title: Project Risk Management
-type: article
-tags:
-- project-management
-- risk-management
-- probabilistic-modeling
-- monte-carlo
-- resilience-engineering
-- nlp
-summary: A rigorous exploration of project risk management for research-intensive disciplines, focusing on the taxonomy of uncertainty (epistemic vs. aleatory), quantitative modeling via Monte Carlo simulation, and the integration of AI-driven risk mining.
 related:
 - SoftwareEngineeringPracticesHub
 - EngineeringLeadershipHub
@@ -18,6 +7,18 @@ related:
 - SystemsThinking
 - ArtificialIntelligenceHub
 - MathematicsHub
+cluster: software-engineering-practices
+type: article
+canonical_id: 01KQ0P44TWNJ3RVGR0K4THGCGK
+summary: Epistemic vs. aleatory uncertainty, Monte Carlo project delivery simulation,
+  fault tree analysis, and NLP-driven risk mining for R&D programs.
+tags:
+- project-management
+- risk-management
+- probabilistic-modeling
+- monte-carlo
+- resilience-engineering
+- nlp
 ---
 
 # Project Risk Management: The Architecture of Uncertainty

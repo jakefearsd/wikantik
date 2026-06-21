@@ -1,16 +1,11 @@
 ---
-date: '2026-05-18'
-summary: A deep-dive into the geometry of Chaos, exploring phase space trajectories,
-  strange attractors, and the fundamental limits of predictability in complex systems.
-cluster: mathematics
-related:
-- AppliedMathSurvey
-- ProbabilityTheory
-- DifferentialGeometry
-- MathematicsHub
-canonical_id: 01KQ0P44N1N3VJ6JHQBXXTPW8M
 type: article
+status: active
+date: '2026-05-18'
+cluster: mathematics
 title: Chaos and Dynamical Systems
+hubs:
+- ChaosDynamical Hub
 tags:
 - chaos-theory
 - dynamical-systems
@@ -18,9 +13,14 @@ tags:
 - nonlinear
 - lorenz-attractor
 - bifurcation
-status: active
-hubs:
-- ChaosDynamical Hub
+summary: Phase space, strange attractors, Lyapunov exponents, and bifurcation diagrams
+  — the geometry and fundamental limits of predictability in nonlinear systems.
+related:
+- AppliedMathSurvey
+- ProbabilityTheory
+- DifferentialGeometry
+- MathematicsHub
+canonical_id: 01KQ0P44N1N3VJ6JHQBXXTPW8M
 ---
 
 # Chaos and Dynamical Systems: The Geometry of Unpredictability

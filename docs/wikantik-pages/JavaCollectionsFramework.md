@@ -1,26 +1,27 @@
 ---
-canonical_id: 01KQ0P44R9KG70GP7TP45YESDY
-title: Java Collections Framework
-type: article
-cluster: java
-status: active
 date: '2026-04-26'
 summary: The Java collections in practical use — which List, Set, Map to use when,
   the immutable variants, the modern sequenced-collection additions, and the trade-offs
   that determine the right choice.
+cluster: java
+related:
+- JavaStreamsAndFunctionalProgramming
+- JavaTwentyOneFeatures
+- ImmutableDataPatterns
+- JavaRecordsAndSealedClasses
+canonical_id: 01KQ0P44R9KG70GP7TP45YESDY
+type: article
+title: Java Collections Framework
+status: active
+hubs:
+- JavaHub
+- JavaMemoryManagementHub
 tags:
 - java
 - collections
 - list
 - map
 - set
-related:
-- JavaStreamsAndFunctionalProgramming
-- JavaTwentyOneFeatures
-- ImmutableDataPatterns
-- JavaRecordsAndSealedClasses
-hubs:
-- JavaHub
 ---
 # Java Collections Framework
 

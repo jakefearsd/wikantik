@@ -1,13 +1,10 @@
 ---
-canonical_id: 01KRN9CBK8HM8ZEKPD0T1KPXFZ
-summary: The pioneer of 'Pure' Object-Oriented Programming (1972). Created at Xerox
-  PARC, it defined the modern graphical IDE, virtual machines, and the 'Everything
-  is an Object' philosophy.
 hubs:
 - ArchitectureHub
+date: 2026-05-08T00:00:00Z
 status: active
-cluster: computer-science
-title: Smalltalk
+summary: Pioneer of pure OOP (1972). Created at Xerox PARC by Alan Kay, it defined
+  graphical IDEs, virtual machines, and the 'Everything is an Object' philosophy.
 tags:
 - programming-languages
 - smalltalk
@@ -16,7 +13,10 @@ tags:
 - live-coding
 - ide
 - computer-history
-date: 2026-05-08T00:00:00Z
+type: article
+cluster: computer-science
+canonical_id: 01KRN9CBK8HM8ZEKPD0T1KPXFZ
+title: Smalltalk
 ---
 
 # Smalltalk: The Architect of the Modern Environment

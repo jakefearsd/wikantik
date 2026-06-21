@@ -1,26 +1,27 @@
 ---
-canonical_id: 01KQEKGD9ED8G0WM5GFWCK094R
-title: Database Design Patterns
-type: article
-cluster: databases
-status: active
 date: '2026-04-25'
+summary: Patterns at the multi-table level — event sourcing, audit trails, polymorphic
+  associations, materialised views, soft delete, temporal data — with the trade-offs
+  that decide when each pays.
+cluster: databases
+related:
+- DatabaseDesign
+- DatabaseIndexingStrategies
+- CqrsPattern
+- EventDrivenArchitecture
+canonical_id: 01KQEKGD9ED8G0WM5GFWCK094R
+type: article
+title: Database Design Patterns
+status: active
+hubs:
+- DatabasesHub
+- DimensionalModelingHub
 tags:
 - database
 - design-patterns
 - event-sourcing
 - audit-trail
 - soft-delete
-summary: Patterns at the multi-table level — event sourcing, audit trails,
-  polymorphic associations, materialised views, soft delete, temporal data —
-  with the trade-offs that decide when each pays.
-related:
-- DatabaseDesign
-- DatabaseIndexingStrategies
-- CqrsPattern
-- EventDrivenArchitecture
-hubs:
-- DatabasesHub
 ---
 # Database Design Patterns: Multi-Table Architecture
 

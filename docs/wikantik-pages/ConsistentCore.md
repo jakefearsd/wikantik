@@ -1,16 +1,11 @@
 ---
-summary: Technical guide to the Consistent Core pattern, separating high-throughput
-  data operations from low-latency consensus for metadata management.
-date: 2026-05-15T00:00:00Z
-cluster: Software Engineering
-related:
-- DistributedSystemsHub
-- FaultTolerantSystems
-- EngineeringDisciplineHub
-- PageGraphVsKnowledgeGraph
-canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KJ
 type: article
+status: active
+date: 2026-05-15T00:00:00Z
+cluster: distributed-systems
 title: 'Consistent Core Pattern: Distributed Coordination 2025'
+hubs:
+- EngineeringDisciplineHub
 tags:
 - distributed-systems
 - consensus
@@ -18,9 +13,14 @@ tags:
 - paxos
 - architecture
 - infrastructure
-status: active
-hubs:
+summary: Technical guide to the Consistent Core pattern, separating high-throughput
+  data operations from low-latency consensus for metadata management.
+related:
+- DistributedSystemsHub
+- FaultTolerantSystems
 - EngineeringDisciplineHub
+- PageGraphVsKnowledgeGraph
+canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KJ
 ---
 
 # Consistent Core Pattern: Distributed Coordination 2025

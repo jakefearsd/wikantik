@@ -1,22 +1,23 @@
 ---
-canonical_id: 01KQ0P44PBJAD0YB3EB2MHX9AH
+status: active
 type: article
-related:
-- WikantikDevelopment
-- AdminSecurityUi
-- KnowledgeGraphCore
-- DatabaseBackedPermissions
+date: '2026-03-28'
+cluster: wikantik-development
+title: Database-Backed Permissions
 tags:
 - development
 - security
 - postgresql
 - permissions
 - authorization
-date: '2026-03-28'
 summary: Migration from file-based wikantik.policy XML to database-backed policy_grants
   table with admin UI management
-status: deployed
-cluster: wikantik-development
+related:
+- WikantikDevelopment
+- AdminSecurityUi
+- KnowledgeGraphCore
+- DatabaseBackedPermissions
+canonical_id: 01KQ0P44PBJAD0YB3EB2MHX9AH
 enables:
 - AdminSecurityUi
 ---

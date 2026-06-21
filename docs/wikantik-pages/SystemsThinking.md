@@ -1,15 +1,15 @@
 ---
-canonical_id: 01KQP4S8R7QDK0EEHV492YEN5B
-title: Systems Thinking
-summary: A comprehensive reference on Systems Thinking — exploring feedback loops,
-  the Iceberg Model, leverage points, and the engineering of complex adaptive systems.
-type: reference
 tags:
 - systems-thinking
 - complexity
 - system-dynamics
 - feedback-loops
 - leverage-points
+type: reference
+summary: Feedback loops, stocks and flows, the Iceberg Model, leverage points, and
+  systemic archetypes — the core toolkit for analyzing complex adaptive systems.
+title: Systems Thinking
+canonical_id: 01KQP4S8R7QDK0EEHV492YEN5B
 cluster: software-engineering-practices
 ---
 

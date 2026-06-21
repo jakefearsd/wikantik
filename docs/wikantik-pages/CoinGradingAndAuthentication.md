@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS0VFGYYC5777G3HKZCR3
 title: Coin Grading and Authentication
+tags:
+- numismatics
+- coin-grading
+- authentication
+- pcgs
+- ngc
+- ai-authentication
+- market-standards
 cluster: numismatics
-tags: [numismatics, coin-grading, authentication, pcgs, ngc, ai-authentication, market-standards]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The technical standards for certifying coin quality and authenticity. Covers the Sheldon 1-70 scale, the PCGS vs. NGC market duopoly, and the 2025-2026 shift toward AI-driven grading.
+summary: 'Coin certification standards: the Sheldon 1–70 scale, the PCGS vs. NGC market
+  duopoly, CAC secondary grading, and 2026 AI-driven authentication technology.'
 ---
 
 # Coin Grading and Authentication: The Standard of Value

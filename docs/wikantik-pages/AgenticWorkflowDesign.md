@@ -1,19 +1,5 @@
 ---
 canonical_id: 01KQ0P44K1796D0PBJ1NEJDY17
-title: Agentic Workflow Design
-type: article
-cluster: agentic-ai
-status: active
-date: '2026-04-24'
-tags:
-- agent
-- agentic-workflow
-- llm-application-architecture
-- tool-use
-- reliability
-summary: Patterns, trade-offs, and failure modes when building AI systems that plan
-  and act across multiple tool calls — from simple ReAct loops to production-grade
-  graph-based agents.
 related:
 - AgentLoops
 - AgentPlanning
@@ -24,9 +10,22 @@ related:
 - AiAgentArchitectures
 - RagImplementationPatterns
 - ToolUse
+summary: Patterns, trade-offs, and failure modes when building AI systems that plan and act across multiple tool calls — from simple ReAct loops to production-grade graph-based agents.
+tags:
+- agent
+- agentic-workflow
+- llm-application-architecture
+- tool-use
+- reliability
 hubs:
 - AgenticAiHub
+title: Agentic Workflow Design
+date: '2026-04-24'
+cluster: agentic-ai
+status: active
+type: article
 ---
+
 # Agentic Workflow Design
 
 An agentic workflow is an LLM loop that chooses its own next tool call. That one-line definition hides every interesting design decision: how much autonomy you grant, how state survives between steps, and what you do when the model picks badly — which it will.
@@ -96,9 +95,9 @@ Below is the smallest agent architecture I'd deploy in production today. Every p
                             ▼              ▼
                        ┌─────────┐    ┌──────────┐
                        │  Model  │    │  Tools   │
-                       │  (w/   │    │ (w/ JSON │
-                       │ cache) │    │  Schema  │
-                       │        │    │ validator│
+                       │  (w/    │    │ (w/ JSON │
+                       │ cache)  │    │  Schema  │
+                       │         │    │ validator│
                        └────┬────┘    └────┬─────┘
                             │              │
                             ▼              ▼

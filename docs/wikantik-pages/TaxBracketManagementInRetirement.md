@@ -1,8 +1,16 @@
 ---
-cluster: retirement-planning
-canonical_id: 01KQ0P44XAR5WCZTGTCSK2YQCZ
 title: Tax Bracket Management in Retirement
+related:
+- RetirementPlanningForLateStarters
+- BackdoorRothStrategies
+- InheritedIraRules
+- BusinessMetricsAndKpis
+- MathematicsHub
+cluster: retirement-planning
 type: article
+canonical_id: 01KQ0P44XAR5WCZTGTCSK2YQCZ
+summary: 'Tax-bracket arbitrage in retirement: the marginal-rate differential model,
+  mitigating RMD tax cliffs, and sequence-of-returns risk in decumulation.'
 tags:
 - finance
 - retirement-planning
@@ -11,13 +19,6 @@ tags:
 - tax-brackets
 - rmd
 - sequence-of-returns-risk
-summary: A rigorous exploration of tax bracket arbitrage in retirement, focusing on the Marginal Tax Rate Differential Model (MTRDM), the mitigation of RMD-induced "tax cliffs," and the integration of sequence of returns risk (SORR) into decumulation modeling.
-related:
-- RetirementPlanningForLateStarters
-- BackdoorRothStrategies
-- InheritedIraRules
-- BusinessMetricsAndKpis
-- MathematicsHub
 ---
 
 # Tax Arbitrage: The Architecture of Lifetime Liability Management

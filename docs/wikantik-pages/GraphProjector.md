@@ -1,18 +1,20 @@
 ---
-canonical_id: 01KQ0P44QRKREJBW4VZ326B1F7
-summary: PageFilter that synchronizes YAML frontmatter to the knowledge graph on every page save
+depends-on:
+- FrontmatterConventions
+status: active
+type: article
+part-of:
+- KnowledgeGraphCore
+date: '2026-04-04'
+cluster: wikantik-development
+title: Graph Projector
 tags:
 - development
 - knowledge-graph
 - synchronization
-type: article
-status: deployed
-cluster: wikantik-development
-date: '2026-04-04'
-part-of:
-- KnowledgeGraphCore
-depends-on:
-- FrontmatterConventions
+summary: PageFilter that synchronizes YAML frontmatter to the knowledge graph on every
+  page save
+canonical_id: 01KQ0P44QRKREJBW4VZ326B1F7
 ---
 # Graph Projector
 

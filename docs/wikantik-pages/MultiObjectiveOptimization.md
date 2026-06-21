@@ -1,8 +1,16 @@
 ---
-cluster: operations-research
-canonical_id: 01KQ0P44SVSGPNGD6CB2SF3KVD
 title: Multi-Objective Optimization
+related:
+- MathematicsHub
+- MachineLearning
+- ComputerScienceFoundationsHub
+- NPCompleteAndNPHardComputability
+- NumericalMethods
+cluster: operations-research
 type: article
+canonical_id: 01KQ0P44SVSGPNGD6CB2SF3KVD
+summary: Pareto frontier theory, NSGA-II vs. MOEA/D algorithmic trade-offs, and scalarization
+  techniques for non-convex multi-objective optimization landscapes.
 tags:
 - operations-research
 - optimization
@@ -11,13 +19,6 @@ tags:
 - nsga-ii
 - metaheuristics
 - mathematical-modeling
-summary: A rigorous exploration of Multi-Objective Optimization (MOO), focusing on the theoretical underpinnings of the Pareto frontier, algorithmic trade-offs (NSGA-II vs. MOEA/D), and advanced scalarization techniques for non-convex landscapes.
-related:
-- MathematicsHub
-- MachineLearning
-- ComputerScienceFoundationsHub
-- NPCompleteAndNPHardComputability
-- NumericalMethods
 ---
 
 # Multi-Objective Optimization: The Calculus of Trade-Offs

@@ -1,4 +1,8 @@
 ---
+status: active
+date: '2026-05-10'
+summary: 'Edict of Potsdam (1685) and Berlin''s demographic shock: 6,000 Huguenot
+  refugees reached ~30% of the population by 1700, reshaping economy and language.'
 tags:
 - history
 - berlin
@@ -15,11 +19,6 @@ related:
 - BerlinImmigrationAndDiversity
 - PortugueseHistoryHub
 title: 'The Huguenot Influx: Berlin''s 17th Century Demographic Shock'
-status: active
-date: '2026-05-10'
-summary: A quantitative analysis of the Edict of Potsdam (1685) and the subsequent
-  demographic transformation of Berlin, where the French population reached nearly
-  30% within fifteen years.
 ---
 # The Huguenot Influx: Berlin's 17th Century Demographic Shock
 

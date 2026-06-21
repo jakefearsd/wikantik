@@ -1,25 +1,28 @@
 ---
-canonical_id: 01KQ0P44VZ4DSG7VB4JH4Z1YWW
+cluster: russia-ukraine-war
+title: 'Russia-Ukraine War: Military Technology and Drone Warfare'
+related:
+- RussiaUkraineWarOverview
+- RussiaUkraineWarInternationalResponse
 summary: How drone warfare and military technology innovation have transformed the
   Russia-Ukraine conflict
+type: article
 date: '2026-03-13'
+status: active
+canonical_id: 01KQ0P44VZ4DSG7VB4JH4Z1YWW
+hubs:
+- RussiaUkraineWarOverview
+part-of:
+- RussiaUkraineWarOverview
 tags:
-- Russia
-- Ukraine
+- russia
+- ukraine
 - war
 - drones
 - technology
 - military
 - innovation
-- AI
-related:
-- RussiaUkraineWarOverview
-- RussiaUkraineWarInternationalResponse
-type: article
-cluster: russia-ukraine-war
-status: active
-part-of:
-- RussiaUkraineWarOverview
+- ai
 ---
 # Drone Warfare and Military Technology Innovation
 

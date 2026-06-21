@@ -1,20 +1,24 @@
 ---
-title: Idempotent Receiver
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A design pattern ensuring that a service can safely process the same message multiple times without unintended side effects, a requirement for at-least-once delivery.
+summary: A design pattern ensuring that a service can safely process the same message
+  multiple times without unintended side effects, a requirement for at-least-once
+  delivery.
 tags:
 - distributed-systems
 - messaging
 - reliability
 - idempotency
 - api-design
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: extension_of, target_id: 01KS7X5P5S838D4EYVWFA9F36E} # Saga Pattern
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: extension_of
+  target_id: 01KS7X5P5S838D4EYVWFA9F36E
+cluster: distributed-systems
 canonical_id: 01KS8A8R8V938D4EYVWFA9F36H
+title: Idempotent Receiver
 ---
 
 # Idempotent Receiver

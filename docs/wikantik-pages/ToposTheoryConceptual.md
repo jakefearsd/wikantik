@@ -1,7 +1,15 @@
 ---
-title: 'Topos Theory: The Geometry of Logic'
-canonical_id: 01KRQDX6JDEWEN32CBNQ9V17XR
-cluster: mathematics
+status: active
+date: '2026-05-15'
+summary: Topoi as generalized mathematical universes with internal intuitionistic
+  logic — sheaf topoi, subobject classifiers, and formal verification applications.
+tags:
+- category-theory
+- logic
+- topos-theory
+- sheaf-theory
+- foundations
+type: article
 relations:
 - type: component_of
   target_id: 01KQ2P44XMGA8E1E7GAT4AYV43
@@ -9,18 +17,9 @@ relations:
   target_id: 01KQ0P44MYDVFEFKRJ6TCKKNHQ
 - type: influenced_by
   target_id: 01KQ0P44WC15BBHEDPRSEP3JW2
-type: article
-tags:
-- category-theory
-- logic
-- topos-theory
-- sheaf-theory
-- foundations
-summary: Conceptual introduction to Topos Theory as a unifying framework for geometry
-  and logic. Explains how Topoi serve as alternative mathematical universes with their
-  own internal intuitionistic logic.
-status: active
-date: '2026-05-15'
+canonical_id: 01KRQDX6JDEWEN32CBNQ9V17XR
+cluster: mathematics
+title: 'Topos Theory: The Geometry of Logic'
 ---
 
 # Topos Theory: The Geometry of Logic

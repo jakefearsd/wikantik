@@ -1,11 +1,18 @@
 ---
+canonical_id: 01KVJMS0Z5ENJE71W73ZSQVMWW
 title: Data Maturity Lifecycle
+tags:
+- data-maturity
+- data-engineering
+- data-architecture
+- data-strategy
 type: hub
 cluster: data-engineering
-status: active
-date: 2026-05-20
-summary: A structural roadmap for data evolution, tracing the path from fragmented silos (Level 1) to a decentralized, domain-driven Data Mesh (Level 5).
+date: 2026-05-20T00:00:00Z
 auto-generated: false
+status: active
+summary: A structural roadmap for data evolution, tracing the path from fragmented
+  silos (Level 1) to a decentralized, domain-driven Data Mesh (Level 5).
 ---
 
 # Data Maturity Lifecycle: The Path to Data Excellence

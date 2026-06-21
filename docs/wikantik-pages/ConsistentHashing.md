@@ -1,8 +1,16 @@
 ---
-cluster: distributed-systems
-canonical_id: 01KQ0P44NWG145YDWHQGTS70QA
 title: Consistent Hashing
+related:
+- DistributedSystemsHub
+- CachingStrategies
+- CapTheorem
+- DataStructuresHub
+- MathematicsHub
+cluster: distributed-systems
 type: article
+canonical_id: 01KQ0P44NWG145YDWHQGTS70QA
+summary: 'Consistent hashing: ring topology, virtual nodes (VNodes) for load smoothing,
+  and a comparison with Rendezvous (HRW) hashing for large-scale state.'
 tags:
 - distributed-systems
 - consistent-hashing
@@ -10,13 +18,6 @@ tags:
 - vnodes
 - load-balancing
 - murmurhash
-summary: A rigorous exploration of consistent hashing mechanics, focusing on ring topology, the statistical smoothing of virtual nodes (VNodes), and comparative analysis with Rendezvous Hashing (HRW) for large-scale state management.
-related:
-- DistributedSystemsHub
-- CachingStrategies
-- CapTheorem
-- DataStructuresHub
-- MathematicsHub
 ---
 
 # Consistent Hashing: The Architecture of Distributed State

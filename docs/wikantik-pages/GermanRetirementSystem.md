@@ -1,21 +1,24 @@
 ---
-canonical_id: 01KQ0P44QP9C29XPRG590G0Y6T
-date: '2026-03-15T00:00:00Z'
 status: active
+type: article
+hubs:
+- EuRetirementSavingsGuide
+date: '2026-03-15T00:00:00Z'
 cluster: retirement-planning
+title: German Retirement System
 tags:
 - personal-finance
 - retirement-planning
 - eu
 - germany
 - tax
+summary: 'Deep dive on German retirement: state pension, Riester, Rürup, company pensions,
+  capital gains tax, ETF taxation, and the 2026 Altersvorsorgedepot reform'
 related:
 - EuRetirementSavingsGuide
 - EuRetirementTaxComparison
 - RetirementPlanningGuide
-type: article
-summary: 'Deep dive on German retirement: state pension, Riester, Rürup, company pensions,
-  capital gains tax, ETF taxation, and the 2026 Altersvorsorgedepot reform'
+canonical_id: 01KQ0P44QP9C29XPRG590G0Y6T
 ---
 # The German Retirement System
 

@@ -1,11 +1,18 @@
 ---
+canonical_id: 01KVJMS0Z57X9K3GZXC008K8D4
 title: Data Mesh Architecture
+tags:
+- data-mesh
+- domain-driven-design
+- data-governance
+- data-engineering
 type: article
 cluster: data-engineering
-status: active
-date: 2026-05-20
-summary: Level 5 of the Data Maturity Lifecycle. Strategic shift to domain-driven ownership and federated computational governance.
+date: 2026-05-20T00:00:00Z
 auto-generated: false
+status: active
+summary: Level 5 of the Data Maturity Lifecycle. Strategic shift to domain-driven
+  ownership and federated computational governance.
 ---
 
 # Data Mesh Architecture: Level 5 Maturity

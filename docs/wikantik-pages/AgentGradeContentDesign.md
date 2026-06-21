@@ -1,21 +1,26 @@
 ---
-cluster: wikantik-development
-canonical_id: 01KQ0P60JSKT204TXF6BTNEDDE
-title: Agent-Grade Content Design
-type: design
 status: active
 date: '2025-05-15'
-author: gemini-cli
-summary: The definitive standard for "Agent-Grade" content in Wikantik. Defines the Structural Spine, verification metadata, and requirements for RAG-ready technical documentation.
+summary: The definitive standard for "Agent-Grade" content in Wikantik. Defines the
+  Structural Spine, verification metadata, and requirements for RAG-ready technical
+  documentation.
 tags:
 - design
 - structural-spine
-- RAG
+- rag
 - agent-context
 - metadata
+type: design
+cluster: wikantik-development
+canonical_id: 01KQ0P60JSKT204TXF6BTNEDDE
+title: Agent-Grade Content Design
+author: gemini-cli
 ---
 
 # Agent-Grade Content Design: The Structural Spine
+
+> 🌐 **Product overview:** [Agent-grade content on wikantik.com](https://www.wikantik.com/platform/agent-grade-content.html) — a plain-language walkthrough for readers and AI agents.
+
 
 To ensure Wikantik content is optimized for both human readability and **Agent-Grade** RAG (Retrieval-Augmented Generation) consumption, every page must adhere to the "Structural Spine." This standard ensures that agents can reliably extract facts, navigate relationships, and assess the confidence of the information they retrieve.
 

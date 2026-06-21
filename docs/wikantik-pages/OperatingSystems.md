@@ -1,18 +1,24 @@
 ---
-verified_at: '2026-05-04T21:10:44.598011331Z'
-type: article
 Provides_Environment:
 - Linux
-date: '2026-05-04'
-cluster: computer-science-foundations
-title: Operating Systems (OS) Foundations
-summary: An overview of operating system fundamentals and their critical role in supporting
-  the Wikantik platform.
 verified_by: gemini-cli-mcp-client
 canonical_id: 01KQTD79Q328S32YWBW5GRKVMB
-status: official
+tags:
+- operating-systems
+- process-scheduling
+- memory-management
+- file-systems
+- kernel
+type: article
+status: active
 improves performance of:
 - Lucene
+summary: OS fundamentals — process scheduling, memory management, file systems, and
+  networking; the kernel layer that hardware-abstracts everything above it.
+title: Operating Systems (OS) Foundations
+cluster: computer-science-foundations
+verified_at: '2026-05-04T21:10:44.598011331Z'
+date: '2026-05-04'
 ---
 # Operating Systems (OS) Foundations
 

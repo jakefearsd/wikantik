@@ -1,15 +1,16 @@
 ---
-cluster: immigration
-canonical_id: 01KQ0P44QT9WKT1F8MQ292S3QJ
-title: H1B Visa Process
-type: article
 tags:
 - h1b-visa
 - immigration-law
 - labor-compliance
 - talent-management
 - risk-mitigation
-summary: A rigorous exploration of H1B visa sponsorship, focusing on the legal definition of "Specialty Occupation," operational risk modeling for LCA and I-129 filings, and the strategic integration of global mobility into talent pipelines.
+type: article
+summary: 'H-1B sponsorship mechanics: Specialty Occupation definition, LCA and I-129
+  filing workflow, cap lottery risk modeling, and talent pipeline strategy.'
+title: H-1B Visa Process
+cluster: immigration
+canonical_id: 01KQ0P44QT9WKT1F8MQ292S3QJ
 ---
 
 # H1B Visa Process: The Architecture of Specialty Sponsorship

@@ -1,27 +1,27 @@
 ---
-canonical_id: 01KQ12YDRVHVES5SVP5N14DQ5X
-title: Ai Observability In Production
-type: article
-cluster: agentic-ai
-status: active
 date: '2026-04-25'
-tags:
-- llm
-- observability
-- monitoring
-- evaluation
-- drift-detection
-summary: What to instrument, alert on, and visualise for production LLM systems —
-  beyond trace logging into eval-in-prod, drift detection, and the dashboards
-  that catch quiet quality regressions.
+summary: 'What to instrument, alert on, and visualise for production LLM systems:
+  eval-in-prod, drift detection, and dashboards that catch quiet quality regressions.'
+cluster: agentic-ai
 related:
 - AgentObservability
 - LlmEvaluationMetrics
 - AgentTesting
 - AiHallucinationMitigation
 - DistributedTracing
+canonical_id: 01KQ12YDRVHVES5SVP5N14DQ5X
+type: article
+title: AI Observability in Production
+status: active
 hubs:
 - AgenticAiHub
+- MlModelDeploymentHub
+tags:
+- llm
+- observability
+- monitoring
+- evaluation
+- drift-detection
 ---
 # AI Observability in Production
 

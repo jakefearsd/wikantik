@@ -1,10 +1,18 @@
 ---
-canonical_id: 01KQ0P44QNX1DH6SZB0709Y823
-summary: Hub page for adopting generative AI as an individual contributor or at a
-  very small company — practical guidance on tools, workflows, local LLMs, and accelerating
-  your learning
+status: active
+type: reference
+hubs:
+- MlModelDeploymentHub
 date: 2026-03-14T01:00:00Z
 cluster: generative-ai
+title: Generative AI Adoption Guide
+tags:
+- generative-ai
+- productivity
+- individual-contributor
+- small-business
+summary: 'Adopting generative AI as an individual contributor or small team: tools,
+  workflows, local LLMs, prompt engineering, and accelerating your learning.'
 related:
 - UnderstandingGenerativeAi
 - GenerativeAiToolsForIndividuals
@@ -13,15 +21,7 @@ related:
 - AiAugmentedWorkflows
 - AcceleratingAiLearning
 - WarehouseAiAndMl
-type: reference
-status: active
-tags:
-- generative-ai
-- productivity
-- individual-contributor
-- small-business
-hubs:
-- MlModelDeploymentHub
+canonical_id: 01KQ0P44QNX1DH6SZB0709Y823
 ---
 
 # Generative AI Adoption Guide

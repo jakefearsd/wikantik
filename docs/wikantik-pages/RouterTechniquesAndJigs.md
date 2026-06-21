@@ -1,15 +1,16 @@
 ---
-cluster: hobby-woodworking
-canonical_id: 01KQ0P44VXTZVKYP3W50YA1W4A
-title: Router Techniques And Jigs
-type: article
 tags:
 - woodworking
 - router
 - jigs
 - fixtures
 - joinery
-summary: Technical guide to router jigs, fixtures, and templates for precision woodworking and complex joinery.
+title: Router Techniques and Jigs
+cluster: hobby-woodworking
+type: article
+canonical_id: 01KQ0P44VXTZVKYP3W50YA1W4A
+summary: Technical guide to router jigs, fixtures, and templates for precision woodworking
+  and complex joinery.
 auto-generated: false
 ---
 

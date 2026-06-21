@@ -1,25 +1,25 @@
 ---
-canonical_id: 01KQ0P44R7RQT18645YAXBZY2D
+type: article
+status: active
 date: 2026-03-15T00:00:00Z
+cluster: index-fund-investing
+title: Introduction to Index Funds and ETFs
+hubs:
+- LowCostIndexFundInvestingHub
+tags:
+- investing
+- index-funds
+- etfs
+- passive-investing
+- beginners
 summary: Beginner-friendly introduction to index funds and ETFs — what they are, how
   they work, the key differences between them, and why they form the foundation of
   evidence-based investing.
-cluster: index-fund-investing
 related:
 - LowCostIndexFundInvesting
 - ExpenseRatiosAndTheirEffectOnCompounding
 - AssetAllocation
-title: Introduction to Index Funds and ETFs
-type: article
-status: published
-tags:
-- investing
-- index-funds
-- ETFs
-- passive-investing
-- beginners
-hubs:
-- LowCostIndexFundInvestingHub
+canonical_id: 01KQ0P44R7RQT18645YAXBZY2D
 ---
 
 # Introduction to Index Funds and ETFs

@@ -1,7 +1,15 @@
 ---
-title: 'Tropical Geometry: The Math of Minimums'
-canonical_id: 01KRQDWQR02WR93G048J9F1KHB
-cluster: mathematics
+status: active
+date: '2026-05-15'
+summary: Min-Plus semiring linearizes scheduling and shortest-path problems — tropical
+  varieties, Viterbi as tropical matrix product, and piecewise-linear optimization.
+tags:
+- tropical-geometry
+- discrete-math
+- operations-research
+- optimization
+- scheduling
+type: article
 relations:
 - type: component_of
   target_id: 01KQ2P44XMGA8E1E7GAT4AYV43
@@ -9,18 +17,9 @@ relations:
   target_id: 01KQEKGDDVHTHY07CQ3YKSQ5PA
 - type: influenced_by
   target_id: 01KQ0P44NNZ12BPR1P8KBRNWCS
-type: article
-tags:
-- tropical-geometry
-- discrete-math
-- operations-research
-- optimization
-- scheduling
-summary: Conceptual introduction to Tropical Geometry and the Min-Plus semiring, detailing
-  how non-linear scheduling and shortest-path problems become linear in the tropical
-  domain.
-status: active
-date: '2026-05-15'
+canonical_id: 01KRQDWQR02WR93G048J9F1KHB
+cluster: mathematics
+title: 'Tropical Geometry: The Math of Minimums'
 ---
 
 # Tropical Geometry: The Math of Minimums

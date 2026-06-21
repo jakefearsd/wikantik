@@ -1,9 +1,21 @@
 ---
+type: article
+status: active
+date: '2026-04-26'
+cluster: index-fund-investing
+title: Tax Loss Harvesting
+hubs:
+- LowCostIndexFundInvestingHub
+- RebalancingStrategies Hub
+tags:
+- tax-loss-harvesting
+- tlh
+- taxes
+- index-funds
+- wash-sale
 summary: How tax-loss harvesting works, the wash-sale rule that catches most retail
   investors, the cases where it actually pays meaningful money, and the systematic
   approach that captures the benefit without the common pitfalls.
-date: '2026-04-26'
-cluster: index-fund-investing
 related:
 - LowCostIndexFundInvesting
 - TaxPlanningFundamentals
@@ -11,18 +23,6 @@ related:
 - RoboAdvisorComparison
 - RebalancingStrategies
 canonical_id: 01KQ0P44XA408GF7WX6V7N1832
-type: article
-title: Tax Loss Harvesting
-tags:
-- tax-loss-harvesting
-- TLH
-- taxes
-- index-funds
-- wash-sale
-status: active
-hubs:
-- LowCostIndexFundInvestingHub
-- RebalancingStrategies Hub
 ---
 # Tax Loss Harvesting
 
@@ -36,12 +36,12 @@ A taxable brokerage account holds a position that has fallen below its cost basi
 
 A simple example:
 
-- You bought $50,000 of VTI at $200/share = 250 shares
+- You bought $50,000 of VTI at \$200/share = 250 shares
 - VTI now trades at $170/share = current value $42,500
-- You have a $7,500 unrealized loss
+- You have a \$7,500 unrealized loss
 - You sell VTI and immediately buy ITOT (a similar total-market ETF) at $170 equivalent
 - You have realized a $7,500 loss for tax purposes; market exposure is unchanged
-- The $7,500 loss can offset capital gains in the current year + carry forward indefinitely; up to $3,000/year can also offset ordinary income
+- The \$7,500 loss can offset capital gains in the current year + carry forward indefinitely; up to $3,000/year can also offset ordinary income
 
 The replacement (ITOT vs. VTI) tracks a similar index but is from a different provider with different underlying methodology — enough difference to satisfy the IRS that they are not "substantially identical."
 
@@ -101,21 +101,21 @@ The benefit varies dramatically based on circumstances:
 
 ### Strong cases
 
-- **High tax bracket** (32%+ federal plus state): each $1,000 of harvested losses is worth $400+
-- **Large taxable account** ($100K+): more positions, more opportunities
+- **High tax bracket** (32%+ federal plus state): each \$1,000 of harvested losses is worth $400+
+- **Large taxable account** (\$100K+): more positions, more opportunities
 - **High volatility** (frequent drawdowns provide harvesting opportunities)
 - **Plan to hold long-term** (the deferred gains compound)
 - **You will use the losses** (against current or future capital gains)
 
 ### Weak cases
 
-- **Low tax bracket** (12% or 0% on long-term gains): each $1,000 of losses is worth $0–$120
-- **Small taxable account** ($10K range): limited opportunities, complexity not worth it
+- **Low tax bracket** (12% or 0% on long-term gains): each \$1,000 of losses is worth $0–$120
+- **Small taxable account** (\$10K range): limited opportunities, complexity not worth it
 - **Account in tax-deferred or Roth**: no benefit; TLH is meaningless
 - **Plan to sell soon** (defeats the purpose; you are realizing gains anyway)
 - **No expectation of capital gains to offset**: $3,000/year cap on ordinary income offset
 
-For a typical taxable investor in the 24% federal bracket with $200K in a brokerage, TLH might save $1,500–$3,000/year in real tax. Worth the effort but not a primary investment driver.
+For a typical taxable investor in the 24% federal bracket with \$200K in a brokerage, TLH might save $1,500–\$3,000/year in real tax. Worth the effort but not a primary investment driver.
 
 ## When automation helps
 
@@ -136,7 +136,7 @@ A practical approach for self-managed taxable accounts:
 ### Harvesting
 
 1. After a market drop of 5%+, check each holding for unrealized losses
-2. For positions with meaningful losses (say, $1,000+), execute the swap:
+2. For positions with meaningful losses (say, \$1,000+), execute the swap:
    - Sell the loss position
    - Immediately (same day, ideally same minute) buy the paired fund
 3. Document the trade: original cost basis, sale price, replacement purchase

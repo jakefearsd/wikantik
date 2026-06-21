@@ -1,25 +1,24 @@
 ---
-canonical_id: 01KQ0P44VD2G5RCTN8NVS7DA41
-title: Release Engineering
-type: article
 cluster: devops-sre
-status: active
 date: '2026-04-26'
-summary: The discipline of getting code from main to production safely — release
-  artifacts, signing, rollback, deployment strategies, and the practices that distinguish
-  high-performing teams.
+title: Release Engineering
+hubs:
+- DevOpsAndSreHub
 tags:
 - release-engineering
 - deployment
 - devops
 - automation
+summary: Getting code from main to production safely — release artifacts, signing,
+  rollback, and deployment strategies for high-performing teams.
 related:
 - CiCdPipelines
 - FeatureToggleManagement
 - ReleasePlanning
 - TrunkBasedDevelopment
-hubs:
-- DevOpsAndSreHub
+canonical_id: 01KQ0P44VD2G5RCTN8NVS7DA41
+type: article
+status: active
 ---
 # Release Engineering
 

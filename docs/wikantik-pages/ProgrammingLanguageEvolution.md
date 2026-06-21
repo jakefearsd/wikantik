@@ -1,7 +1,11 @@
 ---
-canonical_id: 01KRPKQAEHN34JM8MJ0VG2Z54W
 date: 2026-05-15T00:00:00Z
 status: active
+canonical_id: 01KRPKQAEHN34JM8MJ0VG2Z54W
+summary: Central hub for the evolution of programming languages (1950–2026). Traces
+  the shift from manual machine-level management to AI-native 'Vibe Coding' across
+  six distinct technical regimes.
+title: Programming Language Evolution
 tags:
 - programming-languages
 - computer-history
@@ -9,11 +13,8 @@ tags:
 - type-systems
 - software-engineering
 - hub
+type: hub
 cluster: software-engineering
-title: Programming Language Evolution
-summary: Central hub for the evolution of programming languages (1950–2026). Traces
-  the shift from manual machine-level management to AI-native 'Vibe Coding' across
-  six distinct technical regimes.
 ---
 
 # Programming Language Evolution: The Architecture of Instruction
@@ -55,6 +56,7 @@ The history of programming languages is a 75-year trajectory of **delegating cog
 *   **Functional**: Functions as first-class citizens with immutable state.
 *   **Declarative**: Describing *what* to do, not *how* (SQL, Prolog).
 *   **Object-Oriented**: Organizing code around data and objects.
+*   **Multi-Paradigm Fusion**: Unifying functional and object-oriented styles in a single type system (e.g. [Scala](ScalaLanguage)).
 
 -----
 

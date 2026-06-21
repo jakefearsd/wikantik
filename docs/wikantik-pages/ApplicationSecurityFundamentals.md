@@ -1,15 +1,16 @@
 ---
-cluster: security
-canonical_id: 01KQ0P44KZCF59AWRWFXD47TD5
-title: Application Security Fundamentals
-type: article
 tags:
 - security
 - owasp
 - application-security
 - threat-modeling
 - zero-trust
-summary: A rigorous exploration of application security fundamentals, focusing on the systemic failures outlined in the OWASP Top Ten, the security challenges of LLMs and APIs, and the implementation of Zero Trust Architecture.
+type: article
+summary: OWASP Top Ten failures, API BOLA, LLM prompt injection, and Zero Trust Architecture
+  — the systemic patterns behind modern application security.
+title: Application Security Fundamentals
+cluster: security
+canonical_id: 01KQ0P44KZCF59AWRWFXD47TD5
 ---
 
 # Application Security: The Architecture of Resilience

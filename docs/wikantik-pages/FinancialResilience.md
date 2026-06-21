@@ -1,9 +1,20 @@
 ---
-summary: The architecture of a household balance sheet that survives a bad year —
-  income redundancy, expense flexibility, asset liquidity, insurance layering, and
-  the stress tests that reveal whether your plan actually holds.
+type: article
+status: active
 date: '2026-04-26'
 cluster: personal-finance
+title: Financial Resilience
+hubs:
+- PersonalFinanceHub
+- DebtPayoffStrategies Hub
+tags:
+- financial-resilience
+- personal-finance
+- risk-management
+- household-finance
+- stress-testing
+summary: 'The four pillars of a household that survives a bad year: income redundancy,
+  expense flexibility, asset liquidity, and insurance layering — with stress tests.'
 related:
 - PersonalFinanceGuide
 - EmergencyFundStrategies
@@ -12,22 +23,10 @@ related:
 - DebtPayoffStrategies
 - NetWorthTracking
 canonical_id: 01KQ0P44QD77APRYM52QSQ1FT3
-type: article
-title: Financial Resilience
-tags:
-- financial-resilience
-- personal-finance
-- risk-management
-- household-finance
-- stress-testing
-status: active
-hubs:
-- PersonalFinanceHub
-- DebtPayoffStrategies Hub
 ---
 # Financial Resilience
 
-Financial resilience is not the same as wealth. A household with a $2 million net worth tied up in a single illiquid asset and a $20,000 monthly burn rate is fragile. A household with $200,000 in liquid assets, two skill-marketable earners, and a $4,000 monthly burn rate is robust. Resilience is the system property that lets a household absorb shocks — job loss, medical events, market drawdowns, divorce, family emergencies — without cascading failure.
+Financial resilience is not the same as wealth. A household with a \$2 million net worth tied up in a single illiquid asset and a $20,000 monthly burn rate is fragile. A household with \$200,000 in liquid assets, two skill-marketable earners, and a $4,000 monthly burn rate is robust. Resilience is the system property that lets a household absorb shocks — job loss, medical events, market drawdowns, divorce, family emergencies — without cascading failure.
 
 This page is about how to design a household balance sheet for resilience explicitly, not as an afterthought of accumulation.
 
@@ -77,9 +76,9 @@ A liquid asset can be converted to cash quickly without significant loss of valu
 | Private business equity | Years if at all | Effectively illiquid |
 | Vehicles, collectibles | Weeks | Variable, often with significant haircut |
 
-The Roth IRA is the most underappreciated resilience asset. Contributions (not earnings) can be withdrawn at any time, tax-free and penalty-free. A Roth IRA with $40,000 of contributions effectively functions as a $40,000 emergency fund that *also* compounds tax-free if not used.
+The Roth IRA is the most underappreciated resilience asset. Contributions (not earnings) can be withdrawn at any time, tax-free and penalty-free. A Roth IRA with \$40,000 of contributions effectively functions as a $40,000 emergency fund that *also* compounds tax-free if not used.
 
-A balance sheet that looks like "total $1M, but $850K in primary residence and private business equity" has only $150K of resilience-grade assets. Pay attention to liquidity composition, not just totals.
+A balance sheet that looks like "total $1M, but $850K in primary residence and private business equity" has only \$150K of resilience-grade assets. Pay attention to liquidity composition, not just totals.
 
 ### Pillar 4: insurance layering
 
@@ -114,7 +113,7 @@ Assume primary income drops to $0 starting today. Walk through:
 
 The right answer for most households is: HYSA covers months 1–3, no investment sales required. If your stress test shows month 1 already requiring a brokerage sale, your liquid reserve is too small.
 
-### Stress test 2: $25K medical event
+### Stress test 2: \$25K medical event
 
 Assume a medical event hitting your full out-of-pocket maximum within 60 days. Walk through:
 
@@ -157,7 +156,7 @@ RSUs and ESPP shares from a single employer that have grown to dominate the port
 
 ### "Rich but illiquid"
 
-Most assets in private business equity, real estate, or restricted shares. Looks impressive on a balance sheet, performs poorly in a real emergency. A $5M household with $200K liquid is more fragile than a $1M household with $400K liquid.
+Most assets in private business equity, real estate, or restricted shares. Looks impressive on a balance sheet, performs poorly in a real emergency. A $5M household with \$200K liquid is more fragile than a $1M household with \$400K liquid.
 
 ### Lifestyle creep that consumes raises
 
@@ -189,7 +188,7 @@ Resilience is the layered system, not any single line.
 - Brokerage: $80K
 - HYSA: $5K
 - Income: $180K, single earner, narrow industry specialty
-- Monthly essentials: $7,200
+- Monthly essentials: \$7,200
 
 Resilience profile: weak. HYSA covers <1 month of essentials. Income loss for 6 months would force brokerage sales and possibly retirement-account loans. Single income, narrow specialty, illiquid real-estate concentration.
 
@@ -200,7 +199,7 @@ Resilience profile: weak. HYSA covers <1 month of essentials. Income loss for 6 
 - Brokerage: $260K
 - HYSA + I bonds: $80K
 - Roth IRA contributions: $80K (withdrawable)
-- Income: $190K total ($110K + $80K, two earners, both in-demand fields)
+- Income: $190K total ($110K + \$80K, two earners, both in-demand fields)
 - Monthly essentials: $5,400
 
 Resilience profile: strong. HYSA covers 14+ months of essentials. Either income alone covers essentials. Multiple withdrawable layers. Lower fixed-cost burden.

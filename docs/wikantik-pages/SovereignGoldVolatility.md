@@ -1,15 +1,11 @@
 ---
-summary: An analysis of gold's 2026 surge to $5,600/oz, its role as a neutral reserve
-  asset, and the structural shift toward 'Trophy' status in private wealth.
-date: 2026-05-15T00:00:00Z
-cluster: Geopolitics & Finance
-related:
-- ConflictMarketPatternsHub
-- MarketRecoveryCoefficients
-- GeopoliticalFinancialBridgeHub
-canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KI
 type: article
+status: active
+date: 2026-05-15T00:00:00Z
+cluster: geopolitics-and-finance
 title: 'Sovereign Gold Volatility: The 2026 Trophy Asset Re-Rating'
+hubs:
+- GeopoliticalFinancialBridgeHub
 tags:
 - gold
 - volatility
@@ -17,9 +13,13 @@ tags:
 - centralbanks
 - trophyassets
 - finance
-status: active
-hubs:
+summary: 'Gold''s 2026 surge to $5,600/oz: central bank reserve shifts, neutral asset
+  demand under sanctions, and the emergence of gold as a private-wealth trophy asset.'
+related:
+- ConflictMarketPatternsHub
+- MarketRecoveryCoefficients
 - GeopoliticalFinancialBridgeHub
+canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KI
 ---
 
 # Sovereign Gold Volatility: The 2026 Trophy Asset Re-Rating
@@ -35,7 +35,7 @@ The resurgence of conflict in the Middle East and the weaponization of trade rou
 | :--- | :--- | :--- |
 | Late 2025 | $2,350 | Basel III implementation baseline. |
 | **Jan 2026** | **$5,600** | **Peak Volatility:** Strait of Hormuz closure and massive short squeeze. |
-| mid-2026 | $4,600 | Stabilization as 'Power Havens' established alternate settlements. |
+| mid-2026 | \$4,600 | Stabilization as 'Power Havens' established alternate settlements. |
 
 The [Market Recovery Coefficients](MarketRecoveryCoefficients) modeled in this wiki use the $5,600 peak as the primary 'Geopolitical Stress' anchor for resilience forecasting.
 

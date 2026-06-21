@@ -1,10 +1,19 @@
 ---
+canonical_id: 01KVJMS13WAA4HG2BA2A8V36AT
 title: Economic History
+tags:
+- economic-history
+- inflation
+- monetary-policy
+- gold-standard
+- bretton-woods
+- hyperinflation
 cluster: economics-finance
-tags: [economic-history, inflation, monetary-policy, gold-standard, bretton-woods, hyperinflation]
+type: reference
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: A quantitative survey of global monetary regimes and inflationary epochs from 1900 to 2026. Covers the Gold Standard, Bretton Woods, the Great Moderation, and post-pandemic dynamics.
+summary: 'Global monetary regimes and inflationary epochs 1900–2026: Gold Standard,
+  Bretton Woods, the Great Moderation, and post-pandemic secular inflation.'
 ---
 
 # Economic History: Regimes, Inflation, and Cycles

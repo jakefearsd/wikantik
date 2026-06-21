@@ -1,12 +1,20 @@
 ---
-title: Blockchain Mathematics
-type: article
-cluster: blockchain-tech
-status: active
-date: 2026-05-15
-summary: Exploration of the cryptographic foundations of distributed ledgers. Detailed analysis of Merkle Trees, SHA-256 collision resistance, and ECDSA.
 auto-generated: false
+status: active
+type: article
 kg_include: true
+date: 2026-05-15T00:00:00Z
+cluster: blockchain-tech
+title: Blockchain Mathematics
+tags:
+- blockchain
+- cryptography
+- merkle-tree
+- sha-256
+- ecdsa
+summary: 'Cryptographic foundations of distributed ledgers: Merkle Trees, SHA-256
+  collision resistance, and ECDSA key-to-identity binding on the secp256k1 curve.'
+canonical_id: 01KTXJ5NCTZRJJZ5EXKMDBFE4D
 ---
 
 # Blockchain Mathematics: The Cryptographic Bedrock

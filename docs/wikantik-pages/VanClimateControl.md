@@ -1,8 +1,9 @@
 ---
-cluster: van-life
-canonical_id: 01KQ0P44Y8K1YM9DXZ69AD3XP4
-title: "Van Climate Control: Thermal Engineering"
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: Technical specifications and calculations for heating, cooling, and moisture
+  management in mobile habitats. Includes BTU load modeling and insulation R-value
+  analysis.
 tags:
 - van-life
 - hvac
@@ -10,10 +11,11 @@ tags:
 - diesel-heaters
 - insulation
 - ventilation
-status: active
-date: 2025-05-15
-summary: Technical specifications and calculations for heating, cooling, and moisture management in mobile habitats. Includes BTU load modeling and insulation R-value analysis.
+type: article
 auto-generated: false
+cluster: van-life
+canonical_id: 01KQ0P44Y8K1YM9DXZ69AD3XP4
+title: 'Van Climate Control: Thermal Engineering'
 ---
 
 # Van Climate Control: Thermal Engineering

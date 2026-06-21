@@ -1,21 +1,23 @@
 ---
-canonical_id: 01KQ0P44WZ9D2NGX5G3F4DCFSA
 status: active
+type: article
 part-of:
 - OperationsResearchHub
 date: 2026-03-21T01:00:00Z
 cluster: operations-research
-related:
-- OperationsResearchHub
-- OperationsResearch
-type: article
+title: Stochastic Models in OR
 tags:
 - operations-research
 - stochastic-models
 - probability
 - queuing-theory
 - simulation
-summary: How stochastic OR extends deterministic models to handle uncertainty through queuing theory, Markov chains, and simulation.
+summary: How stochastic OR extends deterministic models to handle uncertainty through
+  queuing theory, Markov chains, and simulation.
+related:
+- OperationsResearchHub
+- OperationsResearch
+canonical_id: 01KQ0P44WZ9D2NGX5G3F4DCFSA
 ---
 
 # Stochastic Models in Operations Research

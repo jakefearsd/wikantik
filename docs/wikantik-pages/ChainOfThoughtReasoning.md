@@ -1,24 +1,23 @@
 ---
-canonical_id: 01KQEKGD852R46NB2G9DCBFT1H
-title: Chain Of Thought Reasoning
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-25'
+title: Chain-of-Thought Reasoning
+hubs:
+- AgenticAiHub
 tags:
 - chain-of-thought
 - prompt-engineering
 - llm-reasoning
 - extended-thinking
-summary: Chain-of-thought prompting — when it helps, when it hurts, and how
-  the 2024+ extended-reasoning modes (o1, Claude extended thinking, R1)
-  changed what "show your work" means.
+summary: 'Chain-of-thought prompting: when it helps, when it hurts, and how 2024+
+  extended-reasoning modes (o1, Claude, R1) changed what "show your work" means.'
 related:
 - AgentReasoning
 - AgenticWorkflowDesign
 - PracticalPromptEngineering
-hubs:
-- AgenticAiHub
+canonical_id: 01KQEKGD852R46NB2G9DCBFT1H
 ---
 # Chain of Thought Reasoning
 

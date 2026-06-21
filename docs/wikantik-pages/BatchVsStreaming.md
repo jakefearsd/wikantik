@@ -1,17 +1,18 @@
 ---
-cluster: distributed-systems
 canonical_id: 01KQ0P44MDQ4BCTSQKVYX1NBFR
-title: Batch Vs Streaming
-type: article
+title: Batch vs. Streaming
 tags:
 - data-engineering
 - batch
 - streaming
 - lambda-architecture
 - kappa-architecture
-summary: A technical comparison of batch and stream processing paradigms, detailing Lambda vs Kappa architectures and the challenges of achieving exactly-once semantics.
+cluster: distributed-systems
+type: article
+date: 2024-05-16T00:00:00Z
 auto-generated: false
-date: 2024-05-16
+summary: A technical comparison of batch and stream processing paradigms, detailing
+  Lambda vs Kappa architectures and the challenges of achieving exactly-once semantics.
 ---
 # Batch vs. Stream Processing: Architectural Patterns
 

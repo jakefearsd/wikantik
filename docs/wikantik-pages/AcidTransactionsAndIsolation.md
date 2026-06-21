@@ -1,16 +1,18 @@
 ---
 canonical_id: 01KQEB19KH3481M90CM2A06KSY
-date: 2026-04-30T00:00:00Z
+title: ACID Transactions and Isolation
 tags:
-- read
-- transact
-- lock
-title: Acid Transactions And Isolation
+- acid
+- isolation-levels
+- mvcc
+- transactions
+- databases
 cluster: databases
 type: article
+date: 2026-04-30T00:00:00Z
 status: active
-summary: This tutorial is not for the junior developer who merely needs to know that
-  BEGIN TRANSACTION exists.
+summary: ACID properties, isolation levels (Read Uncommitted to Serializable), anomalies
+  (dirty read, phantom, write skew), 2PL vs MVCC, and snapshot isolation trade-offs.
 ---
 # ACID Transactions and Isolation
 

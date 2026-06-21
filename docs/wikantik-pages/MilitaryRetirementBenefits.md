@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44SHM9HX3ZWKVY2M2T30
-title: Military Retirement Benefits
 type: article
-cluster: retirement-planning
 status: active
+cluster: retirement-planning
 date: '2026-04-26'
-summary: How military retirement works — pension, Tricare, GI Bill, Thrift Savings
-  Plan — and the integration with civilian retirement plans for veterans transitioning
-  out.
+title: Military Retirement Benefits
+hubs:
+- RetirementPlanningGuide
 tags:
 - military-retirement
 - veterans
 - tricare
 - tsp
 - pension
+summary: How military retirement works — pension, Tricare, GI Bill, Thrift Savings
+  Plan — and the integration with civilian retirement plans for veterans transitioning
+  out.
 related:
 - PensionMaximizationStrategies
 - SocialSecuritySpousalAndSurvivorBenefits
 - HealthSavingsAccounts
 - RetirementPlanningGuide
-hubs:
-- RetirementPlanningGuide
+canonical_id: 01KQ0P44SHM9HX3ZWKVY2M2T30
 ---
 # Military Retirement Benefits
 
@@ -147,13 +147,13 @@ Higher ratings unlock additional benefits: VA healthcare priority; education ass
 
 For a 20-year retiree:
 
-- **Pension**: $30-50K/year typical
+- **Pension**: \$30-50K/year typical
 - **TSP withdrawal**: variable based on accumulation
 - **Social Security**: typically reduced by Windfall Elimination Provision (WEP) for some pensions; not military
 - **VA disability**: tax-free; additional if rated
 - **Tricare**: dramatically reduces healthcare costs
 
-For a senior NCO retiring at 38 with 20 years: pension might be $35K/year, healthcare via Tricare, TSP balance of $200K+, and ability to start a second career. The combination is powerful.
+For a senior NCO retiring at 38 with 20 years: pension might be \$35K/year, healthcare via Tricare, TSP balance of $200K+, and ability to start a second career. The combination is powerful.
 
 ## Transition planning
 

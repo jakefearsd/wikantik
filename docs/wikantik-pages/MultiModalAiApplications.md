@@ -1,17 +1,18 @@
 ---
-cluster: generative-ai
 canonical_id: 01KQ0P44STSMPTY9CENPNM9Y63
-title: "Multi-Modal AI: CLIP, SigLIP, and Contrastive Scaling"
-type: article
+title: 'Multi-Modal AI: CLIP, SigLIP, and Contrastive Scaling'
 tags:
 - generative-ai
 - clip
 - siglip
 - multi-modal
 - embeddings
-summary: A technical deep dive into the architectures of cross-modal retrieval, comparing the contrastive loss of CLIP with the sigmoid-based scaling of SigLIP.
+cluster: generative-ai
+type: article
+date: 2025-01-24T00:00:00Z
 auto-generated: false
-date: 2025-01-24
+summary: 'Cross-modal retrieval architectures: contrastive loss of CLIP vs. sigmoid-based
+  scaling of SigLIP, with dual-encoder design and scalability trade-offs.'
 ---
 # Multi-Modal AI: CLIP, SigLIP, and Contrastive Scaling
 

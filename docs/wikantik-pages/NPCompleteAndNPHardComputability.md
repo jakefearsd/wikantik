@@ -1,16 +1,17 @@
 ---
-cluster: computer-science-foundations
 canonical_id: 01KQ96DZZ4YMZ0T1Y6Z5JMD0J0
 title: NP-Complete and NP-Hard Computability
-type: article
 tags:
 - algorithms
 - complexity
 - sat-solvers
 - heuristics
-summary: A technical guide to NP-completeness, focusing on the practical transition from theoretical "hardness" to real-world tractability via SAT solvers, CDCL, and heuristic reductions.
+cluster: computer-science-foundations
+type: article
+date: 2024-05-16T00:00:00Z
 auto-generated: false
-date: 2024-05-16
+summary: NP-completeness and the practical path to tractability — SAT solvers, CDCL,
+  approximation algorithms, and heuristic reductions for NP-hard problems.
 ---
 # NP-Completeness: From Theory to Tractability
 

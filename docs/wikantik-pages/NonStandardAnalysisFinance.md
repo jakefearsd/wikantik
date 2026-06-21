@@ -1,13 +1,8 @@
 ---
-title: 'Non-Standard Analysis: Infinitesimals in Finance'
-canonical_id: 01KRQE4ZY7R0AMKK2P9XFRSP23
-cluster: mathematics
-relations:
-- type: component_of
-  target_id: 01KQ2P44XMGA8E1E7GAT4AYV43
-- type: extension_of
-  target_id: 01KRTB67YHJ96D0PBJ1NEJDY23
-type: article
+status: active
+date: '2026-05-15'
+summary: 'Hyperreal numbers and infinitesimals in finance: bridging discrete HFT events
+  with continuous-time SDEs, infill asymptotics, and non-standard Itô integration.'
 tags:
 - non-standard-analysis
 - infinitesimals
@@ -15,11 +10,15 @@ tags:
 - hft
 - quantitative-finance
 - sde
-summary: Advanced coverage of Non-Standard Analysis (NSA) and hyperreal numbers. Details
-  the application of infinitesimals to bridge discrete HFT events with continuous-time
-  finance models (Stochastic Differential Equations).
-status: active
-date: '2026-05-15'
+type: article
+relations:
+- type: component_of
+  target_id: 01KQ2P44XMGA8E1E7GAT4AYV43
+- type: extension_of
+  target_id: 01KRTB67YHJ96D0PBJ1NEJDY23
+canonical_id: 01KRQE4ZY7R0AMKK2P9XFRSP23
+cluster: mathematics
+title: 'Non-Standard Analysis: Infinitesimals in Finance'
 ---
 
 # Non-Standard Analysis: Infinitesimals in Finance

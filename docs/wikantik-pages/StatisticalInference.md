@@ -1,12 +1,23 @@
 ---
-title: Statistical Inference
-type: article
-cluster: mathematics
-status: active
 date: '2026-05-06'
-summary: A rigorous guide to drawing conclusions from data, covering frequentist hypothesis testing, p-values, the geometry of tail areas, and Bayesian decision theory.
-tags: [mathematics, statistics, inference, hypothesis-testing, p-values]
-related: [StatisticsFundamentals, ProbabilityTheory, RegressionAnalysis, MathematicsHub]
+status: active
+summary: Frequentist hypothesis testing, p-values, power analysis, and Bayesian credible
+  intervals — with applications in A/B testing and clinical trial design.
+tags:
+- mathematics
+- statistics
+- inference
+- hypothesis-testing
+- p-values
+type: article
+canonical_id: 01KTXJ5PQG3VG80ACSP2REB14J
+cluster: mathematics
+related:
+- StatisticsFundamentals
+- ProbabilityTheory
+- RegressionAnalysis
+- MathematicsHub
+title: Statistical Inference
 ---
 
 # Statistical Inference: The Science of Decision Making

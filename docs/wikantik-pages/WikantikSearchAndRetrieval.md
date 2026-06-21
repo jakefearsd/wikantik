@@ -1,13 +1,18 @@
 ---
-title: Wikantik Hybrid Search Architecture
+date: '2026-05-15'
+summary: Technical deep-dive into Wikantik's 3-phase hybrid search pipeline. Covers
+  lexical retrieval (Lucene), dense vector retrieval (pgvector), and Graph-Aware reranking
+  using RRF fusion.
 cluster: wikantik-platform
 canonical_id: 01KQTCB8K3TXN8SKQFJ7WZ7FJC
+type: article
 relations:
 - type: component_of
   target_id: WikantikPlatformHub
 - type: extension_of
   target_id: IndustrialSearchSystems
-type: article
+title: Wikantik Hybrid Search Architecture
+status: active
 tags:
 - search
 - architecture
@@ -16,11 +21,8 @@ tags:
 - lucene
 - pgvector
 - graph-rerank
-summary: Technical deep-dive into Wikantik's 3-phase hybrid search pipeline. Covers
-  lexical retrieval (Lucene), dense vector retrieval (pgvector), and Graph-Aware reranking
-  using RRF fusion.
-status: active
-date: '2026-05-15'
+hubs:
+- WikantikPlatformHub
 ---
 
 # Wikantik Hybrid Search Architecture

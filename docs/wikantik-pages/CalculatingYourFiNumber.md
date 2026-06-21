@@ -1,18 +1,19 @@
 ---
-canonical_id: 01KQ0P44MWHCZ3AM0K65NP8AW8
-title: Calculating Your FI Number
 type: article
-cluster: retirement-planning
 status: active
+cluster: retirement-planning
 date: '2026-04-26'
-summary: How to compute your financial independence number — the 25× rule, what to
-  count, what to exclude, and the adjustments for healthcare, taxes, and inflation
-  that make the number realistic.
+title: Calculating Your FI Number
+hubs:
+- RetirementPlanningGuide
 tags:
 - financial-independence
 - fi-number
 - retirement
 - 4-percent-rule
+summary: How to compute your financial independence number — the 25× rule, what to
+  count, what to exclude, and the adjustments for healthcare, taxes, and inflation
+  that make the number realistic.
 related:
 - SafeWithdrawalRates
 - BucketStrategyForRetirement
@@ -20,8 +21,7 @@ related:
 - CoastFire
 - FireMovement
 - NetWorthTracking
-hubs:
-- RetirementPlanningGuide
+canonical_id: 01KQ0P44MWHCZ3AM0K65NP8AW8
 ---
 # Calculating Your FI Number
 
@@ -45,7 +45,7 @@ The number that goes in the formula must represent your actual spending in retir
 
 ### Using current spending without adjustment
 
-You spend $80K/year now. In retirement:
+You spend \$80K/year now. In retirement:
 - Mortgage paid off → less
 - No more commuting → less
 - Healthcare → potentially much more
@@ -56,15 +56,15 @@ Net could be more or less. Project realistically.
 
 ### Forgetting taxes
 
-Your $80K spending is mostly post-tax. To withdraw $80K post-tax from a traditional IRA, you need to withdraw more (because of taxes).
+Your $80K spending is mostly post-tax. To withdraw \$80K post-tax from a traditional IRA, you need to withdraw more (because of taxes).
 
 Roughly: pre-tax withdrawal needed = post-tax spending / (1 - effective tax rate).
 
-For a retiree in 22% effective bracket, $80K post-tax requires ~$103K pre-tax. FI number with this adjustment: 25 × $103K = $2.575M.
+For a retiree in 22% effective bracket, $80K post-tax requires ~\$103K pre-tax. FI number with this adjustment: 25 × $103K = $2.575M.
 
 ### Missing healthcare
 
-Pre-Medicare (under 65) healthcare can cost $15-25K/year per person. Medicare itself plus supplemental, drugs, etc. is $5-15K/year.
+Pre-Medicare (under 65) healthcare can cost $15-25K/year per person. Medicare itself plus supplemental, drugs, etc. is \$5-15K/year.
 
 For early retirees, healthcare may be the biggest variable expense. Don't forget to include it.
 
@@ -108,7 +108,7 @@ If spending varies (good years and bad), some flexibility helps. Lower withdrawa
 
 Social Security + pensions cover much of expenses → smaller portfolio needed.
 
-If $40K/year of guaranteed income covers half of $80K spending, only $40K/year of portfolio income needed → FI number on the portfolio piece = $1M.
+If $40K/year of guaranteed income covers half of $80K spending, only $40K/year of portfolio income needed → FI number on the portfolio piece = \$1M.
 
 ### Heir-aware
 
@@ -140,7 +140,7 @@ A separate "LTC bucket" of $300-500K is common.
 
 Pre-Medicare bridge years: include ACA premiums or other insurance costs.
 
-Medicare years: $5-10K/year per person for premiums + Medigap + Part D, plus out-of-pocket.
+Medicare years: \$5-10K/year per person for premiums + Medigap + Part D, plus out-of-pocket.
 
 ### Inflation
 
@@ -162,9 +162,9 @@ If yes, project upward.
 - One-time expenses (cars, home repairs): amortized $5K → $86K
 - Effective tax rate: 18% → pre-tax need ≈ $105K
 - Long retirement (40 years): use 3.5% withdrawal
-- FI number: $105K / 0.035 = $3M
+- FI number: $105K / 0.035 = \$3M
 
-For Sarah, $3M is the target portfolio. Less than that and the 40-year retirement is risky.
+For Sarah, \$3M is the target portfolio. Less than that and the 40-year retirement is risky.
 
 This is much higher than the simple $75K × 25 = $1.875M. Adjustments matter.
 

@@ -1,26 +1,27 @@
 ---
-date: '2026-05-15'
-summary: Berlin's evolution from 1237 twin settlements to the 1701 Prussian royal
-  capital and 1871 Imperial center.
-cluster: berlin-history
 related:
 - Berlin
 - ReformationAndUrbanDevelopmentInBerlin
 - ReformationEraInBerlin
-auto-generated: false
 canonical_id: 01KQ0P44MKRKK26X2Y36Q919NX
-part-of:
+hubs:
 - Berlin
+auto-generated: false
 type: article
+status: active
 tags:
 - history
 - berlin
 - prussia
 - hohenzollern
 - urbanization
-status: active
-hubs:
+summary: Berlin's evolution from 1237 twin settlements to the 1701 Prussian royal
+  capital and 1871 Imperial center.
+title: Berlin's Transformation from Margraviate to Capital City
+part-of:
 - Berlin
+cluster: berlin-history
+date: '2026-05-15'
 ---
 # Berlin's Transformation: Margraviate to Imperial Capital
 

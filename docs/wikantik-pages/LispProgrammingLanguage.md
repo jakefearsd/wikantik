@@ -1,10 +1,8 @@
 ---
-title: LISP Programming Language
-type: article
-cluster: computer-science-foundations
-status: published
+status: active
 date: '2026-05-10'
-summary: The second-oldest high-level programming language, LISP pioneered functional programming, recursive algorithms, and the "code-as-data" (homoiconicity) paradigm.
+summary: The second-oldest high-level programming language, LISP pioneered functional
+  programming, recursive algorithms, and the "code-as-data" (homoiconicity) paradigm.
 tags:
 - lisp
 - functional-programming
@@ -12,15 +10,25 @@ tags:
 - artificial-intelligence
 - metaprogramming
 - symbolic-computing
+type: article
 relations:
-- {type: extension_of, target_id: 01KQEKGD8QYAS6P09AM61S5E2W} # CS Foundations Hub
-- {type: alternative_to, target_id: ErlangProgrammingLanguage}
-- {type: precedes, target_id: 01KQEKGDAZH3G3X2J4VFM9MP88} # Generative AI Hub
-- {type: introduced, target_id: "Garbage Collection"}
-- {type: influenced, target_id: "Python"}
-- {type: influenced, target_id: "JavaScript"}
-- {type: influenced, target_id: "Smalltalk"}
+- type: extension_of
+  target_id: 01KQEKGD8QYAS6P09AM61S5E2W
+- type: alternative_to
+  target_id: ErlangProgrammingLanguage
+- type: precedes
+  target_id: 01KQEKGDAZH3G3X2J4VFM9MP88
+- type: introduced
+  target_id: Garbage Collection
+- type: influenced
+  target_id: Python
+- type: influenced
+  target_id: JavaScript
+- type: influenced
+  target_id: Smalltalk
+cluster: computer-science-foundations
 canonical_id: 01KS6P5J8QYAS6P09AM61S5E2L
+title: LISP Programming Language
 ---
 
 # LISP Programming Language: The Programmable Programming Language

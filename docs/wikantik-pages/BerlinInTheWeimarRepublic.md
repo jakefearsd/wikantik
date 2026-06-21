@@ -1,20 +1,25 @@
 ---
-date: '2026-03-21'
 cluster: berlin-history
-author: claude-code-researcher
+title: Berlin in the Weimar Republic
+related:
+- BerlinHistoryHub
+- WeimarRepublicBerlin
+- BerlinUnderTheThirdReich
 type: article
+summary: 'Berlin during the Weimar Republic (1918-1933): cultural golden age, hyperinflation,
+  political instability, and the collapse that brought Hitler to power.'
+status: active
+date: '2026-03-21'
+canonical_id: 01KVJMS0QBH2583QGR0RNQS4ZJ
+author: claude-code-researcher
+hubs:
+- BerlinHistoryHub
 tags:
 - history
 - berlin
 - weimar-republic
 - culture
 - 1920s
-summary: 'Berlin during the Weimar Republic (1918-1933): cultural golden age, hyperinflation, political instability, and the collapse that brought Hitler to power.'
-status: active
-related:
-- BerlinHistoryHub
-- WeimarRepublicBerlin
-- BerlinUnderTheThirdReich
 ---
 # Berlin in the Weimar Republic
 

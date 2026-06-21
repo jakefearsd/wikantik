@@ -1,24 +1,24 @@
 ---
-canonical_id: 01KQ0P44Q9A1DVQANM03FYX83N
-date: 2026-03-15T00:00:00Z
-summary: Detailed analysis of how fund expense ratios compound against investors over
-  time, with specific dollar-cost examples and strategies for minimizing fee drag.
-cluster: index-fund-investing
-related:
-- LowCostIndexFundInvesting
-- BasicsOfCompoundInterest
-- ExpenseRatioDeepDive
-title: Expense Ratios and Their Effect on Compounding
 type: article
-status: published
+status: active
+date: 2026-03-15T00:00:00Z
+cluster: index-fund-investing
+title: Expense Ratios and Their Effect on Compounding
+hubs:
+- LowCostIndexFundInvestingHub
 tags:
 - investing
 - expense-ratios
 - fees
 - compounding
 - index-funds
-hubs:
-- LowCostIndexFundInvestingHub
+summary: Detailed analysis of how fund expense ratios compound against investors over
+  time, with specific dollar-cost examples and strategies for minimizing fee drag.
+related:
+- LowCostIndexFundInvesting
+- BasicsOfCompoundInterest
+- ExpenseRatioDeepDive
+canonical_id: 01KQ0P44Q9A1DVQANM03FYX83N
 ---
 
 # Expense Ratios and Their Effect on Compounding
@@ -44,7 +44,7 @@ Expense ratios are deducted from fund assets daily (1/365th of the annual rate e
 
 ### Side-by-Side Comparison
 
-$100,000 invested for 30 years at 8% gross return:
+\$100,000 invested for 30 years at 8% gross return:
 
 | Expense Ratio | Annual Fee (Year 1) | Final Value | Lost to Fees |
 |--------------|-------------------|-------------|-------------|
@@ -53,13 +53,13 @@ $100,000 invested for 30 years at 8% gross return:
 | 0.20% (average index) | $200 | $953,000 | $53,000 |
 | 0.50% (low-cost active) | $500 | $900,000 | $106,000 |
 | 1.00% (typical active) | $1,000 | $811,000 | $195,000 |
-| 1.50% (expensive active) | $1,500 | $732,000 | $274,000 |
+| 1.50% (expensive active) | $1,500 | $732,000 | \$274,000 |
 
-The difference between a 0.04% index fund and a 1.00% active fund is **$173,000** on a single $100,000 investment over 30 years. That is 17 times the original amount lost to fees alone.
+The difference between a 0.04% index fund and a 1.00% active fund is **$173,000** on a single \$100,000 investment over 30 years. That is 17 times the original amount lost to fees alone.
 
 ### Annual Contributions Amplify the Effect
 
-With $500 monthly contributions added to the initial $100,000:
+With $500 monthly contributions added to the initial \$100,000:
 
 | Expense Ratio | 30-Year Value | Lost to Fees |
 |--------------|---------------|-------------|
@@ -75,7 +75,7 @@ Fund companies and advisors often frame fees as trivially small: "just 1% per ye
 
 **A 1% annual fee on an 8% gross return consumes 12.5% of your returns every single year.** Over 30 years, it consumes roughly 20% of your ending wealth.
 
-Another way to think about it: a 1% fee on a $500,000 portfolio is $5,000 per year. Over a 30-year retirement, that is $150,000 in fees alone, not counting the compounding you lost.
+Another way to think about it: a 1% fee on a \$500,000 portfolio is \$5,000 per year. Over a 30-year retirement, that is $150,000 in fees alone, not counting the compounding you lost.
 
 ## Expense Ratios by Fund Category
 

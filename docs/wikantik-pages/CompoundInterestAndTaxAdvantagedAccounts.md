@@ -1,25 +1,25 @@
 ---
-canonical_id: 01KQ0P44NRZVDVPR0ZSAF6AP3R
-date: 2026-03-15T00:00:00Z
-summary: How tax-advantaged accounts amplify the power of compound interest by eliminating
-  annual tax drag, with quantitative comparisons across account types.
-cluster: index-fund-investing
-related:
-- BasicsOfCompoundInterest
-- TaxBenefitsOfRetirementAccounts
-- LowCostIndexFundInvesting
-title: Compound Interest and Tax-Advantaged Accounts
 type: article
-status: published
+status: active
+date: 2026-03-15T00:00:00Z
+cluster: index-fund-investing
+title: Compound Interest and Tax-Advantaged Accounts
+hubs:
+- TypesofInvestmentAccountsTutorialHub
 tags:
 - investing
 - compound-interest
 - taxes
-- IRA
+- ira
 - 401k
 - tax-advantaged
-hubs:
-- TypesofInvestmentAccountsTutorialHub
+summary: How tax-advantaged accounts amplify the power of compound interest by eliminating
+  annual tax drag, with quantitative comparisons across account types.
+related:
+- BasicsOfCompoundInterest
+- TaxBenefitsOfRetirementAccounts
+- LowCostIndexFundInvesting
+canonical_id: 01KQ0P44NRZVDVPR0ZSAF6AP3R
 ---
 
 # Compound Interest and Tax-Advantaged Accounts
@@ -38,14 +38,14 @@ This annual taxation creates **tax drag**—the cumulative reduction in returns 
 
 ## Quantifying the Impact
 
-Consider $10,000 invested for 30 years at 8% annual return:
+Consider \$10,000 invested for 30 years at 8% annual return:
 
 | Scenario | Annual Tax Drag | Final Value | Effective Growth |
 |----------|---------------|-------------|-----------------|
 | Tax-free (Roth IRA) | 0% | $100,627 | 8.0% |
-| Tax-deferred (Traditional IRA)* | 0% during accumulation | $100,627 pre-tax | 8.0% pre-tax |
+| Tax-deferred (Traditional IRA)* | 0% during accumulation | \$100,627 pre-tax | 8.0% pre-tax |
 | Taxable (15% on gains) | ~1.2% | $74,017 | ~6.8% |
-| Taxable (25% on gains) | ~2.0% | $61,412 | ~6.0% |
+| Taxable (25% on gains) | ~2.0% | \$61,412 | ~6.0% |
 
 *Traditional IRA accumulates the same as Roth but is taxed on withdrawal. Net value depends on withdrawal tax rate.
 
@@ -55,7 +55,7 @@ The difference between tax-free and taxable compounding over 30 years is **36–
 
 In a tax-deferred account, the government's share of your returns stays invested alongside your money, compounding for your benefit until withdrawal. Think of it as an interest-free loan from the government that you invest on your behalf.
 
-**Year-by-year comparison** ($10,000 at 8%, 25% tax rate):
+**Year-by-year comparison** (\$10,000 at 8%, 25% tax rate):
 
 | Year | Tax-Deferred Balance | Taxable Balance | Advantage |
 |------|---------------------|-----------------|-----------|
@@ -85,9 +85,9 @@ The [Health Savings Account](HealthSavingsAccounts) offers the ultimate compound
 2. Growth is never taxed
 3. Medical withdrawals are never taxed
 
-For someone in the 22% bracket with 8% returns over 30 years, $4,000 invested annually in an HSA:
+For someone in the 22% bracket with 8% returns over 30 years, \$4,000 invested annually in an HSA:
 - **Tax savings on contributions**: ~$26,400 over 30 years
-- **Account balance**: ~$453,000
+- **Account balance**: ~\$453,000
 - **All medical withdrawals**: tax-free
 
 The effective rate of return, accounting for the tax deduction and tax-free medical withdrawals, exceeds any other account type.
@@ -98,11 +98,11 @@ The effective rate of return, accounting for the tax deduction and tax-free medi
 
 Because tax-free compounding is most powerful over long periods, starting small in your 20s outperforms starting large in your 40s:
 
-- **$200/month from age 25 to 65** (40 years, 8%): $622,000
-- **$400/month from age 35 to 65** (30 years, 8%): $544,000
-- **$800/month from age 45 to 65** (20 years, 8%): $453,000
+- **\$200/month from age 25 to 65** (40 years, 8%): $622,000
+- **\$400/month from age 35 to 65** (30 years, 8%): $544,000
+- **$800/month from age 45 to 65** (20 years, 8%): \$453,000
 
-The earliest investor contributes only $96,000 total, while the latest contributes $192,000—twice as much money for a smaller result.
+The earliest investor contributes only \$96,000 total, while the latest contributes $192,000—twice as much money for a smaller result.
 
 ### Minimize Taxable Account Activity
 

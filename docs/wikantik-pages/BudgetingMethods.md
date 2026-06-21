@@ -1,9 +1,21 @@
 ---
+type: article
+status: active
+date: '2026-04-26'
+cluster: personal-finance
+title: Budgeting Methods
+hubs:
+- PersonalFinanceHub
+- DebtPayoffStrategies Hub
+tags:
+- budgeting
+- personal-finance
+- cash-flow
+- spending
+- household-finance
 summary: A working comparison of budgeting frameworks — zero-based, 50/30/20, envelope,
   pay-yourself-first, and the anti-budget — with honest assessment of which one fits
   which kind of household.
-date: '2026-04-26'
-cluster: personal-finance
 related:
 - PersonalFinanceGuide
 - EmergencyFundStrategies
@@ -11,18 +23,6 @@ related:
 - NetWorthTracking
 - FirstJobFinancialChecklist
 canonical_id: 01KQ0P44MQBVGP308R5025Z953
-type: article
-title: Budgeting Methods
-tags:
-- budgeting
-- personal-finance
-- cash-flow
-- spending
-- household-finance
-status: active
-hubs:
-- PersonalFinanceHub
-- DebtPayoffStrategies Hub
 ---
 # Budgeting Methods
 
@@ -100,7 +100,7 @@ Not in your checking account. Not in your "main savings" account that you also u
 
 ### Treating the budget as a wish list
 
-People build a budget that reflects how they would *like* to spend, not how they actually do. They allocate $200/month to dining out when reality is $450, then feel like they failed when reality wins. Track for a month *before* you set targets. Use real numbers.
+People build a budget that reflects how they would *like* to spend, not how they actually do. They allocate \$200/month to dining out when reality is $450, then feel like they failed when reality wins. Track for a month *before* you set targets. Use real numbers.
 
 ### Not budgeting irregular expenses
 
@@ -120,17 +120,17 @@ Every budget has a bad month — overspending in two categories, a surprise expe
 
 ## Worked example: Sara's first year
 
-**Sara, age 27**, takes home $4,800/month after taxes and 401(k) contributions. She has $14,000 in credit card debt at 22% APR and no emergency fund.
+**Sara, age 27**, takes home \$4,800/month after taxes and 401(k) contributions. She has $14,000 in credit card debt at 22% APR and no emergency fund.
 
 **Phase 1, months 1–3 — Diagnosis (Zero-based)**
 
-She uses zero-based budgeting to find out where her money actually goes. Categories: rent ($1,600), utilities ($180), groceries ($600), dining/entertainment ($550), transportation ($400), subscriptions ($95), debt minimum ($350), savings ($0), other ($1,025).
+She uses zero-based budgeting to find out where her money actually goes. Categories: rent ($1,600), utilities ($180), groceries ($600), dining/entertainment ($550), transportation ($400), subscriptions ($95), debt minimum ($350), savings ($0), other (\$1,025).
 
-The "other" category is the surprise. Tracking the receipts reveals: $400/month of impulse online purchases, $300/month in Lyft because she does not feel like driving, $325 in miscellaneous.
+The "other" category is the surprise. Tracking the receipts reveals: $400/month of impulse online purchases, \$300/month in Lyft because she does not feel like driving, $325 in miscellaneous.
 
 **Phase 2, months 4–9 — Attack (Zero-based + envelope)**
 
-She adopts envelope-style limits on dining ($300), discretionary online ($100), and transportation ($300). The freed-up cash — about $750/month — goes to debt payoff. Combined with the $350 minimum, she pays $1,100/month against the credit card. The card is gone in 14 months.
+She adopts envelope-style limits on dining ($300), discretionary online ($100), and transportation (\$300). The freed-up cash — about \$750/month — goes to debt payoff. Combined with the $350 minimum, she pays $1,100/month against the credit card. The card is gone in 14 months.
 
 **Phase 3, year 2 — Maintain (50/30/20)**
 
@@ -138,7 +138,7 @@ Card paid, emergency fund built. She drops to 50/30/20 because the discipline is
 
 **Phase 4, year 4 — Cruise (Pay-yourself-first)**
 
-Income has grown to $6,200/month after taxes. Savings rate is 25%. She moves to pay-yourself-first: $1,550/month is automated to retirement and brokerage, and the rest is hers. No category tracking. The framework changed three times across her first four years; the *commitment* did not.
+Income has grown to \$6,200/month after taxes. Savings rate is 25%. She moves to pay-yourself-first: $1,550/month is automated to retirement and brokerage, and the rest is hers. No category tracking. The framework changed three times across her first four years; the *commitment* did not.
 
 ## Tools
 

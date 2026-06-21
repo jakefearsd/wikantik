@@ -1,20 +1,21 @@
 ---
-canonical_id: 01KQ0P44RJAHVGMNSEMFWA09NY
-summary: Using the wiki's own knowledge graph to document and drive its development
+depends-on:
+- KnowledgeAdminUi
+- FrontmatterConventions
+status: active
+type: article
+date: '2026-04-05'
+cluster: wikantik-development
+title: Knowledge Graph Dogfooding
 tags:
 - development
 - knowledge-graph
 - dogfooding
-type: article
-status: active
-cluster: wikantik-development
-date: '2026-04-05'
+summary: Using the wiki's own knowledge graph to document and drive its development
 related:
 - KnowledgeGraphCore
 - WikantikDevelopment
-depends-on:
-- KnowledgeAdminUi
-- FrontmatterConventions
+canonical_id: 01KQ0P44RJAHVGMNSEMFWA09NY
 ---
 # Knowledge Graph Dogfooding
 

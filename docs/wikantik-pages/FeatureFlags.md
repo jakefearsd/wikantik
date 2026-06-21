@@ -1,8 +1,17 @@
 ---
-cluster: devops-sre
-canonical_id: 01KQ0P44QBA0AHNHYSY42MD6NW
 title: Feature Flags
+related:
+- DevOpsAndSreHub
+- MonitoringAndAlerting
+- SoftwareArchitecturePatterns
+- MicroservicesArchitecture
+- AgileMethodologyDeepDive
+- MathematicsHub
+cluster: devops-sre
 type: article
+canonical_id: 01KQ0P44QBA0AHNHYSY42MD6NW
+summary: Progressive rollout toggles — decoupling deployment from release, multi-dimensional
+  targeting, and operational management of feature debt.
 tags:
 - devops
 - sre
@@ -11,14 +20,6 @@ tags:
 - ab-testing
 - observability
 - decoupling
-summary: A rigorous exploration of progressive rollout toggles, focusing on the architectural decoupling of deployment from release, multi-dimensional targeting mechanics, and the operational management of feature debt.
-related:
-- DevOpsAndSreHub
-- MonitoringAndAlerting
-- SoftwareArchitecturePatterns
-- MicroservicesArchitecture
-- AgileMethodologyDeepDive
-- MathematicsHub
 ---
 
 # Feature Flags: The Architecture of Progressive Rollouts

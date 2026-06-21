@@ -1,20 +1,20 @@
 ---
-canonical_id: 01KQ0P44R4DGV6SSW18BBE4A18
-title: Inflation Protection Strategies
 type: article
-cluster: personal-finance
 status: active
+cluster: personal-finance
 date: '2026-04-26'
-summary: The asset classes that historically protect against inflation, the ones that
-  do not, and how to construct a portfolio that maintains real purchasing power across
-  decades — with honest assessment of the tradeoffs each option introduces.
+title: Inflation Protection Strategies
+hubs:
+- PersonalFinanceHub
 tags:
 - inflation
 - inflation-protection
-- TIPS
-- I-bonds
+- tips
+- i-bonds
 - personal-finance
 - asset-allocation
+summary: Which asset classes protect against inflation, which do not, and how to construct
+  a portfolio that maintains real purchasing power across decades.
 related:
 - PersonalFinanceGuide
 - IBondsAndTreasuries
@@ -22,8 +22,7 @@ related:
 - LowCostIndexFundInvesting
 - ReitIndexFunds
 - RealEstateInvestingBasics
-hubs:
-- PersonalFinanceHub
+canonical_id: 01KQ0P44R4DGV6SSW18BBE4A18
 ---
 # Inflation Protection Strategies
 
@@ -86,7 +85,7 @@ Series I savings bonds — fixed rate plus inflation rate, with the inflation co
 - 0% real return floor (cannot lose to inflation)
 
 **Weaknesses**:
-- $10K/year annual purchase limit per SSN ($15K with paper)
+- \$10K/year annual purchase limit per SSN ($15K with paper)
 - 12-month lock, 3-month interest penalty for first 5 years
 - Limited scale
 

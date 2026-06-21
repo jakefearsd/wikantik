@@ -1,8 +1,11 @@
 ---
-canonical_id: 01KQ0P44TV0D7TE9GQ4SRSP0P3
-summary: OR techniques for production and project scheduling — CPM, PERT, job-shop
-  scheduling, and resource-constrained project optimization
+status: active
+type: article
+part-of:
+- OperationsResearchHub
 date: 2026-03-17T00:00:00Z
+cluster: operations-research
+title: Production Scheduling and OR
 tags:
 - operations-research
 - scheduling
@@ -10,16 +13,14 @@ tags:
 - cpm
 - pert
 - job-shop
+summary: OR techniques for production and project scheduling — CPM, PERT, job-shop
+  scheduling, and resource-constrained project optimization
 related:
 - OperationsResearchHub
 - IntegerAndCombinatorialOptimization
 - LinearProgrammingFoundations
 - HistoryOfOperationsResearch
-type: article
-cluster: operations-research
-status: active
-part-of:
-- OperationsResearchHub
+canonical_id: 01KQ0P44TV0D7TE9GQ4SRSP0P3
 ---
 # Production Scheduling and OR
 

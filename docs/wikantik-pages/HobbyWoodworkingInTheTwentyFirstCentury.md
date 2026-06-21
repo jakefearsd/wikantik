@@ -1,8 +1,18 @@
 ---
-canonical_id: 01KQ0P44QX7VBB9GES0CDM9EPQ
+date: '2026-03-20'
 status: active
-cluster: hobby-woodworking
+summary: How computer-controlled tools, digital design, and a hand tool revival have
+  transformed hobby woodworking since 2000
+tags:
+- woodworking
+- hobby
+- cnc
+- maker
+- tools
+- craftsmanship
 type: hub
+cluster: hobby-woodworking
+canonical_id: 01KQ0P44QX7VBB9GES0CDM9EPQ
 related:
 - EvolutionOfHobbyWoodworking
 - CncRoutersForTheHobbyWorkshop
@@ -10,15 +20,7 @@ related:
 - LaserCuttersAndEngraversForWood
 - DigitalDesignToolsForWoodworkers
 - ModernHandToolRenaissance
-tags:
-- woodworking
-- hobby
-- CNC
-- maker
-- tools
-- craftsmanship
-date: '2026-03-20'
-summary: How computer-controlled tools, digital design, and a hand tool revival have transformed hobby woodworking since 2000
+title: Hobby Woodworking in the Twenty-First Century
 ---
 
 # Hobby Woodworking in the Twenty-First Century

@@ -1,22 +1,23 @@
 ---
-canonical_id: 01KQ0P44QX6DFKSZY622GF8BDP
-summary: The history of operations research from its WWII origins through post-war
-  industrialization to the modern discipline
+status: active
+type: article
+part-of:
+- OperationsResearchHub
 date: 2026-03-17T00:00:00Z
+cluster: operations-research
+title: History of Operations Research
 tags:
 - operations-research
 - history
 - world-war-two
 - mathematics
+summary: The history of operations research from its WWII origins through post-war
+  industrialization to the modern discipline
 related:
 - OperationsResearchHub
 - LinearProgrammingFoundations
 - IntegerAndCombinatorialOptimization
-type: article
-cluster: operations-research
-status: active
-part-of:
-- OperationsResearchHub
+canonical_id: 01KQ0P44QX6DFKSZY622GF8BDP
 ---
 # History of Operations Research
 

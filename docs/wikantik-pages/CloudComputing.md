@@ -1,15 +1,16 @@
 ---
-cluster: cloud-platforms
-canonical_id: 01KQ0P44NCKFG083ANE076HVZG
-title: Cloud Computing Architecture and Deployment
-type: article
 tags:
 - cloud-computing
 - software-architecture
 - distributed-systems
 - microservices
 - serverless
-summary: A rigorous exploration of modern cloud architecture and deployment paradigms, focusing on abstraction layers (VMs, Containers, FaaS), microservices vs. event-driven patterns, and the operational integration of Zero Trust and Chaos Engineering.
+type: article
+summary: Cloud abstraction layers (VMs, containers, FaaS), microservices vs. event-driven
+  patterns, Zero Trust, Chaos Engineering, and FinOps as architectural variables.
+title: Cloud Computing Architecture and Deployment
+cluster: cloud-platforms
+canonical_id: 01KQ0P44NCKFG083ANE076HVZG
 ---
 
 # Cloud Computing: The Architecture of Global Abstraction

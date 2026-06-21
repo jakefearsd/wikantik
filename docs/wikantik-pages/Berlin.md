@@ -1,19 +1,20 @@
 ---
-status: active
-type: hub
-cluster: berlin-history
 related:
 - BerlinsTransformationFromMargraviateToCapitalCity
 - ReformationAndUrbanDevelopmentInBerlin
 - ReformationEraInBerlin
+type: hub
+cluster: berlin-history
+status: active
+canonical_id: 01KQ0P44MFPCNAVMXA25W7T3GS
+summary: Berlin's history from medieval founding through Cold War division to reunified
+  German capital — Prussian power, Weimar culture, Nazi rule, modern renaissance.
 tags:
 - history
 - berlin
 - germany
 - geopolitics
 - cold-war
-canonical_id: 01KQ0P44MFPCNAVMXA25W7T3GS
-summary: Comprehensive overview of Berlin's history from medieval founding through Cold War division to modern reunified capital, covering its political, cultural, and economic significance
 ---
 
 

@@ -1,8 +1,17 @@
 ---
-cluster: cooking-and-food
-canonical_id: 01KQ0P44S6PZX90JH1NN5C11AE
 title: Maillard Reaction
+related:
+- FoodScience
+- CheeseProduction
+- ChocolateTempering
+- FermentationForGutHealth
+- MathematicsHub
+- NumericalMethods
+cluster: cooking-and-food
 type: article
+canonical_id: 01KQ0P44S6PZX90JH1NN5C11AE
+summary: 'Maillard reaction cascade: Schiff base initiation kinetics, Strecker degradation
+  pathways, and flavor engineering in lipid-protein matrices.'
 tags:
 - food-science
 - chemistry
@@ -11,14 +20,6 @@ tags:
 - amadori-rearrangement
 - strecker-degradation
 - maillard-reaction
-summary: A rigorous exploration of the Maillard reaction cascade, focusing on Schiff base initiation kinetics, Strecker degradation pathways, and the chemical engineering of flavor generation within complex lipid-protein matrices.
-related:
-- FoodScience
-- CheeseProduction
-- ChocolateTempering
-- FermentationForGutHealth
-- MathematicsHub
-- NumericalMethods
 ---
 
 # The Maillard Reaction: Kinetics, Mechanism, and Flavor Engineering

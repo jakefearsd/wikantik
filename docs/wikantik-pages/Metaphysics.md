@@ -1,16 +1,17 @@
 ---
-cluster: philosophy
 canonical_id: 01KQ0P44SFJJC4YPNFV5JJ939E
 title: Metaphysics
-type: article
 tags:
 - ontology
 - digital-entities
 - engineering
 - metaphysics
-date: 2025-05-15
-summary: A rigorous examination of Ontological Engineering, digital substance, and the metaphysical foundations of informational systems.
+cluster: philosophy
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+summary: Ontological engineering, digital substance, and the metaphysical foundations
+  of informational systems — from Aristotelian categories to computational ontology.
 ---
 
 # Metaphysics: Ontological Engineering and Digital Entities

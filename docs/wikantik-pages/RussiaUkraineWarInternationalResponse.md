@@ -1,25 +1,28 @@
 ---
-canonical_id: 01KQ0P44VZR75RD299X7YXRNXP
-summary: International military support and the European defense response to the Russia-Ukraine
-  war as of March 2026
-date: '2026-03-13'
-tags:
-- Russia
-- Ukraine
-- war
-- NATO
-- Europe
-- military-aid
-- defense
-- sanctions
+cluster: russia-ukraine-war
+title: 'Russia-Ukraine War: International Response'
 related:
 - RussiaUkraineWarOverview
 - RussiaUkraineWarMilitaryTechnology
 type: article
-cluster: russia-ukraine-war
+summary: International military support and the European defense response to the Russia-Ukraine
+  war as of March 2026
 status: active
+date: '2026-03-13'
+canonical_id: 01KQ0P44VZR75RD299X7YXRNXP
+hubs:
+- RussiaUkraineWarOverview
 part-of:
 - RussiaUkraineWarOverview
+tags:
+- russia
+- ukraine
+- war
+- nato
+- europe
+- military-aid
+- defense
+- sanctions
 ---
 # International Response and Military Support
 

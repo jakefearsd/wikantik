@@ -1,10 +1,21 @@
 ---
+canonical_id: 01KVJMS1PJ16FNKAFY7DV3FPM7
 title: Objective-C
+tags:
+- programming-languages
+- objective-c
+- oop
+- apple
+- ios
+- macos
+- message-passing
+- computer-history
 cluster: computer-science
-tags: [programming-languages, objective-c, oop, apple, ios, macos, message-passing, computer-history]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The 'COBOL of the Apple Ecosystem' (1984). A hybrid of C and Smalltalk that powered NeXT and Apple for three decades. In 2026, it remains critical for maintaining legacy financial and medical infrastructure.
+summary: COBOL of the Apple ecosystem (1984). C + Smalltalk hybrid powering NeXT and
+  Apple; still critical for legacy financial and medical infrastructure.
 ---
 
 # Objective-C: The Dynamic Hybrid

@@ -1,15 +1,16 @@
 ---
-cluster: warehouse-automation
-canonical_id: 01KQ0P44RR2TYVXA2VNDPT81EE
-title: Lean Warehousing
-type: article
 tags:
 - lean
 - logistics
 - optimization
 - warehouse-management
 - kaizen
-summary: A rigorous exploration of Lean principles applied to warehousing and logistics, focusing on waste elimination (Muda), Value Stream Mapping, and the integration of continuous improvement (Kaizen) with advanced operations research.
+type: article
+summary: 'Lean principles in warehousing: Muda elimination, Value Stream Mapping,
+  Kaizen, and operations research integration for dynamic slotting and resilience.'
+title: Lean Warehousing
+cluster: warehouse-automation
+canonical_id: 01KQ0P44RR2TYVXA2VNDPT81EE
 ---
 
 # Lean Warehousing: The Architectonics of Flow and Efficiency

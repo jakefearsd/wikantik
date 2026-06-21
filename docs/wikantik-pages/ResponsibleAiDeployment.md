@@ -1,27 +1,26 @@
 ---
-canonical_id: 01KQEKGDEX2Z80CPVN4QE8HSYE
-title: Responsible Ai Deployment
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-25'
+title: Responsible AI Deployment
+hubs:
+- AgenticAiHub
 tags:
 - responsible-ai
 - ai-safety
 - governance
 - bias
 - ai-ethics
-summary: What responsible AI deployment looks like in practice — the controls
-  beyond NIST AI RMF and EU AI Act buzzwords, including bias evaluation,
-  red-teaming, monitoring, and the discipline that keeps systems trustworthy.
+summary: 'Responsible AI deployment in practice: bias evaluation, red-teaming, guardrails,
+  monitoring, and the controls beyond NIST AI RMF and EU AI Act buzzwords.'
 related:
 - AiSafetyAndAlignment
 - AiDataPrivacyAndCompliance
 - AiGovernanceFrameworks
 - AiHallucinationMitigation
 - AgentObservability
-hubs:
-- AgenticAiHub
+canonical_id: 01KQEKGDEX2Z80CPVN4QE8HSYE
 ---
 # Responsible AI Deployment
 

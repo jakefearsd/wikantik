@@ -1,20 +1,23 @@
 ---
-title: Phi Accrual Failure Detector
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A probabilistic failure detection algorithm that provides a continuous "suspicion level" rather than a binary Up/Down status, optimized for jittery networks.
+summary: A probabilistic failure detection algorithm that provides a continuous "suspicion
+  level" rather than a binary Up/Down status, optimized for jittery networks.
 tags:
 - distributed-systems
 - failure-detection
 - gossip-protocol
 - mathematics
 - reliability
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: related_to, target_id: 01KS7S9Y9QYAS6P09AM61S5E2X} # Heartbeat/Lease
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: related_to
+  target_id: 01KS7S9Y9QYAS6P09AM61S5E2X
+cluster: distributed-systems
 canonical_id: 01KS7T1Z1QYAS6P09AM61S5E2Y
+title: Phi Accrual Failure Detector
 ---
 
 # Phi ($\phi$) Accrual Failure Detector

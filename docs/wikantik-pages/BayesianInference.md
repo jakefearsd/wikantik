@@ -1,12 +1,26 @@
 ---
-title: Bayesian Inference
-type: article
-cluster: mathematics
-status: active
 date: '2026-05-06'
-summary: A definitive deep-dive into Bayesian Inference, covering formal mathematical mechanics, geometric intuition of information projection, and real-world applications in robotics and signal processing.
-tags: [mathematics, statistics, bayesian, inference, mcmc, variational-inference, machine-learning]
-related: [ProbabilityTheory, StatisticalInference, RegressionAnalysis, MarkovChainFundamentals, MathematicsHub]
+status: active
+summary: Posterior inference via conjugate priors, variational inference as KL projection,
+  and the Kalman filter — applied in robotics and reliability engineering.
+tags:
+- mathematics
+- statistics
+- bayesian
+- inference
+- mcmc
+- variational-inference
+- machine-learning
+type: article
+canonical_id: 01KTXJ5NC4X5WK6NZ5DDE6BKW3
+cluster: mathematics
+related:
+- ProbabilityTheory
+- StatisticalInference
+- RegressionAnalysis
+- MarkovChainFundamentals
+- MathematicsHub
+title: Bayesian Inference
 ---
 
 # Bayesian Inference: The Calculus of Belief

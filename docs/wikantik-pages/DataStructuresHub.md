@@ -1,23 +1,24 @@
 ---
+summary: Central index for the data structures and algorithms cluster — covering basic
+  primitives, complex hierarchical structures, graph algorithms, and the formal analysis
+  of computational efficiency.
+date: '2026-04-29'
+cluster: data-structures
+related:
+- SoftwareEngineeringPracticesHub
+- MathematicsHub
+- DistributedSystemsHub
+- BalancedSearchTrees
+canonical_id: 01KQEKGD9BVAXF6X4HZYKF2513
 type: hub
+title: Data Structures Hub
 tags:
 - data-structures
 - algorithms
 - computer-science
 - efficiency
 - hub
-summary: Central index for the data structures and algorithms cluster — covering basic
-  primitives, complex hierarchical structures, graph algorithms, and the formal analysis
-  of computational efficiency.
 status: active
-date: '2026-04-29'
-title: Data Structures Hub
-related:
-- SoftwareEngineeringPracticesHub
-- MathematicsHub
-- DistributedSystemsHub
-canonical_id: 01KQEKGD9BVAXF6X4HZYKF2513
-cluster: data-structures
 ---
 # Data Structures Hub
 

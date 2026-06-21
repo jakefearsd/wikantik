@@ -1,15 +1,16 @@
 ---
-cluster: software-engineering-practices
-canonical_id: 01KQ0P44N1YN17SYT6FMTTQD33
-title: Change Management Frameworks
-type: article
 tags:
 - leadership
 - organizational-transformation
 - systems-thinking
 - change-management
 - governance
-summary: A rigorous exploration of change management frameworks in the context of organizational transformation, focusing on systems thinking, socio-technical integration, and predictive resistance modeling.
+type: article
+summary: Systems-thinking approach to organizational change — state-space mapping,
+  resistance modeling, and behavioral nudging for large-scale transformation.
+title: Change Management Frameworks
+cluster: software-engineering-practices
+canonical_id: 01KQ0P44N1YN17SYT6FMTTQD33
 ---
 
 # Change Management: The Architecture of Systemic Resilience

@@ -1,19 +1,11 @@
 ---
-canonical_id: 01KQ0P44XNV18K6ERCY48S21QX
-summary: Where machine learning is headed — foundation models, data efficiency, edge
-  AI, AI safety, neurosymbolic approaches, and the engineering challenges of deploying
-  ML at scale
+status: active
+type: article
+hubs:
+- MlModelDeploymentHub
 date: 2026-03-17T00:00:00Z
 cluster: machine-learning
-related:
-- MachineLearning
-- ArtificialIntelligence
-- LlmsSinceTwentyTwenty
-- FoundationalAlgorithmsForComputerScientists
-- EmbeddedAiOnLimitedHardware
-- DistributedComputingEvolution
-type: article
-status: active
+title: The Future of Machine Learning
 tags:
 - ai
 - machine-learning
@@ -21,8 +13,16 @@ tags:
 - research
 - technology
 - future
-hubs:
-- MlModelDeploymentHub
+summary: Where ML is headed — foundation models, data efficiency, edge AI, AI safety,
+  neurosymbolic approaches, and the engineering challenges of deploying ML at scale.
+related:
+- MachineLearning
+- ArtificialIntelligence
+- LlmsSinceTwentyTwenty
+- FoundationalAlgorithmsForComputerScientists
+- EmbeddedAiOnLimitedHardware
+- DistributedComputingEvolution
+canonical_id: 01KQ0P44XNV18K6ERCY48S21QX
 ---
 # The Future of Machine Learning
 

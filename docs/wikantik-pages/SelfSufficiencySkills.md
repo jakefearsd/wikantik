@@ -1,8 +1,18 @@
 ---
+title: 'Self-Sufficiency: The Architecture of Resilient Living'
+related:
+- HomeEmergencyPreparedness
+- CommunityDisasterPlanning
+- LongTermFoodStorage
+- RiskManagement
+- FoodScience
+- MathematicsHub
+- NumericalMethods
 cluster: emergency-prep
-canonical_id: 01KQ0P44W7DDYA20PQM6SMGXQ3
-title: "Self-Sufficiency: The Architecture of Resilient Living"
 type: article
+canonical_id: 01KQ0P44W7DDYA20PQM6SMGXQ3
+summary: 'Resilience engineering for homesteads: agroecosystem design (CEC), water
+  purification kinetics, anaerobic digestion, and N-version ecological redundancy.'
 tags:
 - self-sufficiency
 - homesteading
@@ -12,15 +22,6 @@ tags:
 - material-science
 - closed-loop
 - thermodynamics
-summary: A rigorous exploration of self-sufficiency through the lens of System Resilience Engineering, focusing on agroecosystem design (CEC modeling), water resource kinetics, energy autonomy via anaerobic digestion, and the implementation of N-version programming for ecological redundancy.
-related:
-- HomeEmergencyPreparedness
-- CommunityDisasterPlanning
-- LongTermFoodStorage
-- RiskManagement
-- FoodScience
-- MathematicsHub
-- NumericalMethods
 ---
 
 # Self-Sufficiency: The Engineering of Systemic Resilience

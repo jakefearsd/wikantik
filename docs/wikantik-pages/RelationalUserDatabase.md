@@ -1,10 +1,12 @@
 ---
-cluster: databases
-canonical_id: 01KQ0P44VDF3BAZ7T7KC5T0QS6
-type: article
 tags:
 - uncategorized
-summary: Using a Relational Database for User Management
+type: reference
+summary: Configuring Wikantik to store users and groups in a relational database via
+  JNDI — schema, JDBC setup, Tomcat DataSource config, and permission grants.
+title: Relational User Database
+canonical_id: 01KQ0P44VDF3BAZ7T7KC5T0QS6
+cluster: databases
 ---
 # Using a Relational Database for User Management
 

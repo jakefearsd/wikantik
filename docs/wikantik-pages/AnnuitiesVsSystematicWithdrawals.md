@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44KRJ3VV5P4Y8TMTDRXE
-title: Annuities vs. Systematic Withdrawals
 type: article
-cluster: retirement-planning
 status: active
+cluster: retirement-planning
 date: '2026-04-26'
-summary: Annuitizing for guaranteed income vs. systematic withdrawals from a portfolio
-  — the trade-offs, the math, and the cases where each fits in a retirement income
-  plan.
+title: Annuities vs. Systematic Withdrawals
+hubs:
+- RetirementPlanningGuide
 tags:
 - retirement
 - annuities
 - withdrawal-strategy
 - income-planning
+summary: Annuitizing for guaranteed income vs. systematic withdrawals from a portfolio
+  — the trade-offs, the math, and the cases where each fits in a retirement income
+  plan.
 related:
 - AnnuityTypesAndAnalysis
 - SafeWithdrawalRates
 - BucketStrategyForRetirement
 - RetirementSpendingPatterns
 - BondLaddersForRetirementIncome
-hubs:
-- RetirementPlanningGuide
+canonical_id: 01KQ0P44KRJ3VV5P4Y8TMTDRXE
 ---
 # Annuities vs. Systematic Withdrawals
 
@@ -122,11 +122,11 @@ Many advisors recommend combining the two:
 - **Invest the rest**: portfolio for discretionary spending and inflation hedge
 
 Example: $1,000,000 retirement.
-- Annuitize $300,000 → ~$15K/year guaranteed lifetime income
+- Annuitize $300,000 → ~\$15K/year guaranteed lifetime income
 - Add to Social Security ($25K) → $40K guaranteed floor
-- Invest remaining $700,000 for discretionary spending
+- Invest remaining \$700,000 for discretionary spending
 - Withdraw 4% of $700K → $28K/year for travel, hobbies, surprises
-- Total: $68K/year, with $40K guaranteed for life
+- Total: \$68K/year, with $40K guaranteed for life
 
 The floor covers essentials regardless of markets or longevity. The portfolio covers discretionary; if markets do badly, you cut discretionary; if you live long, the floor remains.
 

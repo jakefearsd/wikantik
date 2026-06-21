@@ -1,16 +1,17 @@
 ---
-cluster: philosophy
 canonical_id: 01KQ0P44Q933V8X5A26HHEHY3F
 title: Existentialism
-type: article
 tags:
 - philosophy
 - agency
 - stochastic-parrots
 - subjectivity
-summary: A technical critique of digital agency, examining the "Stochastic Parrot" hypothesis through the lens of existentialist ontology and the primacy of existence over essence.
+cluster: philosophy
+type: article
+date: 2024-05-16T00:00:00Z
 auto-generated: false
-date: 2024-05-16
+summary: 'Existentialist critique of digital agency: the Stochastic Parrot hypothesis,
+  Sartrean facticity vs. authentic AI, and bad faith in alignment guardrails.'
 ---
 # Existentialism and the Ghost in the Machine
 

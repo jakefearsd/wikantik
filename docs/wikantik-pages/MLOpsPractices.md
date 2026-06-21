@@ -1,14 +1,17 @@
 ---
-cluster: machine-learning
-canonical_id: 01KQ0P44S42059KB445F036V87
-title: ML Ops Practices
-type: article
+summary: Framework for automating the machine learning lifecycle, from data ingestion
+  to production monitoring and retraining.
+title: MLOps Practices
 tags:
 - model
 - data
 - must
-summary: Framework for automating the machine learning lifecycle, from data ingestion to production monitoring and retraining.
+cluster: machine-learning
+type: article
+hubs:
+- MlModelDeploymentHub
 auto-generated: false
+canonical_id: 01KQ0P44S42059KB445F036V87
 ---
 
 # MLOps Pipeline Automation

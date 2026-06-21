@@ -1,16 +1,8 @@
 ---
-canonical_id: 01KQ0P44VYWDW79C3YMGKHVYFQ
 date: 2026-03-14T00:00:00Z
 status: active
-summary: Why running your own LLM locally — even a small, limited one — teaches you
-  things about AI that using cloud APIs never will, plus practical setup with Ollama
-  and hardware guidance
-related:
-- GenerativeAiAdoptionGuide
-- UnderstandingGenerativeAi
-- PracticalPromptEngineering
-- AcceleratingAiLearning
-- AIModelTraining
+summary: Why running your own LLM locally teaches you things cloud APIs never will,
+  plus practical setup with Ollama, hardware guidance, and model size trade-offs.
 tags:
 - generative-ai
 - local-llm
@@ -19,6 +11,14 @@ tags:
 - learning
 type: article
 cluster: generative-ai
+canonical_id: 01KQ0P44VYWDW79C3YMGKHVYFQ
+related:
+- GenerativeAiAdoptionGuide
+- UnderstandingGenerativeAi
+- PracticalPromptEngineering
+- AcceleratingAiLearning
+- AIModelTraining
+title: Running Local LLMs
 ---
 # Running Local LLMs
 

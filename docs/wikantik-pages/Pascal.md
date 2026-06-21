@@ -1,10 +1,19 @@
 ---
+canonical_id: 01KVJMS1R4HX5ETRA9C2HNYD1H
 title: Pascal
+tags:
+- programming-languages
+- pascal
+- delphi
+- structured-programming
+- strong-typing
+- computer-history
 cluster: computer-science
-tags: [programming-languages, pascal, delphi, structured-programming, strong-typing, computer-history]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The 'Standard of Safety' (1970). Created by Niklaus Wirth to prioritize data safety and instructional clarity. Experiencing a 2026 'Renaissance' in native cross-platform development.
+summary: Language of safety (1970) by Niklaus Wirth; strong typing and instructional
+  clarity. Now experiencing a renaissance in native cross-platform development.
 ---
 
 # Pascal: The Architecture of Safety

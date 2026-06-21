@@ -1,10 +1,19 @@
 ---
+canonical_id: 01KVJMS1H4K4F38D7SE2TDXR0W
 title: Lisp
+tags:
+- programming-languages
+- lisp
+- ai
+- functional-programming
+- garbage-collection
+- computer-history
 cluster: computer-science
-tags: [programming-languages, lisp, ai, functional-programming, garbage-collection, computer-history]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The second-oldest high-level language (1958) and the father of AI. Pioneered functional programming, homoiconicity (code-as-data), and automated garbage collection.
+summary: Second-oldest high-level language (1958) and father of AI. Pioneered functional
+  programming, homoiconicity, and automated garbage collection.
 ---
 
 # Lisp: The Architect of Symbolic Intelligence

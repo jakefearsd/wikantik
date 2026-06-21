@@ -1,21 +1,23 @@
 ---
-canonical_id: 01KQ0P44M4DND319VRMF10RT6Z
-summary: Drag-and-drop file attachment UI with server-side image processing and inline Markdown references
+depends-on:
+- JspToReactMigration
+status: active
+type: article
+date: '2026-04-03'
+cluster: wikantik-development
+title: Attachment Management
 tags:
 - development
 - attachments
 - ui
 - file-management
-type: article
-status: deployed
-cluster: wikantik-development
-date: '2026-04-03'
+summary: Drag-and-drop file attachment UI with server-side image processing and inline
+  Markdown references
 related:
 - WikantikDevelopment
 - BlogFeature
 - JspToReactMigration
-depends-on:
-- JspToReactMigration
+canonical_id: 01KQ0P44M4DND319VRMF10RT6Z
 ---
 # Attachment Management
 

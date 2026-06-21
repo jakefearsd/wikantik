@@ -1,10 +1,16 @@
 ---
-cluster: security
-canonical_id: 01KQ0P44T600RKB0SF6RN6QBR8
-type: article
 tags:
-- uncategorized
-summary: OAuth SSO Implementation Plan for Google/GitHub Logins
+- oauth
+- sso
+- authentication
+- jaas
+- security
+type: article
+summary: Design guide for adding OAuth SSO (Google/GitHub) via JAAS LoginModule +
+  callback servlet, covering token exchange, user provisioning, and session wiring.
+title: OAuth Implementation
+canonical_id: 01KQ0P44T600RKB0SF6RN6QBR8
+cluster: security
 ---
 # OAuth SSO Implementation Plan for Google/GitHub Logins
 

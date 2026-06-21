@@ -1,17 +1,18 @@
 ---
-cluster: generative-ai
-canonical_id: 01KQ0P44XRC8X14MGN8J21P08J
-title: Token Budgeting
-type: article
 tags:
 - llm
 - cost-optimization
 - tokens
 - kv-cache
 - attention
-summary: A technical guide to token budgeting and memory optimization for LLMs, focusing on tokenizer volatility and KV-cache eviction strategies for long-context windows.
+cluster: generative-ai
+type: article
+date: 2024-05-16T00:00:00Z
 auto-generated: false
-date: 2024-05-16
+canonical_id: 01KQ0P44XRC8X14MGN8J21P08J
+summary: A technical guide to token budgeting and memory optimization for LLMs, focusing
+  on tokenizer volatility and KV-cache eviction strategies for long-context windows.
+title: Token Budgeting
 ---
 # Token Budgeting and Cache Management
 

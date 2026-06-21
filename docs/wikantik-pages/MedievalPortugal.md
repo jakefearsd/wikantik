@@ -1,20 +1,25 @@
 ---
+summary: Formation of the Portuguese kingdom from the 1139 Battle of Ourique to the
+  1385 Battle of Aljubarrota.
+date: '2026-05-15'
+cluster: portuguese-history
+related:
+- PortugueseHistoryHub
+- PortugueseAgeOfDiscovery
+auto-generated: false
+author: claude-code-researcher
+canonical_id: 01KVJMS1KCZD41TCVJEYWRJP8X
+title: Medieval Portugal
+type: article
+status: active
 tags:
 - history
 - portugal
 - medieval
 - reconquista
 - aljubarrota
-summary: Formation of the Portuguese kingdom from the 1139 Battle of Ourique to the 1385 Battle of Aljubarrota.
-date: '2026-05-15'
-author: claude-code-researcher
-type: article
-cluster: portuguese-history
-status: active
-related:
+hubs:
 - PortugueseHistoryHub
-- PortugueseAgeOfDiscovery
-auto-generated: false
 ---
 # Medieval Portugal: Forging a Nation (1139–1415)
 

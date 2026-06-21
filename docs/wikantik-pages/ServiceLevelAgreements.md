@@ -1,10 +1,8 @@
 ---
-canonical_id: 01KQ12YDWJ5RQ66GYJ6G0VHKQN
-title: Service Level Agreements
-type: article
-cluster: software-architecture
 status: active
 date: '2026-05-15'
+summary: Rigorous definition of SLIs, SLOs, and SLAs with the underlying mathematics
+  of availability, error budgets, and burn rate calculations.
 tags:
 - slo
 - sla
@@ -12,8 +10,11 @@ tags:
 - sre
 - reliability
 - math
-summary: Rigorous definition of SLIs, SLOs, and SLAs with the underlying mathematics of availability, error budgets, and burn rate calculations.
+type: article
 auto-generated: false
+canonical_id: 01KQ12YDWJ5RQ66GYJ6G0VHKQN
+cluster: software-architecture
+title: Service Level Agreements
 ---
 
 # Service Level Agreements (SLI / SLO / SLA)

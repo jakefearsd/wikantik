@@ -1,8 +1,17 @@
 ---
-cluster: software-engineering-practices
-canonical_id: 01KQ0P44TS2FDYPZ3N55FVECGR
 title: Process Improvement Methodologies
+related:
+- SoftwareEngineeringPracticesHub
+- AgileMethodologyDeepDive
+- LeanWarehousing
+- SystemsThinking
+- MonitoringAndAlerting
+- MathematicsHub
+cluster: software-engineering-practices
 type: article
+canonical_id: 01KQ0P44TS2FDYPZ3N55FVECGR
+summary: PDCA control loops, Value Stream Mapping, and Lean/DevOps convergence for
+  knowledge-work process improvement; SPC for measuring capability indices.
 tags:
 - process-improvement
 - kaizen
@@ -12,14 +21,6 @@ tags:
 - devops
 - systems-thinking
 - spc
-summary: A rigorous exploration of process improvement as a meta-discipline for organizational metabolism, focusing on the recursive PDCA control loop, the integration of Lean/Agile/DevOps, and the application of statistical process control (SPC).
-related:
-- SoftwareEngineeringPracticesHub
-- AgileMethodologyDeepDive
-- LeanWarehousing
-- SystemsThinking
-- MonitoringAndAlerting
-- MathematicsHub
 ---
 
 # Process Improvement: The Architecture of Organizational Metabolism

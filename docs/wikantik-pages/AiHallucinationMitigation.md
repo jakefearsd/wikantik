@@ -1,26 +1,25 @@
 ---
-canonical_id: 01KQ12YDRTD1YCKE6VC6B9V7YZ
-title: Ai Hallucination Mitigation
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-24'
+title: AI Hallucination Mitigation
+hubs:
+- AgenticAiHub
 tags:
 - hallucination
 - factuality
 - rag
 - grounding
 - llm-safety
-summary: Practical techniques for reducing LLM fabrication, ranked by effort-to-payoff.
-  Grounding, constrained generation, citation enforcement, and the traps in common
-  evaluation approaches.
+summary: 'Reducing LLM fabrication, ranked by effort-to-payoff: retrieval grounding,
+  constrained generation, citation enforcement, and calibrated abstention.'
 related:
 - RagImplementationPatterns
 - HybridRetrieval
 - LlmEvaluationMetrics
 - AiSafetyAndAlignment
-hubs:
-- AgenticAiHub
+canonical_id: 01KQ12YDRTD1YCKE6VC6B9V7YZ
 ---
 # AI Hallucination Mitigation
 

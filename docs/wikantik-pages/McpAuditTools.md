@@ -1,21 +1,22 @@
 ---
-canonical_id: 01KQ0P44SB1JGDBZKMCYXWCNA0
+cluster: wikantik-development
+title: MCP Audit Tools
+related:
+- WikantikDevelopment
+type: article
 summary: Designed MCP tools that would power automated content auditing
+status: active
+date: '2026-03-20'
+canonical_id: 01KQ0P44SB1JGDBZKMCYXWCNA0
+enables:
+- WikiAuditSkill
+part-of:
+- McpIntegration
 tags:
 - development
 - mcp
 - audit
 - tools
-type: article
-status: designed
-cluster: wikantik-development
-date: '2026-03-20'
-part-of:
-- McpIntegration
-enables:
-- WikiAuditSkill
-related:
-- WikantikDevelopment
 ---
 # MCP Audit Tools
 

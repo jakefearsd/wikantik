@@ -1,16 +1,12 @@
 ---
-canonical_id: 01KQ0P44XP9QHVDGG6JGHFM4P9
-date: '2026-03-20'
-summary: How 3D printers create jigs, fixtures, workholding, and custom hardware that
-  make woodworking projects easier and more precise
-cluster: hobby-woodworking
-related:
-- HobbyWoodworkingInTheTwentyFirstCentury
-- CncRoutersForTheHobbyWorkshop
-- DigitalDesignToolsForWoodworkers
+type: article
+status: active
 part-of:
 - HobbyWoodworkingInTheTwentyFirstCentury
-type: article
+date: '2026-03-20'
+cluster: hobby-woodworking
+hubs:
+- HobbyWoodworkingInTheTwentyFirstCentury
 tags:
 - woodworking
 - 3d-printing
@@ -18,9 +14,13 @@ tags:
 - jigs
 - maker
 - digital-fabrication
-status: active
-hubs:
+summary: How 3D printers create jigs, fixtures, workholding, and custom hardware that
+  make woodworking projects easier and more precise
+related:
 - HobbyWoodworkingInTheTwentyFirstCentury
+- CncRoutersForTheHobbyWorkshop
+- DigitalDesignToolsForWoodworkers
+canonical_id: 01KQ0P44XP9QHVDGG6JGHFM4P9
 ---
 # 3D Printing Meets Woodworking
 
@@ -72,7 +72,7 @@ The entire cycle from problem identification to working fixture typically takes 
 ## Real-World Examples
 
 ### The Perfect Dovetail Marker
-Print a saddle-shaped guide that sits on the end of a board and provides knife lines at exactly 1:6 (softwood) or 1:8 (hardwood) ratio. Cost: $0.30 in filament. Equivalent commercial brass marker: $45.
+Print a saddle-shaped guide that sits on the end of a board and provides knife lines at exactly 1:6 (softwood) or 1:8 (hardwood) ratio. Cost: \$0.30 in filament. Equivalent commercial brass marker: $45.
 
 ### CNC Spoilboard Inserts
 Print threaded inserts that press-fit into a CNC spoilboard, providing anchor points for workholding. When they wear out, print more. Cost: pennies each.

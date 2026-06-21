@@ -1,24 +1,24 @@
 ---
+type: hub
+status: active
 date: '2026-04-26'
-summary: Index of pages on data engineering — pipelines, modeling, ETL/ELT, transformation
-  layers, catalogs, and the patterns that make analytics infrastructure sustainable.
 cluster: data-engineering
+title: Data Engineering Hub
+hubs:
+- GenerativeAIHub
+- WealthviewHub
+tags:
+- data-engineering
+- pipelines
+- etl
+- hub
+- analytics
+summary: Index of data engineering pages — pipelines, modeling, ETL/ELT, transformation
+  layers, catalogs, and patterns for sustainable analytics infrastructure.
 related:
 - CloudPlatformsHub
 - DevOpsAndSreHub
 canonical_id: 01KZHC6PVX4SBQM9R0F3T7K8ZA
-title: DataEngineeringHub
-type: hub
-tags:
-- data-engineering
-- pipelines
-- ETL
-- hub
-- analytics
-hubs:
-- GenerativeAIHub
-- WealthviewHub
-status: active
 ---
 # DataEngineering Hub
 

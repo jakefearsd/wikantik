@@ -1,17 +1,6 @@
 ---
-canonical_id: 01KQ0P44RJSE08WJSB88N3A2JV
-summary: Property graph over wiki content with PostgreSQL storage, frontmatter synchronization,
-  MCP tools, and proposal-based AI enrichment
-tags:
-- development
-- knowledge-graph
-- postgresql
-- mcp
-- ai
-type: article
-status: deployed
 cluster: wikantik-development
-date: '2026-04-04'
+title: Knowledge Graph Core
 related:
 - WikantikDevelopment
 - McpIntegration
@@ -23,10 +12,22 @@ related:
 - KnowledgeAdminUi
 - ProvenanceModel
 - FrontmatterConventions
-depends-on:
-- McpIntegration
+type: article
+summary: Property graph over wiki content with PostgreSQL storage, frontmatter synchronization,
+  MCP tools, and proposal-based AI enrichment
+status: active
+date: '2026-04-04'
+canonical_id: 01KQ0P44RJSE08WJSB88N3A2JV
 documents:
 - AiAugmentedWorkflows
+depends-on:
+- McpIntegration
+tags:
+- development
+- knowledge-graph
+- postgresql
+- mcp
+- ai
 ---
 # Knowledge Graph Core
 

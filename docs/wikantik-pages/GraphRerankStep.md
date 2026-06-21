@@ -1,6 +1,9 @@
 ---
-canonical_id: 01KRQJ845TTE8DNKNVWC8EBVN3
-type: article
+status: active
+date: '2026-05-15'
+summary: Technical analysis of Wikantik's Phase 3 search reranker. Details multi-source
+  BFS traversal through the co-mention graph, the max-proximity scoring heuristic,
+  and the stable-sort boost mechanism.
 tags:
 - search
 - graph-theory
@@ -8,18 +11,15 @@ tags:
 - proximity-search
 - bfs
 - algorithms
-title: Graph-Aware Reranking and Semantic Proximity
+type: article
 relations:
 - type: component_of
   target_id: WikantikSearchAndRetrieval
 - type: extension_of
   target_id: SpectralGraphTheoryConceptual
-summary: Technical analysis of Wikantik's Phase 3 search reranker. Details multi-source
-  BFS traversal through the co-mention graph, the max-proximity scoring heuristic,
-  and the stable-sort boost mechanism.
-status: active
-date: '2026-05-15'
+canonical_id: 01KRQJ845TTE8DNKNVWC8EBVN3
 cluster: wikantik-platform
+title: Graph-Aware Reranking and Semantic Proximity
 ---
 
 # Graph-Aware Reranking and Semantic Proximity

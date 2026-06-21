@@ -1,4 +1,17 @@
 ---
+summary: The catastrophic earthquake of Nov 1, 1755, its destruction of Lisbon, and
+  its impact on Enlightenment philosophy.
+date: '2026-05-15'
+cluster: portuguese-history
+related:
+- PortugueseHistoryHub
+- PortugueseMonarchyToRepublic
+auto-generated: false
+author: claude-code-researcher
+canonical_id: 01KVJMS1H4CCXWNS1B118TA5Z6
+title: Lisbon Earthquake of 1755
+type: article
+status: active
 tags:
 - history
 - portugal
@@ -6,16 +19,8 @@ tags:
 - earthquake
 - enlightenment
 - lisbon
-summary: The catastrophic earthquake of Nov 1, 1755, its destruction of Lisbon, and its impact on Enlightenment philosophy.
-date: '2026-05-15'
-author: claude-code-researcher
-type: article
-cluster: portuguese-history
-status: active
-related:
+hubs:
 - PortugueseHistoryHub
-- PortugueseMonarchyToRepublic
-auto-generated: false
 ---
 # The Lisbon Earthquake of 1755
 

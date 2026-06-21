@@ -1,8 +1,16 @@
 ---
-cluster: philosophy
-canonical_id: 01KQ0P44TJB25KAPFPBS1WKDCV
 title: Philosophy of Science
+related:
+- LanguagePhilosophy
+- KantianEthics
+- LogicalFallacies
+- Ontology
+- MathematicsHub
+cluster: philosophy
 type: article
+canonical_id: 01KQ0P44TJB25KAPFPBS1WKDCV
+summary: 'Epistemology of empirical inquiry: Humean induction, Popperian falsificationism,
+  underdetermination, and natural vs. social science methodology.'
 tags:
 - philosophy
 - science
@@ -11,13 +19,6 @@ tags:
 - falsification
 - induction
 - realism
-summary: A rigorous exploration of the philosophical scaffolding supporting empirical research, focusing on the problem of induction, Popperian falsificationism, the underdetermination of theory, and the methodological divergences between natural and social sciences.
-related:
-- LanguagePhilosophy
-- KantianEthics
-- LogicalFallacies
-- Ontology
-- MathematicsHub
 ---
 
 # Philosophy of Science: The Epistemology of Empirical Inquiry

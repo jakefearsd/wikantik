@@ -1,10 +1,18 @@
 ---
+canonical_id: 01KVJMS17DZYVQ7CB53N0EDMQE
 title: Fortran
+tags:
+- programming-languages
+- fortran
+- high-performance-computing
+- scientific-computing
+- computer-history
 cluster: computer-science
-tags: [programming-languages, fortran, high-performance-computing, scientific-computing, computer-history]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The first high-level programming language (1957). Remains the gold standard for scientific computing and matrix operations in 2026 due to strict aliasing rules and first-class array support.
+summary: First high-level language (1957). Gold standard for HPC and matrix ops in
+  2026 due to strict aliasing rules and first-class array support.
 ---
 
 # Fortran: The Pioneer of High-Performance Computing

@@ -1,26 +1,25 @@
 ---
-summary: A graduate-level deep dive into Complex Analysis, focusing on the rigid geometry
-  of analytic functions, residue-based integration, and conformal mapping in aerospace
-  engineering.
+type: article
+status: active
 date: '2026-04-26'
 cluster: mathematics
-related:
-- AppliedMathSurvey
-- CalculusRefreshForCS
-- TopologyMathematics
-canonical_id: 01KQ0P44NQE9W6EZ70M8AYY95Z
-type: article
 title: Complex Analysis
+hubs:
+- MathematicsHub
+- ChaosDynamical Hub
 tags:
 - complex-analysis
 - mathematics
 - calculus
 - analytic-functions
 - conformal-mapping
-status: active
-hubs:
-- MathematicsHub
-- ChaosDynamical Hub
+summary: 'Rigid geometry of analytic functions: Cauchy-Riemann equations, residue-based
+  integration, conformal mapping, and uses in signal processing and aerodynamics.'
+related:
+- AppliedMathSurvey
+- CalculusRefreshForCS
+- TopologyMathematics
+canonical_id: 01KQ0P44NQE9W6EZ70M8AYY95Z
 ---
 
 # Complex Analysis: The Geometry of Analyticity

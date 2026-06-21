@@ -1,17 +1,18 @@
 ---
-cluster: retirement-planning
-canonical_id: 01KQ0P44YD3DV67W3X8SB1WKEA
-title: Variable Percentage Withdrawal
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: A deep dive into the Variable Percentage Withdrawal (VPW) method, its mathematical
+  table-based approach, and its resilience to Sequence of Returns Risk.
 tags:
 - retirement-planning
 - vpw
 - safe-withdrawal-rate
 - sorr
-status: active
-date: 2025-05-15
-summary: A deep dive into the Variable Percentage Withdrawal (VPW) method, its mathematical table-based approach, and its resilience to Sequence of Returns Risk.
+type: article
 auto-generated: false
+cluster: retirement-planning
+canonical_id: 01KQ0P44YD3DV67W3X8SB1WKEA
+title: Variable Percentage Withdrawal
 ---
 
 # Variable Percentage Withdrawal (VPW): Dynamic Spent Control

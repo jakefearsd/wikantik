@@ -1,16 +1,11 @@
 ---
-summary: Technical deep-dive into modern fault-tolerance patterns, including Cell-Based
-  Architecture, AI-driven self-healing, and BFT benchmarks.
-date: 2026-05-15T00:00:00Z
-cluster: Software Engineering
-related:
-- ErlangProgrammingLanguage
-- DistributedSystemsHub
-- EngineeringDisciplineHub
-- FaultTolerantSystems
-canonical_id: 01J7KQTCB8K3TXN8SKQFJ7WZ7F
 type: article
+status: active
+date: 2026-05-15T00:00:00Z
+cluster: distributed-systems
 title: 'Fault-Tolerant Systems: State of the Art 2025'
+hubs:
+- EngineeringDisciplineHub
 tags:
 - systems
 - distributed
@@ -18,9 +13,14 @@ tags:
 - bft
 - resilience
 - srate-of-the-art
-status: active
-hubs:
+summary: 'Modern fault-tolerance patterns: Cell-Based Architecture, AI-driven self-healing,
+  and 2025 BFT protocol benchmarks including DAG-based Falcon and Mysticeti.'
+related:
+- ErlangProgrammingLanguage
+- DistributedSystemsHub
 - EngineeringDisciplineHub
+- FaultTolerantSystems
+canonical_id: 01J7KQTCB8K3TXN8SKQFJ7WZ7F
 ---
 
 # Fault-Tolerant Systems: State of the Art 2025

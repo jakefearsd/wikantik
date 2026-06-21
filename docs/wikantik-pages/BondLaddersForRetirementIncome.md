@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44MPZAYHM7EVT2MAH2FM
-title: Bond Ladders for Retirement Income
 type: article
-cluster: retirement-planning
 status: active
+cluster: retirement-planning
 date: '2026-04-26'
-summary: How bond ladders provide predictable retirement income — laddering Treasuries
-  vs. CDs vs. corporates, the maturity structure, and the cases where ladders beat
-  bond funds.
+title: Bond Ladders for Retirement Income
+hubs:
+- RetirementPlanningGuide
 tags:
 - bonds
 - bond-ladder
 - retirement-income
 - treasuries
 - fixed-income
+summary: How bond ladders provide predictable retirement income — laddering Treasuries
+  vs. CDs vs. corporates, the maturity structure, and the cases where ladders beat
+  bond funds.
 related:
 - AnnuitiesVsSystematicWithdrawals
 - BucketStrategyForRetirement
 - IBondsAndTreasuries
 - SafeWithdrawalRates
-hubs:
-- RetirementPlanningGuide
+canonical_id: 01KQ0P44MPZAYHM7EVT2MAH2FM
 ---
 # Bond Ladders for Retirement Income
 
@@ -32,10 +32,10 @@ For retirees wanting income certainty, bond ladders are a real tool.
 
 Build a ladder of, say, 10 years:
 
-- $50K matures in 1 year
+- \$50K matures in 1 year
 - $50K matures in 2 years
 - ...
-- $50K matures in 10 years
+- \$50K matures in 10 years
 
 Total: $500K across 10 rungs.
 
@@ -55,7 +55,7 @@ For a retiree withdrawing periodically: market-value-driven sales lock in losses
 
 Hold individual bonds to maturity. The bond pays face value when it matures, regardless of intervening rate movements.
 
-For predictable income, this matters. A 5-year ladder with $50K rungs delivers $50K in year 1, $50K in year 2, etc., regardless of rate changes.
+For predictable income, this matters. A 5-year ladder with $50K rungs delivers $50K in year 1, \$50K in year 2, etc., regardless of rate changes.
 
 ### The trade-off
 
@@ -110,7 +110,7 @@ Annual rungs are typical. Some ladders have semi-annual or quarterly rungs for m
 
 The ladder should cover essential expenses for the ladder duration, ideally combined with other guaranteed income (Social Security, pensions).
 
-If essential expenses are $50K/year and Social Security is $25K, the ladder covers the $25K gap. A 10-year ladder of $250K provides this.
+If essential expenses are $50K/year and Social Security is \$25K, the ladder covers the $25K gap. A 10-year ladder of \$250K provides this.
 
 ### Construct it
 

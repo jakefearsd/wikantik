@@ -1,33 +1,33 @@
 ---
-canonical_id: 01KQ0P44Y5CWP7WMW075WVWX1N
+type: article
+status: active
 date: 2026-04-02T00:00:00Z
+cluster: retirement-planning
+title: Types of Investment Accounts
+hubs:
+- TypesofInvestmentAccountsTutorialHub
+tags:
+- investing
+- accounts
+- ira
+- 401k
+- brokerage
+- tax-planning
+- retirement
+- hsa
+- '529'
+- ugma
+- utma
 summary: Complete guide to every major US investment account type — who qualifies,
   contribution limits, tax treatment, withdrawal rules, and what each account is best
   used for.
-cluster: retirement-planning
 related:
 - TaxBenefitsOfRetirementAccounts
 - MaximizingRetirementAccountContributions
 - HealthSavingsAccounts
 - RetirementPlanningGuide
 - AccountTypeStrategy
-title: Types of Investment Accounts
-type: article
-status: published
-tags:
-- investing
-- accounts
-- IRA
-- 401k
-- brokerage
-- tax-planning
-- retirement
-- HSA
-- 529
-- UGMA
-- UTMA
-hubs:
-- TypesofInvestmentAccountsTutorialHub
+canonical_id: 01KQ0P44Y5CWP7WMW075WVWX1N
 ---
 
 # Types of Investment Accounts

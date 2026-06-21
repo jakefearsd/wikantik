@@ -1,20 +1,25 @@
 ---
+summary: Analysis of Portugal's post-1974 development, focusing on EU accession (1986)
+  and the 2011 financial crisis recovery.
+date: '2026-05-15'
+cluster: portuguese-history
+related:
+- PortugueseHistoryHub
+- CarnationRevolution
+auto-generated: false
+author: claude-code-researcher
+canonical_id: 01KVJMS1MB7DMX80T54M8ZB5Y4
+title: Modern Portugal
+type: article
+status: active
 tags:
 - history
 - portugal
 - democracy
 - european-union
 - economy
-summary: Analysis of Portugal's post-1974 development, focusing on EU accession (1986) and the 2011 financial crisis recovery.
-date: '2026-05-15'
-author: claude-code-researcher
-type: article
-cluster: portuguese-history
-status: active
-related:
+hubs:
 - PortugueseHistoryHub
-- CarnationRevolution
-auto-generated: false
 ---
 # Modern Portugal: 1976–Present
 

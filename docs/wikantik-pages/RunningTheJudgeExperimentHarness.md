@@ -1,47 +1,89 @@
 ---
 canonical_id: 01KQKEA11ARM1J4YGVF1BXME9R
 title: Running the Judge Experiment Harness
+tags:
+- extraction
+- evaluation
+- knowledge-graph
+- runbook
+- agent-context
 type: runbook
 cluster: agent-cookbook
-audience: [agents, humans]
-summary: How to invoke `bin/kg-judge-experiment.sh` (Phase 6 of the KG-extraction redesign) — sample pending `kg_proposals`, judge each through NoOp + a real comparator (`ollama` or `claude`), and read the side-by-side report before deciding whether to flip the production extractor's `--judge` default.
-tags:
-  - extraction
-  - evaluation
-  - knowledge-graph
-  - runbook
-  - agent-context
+audience:
+- agents
+- humans
 runbook:
   when_to_use:
-    - You are about to flip the extractor's production `--judge` default from `none` to `ollama` or `claude`
-    - You want to compare two judge models (e.g. `qwen3.5:9b` vs `gemma4-assist:latest`) on the same proposal queue
-    - The pending `kg_proposals` queue has grown unwieldy and you want to know how aggressively a real judge would prune it
-    - You are calibrating the judge prompt against a hand-labelled sample (see Pitfalls below)
+  - You are about to flip the extractor's production `--judge` default from `none`
+    to `ollama` or `claude`
+  - You want to compare two judge models (e.g. `qwen3.5:9b` vs `gemma4-assist:latest`)
+    on the same proposal queue
+  - The pending `kg_proposals` queue has grown unwieldy and you want to know how aggressively
+    a real judge would prune it
+  - You are calibrating the judge prompt against a hand-labelled sample (see Pitfalls
+    below)
   inputs:
-    - The judge backend — `ollama` (cheap, local) or `claude` (gated, billed)
-    - The judge model tag — defaults to `gemma4-assist:latest` for ollama (chosen 2026-05-02 over `qwen3.5:9b` after the latter timed out on 19/30 calls; see Observed model behaviour below) and `claude-haiku-4-5` for claude; pass `--judge-model` to override
-    - Sample size — `--sample N` (default 100; use 25–50 for fast spot-checks, 100+ for calibration)
-    - Output path — `--output reports/judge-<tag>.json` (required)
-    - For `--judge claude`, the env-var name holding the API key (`--anthropic-key-env ANTHROPIC_API_KEY`) and the `-Dwikantik.kg.judge.allow_claude=true` system property (the script auto-injects this when you pass `--judge claude`)
+  - The judge backend — `ollama` (cheap, local) or `claude` (gated, billed)
+  - The judge model tag — defaults to `gemma4-assist:latest` for ollama (chosen 2026-05-02
+    over `qwen3.5:9b` after the latter timed out on 19/30 calls; see Observed model
+    behaviour below) and `claude-haiku-4-5` for claude; pass `--judge-model` to override
+  - Sample size — `--sample N` (default 100; use 25–50 for fast spot-checks, 100+
+    for calibration)
+  - Output path — `--output reports/judge-<tag>.json` (required)
+  - For `--judge claude`, the env-var name holding the API key (`--anthropic-key-env
+    ANTHROPIC_API_KEY`) and the `-Dwikantik.kg.judge.allow_claude=true` system property
+    (the script auto-injects this when you pass `--judge claude`)
   steps:
-    - Confirm the local Tomcat is deployed (so `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml` carries the JDBC creds) — alternatively export `PG_PASSWORD` and the script falls back to env vars
-    - Run `bin/kg-judge-experiment.sh --judge ollama --sample 50 --output reports/judge.json` — the script rebuilds `wikantik-extract-cli.jar` if stale, samples `ORDER BY random() LIMIT 50` from `kg_proposals WHERE status='pending'`, and judges each row through `NoOpProposalJudge` plus the comparator (default model `gemma4-assist:latest`; pass `--judge-model` to override)
-    - Read the JSON report — `noopVerdicts` is the production-default baseline (always 100% accept); `comparatorVerdicts` shows what the judge would have done; `examples` is the per-row diff
-    - Inspect `comparatorVerdicts.judge_failed_accepts` — these are fail-open accepts caused by HTTP errors / timeouts / parse failures, NOT real verdicts; if this is more than ~5% of the sample the run is unreliable
-    - Inspect `comparatorVerdicts.reject_reasons` — the closed enum is `ungrounded`, `redundant_with_existing_node`, `wrong_type`, `too_generic`, `weak_support`; any unknown reason code from the model collapses to `weak_support`
-    - To compare two models, run the script twice with different `--judge-model` and different `--output` paths, then diff the `comparatorVerdicts.{accepted,rejected}` counts and the `reject_reasons` histogram — this is how the qwen-vs-gemma4 evaluation is done
-    - Before flipping the production default, hand-label a sample of ~50 pending rows and compare the labels against the judge's verdicts — accuracy below ~80% is the design's "do not flip" threshold
+  - Confirm the local Tomcat is deployed (so `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml`
+    carries the JDBC creds) — alternatively export `PG_PASSWORD` and the script falls
+    back to env vars
+  - Run `bin/kg-judge-experiment.sh --judge ollama --sample 50 --output reports/judge.json`
+    — the script rebuilds `wikantik-extract-cli.jar` if stale, samples `ORDER BY random()
+    LIMIT 50` from `kg_proposals WHERE status='pending'`, and judges each row through
+    `NoOpProposalJudge` plus the comparator (default model `gemma4-assist:latest`;
+    pass `--judge-model` to override)
+  - Read the JSON report — `noopVerdicts` is the production-default baseline (always
+    100% accept); `comparatorVerdicts` shows what the judge would have done; `examples`
+    is the per-row diff
+  - Inspect `comparatorVerdicts.judge_failed_accepts` — these are fail-open accepts
+    caused by HTTP errors / timeouts / parse failures, NOT real verdicts; if this
+    is more than ~5% of the sample the run is unreliable
+  - Inspect `comparatorVerdicts.reject_reasons` — the closed enum is `ungrounded`,
+    `redundant_with_existing_node`, `wrong_type`, `too_generic`, `weak_support`; any
+    unknown reason code from the model collapses to `weak_support`
+  - To compare two models, run the script twice with different `--judge-model` and
+    different `--output` paths, then diff the `comparatorVerdicts.{accepted,rejected}`
+    counts and the `reject_reasons` histogram — this is how the qwen-vs-gemma4 evaluation
+    is done
+  - Before flipping the production default, hand-label a sample of ~50 pending rows
+    and compare the labels against the judge's verdicts — accuracy below ~80% is the
+    design's "do not flip" threshold
   pitfalls:
-    - "Tiny sample sizes (`--sample 5`) hide real variance — a single timeout looks like 20% judge_failed; run at least N=30 before drawing conclusions and N=100 before flipping a production default"
-    - "Two runs see different rows (`ORDER BY random()` is not seeded), so per-row diffs across model runs are noise — compare aggregate counts and reason histograms, not individual rows"
-    - "Switching ollama models between consecutive runs costs a model-load on the inference server (5–30s of latency) — do not interpret the first few timeouts after a model swap as a quality signal"
-    - "`comparatorVerdicts.accepted` lumps real accepts and `judge_failed: ...` fail-open accepts together — always read `judge_failed_accepts` alongside it before reporting an accept rate"
-    - "`--judge claude` is billed per-call; the cost gate (`-Dwikantik.kg.judge.allow_claude=true`) is mandatory and the script auto-injects it, but you still need a valid `ANTHROPIC_API_KEY` env var named via `--anthropic-key-env`"
-    - "Using the experiment to evaluate the page extractor (rather than the judge) is a category error — the harness reads already-consolidated proposals, so extractor recall problems do not show up here"
-  related_tools: []
+  - Tiny sample sizes (`--sample 5`) hide real variance — a single timeout looks like
+    20% judge_failed; run at least N=30 before drawing conclusions and N=100 before
+    flipping a production default
+  - Two runs see different rows (`ORDER BY random()` is not seeded), so per-row diffs
+    across model runs are noise — compare aggregate counts and reason histograms,
+    not individual rows
+  - Switching ollama models between consecutive runs costs a model-load on the inference
+    server (5–30s of latency) — do not interpret the first few timeouts after a model
+    swap as a quality signal
+  - '`comparatorVerdicts.accepted` lumps real accepts and `judge_failed: ...` fail-open
+    accepts together — always read `judge_failed_accepts` alongside it before reporting
+    an accept rate'
+  - '`--judge claude` is billed per-call; the cost gate (`-Dwikantik.kg.judge.allow_claude=true`)
+    is mandatory and the script auto-injects it, but you still need a valid `ANTHROPIC_API_KEY`
+    env var named via `--anthropic-key-env`'
+  - Using the experiment to evaluate the page extractor (rather than the judge) is
+    a category error — the harness reads already-consolidated proposals, so extractor
+    recall problems do not show up here
+  related_tools: [
+    ]
   references:
-    - AgentGradeContentDesign
-    - KnowledgeExtractionFromText
+  - AgentGradeContentDesign
+  - KnowledgeExtractionFromText
+summary: Invoke `bin/kg-judge-experiment.sh` to sample `kg_proposals`, compare judge
+  models, and check calibration before flipping the production `--judge` default.
 ---
 
 # Running the Judge Experiment Harness

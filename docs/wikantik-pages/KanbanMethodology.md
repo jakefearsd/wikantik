@@ -1,12 +1,18 @@
 ---
+tags:
+- agile
+- kanban
+- wip
+- flow
+- metrics
 cluster: software-engineering-practices
-canonical_id: 01KQ0P44RFMB8PECPTBW3RZGKB
-title: "Kanban Methodology & Flow Optimization"
 type: article
-tags: [agile, kanban, wip, flow, metrics]
-date: 2025-05-15
-summary: A deep dive into Kanban as a flow-control system, focusing on WIP limits, Little's Law, and the diagnostic power of Cumulative Flow Diagrams.
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+canonical_id: 01KQ0P44RFMB8PECPTBW3RZGKB
+summary: A deep dive into Kanban as a flow-control system, focusing on WIP limits,
+  Little's Law, and the diagnostic power of Cumulative Flow Diagrams.
+title: Kanban Methodology & Flow Optimization
 ---
 
 # Kanban: Engineering the Flow of Value

@@ -1,12 +1,23 @@
 ---
-title: Statistics Fundamentals
-type: article
-cluster: mathematics
-status: active
 date: '2026-05-06'
-summary: A deep-dive into the foundations of statistics, covering descriptive moments, the geometric intuition of data in Hilbert space, and quality engineering applications.
-tags: [mathematics, statistics, descriptive-statistics, data-analysis, visualization]
-related: [ProbabilityTheory, StatisticalInference, RegressionAnalysis, MathematicsHub]
+status: active
+summary: Descriptive moments, correlation as cosine similarity, Chebyshev's inequality,
+  and data-as-vectors geometry — with applications in Six Sigma and financial risk.
+tags:
+- mathematics
+- statistics
+- descriptive-statistics
+- data-analysis
+- visualization
+type: article
+canonical_id: 01KTXJ5PQGTMD1S917597FNJF0
+cluster: mathematics
+related:
+- ProbabilityTheory
+- StatisticalInference
+- RegressionAnalysis
+- MathematicsHub
+title: Statistics Fundamentals
 ---
 
 # Statistics Fundamentals: The Geometry of Data

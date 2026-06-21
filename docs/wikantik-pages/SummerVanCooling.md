@@ -1,8 +1,16 @@
 ---
+title: 'Summer Van Cooling: Advanced Thermal Management'
+related:
+- HomeHardening
+- HomeEmergencyPreparedness
+- RiskManagement
+- MathematicsHub
+- NumericalMethods
 cluster: van-life
-canonical_id: 01KQ0P44X243X990XDDMQT2ZS2
-title: "Summer Van Cooling: Advanced Thermal Management"
 type: article
+canonical_id: 01KQ0P44X243X990XDDMQT2ZS2
+summary: 'Multi-physics van thermal management: radiative/convective heat transfer,
+  psychrometric wet-bulb limits, and Phase Change Material (PCM) load flattening.'
 tags:
 - van-life
 - thermodynamics
@@ -12,13 +20,6 @@ tags:
 - pcm
 - building-science
 - hvac
-summary: A rigorous exploration of thermal management in mobile built environments, focusing on the multi-physics coupling of radiative and convective heat transfer, the psychrometric limits of passive cooling, and the integration of Phase Change Materials (PCM) for diurnal load flattening.
-related:
-- HomeHardening
-- HomeEmergencyPreparedness
-- RiskManagement
-- MathematicsHub
-- NumericalMethods
 ---
 
 # Summer Van Cooling: The Multi-Physics of Thermal Resilience

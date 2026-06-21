@@ -1,26 +1,31 @@
 ---
-canonical_id: 01KQ0P44Y4A0DPESG2KMM32D5K
-title: TypesofInvestmentAccountsTutorialHub
-type: hub
-cluster: index-fund-investing
-status: active
 date: '2026-04-26'
-summary: Index of pages on US investment account types — the tax-advantaged accounts,
-  the order to fill them in, and the specialized accounts for high earners and self-employed
-  investors.
+status: active
+summary: Hub for US investment account types — 401(k), IRA, Roth, HSA — covering tax
+  treatment, contribution limits, funding order, and specialized strategies.
 tags:
 - investment-accounts
 - 401k
-- IRA
-- Roth
-- HSA
+- ira
+- roth
+- hsa
 - account-strategy
 - hub
+type: hub
+cluster: index-fund-investing
+canonical_id: 01KQ0P44Y4A0DPESG2KMM32D5K
 related:
 - AccountTypeStrategy
 - LowCostIndexFundInvesting
 - PersonalFinanceGuide
 - RetirementPlanningGuide
+- TaxPlanningForRetirementAccountWithdrawals
+- TypesofInvestmentAccountsTutorial
+- CompoundingIntuition
+- CompoundInterestAndTaxAdvantagedAccounts
+- MaximizingRetirementAccountContributions
+- TaxBenefitsOfRetirementAccounts
+title: 'Types of Investment Accounts: 401(k), IRA, Roth, and HSA'
 ---
 # TypesofInvestmentAccountsTutorial Hub
 

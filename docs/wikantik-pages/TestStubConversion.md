@@ -1,14 +1,20 @@
 ---
-status: official
-cluster: wikantik-development
+status: active
+verified_at: '2026-05-04T21:10:44.598011331Z'
 type: article
-title: Test Stub Conversion
 date: '2026-05-04'
+cluster: wikantik-development
+title: Test Stub Conversion
+tags:
+- testing
+- mcp
+- test-stubs
+- refactoring
+- wikantik-development
 summary: A technical retrospective on the March 2026 effort to decouple MCP tests
   using lightweight in-memory stubs.
-canonical_id: 01KQTD3JX009JJ9H5GWBV50BCW
-verified_at: '2026-05-04T21:10:44.598011331Z'
 verified_by: gemini-cli-mcp-client
+canonical_id: 01KQTD3JX009JJ9H5GWBV50BCW
 ---
 # Test Stub Conversion
 

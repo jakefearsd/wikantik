@@ -1,15 +1,16 @@
 ---
-cluster: software-engineering-practices
-canonical_id: 01KQ0P44NK9P7Y12JV0E18PWJB
-title: Code Review Practices
-type: article
 tags:
 - code-review
 - pull-requests
 - software-engineering
 - quality-assurance
 - engineering-culture
-summary: A rigorous exploration of expert-level code review practices, focusing on the pull request as a cultural artifact, the shift from correctness to resilience, and the integration of AI-assisted review for scaling expertise.
+type: article
+summary: Pull requests as cultural artifacts — resilience-focused review, expert security/performance
+  checklists, and tiered AI-assisted automation.
+title: Code Review Practices
+cluster: software-engineering-practices
+canonical_id: 01KQ0P44NK9P7Y12JV0E18PWJB
 ---
 
 # The Art and Science of Critique: Expert Code Review

@@ -1,27 +1,26 @@
 ---
-canonical_id: 01KQ0P44R608QCN8X6RJ7ZS264
-title: Insurance Types And Coverage
 type: article
-cluster: personal-finance
 status: active
+cluster: personal-finance
 date: '2026-04-26'
-summary: The full map of insurance types most households should consider — what they
-  cover, what they cost, and which ones are essential vs. optional vs. usually-skip.
-  The "buy what protects against ruin, skip the rest" framework.
+title: Insurance Types and Coverage
+hubs:
+- PersonalFinanceHub
 tags:
 - insurance
 - personal-finance
 - liability
 - coverage
 - risk-management
+summary: The full map of insurance most households need — what each covers, what it
+  costs, and which are essential vs. optional vs. skip. The buy-for-ruin framework.
 related:
 - PersonalFinanceGuide
 - LifeInsuranceTypes
 - LongTermCareInsurance
 - FinancialResilience
 - EmergencyFundStrategies
-hubs:
-- PersonalFinanceHub
+canonical_id: 01KQ0P44R608QCN8X6RJ7ZS264
 ---
 # Insurance Types and Coverage
 
@@ -53,8 +52,8 @@ Required in most states. Covers your liability if you cause an accident that inj
 
 **Recommended minimums**:
 
-- Bodily injury liability: at least 100/300 ($100K per person, $300K per accident); 250/500 is better
-- Property damage liability: at least $100K
+- Bodily injury liability: at least 100/300 (\$100K per person, $300K per accident); 250/500 is better
+- Property damage liability: at least \$100K
 - State minimums (often 25/50/25 or worse) are dangerously low; the cost of doubling them is small
 
 Add comprehensive and collision if the car has meaningful value; skip both on cars worth less than $5K (the deductibles often exceed the payout).
@@ -93,7 +92,7 @@ Coverage that depends on circumstances but should be evaluated explicitly.
 
 ### Umbrella liability policy
 
-A separate policy that adds $1M+ of liability coverage on top of your auto and home policies. Coverage costs roughly $200–$400/year per million.
+A separate policy that adds \$1M+ of liability coverage on top of your auto and home policies. Coverage costs roughly $200–\$400/year per million.
 
 **Buy it if**:
 
@@ -102,7 +101,7 @@ A separate policy that adds $1M+ of liability coverage on top of your auto and h
 - Pool, dog, or other heightened-risk feature on the property
 - Public-facing profession (doctor, lawyer, anyone who might be sued)
 
-The math is asymmetric: a single serious auto accident can produce a judgment that exceeds your auto liability limit. The umbrella covers the gap. At ~$300/year per $1M of additional coverage, it is one of the most cost-effective insurance products available.
+The math is asymmetric: a single serious auto accident can produce a judgment that exceeds your auto liability limit. The umbrella covers the gap. At ~\$300/year per \$1M of additional coverage, it is one of the most cost-effective insurance products available.
 
 ### Health savings account contributions (with HDHP)
 
@@ -174,7 +173,7 @@ Often duplicates services you already have via free credit monitoring or your cr
 
 ## How much liability coverage is enough?
 
-A common framework: total liability coverage (auto + home + umbrella) should at least equal your net worth, plus a buffer for future earnings. If you have $400K of net worth and $80K of annual income, target $500K–$1M of total liability coverage.
+A common framework: total liability coverage (auto + home + umbrella) should at least equal your net worth, plus a buffer for future earnings. If you have \$400K of net worth and \$80K of annual income, target $500K–$1M of total liability coverage.
 
 The reasoning: a serious lawsuit can take everything you have plus garnish future earnings. Insurance limits cap your exposure.
 
@@ -192,7 +191,7 @@ Once a year, walk through the full insurance stack:
 
 - **Insuring too low.** State-minimum auto liability is dangerous; underinsured homes, underinsured for life. Premium savings on inadequate coverage rarely justify the gap exposure.
 - **Insuring too much for minor risks.** Pet insurance, extended warranties, AD&D, identity theft. The premiums add up and expected value is poor.
-- **Not stress-testing the deductible.** A $5,000 deductible is fine if you have an emergency fund; a problem if you do not.
+- **Not stress-testing the deductible.** A \$5,000 deductible is fine if you have an emergency fund; a problem if you do not.
 - **Ignoring beneficiary designations on retirement accounts.** Beneficiary designations supersede wills. Outdated beneficiaries are one of the most common estate-planning failures.
 - **Letting coverage lapse during transitions.** Job change, move, new car — these are the moments coverage falls through. Specifically check.
 

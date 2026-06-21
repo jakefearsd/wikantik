@@ -1,4 +1,11 @@
 ---
+type: article
+status: active
+cluster: mathematics
+date: '2026-05-03'
+title: Differential Calculus
+hubs:
+- MathematicsHub
 tags:
 - calculus
 - mathematics
@@ -8,19 +15,13 @@ tags:
 - jacobian
 - hessian
 - manifolds
-summary: A graduate-level deep dive into Differential Calculus, bridging formal limit theory with multivariable analysis, manifold geometry, and quantitative optimization benchmarks.
+summary: Bridges formal limit theory with multivariable analysis, manifold geometry,
+  and optimization — covering derivatives, Jacobians, Hessians, and convergence rates.
 related:
 - NumericalMethods
 - LinearAlgebra
 - MathematicsHub
 canonical_id: 01KQ0P44MWAYKY5RFMQHXY6HZX
-type: article
-status: active
-cluster: mathematics
-date: '2026-05-03'
-title: Differential Calculus
-hubs:
-- MathematicsHub
 ---
 
 # Differential Calculus: Foundations and Manifolds

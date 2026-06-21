@@ -1,15 +1,16 @@
 ---
-cluster: immigration
-canonical_id: 01KQ0P44Q47V36XDZTK1NA67HE
-title: Employment Based Green Cards
-type: article
 tags:
 - eb1
 - eb2
 - eb3
 - niw
 - immigration
-summary: Detailed analysis of EB-1, EB-2 NIW, and EB-3 visa categories with 2024-2025 priority date trends and policy updates.
+title: Employment-Based Green Cards
+cluster: immigration
+type: article
+canonical_id: 01KQ0P44Q47V36XDZTK1NA67HE
+summary: Detailed analysis of EB-1, EB-2 NIW, and EB-3 visa categories with 2024-2025
+  priority date trends and policy updates.
 auto-generated: false
 ---
 

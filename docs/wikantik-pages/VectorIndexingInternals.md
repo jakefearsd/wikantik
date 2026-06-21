@@ -1,7 +1,8 @@
 ---
-canonical_id: 01KQQ6XV7FNPEXCT6CSMZA8CRN
 date: '2026-05-15'
-cluster: generative-ai
+status: active
+summary: Deep dive into the mathematical mechanics of vector indexing (HNSW, IVF-PQ)
+  and the trade-offs between memory efficiency and recall.
 tags:
 - vector-database
 - hnsw
@@ -10,10 +11,11 @@ tags:
 - ann
 - rag
 - mathematics
-title: Vector Indexing Internals
-summary: Deep dive into the mathematical mechanics of vector indexing (HNSW, IVF-PQ) and the trade-offs between memory efficiency and recall.
-status: active
 auto-generated: false
+type: article
+cluster: generative-ai
+canonical_id: 01KQQ6XV7FNPEXCT6CSMZA8CRN
+title: Vector Indexing Internals
 ---
 
 # Vector Indexing Internals: HNSW and IVF-PQ

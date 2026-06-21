@@ -1,16 +1,17 @@
 ---
-cluster: warehouse-automation
-canonical_id: 01KQ0P44P1WS7ZYP0CX83XE14M
-title: "Cost-Benefit Analysis: NPV and IRR Math"
-type: article
 tags:
 - finance
 - economics
 - analytics
 - decision-making
-summary: A mathematical guide to Cost-Benefit Analysis (CBA), specifically detailing Net Present Value (NPV) and Internal Rate of Return (IRR) calculations.
+cluster: warehouse-automation
+type: article
+date: 2025-01-24T00:00:00Z
 auto-generated: false
-date: 2025-01-24
+canonical_id: 01KQ0P44P1WS7ZYP0CX83XE14M
+summary: A mathematical guide to Cost-Benefit Analysis (CBA), specifically detailing
+  Net Present Value (NPV) and Internal Rate of Return (IRR) calculations.
+title: 'Cost-Benefit Analysis: NPV and IRR Math'
 ---
 
 # Cost-Benefit Analysis: The Math of Investment

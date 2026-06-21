@@ -1,15 +1,16 @@
 ---
-cluster: generative-ai
-canonical_id: 01KQ0P44K9JZ3J4WKPVBN9RXBC
-title: AI Function Calling and Tool Use
-type: article
 tags:
 - generative-ai
 - llm
 - tool-use
 - function-calling
 - structured-output
-summary: A rigorous exploration of AI function calling and tool use, focusing on the shift from probabilistic natural language to deterministic, schema-enforced agentic workflows.
+type: article
+summary: 'AI function calling and tool use: from probabilistic natural language to
+  deterministic, schema-enforced agentic workflows with structured output enforcement.'
+title: AI Function Calling and Tool Use
+cluster: generative-ai
+canonical_id: 01KQ0P44K9JZ3J4WKPVBN9RXBC
 ---
 
 # AI Function Calling: The Bridge to Deterministic Intelligence

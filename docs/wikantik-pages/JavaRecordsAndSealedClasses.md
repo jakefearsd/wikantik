@@ -1,23 +1,24 @@
 ---
-canonical_id: 01KQ0P44RBMJ37JR1J1PXPDC57
-title: "Java ADTs: Records and Sealed Classes"
+auto-generated: false
 type: article
-cluster: java
 status: active
+cluster: java
 date: '2026-05-22'
-summary: A practitioner's guide to Algebraic Data Types (ADTs) in Java using Records and Sealed Classes. Covers sum types, product types, and exhaustive pattern matching.
+title: 'Java ADTs: Records and Sealed Classes'
 tags:
 - java
 - records
 - sealed-classes
 - adt
 - functional-programming
+summary: Records and Sealed Classes as Algebraic Data Types in Java — product types,
+  sum types, exhaustive pattern matching, and compile-time invariant enforcement.
 related:
 - JavaTwentyOneFeatures
 - JavaCollectionsFramework
 - ImmutableDataPatterns
 - DesignPatternsHub
-auto-generated: false
+canonical_id: 01KQ0P44RBMJ37JR1J1PXPDC57
 ---
 
 # Java ADTs: Records and Sealed Classes

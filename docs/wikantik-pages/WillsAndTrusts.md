@@ -1,27 +1,26 @@
 ---
-status: active
-type: article
-canonical_id: 01KQ0P44Z6M6T85S1EQZA3JE3E
+cluster: personal-finance
+title: Wills and Trusts
 related:
 - PersonalFinanceGuide
 - LifeInsuranceTypes
 - EstatePlanningForRetirees
 - CharitableGivingInRetirement
 - FinancialResilience
-summary: The four documents every adult needs, the cases where a trust adds value
-  vs. the cases where it is just an upsell, and the practical workflow for keeping
-  estate plans current as life changes.
+type: article
+summary: The four documents every adult needs, when a trust adds real value vs. when
+  it is an upsell, and the workflow for keeping estate plans current.
+status: active
+date: '2026-04-26'
+canonical_id: 01KQ0P44Z6M6T85S1EQZA3JE3E
+hubs:
+- PersonalFinanceHub
 tags:
 - estate-planning
 - wills
 - trusts
 - personal-finance
 - beneficiaries
-hubs:
-- PersonalFinanceHub
-title: Wills And Trusts
-date: '2026-04-26'
-cluster: personal-finance
 operates_differently_than:
 - Will
 ---
@@ -105,7 +104,7 @@ A trust you create during your life, fund with your assets, and retain the right
 - High-probate states (CA, FL especially)
 - Real estate in multiple states
 - Privacy concerns (probate records are public)
-- High net worth (>$1M+) where probate fees scale with estate size
+- High net worth (>\$1M+) where probate fees scale with estate size
 - Specific desire for asset distribution control beyond death
 
 **When it is overkill**:
@@ -127,7 +126,7 @@ This is one area where attorney involvement is essential — the rules are compl
 
 ### Irrevocable life insurance trust (ILIT)
 
-A trust that owns a life insurance policy outside your taxable estate. Useful for households with estate-tax exposure (currently the federal exemption is ~$13M per person, so this affects very few households at the federal level).
+A trust that owns a life insurance policy outside your taxable estate. Useful for households with estate-tax exposure (currently the federal exemption is ~\$13M per person, so this affects very few households at the federal level).
 
 State-level estate taxes have lower exemptions in some states (NY, OR, MA, others) and can make ILITs relevant at lower wealth levels for state-resident households.
 
@@ -145,14 +144,14 @@ The honest filter:
 |-----------|--------------------|
 | <$500K estate, all in joint accounts and beneficiary-designated retirement | **No** |
 | $500K–$1.5M, primary residence + retirement + insurance | **Probably no** for federal, possibly yes for state |
-| $1.5M+ in a high-probate state (CA/FL/NY) | **Probably yes** |
+| \$1.5M+ in a high-probate state (CA/FL/NY) | **Probably yes** |
 | Real estate in multiple states | **Yes** (avoids ancillary probate) |
 | Disabled beneficiary | **Yes** (special needs trust) |
 | Significant non-retirement, non-jointly-titled assets | **Probably yes** |
 | Privacy is a high priority | **Yes** |
 | Estate near or above estate-tax exemption | **Yes** (more complex structures involved) |
 
-For households where a trust is genuinely needed, the cost (~$2,000–$5,000 for a well-drafted trust) is well worth it. For households where it is not needed, that money is a tax on procrastination — paid for paperwork that does not change outcomes.
+For households where a trust is genuinely needed, the cost (~$2,000–\$5,000 for a well-drafted trust) is well worth it. For households where it is not needed, that money is a tax on procrastination — paid for paperwork that does not change outcomes.
 
 ## The funding problem
 

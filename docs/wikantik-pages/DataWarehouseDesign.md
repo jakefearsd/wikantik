@@ -1,11 +1,20 @@
 ---
-title: Data Warehouse Design
-type: article
-cluster: data-engineering
-status: active
-date: 2026-05-20
-summary: Level 2 of the Data Maturity Lifecycle. Detailed analysis of Star Schema rigidity and the transition from manual silos to centralized analytical engines.
 auto-generated: false
+status: active
+type: article
+hubs:
+- DimensionalModelingHub
+date: 2026-05-20T00:00:00Z
+cluster: data-engineering
+title: Data Warehouse Design
+tags:
+- data-warehouse
+- star-schema
+- dimensional-modeling
+- data-engineering
+summary: Level 2 of the Data Maturity Lifecycle. Detailed analysis of Star Schema
+  rigidity and the transition from manual silos to centralized analytical engines.
+canonical_id: 01KVJMS10CXAQ9CASZNKR7M010
 ---
 
 # Data Warehouse Design: Level 2 Maturity

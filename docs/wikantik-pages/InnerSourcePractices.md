@@ -1,8 +1,16 @@
 ---
-cluster: software-engineering-practices
-canonical_id: 01KQ0P44R52JTTBPTP20B15TN3
 title: Inner Source Practices
+related:
+- SoftwareEngineeringPracticesHub
+- CodeReviewPractices
+- ChangeManagementFrameworks
+- AgileMethodologyDeepDive
+- MicroservicesArchitecture
+cluster: software-engineering-practices
 type: article
+canonical_id: 01KQ0P44R52JTTBPTP20B15TN3
+summary: Applying open-source principles inside an enterprise — cross-team review
+  gates, multi-tiered contribution models, and strangler-fig legacy migration.
 tags:
 - software-engineering
 - inner-source
@@ -10,13 +18,6 @@ tags:
 - engineering-culture
 - pull-requests
 - architectural-governance
-summary: A rigorous exploration of Inner Source (IS) as a cultural and process precursor to enterprise open source, focusing on the deconstruction of knowledge silos, the institutionalization of cross-team review, and the implementation of multi-tiered contribution models.
-related:
-- SoftwareEngineeringPracticesHub
-- CodeReviewPractices
-- ChangeManagementFrameworks
-- AgileMethodologyDeepDive
-- MicroservicesArchitecture
 ---
 
 # Inner Source: The Symbiotic Nexus of Open and Proprietary Development

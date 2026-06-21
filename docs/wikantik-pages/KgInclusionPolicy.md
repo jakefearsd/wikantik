@@ -1,47 +1,49 @@
 ---
-canonical_id: 01KQEDYJR57WYQCV645PKSDBMQ
-cluster: wikantik-development
-title: KG Inclusion Policy
-type: runbook
-status: active
 date: '2026-04-27'
-audience: humans
-summary: How to control which pages contribute to the knowledge graph — the
-  cluster-primary policy model, the admin dashboard, the CLI, and the day-to-day
-  operator workflows.
+related:
+- WikantikKnowledgeGraphAdmin
+- StructuralSpineDesign
+runbook:
+  when_to_use:
+  - When deciding whether a cluster of pages should contribute to the knowledge graph
+  - when triaging "this content showed up in retrieval and shouldn't have"
+  - when bootstrapping the policy on a fresh deployment
+  inputs:
+  - admin role on the wiki
+  - access to bin/kg-policy.sh OR the /admin/kg-policy dashboard
+  steps:
+  - 'Check current state: open /admin/kg-policy or run bin/kg-policy.sh list'
+  - Set a cluster policy via the dashboard or CLI
+  - Wait for eager reconciliation to complete (status visible in dashboard)
+  - Verify with bin/kg-policy.sh explain <page-id>
+  pitfalls:
+  - Default-exclude means new clusters are silently kept out of the KG until you act
+    on them — check the pending-review queue weekly
+  - Hard purges via 'kg-policy purge --confirm' delete kg_nodes/kg_edges rows; recovery
+    requires re-extraction
+  - 'Frontmatter kg_include: false beats cluster: include — useful for WIP, but easy
+    to forget'
+  related_tools:
+  - kg-policy
+  - kg-extract
+  references:
+  - WikantikKnowledgeGraphAdmin
+  - StructuralSpineDesign
+canonical_id: 01KQEDYJR57WYQCV645PKSDBMQ
+hubs:
+- WikantikDevelopmentHub
 tags:
 - kg-policy
 - knowledge-graph
 - administration
 - runbook
-related:
-- WikantikKnowledgeGraphAdmin
-- StructuralSpineDesign
-hubs:
-- WikantikDevelopmentHub
-runbook:
-  when_to_use:
-    - When deciding whether a cluster of pages should contribute to the knowledge graph
-    - When triaging "this content showed up in retrieval and shouldn't have"
-    - When bootstrapping the policy on a fresh deployment
-  inputs:
-    - admin role on the wiki
-    - access to bin/kg-policy.sh OR the /admin/kg-policy dashboard
-  steps:
-    - "Check current state: open /admin/kg-policy or run bin/kg-policy.sh list"
-    - "Set a cluster policy via the dashboard or CLI"
-    - "Wait for eager reconciliation to complete (status visible in dashboard)"
-    - "Verify with bin/kg-policy.sh explain <page-id>"
-  pitfalls:
-    - "Default-exclude means new clusters are silently kept out of the KG until you act on them — check the pending-review queue weekly"
-    - "Hard purges via 'kg-policy purge --confirm' delete kg_nodes/kg_edges rows; recovery requires re-extraction"
-    - "Frontmatter kg_include: false beats cluster: include — useful for WIP, but easy to forget"
-  related_tools:
-    - kg-policy
-    - kg-extract
-  references:
-    - WikantikKnowledgeGraphAdmin
-    - StructuralSpineDesign
+type: runbook
+status: active
+summary: How to control which pages contribute to the knowledge graph — the cluster-primary
+  policy model, the admin dashboard, the CLI, and the day-to-day operator workflows.
+title: KG Inclusion Policy
+cluster: wikantik-development
+audience: humans
 ---
 
 # KG Inclusion Policy

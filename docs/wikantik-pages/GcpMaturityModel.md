@@ -1,8 +1,11 @@
 ---
+type: article
+status: active
 date: '2026-05-10'
-summary: An exhaustive engineering guide to GCP adoption — covering the resource hierarchy
-  bootstrap (Day 0), BigQuery quota shifts (Sept 2025), and autonomous, predictive
-  cloud operations.
+cluster: cloud-platforms
+title: 'GCP Maturity Model: Resource Hierarchy to AI-Native Operations'
+requires:
+- Project Factory
 tags:
 - gcp
 - google-cloud
@@ -10,19 +13,15 @@ tags:
 - gke
 - bigquery
 - shared-vpc
-type: article
-canonical_id: 01KR79P89TQM4XWVKQHC1X5RWQ
-cluster: cloud-platforms
+summary: 'GCP adoption: Project Factory + Org Policy guardrails (Day 0), Shared VPC
+  and BigQuery Edition break-even math (Day 1–2), and autonomous FinOps.'
 related:
 - GcpFundamentals
 - CloudCostOptimization
 - CloudRoiFramework
 - MultiCloudStrategies
 - InfrastructureAsCode
-title: 'GCP Maturity Model: Resource Hierarchy to AI-Native Operations'
-status: active
-requires:
-- Project Factory
+canonical_id: 01KR79P89TQM4XWVKQHC1X5RWQ
 ---
 # GCP Maturity Model: Resource Hierarchy to AI-Native Operations
 

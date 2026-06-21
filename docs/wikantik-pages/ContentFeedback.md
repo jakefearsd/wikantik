@@ -1,10 +1,11 @@
 ---
-cluster: wikantik-development
-canonical_id: 01KQ0P44NYTXFV19BP7S8WD9QT
-summary: AI Publisher Content Quality Feedback
 tags:
 - uncategorized
 type: article
+summary: How publishers receive AI-generated content-quality feedback in Wikantik.
+title: Content Feedback
+canonical_id: 01KQ0P44NYTXFV19BP7S8WD9QT
+cluster: wikantik-development
 ---
 # AI Publisher Content Quality Feedback
 

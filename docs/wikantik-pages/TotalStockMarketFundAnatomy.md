@@ -1,27 +1,27 @@
 ---
-canonical_id: 01KQ0P44XV3GA037AWMSDPG257
-title: Total Stock Market Fund Anatomy
 type: article
-cluster: index-fund-investing
 status: active
+cluster: index-fund-investing
 date: '2026-04-26'
-summary: What is actually inside a total-stock-market fund — the holdings, the weights,
-  the sector breakdown, and how broad-market funds compare to S&P 500 funds in practical
-  portfolio construction.
+title: Total Stock Market Fund Anatomy
+hubs:
+- LowCostIndexFundInvestingHub
 tags:
 - total-stock-market
 - index-funds
 - broad-market
-- VTI
-- ITOT
+- vti
+- itot
+summary: What is actually inside a total-stock-market fund — the holdings, the weights,
+  the sector breakdown, and how broad-market funds compare to S&P 500 funds in practical
+  portfolio construction.
 related:
 - LowCostIndexFundInvesting
 - IntroductionToIndexFundsAndETFs
 - MutualFundVsEtfComparison
 - IndexFundPortfolioConstruction
 - AssetAllocationGuide
-hubs:
-- LowCostIndexFundInvestingHub
+canonical_id: 01KQ0P44XV3GA037AWMSDPG257
 ---
 # Total Stock Market Fund Anatomy
 

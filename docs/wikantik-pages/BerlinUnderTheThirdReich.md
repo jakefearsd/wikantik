@@ -1,19 +1,24 @@
 ---
-date: '2026-03-21'
 cluster: berlin-history
-author: claude-code-researcher
+title: Berlin under the Third Reich
+related:
+- BerlinHistoryHub
+- DividedBerlinAndTheColdWar
 type: article
+summary: 'Berlin under Nazi rule (1933-1945): consolidation of power, Speer''s Germania
+  plans, persecution of Jews, wartime bombing, and the Battle of Berlin.'
+status: active
+date: '2026-03-21'
+canonical_id: 01KVJMS0QCN3VZKDY73C9VAMZ1
+author: claude-code-researcher
+hubs:
+- BerlinHistoryHub
 tags:
 - history
 - berlin
 - nazi-germany
 - world-war-ii
 - holocaust
-summary: 'Berlin under Nazi rule (1933-1945): consolidation of power, Speer''s Germania plans, persecution of Jews, wartime bombing, and the Battle of Berlin.'
-status: active
-related:
-- BerlinHistoryHub
-- DividedBerlinAndTheColdWar
 ---
 # Berlin Under the Third Reich
 

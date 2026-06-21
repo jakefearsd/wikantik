@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS0XQ1EA255JBAHPQY1F6
 title: C++ Language
+tags:
+- programming-languages
+- c-plus-plus
+- oop
+- generic-programming
+- raii
+- systems-programming
+- 2026-benchmarks
 cluster: computer-science
-tags: [programming-languages, c-plus-plus, oop, generic-programming, raii, systems-programming, 2026-benchmarks]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The powerhouse of systems and AI infrastructure (1983). Created by Bjarne Stroustrup to add classes to C, it has evolved into a multi-paradigm language that remains the 2026 benchmark for performance.
+summary: Powerhouse of systems and AI infrastructure (1983). Multi-paradigm successor
+  to C; the 2026 benchmark for performance in AI engines, HPC, and AAA gaming.
 ---
 
 # The C++ Language: Multi-Paradigm Mastery

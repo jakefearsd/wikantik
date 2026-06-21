@@ -1,26 +1,25 @@
 ---
-canonical_id: 01KQEKGD73P2BSYVDFKM3TBEC6
-title: Ai Memory And Persistence
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-25'
+title: AI Memory and Persistence
+hubs:
+- AgenticAiHub
 tags:
 - ai-memory
 - persistence
 - vector-memory
 - session-memory
 - llm
-summary: How AI assistants and agents persist state across sessions —
-  architecture patterns, storage substrates, and the trade-offs between
-  semantic recall and structured memory.
+summary: 'How AI assistants persist state across sessions: conversation history, extracted
+  facts, vector episodic recall, and storage substrate trade-offs.'
 related:
 - AgentMemory
 - ContextWindowManagement
 - VectorDatabases
 - RagImplementationPatterns
-hubs:
-- AgenticAiHub
+canonical_id: 01KQEKGD73P2BSYVDFKM3TBEC6
 ---
 # AI Memory and Persistence
 

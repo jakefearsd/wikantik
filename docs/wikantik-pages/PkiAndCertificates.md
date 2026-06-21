@@ -1,8 +1,16 @@
 ---
-cluster: security
-canonical_id: 01KQ0P44TK0X1J24ZP9ETMJ7ZG
 title: PKI and the Certificate Chain of Trust
+related:
+- CryptographyFundamentals
+- AuthenticationAndAuthorizationHub
+- ApplicationSecurityFundamentals
+- ZeroTrustArchitecture
+- DistributedSystemsHub
+cluster: security
 type: article
+canonical_id: 01KQ0P44TK0X1J24ZP9ETMJ7ZG
+summary: X.509 certificate chain validation, OCSP stapling, Certificate Transparency
+  (CT) logs, and mTLS — how PKI actually enforces identity in modern systems.
 tags:
 - security
 - pki
@@ -13,13 +21,6 @@ tags:
 - trust-anchors
 - certificate-transparency
 - ocsp-stapling
-summary: A rigorous exploration of the Public Key Infrastructure (PKI) and X.509 certificate chains, focusing on path validation mechanics, revocation checking (OCSP Stapling), Certificate Transparency (CT) logs, and the implementation of Mutual TLS (mTLS) for Zero Trust.
-related:
-- CryptographyFundamentals
-- AuthenticationAndAuthorizationHub
-- ApplicationSecurityFundamentals
-- ZeroTrustArchitecture
-- DistributedSystemsHub
 ---
 
 # The Architecture of Trust: PKI and Certificate Validation

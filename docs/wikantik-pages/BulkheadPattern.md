@@ -1,21 +1,26 @@
 ---
-title: Bulkhead Pattern
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A resilience pattern that prevents cascading failures by partitioning system resources into isolated pools, ensuring that a failure in one component does not exhaust the resources of the entire system.
+summary: A resilience pattern that prevents cascading failures by partitioning system
+  resources into isolated pools, ensuring that a failure in one component does not
+  exhaust the resources of the entire system.
 tags:
 - distributed-systems
 - resilience
 - fault-tolerance
 - thread-pools
 - isolation
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: related_to, target_id: "Circuit Breaker Pattern"}
-- {type: related_to, target_id: 01KS7S9Y9QYAS6P09AM61S5E2X} # Heartbeat/Lease
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: related_to
+  target_id: Circuit Breaker Pattern
+- type: related_to
+  target_id: 01KS7S9Y9QYAS6P09AM61S5E2X
+cluster: distributed-systems
 canonical_id: 01KS8E8R8W938D4EYVWFA9F36I
+title: Bulkhead Pattern
 ---
 
 # Bulkhead Pattern: Containing the Blast Radius

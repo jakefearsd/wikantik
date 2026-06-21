@@ -1,7 +1,17 @@
 ---
-canonical_id: 01KQ0P44NWKXBXJ0KB3SMAE0QY
-date: '2026-03-14'
+type: reference
 status: active
+date: '2026-03-14'
+cluster: geopolitics-and-finance
+title: Conflicts and Equity Markets
+hubs:
+- RussiaUkraineWarOverview
+tags:
+- finance
+- geopolitics
+- equity-markets
+- conflict
+- history
 summary: Hub page for research on how large-scale international conflicts have impacted
   global equity markets
 related:
@@ -13,14 +23,7 @@ related:
 - RussiaUkraineWarMarkets
 - ConflictMarketPatterns
 - RussiaUkraineWarOverview
-tags:
-- finance
-- geopolitics
-- equity-markets
-- conflict
-- history
-type: reference
-cluster: geopolitics-and-finance
+canonical_id: 01KQ0P44NWKXBXJ0KB3SMAE0QY
 ---
 # International Conflicts and Global Equity Markets
 

@@ -1,18 +1,19 @@
 ---
-canonical_id: 01KQ0P44Q8EETGG6ZT7S0BBB1G
-title: Event Sourcing
-type: article
-cluster: distributed-systems
 status: active
 date: '2026-05-15'
+summary: Detailed implementation guide for Event Sourcing, covering aggregate snapshotting,
+  idempotent projection management, and deterministic state reconstruction.
 tags:
 - event-sourcing
 - distributed-systems
 - cqrs
 - persistence-patterns
 - technical-design
-summary: Detailed implementation guide for Event Sourcing, covering aggregate snapshotting, idempotent projection management, and deterministic state reconstruction.
+type: article
 auto-generated: false
+canonical_id: 01KQ0P44Q8EETGG6ZT7S0BBB1G
+cluster: distributed-systems
+title: Event Sourcing
 ---
 
 # Event Sourcing

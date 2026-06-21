@@ -1,16 +1,5 @@
 ---
-cluster: distributed-systems
-canonical_id: 01KQ0P44MXABK0GYBHM7CD57Q6
 title: CAP Theorem
-type: article
-tags:
-- distributed-systems
-- cap-theorem
-- consistency-models
-- availability
-- partition-tolerance
-- pacelc
-summary: A rigorous exploration of the CAP Theorem, focusing on formal definitions of linearizability, the PACELC extension for normal operations, and advanced conflict resolution via CRDTs and consensus protocols.
 related:
 - DistributedSystemsHub
 - PaxosAndRaft
@@ -18,6 +7,18 @@ related:
 - CrdtDataStructures
 - ConsistentHashing
 - MathematicsHub
+cluster: distributed-systems
+type: article
+canonical_id: 01KQ0P44MXABK0GYBHM7CD57Q6
+summary: 'The CAP theorem: linearizability, the PACELC extension for normal operation,
+  and conflict resolution via CRDTs and consensus protocols.'
+tags:
+- distributed-systems
+- cap-theorem
+- consistency-models
+- availability
+- partition-tolerance
+- pacelc
 ---
 
 # The CAP Theorem: Navigating Impossibility in Distributed Systems

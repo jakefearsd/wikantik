@@ -1,17 +1,18 @@
 ---
-cluster: geopolitics-and-finance
 canonical_id: 01KQ0P44P6RX4PF1947XYVN5D8
 title: Cyber Warfare and Markets
-type: article
 tags:
 - cybersecurity
 - insurance
 - geopolitics
 - stuxnet
 - notpetya
-summary: An analysis of state-sponsored cyber warfare through the lens of Stuxnet and NotPetya, and its impact on the cyber insurance market and global risk assessment.
+cluster: geopolitics-and-finance
+type: article
+date: 2025-01-24T00:00:00Z
 auto-generated: false
-date: 2025-01-24
+summary: 'Stuxnet and NotPetya as state-sponsored cyber warfare case studies: precision
+  sabotage, systemic contagion, and the act-of-war exclusion in cyber insurance.'
 ---
 
 # Cyber Warfare: Sabotage, Contagion, and Market Risk
@@ -40,9 +41,9 @@ In 2017, the NotPetya malware demonstrated how a targeted attack could rapidly e
 *   **The Intent:** While disguised as ransomware, NotPetya was actually a "wiper" designed to permanently destroy the Master Boot Record (MBR) of infected machines.
 
 ### Market Consequences
-The attack caused over **$10 billion** in total global damage.
+The attack caused over **\$10 billion** in total global damage.
 *   **Maersk (Shipping):** Suffered a $300M loss after its global booking system was paralyzed.
-*   **Merck (Pharma):** Lost $870M due to disrupted production.
+*   **Merck (Pharma):** Lost \$870M due to disrupted production.
 
 ## 3. The Cyber Insurance Market
 

@@ -7,13 +7,13 @@ tags:
 - llama.cpp
 - avx-512
 - performance-optimization
+cluster: agentic-ai
+type: article
 date: '2026-05-15'
+status: active
 summary: An analysis of running LLM inference on CPUs, covering SIMD vectorization
   (AVX-512, AMX), memory bandwidth bottlenecks, and frameworks like llama.cpp and
   OpenVINO.
-status: published
-cluster: agentic-ai
-type: article
 ---
 
 # CPU Inference for Large Language Models

@@ -1,17 +1,18 @@
 ---
-cluster: remote-host-management
-canonical_id: 01KQ0P44YG5Z9VM10Z4MYSE27T
-title: Vetting Guests Remotely
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: Remote guest vetting via third-party IDV, biometric matching, behavioral
+  red-flag analysis, and signed rental agreements for short-term rental security.
 tags:
 - security
 - idv
 - airbnb
 - risk-management
-status: active
-date: 2025-05-15
-summary: A technical overview of remote guest vetting using third-party Identity Verification (IDV) workflows and risk scoring.
+type: article
 auto-generated: false
+cluster: remote-host-management
+canonical_id: 01KQ0P44YG5Z9VM10Z4MYSE27T
+title: Vetting Guests Remotely
 ---
 
 # Vetting Guests Remotely: IDV Workflows and Risk Analysis

@@ -1,21 +1,26 @@
 ---
-title: Kent Beck's Distributed Systems Patterns and Principles
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: An exploration of Kent Beck's core design principles—Fractal Design, the 3X Framework, and the Economics of Software—as they apply to the architecture of distributed systems.
+summary: An exploration of Kent Beck's core design principles—Fractal Design, the
+  3X Framework, and the Economics of Software—as they apply to the architecture of
+  distributed systems.
 tags:
 - kent-beck
 - distributed-systems
 - software-economics
 - evolutionary-architecture
 - 3x-framework
+type: article
 relations:
-- {type: extension_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: alternative_to, target_id: GangOfFourPatternsUtility}
-- {type: component_of, target_id: 01KQEKGD8QYAS6P09AM61S5E2W} # CS Foundations Hub
+- type: extension_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: alternative_to
+  target_id: GangOfFourPatternsUtility
+- type: component_of
+  target_id: 01KQEKGD8QYAS6P09AM61S5E2W
+cluster: distributed-systems
 canonical_id: 01KS6S8Z8QYAS6P09AM61S5E2O
+title: Kent Beck's Distributed Systems Patterns and Principles
 ---
 
 # Kent Beck's Distributed Systems Patterns and Principles

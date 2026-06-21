@@ -1,16 +1,17 @@
 ---
-cluster: philosophy
 canonical_id: 01KQ0P44TJB012VW6WR30AYM90
 title: Phenomenology
-type: article
 tags:
 - embodiment
 - sensorimotor
-- AI
+- ai
 - phenomenology
-date: 2025-05-15
-summary: An exploration of the Embodied AI hypothesis, the sensorimotor gap, and the phenomenological foundations of agency.
+cluster: philosophy
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+summary: Embodied AI hypothesis, the sensorimotor gap, and phenomenological foundations
+  of agency — Merleau-Ponty, predictive coding, and intentionality in LLM-era AI.
 ---
 
 # Phenomenology: Embodied AI and the Sensorimotor Gap

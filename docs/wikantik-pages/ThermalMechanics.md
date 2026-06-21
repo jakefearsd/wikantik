@@ -1,17 +1,18 @@
 ---
-cluster: mechanical-engineering
-canonical_id: 01KQ0P44XNR832JQ53AH2KVQX7
-title: Thermal Mechanics
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: Laws of thermodynamics, vapor compression cycle mechanics, and COP/SCOP efficiency
+  metrics for heat pump engineering.
 tags:
 - thermodynamics
 - heat-transfer
 - heat-pumps
 - efficiency
-status: active
-date: 2025-05-15
-summary: A technical analysis of the laws of thermodynamics and the engineering mechanics of high-efficiency heat pumps.
+type: article
 auto-generated: false
+cluster: mechanical-engineering
+canonical_id: 01KQ0P44XNR832JQ53AH2KVQX7
+title: Thermal Mechanics
 ---
 
 # Thermal Mechanics: Laws and Heat Pump Efficiency

@@ -1,23 +1,24 @@
 ---
-canonical_id: 01KQ0P44SEC29SY26WNQKAG9HM
-title: Message Queue Patterns
 type: article
 cluster: distributed-systems
-status: active
 date: '2026-04-26'
-summary: Architectural analysis of asynchronous messaging patterns, delivery guarantees (at-least-once), and poison pill handling.
-auto-generated: false
+title: Message Queue Patterns
 tags:
 - message-queue
 - rabbitmq
 - kafka
 - sqs
 - distributed-systems
+summary: Architectural analysis of asynchronous messaging patterns, delivery guarantees
+  (at-least-once), and poison pill handling.
 related:
 - BackgroundJobProcessing
 - DeadLetterQueuePatterns
 - IdempotencyPatterns
 - WebhookPatterns
+canonical_id: 01KQ0P44SEC29SY26WNQKAG9HM
+auto-generated: false
+status: active
 ---
 
 Message queues decouple service execution by introducing an asynchronous buffer between producers and consumers.

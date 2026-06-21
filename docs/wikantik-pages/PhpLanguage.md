@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS1RT51T5KZ1BC7GSD610
 title: PHP Language
+tags:
+- programming-languages
+- php
+- web-development
+- wordpress
+- laravel
+- frankenphp
+- 2026-benchmarks
 cluster: computer-science
-tags: [programming-languages, php, web-development, wordpress, laravel, frankenphp, 2026-benchmarks]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The 'Democratizer of the Web' (1994). Created by Rasmus Lerdorf, it powers ~77% of all websites in 2026. Traces the shift from simple scripting to high-performance architectures via FrankenPHP and Laravel.
+summary: Democratizer of the web (1994). Powers ~77% of all websites in 2026; shifted
+  from simple scripting to high-performance architectures via FrankenPHP and Laravel.
 ---
 
 # The PHP Language: The Engine of the Open Web

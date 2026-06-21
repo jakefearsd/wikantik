@@ -1,21 +1,21 @@
 ---
-related:
-- AmericanCoinageInThe1900s
-- EarlyAmericanCoins
-- CoinCollectingHub
-cluster: History
-canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD2
-type: hub
+status: active
+date: 2026-05-15T00:00:00Z
+summary: Central index for American numismatics, from colonial coinage to modern precision
+  scales.
 tags:
 - history
 - coins
 - numismatics
 - american-history
 - hub
-summary: Central index for American numismatics, from colonial coinage to modern precision
-  scales.
-status: active
-date: 2026-05-15T00:00:00Z
+type: hub
+cluster: numismatics
+canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD2
+related:
+- AmericanCoinageInThe1900s
+- EarlyAmericanCoins
+- CoinCollectingHub
 title: American Coinage Hub
 ---
 

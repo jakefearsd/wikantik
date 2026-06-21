@@ -1,19 +1,19 @@
 ---
-canonical_id: 01KQ12YDWB16GH9VTKNN1WKAB1
-title: Rag Implementation Patterns
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-24'
+title: RAG Implementation Patterns
+hubs:
+- AgenticAiHub
 tags:
 - rag
 - retrieval-augmented-generation
 - hybrid-retrieval
 - chunking
 - rerank
-summary: Production RAG beyond "embed, retrieve, prompt" — chunking strategies,
-  hybrid retrieval, reranking, and the moves that turn an 80% RAG demo into a
-  95% production system.
+summary: 'Production RAG beyond "embed, retrieve, prompt": chunking strategies, hybrid
+  retrieval, reranking, and the moves from 80% demo to 95% production system.'
 related:
 - HybridRetrieval
 - VectorDatabases
@@ -22,8 +22,7 @@ related:
 - LLMFineTuning
 - AgenticWorkflowDesign
 - KnowledgeGraphCompletion
-hubs:
-- AgenticAiHub
+canonical_id: 01KQ12YDWB16GH9VTKNN1WKAB1
 ---
 # RAG Implementation Patterns
 

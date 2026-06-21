@@ -1,10 +1,19 @@
 ---
+canonical_id: 01KVJMS1KMY1A7GPVWME7B5VV4
 title: Metallurgy
+tags:
+- metallurgy
+- silver
+- coinage
+- photography
+- industrial-benchmarks
+- chemistry
 cluster: materials-science
-tags: [metallurgy, silver, coinage, photography, industrial-benchmarks, chemistry]
+type: reference
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The study of metallic elements and their alloys. Bridges historical coinage debasement, silver halide photography chemistry, and 2026 industrial silver benchmarks for AI and Solar PV.
+summary: 'Metallic elements and alloys: historical coinage debasement, silver halide
+  photography chemistry, and 2026 industrial silver demand for AI and solar PV.'
 ---
 
 # Metallurgy: The Material Foundation of Value

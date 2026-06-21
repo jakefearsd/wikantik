@@ -1,4 +1,8 @@
 ---
+status: active
+date: '2026-05-10'
+summary: 'Berlin''s rail boom and factory expansion (1840–1871): Borsig''s locomotive
+  dominance, the pauperism crisis, and the 1848 revolution''s social roots.'
 tags:
 - history
 - berlin
@@ -16,10 +20,6 @@ related:
 - BerlinTechScene
 - OperationsResearchHub
 title: 'The Prussian Locomotive: Berlin''s Industrial Revolution (1840–1871)'
-status: active
-date: '2026-05-10'
-summary: A data-heavy analysis of Berlin's transformation into a 'Machine City,' detailing
-  the rail boom, factory expansion, and the social question leading to the 1848 revolution.
 ---
 # The Prussian Locomotive: Berlin's Industrial Revolution (1840–1871)
 

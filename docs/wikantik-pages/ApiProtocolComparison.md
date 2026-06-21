@@ -1,12 +1,20 @@
 ---
-canonical_id: 01KQ0P44KXCAPX3R4NJDFCQVMP
-title: API Protocol Comparison
-type: article
-cluster: web-services-and-apis
-status: active
-date: 2025-05-15
-summary: Technical deep dive into REST, GraphQL, and gRPC, featuring latency/payload benchmarks and proto3 schema definitions for high-performance service design.
 auto-generated: false
+cluster: web-services-and-apis
+title: API Protocol Comparison
+related:
+- GraphQlFundamentals
+- HateoasAndHypermediaApis
+- IdempotencyPatterns
+- PaginationStrategies
+type: article
+summary: REST, GraphQL, and gRPC compared — latency and payload benchmarks, proto3
+  schema definitions, and guidance on choosing the right protocol per use case.
+status: active
+date: 2025-05-15T00:00:00Z
+canonical_id: 01KQ0P44KXCAPX3R4NJDFCQVMP
+hubs:
+- WebServicesAndApisHub
 tags:
 - api
 - protocols
@@ -15,13 +23,6 @@ tags:
 - grpc
 - protobuf
 - performance
-related:
-- GraphQlFundamentals
-- HateoasAndHypermediaApis
-- IdempotencyPatterns
-- PaginationStrategies
-hubs:
-- WebServicesAndApisHub
 ---
 # API Protocol Comparison: Architecting for Performance
 

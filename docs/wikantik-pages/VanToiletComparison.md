@@ -1,18 +1,19 @@
 ---
-cluster: van-life
-canonical_id: 01KQ0P44YC8K9P6SRRQS5MWWS0
-title: "Van Toilet Comparison: Waste Management Systems"
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: Technical comparison of van sanitation options. Evaluates Composting, Cassette,
+  Dry Flush, and Blackwater systems for off-grid durability.
 tags:
 - van-life
 - sanitation
 - waste-management
 - off-grid
 - plumbing
-status: active
-date: 2025-05-15
-summary: Technical comparison of van sanitation options. Evaluates Composting, Cassette, Dry Flush, and Blackwater systems for off-grid durability.
+type: article
 auto-generated: false
+cluster: van-life
+canonical_id: 01KQ0P44YC8K9P6SRRQS5MWWS0
+title: 'Van Toilet Comparison: Waste Management Systems'
 ---
 
 # Van Toilet Comparison: Waste Management Systems
@@ -38,7 +39,7 @@ Standard in European vans and many RVs.
 
 *   **Mechanism:** Uses a continuous Mylar bag system that "twists" and seals waste in an airtight pod, similar to a Diaper Genie.
 *   **Use Case:** Ideal for weekenders or those who refuse to handle waste.
-*   **Technical Constraint:** Cartridges cost approx. $50 for 15-17 flushes ($3.00/flush), making this the most expensive long-term option.
+*   **Technical Constraint:** Cartridges cost approx. \$50 for 15-17 flushes ($3.00/flush), making this the most expensive long-term option.
 
 ## 4. Comparison Matrix
 

@@ -1,88 +1,70 @@
 ---
-date: '2026-05-24'
+canonical_id: 01KQ12YDRGCZBA685NG52C8AZ0
 summary: Methods for deterministic and stochastic testing of agentic loops, including
   trajectory-based evaluation, shadow production, and LLM-as-judge calibration.
-cluster: agentic-ai
-auto-generated: false
-canonical_id: 01KQ12YDRGCZBA685NG52C8AZ0
-type: article
-title: Agent Testing
 tags:
 - agent
 - testing
 - evaluation
 - llm-as-judge
-status: active
 hubs:
 - AgentLoops Hub
+title: Agent Testing
+cluster: agentic-ai
+date: '2026-05-24'
+status: active
+type: article
+auto-generated: false
 ---
-# Agent Testing
+# Comprehensive Research Report: Methodologies for Testing Agentic AI Systems
 
-You cannot unit-test an agent as a black box. Traditional unit tests confirm that `input A` produces `output B`, but agents are stochastic. Testing an agent requires evaluating the **trajectory**—the sequence of tool calls and reasoning steps—not just the final answer.
+Testing autonomous, agentic AI systems demands a paradigm shift from traditional deterministic software QA. Because agents reason, use external tools, and autonomously plan over multi-step horizons, testing must transition to probabilistic, multi-turn, and state-based evaluations. 
 
-## The Agent Testing Pyramid
+## 1. Core Testing Methodologies
 
-| Tier | Strategy | Frequency |
-|---|---|---|
-| **L1: Unit Tests** | Test individual tool functions and prompt-template parsers. | Every Commit |
-| **L2: Deterministic Traces** | Replay a recorded sequence of LLM responses against the orchestration code. | Every Commit |
-| **L3: Rollout Evals** | Run the full agent on a fixed set of 50-100 tasks with mocked tools. | Every Prompt Change |
-| **L4: Shadow Production** | Run a candidate agent alongside production, comparing outputs but not serving them. | Weekly / Monthly |
+*   **Behavioral & Trajectory Evaluation**: Evaluates the entire execution trace or "chain of thought." This helps identify if an agent is stuck in loops or deviating from guardrails midway through a task.
+*   **LLM-as-a-Judge**: Replaces exact-match assertions with a stronger secondary model (e.g., GPT-4o or Claude 3.5 Sonnet) that grades the agent against predefined rubrics. This requires calibration using Cohen's Kappa coefficient.
+*   **State-Based Validation**: Because agents alter environments (via APIs or databases), testing must verify the state of the environment *after* each interaction.
+*   **Synthetic Test Suites & Evals**: Creating structured prompts with known ideal outcomes for regression testing.
+*   **Shadow Production**: Running a candidate agent alongside production, comparing trajectories but not serving them, to catch regression.
 
-## Trajectory-Based Evaluation
+## 2. Key Dimensions and Metrics: The CLEAR Framework
 
-A "pass" in agent testing is defined by three factors:
-1. **Success:** Was the goal achieved?
-2. **Efficiency:** Did it use the minimum number of tool calls?
-3. **Safety:** Did it avoid forbidden tool sequences?
+A holistic enterprise deployment model uses the **CLEAR Framework**:
+*   **Cost**: Tokens consumed per task. Track **Tokens Per Success (TPS)** to avoid "Cost Spike" regressions.
+*   **Latency**: Execution time.
+*   **Efficacy / Intent Resolution**: Percentage of multi-step goals successfully achieved.
+*   **Assurance**: Adherence to safety bounds and forbidden tool sequences.
+*   **Reliability**: Tool call accuracy (correct tool + parameters) and exception handling.
 
-### Reference Test Case (JSON Schema)
-```json
-{
-  "test_id": "cancel_sub_001",
-  "prompt": "Cancel user 42's subscription and refund the last 30 days.",
-  "expected_outcome": {
-    "status": "cancelled",
-    "refund_amount": 29.99
-  },
-  "mandatory_tools": ["lookup_user", "cancel_subscription", "issue_refund"],
-  "forbidden_tools": ["delete_user"],
-  "max_steps": 5
-}
-```
+## 3. CI/CD Architecture for Agentic Systems
 
-## LLM-as-Judge Calibration
+Integrating agent testing into CI/CD pipelines introduces new architectural patterns:
+*   **Confidence Threshold Routing**:
+    *   Low (<0.60): Demands human review.
+    *   Medium (0.60–0.90): Triggers extended test suites or staging deployment.
+    *   High (>0.90): Automated merge/deployment.
+*   **The "Pipeline Doctor" (Interceptor) Pattern**: "Repair Agents" intercept failed pipeline runs, analyze logs, and attempt to propose self-healing fixes.
+*   **Spec-Driven Validation**: A Verifier gate compares the agent's behavior to an agreed-upon behavioral contract.
+*   **Continuous Observability**: Mandatory integration with tracing tools to log intermediate states.
 
-Using a stronger model (e.g., GPT-4o or Claude 3.5 Sonnet) to grade a smaller agent's performance is efficient but requires calibration.
+## 4. Security & Red Teaming (Adversarial Testing)
 
-**The Calibration Loop:**
-1. Select 100 agent trajectories.
-2. Have a human expert grade them on a 1-5 scale.
-3. Have the Judge LLM grade the same 100 using the same rubric.
-4. Compute the **Cohen's Kappa** coefficient. If it is below 0.7, your rubric is too vague or your Judge prompt needs more constraints.
+Agentic red teaming moves from single-turn moderation to multi-turn behavioral abuse testing based on the **OWASP Agentic AI 2026 Framework**:
+*   **ASI01 (Goal Hijacking)**: Forcing the agent to pursue malicious objectives.
+*   **ASI02 (Tool Misuse)**: Manipulating the agent to abuse authorized tools.
+*   **ASI06 (Memory Poisoning)**: Corrupting persistent context to alter future actions.
+*   **Agent-Orchestrated Red Teaming**: Utilizing "Red Team Agents" that dynamically select attack vectors and continuously probe the target agent.
 
-## Shadow Production
+## 5. Popular Tools, Frameworks, and Benchmarks
 
-Shadowing is the most reliable way to catch "vibe-based" regressions. Run the new agent logic on a stream of production requests. Store the results in a database and run a diff.
+*   **Evaluation**: **DeepEval**, **Promptfoo**, **MLflow**, **Ragas**.
+*   **Observability**: **LangSmith**, **Arize Phoenix**, **Langfuse**.
+*   **Adversarial / Red Teaming**: **PyRIT** and **Garak**.
+*   **Benchmarks**: **GAIA**, **SWE-bench Verified**, **WebArena**, **AgencyBench**.
 
-```python
-# Conceptual Shadow Dispatcher
-async def shadow_dispatch(request):
-    prod_task = run_agent(v1_prompt, request)
-    shadow_task = run_agent(v2_candidate_prompt, request)
-    
-    prod_res, shadow_res = await asyncio.gather(prod_task, shadow_task)
-    
-    if prod_res.trajectory != shadow_res.trajectory:
-        log_regression(request, prod_res, shadow_res)
-    
-    return prod_res.final_answer
-```
-
-## Avoiding the "Cost Spike" Regression
-Always track **Tokens Per Success (TPS)**. A new prompt that improves success rate by 2% but increases average tool calls from 3 to 12 is a failed experiment in a production environment.
-
-## Further Reading
-- [AgenticWorkflowDesign](AgenticWorkflowDesign) — Architecture patterns for reliable agents.
-- [LlmEvaluationMetrics](LlmEvaluationMetrics) — Detailed breakdown of ROUGE, BLEU, and BERTScore.
-- [AgentObservability](AgentObservability) — How to capture the traces needed for L2 testing.
+---
+**See Also:**
+- [AgenticWorkflowDesign](AgenticWorkflowDesign)
+- [LlmEvaluationMetrics](LlmEvaluationMetrics)
+- [AgentObservability](AgentObservability)

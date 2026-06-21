@@ -1,8 +1,16 @@
 ---
-cluster: philosophy
-canonical_id: 01KQ0P44S2G8CQTDG63NPQV45C
 title: Logical Fallacies and Critical Reasoning
+related:
+- LanguagePhilosophy
+- KantianEthics
+- SystemsThinking
+- ArtificialIntelligenceHub
+- MathematicsHub
+cluster: philosophy
 type: article
+canonical_id: 01KQ0P44S2G8CQTDG63NPQV45C
+summary: Logical fallacies as formal and cognitive failure modes — taxonomy, causal
+  modeling, and adversarial mitigation for fallacy-resilient research pipelines.
 tags:
 - logic
 - fallacies
@@ -10,13 +18,6 @@ tags:
 - epistemology
 - cognitive-bias
 - formal-validity
-summary: A rigorous exploration of logical fallacies as structural and cognitive failure modes, focusing on the deconstruction of formal structure, the epistemology of flawed inference, and advanced methodologies for fallacy mitigation in research pipelines.
-related:
-- LanguagePhilosophy
-- KantianEthics
-- SystemsThinking
-- ArtificialIntelligenceHub
-- MathematicsHub
 ---
 
 # Logical Fallacies: The Epistemology of Flawed Inference

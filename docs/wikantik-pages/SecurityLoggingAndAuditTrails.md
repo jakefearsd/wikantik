@@ -1,8 +1,16 @@
 ---
-cluster: security
-canonical_id: 01KQ0P44W6J6EDY0FD1NTHDXPK
 title: Security Logging and Audit Trail Forensics
+related:
+- CryptographyFundamentals
+- PkiAndCertificates
+- ApplicationSecurityFundamentals
+- ZeroTrustArchitecture
+- DistributedSystemsHub
+cluster: security
 type: article
+canonical_id: 01KQ0P44W6J6EDY0FD1NTHDXPK
+summary: Cryptographic chaining (Merkle Trees), WORM storage, and behavioral graph
+  analysis for tamper-evident audit trails and forensic log integrity.
 tags:
 - security
 - logging
@@ -12,13 +20,6 @@ tags:
 - cryptography
 - behavioral-analysis
 - compliance
-summary: A rigorous exploration of security logging and audit trail management, focusing on cryptographic chaining (Merkle Trees) for integrity proof, distributed immutable storage architectures, and the application of Behavioral Graph Analysis for advanced threat detection.
-related:
-- CryptographyFundamentals
-- PkiAndCertificates
-- ApplicationSecurityFundamentals
-- ZeroTrustArchitecture
-- DistributedSystemsHub
 ---
 
 # The Architecture of Evidence: Security Logging and Forensics

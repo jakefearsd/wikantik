@@ -1,21 +1,27 @@
 ---
-date: 2026-05-02T00:00:00Z
-canonical_id: 01KQTCA4WNJWEPHWKVP4KYJ22Y
-status: active
-verified_by: jakefear
-summary: Central hub for Wikantik platform documentation, encompassing system architecture,
-  hybrid search, and knowledge graph engineering.
-type: hub
 related:
 - WikantikArchitecture
 - WikantikSearchAndRetrieval
 - WikantikKnowledgeGraph
 - WikantikEvolutionFromJSPWiki
 - WikantikCritiqueAndMarketPosition
+canonical_id: 01KQTCA4WNJWEPHWKVP4KYJ22Y
+verified_by: jakefear
+auto-generated: false
+type: hub
+status: active
+tags:
+- wikantik
+- platform
+- architecture
+- hybrid-search
+- hub
+summary: Central hub for Wikantik platform documentation, encompassing system architecture,
+  hybrid search, and knowledge graph engineering.
 title: Wikantik Platform Hub
 cluster: wikantik-platform
-auto-generated: false
 verified_at: '2026-05-02T00:00:00Z'
+date: 2026-05-02T00:00:00Z
 ---
 
 # Wikantik Platform Hub

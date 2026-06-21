@@ -1,26 +1,25 @@
 ---
-canonical_id: 01KQ0P44QZAJR25CFSD029J16E
-title: HTTP/2 and HTTP/3
 type: article
-cluster: networking
 status: active
+cluster: networking
 date: '2026-04-26'
-summary: What HTTP/2 and HTTP/3 actually changed — multiplexing, server push, QUIC,
-  head-of-line blocking — and the practical impact on application performance and
-  infrastructure choices.
+title: HTTP/2 and HTTP/3
+hubs:
+- NetworkingHub
 tags:
 - http2
 - http3
 - quic
 - networking
 - performance
+summary: What HTTP/2 and HTTP/3 actually changed — multiplexing, QUIC, head-of-line
+  blocking — and the practical impact on application performance.
 related:
 - TcpIpFundamentals
 - WebServicesAndApisHub
 - CdnArchitecture
 - LoadBalancingStrategies
-hubs:
-- NetworkingHub
+canonical_id: 01KQ0P44QZAJR25CFSD029J16E
 ---
 # HTTP/2 and HTTP/3
 

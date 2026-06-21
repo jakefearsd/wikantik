@@ -1,27 +1,27 @@
 ---
-canonical_id: 01KQ0P44Q6GVY7PGGECRA7X2NN
-title: Estate Planning for Retirees
 type: article
-cluster: retirement-planning
 status: active
+cluster: retirement-planning
 date: '2026-04-26'
-summary: How estate planning evolves at retirement — beneficiary coordination, trust
-  decisions, healthcare directives, and the periodic-update discipline that prevents
-  the most common failures.
+title: Estate Planning for Retirees
+hubs:
+- RetirementPlanningGuide
 tags:
 - estate-planning
 - retirement
 - beneficiaries
 - trusts
 - power-of-attorney
+summary: How estate planning evolves at retirement — beneficiary coordination, trust
+  decisions, healthcare directives, and the periodic-update discipline that prevents
+  the most common failures.
 related:
 - WillsAndTrusts
 - CharitableGivingInRetirement
 - DivorceAndRetirementPlanning
 - LifeInsuranceTypes
 - LongTermCareInsurance
-hubs:
-- RetirementPlanningGuide
+canonical_id: 01KQ0P44Q6GVY7PGGECRA7X2NN
 ---
 # Estate Planning for Retirees
 
@@ -102,7 +102,7 @@ Most retirees don't need trusts. But specific cases benefit:
 
 For high-probate states (CA, FL, NY) or substantial real estate. Avoids probate; provides incapacity management; offers privacy.
 
-For retirees with $1M+ estates and complex assets, often worth setting up.
+For retirees with \$1M+ estates and complex assets, often worth setting up.
 
 For simpler estates, may be overkill.
 
@@ -114,7 +114,7 @@ If applicable, essential.
 
 ### Irrevocable life insurance trust (ILIT)
 
-For estate-tax-exposed estates. Less commonly relevant after 2017 changes raised federal exemption to ~$13M per person.
+For estate-tax-exposed estates. Less commonly relevant after 2017 changes raised federal exemption to ~\$13M per person.
 
 State estate taxes have lower exemptions in some states (NY, OR, MA, others); ILIT may help there.
 

@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44Q6J8PXDZCEM2MSJWH3
-title: ESG Investing
 type: article
-cluster: index-fund-investing
 status: active
+cluster: index-fund-investing
 date: '2026-04-26'
-summary: An honest assessment of ESG investing — what it actually does, the cost vs.
-  the broader market, the questions about whether it changes outcomes, and how to
-  approach it if values-aligned investing matters to you.
+title: ESG Investing
+hubs:
+- LowCostIndexFundInvestingHub
 tags:
-- ESG
+- esg
 - socially-responsible-investing
 - impact-investing
 - index-funds
 - values-based-investing
+summary: An honest assessment of ESG investing — what it actually does, the cost vs.
+  the broader market, the questions about whether it changes outcomes, and how to
+  approach it if values-aligned investing matters to you.
 related:
 - LowCostIndexFundInvesting
 - AssetAllocationGuide
 - IndexFundPortfolioConstruction
 - IntroductionToIndexFundsAndETFs
-hubs:
-- LowCostIndexFundInvestingHub
+canonical_id: 01KQ0P44Q6J8PXDZCEM2MSJWH3
 ---
 # ESG Investing
 

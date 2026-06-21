@@ -1,5 +1,9 @@
 ---
+summary: Analysis of the shift from vocational Industrial Arts to the multidisciplinary
+  Maker movement, focusing on CNC and laser integration in the modern workshop.
+date: 2025-05-22T00:00:00Z
 cluster: hobby-woodworking
+auto-generated: false
 canonical_id: 01KQ0P44Q86KC8BPPJWCPKWC89
 title: Evolution of Hobby Woodworking
 type: article
@@ -8,9 +12,8 @@ tags:
 - maker-movement
 - digital-fabrication
 - craftsmanship
-summary: Analysis of the shift from vocational Industrial Arts to the multidisciplinary Maker movement, focusing on CNC and laser integration in the modern workshop.
-date: 2025-05-22
-auto-generated: false
+hubs:
+- HobbyWoodworkingInTheTwentyFirstCentury
 ---
 
 # Evolution of Hobby Woodworking: From Industrial Arts to the Maker Movement

@@ -1,8 +1,16 @@
 ---
-cluster: web-services-and-apis
-canonical_id: 01KQ0P44NZ0KV78BS9XW50VZDX
 title: Content Negotiation
+related:
+- WebServicesAndApisHub
+- SoftwareArchitecturePatterns
+- MicroservicesArchitecture
+- ApplicationSecurityFundamentals
+- SinglePageApplicationArchitecture
+cluster: web-services-and-apis
 type: article
+canonical_id: 01KQ0P44NZ0KV78BS9XW50VZDX
+summary: 'HTTP Content Negotiation mechanics: Accept header parsing, q-value weighted
+  selection, and multi-representation resource design in RESTful APIs.'
 tags:
 - web-services
 - rest-api
@@ -10,13 +18,6 @@ tags:
 - content-negotiation
 - mime-types
 - api-design
-summary: A rigorous exploration of HTTP Content Negotiation, focusing on the mechanics of the Accept header, weighted selection algorithms (q-values), and the architectural integration of multi-representation resource exchange in RESTful systems.
-related:
-- WebServicesAndApisHub
-- SoftwareArchitecturePatterns
-- MicroservicesArchitecture
-- ApplicationSecurityFundamentals
-- SinglePageApplicationArchitecture
 ---
 
 # Content Negotiation: The Architecture of Multi-Representation APIs

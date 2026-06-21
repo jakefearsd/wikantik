@@ -1,23 +1,22 @@
 ---
-canonical_id: 01KQ0P44MA4M3XQ42T887AY1S0
-title: BackwardsCompatibilityStrategiesHub
-type: hub
-cluster: software-engineering-practices
 status: active
 date: '2026-04-26'
-summary: Index of pages on maintaining backwards compatibility — versioning, API
-  evolution, deprecation strategies, and the patterns that let APIs evolve without
-  breaking consumers.
+summary: Index of pages on backwards compatibility — versioning, API evolution, deprecation
+  strategies, and patterns for evolving APIs without breaking consumers.
 tags:
 - backwards-compatibility
 - api-design
 - versioning
 - hub
+type: hub
+canonical_id: 01KQ0P44MA4M3XQ42T887AY1S0
+cluster: software-engineering-practices
 related:
 - BackwardsCompatibilityStrategies
 - ApiDesignBestPractices
 - SemanticVersioning
 - WebServicesAndApisHub
+title: Backwards Compatibility Strategies Hub
 ---
 # BackwardsCompatibilityStrategies Hub
 

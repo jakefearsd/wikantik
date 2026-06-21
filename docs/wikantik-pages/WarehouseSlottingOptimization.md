@@ -1,12 +1,18 @@
 ---
+tags:
+- slotting
+- inventory-science
+- cog
+- logistics
+- warehouse-optimization
 cluster: warehouse-automation
-canonical_id: 01KQ0P44YPQ3H2TDPSP7JRGGX9
-title: Warehouse Slotting Optimization
 type: article
-tags: [slotting, inventory-science, cog, logistics, warehouse-optimization]
-summary: Technical framework for warehouse slotting optimization focusing on Center of Gravity (COG) math, Golden Zone picking, and Cube-per-Order Index (COI).
+date: 2025-05-15T00:00:00Z
 auto-generated: false
-date: 2025-05-15
+canonical_id: 01KQ0P44YPQ3H2TDPSP7JRGGX9
+summary: Technical framework for warehouse slotting optimization focusing on Center
+  of Gravity (COG) math, Golden Zone picking, and Cube-per-Order Index (COI).
+title: Warehouse Slotting Optimization
 ---
 
 # Warehouse Slotting Optimization

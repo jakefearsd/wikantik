@@ -1,25 +1,25 @@
 ---
-canonical_id: 01KQ0P44TCFFVK8R06KHB77Z9B
-title: Open Source LLM Ecosystem
 type: article
-cluster: generative-ai
 status: active
+cluster: generative-ai
 date: '2026-04-26'
-summary: A practical map of the open source LLM landscape — model families, inference
-  engines, fine-tuning tools, and deployment patterns — for teams making informed
-  decisions about open vs closed model use.
+title: Open Source LLM Ecosystem
+hubs:
+- GenerativeAIHub
 tags:
 - llm
 - open-source
 - generative-ai
 - inference
 - fine-tuning
+summary: A practical map of the open source LLM landscape — model families, inference
+  engines, fine-tuning tools, and deployment patterns — for teams making informed
+  decisions about open vs closed model use.
 related:
 - TransformerArchitecture
 - AgentPromptEngineering
 - PromptCaching
-hubs:
-- GenerativeAIHub
+canonical_id: 01KQ0P44TCFFVK8R06KHB77Z9B
 ---
 # Open Source LLM Ecosystem
 
@@ -276,7 +276,7 @@ For many production tasks, a 70B open model is sufficient.
 
 ### API
 
-- GPT-4o: ~$2.50 / 1M input tokens
+- GPT-4o: ~\$2.50 / 1M input tokens
 - Claude Sonnet: similar
 - Smaller models: 10-100x cheaper per token
 

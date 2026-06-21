@@ -1,5 +1,9 @@
 ---
+summary: Technical analysis of the hand tool revival, focusing on tool steel metallurgy
+  (O1 vs A2) and the mechanical evolution of plane patterns (Bailey vs Bed Rock).
+date: 2025-05-22T00:00:00Z
 cluster: hobby-woodworking
+auto-generated: false
 canonical_id: 01KQ0P44SNYJ0EE1SQ0VXQB4C1
 title: Modern Hand Tool Renaissance
 type: article
@@ -9,9 +13,8 @@ tags:
 - hand-planes
 - ergonomics
 - craftsmanship
-summary: Technical analysis of the hand tool revival, focusing on tool steel metallurgy (O1 vs A2) and the mechanical evolution of plane patterns (Bailey vs Bed Rock).
-date: 2025-05-22
-auto-generated: false
+hubs:
+- HobbyWoodworkingInTheTwentyFirstCentury
 ---
 
 # The Modern Hand Tool Renaissance: Metallurgy and Mechanics

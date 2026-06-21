@@ -1,12 +1,20 @@
 ---
-title: Self-Sovereign Identity
-type: article
-cluster: blockchain-tech
-status: active
-date: 2026-05-15
-summary: Deep dive into Decentralized Identity (DID). Analysis of DID Documents and the mathematics of Zero-Knowledge Proofs for privacy-preserving verification.
 auto-generated: false
+status: active
+type: article
 kg_include: true
+date: 2026-05-15T00:00:00Z
+cluster: blockchain-tech
+title: Self-Sovereign Identity
+tags:
+- self-sovereign-identity
+- did
+- verifiable-credentials
+- zero-knowledge-proofs
+- blockchain
+summary: Self-Sovereign Identity via W3C DIDs, Verifiable Credentials on blockchain,
+  and zk-SNARK zero-knowledge proofs for privacy-preserving attribute verification.
+canonical_id: 01KVJMS215GS0XVY0E6YD833J9
 ---
 
 # Self-Sovereign Identity: Decentralized Trust

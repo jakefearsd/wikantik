@@ -1,19 +1,20 @@
 ---
-canonical_id: 01KQ0P44XBDN1PHND9NY3JBSZ5
-title: Tax Planning Fundamentals
 type: article
-cluster: personal-finance
 status: active
+cluster: personal-finance
 date: '2026-04-26'
-summary: Marginal vs. effective rate, brackets, deductions vs. credits, the order
-  of tax-advantaged accounts to fill, and the three or four levers that produce most
-  of the tax savings most households will ever capture.
+title: Tax Planning Fundamentals
+hubs:
+- PersonalFinanceHub
 tags:
 - taxes
 - tax-planning
 - personal-finance
 - deductions
 - tax-advantaged-accounts
+summary: Marginal vs. effective rate, brackets, deductions vs. credits, the order
+  of tax-advantaged accounts to fill, and the three or four levers that produce most
+  of the tax savings most households will ever capture.
 related:
 - PersonalFinanceGuide
 - TaxLossHarvesting
@@ -21,8 +22,7 @@ related:
 - TaxBenefitsOfRetirementAccounts
 - WillsAndTrusts
 - TaxPlanningForRetirementAccountWithdrawals
-hubs:
-- PersonalFinanceHub
+canonical_id: 01KQ0P44XBDN1PHND9NY3JBSZ5
 ---
 # Tax Planning Fundamentals
 
@@ -39,23 +39,23 @@ The single most useful concept in tax planning is the difference between margina
 - **Marginal rate**: the tax rate on your *next* dollar of income. Determined by the tax bracket you are in.
 - **Effective rate**: total tax paid divided by total income. Always lower than the marginal rate (because not all your income is in the top bracket).
 
-A household with $150,000 of taxable income in a system with brackets at 10%, 12%, 22%, and 24% pays:
+A household with \$150,000 of taxable income in a system with brackets at 10%, 12%, 22%, and 24% pays:
 
 - 10% on the first ~$23K
-- 12% on the next ~$70K
+- 12% on the next ~\$70K
 - 22% on the next ~$110K
 - 24% on the rest
 
 Their *marginal* rate is 22% (the top bracket they touch); their *effective* rate is somewhere around 17% (depending on deductions).
 
-**Why this matters for planning**: every tax-saving decision (deductions, credits, contribution timing) is evaluated against your *marginal* rate, not your effective rate. A $1,000 deduction saves you 22% × $1,000 = $220, not 17% × $1,000 = $170. Deductions and bracket-shifting are most valuable for higher-marginal-rate households.
+**Why this matters for planning**: every tax-saving decision (deductions, credits, contribution timing) is evaluated against your *marginal* rate, not your effective rate. A $1,000 deduction saves you 22% × $1,000 = $220, not 17% × $1,000 = \$170. Deductions and bracket-shifting are most valuable for higher-marginal-rate households.
 
 ### Deductions vs. credits
 
 These are not the same thing.
 
-- **Deduction** reduces your *taxable income*. A $1,000 deduction in the 22% bracket saves you $220.
-- **Credit** reduces your *tax bill directly*. A $1,000 credit saves you $1,000 regardless of bracket.
+- **Deduction** reduces your *taxable income*. A \$1,000 deduction in the 22% bracket saves you $220.
+- **Credit** reduces your *tax bill directly*. A $1,000 credit saves you \$1,000 regardless of bracket.
 
 Credits are dollar-for-dollar more valuable than deductions of the same size. Always.
 
@@ -140,8 +140,8 @@ HSA contributions are deductible going in, grow tax-deferred, and are tax-free f
 
 - **Credit-card cash back as "income"** — not taxable; ignore.
 - **Tax brackets shifting around the edges** — do not stop earning to "stay in a lower bracket." Tax brackets are marginal; earning more never makes you net poorer.
-- **Federal tax refund timing** — getting a $3,000 refund in April is the same money as $250/month extra in your paycheck. Adjust your W-4 if you want it sooner; do not treat the refund as a windfall.
-- **Owing a small amount at year-end** — a $500 tax bill in April is not a planning failure; it means your withholding was approximately right.
+- **Federal tax refund timing** — getting a \$3,000 refund in April is the same money as $250/month extra in your paycheck. Adjust your W-4 if you want it sooner; do not treat the refund as a windfall.
+- **Owing a small amount at year-end** — a \$500 tax bill in April is not a planning failure; it means your withholding was approximately right.
 
 ## State taxes
 
@@ -155,7 +155,7 @@ States vary dramatically — from no income tax (TX, FL, WA) to 13%+ (CA top bra
 
 If your income is high enough to face additional considerations:
 
-- **Additional Medicare tax (0.9%)** above $200K single / $250K married
+- **Additional Medicare tax (0.9%)** above $200K single / \$250K married
 - **Net Investment Income Tax (3.8%)** above the same thresholds
 - **AMT** (Alternative Minimum Tax) — much narrower since 2017 reforms but still relevant for some
 - **Phase-outs of various deductions and credits** at higher income

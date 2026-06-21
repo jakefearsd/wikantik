@@ -1,24 +1,25 @@
 ---
-date: 2026-03-15T00:00:00Z
-summary: How to determine the right mix of stocks, bonds, and other asset classes
-  based on your goals, time horizon, and risk tolerance.
-cluster: index-fund-investing
-related:
-- UnderstandingRiskTolerance
-- IndexFundPortfolioConstruction
-- LowCostIndexFundInvesting
-canonical_id: 01KQ0P44M3PD94EF445ZQW7JVW
 type: article
+status: active
+date: 2026-03-15T00:00:00Z
+cluster: index-fund-investing
 title: Asset Allocation
+hubs:
+- RebalancingStrategies Hub
+- LowCostIndexFundInvestingHub
 tags:
 - investing
 - asset-allocation
 - diversification
 - risk-management
 - portfolio
-status: published
-hubs:
-- RebalancingStrategies Hub
+summary: How to determine the right mix of stocks, bonds, and other asset classes
+  based on your goals, time horizon, and risk tolerance.
+related:
+- UnderstandingRiskTolerance
+- IndexFundPortfolioConstruction
+- LowCostIndexFundInvesting
+canonical_id: 01KQ0P44M3PD94EF445ZQW7JVW
 ---
 
 # Asset Allocation

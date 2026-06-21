@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ0P44MZ8C2W84BXAB1R8FS0
-title: CDN Architecture
-type: article
+auto-generated: false
 cluster: cloud-platforms
+title: CDN Architecture
+related:
+- CloudStorageOptions
+- AwsFundamentals
+- HttpTwoAndHttpThree
+- WebApplicationFirewalls
+type: article
+summary: CDN mechanics, edge caching strategies (Cache-Control, cache-busting), origin
+  shielding, cache invalidation, edge compute, and DDoS/WAF at the edge.
 status: active
 date: '2026-04-26'
-summary: Technical deep-dive into Content Delivery Network (CDN) mechanics, edge caching strategies, and origin shielding patterns.
-auto-generated: false
+canonical_id: 01KQ0P44MZ8C2W84BXAB1R8FS0
+hubs:
+- CloudPlatformsHub
 tags:
 - cdn
 - edge-computing
 - performance
 - caching
 - cloudfront
-related:
-- CloudStorageOptions
-- AwsFundamentals
-- HttpTwoAndHttpThree
-- WebApplicationFirewalls
-hubs:
-- CloudPlatformsHub
 ---
 
 A Content Delivery Network (CDN) is a distributed network of edge servers that cache and serve content to users based on geographic proximity, reducing latency and origin server load.

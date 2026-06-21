@@ -1,16 +1,22 @@
 ---
+date: '2026-05-10'
 summary: Central index for the distributed systems cluster — covering core theory
   (CAP, PACELC), consensus algorithms (Paxos, Raft), consistency models, replication
   strategies, and the engineering of fault-tolerant systems at scale.
-date: '2026-05-10'
 cluster: distributed-systems
 related:
 - DataEngineeringHub
 - NetworkingHub
 - DataStructuresHub
+- ConcurrencyDistributed
 canonical_id: 01KQEKGD9XWDSFGH7TWHH63NZT
-title: Distributed Systems Hub
 type: hub
+title: Distributed Systems Hub
+status: active
+hubs:
+- DataStructuresHub
+- CloudPlatformsHub
+- EngineeringDisciplineHub
 tags:
 - distributed-systems
 - cloud-computing
@@ -18,11 +24,6 @@ tags:
 - consistency
 - fault-tolerance
 - hub
-hubs:
-- DataStructuresHub
-- CloudPlatformsHub
-- EngineeringDisciplineHub
-status: active
 ---
 # Distributed Systems Hub
 

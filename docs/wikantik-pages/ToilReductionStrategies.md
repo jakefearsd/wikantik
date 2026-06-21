@@ -1,25 +1,24 @@
 ---
-canonical_id: 01KQ0P44XRMNZNFNKCPJSY669A
-title: Toil Reduction Strategies
-type: article
 cluster: devops-sre
-status: active
 date: '2026-04-26'
-summary: How to identify and reduce operational toil — the manual repetitive work
-  that doesn't scale, the patterns for replacing it with automation, and the SRE
-  practices that quantify toil.
+title: Toil Reduction Strategies
+hubs:
+- DevOpsAndSreHub
 tags:
 - toil
 - sre
 - automation
 - operational-load
+summary: Reducing operational toil — the manual repetitive work that doesn't scale,
+  automation patterns, and the SRE practices that quantify toil.
 related:
 - RunbookAutomation
 - OnCallPractices
 - DevOpsFundamentals
 - BurnoutPreventionInTech
-hubs:
-- DevOpsAndSreHub
+canonical_id: 01KQ0P44XRMNZNFNKCPJSY669A
+type: article
+status: active
 ---
 # Toil Reduction Strategies
 

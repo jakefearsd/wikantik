@@ -1,25 +1,24 @@
 ---
-canonical_id: 01KQEKGD8RQE2TN2B8W5ZC060W
-title: Concurrency Distributed
 type: article
-cluster: distributed-systems
 status: active
+cluster: distributed-systems
 date: '2026-04-25'
+title: Distributed Concurrency
+hubs:
+- DistributedSystemsHub
 tags:
 - distributed-concurrency
 - consensus
 - distributed-locks
 - coordination
-summary: Coordinating concurrent work across multiple machines — distributed
-  locks, leader election, atomic counters, idempotent operations — and the
-  primitives modern systems use.
+summary: Distributed locks, leader election, atomic counters, and idempotent ops —
+  the primitives modern systems use for concurrent coordination across machines.
 related:
 - ConcurrencyPatterns
 - DistributedComputingAlgorithms
 - PaxosAndRaft
 - ApiRateLimitingAlgorithms
-hubs:
-- DistributedSystemsHub
+canonical_id: 01KQEKGD8RQE2TN2B8W5ZC060W
 ---
 # Concurrency Distributed
 

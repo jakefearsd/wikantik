@@ -1,16 +1,19 @@
 ---
-cluster: security
-canonical_id: 01KQ0P44QPXCZXWT5V96221F36
-title: Google SSO
+hubs:
+- AuthenticationAndAuthorizationHub
+date: 2025-05-15T00:00:00Z
+summary: Google SSO via OAuth 2.0 and OIDC — Authorization Code flow, mandatory JWT
+  validation steps (sig, iss, aud, exp), and secure session establishment.
+auto-generated: false
 type: article
 tags:
 - oauth2
 - oidc
 - jwt
-- SSO
-date: 2025-05-15
-summary: A technical deep dive into Google SSO via OAuth 2.0 and OIDC, including detailed steps for secure JWT validation and session establishment.
-auto-generated: false
+- sso
+cluster: security
+canonical_id: 01KQ0P44QPXCZXWT5V96221F36
+title: Google SSO
 ---
 
 # Google SSO: OAuth 2.0, OIDC, and JWT Validation

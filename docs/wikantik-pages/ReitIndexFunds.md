@@ -1,27 +1,27 @@
 ---
-canonical_id: 01KQ0P44VCE45JMTNYKZ4J3BN6
-title: REIT Index Funds
 type: article
-cluster: index-fund-investing
 status: active
+cluster: index-fund-investing
 date: '2026-04-26'
-summary: How REITs work, what a REIT index fund actually owns, where REITs fit in
-  a portfolio, and the tax considerations that make REIT placement matter more than
-  most other asset classes.
+title: REIT Index Funds
+hubs:
+- LowCostIndexFundInvestingHub
 tags:
-- REITs
+- reits
 - real-estate
 - index-funds
 - diversification
 - asset-allocation
+summary: How REITs work, what a REIT index fund actually owns, where REITs fit in
+  a portfolio, and the tax considerations that make REIT placement matter more than
+  most other asset classes.
 related:
 - LowCostIndexFundInvesting
 - AssetAllocationGuide
 - RealEstateInvestingBasics
 - InflationProtectionStrategies
 - IndexFundPortfolioConstruction
-hubs:
-- LowCostIndexFundInvestingHub
+canonical_id: 01KQ0P44VCE45JMTNYKZ4J3BN6
 ---
 # REIT Index Funds
 

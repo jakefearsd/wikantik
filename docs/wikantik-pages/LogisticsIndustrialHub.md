@@ -1,21 +1,23 @@
 ---
+date: '2026-05-15'
+summary: Central index for industrial logistics, supply chain optimization, and manufacturing
+  systems. Bridges Operations Research math with physical-world engineering.
+cluster: operations-research
 canonical_id: 01KRQG0KG2C04V3J62NQM7P3GP
 type: hub
+relations:
+- type: component_of
+  target_id: 01KQEKGDDVHTHY07CQ3YKSQ5PA
+title: Logistics and Industrial Systems Hub
+status: active
 tags:
 - logistics
 - supply-chain
 - manufacturing
 - hub
 - operations-research
-title: Logistics and Industrial Systems Hub
-relations:
-- type: component_of
-  target_id: 01KQEKGDDVHTHY07CQ3YKSQ5PA
-summary: Central index for industrial logistics, supply chain optimization, and manufacturing
-  systems. Bridges Operations Research math with physical-world engineering.
-status: active
-date: '2026-05-15'
-cluster: operations-research
+hubs:
+- LeanManufacturingPrinciplesHub
 ---
 
 # Logistics and Industrial Systems Hub

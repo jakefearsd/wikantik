@@ -1,27 +1,27 @@
 ---
-canonical_id: 01KQ0P44SWNCZJWDWS035GS77J
-title: Mutual Fund vs. ETF Comparison
 type: article
-cluster: index-fund-investing
 status: active
+cluster: index-fund-investing
 date: '2026-04-26'
-summary: Side-by-side comparison of index mutual funds and ETFs for the same underlying
-  index — when each wins, when they tie, and the structural tax advantage that makes
-  ETFs slightly preferred for most taxable accounts.
+title: Mutual Fund vs. ETF Comparison
+hubs:
+- LowCostIndexFundInvestingHub
 tags:
-- ETF
+- etf
 - mutual-fund
 - index-funds
 - structure
 - tax-efficiency
+summary: Side-by-side comparison of index mutual funds and ETFs for the same underlying
+  index — when each wins, when they tie, and the structural tax advantage that makes
+  ETFs slightly preferred for most taxable accounts.
 related:
 - LowCostIndexFundInvesting
 - IntroductionToIndexFundsAndETFs
 - TotalStockMarketFundAnatomy
 - IndexFundPortfolioConstruction
 - TaxLossHarvesting
-hubs:
-- LowCostIndexFundInvestingHub
+canonical_id: 01KQ0P44SWNCZJWDWS035GS77J
 ---
 # Mutual Fund vs. ETF Comparison
 
@@ -35,10 +35,10 @@ For most buy-and-hold investors, the choice does not matter much. There are spec
 |---------|-------------------|-----------|
 | **How you buy** | Dollar amount through fund company | Shares through brokerage |
 | **Pricing** | End-of-day NAV | Real-time market price |
-| **Minimum investment** | Often $1,000–$3,000 to open; $0 incremental | One share (or fractional at some brokerages) |
+| **Minimum investment** | Often $1,000–$3,000 to open; \$0 incremental | One share (or fractional at some brokerages) |
 | **Fractional shares** | Always (any dollar amount) | Depends on brokerage |
 | **Automatic investing** | Easy: set up monthly transfers | Harder; not always supported |
-| **Trading cost** | $0 at fund company | $0 at most brokerages |
+| **Trading cost** | $0 at fund company | \$0 at most brokerages |
 | **Bid-ask spread** | None | Small for liquid ETFs; can be larger for niche |
 | **Tax efficiency** | Good | Slightly better (structural advantage) |
 | **Capital gains distributions** | Occasional, especially older funds | Rare for index ETFs |
@@ -108,7 +108,7 @@ Each pair holds nearly identical securities. Returns are typically within 0.05% 
 
 - **Holding both the mutual fund and ETF version of the same index** — provides no diversification, doubles complexity.
 - **Trading ETFs intraday based on price movements** — defeats the buy-and-hold thesis; commission-free does not mean cost-free if it leads to behavioral errors.
-- **Worrying about pennies of expense ratio difference** — the difference between 0.04% and 0.06% on $100K is $20/year. Pick and move on.
+- **Worrying about pennies of expense ratio difference** — the difference between 0.04% and 0.06% on \$100K is $20/year. Pick and move on.
 - **Using ETFs in 401(k)s that do not natively support them** — usually means buying through a brokerage window with extra fees; the mutual fund option in the plan is usually better.
 - **Ignoring transfer fees when moving brokerages** — ETFs move easily between brokerages; mutual funds often have to be sold and rebought at the destination.
 

@@ -1,26 +1,26 @@
 ---
+type: article
+date: '2026-04-26'
+cluster: mathematics
+title: Propositional Logic
+hubs:
+- MathematicsHub
+- PredicateLogic Hub
+tags:
+- propositional-logic
+- mathematics
+- formal-logic
+- boolean
 summary: The basics of propositional logic — connectives, truth tables, tautologies,
   satisfiability — and the role it plays as foundation for predicate logic, automated
   reasoning, and digital circuits.
-date: '2026-04-26'
-cluster: mathematics
 related:
 - PredicateLogic
 - SymbolicLogic
 - ModalLogic
 - SetTheoryLogic
 canonical_id: 01KQ0P44TYD1JZNQE1MXEVJ34H
-type: article
-title: Propositional Logic
-tags:
-- propositional-logic
-- mathematics
-- formal-logic
-- boolean
 status: active
-hubs:
-- MathematicsHub
-- PredicateLogic Hub
 ---
 
 # Propositional Logic: The Architecture of Binary Reasoning

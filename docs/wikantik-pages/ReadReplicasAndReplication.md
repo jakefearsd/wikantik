@@ -1,22 +1,23 @@
 ---
-canonical_id: 01KQ0P44V6YY71F6E8GE82698Y
-title: Read Replicas and Replication
-type: article
-cluster: databases
-status: active
-date: '2026-04-26'
-summary: Technical deep-dive into database replication topologies, consistency trade-offs (RYOW), and replication lag monitoring.
 auto-generated: false
+type: article
+status: active
+cluster: databases
+date: '2026-04-26'
+title: Read Replicas and Replication
 tags:
 - replication
 - databases
 - high-availability
 - scalability
+summary: Database replication topologies (sync, async, cascading), RYOW consistency
+  trade-offs, lag monitoring in PostgreSQL, failover mechanics, and operational risks.
 related:
 - CloudDatabases
 - DatabaseBackupStrategies
 - DatabaseConnectionSecurity
 - TwoPhaseCommitProtocol
+canonical_id: 01KQ0P44V6YY71F6E8GE82698Y
 ---
 
 Database replication is the process of synchronizing data across multiple nodes to achieve high availability, read scalability, and geographic distribution.

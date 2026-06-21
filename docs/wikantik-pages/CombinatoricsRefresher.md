@@ -1,12 +1,10 @@
 ---
-summary: A comprehensive guide to the mathematics of counting, focusing on combinatorial
-  explosion, grid-path geometry, and the algorithmic power of generating functions.
+hubs:
+- ChaosDynamical Hub
 date: 2025-02-13T00:00:00Z
-cluster: mathematics
-canonical_id: 01KQ0P44NNZ12BPR1P8KBRNWCS
-title: Combinatorics Refresher
-type: article
 status: active
+summary: 'Counting, arrangement, and enumeration: combinatorial explosion, grid-path
+  geometry, derangements, and the algorithmic power of generating functions.'
 tags:
 - mathematics
 - combinatorics
@@ -15,8 +13,10 @@ tags:
 - enumeration
 - generating-functions
 - cryptography
-hubs:
-- ChaosDynamical Hub
+type: article
+cluster: mathematics
+canonical_id: 01KQ0P44NNZ12BPR1P8KBRNWCS
+title: Combinatorics Refresher
 ---
 
 # Combinatorics: The Mathematics of Structure and Selection

@@ -1,8 +1,16 @@
 ---
+title: 'Refugee Crisis: Economic Impact and Causal Modeling'
+related:
+- GeopoliticalRisk
+- CommodityMarketsAndConflict
+- RiskManagement
+- SystemsThinking
+- MathematicsHub
 cluster: geopolitics-and-finance
-canonical_id: 01KQ0P44VBT6YYP6WABA9QRQAJ
-title: "Refugee Crisis: Economic Impact and Causal Modeling"
 type: article
+canonical_id: 01KQ0P44VBT6YYP6WABA9QRQAJ
+summary: 'Forced displacement as economic shock: labor competition vs. complementarity,
+  spatial econometrics for spillover analysis, and ABM for informal market dynamics.'
 tags:
 - economics
 - migration-studies
@@ -10,13 +18,6 @@ tags:
 - labor-markets
 - causal-inference
 - spatial-econometrics
-summary: A rigorous exploration of the economic impact of forced displacement, focusing on labor supply shocks, spatial econometrics (SAR/SEM models) for spillover analysis, and the implementation of agent-based modeling (ABM) for simulating informal market emergence.
-related:
-- GeopoliticalRisk
-- CommodityMarketsAndConflict
-- RiskManagement
-- SystemsThinking
-- MathematicsHub
 ---
 
 # Forced Displacement: The Architecture of Systemic Economic Shocks

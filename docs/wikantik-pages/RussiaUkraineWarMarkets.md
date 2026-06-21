@@ -1,11 +1,22 @@
 ---
+cluster: geopolitics-and-finance
+title: Russia-Ukraine War Markets
+related:
+- ConflictsAndEquityMarkets
+- WarOnTerrorMarkets
+- ColdWarMarkets
+- ConflictMarketPatterns
+summary: Energy weaponisation, unprecedented sanctions, European defence rearmament,
+  and the return of geopolitical risk premiums
+type: article
+date: '2026-03-14'
+status: active
 canonical_id: 01KQ0P44VZJES9W3V44BYJ9X06
+hubs:
+- RussiaUkraineWarOverview
 part-of:
 - ConflictsAndEquityMarkets
 - RussiaUkraineWarOverview
-status: active
-summary: Energy weaponisation, unprecedented sanctions, European defence rearmament,
-  and the return of geopolitical risk premiums
 tags:
 - finance
 - russia-ukraine-war
@@ -13,14 +24,6 @@ tags:
 - sanctions
 - energy-crisis
 - defence-rearmament
-type: article
-related:
-- ConflictsAndEquityMarkets
-- WarOnTerrorMarkets
-- ColdWarMarkets
-- ConflictMarketPatterns
-cluster: geopolitics-and-finance
-date: '2026-03-14'
 ---
 # The Russia-Ukraine War and Equity Markets (2022–present)
 
@@ -46,7 +49,7 @@ The full-scale invasion produced sharp but differentiated market reactions:
 - **Asian markets**: Moderate sell-offs of 1–3%, reflecting geographic distance from the conflict
 
 ### Commodity Markets
-- **Oil**: Brent crude surged above $130 per barrel in March 2022, the highest since 2008
+- **Oil**: Brent crude surged above \$130 per barrel in March 2022, the highest since 2008
 - **Natural gas**: European gas prices spiked to record levels, rising over 400% from pre-crisis levels at their August 2022 peak
 - **Wheat**: Prices jumped 50% as Ukraine and Russia together account for roughly 30% of global wheat exports
 - **Nickel**: The London Metal Exchange suspended nickel trading in March 2022 after prices doubled in a single day due to a massive short squeeze linked to Chinese producer Tsingshan

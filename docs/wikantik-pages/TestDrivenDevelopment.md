@@ -1,14 +1,21 @@
 ---
-status: official
-cluster: wikantik-development
-type: article
-title: Test Driven Development (TDD)
 date: '2026-05-04 inspiried_by: "GEMINI.md"'
 summary: The mandatory TDD workflow, testing levels, and best practices for developing
   in Wikantik.
-canonical_id: 01KQTD4FGSZVWM8WR7685RNNVQ
-verified_at: '2026-05-04T21:10:44.598011331Z'
+cluster: wikantik-development
 verified_by: gemini-cli-mcp-client
+verified_at: '2026-05-04T21:10:44.598011331Z'
+canonical_id: 01KQTD4FGSZVWM8WR7685RNNVQ
+type: article
+title: Test Driven Development (TDD)
+status: active
+tags:
+- test-driven-development
+- tdd
+- testing
+- wikantik-development
+hubs:
+- WikantikDevelopment
 ---
 # Test Driven Development (TDD) in Wikantik
 

@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS1970H3AFDGQ5DE7Q106
 title: Go Language
+tags:
+- programming-languages
+- golang
+- cloud-native
+- concurrency
+- microservices
+- kubernetes
+- 2026-benchmarks
 cluster: computer-science
-tags: [programming-languages, golang, cloud-native, concurrency, microservices, kubernetes, 2026-benchmarks]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The 'Lingua Franca' of the Cloud (2009). Created at Google for industrial-scale concurrency and simplicity. In 2026, it powers ~100% of the CNCF stack and remains the standard for high-velocity microservices.
+summary: Lingua franca of the cloud (2009). Built at Google for industrial-scale concurrency;
+  powers ~100% of the CNCF stack and remains the standard for microservices.
 ---
 
 # The Go Language: The Architecture of Scale

@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS1KQZJP9APB5A3ETTXBC
 title: Microbiology
+tags:
+- microbiology
+- bacteria
+- yeast
+- fungi
+- metabolism
+- proteolysis
+- fermentation
 cluster: life-sciences
-tags: [microbiology, bacteria, yeast, fungi, metabolism, proteolysis, fermentation]
+type: reference
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The study of microscopic organisms. Focuses on industrial fermentation taxonomy, metabolic pathways (proteolysis/lipolysis), and the 2025 shift toward synthetic microbial consortia.
+summary: 'Microscopic organisms in industrial fermentation: taxonomy, metabolic pathways
+  (proteolysis/lipolysis), and the 2025 shift toward synthetic microbial consortia.'
 ---
 
 # Microbiology: The Industrial Engine

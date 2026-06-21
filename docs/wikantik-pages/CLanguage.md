@@ -1,10 +1,19 @@
 ---
+canonical_id: 01KVJMS0RPVHN60709FTSVK1D2
 title: C Language
+tags:
+- programming-languages
+- c-language
+- systems-programming
+- pointers
+- unix
+- computer-history
 cluster: computer-science
-tags: [programming-languages, c-language, systems-programming, pointers, unix, computer-history]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The 'Lingua Franca' of systems programming (1972). Introduced the pointer-memory model that powers modern operating systems. Remains the baseline for 2026 hardware-level performance.
+summary: Lingua franca of systems programming (1972). Pointer-memory model powering
+  modern OSes; baseline for 2026 hardware performance and embedded systems.
 ---
 
 # The C Language: The Portable Assembly

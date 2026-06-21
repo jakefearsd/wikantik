@@ -1,27 +1,26 @@
 ---
-canonical_id: 01KQEKGD74W8D90PZXX4JGNQDA
-title: Ai Pair Programming
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-25'
+title: AI Pair Programming
+hubs:
+- AgenticAiHub
 tags:
 - ai-coding
 - copilot
 - claude-code
 - cursor
 - developer-productivity
-summary: AI pair programming in 2026 — the tools (Copilot, Cursor, Claude Code,
-  Aider), the workflows that work, the failure modes to expect, and the
-  honest answer to "does it actually make me faster."
+summary: 'AI pair programming in 2026: tools (Copilot, Cursor, Claude Code, Aider),
+  workflows that work, failure modes to expect, and honest productivity accounting.'
 related:
 - AiForCodeReview
 - AiForSoftwareTesting
 - AiAugmentedWorkflows
 - AgenticArchitecture
 - AcceleratingAiLearning
-hubs:
-- AgenticAiHub
+canonical_id: 01KQEKGD74W8D90PZXX4JGNQDA
 ---
 # AI Pair Programming
 

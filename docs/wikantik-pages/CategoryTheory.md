@@ -1,8 +1,16 @@
 ---
-cluster: mathematics
-canonical_id: 01KQ0P44MYDVFEFKRJ6TCKKNHQ
 title: Category Theory
+related:
+- MathematicsHub
+- FormalSemantics
+- ComputerScienceFoundationsHub
+- TypeSystemsComparison
+- AbstractAlgebra
+cluster: mathematics
 type: article
+canonical_id: 01KQ0P44MYDVFEFKRJ6TCKKNHQ
+summary: 'Category theory as a meta-language for mathematics: universal properties,
+  adjunctions, monads, topos theory, and infinity-categories.'
 tags:
 - mathematics
 - category-theory
@@ -10,13 +18,6 @@ tags:
 - functor
 - natural-transformation
 - topos-theory
-summary: A rigorous exploration of Category Theory as a meta-language for mathematics, focusing on universal properties, adjunctions, topos theory, and the higher-dimensional abstraction of infinity-categories.
-related:
-- MathematicsHub
-- FormalSemantics
-- ComputerScienceFoundationsHub
-- TypeSystemsComparison
-- AbstractAlgebra
 ---
 
 # Category Theory: The Meta-Language of Mathematics

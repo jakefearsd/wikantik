@@ -1,26 +1,27 @@
 ---
-canonical_id: 01KQ0P44JKW93WGGG83BXCHYMZ
+cluster: wikantik-development
+title: Admin Security UI
 related:
 - WikantikDevelopment
 - DatabaseBackedPermissions
 - JspToReactMigration
-cluster: wikantik-development
 type: article
+summary: React admin panel for managing users, groups, permissions, and security policies
+  through a unified interface
+status: active
+date: '2026-03-28'
+canonical_id: 01KQ0P44JKW93WGGG83BXCHYMZ
+enables:
+- KnowledgeAdminUi
+depends-on:
+- DatabaseBackedPermissions
+- JspToReactMigration
 tags:
 - development
 - security
 - admin
 - ui
 - react
-summary: React admin panel for managing users, groups, permissions, and security policies
-  through a unified interface
-depends-on:
-- DatabaseBackedPermissions
-- JspToReactMigration
-enables:
-- KnowledgeAdminUi
-status: deployed
-date: '2026-03-28'
 ---
 # Admin Security UI
 

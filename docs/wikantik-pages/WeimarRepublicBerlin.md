@@ -1,16 +1,17 @@
 ---
-cluster: berlin-history
 canonical_id: 01KQ0P44YVDFD78HN1Z1CPKJN4
-title: "Berlin in the Weimar Republic: Crisis and Modernity"
-type: article
+title: 'Berlin in the Weimar Republic: Crisis and Modernity'
 tags:
 - berlin
 - history
 - economics
 - architecture
-summary: A technical and historical analysis of Weimar Berlin, focusing on the 1923 hyperinflation, the Bauhaus movement's architectural legacy, and the political collapse of 1930-1933.
+cluster: berlin-history
+type: article
+date: 2025-01-24T00:00:00Z
 auto-generated: false
-date: 2025-01-24
+summary: 'Weimar Berlin (1919–1933): 1923 hyperinflation, Bauhaus housing, and the
+  Article 48 emergency-rule collapse that brought Hitler to power.'
 ---
 
 # Berlin in the Weimar Republic: A Laboratory of Crisis

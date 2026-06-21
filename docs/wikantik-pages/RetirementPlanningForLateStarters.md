@@ -1,15 +1,18 @@
 ---
-cluster: retirement-planning
-canonical_id: 01KQ0P44VMTCNBATT3MY7QYHJM
 title: Retirement Planning for Late Starters
+cluster: retirement-planning
 type: article
+hubs:
+- DownsizingInRetirementHub
+summary: 'Retirement planning for late starters: time-compressed accumulation, tax
+  arbitrage, and mitigating sequence-of-returns risk.'
+canonical_id: 01KQ0P44VMTCNBATT3MY7QYHJM
 tags:
 - finance
 - retirement-planning
 - wealth-accumulation
 - optimization
 - risk-management
-summary: A rigorous exploration of retirement planning for late starters, focusing on the optimization of time-compressed accumulation, tax arbitrage, and the mitigation of sequence of returns risk.
 ---
 
 # Retirement Planning: The Optimization of Compressed Time

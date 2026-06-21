@@ -1,25 +1,24 @@
 ---
-canonical_id: 01KQEKGD6ZE8APE9DQREKM5DTW
-title: Ai Evaluation And Benchmarks
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-25'
+title: AI Evaluation and Benchmarks
+hubs:
+- AgenticAiHub
 tags:
 - evaluation
 - benchmarks
 - mmlu
 - swe-bench
 - llm-arena
-summary: The benchmarks that still mean something in 2026 (and the ones that
-  don't), why public benchmark scores diverge from your real workload, and how
-  to build evals that actually predict whether a model fits your use case.
+summary: Benchmarks that still discriminate in 2026, why public scores diverge from
+  real workloads, and how to build task-specific evals that predict production fit.
 related:
 - LlmEvaluationMetrics
 - AgentTesting
 - AiHallucinationMitigation
-hubs:
-- AgenticAiHub
+canonical_id: 01KQEKGD6ZE8APE9DQREKM5DTW
 ---
 # AI Evaluation and Benchmarks
 

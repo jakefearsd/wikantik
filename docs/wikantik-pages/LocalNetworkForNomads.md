@@ -1,17 +1,18 @@
 ---
-cluster: van-life
-canonical_id: 01KQ0P44S1YY2TQ2JHS43C7GD1
-title: Local Network For Nomads
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: Technical blueprint for a resilient, local-first nomadic network. Covers
+  Tailscale VPN, local NAS, and Zigbee automation without cloud dependency.
 tags:
 - van-life
 - local-network
 - cybersecurity
 - off-grid-tech
-status: active
-date: 2025-05-15
-summary: Technical blueprint for a resilient, local-first nomadic network. Covers Tailscale VPN, local NAS, and Zigbee automation without cloud dependency.
+type: article
 auto-generated: false
+cluster: van-life
+canonical_id: 01KQ0P44S1YY2TQ2JHS43C7GD1
+title: Local Network for Nomads
 ---
 
 # Local Network For Nomads: Architecture and Security

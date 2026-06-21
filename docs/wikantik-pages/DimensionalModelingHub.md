@@ -1,24 +1,23 @@
 ---
-canonical_id: 01KQ0P44PP4126N42S5H9SHNDP
-title: DimensionalModelingHub
-type: hub
-cluster: data-engineering
 status: active
 date: '2026-04-26'
-summary: Index of pages on dimensional modeling — star and snowflake schemas, fact
-  and dimension tables, normalization vs. denormalization, and the modeling choices
-  that shape analytical performance.
+summary: Index of dimensional modeling pages — star/snowflake schemas, fact/dimension
+  tables, normalization trade-offs, and choices that shape analytical performance.
 tags:
 - dimensional-modeling
 - data-warehouse
 - star-schema
 - hub
+type: hub
+canonical_id: 01KQ0P44PP4126N42S5H9SHNDP
+cluster: data-engineering
 related:
 - DimensionalModeling
 - DataWarehouseDesign
 - DatabaseDesignPatterns
 - NormalizationAndDenormalization
 - DataModelingFundamentals
+title: Dimensional Modeling Hub
 ---
 # DimensionalModeling Hub
 

@@ -1,17 +1,17 @@
 ---
-summary: A rigorous exploration of inventory theory, bridging the deterministic EOQ
-  model with the stochastic Newsvendor model and advanced multi-period policies.
-cluster: operations-research
-canonical_id: 01KQ0P44R70Z2KWGKRTMCQFYGG
 title: Inventory Theory
+cluster: operations-research
 type: article
+hubs:
+- DemandPlanningAndSop Hub
+summary: EOQ and Newsvendor models, (s,S) multi-period stochastic policies, Clark-Scarf
+  multi-echelon decomposition, and lead-time variance effects on safety stock.
+canonical_id: 01KQ0P44R70Z2KWGKRTMCQFYGG
 tags:
 - operations-research
 - optimization
 - supply-chain
 - stochastic-modeling
-hubs:
-- DemandPlanningAndSop Hub
 ---
 
 # Inventory Theory: Stochastic Optimization and Supply Chain Dynamics

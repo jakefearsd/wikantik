@@ -1,8 +1,16 @@
 ---
+title: 'Immigration Policy: DACA, TPS, and Policy Contingency'
+related:
+- H1bVisaProcess
+- NaturalizationProcess
+- RiskManagement
+- EngineeringLeadershipHub
+- MathematicsHub
 cluster: immigration
-canonical_id: 01KQ0P44R2Y3ZXVY107SA8YGF0
-title: "Immigration Policy: DACA, TPS, and Policy Contingency"
 type: article
+canonical_id: 01KQ0P44R2Y3ZXVY107SA8YGF0
+summary: 'DACA and TPS as administrative relief constructs: legal basis, economic
+  modeling of status uncertainty, and design of statutory Transitional Status Pathways.'
 tags:
 - immigration-law
 - public-policy
@@ -10,13 +18,6 @@ tags:
 - tps
 - labor-economics
 - administrative-law
-summary: A rigorous exploration of "policy by exception" in U.S. immigration law, focusing on DACA and TPS as administrative constructs, the economic modeling of status uncertainty, and the design of statutory transitional status pathways (TSP).
-related:
-- H1bVisaProcess
-- NaturalizationProcess
-- RiskManagement
-- EngineeringLeadershipHub
-- MathematicsHub
 ---
 
 # Immigration Policy: The Architecture of Contingency

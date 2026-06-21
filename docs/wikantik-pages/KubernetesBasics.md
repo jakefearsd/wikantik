@@ -1,19 +1,19 @@
 ---
-summary: Architectural analysis of Kubernetes primitives (Pods, Services, Deployments)
-  and their interaction in a distributed control plane.
-cluster: cloud-platforms
-auto-generated: false
-canonical_id: 01KQ0P44RN4JQ8FHGVS5RHS1RS
+summary: Kubernetes Pods, Services, Deployments — rolling updates, kube-proxy routing
+  (iptables/IPVS), liveness/readiness/startup probes, and QoS resource classes.
 title: Kubernetes Basics
-type: article
 tags:
 - kubernetes
 - orchestration
 - pod
 - service
 - deployment
+cluster: cloud-platforms
+type: article
 hubs:
 - ContainerSecurity Hub
+auto-generated: false
+canonical_id: 01KQ0P44RN4JQ8FHGVS5RHS1RS
 ---
 
 Kubernetes is a declarative control plane that manages the lifecycle of containerized workloads. It abstracts physical infrastructure into a set of logical primitives: Pods, Services, and Deployments.

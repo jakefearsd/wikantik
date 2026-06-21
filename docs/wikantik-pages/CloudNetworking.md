@@ -1,18 +1,19 @@
 ---
-cluster: cloud-platforms
-canonical_id: 01KQ0P44NGTSHSTM2TKGRW2KFP
-title: Cloud Networking
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: 'VPC architecture: subnet segmentation (public/private), routing tables,
+  Transit Gateways, PrivateLink, Security Groups, and Network ACLs.'
 tags:
 - cloud
 - networking
 - vpc
 - routing
 - security
-status: active
-date: 2025-05-15
-summary: Technical guide to Virtual Private Cloud (VPC) architecture. Covers subnet segmentation, routing tables, Transit Gateways, and PrivateLink.
+type: article
 auto-generated: false
+cluster: cloud-platforms
+canonical_id: 01KQ0P44NGTSHSTM2TKGRW2KFP
+title: Cloud Networking
 ---
 
 # Cloud Networking: VPC Architecture

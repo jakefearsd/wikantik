@@ -1,10 +1,19 @@
 ---
+summary: 'Geometric theory of gravitation: Einstein Field Equations, black hole spectroscopy
+  (GW250114), the 38-microsecond GPS offset, and Neuro-Relativity research.'
 title: General Relativity
+tags:
+- general-relativity
+- gravity
+- spacetime
+- einstein-field-equations
+- black-holes
+- precision-cosmology
 cluster: physics-engineering
-tags: [general-relativity, gravity, spacetime, einstein-field-equations, black-holes, precision-cosmology]
+type: reference
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The geometric theory of gravitation. Covers the Einstein Field Equations, black hole spectroscopy (GW250114), the 38-microsecond GPS offset, and 2025 case studies in Neuro-Relativity.
+canonical_id: 01KTXJ5NXH5E9PDHEMR0BAA2JC
 ---
 
 # General Relativity: The Geometry of Spacetime

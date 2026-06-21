@@ -1,14 +1,15 @@
 ---
-cluster: mathematics
-canonical_id: 01KQ0P44V6ZQ5G5694NAQE18DE
-title: Real Analysis
-type: article
 tags:
 - analysis
 - limits
 - topology
 - measure-theory
-summary: A rigorous exploration of Real Analysis, focusing on the completeness of the real numbers, the Heine-Borel theorem, Lebesgue integration, and the foundations of modern analysis.
+type: article
+summary: Completeness of the reals, Heine-Borel compactness, Lebesgue integration,
+  and pathological functions — the axiomatic foundations of modern analysis.
+title: Real Analysis
+cluster: mathematics
+canonical_id: 01KQ0P44V6ZQ5G5694NAQE18DE
 ---
 
 # Real Analysis: The Rigorous Architecture of the Continuum

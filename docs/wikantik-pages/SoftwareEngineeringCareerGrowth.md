@@ -1,13 +1,16 @@
 ---
-cluster: engineering-leadership
-canonical_id: 01KQ0P44WRMJ6GM244DDA2536W
-title: Software Engineering Career Growth
-type: article
 tags:
-- you
-- engin
-- technic
-summary: Framework for advancing from Senior to Staff and Principal engineering roles through systemic impact and organizational leverage.
+- career-growth
+- engineering-management
+- staff-engineer
+- principal-engineer
+- technical-leadership
+title: Software Engineering Career Growth
+cluster: engineering-leadership
+type: article
+canonical_id: 01KQ0P44WRMJ6GM244DDA2536W
+summary: Framework for advancing from Senior to Staff and Principal engineering roles
+  through systemic impact and organizational leverage.
 auto-generated: false
 ---
 

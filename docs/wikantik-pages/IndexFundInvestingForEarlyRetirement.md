@@ -1,8 +1,21 @@
 ---
-summary: Complete investing framework for building wealth with index funds to retire
-  early, covering costs, allocation, and account strategy
+status: active
+type: hub
+hubs:
+- RetirementPlanningGuide
+- EuRetirementSavingsGuide
 date: 2026-03-21T00:00:00Z
 cluster: index-fund-investing
+title: Index Fund Investing for Early Retirement (FIRE)
+tags:
+- personal-finance
+- investing
+- index-funds
+- early-retirement
+- fire
+- financial-independence
+summary: Complete investing framework for building wealth with index funds to retire
+  early, covering costs, allocation, and account strategy
 related:
 - ExpenseRatioDeepDive
 - AssetAllocationGuide
@@ -13,17 +26,6 @@ related:
 - EarlyRetirementInvestmentPlan
 - RetirementPlanningGuide
 canonical_id: 01KQ0P44R3DT6V9W45AD06JFRW
-type: hub
-tags:
-- personal-finance
-- investing
-- index-funds
-- early-retirement
-- FIRE
-- financial-independence
-status: active
-hubs:
-- RetirementPlanningGuide
 ---
 
 

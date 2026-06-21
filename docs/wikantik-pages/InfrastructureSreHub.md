@@ -1,21 +1,21 @@
 ---
-related:
-- KgRagUpliftPlan
-- ObservabilityDesign
-- PostgreSQLLocalDeployment
-cluster: Infrastructure & SRE
-canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD7
-type: hub
+status: active
+date: 2026-05-15T00:00:00Z
+summary: Central index for Site Reliability Engineering, observability, and platform
+  uplift plans.
 tags:
 - sre
 - infrastructure
 - devops
 - observability
 - hub
-summary: Central index for Site Reliability Engineering, observability, and platform
-  uplift plans.
-status: active
-date: 2026-05-15T00:00:00Z
+type: hub
+cluster: devops-sre
+canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD7
+related:
+- KgRagUpliftPlan
+- ObservabilityDesign
+- PostgreSQLLocalDeployment
 title: Infrastructure SRE Hub
 ---
 

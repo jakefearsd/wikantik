@@ -1,8 +1,16 @@
 ---
-cluster: agentic-ai
-canonical_id: 01KQ0P44RM3PX6ZZMAQ3SEZMFF
 title: Knowledge Management Strategies
+related:
+- AgenticAiHub
+- NaturalLanguageProcessing
+- SystemsThinking
+- MathematicsHub
+- ArtificialIntelligenceHub
+cluster: agentic-ai
 type: article
+canonical_id: 01KQ0P44RM3PX6ZZMAQ3SEZMFF
+summary: 'Enterprise knowledge management beyond repositories: cognitive architectures,
+  network-theory knowledge flow, and LLM-driven synthesis and RAG.'
 tags:
 - knowledge-management
 - km
@@ -10,13 +18,6 @@ tags:
 - semantic-search
 - knowledge-graphs
 - cognitive-architecture
-summary: A rigorous exploration of enterprise knowledge management as a complex adaptive system, focusing on the transition from information repositories to cognitive architectures, the application of network theory to knowledge flow, and the integration of LLMs for automated synthesis and RAG.
-related:
-- AgenticAiHub
-- NaturalLanguageProcessing
-- SystemsThinking
-- MathematicsHub
-- ArtificialIntelligenceHub
 ---
 
 # Knowledge Management: The Architecture of Organizational Intelligence

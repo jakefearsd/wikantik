@@ -1,18 +1,12 @@
 ---
-summary: Avalanche vs. snowball, the 5–7% rule for invest-vs-payoff, the cases where
-  consolidation helps and the cases where it traps, and the math that tells you which
-  approach is right.
+type: article
+status: active
 date: '2026-04-26'
 cluster: personal-finance
-related:
-- PersonalFinanceGuide
-- EmergencyFundStrategies
-- BudgetingMethods
-- CreditScoreOptimization
-- MortgageStrategies
-canonical_id: 01KQ0P44PFGXMXZFX7QK91YH2K
-type: article
 title: Debt Payoff Strategies
+hubs:
+- PersonalFinanceHub
+- DebtPayoffStrategies Hub
 tags:
 - debt
 - debt-payoff
@@ -20,10 +14,15 @@ tags:
 - avalanche
 - snowball
 - consolidation
-status: active
-hubs:
-- PersonalFinanceHub
-- DebtPayoffStrategies Hub
+summary: Avalanche vs. snowball, when to invest instead of pay off, the cases where
+  consolidation helps or traps, and the math that tells you which approach is right.
+related:
+- PersonalFinanceGuide
+- EmergencyFundStrategies
+- BudgetingMethods
+- CreditScoreOptimization
+- MortgageStrategies
+canonical_id: 01KQ0P44PFGXMXZFX7QK91YH2K
 ---
 # Debt Payoff Strategies
 
@@ -48,7 +47,7 @@ The 5–7% range is the gray zone. A 6% mortgage held over a 25-year horizon dur
 Two amendments to the rule:
 
 1. **Capture the employer 401(k) match first**, even if you have credit-card debt at 28%. A 50–100% match is a 50–100% one-time return that no debt rate beats.
-2. **Build the starter emergency fund first** ($1,000 or one month of essentials). Without it, debt payoff is a treadmill — you pay down $500, hit a surprise expense, charge it, and end up where you started.
+2. **Build the starter emergency fund first** (\$1,000 or one month of essentials). Without it, debt payoff is a treadmill — you pay down $500, hit a surprise expense, charge it, and end up where you started.
 
 After those two: high-interest debt is the priority.
 
@@ -88,7 +87,7 @@ For most people with credit-card debt, the highest-rate debt is also one of the 
 
 The default emergency. Rates of 20–30% APR. Almost always the first debt to attack after the starter emergency fund. A 25% APR balance is a 25% guaranteed return on every dollar of payoff — there is no investment that competes.
 
-A balance-transfer card (0% intro APR for 12–21 months) can be a powerful tool *if* you commit to paying off during the promotional period. The math: a $10,000 balance at 24% costs $2,400/year in interest; a 0% transfer at 3% transfer fee costs $300 once. The trap is rolling balances repeatedly without paying down.
+A balance-transfer card (0% intro APR for 12–21 months) can be a powerful tool *if* you commit to paying off during the promotional period. The math: a \$10,000 balance at 24% costs $2,400/year in interest; a 0% transfer at 3% transfer fee costs \$300 once. The trap is rolling balances repeatedly without paying down.
 
 ### Auto loans
 
@@ -166,19 +165,19 @@ For credit-card debt, balance-transfer cards are the most powerful single tool a
 | Credit card B | $2,500 | 22% | $75 |
 | Auto loan | $14,000 | 7.5% | $290 |
 | Student loan | $19,000 | 5.0% | $210 |
-| **Total** | **$41,500** | — | **$755/mo** |
+| **Total** | **$41,500** | — | **\$755/mo** |
 
 Available for debt payoff above minimums: $400/month. Strategy: avalanche.
 
-**Year 1**: Throw $400 + minimum at Card A. With the avalanche-redirect, Card A is paid off in month 11. (The $180 min plus $400 extra = $580/month, with snowball-rolled minimums as other debts decrease.)
+**Year 1**: Throw \$400 + minimum at Card A. With the avalanche-redirect, Card A is paid off in month 11. (The $180 min plus $400 extra = \$580/month, with snowball-rolled minimums as other debts decrease.)
 
 **Year 2**: Roll $400 + Card A's $180 = $580 + Card B's $75 minimum to Card B. Card B disappears in month 4 of year 2.
 
-**Year 2–4**: Roll all $655 of accumulated payments + auto's $290 minimum to the auto loan. Paid off mid-year 4.
+**Year 2–4**: Roll all \$655 of accumulated payments + auto's $290 minimum to the auto loan. Paid off mid-year 4.
 
-**Year 4–8**: Final $945/month + student loan minimum to student loans. Paid off in year 8.
+**Year 4–8**: Final \$945/month + student loan minimum to student loans. Paid off in year 8.
 
-Compared to making minimums: this household pays off the full $41,500 about 14 years earlier and saves roughly $28,000 in total interest. The "snowball" version finishes about 3 months later but feels easier because Card B disappears almost immediately.
+Compared to making minimums: this household pays off the full \$41,500 about 14 years earlier and saves roughly $28,000 in total interest. The "snowball" version finishes about 3 months later but feels easier because Card B disappears almost immediately.
 
 ## Common failure patterns
 

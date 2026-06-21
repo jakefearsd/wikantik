@@ -1,11 +1,19 @@
 ---
+canonical_id: 01KVJMS1B34YM7B1DC61DVKTM3
 title: Home Emergency Preparedness
+tags:
+- emergency-prep
+- resilience-engineering
+- home-automation
+- systems-engineering
+- risk-management
 cluster: emergency-prep
-tags: [emergency-prep, resilience-engineering, home-automation, systems-engineering, risk-management]
-status: active
-date: 2025-05-15
-summary: Technical specifications for residential resilience. Covers LiFePO4 battery sizing, water circularity, and immediate shelter-in-place requirements.
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+status: active
+summary: Technical specifications for residential resilience. Covers LiFePO4 battery
+  sizing, water circularity, and immediate shelter-in-place requirements.
 ---
 
 # Home Emergency Preparedness: Resilience Engineering

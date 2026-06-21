@@ -1,19 +1,19 @@
 ---
-canonical_id: 01KQ0P44S3FPPEVFTQRCWTS6EV
-title: Long Term Care Insurance
 type: article
 cluster: personal-finance
-status: active
 date: '2026-04-26'
-summary: How long-term care insurance works, when it is worth buying, why traditional
-  policies have struggled, and the hybrid alternatives — plus the self-funding option
-  that fits many households better than insurance.
+title: Long Term Care Insurance
+hubs:
+- PersonalFinanceHub
 tags:
 - long-term-care
 - insurance
 - retirement
 - personal-finance
 - elderly-care
+summary: How long-term care insurance works, when it is worth buying, why traditional
+  policies have struggled, and the hybrid alternatives — plus the self-funding option
+  that fits many households better than insurance.
 related:
 - PersonalFinanceGuide
 - InsuranceTypesAndCoverage
@@ -21,8 +21,8 @@ related:
 - MedicarePlanningAndHealthcare
 - EstatePlanningForRetirees
 - RetirementSpendingPatterns
-hubs:
-- PersonalFinanceHub
+canonical_id: 01KQ0P44S3FPPEVFTQRCWTS6EV
+status: active
 ---
 # Long-Term Care Insurance
 

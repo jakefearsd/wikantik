@@ -1,18 +1,19 @@
 ---
-cluster: remote-host-management
-canonical_id: 01KQ0P44VEAW0B7TK2PX88K0VQ
-title: Remote Property Management
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: Channel manager (Guesty) orchestration, automated turnover sync, smart-lock
+  API integration, and IoT noise monitoring for remote short-term rental operators.
 tags:
 - real-estate
 - pms
 - guesty
 - automation
 - hospitality
-status: active
-date: 2025-05-15
-summary: A technical guide to remote property management, focusing on channel managers (Guesty), automated turnover sync, and API integration.
+type: article
 auto-generated: false
+cluster: remote-host-management
+canonical_id: 01KQ0P44VEAW0B7TK2PX88K0VQ
+title: Remote Property Management
 ---
 
 # Remote Property Management: Systems and Sync

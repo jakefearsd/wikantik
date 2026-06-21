@@ -1,8 +1,7 @@
 ---
-cluster: index-fund-investing
-canonical_id: 01KQ0P44R6HP57GYD6KTJCTTQ0
+summary: International index funds and global diversification — correlation convergence
+  in crises, currency and geopolitical risk, and factor-based exposure.
 title: International Index Funds
-type: article
 tags:
 - finance
 - global-diversification
@@ -10,13 +9,16 @@ tags:
 - asset-allocation
 - currency-risk
 - factor-investing
-summary: A rigorous exploration of international index funds and global diversification, focusing on the mechanics of correlation convergence, factor-based orthogonal exposure, and the management of currency and geopolitical risk via regime-switching models.
+cluster: index-fund-investing
 related:
 - LowCostIndexFundInvestingHub
 - BondIndexFunds
 - RetirementPlanningForLateStarters
 - BusinessMetricsAndKpis
 - MathematicsHub
+type: article
+date: '2026-05-20'
+canonical_id: 01KQ0P44R6HP57GYD6KTJCTTQ0
 ---
 
 # International Index Funds: The Architecture of Global Beta

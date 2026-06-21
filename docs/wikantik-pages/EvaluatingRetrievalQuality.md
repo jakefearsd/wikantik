@@ -1,6 +1,9 @@
 ---
-canonical_id: 01KRQJ720J8NH33YNC8E83PE8H
-type: article
+status: active
+date: '2026-05-15'
+summary: Technical guide to measuring search engine performance. Explains the core
+  metrics of Recall@K, Mean Reciprocal Rank (MRR), and how to build a rigorous 'Gold
+  Set' for retrieval benchmarking.
 tags:
 - search
 - evaluation
@@ -8,18 +11,15 @@ tags:
 - recall
 - benchmarking
 - testing
-title: 'Evaluating Retrieval Quality: From Vibes to MRR'
+type: article
 relations:
 - type: extension_of
   target_id: IndustrialSearchSystems
 - type: component_of
   target_id: 01KQ0P44PK0X731A1NYX3X5B9V
-summary: Technical guide to measuring search engine performance. Explains the core
-  metrics of Recall@K, Mean Reciprocal Rank (MRR), and how to build a rigorous 'Gold
-  Set' for retrieval benchmarking.
-status: active
-date: '2026-05-15'
+canonical_id: 01KRQJ720J8NH33YNC8E83PE8H
 cluster: wikantik-development
+title: 'Evaluating Retrieval Quality: From Vibes to MRR'
 ---
 
 # Evaluating Retrieval Quality: From Vibes to MRR

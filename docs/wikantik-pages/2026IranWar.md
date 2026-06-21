@@ -1,9 +1,4 @@
 ---
-region: Middle East
-source: Wikipedia
-status: ongoing
-type: intelligence-summary
-title: 2026 Iran War
 actors:
 - United States
 - Israel
@@ -13,25 +8,30 @@ actors:
 - Donald Trump
 - Benjamin Netanyahu
 - Ali Khamenei
-canonical_id: 01KQ0P44G6HMBMT7HVPT34FZWK
-date: '2026-02-28'
-tags:
-- Iran
-- Israel
-- United States
-- military-conflict
-- nuclear-proliferation
-- Operation Epic Fury
-- Ali Khamenei
-- geopolitics
-related:
-- ConflictsAndEquityMarkets
-summary: Overview of the February 2026 US-Israeli airstrikes on Iran, Iran's retaliatory
-  strikes, and the broader geopolitical context
+type: article
+title: 2026 Iran War
+status: active
+source: Wikipedia
+region: Middle East
 uses:
 - Bahrain
 - Qatar
 cluster: geopolitics-and-finance
+summary: Overview of the February 2026 US-Israeli airstrikes on Iran, Iran's retaliatory
+  strikes, and the broader geopolitical context
+related:
+- ConflictsAndEquityMarkets
+tags:
+- iran
+- israel
+- united-states
+- military-conflict
+- nuclear-proliferation
+- operation-epic-fury
+- ali-khamenei
+- geopolitics
+date: '2026-02-28'
+canonical_id: 01KQ0P44G6HMBMT7HVPT34FZWK
 ---
 ## Summary of Summary
 

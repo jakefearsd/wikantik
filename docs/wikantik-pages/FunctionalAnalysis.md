@@ -1,15 +1,16 @@
 ---
+summary: Analysis of infinite-dimensional vector spaces, linear operators, and spectral
+  theory.
+title: Functional Analysis
 cluster: mathematics
 canonical_id: 01KQ0P44QJ5QH64QB4M0V4WW1Q
-title: Functional Analysis
-type: article
 tags:
 - mathematics
 - functional-analysis
 - operator-theory
 - banach-space
 - hilbert-space
-summary: Analysis of infinite-dimensional vector spaces, linear operators, and spectral theory.
+type: article
 ---
 
 # Functional Analysis: Geometry in Infinite Dimensions

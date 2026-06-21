@@ -1,29 +1,32 @@
 ---
-summary: Index of pages on web service and API design — REST vs. GraphQL vs. RPC,
-  the patterns that scale (idempotency, pagination, batching), and the protocols that
-  enable real-time communication.
+type: hub
+status: active
 date: '2026-04-26'
 cluster: web-services-and-apis
+title: Web Services and APIs
+hubs:
+- NetworkingHub
+- DevOpsAndSreHub
+- CloudPlatformsHub
+- BackwardsCompatibilityStrategiesHub
+- FrontendDevelopmentHub
+- JavaHub
+tags:
+- api
+- web-services
+- hub
+- rest
+- graphql
+- protocol
+summary: Index of web service and API design — REST vs. GraphQL vs. RPC, scaling patterns
+  (idempotency, pagination, batching), and real-time protocols.
 related:
 - JavaHub
 - FrontendDevelopmentHub
 - DevOpsAndSreHub
 - NetworkingHub
+- ApiProtocolComparison
 canonical_id: 01KZHC6PVS4SBQM9R0F3T7K8Z5
-type: hub
-title: WebServicesAndApisHub
-tags:
-- api
-- web-services
-- hub
-- REST
-- GraphQL
-- protocol
-status: active
-hubs:
-- NetworkingHub
-- DevOpsAndSreHub
-- CloudPlatformsHub
 ---
 # WebServicesAndApis Hub
 

@@ -1,19 +1,17 @@
 ---
-canonical_id: 01KQ0P44S4Y86MVCMAK9KJ3P9Y
-title: LowCostIndexFundInvestingHub
-type: hub
-cluster: index-fund-investing
-status: active
 date: '2026-04-26'
-summary: Index of the low-cost index fund investing cluster — the philosophy, the
-  building blocks, the portfolio construction patterns, and the behavioral discipline
-  required to execute over a working career.
+status: active
+summary: 'Hub for low-cost index fund investing: SPIVA evidence, expense ratios, the
+  three-fund portfolio, asset allocation, and behavioral discipline.'
 tags:
 - index-funds
-- ETFs
+- etfs
 - passive-investing
 - portfolio-construction
 - hub
+type: hub
+cluster: index-fund-investing
+canonical_id: 01KQ0P44S4Y86MVCMAK9KJ3P9Y
 related:
 - LowCostIndexFundInvesting
 - IntroductionToIndexFundsAndETFs
@@ -21,6 +19,18 @@ related:
 - AssetAllocation
 - PersonalFinanceGuide
 - RetirementPlanningGuide
+- DividendVsTotalReturnInvesting
+- TheCaseAgainstMarketTiming
+- BehavioralFinanceForInvestors
+- DollarCostAveraging
+- ExpenseRatiosAndTheirEffectOnCompounding
+- MutualFundVsEtfComparison
+- RoboAdvisorComparison
+- TaxLossHarvesting
+- EsgInvesting
+- ReitIndexFunds
+- TotalStockMarketFundAnatomy
+title: 'Low-Cost Index Fund Investing: Cluster Hub'
 ---
 # LowCostIndexFundInvesting Hub
 

@@ -1,9 +1,21 @@
 ---
+type: article
+status: active
+date: '2026-04-26'
+cluster: index-fund-investing
+title: Dollar Cost Averaging
+hubs:
+- LowCostIndexFundInvestingHub
+- RebalancingStrategies Hub
+tags:
+- dollar-cost-averaging
+- dca
+- lump-sum
+- index-funds
+- behavioral-finance
 summary: How DCA actually works, the cases where lump-sum investing beats it on expected
   value, and the behavioral cases where DCA still wins despite being mathematically
   inferior.
-date: '2026-04-26'
-cluster: index-fund-investing
 related:
 - LowCostIndexFundInvesting
 - IndexFundPortfolioConstruction
@@ -11,18 +23,6 @@ related:
 - TheCaseAgainstMarketTiming
 - InvestmentPolicyStatement
 canonical_id: 01KQ0P44PXG39QNES88DP629S9
-type: article
-title: Dollar Cost Averaging
-tags:
-- dollar-cost-averaging
-- DCA
-- lump-sum
-- index-funds
-- behavioral-finance
-status: active
-hubs:
-- LowCostIndexFundInvestingHub
-- RebalancingStrategies Hub
 ---
 # Dollar Cost Averaging
 
@@ -34,13 +34,13 @@ Both cases are true. They apply in different situations.
 
 The mechanic: you commit to investing $X every week, month, or paycheck, automatically, into a target investment. You do not adjust based on market movements.
 
-A simple example: $1,000/month into a total-stock-market index fund. In a month where the fund is at $100/share, you buy 10 shares. In a month where it is at $80/share, you buy 12.5 shares. Your average cost per share is lower than the simple average of share prices because you bought more shares when they were cheaper.
+A simple example: $1,000/month into a total-stock-market index fund. In a month where the fund is at \$100/share, you buy 10 shares. In a month where it is at $80/share, you buy 12.5 shares. Your average cost per share is lower than the simple average of share prices because you bought more shares when they were cheaper.
 
 This is mathematically true and modestly useful. The bigger benefit is behavioral: automation removes the decision of *when* to invest, which is one of the most common sources of investor underperformance.
 
 ## The lump-sum vs. DCA debate
 
-The classic question: if you receive $100,000, should you invest it all at once (lump sum) or spread it over 12 months (DCA)?
+The classic question: if you receive \$100,000, should you invest it all at once (lump sum) or spread it over 12 months (DCA)?
 
 ### What the math says
 

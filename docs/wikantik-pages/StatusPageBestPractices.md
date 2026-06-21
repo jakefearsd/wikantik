@@ -1,24 +1,23 @@
 ---
-canonical_id: 01KQ0P44WY3QKK4CKQFRV5QCFW
-title: Status Page Best Practices
-type: article
 cluster: devops-sre
-status: active
 date: '2026-04-26'
-summary: How to run a status page that builds trust — clear status definitions, timely
-  updates, postmortem disclosure, and the patterns that distinguish honest status
-  pages from cover-up theater.
+title: Status Page Best Practices
+hubs:
+- DevOpsAndSreHub
 tags:
 - status-page
 - incidents
 - communication
 - transparency
+summary: Running a status page that builds trust — clear status definitions, timely
+  updates, postmortem disclosure, and honest incident communication.
 related:
 - OnCallPractices
 - RunbookAutomation
 - CloudMonitoring
-hubs:
-- DevOpsAndSreHub
+canonical_id: 01KQ0P44WY3QKK4CKQFRV5QCFW
+type: article
+status: active
 ---
 # Status Page Best Practices
 

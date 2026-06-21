@@ -1,18 +1,21 @@
 ---
-canonical_id: 01KQ0P44QT1DWPZ1D0T04PXGCJ
-date: '2026-03-14'
-summary: How the Gulf War established the buy-the-invasion pattern and the oil-price
-  transmission mechanism
 cluster: geopolitics-and-finance
+title: Gulf War Markets
 related:
 - ConflictsAndEquityMarkets
 - ColdWarMarkets
 - WarOnTerrorMarkets
 - ConflictMarketPatterns
+type: article
+summary: How the Gulf War established the buy-the-invasion pattern and the oil-price
+  transmission mechanism
+status: active
+date: '2026-03-14'
+canonical_id: 01KQ0P44QT1DWPZ1D0T04PXGCJ
+hubs:
+- ConflictMarketPatternsHub
 part-of:
 - ConflictsAndEquityMarkets
-type: article
-status: active
 tags:
 - finance
 - gulf-war
@@ -20,8 +23,6 @@ tags:
 - history
 - oil-prices
 - buy-the-invasion
-hubs:
-- ConflictMarketPatternsHub
 ---
 # The Gulf War and Equity Markets (1990–1991)
 
@@ -31,7 +32,7 @@ The Gulf War was the first major international conflict of the post-Cold War era
 
 On 2 August 1990, Iraq invaded and rapidly occupied Kuwait. The market reaction was immediate and severe:
 
-- Oil prices doubled from roughly $17 to $36 per barrel within weeks
+- Oil prices doubled from roughly \$17 to $36 per barrel within weeks
 - The S&P 500 fell approximately 20% between August and October 1990
 - The decline was exacerbated by an existing economic slowdown and the savings-and-loan crisis
 

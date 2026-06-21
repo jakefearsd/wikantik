@@ -1,14 +1,14 @@
 ---
-canonical_id: 01KQP4WWQDHGVZ0DW3CG9VMB2E
-summary: A foundational reference on Incident Response — the organized approach to
-  managing and addressing the aftermath of a security breach or system failure.
 tags:
 - incident-response
 - sre
 - reliability
 - operations
 type: reference
+summary: 'Structured lifecycle for managing system failures: detection, containment,
+  recovery, and post-incident analysis with defined IC, Tech Lead, and Comms roles.'
 title: Incident Response
+canonical_id: 01KQP4WWQDHGVZ0DW3CG9VMB2E
 cluster: software-architecture
 ---
 

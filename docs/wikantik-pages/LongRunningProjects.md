@@ -1,18 +1,19 @@
 ---
-cluster: warehouse-automation
-canonical_id: 01KQ0P44S3H2SZDQ28C7NY12GR
-title: Long Running Projects
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: A technical guide to the Critical Path Method (CPM) and managing the 'Cone
+  of Uncertainty' in complex, multi-year industrial projects.
 tags:
 - project-management
 - cpm
 - pert
 - cone-of-uncertainty
 - logistics
-status: active
-date: 2025-05-15
-summary: A technical guide to the Critical Path Method (CPM) and managing the 'Cone of Uncertainty' in complex, multi-year industrial projects.
+type: article
 auto-generated: false
+cluster: warehouse-automation
+canonical_id: 01KQ0P44S3H2SZDQ28C7NY12GR
+title: Long Running Projects
 ---
 
 # Long-Running Projects: CPM and Uncertainty Management

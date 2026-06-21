@@ -1,10 +1,12 @@
 ---
+canonical_id: 01KVJMS150FWBAAYC4AVJBETE2
 title: Erlang Programming Language
 type: article
 cluster: distributed-systems
-status: published
+status: active
+summary: A functional, concurrent programming language designed by Ericsson for building
+  massively scalable, fault-tolerant, soft real-time systems.
 date: '2026-05-10'
-summary: A functional, concurrent programming language designed by Ericsson for building massively scalable, fault-tolerant, soft real-time systems.
 tags:
 - erlang
 - actor-model

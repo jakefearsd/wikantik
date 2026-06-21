@@ -1,26 +1,26 @@
 ---
+type: article
+date: '2026-04-26'
+cluster: mathematics
+title: Modal Logic
+hubs:
+- MathematicsHub
+- PredicateLogic Hub
+tags:
+- modal-logic
+- mathematics
+- formal-logic
+- verification
 summary: Logic of necessity and possibility — what modal logic adds beyond classical
   logic, the major systems (S4, S5), and the applications in CS (verification, AI,
   knowledge representation).
-date: '2026-04-26'
-cluster: mathematics
 related:
 - PropositionalLogic
 - PredicateLogic
 - TemporalLogic
 - SymbolicLogic
 canonical_id: 01KQ0P44SJ7VQ028GSR46ZZYV5
-type: article
-title: Modal Logic
-tags:
-- modal-logic
-- mathematics
-- formal-logic
-- verification
 status: active
-hubs:
-- MathematicsHub
-- PredicateLogic Hub
 ---
 
 # Modal Logic: The Logic of Necessity, Possibility, and Knowledge

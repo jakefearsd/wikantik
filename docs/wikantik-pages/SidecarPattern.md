@@ -1,10 +1,8 @@
 ---
-title: Sidecar and Ambassador Patterns
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A set of multi-container pod patterns used in Kubernetes to offload cross-cutting concerns (logging, security, routing) to separate, specialized containers.
+summary: A set of multi-container pod patterns used in Kubernetes to offload cross-cutting
+  concerns (logging, security, routing) to separate, specialized containers.
 tags:
 - distributed-systems
 - kubernetes
@@ -12,10 +10,15 @@ tags:
 - ambassador-pattern
 - service-mesh
 - cloud-native
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: related_to, target_id: 01KS8E8R8W938D4EYVWFA9F36I} # Bulkhead
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: related_to
+  target_id: 01KS8E8R8W938D4EYVWFA9F36I
+cluster: distributed-systems
 canonical_id: 01KS8F9Z9X938D4EYVWFA9F36J
+title: Sidecar and Ambassador Patterns
 ---
 
 # Sidecar and Ambassador Patterns

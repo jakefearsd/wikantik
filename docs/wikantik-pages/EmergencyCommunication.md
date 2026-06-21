@@ -1,8 +1,16 @@
 ---
-cluster: emergency-prep
-canonical_id: 01KQ0P44Q3G4ZEDTKP12F8M8G5
 title: Emergency Communication Systems
+related:
+- HomeEmergencyPreparedness
+- CommunityDisasterPlanning
+- ThreatModeling
+- RiskManagement
+- DistributedSystemsHub
+cluster: emergency-prep
 type: article
+canonical_id: 01KQ0P44Q3G4ZEDTKP12F8M8G5
+summary: 'DRM2CS architecture for high-reliability emergency comms: LoRa mesh protocols,
+  satellite redundancy, and PACE planning for total infrastructure collapse.'
 tags:
 - emergency-prep
 - communication-redundancy
@@ -11,13 +19,6 @@ tags:
 - lora
 - satellite-comms
 - pace-planning
-summary: A rigorous exploration of high-reliability emergency communication, focusing on the DRM2CS architecture, LoRa mesh protocols, satellite redundancy, and the operationalization of PACE planning for total infrastructure collapse.
-related:
-- HomeEmergencyPreparedness
-- CommunityDisasterPlanning
-- ThreatModeling
-- RiskManagement
-- DistributedSystemsHub
 ---
 
 # Emergency Communication: The Architecture of Resilient Signaling

@@ -1,8 +1,18 @@
 ---
+title: 'Warehouse Layout: The Flow Optimization Manifold'
+related:
+- WarehouseAutomationHub
+- SupplyChainAndLogisticsOptimization
+- OperationsResearchHub
+- LeanWarehousing
+- MultiObjectiveOptimization
+- MathematicsHub
+- NumericalMethods
 cluster: warehouse-automation
-canonical_id: 01KQ0P44YMW82QV731Q6AN1HHM
-title: "Warehouse Layout: The Flow Optimization Manifold"
 type: article
+canonical_id: 01KQ0P44YMW82QV731Q6AN1HHM
+summary: 'Warehouse layout: network graph modeling, Quadratic Assignment Problem (QAP)
+  for co-occurrence, and multi-objective optimization for Pareto-optimal layouts.'
 tags:
 - warehouse-layout
 - facility-design
@@ -12,15 +22,6 @@ tags:
 - qap
 - simulation
 - digital-twin
-summary: A rigorous exploration of warehouse layout design as a multi-objective optimization problem, focusing on dynamic network graph modeling, the Quadratic Assignment Problem (QAP) for co-occurrence, and the application of Multi-Objective Optimization (MOO) for Pareto-optimal layouts.
-related:
-- WarehouseAutomationHub
-- SupplyChainAndLogisticsOptimization
-- OperationsResearchHub
-- LeanWarehousing
-- MultiObjectiveOptimization
-- MathematicsHub
-- NumericalMethods
 ---
 
 # Warehouse Layout Design: The Architecture of Material Flow

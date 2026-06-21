@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS209EGQTA5T0WW0HXC46
 title: Rust Language
+tags:
+- programming-languages
+- rust
+- systems-programming
+- memory-safety
+- ownership
+- borrowing
+- 2026-benchmarks
 cluster: computer-science
-tags: [programming-languages, rust, systems-programming, memory-safety, ownership, borrowing, 2026-benchmarks]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The pioneer of zero-cost memory safety (2010). Created at Mozilla, its 'Ownership & Borrowing' model has virtually eliminated memory vulnerabilities, making it the 2026 standard for secure systems.
+summary: Pioneer of zero-cost memory safety (2010). Ownership & borrowing eliminated
+  memory vulnerabilities; the 2026 standard for secure systems and AI kernels.
 ---
 
 # The Rust Language: Safety Without Compromise

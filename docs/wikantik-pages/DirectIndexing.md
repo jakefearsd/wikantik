@@ -1,17 +1,18 @@
 ---
-cluster: index-fund-investing
 canonical_id: 01KQ0P44PQEV7G152J0VAGVBFA
 title: Direct Indexing
-type: article
 tags:
 - finance
 - investing
 - tax-loss-harvesting
 - direct-indexing
 - tax-alpha
-summary: Advanced wealth management through Direct Indexing, focusing on security-level tax-loss harvesting and custom factor optimization.
-auto-generated: false
+cluster: index-fund-investing
+type: article
 date: 2025-02-13T00:00:00Z
+auto-generated: false
+summary: Advanced wealth management through Direct Indexing, focusing on security-level
+  tax-loss harvesting and custom factor optimization.
 ---
 
 # Direct Indexing: Security-Level Tax Optimization
@@ -38,12 +39,12 @@ $$
 \text{Tax Alpha} = (\text{Harvested Loss} \times \text{Marginal Tax Rate}) / \text{Total Portfolio Value}
 $$
 
-If an investor harvests$50,000 in losses in a$1M portfolio and faces a 30% combined tax rate, they have generated **1.5% in Tax Alpha ($15,000)** for that year.
+If an investor harvests$50,000 in losses in a\$1M portfolio and faces a 30% combined tax rate, they have generated **1.5% in Tax Alpha ($15,000)** for that year.
 ## 3. Custom Factor Optimization
 
 Direct Indexing also allows for "Tilt" and "Exclusion" strategies that are impossible in pooled funds:
 - **ESG/Values Exclusion:** An investor can mirror the S&P 500 but explicitly exclude "Tobacco" or "Defense" stocks.
-- **Concentrated Position Hedging:** If an executive owns$5M in Apple stock from RSUs, their Direct Index can be programmed to mirror the S&P 500 while **excluding Apple** to reduce single-stock concentration risk.
+- **Concentrated Position Hedging:** If an executive owns\$5M in Apple stock from RSUs, their Direct Index can be programmed to mirror the S&P 500 while **excluding Apple** to reduce single-stock concentration risk.
 
 ## 4. Comparison Table: Direct Indexing vs. ETFs
 

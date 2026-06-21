@@ -1,16 +1,17 @@
 ---
-cluster: software-engineering-practices
 canonical_id: 01KQ0P44TBD0JC1FZDM83GHEYV
 title: Open Source Contribution
-type: article
 tags:
-- OSS
-- CLA
-- DCO
+- oss
+- cla
+- dco
 - community-management
-date: 2025-05-15
-summary: A guide to professional open-source contribution, focusing on the "Good First Issue" workflow and the legal necessity of CLAs and DCOs.
+cluster: software-engineering-practices
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+summary: A guide to professional open-source contribution, focusing on the "Good First
+  Issue" workflow and the legal necessity of CLAs and DCOs.
 ---
 
 # Open Source Contribution: Workflows and Legal Compliance

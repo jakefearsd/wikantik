@@ -1,12 +1,20 @@
 ---
-title: Blockchain Provenance
-type: article
-cluster: blockchain-tech
-status: active
-date: 2026-05-15
-summary: Systematic analysis of blockchain-based provenance. Detailed implementation of Hyperledger Fabric channels and IoT-to-Blockchain cryptographic linkage.
 auto-generated: false
+status: active
+type: article
 kg_include: true
+date: 2026-05-15T00:00:00Z
+cluster: blockchain-tech
+title: Blockchain Provenance
+tags:
+- blockchain
+- provenance
+- hyperledger-fabric
+- supply-chain
+- iot
+summary: Blockchain provenance via Hyperledger Fabric private channels, IoT-to-blockchain
+  NFC/PUF cryptographic binding, and Merkle-anchored cold-chain data integrity.
+canonical_id: 01KVJMS0QSZG3DCDZ6E61Y5J6T
 ---
 
 # Blockchain Provenance: Technical Traceability
@@ -22,7 +30,7 @@ Hyperledger Fabric solves this using **Channels**—private sub-networks between
 
 *   **The Problem**: Manufacturer A sells a component to Assembler B. They want the hash of the transaction to be globally verifiable, but the price to be hidden from Competitor C.
 *   **The Implementation**: 
-    1.  **Channel `AB-Trade`**: Contains a private ledger for A and B. Full transaction details (Price: $500, Batch: #101) are stored here.
+    1.  **Channel `AB-Trade`**: Contains a private ledger for A and B. Full transaction details (Price: \$500, Batch: #101) are stored here.
     2.  **Transient Data**: The sensitive price is passed as "transient" data in the proposal, ensuring it is never stored in the block's permanent public history.
     3.  **Hashed Linkage**: A hash of the private data is committed to the main ledger. 
 *   **Verification**: If an auditor later asks for proof, A and B can reveal the private data. The auditor hashes it and compares it to the public hash. If they match, the provenance is proven without ever exposing the data to the whole network.

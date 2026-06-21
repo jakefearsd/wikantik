@@ -1,6 +1,9 @@
 ---
-canonical_id: 01KRPPFJAB0VPQ4GRJA8WZ4AQS
-type: article
+status: active
+date: '2026-05-15'
+summary: Technical analysis of warehouse picking optimization techniques, including
+  S-Shape and Largest Gap routing, order batching strategies, and the impact of wave
+  vs. waveless picking on throughput.
 tags:
 - warehouse-optimization
 - picking
@@ -8,18 +11,15 @@ tags:
 - batching
 - logistics
 - operations-research
-title: 'Warehouse Picking Optimization: Routing and Batching'
+type: article
 relations:
 - type: extension_of
   target_id: 01KQ0P44YKQTTF1M0KS2X7DB0Z
 - type: component_of
   target_id: 01KQEKGDDVHTHY07CQ3YKSQ5PA
-summary: Technical analysis of warehouse picking optimization techniques, including
-  S-Shape and Largest Gap routing, order batching strategies, and the impact of wave
-  vs. waveless picking on throughput.
-status: published
-date: '2026-05-15'
+canonical_id: 01KRPPFJAB0VPQ4GRJA8WZ4AQS
 cluster: operations-research
+title: 'Warehouse Picking Optimization: Routing and Batching'
 ---
 
 # Warehouse Picking Optimization: Routing and Batching

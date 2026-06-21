@@ -1,12 +1,17 @@
 ---
-canonical_id: 01KRM5DB0PYHFBYBPS0QC87PKZ
 summary: Hub for historical systems analysis, philosophical inquiry, and cultural
   evolution.
 title: History & Philosophy Hub
+tags:
+- history
+- philosophy
+- humanities
+- hub
 cluster: humanities
 type: hub
-status: active
 date: 2026-05-14T00:00:00Z
+status: active
+canonical_id: 01KRM5DB0PYHFBYBPS0QC87PKZ
 ---
 # History & Philosophy Hub
 

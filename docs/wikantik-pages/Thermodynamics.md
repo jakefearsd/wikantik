@@ -1,10 +1,19 @@
 ---
+summary: 'Heat, work, and energy: phase transition thermodynamics in chocolate tempering
+  and the Thermal Flywheel Effect in passive food storage systems.'
 title: Thermodynamics
+tags:
+- thermodynamics
+- energy
+- phase-transition
+- thermal-mass
+- polymorphism
+- food-science
 cluster: physics-engineering
-tags: [thermodynamics, energy, phase-transition, thermal-mass, polymorphism, food-science]
+type: reference
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The study of heat, work, and energy. Focuses on phase transition thermodynamics in chocolate tempering and the 'Thermal Flywheel Effect' in passive food storage systems.
+canonical_id: 01KTXJ5PSZG05JERW2EQHJFGJ0
 ---
 
 # Thermodynamics: The Physics of Energy and Phase

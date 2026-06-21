@@ -1,11 +1,11 @@
 ---
-related:
-- PhysicsHub
-- CoinCollectingHub
-- AmericanCoinageHub
-cluster: Physics
-canonical_id: 01J7KQTCD38PBFSD7TD6ACJFDB
 type: article
+status: active
+date: 2026-05-15T00:00:00Z
+cluster: numismatics
+title: 'Counterfeit Detection Physics: Instrumental Analysis'
+hubs:
+- PhysicsHub
 tags:
 - physics
 - coins
@@ -14,9 +14,11 @@ tags:
 - scanning
 summary: Technical guide to the physics of counterfeit detection, covering XRF, density
   metrics, and acoustic resonance.
-status: active
-date: 2026-05-15T00:00:00Z
-title: 'Counterfeit Detection Physics: Instrumental Analysis'
+related:
+- PhysicsHub
+- CoinCollectingHub
+- AmericanCoinageHub
+canonical_id: 01J7KQTCD38PBFSD7TD6ACJFDB
 ---
 
 # Counterfeit Detection Physics: Instrumental Analysis

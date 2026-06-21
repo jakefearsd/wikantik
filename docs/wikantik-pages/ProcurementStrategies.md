@@ -1,8 +1,17 @@
 ---
+title: 'Procurement Strategies: Value Architecture and Risk'
+related:
+- WarehouseAutomationHub
+- SupplyChainAndLogisticsOptimization
+- OperationsResearchHub
+- ContractManagement
+- MathematicsHub
 cluster: warehouse-automation
-canonical_id: 01KQ0P44TS9ZRPT1C9MY1AABAJ
-title: "Procurement Strategies: Value Architecture and Risk"
 type: article
+canonical_id: 01KQ0P44TS9ZRPT1C9MY1AABAJ
+summary: 'Modern procurement as value optimization: Total Cost of Ownership (TCO)
+  deconstruction, Kraljic Matrix supplier segmentation, and risk-adjusted sourcing
+  models.'
 tags:
 - procurement
 - sourcing
@@ -11,13 +20,6 @@ tags:
 - supply-chain
 - value-engineering
 - e-procurement
-summary: A rigorous exploration of modern procurement as a value extraction system, focusing on the deconstruction of Total Cost of Ownership (TCO), strategic supplier segmentation via the Kraljic Matrix, and the implementation of risk-adjusted sourcing models.
-related:
-- WarehouseAutomationHub
-- SupplyChainAndLogisticsOptimization
-- OperationsResearchHub
-- ContractManagement
-- MathematicsHub
 ---
 
 # Procurement Strategies: The Architecture of Value Extraction

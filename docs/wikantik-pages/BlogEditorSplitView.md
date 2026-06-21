@@ -1,19 +1,20 @@
 ---
-canonical_id: 01KQ0P44MMQPVMN4AZX9WG6YC3
-summary: Live preview split-view Markdown editor for blog entry creation
+status: active
+type: article
+part-of:
+- BlogFeature
+date: '2026-04-03'
+cluster: wikantik-development
+title: Blog Editor Split-View
 tags:
 - development
 - blog
 - editor
 - ui
-type: article
-status: deployed
-cluster: wikantik-development
-date: '2026-04-03'
-part-of:
-- BlogFeature
+summary: Live preview split-view Markdown editor for blog entry creation
 related:
 - JspToReactMigration
+canonical_id: 01KQ0P44MMQPVMN4AZX9WG6YC3
 ---
 # Blog Editor Split View
 

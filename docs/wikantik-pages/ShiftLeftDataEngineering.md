@@ -1,11 +1,18 @@
 ---
+canonical_id: 01KVJMS21VHTJRNTK36JKH66CN
 title: Shift Left Data Engineering
+tags:
+- data-contracts
+- data-quality
+- shift-left
+- data-engineering
 type: article
 cluster: data-engineering
-status: active
-date: 2026-05-20
-summary: Deep dive into moving data quality upstream through Data Contracts and Consumer-Driven Contract patterns.
+date: 2026-05-20T00:00:00Z
 auto-generated: false
+status: active
+summary: Deep dive into moving data quality upstream through Data Contracts and Consumer-Driven
+  Contract patterns.
 ---
 
 # Shift Left Data Engineering: Quality at the Source

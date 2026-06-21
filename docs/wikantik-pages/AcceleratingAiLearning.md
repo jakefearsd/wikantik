@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44GVAPDVWRTPM4EE0M5P
-summary: Strategies for rapidly building generative AI competence through deliberate
-  practice, community engagement, and structured experimentation
+status: active
+type: article
+hubs:
+- MlModelDeploymentHub
 date: 2026-03-14T00:00:00Z
 cluster: generative-ai
+title: Accelerating Your AI Learning
+tags:
+- generative-ai
+- learning
+- professional-development
+- ai-adoption
+summary: Strategies for rapidly building generative AI competence through deliberate
+  practice, community engagement, and structured experimentation
 related:
 - GenerativeAiAdoptionGuide
 - UnderstandingGenerativeAi
 - PracticalPromptEngineering
 - RunningLocalLlms
 - AiAugmentedWorkflows
-type: article
-status: active
-tags:
-- generative-ai
-- learning
-- professional-development
-- ai-adoption
-hubs:
-- MlModelDeploymentHub
+canonical_id: 01KQ0P44GVAPDVWRTPM4EE0M5P
 ---
 # Accelerating Your AI Learning
 

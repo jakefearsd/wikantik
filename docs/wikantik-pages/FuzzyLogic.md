@@ -1,26 +1,26 @@
 ---
+type: article
+date: '2026-04-26'
+cluster: mathematics
+title: Fuzzy Logic
+hubs:
+- MathematicsHub
+- ChaosDynamical Hub
+tags:
+- fuzzy-logic
+- mathematics
+- multi-valued-logic
+- control-systems
 summary: Logic with degrees of truth between 0 and 1 — fuzzy sets, fuzzy inference,
   and the practical applications in control systems, AI, and decision-making with
   imprecise inputs.
-date: '2026-04-26'
-cluster: mathematics
 related:
 - PropositionalLogic
 - PredicateLogic
 - ModalLogic
 - ProbabilityTheory
 canonical_id: 01KQ0P44QKPFGZ719QH89CHH84
-type: article
-title: Fuzzy Logic
-tags:
-- fuzzy-logic
-- mathematics
-- multi-valued-logic
-- control-systems
 status: active
-hubs:
-- MathematicsHub
-- ChaosDynamical Hub
 ---
 
 # Fuzzy Logic: The Calculus of Ambiguity and Soft Transitions

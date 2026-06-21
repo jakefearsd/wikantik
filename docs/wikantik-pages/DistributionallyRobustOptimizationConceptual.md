@@ -1,7 +1,15 @@
 ---
-title: 'Distributionally Robust Optimization: Engineering for the Unknown'
-canonical_id: 01KRQDWQRYTYAHZWAGYGNX2X5V
-cluster: mathematics
+status: active
+date: '2026-05-15'
+summary: 'DRO via min-max over ambiguity sets: Wasserstein balls, Black Swan resilience,
+  and worst-case distribution stress testing in banking and supply chains.'
+tags:
+- optimization
+- risk-management
+- dro
+- finance
+- probability
+type: article
 relations:
 - type: component_of
   target_id: 01KQ2P44XMGA8E1E7GAT4AYV43
@@ -9,18 +17,9 @@ relations:
   target_id: 01KRTB67YHJ96D0PBJ1NEJDY23
 - type: influenced_by
   target_id: 01KQ0P44TS2QKK143RD755SRYP
-type: article
-tags:
-- optimization
-- risk-management
-- dro
-- finance
-- probability
-summary: Conceptual introduction to Distributionally Robust Optimization (DRO), explaining
-  how to optimize against 'ambiguity sets' of probability distributions to survive
-  Black Swan events.
-status: active
-date: '2026-05-15'
+canonical_id: 01KRQDWQRYTYAHZWAGYGNX2X5V
+cluster: mathematics
+title: 'Distributionally Robust Optimization: Engineering for the Unknown'
 ---
 
 # Distributionally Robust Optimization: Engineering for the Unknown

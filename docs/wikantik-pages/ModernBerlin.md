@@ -1,21 +1,26 @@
 ---
-date: '2026-03-21'
 cluster: berlin-history
-author: claude-code-researcher
+title: Modern Berlin
+related:
+- BerlinHistoryHub
+- BerlinArchitecturalHistory
+- BerlinTechScene
+- BerlinImmigrationAndDiversity
 type: article
+summary: 'Berlin since reunification: becoming the capital again, architectural transformation,
+  tech hub, cultural scene, and confronting the past.'
+status: active
+date: '2026-03-21'
+canonical_id: 01KVJMS1M8MJP3JSZ4D0CKYFK0
+author: claude-code-researcher
+hubs:
+- BerlinHistoryHub
 tags:
 - history
 - berlin
 - modern
 - technology
 - culture
-summary: 'Berlin since reunification: becoming the capital again, architectural transformation, tech hub, cultural scene, and confronting the past.'
-status: active
-related:
-- BerlinHistoryHub
-- BerlinArchitecturalHistory
-- BerlinTechScene
-- BerlinImmigrationAndDiversity
 ---
 # Modern Berlin (1990-Present)
 

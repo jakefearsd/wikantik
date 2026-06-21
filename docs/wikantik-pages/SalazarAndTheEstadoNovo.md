@@ -1,21 +1,26 @@
 ---
+related:
+- PortugueseHistoryHub
+- PortugueseColonialEmpire
+- CarnationRevolution
+canonical_id: 01KVJMS20E9Y0X1QJ7ZG2490EV
+hubs:
+- PortugueseHistoryHub
+auto-generated: false
+type: article
+status: active
+author: claude-code-researcher
 tags:
 - history
 - portugal
 - dictatorship
 - estado-novo
 - salazar
-summary: Analysis of António de Oliveira Salazar's Estado Novo (1933–1974), focusing on corporatism, the PIDE, and the colonial wars.
-date: '2026-05-15'
-author: claude-code-researcher
-type: article
+summary: Analysis of António de Oliveira Salazar's Estado Novo (1933–1974), focusing
+  on corporatism, the PIDE, and the colonial wars.
+title: Salazar and the Estado Novo
 cluster: portuguese-history
-status: active
-related:
-- PortugueseHistoryHub
-- PortugueseColonialEmpire
-- CarnationRevolution
-auto-generated: false
+date: '2026-05-15'
 ---
 # Salazar and the Estado Novo (1933–1974)
 

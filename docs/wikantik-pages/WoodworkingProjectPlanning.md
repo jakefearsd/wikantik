@@ -1,16 +1,17 @@
 ---
-cluster: hobby-woodworking
-canonical_id: 01KQ0P44Z99WJT9PW3MKF1QHA5
-title: Woodworking Planning and Wood Movement
-type: article
 tags:
 - woodworking
 - engineering
 - moisture-content
 - joinery
-summary: A technical guide to project planning, focusing on moisture content (MC%) management and the mathematics of seasonal wood movement.
+cluster: hobby-woodworking
+type: article
+date: 2026-05-09T00:00:00Z
 auto-generated: false
-date: 2026-05-09
+canonical_id: 01KQ0P44Z99WJT9PW3MKF1QHA5
+summary: A technical guide to project planning, focusing on moisture content (MC%)
+  management and the mathematics of seasonal wood movement.
+title: Woodworking Planning and Wood Movement
 ---
 
 # Woodworking Planning: Moisture and Movement

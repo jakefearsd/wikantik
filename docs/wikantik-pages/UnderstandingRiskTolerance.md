@@ -1,13 +1,23 @@
 ---
-canonical_id: 01KQ0P44Y6QD7XBVT4AW7HHXR4
-title: Understanding Risk Tolerance
+date: 2026-03-15T00:00:00Z
+status: active
+summary: How to assess your true risk tolerance, the difference between risk capacity
+  and risk attitude, and how behavioral biases affect investment decisions during
+  market stress.
+tags:
+- investing
+- risk
+- psychology
+- portfolio-management
+- behavioral-finance
 type: article
-tags: [investing, risk, psychology, portfolio-management, behavioral-finance]
-date: 2026-03-15
-status: published
+canonical_id: 01KQ0P44Y6QD7XBVT4AW7HHXR4
 cluster: index-fund-investing
-summary: How to assess your true risk tolerance, the difference between risk capacity and risk attitude, and how behavioral biases affect investment decisions during market stress.
-related: [AssetAllocation, IndexFundPortfolioConstruction, SequenceOfReturnsRisk]
+related:
+- AssetAllocation
+- IndexFundPortfolioConstruction
+- SequenceOfReturnsRisk
+title: Understanding Risk Tolerance
 ---
 
 # Risk Tolerance
@@ -72,7 +82,7 @@ The average bear market (decline of 20%+) in the S&P 500 lasts about 13 months w
 
 ### Loss Aversion
 
-Psychologist Daniel Kahneman's research showed that losses hurt approximately 2x as much as equivalent gains feel good. A $10,000 loss causes twice the emotional intensity of a $10,000 gain. This asymmetry drives investors to overreact to declines.
+Psychologist Daniel Kahneman's research showed that losses hurt approximately 2x as much as equivalent gains feel good. A \$10,000 loss causes twice the emotional intensity of a $10,000 gain. This asymmetry drives investors to overreact to declines.
 
 ### Recency Bias
 

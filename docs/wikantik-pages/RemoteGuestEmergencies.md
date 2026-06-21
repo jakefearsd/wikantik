@@ -1,8 +1,16 @@
 ---
-cluster: remote-host-management
-canonical_id: 01KQ0P44VEKEJR24ZH3Q6ZG85F
 title: Remote Guest Emergencies
+related:
+- HomeEmergencyPreparedness
+- EmergencyCommunication
+- RiskManagement
+- MachineLearning
+- DistributedSystemsHub
+cluster: remote-host-management
 type: article
+canonical_id: 01KQ0P44VEKEJR24ZH3Q6ZG85F
+summary: 'Remote incident response: Information Fidelity Window (IFW), DRM2CS communication
+  redundancy, AI diagnosis scoring, and autonomous care logistics.'
 tags:
 - remote-management
 - emergency-response
@@ -11,13 +19,6 @@ tags:
 - telemedicine
 - drone-swarms
 - risk-modeling
-summary: A rigorous exploration of geographically dispersed incident response, focusing on the Information Fidelity Window (IFW), multi-modal communication redundancy (DRM2CS), AI-driven differential diagnosis scoring (DDS), and the logistics of autonomous remote care.
-related:
-- HomeEmergencyPreparedness
-- EmergencyCommunication
-- RiskManagement
-- MachineLearning
-- DistributedSystemsHub
 ---
 
 # Remote Incident Management: Bridging the 2000-Mile Gap

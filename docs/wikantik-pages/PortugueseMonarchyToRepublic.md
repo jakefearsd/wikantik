@@ -1,21 +1,26 @@
 ---
+summary: Portugal's transition from absolutism to a republic, detailing the 1807 Napoleonic
+  invasion, 1890 Ultimatum, and 1910 Revolution.
+date: '2026-05-15'
+cluster: portuguese-history
+related:
+- PortugueseHistoryHub
+- MedievalPortugal
+- PortugueseColonialEmpire
+auto-generated: false
+author: claude-code-researcher
+canonical_id: 01KVJMS1S52Q7YHHEKJ7X2GN05
+title: Portuguese Monarchy to Republic
+type: article
+status: active
 tags:
 - history
 - portugal
 - monarchy
 - republic
 - revolution
-summary: Portugal's transition from absolutism to a republic, detailing the 1807 Napoleonic invasion, 1890 Ultimatum, and 1910 Revolution.
-date: '2026-05-15'
-author: claude-code-researcher
-type: article
-cluster: portuguese-history
-status: active
-related:
+hubs:
 - PortugueseHistoryHub
-- MedievalPortugal
-- PortugueseColonialEmpire
-auto-generated: false
 ---
 # From Monarchy to Republic (1807–1910)
 

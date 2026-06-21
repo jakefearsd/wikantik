@@ -1,12 +1,18 @@
 ---
+tags:
+- leadership
+- management
+- okr
+- metrics
 cluster: software-engineering-practices
-canonical_id: 01KQ0P44T8JVXV9XJS1SQ7W5R4
-title: "Engineering OKRs & Goal Setting"
 type: article
-tags: [leadership, management, okr, metrics]
-date: 2025-05-15
-summary: A practitioner's guide to OKRs as a socio-technical system for organizational clarity, focusing on leading indicators, stretch goal math, and machine-readable templates.
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+canonical_id: 01KQ0P44T8JVXV9XJS1SQ7W5R4
+summary: A practitioner's guide to OKRs as a socio-technical system for organizational
+  clarity, focusing on leading indicators, stretch goal math, and machine-readable
+  templates.
+title: Engineering OKRs & Goal Setting
 ---
 
 # Engineering OKRs: The Architecture of Impact

@@ -1,24 +1,27 @@
 ---
-canonical_id: 01KQ0P44VZDDN6YDKCHJCYTBRV
+cluster: russia-ukraine-war
+title: 'Russia-Ukraine War: Humanitarian Crisis'
+related:
+- RussiaUkraineWarOverview
+- RussiaUkraineWarEnergyWar
 summary: The humanitarian impact of the Russia-Ukraine war including refugees, displacement,
   and civilian suffering as of March 2026
+type: article
 date: '2026-03-13'
+status: active
+canonical_id: 01KQ0P44VZDDN6YDKCHJCYTBRV
+hubs:
+- RussiaUkraineWarOverview
+part-of:
+- RussiaUkraineWarOverview
 tags:
-- Russia
-- Ukraine
+- russia
+- ukraine
 - war
 - humanitarian
 - refugees
 - displacement
 - civilians
-related:
-- RussiaUkraineWarOverview
-- RussiaUkraineWarEnergyWar
-type: article
-cluster: russia-ukraine-war
-status: active
-part-of:
-- RussiaUkraineWarOverview
 ---
 # The Humanitarian Crisis
 

@@ -1,10 +1,7 @@
 ---
-canonical_id: 01KQ0P44MCJA2WTGJB4NK967T6
-title: Balanced Search Trees
-type: article
-cluster: data-structures
-status: active
-date: '2026-04-26'
+related:
+- HashTableDesign
+- HeapAndPriorityQueues
 summary: Balanced search trees — AVL, red-black, B-trees, splay trees — and their
   practical roles in databases, language libraries, and systems programming.
 tags:
@@ -13,11 +10,14 @@ tags:
 - algorithms
 - avl
 - red-black
-related:
-- HashTableDesign
-- HeapAndPriorityQueues
+cluster: data-structures
+title: Balanced Search Trees
+date: '2026-04-26'
 hubs:
 - DataStructuresHub
+type: article
+status: active
+canonical_id: 01KQ0P44MCJA2WTGJB4NK967T6
 ---
 # Balanced Search Trees
 

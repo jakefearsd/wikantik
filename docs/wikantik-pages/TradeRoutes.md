@@ -1,17 +1,18 @@
 ---
-cluster: geopolitics-and-finance
-canonical_id: 01KQ0P44XWB7Q9DY1VF6WEPZPF
-title: Trade Routes
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: A technical analysis of global trade chokepoints, the Malacca Dilemma, and
+  the economics of the Northern Sea Route.
 tags:
 - trade-routes
 - logistics
 - geopolitics
 - maritime-economics
-status: active
-date: 2025-05-15
-summary: A technical analysis of global trade chokepoints, the Malacca Dilemma, and the economics of the Northern Sea Route.
+type: article
 auto-generated: false
+cluster: geopolitics-and-finance
+canonical_id: 01KQ0P44XWB7Q9DY1VF6WEPZPF
+title: Trade Routes
 ---
 
 # Trade Routes: Chokepoints and Arctic Economics
@@ -28,7 +29,7 @@ The Strait of Malacca is the world's most critical maritime chokepoint, connecti
 ## 2. The Suez Canal and the "Ever Given" Effect
 
 The Suez Canal handles ~12% of global trade. The 2021 grounding of the *Ever Given* demonstrated the "Single Point of Failure" risk.
-*   **Economic Impact:** The 6-day blockage held up ~$9.6B of trade per day.
+*   **Economic Impact:** The 6-day blockage held up ~\$9.6B of trade per day.
 *   **Alternative:** The Cape of Good Hope route adds ~10 days and ~$400k–$800k in fuel costs per vessel, highlighting the canal’s massive economic moat.
 
 ## 3. The Northern Sea Route (NSR) Economics

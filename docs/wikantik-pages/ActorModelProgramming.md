@@ -1,16 +1,16 @@
 ---
 canonical_id: 01KQEBFEF393K97NXXAY5F2BCA
-date: 2026-04-30T00:00:00Z
+title: Actor Model Programming
 tags:
 - actor
 - messag
 - process
-title: Actor Model Programming
 cluster: distributed-systems
 type: article
+date: 2026-04-30T00:00:00Z
 status: active
-summary: Traditional concurrency models, while mathematically sound in theory, often
-  degrade into brittle, non-obvious failure modes in practice.
+summary: 'The actor model: isolated processes communicating only via message passing
+  — the basis of Erlang/Elixir and Akka, with built-in failure isolation.'
 ---
 # Actor Model Programming
 

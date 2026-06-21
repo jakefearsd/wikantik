@@ -1,10 +1,12 @@
 ---
-type: article
 tags:
 - uncategorized
-summary: Licensed to the Apache Software Foundation (ASF) under one
-cluster: wikantik-development
+type: article
+summary: Quick reference for the Maven commands used in Wikantik development — build,
+  test, run, and release workflows.
+title: Maven Cheat Sheet
 canonical_id: 01KQ0P44SW7R21KKGKCC03WQ00
+cluster: wikantik-development
 ---
 
 1. 1. IDE Specific

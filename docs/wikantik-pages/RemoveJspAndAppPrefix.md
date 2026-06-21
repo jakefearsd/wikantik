@@ -1,21 +1,23 @@
 ---
+supersedes:
+- JspToReactMigration
+cluster: wikantik-development
+title: Remove JSP and /app/ Prefix
+related:
+- WikantikDevelopment
+type: article
+summary: Final removal of JSP templates and the /app/ URL prefix for a single SPA
+  entry point
+status: active
+date: '2026-03-29'
 canonical_id: 01KQ0P44VGY08Z06TE936CPZCJ
-summary: Final removal of JSP templates and the /app/ URL prefix for a single SPA entry point
+depends-on:
+- JspToReactMigration
 tags:
 - development
 - migration
 - jsp
 - routing
-type: article
-status: deployed
-cluster: wikantik-development
-date: '2026-03-29'
-depends-on:
-- JspToReactMigration
-supersedes:
-- JspToReactMigration
-related:
-- WikantikDevelopment
 ---
 # Remove JSP and /app/ Prefix
 

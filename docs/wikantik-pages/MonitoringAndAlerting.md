@@ -1,8 +1,4 @@
 ---
-cluster: devops-sre
-canonical_id: 01KQ0P44SQYFKSF4VTH1SAXRV2
-title: Monitoring and Observability
-type: article
 tags:
 - devops
 - sre
@@ -10,7 +6,12 @@ tags:
 - monitoring
 - prometheus
 - opentelemetry
-summary: A rigorous exploration of modern observability, focusing on the Three Pillars (Metrics, Logs, Traces), high-cardinality data management, and the architectural shift from passive monitoring to active insight.
+type: article
+summary: Modern observability — Three Pillars (Metrics, Logs, Traces), high-cardinality
+  data management, and the shift from passive monitoring to active insight.
+title: Monitoring and Observability
+cluster: devops-sre
+canonical_id: 01KQ0P44SQYFKSF4VTH1SAXRV2
 ---
 
 # Monitoring and Observability: The Architecture of Insight

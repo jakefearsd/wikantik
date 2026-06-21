@@ -1,12 +1,22 @@
 ---
-canonical_id: 01KQ0P44QGFRYPTQM5C4B78S33
-type: article
-tags: [algorithms, computer-science, data-structures, complexity, programming]
-date: 2026-03-21
+date: 2026-03-21T00:00:00Z
 status: active
+summary: Essential algorithms every computer scientist should understand deeply, from
+  sorting and searching to graph traversal and dynamic programming
+tags:
+- algorithms
+- computer-science
+- data-structures
+- complexity
+- programming
+type: article
 cluster: data-structures
-summary: Essential algorithms every computer scientist should understand deeply, from sorting and searching to graph traversal and dynamic programming
-related: [MachineLearning, ArtificialIntelligence, FundamentalsOfProgramming]
+canonical_id: 01KQ0P44QGFRYPTQM5C4B78S33
+related:
+- MachineLearning
+- ArtificialIntelligence
+- FundamentalsOfProgramming
+title: Foundational Algorithms for Computer Scientists
 ---
 # Foundational Algorithms for Computer Scientists
 

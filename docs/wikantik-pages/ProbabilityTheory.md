@@ -1,20 +1,20 @@
 ---
-date: 2025-02-13T00:00:00Z
-summary: Advanced probability theory with a focus on measure-theoretic foundations,
-  geometric intuition of measure spaces, and real-world applications.
-cluster: mathematics
-auto-generated: false
-canonical_id: 01KQ0P44TS2QKK143RD755SRYP
 type: article
+date: 2025-02-13T00:00:00Z
+cluster: mathematics
 title: Probability Theory
+hubs:
+- ChaosDynamical Hub
 tags:
 - mathematics
 - probability
 - measure-theory
 - statistics
+summary: Advanced probability theory with a focus on measure-theoretic foundations,
+  geometric intuition of measure spaces, and real-world applications.
+canonical_id: 01KQ0P44TS2QKK143RD755SRYP
+auto-generated: false
 status: active
-hubs:
-- ChaosDynamical Hub
 ---
 
 # Probability Theory: Measure-Theoretic Foundations

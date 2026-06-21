@@ -1,30 +1,30 @@
 ---
-canonical_id: 01KQ0P44TPDMD005PE7Y3X2YBJ
-title: Pre-Medicare Bridge Strategies
 type: article
-cluster: retirement-planning
 status: active
+cluster: retirement-planning
 date: '2026-04-26'
-summary: How to handle healthcare in early retirement before Medicare eligibility —
-  ACA marketplace, COBRA, employer coverage, spousal coverage, and the cost-management
-  patterns that work.
+title: Pre-Medicare Bridge Strategies
+hubs:
+- RetirementPlanningGuide
 tags:
 - pre-medicare
 - early-retirement
 - healthcare
 - aca
 - bridge-coverage
+summary: How to handle healthcare in early retirement before Medicare eligibility
+  — ACA marketplace, COBRA, employer coverage, spousal coverage, and the cost-management
+  patterns that work.
 related:
 - MedicarePlanningAndHealthcare
 - PartTimeWorkInRetirement
 - RetirementSpendingPatterns
 - HealthSavingsAccounts
-hubs:
-- RetirementPlanningGuide
+canonical_id: 01KQ0P44TPDMD005PE7Y3X2YBJ
 ---
 # Pre-Medicare Bridge Strategies
 
-For early retirees (under 65), healthcare is the biggest unknown variable. Medicare doesn't start until 65; bridging the gap requires deliberate planning. The wrong approach can cost $30K+/year per couple.
+For early retirees (under 65), healthcare is the biggest unknown variable. Medicare doesn't start until 65; bridging the gap requires deliberate planning. The wrong approach can cost \$30K+/year per couple.
 
 This page covers the options.
 
@@ -37,7 +37,7 @@ The gap years are typically 50-65 or 55-65 (or 62-65 for "almost there" retirees
 - ACA marketplace is the default
 - Costs vary dramatically by state, age, income
 
-For couples, costs can range from $500/month to $3,000+/month depending on circumstances.
+For couples, costs can range from $500/month to \$3,000+/month depending on circumstances.
 
 ## Option 1: ACA marketplace
 
@@ -163,7 +163,7 @@ Skip insurance; pay out of pocket.
 
 Major medical events can be financially ruinous. The whole point of insurance is to absorb the catastrophic case.
 
-For very healthy retirees with substantial assets ($5M+), some self-insure with high-deductible plans. Even then, having something is better than nothing.
+For very healthy retirees with substantial assets (\$5M+), some self-insure with high-deductible plans. Even then, having something is better than nothing.
 
 ## State-specific considerations
 
@@ -206,7 +206,7 @@ Draw from Roth (not counted) and small taxable amounts. Stay below subsidy cliff
 For a couple with $1.5M portfolio:
 - 50% Roth, 50% traditional
 - Live on Roth withdrawals + a bit of taxable
-- MAGI: $30-40K
+- MAGI: \$30-40K
 - ACA subsidies: substantial
 
 For a couple with same portfolio but mostly traditional:
@@ -222,13 +222,13 @@ The Roth allocation in pre-Medicare retirement is much more valuable than the eq
 
 - Portfolio: $2M (60% traditional, 40% Roth)
 - Annual spending need: $80K
-- Strategy: $30K from traditional + $50K from Roth = $80K spending
+- Strategy: \$30K from traditional + $50K from Roth = \$80K spending
 
 Income recognized for ACA: ~$30K (just the traditional portion).
 
-For a couple of 58, ACA premium estimate (Silver plan): ~$1,200/month before subsidies.
+For a couple of 58, ACA premium estimate (Silver plan): ~\$1,200/month before subsidies.
 
-With $30K income: subsidy makes premium ~$200/month. Out-of-pocket cost ~$2,400/year.
+With $30K income: subsidy makes premium ~\$200/month. Out-of-pocket cost ~$2,400/year.
 
 Without subsidy management (drawing all from traditional): full premium ~$14,400/year.
 

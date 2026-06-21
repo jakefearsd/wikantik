@@ -1,17 +1,17 @@
 ---
 canonical_id: 01KQEBHF2GKNVCWC4J3MH5D6WH
-date: 2026-04-30T00:00:00Z
+title: AI Content Moderation Systems
 tags:
 - content-moderation
 - ai-safety
 - nlp
 - computer-vision
-title: AI Content Moderation Systems
 cluster: generative-ai
 type: article
+date: 2026-04-30T00:00:00Z
 status: active
-summary: Technical deep dive into AI-driven content moderation, exploring semantic
-  safety filters, multimodal analysis, and proactive guardrails.
+summary: AI-driven content moderation architectures — semantic safety filters, multimodal
+  analysis, adversarial robustness, and proactive guardrails.
 ---
 # AI Content Moderation Safety Filters
 

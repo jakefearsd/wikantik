@@ -1,28 +1,27 @@
 ---
-date: '2026-05-10'
 cluster: retirement-planning
+instance_of:
+- Concept
 title: Backdoor Roth Strategies
+summary: 'Standard and Mega Backdoor Roth strategies: nondeductible contributions,
+  the Pro-Rata Rule''s impact, and 2026 401(k) limits.'
 relations:
 - type: component_of
   target_id: 01KQ0P44VXGRJWXQXJFE9QSNTX
 - type: related_to
   target_id: RetirementPlanningGuide
+date: '2026-05-10'
+status: active
+canonical_id: 01KQ0P44M86FN49B5KBJR74VB9
+type: article
+related_to:
+- Pro-Rata Rule
 tags:
 - finance
 - tax-planning
 - backdoor-roth
 - mega-backdoor
 - pro-rata-rule
-summary: A rigorous exploration of standard and Mega Backdoor Roth strategies, focusing
-  on the mechanics of nondeductible contributions, the mathematical impact of the
-  Pro-Rata Rule, and 2026 401(k) limits.
-canonical_id: 01KQ0P44M86FN49B5KBJR74VB9
-instance_of:
-- Concept
-status: published
-type: article
-related_to:
-- Pro-Rata Rule
 ---
 
 # Backdoor Roth Strategies: Tax Engineering and Procedural Arbitrage
@@ -41,7 +40,7 @@ The process involves two distinct, sequential actions:
 Meticulous record-keeping via **IRS Form 8606** is non-negotiable. It serves as the ledger for tracking your "basis" (after-tax money). Without filing this form, the IRS will assume your Traditional IRA contribution was pre-tax, and you will be double-taxed upon conversion.
 
 ### The "Penny Rule" (Earnings before Conversion)
-If your contribution sits in the Traditional IRA and earns $5 in interest before you convert it, you must convert the full amount (e.g., $7,005). The $7,000 basis is tax-free, but the $5 in earnings will be taxed as ordinary income. The best practice is to convert the funds the exact day they clear.
+If your contribution sits in the Traditional IRA and earns \$5 in interest before you convert it, you must convert the full amount (e.g., $7,005). The \$7,000 basis is tax-free, but the $5 in earnings will be taxed as ordinary income. The best practice is to convert the funds the exact day they clear.
 
 ## II. The Pro-Rata Rule: The Primary Failure Point
 
@@ -58,11 +57,11 @@ $$
 *(The total balance is calculated based on the fair market value of all IRAs on **December 31st** of the conversion year).*
 
 ### Example Scenario
-You contribute $7,000 in after-tax money, but you have an old Rollover IRA worth $93,000 (all pre-tax).
+You contribute \$7,000 in after-tax money, but you have an old Rollover IRA worth $93,000 (all pre-tax).
 *   **Total Balance:** $100,000
-*   **Tax-Free Ratio:** $7,000 / $100,000 = **7%**
+*   **Tax-Free Ratio:** $7,000 / \$100,000 = **7%**
 
-When you convert the $7,000, only $490 is tax-free. The remaining $6,510 is added to your taxable income.
+When you convert the $7,000, only \$490 is tax-free. The remaining \$6,510 is added to your taxable income.
 
 ### Avoiding the Pro-Rata Trap
 To execute a clean Backdoor Roth, you must achieve a **"Clean Slate."** The most common method is a **Reverse Rollover**: rolling your pre-tax IRA balances into your current employer's 401(k) plan. 401(k) balances are excluded from the Pro-Rata calculation.
@@ -76,12 +75,12 @@ The strategy relies on the IRS "Annual Additions" limit (Section 415(c)), which 
 
 *   **Total Plan Limit (Under 50):** $72,000
 *   **Total Plan Limit (Age 50-59):** $80,000
-*   **Total Plan Limit (Age 60-63 "Super Catch-Up"):** $83,250
+*   **Total Plan Limit (Age 60-63 "Super Catch-Up"):** \$83,250
 
 **The Execution:**
 1.  You max out your standard employee deferral ($24,500 in 2026).
-2.  Your employer matches $10,000.
-3.  **The Mega Gap:** You contribute $37,500 ($72,000 - $34,500) as non-Roth **after-tax** contributions.
+2.  Your employer matches \$10,000.
+3.  **The Mega Gap:** You contribute $37,500 ($72,000 - \$34,500) as non-Roth **after-tax** contributions.
 4.  You immediately execute an **In-Plan Roth Conversion** or an **In-Service Distribution** to roll that $37,500 into a Roth IRA.
 
 ### Plan Requirements

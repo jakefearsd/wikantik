@@ -1,4 +1,11 @@
 ---
+hubs:
+- WealthviewHub
+date: 2026-05-03T00:00:00Z
+status: active
+summary: A high-density technical implementation spec for ingesting, normalizing,
+  and storing fintech data from third-party aggregators (e.g., Plaid, MX, Yodlee).
+  Designed for RAG agents building WealthTech applications like wealthview.
 tags:
 - fintech
 - data-ingestion
@@ -7,23 +14,13 @@ tags:
 - pydantic
 - schema
 - wealthview
-- type: part-of
-  target_id: 01KQR44WKHVES95QKN9731B09
-- type: implements
-  target_id: 01KQ0P44SZE8KANR12S3W8QDHS
-- type: derived-from
-  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
-date: 2026-05-03T00:00:00Z
-title: Fintech Data Ingestion Blueprint
-cluster: wealthview
-hubs:
-- WealthviewHub
+- '{''type'':-''part-of'',-''target-id'':-''01kqr44wkhves95qkn9731b09''}'
+- '{''type'':-''implements'',-''target-id'':-''01kq0p44sze8kanr12s3w8qdhs''}'
+- '{''type'':-''derived-from'',-''target-id'':-''01kqekgd9xwdsfgh7twhh63nzt''}'
 type: blueprint
-status: active
+cluster: wealthview
 canonical_id: 01KQRMQ9A89VW5A4ZZH7G29FDC
-summary: A high-density technical implementation spec for ingesting, normalizing,
-  and storing fintech data from third-party aggregators (e.g., Plaid, MX, Yodlee).
-  Designed for RAG agents building WealthTech applications like wealthview.
+title: Fintech Data Ingestion Blueprint
 ---
 
 # Fintech Data Ingestion: Technical Blueprint

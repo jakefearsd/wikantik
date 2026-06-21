@@ -1,15 +1,16 @@
 ---
-cluster: cooking-and-food
-canonical_id: 01KQ0P44QCZCPAHSQBWX31Y1HG
-title: Fermentation for Gut Health
-type: article
 tags:
 - microbiome
 - fermentation
 - biochemistry
 - bioprocess-engineering
 - metabolomics
-summary: A rigorous exploration of controlled fermentation for gut health modulation, focusing on anaerobic metabolic pathways (butyrate synthesis), microbial consortium dynamics, and advanced bioprocess engineering for precise metabolite delivery.
+type: article
+summary: Butyrate synthesis pathways, microbial consortium dynamics, and bioprocess
+  engineering for gut health modulation via controlled fermentation.
+title: Fermentation for Gut Health
+cluster: cooking-and-food
+canonical_id: 01KQ0P44QCZCPAHSQBWX31Y1HG
 ---
 
 # Advanced Bioprocessing: Fermentation for Gut Health

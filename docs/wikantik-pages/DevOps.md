@@ -1,15 +1,17 @@
 ---
 cluster: devops-sre
-canonical_id: 01KQ0P44PKEXG59N0S01B5FHX1
-title: DevOps and SRE Foundations
 type: article
+summary: DevOps and Site Reliability Engineering (SRE) — CI/CD pipelines, Infrastructure
+  as Code (IaC), and the reliability frameworks of cloud-native systems.
+canonical_id: 01KQ0P44PKEXG59N0S01B5FHX1
+date: '2026-06-05'
 tags:
 - devops
 - sre
 - iac
 - cicd
 - observability
-summary: A rigorous exploration of DevOps and Site Reliability Engineering (SRE), focusing on CI/CD pipelines, Infrastructure as Code (IaC), and the reliability frameworks of modern cloud-native systems.
+title: DevOps and SRE Foundations
 ---
 
 # DevOps and Site Reliability Engineering: The Architecture of Resilience

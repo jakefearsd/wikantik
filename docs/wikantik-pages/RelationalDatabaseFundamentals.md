@@ -7,12 +7,12 @@ tags:
 - acid
 - normalization
 - b-tree
-date: '2026-05-15'
-summary: Core principles of relational databases, including ACID transactions, normal
-  forms (1NF to BCNF), and the mechanics of the B-Tree index.
-status: published
 cluster: databases
 type: article
+date: '2026-05-15'
+status: active
+summary: Core principles of relational databases, including ACID transactions, normal
+  forms (1NF to BCNF), and the mechanics of the B-Tree index.
 ---
 
 # Relational Database Fundamentals

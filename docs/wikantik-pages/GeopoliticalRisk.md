@@ -1,15 +1,14 @@
 ---
-canonical_id: 01KQP4VFQNM04J6795WT3KJJHK
-summary: A foundational reference on Geopolitical Risk — the potential for political
-  actions or instability to impact operations, security, or financial markets on a
-  global scale.
 tags:
 - geopolitics
 - risk-management
 - strategy
 - security
 type: reference
+summary: Political instability and state conflict that impact operations and markets
+  — trade weaponization, gray-zone threats, and systemic cascade modeling.
 title: Geopolitical Risk
+canonical_id: 01KQP4VFQNM04J6795WT3KJJHK
 cluster: software-engineering-practices
 ---
 

@@ -1,20 +1,23 @@
 ---
-title: Geometric Brownian Motion
-type: article
-cluster: computational-finance
-status: published
+status: active
 date: '2026-05-10'
-summary: The mathematical foundation of modern financial modeling, describing continuous-time stochastic processes with constant drift and volatility.
+summary: The mathematical foundation of modern financial modeling, describing continuous-time
+  stochastic processes with constant drift and volatility.
 tags:
 - mathematics
 - stochastic-calculus
 - quantitative-finance
 - monte-carlo
 - modeling
+type: article
 relations:
-- {type: related_to, target_id: 01KQ0P44SRPADVP4CV9AZFQ47T} # Monte Carlo Retirement
-- {type: related_to, target_id: BlackScholesModel}
+- type: related_to
+  target_id: 01KQ0P44SRPADVP4CV9AZFQ47T
+- type: related_to
+  target_id: BlackScholesModel
+cluster: computational-finance
 canonical_id: 01KS8J2Z2A938D4EYVWFA9F36M
+title: Geometric Brownian Motion
 ---
 
 # Geometric Brownian Motion (GBM)

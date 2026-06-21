@@ -1,12 +1,26 @@
 ---
-canonical_id: 01KQ0P44NJSKDH4GF0KGVJEBZ6
-type: article
-tags: [retirement, FIRE, coast-fire, compound-growth, financial-planning]
-date: 2026-03-21
+date: 2026-03-21T00:00:00Z
 status: active
+summary: Front-load retirement savings early, then let compound growth do the rest
+  — work on your terms without saving another dollar for retirement
+tags:
+- retirement
+- fire
+- coast-fire
+- compound-growth
+- financial-planning
+type: article
 cluster: retirement-planning
-summary: Front-load retirement savings early, then let compound growth do the rest — work on your terms without saving another dollar for retirement
-related: [FireMovement, RetirementPlanningGuide, SafeWithdrawalRates, SocialSecurityClaimingStrategy, AccountTypeStrategy, MedicarePlanningAndHealthcare, IndexFundInvestingForEarlyRetirement]
+canonical_id: 01KQ0P44NJSKDH4GF0KGVJEBZ6
+related:
+- FireMovement
+- RetirementPlanningGuide
+- SafeWithdrawalRates
+- SocialSecurityClaimingStrategy
+- AccountTypeStrategy
+- MedicarePlanningAndHealthcare
+- IndexFundInvestingForEarlyRetirement
+title: Coast FIRE
 ---
 # CoastFIRE
 
@@ -35,7 +49,7 @@ Formula: CoastFIRE Number = Target Portfolio / (1 + real return)^years
 
 ### CoastFIRE Numbers by Age
 
-Assuming a target of $1,500,000 at age 65 (supporting ~$60,000/year at 4%):
+Assuming a target of \$1,500,000 at age 65 (supporting ~\$60,000/year at 4%):
 
 | Current Age | Years to 65 | CoastFIRE Number (5% real) | CoastFIRE Number (7% real) |
 |-------------|------------|---------------------------|---------------------------|
@@ -49,9 +63,9 @@ Assuming a target of $1,500,000 at age 65 (supporting ~$60,000/year at 4%):
 | 45 | 20 | $565,000 | $388,000 |
 | 50 | 15 | $721,000 | $543,000 |
 
-A 30-year-old who has saved $271,000 in retirement accounts can — mathematically — stop saving entirely. If they continue working to cover current expenses and the market returns an average 5% real, they'll have $1.5M at 65.
+A 30-year-old who has saved \$271,000 in retirement accounts can — mathematically — stop saving entirely. If they continue working to cover current expenses and the market returns an average 5% real, they'll have $1.5M at 65.
 
-At a 7% real return (closer to US equity historical average), the numbers are even more forgiving. A 25-year-old needs only $100,000.
+At a 7% real return (closer to US equity historical average), the numbers are even more forgiving. A 25-year-old needs only \$100,000.
 
 ### Adjusted for Different Target Spending
 
@@ -63,7 +77,7 @@ CoastFIRE numbers at age 30, 5% real return:
 | $50,000 | $1,250,000 | $226,000 |
 | $60,000 | $1,500,000 | $271,000 |
 | $80,000 | $2,000,000 | $362,000 |
-| $100,000 | $2,500,000 | $452,000 |
+| $100,000 | $2,500,000 | \$452,000 |
 
 ## The Appeal of CoastFIRE
 
@@ -71,7 +85,7 @@ CoastFIRE numbers at age 30, 5% real return:
 
 Traditional FIRE requires maintaining a high savings rate for 10-20 years. CoastFIRE concentrates the sacrifice into a shorter, more intense period — often your early-to-mid 20s when expenses are naturally lower (no children, smaller housing needs, higher risk tolerance).
 
-A 22-year-old earning $65,000 who saves $25,000/year for 8 years (including employer matches and growth) can realistically accumulate $250,000-$300,000 by age 30 and then coast.
+A 22-year-old earning $65,000 who saves \$25,000/year for 8 years (including employer matches and growth) can realistically accumulate $250,000-\$300,000 by age 30 and then coast.
 
 ### 2. Career Flexibility in Your Prime Years
 
@@ -95,7 +109,7 @@ Full FIRE requires 25x current expenses, often $1M-$2M+. CoastFIRE requires $200
 
 ## Worked Example: Maya's CoastFIRE Journey
 
-**Maya, age 23**, graduates with a computer science degree earning $85,000/year.
+**Maya, age 23**, graduates with a computer science degree earning \$85,000/year.
 
 **Phase 1: The Sprint (Ages 23-30)**
 
@@ -111,15 +125,15 @@ Full FIRE requires 25x current expenses, often $1M-$2M+. CoastFIRE requires $200
 
 *Savings include 401(k) contributions, employer match, Roth IRA, and taxable brokerage. Assumes 7% returns during accumulation.*
 
-At age 29, Maya has $316,000. Her CoastFIRE number for $60,000/year spending at 65 (at 5% real return) is $271,000. **She's past her CoastFIRE number.**
+At age 29, Maya has \$316,000. Her CoastFIRE number for $60,000/year spending at 65 (at 5% real return) is \$271,000. **She's past her CoastFIRE number.**
 
 **Phase 2: The Coast (Ages 30-65)**
 
 Maya leaves her corporate software job. She:
 - Becomes a freelance developer working 25 hours/week, earning $55,000/year
-- Moves from San Francisco to Portland, cutting her living expenses to $45,000/year
+- Moves from San Francisco to Portland, cutting her living expenses to \$45,000/year
 - Saves nothing additional for retirement
-- Has $10,000/year surplus for travel, hobbies, and an emergency fund
+- Has \$10,000/year surplus for travel, hobbies, and an emergency fund
 
 Meanwhile, her $316,000 portfolio grows untouched:
 
@@ -132,9 +146,9 @@ Meanwhile, her $316,000 portfolio grows untouched:
 | 50 | $839,000 | $1,222,000 |
 | 55 | $1,071,000 | $1,714,000 |
 | 60 | $1,367,000 | $2,404,000 |
-| 65 | $1,745,000 | $3,371,000 |
+| 65 | $1,745,000 | \$3,371,000 |
 
-At the conservative 5% real return, Maya has $1.75M at 65 — supporting $70,000/year at 4%. At the optimistic 7%, she has $3.37M. Either outcome funds a comfortable retirement, all from savings she made before age 30.
+At the conservative 5% real return, Maya has $1.75M at 65 — supporting \$70,000/year at 4%. At the optimistic 7%, she has $3.37M. Either outcome funds a comfortable retirement, all from savings she made before age 30.
 
 ## CoastFIRE and Account Structure
 
@@ -160,12 +174,12 @@ The entire model rests on compound growth averaging 5-7% real over 30-40 years. 
 
 **The sensitivity problem:**
 
-| Real Return | $300K at 30 → Value at 65 |
+| Real Return | \$300K at 30 → Value at 65 |
 |------------|---------------------------|
 | 3% | $845,000 |
 | 5% | $1,659,000 |
 | 7% | $3,202,000 |
-| Historical US average (~6.5%) | $2,735,000 |
+| Historical US average (~6.5%) | \$2,735,000 |
 
 The difference between 3% and 7% real return is a factor of 3.8x. A sustained low-return environment (as Japan experienced from 1990-2020) could leave a CoastFIRE follower with far less than planned.
 
@@ -173,7 +187,7 @@ The difference between 3% and 7% real return is a factor of 3.8x. A sustained lo
 
 ### Criticism 2: Inflation in Spending Is Ignored
 
-CoastFIRE plans target future portfolio value based on today's spending. But spending changes — children, housing upgrades, healthcare costs as you age, caring for elderly parents. The $60,000 budget at 30 may become $80,000 at 45 even in real (inflation-adjusted) terms due to lifestyle changes.
+CoastFIRE plans target future portfolio value based on today's spending. But spending changes — children, housing upgrades, healthcare costs as you age, caring for elderly parents. The $60,000 budget at 30 may become \$80,000 at 45 even in real (inflation-adjusted) terms due to lifestyle changes.
 
 **Mitigation**: Target a higher spending level than you currently need, or plan to resume modest saving if spending increases.
 
@@ -194,9 +208,9 @@ CoastFIRE assumes you'll continue working in some capacity for 25-35 more years.
 
 ### Criticism 5: Social Security Is Reduced
 
-Social Security benefits are based on your highest 35 years of earnings. A CoastFIRE person who earns $100K for 8 years and then $55K for 25 years will have a noticeably lower benefit than someone who earned $100K+ for 35 years. Those zero-earning or low-earning years pull the average down.
+Social Security benefits are based on your highest 35 years of earnings. A CoastFIRE person who earns $100K for 8 years and then \$55K for 25 years will have a noticeably lower benefit than someone who earned \$100K+ for 35 years. Those zero-earning or low-earning years pull the average down.
 
-**Practical impact**: Maybe $500-$800/month less in Social Security at 67 compared to a full career at higher earnings. Over a 25-year retirement, this is $150,000-$240,000 in lost guaranteed income.
+**Practical impact**: Maybe $500-\$800/month less in Social Security at 67 compared to a full career at higher earnings. Over a 25-year retirement, this is $150,000-\$240,000 in lost guaranteed income.
 
 **Mitigation**: Factor reduced Social Security into your target portfolio. The CoastFIRE portfolio needs to compensate for the lower guaranteed income floor. See [Social Security Claiming Strategy](SocialSecurityClaimingStrategy).
 

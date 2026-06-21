@@ -1,25 +1,25 @@
 ---
-canonical_id: 01KQEKGD9G0R9840B188SR09A0
-title: Database Migration Strategies
 type: article
 cluster: databases
-status: active
 date: '2026-04-25'
+title: Database Migration Strategies
+hubs:
+- DatabasesHub
 tags:
 - database-migration
 - schema-evolution
 - expand-contract
 - zero-downtime
-summary: Online schema migrations that don't take production down — the
-  expand-contract pattern, locking concerns specific to Postgres / MySQL,
-  and the migration tools worth using.
+summary: Online schema migrations that don't take production down — the expand-contract
+  pattern, locking concerns specific to Postgres / MySQL, and the migration tools
+  worth using.
 related:
 - DatabaseDesign
 - DatabaseDesignPatterns
 - DatabasePartitioning
 - SchemaRegistryAndEvolution
-hubs:
-- DatabasesHub
+canonical_id: 01KQEKGD9G0R9840B188SR09A0
+status: active
 ---
 # Database Migration Strategies
 

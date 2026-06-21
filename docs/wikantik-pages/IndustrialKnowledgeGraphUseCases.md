@@ -1,16 +1,17 @@
 ---
-cluster: industrial-ai
 canonical_id: 01KQ0P44R3NTEE5FR9E5BRFA5N
 title: Industrial Knowledge Graph Use Cases
-type: article
 tags:
 - knowledge-graph
 - digital-twin
 - supply-chain
 - industry-4.0
-summary: A technical deep-dive into industrial knowledge graphs, specifically focusing on Digital Twin modeling and multi-tier supply chain traceability.
+cluster: industrial-ai
+type: article
+date: 2025-01-24T00:00:00Z
 auto-generated: false
-date: 2025-01-24
+summary: Industrial Knowledge Graphs for Digital Twin modeling and multi-tier supply
+  chain traceability using RDF/OWL, SPARQL, and predictive maintenance patterns.
 ---
 
 # Industrial Knowledge Graphs: Digital Twins and Traceability

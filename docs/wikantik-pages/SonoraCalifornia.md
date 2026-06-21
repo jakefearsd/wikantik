@@ -1,8 +1,16 @@
 ---
+title: 'Sonora, California: Resource Economics and Path Dependency'
+related:
+- BerlinDuringTheColdWar
+- AmericanCoinageInThe1900s
+- CommodityMarketsAndConflict
+- EconomicHistory
+- MathematicsHub
 cluster: van-life
-canonical_id: 01KQ0P44WR96S8T08TCCFGCTRV
-title: "Sonora, California: Resource Economics and Path Dependency"
 type: article
+canonical_id: 01KQ0P44WR96S8T08TCCFGCTRV
+summary: 'Sonora, CA: from Miwok subsistence ecology through the 1848 gold rush inflationary
+  shock to path-dependent heritage tourism and urban resilience.'
 tags:
 - history
 - sonora-california
@@ -12,13 +20,6 @@ tags:
 - urban-development
 - miwok
 - path-dependency
-summary: A rigorous exploration of Sonora, California, focusing on the transition from indigenous subsistence ecology to a high-velocity extractive economy, the mechanics of inflationary resource shocks, and the path dependency of modern heritage-based urban development.
-related:
-- BerlinDuringTheColdWar
-- AmericanCoinageInThe1900s
-- CommodityMarketsAndConflict
-- EconomicHistory
-- MathematicsHub
 ---
 
 # Sonora, California: The Architecture of an Extractive Node

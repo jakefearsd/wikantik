@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44TN7DVGS0BE0R68HX03
-title: Post-Conflict Reconstruction Investing
 type: article
-cluster: geopolitics-and-finance
 status: active
+cluster: geopolitics-and-finance
 date: '2026-04-26'
-summary: How investing in post-conflict reconstruction works — the high returns and
-  high risk, the historical patterns, and the cases where it's a real opportunity
-  vs. a speculation that goes wrong.
+title: Post-Conflict Reconstruction Investing
+hubs:
+- ConflictMarketPatternsHub
 tags:
 - post-conflict
 - reconstruction
 - emerging-markets
 - conflict-investing
+summary: How investing in post-conflict reconstruction works — the high returns and
+  high risk, the historical patterns, and the cases where it's a real opportunity
+  vs. a speculation that goes wrong.
 related:
 - DefenseSectorInvesting
 - GeopoliticalRiskAndInvesting
 - WarBondsAndGovernmentDebt
 - ConflictMarketPatternsHub
 - ConflictsAndEquityMarkets
-hubs:
-- ConflictMarketPatternsHub
+canonical_id: 01KQ0P44TN7DVGS0BE0R68HX03
 ---
 # Post-Conflict Reconstruction Investing
 

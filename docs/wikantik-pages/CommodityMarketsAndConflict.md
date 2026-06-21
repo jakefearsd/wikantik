@@ -1,15 +1,16 @@
 ---
-cluster: geopolitics-and-finance
-canonical_id: 01KQ0P44NPP7S1KCWGK2RHQE00
-title: Commodity Markets and Conflict
-type: article
 tags:
 - finance
 - geopolitical-risk
 - supply-chain
 - commodities
 - modeling
-summary: A rigorous exploration of the intersection between geopolitical conflict and commodity markets, focusing on shock transmission vectors, network-based risk frameworks, and the non-linear dynamics of supply inelasticity.
+type: article
+summary: 'Conflict and commodity markets: physical supply shocks, sanctions vectors,
+  network interdependency, and regime-switching models for non-linear dynamics.'
+title: Commodity Markets and Conflict
+cluster: geopolitics-and-finance
+canonical_id: 01KQ0P44NPP7S1KCWGK2RHQE00
 ---
 
 # Commodity Markets and Conflict: Modeling Systemic Shocks

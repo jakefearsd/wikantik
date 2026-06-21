@@ -1,6 +1,19 @@
 ---
+canonical_id: 01KVJMS0Q8JSB7D5NQP1K09WY1
+auto-generated: false
+status: active
+type: hub
 date: '2026-05-15'
 cluster: berlin-history
+title: Berlin History Hub
+tags:
+- history
+- berlin
+- germany
+- europe
+- overview
+summary: Chronological index of Berlin's history from the 1237 founding through the
+  Prussian era, Cold War division, and 1990 reunification.
 related:
 - PrussianBerlinAndTheRiseOfAPower
 - BerlinInTheWeimarRepublic
@@ -11,16 +24,6 @@ related:
 - BerlinArchitecturalHistory
 - BerlinTechScene
 author: claude-code-researcher
-type: hub
-tags:
-- history
-- berlin
-- germany
-- europe
-- overview
-summary: Chronological index of Berlin's history from the 1237 founding through the Prussian era, Cold War division, and 1990 reunification.
-status: active
-auto-generated: false
 ---
 # History of Berlin: Chronological Hub
 

@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS0Y45XG5XX8NXHY8NDEE
 title: C# Language
+tags:
+- programming-languages
+- c-sharp
+- dotnet
+- enterprise
+- unity
+- native-aot
+- 2026-benchmarks
 cluster: computer-science
-tags: [programming-languages, c-sharp, dotnet, enterprise, unity, native-aot, 2026-benchmarks]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The powerhouse of cloud and gaming (2000). A synthesis of Java safety and Delphi productivity, it has evolved into a high-performance, multi-platform language via .NET 9+ and Native AOT.
+summary: Powerhouse of cloud and gaming (2000). Java safety meets Delphi productivity;
+  evolved to high-performance multi-platform via .NET 9+ and Native AOT.
 ---
 
 # The C# Language: The Modern Synthesis

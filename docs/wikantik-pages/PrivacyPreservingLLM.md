@@ -1,26 +1,25 @@
 ---
-canonical_id: 01KQEKGDE76AHHM06JG1WZ0ZBW
-title: Privacy Preserving Llm
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-25'
+title: Privacy-Preserving LLMs
+hubs:
+- AgenticAiHub
 tags:
 - privacy
 - differential-privacy
 - federated-learning
 - confidential-computing
 - llm
-summary: Techniques for using LLMs without exposing data — confidential
-  computing, on-prem deployment, differential privacy, federated approaches —
-  and the realistic threat models each addresses.
+summary: 'Using LLMs without exposing data: confidential computing, on-prem deployment,
+  differential privacy, federated approaches, and the threat models each addresses.'
 related:
 - AiDataPrivacyAndCompliance
 - LocalRAG
 - OpenSourceLLMs
 - ResponsibleAiDeployment
-hubs:
-- AgenticAiHub
+canonical_id: 01KQEKGDE76AHHM06JG1WZ0ZBW
 ---
 # Privacy-Preserving LLM
 

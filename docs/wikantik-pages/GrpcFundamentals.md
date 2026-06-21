@@ -1,25 +1,24 @@
 ---
-canonical_id: 01KQEKGDB6MKJC6RKBTM8EWPZX
-title: Grpc Fundamentals
 type: article
-cluster: software-architecture
 status: active
+cluster: software-architecture
 date: '2026-04-25'
+title: gRPC Fundamentals
+hubs:
+- SoftwareArchitectureHub
 tags:
 - grpc
 - protobuf
 - rpc
 - microservices
 - streaming
-summary: gRPC for inter-service communication — when to pick it over REST,
-  the four streaming modes, the things Protobuf forces you to do right,
-  and the operational pitfalls.
+summary: gRPC for inter-service communication — when to pick it over REST, the four
+  streaming modes, what Protobuf enforces, and the operational pitfalls.
 related:
 - ApiDesignBestPractices
 - MicroservicesArchitecture
 - SchemaRegistryAndEvolution
-hubs:
-- SoftwareArchitectureHub
+canonical_id: 01KQEKGDB6MKJC6RKBTM8EWPZX
 ---
 # gRPC Fundamentals
 

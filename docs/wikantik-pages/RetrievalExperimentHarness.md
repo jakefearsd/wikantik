@@ -1,7 +1,4 @@
 ---
-cluster: wikantik-development
-canonical_id: 01KQ0P44VRJJ07S7EPD99G8CBA
-type: article
 tags:
 - search
 - retrieval
@@ -10,9 +7,13 @@ tags:
 - hybrid
 - evaluation
 - lucene
-- information retreival
+- information-retreival
+type: article
+summary: How to run the offline harness that compares BM25, dense, and hybrid retrieval
+  across three candidate embedding models.
 title: Retrieval Experiment Harness
-summary: How to run the offline harness that compares BM25, dense, and hybrid retrieval across three candidate embedding models.
+cluster: wikantik-development
+canonical_id: 01KQ0P44VRJJ07S7EPD99G8CBA
 ---
 
 # Retrieval Experiment Harness

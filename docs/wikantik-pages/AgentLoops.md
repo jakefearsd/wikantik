@@ -1,8 +1,20 @@
 ---
-summary: A working catalogue of how the observe-reason-act loop in an LLM agent breaks
-  in production, and the minimum defences each failure mode needs.
+type: article
+status: active
 date: '2026-04-24'
 cluster: agentic-ai
+title: Agent Loops
+hubs:
+- AgenticAiHub
+- AgentLoops Hub
+tags:
+- agent
+- agent-loop
+- failure-modes
+- reliability
+- llm-orchestration
+summary: A working catalogue of how the observe-reason-act loop in an LLM agent breaks
+  in production, and the minimum defences each failure mode needs.
 related:
 - AgenticWorkflowDesign
 - AgentPlanning
@@ -12,22 +24,10 @@ related:
 - AgentObservability
 - ToolUse
 canonical_id: 01KQ12YDR96H86F5DJH6W9035G
-type: article
-title: Agent Loops
-tags:
-- agent
-- agent-loop
-- failure-modes
-- reliability
-- llm-orchestration
-status: active
-hubs:
-- AgenticAiHub
-- AgentLoops Hub
 ---
 # Agent Loops
 
-The agent loop is the thing that turns "LLM answers a question" into "LLM gets something done." It's also the thing that turns $0.002 in tokens into $40 in tokens when you look away. Most of agent engineering is designing the loop so it fails gracefully instead of expensively.
+The agent loop is the thing that turns "LLM answers a question" into "LLM gets something done." It's also the thing that turns \$0.002 in tokens into \$40 in tokens when you look away. Most of agent engineering is designing the loop so it fails gracefully instead of expensively.
 
 This page is a failure-mode catalogue. For the shape of the loop itself and which pattern (ReAct vs graph vs supervisor) to pick, start at [AgenticWorkflowDesign]().
 

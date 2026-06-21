@@ -1,12 +1,27 @@
 ---
-title: Tax-Efficient Bond Investing for California Residents
-type: article
-cluster: index-fund-investing
-status: active
 date: '2026-05-06'
-summary: A comprehensive quantitative guide to optimizing bond income for California residents, focusing on the state's 50% rule, Tax-Equivalent Yields, and the strategic use of U.S. Treasuries vs. CA Municipal Bonds.
-tags: [investing, taxes, California, bonds, muni-bonds, treasuries, FIRE, wealth-preservation]
-related: [AssetAllocation, LowCostIndexFundInvesting, StatisticalInference, MathematicsHub]
+status: active
+summary: A comprehensive quantitative guide to optimizing bond income for California
+  residents, focusing on the state's 50% rule, Tax-Equivalent Yields, and the strategic
+  use of U.S. Treasuries vs. CA Municipal Bonds.
+tags:
+- investing
+- taxes
+- california
+- bonds
+- muni-bonds
+- treasuries
+- fire
+- wealth-preservation
+type: article
+canonical_id: 01KTXJ5PRSTDV4AZ1H562XHVN1
+cluster: index-fund-investing
+related:
+- AssetAllocation
+- LowCostIndexFundInvesting
+- StatisticalInference
+- MathematicsHub
+title: Tax-Efficient Bond Investing for California Residents
 ---
 
 # Tax-Efficient Bond Investing for California Residents

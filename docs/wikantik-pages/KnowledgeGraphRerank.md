@@ -1,7 +1,8 @@
 ---
-canonical_id: 01KQPQVYPFSBSGX38YP6XFQPMV
-date: 2026-05-03T00:00:00Z
-cluster: wikantik-development
+summary: Technical overview of the graph-aware reranking strategy in Wikantik. Explains
+  how the system combines traditional lexical BM25 scores with dense vector similarity
+  and Knowledge Graph (KG) co-mention data to improve retrieval precision.
+title: Knowledge Graph Rerank
 tags:
 - knowledge-graph
 - retrieval
@@ -9,14 +10,17 @@ tags:
 - bm25
 - embeddings
 - search
-title: Knowledge Graph Rerank
-summary: Technical overview of the graph-aware reranking strategy in Wikantik. Explains
-  how the system combines traditional lexical BM25 scores with dense vector similarity
-  and Knowledge Graph (KG) co-mention data to improve retrieval precision.
+cluster: wikantik-development
+type: article
+date: 2026-05-03T00:00:00Z
 status: active
+canonical_id: 01KQPQVYPFSBSGX38YP6XFQPMV
 ---
 
 # Knowledge Graph Rerank
+
+> 🌐 **Product overview:** [Knowledge graph on wikantik.com](https://www.wikantik.com/platform/knowledge-graph.html) — a plain-language walkthrough for readers and AI agents.
+
 
 Knowledge Graph Rerank is the final stage of the Wikantik retrieval pipeline. It transforms a raw list of search results into a contextually relevant set of pages by leveraging the semantic relationships stored in the [Knowledge Graph](Knowledge Graph).
 

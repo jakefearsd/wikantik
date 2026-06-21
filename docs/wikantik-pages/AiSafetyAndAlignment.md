@@ -1,17 +1,17 @@
 ---
-cluster: generative-ai
-canonical_id: 01KQ0P44KNXAEJJ7KSA6KKRJH2
-title: AI Safety and Alignment
-type: article
 tags:
 - alignment
 - guardrails
 - rlhf
 - constitutional-ai
-auto-generated: false
+cluster: generative-ai
+type: article
 date: '2026-05-15'
-summary: Engineering control layers for Large Language Models. RLHF, RLAIF,
-  Constitutional AI, and logit-bias based runtime guardrails.
+auto-generated: false
+canonical_id: 01KQ0P44KNXAEJJ7KSA6KKRJH2
+summary: Engineering control layers for Large Language Models. RLHF, RLAIF, Constitutional
+  AI, and logit-bias based runtime guardrails.
+title: AI Safety and Alignment
 ---
 # AI Safety and Alignment
 

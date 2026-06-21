@@ -1,18 +1,19 @@
 ---
-canonical_id: 01KQ0P44QNVH2212FXF5BSANYX
-title: Geopolitical Risk and Investing
 type: article
-cluster: geopolitics-and-finance
 status: active
+cluster: geopolitics-and-finance
 date: '2026-04-26'
-summary: How geopolitical risk affects markets — the historical patterns, the categories
-  of risk, and the investing strategies that handle uncertainty better than guessing
-  specific outcomes.
+title: Geopolitical Risk and Investing
+hubs:
+- ConflictMarketPatternsHub
 tags:
 - geopolitical-risk
 - investing
 - macro
 - conflict-investing
+summary: How geopolitical risk affects markets — the historical patterns, the categories
+  of risk, and the investing strategies that handle uncertainty better than guessing
+  specific outcomes.
 related:
 - DefenseSectorInvesting
 - PostConflictReconstructionInvesting
@@ -20,8 +21,7 @@ related:
 - ConflictMarketPatternsHub
 - ConflictsAndEquityMarkets
 - ConflictResilientPortfolios
-hubs:
-- ConflictMarketPatternsHub
+canonical_id: 01KQ0P44QNVH2212FXF5BSANYX
 ---
 # Geopolitical Risk and Investing
 

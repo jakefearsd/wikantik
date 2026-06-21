@@ -1,18 +1,19 @@
 ---
-cluster: networking
-canonical_id: 01KQ0P44SZC14KWQSCBKEZWH4H
-title: Network Optimization
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: A technical analysis of network flow optimization, the Max-Flow Min-Cut theorem,
+  and the complexity of shortest-path algorithms.
 tags:
 - networking
 - graph-theory
 - max-flow
 - min-cut
 - algorithms
-status: active
-date: 2025-05-15
-summary: A technical analysis of network flow optimization, the Max-Flow Min-Cut theorem, and the complexity of shortest-path algorithms.
+type: article
 auto-generated: false
+cluster: networking
+canonical_id: 01KQ0P44SZC14KWQSCBKEZWH4H
+title: Network Optimization
 ---
 
 # Network Optimization: Flow and Shortest Path Analysis

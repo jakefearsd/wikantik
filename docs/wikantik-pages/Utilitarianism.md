@@ -1,16 +1,17 @@
 ---
-cluster: philosophy
 canonical_id: 01KQ0P44Y8CCDK8K5J06AHB3TK
 title: Utilitarianism
-type: article
 tags:
 - alignment
 - ethics
 - autonomous-systems
 - utilitarianism
-date: 2025-05-15
-summary: An analysis of Utilitarianism in the context of the AI Value Alignment Problem, reward modeling, and the trolley problem in autonomous systems.
+cluster: philosophy
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+summary: 'Utilitarianism and AI alignment: reward modeling, trolley-problem path planning
+  in autonomous vehicles, and constrained consequentialism against reward hacking.'
 ---
 
 # Utilitarianism: Alignment Math and Autonomous Systems

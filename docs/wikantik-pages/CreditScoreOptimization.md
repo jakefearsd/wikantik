@@ -1,27 +1,27 @@
 ---
-canonical_id: 01KQ0P44P3MMMB1CTESQ6G1JXX
-title: Credit Score Optimization
 type: article
-cluster: personal-finance
 status: active
+cluster: personal-finance
 date: '2026-04-26'
-summary: What actually moves a credit score, what is folk wisdom, and the practical
-  routine that gets most people to 760+ — the threshold above which marginal improvements
-  do not change borrowing terms.
+title: Credit Score Optimization
+hubs:
+- PersonalFinanceHub
 tags:
 - credit-score
 - credit
 - personal-finance
 - credit-cards
 - borrowing
+summary: What actually moves a credit score, what is folk wisdom, and the practical
+  routine that gets most people to 760+ — the threshold above which marginal improvements
+  do not change borrowing terms.
 related:
 - PersonalFinanceGuide
 - DebtPayoffStrategies
 - IdentityTheftProtection
 - HomeBuyingProcess
 - FirstJobFinancialChecklist
-hubs:
-- PersonalFinanceHub
+canonical_id: 01KQ0P44P3MMMB1CTESQ6G1JXX
 ---
 # Credit Score Optimization
 
@@ -81,7 +81,7 @@ The percentage of your available credit you are using, calculated both per-card 
 - 30–50%: noticeable drag
 - Above 50%: significant drag
 
-**The reporting timing trap**: utilization is calculated based on the balance on the day each card reports to the credit bureaus, which is typically the statement closing date — *not* the payment due date. Even if you pay your card in full each month, if you charge $4,000 on a card with a $5,000 limit and the statement closes before you pay, your utilization for that card is reported as 80%.
+**The reporting timing trap**: utilization is calculated based on the balance on the day each card reports to the credit bureaus, which is typically the statement closing date — *not* the payment due date. Even if you pay your card in full each month, if you charge \$4,000 on a card with a $5,000 limit and the statement closes before you pay, your utilization for that card is reported as 80%.
 
 **Action**: either keep balances low between statements, or pay down balances before the statement closes (not just before the due date). On larger purchases that temporarily push utilization high, an early payment can prevent the high utilization from being reported.
 

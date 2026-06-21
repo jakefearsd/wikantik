@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ12YDV1FC565JEW2X6HJA23
-title: Gradient Descent and Optimizers
-type: article
+auto-generated: false
 cluster: machine-learning
+title: Gradient Descent and Optimizers
+related:
+- DeepLearningFundamentals
+- LinearAlgebra
+- NeuralNetworkArchitectures
+- LLMFineTuning
+type: article
+summary: Technical analysis of optimization algorithms (SGD, AdamW, Lion) and concrete
+  implementations of learning rate schedules in PyTorch.
 status: active
 date: '2026-05-15'
+canonical_id: 01KQ12YDV1FC565JEW2X6HJA23
+hubs:
+- MachineLearningHub
 tags:
 - gradient-descent
 - adam
 - sgd
 - optimizers
 - deep-learning
-summary: Technical analysis of optimization algorithms (SGD, AdamW, Lion) and concrete implementations of learning rate schedules in PyTorch.
-related:
-- DeepLearningFundamentals
-- LinearAlgebra
-- NeuralNetworkArchitectures
-- LLMFineTuning
-hubs:
-- MachineLearningHub
-auto-generated: false
 ---
 # Gradient Descent and Optimizers
 
@@ -32,11 +33,13 @@ Update Rule:
 $$
 v_{t} = \gamma v_{t-1} + \eta \nabla L(\theta)
 $$
+
 $$
 \theta = \theta - v_{t}
 $$
 
-Where$\gamma \approx 0.9$and$\eta$is the learning rate.
+Where $\gamma \approx 0.9$ and $\eta$ is the learning rate.
+
 ## 2. Adaptive Optimizers: Adam and AdamW
 **Adam** (Adaptive Moment Estimation) computes individual learning rates for each parameter by tracking the first moment (mean) and second moment (uncentered variance) of the gradients.
 

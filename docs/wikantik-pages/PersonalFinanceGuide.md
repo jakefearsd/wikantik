@@ -1,18 +1,9 @@
 ---
-canonical_id: 01KZHC6PVP9TKD3MWJ8Z0G6FQ4
-title: Personal Finance Guide
-type: article
-cluster: personal-finance
-status: active
 date: '2026-04-26'
 summary: The order to do personal finance in — what to handle first, what to handle
   later, and which decisions are worth the time. The canonical entry point for the
   personal-finance cluster.
-tags:
-- personal-finance
-- foundations
-- ordering
-- household-finance
+cluster: personal-finance
 related:
 - BudgetingMethods
 - EmergencyFundStrategies
@@ -22,8 +13,19 @@ related:
 - FinancialResilience
 - RetirementPlanningGuide
 - LowCostIndexFundInvesting
+canonical_id: 01KZHC6PVP9TKD3MWJ8Z0G6FQ4
+type: article
+title: Personal Finance Guide
+status: active
 hubs:
 - PersonalFinanceHub
+- LowCostIndexFundInvestingHub
+- TypesofInvestmentAccountsTutorialHub
+tags:
+- personal-finance
+- foundations
+- ordering
+- household-finance
 ---
 # Personal Finance Guide
 

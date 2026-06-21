@@ -1,8 +1,7 @@
 ---
-summary: Index of pages on the modern Java platform — language features through Java
-  21+, the standard library, the build and test tooling, and the patterns that make
-  long-running Java codebases sustainable.
 date: '2026-04-26'
+summary: Index of the modern Java platform — language features through Java 21+, build
+  and test tooling, and patterns for sustainable long-running codebases.
 cluster: java
 related:
 - SoftwareEngineeringPracticesHub
@@ -10,16 +9,19 @@ related:
 - WebServicesAndApisHub
 canonical_id: 01KZHC6PVQ4SBQM9R0F3T7K8Z3
 type: hub
-title: JavaHub
+title: Java
+status: active
+hubs:
+- SoftwareEngineeringPracticesHub
+- JavaMemoryManagementHub
+- DesignPatternsHub
+- WebServicesAndApisHub
 tags:
 - java
 - hub
 - jvm
 - language
 - standard-library
-status: active
-hubs:
-- SoftwareEngineeringPracticesHub
 ---
 # Java Hub
 

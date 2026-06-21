@@ -1,8 +1,17 @@
 ---
-cluster: mechanical-engineering
-canonical_id: 01KQ0P44YG4DH76BEDBKKQDN4C
 title: Vibration Analysis and Resonance
+related:
+- GearingSystems
+- BearingMechanics
+- MechanicalCoupling
+- PredictiveMaintenance
+- MathematicsHub
+- NumericalMethods
+cluster: mechanical-engineering
 type: article
+canonical_id: 01KQ0P44YG4DH76BEDBKKQDN4C
+summary: Lumped-to-FEM modeling, modal analysis eigenvalue problem, and Physics-Informed
+  Machine Learning for structural health monitoring.
 tags:
 - mechanical-engineering
 - vibration-analysis
@@ -12,14 +21,6 @@ tags:
 - structural-health-monitoring
 - non-linear-dynamics
 - signal-processing
-summary: A rigorous exploration of mechanical vibration and resonance, focusing on the transition from lumped to continuum modeling (FEM), the mathematics of modal analysis (eigenvalue problem), and the emerging frontier of Physics-Informed Machine Learning (PIML) for structural health monitoring.
-related:
-- GearingSystems
-- BearingMechanics
-- MechanicalCoupling
-- PredictiveMaintenance
-- MathematicsHub
-- NumericalMethods
 ---
 
 # Vibration Analysis: The Dynamics of Energy Dissipation and Resonance

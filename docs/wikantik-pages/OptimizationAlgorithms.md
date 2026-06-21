@@ -1,7 +1,7 @@
 ---
-canonical_id: 01KQQFWARYXY3MG4R8VWRM3CGE
-date: 2026-05-03T00:00:00Z
-cluster: mathematics
+summary: Adam, AdamW, GaLore, and L-BFGS; Lagrange multipliers and KKT conditions
+  — engines of ML training and memory-efficient LLM pre-training on consumer hardware.
+title: Optimization Algorithms
 tags:
 - optimization
 - machine-learning
@@ -10,9 +10,11 @@ tags:
 - jax
 - pytorch
 - scipy
-title: Optimization Algorithms
-summary: "Optimization is the process of finding the global minimum—the central engine of machine learning training, operations research, and 2024's memory-efficient LLM pre-training."
+cluster: mathematics
+type: article
+date: 2026-05-03T00:00:00Z
 status: active
+canonical_id: 01KQQFWARYXY3MG4R8VWRM3CGE
 ---
 
 # Optimization Algorithms: Finding the Global Minimum

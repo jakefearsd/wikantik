@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS1ZPQAF56BRJPK0NV7H5
 title: Ruby Language
+tags:
+- programming-languages
+- ruby
+- rails
+- developer-experience
+- yjit
+- web-development
+- 2026-benchmarks
 cluster: computer-science
-tags: [programming-languages, ruby, rails, developer-experience, yjit, web-development, 2026-benchmarks]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The champion of 'Developer Happiness' (1995). Created by Yukihiro Matsumoto to prioritize human needs over machine efficiency. In 2026, it has matured into a high-performance web powerhouse via YJIT and Rails 8.
+summary: Champion of developer happiness (1995). Created by Matsumoto to prioritize
+  human needs; matured into a high-performance web powerhouse via YJIT and Rails 8.
 ---
 
 # The Ruby Language: The Architecture of Joy

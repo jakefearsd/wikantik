@@ -1,21 +1,22 @@
 ---
-cluster: design-patterns
-canonical_id: 01KQ0P44V0P5BHCQ8FDA3B6G3E
-title: "The Smart Surrogate: The Proxy Pattern"
-type: article
+date: '2026-05-22'
+summary: Managing access and lifecycle through indirection. This guide explores Virtual,
+  Protection, and Dynamic proxies with concrete implementation patterns.
 tags:
 - proxy-pattern
 - design-patterns
 - structural-patterns
 - lazy-loading
 - access-control
-summary: Managing access and lifecycle through indirection. This guide explores Virtual, Protection, and Dynamic proxies with concrete implementation patterns.
+type: article
+auto-generated: false
+cluster: design-patterns
+canonical_id: 01KQ0P44V0P5BHCQ8FDA3B6G3E
 related:
 - DesignPatternsOverview
 - DecoratorPattern
 - CircuitBreakerPattern
-auto-generated: false
-date: '2026-05-22'
+title: Proxy Pattern
 ---
 
 # The Smart Surrogate: The Proxy Pattern

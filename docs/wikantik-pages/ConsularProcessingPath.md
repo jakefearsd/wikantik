@@ -1,8 +1,20 @@
 ---
-canonical_id: 01KQ0P44NXRKKHQRWBWHJAT4K2
+date: 2026-03-14T00:00:00Z
 summary: The consular processing pathway for spouses living abroad — from I-130 approval
   through the National Visa Center to the embassy interview and entry
-date: 2026-03-14T00:00:00Z
+cluster: spousal-green-card
+related:
+- SpousalGreenCardGuide
+- FilingTheI130Petition
+- ImmigrationFinancialRequirements
+- TheGreenCardInterview
+- AdjustmentOfStatusProcess
+canonical_id: 01KQ0P44NXRKKHQRWBWHJAT4K2
+part-of:
+- SpousalGreenCardGuide
+type: article
+title: Consular Processing
+status: active
 tags:
 - immigration
 - green-card
@@ -10,16 +22,7 @@ tags:
 - consular-processing
 - nvc
 - embassy
-related:
-- SpousalGreenCardGuide
-- FilingTheI130Petition
-- ImmigrationFinancialRequirements
-- TheGreenCardInterview
-- AdjustmentOfStatusProcess
-type: article
-cluster: spousal-green-card
-status: active
-part-of:
+hubs:
 - SpousalGreenCardGuide
 ---
 # Consular Processing
@@ -51,8 +54,8 @@ The NVC will send a welcome letter with your case number (different from your US
 Once the NVC has your case, you must complete several steps through the CEAC (Consular Electronic Application Center) online portal:
 
 **Pay fees:**
-- Immigrant visa application fee: $325
-- Affidavit of Support fee: $120
+- Immigrant visa application fee: \$325
+- Affidavit of Support fee: \$120
 
 **Submit Form DS-260** (Immigrant Visa Application):
 - This is the consular equivalent of the I-485

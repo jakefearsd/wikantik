@@ -1,24 +1,30 @@
 ---
-canonical_id: 01KQ0P44TNFQMPBHGY5R4G4A4F
+status: active
+type: article
 hubs:
 - InfrastructureSreHub
----
----
-canonical_id: 01KQ0P44TNFQMPBHGY5R4G4A4F
-cluster: databases
-summary: End-to-end guide for bringing up a fresh Wikantik instance, including how to import pages from a legacy JSPWiki deployment.
+date: '2026-05-15'
+cluster: wikantik-development
+title: PostgreSQL Local Deployment
 tags:
-- deployment
 - postgresql
-- operations
-type: article
+- deployment
+- tomcat
+- wikantik-development
+- pgvector
+summary: 'End-to-end guide for a fresh Wikantik PostgreSQL deployment: database bootstrap,
+  WAR build, Tomcat setup, legacy JSPWiki corpus import, and index rebuild.'
+related:
+- DevelopingWithPostgresql
+- DockerDeployment
+- ObservabilityDesign
+canonical_id: 01KQ0P44TNFQMPBHGY5R4G4A4F
 ---
-
 # Fresh Deployment & Legacy Article Import
 
 This guide walks you through standing up a new Wikantik instance against PostgreSQL and, optionally, importing an existing corpus from a legacy JSPWiki deployment. It reflects the current code on `main`: database migrations live in `bin/db/migrations/`, the WAR deploys as the ROOT context, and the React SPA is served from the same origin.
 
-## Overview
+## Deployment Stack at a Glance
 
 A complete deployment touches five things:
 
@@ -112,7 +118,7 @@ tomcat/tomcat-11/bin/shutdown.sh
 tomcat/tomcat-11/bin/startup.sh
 ```
 
-### 5. Verify
+### 5. Verify the Deployment
 
 - Browse http://localhost:8080/ — the React SPA should load.
 - Log in as `admin` / `admin123` (change this immediately if the instance is anything more than local scratch).
@@ -158,7 +164,7 @@ tar -xzf /tmp/legacy-pages.tgz -C /tmp/wikantik-import --strip-components=3
 
 Drop the `OLD/` hierarchy if you do not want to preserve old revisions as separate pages — Wikantik treats git as the version of record.
 
-### 3. Convert wiki syntax → Markdown
+### 3. Convert wiki syntax to Markdown
 
 The `scripts/wiki2markdown.py` converter is a faithful port of `WikiToMarkdownConverter.java`. It scans a directory for `.txt` files, scores each against a wiki-syntax heuristic, converts if the score is above threshold, renames straight to `.md` if the file is already Markdown, and deletes the source `.txt`.
 
@@ -228,7 +234,7 @@ bin/deploy-local.sh
 
 `deploy-local.sh` does not rebuild indexes automatically — Wikantik will pick up the new Markdown on first request, but Lucene and the chunk embeddings need to be rebuilt explicitly.
 
-### 7. Rebuild indexes
+### 7. Rebuild Lucene and Embedding Indexes
 
 **Lucene + chunks** — via admin UI at `/admin/index-status`, or via REST:
 
@@ -308,7 +314,7 @@ Located in `wikantik-war/src/main/config/tomcat/`:
 
 ## Troubleshooting
 
-### Database
+### Database Errors
 
 | Symptom | Cause | Resolution |
 |---------|-------|------------|
@@ -318,7 +324,7 @@ Located in `wikantik-war/src/main/config/tomcat/`:
 | `must be owner of table X` during migrate | Tables owned by `postgres`, running as `migrate` | Re-run `bin/db/create-migrate-user.sh` to transfer ownership |
 | `extension "vector" is not available` | pgvector not installed on server | `sudo apt install postgresql-15-pgvector` (or the distro equivalent) |
 
-### Deployment
+### Deployment Errors
 
 | Symptom | Cause | Resolution |
 |---------|-------|------------|
@@ -328,7 +334,7 @@ Located in `wikantik-war/src/main/config/tomcat/`:
 | Login fails with seeded password | Schema mismatch after a reset | Re-run `psql -d wikantik -f bin/db/seed-users.sql` |
 | 500 on admin API after DB restart | Expected: fail-soft for reads, hard-fail for writes | Connection pool reheats on next request; admin writes need the DB back |
 
-### Indexes
+### Index Errors
 
 | Symptom | Cause | Resolution |
 |---------|-------|------------|

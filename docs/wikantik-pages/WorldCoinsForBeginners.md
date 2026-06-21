@@ -1,21 +1,22 @@
 ---
-canonical_id: 01KQEDYJR57P2ZPG3ZCQ4N64KA
-title: World Coins for Beginners
-summary: Guide to collecting world coins including ancient Greek and Roman, medieval European, Asian, and modern international issues.
 date: '2026-03-20'
 status: active
+summary: Guide to collecting world coins including ancient Greek and Roman, medieval
+  European, Asian, and modern international issues.
 tags:
 - numismatics
 - coin-collecting
 - world-coins
 - ancient-coins
 - international
+type: article
+canonical_id: 01KQEDYJR57P2ZPG3ZCQ4N64KA
+cluster: coin-collecting
 related:
 - CoinCollectingHub
 - AmericanCoinHistory
 - CoinGradingAndAuthentication
-type: article
-cluster: coin-collecting
+title: World Coins for Beginners
 ---
 
 # World Coins for Beginners
@@ -26,9 +27,9 @@ While American coins dominate the US collector market, the vast world of interna
 
 The earliest coins were struck in Lydia (modern Turkey) around 600 BCE, and within a century, coinage had spread across the Greek world, Persia, and beyond. Ancient coins are the foundation of numismatics and remain one of its most fascinating areas.
 
-**Greek coins** are prized for their extraordinary artistry. The Athenian tetradrachm ("owl") featuring Athena and her sacred owl is perhaps the most iconic ancient coin, produced from roughly 510-38 BCE. Decent examples can be acquired for $300-800. The silver decadrachm of Syracuse, considered the finest coin of antiquity, features a breathtaking chariot scene and the nymph Arethusa — museum-quality examples bring six figures, but related Syracusan tetradrachms start around $1,000.
+**Greek coins** are prized for their extraordinary artistry. The Athenian tetradrachm ("owl") featuring Athena and her sacred owl is perhaps the most iconic ancient coin, produced from roughly 510-38 BCE. Decent examples can be acquired for \$300-800. The silver decadrachm of Syracuse, considered the finest coin of antiquity, features a breathtaking chariot scene and the nymph Arethusa — museum-quality examples bring six figures, but related Syracusan tetradrachms start around $1,000.
 
-**Roman coins** offer an unparalleled historical record. Portrait coins of Roman emperors from Augustus through the fall of the Western Empire in 476 CE provide a visual timeline of nearly 500 years. Common bronze coins of emperors like Constantine I can be purchased for $10-30. Silver denarii of popular emperors (Marcus Aurelius, Trajan, Hadrian) typically range from $50-200 in VF condition. Gold aurei are scarce and start around $2,000-5,000.
+**Roman coins** offer an unparalleled historical record. Portrait coins of Roman emperors from Augustus through the fall of the Western Empire in 476 CE provide a visual timeline of nearly 500 years. Common bronze coins of emperors like Constantine I can be purchased for \$10-30. Silver denarii of popular emperors (Marcus Aurelius, Trajan, Hadrian) typically range from $50-200 in VF condition. Gold aurei are scarce and start around \$2,000-5,000.
 
 **Byzantine coins** continued the Roman tradition with distinctive religious imagery. Gold solidii and their fractions are popular with collectors and available from roughly $300-1,500.
 
@@ -38,14 +39,14 @@ A key advantage of ancient coin collecting is that there are no "date and mint m
 
 The medieval period produced remarkable coinage diversity:
 
-- **Hammered coins** — Hand-struck on irregular flans, medieval coins from England, France, the Holy Roman Empire, and Italian city-states have a raw, organic beauty that machine-made coins lack. English hammered silver pennies of Edward I (1272-1307) are available for $30-100.
+- **Hammered coins** — Hand-struck on irregular flans, medieval coins from England, France, the Holy Roman Empire, and Italian city-states have a raw, organic beauty that machine-made coins lack. English hammered silver pennies of Edward I (1272-1307) are available for \$30-100.
 - **Gold florins and ducats** — The Florentine gold florin (from 1252) and Venetian gold ducat (from 1284) became the dominant trade coins of medieval Europe. Genuine examples start around $500-800.
-- **Spanish colonial coins** — The famous "pieces of eight" (8 reales) minted throughout Spain's American colonies are deeply connected to the age of exploration and piracy. Cob-style coins — crudely struck on irregular blanks — are particularly evocative and available from $100-500 depending on condition and mint.
+- **Spanish colonial coins** — The famous "pieces of eight" (8 reales) minted throughout Spain's American colonies are deeply connected to the age of exploration and piracy. Cob-style coins — crudely struck on irregular blanks — are particularly evocative and available from \$100-500 depending on condition and mint.
 - **Thalers** — Large silver coins first minted in Bohemia in 1519, thalers became the standard large silver denomination across Central Europe. The word "dollar" derives from "thaler." Maria Theresa thalers, first struck in 1741, remained in production and circulation well into the 20th century.
 
 ## Asian Coins
 
-**Chinese cash coins** — Round bronze coins with square center holes — were produced for over two thousand years, from the Qin Dynasty (221 BCE) through the early Republic. Common examples cost just $1-5, making them an extremely accessible entry point to Asian numismatics. Rarer dynasty issues and large-format cash can bring substantial premiums.
+**Chinese cash coins** — Round bronze coins with square center holes — were produced for over two thousand years, from the Qin Dynasty (221 BCE) through the early Republic. Common examples cost just \$1-5, making them an extremely accessible entry point to Asian numismatics. Rarer dynasty issues and large-format cash can bring substantial premiums.
 
 **Japanese coins** include the distinctive oval gold koban and smaller bu coins of the Tokugawa shogunate (1601-1868), as well as the beautifully designed modern yen coinage. Meiji-era (1868-1912) silver coins are popular with collectors and often available in attractive grades.
 

@@ -7,13 +7,13 @@ tags:
 - data-science
 - persistent-homology
 - manifold-learning
+cluster: machine-learning
+type: article
 date: '2026-05-15'
+status: active
 summary: An introduction to Topological Data Analysis (TDA) and persistent homology,
   leveraging algebraic topology to extract structural features from high-dimensional
   datasets.
-status: published
-cluster: machine-learning
-type: article
 ---
 
 # Topological Data Analysis (TDA)

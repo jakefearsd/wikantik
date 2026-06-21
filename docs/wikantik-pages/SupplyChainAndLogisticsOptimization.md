@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44X2319KR5ZEAM39W7TD
-summary: OR applied to supply chains — economic order quantity, transportation problems,
-  inventory theory, vehicle routing, and multi-echelon networks
+status: active
+type: article
+part-of:
+- OperationsResearchHub
 date: 2026-03-17T00:00:00Z
+cluster: operations-research
+title: Supply Chain and Logistics Optimization
 tags:
 - operations-research
 - supply-chain
 - logistics
 - inventory
 - transportation
+summary: OR applied to supply chains — economic order quantity, transportation problems,
+  inventory theory, vehicle routing, and multi-echelon networks
 related:
 - OperationsResearchHub
 - LinearProgrammingFoundations
 - IntegerAndCombinatorialOptimization
 - StochasticModelsInOR
-type: article
-cluster: operations-research
-status: active
-part-of:
-- OperationsResearchHub
+canonical_id: 01KQ0P44X2319KR5ZEAM39W7TD
 ---
 # Supply Chain and Logistics Optimization
 
@@ -179,3 +180,7 @@ The UN Humanitarian Response Depot network — pre-positioned supply caches arou
 - [Integer and Combinatorial Optimization](IntegerAndCombinatorialOptimization) — VRP and facility location as integer programs
 - [Stochastic Models in OR](StochasticModelsInOR) — Safety stock, stochastic demand, newsvendor
 - [Linear Programming Foundations](LinearProgrammingFoundations) — Transportation problem as LP
+
+
+## Advanced Topics
+*   [DurableVsPerishableOptimization](DurableVsPerishableOptimization) — How classic OR models fail when applied to fresh food and must be adapted.

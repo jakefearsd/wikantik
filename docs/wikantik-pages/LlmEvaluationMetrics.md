@@ -1,21 +1,21 @@
 ---
-date: '2026-05-24'
-summary: Quantitative and qualitative metrics for LLM systems, focusing on the limitations
-  of string similarity (ROUGE/BLEU) vs. the reliability of task-specific exact match
-  and LLM-as-judge.
-cluster: agentic-ai
-auto-generated: false
-canonical_id: 01KQ12YDVRAG1XX0MVJ9RRWT89
 type: article
+date: '2026-05-24'
+cluster: agentic-ai
 title: LLM Evaluation Metrics
+hubs:
+- AgentLoops Hub
 tags:
 - llm-evaluation
 - metrics
 - benchmarks
 - llm-as-judge
+summary: Quantitative and qualitative metrics for LLM systems, focusing on the limitations
+  of string similarity (ROUGE/BLEU) vs. the reliability of task-specific exact match
+  and LLM-as-judge.
+canonical_id: 01KQ12YDVRAG1XX0MVJ9RRWT89
+auto-generated: false
 status: active
-hubs:
-- AgentLoops Hub
 ---
 # LLM Evaluation Metrics
 

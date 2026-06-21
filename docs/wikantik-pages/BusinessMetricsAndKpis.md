@@ -1,14 +1,15 @@
 ---
-cluster: engineering-leadership
-canonical_id: 01KQ0P44MSXHJQMSTXW9A5YN7Y
-title: Business Metrics and KPIs
-type: article
 tags:
 - metrics
 - kpi
 - leadership
 - data-analysis
-summary: A rigorous exploration of business metrics and KPIs, focusing on the hierarchy of strategic alignment (OKRs vs. BSC), the distinction between leading and lagging indicators, and the advanced statistical methods required for causal inference.
+type: article
+summary: Business metrics and KPIs — OKRs vs. BSC hierarchy, leading vs. lagging indicators,
+  Goodhart's Law counter-metrics, and causal inference methods.
+title: Business Metrics and KPIs
+cluster: engineering-leadership
+canonical_id: 01KQ0P44MSXHJQMSTXW9A5YN7Y
 ---
 
 # Business Metrics and KPIs: The Architecture of Insight

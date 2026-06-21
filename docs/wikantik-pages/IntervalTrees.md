@@ -1,21 +1,22 @@
 ---
-type: article
+status: active
+date: 2026-05-15T00:00:00Z
+summary: 'The interval tree data structure: how augmented BSTs answer overlap queries
+  in O(log n), how it compares to segment trees, and where it is used in practice.'
 tags:
 - data-structures
 - computer-science
 - algorithms
 - geometry
 - efficiency
-summary: 'The interval tree data structure: how augmented BSTs answer overlap queries in O(log n), how it compares to segment trees, and where it is used in practice.'
-status: active
-date: 2026-05-15T00:00:00Z
-title: 'Interval Tree Data Structure: Range and Overlap Queries'
+type: article
+cluster: data-structures
+canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KL
 related:
 - DataStructuresHub
 - FoundationalAlgorithmsForComputerScientists
 - BalancedSearchTrees
-cluster: Data Structures
-canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KL
+title: 'Interval Tree Data Structure: Range and Overlap Queries'
 ---
 
 # Interval Tree Data Structure: Range and Overlap Queries

@@ -1,22 +1,23 @@
 ---
-cluster: databases
-canonical_id: 01KQ0P44V3X2HAGB6VWV24TAMT
 title: Query Optimization and Execution Plans
-type: article
-tags:
-- postgresql
-- query-optimization
-- execution-plans
-- cbo
-- pg_stat_statements
-- database-tuning
-summary: A rigorous exploration of database query optimization, detailing the Cost-Based Optimizer (CBO) and production analysis patterns using pg_stat_statements in PostgreSQL.
 related:
 - DataEngineeringHub
 - DistributedSystemsHub
 - SoftwareArchitecturePatterns
 - MathematicsHub
 - InformationTheory
+cluster: databases
+type: article
+canonical_id: 01KQ0P44V3X2HAGB6VWV24TAMT
+summary: Cost-Based Optimizer (CBO), execution plan interpretation, covering indexes,
+  join strategies, and production analysis with pg_stat_statements in PostgreSQL.
+tags:
+- postgresql
+- query-optimization
+- execution-plans
+- cbo
+- pg-stat-statements
+- database-tuning
 ---
 
 # Query Optimization: The Architecture of the Execution Plan

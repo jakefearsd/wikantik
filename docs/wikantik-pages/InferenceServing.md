@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ0P44R4PPR5C2BAXMJJ4871
-title: Inference Serving
-type: article
-cluster: machine-learning
-status: active
 date: '2026-04-26'
-summary: Production inference serving — serving frameworks, batching strategies,
-  autoscaling, multi-model deployment, and the operational realities that determine
-  whether ML models actually deliver business value.
+summary: Production inference serving — serving frameworks, batching strategies, autoscaling,
+  multi-model deployment, and the operational realities that determine whether ML
+  models actually deliver business value.
+cluster: machine-learning
+related:
+- CostEffectiveInference
+- CPUInference
+- MlModelDeployment
+canonical_id: 01KQ0P44R4PPR5C2BAXMJJ4871
+type: article
+title: Inference Serving
+status: active
+hubs:
+- MLHub
+- MlModelDeploymentHub
 tags:
 - inference
 - serving
 - machine-learning
 - deployment
 - operations
-related:
-- CostEffectiveInference
-- CPUInference
-- MlModelDeployment
-hubs:
-- MLHub
 ---
 # Inference Serving
 

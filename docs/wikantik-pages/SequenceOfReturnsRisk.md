@@ -1,8 +1,6 @@
 ---
-date: 2026-03-21T00:00:00Z
-summary: Deep dive into sequence of returns risk — why the first 5-10 years of retirement
-  determine everything, and concrete strategies to protect yourself
 cluster: retirement-planning
+title: Sequence of Returns Risk
 related:
 - RetirementPlanningGuide
 - SafeWithdrawalRates
@@ -12,19 +10,22 @@ related:
 - InvestingInYourTwenties
 - AssetAllocationGuide
 - RothConversionStrategy
+type: article
+summary: Deep dive into sequence of returns risk — why the first 5-10 years of retirement
+  determine everything, and concrete strategies to protect yourself
+status: active
+date: 2026-03-21T00:00:00Z
 canonical_id: 01KQ0P44W8P0401F969G5MGMW3
+hubs:
+- RetirementPlanningGuide
 part-of:
 - RetirementPlanningGuide
-type: article
-status: active
 tags:
 - finance
 - retirement
 - risk-management
 - withdrawal-strategy
 - asset-allocation
-hubs:
-- RetirementPlanningGuide
 ---
 # Sequence of Returns Risk: Protecting Your Early Retirement Years
 
@@ -42,13 +43,13 @@ This creates a dangerous intuition: you spend decades learning that volatility i
 
 ### What Changes at Retirement
 
-When you withdraw money during a downturn, you sell shares at depressed prices. Those shares are gone permanently. They cannot participate in the recovery. Every dollar withdrawn during a 30% crash costs you roughly $1.43 in future portfolio value (because you need a 43% gain to recover from a 30% loss — but the shares you sold aren't there to capture it).
+When you withdraw money during a downturn, you sell shares at depressed prices. Those shares are gone permanently. They cannot participate in the recovery. Every dollar withdrawn during a 30% crash costs you roughly \$1.43 in future portfolio value (because you need a 43% gain to recover from a 30% loss — but the shares you sold aren't there to capture it).
 
 This is the mechanism: **withdrawals during downturns create a permanent, compounding drag on portfolio value.** The earlier in retirement this happens, the longer the drag compounds, and the more devastating it becomes.
 
 ### A Worked Example
 
-Consider two retirees, both starting with $1,000,000, both withdrawing $45,000/year (4.5% initial rate), both experiencing the same set of annual returns — just in different order.
+Consider two retirees, both starting with $1,000,000, both withdrawing \$45,000/year (4.5% initial rate), both experiencing the same set of annual returns — just in different order.
 
 **Retiree A: Bad returns first**
 

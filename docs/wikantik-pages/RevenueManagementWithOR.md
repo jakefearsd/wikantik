@@ -1,28 +1,29 @@
 ---
-canonical_id: 01KQ0P44VSKC4C7SY8JRAW733T
-summary: How airlines, hotels, and other industries use OR to dynamically optimize
-  pricing and capacity allocation under uncertain demand
+status: active
+type: article
+part-of:
+- OperationsResearchHub
 date: 2026-03-17T00:00:00Z
+cluster: operations-research
+title: Revenue Management with OR
 tags:
 - operations-research
 - revenue-management
 - dynamic-pricing
 - yield-management
 - airlines
+summary: How airlines, hotels, and other industries use OR to dynamically optimize
+  pricing and capacity allocation under uncertain demand
 related:
 - OperationsResearchHub
 - StochasticModelsInOR
 - LinearProgrammingFoundations
 - IntegerAndCombinatorialOptimization
-type: article
-cluster: operations-research
-status: active
-part-of:
-- OperationsResearchHub
+canonical_id: 01KQ0P44VSKC4C7SY8JRAW733T
 ---
 # Revenue Management with OR
 
-Revenue management (RM) — also called **yield management** — is the practice of selling the right product to the right customer at the right time for the right price. It is one of the most commercially valuable applications of [operations research](OperationsResearch), credited with saving American Airlines alone over $1.4 billion in its first three years (1988–1991) and reshaping pricing across airlines, hotels, car rentals, media streaming, ride-hailing, and retail.
+Revenue management (RM) — also called **yield management** — is the practice of selling the right product to the right customer at the right time for the right price. It is one of the most commercially valuable applications of [operations research](OperationsResearch), credited with saving American Airlines alone over \$1.4 billion in its first three years (1988–1991) and reshaping pricing across airlines, hotels, car rentals, media streaming, ride-hailing, and retail.
 
 At its core, revenue management is a stochastic optimization problem: products with fixed capacity, perishable value, heterogeneous customers, and uncertain arrival patterns. Operations research provides the models that make optimal — or near-optimal — decisions computationally tractable.
 
@@ -54,7 +55,7 @@ f₁ = f₂ × P(D₂ > y*)
 
 Interpretation: protect more high-fare seats until the probability of having a high-fare customer who wants that seat equals the ratio of the cheap fare to the expensive fare.
 
-**Example:** f₁ = $200, f₂ = $600, D₂ ~ Normal(40, 10²).
+**Example:** f₁ = $200, f₂ = \$600, D₂ ~ Normal(40, 10²).
 y* satisfies P(D₂ > y*) = 200/600 = 1/3.
 1/3 probability corresponds to about the 67th percentile of D₂ = 40 + 10 × 0.44 ≈ 44.
 Protect 44 seats for high-fare customers; sell cheap until 44 remain.

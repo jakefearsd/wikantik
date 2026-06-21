@@ -1,23 +1,25 @@
 ---
-canonical_id: 01KQ0P44PC3WFHNSHMN0HVBRDA
-title: Database Connection Security
-type: article
-cluster: databases
-status: active
 date: '2026-04-26'
 summary: How to secure database connections — TLS, authentication, network controls,
   connection pooling, and the practices that prevent the most common database compromises.
+cluster: databases
+related:
+- DatabaseBackupStrategies
+- NetworkSecurityFundamentals
+- CloudSecurityFundamentals
+- VulnerabilityManagement
+canonical_id: 01KQ0P44PC3WFHNSHMN0HVBRDA
+type: article
+title: Database Connection Security
+status: active
 tags:
 - database-security
 - tls
 - authentication
 - connection-pooling
 - security
-related:
-- DatabaseBackupStrategies
-- NetworkSecurityFundamentals
-- CloudSecurityFundamentals
-- VulnerabilityManagement
+hubs:
+- DatabasePerformanceMonitoringHub
 ---
 # Database Connection Security
 

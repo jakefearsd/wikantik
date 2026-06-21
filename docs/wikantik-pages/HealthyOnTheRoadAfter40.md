@@ -1,8 +1,15 @@
 ---
-cluster: van-life
-canonical_id: 01KQ0P44QWJHV8HPDXSFS90KSA
 title: Healthy on the Road After 40
+related:
+- HotSpringsRoadTrip
+- HomeEmergencyPreparedness
+- RiskManagement
+- MicronutritionScience
+cluster: van-life
 type: article
+canonical_id: 01KQ0P44QWJHV8HPDXSFS90KSA
+summary: Musculoskeletal preservation, circadian anchoring via light/thermal protocols,
+  and biochemical allostatic load management for nomads over 40.
 tags:
 - van-life
 - health-optimization
@@ -10,12 +17,6 @@ tags:
 - circadian-rhythms
 - over-40
 - biological-resilience
-summary: A rigorous exploration of biological optimization for long-term travelers over 40, focusing on musculoskeletal preservation, circadian rhythm management in variable environments, and the mitigation of allostatic load.
-related:
-- HotSpringsRoadTrip
-- HomeEmergencyPreparedness
-- RiskManagement
-- MicronutritionScience
 ---
 
 # Biological Resilience: Optimizing Health for the Post-40 Nomad

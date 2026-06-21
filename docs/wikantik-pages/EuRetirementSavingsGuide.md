@@ -1,14 +1,17 @@
 ---
-canonical_id: 01KQ0P44Q77D4ZERJ5ZN2N571W
 date: '2026-03-15T00:00:00Z'
 status: active
-cluster: retirement-planning
+summary: 'How EU retirement savings and investing law differs from the US: three-pillar
+  system, contribution limits, capital gains tax, and structural differences'
 tags:
 - personal-finance
 - retirement-planning
 - eu
 - international
 - tax
+type: hub
+cluster: retirement-planning
+canonical_id: 01KQ0P44Q77D4ZERJ5ZN2N571W
 related:
 - RetirementPlanningGuide
 - GermanRetirementSystem
@@ -16,9 +19,7 @@ related:
 - SafeWithdrawalRates
 - MonteCarloRetirementPlanning
 - IndexFundInvestingForEarlyRetirement
-type: hub
-summary: 'How EU retirement savings and investing law differs from the US: three-pillar
-  system, contribution limits, capital gains tax, and structural differences'
+title: EU Retirement Savings Guide
 ---
 # EU Retirement Savings and Investing: A Guide for US-Oriented Investors
 
@@ -46,7 +47,7 @@ This matters for retirement investors because:
 
 - **Higher costs:** UCITS ETFs have slightly higher expense ratios due to smaller average fund sizes (EUR 356M vs USD 2.6B for US mutual funds)
 - **Tax treaty benefit:** Irish-domiciled UCITS ETFs benefit from the US-Ireland tax treaty, reducing US dividend withholding from 30% to 15%
-- **Estate tax protection:** UCITS funds shield non-US investors from the 40% US estate tax that applies to US-domiciled assets exceeding $60,000
+- **Estate tax protection:** UCITS funds shield non-US investors from the 40% US estate tax that applies to US-domiciled assets exceeding \$60,000
 - **PFIC trap for Americans abroad:** European funds (UCITS ETFs, assurance vie underlying funds) are classified as Passive Foreign Investment Companies (PFICs) under US tax law, triggering punitive taxation — effectively forcing US expats to use US-domiciled funds even while living in Europe
 
 ## Pan-European Personal Pension Product (PEPP)

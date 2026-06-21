@@ -1,15 +1,8 @@
 ---
-title: Ergodic Theory for Financial Modeling
-canonical_id: 01KRQE4ZZJKM86DQBYNP5P4YV5
-cluster: mathematics
-relations:
-- type: extension_of
-  target_id: 01KQ0P44TS2QKK143RD755SRYP
-- type: component_of
-  target_id: 6145779b-87f6-4cb1-ae04-766d184077cc
-- type: influenced_by
-  target_id: 01KQEKGDCWD98Q7C0SZSH9RXGB
-type: article
+status: active
+date: '2026-05-15'
+summary: 'Ergodic vs. ensemble averages in finance: time-average growth rates, path
+  dependence, the ruin problem, and portfolio rebalancing under Ergodicity Economics.'
 tags:
 - ergodic-theory
 - ergodicity-economics
@@ -17,11 +10,17 @@ tags:
 - asset-allocation
 - stochastic-processes
 - path-dependence
-summary: Advanced coverage of Ergodic Theory and Ergodicity Economics (EE). Details
-  the 2025 paradigm shift from ensemble averages (Expected Value) to time-average
-  growth rates for medium-term asset allocation.
-status: active
-date: '2026-05-15'
+type: article
+relations:
+- type: extension_of
+  target_id: 01KQ0P44TS2QKK143RD755SRYP
+- type: component_of
+  target_id: 6145779b-87f6-4cb1-ae04-766d184077cc
+- type: influenced_by
+  target_id: 01KQEKGDCWD98Q7C0SZSH9RXGB
+canonical_id: 01KRQE4ZZJKM86DQBYNP5P4YV5
+cluster: mathematics
+title: Ergodic Theory for Financial Modeling
 ---
 
 # Ergodic Theory for Financial Modeling

@@ -1,15 +1,14 @@
 ---
-canonical_id: 01KQP4WWNVKVJY627J2419A9ZG
-summary: A rigorous exploration of Psychological Safety — the belief that one will
-  not be punished or humiliated for speaking up with ideas, questions, concerns, or
-  mistakes.
 tags:
 - leadership
 - team-dynamics
 - psychological-safety
 - engineering-culture
 type: article
+summary: The cultural bedrock of high-performance teams — blameless error reporting,
+  interpersonal risk-taking, and the leadership behaviors that make speaking up safe.
 title: Psychological Safety
+canonical_id: 01KQP4WWNVKVJY627J2419A9ZG
 cluster: software-engineering-practices
 ---
 

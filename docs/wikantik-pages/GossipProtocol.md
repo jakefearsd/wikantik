@@ -1,20 +1,21 @@
 ---
-canonical_id: 01KQ0P44QQ56YTY45PXQT873DR
-title: Gossip Protocol
 type: article
 cluster: distributed-systems
-status: active
 date: '2026-04-26'
-summary: Technical analysis of gossip protocols (epidemic algorithms) for membership, failure detection, and eventual consistency.
-auto-generated: false
+title: Gossip Protocol
 tags:
 - gossip-protocol
 - distributed-systems
 - membership
 - eventual-consistency
+summary: Technical analysis of gossip protocols (epidemic algorithms) for membership,
+  failure detection, and eventual consistency.
 related:
 - LeaderElectionAlgorithms
 - MessageQueuePatterns
+canonical_id: 01KQ0P44QQ56YTY45PXQT873DR
+auto-generated: false
+status: active
 ---
 
 Gossip protocols (epidemic algorithms) propagate information through a cluster via periodic, pairwise state exchanges. They are the standard for decentralized membership and failure detection in large-scale systems (Cassandra, Consul, Dynamo).

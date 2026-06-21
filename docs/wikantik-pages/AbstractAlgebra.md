@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ12YDQMTZFWBGMQV3SCWYSP
-title: Abstract Algebra
 type: article
-cluster: mathematics
 status: active
+cluster: mathematics
 date: '2026-04-25'
+title: Abstract Algebra
+hubs:
+- MathematicsHub
 tags:
 - abstract-algebra
 - group-theory
 - ring-theory
 - field-theory
 - mathematics
-summary: Groups, rings, and fields — what they are, where they show up in computing (cryptography, error-correcting codes, type systems), and the results that pay off in practice.
+summary: Groups, rings, and fields with applications in cryptography (ECC, AES, RSA
+  via CRT), error-correcting codes, computer graphics (quaternions), and type systems.
 related:
 - NumberTheory
 - LinearAlgebra
 - CategoryTheory
 - EncryptionFundamentals
-hubs:
-- MathematicsHub
+canonical_id: 01KQ12YDQMTZFWBGMQV3SCWYSP
 ---
 
 # Abstract Algebra: Structural Integrity and Geometric Transformation

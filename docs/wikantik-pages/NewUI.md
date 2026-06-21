@@ -1,16 +1,17 @@
 ---
+summary: Wikantik Reader UI - Implementation Plan for a modern, React-based reading
+  experience.
+title: Reader UI Redesign
 tags:
 - frontend
 - development
 - ui-ux
 - react
-date: '2026-05-15'
-canonical_id: 01KQ0P44T1NDZ71D6WFZZKPQ3A
-summary: Wikantik Reader UI - Implementation Plan for a modern, React-based reading
-  experience.
-status: active
 cluster: wikantik-development
 type: article
+date: '2026-05-15'
+status: active
+canonical_id: 01KQ0P44T1NDZ71D6WFZZKPQ3A
 ---
 # Wikantik Reader UI - Implementation Plan
 

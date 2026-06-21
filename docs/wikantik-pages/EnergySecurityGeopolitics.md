@@ -1,15 +1,12 @@
 ---
-summary: An analysis of the 2026 energy landscape, defined by Middle East volatility,
-  the AI power bottleneck, and supply chain weaponization.
-date: 2026-05-15T00:00:00Z
-cluster: Geopolitics & Finance
-related:
-- ConflictMarketPatternsHub
-- MarketRecoveryCoefficients
-- GeopoliticalFinancialBridgeHub
-canonical_id: 01J7KQTCAKV3BVHYPW20PHSFGX
-title: 'Energy Security Geopolitics: The 2026 Crisis and Structural Shifts'
 type: article
+status: active
+date: 2026-05-15T00:00:00Z
+cluster: geopolitics-and-finance
+title: 'Energy Security Geopolitics: The 2026 Crisis and Structural Shifts'
+hubs:
+- GeopoliticalFinancialBridgeHub
+- LeanManufacturingPrinciplesHub
 tags:
 - energy
 - security
@@ -17,10 +14,13 @@ tags:
 - 2026crisis
 - criticalminerals
 - ai
-hubs:
+summary: 'The 2026 energy landscape: Middle East volatility, AI power bottleneck,
+  and weaponization of critical mineral supply chains driving energy sovereignty mandates.'
+related:
+- ConflictMarketPatternsHub
+- MarketRecoveryCoefficients
 - GeopoliticalFinancialBridgeHub
-- LeanManufacturingPrinciplesHub
-status: active
+canonical_id: 01J7KQTCAKV3BVHYPW20PHSFGX
 ---
 
 # Energy Security Geopolitics: The 2026 Crisis and Structural Shifts

@@ -1,14 +1,21 @@
 ---
-status: official
-cluster: wikantik-development
-type: article
-title: Continuous Integration (CI) in Wikantik
 date: '2026-05-04 inspiried_by: "docs/ci-cd-step-by-step.md"'
 summary: An overview of the Wikantik CI pipeline, including automated builds, integration
   tests, and retrieval-quality benchmarking.
-canonical_id: 01KQTD5WE6WZ7VXARBJHXSZZH5
-verified_at: '2026-05-04T21:10:44.598011331Z'
+cluster: wikantik-development
 verified_by: gemini-cli-mcp-client
+verified_at: '2026-05-04T21:10:44.598011331Z'
+canonical_id: 01KQTD5WE6WZ7VXARBJHXSZZH5
+type: article
+title: Continuous Integration (CI) in Wikantik
+status: active
+tags:
+- continuous-integration
+- ci-cd
+- testing
+- wikantik-development
+hubs:
+- WikantikDevelopment
 ---
 # Continuous Integration (CI) in Wikantik
 

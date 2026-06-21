@@ -1,25 +1,24 @@
 ---
-canonical_id: 01KQ0P44M52Z0XGC1BE1R04NFY
-title: AuthenticationAndAuthorizationHub
-type: hub
-cluster: security
 status: active
 date: '2026-04-26'
-summary: Index of pages on authentication and authorization — how systems verify
-  identity (auth) and decide what authenticated users can do (authz), with the protocols
-  and patterns that have aged well.
+summary: Index of pages on authentication and authorization — verifying identity (authn)
+  and controlling what authenticated users can do (authz).
 tags:
 - authentication
 - authorization
 - security
 - hub
 - oauth
+type: hub
+canonical_id: 01KQ0P44M52Z0XGC1BE1R04NFY
+cluster: security
 related:
 - AuthenticationAndAuthorization
 - ApiSecurityPatterns
 - OauthAndOidcDeepDive
 - GoogleSSO
 - CloudSecurityFundamentals
+title: Authentication and Authorization Hub
 ---
 # AuthenticationAndAuthorization Hub
 

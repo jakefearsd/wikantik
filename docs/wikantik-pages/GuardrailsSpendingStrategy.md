@@ -1,8 +1,6 @@
 ---
-date: 2026-03-21T00:00:00Z
-summary: Adaptive retirement spending using Guyton-Klinger decision rules and Kitces-Pfau
-  ratcheting — start higher than 4% with lower risk of ruin
 cluster: retirement-planning
+title: Guardrails Spending Strategy
 related:
 - SafeWithdrawalRates
 - HistoryOfTheFourPercentRule
@@ -10,19 +8,22 @@ related:
 - SocialSecurityClaimingStrategy
 - RetirementWithdrawalSequencing
 - RetirementPlanningGuide
+type: article
+summary: Adaptive retirement spending using Guyton-Klinger decision rules and Kitces-Pfau
+  ratcheting — start higher than 4% with lower risk of ruin
+status: active
+date: 2026-03-21T00:00:00Z
 canonical_id: 01KQ0P44QT8PRMQTD8Q1XKVVR7
+hubs:
+- RetirementPlanningGuide
 part-of:
 - RetirementPlanningGuide
-type: article
-status: active
 tags:
 - retirement
 - withdrawal-strategy
 - guardrails
 - spending-strategy
 - financial-planning
-hubs:
-- RetirementPlanningGuide
 ---
 # Guardrails Spending Strategy
 
@@ -77,9 +78,9 @@ In any year where the withdrawal rate falls below the lower guardrail, raise spe
 
 ## Worked Example: 20 Years of Guardrails
 
-Meet James and Patricia, both 65, with a $1,200,000 portfolio. They use the **moderate** guardrails: 5.0% initial rate, 6.0% upper guardrail, 4.0% lower guardrail, 10% adjustments.
+Meet James and Patricia, both 65, with a \$1,200,000 portfolio. They use the **moderate** guardrails: 5.0% initial rate, 6.0% upper guardrail, 4.0% lower guardrail, 10% adjustments.
 
-**Initial spending: $60,000/year** (5.0% of $1.2M)
+**Initial spending: \$60,000/year** (5.0% of $1.2M)
 
 | Year | Age | Portfolio Start | Planned Spending | W/R | Guardrail Hit? | Actual Spending | Market Return |
 |------|-----|----------------|-----------------|-----|---------------|----------------|---------------|
@@ -92,15 +93,15 @@ Meet James and Patricia, both 65, with a $1,200,000 portfolio. They use the **mo
 | 7 | 71 | $1,100,668 | $54,690 | 5.0% | No | $54,690 | +15% |
 | 8 | 72 | $1,202,874 | $56,330 | 4.7% | No | $56,330 | +10% |
 | 9 | 73 | $1,261,199 | $58,020 | 4.6% | No | $58,020 | +12% |
-| 10 | 74 | $1,347,560 | $59,760 | 4.4% | No | $59,760 | +5% |
+| 10 | 74 | $1,347,560 | $59,760 | 4.4% | No | \$59,760 | +5% |
 
 **What happened:**
 - Years 1-3: Normal spending with inflation adjustments. Then a severe bear market hits.
-- Year 4: Portfolio drops to $973K. Withdrawal rate jumps to 6.5% — hits the upper guardrail. Spending cut 10% to $57,285. Capital preservation rule also applies (no inflation adjustment).
-- Year 5: Another bad year. Rate hits 6.8% — another 10% cut to $51,557. This is painful but prevents portfolio depletion.
+- Year 4: Portfolio drops to $973K. Withdrawal rate jumps to 6.5% — hits the upper guardrail. Spending cut 10% to \$57,285. Capital preservation rule also applies (no inflation adjustment).
+- Year 5: Another bad year. Rate hits 6.8% — another 10% cut to \$51,557. This is painful but prevents portfolio depletion.
 - Years 6-10: Markets recover. Spending gradually climbs back via inflation adjustments. By year 10, spending is nearly back to the original level and the portfolio is larger than when they started.
 
-**Key observation**: The two spending cuts totaled $12,443/year — about $1,000/month reduction at the worst point. Uncomfortable but survivable, especially with Social Security providing a stable floor. Without guardrails, maintaining $63,650 spending through the downturn would have depleted the portfolio years earlier.
+**Key observation**: The two spending cuts totaled $12,443/year — about $1,000/month reduction at the worst point. Uncomfortable but survivable, especially with Social Security providing a stable floor. Without guardrails, maintaining \$63,650 spending through the downturn would have depleted the portfolio years earlier.
 
 ## The Kitces-Pfau Ratcheting Guardrails
 
@@ -117,7 +118,7 @@ Michael Kitces and Wade Pfau refined the guardrails concept with an important as
 
 The standard Guyton-Klinger system raises spending when the lower guardrail is hit but can also cut it back later. Ratcheting says: if your portfolio has grown enough that your withdrawal rate dropped to 3.5%, your portfolio is almost certainly safe at a higher spending level. Lock in the gain.
 
-**Example**: You started spending $50,000 from a $1M portfolio (5%). After 8 years the portfolio has grown to $1.5M. Your withdrawal rate (now ~$56K after inflation adjustments) is only 3.7% — below the 3.5% trigger isn't hit yet. If the portfolio reaches $1.6M, making the rate ~3.5%, you ratchet up to $80,000 (5% of $1.6M). This $80,000 becomes your new baseline.
+**Example**: You started spending $50,000 from a \$1M portfolio (5%). After 8 years the portfolio has grown to $1.5M. Your withdrawal rate (now ~\$56K after inflation adjustments) is only 3.7% — below the 3.5% trigger isn't hit yet. If the portfolio reaches $1.6M, making the rate ~3.5%, you ratchet up to \$80,000 (5% of $1.6M). This \$80,000 becomes your new baseline.
 
 The psychological benefit is substantial: you can genuinely improve your lifestyle rather than perpetually spending less than you can afford.
 
@@ -155,11 +156,11 @@ Guardrails become dramatically more powerful when Social Security covers essenti
 - Social Security: $28,000/year
 - Essential expenses: $36,000/year (SS covers 78%)
 - Desired total spending: $64,000/year
-- Portfolio must provide: $36,000/year (4.5% of $800K)
+- Portfolio must provide: $36,000/year (4.5% of \$800K)
 
-If the upper guardrail triggers a 10% cut, Maria's portfolio withdrawal drops from $36,000 to $32,400. Her total spending becomes $60,400 — she cancels one vacation, not meals. Social Security creates a floor that makes guardrail cuts psychologically manageable.
+If the upper guardrail triggers a 10% cut, Maria's portfolio withdrawal drops from \$36,000 to $32,400. Her total spending becomes $60,400 — she cancels one vacation, not meals. Social Security creates a floor that makes guardrail cuts psychologically manageable.
 
-Compare this to a retiree with no Social Security who must cut from $64,000 to $57,600 across all spending including essentials. Same percentage cut, very different life impact.
+Compare this to a retiree with no Social Security who must cut from \$64,000 to \$57,600 across all spending including essentials. Same percentage cut, very different life impact.
 
 See [Social Security Claiming Strategy](SocialSecurityClaimingStrategy) for how delaying benefits builds a stronger floor.
 

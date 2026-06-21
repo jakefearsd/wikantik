@@ -1,16 +1,17 @@
 ---
-cluster: frontend-development
 canonical_id: 01KQ0P44WXXZHGMPJT9024QS5R
 title: Static Site Generation
-type: article
 tags:
 - ssg
 - isr
 - frontend
 - performance
-summary: Exploration of modern Static Site Generation (SSG), Incremental Static Regeneration (ISR), and hybrid rendering patterns.
+cluster: frontend-development
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
-date: 2025-05-15
+summary: SSG, ISR, and hybrid rendering — when to pre-render at build time, when to
+  use on-demand revalidation, and how Astro Islands minimise JS hydration cost.
 ---
 
 # Static Site Generation (SSG) and Hybrid Rendering

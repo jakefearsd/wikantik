@@ -1,13 +1,22 @@
 ---
-canonical_id: 01KQ0P44VXPX33W4Y1JF9WKJA8
-title: Rule of 72 and Investment Growth Calculations
+date: 2026-03-15T00:00:00Z
+status: active
+summary: Practical mental math tools for estimating investment growth, including the
+  Rule of 72, the Rule of 115, and techniques for quickly evaluating investment outcomes.
+tags:
+- investing
+- compound-interest
+- mathematics
+- financial-planning
+- mental-math
 type: article
-tags: [investing, compound-interest, mathematics, financial-planning, mental-math]
-date: 2026-03-15
-status: published
+canonical_id: 01KQ0P44VXPX33W4Y1JF9WKJA8
 cluster: index-fund-investing
-summary: Practical mental math tools for estimating investment growth, including the Rule of 72, the Rule of 115, and techniques for quickly evaluating investment outcomes.
-related: [BasicsOfCompoundInterest, CompoundInterestAndTaxAdvantagedAccounts, LowCostIndexFundInvesting]
+related:
+- BasicsOfCompoundInterest
+- CompoundInterestAndTaxAdvantagedAccounts
+- LowCostIndexFundInvesting
+title: Rule of 72 and Investment Growth Calculations
 ---
 
 # Rule of 72 and Investment Growth Calculations
@@ -89,7 +98,7 @@ At 8%: 3.32 × 9 ≈ 30 years to turn $10,000 into $100,000.
 
 Combine the Rule of 72 with doubling to quickly project portfolio values:
 
-**Example**: $50,000 invested at 8%, how much in 27 years?
+**Example**: \$50,000 invested at 8%, how much in 27 years?
 
 1. 72 ÷ 8 = 9 years per doubling
 2. 27 years ÷ 9 = 3 doublings
@@ -97,13 +106,13 @@ Combine the Rule of 72 with doubling to quickly project portfolio values:
 
 Actual result: $419,725. Close enough for planning purposes.
 
-**Example**: $200,000 at 7%, how much in 30 years?
+**Example**: \$200,000 at 7%, how much in 30 years?
 
 1. 72 ÷ 7 ≈ 10.3 years per doubling
 2. 30 years ÷ 10.3 ≈ 2.9 doublings
 3. Approximately $200,000 × 2^2.9 ≈ $200,000 × 7.5 ≈ $1,500,000
 
-Actual result: $1,522,451.
+Actual result: \$1,522,451.
 
 ## The Future Value of Regular Savings
 
@@ -114,7 +123,7 @@ For monthly contributions, a useful approximation:
 Where growth factor ≈ (years × rate) / 2 for rough estimates.
 
 More precisely, use this mental framework:
-- $500/month at 8% for 30 years: total deposits = $180,000
+- $500/month at 8% for 30 years: total deposits = \$180,000
 - Growth multiplier at 8% for 30 years ≈ 3.75x
 - Approximate value: $180,000 × 3.75 ≈ $675,000
 
@@ -135,10 +144,10 @@ This tells you that your purchasing power doubles every 14–15 years at an 8% n
 
 | Scenario | Quick Estimate |
 |----------|---------------|
-| How long to become a millionaire saving $1,000/month at 8%? | ~25 years |
-| How much is $10,000 at 25 worth at 65 (8% nominal)? | ~$217,000 (4+ doublings) |
-| How much purchasing power does $1M lose in 20 years at 3% inflation? | ~45% ($1M buys ~$550K worth) |
-| At 8%, how much must I save monthly for $1M in 30 years? | ~$750/month |
+| How long to become a millionaire saving \$1,000/month at 8%? | ~25 years |
+| How much is \$10,000 at 25 worth at 65 (8% nominal)? | ~$217,000 (4+ doublings) |
+| How much purchasing power does \$1M lose in 20 years at 3% inflation? | ~45% ($1M buys ~$550K worth) |
+| At 8%, how much must I save monthly for \$1M in 30 years? | ~$750/month |
 
 These rough estimates are valuable for gut-checking financial plans, evaluating opportunities, and understanding the long-term impact of financial decisions without needing a spreadsheet.
 

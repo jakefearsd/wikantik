@@ -1,23 +1,25 @@
 ---
 type: hub
+status: active
+date: '2026-04-26'
+cluster: networking
+title: Networking Hub
+hubs:
+- WebServicesAndApisHub
 tags:
 - networking
 - protocol
 - hub
 - tcp-ip
 - http
-summary: Index of pages on networking concepts — TCP/IP, DNS, HTTP/2-3, CORS, load
-  balancing, and the practical knowledge needed to design and troubleshoot networked
-  systems.
-status: active
-date: '2026-04-26'
-title: NetworkingHub
+summary: Index of networking concepts — TCP/IP, DNS, HTTP/2–3, CORS, load balancing,
+  and the knowledge needed to design and troubleshoot networked systems.
 related:
 - WebServicesAndApisHub
 - CloudPlatformsHub
 - DevOpsAndSreHub
+- HttpTwoAndHttpThree
 canonical_id: 01KZHC6PVY4SBQM9R0F3T7K8ZB
-cluster: networking
 ---
 # Networking Hub
 

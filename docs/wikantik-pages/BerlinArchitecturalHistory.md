@@ -1,15 +1,18 @@
 ---
-cluster: berlin-history
-canonical_id: 01KQ0P44MGY8K0GATYPQJD9PP1
 title: Berlin Architectural History
+cluster: berlin-history
 type: article
+hubs:
+- BerlinHistoryHub
+summary: 'Berlin''s architectural evolution: Bauhaus functionalism, the curtain wall,
+  and the tension between utopian modernism and post-war reconstruction.'
+canonical_id: 01KQ0P44MGY8K0GATYPQJD9PP1
 tags:
 - architecture
 - berlin-history
 - bauhaus
 - modernism
 - urban-planning
-summary: A rigorous exploration of Berlin's architectural history, focusing on the Bauhaus movement as a systemic design protocol, the structural shift of the curtain wall, and the dialectical tension between utopian modernism and post-war reconstruction.
 ---
 
 # Berlin Architectural History: The Bauhaus Continuum

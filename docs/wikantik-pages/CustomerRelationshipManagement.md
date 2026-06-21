@@ -1,15 +1,16 @@
 ---
-cluster: warehouse-automation
-canonical_id: 01KQ0P44P6ZHDJHZZ9T0V85YF8
-title: Customer Relationship Management
-type: article
 tags:
 - crm
 - cdp
 - customer-experience
 - data-strategy
 - identity-resolution
-summary: A rigorous exploration of Customer Relationship Management (CRM) and Customer Data Platforms (CDP), focusing on identity resolution, graph-based data modeling, and the architectural role of CRM as the "System of Customer Record."
+type: article
+summary: 'CRM and Customer Data Platforms (CDP): identity resolution, graph-based
+  data modeling, and the architectural role of CRM as the System of Customer Record.'
+title: Customer Relationship Management
+cluster: warehouse-automation
+canonical_id: 01KQ0P44P6ZHDJHZZ9T0V85YF8
 ---
 
 # Customer Relationship Management: The Architecture of Affinity

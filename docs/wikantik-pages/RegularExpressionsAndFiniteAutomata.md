@@ -1,16 +1,22 @@
 ---
-status: official
-date: '2026-05-04'
-verified_at: '2026-05-04T21:10:44.598011331Z'
-verified_by: gemini-cli-mcp-client
-summary: How the theoretical foundations of regular expressions and finite automata
-  power text processing and link discovery in Wikantik.
-type: article
 cluster: computer-science-foundations
-canonical_id: 01KQTD79QGKT9YW3THM0HGHA35
 title: Regular Expressions and Finite Automata
+type: article
+summary: DFA, NFA, and regular expressions — the finite automata model, regex syntax,
+  and how automata theory underlies text pattern matching and lexer construction.
+status: active
+date: '2026-05-04'
+verified_by: gemini-cli-mcp-client
+canonical_id: 01KQTD79QGKT9YW3THM0HGHA35
+verified_at: '2026-05-04T21:10:44.598011331Z'
 Concept:
 - Finite Automata
+tags:
+- regular-expressions
+- finite-automata
+- dfa
+- nfa
+- automata-theory
 ---
 # Regular Expressions and Finite Automata
 

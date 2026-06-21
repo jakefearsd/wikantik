@@ -1,25 +1,26 @@
 ---
+type: article
+status: active
 date: 2026-03-15T01:00:00Z
+cluster: index-fund-investing
+title: 'Low-Cost Index Funds: 2026 Guide to the Cheapest Funds'
+hubs:
+- LowCostIndexFundInvestingHub
+- PersonalFinanceHub
+- TypesofInvestmentAccountsTutorialHub
+tags:
+- investing
+- index-funds
+- etfs
+- passive-investing
+- expense-ratios
 summary: 'Low-cost index funds explained: why they beat active funds, a 2026 list
   of every major fund charging 0.04% or less, and how to build a simple portfolio.'
-cluster: index-fund-investing
 related:
 - IndexFundPortfolioConstruction
 - ExpenseRatioDeepDive
 - IntroductionToIndexFundsAndETFs
 canonical_id: 01KQ0P44S4DQQ8WSQWKXG457QA
-title: 'Low-Cost Index Funds: 2026 Guide to the Cheapest Funds'
-type: article
-tags:
-- investing
-- index-funds
-- ETFs
-- passive-investing
-- expense-ratios
-hubs:
-- LowCostIndexFundInvestingHub
-- PersonalFinanceHub
-status: published
 ---
 
 
@@ -60,7 +61,7 @@ The single largest determinant of fund performance relative to peers is cost. Se
 | Average actively managed U.S. equity fund | 0.66% |
 | Expensive active funds | 1.00%+ |
 
-On a $500,000 portfolio, the difference between 0.03% and 0.66% is roughly $3,150 per year—money that compounds for you in the index fund and against you in the active fund.
+On a \$500,000 portfolio, the difference between 0.03% and 0.66% is roughly $3,150 per year—money that compounds for you in the index fund and against you in the active fund.
 
 ## Core Index Fund Options
 
@@ -145,7 +146,7 @@ The all-in-one funds charge a little more because they bundle automatic rebalanc
 
 When two funds track the same index, they hold nearly identical stocks — so the decision comes down to a short checklist:
 
-1. **Expense ratio.** The lower the better, and at this level the differences are tiny in absolute terms (0.03% vs. 0.04% is $0.50/year per $10,000). Don't switch brokers to chase a single basis point.
+1. **Expense ratio.** The lower the better, and at this level the differences are tiny in absolute terms (0.03% vs. 0.04% is \$0.50/year per $10,000). Don't switch brokers to chase a single basis point.
 2. **Index tracked.** Confirm the fund tracks the exposure you actually want — *total market* vs. *S&P 500* vs. a *style/size tilt* are different bets, even at the same price.
 3. **Tracking difference.** How closely the fund follows its index after costs. Large, established funds track tightly; obscure ones can lag.
 4. **Fund size and liquidity.** Bigger funds (high assets under management, tight ETF bid-ask spreads) are cheaper to trade and less likely to close.

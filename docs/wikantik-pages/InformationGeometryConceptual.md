@@ -1,7 +1,15 @@
 ---
-title: 'Information Geometry: The Shape of Model Space'
-canonical_id: 01KRQDWQMHEDTM08HJNN0XKJKC
-cluster: mathematics
+status: active
+date: '2026-05-15'
+summary: Probability distributions as a smooth manifold, Fisher Information as Riemannian
+  metric, natural gradient descent, and KL divergence as geodesic distance.
+tags:
+- information-geometry
+- manifolds
+- machine-learning
+- optimization
+- statistics
+type: article
 relations:
 - type: component_of
   target_id: 01KQ2P44XMGA8E1E7GAT4AYV43
@@ -9,18 +17,9 @@ relations:
   target_id: 01KQ3P44XMGA8E1E7GAT4AYV43
 - type: influenced_by
   target_id: 01KQQ6SGVRSG0BJMX4AKGGF23S
-type: article
-tags:
-- information-geometry
-- manifolds
-- machine-learning
-- optimization
-- statistics
-summary: Conceptual introduction to Information Geometry, treating families of probability
-  distributions as smooth manifolds and the Fisher Information Matrix as the canonical
-  Riemannian metric for machine learning.
-status: active
-date: '2026-05-15'
+canonical_id: 01KRQDWQMHEDTM08HJNN0XKJKC
+cluster: mathematics
+title: 'Information Geometry: The Shape of Model Space'
 ---
 
 # Information Geometry: The Shape of Model Space

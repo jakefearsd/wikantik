@@ -1,21 +1,25 @@
 ---
-title: "Paxos and Raft: Distributed Consensus"
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A technical comparison of the two primary consensus algorithms used to achieve fault-tolerant state machine replication in distributed clusters.
+summary: A technical comparison of the two primary consensus algorithms used to achieve
+  fault-tolerant state machine replication in distributed clusters.
 tags:
 - distributed-systems
 - consensus
 - paxos
 - raft
 - state-machine-replication
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: related_to, target_id: 01KS7P9Z8QYAS6P09AM61S5E2V} # Leader and Followers
-- {type: related_to, target_id: 01KS7M5J8QYAS6P09AM61S5E2T} # WAL
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: related_to
+  target_id: 01KS7P9Z8QYAS6P09AM61S5E2V
+- type: related_to
+  target_id: 01KS7M5J8QYAS6P09AM61S5E2T
+cluster: distributed-systems
 canonical_id: 01KS6S8Z8QYAS6P09AM61S5E2O
+title: 'Paxos and Raft: Distributed Consensus'
 ---
 
 # Paxos and Raft: The Engines of Consensus

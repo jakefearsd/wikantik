@@ -1,10 +1,8 @@
 ---
-title: Generation Clock (Epoch)
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A logical clock pattern used to detect and ignore messages from "zombie" leaders or stale nodes during network partitions or GC pauses.
+summary: A logical clock pattern used to detect and ignore messages from "zombie"
+  leaders or stale nodes during network partitions or GC pauses.
 tags:
 - distributed-systems
 - coordination
@@ -12,11 +10,17 @@ tags:
 - fencing
 - raft
 - zookeeper
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: related_to, target_id: 01KS7P9Z8QYAS6P09AM61S5E2V} # Leader and Followers
-- {type: related_to, target_id: 01KS6S8Z8QYAS6P09AM61S5E2O} # Paxos/Raft
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: related_to
+  target_id: 01KS7P9Z8QYAS6P09AM61S5E2V
+- type: related_to
+  target_id: 01KS6S8Z8QYAS6P09AM61S5E2O
+cluster: distributed-systems
 canonical_id: 01KS7R8X8QYAS6P09AM61S5E2W
+title: Generation Clock (Epoch)
 ---
 
 # Generation Clock (Epoch)

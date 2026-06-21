@@ -1,9 +1,14 @@
 ---
-cluster: generative-ai
-canonical_id: 01KQ0P44TCX937ZGDWMJFPZ7JV
-title: OpenWebUI Tool Server
+tags:
+- ops
+- integration
+- openwebui
+- llm
+type: reference
 summary: Configure and operate the Wikantik OpenAPI tool server for LLM integrations.
-tags: [ops, integration, openwebui, llm]
+title: OpenWebUI Tool Server
+canonical_id: 01KQ0P44TCX937ZGDWMJFPZ7JV
+cluster: generative-ai
 ---
 
 # OpenWebUI Tool Server

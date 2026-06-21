@@ -1,8 +1,16 @@
 ---
-cluster: data-engineering
-canonical_id: 01KQ0P44PAPWYE8K5CZE33HAYK
 title: Data Quality Frameworks
+related:
+- DataEngineeringHub
+- DataGovernance
+- MonitoringAndAlerting
+- TimeSeriesForecasting
+- ProbabilityTheory
+cluster: data-engineering
 type: article
+canonical_id: 01KQ0P44PAPWYE8K5CZE33HAYK
+summary: 'DQVTF architecture for data quality: completeness/validity/consistency dimensions,
+  metadata-driven validation engines, and time-series anomaly detection.'
 tags:
 - data-engineering
 - data-quality
@@ -10,13 +18,6 @@ tags:
 - automated-testing
 - observability
 - dqvtf
-summary: A rigorous exploration of Data Quality Validation Testing Frameworks (DQVTF), focusing on the dimensions of data integrity (Completeness, Validity, Consistency), adaptive sampling strategies, and the integration of time-series anomaly detection.
-related:
-- DataEngineeringHub
-- DataGovernance
-- MonitoringAndAlerting
-- TimeSeriesForecasting
-- ProbabilityTheory
 ---
 
 # Data Quality Frameworks: The Engineering of Data Trust

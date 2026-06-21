@@ -1,10 +1,21 @@
 ---
+canonical_id: 01KVJMS2AAE4BG4RSGWG83E790
 title: TypeScript Language
+tags:
+- programming-languages
+- typescript
+- web-development
+- static-typing
+- nodejs
+- deno
+- bun
+- 2026-benchmarks
 cluster: computer-science
-tags: [programming-languages, typescript, web-development, static-typing, nodejs, deno, bun, 2026-benchmarks]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The 'Safety Layer' for the web (2012). Created by Anders Hejlsberg at Microsoft, it adds static typing to JavaScript. In 2026, it is the professional standard for web and full-stack development.
+summary: Safety layer for the web (2012). Adds static typing to JavaScript; the professional
+  standard for web and full-stack development, preferred by AI coding agents.
 ---
 
 # The TypeScript Language: Scalable JavaScript

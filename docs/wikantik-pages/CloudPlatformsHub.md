@@ -1,4 +1,21 @@
 ---
+date: '2026-05-10'
+summary: AWS, Azure, GCP specifics, multi-cloud strategy, cloud-native patterns, and
+  ROI frameworks for keeping cloud spend under control.
+cluster: cloud-platforms
+related:
+- DevOpsAndSreHub
+- DistributedSystemsHub
+- WebServicesAndApisHub
+- CdnArchitecture
+canonical_id: 01KQEKBKX2QVEW6716V6Y8N5QT
+type: hub
+title: Cloud Platforms Hub
+status: active
+hubs:
+- NetworkingHub
+- DevOpsAndSreHub
+- DataEngineeringHub
 tags:
 - cloud
 - aws
@@ -7,23 +24,6 @@ tags:
 - platform
 - hub
 - infrastructure
-summary: Index of pages on cloud platform topics — AWS, Azure, and GCP specifics,
-  multi-cloud strategy, cloud-native patterns, and the ROI frameworks that keep cloud
-  spend under control.
-related:
-- DevOpsAndSreHub
-- DistributedSystemsHub
-- WebServicesAndApisHub
-canonical_id: 01KQEKBKX2QVEW6716V6Y8N5QT
-type: hub
-status: active
-date: '2026-05-10'
-cluster: cloud-platforms
-title: CloudPlatformsHub
-hubs:
-- NetworkingHub
-- DevOpsAndSreHub
-- DataEngineeringHub
 ---
 # CloudPlatforms Hub
 

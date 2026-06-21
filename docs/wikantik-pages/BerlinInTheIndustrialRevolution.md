@@ -1,21 +1,22 @@
 ---
-cluster: berlin-history
-canonical_id: 01KQ0P44MJJVQBJKBA070HER5M
 title: Berlin in the Industrial Revolution
-type: article
-tags:
-- industrial-history
-- berlin
-- urban-evolution
-- adaptive-reuse
-- digital-prototyping
-summary: A rigorous exploration of Berlin's industrial metamorphosis, from the mid-19th century "tailors' revolution" to the modern "re-hacking" of industrial ruins into digital prototyping hubs.
 related:
 - BerlinArchitecturalHistory
 - BerlinDuringTheColdWar
 - BerlinTechScene
 - PredictiveMaintenance
 - NumericalMethods
+cluster: berlin-history
+type: article
+canonical_id: 01KQ0P44MJJVQBJKBA070HER5M
+summary: Berlin's industrialization from the 1848 guild collapse and tailors' revolt
+  through imperial factory growth to reuse of ruins as digital prototyping hubs.
+tags:
+- industrial-history
+- berlin
+- urban-evolution
+- adaptive-reuse
+- digital-prototyping
 ---
 
 # Berlin Industrial Evolution: From Craft Guilds to Digital Prototyping

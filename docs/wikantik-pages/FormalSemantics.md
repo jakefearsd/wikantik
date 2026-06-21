@@ -1,15 +1,16 @@
 ---
-cluster: agentic-ai
-canonical_id: 01KQ0P44QGD1K0X4VYZQMG8N0K
-title: Formal Semantics
-type: article
 tags:
 - formal-semantics
 - model-theory
 - logic
 - linguistics
 - category-theory
-summary: A rigorous exploration of formal semantics and model theory, focusing on truth-conditional semantics, compositional mechanics (monads, continuations), and the categorical frameworks for knowledge representation.
+type: article
+summary: 'Formal semantics and model theory: truth-conditional meaning, compositional
+  mechanics (monads, continuations), and categorical knowledge representation.'
+title: Formal Semantics
+cluster: agentic-ai
+canonical_id: 01KQ0P44QGD1K0X4VYZQMG8N0K
 ---
 
 # Formal Semantics and Model Theory: The Architecture of Meaning

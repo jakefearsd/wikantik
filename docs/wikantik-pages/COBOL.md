@@ -1,10 +1,19 @@
 ---
+summary: Language of global business (1959). Powers 95% of ATM swipes in 2026, shifting
+  from passive maintenance to AI-driven modernization via IBM watsonx.
 title: COBOL
+tags:
+- programming-languages
+- cobol
+- banking
+- mainframe
+- computer-history
+- 2026-modernization
 cluster: computer-science
-tags: [programming-languages, cobol, banking, mainframe, computer-history, 2026-modernization]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The language of global business (1959). Powers 95% of ATM swipes and 80% of personal banking in 2026. Traces the shift from passive maintenance to AI-driven modernization.
+canonical_id: 01KVJMS0RPARNR527CP5Q282N4
 ---
 
 # COBOL: The Invisible Backbone of Finance
@@ -18,7 +27,7 @@ As of mid-2026, COBOL's footprint in the global economy is not just stable; in t
 | :--- | :--- | :--- |
 | **Code Volume** | **800 Billion Lines** | Incremental patches and digital wrappers have tripled the 2017 volume. |
 | **Transaction Share** | **95% of ATM Swipes** | Powering almost all core retail banking logic. |
-| **Economic Value** | **$3 Trillion / Day** | Processes the majority of global commercial activity. |
+| **Economic Value** | **\$3 Trillion / Day** | Processes the majority of global commercial activity. |
 | **Developer Age** | **55+ (Average)** | A "retirement cliff" represents a systemic operational risk. |
 
 ## 2. Technical Strengths: Why COBOL Persists

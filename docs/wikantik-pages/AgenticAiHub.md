@@ -8,19 +8,40 @@ related:
 - GenerativeAIHub
 - MLHub
 - SoftwareEngineeringPracticesHub
+- AgenticWorkflowDesign
+- KnowledgeGraphCompletion
+- MultimodalEmbeddings
+- AgentLoops
+- LlmTokenEconomicsAndPricing
+- OpenSourceLLMs
+- AiAgentArchitectures
+- AiHallucinationMitigation
+- AiObservabilityInProduction
+- AiPoweredSearch
+- RagImplementationPatterns
+- AiEvaluationAndBenchmarks
+- AiForCodeReview
+- AiForSoftwareTesting
+- AiMemoryAndPersistence
+- AiPairProgramming
+- ChainOfThoughtReasoning
+- KnowledgeGraphVsRelationalDatabase
+- LocalRAG
+- PrivacyPreservingLLM
+- ResponsibleAiDeployment
 canonical_id: 01KQEKGD6VT29FGWF8YE9TM671
-title: Agentic AI Hub
 type: hub
+title: Agentic AI Hub
+status: active
+hubs:
+- GenerativeAIHub
+- PhilosophyHub
 tags:
 - agentic-ai
 - agents
 - autonomous-agents
 - workflow-design
 - hub
-hubs:
-- GenerativeAIHub
-- PhilosophyHub
-status: active
 ---
 # Agentic AI Hub
 

@@ -1,7 +1,7 @@
 ---
-canonical_id: 01KQQ6YQR91SVAT7J8ZMADXXKT
-date: 2026-05-03T00:00:00Z
-cluster: data-structures
+summary: B+ Tree internals — structural differences from B-Trees, disk I/O optimization,
+  and split/merge rebalancing mechanics behind relational database indexing.
+title: B+ Trees
 tags:
 - data-structures
 - b-plus-tree
@@ -9,11 +9,11 @@ tags:
 - indexing
 - storage-engines
 - algorithms
-title: B+ Trees
-summary: A deep dive into the B+ Tree data structure, the backbone of modern relational
-  database indexing. Explains the structural differences from B-Trees, the advantages
-  for on-disk storage, and the mechanics of rebalancing via splits and merges.
+cluster: data-structures
+type: reference
+date: 2026-05-03T00:00:00Z
 status: active
+canonical_id: 01KQQ6YQR91SVAT7J8ZMADXXKT
 ---
 
 # B+ Trees: The Engine of Relational Storage

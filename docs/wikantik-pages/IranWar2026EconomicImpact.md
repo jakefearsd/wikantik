@@ -1,4 +1,8 @@
 ---
+status: active
+date: '2026-05-10'
+summary: '2026 Iran War: Hormuz Shock (+73% Brent crude), semiconductor precursor
+  collapse (helium, PPE resin), and the AI-supercycle-driven 3-week equity recovery.'
 tags:
 - geopolitics
 - iran-war
@@ -15,11 +19,6 @@ related:
 - ConflictsAndEquityMarkets
 - ConflictMarketPatternsHub
 title: 'The 2026 Iran War: Geopolitical Shock and Supply Chain Scarcity'
-status: active
-date: '2026-05-10'
-summary: A comprehensive analysis of the 2026 Iran War's impact on global markets,
-  detailing the 'Hormuz Shock' to energy prices and the systemic collapse of critical
-  semiconductor precursors.
 ---
 # The 2026 Iran War: Geopolitical Shock and Supply Chain Scarcity
 

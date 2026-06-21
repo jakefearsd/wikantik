@@ -1,16 +1,11 @@
 ---
-summary: A technical roadmap for upgrading the Wikantik RAG pipeline to a hybrid Vector+Graph
-  architecture, targeting 90%+ accuracy on multi-hop reasoning.
-date: 2026-05-15T00:00:00Z
-cluster: Infrastructure & SRE
-related:
-- KnowledgeGraphExtractionBenchmarks
-- McpIntegrationTestFix
-- PageGraphVsKnowledgeGraph
-- RetrievalExperimentHarness
-canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KH
 type: article
+status: active
+date: 2026-05-15T00:00:00Z
+cluster: wikantik-development
 title: 'Knowledge Graph RAG (GraphRAG) Uplift Plan: 2025 Roadmap'
+hubs:
+- InfrastructureSreHub
 tags:
 - rag
 - graphrag
@@ -18,9 +13,14 @@ tags:
 - knowledge-graph
 - search-optimization
 - infrastructure
-status: active
-hubs:
-- InfrastructureSreHub
+summary: Roadmap to upgrade the Wikantik RAG pipeline to hybrid Vector+Graph (GraphRAG),
+  targeting 90%+ accuracy on multi-hop and schema-bound reasoning queries.
+related:
+- KnowledgeGraphExtractionBenchmarks
+- McpIntegrationTestFix
+- PageGraphVsKnowledgeGraph
+- RetrievalExperimentHarness
+canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KH
 ---
 
 # Knowledge Graph RAG (GraphRAG) Uplift Plan: 2025 Roadmap

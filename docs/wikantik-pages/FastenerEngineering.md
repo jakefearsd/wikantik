@@ -1,15 +1,16 @@
 ---
-cluster: mechanical-engineering
-canonical_id: 01KQ0P44QARWSJ7CAF20MTESFK
-title: Fastener Engineering
-type: article
 tags:
 - mechanical-engineering
 - fasteners
 - joint-design
 - fatigue
 - materials-science
-summary: A rigorous exploration of fastener engineering and joint design, focusing on preload physics, torque-tension relationships, fatigue life prediction, and advanced material considerations for high-reliability systems.
+type: article
+summary: Preload physics, torque-tension relationships, fatigue life prediction, and
+  advanced materials for high-reliability bolted joints.
+title: Fastener Engineering
+cluster: mechanical-engineering
+canonical_id: 01KQ0P44QARWSJ7CAF20MTESFK
 ---
 
 # Fastener Engineering: The Physics of Preload and Joint Integrity

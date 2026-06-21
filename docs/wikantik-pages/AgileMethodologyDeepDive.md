@@ -1,15 +1,16 @@
 ---
-cluster: software-engineering-practices
-canonical_id: 01KQ0P44K1D4XC5N8RB6VGYRJD
-title: Agile Methodology Deep Dive
-type: article
 tags:
 - agile
 - software-engineering
 - scrum
 - kanban
 - lean
-summary: A rigorous exploration of Agile methodologies, focusing on empirical process control, the comparative theory of Scrum and Kanban, and the engineering discipline required for large-scale adaptive development.
+type: article
+summary: Empirical process control underpins Agile — comparing Scrum and Kanban, XP
+  engineering discipline, SAFe/LeSS scaling, and DORA metrics for adaptive delivery.
+title: Agile Methodology Deep Dive
+cluster: software-engineering-practices
+canonical_id: 01KQ0P44K1D4XC5N8RB6VGYRJD
 ---
 
 # Agile Methodology: Empirical Process Control and Adaptive Systems

@@ -1,26 +1,27 @@
 ---
-canonical_id: 01KQ0P44ND503A9N04WAXMS2NY
-title: Cloud Databases
-type: article
-cluster: cloud-platforms
-status: active
 date: '2026-04-26'
 summary: Managed RDBMS vs. NoSQL services vs. self-managed — what each cloud database
   service is good at, the operational story, and the choice criteria for production
   workloads.
+cluster: cloud-platforms
+related:
+- AwsFundamentals
+- CloudStorageOptions
+- CloudNativeApplicationDesign
+- JpaAndHibernatePatterns
+canonical_id: 01KQ0P44ND503A9N04WAXMS2NY
+type: article
+title: Cloud Databases
+status: active
+hubs:
+- CloudPlatformsHub
+- DatabasePerformanceMonitoringHub
 tags:
 - cloud-databases
 - rds
 - dynamodb
 - aurora
 - managed-databases
-related:
-- AwsFundamentals
-- CloudStorageOptions
-- CloudNativeApplicationDesign
-- JpaAndHibernatePatterns
-hubs:
-- CloudPlatformsHub
 ---
 # Cloud Databases
 

@@ -1,13 +1,8 @@
 ---
-title: 'Tensor Theory: The Algebra of Invariance'
-cluster: mathematics
-canonical_id: 01KRPKQB0XQS1W1GSMZ116BEW3
-relations:
-- type: extension_of
-  target_id: 01KQ12YDVK5NJ6W7MF9G57GKPQ
-- type: component_of
-  target_id: 01KQ3P44XMGA8E1E7GAT4AYV43
-type: article
+status: active
+date: '2026-05-15'
+summary: 'Tensors as multilinear maps: tensor networks for LLM compression (Tucker/TT/Saten),
+  Neuro-Symbolic Logic, and Higher-Order Transformer attention decomposition.'
 tags:
 - mathematics
 - algebra
@@ -15,11 +10,15 @@ tags:
 - llm-compression
 - neuro-symbolic
 - physics
-summary: High-fidelity coverage of Tensors as multilinear maps and invariant physical
-  quantities. Expanded 2025-2026 coverage includes Tensor Networks for LLM compression,
-  Neuro-Symbolic Tensor Logic, and the Higher-Order Transformer (HOT) architecture.
-status: active
-date: '2026-05-15'
+type: article
+relations:
+- type: extension_of
+  target_id: 01KQ12YDVK5NJ6W7MF9G57GKPQ
+- type: component_of
+  target_id: 01KQ3P44XMGA8E1E7GAT4AYV43
+cluster: mathematics
+canonical_id: 01KRPKQB0XQS1W1GSMZ116BEW3
+title: 'Tensor Theory: The Algebra of Invariance'
 ---
 
 # Tensor Theory: The Algebra of Invariance

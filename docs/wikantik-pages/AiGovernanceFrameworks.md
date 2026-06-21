@@ -1,17 +1,17 @@
 ---
 canonical_id: 01KQEBA0FZS5MJ393EKA300SHC
-date: 2026-04-30T00:00:00Z
+title: AI Governance Frameworks
 tags:
 - ai-governance
 - policy-enforcement
 - enterprise-ai
 - compliance
-title: AI Governance Frameworks
 cluster: generative-ai
 type: article
+date: 2026-04-30T00:00:00Z
 status: active
-summary: Comprehensive guide to architectural, methodological, and operational frameworks
-  for governing autonomous AI agents at scale.
+summary: Architectural, methodological, and operational frameworks for governing autonomous
+  AI agents at scale — policy manifests, enforcement stacks, and audit trails.
 ---
 # AI Governance Policy Enterprise Deployment
 

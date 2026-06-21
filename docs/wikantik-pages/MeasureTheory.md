@@ -1,14 +1,15 @@
 ---
+summary: Formal foundations of measure spaces, sigma-algebras, and the construction
+  of the Lebesgue integral.
+title: Measure Theory
 cluster: mathematics
 canonical_id: 01KQ0P44SC3R1JCJ73X0G1CX5T
-title: Measure Theory
-type: article
 tags:
 - mathematics
 - measure-theory
 - integration
 - lebesgue-integral
-summary: Formal foundations of measure spaces, sigma-algebras, and the construction of the Lebesgue integral.
+type: article
 ---
 
 # Measure Theory: The Formal Logic of Size

@@ -1,17 +1,19 @@
 ---
-canonical_id: 01KQ0P44TZMB0TWR020ASY4NP5
-summary: Three-tier trust model tracking the origin and review status of knowledge graph content
+date: '2026-04-04'
+part-of:
+- KnowledgeGraphCore
+status: active
+summary: Three-tier trust model tracking the origin and review status of knowledge
+  graph content
 tags:
 - development
 - knowledge-graph
 - provenance
 - trust
 type: article
-status: deployed
 cluster: wikantik-development
-date: '2026-04-04'
-part-of:
-- KnowledgeGraphCore
+canonical_id: 01KQ0P44TZMB0TWR020ASY4NP5
+title: Provenance Model
 ---
 # Provenance Model
 

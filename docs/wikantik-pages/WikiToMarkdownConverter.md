@@ -1,22 +1,23 @@
 ---
-status: deployed
+cluster: wikantik-development
+title: Wiki to Markdown Converter
+related:
+- WikantikDevelopment
+type: article
+summary: Migration tool converting legacy JSPWiki syntax pages to Markdown format
+status: active
+date: '2026-04-01'
+uses:
+- BlogFeature
+canonical_id: 01KQ0P44Z5CB0MC0BGG3KXX5XC
 enables:
 - BlogFeature
 - KnowledgeGraphCore
-related:
-- WikantikDevelopment
-cluster: wikantik-development
-canonical_id: 01KQ0P44Z5CB0MC0BGG3KXX5XC
-type: article
 tags:
 - development
 - migration
 - markdown
 - converter
-summary: Migration tool converting legacy JSPWiki syntax pages to Markdown format
-date: '2026-04-01'
-uses:
-- BlogFeature
 ---
 # Wiki-to-Markdown Converter
 

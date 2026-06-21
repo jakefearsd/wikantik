@@ -1,22 +1,23 @@
 ---
-canonical_id: 01KQ0P44QADM98JDF5E508DNRR
-title: "Creational Abstractions: The Factory Patterns"
+auto-generated: false
 type: article
-cluster: design-patterns
 status: active
+cluster: design-patterns
 date: '2026-05-22'
-summary: A deep dive into creational patterns, from Static Factory Methods to Abstract Factories, with a focus on functional implementation and dependency injection integration.
+title: Factory Patterns
 tags:
 - factory-pattern
 - design-patterns
 - creational-patterns
 - java-8
 - functional-programming
+summary: Static Factory Methods, functional Map-of-Suppliers factories, and Abstract
+  Factories — when each applies, with DI integration and testability notes.
 related:
 - BuilderPatternAndFluentApis
 - RepositoryPattern
 - SpecificationPattern
-auto-generated: false
+canonical_id: 01KQ0P44QADM98JDF5E508DNRR
 ---
 
 # Creational Abstractions: The Factory Patterns

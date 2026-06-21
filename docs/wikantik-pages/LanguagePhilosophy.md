@@ -1,15 +1,16 @@
 ---
-cluster: philosophy
-canonical_id: 01KQ0P44RPJKXNY9F756XPN4AD
-title: Language Philosophy
-type: article
 tags:
 - philosophy
 - linguistics
 - logic
 - semantics
 - ai-philosophy
-summary: A rigorous exploration of the philosophy of language, focusing on formal semantics, pragmatics, the limits of logical representation, and the modern intersection with Large Language Models (LLMs).
+type: article
+summary: 'Philosophy of language: formal semantics, pragmatics, truth-conditional
+  meaning, and the limits of logical representation in the era of LLMs.'
+title: Language Philosophy
+cluster: philosophy
+canonical_id: 01KQ0P44RPJKXNY9F756XPN4AD
 ---
 
 # The Logic and Philosophy of Language: From Formalism to AI

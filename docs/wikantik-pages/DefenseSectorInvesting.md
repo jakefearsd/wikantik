@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44PGPECEPJJN3E57HDR0
-title: Defense Sector Investing
 type: article
-cluster: geopolitics-and-finance
 status: active
+cluster: geopolitics-and-finance
 date: '2026-04-26'
-summary: How defense stocks behave during and around conflict — the long-cycle nature
-  of defense procurement, the political risk, and the cases where defense exposure
-  is and isn't worth the concentration.
+title: Defense Sector Investing
+hubs:
+- ConflictMarketPatternsHub
 tags:
 - defense-investing
 - defense-stocks
 - conflict-investing
 - sector-investing
+summary: How defense stocks behave during and around conflict — the long-cycle nature
+  of defense procurement, the political risk, and the cases where defense exposure
+  is and isn't worth the concentration.
 related:
 - GeopoliticalRiskAndInvesting
 - PostConflictReconstructionInvesting
 - WarBondsAndGovernmentDebt
 - ConflictMarketPatternsHub
 - ConflictsAndEquityMarkets
-hubs:
-- ConflictMarketPatternsHub
+canonical_id: 01KQ0P44PGPECEPJJN3E57HDR0
 ---
 # Defense Sector Investing
 

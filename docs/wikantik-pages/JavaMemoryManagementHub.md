@@ -1,11 +1,7 @@
 ---
-canonical_id: 01KQ0P44RANZ15BBDJFRH6BDPS
-title: JavaMemoryManagementHub
-type: hub
-cluster: java
 status: active
 date: '2026-04-26'
-summary: Index of pages on JVM memory management — the heap, garbage collectors, off-heap
+summary: Index of JVM memory management — heap layout, garbage collectors, off-heap
   allocation, and the tuning that actually matters for production Java applications.
 tags:
 - java
@@ -13,10 +9,14 @@ tags:
 - jvm
 - garbage-collection
 - hub
+type: hub
+canonical_id: 01KQ0P44RANZ15BBDJFRH6BDPS
+cluster: java
 related:
 - JavaHub
 - JavaCollectionsFramework
 - JavaTwentyOneFeatures
+title: Java Memory Management
 ---
 # JavaMemoryManagement Hub
 

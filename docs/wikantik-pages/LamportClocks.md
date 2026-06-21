@@ -1,17 +1,19 @@
 ---
-cluster: distributed-systems
-canonical_id: 01KQ0P44RP1513YV8Z141WF639
-title: Lamport Clocks and Causal Ordering
-type: article
 tags:
 - clocks
 - distributed-systems
 - causality
 - lamport
 - vector-clocks
-summary: A formal exploration of logical time in distributed systems, covering the "happened-before" relation, Lamport clock math, and the transition to Vector Clocks for concurrency detection.
+cluster: distributed-systems
+type: article
+date: 2024-05-16T00:00:00Z
 auto-generated: false
-date: 2024-05-16
+canonical_id: 01KQ0P44RP1513YV8Z141WF639
+summary: A formal exploration of logical time in distributed systems, covering the
+  "happened-before" relation, Lamport clock math, and the transition to Vector Clocks
+  for concurrency detection.
+title: Lamport Clocks and Causal Ordering
 ---
 # Logical Time and Causal Ordering
 

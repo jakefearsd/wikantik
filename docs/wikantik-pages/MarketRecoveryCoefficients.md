@@ -1,21 +1,21 @@
 ---
-related:
-- GeopoliticalFinancialBridgeHub
-- ConflictMarketPatternsHub
-- SovereignGoldVolatility
-cluster: Geopolitics & Finance
-canonical_id: 01J7KQTCD38PBFSD7TD6ACJFDD
-type: article
+status: active
+date: 2026-05-15T00:00:00Z
+summary: Quantitative analysis of market recovery timelines following systemic shocks,
+  defining the coefficients used for resilience forecasting.
 tags:
 - finance
 - macroeconomics
 - econometrics
 - resilience
 - risk
-summary: Quantitative analysis of market recovery timelines following systemic shocks,
-  defining the coefficients used for resilience forecasting.
-status: active
-date: 2026-05-15T00:00:00Z
+type: article
+cluster: geopolitics-and-finance
+canonical_id: 01J7KQTCD38PBFSD7TD6ACJFDD
+related:
+- GeopoliticalFinancialBridgeHub
+- ConflictMarketPatternsHub
+- SovereignGoldVolatility
 title: 'Market Recovery Coefficients: Econometric Resilience'
 ---
 

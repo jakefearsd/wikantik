@@ -1,24 +1,23 @@
 ---
-canonical_id: 01KQ0P44JXAB43ME5MS8TV0AKK
-title: Agent Prompt Engineering
 type: article
-cluster: generative-ai
 status: active
+cluster: generative-ai
 date: '2026-04-26'
-summary: How to write prompts for LLM agents that actually work — system prompts,
-  tool descriptions, error recovery, and the practical patterns that distinguish
-  agents that complete tasks from agents that flail.
+title: Agent Prompt Engineering
+hubs:
+- GenerativeAIHub
 tags:
 - prompt-engineering
 - agents
 - llm
 - generative-ai
+summary: 'LLM agent prompts that work: system prompts, tool descriptions, error recovery,
+  stopping conditions, and patterns distinguishing reliable from flailing agents.'
 related:
 - PromptCaching
 - TransformerArchitecture
 - OpenSourceLlmEcosystem
-hubs:
-- GenerativeAIHub
+canonical_id: 01KQ0P44JXAB43ME5MS8TV0AKK
 ---
 # Agent Prompt Engineering
 

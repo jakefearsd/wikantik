@@ -1,10 +1,20 @@
 ---
-canonical_id: 01KQ12YDVE8863TEYGXSS7ESS3
 title: Knowledge Graph Completion
+related:
+- KnowledgeGraphVsRelationalDatabase
+- FederatedKnowledgeGraphs
+- EntityResolutionTechniques
+- GraphRAG
+- RagImplementationPatterns
 type: article
-cluster: agentic-ai
+summary: Engineering missing-link prediction in Knowledge Graphs via translational
+  distance models (RotatE), bilinear forms (ComplEx), and LLM-augmented extraction
+  pipelines.
 status: active
 date: '2026-05-15'
+canonical_id: 01KQ12YDVE8863TEYGXSS7ESS3
+hubs:
+- AgenticAiHub
 tags:
 - knowledge-graph
 - knowledge-graph-completion
@@ -12,17 +22,7 @@ tags:
 - graph-neural-networks
 - entity-resolution
 auto-generated: false
-summary: Engineering missing-link prediction in Knowledge Graphs via translational
-  distance models (RotatE), bilinear forms (ComplEx), and LLM-augmented extraction
-  pipelines.
-related:
-- KnowledgeGraphVsRelationalDatabase
-- FederatedKnowledgeGraphs
-- EntityResolutionTechniques
-- GraphRAG
-- RagImplementationPatterns
-hubs:
-- AgenticAiHub
+cluster: agentic-ai
 ---
 # Knowledge Graph Completion
 

@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44MQJ5T5JDVVPRFSTA26
-title: Bucket Strategy for Retirement
 type: article
-cluster: retirement-planning
 status: active
+cluster: retirement-planning
 date: '2026-04-26'
-summary: How the three-bucket retirement strategy works — short-term cash, intermediate
-  bonds, long-term equity — and the rebalancing rules that make it sustainable across
-  a 30-year retirement.
+title: Bucket Strategy for Retirement
+hubs:
+- RetirementPlanningGuide
 tags:
 - bucket-strategy
 - retirement
 - withdrawal-strategy
 - asset-allocation
+summary: How the three-bucket retirement strategy works — short-term cash, intermediate
+  bonds, long-term equity — and the rebalancing rules that make it sustainable across
+  a 30-year retirement.
 related:
 - AnnuitiesVsSystematicWithdrawals
 - BondLaddersForRetirementIncome
 - SafeWithdrawalRates
 - SequenceOfReturnsRisk
 - RetirementSpendingPatterns
-hubs:
-- RetirementPlanningGuide
+canonical_id: 01KQ0P44MQJ5T5JDVVPRFSTA26
 ---
 # Bucket Strategy for Retirement
 
@@ -100,10 +100,10 @@ A 7-year bucket means even a sustained market downturn doesn't force equity sale
 
 Whatever's left after the first two. For most retirees, this is the bulk.
 
-For a $1M portfolio with $50K/year spending:
+For a \$1M portfolio with $50K/year spending:
 - Bucket 1: $100K (2 years)
 - Bucket 2: $350K (7 years)
-- Bucket 3: $550K (10+ years)
+- Bucket 3: \$550K (10+ years)
 
 ## Refilling rules
 

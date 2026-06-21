@@ -1,27 +1,26 @@
 ---
-canonical_id: 01KQ0P44PTBPSQW013TXGRYECH
-title: Dividend vs. Total Return Investing
 type: article
-cluster: index-fund-investing
 status: active
+cluster: index-fund-investing
 date: '2026-04-26'
-summary: Why "dividend investing" is a worse framing than total return — the dividend
-  irrelevance principle, the tax inefficiency of dividend-focused strategies, and
-  the specific cases where dividend funds make sense despite the drawbacks.
+title: Dividend vs. Total Return Investing
+hubs:
+- LowCostIndexFundInvestingHub
 tags:
 - dividends
 - total-return
 - index-funds
 - tax-efficiency
 - portfolio-construction
+summary: Why total return beats 'dividend investing' — the dividend irrelevance principle,
+  the tax inefficiency of dividend funds, and when they still make sense.
 related:
 - LowCostIndexFundInvesting
 - TotalStockMarketFundAnatomy
 - AssetAllocationGuide
 - TaxLossHarvesting
 - TaxPlanningFundamentals
-hubs:
-- LowCostIndexFundInvestingHub
+canonical_id: 01KQ0P44PTBPSQW013TXGRYECH
 ---
 # Dividend vs. Total Return Investing
 
@@ -35,8 +34,8 @@ A dollar of dividend distributed and a dollar of share-price appreciation are eq
 
 A worked example:
 
-- Stock A trades at $100, pays a 4% dividend ($4/year)
-- Stock B trades at $100, pays no dividend, grows by 4% per year
+- Stock A trades at \$100, pays a 4% dividend (\$4/year)
+- Stock B trades at \$100, pays no dividend, grows by 4% per year
 
 Both produce 4% total return. Stock A returns 4% as cash; Stock B returns 4% as appreciation. Mathematically identical.
 
@@ -59,7 +58,7 @@ For a buy-and-hold investor in a high tax bracket, this is wasted tax efficiency
 
 Same 8% gross return. The total-return portfolio nets more because it defers taxes on the appreciation portion until the investor sells (and then often at lower long-term capital-gains rates).
 
-Compounded over decades, the difference is substantial. A 0.5% annual tax drag on a $500,000 portfolio is $2,500/year, growing at the portfolio's rate. Over 30 years, hundreds of thousands of dollars.
+Compounded over decades, the difference is substantial. A 0.5% annual tax drag on a \$500,000 portfolio is \$2,500/year, growing at the portfolio's rate. Over 30 years, hundreds of thousands of dollars.
 
 ## Why dividend investing concentrates risk
 

@@ -1,10 +1,11 @@
 ---
-cluster: wikantik-development
-canonical_id: 01KQ0P44WFWKB7GVY1A337VH0Z
-type: article
 tags:
 - uncategorized
+type: article
 summary: 'Sitemap.xml Optimization Research: The Ideal Output for Google Search'
+title: Sitemap Optimization
+canonical_id: 01KQ0P44WFWKB7GVY1A337VH0Z
+cluster: wikantik-development
 ---
 # Sitemap.xml Optimization Research: The Ideal Output for Google Search
 

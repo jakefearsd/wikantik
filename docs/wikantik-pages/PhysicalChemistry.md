@@ -1,10 +1,19 @@
 ---
+canonical_id: 01KVJMS1RT2D0CK0Z69HPKXSNA
 title: Physical Chemistry
+tags:
+- physical-chemistry
+- molecular-dynamics
+- synthetic-biology
+- phase-separation
+- abiotic-cells
+- 2025-research
 cluster: life-sciences
-tags: [physical-chemistry, molecular-dynamics, synthetic-biology, phase-separation, abiotic-cells, 2025-research]
+type: reference
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The study of how matter behaves on a molecular and atomic level. Covers AI-driven molecular dynamics, abiotic synthetic cells, and the physical chemistry of liquid-liquid phase separation.
+summary: 'Molecular and atomic behavior of matter: AI-driven molecular dynamics, abiotic
+  synthetic cells, and liquid-liquid phase separation in living systems.'
 ---
 
 # Physical Chemistry: The Molecular Foundation of Life

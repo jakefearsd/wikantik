@@ -1,8 +1,17 @@
 ---
+title: 'Wine Fermentation: Biochemical Kinetics'
+related:
+- FoodScience
+- MaillardReaction
+- FermentationForGutHealth
+- CheeseProduction
+- MathematicsHub
+- NumericalMethods
 cluster: cooking-and-food
-canonical_id: 01KQ0P44Z6F8E9RX795PX8231X
-title: "Wine Fermentation: Biochemical Kinetics"
 type: article
+canonical_id: 01KQ0P44Z6F8E9RX795PX8231X
+summary: 'Wine fermentation as a multi-species bioprocess: yeast metabolic flux, product
+  inhibition kinetics, and Metabolic Flux Analysis for aromatic expression.'
 tags:
 - viticulture
 - oenology
@@ -11,14 +20,6 @@ tags:
 - mfa
 - kinetic-modeling
 - biochemical-engineering
-summary: A rigorous exploration of wine fermentation as a multi-species bioprocess, focusing on yeast metabolic flux, the kinetics of product inhibition, and the implementation of real-time Metabolic Flux Analysis (MFA) for directed aromatic expressions.
-related:
-- FoodScience
-- MaillardReaction
-- FermentationForGutHealth
-- CheeseProduction
-- MathematicsHub
-- NumericalMethods
 ---
 
 # Wine Fermentation: The Architecture of Oenological Kinetics

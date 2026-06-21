@@ -1,17 +1,22 @@
 ---
-title: Generative AI Hub
-type: hub
-cluster: generative-ai
-status: active
 date: '2026-05-10'
-summary: Central index for generative AI architectures, agentic orchestration, and retrieval-augmented systems in the distributed cloud.
+summary: Central index for generative AI architectures, agentic orchestration, and
+  retrieval-augmented systems in the distributed cloud.
+cluster: generative-ai
+related:
+- OpenSourceLlmEcosystem
+- AgentPromptEngineering
+- DataEngineeringHub
+canonical_id: 01KQEKGDAZH3G3X2J4VFM9MP88
+type: hub
+title: Generative AI Hub
+status: active
 tags:
 - generative-ai
 - llm
 - rag
 - agents
 - hub
-canonical_id: 01KQEKGDAZH3G3X2J4VFM9MP88
 ---
 
 # Generative AI Hub

@@ -1,25 +1,25 @@
 ---
-canonical_id: 01KQ0P44M29WSBRXEMNK1B8GHW
-summary: Comprehensive overview of artificial intelligence covering history, core
-  techniques, current capabilities, major applications, ethical considerations, and
-  key research organizations
-cluster: generative-ai
-related:
-- LlmsSinceTwentyTwenty
-- TheFutureOfMachineLearning
-- FoundationalAlgorithmsForComputerScientists
-- MachineLearning
-- AIModelTraining
-type: reference
+hubs:
+- MlModelDeploymentHub
 status: active
+summary: AI history, core techniques, capabilities, major applications, ethical considerations,
+  and key research organizations — from expert systems to frontier LLMs.
 tags:
 - ai
 - machine-learning
 - deep-learning
 - technology
 - overview
-hubs:
-- MlModelDeploymentHub
+type: reference
+cluster: generative-ai
+canonical_id: 01KQ0P44M29WSBRXEMNK1B8GHW
+related:
+- LlmsSinceTwentyTwenty
+- TheFutureOfMachineLearning
+- FoundationalAlgorithmsForComputerScientists
+- MachineLearning
+- AIModelTraining
+title: Artificial Intelligence
 ---
 
 # Artificial Intelligence

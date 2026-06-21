@@ -1,27 +1,26 @@
 ---
-canonical_id: 01KQ12YDVS8XTFM3XHT5XBJMQQ
-title: Llm Token Economics And Pricing
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-25'
+title: LLM Token Economics and Pricing
+hubs:
+- AgenticAiHub
 tags:
 - llm
 - token-pricing
 - prompt-caching
 - cost-optimization
 - inference-cost
-summary: How input/output tokens, caching, and batch APIs decide what an LLM
-  actually costs you, and the levers (caching prefix design, model routing,
-  output limiting) that move the bill 10×.
+summary: How input/output tokens, caching, and batch APIs decide LLM cost, and the
+  levers (prefix design, model routing, output limiting) that move the bill 10×.
 related:
 - ContextWindowManagement
 - ContextCompression
 - AgentObservability
 - ModelQuantization
 - CostEffectiveInference
-hubs:
-- AgenticAiHub
+canonical_id: 01KQ12YDVS8XTFM3XHT5XBJMQQ
 ---
 # LLM Token Economics and Pricing
 
@@ -129,7 +128,7 @@ Self-hosting an open-weights model (Llama, Mistral) eliminates per-token charges
 Rough break-even (varies wildly with traffic shape):
 
 - **GPU-hours of inference cost** vs **API token cost at your usage volume**.
-- For a single 8B model on a single A10/L4 GPU at $1/hour: you can serve ~5-15 RPS depending on prompt size. That's ~$10/day for 1M tokens of mid-pace traffic. API equivalent would be $5-30 depending on cache rate.
+- For a single 8B model on a single A10/L4 GPU at \$1/hour: you can serve ~5-15 RPS depending on prompt size. That's ~\$10/day for 1M tokens of mid-pace traffic. API equivalent would be $5-30 depending on cache rate.
 
 Self-host wins when:
 

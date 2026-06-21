@@ -1,10 +1,19 @@
 ---
+canonical_id: 01KVJMS1JN2KNMWGHYDEHC3REB
 title: Materials Engineering
+tags:
+- materials-engineering
+- phase-diagrams
+- metallurgy
+- solid-state
+- ai-modeling
+- 2025-benchmarks
 cluster: materials-science
-tags: [materials-engineering, phase-diagrams, metallurgy, solid-state, ai-modeling, 2025-benchmarks]
+type: reference
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The study of matter and its industrial applications. Covers AI-driven predictive modeling (MS25 dataset), solid-state phase transitions, and NIST additive manufacturing benchmarks.
+summary: Design of materials using AI-driven predictive modeling (MS25 dataset), solid-state
+  phase transitions, and NIST additive manufacturing benchmarks.
 ---
 
 # Materials Engineering: Designing the Atomic Landscape

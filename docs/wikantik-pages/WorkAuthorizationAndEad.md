@@ -1,5 +1,6 @@
 ---
-type: article
+canonical_id: 01KQ0P44ZAMENTDJX5RS4PYHZF
+title: Work Authorization and EAD Policy (2024-2026)
 tags:
 - immigration
 - ead
@@ -7,12 +8,12 @@ tags:
 - work-authorization
 - policy-2024
 - policy-2026
-title: Work Authorization and EAD Policy (2024-2026)
-canonical_id: 01KQ0P44ZAMENTDJX5RS4PYHZF
-summary: Comprehensive guide to Employment Authorization Documents (EAD), including Form I-765 categories and 2024-2026 policy shifts.
-auto-generated: false
+type: article
 cluster: immigration
 date: 2025-02-13T00:00:00Z
+auto-generated: false
+summary: EAD (Form I-766) eligibility by I-765 category, the 540-day automatic extension
+  rule, I-9 compliance requirements, and 2024-2026 USCIS policy shifts.
 ---
 
 # Employment Authorization Document (EAD): Mechanics and Policy Shifts
@@ -40,7 +41,7 @@ In May 2024, USCIS published a Temporary Final Rule (TFR) increasing the automat
 
 ### 2025-2026 Processing Outlook
 - **Digital First:** USCIS is moving toward mandatory e-filing for all I-765 categories by late 2025 to reduce "mailroom latency."
-- **Premium Processing Expansion:** Expanded availability of Form I-907 (Premium Processing) for (c)(3) categories has reduced wait times from 4 months to 30 days, albeit at a high $1,600+ fee.
+- **Premium Processing Expansion:** Expanded availability of Form I-907 (Premium Processing) for (c)(3) categories has reduced wait times from 4 months to 30 days, albeit at a high \$1,600+ fee.
 
 ## 3. Compliance: The I-9 Nexus
 

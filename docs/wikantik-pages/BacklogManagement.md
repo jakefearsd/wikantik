@@ -1,14 +1,15 @@
 ---
-cluster: software-engineering-practices
-canonical_id: 01KQ0P44M8E6TPZ5EZ87FVEJQC
 title: Backlog Management
+cluster: software-engineering-practices
 type: article
+canonical_id: 01KQ0P44M8E6TPZ5EZ87FVEJQC
+summary: Backlog management is a multi-dimensional optimization problem that balances
+  organizational economics, technical risk, and predictive modeling.
 tags:
 - software-engineering
 - agile
 - prioritization
 - wsjf
-summary: Backlog management is a multi-dimensional optimization problem that balances organizational economics, technical risk, and predictive modeling.
 auto-generated: false
 ---
 # Backlog Management: Multi-Dimensional Optimization

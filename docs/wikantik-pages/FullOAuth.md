@@ -1,11 +1,11 @@
 ---
 canonical_id: 01KQ0P44QHCCMJHPMCQ195JNVW
-summary: Complete OAuth SSO Implementation Plan for Wikantik
-cluster: wikantik-development
+type: design
 tags:
 - system
 - authorization
-type: implementation-plan
+summary: Complete OAuth SSO Implementation Plan for Wikantik
+cluster: wikantik-development
 ---
 
 

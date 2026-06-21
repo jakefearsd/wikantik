@@ -1,18 +1,19 @@
 ---
-cluster: mechanical-engineering
-canonical_id: 01KQ0P44VWMP9TGRTGVR01BX69
-title: Rotational Dynamics
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: Rotational kinematics, moment of inertia tensor, Euler's equations, and conservation
+  of angular momentum for rigid body analysis.
 tags:
 - mechanics
 - physics
 - rotational-dynamics
 - inertia
 - angular-momentum
-status: active
-date: 2025-05-15
-summary: A rigorous mathematical derivation of rotational kinematics, the moment of inertia tensor, and the conservation of angular momentum.
+type: article
 auto-generated: false
+cluster: mechanical-engineering
+canonical_id: 01KQ0P44VWMP9TGRTGVR01BX69
+title: Rotational Dynamics
 ---
 
 # Rotational Dynamics: Tensor Formalism and Momentum

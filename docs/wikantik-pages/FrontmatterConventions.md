@@ -1,14 +1,20 @@
 ---
-status: official
-cluster: wikantik-development
+status: active
+verified_at: '2026-05-04T21:10:44.598011331Z'
 type: reference
-title: Frontmatter Conventions
 date: '2026-05-04'
+cluster: wikantik-development
+title: Frontmatter Conventions
+tags:
+- frontmatter
+- yaml
+- knowledge-graph
+- conventions
+- wikantik-development
 summary: The definitive guide to YAML frontmatter standards, mandatory fields, and
   Knowledge Graph integration in Wikantik.
-canonical_id: 01KQTD2K72YBHBZHHANDBZ65MJ
-verified_at: '2026-05-04T21:10:44.598011331Z'
 verified_by: gemini-cli-mcp-client
+canonical_id: 01KQTD2K72YBHBZHHANDBZ65MJ
 ---
 # Frontmatter Conventions
 

@@ -1,12 +1,18 @@
 ---
-title: Markdown Links in Wikantik
-date: '2026-05-15'
-summary: A guide to Wikantik's internal and external link syntax, including wiki brackets,
-  canonical IDs, and attachments.
 canonical_id: 01KQTD30XED8A95NHYMKK106KY
-status: official
+title: Markdown Links in Wikantik
+tags:
+- markdown
+- links
+- wiki-syntax
+- canonical-id
+- wikantik-development
 cluster: wikantik-development
 type: reference
+date: '2026-05-15'
+status: active
+summary: A guide to Wikantik's internal and external link syntax, including wiki brackets,
+  canonical IDs, and attachments.
 ---
 # Markdown Links in Wikantik
 

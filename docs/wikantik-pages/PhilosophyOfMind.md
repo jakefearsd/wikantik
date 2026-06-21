@@ -1,16 +1,17 @@
 ---
-cluster: philosophy
 canonical_id: 01KQ0P44TJ5MZ3FBSJ8X2NRX9K
 title: Philosophy of Mind
-type: article
 tags:
 - consciousness
 - functionalism
 - connectionism
-- LLM
-date: 2025-05-15
-summary: A deep dive into the debate between Functionalism and Connectionism, and its implications for machine consciousness in the era of Large Language Models.
+- llm
+cluster: philosophy
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+summary: 'Functionalism vs. connectionism in the LLM era: machine consciousness, the
+  Chinese Room, Global Workspace Theory, and Integrated Information Theory.'
 ---
 
 # Philosophy of Mind: Functionalism vs. Connectionism in the LLM Era

@@ -1,9 +1,6 @@
 ---
-summary: Practical guide to asset allocation — how to divide your portfolio between
-  stocks, bonds, and cash, how that mix should shift over your lifetime, and how to
-  think honestly about your risk tolerance
-date: 2026-03-14T00:00:00Z
 cluster: index-fund-investing
+title: 'Asset Allocation Guide: Stock/Bond Mix by Age and Risk Tolerance'
 related:
 - RetirementPlanningGuide
 - IndexFundInvestingForEarlyRetirement
@@ -16,19 +13,22 @@ related:
 - CoastFire
 - AssetAllocation
 - UnderstandingRiskTolerance
+type: article
+summary: Stock/bond/cash allocation ranges by life stage, risk tolerance dimensions,
+  glide paths, and rebalancing discipline for long-term investors.
+status: active
+date: 2026-03-14T00:00:00Z
 canonical_id: 01KQ0P44M4YMBMM144GMECFYC4
+hubs:
+- IndexFundInvestingForEarlyRetirement
 part-of:
 - IndexFundInvestingForEarlyRetirement
-type: article
 tags:
 - personal-finance
 - retirement-planning
 - investing
 - asset-allocation
 - risk-tolerance
-status: active
-hubs:
-- IndexFundInvestingForEarlyRetirement
 ---
 # Asset Allocation Guide
 
@@ -83,7 +83,7 @@ For what specific funds to use once you've chosen your allocation, see [Building
 
 **What cash gives you**: Absolute certainty that the money will be there tomorrow.
 
-**What cash costs you**: Purchasing power erosion over time. Cash feels safe but quietly loses value to inflation — $100,000 in cash today buys ~$74,000 worth of goods in 10 years at 3% inflation.
+**What cash costs you**: Purchasing power erosion over time. Cash feels safe but quietly loses value to inflation — \$100,000 in cash today buys ~\$74,000 worth of goods in 10 years at 3% inflation.
 
 ## Why Allocation Matters More Than Picking Funds
 
@@ -95,7 +95,7 @@ Consider two investors over 30 years:
 | Investor | Allocation | Fund Edge | Approximate 30-Year Result ($100K start) |
 |----------|-----------|-----------|------------------------------------------|
 | A | 80/20 | 0% (index) | ~$760,000 |
-| B | 40/60 | +1% (exceptional) | ~$480,000 |
+| B | 40/60 | +1% (exceptional) | ~\$480,000 |
 
 Investor A wins by $280,000 — not because of better fund selection, but because they had more money in the higher-returning asset class. The allocation decision dominated the fund selection decision by a wide margin.
 
@@ -118,7 +118,7 @@ This is subjective. Some people watch their portfolio drop 30% and think "stocks
 
 **The only wrong choice is an allocation you abandon during a crash.** A 60/40 portfolio you stick with beats a 90/10 portfolio you sell at the bottom. Your allocation must be one you can hold through the worst markets.
 
-**Honest self-assessment test**: In 2022, a 90/10 portfolio dropped roughly 25%. If you had $500,000 invested:
+**Honest self-assessment test**: In 2022, a 90/10 portfolio dropped roughly 25%. If you had \$500,000 invested:
 
 | Allocation | Peak-to-Trough Drop | Your $500K Became |
 |-----------|--------------------|-----------------|
@@ -126,7 +126,7 @@ This is subjective. Some people watch their portfolio drop 30% and think "stocks
 | 80/20 | -22% | $390,000 |
 | 70/30 | -18% | $410,000 |
 | 60/40 | -15% | $425,000 |
-| 50/50 | -12% | $440,000 |
+| 50/50 | -12% | \$440,000 |
 
 Which of these would cause you to sell? Be honest. Your allocation should be aggressive enough that you never sell in a panic but not so conservative that you leave growth on the table.
 
@@ -166,7 +166,7 @@ A widely used update: bonds = your age minus 20. A 30-year-old holds 10% bonds, 
 Traditional advice pushed retirees toward 20-30% stocks. Modern research suggests 50-60% stocks is optimal for most retirees, for two reasons:
 
 1. **Retirements are longer**: A 65-year-old couple has roughly a 50% chance of at least one spouse living to 90 — a 25-year investment horizon that benefits from equity growth.
-2. **Social Security acts as a bond**: If you receive $30,000/year in Social Security, that's equivalent to owning roughly $750,000 in bonds (at a 4% yield). Your portfolio allocation should account for this — your *total* allocation (portfolio + Social Security) may be more conservative than your *portfolio* allocation alone.
+2. **Social Security acts as a bond**: If you receive $30,000/year in Social Security, that's equivalent to owning roughly \$750,000 in bonds (at a 4% yield). Your portfolio allocation should account for this — your *total* allocation (portfolio + Social Security) may be more conservative than your *portfolio* allocation alone.
 
 See [Retirement Income Blueprint](RetirementIncomeBlueprint) for how allocation fits into the bucket strategy.
 

@@ -1,24 +1,31 @@
 ---
-canonical_id: 01KQ0P44SJMT5AEWM122084DWB
-title: MlModelDeploymentHub
-type: hub
-cluster: machine-learning
-status: active
 date: '2026-04-26'
-summary: Index of pages on deploying ML models to production — MLOps, inference serving,
-  model monitoring, and the operational practices that distinguish prototypes from
-  production ML.
+summary: Index for deploying ML models to production — MLOps, inference serving, model
+  monitoring, and practices that distinguish prototypes from production ML.
+cluster: machine-learning
+related:
+- MlModelDeployment
+- MLOpsPractices
+- InferenceServing
+- AiObservabilityInProduction
+- TheFutureOfMachineLearning
+- AIModelTraining
+- AcceleratingAiLearning
+- AiAugmentedWorkflows
+- ArtificialIntelligence
+- GenerativeAiAdoptionGuide
+- PracticalPromptEngineering
+- UnderstandingGenerativeAi
+canonical_id: 01KQ0P44SJMT5AEWM122084DWB
+type: hub
+title: ML Model Deployment Hub
+status: active
 tags:
 - ml-deployment
 - mlops
 - inference
 - production-ml
 - hub
-related:
-- MlModelDeployment
-- MLOpsPractices
-- InferenceServing
-- AiObservabilityInProduction
 ---
 # MlModelDeployment Hub
 

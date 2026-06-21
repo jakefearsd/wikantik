@@ -1,16 +1,17 @@
 ---
-cluster: cloud-platforms
 canonical_id: 01KQ0P44ND5KEHPR35H4581CPK
 title: Cloud Cost Optimization
-type: article
 tags:
 - cloud
 - finops
 - architecture
 - cost-management
-summary: A technical guide to cloud cost optimization, focusing on Spot Instance orchestration and network egress-fee mitigation strategies.
+cluster: cloud-platforms
+type: article
+date: 2025-01-24T00:00:00Z
 auto-generated: false
-date: 2025-01-24
+summary: Spot instance orchestration (interruption handling, diversification, checkpointing)
+  and egress-fee mitigation via VPC endpoints, CDNs, and AZ-aware routing.
 ---
 
 # Cloud Cost Optimization: Spot Orchestration and Egress Mitigation

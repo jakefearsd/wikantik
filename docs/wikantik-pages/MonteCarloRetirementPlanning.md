@@ -1,11 +1,12 @@
 ---
+type: article
+status: active
 date: '2026-05-10'
-summary: How Monte Carlo simulation stress-tests retirement spending strategies using
-  stochastic modeling (Geometric Brownian Motion) across thousands of possible return
-  sequences.
 cluster: retirement-planning
-canonical_id: 01KQ0P44SRPADVP4CV9AZFQ47T
 title: Monte Carlo Simulation in Retirement Planning
+hubs:
+- RetirementPlanningGuide
+- EuRetirementSavingsGuide
 relations:
 - type: component_of
   target_id: RetirementPlanningGuide
@@ -13,16 +14,16 @@ relations:
   target_id: 01KS8J2Z2A938D4EYVWFA9F36M
 - type: related_to
   target_id: 01KS8K3Z3B938D4EYVWFA9F36N
-type: article
-status: published
 tags:
 - personal-finance
 - retirement-planning
 - monte-carlo
 - stochastic-modeling
 - investing
-hubs:
-- RetirementPlanningGuide
+summary: How Monte Carlo simulation stress-tests retirement spending strategies using
+  stochastic modeling (Geometric Brownian Motion) across thousands of possible return
+  sequences.
+canonical_id: 01KQ0P44SRPADVP4CV9AZFQ47T
 ---
 # Monte Carlo Simulation in Retirement Planning
 
@@ -34,7 +35,7 @@ If you've read [Safe Withdrawal Rates](SafeWithdrawalRates) and understand why [
 
 A spreadsheet projection using a 7% average return tells you one thing: the outcome if every year delivers exactly 7%. But no year delivers exactly 7%. Real returns vary wildly — up 28% one year, down 25% the next. When you're withdrawing money, the *order* of those returns matters as much as the average (see [Sequence of Returns Risk](SequenceOfReturnsRisk) for a detailed explanation with worked examples).
 
-Consider two retirees with identical $1,000,000 portfolios, identical 5% withdrawal rates, and identical 7% average returns over 20 years. If bad returns come first, the portfolio may be exhausted by year 18. If good returns come first, it may grow to $1.8 million. Same average. Completely different outcomes. A deterministic spreadsheet cannot distinguish between these scenarios. Monte Carlo can.
+Consider two retirees with identical \$1,000,000 portfolios, identical 5% withdrawal rates, and identical 7% average returns over 20 years. If bad returns come first, the portfolio may be exhausted by year 18. If good returns come first, it may grow to $1.8 million. Same average. Completely different outcomes. A deterministic spreadsheet cannot distinguish between these scenarios. Monte Carlo can.
 
 ## How Monte Carlo Works
 
@@ -72,16 +73,16 @@ Monte Carlo's greatest value is comparing spending strategies head-to-head acros
 
 ### A Worked Example: David and Lisa Test Their Plan
 
-David (65) and Lisa (63) have a $1,200,000 portfolio (60% stocks / 40% bonds) and want $54,000/year in portfolio withdrawals (4.5% initial rate). They expect $36,000/year combined Social Security starting at David's age 67. They run 10,000 Monte Carlo simulations over a 30-year horizon.
+David (65) and Lisa (63) have a \$1,200,000 portfolio (60% stocks / 40% bonds) and want $54,000/year in portfolio withdrawals (4.5% initial rate). They expect \$36,000/year combined Social Security starting at David's age 67. They run 10,000 Monte Carlo simulations over a 30-year horizon.
 
-**Constant dollar approach** (inflation-adjusted $54,000):
+**Constant dollar approach** (inflation-adjusted \$54,000):
 - Probability of success: 82%
 - Median ending portfolio: $1,450,000
 - 10th percentile ending portfolio: $0 (depleted by year 26)
 
 **Guardrails approach** (cut 10% if rate exceeds 5.4%, raise 10% if below 3.6%):
 - Probability of success: 97%
-- Median ending portfolio: $980,000
+- Median ending portfolio: \$980,000
 - Worst-case spending reduction: 28% (to $38,900/year — but Social Security provides $36,000 floor)
 - Median spending: $52,000/year
 
@@ -95,7 +96,7 @@ A "95% probability of success" sounds reassuring. But the number deserves scruti
 
 **It may be too conservative.** Using the 4% rule, the median portfolio after 30 years is roughly **2.8 times the starting value**. In the typical scenario, retirees following this rule die with nearly three times their original savings — an enormous unspent surplus. Research comparing plans maintained at constant 95%, 70%, 50%, and even 20% probability found that median, minimum, and maximum spending levels were "actually quite consistent regardless of the probability of success used." The difference is primarily an income-versus-legacy tradeoff, not a safety-versus-ruin distinction.
 
-**It may be misleading.** Success and failure are binary in the model — running out of money by $1 counts the same as running out by $500,000. For a couple receiving $4,500/month in Social Security with a $5,500/month spending target, portfolio depletion means an 18% lifestyle reduction. For someone entirely portfolio-dependent, it means 100% income loss. Same "failure rate," vastly different real-world consequences.
+**It may be misleading.** Success and failure are binary in the model — running out of money by \$1 counts the same as running out by $500,000. For a couple receiving \$4,500/month in Social Security with a \$5,500/month spending target, portfolio depletion means an 18% lifestyle reduction. For someone entirely portfolio-dependent, it means 100% income loss. Same "failure rate," vastly different real-world consequences.
 
 ### Reframing "Failure"
 

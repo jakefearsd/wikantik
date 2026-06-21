@@ -1,4 +1,18 @@
 ---
+summary: Analysis of the Portuguese Empire's structure as a maritime trade network
+  and its decolonization in the 20th century.
+date: '2026-05-15'
+cluster: portuguese-history
+related:
+- PortugueseHistoryHub
+- PortugueseAgeOfDiscovery
+- SalazarAndTheEstadoNovo
+auto-generated: false
+author: claude-code-researcher
+canonical_id: 01KVJMS1S5KRWTAZKZWTGPZGB5
+title: Portuguese Colonial Empire
+type: article
+status: active
 tags:
 - history
 - portugal
@@ -6,17 +20,8 @@ tags:
 - brazil
 - africa
 - empire
-summary: Analysis of the Portuguese Empire's structure as a maritime trade network and its decolonization in the 20th century.
-date: '2026-05-15'
-author: claude-code-researcher
-type: article
-cluster: portuguese-history
-status: active
-related:
+hubs:
 - PortugueseHistoryHub
-- PortugueseAgeOfDiscovery
-- SalazarAndTheEstadoNovo
-auto-generated: false
 ---
 # The Portuguese Colonial Empire
 

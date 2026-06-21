@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ12YDW2GVDGKCA2B1Q8NM00
-title: Oauth And Oidc Deep Dive
 type: article
-cluster: security
 status: active
 date: '2026-04-25'
+cluster: security
+title: OAuth and OIDC Deep Dive
+hubs:
+- SecurityHub
+- AuthenticationAndAuthorizationHub
 tags:
 - oauth
 - oidc
 - authentication
 - authorization
 - pkce
-summary: OAuth 2.1 and OIDC in 2026 — which flow to pick, why PKCE is mandatory,
-  and the operational pitfalls (token storage, refresh, scope creep) that
-  separate good integrations from owned ones.
+summary: 'OAuth 2.1 and OIDC in 2026: which flow to pick, why PKCE is mandatory, and
+  the operational pitfalls (token storage, refresh rotation, scope creep).'
 related:
 - ApplicationSecurityFundamentals
 - AuthenticationAndAuthorization
 - EncryptionFundamentals
 - SslTlsDeepDive
-hubs:
-- SecurityHub
+canonical_id: 01KQ12YDW2GVDGKCA2B1Q8NM00
 ---
 # OAuth and OIDC Deep Dive
 

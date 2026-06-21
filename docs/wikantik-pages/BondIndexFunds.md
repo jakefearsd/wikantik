@@ -1,21 +1,23 @@
 ---
-cluster: index-fund-investing
-canonical_id: 01KQ0P44MPW3AF27K7F459J3TR
+summary: Bond index funds for fixed-income allocation — duration and convexity modeling,
+  factor-based yield-curve positioning (Nelson-Siegel), and systematic overlays.
 title: Bond Index Funds
-type: article
 tags:
 - finance
 - asset-allocation
 - fixed-income
 - bond-index-funds
 - quantitative-modeling
-summary: A rigorous exploration of bond index funds for fixed income allocation, focusing on duration modeling, convexity, and the implementation of systematic overlays for factor-based yield curve positioning.
+cluster: index-fund-investing
 related:
 - LowCostIndexFundInvestingHub
 - InternationalIndexFunds
 - RetirementPlanningForLateStarters
 - BusinessMetricsAndKpis
 - MathematicsHub
+type: article
+date: '2026-06-08'
+canonical_id: 01KQ0P44MPW3AF27K7F459J3TR
 ---
 
 # Bond Index Funds: Quantitative Fixed Income Allocation

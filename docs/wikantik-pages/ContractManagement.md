@@ -1,15 +1,16 @@
 ---
-cluster: warehouse-automation
-canonical_id: 01KQ0P44P0693YZYB3QAYQGA5H
-title: Contract Management
-type: article
 tags:
 - clm
 - smart-contracts
 - risk-management
 - legal-tech
 - process-automation
-summary: A rigorous exploration of Contract Lifecycle Management (CLM), focusing on the integration of commercial intent with legal execution, the rise of Smart Contracts, and the architectural role of contract management as a risk orchestration layer.
+type: article
+summary: 'CLM: commercial intent to executable Smart Contracts, AI-driven risk scoring,
+  and contract management as a risk orchestration layer.'
+title: Contract Management
+cluster: warehouse-automation
+canonical_id: 01KQ0P44P0693YZYB3QAYQGA5H
 ---
 
 # Contract Management: The Architecture of Risk Orchestration

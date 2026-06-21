@@ -1,18 +1,19 @@
 ---
-canonical_id: 01KQ0P44WQEHZAGCX1JCZHFKE9
-title: Software Architecture Patterns
-type: article
-cluster: design-patterns
 status: active
 date: '2026-05-15'
+summary: Technical deep-dive into major architectural patterns (Layered, Hexagonal,
+  Event-Driven) with concrete I/O flow diagrams and dependency analysis.
 tags:
 - software-architecture
-- hexagaonal-architecture
+- hexagonal-architecture
 - event-driven-architecture
 - layered-architecture
 - design-patterns
-summary: Technical deep-dive into major architectural patterns (Layered, Hexagonal, Event-Driven) with concrete I/O flow diagrams and dependency analysis.
+type: article
 auto-generated: false
+canonical_id: 01KQ0P44WQEHZAGCX1JCZHFKE9
+cluster: design-patterns
+title: Software Architecture Patterns
 ---
 
 # Software Architecture Patterns

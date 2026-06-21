@@ -1,4 +1,9 @@
 ---
+date: 2026-05-03T00:00:00Z
+status: active
+summary: Central index for Project Wealthview — a self-hosted, multi-tenant personal
+  finance platform for tracking investment portfolios, rental properties, and retirement
+  projections.
 tags:
 - wealthview
 - fintech
@@ -7,22 +12,16 @@ tags:
 - multi-tenant
 - retirement-planning
 - hub
-- type: part-of
-  target_id: 01KZHC6PVN4SBQM9R0F3T7K8Y2
-title: Wealthview Hub
-cluster: wealthview
-date: 2026-05-03T00:00:00Z
+- '{''type'':-''part-of'',-''target-id'':-''01kzhc6pvn4sbqm9r0f3t7k8y2''}'
 type: hub
-status: active
+cluster: wealthview
 canonical_id: 01KQR44WKHVES95QKN9731B09
 related:
 - WealthviewArchitectureBlueprint
 - FintechDataIngestionBlueprint
 - PersonalFinanceHub
 - DataEngineeringHub
-summary: Central index for Project Wealthview — a self-hosted, multi-tenant personal
-  finance platform for tracking investment portfolios, rental properties, and retirement
-  projections.
+title: Wealthview Hub
 ---
 
 # Wealthview Hub: Personal Finance Platform

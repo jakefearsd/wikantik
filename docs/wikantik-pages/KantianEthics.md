@@ -1,8 +1,16 @@
 ---
-cluster: philosophy
-canonical_id: 01KQ0P44RGHXJN4VZN8DZBRR1G
 title: Kantian Ethics and the Categorical Imperative
+related:
+- LanguagePhilosophy
+- LogicalFallacies
+- ComputerScienceFoundationsHub
+- FormalSemantics
+- MathematicsHub
+cluster: philosophy
 type: article
+canonical_id: 01KQ0P44RGHXJN4VZN8DZBRR1G
+summary: 'Kantian deontology: the Categorical Imperative formalized as a constraint
+  satisfaction problem, with implications for non-human agency and AI ethics.'
 tags:
 - philosophy
 - ethics
@@ -11,13 +19,6 @@ tags:
 - categorical-imperative
 - formal-logic
 - ai-ethics
-summary: A rigorous exploration of Kantian deontology, focusing on the transcendental deduction of the moral law, formalizing the Categorical Imperative as a constraint satisfaction problem, and analyzing the implications for non-human agency and computational ethics.
-related:
-- LanguagePhilosophy
-- LogicalFallacies
-- ComputerScienceFoundationsHub
-- FormalSemantics
-- MathematicsHub
 ---
 
 # Kantian Ethics: The Architecture of Pure Practical Reason

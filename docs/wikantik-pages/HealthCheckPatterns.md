@@ -1,17 +1,18 @@
 ---
 cluster: devops-sre
+date: '2026-04-26'
+auto-generated: false
 canonical_id: 01KQ0P44QVWKBREPTPKPKX8P6N
+summary: Kubernetes health probes — configuring liveness, readiness, and startup probes,
+  deep vs shallow checks, and phi-accrual failure detection.
 title: Health Check Patterns
-type: article
 tags:
 - health-check
 - kubernetes
 - liveness
 - readiness
 - reliability
-summary: Technical analysis of distributed health checking primitives (Liveness, Readiness, Startup) and adaptive failure detection models.
-auto-generated: false
-date: '2026-04-26'
+type: article
 ---
 
 Health checks are control-plane primitives that allow an orchestrator to manage the lifecycle and traffic-readiness of a containerized process.

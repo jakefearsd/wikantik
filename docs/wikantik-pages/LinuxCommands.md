@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KQ0P44RWJ8Q7YXT0XZWAHVCG
-cluster: linux-for-windows-users
+type: reference
 tags:
 - linux
 - command-line
@@ -9,6 +9,7 @@ tags:
 - system-administration
 summary: 'Essential Linux command reference organized by category: file operations,
   text processing, process management, networking, and system administration'
+cluster: linux-for-windows-users
 ---
 # Linux Commands
 

@@ -1,10 +1,21 @@
 ---
+canonical_id: 01KVJMS0HHTCS9HSN85AB6M4YD
 title: Ada Language
+tags:
+- programming-languages
+- ada
+- spark
+- high-integrity
+- safety-critical
+- formal-methods
+- aerospace
+- computer-history
 cluster: computer-science
-tags: [programming-languages, ada, spark, high-integrity, safety-critical, formal-methods, aerospace, computer-history]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The 'Standard of High-Integrity' (1980). Created for the US Department of Defense, it has evolved into the gold standard for mission-critical systems and 2026 autonomous platforms via its formally verifiable subset, SPARK.
+summary: High-integrity language (1980) built for the US DoD. Evolved into the gold
+  standard for mission-critical systems via the formally verifiable SPARK subset.
 ---
 
 # The Ada Language: The Engineering of Reliability

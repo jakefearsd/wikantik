@@ -1,23 +1,22 @@
 ---
-canonical_id: 01KQ0P44PEJG4KBKH84YFQP91Z
-title: DatabasePerformanceMonitoringHub
-type: hub
-cluster: databases
 status: active
 date: '2026-04-26'
-summary: Index of pages on database performance and monitoring — query optimization,
-  performance metrics, slow-query analysis, and the operational practices that catch
-  problems before they become outages.
+summary: Hub for database performance and monitoring — query optimization, slow-query
+  analysis, and practices that catch problems before outages.
 tags:
 - database-performance
 - monitoring
 - query-optimization
 - hub
+type: hub
+canonical_id: 01KQ0P44PEJG4KBKH84YFQP91Z
+cluster: databases
 related:
 - DatabaseBackupStrategies
 - DatabaseConnectionSecurity
 - CloudDatabases
 - CloudMonitoring
+title: Database Performance Monitoring Hub
 ---
 # DatabasePerformanceMonitoring Hub
 

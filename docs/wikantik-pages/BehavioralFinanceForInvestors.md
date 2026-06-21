@@ -1,9 +1,21 @@
 ---
+type: article
+status: active
+date: '2026-04-26'
+cluster: index-fund-investing
+title: Behavioral Finance For Investors
+hubs:
+- LowCostIndexFundInvestingHub
+- RebalancingStrategies Hub
+tags:
+- behavioral-finance
+- investor-psychology
+- cognitive-bias
+- index-funds
+- discipline
 summary: The cognitive biases that destroy retail-investor returns — what they are,
   why knowing about them is not enough to fix them, and the structural defenses that
   actually work.
-date: '2026-04-26'
-cluster: index-fund-investing
 related:
 - LowCostIndexFundInvesting
 - TheCaseAgainstMarketTiming
@@ -11,18 +23,6 @@ related:
 - DollarCostAveraging
 - RebalancingStrategies
 canonical_id: 01KQ0P44ME63AX1ETEBW9GJXWW
-type: article
-title: Behavioral Finance For Investors
-tags:
-- behavioral-finance
-- investor-psychology
-- cognitive-bias
-- index-funds
-- discipline
-status: active
-hubs:
-- LowCostIndexFundInvestingHub
-- RebalancingStrategies Hub
 ---
 # Behavioral Finance For Investors
 
@@ -34,7 +34,7 @@ This page is about the specific biases that produce most of the gap, why intelle
 
 ### Loss aversion
 
-Losses feel roughly twice as bad as equivalent gains feel good. A $10,000 loss is psychologically larger than a $10,000 gain.
+Losses feel roughly twice as bad as equivalent gains feel good. A \$10,000 loss is psychologically larger than a \$10,000 gain.
 
 The investing implication: investors hold losing positions too long (hoping to "get back to even") and sell winning positions too early (locking in gains while they exist). The pattern is exactly opposite to the disciplined "let your winners run, cut your losses" intuition.
 

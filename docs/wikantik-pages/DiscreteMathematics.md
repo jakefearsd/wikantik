@@ -1,22 +1,22 @@
 ---
-type: article
+status: active
+date: 2026-05-15T00:00:00Z
+summary: 'Discrete mathematical structures underpinning computer science: set theory,
+  propositional logic, relations, and functions from first principles.'
 tags:
 - mathematics
 - logic
 - discrete-math
 - set-theory
 - algorithms
-summary: A refresher on the discrete mathematical structures that underpin computer
-  science, from set theory to graph logic.
-status: active
-date: 2026-05-15T00:00:00Z
-title: 'Discrete Mathematics: The Logic of Computation'
+type: article
+cluster: mathematics
+canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KP
 related:
 - MathematicsHub
 - GraphTheoryDeepDive
 - MarkovChainFundamentals
-cluster: Mathematics
-canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KP
+title: 'Discrete Mathematics: The Logic of Computation'
 ---
 
 # Discrete Mathematics: The Logic of Computation

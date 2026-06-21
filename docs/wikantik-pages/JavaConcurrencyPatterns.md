@@ -1,8 +1,7 @@
 ---
-cluster: java
-canonical_id: 01KQ0P44R9K008EMQEC7XKG202
-title: "Java Concurrency: From Thread Pools to Virtual Threads"
-type: article
+date: '2026-05-22'
+summary: Java concurrency from platform threads to virtual threads — M:N scheduling,
+  structured concurrency, and the Pinning problem for synchronized blocks.
 tags:
 - java
 - concurrency
@@ -10,14 +9,16 @@ tags:
 - project-loom
 - jvm-internals
 - multithreading
-summary: A high-density guide to Java concurrency evolution, covering the transition from OS-bound platform threads to JVM-managed virtual threads, M:N scheduling mechanics, and the "Pinning" problem.
+type: article
+auto-generated: false
+cluster: java
+canonical_id: 01KQ0P44R9K008EMQEC7XKG202
 related:
 - JavaHub
 - DistributedSystemsHub
 - SoftwareArchitecturePatterns
 - JavaTwentyOneFeatures
-auto-generated: false
-date: '2026-05-22'
+title: 'Java Concurrency: From Thread Pools to Virtual Threads'
 ---
 
 # Java Concurrency: The M:N Paradigm Shift

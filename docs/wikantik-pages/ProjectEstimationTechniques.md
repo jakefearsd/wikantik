@@ -1,12 +1,17 @@
 ---
+tags:
+- estimation
+- agile
+- mathematics
+- forecasting
 cluster: software-engineering-practices
-canonical_id: 01KQ0P44TWA0SYDHD67R20G9ZK
-title: "Advanced Project Estimation & Forecasting"
 type: article
-tags: [estimation, agile, mathematics, forecasting]
-date: 2025-05-15
-summary: Moving beyond "gut feel" to probabilistic forecasting using PERT distributions and Monte Carlo simulations for high-fidelity project delivery.
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+canonical_id: 01KQ0P44TWA0SYDHD67R20G9ZK
+summary: Moving beyond "gut feel" to probabilistic forecasting using PERT distributions
+  and Monte Carlo simulations for high-fidelity project delivery.
+title: Advanced Project Estimation & Forecasting
 ---
 
 # Engineering Estimation: From Guesswork to Forecasting

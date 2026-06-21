@@ -1,4 +1,18 @@
 ---
+summary: The April 25, 1974 military coup that ended the Estado Novo, led by the Armed
+  Forces Movement (MFA).
+date: '2026-05-15'
+cluster: portuguese-history
+related:
+- PortugueseHistoryHub
+- SalazarAndTheEstadoNovo
+- ModernPortugal
+auto-generated: false
+author: claude-code-researcher
+canonical_id: 01KVJMS0SD3RTS23P4NKKEPTWS
+title: Carnation Revolution
+type: article
+status: active
 tags:
 - history
 - portugal
@@ -6,17 +20,8 @@ tags:
 - democracy
 - decolonization
 - '1974'
-summary: The April 25, 1974 military coup that ended the Estado Novo, led by the Armed Forces Movement (MFA).
-date: '2026-05-15'
-author: claude-code-researcher
-type: article
-cluster: portuguese-history
-status: active
-related:
+hubs:
 - PortugueseHistoryHub
-- SalazarAndTheEstadoNovo
-- ModernPortugal
-auto-generated: false
 ---
 # The Carnation Revolution (April 25, 1974)
 

@@ -1,8 +1,16 @@
 ---
-cluster: devops-sre
-canonical_id: 01KQ0P44MS92PFY6FTNS1Q5VW9
-title: Business Continuity and Disaster Recovery
 type: article
+related:
+- DevOpsAndSreHub
+- MonitoringAndAlerting
+- ChaosEngineering
+- RiskManagement
+- SystemsThinking
+date: '2026-05-28'
+canonical_id: 01KQ0P44MS92PFY6FTNS1Q5VW9
+summary: Business Continuity (BCP) and Disaster Recovery (DR) — recovery metrics (RTO/RPO),
+  graph-based dependency modeling, and Chaos Engineering for resilience.
+title: Business Continuity and Disaster Recovery
 tags:
 - devops
 - sre
@@ -10,13 +18,7 @@ tags:
 - disaster-recovery
 - resilience-engineering
 - risk-assessment
-summary: A rigorous exploration of Business Continuity Planning (BCP) and Disaster Recovery (DR), focusing on recovery metrics (RTO/RPO), graph-based dependency modeling, and the integration of Chaos Engineering for systemic resilience.
-related:
-- DevOpsAndSreHub
-- MonitoringAndAlerting
-- ChaosEngineering
-- RiskManagement
-- SystemsThinking
+cluster: devops-sre
 ---
 
 # Business Continuity Planning: The Architecture of Systemic Resilience

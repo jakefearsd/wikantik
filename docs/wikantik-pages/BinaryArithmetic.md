@@ -1,7 +1,7 @@
 ---
-canonical_id: 01KQPQXFJDMBE25NN63K3THWK0
-date: 2026-05-03T00:00:00Z
-cluster: computer-science-foundations
+summary: Binary addition, two's complement subtraction, and bitwise operations (AND,
+  OR, XOR, NOT, shifts) — the arithmetic foundation of digital computing.
+title: Binary Arithmetic
 tags:
 - computer-science
 - binary
@@ -9,12 +9,11 @@ tags:
 - bitwise
 - logic
 - architecture
-title: Binary Arithmetic
-summary: A foundational guide to binary arithmetic, covering addition, subtraction
-  using two's complement, and the fundamental bitwise operations (AND, OR, XOR, NOT,
-  shifts). Essential for understanding low-level computer architecture and digital
-  logic.
+cluster: computer-science-foundations
+type: reference
+date: 2026-05-03T00:00:00Z
 status: active
+canonical_id: 01KQPQXFJDMBE25NN63K3THWK0
 ---
 
 # Binary Arithmetic

@@ -1,24 +1,23 @@
 ---
-canonical_id: 01KQEKGD70WYYGF8EQ3HJBAVDC
-title: Ai For Code Review
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-25'
+title: AI for Code Review
+hubs:
+- AgenticAiHub
 tags:
 - code-review
 - ai-coding
 - pr-review
 - static-analysis
-summary: Using LLMs as a first-pass code reviewer — what they catch, what they
-  miss, and the workflow patterns that make AI review augment rather than
-  replace human review.
+summary: 'Using LLMs as first-pass code reviewer: what they catch, what they miss,
+  and workflows that make AI review augment rather than replace human review.'
 related:
 - AiPairProgramming
 - AiForSoftwareTesting
 - CodeReviewPractices
-hubs:
-- AgenticAiHub
+canonical_id: 01KQEKGD70WYYGF8EQ3HJBAVDC
 ---
 # AI for Code Review
 

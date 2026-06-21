@@ -1,10 +1,21 @@
 ---
+canonical_id: 01KVJMS0NDG4SE00AYMNV8EBMZ
 title: Assembly Language
+tags:
+- programming-languages
+- assembly
+- isa
+- x86
+- arm
+- risc-v
+- systems-programming
+- hardware-software-codesign
 cluster: computer-science
-tags: [programming-languages, assembly, isa, x86, arm, risc-v, systems-programming, hardware-software-codesign]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The 'Language of the Machine'. Provides the lowest-level abstraction of hardware instructions. In 2026, it is defined by the 'ISA War' between x86, ARM, and the rapidly ascending RISC-V.
+summary: Lowest-level hardware abstraction. In 2026, defined by the ISA war between
+  x86, ARM, and the rapidly ascending RISC-V for AI and systems programming.
 ---
 
 # Assembly Language: The Architecture of Instruction

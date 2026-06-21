@@ -1,20 +1,20 @@
 ---
-related:
-- EnergySecurityGeopolitics
-- LogisticsIndustrialHub
-cluster: Logistics
-canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD8
-type: hub
+status: active
+date: 2026-05-15T00:00:00Z
+summary: Central index for lean principles, supply chain optimization, and industrial
+  efficiency.
 tags:
 - lean
 - manufacturing
 - logistics
 - efficiency
 - hub
-summary: Central index for lean principles, supply chain optimization, and industrial
-  efficiency.
-status: active
-date: 2026-05-15T00:00:00Z
+type: hub
+cluster: warehouse-automation
+canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD8
+related:
+- EnergySecurityGeopolitics
+- LogisticsIndustrialHub
 title: Lean Manufacturing Principles Hub
 ---
 

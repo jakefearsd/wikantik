@@ -1,27 +1,28 @@
 ---
-summary: Why investors in their 20s should strongly consider 100% equities, and how
-  risk tolerance changes as you age
-date: 2026-03-21T00:00:00Z
 cluster: index-fund-investing
+title: 'Investing in Your 20s: The Case for 100% Equities'
 related:
 - IndexFundInvestingForEarlyRetirement
 - AssetAllocationGuide
 - CompoundingIntuition
 - IndexFundPortfolioConstruction
 - EarlyRetirementInvestmentPlan
+type: article
+summary: Why investors in their 20s should strongly consider 100% equities, and how
+  risk tolerance changes as you age
+status: active
+date: 2026-03-21T00:00:00Z
 canonical_id: 01KQ0P44R8ZYCFXY653GF484RA
+hubs:
+- IndexFundInvestingForEarlyRetirement
 part-of:
 - IndexFundInvestingForEarlyRetirement
-type: article
 tags:
 - finance
 - investing
 - index-funds
 - risk-tolerance
 - asset-allocation
-status: active
-hubs:
-- IndexFundInvestingForEarlyRetirement
 ---
 # Investing in Your Twenties: Why You Should Be All In on Stocks
 
@@ -52,9 +53,9 @@ A 25-year-old investing for retirement at 60 has a 35-year horizon. At that hori
 
 The [Compounding Intuition](CompoundingIntuition) article explains why early money matters more than later money. Here is what that means in practice:
 
-**Scenario A**: Invest $500/month from age 22-32 (10 years), then stop. Total invested: $60,000.
+**Scenario A**: Invest \$500/month from age 22-32 (10 years), then stop. Total invested: $60,000.
 
-**Scenario B**: Invest $500/month from age 32-62 (30 years). Total invested: $180,000.
+**Scenario B**: Invest \$500/month from age 32-62 (30 years). Total invested: $180,000.
 
 At 7% real returns, **Scenario A finishes with more money** — despite investing one-third as much over one-third as many years. The person who started earlier and stopped wins because their money had more time to compound.
 

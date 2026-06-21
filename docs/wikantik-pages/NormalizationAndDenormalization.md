@@ -1,5 +1,9 @@
 ---
+summary: Normalization (3NF/BCNF) for transactional integrity vs wide tables for analytical
+  throughput — the join tax, when each wins, and MVs as middle ground.
+date: 2024-05-16T00:00:00Z
 cluster: databases
+auto-generated: false
 canonical_id: 01KQ0P44T49SNAZ23S0H2SSVD9
 title: Normalization vs. Denormalization
 type: article
@@ -9,9 +13,8 @@ tags:
 - wide-tables
 - oltp
 - olap
-summary: A technical analysis of database normalization (3NF/BCNF) for transactional integrity versus denormalized "Wide Tables" for analytical performance.
-auto-generated: false
-date: 2024-05-16
+hubs:
+- DimensionalModelingHub
 ---
 # Normalization vs. Denormalization: The Architectural Calculus
 

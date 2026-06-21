@@ -1,27 +1,27 @@
 ---
-canonical_id: 01KQ0P44PNSPVTZXWWHQJWK16B
+type: article
+status: active
+part-of:
+- HobbyWoodworkingInTheTwentyFirstCentury
 date: '2026-03-20'
+cluster: hobby-woodworking
+hubs:
+- HobbyWoodworkingInTheTwentyFirstCentury
+tags:
+- woodworking
+- cad
+- cam
+- software
+- digital-fabrication
+- hobby
 summary: 'CAD, CAM, and laser software for hobby woodworkers: Fusion 360, SketchUp,
   VCarve Pro, LightBurn, and the design-to-cut workflow'
-cluster: hobby-woodworking
 related:
 - HobbyWoodworkingInTheTwentyFirstCentury
 - CncRoutersForTheHobbyWorkshop
 - LaserCuttersAndEngraversForWood
 - ThreeDeePrintingMeetsWoodworking
-part-of:
-- HobbyWoodworkingInTheTwentyFirstCentury
-type: article
-tags:
-- woodworking
-- CAD
-- CAM
-- software
-- digital-fabrication
-- hobby
-status: active
-hubs:
-- HobbyWoodworkingInTheTwentyFirstCentury
+canonical_id: 01KQ0P44PNSPVTZXWWHQJWK16B
 ---
 # Digital Design Tools for Woodworkers
 
@@ -36,7 +36,7 @@ The gap between a napkin sketch and a finished piece has been bridged by softwar
 - **Best for**: Serious hobbyists who also use CNC
 
 ### SketchUp (Trimble)
-- **Cost**: Free web version; $120/year for desktop
+- **Cost**: Free web version; \$120/year for desktop
 - **Strengths**: Intuitive push-pull modelling, huge community of woodworkers sharing models
 - **Weaknesses**: Weak CAM integration, awkward for curved surfaces
 - **Best for**: Furniture design and planning, visual prototyping
@@ -56,7 +56,7 @@ The gap between a napkin sketch and a finished piece has been bridged by softwar
 ## CAM Software for CNC
 
 ### VCarve Pro (Vectric)
-- **Cost**: $700 one-time
+- **Cost**: \$700 one-time
 - **Strengths**: The hobby CNC standard. Excellent 2D/2.5D toolpath generation, V-carving, inlay
 - **Weaknesses**: Limited 3D capability (need Aspire for full 3D)
 - **Best for**: Sign making, decorative work, furniture joinery

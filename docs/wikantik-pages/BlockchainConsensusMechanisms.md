@@ -1,12 +1,20 @@
 ---
-title: Blockchain Consensus Mechanisms
-type: article
-cluster: blockchain-tech
-status: active
-date: 2026-05-15
-summary: Mathematical comparison of consensus algorithms beyond Proof-of-Work. Analysis of PBFT vs. Raft and the quorum requirements for Byzantine Fault Tolerance.
 auto-generated: false
+status: active
+type: article
 kg_include: true
+date: 2026-05-15T00:00:00Z
+cluster: blockchain-tech
+title: Blockchain Consensus Mechanisms
+tags:
+- blockchain
+- consensus
+- pbft
+- raft
+- distributed-systems
+summary: Mathematical comparison of consensus algorithms beyond Proof-of-Work. Analysis
+  of PBFT vs. Raft and the quorum requirements for Byzantine Fault Tolerance.
+canonical_id: 01KTXJ5NCTW8XQB0YH4200XYT2
 ---
 
 # Blockchain Consensus Mechanisms: Ensuring Distributed Agreement

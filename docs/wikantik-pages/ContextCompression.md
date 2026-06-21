@@ -1,4 +1,6 @@
 ---
+canonical_id: 01KQ0P44NZTW99SE4ZZ8P1BX2D
+title: Context Compression
 tags:
 - generative-ai
 - llm
@@ -6,14 +8,12 @@ tags:
 - context-compression
 - token-optimization
 - rag
-summary: Advanced techniques for maximizing information density within the LLM context
-  window. Covers token-pruning (LLMLingua), KV cache management (StreamingLLM), and
-  recursive summarization for long-range dependency handling.
-status: active
-date: 2026-05-03T00:00:00Z
-title: Context Compression
 cluster: generative-ai
-canonical_id: 01KQ0P44NZTW99SE4ZZ8P1BX2D
+type: article
+date: 2026-05-03T00:00:00Z
+status: active
+summary: Maximizing LLM context information density via token-pruning (LLMLingua),
+  KV cache management (StreamingLLM, H2O), and recursive summarization.
 ---
 
 # Context Compression: Maximizing the Attention Budget

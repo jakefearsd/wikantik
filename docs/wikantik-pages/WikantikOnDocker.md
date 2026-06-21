@@ -1,15 +1,19 @@
 ---
-canonical_id: 01KQ0P44YXNZNQZDD0MBEJ5KYH
-type: article
-status: active
+summary: Complete guide to deploying Wikantik with Docker Compose, including production
+  setup, automated backups, restore procedures, and migration from bare-metal Tomcat
+title: Wikantik on Docker
 tags:
 - operations
 - docker
 - deployment
 - backup
-summary: "Complete guide to deploying Wikantik with Docker Compose, including production setup, automated backups, restore procedures, and migration from bare-metal Tomcat"
+type: article
+related:
+- About
+- GoodMcpDesign
 cluster: wikantik-development
-related: [About, GoodMcpDesign]
+status: active
+canonical_id: 01KQ0P44YXNZNQZDD0MBEJ5KYH
 ---
 
 # Wikantik on Docker

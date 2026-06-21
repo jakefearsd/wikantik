@@ -1,14 +1,20 @@
 ---
-status: official
-cluster: wikantik-development
+status: active
+verified_at: '2026-05-04T21:10:44.598011331Z'
 type: reference
-title: Cryptography Fundamentals
 date: '2026-05-04'
+cluster: wikantik-development
+title: Cryptography Fundamentals
+tags:
+- cryptography
+- password-hashing
+- api-keys
+- security
+- wikantik-development
 summary: An overview of Wikantik's cryptographic implementation, password hashing
   standards, and API key management.
-canonical_id: 01KQTD4FEDPE3AD46XNDE57TXS
-verified_at: '2026-05-04T21:10:44.598011331Z'
 verified_by: gemini-cli-mcp-client
+canonical_id: 01KQTD4FEDPE3AD46XNDE57TXS
 ---
 # Cryptography Fundamentals in Wikantik
 

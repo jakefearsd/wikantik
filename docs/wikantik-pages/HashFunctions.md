@@ -7,13 +7,12 @@ tags:
 - data-structures
 - bloom-filters
 - algorithms
-date: '2026-05-15'
-summary: A technical dive into hash functions, covering avalanche effect, collision
-  resistance, non-cryptographic hashes (MurmurHash, xxHash), and applications in Bloom
-  Filters.
-status: published
 cluster: computer-science-foundations
 type: article
+date: '2026-05-15'
+status: active
+summary: Hash functions — avalanche effect, collision resistance, SHA-256 vs MurmurHash
+  vs xxHash, and applications including Bloom filters and hash tables.
 ---
 
 # Hash Functions and Cryptographic Hashing

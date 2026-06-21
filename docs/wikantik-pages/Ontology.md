@@ -1,8 +1,16 @@
 ---
-cluster: agentic-ai
-canonical_id: 01KQ0P44TA163RGEFDSGCYHXJJ
 title: Ontology
+related:
+- FormalSemantics
+- CategoryTheory
+- ComputerScienceFoundationsHub
+- AgenticAiHub
+- MathematicsHub
+cluster: agentic-ai
 type: article
+canonical_id: 01KQ0P44TA163RGEFDSGCYHXJJ
+summary: 'Ontology across philosophy, methodology, and computation: Description Logics
+  for knowledge representation and the symbol-grounding problem in AGI.'
 tags:
 - ontology
 - philosophy
@@ -11,13 +19,6 @@ tags:
 - category-theory
 - ai-foundations
 - symbolic-ai
-summary: A rigorous exploration of ontology as a triad of disciplines (Philosophy, Methodology, Computation), focusing on the formalization of being, Description Logics (DLs) for knowledge representation, and the challenge of symbol grounding in AGI.
-related:
-- FormalSemantics
-- CategoryTheory
-- ComputerScienceFoundationsHub
-- AgenticAiHub
-- MathematicsHub
 ---
 
 # Ontology: The Architecture of Being and Representation

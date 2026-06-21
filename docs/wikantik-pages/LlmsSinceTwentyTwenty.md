@@ -1,7 +1,8 @@
 ---
-canonical_id: 01KQ0P44RZGC2N51EXZYR2WDT0
-summary: The evolution of large language models from GPT-3 through modern frontier models — scaling laws, RLHF, multimodal capabilities, the open-weight movement, and what it means for practitioners
 date: 2026-03-17T01:00:00Z
+status: active
+summary: LLMs from GPT-3 to modern frontier models — scaling laws, RLHF, multimodal
+  capabilities, the open-weight movement, and what it means for practitioners.
 tags:
 - ai
 - llm
@@ -9,6 +10,9 @@ tags:
 - transformers
 - nlp
 - technology
+type: article
+cluster: generative-ai
+canonical_id: 01KQ0P44RZGC2N51EXZYR2WDT0
 related:
 - ArtificialIntelligence
 - MachineLearning
@@ -16,9 +20,7 @@ related:
 - GenerativeAiAdoptionGuide
 - RunningLocalLlms
 - DistributedComputingEvolution
-type: article
-cluster: generative-ai
-status: active
+title: LLMs Since 2020
 ---
 
 # LLMs Since 2020

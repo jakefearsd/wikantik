@@ -1,17 +1,18 @@
 ---
-cluster: mechanical-engineering
-canonical_id: 01KQ0P44V0FGNDGE8R7NVJTW2M
-title: Pulley Systems
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: Fixed, movable, and block-and-tackle pulley mechanics — Mechanical Advantage
+  (MA) calculations, frictional losses, and tension analysis.
 tags:
 - mechanics
 - physics
 - pulleys
 - mechanical-advantage
-status: active
-date: 2025-05-15
-summary: A technical guide to pulley mechanics, block-and-tackle systems, and Mechanical Advantage (MA) calculations.
+type: article
 auto-generated: false
+cluster: mechanical-engineering
+canonical_id: 01KQ0P44V0FGNDGE8R7NVJTW2M
+title: Pulley Systems
 ---
 
 # Pulley Systems: Force and Tension Dynamics

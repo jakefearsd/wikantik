@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44GDP76DNTXVFP127KKX
+hubs:
+- MlModelDeploymentHub
+status: active
 summary: 'How AI models are trained: the full pipeline from data preparation through
   pre-training, fine-tuning, and RLHF, including hardware requirements and scaling
   laws'
-cluster: generative-ai
-related:
-- ArtificialIntelligence
-- MachineLearning
-- LlmsSinceTwentyTwenty
-- TheFutureOfMachineLearning
-type: article
-status: active
 tags:
 - ai
 - model-training
 - deep-learning
 - fine-tuning
 - rlhf
-hubs:
-- MlModelDeploymentHub
+type: article
+cluster: generative-ai
+canonical_id: 01KQ0P44GDP76DNTXVFP127KKX
+related:
+- ArtificialIntelligence
+- MachineLearning
+- LlmsSinceTwentyTwenty
+- TheFutureOfMachineLearning
+title: AI Model Training
 ---
 # AI Model Training
 

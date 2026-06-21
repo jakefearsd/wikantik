@@ -1,23 +1,22 @@
 ---
-canonical_id: 01KQEKGDFR2BQKABK17HG58CJW
-title: Singleton Pattern And Alternatives
 type: article
-cluster: software-architecture
 status: active
+cluster: software-architecture
 date: '2026-04-25'
+title: Singleton Pattern and Alternatives
+hubs:
+- SoftwareArchitectureHub
 tags:
 - singleton
 - design-patterns
 - dependency-injection
 - testing
-summary: Singleton is the most-overused GoF pattern. The cost is hidden global
-  state and untestable code. The modern replacement is dependency injection
-  with composition-root configuration.
+summary: 'The most-overused GoF pattern: hidden global state, untestable code. The
+  modern replacement is dependency injection with composition-root configuration.'
 related:
 - DesignPatternsOverview
 - DependencyInjectionPatterns
-hubs:
-- SoftwareArchitectureHub
+canonical_id: 01KQEKGDFR2BQKABK17HG58CJW
 ---
 # Singleton Pattern and Alternatives
 

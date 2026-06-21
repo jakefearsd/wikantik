@@ -1,25 +1,25 @@
 ---
-canonical_id: 01KQ0P44TF4G9V69T3FJ6C1174
-title: Part-Time Work in Retirement
 type: article
-cluster: retirement-planning
 status: active
+cluster: retirement-planning
 date: '2026-04-26'
-summary: Why and how to work part-time in retirement — financial benefits, social
-  benefits, healthcare implications, and the patterns that distinguish productive
-  retirement work from re-entering the rat race.
+title: Part-Time Work in Retirement
+hubs:
+- RetirementPlanningGuide
 tags:
 - part-time-work
 - retirement
 - semi-retirement
 - bridge-retirement
+summary: Why and how to work part-time in retirement — financial benefits, social
+  benefits, healthcare implications, and the patterns that distinguish productive
+  retirement work from re-entering the rat race.
 related:
 - BucketStrategyForRetirement
 - PreMedicareBridgeStrategies
 - RetirementSpendingPatterns
 - BurnoutPreventionInTech
-hubs:
-- RetirementPlanningGuide
+canonical_id: 01KQ0P44TF4G9V69T3FJ6C1174
 ---
 # Part-Time Work in Retirement
 
@@ -106,7 +106,7 @@ Combines work with travel for many retirees.
 
 ### Social Security earnings limit
 
-Pre-FRA (Full Retirement Age, 67 for most): earning above ~$23K/year (2026) reduces Social Security benefits temporarily. The benefits aren't lost — they're recouped after FRA — but cash flow is affected.
+Pre-FRA (Full Retirement Age, 67 for most): earning above ~\$23K/year (2026) reduces Social Security benefits temporarily. The benefits aren't lost — they're recouped after FRA — but cash flow is affected.
 
 Post-FRA: no earnings limit.
 
@@ -176,7 +176,7 @@ Be deliberate about when work ends.
 
 ### 1099 vs. W-2
 
-Self-employed (1099): self-employment tax (15.3% on first ~$170K); ability to deduct business expenses; can contribute to SEP-IRA or Solo 401(k).
+Self-employed (1099): self-employment tax (15.3% on first ~\$170K); ability to deduct business expenses; can contribute to SEP-IRA or Solo 401(k).
 
 W-2 employee: standard payroll taxes; generally simpler.
 

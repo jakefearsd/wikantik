@@ -1,8 +1,17 @@
 ---
-cluster: operations-research
-canonical_id: 01KQ0P44TQDQBXM6TMX5SSVSE4
 title: Predictive Maintenance Through Mechanical Diagnostics
+related:
+- OperationsResearchHub
+- MachineLearning
+- GearingSystems
+- BearingMechanics
+- NumericalMethods
+- MathematicsHub
+cluster: operations-research
 type: article
+canonical_id: 01KQ0P44TQDQBXM6TMX5SSVSE4
+summary: 'PdM for rotating machinery: spectral vibration analysis, Wavelet transient
+  detection, Physics-Informed ML, and Weibull-based Remaining Useful Life modeling.'
 tags:
 - operations-research
 - predictive-maintenance
@@ -11,14 +20,6 @@ tags:
 - vibration-analysis
 - machine-learning
 - rul
-summary: A rigorous exploration of Predictive Maintenance (PdM) for complex mechanical systems, focusing on spectral vibration analysis, Wavelet-based transient detection, Physics-Informed Machine Learning (PIML), and the mathematical modeling of Remaining Useful Life (RUL) via Weibull distributions.
-related:
-- OperationsResearchHub
-- MachineLearning
-- GearingSystems
-- BearingMechanics
-- NumericalMethods
-- MathematicsHub
 ---
 
 # Predictive Maintenance: The Architecture of Industrial Prognostics

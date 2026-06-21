@@ -1,25 +1,24 @@
 ---
-canonical_id: 01KQEKGD71KDMQFMSCZD28KVTH
-title: Ai For Software Testing
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-25'
+title: AI for Software Testing
+hubs:
+- AgenticAiHub
 tags:
 - testing
 - ai-coding
 - test-generation
 - mutation-testing
-summary: Where AI helps in testing — generation, prioritisation, flake detection,
-  and the workflows where AI-generated tests pay off vs where they're worse than
-  no tests.
+summary: 'Where AI helps in testing: generation, prioritisation, flake detection,
+  and when AI-generated tests pay off vs. where they''re worse than no tests.'
 related:
 - AiPairProgramming
 - AiForCodeReview
 - AgentTesting
 - TestDrivenDevelopment
-hubs:
-- AgenticAiHub
+canonical_id: 01KQEKGD71KDMQFMSCZD28KVTH
 ---
 # AI for Software Testing
 

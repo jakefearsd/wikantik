@@ -1,26 +1,26 @@
 ---
-summary: Complete guide to required minimum distributions from retirement accounts,
-  including age thresholds, calculation methods, and strategies to minimize tax impact.
-date: 2026-03-15T00:00:00Z
 cluster: retirement-planning
+title: Required Minimum Distributions
 related:
 - RetirementAccountWithdrawalRules
 - TaxPlanningForRetirementAccountWithdrawals
 - RetirementWithdrawalSequencing
+summary: Complete guide to required minimum distributions from retirement accounts,
+  including age thresholds, calculation methods, and strategies to minimize tax impact.
+type: article
+date: 2026-03-15T00:00:00Z
+status: active
 canonical_id: 01KQ0P44VHN0YZJXBTF6AJ990M
+hubs:
+- RetirementPlanningGuide
 part-of:
 - RetirementPlanningGuide
-type: article
-title: Required Minimum Distributions
-status: published
 tags:
 - retirement
 - taxes
-- RMD
-- IRA
+- rmd
+- ira
 - 401k
-hubs:
-- RetirementPlanningGuide
 ---
 
 # Required Minimum Distributions
@@ -60,7 +60,7 @@ The RMD amount is calculated by dividing your account balance as of December 31 
 
 **RMD = Prior Year-End Balance ÷ Life Expectancy Factor**
 
-For example, at age 75 the Uniform Lifetime Table factor is 24.6. If your traditional IRA balance was $500,000 on December 31, your RMD would be approximately $20,325.
+For example, at age 75 the Uniform Lifetime Table factor is 24.6. If your traditional IRA balance was \$500,000 on December 31, your RMD would be approximately \$20,325.
 
 ### The Uniform Lifetime Table
 

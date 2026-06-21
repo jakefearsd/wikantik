@@ -1,7 +1,9 @@
 ---
-cluster: web-services-and-apis
-canonical_id: 01KQ0P44KW2Y93WSPZVD1MEJ3R
-title: Api Gateway Patterns
+date: '2025-05-15T00:00:00Z'
+status: active
+summary: Technical analysis of API Gateway patterns. Covers routing, request aggregation,
+  authentication offloading, and circuit breaking.
+auto-generated: false
 type: article
 tags:
 - web-services
@@ -9,40 +11,27 @@ tags:
 - microservices
 - routing
 - resilience
-status: active
-date: 2025-05-15
-summary: Technical analysis of API Gateway patterns. Covers routing, request aggregation, authentication offloading, and circuit breaking.
-auto-generated: false
+canonical_id: 01KQ0P44KW2Y93WSPZVD1MEJ3R
+cluster: web-services-and-apis
+title: API Gateway Patterns
 ---
-
 # API Gateway Patterns: The Edge Layer
 
-The API Gateway acts as the single entry point for all client requests, offloading cross-cutting concerns from individual microservices.
+In a microservices architecture, particularly on Kubernetes, the **API Gateway** serves as the central entry point for external traffic, abstracting internal service complexity and handling cross-cutting concerns.
 
-## 1. Routing and Path Mapping
+### Core Architecture & Patterns
+*   **The Gateway Pattern:** Acts as a reverse proxy routing external requests to appropriate internal services, offloading SSL/TLS termination, authentication, rate limiting, and request transformation.
+*   **Backends for Frontends (BFF):** Implementing specific gateways for different clients (e.g., mobile vs. web) to optimize data aggregation and reduce payload sizes.
+*   **Kubernetes Gateway API:** The modern approach to traffic management in Kubernetes, providing a role-oriented and extensible framework over traditional Ingress, supporting advanced routing like traffic splitting.
+*   **API Gateway vs. Service Mesh:** API Gateway handles North-South traffic (external-to-internal) focusing on external security and API management, while a Service Mesh (Istio, Linkerd) manages East-West traffic (internal service-to-service communication and mTLS).
 
-The Gateway decouples the public API surface from the internal service topology.
-*   **Dynamic Routing:** Use service discovery (e.g., Consul or Kubernetes DNS) to route `/v1/users/*` to the current healthy instances of `user-service`.
-*   **Header-Based Routing:** Route requests to specific versions or regions based on headers (e.g., `X-Region: us-east-1`), enabling A/B testing and localized traffic management.
-
-## 2. API Composition (Request Aggregation)
-
-To prevent "chatter" between the client and multiple services, the Gateway can perform aggregation.
-*   **Concrete Example:** A "Mobile Dashboard" request requires data from `UserService`, `OrderService`, and `NotificationService`. Instead of the client making three calls, the Gateway executes them in parallel, joins the JSON results, and returns a single payload.
-*   **Implementation:** Use asynchronous I/O (e.g., Node.js, Go routines, or Project Loom) to prevent the Gateway from blocking while waiting for downstream responses.
-
-## 3. Authentication and Security Offloading
-
-Centralizing security at the edge prevents inconsistent implementations across services.
-*   **JWT Validation:** The Gateway validates the token signature and expiration. It then strips the `Authorization` header and replaces it with an internal `X-User-ID` header for downstream services.
-*   **Rate Limiting:** Implement Distributed Rate Limiting using a sidecar or a central store like **Redis**. 
-    *   *Algorithm:* Use **Leaky Bucket** or **Sliding Window Log** to prevent brute-force and DoS attempts before they hit the application logic.
-
-## 4. Resilience: Circuit Breaking and Retries
-
-The Gateway must protect the system from cascading failures.
-*   **Circuit Breaker:** If `service-b` latency exceeds 500ms for 5% of requests, the Gateway "opens" the circuit for that route, returning a `503 Service Unavailable` immediately without hitting the backend.
-*   **Retries with Backoff:** Implement retries *only* for idempotent methods (GET/PUT) with exponential backoff and jitter to avoid the "Thundering Herd" problem when a service recovers.
+### Best Practices
+*   **Decouple Concerns:** Do not overload the gateway with business logic. Keep it lightweight to avoid a new monolithic bottleneck.
+*   **High Availability:** Deploy multiple instances across different nodes/zones and use horizontal scaling.
+*   **Centralize Cross-Cutting Concerns:** Implement authentication (OAuth2/OIDC), authorization, rate limiting, and logging at the gateway level.
+*   **Implement Resiliency:** Use Circuit Breakers and fallbacks at the gateway to prevent single failing services from causing cascading failures.
+*   **Zero Trust Architecture:** Implement service-to-service authentication and use Kubernetes `NetworkPolicies` to restrict communication, assuming the internal network is not fully secure.
+*   **Declarative Management:** Use GitOps practices and Kubernetes operators to manage gateway configurations as code, ensuring consistent deployments.
 
 ---
 **See Also:**

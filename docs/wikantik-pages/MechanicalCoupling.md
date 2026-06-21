@@ -1,15 +1,16 @@
 ---
-cluster: mechanical-engineering
-canonical_id: 01KQ0P44SC0F3WES6RJ8X0VSXJ
-title: Mechanical Coupling
-type: article
 tags:
 - mechanical-engineering
 - coupling
 - alignment
 - vibration-damping
 - dynamics
-summary: A rigorous exploration of mechanical coupling principles, focusing on the physics of torque transmission, misalignment accommodation, dynamic vibration damping, and the integration of control theory into "smart" mechanical interfaces.
+type: article
+summary: Torque transmission, misalignment accommodation, viscoelastic damping, and
+  smart coupling control theory for dynamic mechanical interfaces.
+title: Mechanical Coupling
+cluster: mechanical-engineering
+canonical_id: 01KQ0P44SC0F3WES6RJ8X0VSXJ
 ---
 
 # Mechanical Coupling: The Dynamics of Energy Transfer

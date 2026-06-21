@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS1DNDPTYKRY6WJB7BFSB
 title: Java Language
+tags:
+- programming-languages
+- java
+- jvm
+- oop
+- enterprise
+- garbage-collection
+- 2026-benchmarks
 cluster: computer-science
-tags: [programming-languages, java, jvm, oop, enterprise, garbage-collection, 2026-benchmarks]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The 'Undead King' of enterprise (1995). Championed the Virtual Machine (JVM) and 'Write Once, Run Anywhere'. In 2026, it remains the standard for high-throughput backends via Generational ZGC.
+summary: Undead king of enterprise (1995). Championed JVM and 'Write Once, Run Anywhere';
+  remains the standard for high-throughput backends via Generational ZGC.
 ---
 
 # The Java Language: Industrial-Scale Reliability

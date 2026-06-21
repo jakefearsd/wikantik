@@ -1,18 +1,23 @@
 ---
-summary: Automated Storage and Retrieval Systems (AS/RS) — fixed high-density storage
-  technologies including unit-load cranes, mini-loads, carousels, and shuttle systems
-date: 2026-03-18T00:00:00Z
 cluster: warehouse-automation
+title: Automated Storage and Retrieval Systems (AS/RS)
 related:
 - WarehouseAutomationHub
 - WarehouseRobotics
 - ConveyorAndSortingTechnology
 - WarehouseManagementSystems
 - WarehouseAutomationLimitations
+type: article
+summary: Automated Storage and Retrieval Systems (AS/RS) — fixed high-density storage
+  technologies including unit-load cranes, mini-loads, carousels, and shuttle systems
+status: active
+date: 2026-03-18T00:00:00Z
 canonical_id: 01KQ0P44M6BMN9DTEWMR5219RF
+hubs:
+- WarehouseAutomationHub
+- AutomatedStorageAndRetrieval Hub
 part-of:
 - WarehouseAutomationHub
-type: article
 tags:
 - warehouse
 - asrs
@@ -20,10 +25,6 @@ tags:
 - automation
 - logistics
 - goods-to-person
-status: active
-hubs:
-- WarehouseAutomationHub
-- AutomatedStorageAndRetrieval Hub
 ---
 # Automated Storage and Retrieval Systems (AS/RS)
 

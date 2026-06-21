@@ -1,17 +1,18 @@
 ---
-cluster: operations-research
 canonical_id: 01KQ0P44SFQM7F9TZXPEJTWMYG
-title: "Metaheuristic Optimization: The Math of SA and GA"
-type: article
+title: 'Metaheuristic Optimization: The Math of SA and GA'
 tags:
 - optimization
 - simulated-annealing
 - genetic-algorithms
 - acceptance-probability
 - math
-summary: A technical deep dive into the mathematical mechanisms of Simulated Annealing and Genetic Algorithms, focusing on the Metropolis criterion and evolutionary selection pressures.
+cluster: operations-research
+type: article
+date: 2025-01-24T00:00:00Z
 auto-generated: false
-date: 2025-01-24
+summary: 'SA and GA metaheuristics: Metropolis criterion and cooling schedules for
+  Simulated Annealing; Schemata Theorem and selection pressure for Genetic Algorithms.'
 ---
 # Metaheuristic Optimization: The Math of SA and GA
 

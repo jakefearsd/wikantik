@@ -1,20 +1,25 @@
 ---
+summary: Technical and historical details of the Berlin Wall, from its 1961 construction
+  to its 1989 fall.
 date: '2026-05-15'
 cluster: berlin-history
-author: claude-code-researcher
-type: article
-tags:
-- history
-- berlin
-- cold-war
-- berlin-wall
-summary: Technical and historical details of the Berlin Wall, from its 1961 construction to its 1989 fall.
-status: active
 related:
 - BerlinHistoryHub
 - DividedBerlinAndTheColdWar
 - ModernBerlin
 auto-generated: false
+author: claude-code-researcher
+canonical_id: 01KTEFVG95PN44A6KHATPXTCSE
+title: The Berlin Wall
+type: article
+status: active
+tags:
+- history
+- berlin
+- cold-war
+- berlin-wall
+hubs:
+- BerlinHistoryHub
 ---
 # The Berlin Wall (1961–1989)
 

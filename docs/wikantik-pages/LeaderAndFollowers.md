@@ -1,20 +1,24 @@
 ---
-title: Leader and Followers
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A coordination pattern where one node acts as a leader to manage state changes and replicate data to a set of follower nodes.
+summary: A coordination pattern where one node acts as a leader to manage state changes
+  and replicate data to a set of follower nodes.
 tags:
 - distributed-systems
 - coordination
 - replication
 - high-availability
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: related_to, target_id: 01KS7N9Z8QYAS6P09AM61S5E2U} # Majority Quorum
-- {type: related_to, target_id: 01KS6S8Z8QYAS6P09AM61S5E2O} # Paxos/Raft
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: related_to
+  target_id: 01KS7N9Z8QYAS6P09AM61S5E2U
+- type: related_to
+  target_id: 01KS6S8Z8QYAS6P09AM61S5E2O
+cluster: distributed-systems
 canonical_id: 01KS7P9Z8QYAS6P09AM61S5E2V
+title: Leader and Followers
 ---
 
 # Leader and Followers

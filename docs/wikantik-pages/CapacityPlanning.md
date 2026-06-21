@@ -1,18 +1,19 @@
 ---
-cluster: cloud-platforms
-canonical_id: 01KQ0P44MYFJX1RPYABF70A080
-title: Capacity Planning
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: Sizing compute (CPU/memory requests), storage (IOPS/throughput), and network
+  (bandwidth/PPS), with baseline-stress-buffer-forecast planning lifecycle.
 tags:
 - cloud
 - engineering
 - capacity-planning
 - infrastructure
 - performance
-status: active
-date: 2025-05-15
-summary: Technical guide to infrastructure capacity planning. Covers CPU/Memory requests, IOPS calculations, and throughput modeling.
+type: article
 auto-generated: false
+cluster: cloud-platforms
+canonical_id: 01KQ0P44MYFJX1RPYABF70A080
+title: Capacity Planning
 ---
 
 # Capacity Planning: Systems Sizing

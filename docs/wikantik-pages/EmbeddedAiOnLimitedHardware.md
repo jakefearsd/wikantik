@@ -1,12 +1,8 @@
 ---
-canonical_id: 01KQ0P44Q20H1X4B9FJ82DB4F7
-type: article
-cluster: machine-learning
-status: active
-summary: Running AI models on microcontrollers, phones, and edge devices — what works,
-  what doesn't, proven use cases, and the techniques that make small models effective
-  on constrained hardware
 date: 2026-03-17T00:00:00Z
+status: active
+summary: Running AI on microcontrollers, phones, and edge devices — what works, proven
+  use cases, and techniques for effective small models on constrained hardware.
 tags:
 - ai
 - embedded
@@ -14,6 +10,9 @@ tags:
 - machine-learning
 - iot
 - technology
+type: article
+cluster: machine-learning
+canonical_id: 01KQ0P44Q20H1X4B9FJ82DB4F7
 related:
 - TheFutureOfMachineLearning
 - MachineLearning
@@ -21,6 +20,7 @@ related:
 - RunningLocalLlms
 - FoundationalAlgorithmsForComputerScientists
 - DistributedComputingEvolution
+title: Embedded AI on Limited Hardware
 ---
 # Embedded AI on Limited Hardware
 
@@ -51,7 +51,7 @@ Cloud inference works well for many applications. Running models locally matters
 
 **Privacy is non-negotiable.** Medical devices processing patient data, home security cameras, and voice assistants that people use in private spaces all benefit from keeping data on-device. What never leaves the device cannot be intercepted or subpoenaed.
 
-**Cost per inference matters at scale.** When you are deploying millions of devices, even $0.001 per cloud inference adds up. On-device inference has zero marginal cost after deployment.
+**Cost per inference matters at scale.** When you are deploying millions of devices, even \$0.001 per cloud inference adds up. On-device inference has zero marginal cost after deployment.
 
 **Power budget is constrained.** Battery-powered and energy-harvesting devices cannot afford the power consumption of continuous cloud communication.
 
@@ -186,7 +186,7 @@ Honesty about limitations is as important as enthusiasm about capabilities:
 
 The cost equation for embedded AI differs fundamentally from cloud AI:
 
-- **BOM cost matters.** Adding a $2 AI accelerator chip to a $15 device is a 13% cost increase. The AI capability must justify that cost in the product's value proposition.
+- **BOM cost matters.** Adding a $2 AI accelerator chip to a \$15 device is a 13% cost increase. The AI capability must justify that cost in the product's value proposition.
 - **Power consumption is a feature.** A model that runs on 1 mW enables a battery-powered sensor that lasts 5 years. A model requiring 5 W needs wall power or frequent recharging.
 - **Deployment is one-way.** Unlike cloud models that can be updated hourly, embedded firmware updates are expensive, risky, and infrequent. The model must work reliably from day one.
 - **Edge cases are safety-critical.** A cloud chatbot that occasionally hallucinates is annoying. An embedded model in a medical device or industrial controller that misclassifies is dangerous.

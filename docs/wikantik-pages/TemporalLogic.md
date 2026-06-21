@@ -1,26 +1,25 @@
 ---
-summary: Logic for reasoning about time — LTL, CTL, the modal operators for "always",
-  eventually, "until" — and the central role in verification of concurrent and distributed
-  systems.
+type: article
+status: active
 date: '2026-04-26'
 cluster: mathematics
-related:
-- ModalLogic
-- PropositionalLogic
-- PredicateLogic
-canonical_id: 01KQ0P44XFGA1ZZ7K4ZAVMJZ1A
-type: article
 title: Temporal Logic
+hubs:
+- MathematicsHub
+- PredicateLogic Hub
 tags:
 - temporal-logic
 - ltl
 - ctl
 - verification
 - mathematics
-status: active
-hubs:
-- MathematicsHub
-- PredicateLogic Hub
+summary: LTL and CTL for reasoning about time — linear vs. branching-time semantics,
+  model-checking complexity, and verification of concurrent and distributed systems.
+related:
+- ModalLogic
+- PropositionalLogic
+- PredicateLogic
+canonical_id: 01KQ0P44XFGA1ZZ7K4ZAVMJZ1A
 ---
 
 # Temporal Logic: The Calculus of Change and Concurrency

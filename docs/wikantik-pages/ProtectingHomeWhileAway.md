@@ -1,18 +1,19 @@
 ---
-cluster: remote-host-management
-canonical_id: 01KQ0P44TZ38CSB2Y5RP94H0TE
-title: Protecting Home While Away
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: 'Smart home security for remote owners: IP-camera TLS/E2EE encryption, WireGuard
+  VPN tunneling over port forwarding, and secure IoT protocols (Zigbee, Matter).'
 tags:
 - security
 - iot
 - encryption
 - smart-home
 - privacy
-status: active
-date: 2025-05-15
-summary: A technical guide to smart home security, focusing on IP-camera encryption, VPN tunneling, and secure IoT protocols.
+type: article
 auto-generated: false
+cluster: remote-host-management
+canonical_id: 01KQ0P44TZ38CSB2Y5RP94H0TE
+title: Protecting Home While Away
 ---
 
 # Home Security: IP-Camera Encryption and IoT Protocols

@@ -9,9 +9,23 @@ related:
 - DifferentialCalculus
 - LinearAlgebra
 - AppliedMathSurvey
+- ComplexAnalysis
+- SetTheoryLogic
+- AbstractAlgebra
+- BayesianReasoning
+- FuzzyLogic
+- ModalLogic
+- PredicateLogic
+- PropositionalLogic
+- SymbolicLogic
+- TemporalLogic
 canonical_id: 01KQ2P44XMGA8E1E7GAT4AYV43
 title: Mathematics Hub
 type: hub
+status: active
+hubs:
+- DataStructuresHub
+- PhilosophyHub
 tags:
 - mathematics
 - hub
@@ -19,10 +33,6 @@ tags:
 - algebra
 - calculus
 - probability
-hubs:
-- DataStructuresHub
-- PhilosophyHub
-status: active
 ---
 
 # Mathematics Hub

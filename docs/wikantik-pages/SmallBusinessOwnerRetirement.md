@@ -1,8 +1,16 @@
 ---
-cluster: retirement-planning
-canonical_id: 01KQ0P44WKKHPEHYRB19P1MSZR
 title: Small Business Owner Retirement
+related:
+- RetirementPlanningForLateStarters
+- BackdoorRothStrategies
+- LowCostIndexFundInvestingHub
+- BusinessMetricsAndKpis
+- MathematicsHub
+cluster: retirement-planning
 type: article
+canonical_id: 01KQ0P44WKKHPEHYRB19P1MSZR
+summary: 'Retirement planning for small business owners: self-employment tax asymmetry,
+  Solo 401(k) stacking, and integrating succession with longevity risk.'
 tags:
 - finance
 - retirement-planning
@@ -11,13 +19,6 @@ tags:
 - sep-ira
 - tax-arbitrage
 - succession-planning
-summary: A rigorous exploration of retirement planning for small business owners (SBOs), focusing on the asymmetry of self-employment tax, the optimization of Solo 401(k) stacking, and the integration of succession modeling with actuarial longevity risk.
-related:
-- RetirementPlanningForLateStarters
-- BackdoorRothStrategies
-- LowCostIndexFundInvestingHub
-- BusinessMetricsAndKpis
-- MathematicsHub
 ---
 
 # Small Business Owner Retirement: The Architecture of Self-Sustaining Wealth

@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ12YDTP6JTFQEKQZT19ACQZ
 title: Distributed Tracing
+related:
+- AgentObservability
+- ServiceLevelAgreements
+- BlamelessPostMortems
+- MicroservicesArchitecture
 type: article
-cluster: devops-sre
+summary: Technical deep-dive into distributed tracing mechanics, W3C propagation,
+  and tail-based sampling architectures.
 status: active
 date: '2026-04-26'
+canonical_id: 01KQ12YDTP6JTFQEKQZT19ACQZ
+hubs:
+- ObservabilityHub
 tags:
 - observability
 - tracing
 - opentelemetry
 - jaeger
 - microservices
-summary: Technical deep-dive into distributed tracing mechanics, W3C propagation, and tail-based sampling architectures.
 auto-generated: false
-related:
-- AgentObservability
-- ServiceLevelAgreements
-- BlamelessPostMortems
-- MicroservicesArchitecture
-hubs:
-- ObservabilityHub
+cluster: devops-sre
 ---
 
 Distributed tracing is the capture of a request's lifecycle as it traverses service boundaries. Each segment of work is a **span**, and the entire tree of spans for a single request is the **trace**.

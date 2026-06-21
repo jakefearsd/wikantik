@@ -1,16 +1,5 @@
 ---
-cluster: operations-research
-canonical_id: 01KQ0P44V392J9YVXVM2TNN3AQ
 title: Queueing Theory
-type: article
-tags:
-- operations-research
-- queueing-theory
-- stochastic-processes
-- markov-chains
-- littles-law
-- congestion-modeling
-summary: A rigorous exploration of Queueing Theory as a framework for modeling stochastic resource contention, focusing on M/G/1 systems, the Pollaczek-Khinchine formula, Jackson Networks, and the integration of Reinforcement Learning for adaptive control.
 related:
 - MathematicsHub
 - OperationsResearchHub
@@ -18,6 +7,18 @@ related:
 - CapacityModeling
 - MachineLearning
 - NumericalMethods
+cluster: operations-research
+type: article
+canonical_id: 01KQ0P44V392J9YVXVM2TNN3AQ
+summary: 'Stochastic resource contention models: M/G/1 systems, Pollaczek-Khinchine
+  formula, Jackson Networks, and RL-based adaptive control for non-stationary queues.'
+tags:
+- operations-research
+- queueing-theory
+- stochastic-processes
+- markov-chains
+- littles-law
+- congestion-modeling
 ---
 
 # Queueing Theory: The Architecture of Resource Contention

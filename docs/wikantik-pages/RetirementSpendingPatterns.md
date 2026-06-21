@@ -1,25 +1,25 @@
 ---
-canonical_id: 01KQ0P44VQKGWP72NVPZ3SC0ZZ
-title: Retirement Spending Patterns
 type: article
-cluster: retirement-planning
 status: active
+cluster: retirement-planning
 date: '2026-04-26'
-summary: How retirement spending actually evolves — the go-go years, slow-go years,
-  no-go years — and the realistic patterns vs. the "constant inflation-adjusted spending"
-  assumptions of simple models.
+title: Retirement Spending Patterns
+hubs:
+- RetirementPlanningGuide
 tags:
 - retirement-spending
 - spending-patterns
 - retirement
 - behavioral-finance
+summary: How retirement spending actually evolves — the go-go years, slow-go years,
+  no-go years — and the realistic patterns vs. the "constant inflation-adjusted spending"
+  assumptions of simple models.
 related:
 - BucketStrategyForRetirement
 - SafeWithdrawalRates
 - CalculatingYourFiNumber
 - PreMedicareBridgeStrategies
-hubs:
-- RetirementPlanningGuide
+canonical_id: 01KQ0P44VQKGWP72NVPZ3SC0ZZ
 ---
 # Retirement Spending Patterns
 
@@ -198,7 +198,7 @@ Plan for this; don't panic at year 1 numbers.
 
 Big trips in 60s; shorter trips in 70s; minimal travel in 80s.
 
-Total travel spending decreases naturally. Planning to spend $20K/year on travel for 30 years overestimates.
+Total travel spending decreases naturally. Planning to spend \$20K/year on travel for 30 years overestimates.
 
 ### Downsizing windfall
 

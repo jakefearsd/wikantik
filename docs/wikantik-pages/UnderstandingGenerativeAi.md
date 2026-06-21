@@ -1,23 +1,23 @@
 ---
-canonical_id: 01KQ0P44Y6X5XYXSTWV2KKNM54
-summary: What generative AI actually is, how it works at a useful level of abstraction,
-  what it's genuinely good and bad at, and the mental models that prevent expensive
-  mistakes
+status: active
+type: article
+hubs:
+- MlModelDeploymentHub
 date: 2026-03-14T00:00:00Z
 cluster: generative-ai
+title: Understanding Generative AI
+tags:
+- generative-ai
+- productivity
+- beginners
+summary: What generative AI is, how it works, what it's good and bad at, and the mental
+  models that prevent costly mistakes — practical foundation for practitioners.
 related:
 - GenerativeAiAdoptionGuide
 - PracticalPromptEngineering
 - RunningLocalLlms
 - GenerativeAiToolsForIndividuals
-type: article
-status: active
-tags:
-- generative-ai
-- productivity
-- beginners
-hubs:
-- MlModelDeploymentHub
+canonical_id: 01KQ0P44Y6X5XYXSTWV2KKNM54
 ---
 # Generative AI
 

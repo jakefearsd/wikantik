@@ -1,8 +1,19 @@
 ---
 title: Page Graph vs Knowledge Graph
+type: article
 cluster: wikantik-development
-audience: [humans, agents]
-type: explainer
+audience:
+- humans
+- agents
+summary: 'Canonical explainer of two distinct subsystems: the Page Graph (wikilink
+  edges) vs. the Knowledge Graph (LLM-extracted entities) and why not to conflate
+  them.'
+canonical_id: 01KTGSV428AK6A68N69X235ZHT
+tags:
+- page-graph
+- knowledge-graph
+- wikantik-development
+- architecture
 ---
 
 <!-- canonical_id is omitted intentionally — StructuralSpinePageFilter
@@ -10,6 +21,9 @@ type: explainer
      frontmatter. -->
 
 # Page Graph vs Knowledge Graph
+
+> 🌐 **Product overview:** [Page graph on wikantik.com](https://www.wikantik.com/platform/page-graph.html) — a plain-language walkthrough for readers and AI agents.
+
 
 Wikantik distinguishes two graph subsystems. Confusing them is the
 single most common source of bugs and miscommunication when working

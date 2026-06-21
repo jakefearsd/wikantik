@@ -1,8 +1,17 @@
 ---
+title: 'Software Architecture: Managing Distributed Complexity'
+related:
+- SoftwareArchitecturePatterns
+- MicroservicesArchitecture
+- DistributedSystemsHub
+- CapTheorem
+- EventSourcing
+- SagaPattern
 cluster: software-architecture
-canonical_id: 01KQ0P44WQHVES95QKN9731B08
-title: "Software Architecture: Managing Distributed Complexity"
 type: article
+canonical_id: 01KQ0P44WQHVES95QKN9731B08
+summary: DDD for service decomposition, the Saga Pattern for distributed transactions,
+  Event Sourcing and CQRS for state management, and the Service Mesh for resilience.
 tags:
 - software-architecture
 - microservices
@@ -12,14 +21,6 @@ tags:
 - saga-pattern
 - service-mesh
 - resilience-engineering
-summary: A rigorous exploration of distributed software architecture, focusing on Domain-Driven Design (DDD) for service decomposition, the Saga Pattern for distributed transactions, and the implementation of Event Sourcing and CQRS for high-fidelity state management.
-related:
-- SoftwareArchitecturePatterns
-- MicroservicesArchitecture
-- DistributedSystemsHub
-- CapTheorem
-- EventSourcing
-- SagaPattern
 ---
 
 # Software Architecture: The Engineering of Distributed Systems

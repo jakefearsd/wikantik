@@ -1,18 +1,19 @@
 ---
-cluster: emergency-prep
-canonical_id: 01KQ0P44S33R4A3N4T66X0KNP1
-title: Long Term Food Storage
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: Technical guide to archival food preservation. Covers Mylar/OA systems, degradation
+  rates of grains vs fats, and inventory rotation.
 tags:
 - emergency-prep
 - food-storage
 - preservation
 - logistics
 - nutrition
-status: active
-date: 2025-05-15
-summary: Technical guide to archival food preservation. Covers Mylar/OA systems, degradation rates of grains vs fats, and inventory rotation.
+type: article
 auto-generated: false
+cluster: emergency-prep
+canonical_id: 01KQ0P44S33R4A3N4T66X0KNP1
+title: Long-Term Food Storage
 ---
 
 # Long Term Food Storage: Archival Preservation

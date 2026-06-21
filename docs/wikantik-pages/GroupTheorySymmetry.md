@@ -1,17 +1,19 @@
 ---
-cluster: mathematics
-canonical_id: 01KQ0P44QSYVNHK8MZ6JFH4C39
-title: "Group Theory and Symmetry: From Lagrange to Rubik"
-type: article
 tags:
 - group-theory
 - symmetry
 - lagrange-theorem
 - normal-subgroups
 - rubiks-cube
-summary: A concrete exploration of Group Theory focusing on the structural invariants of Lagrange's Theorem, the necessity of Normal Subgroups, and the permutation algebra of the Rubik's Cube.
+cluster: mathematics
+type: article
+date: 2025-01-24T00:00:00Z
 auto-generated: false
-date: 2025-01-24
+canonical_id: 01KQ0P44QSYVNHK8MZ6JFH4C39
+summary: A concrete exploration of Group Theory focusing on the structural invariants
+  of Lagrange's Theorem, the necessity of Normal Subgroups, and the permutation algebra
+  of the Rubik's Cube.
+title: 'Group Theory and Symmetry: From Lagrange to Rubik'
 ---
 
 # Group Theory and Symmetry: Quantum Mechanics to Crystallography

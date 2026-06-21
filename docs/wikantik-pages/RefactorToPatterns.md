@@ -1,10 +1,15 @@
 ---
-cluster: design-patterns
-canonical_id: 01KQ0P44V9JQGB0CNVF9B3EM3N
-type: article
 tags:
-- uncategorized
-summary: Gang of Four Design Pattern Refactoring Opportunities
+- design-patterns
+- refactoring
+- gof
+- software-architecture
+type: article
+summary: 'Six GoF refactoring opportunities for Wikantik: Decorator, Abstract Factory,
+  Builder, Strategy, sealed-type events, and Template Method for provider lifecycle.'
+title: Refactoring to GoF Patterns
+canonical_id: 01KQ0P44V9JQGB0CNVF9B3EM3N
+cluster: design-patterns
 ---
 # Gang of Four Design Pattern Refactoring Opportunities
 

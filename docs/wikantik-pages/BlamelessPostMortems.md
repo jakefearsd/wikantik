@@ -1,26 +1,25 @@
 ---
-canonical_id: 01KQ12YDSP6Z603EZW3ST677A9
-title: Blameless Post Mortems
 type: article
-cluster: software-architecture
 status: active
+cluster: software-architecture
 date: '2026-04-25'
+title: Blameless Post-Mortems
+hubs:
+- SoftwareArchitectureHub
 tags:
 - post-mortem
 - incident-response
 - sre
 - learning-from-incidents
 - reliability
-summary: Blameless post-mortems that actually improve the system — what to write,
-  what to skip, and the failure modes (theatre, blame in disguise, action items
-  that never close) that make them dead documents.
+summary: What to write, what to skip, and the failure modes (theatre, blame in disguise,
+  action items that never close) that make post-mortems dead documents.
 related:
 - IncidentResponse
 - ChaosEngineering
 - ServiceLevelAgreements
 - SecurityIncidentResponse
-hubs:
-- SoftwareArchitectureHub
+canonical_id: 01KQ12YDSP6Z603EZW3ST677A9
 ---
 # Blameless Post-Mortems
 

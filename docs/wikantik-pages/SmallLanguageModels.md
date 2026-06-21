@@ -1,16 +1,18 @@
 ---
-cluster: generative-ai
-canonical_id: 01KQ0P44WM690S8PG1E5TX8VTZ
-title: Small Language Models (SLMs)
-type: article
 tags:
 - slm
 - inference-optimization
 - distillation
 - edge-ai
-summary: A technical analysis of Small Language Models (SLMs) like Phi-3 and Gemma 2B, focusing on knowledge distillation math, parameter efficiency, and edge-deployment trade-offs.
+cluster: generative-ai
+type: article
+date: 2025-01-24T00:00:00Z
 auto-generated: false
-date: 2025-01-24
+canonical_id: 01KQ0P44WM690S8PG1E5TX8VTZ
+summary: A technical analysis of Small Language Models (SLMs) like Phi-3 and Gemma
+  2B, focusing on knowledge distillation math, parameter efficiency, and edge-deployment
+  trade-offs.
+title: Small Language Models (SLMs)
 ---
 
 # Small Language Models (SLMs): Engineering Local Intelligence

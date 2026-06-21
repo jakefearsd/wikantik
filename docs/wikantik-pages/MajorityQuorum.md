@@ -1,19 +1,22 @@
 ---
-title: Majority Quorum
-type: article
-cluster: distributed-systems
-status: published
+status: active
 date: '2026-05-10'
-summary: A mathematical pattern that ensures consistency and fault tolerance by requiring overlapping majorities for read and write operations.
+summary: A mathematical pattern that ensures consistency and fault tolerance by requiring
+  overlapping majorities for read and write operations.
 tags:
 - distributed-systems
 - consistency
 - fault-tolerance
 - mathematics
+type: article
 relations:
-- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
-- {type: related_to, target_id: 01KS7M5J8QYAS6P09AM61S5E2T} # WAL
+- type: component_of
+  target_id: 01KQEKGD9XWDSFGH7TWHH63NZT
+- type: related_to
+  target_id: 01KS7M5J8QYAS6P09AM61S5E2T
+cluster: distributed-systems
 canonical_id: 01KS7N9Z8QYAS6P09AM61S5E2U
+title: Majority Quorum
 ---
 
 # Majority Quorum

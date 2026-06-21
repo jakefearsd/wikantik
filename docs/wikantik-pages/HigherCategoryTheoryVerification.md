@@ -1,15 +1,8 @@
 ---
-title: Higher Category Theory and Agentic Verification
-canonical_id: 01KRQE4ZYWJCNN95NR0KW96SS6
-cluster: mathematics
-relations:
-- type: extension_of
-  target_id: 1be3d7ca-0874-41ea-b058-e162c97cd8cc
-- type: extension_of
-  target_id: 01KQ0P44MYDVFEFKRJ6TCKKNHQ
-- type: component_of
-  target_id: 01J7KQTCD38PBFSD7TD6ACJFDC
-type: article
+status: active
+date: '2026-05-15'
+summary: Infinity-categories, Directed Type Theory, and sheaf-theoretic task characterization
+  for formally verifying autonomous AI agents and distributed protocols.
 tags:
 - category-theory
 - infinity-categories
@@ -17,11 +10,17 @@ tags:
 - agentic-systems
 - distributed-computing
 - logic
-summary: Advanced coverage of Higher Category Theory and infinity-categories. Details
-  2025 research in Directed Type Theory and Sheaf-Theoretic task characterization
-  for verifying autonomous AI agents and distributed protocols.
-status: active
-date: '2026-05-15'
+type: article
+relations:
+- type: extension_of
+  target_id: 1be3d7ca-0874-41ea-b058-e162c97cd8cc
+- type: extension_of
+  target_id: 01KQ0P44MYDVFEFKRJ6TCKKNHQ
+- type: component_of
+  target_id: 01J7KQTCD38PBFSD7TD6ACJFDC
+canonical_id: 01KRQE4ZYWJCNN95NR0KW96SS6
+cluster: mathematics
+title: Higher Category Theory and Agentic Verification
 ---
 
 # Higher Category Theory and Agentic Verification

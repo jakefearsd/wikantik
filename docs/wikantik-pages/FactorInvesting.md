@@ -1,17 +1,18 @@
 ---
-cluster: index-fund-investing
-canonical_id: 01KQ0P44QA6NCWP8RHD6SXPJ2Y
-title: Factor Investing
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: A rigorous examination of factor-based risk premia, Fama-French models, and
+  the math of Value, Size, and Momentum premiums.
 tags:
 - factor-investing
 - quantitative-finance
 - fama-french
 - smart-beta
-status: active
-date: 2025-05-15
-summary: A rigorous examination of factor-based risk premia, Fama-French models, and the math of Value, Size, and Momentum premiums.
+type: article
 auto-generated: false
+cluster: index-fund-investing
+canonical_id: 01KQ0P44QA6NCWP8RHD6SXPJ2Y
+title: Factor Investing
 ---
 
 # Factor Investing: Quantitative Risk Premia

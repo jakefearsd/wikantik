@@ -1,5 +1,8 @@
 ---
-type: article
+status: active
+date: 2026-05-15T00:00:00Z
+summary: An exploration of the founding and growth of the twin cities Berlin and Cölln,
+  their Hanseatic trade, and the consolidation of Hohenzollern power.
 tags:
 - berlin
 - history
@@ -7,18 +10,15 @@ tags:
 - hanseatic
 - hohenzollern
 - urban-development
-summary: An exploration of the founding and growth of the twin cities Berlin and Cölln,
-  their Hanseatic trade, and the consolidation of Hohenzollern power.
-status: active
-date: 2026-05-15T00:00:00Z
-title: 'Medieval Berlin: The Twin-City Origins (1150–1486)'
+type: article
+cluster: berlin-history
+canonical_id: 01J7KQTCC38PBFSD7TD6ACJFCZ
 related:
 - BerlinHistoryHub
 - HistoryPhilosophyHub
 - HuguenotMigrationBerlin
 - PrussianIndustrialRevolution
-cluster: History & Culture
-canonical_id: 01J7KQTCC38PBFSD7TD6ACJFCZ
+title: 'Medieval Berlin: The Twin-City Origins (1150–1486)'
 ---
 
 # Medieval Berlin: The Twin-City Origins (1150–1486)

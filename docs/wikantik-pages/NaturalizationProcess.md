@@ -1,8 +1,16 @@
 ---
+title: 'Naturalization Process: A Compliance Workflow'
+related:
+- H1bVisaProcess
+- ImmigrationPolicyOverview
+- RiskManagement
+- DataGovernance
+- MathematicsHub
 cluster: immigration
-canonical_id: 01KQ0P44SYQZN3TC2FE2VNJ9MS
-title: "Naturalization Process: A Compliance Workflow"
 type: article
+canonical_id: 01KQ0P44SYQZN3TC2FE2VNJ9MS
+summary: 'N-400 naturalization: state-machine status transition, data integrity validation,
+  Good Moral Character assessment, and admissibility risk management.'
 tags:
 - immigration-law
 - naturalization
@@ -10,13 +18,6 @@ tags:
 - compliance-workflow
 - risk-management
 - civics-assessment
-summary: A rigorous exploration of the U.S. naturalization process (N-400) as a multi-stage regulatory compliance system, focusing on state-machine modeling of the legal transition, data integrity validation of the application schema, and advanced risk management for admissibility.
-related:
-- H1bVisaProcess
-- ImmigrationPolicyOverview
-- RiskManagement
-- DataGovernance
-- MathematicsHub
 ---
 
 # Naturalization: The Architecture of Regulatory State Transition

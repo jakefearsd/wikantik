@@ -1,12 +1,24 @@
 ---
-canonical_id: 01KQ0P44QXJJ9FGY7EMGF5MKDK
-type: article
-tags: [retirement, four-percent-rule, withdrawal-rates, financial-history]
-date: 2026-03-21
+date: 2026-03-21T00:00:00Z
 status: active
+summary: How Bengen's 1994 SAFEMAX became the most famous number in retirement planning
+  — from discovery through the Trinity Study to modern reinterpretation
+tags:
+- retirement
+- four-percent-rule
+- withdrawal-rates
+- financial-history
+type: article
 cluster: retirement-planning
-summary: How Bengen's 1994 SAFEMAX became the most famous number in retirement planning — from discovery through the Trinity Study to modern reinterpretation
-related: [SafeWithdrawalRates, GuardrailsSpendingStrategy, RetirementIncomeBlueprint, SocialSecurityClaimingStrategy, FireMovement, RetirementPlanningGuide]
+canonical_id: 01KQ0P44QXJJ9FGY7EMGF5MKDK
+related:
+- SafeWithdrawalRates
+- GuardrailsSpendingStrategy
+- RetirementIncomeBlueprint
+- SocialSecurityClaimingStrategy
+- FireMovement
+- RetirementPlanningGuide
+title: History of the 4% Rule
 ---
 # History of the Four Percent Rule
 
@@ -152,7 +164,7 @@ Today, the 4% rule is understood as a **crude first approximation** that tells y
 
 3. **The real risk is underspending, not overspending**: This is perhaps the most important shift. Research consistently shows that retirees spend less than they can afford. Median estates among 4% rule followers are enormous. The 4% rule's conservatism, originally a feature, is now recognised as a potential cause of unnecessary deprivation.
 
-4. **Context matters more than the number**: A 65-year-old with $2M in savings and $40K in Social Security is in a completely different position than a 45-year-old FIRE retiree with $1M and no Social Security. The 4% rule treats them identically. Modern planning does not.
+4. **Context matters more than the number**: A 65-year-old with \$2M in savings and \$40K in Social Security is in a completely different position than a 45-year-old FIRE retiree with $1M and no Social Security. The 4% rule treats them identically. Modern planning does not.
 
 5. **Flexibility is the real safety mechanism**: Bengen's original insight — that sequence of returns can devastate a rigid plan — is still valid. But the solution isn't to start with a lower fixed rate. It's to build in rules that adjust spending when conditions change. The [guardrails approach](GuardrailsSpendingStrategy) does exactly this, often allowing a higher initial rate than 4% with lower risk.
 

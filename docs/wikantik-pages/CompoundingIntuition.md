@@ -1,10 +1,19 @@
 ---
-canonical_id: 01KQ0P44NRCJ3NCAWTAE7RZF2V
-summary: A layperson's guide to compound interest — how it works, why it feels counterintuitive,
-  the Rule of 72 and other mental shortcuts for estimating growth, and why starting
-  early matters more than investing well
+status: active
+type: article
+hubs:
+- TypesofInvestmentAccountsTutorialHub
 date: 2026-03-14T00:00:00Z
 cluster: index-fund-investing
+title: Compounding Intuition
+tags:
+- personal-finance
+- retirement-planning
+- compound-interest
+- investing
+- beginners
+summary: A layperson's guide to compound interest — how exponential growth works,
+  the Rule of 72 for estimating it, and why starting early matters most.
 related:
 - RetirementPlanningGuide
 - CoastFire
@@ -16,16 +25,7 @@ related:
 - BasicsOfCompoundInterest
 - RuleOf72AndInvestmentGrowthCalculations
 - CompoundInterestAndTaxAdvantagedAccounts
-type: article
-tags:
-- personal-finance
-- retirement-planning
-- compound-interest
-- investing
-- beginners
-status: active
-hubs:
-- TypesofInvestmentAccountsTutorialHub
+canonical_id: 01KQ0P44NRCJ3NCAWTAE7RZF2V
 ---
 # Compounding Intuition
 
@@ -37,34 +37,34 @@ For the formal definition and mathematical formulas, see [Basics of Compound Int
 
 ### The Simple Version
 
-You invest $1,000. It earns 10% in the first year: $100. Now you have $1,100.
+You invest \$1,000. It earns 10% in the first year: \$100. Now you have \$1,100.
 
-In the second year, you earn 10% on $1,100 — not on the original $1,000. That's $110. Now you have $1,210.
+In the second year, you earn 10% on \$1,100 — not on the original \$1,000. That's \$110. Now you have \$1,210.
 
-In the third year, you earn 10% on $1,210: $121. Now you have $1,331.
+In the third year, you earn 10% on \$1,210: \$121. Now you have \$1,331.
 
-Notice what happened: your earnings went from $100 to $110 to $121. You didn't add any money. The money started earning money on the money it had already earned. That's compounding.
+Notice what happened: your earnings went from \$100 to \$110 to \$121. You didn't add any money. The money started earning money on the money it had already earned. That's compounding.
 
 ### The Snowball Analogy
 
 Imagine rolling a snowball down a hill. At the top, it's small and picks up only a thin layer of snow with each rotation. But each layer makes the ball bigger, which means the next rotation picks up a larger layer, which makes the ball bigger still. The ball that took 10 minutes to grow from fist-sized to football-sized takes only 2 more minutes to go from football-sized to boulder-sized.
 
-Money compounds the same way. The first $100,000 is the hardest and slowest. The second $100,000 comes faster. The third faster still. By the time you have $500,000, the portfolio might be generating $35,000-$50,000 per year in growth on its own — more than many people save from their paycheques.
+Money compounds the same way. The first \$100,000 is the hardest and slowest. The second \$100,000 comes faster. The third faster still. By the time you have \$500,000, the portfolio might be generating \$35,000-\$50,000 per year in growth on its own — more than many people save from their paycheques.
 
 ### Why It Feels Wrong
 
-Humans intuitively think in straight lines. If you're saving $10,000 per year, your brain predicts $100,000 after 10 years, $200,000 after 20 years, $300,000 after 30 years. Neat, proportional, wrong.
+Humans intuitively think in straight lines. If you're saving \$10,000 per year, your brain predicts \$100,000 after 10 years, \$200,000 after 20 years, \$300,000 after 30 years. Neat, proportional, wrong.
 
 With 7% annual returns, the actual numbers:
 
 | Years | Your Contributions | Your Portfolio | Growth (Free Money) |
 |-------|--------------------|----------------|---------------------|
-| 10 | $100,000 | $147,000 | $47,000 |
-| 20 | $200,000 | $438,000 | $238,000 |
-| 30 | $300,000 | $1,010,000 | $710,000 |
-| 40 | $400,000 | $2,140,000 | $1,740,000 |
+| 10 | \$100,000 | \$147,000 | \$47,000 |
+| 20 | \$200,000 | \$438,000 | \$238,000 |
+| 30 | \$300,000 | \$1,010,000 | \$710,000 |
+| 40 | \$400,000 | \$2,140,000 | \$1,740,000 |
 
-After 40 years, you put in $400,000 and received $1,740,000 in growth — more than four times your contributions. The growth isn't a bonus on top of your savings. It *is* most of your wealth. Your savings just got the snowball started.
+After 40 years, you put in \$400,000 and received \$1,740,000 in growth — more than four times your contributions. The growth isn't a bonus on top of your savings. It *is* most of your wealth. Your savings just got the snowball started.
 
 ## The Rule of 72: Your Mental Calculator
 
@@ -84,15 +84,15 @@ The Rule of 72 is the single most useful estimation shortcut in finance:
 
 ### Using the Rule of 72 in Your Head
 
-**Question**: "I have $50,000 invested in index funds returning roughly 7% after inflation. How much will I have in 30 years if I never add another dollar?"
+**Question**: "I have \$50,000 invested in index funds returning roughly 7% after inflation. How much will I have in 30 years if I never add another dollar?"
 
 **Mental math**:
 - 72 / 7 = ~10 years to double
-- After 10 years: $100,000
-- After 20 years: $200,000
-- After 30 years: $400,000
+- After 10 years: \$100,000
+- After 20 years: \$200,000
+- After 30 years: \$400,000
 
-**Actual answer** (with a calculator): $381,000. The Rule of 72 got you within 5% — close enough for any planning conversation.
+**Actual answer** (with a calculator): \$381,000. The Rule of 72 got you within 5% — close enough for any planning conversation.
 
 **Question**: "My colleague says his fund returns 12% per year. How long to double?"
 
@@ -122,7 +122,7 @@ The Rule of 72 has lesser-known siblings:
 | 7% | 10.3 years | 16.3 years | 20.6 years | 34.3 years |
 | 10% | 7.2 years | 11.4 years | 14.4 years | 24 years |
 
-**Quick application**: At 7% real returns, your money roughly triples every 16 years and quadruples every 21 years. This is the mathematical foundation of [CoastFIRE](CoastFire) — if a 25-year-old saves $100,000, they'll have roughly $400,000 by 46 and $800,000 by 56 without adding another dollar.
+**Quick application**: At 7% real returns, your money roughly triples every 16 years and quadruples every 21 years. This is the mathematical foundation of [CoastFIRE](CoastFire) — if a 25-year-old saves \$100,000, they'll have roughly \$400,000 by 46 and \$800,000 by 56 without adding another dollar.
 
 ## The Rule of 10/3: What Happens Across a Career
 
@@ -136,10 +136,10 @@ This means:
 
 | Invested Once at Age 25 | Worth at Age 60 |
 |------------------------|----------------|
-| $1,000 | ~$10,000 |
-| $5,000 | ~$50,000 |
-| $10,000 | ~$100,000 |
-| $50,000 | ~$500,000 |
+| \$1,000 | ~\$10,000 |
+| \$5,000 | ~\$50,000 |
+| \$10,000 | ~\$100,000 |
+| \$50,000 | ~\$500,000 |
 
 Every dollar you invest at 25 is worth roughly ten dollars at 60. Every dollar you *don't* invest at 25 costs you ten dollars at 60.
 
@@ -149,22 +149,22 @@ This is why financial advisors sound like broken records about starting early. T
 
 People often say "I'll start investing later when I earn more." The compounding math reveals why this is the most expensive decision in personal finance.
 
-**Three friends, same total contribution of $200,000:**
+**Three friends, same total contribution of \$200,000:**
 
 | | Early Emma | Middle Mike | Late Laura |
 |--|-----------|------------|------------|
 | Starts investing at age | 25 | 35 | 45 |
 | Stops investing at age | 45 | 55 | 65 |
 | Years of contributions | 20 | 20 | 20 |
-| Annual contribution | $10,000 | $10,000 | $10,000 |
-| Total contributed | $200,000 | $200,000 | $200,000 |
-| **Portfolio at age 65** | **$1,280,000** | **$620,000** | **$265,000** |
+| Annual contribution | \$10,000 | \$10,000 | \$10,000 |
+| Total contributed | \$200,000 | \$200,000 | \$200,000 |
+| **Portfolio at age 65** | **\$1,280,000** | **\$620,000** | **\$265,000** |
 
 *Assumes 7% annual returns.*
 
 Emma invested the same amount as Laura but ended up with nearly **5 times** more money. She didn't invest better. She didn't invest more. She invested *sooner*.
 
-The gap is even more striking when you note that Emma stopped contributing at 45. She invested nothing for 20 years while her portfolio grew from $440,000 to $1,280,000 — $840,000 in free growth. Laura invested diligently for 20 years but her money never had time to compound.
+The gap is even more striking when you note that Emma stopped contributing at 45. She invested nothing for 20 years while her portfolio grew from \$440,000 to \$1,280,000 — \$840,000 in free growth. Laura invested diligently for 20 years but her money never had time to compound.
 
 **The lesson**: The best time to start investing was 10 years ago. The second best time is today.
 
@@ -176,19 +176,19 @@ Compounding works in both directions. Just as returns compound in your favour, c
 
 A mutual fund charging 1% per year doesn't just cost you 1% — it costs you the compounding on that 1% for every future year.
 
-| Investment | Annual Return (Gross) | Expense Ratio | Net Return | $100K After 30 Years |
+| Investment | Annual Return (Gross) | Expense Ratio | Net Return | \$100K After 30 Years |
 |-----------|---------------------|--------------|-----------|---------------------|
-| Index fund | 7% | 0.03% | 6.97% | $761,000 |
-| Average active fund | 7% | 0.75% | 6.25% | $624,000 |
-| Expensive active fund | 7% | 1.50% | 5.50% | $505,000 |
+| Index fund | 7% | 0.03% | 6.97% | \$761,000 |
+| Average active fund | 7% | 0.75% | 6.25% | \$624,000 |
+| Expensive active fund | 7% | 1.50% | 5.50% | \$505,000 |
 
-The 1.47% difference between the index fund and the expensive fund compounded into $256,000 — a quarter of a million dollars lost to fees. The fund company got paid for 30 years of compounding that should have been yours.
+The 1.47% difference between the index fund and the expensive fund compounded into \$256,000 — a quarter of a million dollars lost to fees. The fund company got paid for 30 years of compounding that should have been yours.
 
 See [Expense Ratio Deep Dive](ExpenseRatioDeepDive) for the full analysis.
 
 ### Inflation
 
-Inflation is a silent compounding force working against you. At 3% inflation, $100 today buys only $41 worth of goods in 30 years. This is why financial planning uses "real" (inflation-adjusted) returns rather than "nominal" returns.
+Inflation is a silent compounding force working against you. At 3% inflation, \$100 today buys only \$41 worth of goods in 30 years. This is why financial planning uses "real" (inflation-adjusted) returns rather than "nominal" returns.
 
 When you see "7% returns" in this wiki's articles, it typically means 7% real — roughly 10% nominal minus 3% inflation. This is a deliberate choice to keep the numbers honest.
 
@@ -206,14 +206,14 @@ See [Compound Interest and Tax-Advantaged Accounts](CompoundInterestAndTaxAdvant
 | Rule of 114 | 114 / return = years to 3x | How fast money triples | ~16 years |
 | Rule of 144 | 144 / return = years to 4x | How fast money quadruples | ~21 years |
 | Rule of 240 | 240 / return = years to 10x | Career-length growth | ~34 years |
-| 10x Rule | $1 at 25 = ~$10 at 60 | Cost of delay | $10K now = ~$100K later |
-| Fee Drag | 1% fee = ~25% less after 30yr | Cost of high fees | $100K loses ~$140K |
+| 10x Rule | \$1 at 25 = ~\$10 at 60 | Cost of delay | \$10K now = ~\$100K later |
+| Fee Drag | 1% fee = ~25% less after 30yr | Cost of high fees | \$100K loses ~\$140K |
 
 ## How Compounding Connects to Retirement Planning
 
 Compounding is the engine behind every article in this cluster:
 
-- **[CoastFIRE](CoastFire)** works because $300K at 30 compounds to $1.5M+ by 65 without adding a dollar
+- **[CoastFIRE](CoastFire)** works because \$300K at 30 compounds to \$1.5M+ by 65 without adding a dollar
 - **[The FIRE Movement](FireMovement)** uses the 25x rule (inverse of 4%), which assumes your portfolio's compounding replaces your income indefinitely
 - **[Safe Withdrawal Rates](SafeWithdrawalRates)** depend on the portfolio continuing to compound even during withdrawals — which is why [sequence of returns risk](SafeWithdrawalRates) matters so much
 - **[Roth Conversion Strategy](RothConversionStrategy)** moves money into accounts where compounding is permanently tax-free

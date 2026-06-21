@@ -1,10 +1,19 @@
 ---
+canonical_id: 01KVJMS1RTVS9VY7PZ5969ARNT
 title: Physics Engineering
+tags:
+- physics-engineering
+- sensor-design
+- gravitational-waves
+- precision-instrumentation
+- pinns
+- 2026-benchmarks
 cluster: physics-engineering
-tags: [physics-engineering, sensor-design, gravitational-waves, precision-instrumentation, pinns, 2026-benchmarks]
+type: reference
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The application of physical principles to the design of complex systems. Covers precision sensor engineering for LISA, Physics-Informed Neural Networks (PINNs), and exascale simulation benchmarks.
+summary: 'Physical principles in complex systems: precision sensor engineering for
+  LISA, Physics-Informed Neural Networks (PINNs), and exascale simulation benchmarks.'
 ---
 
 # Physics Engineering: Bridging Theory and Implementation

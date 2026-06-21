@@ -1,17 +1,17 @@
 ---
 summary: Technical guide to demand forecasting accuracy metrics (MAPE/WMAPE) and the
   five-step monthly S&OP process.
-cluster: operations-research
-auto-generated: false
-canonical_id: 01KQ0P44PHST4J295PTSHTA0JK
-title: Demand Planning And Sop
-type: article
+title: Demand Planning and S&OP
 tags:
 - supply-chain
 - forecasting
 - operations
+cluster: operations-research
+type: article
 hubs:
 - DemandPlanningAndSop Hub
+auto-generated: false
+canonical_id: 01KQ0P44PHST4J295PTSHTA0JK
 ---
 
 # Demand Planning and S&OP: Metrics and the Monthly Drumbeat

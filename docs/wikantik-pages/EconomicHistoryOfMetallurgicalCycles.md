@@ -1,4 +1,8 @@
 ---
+status: active
+date: '2026-05-10'
+summary: 'Currency debasement cycles from Rome to 2026: the Roman Denarius collapse,
+  Spanish silver arbitrage, and the 2026 sovereign gold flight-to-quality inflection.'
 tags:
 - numismatics
 - economics
@@ -15,11 +19,6 @@ related:
 - CoinGradingAndAuthentication
 - ConflictsAndEquityMarkets
 title: 'The Economic History of Metallurgical Cycles: Rome to 2026'
-status: active
-date: '2026-05-10'
-summary: An authoritative analysis of currency debasement cycles, comparing the Roman
-  Imperial collapse, the Spanish 'Secret' debasements, and the 2026 'Flight to Quality'
-  in sovereign gold.
 ---
 # The Economic History of Metallurgical Cycles: Rome to 2026
 

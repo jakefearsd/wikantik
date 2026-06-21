@@ -1,15 +1,16 @@
 ---
-cluster: geopolitics-and-finance
-canonical_id: 01KQ0P44NNHBSM1J5G5QCQ2EYM
-title: Cold War Technology Race
-type: article
 tags:
 - computing-history
 - cold-war
 - space-race
 - embedded-systems
 - radiation-hardening
-summary: A rigorous exploration of the technological feedback loop between the Cold War, the Space Race, and the genesis of modern computing, focusing on miniaturization, real-time operating systems (RTOS), and radiation-hardened hardware.
+type: article
+summary: 'Cold War and Space Race as a technological forcing function: miniaturization,
+  RTOS, radiation-hardened hardware, and the genesis of modern computing.'
+title: Cold War Technology Race
+cluster: geopolitics-and-finance
+canonical_id: 01KQ0P44NNHBSM1J5G5QCQ2EYM
 ---
 
 # The Genesis of Modern Computing: The Cold War and Space Race

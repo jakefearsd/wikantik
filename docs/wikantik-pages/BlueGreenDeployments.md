@@ -1,26 +1,25 @@
 ---
-canonical_id: 01KQEKGD7VHR9Y4FJQRZZ1KC12
-title: Blue Green Deployments
 type: article
-cluster: software-architecture
 status: active
+cluster: software-architecture
 date: '2026-04-25'
+title: Blue-Green Deployments
+hubs:
+- SoftwareArchitectureHub
 tags:
 - deployment
 - continuous-delivery
 - blue-green
 - canary
 - progressive-delivery
-summary: Blue-green deployment compared to canary, rolling, and recreate —
-  what each guarantees, what each costs, and the patterns most production
-  systems actually use.
+summary: Blue-green deployment compared to canary, rolling, and recreate — what each
+  guarantees, what each costs, and the patterns most production systems actually use.
 related:
 - ContainerOrchestration
 - DarkLaunchPatterns
 - CanaryDeployments
 - ChaosEngineering
-hubs:
-- SoftwareArchitectureHub
+canonical_id: 01KQEKGD7VHR9Y4FJQRZZ1KC12
 ---
 # Blue-Green Deployments
 

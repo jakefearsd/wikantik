@@ -1,20 +1,21 @@
 ---
-canonical_id: 01KQ0P44YZAEVHTS0BB2KS9ZQX
-summary: Designed but not yet built skill for automated wiki content quality auditing
+depends-on:
+- McpIntegration
+status: active
+type: article
+date: '2026-03-20'
+cluster: wikantik-development
+title: Wiki Audit Skill
 tags:
 - development
 - audit
 - content-quality
 - mcp
-type: article
-status: designed
-cluster: wikantik-development
-date: '2026-03-20'
-depends-on:
-- McpIntegration
+summary: Designed but not yet built skill for automated wiki content quality auditing
 related:
 - McpAuditTools
 - WikantikDevelopment
+canonical_id: 01KQ0P44YZAEVHTS0BB2KS9ZQX
 ---
 # Wiki Audit Skill
 

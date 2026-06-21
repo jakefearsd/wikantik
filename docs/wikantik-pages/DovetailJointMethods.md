@@ -1,8 +1,16 @@
 ---
-cluster: hobby-woodworking
-canonical_id: 01KQ0P44PYSN07T9YZWJGATRTP
 title: Dovetail Joint Methods
+related:
+- WorkshopLayoutAndDustCollection
+- FastenerEngineering
+- MechanicalCoupling
+- MathematicsHub
+- NumericalMethods
+cluster: hobby-woodworking
 type: article
+canonical_id: 01KQ0P44PYSN07T9YZWJGATRTP
+summary: 'Dovetail joinery: rake-angle optimization, guided-chisel systems, and CNC-milled
+  interfaces for repeatable pins and tails in hardwood casework.'
 tags:
 - woodworking
 - joinery
@@ -10,13 +18,6 @@ tags:
 - kinematics
 - material-removal
 - precision-engineering
-summary: A rigorous exploration of dovetail joinery through the lens of material removal kinetics and structural mechanics, focusing on the mathematical optimization of rake angles, hybrid guided-chisel systems, and the transition from manual skill to machine-assisted precision.
-related:
-- WorkshopLayoutAndDustCollection
-- FastenerEngineering
-- MechanicalCoupling
-- MathematicsHub
-- NumericalMethods
 ---
 
 # Dovetail Joinery: Advanced Kinematics and Material Removal

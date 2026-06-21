@@ -1,16 +1,17 @@
 ---
-cluster: databases
 canonical_id: 01KQ0P44XGBAGJW390S9ZNSV42
 title: Temporal Tables
-type: article
 tags:
 - sql
 - databases
 - auditing
 - temporal-logic
-summary: A technical deep dive into SQL:2011 System-Versioned Temporal Tables, focusing on the 'AS OF' query syntax and the architecture of immutable history logs.
+cluster: databases
+type: article
+date: 2024-05-16T00:00:00Z
 auto-generated: false
-date: 2024-05-16
+summary: SQL:2011 system-versioned temporal tables — AS OF query syntax, immutable
+  history logs for auditing, point-in-time recovery, and storage trade-offs.
 ---
 # Temporal Tables: The SQL:2011 Standard
 

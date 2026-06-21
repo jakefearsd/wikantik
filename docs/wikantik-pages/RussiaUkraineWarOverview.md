@@ -1,11 +1,17 @@
 ---
-canonical_id: 01KQ0P44VZN6EV310SWYP621WF
+date: '2026-03-13'
+status: active
+summary: Comprehensive overview of the Russia-Ukraine war as of March 2026, covering
+  four years of full-scale conflict
 tags:
-- Russia
-- Ukraine
+- russia
+- ukraine
 - war
 - geopolitics
 - conflict
+type: hub
+cluster: russia-ukraine-war
+canonical_id: 01KQ0P44VZN6EV310SWYP621WF
 related:
 - RussiaUkraineWarPeaceNegotiations
 - RussiaUkraineWarHumanitarianCrisis
@@ -14,12 +20,7 @@ related:
 - RussiaUkraineWarInternationalResponse
 - ConflictsAndEquityMarkets
 - RussiaUkraineWarMarkets
-summary: Comprehensive overview of the Russia-Ukraine war as of March 2026, covering
-  four years of full-scale conflict
-status: active
-date: '2026-03-13'
-type: hub
-cluster: russia-ukraine-war
+title: 'Russia-Ukraine War: Overview'
 ---
 # The Russia-Ukraine War
 

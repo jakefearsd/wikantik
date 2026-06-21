@@ -1,17 +1,18 @@
 ---
-cluster: warehouse-automation
-canonical_id: 01KQ0P44WN4YKY8QQBCWA347ZN
-title: Small Manufacturing Tech
-type: article
+status: active
+date: 2025-05-15T00:00:00Z
+summary: A technical comparison of 3D printing and injection molding, focusing on
+  economies of scale and cross-over points for small manufacturers.
 tags:
 - manufacturing
 - 3d-printing
 - injection-molding
 - economies-of-scale
-status: active
-date: 2025-05-15
-summary: A technical comparison of 3D printing and injection molding, focusing on economies of scale and cross-over points for small manufacturers.
+type: article
 auto-generated: false
+cluster: warehouse-automation
+canonical_id: 01KQ0P44WN4YKY8QQBCWA347ZN
+title: Small Manufacturing Tech
 ---
 
 # Small Manufacturing: 3D Printing vs. Injection Molding
@@ -23,7 +24,7 @@ For small-scale manufacturers and hardware startups, the choice of production te
 Injection molding requires a high initial investment in tooling (the mold).
 
 ### 1.1 Cost Structure
-*   **Fixed Cost (CapEx):** High. A CNC-machined steel or aluminum mold can cost $5,000 to$50,000+.
+*   **Fixed Cost (CapEx):** High. A CNC-machined steel or aluminum mold can cost \$5,000 to\$50,000+.
 *   **Variable Cost (OpEx):** Very Low. Material and energy costs per unit are minimal (pennies).
 *   **Total Cost:** $TC = Fixed\_Cost + (Variable\_Cost \times Volume)$.
 
@@ -36,7 +37,7 @@ Additive manufacturing (FDM, SLA, SLS) bypasses the need for tooling.
 
 ### 2.1 Cost Structure
 *   **Fixed Cost (CapEx):** Negligible (setup time, software).
-*   **Variable Cost (OpEx):** High. Specialised filaments/resins and long print times (labor/electricity per hour) make per-unit costs significant ($1 to$20+).
+*   **Variable Cost (OpEx):** High. Specialised filaments/resins and long print times (labor/electricity per hour) make per-unit costs significant (\$1 to$20+).
 *   **Total Cost:** $TC \approx Variable\_Cost \times Volume$.
 
 ### 2.2 The "Complexity is Free" Paradigm

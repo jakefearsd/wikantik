@@ -1,12 +1,21 @@
 ---
-title: Smart Contracts for Autonomous Agents
-type: article
-cluster: blockchain-tech
-status: active
-date: 2026-05-15
-summary: The intersection of Agentic AI and Blockchain. How smart contracts enable machine-to-machine (M2M) commerce, multi-sig resource management, and trustless data oracles.
 auto-generated: false
+status: active
+type: article
 kg_include: true
+date: 2026-05-15T00:00:00Z
+cluster: blockchain-tech
+title: Smart Contracts for Autonomous Agents
+tags:
+- smart-contracts
+- agentic-ai
+- blockchain
+- m2m-commerce
+- autonomous-agents
+summary: The intersection of Agentic AI and Blockchain. How smart contracts enable
+  machine-to-machine (M2M) commerce, multi-sig resource management, and trustless
+  data oracles.
+canonical_id: 01KVJMS22YQNWNKATD7Q4VGY40
 ---
 
 # Smart Contracts for Autonomous Agents
@@ -24,9 +33,9 @@ Consider an AI research agent that needs to hire a specialized "Data Cleaning Ag
     *   **Key A**: The Research Agent.
     *   **Key B**: An Oversight Agent (an LLM dedicated to budget compliance).
     *   **Key C**: A Human Supervisor (for emergency intervention).
-2.  **Threshold**: 2-of-3 signatures required for any transaction > $100.
+2.  **Threshold**: 2-of-3 signatures required for any transaction > \$100.
 3.  **Workflow**:
-    *   Research Agent initiates a payment of $250 to the Cleaning Agent's address.
+    *   Research Agent initiates a payment of \$250 to the Cleaning Agent's address.
     *   Oversight Agent analyzes the request, verifies it matches the project scope, and provides the second signature.
     *   The transaction is broadcast to the blockchain and the Cleaning Agent is paid.
 

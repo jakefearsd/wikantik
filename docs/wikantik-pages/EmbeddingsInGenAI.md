@@ -1,18 +1,19 @@
 ---
-cluster: agentic-ai
-canonical_id: 01KQ0P44Q3M85P40GPRDYZZP5S
-title: Embeddings in Gen AI
-type: article
+status: active
+date: '2026-04-24'
+summary: Technical analysis of vector embeddings for Large Language Models, covering
+  similarity metrics, vector quantization (PQ/SQ), and Matryoshka dimensionality.
 tags:
 - generative-ai
 - embeddings
 - nlp
 - semantic-search
 - vector-math
-status: active
-date: '2026-04-24'
-summary: Technical analysis of vector embeddings for Large Language Models, covering similarity metrics, vector quantization (PQ/SQ), and Matryoshka dimensionality.
+type: article
 auto-generated: false
+cluster: agentic-ai
+canonical_id: 01KQ0P44Q3M85P40GPRDYZZP5S
+title: Embeddings in Gen AI
 ---
 # Embeddings: The Geometry of Meaning
 

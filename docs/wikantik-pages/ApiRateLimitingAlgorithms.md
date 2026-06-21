@@ -1,20 +1,21 @@
 ---
-canonical_id: 01KQ12YDS4PEG0YNE5737WDGJA
-title: Api Rate Limiting Algorithms
+auto-generated: false
 type: article
-cluster: software-architecture
 status: active
+cluster: software-architecture
 date: '2026-04-26'
+title: API Rate Limiting Algorithms
+hubs:
+- SoftwareArchitectureHub
 tags:
 - rate-limiting
 - token-bucket
 - algorithms
 - api-design
 - redis
-summary: Technical deep-dive into rate limiting algorithms (Token Bucket, Sliding Window) and atomic implementation strategies using Redis Lua.
-auto-generated: false
-hubs:
-- SoftwareArchitectureHub
+summary: Technical deep-dive into rate limiting algorithms (Token Bucket, Sliding
+  Window) and atomic implementation strategies using Redis Lua.
+canonical_id: 01KQ12YDS4PEG0YNE5737WDGJA
 ---
 
 Rate limiting protects APIs from resource exhaustion and abuse by enforcing a ceiling on the number of requests a caller can make within a specified temporal window.

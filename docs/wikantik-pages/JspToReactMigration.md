@@ -1,20 +1,22 @@
 ---
-canonical_id: 01KQ0P44REFP9483SXP4P9S0FG
-summary: Migration from JSP server-rendered templates to a React SPA with Vite, React Router, and a REST API backend
+status: active
+type: article
+date: '2026-03-28'
+cluster: wikantik-development
+title: JSP to React Migration
 tags:
 - development
 - react
 - frontend
 - migration
 - spa
-type: article
-status: deployed
-cluster: wikantik-development
-date: '2026-03-28'
+summary: Migration from JSP server-rendered templates to a React SPA with Vite, React
+  Router, and a REST API backend
 related:
 - WikantikDevelopment
 - AdminSecurityUi
 - DatabaseBackedPermissions
+canonical_id: 01KQ0P44REFP9483SXP4P9S0FG
 enables:
 - AdminSecurityUi
 - KnowledgeAdminUi

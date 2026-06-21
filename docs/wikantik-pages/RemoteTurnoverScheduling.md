@@ -1,8 +1,17 @@
 ---
-cluster: remote-host-management
-canonical_id: 01KQ0P44VF6J7W3CAAN6T2KGBQ
 title: Remote Turnover Scheduling in Off-Grid Environments
+related:
+- OperationsResearchHub
+- CapacityModeling
+- MonitoringAndAlerting
+- SystemsThinking
+- MultiObjectiveOptimization
+- MathematicsHub
+cluster: remote-host-management
 type: article
+canonical_id: 01KQ0P44VF6J7W3CAAN6T2KGBQ
+summary: Off-grid turnover scheduling via the DRCSM state-vector model, multi-objective
+  Pareto optimization, and real-time IoT feedback loops for facility readiness.
 tags:
 - remote-management
 - facility-management
@@ -11,14 +20,6 @@ tags:
 - drcsm
 - moo
 - scheduling-algorithms
-summary: A rigorous exploration of turnover scheduling in resource-constrained environments, focusing on the Dynamic Resource Constraint Satisfaction Model (DRCSM), multi-objective optimization (MOO) for scarcity management, and the integration of IoT feedback loops for adaptive facility readiness.
-related:
-- OperationsResearchHub
-- CapacityModeling
-- MonitoringAndAlerting
-- SystemsThinking
-- MultiObjectiveOptimization
-- MathematicsHub
 ---
 
 # Scarcity Management: The Architecture of Off-Grid Scheduling

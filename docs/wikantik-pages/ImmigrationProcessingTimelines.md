@@ -1,13 +1,14 @@
 ---
-cluster: immigration
-canonical_id: 01KQ0P44R28KHTRQ27CBDM3Y1B
-title: Immigration Processing Timelines
-type: article
 tags:
 - compliance
 - litigation
 - uscis
-summary: Analysis of USCIS service center variability, workload balancing, and the use of Mandamus lawsuits for addressing adjudication delays.
+title: Immigration Processing Timelines
+cluster: immigration
+type: article
+canonical_id: 01KQ0P44R28KHTRQ27CBDM3Y1B
+summary: Analysis of USCIS service center variability, workload balancing, and the
+  use of Mandamus lawsuits for addressing adjudication delays.
 auto-generated: false
 ---
 
@@ -49,7 +50,7 @@ A Mandamus lawsuit does not ask the court to *approve* the case; it asks the cou
 ### Strategic Outcomes
 1.  **The "60-Day" Response:** Upon being served, the U.S. Attorney’s office (representing USCIS) usually has 60 days to respond. In many cases, USCIS will adjudicate the case (approve or issue an RFE) within this 60-day window to moot the lawsuit.
 2.  **Risk of Denial:** A Mandamus forces a decision, but it does not guarantee an approval. If the case is weak, the lawsuit may trigger a quick denial or a complex RFE.
-3.  **Cost:** Filing fees and legal fees for a Mandamus typically range from $4,000 to $8,000, making it an "investment" in certainty for critical cases.
+3.  **Cost:** Filing fees and legal fees for a Mandamus typically range from \$4,000 to $8,000, making it an "investment" in certainty for critical cases.
 
 ## 4. Summary for Practitioners
 *   **Monitor Receipts:** Use trackers to identify if your case is at a center that is currently "slow" compared to the national average.

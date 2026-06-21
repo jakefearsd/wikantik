@@ -1,8 +1,4 @@
 ---
-canonical_id: 01KQ0P44PZQTMDH4RXPEXJWQA6
-title: DownsizingInRetirementHub
-type: hub
-cluster: retirement-planning
 status: active
 date: '2026-04-26'
 summary: Index of pages on downsizing and relocation in retirement — the financial,
@@ -12,11 +8,15 @@ tags:
 - retirement-relocation
 - retirement
 - hub
+type: hub
+canonical_id: 01KQ0P44PZQTMDH4RXPEXJWQA6
+cluster: retirement-planning
 related:
 - DownsizingInRetirement
 - RetirementPlanningForLateStarters
 - RetirementRelocationAnalysis
 - RetirementPlanningGuide
+title: Downsizing and Relocation in Retirement
 ---
 # DownsizingInRetirement Hub
 

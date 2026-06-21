@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ0P44SJ92AV14Z89S8V8H4Z
-title: ML Model Deployment
-type: article
-cluster: machine-learning
-status: active
 date: '2026-04-26'
 summary: The end-to-end process of deploying ML models to production — packaging,
   versioning, infrastructure, monitoring, rollback, and the organizational practices
   that make deployment routine instead of risky.
+cluster: machine-learning
+related:
+- InferenceServing
+- CostEffectiveInference
+- CrossValidationAndModelEvaluation
+canonical_id: 01KQ0P44SJ92AV14Z89S8V8H4Z
+type: article
+title: ML Model Deployment
+status: active
+hubs:
+- MLHub
+- MlModelDeploymentHub
 tags:
 - deployment
 - mlops
 - machine-learning
 - production
 - versioning
-related:
-- InferenceServing
-- CostEffectiveInference
-- CrossValidationAndModelEvaluation
-hubs:
-- MLHub
 ---
 # ML Model Deployment
 

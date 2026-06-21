@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ0P44VN9F77AQKSKBC4SP25
-title: Retirement Planning for Women
 type: article
-cluster: retirement-planning
 status: active
+cluster: retirement-planning
 date: '2026-04-26'
-summary: How retirement planning differs for women — longer life expectancy, career
-  interruptions, Social Security gaps, widowhood, and the patterns that address the
-  specific challenges.
+title: Retirement Planning for Women
+hubs:
+- RetirementPlanningGuide
 tags:
 - women
 - retirement
 - gender-gap
 - longevity
 - caregiving
+summary: How retirement planning differs for women — longer life expectancy, career
+  interruptions, Social Security gaps, widowhood, and the patterns that address the
+  specific challenges.
 related:
 - RetirementPlanningForCouples
 - SocialSecuritySpousalAndSurvivorBenefits
 - LongTermCareInsurance
 - DivorceAndRetirementPlanning
-hubs:
-- RetirementPlanningGuide
+canonical_id: 01KQ0P44VN9F77AQKSKBC4SP25
 ---
 # Retirement Planning for Women
 
@@ -150,7 +150,7 @@ For women with side income, freelance work: SEP-IRA, Solo 401(k), SIMPLE IRA. La
 
 ### Aggressive late-career savings
 
-50+: catch-up contributions (extra $7,500/year for 401(k); extra $1,000 for IRA). Use them.
+50+: catch-up contributions (extra \$7,500/year for 401(k); extra $1,000 for IRA). Use them.
 
 ### Defer Social Security
 

@@ -1,8 +1,16 @@
 ---
-cluster: van-life
-canonical_id: 01KQ0P44S6KQEYKR82HXSFMRHC
 title: Mail and Domicile for Nomads
+related:
+- BackpackingGuide
+- AdventureTravelPlanning
+- HealthyOnTheRoadAfter40
+- RiskManagement
+- DataGovernance
+cluster: van-life
 type: article
+canonical_id: 01KQ0P44S6KQEYKR82HXSFMRHC
+summary: Virtual mailbox proxies, legal domicile vs. tax nexus distinctions, and registered-agent
+  strategies for nomadic administrative compliance across jurisdictions.
 tags:
 - van-life
 - nomads
@@ -11,13 +19,6 @@ tags:
 - registered-agent
 - tax-residency
 - legal-identity
-summary: A rigorous exploration of nomadic administrative architecture, focusing on the decoupling of physical location from legal identity, the mechanics of virtual mailbox proxies, and the navigational complexity of multi-jurisdictional tax nexus.
-related:
-- BackpackingGuide
-- AdventureTravelPlanning
-- HealthyOnTheRoadAfter40
-- RiskManagement
-- DataGovernance
 ---
 
 # Nomadic Administrative Architecture: Domicile, Mail, and Legal Identity

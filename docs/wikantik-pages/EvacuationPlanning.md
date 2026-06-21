@@ -1,8 +1,16 @@
 ---
-cluster: emergency-prep
-canonical_id: 01KQ0P44Q79WF5Y8CYSQMFWX44
 title: Evacuation Planning and Systems
+related:
+- HomeEmergencyPreparedness
+- EmergencyCommunication
+- ThreatModeling
+- RiskManagement
+- OperationsResearchHub
+cluster: emergency-prep
 type: article
+canonical_id: 01KQ0P44Q79WF5Y8CYSQMFWX44
+summary: Engineering emergency evacuation via Minimum Viable Survival System (MVSS),
+  ODD modeling, and tiered go-bag architecture for CBRN and extreme environments.
 tags:
 - emergency-prep
 - evacuation-planning
@@ -11,13 +19,6 @@ tags:
 - resilience-engineering
 - risk-management
 - cbrn
-summary: A rigorous exploration of emergency evacuation planning, focusing on the Minimum Viable Survival System (MVSS), Operational Design Domain (ODD) modeling, and specialized protocols for CBRN and extreme environmental adaptation.
-related:
-- HomeEmergencyPreparedness
-- EmergencyCommunication
-- ThreatModeling
-- RiskManagement
-- OperationsResearchHub
 ---
 
 # Evacuation Planning: The Engineering of Systemic Egress

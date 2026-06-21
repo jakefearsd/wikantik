@@ -1,23 +1,24 @@
 ---
-canonical_id: 01KQ0P44ZB18NF0ZR8D999B0QH
-summary: How WWI triggered global exchange closures, ended the gold standard, and
-  shifted financial power from London to New York
+status: active
+type: article
+part-of:
+- ConflictsAndEquityMarkets
 date: '2026-03-14'
+cluster: geopolitics-and-finance
+title: World War I Markets
 tags:
 - finance
 - world-war-one
 - equity-markets
 - history
 - gold-standard
+summary: How WWI triggered global exchange closures, ended the gold standard, and
+  shifted financial power from London to New York
 related:
 - ConflictsAndEquityMarkets
 - WorldWarTwoMarkets
 - ConflictMarketPatterns
-type: article
-cluster: geopolitics-and-finance
-status: active
-part-of:
-- ConflictsAndEquityMarkets
+canonical_id: 01KQ0P44ZB18NF0ZR8D999B0QH
 ---
 # World War I and Global Equity Markets (1914–1918)
 

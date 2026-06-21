@@ -1,8 +1,6 @@
 ---
-summary: Why early retirees need taxable brokerage accounts alongside tax-advantaged
-  accounts, the optimal funding order, and asset location strategy
-date: '2026-03-14'
 cluster: index-fund-investing
+title: 'Account Type Strategy for Early Retirement: Taxable vs. Tax-Advantaged'
 related:
 - IndexFundInvestingForEarlyRetirement
 - RothConversionLadder
@@ -12,10 +10,17 @@ related:
 - TypesofInvestmentAccountsTutorial
 - CompoundInterestAndTaxAdvantagedAccounts
 - MaximizingRetirementAccountContributions
+summary: Why early retirees need taxable brokerage accounts alongside tax-advantaged
+  accounts, the optimal funding order, and asset location strategy
+type: article
+date: '2026-03-14'
+status: active
 canonical_id: 01KQ0P44GXB0KV6SBXTF1GABZ0
+hubs:
+- IndexFundInvestingForEarlyRetirement
+- TypesofInvestmentAccountsTutorialHub
 part-of:
 - IndexFundInvestingForEarlyRetirement
-type: article
 tags:
 - personal-finance
 - investing
@@ -24,12 +29,9 @@ tags:
 - roth-ira
 - brokerage-account
 - early-retirement
-- FIRE
+- fire
 - asset-location
 - tax-strategy
-status: active
-hubs:
-- IndexFundInvestingForEarlyRetirement
 ---
 # Account Type Strategy for Early Retirement
 
@@ -54,7 +56,7 @@ The solution is to invest across all three major account types, in the right ord
 | Feature | Details |
 |---------|--------|
 | Tax treatment | Contributions from after-tax income; qualified withdrawals completely tax-free |
-| Contribution limits (2026) | Roth 401(k): $23,500 (shared with Traditional); Roth IRA: $7,000 (income limits apply) |
+| Contribution limits (2026) | Roth 401(k): \$23,500 (shared with Traditional); Roth IRA: \$7,000 (income limits apply) |
 | Early access | Roth IRA contributions (not earnings) can be withdrawn any time, penalty-free |
 | Roth conversion ladder | After 5 years, converted amounts become accessible penalty-free — the key early retirement bridge |
 | Best for | When you expect higher tax rates in retirement, or when building a Roth conversion ladder |
@@ -75,10 +77,10 @@ This is the point most retirement advice misses. Consider this scenario:
 
 - You retire at 45 with $2 million
 - $1.8 million is in a 401(k) and IRA
-- $200,000 is in a taxable brokerage account
+- \$200,000 is in a taxable brokerage account
 - You spend $60,000 per year
 
-Without a bridge strategy, your $200,000 taxable account funds only 3.3 years. Then what? You either go back to work, or you withdraw from the 401(k) and pay 10% penalties plus income tax — losing 30-40% of every dollar.
+Without a bridge strategy, your \$200,000 taxable account funds only 3.3 years. Then what? You either go back to work, or you withdraw from the 401(k) and pay 10% penalties plus income tax — losing 30-40% of every dollar.
 
 With a Roth conversion ladder (see [The Roth Conversion Ladder and Other Early Access Strategies](RothConversionLadder)), you can systematically move money from Traditional to Roth over 5+ years, but you still need the taxable account to live on during the initial 5-year seasoning period.
 
@@ -91,20 +93,20 @@ Fill your accounts in this order to maximise tax advantages while building early
 ### Step 1: 401(k) Up to the Employer Match
 This is free money. A 50% match on 6% of salary is an instant 50% return. Always do this first.
 
-### Step 2: Max Out Roth IRA ($7,000)
+### Step 2: Max Out Roth IRA (\$7,000)
 Tax-free growth plus flexible access to contributions. If your income exceeds the Roth IRA limit ($161,000 single / $240,000 married in 2026), use the backdoor Roth IRA — contribute to a Traditional IRA and immediately convert.
 
-### Step 3: Max Out Remaining 401(k) ($23,500 total)
+### Step 3: Max Out Remaining 401(k) (\$23,500 total)
 Reduce your current tax bill while building the pool you will later convert via the Roth ladder.
 
-### Step 4: HSA If Available ($4,300 single / $8,550 family)
+### Step 4: HSA If Available ($4,300 single / \$8,550 family)
 The Health Savings Account is triple-tax-advantaged: deductible contributions, tax-free growth, tax-free withdrawals for medical expenses. After 65, it functions like a Traditional IRA for any purpose. Pay medical expenses out-of-pocket now, save receipts, and reimburse yourself decades later for tax-free withdrawals.
 
 ### Step 5: Taxable Brokerage Account (No Limit)
 Everything beyond tax-advantaged space goes here. This is your early retirement bridge. For a typical early retiree, this needs to cover 5-7 years of expenses (the Roth conversion ladder seasoning period).
 
 ### Step 6: Mega Backdoor Roth (If Available)
-Some 401(k) plans allow after-tax contributions beyond the $23,500 employee limit, up to the total 415(c) limit of $70,000 (2026). These can be converted to Roth in-plan or rolled to a Roth IRA. Check your plan documents.
+Some 401(k) plans allow after-tax contributions beyond the $23,500 employee limit, up to the total 415(c) limit of \$70,000 (2026). These can be converted to Roth in-plan or rolled to a Roth IRA. Check your plan documents.
 
 ## Asset Location: Which Investments in Which Accounts
 
@@ -130,14 +132,14 @@ If you plan to retire at 45, spend $60,000/year, and will start a Roth ladder im
 - After year 5, the Roth ladder provides ongoing annual access
 - **Target taxable balance at retirement: $300,000-$360,000** (5-6 years of spending, with a margin)
 
-This does not mean you need $360,000 in taxable before you start your 401(k). It means you should be directing significant savings to taxable once your tax-advantaged space is filled.
+This does not mean you need \$360,000 in taxable before you start your 401(k). It means you should be directing significant savings to taxable once your tax-advantaged space is filled.
 
 ## Tax-Loss Harvesting in Taxable Accounts
 
 Taxable accounts offer a unique advantage: tax-loss harvesting. When an investment drops in value, you can sell it, realise the loss, and immediately buy a similar (but not identical) fund:
 
 - Sell VTSAX at a $10,000 loss → buy FSKAX (similar but not substantially identical)
-- Deduct $3,000 of the loss against ordinary income this year
+- Deduct \$3,000 of the loss against ordinary income this year
 - Carry forward the remaining $7,000 to future years
 - Your portfolio allocation is unchanged, but you have reduced your tax bill
 

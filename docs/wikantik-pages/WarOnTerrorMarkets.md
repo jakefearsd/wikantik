@@ -1,18 +1,21 @@
 ---
-canonical_id: 01KQ0P44YJKXQK2DAAH7V984ZH
-date: '2026-03-14'
-summary: The 9/11 market shock, two decades of war costs, and the transformation of
-  the defence sector
 cluster: geopolitics-and-finance
+title: War on Terror Markets
 related:
 - ConflictsAndEquityMarkets
 - GulfWarMarkets
 - RussiaUkraineWarMarkets
 - ConflictMarketPatterns
+type: article
+summary: The 9/11 market shock, two decades of war costs, and the transformation of
+  the defence sector
+status: active
+date: '2026-03-14'
+canonical_id: 01KQ0P44YJKXQK2DAAH7V984ZH
+hubs:
+- ConflictMarketPatternsHub
 part-of:
 - ConflictsAndEquityMarkets
-type: article
-status: active
 tags:
 - finance
 - war-on-terror
@@ -20,8 +23,6 @@ tags:
 - equity-markets
 - history
 - defence-sector
-hubs:
-- ConflictMarketPatternsHub
 ---
 # The War on Terror and Equity Markets (2001–2021)
 
@@ -34,7 +35,7 @@ The terrorist attacks of 11 September 2001 produced the most dramatic short-term
 - The NYSE and NASDAQ closed immediately and remained shut for four trading days — the longest closure since the WWI shutdown of 1914
 - When markets reopened on 17 September, the Dow Jones fell 684 points (7.1%), the largest single-day point loss in history at that time
 - Over the first week of trading, the Dow lost 14.3% and the S&P 500 lost 11.6%
-- The total market capitalisation loss in the first week exceeded $1.4 trillion
+- The total market capitalisation loss in the first week exceeded \$1.4 trillion
 
 ### Sector Impacts
 
@@ -68,7 +69,7 @@ The 2003 invasion of Iraq followed a pattern similar to the Gulf War but with im
 ### Pre-Invasion Build-Up
 - Markets sold off through late 2002 and early 2003 as the invasion became increasingly certain
 - The S&P 500 fell to its lowest level since 1997 in March 2003
-- Oil prices rose from $25 to $37 per barrel on supply disruption fears
+- Oil prices rose from \$25 to $37 per barrel on supply disruption fears
 
 ### The Invasion Rally
 - True to the Gulf War pattern, markets rallied sharply when the invasion began on 20 March 2003
@@ -85,13 +86,13 @@ Unlike the Gulf War's clean resolution, the Iraq occupation dragged on for eight
 
 The War on Terror fundamentally reshaped the defence sector within equity markets:
 
-- US defence spending roughly doubled between 2001 and 2010, from $316 billion to $691 billion
+- US defence spending roughly doubled between 2001 and 2010, from \$316 billion to $691 billion
 - New categories emerged: cybersecurity, drone manufacturers, intelligence analytics, private military contractors
 - The defence sector ETF (ITA) significantly outperformed the broader market between 2001 and 2015
 
 ## Broader Economic Consequences
 
-The cumulative cost of the War on Terror — estimated at over $8 trillion including veterans' care — had several market-relevant consequences:
+The cumulative cost of the War on Terror — estimated at over \$8 trillion including veterans' care — had several market-relevant consequences:
 
 1. **Government debt growth**: US federal debt grew from $5.7 trillion in 2001 to $28 trillion by 2021, partly driven by war spending combined with tax cuts
 2. **Monetary policy**: The debt burden influenced the Federal Reserve's ultra-low interest rate policies, which in turn drove equity valuations higher

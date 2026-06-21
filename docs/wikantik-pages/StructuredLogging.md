@@ -1,17 +1,18 @@
 ---
 cluster: devops-sre
+date: 2024-05-16T00:00:00Z
+auto-generated: false
 canonical_id: 01KQ0P44X1943YF2DY88JN37EK
+summary: Structured logging patterns — JSON/JSONL schemas (ECS), high-cardinality
+  attribute indexing, and moving from narrative logs to queryable data.
 title: Structured Logging
-type: article
 tags:
 - logging
 - observability
 - json
 - elasticsearch
 - indexing
-summary: Advanced architectural patterns for structured logging, focusing on JSON schemas, high-cardinality attribute indexing, and the transition from narrative logs to queryable data assets.
-auto-generated: false
-date: 2024-05-16
+type: article
 ---
 # Structured Logging: From Text Streams to Queryable Data
 

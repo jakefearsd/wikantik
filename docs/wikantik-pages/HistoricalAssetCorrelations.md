@@ -1,12 +1,28 @@
 ---
+canonical_id: 01KVJMS1AWXTK3M6J6Q3MHPJX8
 title: Historical Asset Correlations and Systemic Shocks
+tags:
+- investing
+- correlation
+- macroeconomics
+- systemic-risk
+- history
+- asset-allocation
+- index-funds
+- quantitative-finance
 type: article
 cluster: index-fund-investing
-status: active
+related:
+- AssetAllocation
+- ConflictResilientPortfolios
+- WorldWarOneMarkets
+- WorldWarTwoMarkets
+- BehavioralFinanceForInvestors
+- StatisticalInference
 date: '2026-05-06'
-summary: A 225-year quantitative analysis of asset co-movement. Explores the mechanics of correlation convergence, the structural impact of the 1971 Nixon Shock, and the modern decay of diversification due to index-fund culture and algorithmic trading.
-tags: [investing, correlation, macroeconomics, systemic-risk, history, asset-allocation, index-funds, quantitative-finance]
-related: [AssetAllocation, ConflictResilientPortfolios, WorldWarOneMarkets, WorldWarTwoMarkets, BehavioralFinanceForInvestors, StatisticalInference]
+status: active
+summary: A 225-year analysis of asset correlation — convergence in liquidity crises,
+  the 1971 Nixon Shock, and diversification decay from index-fund culture.
 ---
 
 # Historical Asset Correlations and Systemic Shocks: A 225-Year Quantitative Analysis

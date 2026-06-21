@@ -1,8 +1,16 @@
 ---
-cluster: data-engineering
-canonical_id: 01KQ0P44P78V3M6WB3QX9KEM5C
 title: Data Governance
+related:
+- DataEngineeringHub
+- DataQualityFrameworks
+- ChangeDataCapture
+- MachineLearning
+- SystemsThinking
+cluster: data-engineering
 type: article
+canonical_id: 01KQ0P44P78V3M6WB3QX9KEM5C
+summary: 'Data governance patterns: catalog-ownership-lineage triad, Policy-as-Code
+  with OPA/Rego, and automated column-level lineage extraction via SQL AST analysis.'
 tags:
 - data-engineering
 - data-governance
@@ -10,13 +18,6 @@ tags:
 - data-catalog
 - metadata-management
 - compliance
-summary: A rigorous exploration of data governance, focusing on the triad of trust (Catalog, Ownership, Lineage), the implementation of Policy-as-Code (Rego/OPA), and the automated extraction of lineage via AST analysis.
-related:
-- DataEngineeringHub
-- DataQualityFrameworks
-- ChangeDataCapture
-- MachineLearning
-- SystemsThinking
 ---
 
 # Data Governance: The Triad of Trust and Context

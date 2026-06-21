@@ -1,18 +1,20 @@
 ---
-canonical_id: 01KQ0P44SBC89GJTS2N47SMG8N
-summary: Fixed WikiEngine lazy initialization and failsafe reporting for MCP integration tests
+date: '2026-03-12'
+status: active
+summary: Fixed WikiEngine lazy initialization and failsafe reporting for MCP integration
+  tests
 tags:
 - development
 - testing
 - mcp
 - integration-tests
 type: article
-status: deployed
 cluster: wikantik-development
-date: '2026-03-12'
+canonical_id: 01KQ0P44SBC89GJTS2N47SMG8N
 related:
 - McpIntegration
 - WikantikDevelopment
+title: MCP Integration Test Fix
 ---
 # MCP Integration Test Fix
 

@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44R64AWHV6C1WTYJJ1NV
-summary: Integer programming, branch and bound, cutting planes, network flows, and
-  the combinatorial optimization problems that define practical OR
+status: active
+type: article
+part-of:
+- OperationsResearchHub
 date: 2026-03-17T00:00:00Z
+cluster: operations-research
+title: Integer and Combinatorial Optimization
 tags:
 - operations-research
 - integer-programming
 - combinatorial-optimization
 - branch-and-bound
 - tsp
+summary: Integer programming, branch and bound, cutting planes, network flows, and
+  the combinatorial optimization problems that define practical OR
 related:
 - OperationsResearchHub
 - LinearProgrammingFoundations
 - ProductionSchedulingAndOR
 - SupplyChainAndLogisticsOptimization
-type: article
-cluster: operations-research
-status: active
-part-of:
-- OperationsResearchHub
+canonical_id: 01KQ0P44R64AWHV6C1WTYJJ1NV
 ---
 # Integer and Combinatorial Optimization
 

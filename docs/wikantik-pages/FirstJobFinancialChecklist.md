@@ -1,9 +1,20 @@
 ---
+type: article
+date: '2026-04-26'
+cluster: personal-finance
+title: First Job Financial Checklist
+hubs:
+- PersonalFinanceHub
+- DebtPayoffStrategies Hub
+tags:
+- first-job
+- early-career
+- personal-finance
+- onboarding
+- twenties
 summary: An ordered checklist for the first salaried job — what to set up in the first
   week, the first month, the first quarter, and the first year. Optimized for the
   decisions that compound over decades.
-date: '2026-04-26'
-cluster: personal-finance
 related:
 - PersonalFinanceGuide
 - BudgetingMethods
@@ -13,18 +24,7 @@ related:
 - SalaryNegotiationStrategies
 - AccountTypeStrategy
 canonical_id: 01KQ0P44QET50QZH5CGM3TW0GQ
-type: article
-title: First Job Financial Checklist
-tags:
-- first-job
-- early-career
-- personal-finance
-- onboarding
-- twenties
 status: active
-hubs:
-- PersonalFinanceHub
-- DebtPayoffStrategies Hub
 ---
 # First Job Financial Checklist
 

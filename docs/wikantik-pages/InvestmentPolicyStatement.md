@@ -1,9 +1,21 @@
 ---
+type: article
+status: active
+date: '2026-04-26'
+cluster: personal-finance
+title: Investment Policy Statement
+hubs:
+- PersonalFinanceHub
+- RebalancingStrategies Hub
+tags:
+- investment-policy
+- ips
+- personal-finance
+- portfolio-management
+- behavioral-discipline
 summary: A written statement of how you will invest, when you will rebalance, and
   what you will do during downturns — the document that prevents you from improvising
   during the moments when improvising is most expensive.
-date: '2026-04-26'
-cluster: personal-finance
 related:
 - PersonalFinanceGuide
 - LowCostIndexFundInvesting
@@ -12,18 +24,6 @@ related:
 - BehavioralFinanceForInvestors
 - TheCaseAgainstMarketTiming
 canonical_id: 01KQ0P44R84C0BFKGQHVJKYHSM
-type: article
-title: Investment Policy Statement
-tags:
-- investment-policy
-- IPS
-- personal-finance
-- portfolio-management
-- behavioral-discipline
-status: active
-hubs:
-- PersonalFinanceHub
-- RebalancingStrategies Hub
 ---
 # Investment Policy Statement
 
@@ -188,8 +188,8 @@ Allocation glides toward 70% stocks / 30% bonds by age 65.
 
 **Contributions**:
 1. 401(k) to employer match (6% of salary)
-2. HSA: max ($4,150 single in 2026)
-3. Roth IRA: max ($7,500)
+2. HSA: max (\$4,150 single in 2026)
+3. Roth IRA: max (\$7,500)
 4. 401(k) to total $23,500 limit
 5. Brokerage: surplus, target ≥10% of after-tax income
 

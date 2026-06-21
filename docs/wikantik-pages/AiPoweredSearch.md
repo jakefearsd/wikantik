@@ -1,27 +1,26 @@
 ---
-canonical_id: 01KQ12YDRX520ZN5PC6N2E5YG8
-title: Ai Powered Search
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-25'
+title: AI-Powered Search
+hubs:
+- AgenticAiHub
 tags:
 - search
 - semantic-search
 - hybrid-retrieval
 - query-rewriting
 - rerank
-summary: Semantic, hybrid, and agentic search beyond keyword matching — query
-  rewriting, dense retrieval, rerank, and the patterns that make a search bar
-  feel modern.
+summary: Semantic, hybrid, and agentic search beyond keyword matching — query rewriting,
+  dense retrieval, rerank, and the patterns that make a search bar feel modern.
 related:
 - HybridRetrieval
 - VectorDatabases
 - RagImplementationPatterns
 - EmbeddingsVectorDB
 - KnowledgeGraphCompletion
-hubs:
-- AgenticAiHub
+canonical_id: 01KQ12YDRX520ZN5PC6N2E5YG8
 ---
 # AI-Powered Search
 

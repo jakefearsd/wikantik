@@ -1,18 +1,5 @@
 ---
 canonical_id: 01KQ0P44QKC8W2XECGN4HJ7SH3
-date: 2026-03-14T00:00:00Z
-status: active
-summary: What programming fundamentals still matter in the age of agentic software
-  development — and how aspiring professionals should balance coding skills, domain
-  expertise, and AI fluency
-related:
-- LinuxForWindowsUsers
-- WhyLearnLinuxDeeply
-- LinuxShellScriptingFundamentals
-- LinuxCommandLineEssentials
-- GenerativeAiAdoptionGuide
-- AiAugmentedWorkflows
-- AcceleratingAiLearning
 tags:
 - programming
 - software-development
@@ -21,7 +8,19 @@ tags:
 - generative-ai
 - linux
 type: article
+related:
+- LinuxForWindowsUsers
+- WhyLearnLinuxDeeply
+- LinuxShellScriptingFundamentals
+- LinuxCommandLineEssentials
+- GenerativeAiAdoptionGuide
+- AiAugmentedWorkflows
+- AcceleratingAiLearning
 cluster: linux-for-windows-users
+date: 2026-03-14T00:00:00Z
+status: active
+summary: Which programming fundamentals still matter in the age of agentic development
+  — and how to balance coding skills, domain expertise, and AI fluency
 ---
 # Fundamentals of Programming in the Age of Agentic Development
 

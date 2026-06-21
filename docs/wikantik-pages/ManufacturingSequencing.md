@@ -1,13 +1,9 @@
 ---
-title: Manufacturing Sequencing and Industrial Scheduling
-canonical_id: 01KRPPFJ90ZRHE6ZBP5SX18RJ6
-cluster: operations-research
-relations:
-- type: extension_of
-  target_id: 01KQEKGDDVHTHY07CQ3YKSQ5PA
-- type: component_of
-  target_id: 01J7KQTCD38PBFSD7TD6ACJFD5
-type: article
+status: active
+date: '2026-05-15'
+summary: Advanced techniques for sequencing manufacturing operations, covering Job
+  Shop Scheduling (JSSP), Flow Shop optimization, and the integration of metaheuristics
+  for high-throughput production environments.
 tags:
 - manufacturing
 - scheduling
@@ -15,11 +11,15 @@ tags:
 - sequencing
 - operations-research
 - optimization
-summary: Advanced techniques for sequencing manufacturing operations, covering Job
-  Shop Scheduling (JSSP), Flow Shop optimization, and the integration of metaheuristics
-  for high-throughput production environments.
-status: published
-date: '2026-05-15'
+type: article
+relations:
+- type: extension_of
+  target_id: 01KQEKGDDVHTHY07CQ3YKSQ5PA
+- type: component_of
+  target_id: 01J7KQTCD38PBFSD7TD6ACJFD5
+canonical_id: 01KRPPFJ90ZRHE6ZBP5SX18RJ6
+cluster: operations-research
+title: Manufacturing Sequencing and Industrial Scheduling
 ---
 
 # Manufacturing Sequencing and Industrial Scheduling

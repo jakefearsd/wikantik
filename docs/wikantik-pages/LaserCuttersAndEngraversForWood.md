@@ -1,16 +1,12 @@
 ---
-canonical_id: 01KQ0P44RPCNAYG7Q684CNB3NK
-date: '2026-03-20'
-summary: 'CO2 and diode lasers for hobby woodworking: cutting thin stock, engraving,
-  inlay preparation, and choosing between laser and CNC'
-cluster: hobby-woodworking
-related:
-- HobbyWoodworkingInTheTwentyFirstCentury
-- CncRoutersForTheHobbyWorkshop
-- DigitalDesignToolsForWoodworkers
+type: article
+status: active
 part-of:
 - HobbyWoodworkingInTheTwentyFirstCentury
-type: article
+date: '2026-03-20'
+cluster: hobby-woodworking
+hubs:
+- HobbyWoodworkingInTheTwentyFirstCentury
 tags:
 - woodworking
 - laser
@@ -18,9 +14,13 @@ tags:
 - engraving
 - digital-fabrication
 - tools
-status: active
-hubs:
+summary: 'CO2 and diode lasers for hobby woodworking: cutting thin stock, engraving,
+  inlay preparation, and choosing between laser and CNC'
+related:
 - HobbyWoodworkingInTheTwentyFirstCentury
+- CncRoutersForTheHobbyWorkshop
+- DigitalDesignToolsForWoodworkers
+canonical_id: 01KQ0P44RPCNAYG7Q684CNB3NK
 ---
 # Laser Cutters and Engravers for Wood
 
@@ -33,7 +33,7 @@ CO2 lasers produce infrared light at 10,600nm wavelength, which wood absorbs eff
 
 - **Cutting capacity**: Up to 12mm (½") hardwood at 80W; 20mm with multiple passes
 - **Engraving quality**: Excellent — fine detail, photo-quality raster engraving
-- **Price range**: $500 (K40 import) to $5,000+ (Glowforge Pro, Thunder Laser Nova)
+- **Price range**: \$500 (K40 import) to $5,000+ (Glowforge Pro, Thunder Laser Nova)
 - **Requires**: Ventilation (fume extraction is mandatory), alignment maintenance
 
 ### Diode Lasers (5–40W optical)
@@ -41,7 +41,7 @@ Semiconductor diode lasers are cheaper, more compact, and safer (often Class 1 e
 
 - **Cutting capacity**: Up to 6mm hardwood at 10W optical; thicker with air assist
 - **Engraving quality**: Good, though not quite CO2-level for photos
-- **Price range**: $200 (xTool D1) to $1,500 (xTool S1, Atomstack X40)
+- **Price range**: \$200 (xTool D1) to $1,500 (xTool S1, Atomstack X40)
 - **Advantages**: No alignment, minimal maintenance, often fire-enclosed
 
 ## What Lasers Do in a Wood Shop

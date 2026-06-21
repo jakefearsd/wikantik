@@ -1,13 +1,23 @@
 ---
-canonical_id: 01KQ0P44VK5A43Y2SZ7RCZ2FG3
-title: Retirement Account Withdrawal Rules
+date: 2026-03-15T00:00:00Z
+status: active
+summary: Comprehensive reference for withdrawal rules across all retirement account
+  types, including early withdrawal penalties, exceptions, and inherited account rules.
+tags:
+- retirement
+- taxes
+- withdrawals
+- ira
+- 401k
+- penalties
 type: article
-tags: [retirement, taxes, withdrawals, IRA, 401k, penalties]
-date: 2026-03-15
-status: published
+canonical_id: 01KQ0P44VK5A43Y2SZ7RCZ2FG3
 cluster: retirement-planning
-summary: Comprehensive reference for withdrawal rules across all retirement account types, including early withdrawal penalties, exceptions, and inherited account rules.
-related: [RequiredMinimumDistributions, RetirementWithdrawalSequencing, TaxPlanningForRetirementAccountWithdrawals]
+related:
+- RequiredMinimumDistributions
+- RetirementWithdrawalSequencing
+- TaxPlanningForRetirementAccountWithdrawals
+title: Retirement Account Withdrawal Rules
 ---
 
 # Retirement Account Withdrawal Rules
@@ -33,7 +43,7 @@ Several exceptions to the 10% penalty are widely available:
 
 ### IRA-Specific Exceptions
 
-- **First-time home purchase**: Up to $10,000 lifetime (penalty-free, not tax-free)
+- **First-time home purchase**: Up to \$10,000 lifetime (penalty-free, not tax-free)
 - **Qualified higher education expenses**: Tuition, fees, books, and room/board
 - **Health insurance premiums while unemployed**: After 12 consecutive weeks of unemployment benefits
 - **Birth or adoption**: Up to $5,000 per child (SECURE Act)
@@ -45,10 +55,10 @@ Several exceptions to the 10% penalty are widely available:
 
 ### SECURE 2.0 Additions (2024+)
 
-- **Emergency withdrawals**: Up to $1,000 per year, penalty-free, with option to repay within 3 years
+- **Emergency withdrawals**: Up to \$1,000 per year, penalty-free, with option to repay within 3 years
 - **Domestic abuse victims**: Up to $10,000 or 50% of account (whichever is less), penalty-free
 - **Terminal illness**: Penalty-free withdrawals with a doctor's certification of terminal illness
-- **Disaster distributions**: Up to $22,000 for federally declared disasters
+- **Disaster distributions**: Up to \$22,000 for federally declared disasters
 
 ## Account-by-Account Withdrawal Rules
 

@@ -1,26 +1,26 @@
 ---
-canonical_id: 01KQ12YDTV1P29FG8NWTY40E9K
-title: Event Driven Architecture
 type: article
-cluster: software-architecture
 status: active
+cluster: software-architecture
 date: '2026-04-25'
+title: Event-Driven Architecture
+hubs:
+- SoftwareArchitectureHub
 tags:
 - event-driven
 - messaging
 - kafka
 - saga
 - outbox-pattern
-summary: Events vs commands, the outbox pattern, and how to keep an event-driven
-  system from becoming an unprovable mess.
+summary: Events vs commands, the outbox pattern, and how to keep an event-driven system
+  from becoming an unprovable mess.
 related:
 - DomainAndIntegrationEvents
 - ApacheKafkaFundamentals
 - MicroservicesArchitecture
 - CqrsPattern
 - DistributedTracing
-hubs:
-- SoftwareArchitectureHub
+canonical_id: 01KQ12YDTV1P29FG8NWTY40E9K
 ---
 # Event-Driven Architecture
 

@@ -1,16 +1,17 @@
 ---
-cluster: databases
 canonical_id: 01KQ0P44PMEYZGGZCXDSXGA3XR
 title: Developing with PostgreSQL
-type: article
-status: active
-date: 2026-04-30
 tags:
 - postgresql
 - database
 - setup
 - development
-summary: Comprehensive guide for configuring and developing with PostgreSQL as the Wikantik backend.
+cluster: databases
+type: article
+date: 2026-04-30T00:00:00Z
+status: active
+summary: Using PostgreSQL as the Wikantik backend — schema, JNDI DataSource config,
+  JDBC driver setup, connection pooling, production hardening, and troubleshooting.
 ---
 
 # Developing with PostgreSQL as the Wikantik User Database

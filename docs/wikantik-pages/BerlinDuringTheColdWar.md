@@ -1,8 +1,6 @@
 ---
 cluster: berlin-history
 canonical_id: 01KQ0P44MG9H3JQTZPP7P3GCNF
-title: 'Berlin During the Cold War: Division, Blockade, Wall & Reunification'
-type: article
 tags:
 - history
 - cold-war
@@ -10,14 +8,17 @@ tags:
 - berlin-wall
 - ddr
 - reunification
-summary: 'Berlin during the Cold War (1945–1990): the four-sector occupation, the 1948 Blockade and Airlift, the building and fall of the Berlin Wall, and reunification.'
+type: article
+auto-generated: false
+summary: 'Berlin during the Cold War (1945–1990): the four-sector occupation, the
+  1948 Blockade and Airlift, the building and fall of the Berlin Wall, and reunification.'
 date: '2026-05-15'
+title: 'Berlin During the Cold War: Division, Blockade, Wall & Reunification'
 related:
 - BerlinArchitecturalHistory
 - DividedBerlinAndTheColdWar
 - TheBerlinWall
 - GeopoliticalRisk
-auto-generated: false
 ---
 # Berlin During the Cold War: 1945–1990
 

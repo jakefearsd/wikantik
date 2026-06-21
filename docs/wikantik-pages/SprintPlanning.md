@@ -1,12 +1,18 @@
 ---
+tags:
+- scrum
+- agile
+- planning
+- velocity
+- capacity
 cluster: software-engineering-practices
-canonical_id: 01KQ0P44WV09A6KGT92QM81GCX
-title: "Sprint Planning & Capacity Modeling"
 type: article
-tags: [scrum, agile, planning, velocity, capacity]
-date: 2025-05-15
-summary: A practitioner's guide to Sprint Planning, moving beyond simple averages to rigorous capacity modeling and volatility analysis.
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+canonical_id: 01KQ0P44WV09A6KGT92QM81GCX
+summary: A practitioner's guide to Sprint Planning, moving beyond simple averages
+  to rigorous capacity modeling and volatility analysis.
+title: Sprint Planning & Capacity Modeling
 ---
 
 # Sprint Planning: The Engineering of Commitment

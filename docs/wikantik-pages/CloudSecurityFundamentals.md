@@ -1,26 +1,27 @@
 ---
-canonical_id: 01KQ0P44NGWEMX0BF3Y86T9WYR
-title: Cloud Security Fundamentals
-type: article
-cluster: cloud-platforms
-status: active
 date: '2026-04-26'
 summary: The foundations of cloud security — IAM, encryption, network security, secrets
   management, and the operational practices that prevent the most common cloud security
   incidents.
+cluster: cloud-platforms
+related:
+- AwsFundamentals
+- CloudComplianceFrameworks
+- VulnerabilityManagement
+- WebApplicationFirewalls
+canonical_id: 01KQ0P44NGWEMX0BF3Y86T9WYR
+type: article
+title: Cloud Security Fundamentals
+status: active
+hubs:
+- CloudPlatformsHub
+- AuthenticationAndAuthorizationHub
 tags:
 - cloud-security
 - iam
 - encryption
 - secrets-management
 - shared-responsibility
-related:
-- AwsFundamentals
-- CloudComplianceFrameworks
-- VulnerabilityManagement
-- WebApplicationFirewalls
-hubs:
-- CloudPlatformsHub
 ---
 # Cloud Security Fundamentals
 

@@ -1,7 +1,7 @@
 ---
-canonical_id: 01KQQ6SGVRSG0BJMX4AKGGF23S
-date: 2025-02-13T00:00:00Z
-cluster: mathematics
+summary: Shannon entropy, KL divergence, channel capacity, and Landauer's principle
+  — the mathematical backbone of compression, LLMs, and thermodynamic computation.
+title: Information Theory
 tags:
 - mathematics
 - information-theory
@@ -11,9 +11,11 @@ tags:
 - compression
 - physics
 - thermodynamics
-title: Information Theory
-summary: An exhaustive exploration of Information Theory, spanning Shannon's foundational axioms, geometric typicality, and the physical limits of computation.
+cluster: mathematics
+type: article
+date: 2025-02-13T00:00:00Z
 status: active
+canonical_id: 01KQQ6SGVRSG0BJMX4AKGGF23S
 ---
 
 # Information Theory: The Architecture of Uncertainty

@@ -1,19 +1,20 @@
 ---
-canonical_id: 01KR79P76SS8GA6RBPEVNK4R02
 hubs:
 - DemandPlanningAndSop Hub
-summary: The discipline of advanced analytical methods for optimal decision-making.
-  Covers mathematical programming, stochastic models, and 2025-2026 AI-OR hybrid benchmarks.
 date: 2026-05-08T00:00:00Z
+status: active
+summary: 'Advanced analytical methods for optimal decision-making: mathematical programming,
+  stochastic models, and 2025-2026 AI-OR hybrid benchmarks.'
 tags:
 - operations-research
 - optimization
 - decision-science
 - analytics
 - mathematical-modeling
-title: Operations Research
+type: article
 cluster: operations-research
-status: active
+canonical_id: 01KR79P76SS8GA6RBPEVNK4R02
+title: Operations Research
 ---
 
 # Operations Research: The Science of Better

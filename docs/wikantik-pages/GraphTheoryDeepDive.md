@@ -1,21 +1,21 @@
 ---
-related:
-- MathematicsHub
-- DiscreteMathematics
-- MarkovChainFundamentals
-cluster: Mathematics
-canonical_id: 01J7KQTCD38PBFSD7TD6ACJFDC
-type: article
+status: active
+date: 2026-05-15T00:00:00Z
+summary: Graph theory covering spectral analysis, max-flow min-cut, centrality measures,
+  and applications in Knowledge Graphs and semantic clustering.
 tags:
 - mathematics
 - logic
 - graph-theory
 - network-science
 - algorithms
-summary: Advanced exploration of graph theory, covering spectral graph theory, network
-  flow, and its application in Knowledge Graphs.
-status: active
-date: 2026-05-15T00:00:00Z
+type: article
+cluster: mathematics
+canonical_id: 01J7KQTCD38PBFSD7TD6ACJFDC
+related:
+- MathematicsHub
+- DiscreteMathematics
+- MarkovChainFundamentals
 title: 'Graph Theory Deep Dive: The Logic of Connection'
 ---
 

@@ -1,25 +1,25 @@
 ---
-canonical_id: 01KQ0P44X51Q8RCW9GRHB00QYK
-title: Symbolic Logic
 type: article
-cluster: mathematics
 status: active
+cluster: mathematics
 date: '2026-04-26'
-summary: Survey of symbolic logic — propositional, predicate, modal, temporal, higher-order
-  — and the role of formal symbolic reasoning in computer science and mathematics.
+title: Symbolic Logic
+hubs:
+- MathematicsHub
 tags:
 - symbolic-logic
 - mathematics
 - formal-logic
 - reasoning
+summary: Propositional, predicate, modal, temporal, and higher-order logic — formal
+  symbolic reasoning in automated theorem proving, circuit verification, and AI.
 related:
 - PropositionalLogic
 - PredicateLogic
 - ModalLogic
 - TemporalLogic
 - SetTheoryLogic
-hubs:
-- MathematicsHub
+canonical_id: 01KQ0P44X51Q8RCW9GRHB00QYK
 ---
 
 # Symbolic Logic: The Geometry of Thought

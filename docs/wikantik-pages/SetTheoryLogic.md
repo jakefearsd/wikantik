@@ -1,25 +1,25 @@
 ---
-canonical_id: 01KQ0P44WC15BBHEDPRSEP3JW2
-title: Set Theory and Logic
 type: article
 cluster: mathematics
-status: active
 date: '2026-04-26'
-summary: The foundational role of set theory in mathematics — Zermelo-Fraenkel axioms,
-  cardinality, the role of choice, paradoxes — and the connection to logic and computer
-  science.
+title: Set Theory and Logic
+hubs:
+- MathematicsHub
 tags:
 - set-theory
 - mathematics
 - foundations
 - zfc
+summary: The foundational role of set theory in mathematics — Zermelo-Fraenkel axioms,
+  cardinality, the role of choice, paradoxes — and the connection to logic and computer
+  science.
 related:
 - PropositionalLogic
 - PredicateLogic
 - InfinityMathematics
 - TopologyMathematics
-hubs:
-- MathematicsHub
+canonical_id: 01KQ0P44WC15BBHEDPRSEP3JW2
+status: active
 ---
 
 # Set Theory and Logic: The Architectonic of Mathematics

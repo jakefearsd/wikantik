@@ -1,27 +1,26 @@
 ---
-canonical_id: 01KQEKGDCNT2EXY4M4034M3YV5
-title: Local Rag
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-25'
+title: Local RAG
+hubs:
+- AgenticAiHub
 tags:
 - rag
 - local-llm
 - privacy
 - self-hosted
 - embedding
-summary: Building a fully local RAG pipeline — open embedding model + vector
-  store + open LLM, all on your own hardware. The hardware requirements,
-  software stack, and quality / cost trade-offs.
+summary: 'Fully local RAG pipeline: open embedding model + vector store + open LLM
+  on your own hardware. Hardware requirements, software stack, and quality trade-offs.'
 related:
 - RagImplementationPatterns
 - OpenSourceLLMs
 - VectorDatabases
 - HybridRetrieval
 - RunningLocalLlms
-hubs:
-- AgenticAiHub
+canonical_id: 01KQEKGDCNT2EXY4M4034M3YV5
 ---
 # Local RAG
 

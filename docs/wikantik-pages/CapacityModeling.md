@@ -1,8 +1,16 @@
 ---
-cluster: devops-sre
-canonical_id: 01KQ0P44MXW31YVYJ1DED3DWMF
-title: Capacity Modeling and Growth Forecasting
 type: article
+related:
+- OperationsResearchHub
+- TimeSeriesForecasting
+- MonitoringAndAlerting
+- SystemsThinking
+- MathematicsHub
+date: '2026-06-10'
+canonical_id: 01KQ0P44MXW31YVYJ1DED3DWMF
+summary: Capacity modeling & growth forecasting — time-series decomposition (ARIMA,
+  Holt-Winters), Monte Carlo uncertainty, and feedback-driven system dynamics.
+title: Capacity Modeling and Growth Forecasting
 tags:
 - devops
 - sre
@@ -10,13 +18,7 @@ tags:
 - time-series-forecasting
 - machine-learning
 - operations-research
-summary: A rigorous exploration of capacity modeling, focusing on time-series decomposition (ARIMA, Holt-Winters), stochastic uncertainty quantification via Monte Carlo simulation, and feedback-driven system dynamics for long-term growth forecasting.
-related:
-- OperationsResearchHub
-- TimeSeriesForecasting
-- MonitoringAndAlerting
-- SystemsThinking
-- MathematicsHub
+cluster: devops-sre
 ---
 
 # Capacity Modeling: The Science of Growth Forecasting

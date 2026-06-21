@@ -1,4 +1,8 @@
 ---
+date: 2026-05-02T00:00:00Z
+status: active
+summary: 'Philosophy of art and sensory perception: formalism, institutional theory,
+  Kantian judgment, and cross-cultural paradigms from Rasa to Islamic aesthetics.'
 tags:
 - aesthetics
 - art-theory
@@ -8,9 +12,6 @@ auto-generated: false
 canonical_id: 01KQEB7HAZYGT42NS01VNEZZMD
 cluster: philosophy
 title: Aesthetics
-date: 2026-05-02T00:00:00Z
-status: active
-summary: A rigorous examination of the philosophy of art and sensory perception, covering ontological frameworks, judgment, and cross-cultural paradigms.
 ---
 
 

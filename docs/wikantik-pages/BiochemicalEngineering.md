@@ -1,10 +1,19 @@
 ---
+summary: 'Engineering principles for biological systems: fermentation kinetics, bioreactor
+  design, and the 2025 shift to Digital Twins and Precision Fermentation.'
 title: Biochemical Engineering
+tags:
+- biochemical-engineering
+- bioprocessing
+- fermentation
+- kinetics
+- precision-fermentation
+- 2025-benchmarks
 cluster: life-sciences
-tags: [biochemical-engineering, bioprocessing, fermentation, kinetics, precision-fermentation, 2025-benchmarks]
+type: reference
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The application of engineering principles to biological systems. Covers fermentation kinetics, bioreactor design, and the 2025 shift toward Digital Twins and Precision Fermentation.
+canonical_id: 01KTXJ5NCQSMKB26ZGAHHM0ZAH
 ---
 
 # Biochemical Engineering: The Industrialization of Biology

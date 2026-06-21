@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS1T964MC35JHXH1TC89Q
 title: Prolog
+tags:
+- programming-languages
+- prolog
+- ai
+- logic-programming
+- declarative
+- neuro-symbolic
+- computer-history
 cluster: computer-science
-tags: [programming-languages, prolog, ai, logic-programming, declarative, neuro-symbolic, computer-history]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The pioneer of Logic Programming (1972). Based on first-order logic, it defines the 'Declarative' paradigm where programs consist of facts and rules. A foundational component of 2026 Neuro-Symbolic AI.
+summary: Pioneer of logic programming (1972). Declarative paradigm using facts and
+  rules with backtracking inference; foundational in 2026 neuro-symbolic AI.
 ---
 
 # Prolog: The Engine of Logical Inference

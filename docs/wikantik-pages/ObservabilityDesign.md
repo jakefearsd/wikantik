@@ -1,18 +1,20 @@
 ---
-cluster: devops-sre
+date: '2026-05-15'
+status: active
+summary: Open-source observability stack for Wikantik — Log4j2 JSON logs shipped via
+  Promtail to Loki, Prometheus metrics, and Grafana dashboards.
 tags:
 - observability
 - monitoring
 - prometheus
 - grafana
 - loki
-summary: Wikantik Observability System Design
+type: article
 canonical_id: 01KQ0P44T771NATW10QVZEVR5Y
-status: active
+cluster: devops-sre
+title: 'Wikantik Observability Stack: Loki, Prometheus, Grafana'
 hubs:
 - InfrastructureSreHub
-date: '2026-05-15'
-type: article
 ---
 # Wikantik Observability System Design
 

@@ -1,6 +1,9 @@
 ---
-canonical_id: 01KQ0P44QPBJDF4VQVRDT93A7J
+status: active
 type: article
+date: '2026-03-20'
+cluster: generative-ai
+title: Good MCP Design
 tags:
 - mcp
 - api-design
@@ -8,14 +11,15 @@ tags:
 - ai-agents
 summary: Principles for designing MCP tools that enable autonomous AI agent operation
   — granularity, server vs agent work, compound operations, and anti-patterns
-status: active
-date: '2026-03-20'
-author: claude-code-researcher
-cluster: generative-ai
 related:
 - GenerativeAiAdoptionGuide
+author: claude-code-researcher
+canonical_id: 01KQ0P44QPBJDF4VQVRDT93A7J
 ---
 # Good MCP Design
+
+> 🌐 **Product overview:** [MCP for AI agents on wikantik.com](https://www.wikantik.com/platform/mcp-for-ai-agents.html) — a plain-language walkthrough for readers and AI agents.
+
 
 If you are building MCP (Model Context Protocol) tools for a wiki server — or any server that AI agents will call — the design of your tool surface determines whether those agents work smoothly or thrash through dozens of calls accomplishing nothing. This article covers the principles that matter most, drawn from practical experience building and using MCP tools for wiki management.
 

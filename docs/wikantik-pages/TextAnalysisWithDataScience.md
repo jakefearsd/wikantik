@@ -1,12 +1,9 @@
 ---
+date: 2024-05-16T00:00:00Z
 summary: A technical exploration of text representation techniques, contrasting sparse
   TF-IDF vectors with dense Transformer embeddings and detailing the RRF algorithm
   for hybrid retrieval.
-date: 2024-05-16T00:00:00Z
-cluster: machine-learning
 auto-generated: false
-canonical_id: 01KQ0P44XKXR318NY4K5P5KGVP
-title: Text Analysis with Data Science
 type: article
 tags:
 - nlp
@@ -14,6 +11,9 @@ tags:
 - tf-idf
 - hybrid-search
 - rrf
+cluster: machine-learning
+canonical_id: 01KQ0P44XKXR318NY4K5P5KGVP
+title: Text Analysis with Data Science
 hubs:
 - AnomalyDetectionTechniques Hub
 ---

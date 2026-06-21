@@ -1,17 +1,8 @@
 ---
-canonical_id: 01KQ0P44WTZC4RJ3S7PJM1VRXR
 date: 2026-03-14T00:00:00Z
 status: active
 summary: Complete guide to obtaining a US green card for your spouse — two pathways,
   key forms, timelines, and how the pieces fit together
-related:
-- MarriageBasedImmigrationCategories
-- FilingTheI130Petition
-- AdjustmentOfStatusProcess
-- ConsularProcessingPath
-- ImmigrationFinancialRequirements
-- TheGreenCardInterview
-- ConditionalResidenceAndI751
 tags:
 - immigration
 - green-card
@@ -20,6 +11,16 @@ tags:
 - uscis
 type: hub
 cluster: spousal-green-card
+canonical_id: 01KQ0P44WTZC4RJ3S7PJM1VRXR
+related:
+- MarriageBasedImmigrationCategories
+- FilingTheI130Petition
+- AdjustmentOfStatusProcess
+- ConsularProcessingPath
+- ImmigrationFinancialRequirements
+- TheGreenCardInterview
+- ConditionalResidenceAndI751
+title: Obtaining a Green Card for Your Spouse
 ---
 # Obtaining a Green Card for Your Spouse
 

@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44RVA4EE6MNBP440SPXX
-summary: The mathematical foundations of linear programming — formulation, the simplex
-  method, duality theory, and why LP remains the workhorse of optimization
+status: active
+type: article
+part-of:
+- OperationsResearchHub
 date: 2026-03-17T00:00:00Z
+cluster: operations-research
+title: Linear Programming Foundations
 tags:
 - operations-research
 - linear-programming
 - optimization
 - mathematics
 - simplex
+summary: The mathematical foundations of linear programming — formulation, the simplex
+  method, duality theory, and why LP remains the workhorse of optimization
 related:
 - OperationsResearchHub
 - HistoryOfOperationsResearch
 - IntegerAndCombinatorialOptimization
 - MathematicalFoundationsOfMachineLearning
-type: article
-cluster: operations-research
-status: active
-part-of:
-- OperationsResearchHub
+canonical_id: 01KQ0P44RVA4EE6MNBP440SPXX
 ---
 # Linear Programming Foundations
 
@@ -50,7 +51,7 @@ In matrix notation: **maximize cᵀx subject to Ax ≤ b, x ≥ 0**, where **c**
 
 ### A Simple Example
 
-A factory makes two products, A and B. Each unit of A earns $5 profit; each unit of B earns $4. Production requires machine time (8 hours available) and labor (6 hours available). Product A needs 2 machine hours and 1 labor hour per unit; Product B needs 1 machine hour and 2 labor hours.
+A factory makes two products, A and B. Each unit of A earns \$5 profit; each unit of B earns $4. Production requires machine time (8 hours available) and labor (6 hours available). Product A needs 2 machine hours and 1 labor hour per unit; Product B needs 1 machine hour and 2 labor hours.
 
 ```
 Maximize:    5xₐ + 4x_b

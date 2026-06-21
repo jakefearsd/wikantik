@@ -1,29 +1,30 @@
 ---
-date: 2026-03-14T00:00:00Z
-summary: When and how to claim Social Security — breakeven analysis, spousal and survivor
-  benefits, the bridge strategy, and coordination with portfolio withdrawals
 cluster: retirement-planning
+title: Social Security Claiming Strategy
 related:
 - RetirementPlanningGuide
 - RetirementIncomeBlueprint
 - SafeWithdrawalRates
 - RetirementWithdrawalSequencing
 - RothConversionStrategy
+type: article
+summary: When and how to claim Social Security — breakeven analysis, spousal and survivor
+  benefits, the bridge strategy, and coordination with portfolio withdrawals
+status: active
+date: 2026-03-14T00:00:00Z
 canonical_id: 01KQ0P44WP7ACK88FQ77QPPBCC
+hubs:
+- RetirementPlanningGuide
 part-of:
 - RetirementPlanningGuide
-type: article
-status: active
 tags:
 - personal-finance
 - retirement-planning
 - social-security
-hubs:
-- RetirementPlanningGuide
 ---
 # Social Security Claiming Strategy
 
-Social Security is the largest source of retirement income for most Americans, yet the claiming decision is often made impulsively. The difference between claiming at 62 and claiming at 70 can exceed $200,000 in cumulative lifetime benefits — and for married couples, the survivor benefit decision can be worth even more.
+Social Security is the largest source of retirement income for most Americans, yet the claiming decision is often made impulsively. The difference between claiming at 62 and claiming at 70 can exceed \$200,000 in cumulative lifetime benefits — and for married couples, the survivor benefit decision can be worth even more.
 
 Social Security is not a savings account you are withdrawing from. It is longevity insurance. Understanding this distinction changes how you think about the claiming decision.
 
@@ -35,10 +36,10 @@ Your PIA — the benefit you receive at your Full Retirement Age (FRA, currently
 
 **The formula uses "bend points" that make the benefit progressive:**
 - 90% of the first $1,174 of Average Indexed Monthly Earnings (AIME)
-- 32% of AIME between $1,174 and $7,078
+- 32% of AIME between \$1,174 and $7,078
 - 15% of AIME above $7,078
 
-**Practical implication**: High earners get diminishing returns. Someone earning $50,000/year gets a higher replacement rate (~40%) than someone earning $160,000/year (~25%). This means higher earners benefit more from delaying, because the delayed credits apply to a benefit that replaces less of their income.
+**Practical implication**: High earners get diminishing returns. Someone earning $50,000/year gets a higher replacement rate (~40%) than someone earning \$160,000/year (~25%). This means higher earners benefit more from delaying, because the delayed credits apply to a benefit that replaces less of their income.
 
 ### How Claiming Age Affects Your Benefit
 
@@ -60,7 +61,7 @@ Delaying from 62 to 70 increases your benefit by **77%**. Each year of delay fro
 
 The basic breakeven question: "At what age does the total received from delaying exceed what I would have received by claiming early?"
 
-### Claiming at 62 vs. 67 (PIA = $2,500)
+### Claiming at 62 vs. 67 (PIA = \$2,500)
 
 | Age | Cumulative at 62 ($21K/yr) | Cumulative at 67 ($30K/yr) |
 |-----|---------------------------|---------------------------|
@@ -70,13 +71,13 @@ The basic breakeven question: "At what age does the total received from delaying
 | 77 | $315,000 | $330,000 |
 | 80 | $378,000 | $420,000 |
 | 85 | $483,000 | $570,000 |
-| 90 | $588,000 | $720,000 |
+| 90 | $588,000 | \$720,000 |
 
 **Breakeven: approximately age 76-77.** After that, every year alive puts you further ahead for having waited.
 
 ### Claiming at 62 vs. 70 (PIA = $2,500)
 
-| Age | Cumulative at 62 ($21K/yr) | Cumulative at 70 ($37.2K/yr) |
+| Age | Cumulative at 62 (\$21K/yr) | Cumulative at 70 ($37.2K/yr) |
 |-----|---------------------------|-----------------------------|
 | 62 | $21,000 | $0 |
 | 70 | $168,000 | $37,200 |
@@ -143,10 +144,10 @@ Social Security benefits become taxable above certain "combined income" threshol
 | Filing Status | Combined Income | % of SS Benefits Taxable |
 |--------------|----------------|-------------------------|
 | Single | Below $25,000 | 0% |
-| Single | $25,000 - $34,000 | Up to 50% |
-| Single | Above $34,000 | Up to 85% |
+| Single | $25,000 - \$34,000 | Up to 50% |
+| Single | Above \$34,000 | Up to 85% |
 | MFJ | Below $32,000 | 0% |
-| MFJ | $32,000 - $44,000 | Up to 50% |
+| MFJ | $32,000 - \$44,000 | Up to 50% |
 | MFJ | Above $44,000 | Up to 85% |
 
 **Connection to Roth conversions**: Roth withdrawals do not count as "combined income" for this calculation. If most of your non-SS income comes from Roth accounts, less of your Social Security benefit is taxable. This is another reason to execute Roth conversions *before* you start claiming Social Security.

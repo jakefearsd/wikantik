@@ -1,13 +1,14 @@
 ---
-cluster: immigration
-canonical_id: 01KQ0P44N803MFVNWTCERCGPYJ
-title: Choosing An Immigration Attorney
-type: article
 tags:
 - legal
 - immigration
 - compliance
-summary: Technical criteria for vetting immigration counsel, focusing on professional credentials, disciplinary history, and fee structure modeling.
+title: Choosing an Immigration Attorney
+cluster: immigration
+type: article
+canonical_id: 01KQ0P44N803MFVNWTCERCGPYJ
+summary: Technical criteria for vetting immigration counsel, focusing on professional
+  credentials, disciplinary history, and fee structure modeling.
 auto-generated: false
 ---
 

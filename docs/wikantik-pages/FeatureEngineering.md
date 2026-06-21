@@ -1,4 +1,10 @@
 ---
+type: article
+cluster: machine-learning
+date: '2026-05-10'
+title: 'Feature Engineering: The Practitioner''s High-Fidelity Framework'
+hubs:
+- MachineLearningHub
 tags:
 - feature-engineering
 - ml-architecture
@@ -15,13 +21,7 @@ related:
 - StreamProcessing
 - MLOpsPractices
 canonical_id: 01KQ0P44QBZQFZW2FJB4YSXA2C
-type: article
 status: active
-cluster: machine-learning
-date: '2026-05-10'
-title: 'Feature Engineering: The Practitioner''s High-Fidelity Framework'
-hubs:
-- MachineLearningHub
 ---
 # Feature Engineering: The Practitioner's High-Fidelity Framework
 

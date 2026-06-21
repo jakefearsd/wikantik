@@ -1,22 +1,23 @@
 ---
-canonical_id: 01KQ0P44Y3JQQV1VH2ZC2Y19VM
-title: Two-Phase Commit Protocol
-type: article
-cluster: databases
-status: active
-date: '2026-04-26'
-summary: Technical analysis of the Two-Phase Commit (2PC) protocol, failure domains (blocking), and comparison with 3PC and consensus algorithms.
 auto-generated: false
+type: article
+status: active
+cluster: databases
+date: '2026-04-26'
+title: Two-Phase Commit Protocol
 tags:
 - distributed-transactions
 - 2pc
 - atomic-commit
 - databases
+summary: 'Two-Phase Commit (2PC): protocol phases, coordinator failure and the blocking
+  problem, comparison with 3PC and Raft, and modern alternatives (Saga, Outbox).'
 related:
 - ReadReplicasAndReplication
 - IdempotencyPatterns
 - LeaderElectionAlgorithms
 - MessageQueuePatterns
+canonical_id: 01KQ0P44Y3JQQV1VH2ZC2Y19VM
 ---
 
 The Two-Phase Commit (2PC) protocol is an atomic commit protocol for distributed systems, ensuring that all participants either commit or rollback a transaction in unison.

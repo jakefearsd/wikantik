@@ -1,27 +1,27 @@
 ---
-canonical_id: 01KQ0P44RTW9DD24RKN9GJ9987
-title: Life Insurance Types
 type: article
-cluster: personal-finance
 status: active
+cluster: personal-finance
 date: '2026-04-26'
-summary: Term, whole, universal, and variable life insurance — what each is, when
-  it makes sense, and the strong default that fits ~95% of households (and the marketing
-  pressure pushing people away from it).
+title: Life Insurance Types
+hubs:
+- PersonalFinanceHub
 tags:
 - life-insurance
 - insurance
 - personal-finance
 - term-life
 - whole-life
+summary: Term, whole, universal, and variable life insurance — what each is, when
+  it makes sense, and the strong default that fits ~95% of households (and the marketing
+  pressure pushing people away from it).
 related:
 - PersonalFinanceGuide
 - InsuranceTypesAndCoverage
 - LongTermCareInsurance
 - FinancialResilience
 - WillsAndTrusts
-hubs:
-- PersonalFinanceHub
+canonical_id: 01KQ0P44RTW9DD24RKN9GJ9987
 ---
 # Life Insurance Types
 
@@ -33,7 +33,7 @@ Life insurance is a financial product that pays a beneficiary if the insured die
 
 You pay a fixed premium for a fixed period (10, 15, 20, or 30 years). If you die during the term, the policy pays the death benefit. If you survive the term, the policy ends and pays nothing.
 
-**Cost**: low. A healthy 35-year-old can typically buy $500K of 20-year term coverage for $20–$35/month.
+**Cost**: low. A healthy 35-year-old can typically buy \$500K of 20-year term coverage for $20–\$35/month.
 
 **When it makes sense**: when someone depends on your income — spouse, children, aging parents — and you want to cover the period during which that dependency exists. Most working-age households with children fit this profile.
 
@@ -45,7 +45,7 @@ You pay a fixed premium for a fixed period (10, 15, 20, or 30 years). If you die
 
 A "permanent" policy that pays a death benefit whenever you die, with no expiration. Premiums are typically much higher than term but stay level for life. The policy includes a "cash value" component that grows on a tax-deferred basis and can be borrowed against.
 
-**Cost**: high. The same 35-year-old looking at $500K coverage might pay $400–$600/month for whole life vs. $25/month for 20-year term — roughly 16–24× the cost.
+**Cost**: high. The same 35-year-old looking at $500K coverage might pay $400–$600/month for whole life vs. \$25/month for 20-year term — roughly 16–24× the cost.
 
 **When it makes sense**:
 
@@ -104,14 +104,14 @@ Multiply your annual income by a multiple based on dependents and obligations:
 - 10× annual income: standard for households with children and a mortgage
 - 15–20× annual income: high earners, young children, significant debts
 
-A household with $90,000 income and two young children should probably carry $900K–$1.8M of term coverage on the primary earner.
+A household with \$90,000 income and two young children should probably carry $900K–$1.8M of term coverage on the primary earner.
 
 ### Method 2: needs-based calculation
 
 Add up specific obligations:
 
 - Mortgage payoff
-- Education costs (per child × ~$200K for a 4-year US college, less for in-state public)
+- Education costs (per child × ~\$200K for a 4-year US college, less for in-state public)
 - 10–15 years of income replacement
 - Final expenses
 
@@ -162,26 +162,26 @@ For term insurance, comparison sites like Term4Sale, Quotacy, and Policygenius l
 
 ## Worked example: the buy-term-invest-difference math
 
-**Context**: 35-year-old, healthy, married with two young children, $95K income. Decision: 20-year term at $25/month vs. whole life at $480/month for the same $750K death benefit.
+**Context**: 35-year-old, healthy, married with two young children, \$95K income. Decision: 20-year term at $25/month vs. whole life at \$480/month for the same $750K death benefit.
 
 **Term-plus-invest path**:
 - Term premium: $25/month = $300/year
-- Difference invested: $480 − $25 = $455/month
+- Difference invested: $480 − $25 = \$455/month
 - Invested in a Roth IRA + brokerage at 7% real return for 20 years
 
 After 20 years (age 55):
 - Term policy: still active until age 55, then expires. Cost: $6,000 total premium.
-- Investment account: $455/month × 240 months at 7% = ~$233,000
+- Investment account: \$455/month × 240 months at 7% = ~$233,000
 
 **Whole-life path**:
 - Premium: $480/month = $5,760/year
-- Total premiums paid: $115,200 over 20 years
-- Cash surrender value at year 20: typically $75,000–$95,000 depending on policy design
+- Total premiums paid: \$115,200 over 20 years
+- Cash surrender value at year 20: typically $75,000–\$95,000 depending on policy design
 - Death benefit if you die during the 20 years: $750,000
 
 **Net result at age 55**:
-- Buy-term-invest: $233,000 in flexible investments + 20 years of $750K coverage during the high-need years
-- Whole life: $75K–$95K in surrender value, less than total premiums paid, with $750K coverage continuing into older age (when need is declining)
+- Buy-term-invest: \$233,000 in flexible investments + 20 years of \$750K coverage during the high-need years
+- Whole life: $75K–\$95K in surrender value, less than total premiums paid, with $750K coverage continuing into older age (when need is declining)
 
 The case for whole life only makes sense if the buyer wants the *guaranteed* death benefit at any age (estate planning) and is willing to pay a steep premium for that certainty. For income replacement during working years, term wins decisively.
 

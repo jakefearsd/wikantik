@@ -1,12 +1,9 @@
 ---
-canonical_id: 01KQ0P60Q4PP4BXR1WQKBPV1WS
-title: Structural Spine Design
-cluster: wikantik-development
 type: design
-status: proposed
+status: active
+cluster: wikantik-development
 date: '2026-04-24'
-author: claude-opus
-summary: Detailed design for a machine-queryable structural index (clusters, tags, canonical IDs, typed cross-references) exposed via /api/structure/* and matching MCP tools, with a generated Main.md and stable page identity across renames. Addresses the "structural blindness" problem that forces agents to rediscover wiki shape via full-text search.
+title: Structural Spine Design
 tags:
 - design
 - agent-context
@@ -14,11 +11,18 @@ tags:
 - structural-index
 - canonical-id
 - typed-relations
+summary: Detailed design for a machine-queryable structural index (clusters, tags,
+  canonical IDs, typed cross-references) exposed via /api/structure/* and matching
+  MCP tools, with a generated Main.md and stable page identity across renames. Addresses
+  the "structural blindness" problem that forces agents to rediscover wiki shape via
+  full-text search.
+author: claude-opus
 related:
 - AgentGradeContentDesign
 - HybridRetrieval
 - GoodMcpDesign
 - WikantikDevelopment
+canonical_id: 01KQ0P60Q4PP4BXR1WQKBPV1WS
 ---
 
 > **Note (2026-05-02).** The Structural Spine is now a sub-area of the
@@ -31,6 +35,9 @@ related:
 > links.
 
 # Structural Spine Design
+
+> 🌐 **Product overview:** [The structural spine on wikantik.com](https://www.wikantik.com/platform/structural-spine.html) — a plain-language walkthrough for readers and AI agents.
+
 
 ## Problem
 

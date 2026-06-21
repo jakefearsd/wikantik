@@ -1,5 +1,8 @@
 ---
-type: article
+status: active
+date: '2026-04-25'
+summary: Markov processes via transition matrices, spectral gap, steady-state geometry,
+  Hidden Markov Models, MCMC sampling, and PageRank as a stationary distribution.
 tags:
 - markov-chain
 - probability
@@ -7,18 +10,15 @@ tags:
 - mcmc
 - linear-algebra
 - pagerank
-summary: An exhaustive exploration of Markov processes, from transition matrix spectral
-  properties to the tropical geometry of Viterbi paths and high-dimensional MCMC sampling.
-status: active
-date: '2026-04-25'
-title: 'Markov Chain Fundamentals: The Geometry of Chance'
+type: article
+canonical_id: 01KQEKGDCWD98Q7C0SZSH9RXGB
+cluster: mathematics
 related:
 - ProbabilityTheory
 - BayesianReasoning
 - LinearAlgebra
 - DiscreteMathematics
-canonical_id: 01KQEKGDCWD98Q7C0SZSH9RXGB
-cluster: mathematics
+title: 'Markov Chain Fundamentals: The Geometry of Chance'
 ---
 
 # Markov Chains: Stochastic Dynamics and Steady States

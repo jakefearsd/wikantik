@@ -1,17 +1,19 @@
 ---
-canonical_id: 01KQPQX5KYD1XWC8YKYWBQC809
 date: '2026-04-26'
-cluster: distributed-systems
-type: article
+status: active
+summary: Formal analysis of consistency models, safety/liveness trade-offs, and implementation
+  strategies in distributed state machines.
 tags:
 - consistency-models
 - distributed-systems
 - cap-theorem
 - linearizability
 - replication
-summary: Formal analysis of consistency models, safety/liveness trade-offs, and implementation strategies in distributed state machines.
+type: article
 auto-generated: false
-status: active
+cluster: distributed-systems
+canonical_id: 01KQPQX5KYD1XWC8YKYWBQC809
+title: Consistency Models
 ---
 
 Consistency models define the safety contract between a distributed system and its observers, specifying the valid orderings of read and write operations across replicas.

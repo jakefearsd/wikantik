@@ -1,8 +1,19 @@
 ---
-canonical_id: 01KQ0P44NTBSV74VHGGH4W8APV
+date: 2026-03-14T00:00:00Z
 summary: Removing conditions on a 2-year green card — the I-751 process, filing window,
   evidence requirements, and what happens if the marriage ends before filing
-date: 2026-03-14T00:00:00Z
+cluster: spousal-green-card
+related:
+- SpousalGreenCardGuide
+- MarriageBasedImmigrationCategories
+- TheGreenCardInterview
+- FilingTheI130Petition
+canonical_id: 01KQ0P44NTBSV74VHGGH4W8APV
+part-of:
+- SpousalGreenCardGuide
+type: article
+title: Conditional Residence and the I-751
+status: active
 tags:
 - immigration
 - green-card
@@ -10,15 +21,7 @@ tags:
 - i-751
 - conditional-residence
 - uscis
-related:
-- SpousalGreenCardGuide
-- MarriageBasedImmigrationCategories
-- TheGreenCardInterview
-- FilingTheI130Petition
-type: article
-cluster: spousal-green-card
-status: active
-part-of:
+hubs:
 - SpousalGreenCardGuide
 ---
 # Conditional Residence and the I-751

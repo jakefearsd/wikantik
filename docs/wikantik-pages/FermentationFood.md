@@ -1,17 +1,18 @@
 ---
-cluster: cooking-and-food
 canonical_id: 01KQ0P44QCBF3K61V1J0AJMRW0
-title: Fermentation Food
-type: article
+title: Food Fermentation
 tags:
 - fermentation
 - microbiology
 - food-preservation
 - lacto-fermentation
 - salinity
-date: 2025-05-15
-summary: Technical reference for food fermentation, covering microbial succession kinetics and precise salinity calculations for lacto-fermentation.
+cluster: cooking-and-food
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+summary: Technical reference for food fermentation, covering microbial succession
+  kinetics and precise salinity calculations for lacto-fermentation.
 ---
 
 # Microbial Kinetics and Salinity in Food Fermentation

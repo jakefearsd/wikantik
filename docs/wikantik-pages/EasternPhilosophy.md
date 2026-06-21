@@ -1,8 +1,16 @@
 ---
-cluster: philosophy
-canonical_id: 01KQ0P44Q1CXP6V7WXWCJX9376
 title: Eastern Philosophy
+related:
+- LanguagePhilosophy
+- SystemsThinking
+- ArtificialIntelligenceHub
+- FormalSemantics
+- MathematicsHub
+cluster: philosophy
 type: article
+canonical_id: 01KQ0P44Q1CXP6V7WXWCJX9376
+summary: Buddhist and Taoist epistemologies — Anatta (no-self), Wu Wei, and non-dual
+  frameworks for cognitive modeling and complex systems research.
 tags:
 - philosophy
 - buddhism
@@ -10,13 +18,6 @@ tags:
 - non-duality
 - cognitive-modeling
 - systems-thinking
-summary: A rigorous exploration of comparative Eastern epistemologies (Buddhism and Taoism), focusing on the deconstruction of the self (Anatta), the dynamics of effortless action (Wu Wei), and the synthesis of non-dual frameworks for complex systems modeling.
-related:
-- LanguagePhilosophy
-- SystemsThinking
-- ArtificialIntelligenceHub
-- FormalSemantics
-- MathematicsHub
 ---
 
 # Eastern Philosophy: Comparative Epistemologies for Advanced Research

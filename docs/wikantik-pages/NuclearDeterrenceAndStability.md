@@ -1,8 +1,16 @@
 ---
-cluster: geopolitics-and-finance
-canonical_id: 01KQ0P44T5SE6RW2XVYAA6T9TH
 title: Nuclear Deterrence and Strategic Stability
+related:
+- GeopoliticalRisk
+- CommodityMarketsAndConflict
+- ColdWarTechnologyRace
+- SystemsThinking
+- ArtificialIntelligenceHub
+cluster: geopolitics-and-finance
 type: article
+canonical_id: 01KQ0P44T5SE6RW2XVYAA6T9TH
+summary: Game-theoretic foundations of MAD, credibility erosion via Gray Zone competition,
+  and multi-domain signaling in a multipolar nuclear deterrence landscape.
 tags:
 - geopolitics
 - nuclear-deterrence
@@ -11,13 +19,6 @@ tags:
 - strategic-stability
 - signaling
 - conflict-modeling
-summary: A rigorous exploration of nuclear deterrence and geopolitical stability, focusing on the game-theoretic foundations of MAD, the erosion of credibility through "Gray Zone" competition, and the integration of multi-domain signaling in a multipolar world.
-related:
-- GeopoliticalRisk
-- CommodityMarketsAndConflict
-- ColdWarTechnologyRace
-- SystemsThinking
-- ArtificialIntelligenceHub
 ---
 
 # Nuclear Deterrence: The Calculus of Strategic Stability

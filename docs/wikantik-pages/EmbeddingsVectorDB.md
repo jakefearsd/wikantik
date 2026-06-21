@@ -1,18 +1,19 @@
 ---
-cluster: agentic-ai
-canonical_id: 01KQ0P44Q3Y083P3R11WCRW3XR
-title: Embeddings Vector DB
-type: article
+status: active
+date: '2026-04-24'
+summary: Technical comparison of vector database indexing strategies (HNSW vs IVF)
+  and implementation guide for pgvector and dedicated vector stores.
 tags:
 - generative-ai
 - vector-databases
 - hnsw
 - pgvector
 - indexing
-status: active
-date: '2026-04-24'
-summary: Technical comparison of vector database indexing strategies (HNSW vs IVF) and implementation guide for pgvector and dedicated vector stores.
+type: article
 auto-generated: false
+cluster: agentic-ai
+canonical_id: 01KQ0P44Q3Y083P3R11WCRW3XR
+title: Embeddings Vector DB
 ---
 # Vector Databases: Indexing for Speed
 

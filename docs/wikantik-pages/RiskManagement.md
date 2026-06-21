@@ -1,15 +1,14 @@
 ---
-canonical_id: 01KQP4W57HHVQNYYY72A13BP5N
-summary: A foundational reference on Risk Management — the systematic process of identifying,
-  assessing, and mitigating uncertainty across technical, operational, and financial
-  domains.
 tags:
 - risk-management
 - strategy
 - resilience
 - governance
 type: reference
+summary: Identifying and mitigating uncertainty across technical, operational, and
+  financial domains — fault trees, chaos engineering, and NLP-driven risk mining.
 title: Risk Management
+canonical_id: 01KQP4W57HHVQNYYY72A13BP5N
 cluster: software-engineering-practices
 ---
 

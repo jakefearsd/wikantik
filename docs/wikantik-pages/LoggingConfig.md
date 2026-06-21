@@ -1,10 +1,11 @@
 ---
-cluster: wikantik-development
-canonical_id: 01KQ0P44S2640FJ3Y6X8GVDBY9
-type: article
 tags:
 - uncategorized
+type: article
 summary: Wikantik Logging Configuration Guide
+title: Logging Configuration
+canonical_id: 01KQ0P44S2640FJ3Y6X8GVDBY9
+cluster: wikantik-development
 ---
 # Wikantik Logging Configuration Guide
 

@@ -1,16 +1,11 @@
 ---
-summary: An overview of Generative AI, tracing the evolution from Transformer-based
-  models to Agentic workflows and energy-aware infrastructure.
-date: 2026-05-15T00:00:00Z
-cluster: Generative AI
-related:
-- ContextWindowManagement
-- AIInfrastructureHub
-- KgRagUpliftPlan
-- ModelSelectionEfficiency
-canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KM
 type: article
+status: active
+date: 2026-05-15T00:00:00Z
+cluster: generative-ai
 title: 'Generative AI: Foundations and Frontiers 2026'
+hubs:
+- AIInfrastructureHub
 tags:
 - ai
 - generative-ai
@@ -18,9 +13,14 @@ tags:
 - agents
 - llm
 - infrastructure
-status: active
-hubs:
+summary: 'Generative AI from Transformer roots to agentic workflows: sparse MoE, 1M-token
+  contexts, MCP tool use, and energy-constrained infrastructure in 2026.'
+related:
+- ContextWindowManagement
 - AIInfrastructureHub
+- KgRagUpliftPlan
+- ModelSelectionEfficiency
+canonical_id: 01J7KQTCCQ3H9K0M9E95ZCK3KM
 ---
 
 # Generative AI: Foundations and Frontiers 2026

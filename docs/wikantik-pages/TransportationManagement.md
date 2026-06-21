@@ -1,8 +1,18 @@
 ---
-cluster: warehouse-automation
-canonical_id: 01KQ0P44XX6KTDRFBQT93P3XYT
 title: Transportation Management and Routing
+related:
+- WarehouseAutomationHub
+- SupplyChainAndLogisticsOptimization
+- OperationsResearchHub
+- MachineLearning
+- GeopoliticalRisk
+- MathematicsHub
+- NumericalMethods
+cluster: warehouse-automation
 type: article
+canonical_id: 01KQ0P44XX6KTDRFBQT93P3XYT
+summary: 'TMS as combinatorial optimization: VRP variants, Clarke & Wright heuristics,
+  multi-modal integration, and Digital Twin re-optimization.'
 tags:
 - transportation-management
 - logistics
@@ -12,15 +22,6 @@ tags:
 - multi-modal
 - digital-twin
 - operations-research
-summary: A rigorous exploration of transportation management systems (TMS) as a combinatorial optimization problem, focusing on VRP variants, Clarke & Wright savings heuristics, multi-modal integration, and the application of Digital Twins for real-time re-optimization.
-related:
-- WarehouseAutomationHub
-- SupplyChainAndLogisticsOptimization
-- OperationsResearchHub
-- MachineLearning
-- GeopoliticalRisk
-- MathematicsHub
-- NumericalMethods
 ---
 
 # Transportation Management: The Algorithmic Nexus of Logistics

@@ -1,10 +1,20 @@
 ---
+canonical_id: 01KVJMS1RE1FRS5HEDZQXBA7TE
 title: Perl Language
+tags:
+- programming-languages
+- perl
+- scripting
+- devops
+- bio-informatics
+- regex
+- computer-history
 cluster: computer-science
-tags: [programming-languages, perl, scripting, devops, bio-informatics, regex, computer-history]
+type: article
+date: 2026-05-08T00:00:00Z
 status: active
-date: 2026-05-08
-summary: The 'Duct Tape of the Internet' (1987). Created by Larry Wall for text processing, it defined the expressive scripting era and remains a high-value niche in 2026 DevOps and Bioinformatics.
+summary: Duct tape of the internet (1987). Larry Wall's text-processing language;
+  defined the expressive scripting era; niche in 2026 DevOps and bioinformatics.
 ---
 
 # The Perl Language: The Expressive Powerhouse

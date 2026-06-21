@@ -1,13 +1,24 @@
 ---
-title: Topology (Mathematics)
-cluster: mathematics
-canonical_id: 01KQ0P44XV0SG7ZYVB8MK3CZE3
-type: article
-tags: [mathematics, topology, algebraic-topology, fundamental-group, homology, tda]
 status: active
 date: '2026-05-16'
-summary: A rigorous formalization of topological spaces, algebraic invariants, and the mechanics of Persistent Homology.
-related: [Topology, DifferentialGeometry, SetTheoryLogic, MathematicsHub]
+summary: A rigorous formalization of topological spaces, algebraic invariants, and
+  the mechanics of Persistent Homology.
+tags:
+- mathematics
+- topology
+- algebraic-topology
+- fundamental-group
+- homology
+- tda
+type: article
+cluster: mathematics
+canonical_id: 01KQ0P44XV0SG7ZYVB8MK3CZE3
+related:
+- Topology
+- DifferentialGeometry
+- SetTheoryLogic
+- MathematicsHub
+title: Topology (Mathematics)
 ---
 
 # Topology: The Formal Foundation

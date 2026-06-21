@@ -1,17 +1,18 @@
 ---
-cluster: geopolitics-and-finance
 canonical_id: 01KQ0P44Q1VTXVMCXG8WXPQWRQ
 title: Economic Sanctions and Markets
-type: article
 tags:
 - finance
 - geopolitics
 - sanctions
 - swift
 - volatility
-summary: Mapping the impact of economic sanctions on global markets, specifically detailing the SWIFT disconnection and its effect on equity volatility.
-auto-generated: false
+cluster: geopolitics-and-finance
+type: article
 date: 2025-02-13T00:00:00Z
+auto-generated: false
+summary: Mapping the impact of economic sanctions on global markets, specifically
+  detailing the SWIFT disconnection and its effect on equity volatility.
 ---
 
 # Economic Sanctions: Geopolitical Warfare and Market Cascades

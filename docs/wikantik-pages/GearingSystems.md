@@ -1,15 +1,16 @@
 ---
-cluster: mechanical-engineering
-canonical_id: 01KQ0P44QM57HBHH4XXMX5ZYJJ
-title: Gearing Systems
-type: article
 tags:
 - mechanical-engineering
 - transmission
 - gear-design
 - kinematics
 - tribology
-summary: A rigorous exploration of mechanical gearing systems, focusing on involute geometry, dynamic load analysis (FEA/MBD), and advanced architectures like planetary sets and harmonic drives.
+type: article
+summary: Involute geometry, dynamic load analysis via FEA/MBD, and advanced architectures
+  including planetary gear sets and harmonic drives.
+title: Gearing Systems
+cluster: mechanical-engineering
+canonical_id: 01KQ0P44QM57HBHH4XXMX5ZYJJ
 ---
 
 # Gearing Systems: The Physics of Rotational Power Transfer

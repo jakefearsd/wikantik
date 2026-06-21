@@ -1,16 +1,17 @@
 ---
-cluster: industrial-ai
 canonical_id: 01KQ0P44RKJFBW0VVRE1BNSP5X
 title: Knowledge Graphs and Management
-type: article
 tags:
 - knowledge-management
 - hitl
 - data-fabric
 - semantics
-summary: An analysis of Knowledge Graph management strategies, focusing on semantic data fabrics and Human-in-the-Loop (HITL) verification workflows.
+cluster: industrial-ai
+type: article
+date: 2025-01-24T00:00:00Z
 auto-generated: false
-date: 2025-01-24
+summary: Knowledge Graph management via semantic data fabrics and Human-in-the-Loop
+  (HITL) verification for authoritative, conflict-free industrial graph data.
 ---
 
 # Knowledge Management: Fabrics and Human-in-the-Loop

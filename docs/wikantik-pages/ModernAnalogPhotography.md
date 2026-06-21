@@ -1,8 +1,16 @@
 ---
-cluster: hobbies
-canonical_id: 01KQ0P44SMF28CGQDFMVQ4BWCC
 title: Modern Analog Photography
+related:
+- Metallurgy
+- ArtHistory
+- NumericalMethods
+- InformationTheory
+- MathematicsHub
+cluster: hobbies
 type: article
+canonical_id: 01KQ0P44SMF28CGQDFMVQ4BWCC
+summary: Silver halide redox kinetics, characteristic curve dynamics, and optical
+  signature mapping of vintage lens aberrations for expert analog practitioners.
 tags:
 - analog-photography
 - silver-halide
@@ -11,13 +19,6 @@ tags:
 - latent-image-theory
 - optics
 - archival-science
-summary: A rigorous exploration of analog photography as a sophisticated exercise in material science and optical engineering, focusing on silver halide redox kinetics, the non-linear response of characteristic curves, and the optical signature mapping of vintage aberrations.
-related:
-- Metallurgy
-- ArtHistory
-- NumericalMethods
-- InformationTheory
-- MathematicsHub
 ---
 
 # The Analog Renaissance: Materials, Kinetics, and Metaphysics

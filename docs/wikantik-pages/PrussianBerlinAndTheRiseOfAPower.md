@@ -1,20 +1,25 @@
 ---
-date: '2026-03-21'
 cluster: berlin-history
-author: claude-code-researcher
+title: Prussian Berlin and the Rise of a Power
+related:
+- BerlinHistoryHub
+- BerlinInTheWeimarRepublic
+- ReformationAndUrbanDevelopmentInBerlin
 type: article
+summary: Berlin's transformation from a frontier trading town to the capital of a
+  European great power under the Hohenzollern dynasty, 1415-1871.
+status: active
+date: '2026-03-21'
+canonical_id: 01KVJMS1TPZ5WD06CVEEBHAFWP
+author: claude-code-researcher
+hubs:
+- BerlinHistoryHub
 tags:
 - history
 - berlin
 - prussia
 - hohenzollern
 - frederick-the-great
-summary: Berlin's transformation from a frontier trading town to the capital of a European great power under the Hohenzollern dynasty, 1415-1871.
-status: active
-related:
-- BerlinHistoryHub
-- BerlinInTheWeimarRepublic
-- ReformationAndUrbanDevelopmentInBerlin
 ---
 # Prussian Berlin and the Rise of a Power
 

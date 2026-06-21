@@ -1,13 +1,15 @@
 ---
-cluster: software-engineering-practices
-canonical_id: 01KQ0P44TT5X4QTABJN4YFEATQ
-title: Product Roadmapping
-type: article
 tags:
-- featur
-- must
+- product-management
 - roadmap
-summary: Advanced framework for strategic product planning, prioritization mechanics, and adaptive roadmap management.
+- prioritization
+- agile
+title: Product Roadmapping
+cluster: software-engineering-practices
+type: article
+canonical_id: 01KQ0P44TT5X4QTABJN4YFEATQ
+summary: Advanced framework for strategic product planning, prioritization mechanics,
+  and adaptive roadmap management.
 auto-generated: false
 ---
 

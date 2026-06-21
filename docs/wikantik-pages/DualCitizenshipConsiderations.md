@@ -1,13 +1,14 @@
 ---
-cluster: immigration
-canonical_id: 01KQ0P44PZ9KM7G02VW3MRYXS3
-title: Dual Citizenship Considerations
-type: article
 tags:
 - legal
 - tax
 - compliance
-summary: Analysis of dual nationality through the lens of international tax treaties, expatriation taxes, and the principle of effective nationality.
+title: Dual Citizenship Considerations
+cluster: immigration
+type: article
+canonical_id: 01KQ0P44PZ9KM7G02VW3MRYXS3
+summary: Analysis of dual nationality through the lens of international tax treaties,
+  expatriation taxes, and the principle of effective nationality.
 auto-generated: false
 ---
 
@@ -36,12 +37,12 @@ Renouncing citizenship or long-term permanent residency (the "long-term resident
 
 ### The "Covered Expatriate" Status
 An individual is a "covered expatriate" if they meet any of the following:
-*   **Net Worth Test:** Net worth of $2,000,000 or more on the date of expatriation.
+*   **Net Worth Test:** Net worth of \$2,000,000 or more on the date of expatriation.
 *   **Tax Liability Test:** Average annual net income tax for the 5 years prior to expatriation exceeds a specified threshold (e.g., $201,000 for 2024).
 *   **Certification Test:** Failure to certify on Form 8854 that all U.S. federal tax obligations have been met for the 5 years preceding expatriation.
 
 ### Mark-to-Market Regime
-Covered expatriates are subject to a "mark-to-market" tax. All property is treated as sold for its fair market value on the day before expatriation. Any net gain (above a statutory exclusion amount, roughly $866,000 for 2024) is taxed as capital gains in the year of expatriation.
+Covered expatriates are subject to a "mark-to-market" tax. All property is treated as sold for its fair market value on the day before expatriation. Any net gain (above a statutory exclusion amount, roughly \$866,000 for 2024) is taxed as capital gains in the year of expatriation.
 
 ## 3. The Principle of Effective Nationality
 
@@ -53,7 +54,7 @@ In international law, the **Effective Nationality Principle** (derived from the 
 ## 4. Compliance and Reporting (FBAR and FATCA)
 
 Dual citizens with U.S. status face rigorous reporting requirements for foreign assets, regardless of where they live:
-*   **FBAR (FinCEN Form 114):** Required if the aggregate value of all foreign financial accounts exceeds $10,000 at any time during the year. Penalties for "willful" failure to file can be the greater of $100,000 or 50% of the account balance.
+*   **FBAR (FinCEN Form 114):** Required if the aggregate value of all foreign financial accounts exceeds $10,000 at any time during the year. Penalties for "willful" failure to file can be the greater of \$100,000 or 50% of the account balance.
 *   **FATCA (Form 8938):** Required for specified foreign financial assets exceeding certain thresholds (starting at $50,000 for individuals living in the U.S., higher for those abroad).
 
 ## 5. Strategic Considerations

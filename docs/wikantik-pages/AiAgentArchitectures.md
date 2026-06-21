@@ -1,10 +1,11 @@
 ---
-canonical_id: 01KQ12YDRMKEWE1R0HDE5THSC3
-title: Ai Agent Architectures
 type: article
-cluster: agentic-ai
 status: active
+cluster: agentic-ai
 date: '2026-04-24'
+title: AI Agent Architectures
+hubs:
+- AgenticAiHub
 tags:
 - agent
 - architecture
@@ -18,8 +19,7 @@ related:
 - AgentPlanning
 - AgentReasoning
 - AgentLoops
-hubs:
-- AgenticAiHub
+canonical_id: 01KQ12YDRMKEWE1R0HDE5THSC3
 ---
 # AI Agent Architectures
 

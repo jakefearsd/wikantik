@@ -1,16 +1,17 @@
 ---
-cluster: philosophy
 canonical_id: 01KQ0P44TMXMG38JEJ3FVWV5MZ
 title: Political Philosophy
-type: article
 tags:
 - governance
 - algorithmic-governance
 - social-contract
 - digital-commons
-date: 2025-05-15
-summary: An analysis of Algorithmic Governance, the tragedy of the digital commons, and the evolution of the social contract in the digital age.
+cluster: philosophy
+type: article
+date: 2025-05-15T00:00:00Z
 auto-generated: false
+summary: 'Algorithmic governance and the digital commons: platform sovereignty, filter
+  bubbles, social contract erosion, and constitutional AI accountability.'
 ---
 
 # Political Philosophy: Algorithmic Governance and the Digital Commons

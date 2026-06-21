@@ -29,6 +29,8 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.apache.logging.log4j.ThreadContext;
 
+import com.wikantik.audit.RequestContextKeys;
+
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -48,15 +50,18 @@ import java.util.concurrent.ThreadLocalRandom;
  *   <li>{@code method} — HTTP method (GET, POST, etc.)</li>
  *   <li>{@code uri} — request URI</li>
  *   <li>{@code remoteAddr} — client IP address</li>
+ *   <li>{@code userAgent} — client User-Agent header</li>
  * </ul>
  */
 public class RequestCorrelationFilter implements Filter {
 
     static final String HEADER_REQUEST_ID = "X-Request-Id";
-    static final String MDC_REQUEST_ID = "requestId";
-    static final String MDC_METHOD = "method";
-    static final String MDC_URI = "uri";
-    static final String MDC_REMOTE_ADDR = "remoteAddr";
+    static final String HEADER_USER_AGENT = "User-Agent";
+    static final String MDC_REQUEST_ID = RequestContextKeys.REQUEST_ID;
+    static final String MDC_METHOD = RequestContextKeys.METHOD;
+    static final String MDC_URI = RequestContextKeys.URI;
+    static final String MDC_REMOTE_ADDR = RequestContextKeys.REMOTE_ADDR;
+    static final String MDC_USER_AGENT = RequestContextKeys.USER_AGENT;
 
     @Override
     public void init( final FilterConfig filterConfig ) throws ServletException {
@@ -75,6 +80,8 @@ public class RequestCorrelationFilter implements Filter {
         ThreadContext.put( MDC_METHOD, httpRequest.getMethod() );
         ThreadContext.put( MDC_URI, httpRequest.getRequestURI() );
         ThreadContext.put( MDC_REMOTE_ADDR, httpRequest.getRemoteAddr() );
+        final String userAgent = httpRequest.getHeader( HEADER_USER_AGENT );
+        ThreadContext.put( MDC_USER_AGENT, userAgent == null ? "" : userAgent );
 
         httpResponse.setHeader( HEADER_REQUEST_ID, requestId );
 
@@ -85,6 +92,7 @@ public class RequestCorrelationFilter implements Filter {
             ThreadContext.remove( MDC_METHOD );
             ThreadContext.remove( MDC_URI );
             ThreadContext.remove( MDC_REMOTE_ADDR );
+            ThreadContext.remove( MDC_USER_AGENT );
         }
     }
 

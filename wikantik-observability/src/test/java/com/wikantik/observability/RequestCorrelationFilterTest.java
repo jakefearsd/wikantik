@@ -47,6 +47,9 @@ class RequestCorrelationFilterTest {
     void setUp() {
         filter = new RequestCorrelationFilter();
         ThreadContext.clearAll();
+        // Filter now reads User-Agent on every request; lenient so tests that
+        // don't assert it aren't flagged as unnecessary stubbing.
+        lenient().when( request.getHeader( "User-Agent" ) ).thenReturn( "JUnit-Agent/1.0" );
     }
 
     @Test
@@ -184,6 +187,25 @@ class RequestCorrelationFilterTest {
     void initAndDestroyDoNotThrow() throws Exception {
         assertDoesNotThrow( () -> filter.init( null ) );
         assertDoesNotThrow( () -> filter.destroy() );
+    }
+
+    @Test
+    void enrichesMdcWithUserAgent() throws Exception {
+        when( request.getHeader( "X-Request-Id" ) ).thenReturn( null );
+        when( request.getMethod() ).thenReturn( "GET" );
+        when( request.getRequestURI() ).thenReturn( "/wiki/Main" );
+        when( request.getRemoteAddr() ).thenReturn( "127.0.0.1" );
+
+        final AtomicReference<String> capturedUa = new AtomicReference<>();
+        doAnswer( inv -> {
+            capturedUa.set( ThreadContext.get( "userAgent" ) );
+            return null;
+        } ).when( chain ).doFilter( request, response );
+
+        filter.doFilter( request, response, chain );
+
+        assertEquals( "JUnit-Agent/1.0", capturedUa.get() );
+        assertNull( ThreadContext.get( "userAgent" ), "userAgent should be cleared after filter completes" );
     }
 
 }

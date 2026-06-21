@@ -107,6 +107,21 @@
     <jmustache.version>1.16</jmustache.version>
     <jena.version>5.2.0</jena.version>
 
+    <!-- ============================================================
+         Security pins for VULNERABLE TRANSITIVE dependencies.
+         Each version overrides a CVE-affected version pulled in
+         transitively (none is declared directly). Sourced from an
+         OSV.dev scan of the resolved tree on 2026-06-21. Remove a
+         pin once the declaring dependency ships the fix itself.
+         ============================================================ -->
+    <sec.bouncycastle.version>1.84</sec.bouncycastle.version>             <!-- via pac4j-saml/oidc + tika-crypto; CVE-2026-5598/-0636/-5588 -->
+    <sec.commons-beanutils.version>1.11.0</sec.commons-beanutils.version> <!-- via tribuo->opencsv;          CVE-2025-48734 -->
+    <sec.jackson3.version>3.2.0</sec.jackson3.version>                    <!-- via mcp-sdk (Jackson 3 family); CVE-2026-29062 +2 -->
+    <sec.libthrift.version>0.23.0</sec.libthrift.version>                 <!-- via jena-arq;                  CVE-2026-43869 -->
+    <sec.junrar.version>7.6.0</sec.junrar.version>                       <!-- via tika-parsers;              CVE-2026-41245 -->
+    <sec.guava.version>33.6.0-jre</sec.guava.version>                    <!-- via guice;                     CVE-2023-2976, CVE-2020-8908 -->
+    <sec.okio.version>3.17.0</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
+
     <plugin.antrun.version>3.2.0</plugin.antrun.version>
     <plugin.assembly.version>3.8.0</plugin.assembly.version>
     <plugin.clean.version>3.5.0</plugin.clean.version>
@@ -680,6 +695,72 @@
         <groupId>org.mockito</groupId>
         <artifactId>mockito-junit-jupiter</artifactId>
         <version>${mockito.version}</version>
+      </dependency>
+
+      <!-- ===== Security pins for vulnerable transitive deps (see sec.*.version) ===== -->
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-jdk18on</artifactId>
+        <version>${sec.bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-jdk18on</artifactId>
+        <version>${sec.bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcjmail-jdk18on</artifactId>
+        <version>${sec.bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcutil-jdk18on</artifactId>
+        <version>${sec.bouncycastle.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>commons-beanutils</groupId>
+        <artifactId>commons-beanutils</artifactId>
+        <version>${sec.commons-beanutils.version}</version>
+      </dependency>
+
+      <!-- Jackson 3 BOM: pins jackson-core/databind/dataformat-yaml coherently -->
+      <dependency>
+        <groupId>tools.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
+        <version>${sec.jackson3.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.thrift</groupId>
+        <artifactId>libthrift</artifactId>
+        <version>${sec.libthrift.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.github.junrar</groupId>
+        <artifactId>junrar</artifactId>
+        <version>${sec.junrar.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>${sec.guava.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.squareup.okio</groupId>
+        <artifactId>okio</artifactId>
+        <version>${sec.okio.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.squareup.okio</groupId>
+        <artifactId>okio-jvm</artifactId>
+        <version>${sec.okio.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

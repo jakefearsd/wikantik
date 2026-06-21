@@ -44,7 +44,7 @@
     <maven.version>3.5</maven.version>
 
     <akismet-java.version>1.0.0</akismet-java.version>
-    <anthropic-java.version>2.35.0</anthropic-java.version>
+    <anthropic-java.version>2.42.0</anthropic-java.version>
     <awaitility.version>4.3.0</awaitility.version>
     <commons-collections.version>4.5.0</commons-collections.version>
     <commons-fileupload.version>2.0.0-M5</commons-fileupload.version>
@@ -67,9 +67,9 @@
     <jakarta-servlet-api.version>6.1.0</jakarta-servlet-api.version>
     <jakarta-xml-bind-api.version>4.0.5</jakarta-xml-bind-api.version>
     <jaxb-runtime.version>4.0.9</jaxb-runtime.version>
-    <jacoco-version>0.8.14</jacoco-version>
+    <jacoco-version>0.8.15</jacoco-version>
     <jamm.version>0.4.0</jamm.version>
-    <jaxen.version>2.0.5</jaxen.version>
+    <jaxen.version>2.0.6</jaxen.version>
     <javax-mail.version>1.6.2</javax-mail.version>
     <jdom2.version>2.0.6.1</jdom2.version>
     <jrcs-diff.version>0.4.2</jrcs-diff.version>
@@ -91,16 +91,16 @@
     <pac4j.version>6.5.3</pac4j.version>
     <rome.version>2.1.0</rome.version>
     <selenide.version>7.16.2</selenide.version>
-    <selenium.version>4.44.0</selenium.version>
+    <selenium.version>4.45.0</selenium.version>
     <slf4j.version>2.0.18</slf4j.version>
-    <tika.version>3.3.0</tika.version>
+    <tika.version>3.3.1</tika.version>
     <tomcat.version>11.0.18</tomcat.version>
     <xstream.version>1.4.21</xstream.version>
     <mcp-sdk.version>1.1.2</mcp-sdk.version>
     <snakeyaml.version>2.6</snakeyaml.version>
     <tribuo.version>4.3.2</tribuo.version>
     <xmemcached.version>2.4.9</xmemcached.version>
-    <micrometer.version>1.16.5</micrometer.version>
+    <micrometer.version>1.17.0</micrometer.version>
     <testcontainers.version>2.0.5</testcontainers.version>
     <caffeine.version>3.2.4</caffeine.version>
     <ulid-creator.version>5.2.4</ulid-creator.version>
@@ -144,9 +144,9 @@
     <plugin.cargo.version>1.10.27</plugin.cargo.version>
     <plugin.docker.version>0.48.1</plugin.docker.version>
     <plugin.pmd.version>3.28.0</plugin.pmd.version>
-    <plugin.site.version>3.21.0</plugin.site.version>
-    <plugin.spotbugs.version>4.9.8.3</plugin.spotbugs.version>
-    <spotbugs-annotations.version>4.9.8</spotbugs-annotations.version>
+    <plugin.site.version>3.22.0</plugin.site.version>
+    <plugin.spotbugs.version>4.10.2.0</plugin.spotbugs.version>
+    <spotbugs-annotations.version>4.10.2</spotbugs-annotations.version>
     <plugin.checkstyle.version>3.6.0</plugin.checkstyle.version>
     <plugin.clirr.version>2.8</plugin.clirr.version>
     <plugin.wro4j.version>2.1.1</plugin.wro4j.version>

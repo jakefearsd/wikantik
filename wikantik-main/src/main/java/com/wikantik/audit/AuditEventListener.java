@@ -131,7 +131,7 @@ public final class AuditEventListener implements WikiEventListener {
     }
 
     /** Stamps request-context columns from the request-thread MDC; no-ops to null off-thread. */
-    private void enrichRequestContext( final AuditEntry.Builder b ) {
+    private static void enrichRequestContext( final AuditEntry.Builder b ) {
         b.sourceIp( AuditRequestContext.sourceIp() )
          .userAgent( AuditRequestContext.userAgent() )
          .correlationId( AuditRequestContext.correlationId() );
@@ -151,7 +151,9 @@ public final class AuditEventListener implements WikiEventListener {
             type = "page";  id = pp.getPage();  label = pp.getActions() + " → " + pp.getPage();
         } else if ( perm instanceof GroupPermission gp ) {
             type = "group"; id = gp.getGroup(); label = gp.getActions() + " → " + gp.getGroup();
-        } else if ( perm instanceof AllPermission ) {
+        }
+        // AllPermission.getActions() returns null, so the mapping uses fixed "*"/label values (never getActions()).
+        else if ( perm instanceof AllPermission ) {
             type = "all";   id = "*";           label = "admin (AllPermission)";
         } else if ( perm instanceof WikiPermission wp ) {
             type = "wiki";  id = wp.getActions(); label = wp.getActions();

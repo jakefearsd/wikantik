@@ -18,6 +18,7 @@
  */
 package com.wikantik.audit;
 
+import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.event.WikiPageEvent;
@@ -207,6 +208,21 @@ class AuditEventListenerTest {
         assertNull( e.targetType() );
         assertNull( e.targetId() );
         assertNull( e.detail() );
+    }
+
+    @Test
+    void accessDeniedWithAllPermissionMapsAllTarget() {
+        // AdminAuthFilter denies with an AllPermission; its getActions() returns null,
+        // and the mapping deliberately uses fixed "*"/label values (never calls getActions()).
+        final AllPermission perm = new AllPermission( "testwiki" );
+        listener.actionPerformed(
+            new WikiSecurityEvent( this, WikiSecurityEvent.ACCESS_DENIED, named( "carol" ), perm ) );
+
+        final AuditEntry e = onlyEntry();
+        assertEquals( "all", e.targetType() );
+        assertEquals( "*", e.targetId() );
+        assertEquals( "admin (AllPermission)", e.targetLabel() );
+        assertTrue( e.detail().contains( "\"permission\":\"testwiki\"" ), e.detail() );
     }
 
     @Test

@@ -104,25 +104,25 @@ during `doFilter` and removed afterward.
 
 - **New `permissionTarget(Permission)` helper** maps a denied permission to target
   fields per this table:
-
-  | Permission        | `targetType`        | `targetId`          | `targetLabel`              |
-  |-------------------|---------------------|---------------------|----------------------------|
-  | `PagePermission`  | `page`              | page name           | `edit → SecretPage`        |
-  | `WikiPermission`  | `wiki`              | action (`createPages`) | `createPages`           |
-  | `GroupPermission` | `group`             | group name          | `edit → Admins`            |
-  | `AllPermission`   | `all`               | `*`                 | `admin (AllPermission)`    |
-  | `null` / unknown  | `permission` / null | `getName()` or null | `getActions() → getName()` |
-
+  
+  | Permission        | `targetType`        | `targetId`             | `targetLabel`              |
+  | ----------------- | ------------------- | ---------------------- | -------------------------- |
+  | `PagePermission`  | `page`              | page name              | `edit → SecretPage`        |
+  | `WikiPermission`  | `wiki`              | action (`createPages`) | `createPages`              |
+  | `GroupPermission` | `group`             | group name             | `edit → Admins`            |
+  | `AllPermission`   | `all`               | `*`                    | `admin (AllPermission)`    |
+  | `null` / unknown  | `permission` / null | `getName()` or null    | `getActions() → getName()` |
+  
   The action-qualified `targetLabel` (e.g. `edit → SecretPage`) surfaces the
   attempted action at a glance in the admin grid without expanding `detail`.
 
 - **`detail` JSON for `access.denied`** — built with the existing `escape()`
   helper, of the form:
-
+  
   ```json
   {"permission":"*:SecretPage","uri":"/api/pages/SecretPage","method":"PUT"}
   ```
-
+  
   (`permission` is `Permission.getName()`; `uri`/`method` come from
   `AuditRequestContext`. Omit keys whose source value is null.)
 
@@ -132,6 +132,7 @@ during `doFilter` and removed afterward.
   entries.
 
 **Test:** `AuditEventListenerTest` — new cases:
+
 - `ACCESS_DENIED` with `PagePermission` → assert `targetType=page`,
   `targetId=<page>`, `targetLabel=<action> → <page>`, `detail` contains permission.
 - `ACCESS_DENIED` with `WikiPermission` → assert `targetType=wiki`,
@@ -174,12 +175,12 @@ an ad-hoc operation outside this change if ever wanted.)
 
 ## Testing summary
 
-| Test | Level | Asserts |
-|------|-------|---------|
-| `AuditRequestContextTest` | unit | MDC present → values; absent → nulls |
-| `AuditEventListenerTest` (new cases) | unit | target/detail for Page/Wiki/null perms; request-context fields |
-| `RequestCorrelationFilterTest` | unit | `userAgent` MDC set during request, removed after |
-| `AuditLogIT` (extended) | integration | anonymous REST 403 on a restricted page → `/admin/audit` row has `target` + `sourceIp` |
+| Test                                 | Level       | Asserts                                                                                |
+| ------------------------------------ | ----------- | -------------------------------------------------------------------------------------- |
+| `AuditRequestContextTest`            | unit        | MDC present → values; absent → nulls                                                   |
+| `AuditEventListenerTest` (new cases) | unit        | target/detail for Page/Wiki/null perms; request-context fields                         |
+| `RequestCorrelationFilterTest`       | unit        | `userAgent` MDC set during request, removed after                                      |
+| `AuditLogIT` (extended)              | integration | anonymous REST 403 on a restricted page → `/admin/audit` row has `target` + `sourceIp` |
 
 TDD: each test is written to fail against current behavior before the
 corresponding implementation lands.

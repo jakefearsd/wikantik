@@ -69,7 +69,11 @@ vi.mock('../api/client', () => ({
 const FIXED_RECT = { top: 10, bottom: 30, left: 20, right: 120, width: 100, height: 20, x: 20, y: 10 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  // resetAllMocks (not clearAllMocks): vitest 4 no longer drains a leftover
+  // mockResolvedValueOnce queue between tests, so a prior test's unconsumed
+  // `...Once` value would leak here. reset clears the once-queue + impl; the
+  // defaults below re-establish everything this suite relies on.
+  vi.resetAllMocks();
 
   api.getUser.mockResolvedValue({ authenticated: true, username: 'alice', roles: [] });
   // Return a FRESH page object per call (mirrors real fetch responses). PageView

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import AdminRetrievalQualityPage from './AdminRetrievalQualityPage';
 import { api } from '../../api/client';
@@ -35,6 +35,11 @@ describe('AdminRetrievalQualityPage', () => {
     listSpy = vi.spyOn(api.admin, 'listRetrievalRuns').mockResolvedValue(twoRuns);
     runSpy = vi.spyOn(api.admin, 'runRetrievalNow').mockResolvedValue({});
   });
+
+  // Restore spies between tests: vitest 4 keeps spyOn call counts on the
+  // underlying method across tests, so without this the per-test
+  // toHaveBeenCalledTimes assertions see cumulative counts.
+  afterEach(() => { vi.restoreAllMocks(); });
 
   it('renders one row per (set, mode) bucket with the latest value + sparkline', async () => {
     render(<AdminRetrievalQualityPage />);

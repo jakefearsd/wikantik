@@ -219,6 +219,28 @@ public class AuditLogIT {
         return null; // unreachable
     }
 
+    /** Polls {@code GET /admin/audit} for an access.denied row with the given correlationId. */
+    private JsonObject pollForAccessDenied( final String correlationId, final long timeoutMs )
+            throws IOException, InterruptedException {
+        final long deadline = System.currentTimeMillis() + timeoutMs;
+        while ( System.currentTimeMillis() < deadline ) {
+            final HttpResponse<String> resp = get( "/admin/audit?limit=1000" );
+            assertEquals( 200, resp.statusCode(), "GET /admin/audit should return 200, got: " + resp.body() );
+            final JsonArray rows = JsonParser.parseString( resp.body() ).getAsJsonArray();
+            for ( final JsonElement el : rows ) {
+                final JsonObject row = el.getAsJsonObject();
+                final String type = row.has( "eventType" ) && !row.get( "eventType" ).isJsonNull()
+                        ? row.get( "eventType" ).getAsString() : "";
+                final String corr = row.has( "correlationId" ) && !row.get( "correlationId" ).isJsonNull()
+                        ? row.get( "correlationId" ).getAsString() : "";
+                if ( "access.denied".equals( type ) && correlationId.equals( corr ) ) return row;
+            }
+            Thread.sleep( POLL_INTERVAL_MS );
+        }
+        fail( "Timed out waiting for access.denied row with correlationId=" + correlationId );
+        return null; // unreachable
+    }
+
     /**
      * Verifies that NO row with the given {@code eventType} and {@code targetId}
      * exists in the audit log after waiting the full poll window (to give the
@@ -611,6 +633,34 @@ public class AuditLogIT {
                         + "' failed (non-fatal): " + e.getMessage() );
             }
         }
+    }
+
+    @Test
+    @Order( 10 )
+    void accessDeniedCarriesTargetAndSourceIp() throws IOException, InterruptedException {
+        logoutAdmin(); // ensure the next request is anonymous
+
+        final String marker = "audit-it-deny-" + System.nanoTime();
+        final HttpResponse<String> denied = client.send(
+                HttpRequest.newBuilder()
+                        .uri( URI.create( baseUrl + "/admin/users" ) )
+                        .header( "Accept", "application/json" )
+                        .header( "X-Request-Id", marker )
+                        .GET()
+                        .build(),
+                HttpResponse.BodyHandlers.ofString() );
+        assertEquals( 403, denied.statusCode(),
+                "anonymous /admin/users should be forbidden: " + denied.body() );
+
+        loginAsAdmin();
+        final JsonObject row = pollForAccessDenied( marker, POLL_TIMEOUT_MS );
+
+        assertEquals( "all", row.get( "targetType" ).getAsString(),
+                "AllPermission denial should map targetType=all" );
+        final String sourceIp = row.has( "sourceIp" ) && !row.get( "sourceIp" ).isJsonNull()
+                ? row.get( "sourceIp" ).getAsString() : null;
+        assertNotNull( sourceIp, "access.denied should carry sourceIp" );
+        assertFalse( sourceIp.isBlank(), "sourceIp should be non-blank" );
     }
 
     /** Asserts a SQLException is a PostgreSQL insufficient-privilege error. */

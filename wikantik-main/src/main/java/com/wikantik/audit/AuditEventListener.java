@@ -18,12 +18,17 @@
  */
 package com.wikantik.audit;
 
+import com.wikantik.auth.permissions.AllPermission;
+import com.wikantik.auth.permissions.GroupPermission;
+import com.wikantik.auth.permissions.PagePermission;
+import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventListener;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.event.WikiPageRenameEvent;
 import com.wikantik.event.WikiSecurityEvent;
 
+import java.security.Permission;
 import java.security.Principal;
 import java.time.Instant;
 import java.util.Map;
@@ -78,19 +83,23 @@ public final class AuditEventListener implements WikiEventListener {
         final SecurityAudit mapping = SECURITY_AUDITS.get( se.getType() );
         if ( mapping == null ) return null;
         final String principal = principalName( se );
-        return AuditEntry.builder()
+        final AuditEntry.Builder b = AuditEntry.builder()
             .eventTime( Instant.now() )
             .category( mapping.category() ).eventType( mapping.eventType() ).outcome( mapping.outcome() )
             .actorPrincipal( principal )
-            .actorType( principal == null ? "anonymous" : "user" )
-            .build();
+            .actorType( principal == null ? "anonymous" : "user" );
+        if ( se.getType() == WikiSecurityEvent.ACCESS_DENIED ) {
+            applyPermissionTarget( b, se.getTarget() );
+        }
+        enrichRequestContext( b );
+        return b.build();
     }
 
     private AuditEntry mapPage( final WikiPageEvent pe ) {
         final String eventType = PAGE_EVENT_TYPES.get( pe.getType() );
         if ( eventType == null ) return null;
         final String pageName = pe.getPageName();
-        return AuditEntry.builder()
+        final AuditEntry.Builder b = AuditEntry.builder()
             .eventTime( Instant.now() )
             .category( AuditCategory.CONTENT )
             .eventType( eventType )
@@ -98,15 +107,16 @@ public final class AuditEventListener implements WikiEventListener {
             .actorType( "system" )
             .targetType( "page" )
             .targetId( pageName )
-            .targetLabel( pageName )
-            .build();
+            .targetLabel( pageName );
+        enrichRequestContext( b );
+        return b.build();
     }
 
     private AuditEntry mapRename( final WikiPageRenameEvent re ) {
         final String oldName = re.getOldPageName();
         final String newName = re.getNewPageName();
         final String detail = "{\"from\":\"" + escape( oldName ) + "\",\"to\":\"" + escape( newName ) + "\"}";
-        return AuditEntry.builder()
+        final AuditEntry.Builder b = AuditEntry.builder()
             .eventTime( Instant.now() )
             .category( AuditCategory.CONTENT )
             .eventType( "page.rename" )
@@ -115,8 +125,52 @@ public final class AuditEventListener implements WikiEventListener {
             .targetType( "page" )
             .targetId( newName )
             .targetLabel( newName )
-            .detail( detail )
-            .build();
+            .detail( detail );
+        enrichRequestContext( b );
+        return b.build();
+    }
+
+    /** Stamps request-context columns from the request-thread MDC; no-ops to null off-thread. */
+    private void enrichRequestContext( final AuditEntry.Builder b ) {
+        b.sourceIp( AuditRequestContext.sourceIp() )
+         .userAgent( AuditRequestContext.userAgent() )
+         .correlationId( AuditRequestContext.correlationId() );
+    }
+
+    /**
+     * Maps the denied {@link Permission} (carried as the security event's target) into the
+     * target columns plus a {@code detail} JSON. A null or non-Permission target leaves the
+     * target columns unset (e.g. the session==null deny branch).
+     */
+    private void applyPermissionTarget( final AuditEntry.Builder b, final Object target ) {
+        if ( !( target instanceof Permission perm ) ) return;
+        final String type;
+        final String id;
+        final String label;
+        if ( perm instanceof PagePermission pp ) {
+            type = "page";  id = pp.getPage();  label = pp.getActions() + " → " + pp.getPage();
+        } else if ( perm instanceof GroupPermission gp ) {
+            type = "group"; id = gp.getGroup(); label = gp.getActions() + " → " + gp.getGroup();
+        } else if ( perm instanceof AllPermission ) {
+            type = "all";   id = "*";           label = "admin (AllPermission)";
+        } else if ( perm instanceof WikiPermission wp ) {
+            type = "wiki";  id = wp.getActions(); label = wp.getActions();
+        } else {
+            type = "permission"; id = perm.getName(); label = perm.getActions() + " → " + perm.getName();
+        }
+        b.targetType( type ).targetId( id ).targetLabel( label )
+         .detail( deniedDetail( perm.getName() ) );
+    }
+
+    /** Builds the access.denied detail JSON, omitting uri/method when not on a request thread. */
+    private static String deniedDetail( final String permissionName ) {
+        final StringBuilder sb = new StringBuilder( "{\"permission\":\"" )
+            .append( escape( permissionName ) ).append( '"' );
+        final String uri = AuditRequestContext.uri();
+        final String method = AuditRequestContext.method();
+        if ( uri != null )    sb.append( ",\"uri\":\"" ).append( escape( uri ) ).append( '"' );
+        if ( method != null ) sb.append( ",\"method\":\"" ).append( escape( method ) ).append( '"' );
+        return sb.append( '}' ).toString();
     }
 
     /** Minimal JSON string escaping for page names in detail JSON. */

@@ -18,9 +18,13 @@
  */
 package com.wikantik.audit;
 
+import com.wikantik.auth.permissions.PagePermission;
+import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.event.WikiPageRenameEvent;
 import com.wikantik.event.WikiSecurityEvent;
+import org.apache.logging.log4j.ThreadContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -154,6 +158,70 @@ class AuditEventListenerTest {
         listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.PAGE_LOCK, "Whatever" ) );
 
         assertTrue( svc.recorded.isEmpty() );
+    }
+
+    // ---------------------------------------------------------------- access.denied target
+
+    @AfterEach
+    void clearMdc() { ThreadContext.clearAll(); }
+
+    @Test
+    void accessDeniedWithPagePermissionMapsPageTarget() {
+        final PagePermission perm = new PagePermission( "*:SecretPage", "edit" );
+        listener.actionPerformed(
+            new WikiSecurityEvent( this, WikiSecurityEvent.ACCESS_DENIED, named( "alice" ), perm ) );
+
+        final AuditEntry e = onlyEntry();
+        assertEquals( "access.denied", e.eventType() );
+        assertEquals( AuditOutcome.DENIED, e.outcome() );
+        assertEquals( "alice", e.actorPrincipal() );
+        assertEquals( "page", e.targetType() );
+        assertEquals( "SecretPage", e.targetId() );
+        assertEquals( "edit → SecretPage", e.targetLabel() );
+        assertTrue( e.detail().contains( "\"permission\":\"*:SecretPage\"" ),
+            "detail should carry the permission name: " + e.detail() );
+    }
+
+    @Test
+    void accessDeniedWithWikiPermissionMapsWikiTarget() {
+        // WikiPermission.getActions() always returns the action lower-cased (per its Javadoc),
+        // so the target id/label are "createpages", not "createPages".
+        final WikiPermission perm = new WikiPermission( "*", "createPages" );
+        listener.actionPerformed(
+            new WikiSecurityEvent( this, WikiSecurityEvent.ACCESS_DENIED, named( "bob" ), perm ) );
+
+        final AuditEntry e = onlyEntry();
+        assertEquals( "wiki", e.targetType() );
+        assertEquals( "createpages", e.targetId() );
+        assertEquals( "createpages", e.targetLabel() );
+    }
+
+    @Test
+    void accessDeniedWithNullPermissionDoesNotThrowAndStillRecords() {
+        // Mirrors DefaultAuthorizationManager's session==null branch: principal and target both null.
+        listener.actionPerformed(
+            new WikiSecurityEvent( this, WikiSecurityEvent.ACCESS_DENIED, null, null ) );
+
+        final AuditEntry e = onlyEntry();
+        assertEquals( "access.denied", e.eventType() );
+        assertNull( e.targetType() );
+        assertNull( e.targetId() );
+        assertNull( e.detail() );
+    }
+
+    @Test
+    void securityEntryStampsRequestContextFromMdc() {
+        ThreadContext.put( "remoteAddr", "203.0.113.7" );
+        ThreadContext.put( "userAgent",  "curl/8.4.0" );
+        ThreadContext.put( "requestId",  "req-xyz" );
+
+        listener.actionPerformed(
+            new WikiSecurityEvent( this, WikiSecurityEvent.LOGIN_FAILED, named( "mallory" ) ) );
+
+        final AuditEntry e = onlyEntry();
+        assertEquals( "203.0.113.7", e.sourceIp() );
+        assertEquals( "curl/8.4.0",  e.userAgent() );
+        assertEquals( "req-xyz",      e.correlationId() );
     }
 
     // ---------------------------------------------------------------- rename events

@@ -13,6 +13,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   **only** via the `all` type, under strict rules — it must pin `target='*'` / `actions='*'`, and it
   cannot be granted to the built-in broad roles (`All`/`Anonymous`/`Asserted`/`Authenticated`),
   closing a one-typo "everyone is an admin" misconfiguration.
+- **`access.denied` audit records now carry full forensic context.** Authorization denials record the
+  *resource and attempted action* as the audit target (e.g. `edit → SecretPage`, or `all` for
+  admin-surface denials), plus `sourceIp`, `userAgent`, `correlationId`, and a `detail` with the exact
+  endpoint (URI/method) — sourced from the denied `Permission` and the request-thread MDC. The same
+  request-context enrichment now applies to every audited security event, so `login.failed` also
+  surfaces source IP and user-agent (brute-force visibility). Forward-only: no schema migration, and
+  previously these rows showed a null target. Visible in Admin → Observability → Audit.
 
 ### Changed
 - **Wildcard `*` actions are rejected on scoped (`page`/`wiki`/`group`) grants.** Such a grant

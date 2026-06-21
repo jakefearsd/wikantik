@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-06-21
+
 ### Added
 - **First-class `all` (AllPermission) policy-grant type.** Admin → Security's "Grant AllPermission"
   control now round-trips end-to-end: the validator accepts `permissionType: all` (it was previously

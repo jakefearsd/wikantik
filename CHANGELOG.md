@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-06-21
+
 ### Security
 - **Vulnerable transitive dependencies pinned to patched versions.** An OSV.dev scan of the
   resolved dependency tree flagged 8 vulnerable transitives; all are remediated compatibly via

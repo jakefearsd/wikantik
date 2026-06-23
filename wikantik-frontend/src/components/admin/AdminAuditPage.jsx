@@ -6,6 +6,7 @@ import { api } from '../../api/client';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
 import { AdminTable } from './table';
+import AuditRecordModal from './AuditRecordModal';
 import '../../styles/admin.css';
 
 const CATEGORY_OPTIONS = [
@@ -92,6 +93,9 @@ export default function AdminAuditPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fetched, setFetched] = useState(false);
+
+  // Modal state
+  const [selectedRecord, setSelectedRecord] = useState(null);
 
   // Integrity check state
   const [verifyState, setVerifyState] = useState(null); // null | { ok, firstBrokenSeq }
@@ -254,9 +258,14 @@ export default function AdminAuditPage() {
           rows={rows}
           getRowKey={(r) => String(r.seq)}
           columns={COLUMNS}
+          onRowClick={(r) => setSelectedRecord(r)}
           emptyMessage="No audit entries matched the filter."
           initialSort={{ columnId: 'seq', direction: 'desc' }}
         />
+      )}
+
+      {selectedRecord && (
+        <AuditRecordModal record={selectedRecord} onClose={() => setSelectedRecord(null)} />
       )}
 
       {!fetched && !loading && (

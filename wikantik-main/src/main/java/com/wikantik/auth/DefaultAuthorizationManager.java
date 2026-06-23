@@ -61,11 +61,13 @@ import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.text.MessageFormat;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.WeakHashMap;
 import java.util.function.LongSupplier;
+import java.util.stream.Collectors;
 
 
 /**
@@ -136,70 +138,63 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         this.userManager = userManager;
     }
 
+    /** Outcome of a pure (event-free) authorization evaluation. */
+    private record Decision( boolean allowed, String reason ) {}
+
     /** {@inheritDoc} */
     @Override
     public boolean checkPermission( final Session session, final Permission permission ) {
-        // A slight sanity check.
-        if( session == null || permission == null ) {
-            fireEvent( WikiSecurityEvent.ACCESS_DENIED, null, permission );
-            return false;
+        final Decision d = decide( session, permission );
+        final Principal user = ( session == null ) ? null : session.getLoginPrincipal();
+        if ( d.allowed() ) {
+            fireEvent( WikiSecurityEvent.ACCESS_ALLOWED, user, permission );
+        } else {
+            fireEvent( WikiSecurityEvent.ACCESS_DENIED, user, permission, deniedAttributes( session, d.reason() ) );
         }
+        return d.allowed();
+    }
 
-        // Bootstrap admin override — bypasses all policy checks for the configured user,
-        // but only inside the configured TTL window. Once expired, the override is ignored
-        // even if the property is still set; operators must restart after removing it.
+    /** {@inheritDoc} */
+    @Override
+    public boolean isPermitted( final Session session, final Permission permission ) {
+        return decide( session, permission ).allowed();
+    }
+
+    /**
+     * Pure authorization evaluation — no events fired. Single source of truth for both
+     * {@link #checkPermission} (which fires + audits) and {@link #isPermitted} (silent).
+     * Resolving unresolved ACL principals here is an intentional, idempotent side effect
+     * preserved from the original checkPermission logic.
+     */
+    private Decision decide( final Session session, final Permission permission ) {
+        if( session == null || permission == null ) {
+            return new Decision( false, "no-session" );
+        }
         if ( bootstrapAdmin != null && clock.getAsLong() < bootstrapExpiresAt ) {
             for ( final Principal p : session.getPrincipals() ) {
                 if ( bootstrapAdmin.equals( p.getName() ) ) {
-                    fireEvent( WikiSecurityEvent.ACCESS_ALLOWED, session.getLoginPrincipal(), permission );
-                    return true;
+                    return new Decision( true, null );
                 }
             }
         }
-
-        final Principal user = session.getLoginPrincipal();
-
-        // Always allow the action if user has AllPermission
         final Permission allPermission = new AllPermission( engine.getApplicationName() );
-        final boolean hasAllPermission = checkStaticPermission( session, allPermission );
-        if( hasAllPermission ) {
-            fireEvent( WikiSecurityEvent.ACCESS_ALLOWED, user, permission );
-            return true;
+        if( checkStaticPermission( session, allPermission ) ) {
+            return new Decision( true, null );
         }
-
-        // If the user doesn't have *at least* the permission granted by policy, return false.
-        final boolean hasPolicyPermission = checkStaticPermission( session, permission );
-        if( !hasPolicyPermission ) {
-            fireEvent( WikiSecurityEvent.ACCESS_DENIED, user, permission );
-            return false;
+        if( !checkStaticPermission( session, permission ) ) {
+            return new Decision( false, "policy-denied" );
         }
-
-        // If this isn't a PagePermission, it's allowed
         if( !( permission instanceof PagePermission pagePerm ) ) {
-            fireEvent( WikiSecurityEvent.ACCESS_ALLOWED, user, permission );
-            return true;
+            return new Decision( true, null );
         }
-
-        // If the page or ACL is null, it's allowed.
         final String pageName = pagePerm.getPage();
         final Page page = pageManager().getPage( pageName );
-        final Acl acl = ( page == null) ? null : aclManager().getPermissions( page );
-        if( page == null ||  acl == null || acl.isEmpty() ) {
-            fireEvent( WikiSecurityEvent.ACCESS_ALLOWED, user, permission );
-            return true;
+        final Acl acl = ( page == null ) ? null : aclManager().getPermissions( page );
+        if( page == null || acl == null || acl.isEmpty() ) {
+            return new Decision( true, null );
         }
-
-        // Next, iterate through the Principal objects assigned this permission. If the context's subject possesses
-        // any of these, the action is allowed.
         final Principal[] aclPrincipals = acl.findPrincipals( permission );
-
-        LOG.debug( "Checking ACL entries..." );
-        LOG.debug( "Acl for this page is: {}", acl );
-        LOG.debug( "Checking for principal: {}", Arrays.toString( aclPrincipals ) );
-        LOG.debug( "Permission: {}", permission );
-
         for( Principal aclPrincipal : aclPrincipals ) {
-            // If the ACL principal we're looking at is unresolved, try to resolve it here & correct the Acl
             if ( aclPrincipal instanceof UnresolvedPrincipal unresolvedPrincipal ) {
                 final AclEntry aclEntry = acl.getAclEntry( aclPrincipal );
                 aclPrincipal = resolvePrincipal( unresolvedPrincipal.getName() );
@@ -207,14 +202,26 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
                     aclEntry.setPrincipal( aclPrincipal );
                 }
             }
-
             if ( hasRoleOrPrincipal( session, aclPrincipal ) ) {
-                fireEvent( WikiSecurityEvent.ACCESS_ALLOWED, user, permission );
-                return true;
+                return new Decision( true, null );
             }
         }
-        fireEvent( WikiSecurityEvent.ACCESS_DENIED, user, permission );
-        return false;
+        return new Decision( false, "acl-denied" );
+    }
+
+    /** Builds the {reason, authStatus, roles} attribute map attached to a denied event. */
+    private static Map<String, String> deniedAttributes( final Session session, final String reason ) {
+        final Map<String, String> m = new LinkedHashMap<>();
+        m.put( "reason", reason );
+        if ( session == null ) {
+            m.put( "authStatus", "none" );
+            m.put( "roles", "" );
+        } else {
+            m.put( "authStatus", session.getStatus() );
+            m.put( "roles", Arrays.stream( session.getRoles() )
+                .map( Principal::getName ).collect( Collectors.joining( "," ) ) );
+        }
+        return m;
     }
 
     /** {@inheritDoc} */

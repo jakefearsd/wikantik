@@ -867,4 +867,47 @@ public class AuthorizationManagerTest {
                                   "Authorizer should not be null after initialization" );
     }
 
+    private java.util.List<com.wikantik.event.WikiSecurityEvent> captureEvents() {
+        final java.util.List<com.wikantik.event.WikiSecurityEvent> events = new java.util.ArrayList<>();
+        m_auth.addWikiEventListener( e -> {
+            if ( e instanceof com.wikantik.event.WikiSecurityEvent se ) events.add( se );
+        } );
+        return events;
+    }
+
+    @Test
+    public void isPermittedMatchesCheckPermissionButFiresNoEvents() throws Exception {
+        m_engine.saveText( "PlainPage", "Foo" );
+        final Permission modify = PermissionFactory.getPagePermission( "*:PlainPage", "modify" );
+        final Session anon = WikiSessionTest.anonymousSession( m_engine );
+
+        final java.util.List<com.wikantik.event.WikiSecurityEvent> events = captureEvents();
+
+        // Same boolean as checkPermission (anonymous modify is denied by the default policy).
+        final boolean enforced = m_auth.checkPermission( anon, modify );
+        Assertions.assertEquals( enforced, m_auth.isPermitted( anon, modify ), "isPermitted must match checkPermission" );
+
+        // checkPermission fired exactly one ACCESS_DENIED; isPermitted fired nothing.
+        final long denied = events.stream()
+            .filter( e -> e.getType() == com.wikantik.event.WikiSecurityEvent.ACCESS_DENIED ).count();
+        Assertions.assertEquals( 1, denied, "exactly one ACCESS_DENIED from the single checkPermission call" );
+    }
+
+    @Test
+    public void deniedEventCarriesReasonStatusAndRoles() throws Exception {
+        m_engine.saveText( "PlainPage2", "Foo" );
+        final Permission modify = PermissionFactory.getPagePermission( "*:PlainPage2", "modify" );
+        final Session anon = WikiSessionTest.anonymousSession( m_engine );
+
+        final java.util.List<com.wikantik.event.WikiSecurityEvent> events = captureEvents();
+        Assertions.assertFalse( m_auth.checkPermission( anon, modify ), "anonymous modify denied" );
+
+        final com.wikantik.event.WikiSecurityEvent denied = events.stream()
+            .filter( e -> e.getType() == com.wikantik.event.WikiSecurityEvent.ACCESS_DENIED )
+            .findFirst().orElseThrow();
+        Assertions.assertEquals( "policy-denied", denied.getAttributes().get( "reason" ) );
+        Assertions.assertEquals( "anonymous", denied.getAttributes().get( "authStatus" ) );
+        Assertions.assertNotNull( denied.getAttributes().get( "roles" ) );
+    }
+
 }

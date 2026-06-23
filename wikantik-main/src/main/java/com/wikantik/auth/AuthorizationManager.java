@@ -104,6 +104,19 @@ public interface AuthorizationManager extends Initializable {
     boolean checkPermission( Session session, Permission permission );
 
     /**
+     * Evaluates whether {@code session} holds {@code permission}, identically to
+     * {@link #checkPermission(Session, Permission)} but <em>without</em> firing any
+     * {@code WikiSecurityEvent} (so no audit row, no security-log line). Use for
+     * speculative checks — search/sitemap/graph filtering, UI capability hints —
+     * that are not access attempts.
+     *
+     * @param session the current wiki session
+     * @param permission the Permission being queried
+     * @return true if permitted
+     */
+    boolean isPermitted( Session session, Permission permission );
+
+    /**
      * <p>Determines if the Subject associated with a supplied Session contains a desired Role or GroupPrincipal. The algorithm
      * simply checks to see if the Subject possesses the Role or GroupPrincipal it in its Principal set. Note that any user (anonymous,
      * asserted, authenticated) can possess a built-in role. But a user <em>must</em> be authenticated to possess a role other than one
@@ -265,6 +278,18 @@ public interface AuthorizationManager extends Initializable {
     default void fireEvent( final int type, final Principal user, final Object permission ) {
         if( WikiEventManager.isListening( this ) ) {
             new com.wikantik.core.subsystem.DefaultWikiEventBus().fireEvent( this, new WikiSecurityEvent( this, type, user, permission ) );
+        }
+    }
+
+    /**
+     * Fires a WikiSecurityEvent carrying structured {@code attributes} (e.g. an
+     * access-denial reason/status/roles) to all registered listeners.
+     */
+    default void fireEvent( final int type, final Principal user, final Object permission,
+                            final java.util.Map<String, String> attributes ) {
+        if( WikiEventManager.isListening( this ) ) {
+            new com.wikantik.core.subsystem.DefaultWikiEventBus()
+                .fireEvent( this, new WikiSecurityEvent( this, type, user, permission, attributes ) );
         }
     }
 

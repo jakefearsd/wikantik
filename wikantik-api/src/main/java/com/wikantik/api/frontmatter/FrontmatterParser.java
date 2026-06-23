@@ -59,9 +59,20 @@ public final class FrontmatterParser {
         return opts;
     }
 
-    private static Yaml newHardenedYaml() {
-        return new Yaml( hardenedLoaderOptions() );
-    }
+    /**
+     * Hardened SnakeYAML parser, reused per thread. Constructing a {@code Yaml}
+     * builds a {@code Resolver} that compiles ~10 regex {@code Pattern}s plus the
+     * {@code LoaderOptions} — non-trivial allocation + CPU that, before this, ran
+     * on every frontmatter parse and dominated the retrieval path (the context
+     * retriever re-parses every candidate page's frontmatter per query). A
+     * {@code Yaml} is not thread-safe, but is safe to reuse for sequential
+     * {@code load()} calls on a single thread, so a {@link ThreadLocal} removes
+     * the per-parse construction without sharing mutable parser state across
+     * worker threads. Mirrors the per-thread {@code Collator} pattern used to
+     * de-contend {@code PrincipalComparator}.
+     */
+    private static final ThreadLocal< Yaml > HARDENED_YAML =
+        ThreadLocal.withInitial( () -> new Yaml( hardenedLoaderOptions() ) );
 
     /**
      * Parses a page text that may contain YAML frontmatter.
@@ -121,7 +132,7 @@ public final class FrontmatterParser {
         }
 
         try {
-            final Yaml yaml = newHardenedYaml();
+            final Yaml yaml = HARDENED_YAML.get();
             final Object parsed = yaml.load( yamlBlock );
             if ( parsed instanceof Map ) {
                 return new ParsedPage( Map.copyOf( ( Map< String, Object > ) parsed ), body );
@@ -212,7 +223,7 @@ public final class FrontmatterParser {
         }
 
         try {
-            final Yaml yaml = newHardenedYaml();
+            final Yaml yaml = HARDENED_YAML.get();
             final Object parsed = yaml.load( yamlBlock );
             if ( parsed instanceof Map ) {
                 @SuppressWarnings( "unchecked" )

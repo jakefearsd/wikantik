@@ -728,7 +728,7 @@ public class AuditLogIT {
     void speculativeCapabilityChecksProduceNoAuditRows() throws IOException, InterruptedException {
         // Create a plain page as admin so we have a known target to GET anonymously.
         loginAsAdmin();
-        final String capPage = "AuditLogITCapabilityPage";
+        final String capPage = "AuditLogITCapabilityPage" + System.nanoTime();
         final String createBody = GSON.toJson(
                 Map.of( "content", "Page for speculative-check silence test.",
                         "changeNote", "created by AuditLogIT step 12" ) );

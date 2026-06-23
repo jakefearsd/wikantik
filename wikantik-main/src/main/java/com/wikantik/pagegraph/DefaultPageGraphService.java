@@ -272,6 +272,6 @@ public class DefaultPageGraphService implements PageGraphService {
         final Permission perm = ( page != null )
                 ? PermissionFactory.getPagePermission( page, "view" )
                 : new PagePermission( engine.getApplicationName() + ":" + pageName, "view" );
-        return authMgr.checkPermission( viewer, perm );
+        return authMgr.isPermitted( viewer, perm );
     }
 }

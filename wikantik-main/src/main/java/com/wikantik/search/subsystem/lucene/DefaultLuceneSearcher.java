@@ -316,7 +316,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                         allowed = true;
                     } else {
                         final PagePermission pp = new PagePermission( page, PagePermission.VIEW_ACTION );
-                        allowed = mgr.checkPermission( session, pp );
+                        allowed = mgr.isPermitted( session, pp );
                     }
 
                     if ( allowed ) {

@@ -75,7 +75,7 @@ public final class OntologyWiringHelper {
         final com.wikantik.auth.permissions.PermissionFilter permFilter =
                 new com.wikantik.auth.permissions.PermissionFilter( engine );
         final java.util.function.Predicate< String > isPublic =
-                slug -> permFilter.canAccess( guest, slug, "view" );
+                slug -> permFilter.canAccessQuietly( guest, slug, "view" );
 
         // Tier.MACHINE includes BOTH human- and machine-tier rows (full dump);
         // Tier.HUMAN would exclude machine-tier nodes/edges. Each supplier projects only

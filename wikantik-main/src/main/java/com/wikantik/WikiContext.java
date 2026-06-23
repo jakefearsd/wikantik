@@ -795,7 +795,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public boolean hasAdminPermissions() {
-        return AuthSubsystemBridge.fromLegacyEngine( engine ).authorization().checkPermission( getWikiSession(), new AllPermission( engine.getApplicationName() ) );
+        return AuthSubsystemBridge.fromLegacyEngine( engine ).authorization().isPermitted( getWikiSession(), new AllPermission( engine.getApplicationName() ) );
     }
 
     /**

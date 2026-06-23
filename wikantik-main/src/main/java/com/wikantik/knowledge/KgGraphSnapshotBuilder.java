@@ -159,7 +159,7 @@ class KgGraphSnapshotBuilder {
         final java.security.Permission perm = ( page != null )
                 ? PermissionFactory.getPagePermission( page, "view" )
                 : new PagePermission( engine.getApplicationName() + ":" + pageName, "view" );
-        return authMgr.checkPermission( viewer, perm );
+        return authMgr.isPermitted( viewer, perm );
     }
 
     private static String propString( final KgNode node, final String key ) {

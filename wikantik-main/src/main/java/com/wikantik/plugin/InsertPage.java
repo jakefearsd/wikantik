@@ -136,7 +136,7 @@ public class InsertPage implements Plugin {
 
     private static boolean hasViewPermission( final Engine engine, final Context context, final Page page ) {
         final AuthorizationManager mgr = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
-        return mgr.checkPermission( context.getWikiSession(), PermissionFactory.getPagePermission( page, "view" ) );
+        return mgr.isPermitted( context.getWikiSession(), PermissionFactory.getPagePermission( page, "view" ) );
     }
 
     private static String showOnceCookieName( final Page page ) {

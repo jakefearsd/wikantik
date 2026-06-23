@@ -174,7 +174,7 @@ public class SitemapServlet extends HttpServlet {
             .filter( page -> {
                 try {
                     final PagePermission permission = new PagePermission( page, PagePermission.VIEW_ACTION );
-                    return authManager.checkPermission( context.getWikiSession(), permission );
+                    return authManager.isPermitted( context.getWikiSession(), permission );
                 } catch ( final Exception e ) {
                     LOG.debug( "Error checking permission for page {}: {}", page.getName(), e.getMessage() );
                     return false;

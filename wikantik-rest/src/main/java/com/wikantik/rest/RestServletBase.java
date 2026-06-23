@@ -410,34 +410,29 @@ public abstract class RestServletBase extends HttpServlet {
     }
 
     /**
-     * Checks whether the current user has the specified permission for the given page.
-     * If the page exists, its ACL is evaluated via {@link PermissionFactory#getPagePermission(Page, String)}.
-     * If the user lacks permission, a 403 JSON error is sent and this method returns {@code false}.
-     *
-     * @param request  the HTTP request (used to resolve the user's session)
-     * @param response the HTTP response (used to send 403 if denied)
-     * @param pageName the wiki page name
-     * @param action   the permission action (e.g., "view", "edit", "delete")
-     * @return {@code true} if the user is authorized; {@code false} if a 403 was sent
-     * @throws IOException if writing the error response fails
-     */
-    /**
      * Returns {@code true} if the current user has the specified permission for the given page.
-     * Unlike {@link #checkPagePermission}, this method does not send a 403 — it only queries.
+     * This is a silent capability query (no 403, no audit row) — used to build UI affordance
+     * maps. The enforcing variant is {@link #checkPagePermission}.
      */
     protected boolean hasPagePermission( final HttpServletRequest request,
                                           final String pageName,
                                           final String action ) {
         final Engine eng = getEngine();
         final Session session = Wiki.session().find( eng, request );
-        return new PermissionFilter( eng ).canAccess( session, pageName, action );
+        return new PermissionFilter( eng ).canAccessQuietly( session, pageName, action );
     }
 
+    /**
+     * Enforces the permission: if denied, sends a 403 and returns {@code false}. The denial is
+     * audited (routes through the event-firing {@link PermissionFilter#canAccess}).
+     */
     protected boolean checkPagePermission( final HttpServletRequest request,
                                             final HttpServletResponse response,
                                             final String pageName,
                                             final String action ) throws IOException {
-        if ( hasPagePermission( request, pageName, action ) ) {
+        final Engine eng = getEngine();
+        final Session session = Wiki.session().find( eng, request );
+        if ( new PermissionFilter( eng ).canAccess( session, pageName, action ) ) {
             return true;
         }
         sendError( response, HttpServletResponse.SC_FORBIDDEN, "Forbidden" );

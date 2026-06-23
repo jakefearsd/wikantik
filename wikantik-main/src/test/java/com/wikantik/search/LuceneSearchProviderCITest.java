@@ -530,7 +530,7 @@ class LuceneSearchProviderCITest {
         final Acl acl = mock( Acl.class );
         when( acl.isEmpty() ).thenReturn( false );
         when( aclManager.getPermissions( page ) ).thenReturn( acl );
-        when( authorizationManager.checkPermission( any( Session.class ), any( Permission.class ) ) ).thenReturn( false );
+        when( authorizationManager.isPermitted( any( Session.class ), any( Permission.class ) ) ).thenReturn( false );
 
         final Collection< SearchResult > results = provider.findPages( "deniedword777", LuceneSearchProvider.FLAG_CONTEXTS, wikiContext );
         assertNotNull( results );
@@ -582,7 +582,7 @@ class LuceneSearchProviderCITest {
         when( acl.isEmpty() ).thenReturn( false );
         when( aclManager.getPermissions( page ) ).thenReturn( acl );
         // Per-page check succeeds
-        when( authorizationManager.checkPermission( any( Session.class ), any( Permission.class ) ) ).thenReturn( true );
+        when( authorizationManager.isPermitted( any( Session.class ), any( Permission.class ) ) ).thenReturn( true );
 
         final Collection< SearchResult > results = provider.findPages( "aclcheckword333", 0, wikiContext );
         assertEquals( 1, results.size(), "Page allowed by per-page checkPermission should appear" );

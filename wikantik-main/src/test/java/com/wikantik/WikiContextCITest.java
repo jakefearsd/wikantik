@@ -379,7 +379,7 @@ class WikiContextCITest {
 
     @Test
     void hasAdminPermissions_delegatesToAuthorizationManager() {
-        when( authorizationManager.checkPermission( any( Session.class ), any( AllPermission.class ) ) )
+        when( authorizationManager.isPermitted( any( Session.class ), any( AllPermission.class ) ) )
                 .thenReturn( true );
 
         final WikiContext ctx = createViewContext( frontPage );
@@ -388,7 +388,7 @@ class WikiContextCITest {
 
     @Test
     void hasAdminPermissions_returnsFalseWhenDenied() {
-        when( authorizationManager.checkPermission( any( Session.class ), any( AllPermission.class ) ) )
+        when( authorizationManager.isPermitted( any( Session.class ), any( AllPermission.class ) ) )
                 .thenReturn( false );
 
         final WikiContext ctx = createViewContext( frontPage );

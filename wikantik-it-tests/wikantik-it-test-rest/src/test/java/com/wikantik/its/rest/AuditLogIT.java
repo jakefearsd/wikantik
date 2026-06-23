@@ -663,6 +663,115 @@ public class AuditLogIT {
         assertFalse( sourceIp.isBlank(), "sourceIp should be non-blank" );
     }
 
+    /**
+     * Step 11: Enforced access-denied rows carry the enriched {@code detail} fields
+     * added by Tasks 1–3: {@code reason}, {@code authStatus}, and {@code roles}.
+     *
+     * <p>An anonymous caller hits {@code GET /admin/users} (protected by AllPermission),
+     * receives 403, and the resulting {@code access.denied} audit row must contain all
+     * three fields in its serialised {@code detail} JSON string.  For an anonymous caller
+     * the expected values are {@code reason=policy-denied} and {@code authStatus=anonymous}.
+     */
+    @Test
+    @Order( 11 )
+    void enforcedDenialDetailCarriesEnrichedFields() throws IOException, InterruptedException {
+        logoutAdmin(); // ensure the next request is truly anonymous
+
+        final String marker = "audit-it-enriched-" + System.nanoTime();
+        final HttpResponse<String> denied = client.send(
+                HttpRequest.newBuilder()
+                        .uri( URI.create( baseUrl + "/admin/users" ) )
+                        .header( "Accept", "application/json" )
+                        .header( "X-Request-Id", marker )
+                        .GET()
+                        .build(),
+                HttpResponse.BodyHandlers.ofString() );
+        assertEquals( 403, denied.statusCode(),
+                "Anonymous /admin/users must be forbidden: " + denied.body() );
+
+        loginAsAdmin();
+        final JsonObject row = pollForAccessDenied( marker, POLL_TIMEOUT_MS );
+
+        // The detail column is a JSON string; assert it contains each enriched key/value.
+        assertTrue( row.has( "detail" ) && !row.get( "detail" ).isJsonNull(),
+                "access.denied row must have a non-null detail field: " + row );
+        final String detail = row.get( "detail" ).getAsString();
+
+        assertTrue( detail.contains( "\"reason\"" ),
+                "detail must contain 'reason' key: " + detail );
+        assertTrue( detail.contains( "\"policy-denied\"" ),
+                "detail must contain reason=policy-denied for anonymous AllPermission denial: " + detail );
+
+        assertTrue( detail.contains( "\"authStatus\"" ),
+                "detail must contain 'authStatus' key: " + detail );
+        assertTrue( detail.contains( "\"anonymous\"" ),
+                "detail must contain authStatus=anonymous for unauthenticated caller: " + detail );
+
+        assertTrue( detail.contains( "\"roles\"" ),
+                "detail must contain 'roles' key: " + detail );
+    }
+
+    /**
+     * Step 12: Speculative capability checks on the {@code GET /api/pages/{name}} path
+     * must NOT produce {@code access.denied} audit rows.
+     *
+     * <p>{@link com.wikantik.rest.PageResource} builds a {@code permissions} map via
+     * {@code hasPagePermission(request, name, action)} for {@code edit/comment/upload/rename/delete}
+     * on every page-read response (lines ~218–222).  That method routes to
+     * {@link com.wikantik.auth.permissions.PermissionFilter#canAccessQuietly}, which calls
+     * {@link com.wikantik.auth.AuthorizationManager#isPermitted} — the non-event-firing path.
+     * For an anonymous viewer several of those actions are denied by policy; before the silent-path
+     * change they would have written {@code access.denied} rows.  This test proves they no longer do.
+     */
+    @Test
+    @Order( 12 )
+    void speculativeCapabilityChecksProduceNoAuditRows() throws IOException, InterruptedException {
+        // Create a plain page as admin so we have a known target to GET anonymously.
+        loginAsAdmin();
+        final String capPage = "AuditLogITCapabilityPage";
+        final String createBody = GSON.toJson(
+                Map.of( "content", "Page for speculative-check silence test.",
+                        "changeNote", "created by AuditLogIT step 12" ) );
+        final HttpResponse<String> putResp = put( "/api/pages/" + capPage, createBody );
+        assertTrue( putResp.statusCode() == 200 || putResp.statusCode() == 201,
+                "Capability page create should succeed: " + putResp.body() );
+        logoutAdmin();
+
+        // Anonymous GET — anonymous viewers can read the page (no ACL), so this is 200.
+        // The response building code fires 5 hasPagePermission() checks for edit/comment/
+        // upload/rename/delete — all routed through canAccessQuietly (silent path).
+        final String marker = "audit-it-speculative-" + System.nanoTime();
+        final HttpResponse<String> getResp = client.send(
+                HttpRequest.newBuilder()
+                        .uri( URI.create( baseUrl + "/api/pages/" + capPage ) )
+                        .header( "Accept", "application/json" )
+                        .header( "X-Request-Id", marker )
+                        .GET()
+                        .build(),
+                HttpResponse.BodyHandlers.ofString() );
+        assertEquals( 200, getResp.statusCode(),
+                "Anonymous GET /api/pages/" + capPage + " must be 200: " + getResp.body() );
+
+        // Wait the full async-flush window, then assert NO access.denied row carries our marker.
+        loginAsAdmin();
+        Thread.sleep( POLL_TIMEOUT_MS );
+        final HttpResponse<String> auditResp = get( "/admin/audit?limit=1000" );
+        assertEquals( 200, auditResp.statusCode(),
+                "GET /admin/audit should return 200: " + auditResp.body() );
+        final JsonArray rows = JsonParser.parseString( auditResp.body() ).getAsJsonArray();
+        for ( final JsonElement el : rows ) {
+            final JsonObject row = el.getAsJsonObject();
+            final String type = row.has( "eventType" ) && !row.get( "eventType" ).isJsonNull()
+                    ? row.get( "eventType" ).getAsString() : "";
+            final String corr = row.has( "correlationId" ) && !row.get( "correlationId" ).isJsonNull()
+                    ? row.get( "correlationId" ).getAsString() : "";
+            if ( "access.denied".equals( type ) && marker.equals( corr ) ) {
+                fail( "Speculative capability check produced an access.denied audit row for correlationId="
+                        + marker + " — silent path not routing correctly. Row: " + row );
+            }
+        }
+    }
+
     /** Asserts a SQLException is a PostgreSQL insufficient-privilege error. */
     private static void assertPermissionDenied( final SQLException e ) {
         final String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";

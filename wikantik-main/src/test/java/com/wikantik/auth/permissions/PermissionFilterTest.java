@@ -109,4 +109,22 @@ class PermissionFilterTest {
                 filter.filterAccessible( session, List.of(), "view" ) );
         verify( authMgr, never() ).checkPermission( any(), any() );
     }
+
+    @Test
+    void canAccessQuietlyMatchesCanAccessWithoutFiringEvents() {
+        when( pageManager.getPage( "QuietPage" ) ).thenReturn( null );
+        // Both methods should return false (deny) for an anonymous session on "modify"
+        when( authMgr.checkPermission( eq( session ), any( Permission.class ) ) ).thenReturn( false );
+        when( authMgr.isPermitted( eq( session ), any( Permission.class ) ) ).thenReturn( false );
+
+        final boolean quiet = filter.canAccessQuietly( session, "QuietPage", "modify" );
+        final boolean audited = filter.canAccess( session, "QuietPage", "modify" );
+
+        assertEquals( audited, quiet, "canAccessQuietly result must match canAccess" );
+        // canAccessQuietly routes through isPermitted — not checkPermission
+        verify( authMgr ).isPermitted( eq( session ), any( Permission.class ) );
+        verify( authMgr ).checkPermission( eq( session ), any( Permission.class ) );
+        // isPermitted must NOT have been called during canAccess
+        verify( authMgr, times( 1 ) ).isPermitted( eq( session ), any( Permission.class ) );
+    }
 }

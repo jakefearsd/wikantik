@@ -60,6 +60,14 @@ public class PermissionFilter {
         this.engine = engine;
     }
 
+    /** Builds the PagePermission for a page+action, honouring inline ACLs when the page exists. */
+    private Permission permissionFor( final String pageName, final String action ) {
+        final Page page = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
+        return ( page != null )
+                ? PermissionFactory.getPagePermission( page, action )
+                : new PagePermission( engine.getApplicationName() + ":" + pageName, action );
+    }
+
     /**
      * Returns {@code true} if {@code session} is permitted to perform
      * {@code action} on {@code pageName}. Does not throw for unknown pages —
@@ -67,11 +75,18 @@ public class PermissionFilter {
      * grants still apply.
      */
     public boolean canAccess( final Session session, final String pageName, final String action ) {
-        final Page page = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
-        final Permission perm = ( page != null )
-                ? PermissionFactory.getPagePermission( page, action )
-                : new PagePermission( engine.getApplicationName() + ":" + pageName, action );
-        return AuthSubsystemBridge.fromLegacyEngine( engine ).authorization().checkPermission( session, perm );
+        return AuthSubsystemBridge.fromLegacyEngine( engine ).authorization()
+                .checkPermission( session, permissionFor( pageName, action ) );
+    }
+
+    /**
+     * Like {@link #canAccess} but evaluates silently via
+     * {@link com.wikantik.auth.AuthorizationManager#isPermitted} — no audit row, no
+     * security-log line. For speculative callers (visibility filters, capability hints).
+     */
+    public boolean canAccessQuietly( final Session session, final String pageName, final String action ) {
+        return AuthSubsystemBridge.fromLegacyEngine( engine ).authorization()
+                .isPermitted( session, permissionFor( pageName, action ) );
     }
 
     /**

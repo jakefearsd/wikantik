@@ -423,4 +423,42 @@ class LuceneSearchProviderTest {
                 "Multiplier must never exceed 1.0, was " + ancient );
     }
 
+    @Test
+    void findPagesReturnsCorrectNamesAcrossSegments() throws Exception {
+        // Each saved page is indexed in its own commit, so the resulting Lucene
+        // index spans multiple segments. findPages reads each hit's page id from
+        // per-segment DocValues; a wrong leaf / local-doc (docBase) mapping would
+        // return the wrong name for hits outside the first segment. Every page
+        // matching the shared marker must come back under its own name.
+        final List<String> names = List.of(
+                "DvSegPageAlpha", "DvSegPageBravo", "DvSegPageCharlie", "DvSegPageDelta",
+                "DvSegPageEcho", "DvSegPageFoxtrot", "DvSegPageGolf", "DvSegPageHotel" );
+        for ( final String n : names ) {
+            m_engine.saveText( n, "shared marker zuluxyz content for page " + n );
+        }
+
+        final Set<String> returned = new java.util.HashSet<>();
+        Awaitility.await( "all marker pages indexed" )
+                .atMost( 20, TimeUnit.SECONDS )
+                .until( () -> {
+                    final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+                    final Context ctx = Wiki.context().create(
+                            m_engine, request, ContextEnum.PAGE_EDIT.getRequestContext() );
+                    final Collection<SearchResult> s = m_mgr.findPages( "zuluxyz", ctx );
+                    returned.clear();
+                    if ( s != null ) {
+                        for ( final SearchResult r : s ) returned.add( r.getPage().getName() );
+                    }
+                    return returned.containsAll( names );
+                } );
+
+        for ( final String n : names ) {
+            Assertions.assertTrue( returned.contains( n ),
+                    "findPages must return correct name '" + n + "' across segments; got " + returned );
+        }
+        for ( final String n : names ) {
+            m_engine.deleteTestPage( n );
+        }
+    }
+
 }

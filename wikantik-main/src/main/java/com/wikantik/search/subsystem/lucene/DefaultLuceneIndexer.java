@@ -21,10 +21,12 @@ package com.wikantik.search.subsystem.lucene;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.document.BinaryDocValuesField;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
@@ -470,6 +472,12 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
 
         Field field = new Field( LUCENE_ID, page.getName(), StringField.TYPE_STORED );
         doc.add( field );
+        // Columnar copy of the id for the search read path: DefaultLuceneSearcher
+        // reads it back via DocValues, which needs no stored-fields block
+        // decompression — the per-hit cost that dominated search CPU + allocation
+        // when highlighting is off (the default). The stored field above is kept
+        // for the highlighting path and as a fallback for pre-DocValues segments.
+        doc.add( new BinaryDocValuesField( LUCENE_ID, new BytesRef( page.getName() ) ) );
 
         field = new Field( LUCENE_PAGE_CONTENTS, indexedText, TextField.TYPE_STORED );
         doc.add( field );

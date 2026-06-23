@@ -22,8 +22,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.ReaderUtil;
 import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queries.mlt.MoreLikeThis;
@@ -303,10 +306,13 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
             final boolean needBody = highlighter != null;
             list = new ArrayList<>( hits.scoreDocs.length );
             for ( final ScoreDoc hit : hits.scoreDocs ) {
-                final Document doc = needBody
-                    ? storedFields.document( hit.doc )
-                    : storedFields.document( hit.doc, ID_ONLY_FIELDS );
-                final String pageName = doc.get( DefaultLuceneIndexer.LUCENE_ID );
+                // Highlighting off (default): read only the id, and via DocValues so
+                // we never decompress the stored-fields block. Highlighting on: read
+                // the full stored document because we need the body for snippets.
+                final Document doc = needBody ? storedFields.document( hit.doc ) : null;
+                final String pageName = needBody
+                    ? doc.get( DefaultLuceneIndexer.LUCENE_ID )
+                    : readPageId( reader, storedFields, hit.doc );
                 final Page page = pm.getPage( pageName, PageProvider.LATEST_VERSION );
 
                 if ( page != null ) {
@@ -325,7 +331,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                                 : recencyFactor( lastModified.getTime(), System.currentTimeMillis() );
                         final int score = ( int ) ( hit.score * recency * 100 );
 
-                        final String text = doc.get( DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS );
+                        final String text = doc != null ? doc.get( DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS ) : null;
                         String[] fragments = new String[ 0 ];
                         if ( text != null && highlighter != null ) {
                             final TokenStream tokenStream = lifecycle.getAnalyzer().tokenStream(
@@ -399,9 +405,9 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
             final List<MoreLikeThisHit> out = new ArrayList<>();
             for ( final ScoreDoc sd : hits.scoreDocs ) {
                 if ( out.size() >= maxResults ) break;
-                // MoreLikeThis only ever needs the page name — never read the body.
-                final Document doc = storedFields.document( sd.doc, ID_ONLY_FIELDS );
-                final String name = doc.get( DefaultLuceneIndexer.LUCENE_ID );
+                // MoreLikeThis only ever needs the page name — never read the body,
+                // so read the id from DocValues and skip the stored-block decompress.
+                final String name = readPageId( reader, storedFields, sd.doc );
                 if ( name == null || name.equals( seedDocName ) ) continue;
                 if ( excludes.contains( name ) ) continue;
                 out.add( new MoreLikeThisHit( name, sd.score ) );
@@ -427,6 +433,31 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
         final long ageMs = Math.max( 0L, nowMs - lastModifiedMs );
         final double decay = Math.pow( 0.5, ( double ) ageMs / RECENCY_HALF_LIFE_MS );
         return RECENCY_FLOOR + ( 1.0 - RECENCY_FLOOR ) * decay;
+    }
+
+    /**
+     * Reads a hit's page id ({@link DefaultLuceneIndexer#LUCENE_ID}) from columnar
+     * DocValues. Unlike a stored-field read, this needs no per-hit decompression of
+     * the stored-fields block — the dominant search CPU + allocation cost when
+     * highlighting is off (the default read path). The {@code globalDocId} is mapped
+     * to its segment via {@link ReaderUtil#subIndex} and read at the leaf-local
+     * doc id ({@code globalDocId - docBase}).
+     *
+     * <p>Falls back to the stored field for index segments written before the
+     * DocValues field existed, so correctness never depends on a reindex — only the
+     * speedup does (a reindex populates DocValues on every segment).</p>
+     */
+    private static String readPageId( final IndexReader reader,
+                                      final StoredFields storedFields,
+                                      final int globalDocId ) throws IOException {
+        final List< LeafReaderContext > leaves = reader.leaves();
+        final LeafReaderContext leaf = leaves.get( ReaderUtil.subIndex( globalDocId, leaves ) );
+        final BinaryDocValues dv = leaf.reader().getBinaryDocValues( DefaultLuceneIndexer.LUCENE_ID );
+        if ( dv != null && dv.advanceExact( globalDocId - leaf.docBase ) ) {
+            return dv.binaryValue().utf8ToString();
+        }
+        // Pre-DocValues segment — fall back to the stored field.
+        return storedFields.document( globalDocId, ID_ONLY_FIELDS ).get( DefaultLuceneIndexer.LUCENE_ID );
     }
 
     // -------------------------------------------------------------------------

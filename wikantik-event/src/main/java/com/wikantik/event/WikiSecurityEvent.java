@@ -115,8 +115,10 @@ public final class WikiSecurityEvent extends WikiEvent {
     private static final Logger LOG = LogManager.getLogger( "SecurityLog" );
     
     private final transient Principal principal;
-    
+
     private final Object      target;
+
+    private final transient java.util.Map<String, String> attributes;
 
     private static final int[] ERROR_EVENTS = { LOGIN_FAILED };
     
@@ -134,12 +136,29 @@ public final class WikiSecurityEvent extends WikiEvent {
      * @param target the changed Object, which may be <code>null</code>
      */
     public WikiSecurityEvent( final Object src, final int type, final Principal principal, final Object target ) {
+        this( src, type, principal, target, java.util.Map.of() );
+    }
+
+    /**
+     * Canonical constructor. {@code attributes} carries optional structured metadata
+     * (e.g. an access-denial {@code reason}/{@code authStatus}/{@code roles}); a null
+     * map is normalised to empty. Defensively copied to an immutable map.
+     *
+     * @param src the source of the event, which can be any object: a wiki page, group or authentication/authentication/group manager.
+     * @param type the type of event
+     * @param principal the subject of the event, which may be <code>null</code>
+     * @param target the changed Object, which may be <code>null</code>
+     * @param attributes optional structured event metadata; {@code null} is treated as empty
+     */
+    public WikiSecurityEvent( final Object src, final int type, final Principal principal,
+                              final Object target, final java.util.Map<String, String> attributes ) {
         super( src, type );
         if( src == null ) {
             throw new IllegalArgumentException( "Argument(s) cannot be null." );
         }
         this.principal = principal;
         this.target = target;
+        this.attributes = ( attributes == null ) ? java.util.Map.of() : java.util.Map.copyOf( attributes );
         if( LOG.isEnabled( Level.ERROR ) && ArrayUtils.contains( ERROR_EVENTS, type ) ) {
             LOG.error( this );
         } else if( LOG.isEnabled( Level.WARN ) && ArrayUtils.contains( WARN_EVENTS, type ) ) {
@@ -181,6 +200,16 @@ public final class WikiSecurityEvent extends WikiEvent {
      */
     public Object getTarget() {
         return target;
+    }
+
+    /**
+     * Returns optional structured event metadata (never {@code null}; empty when unset).
+     * Used by the audit listener to enrich {@code access.denied} records.
+     *
+     * @return an immutable attribute map
+     */
+    public java.util.Map<String, String> getAttributes() {
+        return attributes;
     }
 
     /**

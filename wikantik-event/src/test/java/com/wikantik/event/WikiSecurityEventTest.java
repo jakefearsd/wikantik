@@ -99,4 +99,19 @@ class WikiSecurityEventTest {
         // Should not throw NPE
         assertNotNull( event.toString() );
     }
+
+    @org.junit.jupiter.api.Test
+    void attributesAreCarriedAndDefaultToEmpty() {
+        final java.security.Principal alice = () -> "alice";
+        final WikiSecurityEvent withAttrs = new WikiSecurityEvent(
+            this, WikiSecurityEvent.ACCESS_DENIED, alice, "target",
+            java.util.Map.of( "reason", "acl-denied", "authStatus", "authenticated" ) );
+        org.junit.jupiter.api.Assertions.assertEquals( "acl-denied", withAttrs.getAttributes().get( "reason" ) );
+        org.junit.jupiter.api.Assertions.assertEquals( "authenticated", withAttrs.getAttributes().get( "authStatus" ) );
+
+        // The pre-existing 4-arg constructor yields an empty (non-null) attribute map.
+        final WikiSecurityEvent noAttrs = new WikiSecurityEvent(
+            this, WikiSecurityEvent.LOGOUT, alice, null );
+        org.junit.jupiter.api.Assertions.assertTrue( noAttrs.getAttributes().isEmpty() );
+    }
 }

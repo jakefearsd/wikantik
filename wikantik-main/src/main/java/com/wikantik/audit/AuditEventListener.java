@@ -90,6 +90,9 @@ public final class AuditEventListener implements WikiEventListener {
             .actorType( principal == null ? "anonymous" : "user" );
         if ( se.getType() == WikiSecurityEvent.ACCESS_DENIED ) {
             applyPermissionTarget( b, se.getTarget() );
+            final String permName = ( se.getTarget() instanceof Permission p ) ? p.getName() : null;
+            final String detail = deniedDetail( permName, se.getAttributes() );
+            if ( detail != null ) b.detail( detail );
         }
         enrichRequestContext( b );
         return b.build();
@@ -160,19 +163,38 @@ public final class AuditEventListener implements WikiEventListener {
         } else {
             type = "permission"; id = perm.getName(); label = perm.getActions() + " → " + perm.getName();
         }
-        b.targetType( type ).targetId( id ).targetLabel( label )
-         .detail( deniedDetail( perm.getName() ) );
+        b.targetType( type ).targetId( id ).targetLabel( label );
     }
 
-    /** Builds the access.denied detail JSON, omitting uri/method when not on a request thread. */
-    private static String deniedDetail( final String permissionName ) {
-        final StringBuilder sb = new StringBuilder( "{\"permission\":\"" )
-            .append( escape( permissionName ) ).append( '"' );
+    /**
+     * Builds the access.denied detail JSON from the (optional) permission name, the
+     * request-thread uri/method, and every entry of the event attribute map
+     * ({@code reason}/{@code authStatus}/{@code roles}). Returns {@code null} when
+     * nothing is available (e.g. an off-thread, attribute-less, null-permission deny).
+     */
+    private static String deniedDetail( final String permissionName, final Map< String, String > attributes ) {
+        final StringBuilder sb = new StringBuilder( "{" );
+        boolean first = true;
+        if ( permissionName != null ) first = appendField( sb, first, "permission", permissionName );
         final String uri = AuditRequestContext.uri();
         final String method = AuditRequestContext.method();
-        if ( uri != null )    sb.append( ",\"uri\":\"" ).append( escape( uri ) ).append( '"' );
-        if ( method != null ) sb.append( ",\"method\":\"" ).append( escape( method ) ).append( '"' );
+        if ( uri != null )    first = appendField( sb, first, "uri", uri );
+        if ( method != null ) first = appendField( sb, first, "method", method );
+        if ( attributes != null ) {
+            for ( final Map.Entry< String, String > en : attributes.entrySet() ) {
+                if ( en.getValue() != null ) first = appendField( sb, first, en.getKey(), en.getValue() );
+            }
+        }
+        if ( first ) return null;
         return sb.append( '}' ).toString();
+    }
+
+    /** Appends a JSON {@code "key":"value"} pair, prefixing a comma when not the first field. */
+    private static boolean appendField( final StringBuilder sb, final boolean first,
+                                        final String key, final String value ) {
+        if ( !first ) sb.append( ',' );
+        sb.append( '"' ).append( escape( key ) ).append( "\":\"" ).append( escape( value ) ).append( '"' );
+        return false;
     }
 
     /** Minimal JSON string escaping for page names in detail JSON. */

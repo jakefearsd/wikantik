@@ -263,4 +263,19 @@ class AuditEventListenerTest {
         final AuditEntry e = onlyEntry();
         assertEquals( "{\"from\":\"a\\\"b\",\"to\":\"c\\\\d\"}", e.detail() );
     }
+
+    @Test
+    void accessDeniedMergesAttributesIntoDetail() {
+        final PagePermission perm = new PagePermission( "*:SecretPage", "edit" );
+        listener.actionPerformed( new WikiSecurityEvent(
+            this, WikiSecurityEvent.ACCESS_DENIED, named( "alice" ), perm,
+            new java.util.LinkedHashMap<>( java.util.Map.of(
+                "reason", "acl-denied", "authStatus", "authenticated", "roles", "Authenticated,All" ) ) ) );
+
+        final AuditEntry e = onlyEntry();
+        assertTrue( e.detail().contains( "\"permission\":\"*:SecretPage\"" ), e.detail() );
+        assertTrue( e.detail().contains( "\"reason\":\"acl-denied\"" ), e.detail() );
+        assertTrue( e.detail().contains( "\"authStatus\":\"authenticated\"" ), e.detail() );
+        assertTrue( e.detail().contains( "\"roles\":\"Authenticated,All\"" ), e.detail() );
+    }
 }

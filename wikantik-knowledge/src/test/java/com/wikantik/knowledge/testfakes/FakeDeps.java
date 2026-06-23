@@ -29,6 +29,7 @@ public final class FakeDeps {
     private FakePageManager pageManager = new FakePageManager();
     private String baseUrl = "";
     private com.wikantik.api.ontology.OntologyQueryService ontologyQuery = null;
+    private com.wikantik.search.FrontmatterMetadataCache fmCache = null;
 
     public static FakeDeps minimal() { return new FakeDeps(); }
 
@@ -39,9 +40,12 @@ public final class FakeDeps {
     public FakeDeps ontologyQuery( final com.wikantik.api.ontology.OntologyQueryService oq ) {
         this.ontologyQuery = oq; return this;
     }
+    public FakeDeps fmCache( final com.wikantik.search.FrontmatterMetadataCache c ) {
+        this.fmCache = c; return this;
+    }
 
     public DefaultContextRetrievalService build() {
         return new DefaultContextRetrievalService(
-            engine, search, null, null, null, null, null, null, pageManager, null, baseUrl, ontologyQuery );
+            engine, search, null, null, null, null, null, null, pageManager, fmCache, baseUrl, ontologyQuery );
     }
 }

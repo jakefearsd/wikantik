@@ -24,7 +24,6 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.frontmatter.FrontmatterParser;
-import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.MetadataValue;
@@ -231,11 +230,11 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         for ( final SearchResult sr : ordered ) {
             final Page page = sr.getPage();
             if ( page == null ) continue;
-            final ParsedPage parsed = parseCurrentText( page );
-            if ( f != null && !matchesFilter( page, parsed, f ) ) continue;
+            final Map< String, Object > meta = metadataFor( page );
+            if ( f != null && !matchesFilter( page, meta, f ) ) continue;
             pages.add( buildRetrievedPage(
                 page,
-                parsed,
+                meta,
                 sr.getScore(),
                 chunksByPage.getOrDefault( page.getName(), List.of() ),
                 relatedByPage.getOrDefault( page.getName(), List.of() ) ) );
@@ -410,16 +409,23 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         if ( pageName == null || pageName.isBlank() ) return null;
         final Page page = pageManager.getPage( pageName );
         if ( page == null ) return null;
-        return buildRetrievedPage( page, parseCurrentText( page ), 0.0, List.of(), List.of() );
+        return buildRetrievedPage( page, metadataFor( page ), 0.0, List.of(), List.of() );
     }
 
     /**
-     * Reads the latest-version raw text for the given page and parses its
-     * frontmatter. Null / missing text is treated as empty content.
+     * Returns the frontmatter metadata for the given page. The retrieval path
+     * needs only metadata (never the body), so this routes through the shared
+     * {@link FrontmatterMetadataCache} — keyed on {@code (pageName, lastModified)}
+     * so an edit invalidates naturally — avoiding a fresh text read + YAML parse of
+     * every candidate page on every query. The cache is an optional dependency; when
+     * absent the read degrades to a direct parse. Returns an empty (never null) map.
      */
-    private ParsedPage parseCurrentText( final Page page ) {
+    private Map< String, Object > metadataFor( final Page page ) {
+        if ( fmCache != null ) {
+            return fmCache.get( page.getName(), page.getLastModified() );
+        }
         final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
-        return FrontmatterParser.parse( text == null ? "" : text );
+        return FrontmatterParser.parse( text == null ? "" : text ).metadata();
     }
 
     /**
@@ -430,7 +436,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
      */
     private RetrievedPage buildRetrievedPage(
             final Page page,
-            final ParsedPage parsed,
+            final Map< String, Object > meta,
             final double score,
             final List< RetrievedChunk > chunks,
             final List< RelatedPage > related ) {
@@ -438,9 +444,9 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             page.getName(),
             buildUrl( page.getName() ),
             score,
-            stringOrEmpty( parsed.metadata().get( "summary" ) ),
-            stringOrNull( parsed.metadata().get( "cluster" ) ),
-            stringList( parsed.metadata().get( "tags" ) ),
+            stringOrEmpty( meta.get( "summary" ) ),
+            stringOrNull( meta.get( "cluster" ) ),
+            stringList( meta.get( "tags" ) ),
             chunks,
             related,
             page.getAuthor(),
@@ -563,9 +569,9 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         final List< RetrievedPage > matched = new ArrayList<>();
         for ( final Page page : allPages ) {
             if ( page == null ) continue;
-            final ParsedPage parsed = parseCurrentText( page );
-            if ( !matchesFilter( page, parsed, f ) ) continue;
-            matched.add( buildRetrievedPage( page, parsed, 0.0, List.of(), List.of() ) );
+            final Map< String, Object > meta = metadataFor( page );
+            if ( !matchesFilter( page, meta, f ) ) continue;
+            matched.add( buildRetrievedPage( page, meta, 0.0, List.of(), List.of() ) );
         }
         final int total = matched.size();
         final int from = Math.min( f.offset(), total );
@@ -573,19 +579,19 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         return new PageList( matched.subList( from, to ), total, f.limit(), f.offset() );
     }
 
-    private boolean matchesFilter( final Page page, final ParsedPage parsed, final PageListFilter f ) {
+    private boolean matchesFilter( final Page page, final Map< String, Object > meta, final PageListFilter f ) {
         if ( f.cluster() != null
-                && !f.cluster().equals( parsed.metadata().get( "cluster" ) ) ) {
+                && !f.cluster().equals( meta.get( "cluster" ) ) ) {
             return false;
         }
         if ( f.type() != null
-                && !f.type().equals( parsed.metadata().get( "type" ) ) ) {
+                && !f.type().equals( meta.get( "type" ) ) ) {
             return false;
         }
         if ( f.author() != null && !f.author().equals( page.getAuthor() ) ) {
             return false;
         }
-        final List< String > tags = stringList( parsed.metadata().get( "tags" ) );
+        final List< String > tags = stringList( meta.get( "tags" ) );
         for ( final String required : f.tags() ) {
             if ( !tags.contains( required ) ) return false;
         }
@@ -612,10 +618,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         }
         final Map< String, Integer > counts = new LinkedHashMap<>();
         for ( final Page page : allPages ) {
-            final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
-            if ( text == null ) continue;
-            final ParsedPage parsed = FrontmatterParser.parse( text );
-            final Object raw = parsed.metadata().get( field );
+            final Object raw = metadataFor( page ).get( field );
             if ( raw == null ) continue;
             if ( raw instanceof List< ? > listVal ) {
                 for ( final Object v : listVal ) {

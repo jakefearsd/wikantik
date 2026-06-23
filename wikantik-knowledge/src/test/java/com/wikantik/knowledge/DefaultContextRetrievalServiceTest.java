@@ -43,6 +43,31 @@ class DefaultContextRetrievalServiceTest {
     }
 
     @Test
+    void getPage_readsMetadataThroughFrontmatterCache() {
+        // The retrieval path needs only frontmatter metadata (never the body), and the
+        // service already holds a shared FrontmatterMetadataCache. Routing metadata reads
+        // through it avoids re-reading + re-parsing every candidate page's frontmatter on
+        // every query. This asserts (a) the metadata is still correct via the cache, and
+        // (b) the cache is actually consulted — before the fix the service parsed directly
+        // and never touched fmCache, so its request count stayed zero.
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Hub", "---\nsummary: the hub\ncluster: search\ntags: [retrieval, search]\n---\n\nBody",
+                "alice", Date.from( Instant.parse( "2026-04-23T00:00:00Z" ) ) );
+        final com.wikantik.search.FrontmatterMetadataCache cache =
+                new com.wikantik.search.FrontmatterMetadataCache( pm );
+        final DefaultContextRetrievalService svc = FakeDeps.minimal()
+            .pageManager( pm ).fmCache( cache ).baseUrl( "https://wiki.example" ).build();
+
+        final RetrievedPage p = svc.getPage( "Hub" );
+
+        assertEquals( "the hub", p.summary() );
+        assertEquals( "search", p.cluster() );
+        assertEquals( java.util.List.of( "retrieval", "search" ), p.tags() );
+        assertTrue( cache.cache().stats().requestCount() > 0,
+            "retrieval metadata must be read through the shared FrontmatterMetadataCache" );
+    }
+
+    @Test
     void getPage_returnsShapedRecord() {
         final FakePageManager pm = new FakePageManager();
         pm.addPage( "Hub", "---\nsummary: the hub\ncluster: search\n"

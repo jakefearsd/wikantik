@@ -593,6 +593,39 @@ numbers are a worst case — production headroom is larger.
 
 ---
 
+## 15. Campaign 2026-06-23 — allocation/CPU on the read path (local soak loop)
+
+Run on the **local** bare-metal Tomcat (16 cores, k6 co-resident), not docker1,
+so absolute RPS is k6-confounded and the box loafs at these VU counts — the
+signal here is **CPU composition + allocation profile + p95**, not throughput.
+Method: read-mix soak (`bin/loadtest.sh smoke`) with a `jcmd JFR.start
+settings=profile` recording; analysed with `jfr print --events
+jdk.ObjectAllocationSample / jdk.ExecutionSample`. All A/B pairs are 8-min /
+400-VU on the same corpus; a full unit + IT gate ran after every change.
+
+Three layers from §14.5's "seen but not chased" list (plus one its DocValues
+lesson had only applied to the dense path):
+
+| # | Hotspot (JFR) | Fix | Measured |
+|---|---|---|---|
+| 1 | `FrontmatterParser` built a **new SnakeYAML `Yaml` per parse** (Resolver compiles ~10 regex Patterns); retrieval re-parses every candidate page's frontmatter per query | reuse the hardened parser per-thread via `ThreadLocal` (Yaml is not thread-safe; safe to reuse per thread) — mirrors the §14.3 `Collator` fix | per-call Yaml-construction allocation frames **8519 → 0** |
+| 2 | `DefaultLuceneSearcher.findPages` read each hit's id from **stored fields** → LZ4-decompress a block **per hit** (highlighting off, `MAX_SEARCH_HITS` unbounded) — the §14.1 pattern, never applied to the BM25 path | add a `BinaryDocValuesField` id at index time; read it columnar per-leaf (`ReaderUtil.subIndex` + `docBase`), stored-field fallback for pre-DocValues segments (reindex needed only for the speedup) | **p95 8.4 → 3.98 ms (−53%)**; `ArrayUtil.growExact` **39% → 0%** of allocation; LZ4-decompress CPU **→ 0**; on-CPU samples **−31%** |
+| 3 | `DefaultContextRetrievalService.parseCurrentText` **bypassed the `FrontmatterMetadataCache` the service already held**, re-reading + re-parsing every candidate's frontmatter per query | route metadata reads through `fmCache` (keyed page + lastModified; edit-invalidating); null-guarded fallback. The path needs only metadata, never the body | `FrontmatterParser.parse` allocation on the retrieval path **−75%**; **p95 3.98 → 3.06 ms (−23%)** |
+
+**Cumulative:** p95 on the read mix **8.4 ms → 3.06 ms (−64%)**; the three
+biggest allocators/CPU consumers on the read path removed; 0 blocked workers /
+0 pool waits throughout. After #3 the JFR is a **flat smear** (top CPU frame
+`String.hashCode` ≈ 4%) — HTTP/Lucene I/O byte buffers, UTF-8 encoding, hashmap
+lookups, markdown rendering. That's diminishing-returns territory on this mix;
+the box was never CPU- or pool-bound at these loads, so the wins are real
+allocation/GC + per-search latency headroom rather than throughput. Commits
+`229bf00c0e` (frontmatter), `c6a65c76a4` (DocValues), `1cc8c0f710` (fmCache).
+**Op note:** fix #2 needs a search-index **rebuild** (`/admin/content/rebuild-indexes`)
+to populate DocValues on existing segments; until then the stored-field fallback
+keeps results correct but slow.
+
+---
+
 ## Raw data
 
 All per-step k6 outputs, curl-probe samples, and jakemon snapshots are in `loadtest/results/sweep{1..9}-<N>vu-{k6,curl,host}.{log,json}` and `loadtest/results/ramp{500,650,800}vu-*`. JFR captures live at `loadtest/results/sweep{3,4,5,7,8,9}-300vu.jfr` for offline analysis with `jfr print` or JMC. The directory is gitignored (raw data is reproducible, not versioned).

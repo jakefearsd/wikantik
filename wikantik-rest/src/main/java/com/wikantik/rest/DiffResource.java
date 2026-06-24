@@ -88,6 +88,13 @@ public class DiffResource extends RestServletBase {
             return;
         }
 
+        // Authorization: a diff exposes the full raw wiki text of each version, so it must
+        // honour the page's view ACL. Without this an anonymous caller could read the body
+        // of an [{ALLOW view ...}]-restricted page via /api/diff.
+        if ( !checkPagePermission( request, response, pageName, "view" ) ) {
+            return;
+        }
+
         try {
             final String fromText = pm.getPureText( pageName, fromVersion );
             final String toText = pm.getPureText( pageName, toVersion );

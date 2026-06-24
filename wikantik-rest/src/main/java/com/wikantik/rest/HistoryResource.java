@@ -67,6 +67,12 @@ public class HistoryResource extends RestServletBase {
             return;
         }
 
+        // Authorization: version history (authors, timestamps, change-notes) must honour
+        // the page's view ACL — deny anonymous access to a restricted page's history.
+        if ( !checkPagePermission( request, response, pageName, "view" ) ) {
+            return;
+        }
+
         final List< ? extends Page > versions = pm.getVersionHistory( pageName );
 
         final List< Map< String, Object > > versionList;

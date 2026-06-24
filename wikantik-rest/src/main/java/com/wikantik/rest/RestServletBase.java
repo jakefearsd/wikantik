@@ -440,6 +440,30 @@ public abstract class RestServletBase extends HttpServlet {
     }
 
     /**
+     * Returns the subset of {@code pageNames} the current caller may {@code view}. Used by
+     * list/search endpoints to drop ACL-restricted pages from a result set before serializing.
+     * <p>
+     * This is a <b>silent</b> visibility filter (routes through {@link PermissionFilter#canAccessQuietly}):
+     * it intentionally fires no {@code access.denied} audit events, because hiding restricted pages
+     * from a bulk listing is a UI-visibility concern, not an enforcement denial — auditing every
+     * filtered hit would flood the log on each anonymous list/search. Direct single-page reads still
+     * use the enforcing, audited {@link #checkPagePermission}.
+     */
+    protected java.util.Set< String > filterViewable( final HttpServletRequest request,
+                                                       final java.util.Collection< String > pageNames ) {
+        final Engine eng = getEngine();
+        final Session session = Wiki.session().find( eng, request );
+        final PermissionFilter pf = new PermissionFilter( eng );
+        final java.util.Set< String > viewable = new java.util.HashSet<>();
+        for ( final String name : pageNames ) {
+            if ( pf.canAccessQuietly( session, name, "view" ) ) {
+                viewable.add( name );
+            }
+        }
+        return viewable;
+    }
+
+    /**
      * Reads and parses the JSON body from the request as a {@link JsonObject}.
      *
      * @param request the HTTP request

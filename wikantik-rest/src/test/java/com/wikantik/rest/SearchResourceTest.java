@@ -98,6 +98,7 @@ class SearchResourceTest {
             final PageManager pm = engine.getManager( PageManager.class );
             try { pm.deletePage( "RestSearchAlpha" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "RestSearchBeta" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "SecSearchRestricted" ); } catch ( final Exception e ) { /* ignore */ }
             engine.stop();
         }
     }
@@ -510,6 +511,56 @@ class SearchResourceTest {
 
         servlet.doGet( request, response );
         Mockito.verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+    }
+
+    /**
+     * Security: the REST search path delegates to {@link ContextRetrievalService},
+     * which does not apply page-level view ACLs. An anonymous caller must never see a
+     * page (or its chunk text) that its session is not permitted to view, even when the
+     * retrieval backend returns it.
+     */
+    @Test
+    void crsResultsFilteredByViewPermissionForAnonymous() throws Exception {
+        engine.saveText( "SecSearchRestricted", "[{ALLOW view Admin}]\nSecret zzqq content." );
+
+        final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );
+        final RetrievedChunk chunk = new RetrievedChunk( List.of( "Intro" ), "Secret zzqq chunk body.", 2.0, List.of() );
+        final RetrievedPage restricted = new RetrievedPage(
+            "SecSearchRestricted", null, 2.0, "", null, null, List.of( chunk ), null, null, null );
+        final RetrievedPage publicPage = new RetrievedPage(
+            "RestSearchAlpha", null, 1.0, "", null, null, null, null, null, null );
+        Mockito.doReturn( new RetrievalResult( "zzqq", List.of( restricted, publicPage ), 2 ) )
+               .when( mockCrs ).retrieve( Mockito.any() );
+        engine.setManager( ContextRetrievalService.class, mockCrs );
+
+        // Anonymous request: a fresh, not-logged-in session id.
+        final jakarta.servlet.http.HttpSession sess = Mockito.mock( jakarta.servlet.http.HttpSession.class );
+        Mockito.doReturn( "anon-search-" + System.nanoTime() ).when( sess ).getId();
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/search" );
+        Mockito.doReturn( "zzqq" ).when( request ).getParameter( "q" );
+        Mockito.doReturn( null ).when( request ).getParameter( "limit" );
+        Mockito.doReturn( sess ).when( request ).getSession();
+        Mockito.doReturn( sess ).when( request ).getSession( Mockito.anyBoolean() );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+
+        final String body = sw.toString();
+        final JsonObject obj = gson.fromJson( body, JsonObject.class );
+        final JsonArray results = obj.getAsJsonArray( "results" );
+        final java.util.Set< String > names = new java.util.HashSet<>();
+        for ( int i = 0; i < results.size(); i++ ) {
+            names.add( results.get( i ).getAsJsonObject().get( "name" ).getAsString() );
+        }
+        assertFalse( names.contains( "SecSearchRestricted" ),
+                "ACL-restricted page must NOT appear in anonymous search results" );
+        assertFalse( body.contains( "Secret zzqq chunk body." ),
+                "Restricted chunk text must never leak through the search endpoint" );
+        assertTrue( names.contains( "RestSearchAlpha" ),
+                "Public page should still be returned" );
     }
 
     // ----- Helper methods -----

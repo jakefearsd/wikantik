@@ -95,6 +95,14 @@ public class PageForAgentResource extends RestServletBase {
         }
 
         final ForAgentProjection p = maybe.get();
+
+        // Authorization: the projection exposes the page's summary, key facts, and heading
+        // outline, so it must honour the page's view ACL. Without this, an anonymous caller
+        // holding (or guessing) a canonical_id could read a restricted page's projection.
+        if ( !checkPagePermission( req, resp, p.slug(), "view" ) ) {
+            return;
+        }
+
         final JsonObject envelope = new JsonObject();
         envelope.add( "data", toJson( p ) );
         final String body = AGENT_GSON.toJson( envelope );

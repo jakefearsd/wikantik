@@ -66,13 +66,23 @@ public class BacklinksResource extends RestServletBase {
 
         LOG.debug( "GET backlinks: {}", pageName );
 
+        // Authorization: the link graph of a restricted page is itself sensitive — deny
+        // enumeration of backlinks for a page the caller is not permitted to view.
+        if ( !checkPagePermission( request, response, pageName, "view" ) ) {
+            return;
+        }
+
         final ReferenceManager refManager = getSubsystems().page().referenceManager();
 
         final Set< String > referrers = refManager.findReferrers( pageName );
 
+        // Drop referrers the caller cannot view, so a public target never discloses the
+        // names of ACL-restricted pages that link to it.
+        final Set< String > viewable = filterViewable( request,
+                referrers == null ? List.of() : referrers );
         final List< String > backlinks = referrers == null
                 ? List.of()
-                : referrers.stream().sorted().toList();
+                : referrers.stream().filter( viewable::contains ).sorted().toList();
 
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "name", pageName );

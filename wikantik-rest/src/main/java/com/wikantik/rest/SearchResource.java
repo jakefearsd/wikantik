@@ -135,8 +135,17 @@ public class SearchResource extends RestServletBase {
             return;
         }
 
+        // Authorization: the retrieval backend (ContextRetrievalService) does not apply
+        // page-level view ACLs, so a restricted page — and its chunk text — could otherwise
+        // surface in results. Drop pages the caller cannot view before serializing.
+        final java.util.Set< String > viewable = filterViewable( request,
+                retrieval.pages().stream().map( RetrievedPage::name ).toList() );
+
         final List< Map< String, Object > > resultList = new ArrayList<>();
         for ( final RetrievedPage p : retrieval.pages() ) {
+            if ( !viewable.contains( p.name() ) ) {
+                continue;
+            }
             final Map< String, Object > entry = new LinkedHashMap<>();
             entry.put( "name", p.name() );
             entry.put( "score", p.score() );

@@ -19,6 +19,7 @@
 package com.wikantik.rest;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
@@ -88,6 +89,13 @@ class RestAuthorizationSecurityTest {
             try { pm.deletePage( "SecTestPublicPage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "SecTestEditPage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "SecTestAttPage" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "SecTestDiffAcl" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "SecTestHistAcl" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "SecTestBacklinkAcl" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "SecTestRecentPublic" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "SecTestRecentAcl" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "SecTestListPublic" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "SecTestListAcl" ); } catch ( final Exception e ) { /* ignore */ }
             engine.stop();
         }
     }
@@ -232,7 +240,175 @@ class RestAuthorizationSecurityTest {
                 "Anonymous attachment listing on ACL-restricted page must return 403" );
     }
 
+    // ===== Read-path ACL enforcement (regression for the unauthenticated read-endpoint leak) =====
+
+    /**
+     * {@code /api/diff} returned {@code PageManager.getPureText()} — the full raw wiki
+     * source of any version — with no permission check. An ACL-restricted page must be
+     * denied (403) and its raw text must never appear in the response.
+     */
+    @Test
+    void testAclRestrictedPageDeniesAnonymousDiff() throws Exception {
+        engine.saveText( "SecTestDiffAcl", "[{ALLOW view Admin}]\nRestricted secret xyzzy123." );
+        engine.saveText( "SecTestDiffAcl", "[{ALLOW view Admin}]\nRestricted secret xyzzy123 revised." );
+
+        final DiffResource diff = initServlet( new DiffResource() );
+        final HttpServletRequest req = anonRequest( "/api/diff/SecTestDiffAcl", "/SecTestDiffAcl" );
+        Mockito.doReturn( "1" ).when( req ).getParameter( "from" );
+        Mockito.doReturn( "2" ).when( req ).getParameter( "to" );
+
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( resp ).getWriter();
+
+        diff.doGet( req, resp );
+
+        final String body = sw.toString();
+        final JsonObject obj = gson.fromJson( body, JsonObject.class );
+        assertNotNull( obj.get( "error" ), "Diff of ACL-restricted page must be denied for anonymous" );
+        assertTrue( obj.get( "error" ).getAsBoolean(), "Response should be an error" );
+        assertEquals( 403, obj.get( "status" ).getAsInt(),
+                "Diff of ACL-restricted page must return 403 for unauthorized user" );
+        assertFalse( body.contains( "xyzzy123" ),
+                "Raw page text must never leak through the diff endpoint" );
+    }
+
+    /**
+     * {@code /api/history} disclosed version authors/timestamps/change-notes with no
+     * permission check. An ACL-restricted page must be denied (403).
+     */
+    @Test
+    void testAclRestrictedPageDeniesAnonymousHistory() throws Exception {
+        engine.saveText( "SecTestHistAcl", "[{ALLOW view Admin}]\nRestricted." );
+
+        final HistoryResource hist = initServlet( new HistoryResource() );
+        final HttpServletRequest req = anonRequest( "/api/history/SecTestHistAcl", "/SecTestHistAcl" );
+
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( resp ).getWriter();
+
+        hist.doGet( req, resp );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertNotNull( obj.get( "error" ), "History of ACL-restricted page must be denied for anonymous" );
+        assertTrue( obj.get( "error" ).getAsBoolean(), "Response should be an error" );
+        assertEquals( 403, obj.get( "status" ).getAsInt(),
+                "History of ACL-restricted page must return 403 for unauthorized user" );
+    }
+
+    /**
+     * {@code /api/backlinks} exposed the link graph of any page. Enumerating the
+     * backlinks of an ACL-restricted page must be denied (403).
+     */
+    @Test
+    void testAclRestrictedPageDeniesAnonymousBacklinks() throws Exception {
+        engine.saveText( "SecTestBacklinkAcl", "[{ALLOW view Admin}]\nRestricted." );
+
+        final BacklinksResource bl = initServlet( new BacklinksResource() );
+        final HttpServletRequest req = anonRequest( "/api/backlinks/SecTestBacklinkAcl", "/SecTestBacklinkAcl" );
+
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( resp ).getWriter();
+
+        bl.doGet( req, resp );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertNotNull( obj.get( "error" ), "Backlinks of ACL-restricted page must be denied for anonymous" );
+        assertTrue( obj.get( "error" ).getAsBoolean(), "Response should be an error" );
+        assertEquals( 403, obj.get( "status" ).getAsInt(),
+                "Backlinks of ACL-restricted page must return 403 for unauthorized user" );
+    }
+
+    /**
+     * {@code /api/recent-changes} listed every recently-modified page system-wide,
+     * including ACL-restricted ones. Restricted pages must be filtered out for an
+     * anonymous caller while public pages remain.
+     */
+    @Test
+    void testRecentChangesExcludesAclRestrictedPagesForAnonymous() throws Exception {
+        engine.saveText( "SecTestRecentPublic", "Public recent content." );
+        engine.saveText( "SecTestRecentAcl", "[{ALLOW view Admin}]\nRestricted recent content." );
+
+        final RecentChangesResource rc = initServlet( new RecentChangesResource() );
+        final HttpServletRequest req = anonRequest( "/api/recent-changes", null );
+
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( resp ).getWriter();
+
+        rc.doGet( req, resp );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        final java.util.Set< String > names = pageNames( obj.getAsJsonArray( "changes" ) );
+        assertTrue( names.contains( "SecTestRecentPublic" ),
+                "Public page should appear in anonymous recent-changes" );
+        assertFalse( names.contains( "SecTestRecentAcl" ),
+                "ACL-restricted page must NOT appear in anonymous recent-changes" );
+    }
+
+    /**
+     * {@code /api/pages} listed every page name. Restricted pages must be filtered out
+     * for an anonymous caller while public pages remain.
+     */
+    @Test
+    void testPageListExcludesAclRestrictedPagesForAnonymous() throws Exception {
+        engine.saveText( "SecTestListPublic", "Public list content." );
+        engine.saveText( "SecTestListAcl", "[{ALLOW view Admin}]\nRestricted list content." );
+
+        final PageListResource pl = initServlet( new PageListResource() );
+        final HttpServletRequest req = anonRequest( "/api/pages", null );
+
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( resp ).getWriter();
+
+        pl.doGet( req, resp );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        final java.util.Set< String > names = pageNames( obj.getAsJsonArray( "pages" ) );
+        assertTrue( names.contains( "SecTestListPublic" ),
+                "Public page should appear in the anonymous page list" );
+        assertFalse( names.contains( "SecTestListAcl" ),
+                "ACL-restricted page must NOT appear in the anonymous page list" );
+    }
+
     // ===== Helper methods =====
+
+    /** Initialises a servlet against the test engine's servlet context. */
+    private < T extends jakarta.servlet.http.HttpServlet > T initServlet( final T servlet ) throws Exception {
+        final ServletConfig config = Mockito.mock( ServletConfig.class );
+        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
+        servlet.init( config );
+        return servlet;
+    }
+
+    /**
+     * Builds a request backed by a fresh (not-logged-in) HttpSession id. {@code pathInfo}
+     * may be {@code null} for endpoints that key off query parameters rather than the path.
+     */
+    private HttpServletRequest anonRequest( final String uri, final String pathInfo ) {
+        final HttpSession httpSession = Mockito.mock( HttpSession.class );
+        Mockito.doReturn( "anon-session-" + System.nanoTime() ).when( httpSession ).getId();
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( uri );
+        if ( pathInfo != null ) {
+            Mockito.doReturn( pathInfo ).when( request ).getPathInfo();
+        }
+        Mockito.doReturn( httpSession ).when( request ).getSession();
+        Mockito.doReturn( httpSession ).when( request ).getSession( Mockito.anyBoolean() );
+        return request;
+    }
+
+    /** Collects the {@code name} field of every object in a results array. */
+    private static java.util.Set< String > pageNames( final JsonArray arr ) {
+        final java.util.Set< String > names = new java.util.HashSet<>();
+        for ( int i = 0; i < arr.size(); i++ ) {
+            names.add( arr.get( i ).getAsJsonObject().get( "name" ).getAsString() );
+        }
+        return names;
+    }
 
     /**
      * Creates a mock request with a fresh HttpSession that is NOT logged in (anonymous/guest).

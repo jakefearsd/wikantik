@@ -64,7 +64,13 @@ public class RecentChangesResource extends RestServletBase {
 
         final Set< Page > recentChanges = pm.getRecentChanges();
 
+        // Authorization: drop pages the caller cannot view so a restricted page's existence,
+        // author, and modification time are not disclosed in the system-wide change feed.
+        final Set< String > viewable = filterViewable( request,
+                recentChanges.stream().map( Page::getName ).toList() );
+
         final List< Map< String, Object > > changeList = recentChanges.stream()
+                .filter( page -> viewable.contains( page.getName() ) )
                 .limit( limit )
                 .map( page -> {
                     final Map< String, Object > entry = new LinkedHashMap<>();

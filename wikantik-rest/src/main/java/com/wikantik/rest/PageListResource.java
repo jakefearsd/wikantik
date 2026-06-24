@@ -111,6 +111,15 @@ public class PageListResource extends RestServletBase {
                 .sorted( Comparator.comparing( Page::getName ) )
                 .toList();
 
+        // Authorization: drop pages the caller cannot view so ACL-restricted page names
+        // are not disclosed in the global listing. Filter before pagination so `total`
+        // and offset/limit operate over the viewable set.
+        final java.util.Set< String > viewable = filterViewable( request,
+                filtered.stream().map( Page::getName ).toList() );
+        filtered = filtered.stream()
+                .filter( page -> viewable.contains( page.getName() ) )
+                .toList();
+
         final int total = filtered.size();
 
         filtered = filtered.stream()

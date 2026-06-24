@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-06-24
+
 ### Added
 - **Pure `isPermitted()` authorization evaluator + enriched `access.denied` records.**
   `AuthorizationManager` gains an event-free `isPermitted(session, permission)` twin of

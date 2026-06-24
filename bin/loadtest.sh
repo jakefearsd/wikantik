@@ -16,6 +16,7 @@
 #   --metrics-url U scrape metrics from U instead of BASE_URL/metrics
 #   --duration D    override the run duration (load/stress)
 #   --vus N         override peak VUs (load/stress)
+#   --write-vus N   write-scenario concurrency (with --writes; default 1)
 #   --dry-run       print the k6 command without running it
 #   -h | --help     this help
 #
@@ -35,7 +36,7 @@ case "${PROFILE}" in smoke|load|stress) ;; *)
   echo "ERROR: unknown profile '${PROFILE}' (expected smoke|load|stress)" >&2; exit 2 ;;
 esac
 
-VERIFY=0 WRITES=0 DRY_RUN=0 DURATION="" VUS="" METRICS_URL=""
+VERIFY=0 WRITES=0 DRY_RUN=0 DURATION="" VUS="" WRITE_VUS="" METRICS_URL=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --verify)      VERIFY=1; shift ;;
@@ -43,6 +44,7 @@ while [[ $# -gt 0 ]]; do
     --metrics-url) METRICS_URL="$2"; shift 2 ;;
     --duration)    DURATION="$2"; shift 2 ;;
     --vus)         VUS="$2"; shift 2 ;;
+    --write-vus)   WRITE_VUS="$2"; WRITES=1; shift 2 ;;
     --dry-run)     DRY_RUN=1; shift ;;
     -h|--help)     usage; exit 0 ;;
     *) echo "ERROR: unknown option '$1'" >&2; exit 2 ;;
@@ -87,6 +89,7 @@ K6_ARGS=(run
 # reads the WIKANTIK_* names; keep them aligned.
 [[ -n "${DURATION}" ]] && K6_ARGS+=(-e "WIKANTIK_DURATION=${DURATION}")
 [[ -n "${VUS}" ]] && K6_ARGS+=(-e "WIKANTIK_VUS=${VUS}")
+[[ -n "${WRITE_VUS}" ]] && K6_ARGS+=(-e "WIKANTIK_WRITE_VUS=${WRITE_VUS}")
 K6_ARGS+=(wikantik-load.js)
 
 # k6 remote-writes its own metrics (offered RPS, VUs, latency) to Prometheus

@@ -19,6 +19,10 @@ export function readConfig(env) {
     toolsKey: env.LOADTEST_TOOLS_KEY || '',
     durationOverride: env.WIKANTIK_DURATION || '',
     vusOverride: env.WIKANTIK_VUS ? Number(env.WIKANTIK_VUS) : 0,
+    // Write-scenario concurrency. Default 1 (enough to light up the write
+    // metrics for --verify); raise it to actually exercise/profile the save +
+    // MCP write path under concurrent load.
+    writeVus: env.WIKANTIK_WRITE_VUS ? Number(env.WIKANTIK_WRITE_VUS) : 1,
   };
 }
 
@@ -62,7 +66,7 @@ export function buildOptions(cfg) {
   const scenarios = { read: { ...read, exec: 'readScenario' } };
   if (cfg.writes) {
     scenarios.writes = {
-      executor: 'constant-vus', vus: 1,
+      executor: 'constant-vus', vus: cfg.writeVus,
       duration: read.duration || '10m',
       exec: 'writeScenario',
     };

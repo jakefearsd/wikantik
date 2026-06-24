@@ -21,6 +21,7 @@ package com.wikantik.knowledge.mcp;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.PageList;
 import com.wikantik.api.knowledge.PageListFilter;
+import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -30,6 +31,7 @@ import org.apache.logging.log4j.Logger;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * MCP tool: filter-driven browse over wiki pages. No ranking, no chunks —
@@ -41,9 +43,15 @@ public class ListPagesTool implements McpTool {
     public static final String TOOL_NAME = "list_pages";
 
     private final ContextRetrievalService service;
+    private final PageViewGate viewGate;
 
     public ListPagesTool( final ContextRetrievalService service ) {
+        this( service, PageViewGate.ALLOW_ALL );
+    }
+
+    public ListPagesTool( final ContextRetrievalService service, final PageViewGate viewGate ) {
         this.service = service;
+        this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
     }
 
     @Override
@@ -110,7 +118,16 @@ public class ListPagesTool implements McpTool {
         try {
             final PageListFilter filter = buildFilter( arguments );
             final PageList result = service.listPages( filter );
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, result );
+            // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
+            final List< RetrievedPage > filtered = result.pages().stream()
+                    .filter( p -> viewGate.canView( p.name() ) )
+                    .collect( Collectors.toList() );
+            // Preserve totalMatched's pagination semantic (full match count): only discount the
+            // pages actually hidden from this page, never collapse it to the returned count.
+            final int hidden = result.pages().size() - filtered.size();
+            final int total = Math.max( filtered.size(), result.totalMatched() - hidden );
+            final PageList gated = new PageList( filtered, total, result.limit(), result.offset() );
+            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, gated );
         } catch ( final IllegalArgumentException e ) {
             LOG.info( "list_pages rejected invalid argument: {}", e.getMessage() );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );

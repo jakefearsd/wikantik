@@ -69,4 +69,24 @@ class ListPagesByFilterToolTest {
         final var content = ( McpSchema.TextContent ) result.content().get( 0 );
         assertTrue( content.text().contains( "\"slug\"" ) && content.text().contains( "X" ) );
     }
+
+    @Test
+    void restrictedPageFilteredForGuest() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        when( svc.listPagesByFilter( any() ) ).thenReturn( List.of(
+                new PageDescriptor( "01SEC", "Secret", "Secret Page", PageType.ARTICLE, null,
+                        List.of(), "TOP SECRET SUMMARY", Instant.EPOCH, Optional.empty() ),
+                new PageDescriptor( "01PUB", "Public", "Public Page", PageType.ARTICLE, null,
+                        List.of(), "public summary", Instant.EPOCH, Optional.empty() ) ) );
+
+        final PageViewGate gate = slug -> !"Secret".equals( slug );
+        final var result = new ListPagesByFilterTool( svc, gate ).execute( Map.of() );
+
+        assertFalse( result.isError() );
+        final String text = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertFalse( text.contains( "TOP SECRET SUMMARY" ),
+                "restricted page content must not leak through list_pages_by_filter" );
+        assertTrue( text.contains( "Public" ),
+                "non-restricted pages must still appear" );
+    }
 }

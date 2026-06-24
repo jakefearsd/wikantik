@@ -33,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * MCP tool — assemble a RAG-as-a-Service context bundle for a natural-language query.
@@ -47,11 +48,19 @@ public class AssembleBundleTool implements McpTool {
     private final BundleAssemblyService service;
     /** Resolved at call time (not construction) so it survives the post-startup wiring order; may yield null. */
     private final Supplier< QueryLogService > queryLog;
+    private final PageViewGate viewGate;
 
     public AssembleBundleTool( final BundleAssemblyService service,
                                final Supplier< QueryLogService > queryLog ) {
+        this( service, queryLog, PageViewGate.ALLOW_ALL );
+    }
+
+    public AssembleBundleTool( final BundleAssemblyService service,
+                               final Supplier< QueryLogService > queryLog,
+                               final PageViewGate viewGate ) {
         this.service = service;
         this.queryLog = queryLog;
+        this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
     }
 
     @Override public String name() { return TOOL_NAME; }
@@ -82,11 +91,16 @@ public class AssembleBundleTool implements McpTool {
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "query argument is required" );
             }
             final ContextBundle bundle = service.assemble( query );
+            // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
+            final List< com.wikantik.api.bundle.BundleSection > filteredSections = bundle.sections().stream()
+                    .filter( s -> viewGate.canView( s.slug() ) )
+                    .collect( Collectors.toList() );
+            final ContextBundle gated = new ContextBundle( bundle.query(), filteredSections );
             final QueryLogService qlog = queryLog == null ? null : queryLog.get();
             if ( qlog != null ) {
-                qlog.log( query, ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, bundle.sections().size() );
+                qlog.log( query, ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, filteredSections.size() );
             }
-            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, bundle );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, gated );
         } catch ( final Exception e ) {
             LOG.error( "assemble_bundle failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );

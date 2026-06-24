@@ -34,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** MCP tool — filtered page listing by type, cluster, tag(s), and freshness. */
 public class ListPagesByFilterTool implements McpTool {
@@ -42,7 +43,16 @@ public class ListPagesByFilterTool implements McpTool {
     public static final String TOOL_NAME = "list_pages_by_filter";
 
     private final StructuralIndexService service;
-    public ListPagesByFilterTool( final StructuralIndexService service ) { this.service = service; }
+    private final PageViewGate viewGate;
+
+    public ListPagesByFilterTool( final StructuralIndexService service ) {
+        this( service, PageViewGate.ALLOW_ALL );
+    }
+
+    public ListPagesByFilterTool( final StructuralIndexService service, final PageViewGate viewGate ) {
+        this.service = service;
+        this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
+    }
 
     @Override public String name() { return TOOL_NAME; }
 
@@ -103,8 +113,12 @@ public class ListPagesByFilterTool implements McpTool {
                     arguments.get( "limit" ) instanceof Number n ? n.intValue() : 100,
                     Optional.ofNullable( (String) arguments.get( "cursor" ) ) );
             final List< PageDescriptor > pages = service.listPagesByFilter( filter );
+            // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
+            final List< PageDescriptor > filtered = pages.stream()
+                    .filter( d -> viewGate.canView( d.slug() ) )
+                    .collect( Collectors.toList() );
             return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
-                    Map.of( "pages", pages, "count", pages.size() ) );
+                    Map.of( "pages", filtered, "count", filtered.size() ) );
         } catch ( final Exception e ) {
             LOG.error( "list_pages_by_filter failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );

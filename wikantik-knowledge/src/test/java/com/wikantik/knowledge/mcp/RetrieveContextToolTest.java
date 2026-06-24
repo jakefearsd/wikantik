@@ -115,4 +115,24 @@ class RetrieveContextToolTest {
         assertTrue( text.toLowerCase().contains( "invalid iso-8601 instant" ),
             "bad ISO-8601 should surface as error text" );
     }
+
+    @Test
+    void restrictedPageFilteredForGuest() {
+        final ContextRetrievalService svc = mock( ContextRetrievalService.class );
+        when( svc.retrieve( any( ContextQuery.class ) ) ).thenReturn(
+            new RetrievalResult( "q", List.of( new RetrievedPage(
+                "Secret", "https://wiki.example/Secret", 0.99, "TOP SECRET SUMMARY",
+                "classified", List.of(),
+                List.of(), List.of(), "alice", new Date() ) ), 1 ) );
+
+        final PageViewGate gate = slug -> !"Secret".equals( slug );
+        final RetrieveContextTool t = new RetrieveContextTool( svc, gate );
+        final McpSchema.CallToolResult result = t.execute( Map.of( "query", "q" ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertFalse( text.contains( "TOP SECRET SUMMARY" ),
+                "restricted page content must not leak through retrieve_context" );
+        assertFalse( text.contains( "\"Secret\"" ),
+                "restricted page name must not appear in retrieve_context output" );
+    }
 }

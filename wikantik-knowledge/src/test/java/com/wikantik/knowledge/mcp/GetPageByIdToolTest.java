@@ -56,4 +56,20 @@ class GetPageByIdToolTest {
         final var result = new GetPageByIdTool( svc ).execute( Map.of() );
         assertTrue( result.isError() );
     }
+
+    @Test
+    void restrictedPageFilteredForGuest() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        when( svc.getByCanonicalId( "01SECRET" ) ).thenReturn( Optional.of(
+                new PageDescriptor( "01SECRET", "Secret", "Secret Page",
+                        PageType.ARTICLE, null, List.of(), "TOP SECRET SUMMARY", Instant.EPOCH, Optional.empty() ) ) );
+
+        final PageViewGate gate = slug -> !"Secret".equals( slug );
+        final var result = new GetPageByIdTool( svc, gate ).execute( Map.of( "canonical_id", "01SECRET" ) );
+
+        assertTrue( result.isError(), "restricted page must return error (same as not found)" );
+        final String text = ( (io.modelcontextprotocol.spec.McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertFalse( text.contains( "TOP SECRET SUMMARY" ),
+                "restricted page content must not leak through get_page_by_id" );
+    }
 }

@@ -41,9 +41,15 @@ public class GetPageTool implements McpTool {
     public static final String TOOL_NAME = "get_page";
 
     private final ContextRetrievalService service;
+    private final PageViewGate viewGate;
 
     public GetPageTool( final ContextRetrievalService service ) {
+        this( service, PageViewGate.ALLOW_ALL );
+    }
+
+    public GetPageTool( final ContextRetrievalService service, final PageViewGate viewGate ) {
         this.service = service;
+        this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
     }
 
     @Override
@@ -99,6 +105,13 @@ public class GetPageTool implements McpTool {
             }
             final RetrievedPage page = service.getPage( pageName );
             if ( page == null ) {
+                final Map< String, Object > missing = new LinkedHashMap<>();
+                missing.put( "exists", false );
+                missing.put( "pageName", pageName );
+                return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, missing );
+            }
+            // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
+            if ( !viewGate.canView( pageName ) ) {
                 final Map< String, Object > missing = new LinkedHashMap<>();
                 missing.put( "exists", false );
                 missing.put( "pageName", pageName );

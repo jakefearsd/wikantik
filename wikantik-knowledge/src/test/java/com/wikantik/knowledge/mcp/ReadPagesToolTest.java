@@ -134,4 +134,24 @@ class ReadPagesToolTest {
 
         verify( pageManager, times( 1 ) ).getPage( eq( "PageA" ), anyInt() );
     }
+
+    @Test
+    void restrictedSlugHiddenAsNotFound_andBodyNeverLeaks() throws Exception {
+        // Guest view-gate denies "Secret". The tool must hide it as not_found and must never
+        // read or return its body — even though the page exists and PageManager would serve it.
+        final PageViewGate gate = slug -> !"Secret".equals( slug );
+        final ReadPagesTool gated = new ReadPagesTool( pageManager, null, gate );
+        when( pageManager.getPage( eq( "Secret" ), anyInt() ) ).thenReturn( mock( Page.class ) );
+        when( pageManager.getPureText( eq( "Secret" ), anyInt() ) ).thenReturn( "TOP SECRET BODY" );
+
+        final var result = gated.execute( Map.of( "slugs", List.of( "Secret" ) ) );
+
+        assertFalse( Boolean.TRUE.equals( result.isError() ) );
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertFalse( json.contains( "TOP SECRET BODY" ),
+                "restricted page body must never leak through read_pages" );
+        assertTrue( json.contains( "not_found" ),
+                "restricted page should be indistinguishable from a missing page" );
+        verify( pageManager, never() ).getPureText( eq( "Secret" ), anyInt() );
+    }
 }

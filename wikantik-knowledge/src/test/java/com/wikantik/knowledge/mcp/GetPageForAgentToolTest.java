@@ -92,6 +92,31 @@ class GetPageForAgentToolTest {
     }
 
     @Test
+    void restrictedPageFilteredForGuest() {
+        final ForAgentProjection secret = new ForAgentProjection(
+                "01SECRET", "Secret", "Secret Page", "article",
+                "classified",
+                Audience.HUMANS_AND_AGENTS, Confidence.AUTHORITATIVE,
+                null, null, null,
+                "TOP SECRET SUMMARY",
+                List.of(), List.of(), List.of(), List.of(),
+                null,
+                null, false,
+                "/api/pages/Secret", "/wiki/Secret?format=md",
+                false, List.of(), List.of() );
+        when( svc.project( "01SECRET" ) ).thenReturn( Optional.of( secret ) );
+
+        final PageViewGate gate = slug -> !"Secret".equals( slug );
+        final GetPageForAgentTool gated = new GetPageForAgentTool( svc, gate );
+        final McpSchema.CallToolResult result = gated.execute( Map.of( "canonical_id", "01SECRET" ) );
+
+        assertTrue( result.isError(), "restricted page must return error (same as not found)" );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertFalse( text.contains( "TOP SECRET SUMMARY" ),
+                "restricted page content must not leak through get_page_for_agent" );
+    }
+
+    @Test
     void wire_shape_includes_agent_hints_and_summary_synthesized() {
         // Fixture passes agentHints=null, summarySynthesized=false (the null-serialisation path).
         final ForAgentProjection p = new ForAgentProjection(

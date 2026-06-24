@@ -107,4 +107,26 @@ class AssembleBundleToolTest {
         final McpSchema.CallToolResult result = tool.execute( Map.of() );
         assertTrue( result.isError(), "missing query must return isError = true" );
     }
+
+    @Test
+    void restrictedPageFilteredForGuest() {
+        final ContextBundle bundleWithSecret = new ContextBundle( "q", List.of(
+                new BundleSection( "01SEC", "Secret", List.of( "Setup" ), "TOP SECRET BODY", 0.99,
+                        new CitationHandle( "01SEC", 1, List.of( "Setup" ), "TOP SECRET BODY", "abc" ) ),
+                new BundleSection( "01PUB", "PublicPage", List.of( "Intro" ), "public content", 0.80,
+                        new CitationHandle( "01PUB", 2, List.of( "Intro" ), "public content", "def" ) )
+        ) );
+        final BundleAssemblyService stub = query -> bundleWithSecret;
+        final PageViewGate gate = slug -> !"Secret".equals( slug );
+        final AssembleBundleTool t = new AssembleBundleTool( stub, () -> null, gate );
+
+        final McpSchema.CallToolResult result = t.execute( Map.of( "query", "q" ) );
+
+        assertFalse( result.isError() );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertFalse( text.contains( "TOP SECRET BODY" ),
+                "restricted page content must not leak through assemble_bundle" );
+        assertTrue( text.contains( "public content" ),
+                "non-restricted sections must still appear" );
+    }
 }

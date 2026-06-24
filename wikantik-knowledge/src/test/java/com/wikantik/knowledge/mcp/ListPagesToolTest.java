@@ -121,4 +121,25 @@ class ListPagesToolTest {
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.toLowerCase().contains( "invalid iso-8601 instant" ) );
     }
+
+    @Test
+    void restrictedPageFilteredForGuest() {
+        final ContextRetrievalService svc = mock( ContextRetrievalService.class );
+        when( svc.listPages( any( PageListFilter.class ) ) ).thenReturn(
+            new PageList( List.of(
+                new RetrievedPage( "Secret", "u1", 0.0, "TOP SECRET SUMMARY", "classified", List.of(),
+                    List.of(), List.of(), null, new Date() ),
+                new RetrievedPage( "Public", "u2", 0.0, "public summary", "open", List.of(),
+                    List.of(), List.of(), null, new Date() ) ),
+                2, 50, 0 ) );
+
+        final PageViewGate gate = slug -> !"Secret".equals( slug );
+        final McpSchema.CallToolResult result = new ListPagesTool( svc, gate ).execute( Map.of() );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertFalse( text.contains( "TOP SECRET SUMMARY" ),
+                "restricted page content must not leak through list_pages" );
+        assertTrue( text.contains( "\"name\":\"Public\"" ),
+                "non-restricted pages must still appear" );
+    }
 }

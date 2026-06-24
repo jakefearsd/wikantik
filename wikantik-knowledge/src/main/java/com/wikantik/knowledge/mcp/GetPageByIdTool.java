@@ -38,7 +38,16 @@ public class GetPageByIdTool implements McpTool {
     public static final String TOOL_NAME = "get_page_by_id";
 
     private final StructuralIndexService service;
-    public GetPageByIdTool( final StructuralIndexService service ) { this.service = service; }
+    private final PageViewGate viewGate;
+
+    public GetPageByIdTool( final StructuralIndexService service ) {
+        this( service, PageViewGate.ALLOW_ALL );
+    }
+
+    public GetPageByIdTool( final StructuralIndexService service, final PageViewGate viewGate ) {
+        this.service = service;
+        this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
+    }
 
     @Override public String name() { return TOOL_NAME; }
 
@@ -94,6 +103,10 @@ public class GetPageByIdTool implements McpTool {
             }
             final Optional< PageDescriptor > found = service.getByCanonicalId( canonicalId );
             if ( found.isEmpty() ) {
+                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "no page for canonical_id " + canonicalId );
+            }
+            // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
+            if ( !viewGate.canView( found.get().slug() ) ) {
                 return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "no page for canonical_id " + canonicalId );
             }
             return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, found.get() );

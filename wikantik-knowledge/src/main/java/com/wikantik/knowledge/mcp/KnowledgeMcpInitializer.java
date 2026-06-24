@@ -99,6 +99,11 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         final ForAgentProjectionService forAgent = kg.forAgentProjectionService();
         final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
 
+        // Guest view-gate: the MCP transport carries no caller identity, so the read-only retrieval
+        // tools enforce page view-ACLs as an anonymous guest — only publicly-viewable pages are
+        // returned. Callers needing restricted content use the privileged /wikantik-admin-mcp surface.
+        final PageViewGate viewGate = guestViewGate( engine );
+
         if ( kgService == null && ctxService == null && structuralIndex == null ) {
             LOG.info( "Neither KnowledgeGraphService, ContextRetrievalService, nor " +
                 "StructuralIndexService configured — Knowledge MCP server not started" );
@@ -150,27 +155,28 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 }
             }
             if ( ctxService != null ) {
-                tools.add( new RetrieveContextTool( ctxService ) );
-                tools.add( new GetPageTool( ctxService ) );
-                tools.add( new ListPagesTool( ctxService ) );
+                tools.add( new RetrieveContextTool( ctxService, viewGate ) );
+                tools.add( new GetPageTool( ctxService, viewGate ) );
+                tools.add( new ListPagesTool( ctxService, viewGate ) );
                 tools.add( new ListMetadataValuesTool( ctxService ) );
-                tools.add( new ReadPagesTool( pageManager, ReadPagesMetrics.resolveAndBind() ) );
+                tools.add( new ReadPagesTool( pageManager, ReadPagesMetrics.resolveAndBind(), viewGate ) );
             }
             if ( structuralIndex != null ) {
                 tools.add( new ListClustersTool( structuralIndex ) );
                 tools.add( new ListTagsTool( structuralIndex ) );
-                tools.add( new ListPagesByFilterTool( structuralIndex ) );
-                tools.add( new GetPageByIdTool( structuralIndex ) );
+                tools.add( new ListPagesByFilterTool( structuralIndex, viewGate ) );
+                tools.add( new GetPageByIdTool( structuralIndex, viewGate ) );
             }
             if ( forAgent != null ) {
-                tools.add( new GetPageForAgentTool( forAgent ) );
+                tools.add( new GetPageForAgentTool( forAgent, viewGate ) );
             }
             final com.wikantik.api.bundle.BundleAssemblyService bundleService = kg.bundleAssemblyService();
             if ( bundleService != null ) {
                 // Resolve the query log lazily (the service is set during engine startup; resolving
                 // at call time avoids any startup-ordering coupling). Agent-by-construction surface.
                 tools.add( new AssembleBundleTool( bundleService,
-                    () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null ) );
+                    () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null,
+                    viewGate ) );
             }
             // Ontology tools (read-only): present only when the ontology runtime is wired.
             final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontoCoord =
@@ -269,6 +275,30 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
      * lightweight test harness) the KG tools still run — they just skip the
      * mention-coverage filter/stats.
      */
+    /**
+     * Builds the guest {@link PageViewGate} the retrieval tools use to enforce page view-ACLs.
+     * Uses the request-free guest session + {@code PermissionFilter.canAccessQuietly} pattern that
+     * the public RDF/ontology surface uses, so only anonymously-viewable pages are returned.
+     *
+     * <p>If the guest session cannot be built (effectively unreachable — {@code engine} is already
+     * confirmed healthy above), it logs loudly and degrades to {@link PageViewGate#ALLOW_ALL} rather
+     * than breaking all retrieval; the alternative (deny-all) would silently disable the whole
+     * surface. The construction is deterministic for a healthy engine.
+     */
+    private static PageViewGate guestViewGate( final Engine engine ) {
+        try {
+            final var guest = com.wikantik.WikiSession.guestSession( engine );
+            final var permFilter = new com.wikantik.auth.permissions.PermissionFilter( engine );
+            return slug -> slug != null && !slug.isBlank()
+                    && permFilter.canAccessQuietly( guest, slug, "view" );
+        } catch ( final RuntimeException e ) {
+            LOG.error( "Knowledge MCP: could not build guest view-gate — retrieval ACL enforcement is "
+                    + "DISABLED (degraded to allow-all); restricted pages may be exposed: {}",
+                    e.getMessage(), e );
+            return PageViewGate.ALLOW_ALL;
+        }
+    }
+
     private static MentionIndex resolveMentionIndex( final Engine engine ) {
         try {
             final String jndiName = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty(

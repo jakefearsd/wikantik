@@ -85,4 +85,21 @@ class GetPageToolTest {
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "DB offline" ) );
     }
+
+    @Test
+    void restrictedPageFilteredForGuest() {
+        final ContextRetrievalService svc = mock( ContextRetrievalService.class );
+        when( svc.getPage( "Secret" ) ).thenReturn( new RetrievedPage(
+            "Secret", "https://wiki.example/Secret", 0.0, "TOP SECRET SUMMARY",
+            "classified", List.of(), List.of(), List.of(), "alice", new Date() ) );
+
+        final PageViewGate gate = slug -> !"Secret".equals( slug );
+        final McpSchema.CallToolResult result = new GetPageTool( svc, gate ).execute( Map.of( "pageName", "Secret" ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertFalse( text.contains( "TOP SECRET SUMMARY" ),
+                "restricted page content must not leak through get_page" );
+        assertTrue( text.contains( "\"exists\":false" ),
+                "restricted page should appear as not found" );
+    }
 }

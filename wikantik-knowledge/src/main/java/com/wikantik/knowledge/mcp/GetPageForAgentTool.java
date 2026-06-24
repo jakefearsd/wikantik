@@ -79,9 +79,15 @@ public class GetPageForAgentTool implements McpTool {
             .create();
 
     private final ForAgentProjectionService service;
+    private final PageViewGate viewGate;
 
     public GetPageForAgentTool( final ForAgentProjectionService service ) {
+        this( service, PageViewGate.ALLOW_ALL );
+    }
+
+    public GetPageForAgentTool( final ForAgentProjectionService service, final PageViewGate viewGate ) {
         this.service = service;
+        this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
     }
 
     @Override public String name() { return TOOL_NAME; }
@@ -155,6 +161,11 @@ public class GetPageForAgentTool implements McpTool {
             }
             final Optional< ForAgentProjection > maybe = service.project( s );
             if ( maybe.isEmpty() ) {
+                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                        "no page for canonical_id " + s );
+            }
+            // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
+            if ( !viewGate.canView( maybe.get().slug() ) ) {
                 return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
                         "no page for canonical_id " + s );
             }

@@ -22,6 +22,7 @@ import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievalResult;
+import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -31,6 +32,7 @@ import org.apache.logging.log4j.Logger;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * MCP tool: run the full retrieval pipeline (BM25 + dense + Knowledge Graph rerank)
@@ -43,9 +45,15 @@ public class RetrieveContextTool implements McpTool {
     public static final String TOOL_NAME = "retrieve_context";
 
     private final ContextRetrievalService service;
+    private final PageViewGate viewGate;
 
     public RetrieveContextTool( final ContextRetrievalService service ) {
+        this( service, PageViewGate.ALLOW_ALL );
+    }
+
+    public RetrieveContextTool( final ContextRetrievalService service, final PageViewGate viewGate ) {
         this.service = service;
+        this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
     }
 
     @Override
@@ -129,7 +137,17 @@ public class RetrieveContextTool implements McpTool {
             final PageListFilter filter = parseFilter( arguments );
             final ContextQuery q = new ContextQuery( query, maxPages, chunksPerPage, filter );
             final RetrievalResult result = service.retrieve( q );
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, result );
+            // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
+            final List< RetrievedPage > filtered = result.pages().stream()
+                    .filter( p -> viewGate.canView( p.name() ) )
+                    .collect( Collectors.toList() );
+            // Preserve totalMatched's pagination semantic (corpus matches before truncation):
+            // only discount the pages we actually hid from this page of results. Collapsing it to
+            // filtered.size() would corrupt the count even when nothing is filtered.
+            final int hidden = result.pages().size() - filtered.size();
+            final int total = Math.max( filtered.size(), result.totalMatched() - hidden );
+            final RetrievalResult gated = new RetrievalResult( result.query(), filtered, total );
+            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, gated );
         } catch ( final IllegalArgumentException e ) {
             LOG.info( "retrieve_context rejected invalid argument: {}", e.getMessage() );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );

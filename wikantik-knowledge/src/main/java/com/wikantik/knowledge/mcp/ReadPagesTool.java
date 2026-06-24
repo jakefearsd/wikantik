@@ -49,10 +49,17 @@ public class ReadPagesTool implements McpTool {
 
     private final PageManager pageManager;
     private final ReadPagesMetrics metrics;
+    private final PageViewGate viewGate;
 
     public ReadPagesTool( final PageManager pageManager, final ReadPagesMetrics metrics ) {
+        this( pageManager, metrics, PageViewGate.ALLOW_ALL );
+    }
+
+    public ReadPagesTool( final PageManager pageManager, final ReadPagesMetrics metrics,
+                          final PageViewGate viewGate ) {
         this.pageManager = pageManager;
         this.metrics = metrics;
+        this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
     }
 
     @Override
@@ -129,6 +136,16 @@ public class ReadPagesTool implements McpTool {
         for ( final String slug : slugs ) {
             final Map< String, Object > entry = new LinkedHashMap<>();
             entry.put( "slug", slug );
+            // Guest view-ACL: a restricted page is hidden as not_found — indistinguishable from a
+            // missing page — and its body is never read. The MCP surface has no caller identity, so
+            // it can only return publicly-viewable content (see PageViewGate).
+            if ( !viewGate.canView( slug ) ) {
+                entry.put( "content", null );
+                entry.put( "error", "not_found" );
+                if ( metrics != null ) metrics.recordPartialFailure( "not_found" );
+                out.add( entry );
+                continue;
+            }
             try {
                 final Page page = pageManager.getPage( slug, PageProvider.LATEST_VERSION );
                 if ( page == null ) {

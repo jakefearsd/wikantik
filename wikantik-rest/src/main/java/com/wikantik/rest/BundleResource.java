@@ -94,9 +94,9 @@ public class BundleResource extends RestServletBase {
             return;
         }
 
-        final ContextBundle bundle;
+        final ContextBundle assembled;
         try {
-            bundle = svc.assemble( q );
+            assembled = svc.assemble( q );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Bundle assembly failed for query '{}': {}", q, e.getMessage(), e );
             resp.setStatus( 500 );
@@ -104,6 +104,15 @@ public class BundleResource extends RestServletBase {
             resp.getWriter().write( "{\"error\":\"bundle assembly failed\"}" );
             return;
         }
+
+        // Authorization: bundle sections must honour each source page's view ACL. The retrieval
+        // backend does not filter, so drop sections the caller cannot view before serializing.
+        final java.util.Set< String > viewable = filterViewable( req,
+                assembled.sections().stream().map( com.wikantik.api.bundle.BundleSection::slug )
+                        .filter( java.util.Objects::nonNull ).toList() );
+        final ContextBundle bundle = new ContextBundle( assembled.query(),
+                assembled.sections().stream()
+                        .filter( s -> viewable.contains( s.slug() ) ).toList() );
 
         resp.setStatus( 200 );
         resp.setContentType( "application/json; charset=UTF-8" );

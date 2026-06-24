@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -84,6 +85,10 @@ class BundleResourceTest {
         final BundleAssemblyService svc = mock( BundleAssemblyService.class );
         final BundleResource resource = new BundleResource() {
             @Override protected BundleAssemblyService bundleService() { return svc; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                return new java.util.HashSet<>( names );   // ACL not under test here — allow all
+            }
         };
         final ContextBundle bundle = new ContextBundle( "deploy", List.of(
                 new BundleSection( "01DEP", "DeployGuide", List.of( "Setup" ), "do x", 0.9,
@@ -111,6 +116,42 @@ class BundleResourceTest {
     }
 
     @Test
+    void restrictedSection_filteredForCaller() throws Exception {
+        final BundleAssemblyService svc = mock( BundleAssemblyService.class );
+        final ContextBundle bundle = new ContextBundle( "deploy", List.of(
+                new BundleSection( "01PUB", "DeployGuide", List.of( "Setup" ), "public step", 0.9,
+                        new CitationHandle( "01PUB", 7, List.of( "Setup" ), "public step", "aaa" ) ),
+                new BundleSection( "01SEC", "DeploySecret", List.of( "Keys" ), "TOP SECRET STEP", 0.8,
+                        new CitationHandle( "01SEC", 3, List.of( "Keys" ), "TOP SECRET STEP", "bbb" ) ) ) );
+        when( svc.assemble( "deploy" ) ).thenReturn( bundle );
+        // The caller may view everything except the restricted page (DeploySecret).
+        final BundleResource resource = new BundleResource() {
+            @Override protected BundleAssemblyService bundleService() { return svc; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                final java.util.Set< String > out = new java.util.HashSet<>( names );
+                out.remove( "DeploySecret" );
+                return out;
+            }
+        };
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getParameter( "q" ) ).thenReturn( "deploy" );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        resource.doGet( req, resp );
+
+        verify( resp ).setStatus( 200 );
+        final String body = sw.toString();
+        assertFalse( body.contains( "TOP SECRET STEP" ),
+                "restricted section text must not leak through /api/bundle" );
+        assertTrue( body.contains( "public step" ), "viewable section should remain" );
+        assertEquals( 1, JsonParser.parseString( body ).getAsJsonObject()
+                .getAsJsonArray( "sections" ).size() );
+    }
+
+    @Test
     void doGet_logsQuery_onSuccessfulBundle() throws Exception {
         final BundleAssemblyService svc = mock( BundleAssemblyService.class );
         final ContextBundle bundle = new ContextBundle( "deploy", List.of(
@@ -122,6 +163,10 @@ class BundleResourceTest {
             @Override protected BundleAssemblyService bundleService() { return svc; }
             @Override protected QueryLogService queryLogService() { return qlog; }
             @Override protected ActorType actorType( final HttpServletRequest r ) { return ActorType.HUMAN; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                return new java.util.HashSet<>( names );   // ACL not under test here — allow all
+            }
         };
         final HttpServletRequest req = mock( HttpServletRequest.class );
         final HttpServletResponse resp = mock( HttpServletResponse.class );

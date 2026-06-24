@@ -6,6 +6,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Pure `isPermitted()` authorization evaluator + enriched `access.denied` records.**
+  `AuthorizationManager` gains an event-free `isPermitted(session, permission)` twin of
+  `checkPermission` (both share one private `decide()`), and every *enforced* denial now records
+  a `reason` (`no-session` / `policy-denied` / `acl-denied`), the caller's `authStatus`, and the
+  `roles` held — merged into the existing audit `detail` JSON. No schema migration: the
+  tamper-evident hash chain stays intact and pre-existing rows still verify.
+- **Clickable audit-log rows open a record-detail modal.** Admin → Observability → Audit rows are
+  keyboard-accessible and open a per-record modal that renders every stored field (target, actor,
+  the request `detail` including the new reason/authStatus/roles, sourceIp, userAgent,
+  correlationId, and the row/prev hash) — the table itself stays lean.
+
+### Changed
+- **Speculative permission checks no longer pollute the audit log.** Visibility/filtering checks —
+  search and sitemap, Page-Graph and KG-snapshot, ontology guest view, `[{InsertPage}]`
+  inclusion, and the REST capability-hint builders — route through a silent path
+  (`isPermitted` / `PermissionFilter.canAccessQuietly` / `RestServletBase.hasPagePermission`);
+  only genuine enforcement (a 403/redirect/blocked action) still emits an `ACCESS_DENIED` audit
+  row. Previously a single page load fired five `hasPagePermission` checks that each wrote a
+  denial row for an action nobody attempted.
+
+### Performance
+- **Read path: three allocation/CPU hot spots removed (read-mix p95 −64% in local profiling).**
+  (1) `FrontmatterParser` reuses its hardened SnakeYAML parser per-thread (a `ThreadLocal`)
+  instead of constructing a new one — compiling ~10 regex `Pattern`s — on every parse.
+  (2) BM25 search reads each hit's page id from columnar **DocValues** instead of stored fields,
+  removing an LZ4 stored-block decompression per hit (search p95 8.4 ms → 3.98 ms; the dominant
+  search allocation → 0; correct via a stored-field fallback on pre-DocValues segments).
+  (3) The context retriever reads page metadata through the existing `FrontmatterMetadataCache`
+  instead of re-reading and re-parsing every candidate page's frontmatter per query
+  (−75% parse allocation; retrieval p95 −23%). Details in `docs/ScalingCharacterization.md` §15.
+
+### Operations
+- **The DocValues search optimization needs a one-time index rebuild to take effect.** After
+  deploying, run `POST /admin/content/rebuild-indexes` to populate the new page-id DocValues
+  field on existing segments. Until then search results stay correct via the stored-field
+  fallback — just without the per-hit decompression saving.
+
 ## [2.1.2] - 2026-06-21
 
 ### Security

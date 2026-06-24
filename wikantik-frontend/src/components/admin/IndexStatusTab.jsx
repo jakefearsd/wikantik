@@ -9,6 +9,7 @@ export default function IndexStatusTab() {
   const [error, setError] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [reindexMessage, setReindexMessage] = useState(null);
+  const [luceneMessage, setLuceneMessage] = useState(null);
   const pollRef = useRef(null);
   const stateRef = useRef('IDLE');
   const hasErrorsRef = useRef(false);
@@ -86,6 +87,21 @@ export default function IndexStatusTab() {
     }
   };
 
+  const doReindexLucene = async () => {
+    setError(null);
+    setLuceneMessage(null);
+    try {
+      const r = await api.admin.reindex();
+      const n = r?.pagesQueued;
+      setLuceneMessage(
+        `Lucene reindex queued${n != null ? ` (${n} pages)` : ''}. `
+        + 'Search stays available; documents refresh as the queue drains.');
+      fetchStatus();
+    } catch (e) {
+      setError(e.message || 'Lucene reindex failed');
+    }
+  };
+
   if (!status) return <div className="admin-loading">Loading index status…</div>;
 
   const rebuild = status.rebuild || {};
@@ -159,6 +175,31 @@ export default function IndexStatusTab() {
           <EmbedderMetrics embedder={embedder} />
         </>
       )}
+
+      <div className="admin-section-header">
+        <h3>Search index (Lucene only)</h3>
+      </div>
+      <p className="admin-section-help">
+        Re-indexes every page into Lucene <strong>only</strong> — no rechunk and no
+        re-embedding. Use this to backfill new Lucene index fields (such as the page-id
+        DocValues added in 2.1.3) across existing segments without the full
+        {' '}<em>Rebuild Indexes</em> cost. Search stays available throughout; documents
+        refresh as the queue drains.
+      </p>
+      <div className="admin-actions-row">
+        <button
+          className="btn btn-primary"
+          onClick={doReindexLucene}
+          disabled={!isIdle}
+        >
+          Reindex Search (Lucene)
+        </button>
+        {luceneMessage && (
+          <div className="admin-message info" style={{ marginLeft: 'var(--space-md)' }}>
+            {luceneMessage}
+          </div>
+        )}
+      </div>
 
       <div className="admin-section-header">
         <h3>Rebuild</h3>

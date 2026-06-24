@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Admin → Content & Index: "Reindex Search (Lucene)" action.** A lightweight,
+  non-destructive button that re-indexes every page into Lucene **only** — no rechunk
+  and no re-embedding — for backfilling new Lucene index fields (such as the 2.1.3
+  page-id DocValues) across existing segments without the full *Rebuild Indexes* cost.
+  Surfaces the existing `POST /admin/content/reindex` endpoint, which previously had no
+  UI control.
+
 ## [2.1.3] - 2026-06-24
 
 ### Added

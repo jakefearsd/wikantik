@@ -220,6 +220,20 @@ describe('IndexStatusTab', () => {
                 .toBeInTheDocument());
     });
 
+    it('reindex-search (Lucene-only) button calls reindex and surfaces the queued message', async () => {
+        // The lightweight, non-destructive option: Lucene-only reindex (no rechunk,
+        // no re-embed) for backfilling new index fields like the page-id DocValues.
+        const reindex = vi.spyOn(api.admin, 'reindex')
+            .mockResolvedValue({ started: true, pagesQueued: 1237 });
+        render(<IndexStatusTab />);
+        await waitFor(() => screen.getByRole('button', { name: /Reindex Search \(Lucene\)/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Reindex Search \(Lucene\)/i }));
+        await waitFor(() => expect(reindex).toHaveBeenCalled());
+        await waitFor(() =>
+            expect(screen.getByText(/Lucene reindex queued \(1237 pages\)/i))
+                .toBeInTheDocument());
+    });
+
     it('reindex 409 surfaces "already running" error', async () => {
         vi.spyOn(api.admin, 'getIndexStatus').mockResolvedValue(embeddingsEnabledStatus);
         vi.spyOn(api.admin, 'reindexEmbeddings').mockRejectedValue(

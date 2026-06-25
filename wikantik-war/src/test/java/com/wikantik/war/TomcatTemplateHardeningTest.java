@@ -34,11 +34,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>The shutdown listener intentionally diverges from the container (which uses {@code port="-1"}
  * because it stops via {@code docker stop}): a bare-metal install stops via {@code bin/shutdown.sh},
  * which needs the port — so it stays open but is bound to loopback so it cannot be reached remotely.
+ *
+ * <p>Also guards the container {@code docker/config/server.xml} error-report hardening: it must use
+ * an explicit {@code ErrorReportValve} and NOT {@code showReport}/{@code showServerInfo} on
+ * {@code <Host>} (which {@code StandardHost} has no setters for, so the Digester ignores them).
  */
 class TomcatTemplateHardeningTest {
 
     private static final Path TEMPLATE =
             Paths.get( "src", "main", "config", "tomcat", "Tomcat-server.xml.template" );
+    /** Container server.xml lives at the repo root, one level above this module. */
+    private static final Path DOCKER_SERVER_XML = Paths.get( "..", "docker", "config", "server.xml" );
 
     private static String template() throws Exception {
         return Files.readString( TEMPLATE );
@@ -79,5 +85,21 @@ class TomcatTemplateHardeningTest {
                 "the connector must not advertise X-Powered-By" );
         assertTrue( t.contains( "allowTrace=\"false\"" ),
                 "the connector must reject the TRACE method (cross-site tracing defense)" );
+    }
+
+    @Test
+    void containerServerXml_suppressesErrorReportViaExplicitValve() throws Exception {
+        assertTrue( Files.exists( DOCKER_SERVER_XML ),
+                "container server.xml must exist at " + DOCKER_SERVER_XML.toAbsolutePath() );
+        final String docker = Files.readString( DOCKER_SERVER_XML );
+        // showReport/showServerInfo are ErrorReportValve properties, NOT <Host> attributes (the
+        // Digester ignores them on Host), so error-report hardening MUST be on an explicit valve.
+        assertTrue( docker.contains( "org.apache.catalina.valves.ErrorReportValve" ),
+                "container server.xml must configure an explicit ErrorReportValve — showReport/"
+                + "showServerInfo on <Host> are silently ignored by StandardHost" );
+        assertTrue( docker.contains( "showReport=\"false\"" )
+                        && docker.contains( "showServerInfo=\"false\"" ),
+                "the ErrorReportValve must set showReport=false and showServerInfo=false so error "
+                + "pages leak neither stack traces nor the Tomcat version" );
     }
 }

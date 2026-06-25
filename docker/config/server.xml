@@ -38,8 +38,14 @@
 
       <Host name="localhost" appBase="webapps"
             unpackWARs="false" autoDeploy="false"
-            showReport="false" showServerInfo="false"
             deployXML="false">
+
+        <!-- Suppress the Tomcat version banner and stack-trace bodies on error pages.
+             NOTE: showReport/showServerInfo are NOT valid <Host> attributes (StandardHost has no
+             such setters — the Digester silently ignores them), so they must live on an explicit
+             ErrorReportValve. They were previously on <Host> above and had no effect. -->
+        <Valve className="org.apache.catalina.valves.ErrorReportValve"
+               showReport="false" showServerInfo="false" />
 
         <!-- Extract real client IP from Cloudflare header -->
         <Valve className="org.apache.catalina.valves.RemoteIpValve"

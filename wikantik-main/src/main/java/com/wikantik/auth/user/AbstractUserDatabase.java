@@ -48,6 +48,8 @@ public abstract class AbstractUserDatabase implements UserDatabase {
     protected static final String SHA_PREFIX = "{SHA}";
     protected static final String SSHA_PREFIX = "{SSHA}";
     protected static final String SHA256_PREFIX = "{SHA-256}";
+    /** Current hash algorithm for new and re-hashed passwords (supersedes salted SHA-256). */
+    protected static final String BCRYPT_PREFIX = CryptoUtil.BCRYPT;
 
     /**
      * Looks up and returns the first {@link UserProfile} in the user database that whose login name, full name, or wiki name matches the
@@ -198,12 +200,15 @@ public abstract class AbstractUserDatabase implements UserDatabase {
             String storedPassword = profile.getPassword();
             boolean verified = false;
 
-            // If the password is stored as SHA-256 or SSHA, verify the hash
-            if( storedPassword.startsWith( SHA256_PREFIX ) || storedPassword.startsWith( SSHA_PREFIX ) ) {
+            // Verify against whichever algorithm the stored hash declares. CryptoUtil dispatches
+            // bcrypt ({bcrypt}) and the legacy salted SHA-256 / SHA-1 ({SSHA}) formats.
+            if( storedPassword.startsWith( BCRYPT_PREFIX )
+                    || storedPassword.startsWith( SHA256_PREFIX )
+                    || storedPassword.startsWith( SSHA_PREFIX ) ) {
                 verified = CryptoUtil.verifySaltedPassword( password.getBytes( StandardCharsets.UTF_8 ), storedPassword );
             }
 
-            // Use older verification algorithm if password is stored as SHA
+            // Use older verification algorithm if password is stored as legacy unsalted {SHA}
             if( storedPassword.startsWith( SHA_PREFIX ) ) {
                 storedPassword = storedPassword.substring( SHA_PREFIX.length() );
                 hashedPassword = getShaHash( password );
@@ -211,8 +216,10 @@ public abstract class AbstractUserDatabase implements UserDatabase {
                                                   storedPassword.getBytes( StandardCharsets.UTF_8 ) );
             }
 
-            // If in the old format and password verified, upgrade the hash to SSHA
-            if( verified && !storedPassword.startsWith( SHA256_PREFIX ) ) {
+            // Transparent migration: on a successful login against any non-bcrypt (legacy) hash,
+            // re-hash the just-verified plaintext with bcrypt and persist it. No reset, no password
+            // change — the plaintext is only available here, during the successful login.
+            if( verified && !storedPassword.startsWith( BCRYPT_PREFIX ) ) {
                 profile.setPassword( password );
                 save( profile );
             }
@@ -253,19 +260,15 @@ public abstract class AbstractUserDatabase implements UserDatabase {
     }
     
     /**
-     * Private method that calculates the salted SHA-1 or SHA-256 hash of a given <code>String</code>. Note that as of JSPWiki 2.8, this method
-     * calculates a <em>salted</em> hash rather than a plain hash.
+     * Hashes a password for storage. New and changed passwords are hashed with bcrypt (prefix
+     * {@code {bcrypt}}); legacy SHA hashes are migrated to this format on the owner's next login
+     * (see {@link #validatePassword}).
      *
      * @param text the text to hash
      * @return the result hash
      */
     protected String getHash( final String text ) {
-        try {
-            return CryptoUtil.getSaltedPassword( text.getBytes(StandardCharsets.UTF_8), SHA256_PREFIX );
-        } catch( final NoSuchAlgorithmException e ) {
-            LOG.error( "Error creating salted password hash: {}", e.getMessage() );
-            return text;
-        }
+        return CryptoUtil.getBcryptHash( text.getBytes( StandardCharsets.UTF_8 ) );
     }
 
     private String getShaHash(final String text ) {

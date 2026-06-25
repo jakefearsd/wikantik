@@ -30,6 +30,12 @@
   <name>Wikantik utility classes</name>
 
   <dependencies>
+    <!-- bcrypt password hashing (CryptoUtil) — modern, maintained, audited. -->
+    <dependency>
+      <groupId>at.favre.lib</groupId>
+      <artifactId>bcrypt</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>com.sun.mail</groupId>
       <artifactId>jakarta.mail</artifactId>

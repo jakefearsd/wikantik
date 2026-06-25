@@ -46,6 +46,7 @@
     <akismet-java.version>1.0.0</akismet-java.version>
     <anthropic-java.version>2.42.0</anthropic-java.version>
     <awaitility.version>4.3.0</awaitility.version>
+    <bcrypt.version>0.10.2</bcrypt.version>
     <commons-collections.version>4.5.0</commons-collections.version>
     <commons-fileupload.version>2.0.0-M5</commons-fileupload.version>
     <commons-io.version>2.22.0</commons-io.version>
@@ -206,6 +207,11 @@
     <dependencies>
       <!-- ordered alphabetically by scope:groupId:artifactId -->
       <!-- compile dependencies -->
+      <dependency>
+        <groupId>at.favre.lib</groupId>
+        <artifactId>bcrypt</artifactId>
+        <version>${bcrypt.version}</version>
+      </dependency>
       <dependency>
         <groupId>com.anthropic</groupId>
         <artifactId>anthropic-java</artifactId>

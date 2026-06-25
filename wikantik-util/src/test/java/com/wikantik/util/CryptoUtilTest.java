@@ -48,6 +48,25 @@ public class CryptoUtilTest {
     }
 
     @Test
+    public void bcryptHashRoundTrips() throws Exception {
+        final byte[] pw = "s3cret-π".getBytes( StandardCharsets.UTF_8 );   // includes a multi-byte UTF-8 char
+        final String hash = CryptoUtil.getBcryptHash( pw );
+
+        Assertions.assertTrue( hash.startsWith( "{bcrypt}$2a$" ), "bcrypt hash should be prefixed: " + hash );
+        Assertions.assertTrue( CryptoUtil.verifySaltedPassword( pw, hash ),
+                "the correct password must verify against its bcrypt hash" );
+        Assertions.assertFalse( CryptoUtil.verifySaltedPassword( "wrong".getBytes( StandardCharsets.UTF_8 ), hash ),
+                "a wrong password must not verify" );
+    }
+
+    @Test
+    public void bcryptUsesARandomSaltPerCall() throws Exception {
+        final byte[] pw = "samePassword".getBytes( StandardCharsets.UTF_8 );
+        Assertions.assertNotEquals( CryptoUtil.getBcryptHash( pw ), CryptoUtil.getBcryptHash( pw ),
+                "two bcrypt hashes of the same password must differ (random salt)" );
+    }
+
+    @Test
     public void testCommandLineNoVerify() throws Exception {
         // Save old printstream
         final PrintStream oldOut = System.out;

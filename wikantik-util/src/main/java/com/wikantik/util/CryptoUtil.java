@@ -18,17 +18,22 @@
  */
 package com.wikantik.util;
 
+import at.favre.lib.crypto.bcrypt.BCrypt;
+import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Random;
 
 
 /**
- * Hashes and verifies salted SHA-1 passwords, which are compliant with RFC
- * 2307.
+ * Hashes and verifies passwords. New and re-hashed passwords use bcrypt (prefix {@link #BCRYPT});
+ * legacy salted SHA-256 ({@code {SHA-256}}) and SHA-1 ({@code {SSHA}}) hashes remain verifiable
+ * (RFC 2307-compliant) so existing accounts keep working and migrate transparently on next login.
  */
 public final class CryptoUtil {
 
@@ -37,6 +42,24 @@ public final class CryptoUtil {
     private static final String SHA1 = "{SHA-1}";
 
     private static final String SHA256 = "{SHA-256}";
+
+    /**
+     * Prefix marking a bcrypt hash; the value that follows is a standard {@code $2a$} bcrypt string.
+     * This is the current default for new and re-hashed passwords.
+     */
+    public static final String BCRYPT = "{bcrypt}";
+
+    /**
+     * bcrypt work factor (~250 ms/hash on current hardware). Raise as hardware improves; existing
+     * hashes carry their own cost in the encoded value, so a bump only affects newly-written hashes.
+     */
+    private static final int BCRYPT_COST = 12;
+
+    /** Long passwords (&gt; 72 bytes) are truncated — standard bcrypt behaviour — rather than rejected. */
+    private static final BCrypt.Hasher BCRYPT_HASHER =
+            BCrypt.with( BCrypt.Version.VERSION_2A, LongPasswordStrategies.truncate( BCrypt.Version.VERSION_2A ) );
+    private static final BCrypt.Verifyer BCRYPT_VERIFYER =
+            BCrypt.verifyer( BCrypt.Version.VERSION_2A, LongPasswordStrategies.truncate( BCrypt.Version.VERSION_2A ) );
 
     private static final Random RANDOM = new SecureRandom();
 
@@ -176,14 +199,39 @@ public final class CryptoUtil {
     }
 
     /**
-     *  Compares a password to a given entry and returns true, if it matches.
+     * Hashes a password with bcrypt and returns it prefixed with {@link #BCRYPT}. This is the
+     * current default for new and re-hashed (migrated) passwords, superseding salted SHA-256.
+     *
+     * @param password the raw password bytes (UTF-8)
+     * @return the {@code {bcrypt}$2a$...} hash string
+     */
+    public static String getBcryptHash( final byte[] password ) {
+        final char[] chars = new String( password, StandardCharsets.UTF_8 ).toCharArray();
+        try {
+            return BCRYPT + BCRYPT_HASHER.hashToString( BCRYPT_COST, chars );
+        } finally {
+            Arrays.fill( chars, '\0' );
+        }
+    }
+
+    /**
+     *  Compares a password to a given entry and returns true, if it matches. Handles bcrypt
+     *  ({@link #BCRYPT}) as well as the legacy salted SHA-256 / SHA-1 ({SSHA}) formats.
      *
      *  @param password The password in bytes.
-     *  @param entry The password entry, typically starting with {SSHA}.
+     *  @param entry The password entry, prefixed with the algorithm marker.
      *  @return True, if the password matches.
      *  @throws NoSuchAlgorithmException If there is no SHA available.
      */
     public static boolean verifySaltedPassword( final byte[] password, final String entry ) throws NoSuchAlgorithmException {
+        if( entry.startsWith( BCRYPT ) ) {
+            final char[] chars = new String( password, StandardCharsets.UTF_8 ).toCharArray();
+            try {
+                return BCRYPT_VERIFYER.verify( chars, entry.substring( BCRYPT.length() ).toCharArray() ).verified;
+            } finally {
+                Arrays.fill( chars, '\0' );
+            }
+        }
         if( !entry.startsWith( SSHA ) && !entry.startsWith( SHA256 ) ) {
             throw new IllegalArgumentException( "Hash not prefixed by expected algorithm; is it really a salted hash?" );
         }

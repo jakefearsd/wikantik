@@ -126,6 +126,27 @@ class AbstractUserDatabaseCITest {
         assertTrue( db.validatePassword( "janne", Users.JANNE_PASS ) );
     }
 
+    // --- transparent migration: a successful login on a legacy SHA hash re-hashes it to bcrypt ---
+
+    @Test
+    void testValidatePasswordUpgradesLegacySha256ToBcrypt() throws Exception {
+        // janne is seeded with a legacy {SHA-256} hash (see InMemoryUserDatabase).
+        assertTrue( db.findByLoginName( "janne" ).getPassword().startsWith( "{SHA-256}" ),
+                    "precondition: janne starts on a legacy {SHA-256} hash" );
+
+        // A normal, successful login verifies via SHA-256 — exactly as before...
+        assertTrue( db.validatePassword( "janne", Users.JANNE_PASS ) );
+
+        // ...and transparently re-hashes the stored credential to bcrypt. No reset, no password
+        // change, no user action — the plaintext is in hand during the successful login.
+        assertTrue( db.findByLoginName( "janne" ).getPassword().startsWith( "{bcrypt}" ),
+                    "a successful login on a legacy SHA-256 hash must upgrade it to bcrypt" );
+
+        // The upgraded bcrypt hash still verifies the same, unchanged password.
+        assertTrue( db.validatePassword( "janne", Users.JANNE_PASS ),
+                    "the same password must verify against the upgraded bcrypt hash" );
+    }
+
     // --- validatePassword() with legacy SHA prefix — covers getShaHash() branch ---
 
     @Test

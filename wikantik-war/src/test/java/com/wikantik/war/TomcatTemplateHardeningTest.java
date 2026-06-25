@@ -1,0 +1,83 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.war;
+
+import org.junit.jupiter.api.Test;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Regression guard for the bare-metal / local-dev Tomcat {@code server.xml} template, keeping it
+ * from drifting back to the un-hardened stock Tomcat config and re-opening the gaps the container
+ * config ({@code docker/config/server.xml}) already closes.
+ *
+ * <p>The shutdown listener intentionally diverges from the container (which uses {@code port="-1"}
+ * because it stops via {@code docker stop}): a bare-metal install stops via {@code bin/shutdown.sh},
+ * which needs the port — so it stays open but is bound to loopback so it cannot be reached remotely.
+ */
+class TomcatTemplateHardeningTest {
+
+    private static final Path TEMPLATE =
+            Paths.get( "src", "main", "config", "tomcat", "Tomcat-server.xml.template" );
+
+    private static String template() throws Exception {
+        return Files.readString( TEMPLATE );
+    }
+
+    @Test
+    void shutdownListener_isBoundToLoopback() throws Exception {
+        assertTrue( template().contains( "<Server port=\"8005\" address=\"127.0.0.1\"" ),
+                "the shutdown port must be bound to 127.0.0.1 so the SHUTDOWN command cannot be "
+                + "sent from off-box (the port stays open because bin/shutdown.sh uses it)" );
+    }
+
+    @Test
+    void host_disablesRuntimeAutoDeployAndWarContextDescriptors() throws Exception {
+        final String t = template();
+        assertTrue( t.contains( "autoDeploy=\"false\"" ),
+                "autoDeploy must be false — never hot-deploy a WAR dropped into webapps/ at runtime" );
+        assertTrue( t.contains( "deployXML=\"false\"" ),
+                "deployXML must be false — ignore any context.xml packaged inside a deployed WAR so a "
+                + "rogue WAR cannot inject JNDI resources or privileged context options" );
+    }
+
+    @Test
+    void errorReporting_suppressesVersionAndStackTraces() throws Exception {
+        final String t = template();
+        assertTrue( t.contains( "org.apache.catalina.valves.ErrorReportValve" ),
+                "an explicit ErrorReportValve must be configured to control error-page output" );
+        assertTrue( t.contains( "showReport=\"false\"" ),
+                "ErrorReportValve showReport must be false — no stack-trace bodies on error pages" );
+        assertTrue( t.contains( "showServerInfo=\"false\"" ),
+                "ErrorReportValve showServerInfo must be false — no Tomcat version banner" );
+    }
+
+    @Test
+    void connector_hidesPoweredByAndBlocksTrace() throws Exception {
+        final String t = template();
+        assertTrue( t.contains( "xpoweredBy=\"false\"" ),
+                "the connector must not advertise X-Powered-By" );
+        assertTrue( t.contains( "allowTrace=\"false\"" ),
+                "the connector must reject the TRACE method (cross-site tracing defense)" );
+    }
+}

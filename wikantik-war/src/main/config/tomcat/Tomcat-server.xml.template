@@ -19,7 +19,12 @@
      define subcomponents such as "Valves" at this level.
      Documentation at /docs/config/server.html
  -->
-<Server port="8005" shutdown="SHUTDOWN">
+<!-- Shutdown listener bound to loopback only. The container (docker/config/server.xml) uses
+     port="-1" because it stops via `docker stop`, but a bare-metal / local install stops via
+     bin/shutdown.sh, which sends the command to this port — so it stays open, but address
+     restricts it to localhost so the shutdown command cannot be sent remotely. Operators on a
+     shared host should also change the shutdown command from the default. -->
+<Server port="8005" address="127.0.0.1" shutdown="SHUTDOWN">
   <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
   <!-- Security listener. Documentation at /docs/config/listeners.html
   <Listener className="org.apache.catalina.security.SecurityListener" />
@@ -76,6 +81,8 @@
                connectionTimeout="20000"
                maxThreads="400"
                acceptCount="200"
+               xpoweredBy="false"
+               allowTrace="false"
                redirectPort="8443" />
     <!-- A "Connector" using the shared thread pool-->
     <!--
@@ -139,8 +146,22 @@
                resourceName="UserDatabase"/>
       </Realm>
 
+      <!-- Hardened to match the container Host (docker/config/server.xml):
+           * autoDeploy=false  - never hot-deploy a WAR dropped into webapps/ at runtime
+                                 (startup deployment still works via deployOnStartup).
+           * deployXML=false   - ignore any context.xml packaged inside a deployed WAR, so a
+                                 rogue WAR cannot inject JNDI resources or privileged context
+                                 options. The external conf/Catalina/localhost/ROOT.xml
+                                 descriptor (our DataSource) is unaffected — same as the
+                                 container, which runs deployXML=false with that descriptor. -->
       <Host name="localhost"  appBase="webapps"
-            unpackWARs="true" autoDeploy="true">
+            unpackWARs="true" autoDeploy="false"
+            deployXML="false">
+
+        <!-- Suppress the Tomcat version banner and stack-trace bodies on error pages
+             (information disclosure). Mirrors the container's hardened error reporting. -->
+        <Valve className="org.apache.catalina.valves.ErrorReportValve"
+               showReport="false" showServerInfo="false" />
 
         <!-- SingleSignOn valve, share authentication between web applications
              Documentation at: /docs/config/valve.html -->

@@ -14,6 +14,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Surfaces the existing `POST /admin/content/reindex` endpoint, which previously had no
   UI control.
 
+### Security
+A hardening sweep across the read, agent, auth, and deployment surfaces, each change
+landing with a failing-first test and gated on the full integration suite.
+
+- **Read-path access control.** REST read endpoints that returned page content/metadata
+  without an ACL check — `/api/diff` (full raw page text), `/api/history`, `/api/backlinks`,
+  `/api/recent-changes`, `/api/pages`, `/api/search`, and `/api/pages/for-agent` — now enforce
+  each page's view ACL (audited 403 for single-page reads; silent visibility-filtering for
+  list/search results).
+- **Agent-surface access control.** The `/knowledge-mcp` retrieval tools and Knowledge Graph
+  tools (`query_nodes`, `search_knowledge`, `get_node`, `traverse`, `find_similar`), plus
+  `GET /api/bundle`, now filter to guest-viewable content using the same publicity rule as the
+  public RDF surface. `/wikantik-admin-mcp` keeps full (admin) access.
+- **Password hashing → bcrypt.** New and changed passwords use bcrypt (cost 12); existing
+  salted-SHA-256 / SSHA accounts migrate transparently to bcrypt on their next successful login
+  — no reset, no password change, no schema migration.
+- **Session-fixation defense.** A successful form login now rotates the `JSESSIONID`.
+- **Browser security headers.** `Content-Security-Policy` and `X-Frame-Options: DENY` are now
+  emitted on every response (the filters existed but were never registered in `web.xml`).
+- **Tomcat hardening.** The bare-metal and container `server.xml` close the open-shutdown-port,
+  runtime `autoDeploy`, WAR-context-injection, and error-page information-leak gaps; the dead
+  `docker-files/` directory — which committed default `admin/admin` Tomcat Manager credentials —
+  was removed. JSESSIONID `Secure` / `SameSite=Lax` / `HttpOnly` hardening is locked in by a new
+  config regression guard.
+
 ## [2.1.3] - 2026-06-24
 
 ### Added

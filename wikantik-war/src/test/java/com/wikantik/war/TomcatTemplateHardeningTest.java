@@ -23,7 +23,10 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -101,5 +104,33 @@ class TomcatTemplateHardeningTest {
                         && docker.contains( "showServerInfo=\"false\"" ),
                 "the ErrorReportValve must set showReport=false and showServerInfo=false so error "
                 + "pages leak neither stack traces nor the Tomcat version" );
+    }
+
+    @Test
+    void noDeploymentShipsACommittedTomcatManagerCredential() throws Exception {
+        // The dead docker-files/ dir shipped a Tomcat Manager user "admin/admin"; that file must
+        // stay deleted (the wiki authenticates via JAAS, not the Tomcat container realm).
+        assertFalse( Files.exists( Paths.get( "..", "docker-files", "tomcat-users.xml" ) ),
+                "docker-files/tomcat-users.xml (an admin/admin Tomcat Manager credential) must not return" );
+
+        // And no committed tomcat-users.xml under the deployment-config homes may declare a user
+        // with a password — a committed Tomcat credential is only ever a Manager-webapp footgun.
+        final List< Path > userFiles = new ArrayList<>();
+        for ( final Path dir : List.of( Paths.get( "..", "docker" ),
+                                        Paths.get( "..", "docker-files" ),
+                                        Paths.get( "src", "main", "config", "tomcat" ) ) ) {
+            if ( !Files.isDirectory( dir ) ) {
+                continue;
+            }
+            try ( var paths = Files.walk( dir ) ) {
+                paths.filter( p -> "tomcat-users.xml".equals( p.getFileName().toString() ) )
+                     .forEach( userFiles::add );
+            }
+        }
+        for ( final Path p : userFiles ) {
+            final String xml = Files.readString( p ).replaceAll( "(?s)<!--.*?-->", "" );  // ignore commented examples
+            assertFalse( xml.matches( "(?s).*<user\\b[^>]*\\bpassword\\s*=.*" ),
+                    "committed " + p + " must not declare a Tomcat user with a password" );
+        }
     }
 }

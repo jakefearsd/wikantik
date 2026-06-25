@@ -327,6 +327,42 @@
      <filter-name>STSFilter</filter-name>
      <url-pattern>/*</url-pattern>
    </filter-mapping>
+   <!-- Content-Security-Policy: a browser-enforced backstop against XSS, clickjacking, and
+        content injection. script-src deliberately keeps 'unsafe-inline' because the SPA shell
+        carries an inline stale-asset auto-recovery script AND an inline onclick handler (an
+        inline event handler cannot be nonce'd, so a strict script-src would break the app); the
+        load-bearing wins here are frame-ancestors 'none' (clickjacking), object-src 'none',
+        base-uri 'self', and the same-origin default-src. style-src/font-src allow Google Fonts;
+        img-src allows data: + https: for wiki-content images; worker-src allows blob: for
+        client-side visualisations. Tune the policy via the CSPValue init-param below. -->
+   <filter>
+     <filter-name>CSPFilter</filter-name>
+     <filter-class>com.wikantik.http.filter.CSPFilter</filter-class>
+     <async-supported>true</async-supported>
+     <init-param>
+       <param-name>CSPValue</param-name>
+       <param-value>default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'</param-value>
+     </init-param>
+   </filter>
+   <filter-mapping>
+     <filter-name>CSPFilter</filter-name>
+     <url-pattern>/*</url-pattern>
+   </filter-mapping>
+   <!-- X-Frame-Options: DENY — legacy-browser clickjacking defense. Modern browsers honor the
+        CSP frame-ancestors 'none' directive above; both are shipped for full coverage. -->
+   <filter>
+     <filter-name>ClickJackFilter</filter-name>
+     <filter-class>com.wikantik.http.filter.ClickJackFilter</filter-class>
+     <async-supported>true</async-supported>
+     <init-param>
+       <param-name>mode</param-name>
+       <param-value>DENY</param-value>
+     </init-param>
+   </filter>
+   <filter-mapping>
+     <filter-name>ClickJackFilter</filter-name>
+     <url-pattern>/*</url-pattern>
+   </filter-mapping>
 
    <session-config>
        <session-timeout>60</session-timeout>

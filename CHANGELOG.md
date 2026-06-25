@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.4] - 2026-06-25
+
 ### Added
 - **Admin → Content & Index: "Reindex Search (Lucene)" action.** A lightweight,
   non-destructive button that re-indexes every page into Lucene **only** — no rechunk

@@ -52,6 +52,7 @@ public class QueryNodesTool implements McpTool {
     private final KnowledgeGraphService service;
     private final MentionIndex mentionIndex;
     private final boolean adminBypass;
+    private final java.util.function.Predicate< String > sourcePageGate;
 
     public QueryNodesTool( final KnowledgeGraphService service ) {
         this( service, null, false );
@@ -65,9 +66,17 @@ public class QueryNodesTool implements McpTool {
     public QueryNodesTool( final KnowledgeGraphService service,
                            final MentionIndex mentionIndex,
                            final boolean adminBypass ) {
+        this( service, mentionIndex, adminBypass, null );
+    }
+
+    public QueryNodesTool( final KnowledgeGraphService service,
+                           final MentionIndex mentionIndex,
+                           final boolean adminBypass,
+                           final java.util.function.Predicate< String > sourcePageGate ) {
         this.service = service;
         this.mentionIndex = mentionIndex;
         this.adminBypass = adminBypass;
+        this.sourcePageGate = sourcePageGate != null ? sourcePageGate : s -> true;
     }
 
     @Override
@@ -141,14 +150,11 @@ public class QueryNodesTool implements McpTool {
             final int offset = McpToolUtils.getInt( arguments, "offset", 0 );
 
             final List< KgNode > nodes = service.queryNodes( filters, provenanceFilter, limit, offset, adminBypass );
-            final List< KgNode > filtered;
-            if ( mentionIndex == null ) {
-                filtered = nodes;
-            } else {
-                filtered = new ArrayList<>( nodes.size() );
-                for ( final KgNode n : nodes ) {
-                    if ( mentionIndex.isMentioned( n.id() ) ) filtered.add( n );
-                }
+            final List< KgNode > filtered = new ArrayList<>( nodes.size() );
+            for ( final KgNode n : nodes ) {
+                if ( mentionIndex != null && !mentionIndex.isMentioned( n.id() ) ) continue;
+                if ( n.sourcePage() != null && !sourcePageGate.test( n.sourcePage() ) ) continue;
+                filtered.add( n );
             }
             final Map< String, Object > payload = new LinkedHashMap<>();
             payload.put( "results", filtered );

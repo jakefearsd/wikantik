@@ -109,4 +109,38 @@ class TraverseToolTest {
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "DB offline" ) );
     }
+
+    @Test
+    void execute_viewGateFiltersRestrictedNodesAndPrunesEdgesToDroppedNodes() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        final UUID publicId = UUID.randomUUID();
+        final UUID secretId = UUID.randomUUID();
+        final KgNode publicNode = new KgNode( publicId, "PublicEntity", "Concept", "PublicPage",
+            Provenance.HUMAN_AUTHORED, Map.of(),
+            Instant.parse( "2026-04-24T10:00:00Z" ),
+            Instant.parse( "2026-04-24T10:00:00Z" ), "human", null );
+        // Node with sourcePage "SecretPage" — must be filtered by the gate.
+        final KgNode secretNode = new KgNode( secretId, "SecretEntity", "Concept", "SecretPage",
+            Provenance.HUMAN_AUTHORED, Map.of(),
+            Instant.parse( "2026-04-24T10:00:00Z" ),
+            Instant.parse( "2026-04-24T10:00:00Z" ), "human", null );
+        // Edge between the public and secret node — must be pruned because secretNode is dropped.
+        final KgEdge edgeToSecret = new KgEdge( UUID.randomUUID(), publicId, secretId, "coMention",
+            Provenance.AI_REVIEWED, Map.of( "sharedChunks", 3 ),
+            Instant.now(), Instant.now(), "human", null );
+        when( svc.traverseByCoMention( eq( "PublicEntity" ), anyInt(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) )
+            .thenReturn( new TraversalResult( List.of( publicNode, secretNode ), List.of( edgeToSecret ) ) );
+
+        // Gate that denies SecretPage only.
+        final PageViewGate gate = slug -> !"SecretPage".equals( slug );
+        final McpSchema.CallToolResult result =
+            new TraverseTool( svc, gate ).execute( Map.of( "start_node", "PublicEntity" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+
+        assertTrue( text.contains( "PublicEntity" ), "public node must be present" );
+        assertFalse( text.contains( "SecretEntity" ), "restricted node must be absent" );
+        // The edge pointing to the dropped node must also be absent.
+        assertFalse( text.contains( secretId.toString() ), "edge referencing dropped node must be pruned" );
+    }
 }

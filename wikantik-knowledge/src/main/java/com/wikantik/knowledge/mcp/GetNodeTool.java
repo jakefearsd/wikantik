@@ -39,9 +39,15 @@ public class GetNodeTool implements McpTool {
     public static final String TOOL_NAME = "get_node";
 
     private final KnowledgeGraphService service;
+    private final PageViewGate viewGate;
 
     public GetNodeTool( final KnowledgeGraphService service ) {
+        this( service, null );
+    }
+
+    public GetNodeTool( final KnowledgeGraphService service, final PageViewGate viewGate ) {
         this.service = service;
+        this.viewGate = viewGate != null ? viewGate : PageViewGate.ALLOW_ALL;
     }
 
     @Override
@@ -111,6 +117,14 @@ public class GetNodeTool implements McpTool {
             }
 
             if ( node == null ) {
+                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                        "Node not found: " + nodeRef );
+            }
+
+            // Guest view-gate: treat restricted-page nodes as not-found so callers cannot
+            // enumerate restricted content by probing node names. Edges are opaque UUIDs and
+            // the node ACL already prevents dereferencing a restricted neighbour.
+            if ( node.sourcePage() != null && !viewGate.canView( node.sourcePage() ) ) {
                 return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
                         "Node not found: " + nodeRef );
             }

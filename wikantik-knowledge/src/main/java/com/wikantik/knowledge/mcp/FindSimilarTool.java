@@ -18,6 +18,8 @@
  */
 package com.wikantik.knowledge.mcp;
 
+import com.wikantik.api.knowledge.KgNode;
+import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity.ScoredName;
 import com.wikantik.mcp.tools.McpTool;
@@ -26,6 +28,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,9 +45,19 @@ public class FindSimilarTool implements McpTool {
     public static final String TOOL_NAME = "find_similar";
 
     private final NodeMentionSimilarity similarity;
+    private final KnowledgeGraphService service;
+    private final PageViewGate viewGate;
 
     public FindSimilarTool( final NodeMentionSimilarity similarity ) {
+        this( similarity, null, null );
+    }
+
+    public FindSimilarTool( final NodeMentionSimilarity similarity,
+                             final KnowledgeGraphService service,
+                             final PageViewGate viewGate ) {
         this.similarity = similarity;
+        this.service = service;
+        this.viewGate = viewGate != null ? viewGate : PageViewGate.ALLOW_ALL;
     }
 
     @Override
@@ -114,8 +127,20 @@ public class FindSimilarTool implements McpTool {
                     "find_similar: node '" + node + "' was not found in the mention index — "
                             + "either the name is unknown or it has no chunk mentions yet." );
             }
+
+            // Guest view-gate: filter out similar nodes whose backing page is restricted.
+            // When a name cannot be resolved (service==null or getNodeByName returns null),
+            // degrade open — a bare unresolvable name has no page to gate on.
+            final List< ScoredName > visible = new ArrayList<>( ranked.size() );
+            for ( final ScoredName s : ranked ) {
+                final KgNode n = service == null ? null : service.getNodeByName( s.name() );
+                if ( n == null || n.sourcePage() == null || viewGate.canView( n.sourcePage() ) ) {
+                    visible.add( s );
+                }
+            }
+
             final Map< String, Object > response = new LinkedHashMap<>();
-            response.put( "similar", ranked.stream().map( s -> {
+            response.put( "similar", visible.stream().map( s -> {
                 final Map< String, Object > m = new LinkedHashMap<>();
                 m.put( "name", s.name() );
                 m.put( "similarity", Math.round( s.score() * 1000.0 ) / 1000.0 );

@@ -18,6 +18,8 @@
  */
 package com.wikantik.knowledge.mcp;
 
+import com.wikantik.api.knowledge.KgEdge;
+import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Tier;
 import com.wikantik.api.knowledge.TraversalResult;
@@ -40,9 +42,15 @@ public class TraverseTool implements McpTool {
     public static final String TOOL_NAME = "traverse";
 
     private final KnowledgeGraphService service;
+    private final PageViewGate viewGate;
 
     public TraverseTool( final KnowledgeGraphService service ) {
+        this( service, null );
+    }
+
+    public TraverseTool( final KnowledgeGraphService service, final PageViewGate viewGate ) {
         this.service = service;
+        this.viewGate = viewGate != null ? viewGate : PageViewGate.ALLOW_ALL;
     }
 
     @Override
@@ -117,7 +125,25 @@ public class TraverseTool implements McpTool {
 
             final TraversalResult result = service.traverseByCoMention(
                 startNode, maxDepth, minSharedChunks, minTier );
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, result );
+
+            // Guest view-gate: filter out nodes whose source page is restricted, then prune
+            // any edges that reference a dropped node (both endpoints must remain visible).
+            final List< KgNode > visibleNodes = new ArrayList<>();
+            final Set< UUID > visibleIds = new HashSet<>();
+            for ( final KgNode n : result.nodes() ) {
+                if ( n.sourcePage() == null || viewGate.canView( n.sourcePage() ) ) {
+                    visibleNodes.add( n );
+                    visibleIds.add( n.id() );
+                }
+            }
+            final List< KgEdge > visibleEdges = new ArrayList<>();
+            for ( final KgEdge e : result.edges() ) {
+                if ( visibleIds.contains( e.sourceId() ) && visibleIds.contains( e.targetId() ) ) {
+                    visibleEdges.add( e );
+                }
+            }
+            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
+                new TraversalResult( visibleNodes, visibleEdges ) );
         } catch ( final Exception e ) {
             LOG.error( "Traverse failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );

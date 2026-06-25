@@ -52,6 +52,7 @@ public class SearchKnowledgeTool implements McpTool {
     private final KnowledgeGraphService service;
     private final MentionIndex mentionIndex;
     private final boolean adminBypass;
+    private final java.util.function.Predicate< String > sourcePageGate;
 
     public SearchKnowledgeTool( final KnowledgeGraphService service ) {
         this( service, null, false );
@@ -65,9 +66,17 @@ public class SearchKnowledgeTool implements McpTool {
     public SearchKnowledgeTool( final KnowledgeGraphService service,
                                  final MentionIndex mentionIndex,
                                  final boolean adminBypass ) {
+        this( service, mentionIndex, adminBypass, null );
+    }
+
+    public SearchKnowledgeTool( final KnowledgeGraphService service,
+                                 final MentionIndex mentionIndex,
+                                 final boolean adminBypass,
+                                 final java.util.function.Predicate< String > sourcePageGate ) {
         this.service = service;
         this.mentionIndex = mentionIndex;
         this.adminBypass = adminBypass;
+        this.sourcePageGate = sourcePageGate != null ? sourcePageGate : s -> true;
     }
 
     @Override
@@ -183,12 +192,11 @@ public class SearchKnowledgeTool implements McpTool {
     }
 
     private List< KgNode > filterToMentioned( final List< KgNode > nodes ) {
-        if ( mentionIndex == null ) return nodes;
         final List< KgNode > out = new ArrayList<>( nodes.size() );
         for ( final KgNode n : nodes ) {
-            if ( mentionIndex.isMentioned( n.id() ) ) {
-                out.add( n );
-            }
+            if ( mentionIndex != null && !mentionIndex.isMentioned( n.id() ) ) continue;
+            if ( n.sourcePage() != null && !sourcePageGate.test( n.sourcePage() ) ) continue;
+            out.add( n );
         }
         return out;
     }

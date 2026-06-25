@@ -145,13 +145,13 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             if ( kgService != null ) {
                 final MentionIndex mentionIndex = resolveMentionIndex( engine );
                 tools.add( new DiscoverSchemaTool( kgService, mentionIndex ) );
-                tools.add( new QueryNodesTool( kgService, mentionIndex ) );
-                tools.add( new GetNodeTool( kgService ) );
-                tools.add( new TraverseTool( kgService ) );
-                tools.add( new SearchKnowledgeTool( kgService, mentionIndex ) );
+                tools.add( new QueryNodesTool( kgService, mentionIndex, false, viewGate::canView ) );
+                tools.add( new GetNodeTool( kgService, viewGate ) );
+                tools.add( new TraverseTool( kgService, viewGate ) );
+                tools.add( new SearchKnowledgeTool( kgService, mentionIndex, false, viewGate::canView ) );
                 final NodeMentionSimilarity similarity = kg.nodeMentionSimilarity();
                 if ( similarity != null ) {
-                    tools.add( new FindSimilarTool( similarity ) );
+                    tools.add( new FindSimilarTool( similarity, kgService, viewGate ) );
                 }
             }
             if ( ctxService != null ) {

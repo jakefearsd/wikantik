@@ -18,13 +18,18 @@
  */
 package com.wikantik.knowledge.mcp;
 
+import com.wikantik.api.knowledge.KgNode;
+import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity.ScoredName;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -105,5 +110,38 @@ class FindSimilarToolTest {
             new FindSimilarTool( sim ).execute( Map.of( "node", "Alpha" ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "DB offline" ) );
+    }
+
+    @Test
+    void execute_viewGateFiltersRestrictedSimilarNodes() {
+        final NodeMentionSimilarity sim = mock( NodeMentionSimilarity.class );
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        when( sim.isReady() ).thenReturn( true );
+        // Both SecretNeighbour and PublicNeighbour are returned as similar.
+        when( sim.similarTo( "Alpha", 10 ) ).thenReturn( List.of(
+            new ScoredName( "SecretNeighbour", 0.9 ),
+            new ScoredName( "PublicNeighbour", 0.7 ) ) );
+
+        // SecretNeighbour resolves to a node whose sourcePage is "SecretPage".
+        final KgNode secretNode = new KgNode( UUID.randomUUID(), "SecretNeighbour", "Concept", "SecretPage",
+            Provenance.HUMAN_AUTHORED, Map.of(),
+            Instant.parse( "2026-04-24T08:00:00Z" ),
+            Instant.parse( "2026-04-24T08:00:00Z" ), "human", null );
+        // PublicNeighbour resolves to a node with a public page.
+        final KgNode publicNode = new KgNode( UUID.randomUUID(), "PublicNeighbour", "Concept", "PublicPage",
+            Provenance.HUMAN_AUTHORED, Map.of(),
+            Instant.parse( "2026-04-24T08:00:00Z" ),
+            Instant.parse( "2026-04-24T08:00:00Z" ), "human", null );
+        when( svc.getNodeByName( "SecretNeighbour" ) ).thenReturn( secretNode );
+        when( svc.getNodeByName( "PublicNeighbour" ) ).thenReturn( publicNode );
+
+        // Gate that denies SecretPage only.
+        final PageViewGate gate = slug -> !"SecretPage".equals( slug );
+        final McpSchema.CallToolResult result =
+            new FindSimilarTool( sim, svc, gate ).execute( Map.of( "node", "Alpha" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+
+        assertFalse( text.contains( "SecretNeighbour" ), "restricted similar node must be absent" );
+        assertTrue( text.contains( "PublicNeighbour" ), "public similar node must be present" );
     }
 }

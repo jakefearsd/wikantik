@@ -188,4 +188,32 @@ class SearchKnowledgeToolTest {
         verify( svc ).searchKnowledge( any(), any(), anyInt(),
                 any( com.wikantik.api.knowledge.Tier.class ) );
     }
+
+    @Test
+    void execute_sourcePageGateFiltersRestrictedNodes() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        final UUID secretId = UUID.randomUUID();
+        final UUID publicId = UUID.randomUUID();
+        // Node with sourcePage "SecretPage" — must be filtered out by the gate.
+        final KgNode secretNode = new KgNode( secretId, "SecretEntity", "Concept", "SecretPage",
+            Provenance.HUMAN_AUTHORED, Map.of(),
+            Instant.parse( "2026-04-24T08:00:00Z" ),
+            Instant.parse( "2026-04-24T08:00:00Z" ), "human", null );
+        // Node with sourcePage "PublicPage" — must remain visible.
+        final KgNode publicNode = new KgNode( publicId, "PublicEntity", "Concept", "PublicPage",
+            Provenance.HUMAN_AUTHORED, Map.of(),
+            Instant.parse( "2026-04-24T08:00:00Z" ),
+            Instant.parse( "2026-04-24T08:00:00Z" ), "human", null );
+        when( svc.searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) )
+            .thenReturn( List.of( secretNode, publicNode ) );
+
+        // Gate that denies SecretPage only.
+        final java.util.function.Predicate< String > gate = s -> !"SecretPage".equals( s );
+        final McpSchema.CallToolResult result =
+            new SearchKnowledgeTool( svc, null, false, gate ).execute( Map.of( "query", "q" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertFalse( text.contains( "SecretEntity" ), "restricted node must be absent" );
+        assertTrue( text.contains( "PublicEntity" ), "public node must be present" );
+    }
 }

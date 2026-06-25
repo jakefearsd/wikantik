@@ -34,6 +34,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+// PageViewGate is in the same package as GetNodeTool — no extra import needed
+
 class GetNodeToolTest {
 
     @Test
@@ -110,5 +112,43 @@ class GetNodeToolTest {
             new GetNodeTool( svc ).execute( Map.of( "node", "Alpha" ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "DB offline" ) );
+    }
+
+    @Test
+    void execute_viewGateReturnsNotFoundForRestrictedNode() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        final UUID id = UUID.randomUUID();
+        // Node whose sourcePage is "SecretPage" — must be hidden behind the gate.
+        final KgNode secretNode = new KgNode( id, "SecretEntity", "Concept", "SecretPage",
+            Provenance.HUMAN_AUTHORED, Map.of(),
+            Instant.parse( "2026-04-24T09:00:00Z" ),
+            Instant.parse( "2026-04-24T10:00:00Z" ), "human", null );
+        // A viewable node to confirm the gate is selective, not deny-all.
+        final UUID pubId = UUID.randomUUID();
+        final KgNode publicNode = new KgNode( pubId, "PublicEntity", "Concept", "PublicPage",
+            Provenance.HUMAN_AUTHORED, Map.of(),
+            Instant.parse( "2026-04-24T09:00:00Z" ),
+            Instant.parse( "2026-04-24T10:00:00Z" ), "human", null );
+        when( svc.getNodeByName( "SecretEntity" ) ).thenReturn( secretNode );
+        when( svc.getNodeByName( "PublicEntity" ) ).thenReturn( publicNode );
+        when( svc.getEdgesForNode( eq( pubId ), anyString() ) ).thenReturn( List.of() );
+
+        // Gate that denies SecretPage only.
+        final PageViewGate gate = slug -> !"SecretPage".equals( slug );
+
+        // Restricted node must appear as not-found.
+        final McpSchema.CallToolResult restrictedResult =
+            new GetNodeTool( svc, gate ).execute( Map.of( "node", "SecretEntity" ) );
+        final String restrictedText = ( (McpSchema.TextContent) restrictedResult.content().get( 0 ) ).text();
+        assertTrue( restrictedText.contains( "Node not found" ), "restricted node must appear not-found" );
+        // "SecretEntity" echoes back in the "Node not found: SecretEntity" message — that is acceptable.
+        // What must NOT appear is the restricted source-page slug or any node body content.
+        assertFalse( restrictedText.contains( "SecretPage" ), "restricted page slug must not be disclosed" );
+
+        // Public node must resolve normally.
+        final McpSchema.CallToolResult publicResult =
+            new GetNodeTool( svc, gate ).execute( Map.of( "node", "PublicEntity" ) );
+        final String publicText = ( (McpSchema.TextContent) publicResult.content().get( 0 ) ).text();
+        assertTrue( publicText.contains( "\"name\":\"PublicEntity\"" ), "public node must be returned" );
     }
 }

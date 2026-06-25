@@ -136,6 +136,27 @@ public class SessionMonitor implements HttpSessionListener {
     }
 
     /**
+     * Remaps a tracked session from {@code oldId} to {@code newId}, preserving the same
+     * {@link Session} object. Called after {@code HttpServletRequest.changeSessionId()} rotates
+     * the HTTP session ID on a successful login (session-fixation defense): {@code changeSessionId}
+     * keeps the HttpSession and its attributes, but this map is keyed by the session ID, so the
+     * authenticated session would otherwise be orphaned under the stale ID and a lookup by the new
+     * ID would mint a fresh guest. No-ops when either ID is null or unchanged.
+     *
+     * @param oldId the pre-rotation session ID
+     * @param newId the post-rotation session ID
+     */
+    public final void updateSessionId( final String oldId, final String newId ) {
+        if ( oldId == null || newId == null || oldId.equals( newId ) ) {
+            return;
+        }
+        final Session moved = sessions.remove( oldId );
+        if ( moved != null ) {
+            sessions.put( newId, moved );
+        }
+    }
+
+    /**
      * Creates a new guest session for the given session ID.
      * Called by {@link ConcurrentHashMap#computeIfAbsent} — guaranteed to run at most once per key.
      */

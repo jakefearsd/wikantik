@@ -268,11 +268,12 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                 fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
             }
 
-            // Note: session fixation prevention via changeSessionId() was removed because
-            // the SessionMonitor's ConcurrentHashMap-based session tracking does not
-            // survive session ID changes reliably across Tomcat's servlet threading model.
-            // The risk is low: session fixation requires the attacker to set a cookie on
-            // the victim's browser, which is mitigated by HttpOnly + SameSite=Strict cookies.
+            // Session-fixation defense: now that this session has transitioned from anonymous to
+            // authenticated, rotate its HTTP session ID so any pre-auth ID an attacker may have
+            // fixed on the victim's browser cannot be replayed as an authenticated session. The
+            // SessionMonitor entry is remapped to the new ID (the lack of which previously made
+            // this unsafe to enable). No-op for sessionless/test requests.
+            rotateSessionId( request );
 
             // Add all appropriate Authorizer roles
             injectAuthorizerRoles( session, authorizationManager().getAuthorizer(), null );
@@ -287,6 +288,37 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         // successful login resets the counter.
         registerFailedLogin( username );
         return false;
+    }
+
+    /**
+     * Session-fixation defense invoked after a successful authentication: rotates the HTTP session
+     * ID via {@link HttpServletRequest#changeSessionId()} (which preserves the {@link HttpSession}
+     * and its attributes, including the WikiSession) and remaps the {@link SessionMonitor} entry —
+     * keyed by session ID — from the old ID to the new one. Without the remap the authenticated
+     * session would be orphaned under the stale ID and the next lookup would mint a fresh guest,
+     * which is why ID rotation was previously disabled.
+     *
+     * <p>No-ops when there is no request or no active session (e.g. unit-test/mock callers), or
+     * when the container cannot rotate the ID.
+     */
+    private void rotateSessionId( final HttpServletRequest request ) {
+        if ( request == null ) {
+            return;
+        }
+        final HttpSession httpSession = request.getSession( false );
+        if ( httpSession == null ) {
+            return;
+        }
+        final String oldId = httpSession.getId();
+        final String newId;
+        try {
+            newId = request.changeSessionId();
+        } catch ( final IllegalStateException e ) {
+            // No active session to rotate (already invalidated / no session) — nothing to defend.
+            LOG.debug( "Session ID rotation skipped on login: {}", e.getMessage() );
+            return;
+        }
+        SessionMonitor.getInstance( engine ).updateSessionId( oldId, newId );
     }
 
     /**

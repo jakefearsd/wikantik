@@ -64,6 +64,41 @@ class SessionMonitorTest {
     }
 
     /**
+     * Session-fixation defense: after {@code changeSessionId()} rotates the HTTP session ID on
+     * login, {@link SessionMonitor#updateSessionId} must move the tracked (authenticated) session
+     * so it resolves under the new ID, and the old ID must no longer resolve to it.
+     */
+    @Test
+    void updateSessionId_remapsAuthenticatedSessionToTheNewId() {
+        final HttpSession httpSession = Mockito.mock( HttpSession.class );
+        Mockito.doReturn( "fixation-old-id" ).when( httpSession ).getId();
+        final Session original = monitor.find( httpSession );   // registers under fixation-old-id
+        assertNotNull( original );
+
+        monitor.updateSessionId( "fixation-old-id", "fixation-new-id" );
+
+        assertSame( original, monitor.find( "fixation-new-id" ),
+                "the rotated session ID must resolve to the same (authenticated) Session" );
+        assertNotSame( original, monitor.find( "fixation-old-id" ),
+                "the pre-rotation ID must no longer resolve to the authenticated Session" );
+    }
+
+    /**
+     * Guard: a no-op id change (equal ids) must not drop the tracked session.
+     */
+    @Test
+    void updateSessionId_isNoOpWhenIdUnchanged() {
+        final HttpSession httpSession = Mockito.mock( HttpSession.class );
+        Mockito.doReturn( "fixation-stable-id" ).when( httpSession ).getId();
+        final Session original = monitor.find( httpSession );
+
+        monitor.updateSessionId( "fixation-stable-id", "fixation-stable-id" );
+
+        assertSame( original, monitor.find( "fixation-stable-id" ),
+                "an unchanged id must leave the tracked session in place" );
+    }
+
+    /**
      * Verifies that calling find() with the same session ID returns the same Session object.
      */
     @Test

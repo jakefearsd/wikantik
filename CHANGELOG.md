@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.6] - 2026-06-26
+
 ### Security
 - **Security headers now actually reach server-rendered HTML pages.** The `Content-Security-Policy`,
   `X-Frame-Options`, HSTS, `X-Content-Type-Options`, Referrer-Policy, and COEP/CORP filters were

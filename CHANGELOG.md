@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.5] - 2026-06-26
+
 ### Security
 - **`list_clusters` (knowledge-mcp) no longer leaks a restricted cluster hub page.** Each cluster's
   hub-page descriptor (slug, title) is now redacted to `null` when the hub page is not viewable by an

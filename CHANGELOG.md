@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- **Security headers now actually reach server-rendered HTML pages.** The `Content-Security-Policy`,
+  `X-Frame-Options`, HSTS, `X-Content-Type-Options`, Referrer-Policy, and COEP/CORP filters were
+  mapped in `web.xml` *after* `SpaRoutingFilter` / `WikiPageFormatFilter` — and those filters serve
+  `/wiki/*` (and the SPA shell) by writing the response body and returning **without** continuing the
+  filter chain. The net effect: no server-rendered page (`/wiki/*` and every SPA route a browser
+  loads) carried any security header — they appeared only on API/JSON and static-asset responses, so
+  the 2.1.4 CSP/clickjacking hardening never protected the pages users actually view. The
+  content-serving filters are now ordered last in the chain, after the header filters. Locked in by a
+  web.xml-ordering unit guard (`SecurityHeaderRegistrationTest`) and a `/wiki/*` wire-level case in
+  `SecurityHeadersIT`.
+
 ## [2.1.5] - 2026-06-26
 
 ### Security

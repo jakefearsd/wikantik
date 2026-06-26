@@ -86,4 +86,16 @@ public class SecurityHeadersIT {
         // A public API route — proves the /* mapping covers non-HTML responses too.
         assertSecurityHeaders( get( "/api/changes?since=2020-01-01T00:00:00Z" ), "/api/changes" );
     }
+
+    @Test
+    void ssrWikiPage_carriesCspAndFrameOptions() throws Exception {
+        // The real wiki content surface: /wiki/* is served by SpaRoutingFilter, which writes the
+        // server-rendered index.html and returns WITHOUT calling chain.doFilter. The security-header
+        // filters must therefore be ordered ahead of it; otherwise no rendered page carries any
+        // security header. Regression guard for the filter-ordering fix — the original /-only and
+        // /api-only cases above both miss this short-circuiting SSR path.
+        final HttpResponse< String > resp = get( "/wiki/Main" );
+        assertEquals( 200, resp.statusCode(), "/wiki/Main must render the SPA shell (HTTP 200)" );
+        assertSecurityHeaders( resp, "/wiki/Main" );
+    }
 }

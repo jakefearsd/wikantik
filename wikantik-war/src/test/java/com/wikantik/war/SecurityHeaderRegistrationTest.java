@@ -71,6 +71,18 @@ class SecurityHeaderRegistrationTest {
         return null;
     }
 
+    /** Index of the named filter's first {@code <filter-mapping>} in document (chain) order, or -1. */
+    private static int firstMappingIndex( final Document doc, final String filterName ) {
+        final NodeList mappings = doc.getElementsByTagName( "filter-mapping" );
+        for ( int i = 0; i < mappings.getLength(); i++ ) {
+            final Element m = (Element) mappings.item( i );
+            if ( filterName.equals( childText( m, "filter-name" ) ) ) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     /** All {@code url-pattern}s the named filter is mapped to. */
     private static Set< String > mappingsFor( final Document doc, final String filterName ) {
         final Set< String > patterns = new HashSet<>();
@@ -139,5 +151,32 @@ class SecurityHeaderRegistrationTest {
                 "CSP must set object-src 'none'; was: " + csp );
         assertTrue( csp.contains( "base-uri 'self'" ),
                 "CSP must set base-uri 'self'; was: " + csp );
+    }
+
+    @Test
+    void securityHeaderFilters_runBeforeChainShortCircuitingContentFilters() throws Exception {
+        final Document doc = webXml();
+        // SpaRoutingFilter and WikiPageFormatFilter serve /wiki/* (and the SPA shell) by WRITING the
+        // response body and returning WITHOUT calling chain.doFilter. Any /* security-header filter
+        // mapped AFTER them in the chain therefore never runs on a server-rendered HTML page — the
+        // exact bug behind "no security headers on rendered pages". These header filters must be
+        // ordered earlier in the chain than the content-serving filters.
+        final int spa = firstMappingIndex( doc, "SpaRoutingFilter" );
+        final int fmt = firstMappingIndex( doc, "WikiPageFormatFilter" );
+        assertTrue( spa >= 0, "SpaRoutingFilter must be mapped in web.xml" );
+        assertTrue( fmt >= 0, "WikiPageFormatFilter must be mapped in web.xml" );
+        final int earliestContent = Math.min( spa, fmt );
+
+        for ( final String headerFilter : new String[] {
+                "CSPFilter", "ClickJackFilter", "STSFilter", "ContentTypeOptionsFilter",
+                "ReferrerPolicyFilter", "COEPFilter", "CORPFilter", "CrossDomainFilter" } ) {
+            final int idx = firstMappingIndex( doc, headerFilter );
+            assertTrue( idx >= 0, headerFilter + " must be mapped in web.xml" );
+            assertTrue( idx < earliestContent,
+                    headerFilter + " (filter-mapping #" + idx + ") must be ordered BEFORE the "
+                    + "chain-short-circuiting content filters SpaRoutingFilter/WikiPageFormatFilter "
+                    + "(filter-mapping #" + earliestContent + ") so its header reaches "
+                    + "server-rendered HTML pages" );
+        }
     }
 }

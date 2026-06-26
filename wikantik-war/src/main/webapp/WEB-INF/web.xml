@@ -201,52 +201,6 @@
      <url-pattern>/admin/*</url-pattern>
    </filter-mapping>
 
-   <!-- Raw page content: serves /wiki/{slug}?format=md|json for RAG/SEO indexing -->
-   <filter>
-     <filter-name>WikiPageFormatFilter</filter-name>
-     <filter-class>com.wikantik.rest.WikiPageFormatFilter</filter-class>
-     <async-supported>true</async-supported>
-   </filter>
-   <filter-mapping>
-     <filter-name>WikiPageFormatFilter</filter-name>
-     <url-pattern>/wiki/*</url-pattern>
-   </filter-mapping>
-
-   <!-- React SPA routing: forwards known SPA paths to /index.html for client-side routing -->
-   <filter>
-     <filter-name>SpaRoutingFilter</filter-name>
-     <filter-class>com.wikantik.rest.SpaRoutingFilter</filter-class>
-   </filter>
-   <filter-mapping>
-     <filter-name>SpaRoutingFilter</filter-name>
-     <url-pattern>/wiki/*</url-pattern>
-     <url-pattern>/edit/*</url-pattern>
-     <url-pattern>/diff/*</url-pattern>
-     <url-pattern>/admin</url-pattern>
-     <url-pattern>/admin/*</url-pattern>
-     <url-pattern>/search</url-pattern>
-     <url-pattern>/graph</url-pattern>
-     <url-pattern>/page-graph</url-pattern>
-     <url-pattern>/knowledge-graph</url-pattern>
-     <url-pattern>/preferences</url-pattern>
-     <url-pattern>/me/mentions</url-pattern>
-     <url-pattern>/reset-password</url-pattern>
-     <url-pattern>/change-password</url-pattern>
-     <url-pattern>/login</url-pattern>
-     <url-pattern>/blog/*</url-pattern>
-     <url-pattern>/blog</url-pattern>
-     <url-pattern>/</url-pattern>
-   </filter-mapping>
-
-   <filter>
-     <filter-name>WikiServletFilter</filter-name>
-     <filter-class>com.wikantik.ui.WikiServletFilter</filter-class>
-   </filter>
-
-   <filter-mapping>
-     <filter-name>WikiServletFilter</filter-name>
-     <url-pattern>/attach/*</url-pattern>
-   </filter-mapping>
    <!-- optional set of servlet filters which inject OWASP recommended
     http response headers into all outbound responses.
     most have optional init parameters that can be used to customize the output
@@ -362,6 +316,59 @@
    <filter-mapping>
      <filter-name>ClickJackFilter</filter-name>
      <url-pattern>/*</url-pattern>
+   </filter-mapping>
+
+   <!-- Content-serving filters run AFTER the /* security-header filters above. SpaRoutingFilter and
+        WikiPageFormatFilter serve /wiki/* (and the SPA shell) by writing the response body and then
+        returning WITHOUT calling chain.doFilter; if they were ordered before the header filters (as
+        they once were), none of the security headers above would reach a server-rendered HTML page.
+        Keep this block last in the filter chain. Guarded by SecurityHeaderRegistrationTest
+        #securityHeaderFilters_runBeforeChainShortCircuitingContentFilters and SecurityHeadersIT. -->
+   <!-- Raw page content: serves /wiki/{slug}?format=md|json for RAG/SEO indexing -->
+   <filter>
+     <filter-name>WikiPageFormatFilter</filter-name>
+     <filter-class>com.wikantik.rest.WikiPageFormatFilter</filter-class>
+     <async-supported>true</async-supported>
+   </filter>
+   <filter-mapping>
+     <filter-name>WikiPageFormatFilter</filter-name>
+     <url-pattern>/wiki/*</url-pattern>
+   </filter-mapping>
+
+   <!-- React SPA routing: forwards known SPA paths to /index.html for client-side routing -->
+   <filter>
+     <filter-name>SpaRoutingFilter</filter-name>
+     <filter-class>com.wikantik.rest.SpaRoutingFilter</filter-class>
+   </filter>
+   <filter-mapping>
+     <filter-name>SpaRoutingFilter</filter-name>
+     <url-pattern>/wiki/*</url-pattern>
+     <url-pattern>/edit/*</url-pattern>
+     <url-pattern>/diff/*</url-pattern>
+     <url-pattern>/admin</url-pattern>
+     <url-pattern>/admin/*</url-pattern>
+     <url-pattern>/search</url-pattern>
+     <url-pattern>/graph</url-pattern>
+     <url-pattern>/page-graph</url-pattern>
+     <url-pattern>/knowledge-graph</url-pattern>
+     <url-pattern>/preferences</url-pattern>
+     <url-pattern>/me/mentions</url-pattern>
+     <url-pattern>/reset-password</url-pattern>
+     <url-pattern>/change-password</url-pattern>
+     <url-pattern>/login</url-pattern>
+     <url-pattern>/blog/*</url-pattern>
+     <url-pattern>/blog</url-pattern>
+     <url-pattern>/</url-pattern>
+   </filter-mapping>
+
+   <filter>
+     <filter-name>WikiServletFilter</filter-name>
+     <filter-class>com.wikantik.ui.WikiServletFilter</filter-class>
+   </filter>
+
+   <filter-mapping>
+     <filter-name>WikiServletFilter</filter-name>
+     <url-pattern>/attach/*</url-pattern>
    </filter-mapping>
 
    <session-config>

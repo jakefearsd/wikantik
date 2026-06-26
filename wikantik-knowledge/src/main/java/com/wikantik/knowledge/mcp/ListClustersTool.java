@@ -37,9 +37,15 @@ public class ListClustersTool implements McpTool {
     public static final String TOOL_NAME = "list_clusters";
 
     private final StructuralIndexService service;
+    private final PageViewGate viewGate;
 
     public ListClustersTool( final StructuralIndexService service ) {
+        this( service, PageViewGate.ALLOW_ALL );
+    }
+
+    public ListClustersTool( final StructuralIndexService service, final PageViewGate viewGate ) {
         this.service = service;
+        this.viewGate = viewGate != null ? viewGate : PageViewGate.ALLOW_ALL;
     }
 
     @Override
@@ -84,8 +90,18 @@ public class ListClustersTool implements McpTool {
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         try {
             final List< ClusterSummary > clusters = service.listClusters();
+            // Guest view-ACL (partial): redact the hub-page descriptor when its page is not
+            // guest-viewable, so a restricted hub page's slug/title cannot leak. The cluster name +
+            // article count remain — the aggregate visibility of restricted member pages (and the
+            // count over only-visible pages) is a separate, deferred concern.
+            final List< ClusterSummary > visible = clusters.stream()
+                    .map( c -> ( c.hubPage() != null && c.hubPage().slug() != null
+                                 && !viewGate.canView( c.hubPage().slug() ) )
+                               ? new ClusterSummary( c.name(), null, c.articleCount(), c.updatedAt() )
+                               : c )
+                    .toList();
             return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
-                    McpToolUtils.paginate( "clusters", clusters, arguments, 50 ) );
+                    McpToolUtils.paginate( "clusters", visible, arguments, 50 ) );
         } catch ( final Exception e ) {
             LOG.error( "list_clusters failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );

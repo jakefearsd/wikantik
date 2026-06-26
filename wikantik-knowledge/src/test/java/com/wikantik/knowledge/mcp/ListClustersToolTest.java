@@ -74,6 +74,33 @@ class ListClustersToolTest {
     }
 
     @Test
+    void execute_redactsHubPageWhenNotGuestViewable() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        final ClusterSummary secret = new ClusterSummary( "secret-cluster",
+                new PageDescriptor( "01S", "SecretHub", "Secret Hub Title", PageType.HUB, "secret-cluster",
+                        List.of(), "hub", Instant.EPOCH, Optional.empty() ),
+                5, Instant.EPOCH );
+        final ClusterSummary open = new ClusterSummary( "open-cluster",
+                new PageDescriptor( "01P", "PublicHub", "Public Hub Title", PageType.HUB, "open-cluster",
+                        List.of(), "hub", Instant.EPOCH, Optional.empty() ),
+                3, Instant.EPOCH );
+        when( svc.listClusters() ).thenReturn( List.of( secret, open ) );
+
+        // Gate denies the restricted hub page only.
+        final PageViewGate gate = slug -> !"SecretHub".equals( slug );
+        final var result = new ListClustersTool( svc, gate ).execute( Map.of() );
+
+        assertFalse( result.isError() );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        // The restricted hub page's descriptor (slug + title) must be redacted...
+        assertFalse( text.contains( "SecretHub" ), "restricted hub page slug must not leak" );
+        assertFalse( text.contains( "Secret Hub Title" ), "restricted hub page title must not leak" );
+        // ...but the cluster itself (its name) still lists, and the public hub is untouched.
+        assertTrue( text.contains( "secret-cluster" ), "the cluster name itself still lists" );
+        assertTrue( text.contains( "PublicHub" ), "a guest-viewable hub page is unaffected" );
+    }
+
+    @Test
     void paginates_with_default_limit_and_offset() {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
         when( svc.listClusters() ).thenReturn(

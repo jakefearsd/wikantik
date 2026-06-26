@@ -162,7 +162,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 tools.add( new ReadPagesTool( pageManager, ReadPagesMetrics.resolveAndBind(), viewGate ) );
             }
             if ( structuralIndex != null ) {
-                tools.add( new ListClustersTool( structuralIndex ) );
+                tools.add( new ListClustersTool( structuralIndex, viewGate ) );
                 tools.add( new ListTagsTool( structuralIndex ) );
                 tools.add( new ListPagesByFilterTool( structuralIndex, viewGate ) );
                 tools.add( new GetPageByIdTool( structuralIndex, viewGate ) );

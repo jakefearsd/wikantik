@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- **`list_clusters` (knowledge-mcp) no longer leaks a restricted cluster hub page.** Each cluster's
+  hub-page descriptor (slug, title) is now redacted to `null` when the hub page is not viewable by an
+  anonymous guest, completing the slug-gateable part of the agent-surface access-control work for the
+  aggregate enumeration tools. The cluster name and article count are unchanged.
+
 ## [2.1.4] - 2026-06-25
 
 ### Added

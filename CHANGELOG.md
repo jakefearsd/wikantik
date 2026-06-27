@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.7] - 2026-06-27
+
 ### Changed
 - **Dependency upgrades.** Apache Jena 5.2.0 → 6.1.0 (major; the ontology RDF/SPARQL/SHACL/TDB2
   surface uses only bedrock APIs and is unaffected), Lucene 10.4 → 10.5, pac4j 6.5.3 → 6.5.4,

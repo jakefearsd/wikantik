@@ -110,7 +110,7 @@ The Lucene HNSW backend is the third selectable value of `wikantik.search.dense.
 
 **Metadata retrieval — DocValues, not stored fields.** Each candidate's `chunk_id` and `page_name` are retrieved at query time via Lucene **DocValues** (columnar, memory-resident, no per-read decompression), not stored fields. An earlier cut used stored fields and spent ~44% of CPU under load decompressing an LZ4 block per hit; the DocValues path eliminated it. See `docs/superpowers/specs/2026-05-22-hnsw-docvalues-retrieval-design.md`.
 
-**When to choose it over `inmemory`:** the brute-force scan is O(N) over every chunk for every query. At a few thousand chunks the cost is negligible, but as the corpus grows the query CPU bill compounds. The HNSW graph visits only a few hundred candidates per query regardless of corpus size (~95%+ recall), recovering CPU without sacrificing meaningful relevance — hybrid BM25 + graph rerank further cushions the approximation gap.
+**When to choose it over `inmemory`:** the brute-force scan is O(N) over every chunk for every query. At a few thousand chunks the cost is negligible, but as the corpus grows the query CPU bill compounds. The HNSW graph visits only a few hundred candidates per query regardless of corpus size (~95%+ recall), recovering CPU without sacrificing meaningful relevance — hybrid BM25 + dense fusion cushions the approximation gap.
 
 **When to choose `pgvector` instead:** if you want to offload the ANN computation to Postgres entirely (e.g. the JVM heap is the bottleneck, or you want the pg stats), use `pgvector`. The `lucene-hnsw` backend keeps the index in the JVM heap, so it increases heap pressure in proportion to `(num_chunks × embedding_dimension × 4 bytes)`.
 

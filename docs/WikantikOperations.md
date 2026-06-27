@@ -38,12 +38,12 @@ The full step-by-step guide is
 [PostgreSQLLocalDeployment.md](PostgreSQLLocalDeployment.md); the essentials:
 
 1. **Database** — `sudo -u postgres bin/db/install-fresh.sh` creates the database,
-   the `jspwiki` app role, and applies every migration. **Set `DB_MIGRATE_PASSWORD`**
+   the `wikantik` app role, and applies every migration. **Set `DB_MIGRATE_PASSWORD`**
    so it also runs `bin/db/create-migrate-user.sh`, which provisions the dedicated
    `migrate` role with the privileges migrations need (`CREATEROLE` + `pg_monitor`
    for V031, plus ownership of the schema). Skipping this leaves migrations to fail
    later as an under-privileged role — see the troubleshooting in the guide.
-2. **Build** — `mvn clean install -Dmaven.test.skip -T 1C`.
+2. **Build** — `mvn clean install -DskipTests -T 1C`.
 3. **Deploy** — `bin/deploy-local.sh` downloads Tomcat (first run), materialises
    config from the templates, deploys the WAR, runs migrations, starts Tomcat.
 4. **Iterate** — `bin/redeploy.sh` is the fast path (swap WAR + restart only).

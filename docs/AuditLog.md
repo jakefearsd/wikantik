@@ -44,7 +44,7 @@ on the next verify run.
 
 Writes are serialized by a PostgreSQL advisory transaction lock
 (`pg_advisory_xact_lock`) to prevent concurrent inserts from breaking the chain
-order. The app role (`jspwiki`) is granted only `INSERT` and `SELECT` on
+order. The app role (`wikantik`) is granted only `INSERT` and `SELECT` on
 `audit_log`; `UPDATE` and `DELETE` are explicitly revoked by `V036`:
 
 ```sql
@@ -213,7 +213,7 @@ AUDIT_RETENTION_MONTHS=84 AUDIT_ARCHIVE_DIR=/home/jakefear/wikantik/backups/audi
 ```
 
 The script runs as the `migrate` role (`PGUSER=migrate` by default). The app
-role (`jspwiki`) is INSERT/SELECT-only and cannot drop partitions — separation
+role (`wikantik`) is INSERT/SELECT-only and cannot drop partitions — separation
 of privilege is preserved.
 
 ### Installing the systemd timer

@@ -90,7 +90,6 @@ Code that reads wikilink or cluster data from the Page Graph subsystem:
 
 - [StructuralSpineDesign](StructuralSpineDesign) — the canonical-id
   and cluster machinery that lives inside the Page Graph subsystem.
-- [HybridRetrieval](HybridRetrieval) — the graph-aware reranker uses
-  the Knowledge Graph.
+- [HybridRetrieval](HybridRetrieval) — the hybrid retrieval stack; also documents the shelved KG graph rerank (boost=0 by default).
 - `docs/superpowers/specs/2026-05-02-page-graph-vs-knowledge-graph-design.md`
   — the spec that drove this separation.

@@ -33,7 +33,7 @@ cd wikantik
 | Path | You need |
 |------|----------|
 | **A — Docker** | Docker Engine 24+ with the Compose plugin (`docker compose version`). Nothing else. |
-| **B — Bare metal** | Java JDK **21+**, Maven **3.9+**, Node.js **18+** + npm, PostgreSQL **15+**. |
+| **B — Bare metal** | Java JDK **21+**, Maven **3.9+**, Node.js **20.19+** (or **22.12+**) + npm, PostgreSQL **15+**. |
 
 Why Node for a Java app? The WAR build compiles the React frontend with Vite;
 `mvn` runs `npm install` + `vite build` automatically, so npm must be on your
@@ -267,7 +267,7 @@ user's password, and when the "forgot password" email issues a temporary one.
 | `install-fresh.sh` exits: *"DB_MIGRATE_PASSWORD is not set"* | You passed neither `--no-migrate-role` nor `DB_MIGRATE_PASSWORD`. For local dev, add `--no-migrate-role`. |
 | App starts but can't connect to the database / login fails for everyone | `POSTGRES_USER`/`POSTGRES_PASSWORD` in `.env` don't match the `DB_APP_USER`/`DB_APP_PASSWORD` you created the database with. Make them identical. |
 | `deploy-local.sh` exits: *"POSTGRES_PASSWORD is unset or still the .env.example placeholder"* | First run created `.env`; edit it, set a real `POSTGRES_PASSWORD`, re-run. This guard is what stops a config from shipping with a known default. |
-| `npm not found` during the Maven build | Node.js 18+/npm aren't installed or not on `PATH`. The WAR build needs them for the React frontend. |
+| `npm not found` during the Maven build | Node.js 20.19+ (or 22.12+)/npm aren't installed or not on `PATH`. The WAR build needs them for the React frontend. |
 | Port 8080 already in use | Container: set `WIKANTIK_HOST_PORT=18080` in `.env`. Bare metal: stop the other service, or change the Tomcat connector port. |
 | `403 PASSWORD_CHANGE_REQUIRED` on every API call after first login | Working as designed — finish the forced password change (see [First login](#first-login-set-your-admin-password)). |
 | Container won't start: pgvector / `vector` extension errors | The DB image must be `pgvector/pgvector` (the base compose pins it). Don't substitute a plain `postgres` image. |

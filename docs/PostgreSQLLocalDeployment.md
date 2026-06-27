@@ -14,7 +14,7 @@ What ends up where:
 - **Tomcat 11** at `tomcat/tomcat-11/` (gitignored, downloaded on first
   run of `bin/deploy-local.sh`)
 - **PostgreSQL** running locally with a `wikantik` database and a
-  `jspwiki` application role
+  `wikantik` application role
 - **Operator scripts** under `bin/`:
   - `bin/deploy-local.sh` — bootstraps Tomcat, applies templates,
     deploys the WAR, runs migrations, seeds dev users
@@ -47,7 +47,7 @@ admin tools under `/admin/*`.
 |------|---------|-------|
 | Java (JDK) | 21+ | `java -version` |
 | Maven | 3.9+ | `mvn -version` |
-| Node.js + npm | 18+ | The WAR build runs `npm install` + `vite build` automatically |
+| Node.js + npm | 20.19+ (or 22.12+) | The WAR build runs `npm install` + `vite build` automatically |
 | PostgreSQL | 15+ | Locally, listening on `localhost:5432` |
 | pgvector extension | 0.5+ | Required — the knowledge-graph and hub features use it |
 
@@ -85,7 +85,7 @@ For a routine "edit code, see it running" iteration:
 
 ```bash
 # 1. Build (also builds the React frontend via npm)
-mvn clean install -Dmaven.test.skip -T 1C
+mvn clean install -DskipTests -T 1C
 
 # 2. Fast redeploy: shutdown + rotate catalina.out + swap WAR + run
 #    pending migrations + startup.
@@ -105,13 +105,13 @@ bin/redeploy.sh
 ### Step 1: Create the database, role, and full schema
 
 `install-fresh.sh` is idempotent — it creates the `wikantik` database,
-the `jspwiki` application role, and applies every `V*.sql` migration
+the `wikantik` application role, and applies every `V*.sql` migration
 in `bin/db/migrations/`:
 
 ```bash
-sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=wikantik \
     DB_APP_PASSWORD='ChangeMe123!' \
-    bin/db/install-fresh.sh
+    bin/db/install-fresh.sh --no-migrate-role
 ```
 
 This applies every `V*.sql` in `bin/db/migrations/` (currently through the V03x
@@ -126,7 +126,7 @@ lives in `schema_migrations`. For the authoritative, always-current list, read
 files themselves — this guide does not enumerate versions to avoid going stale.
 
 A default `admin` user is seeded with password `admin123` by
-`bin/db/seed-users.sql` (SHA-256 hashed). **Change this immediately
+`bin/db/seed-users.sql` (bcrypt-hashed). **Change this immediately
 after first login** if you intend to keep the deployment online longer
 than a smoke test.
 
@@ -136,7 +136,7 @@ can drop the `sudo -u postgres` prefix.
 ### Step 2: Build Wikantik
 
 ```bash
-mvn clean install -Dmaven.test.skip -T 1C
+mvn clean install -DskipTests -T 1C
 ```
 
 `-T 1C` enables one-thread-per-core parallel builds. **Don't** combine
@@ -209,7 +209,7 @@ tail -f tomcat/tomcat-11/logs/catalina.out
 5. Confirm DB connectivity from the shell:
 
    ```bash
-   psql -h localhost -U jspwiki -d wikantik -c "SELECT login_name FROM users;"
+   psql -h localhost -U wikantik -d wikantik -c "SELECT login_name FROM users;"
    ```
 6. Confirm `/api/health` reports UP for engine + database + searchIndex:
 
@@ -225,7 +225,7 @@ For routine "edit code, see it running" iteration — `bin/redeploy.sh`
 is the fast path:
 
 ```bash
-mvn clean install -Dmaven.test.skip -T 1C
+mvn clean install -DskipTests -T 1C
 bin/redeploy.sh
 ```
 
@@ -237,7 +237,7 @@ Use `bin/deploy-local.sh` instead when you need any of:
 - regenerated config templates (rare in a stable working tree)
 
 ```bash
-mvn clean install -Dmaven.test.skip -T 1C
+mvn clean install -DskipTests -T 1C
 bin/deploy-local.sh
 ```
 
@@ -281,7 +281,7 @@ consistent setup. The role is created and granted by `bin/db/create-migrate-user
 `install-fresh.sh` runs automatically **when `DB_MIGRATE_PASSWORD` is set**:
 
 ```bash
-sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=wikantik \
     DB_APP_PASSWORD='ChangeMe123!' DB_MIGRATE_PASSWORD='AlsoChangeMe!' \
     bin/db/install-fresh.sh
 ```
@@ -300,7 +300,7 @@ If you bootstrapped the DB **without** `DB_MIGRATE_PASSWORD`, run the provisioni
 step after the fact (idempotent):
 
 ```bash
-sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=wikantik \
     DB_MIGRATE_PASSWORD='AlsoChangeMe!' bin/db/create-migrate-user.sh
 ```
 
@@ -383,7 +383,7 @@ how to recreate the user after a database reset.
 |---------|--------------|-----|
 | `Cannot create JDBC driver` | `tomcat/tomcat-11/lib/postgresql.jar` missing | Re-run `bin/deploy-local.sh` |
 | `JNDI name not found` | `ROOT.xml` not in `conf/Catalina/localhost/` | Re-run `bin/deploy-local.sh` |
-| `Password authentication failed` for `jspwiki` | Wrong DB password in `ROOT.xml` | Edit `ROOT.xml`, restart Tomcat |
+| `Password authentication failed` for `wikantik` | Wrong DB password in `ROOT.xml` | Edit `ROOT.xml`, restart Tomcat |
 | `Connection refused` to PostgreSQL | PostgreSQL not running | `sudo systemctl start postgresql` |
 | `extension "vector" is not available` during install | pgvector package not installed | See [Installing pgvector](#installing-pgvector) |
 | Login fails with correct password | Wrong password hash format in `users` table | Recreate the user with `CryptoUtil --hash` (see CLAUDE.md) |
@@ -427,7 +427,7 @@ recreate the database, then run `install-fresh.sh` again:
 
 ```bash
 sudo -u postgres psql -c 'DROP DATABASE wikantik;'
-sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=wikantik \
     DB_APP_PASSWORD='ChangeMe123!' \
     bin/db/install-fresh.sh
 ```

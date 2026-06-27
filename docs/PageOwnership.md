@@ -78,7 +78,7 @@ The one-time backfill of pre-existing pages onto `agents` is not part of V035 (n
 data fixups in versioned migrations). If you need it, run:
 
 ```bash
-psql -h localhost -U jspwiki -d jspwiki \
+psql -h localhost -U wikantik -d wikantik \
   -f bin/db/one-shots/backfill-agent-default-owner.sql
 ```
 
@@ -262,7 +262,7 @@ The `agents` service account was probably not seeded (V035 may not have run, or 
 DB was reset). Check:
 
 ```bash
-psql -h localhost -U jspwiki -d jspwiki -c "SELECT login_name FROM users WHERE login_name = 'agents';"
+psql -h localhost -U wikantik -d wikantik -c "SELECT login_name FROM users WHERE login_name = 'agents';"
 ```
 
 If the account is absent, re-run the migration:

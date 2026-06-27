@@ -31,23 +31,23 @@ sudo systemctl enable --now postgresql
 
 ### Step 2 — Bootstrap the database (once per environment)
 
-`bin/db/install-fresh.sh` creates the `wikantik` database, the `jspwiki` application
+`bin/db/install-fresh.sh` creates the `wikantik` database, the `wikantik` application
 role, installs the `pgvector` extension, and runs every migration in
 `bin/db/migrations/` (V001 through V037 as of this writing). Idempotent — safe to
 re-run against an already-bootstrapped database.
 
 ```bash
-sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=wikantik \
     DB_APP_PASSWORD='ChangeMe123!' \
     bin/db/install-fresh.sh
 ```
 
-**pg_hba.conf**: Ensure the `jspwiki` role can connect. Typical entry:
+**pg_hba.conf**: Ensure the `wikantik` role can connect. Typical entry:
 
 ```
-# TYPE  DATABASE   USER      ADDRESS         METHOD
-host    wikantik   jspwiki   127.0.0.1/32    scram-sha-256
-host    wikantik   jspwiki   ::1/128         scram-sha-256
+# TYPE  DATABASE   USER       ADDRESS         METHOD
+host    wikantik   wikantik   127.0.0.1/32    scram-sha-256
+host    wikantik   wikantik   ::1/128         scram-sha-256
 ```
 
 Reload after editing:
@@ -140,7 +140,7 @@ and wiki metadata in PostgreSQL. The database and schema are fully managed by
 ┌────────────────────┼────────────────────────────────────────────┐
 │                    ▼                                            │
 │              PostgreSQL Server                                  │
-│   database: wikantik   app role: jspwiki                       │
+│   database: wikantik   app role: wikantik                      │
 │   ┌────────┬───────┬──────────┬──────────────┬──────────┐      │
 │   │ users  │ roles │  groups  │ group_members │ kg_nodes │ …   │
 │   └────────┴───────┴──────────┴──────────────┴──────────┘      │
@@ -150,7 +150,7 @@ and wiki metadata in PostgreSQL. The database and schema are fully managed by
 ### Key Implementation Details
 
 - **JNDI Lookup**: Wikantik uses JNDI to look up DataSources, not direct JDBC connections
-- **Password Hashing**: Passwords are stored using salted SHA-256 (`{SHA-256}`) or SHA-1 (`{SSHA}`, legacy)
+- **Password Hashing**: Passwords are stored as bcrypt (`{bcrypt}`, since 2.1.4). Legacy salted SHA-256 (`{SHA-256}`) and SHA-1 (`{SSHA}`) hashes remain verifiable and are transparently re-hashed to bcrypt on the owner's next login.
 - **Transaction Support**: Automatic detection and use of database transactions
 - **Prepared Statements**: All SQL uses prepared statements (immune to SQL injection)
 - **Context file**: `conf/Catalina/localhost/ROOT.xml` with `path="/"` (root context)
@@ -240,10 +240,10 @@ CREATE INDEX idx_group_members_member ON group_members(member);
 
 ```sql
 -- Applied by migrations — reference only
-GRANT SELECT, INSERT, UPDATE, DELETE ON users         TO jspwiki;
-GRANT SELECT, INSERT, UPDATE, DELETE ON roles         TO jspwiki;
-GRANT SELECT, INSERT, UPDATE, DELETE ON groups        TO jspwiki;
-GRANT SELECT, INSERT, UPDATE, DELETE ON group_members TO jspwiki;
+GRANT SELECT, INSERT, UPDATE, DELETE ON users         TO wikantik;
+GRANT SELECT, INSERT, UPDATE, DELETE ON roles         TO wikantik;
+GRANT SELECT, INSERT, UPDATE, DELETE ON groups        TO wikantik;
+GRANT SELECT, INSERT, UPDATE, DELETE ON group_members TO wikantik;
 ```
 
 ### Create an admin user manually
@@ -252,7 +252,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON group_members TO jspwiki;
 -- Generate the hash with CryptoUtil first (see Appendix), then:
 INSERT INTO users (uid, email, full_name, login_name, password, wiki_name, created, modified)
 VALUES ('-6852820166199419346', 'admin@localhost', 'Administrator', 'admin',
-        '{SHA-256}your_generated_hash_here',
+        '{SHA-256}your_generated_hash_here', -- legacy hash; auto-upgraded to bcrypt on first login
         'Administrator', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 INSERT INTO roles (login_name, role) VALUES ('admin', 'Admin');
@@ -324,7 +324,7 @@ Create `${CATALINA_HOME}/conf/Catalina/localhost/ROOT.xml`:
         type="javax.sql.DataSource"
         driverClassName="org.postgresql.Driver"
         url="jdbc:postgresql://localhost:5432/wikantik"
-        username="jspwiki"
+        username="wikantik"
         password="your_secure_password_here"
 
         maxTotal="30"
@@ -442,9 +442,9 @@ ORDER BY g.name;
 ### Database connection validation
 
 ```bash
-psql -h localhost -U jspwiki -d wikantik -c "SELECT 1 AS connection_test;"
-psql -h localhost -U jspwiki -d wikantik -c "\dt"
-psql -h localhost -U jspwiki -d wikantik -c "SELECT COUNT(*) AS user_count FROM users;"
+psql -h localhost -U wikantik -d wikantik -c "SELECT 1 AS connection_test;"
+psql -h localhost -U wikantik -d wikantik -c "\dt"
+psql -h localhost -U wikantik -d wikantik -c "SELECT COUNT(*) AS user_count FROM users;"
 ```
 
 ### Application health check (SQL)
@@ -484,20 +484,20 @@ mvn test -Dtest=JDBCGroupDatabaseTest -pl wikantik-main
 
 ```sql
 -- Strong password for the app role
-ALTER USER jspwiki WITH PASSWORD 'use_a_very_strong_password_min_32_chars';
+ALTER USER wikantik WITH PASSWORD 'use_a_very_strong_password_min_32_chars';
 
 -- Limit connection privileges
 REVOKE ALL ON DATABASE wikantik FROM PUBLIC;
-GRANT CONNECT ON DATABASE wikantik TO jspwiki;
+GRANT CONNECT ON DATABASE wikantik TO wikantik;
 
 -- Limit schema privileges
 REVOKE ALL ON SCHEMA public FROM PUBLIC;
-GRANT USAGE ON SCHEMA public TO jspwiki;
+GRANT USAGE ON SCHEMA public TO wikantik;
 ```
 
 ```
 # pg_hba.conf — production: only allow connections from application server
-hostssl wikantik   jspwiki   10.0.0.5/32    scram-sha-256
+hostssl wikantik   wikantik   10.0.0.5/32    scram-sha-256
 ```
 
 SSL JDBC URL:
@@ -510,7 +510,7 @@ url="jdbc:postgresql://db-server:5432/wikantik?ssl=true&amp;sslmode=verify-full&
 
 ```bash
 # Daily backup
-pg_dump -h localhost -U jspwiki -d wikantik | gzip > \
+pg_dump -h localhost -U wikantik -d wikantik | gzip > \
     "/var/backups/postgresql/wikantik_$(date +%Y%m%d_%H%M%S).sql.gz"
 
 # Keep only last 30 days
@@ -520,7 +520,7 @@ find /var/backups/postgresql -name "wikantik_*.sql.gz" -mtime +30 -delete
 ```bash
 # Restore
 gunzip -c /var/backups/postgresql/wikantik_20250101_120000.sql.gz \
-    | psql -h localhost -U jspwiki -d wikantik
+    | psql -h localhost -U wikantik -d wikantik
 ```
 
 ### Monitoring queries
@@ -582,10 +582,10 @@ java.sql.SQLException: No suitable driver found for jdbc:postgresql://
 
 **Authentication failed**
 ```
-FATAL: password authentication failed for user "jspwiki"
+FATAL: password authentication failed for user "wikantik"
 ```
 - Verify username/password in `ROOT.xml`
-- Check `pg_hba.conf` allows the connection: `\du jspwiki`
+- Check `pg_hba.conf` allows the connection: `\du wikantik`
 
 **Connection refused**
 ```
@@ -610,11 +610,15 @@ java.net.ConnectException: Connection refused
 
 ### Password format
 
-Wikantik stores passwords using RFC 2307-compliant salted hashing:
-- **{SHA-256}**: Salted SHA-256 (recommended)
-- **{SSHA}**: Salted SHA-1 (legacy, still accepted)
+Wikantik stores passwords as bcrypt (`{bcrypt}`, since 2.1.4). Older salted
+SHA-256 (`{SHA-256}`) and SHA-1 (`{SSHA}`) hashes remain verifiable and are
+transparently re-hashed to bcrypt on the account owner's next successful login.
 
 ### Generating password hashes
+
+The `CryptoUtil --hash` CLI emits a legacy SHA-256 hash (`{SHA-256}…`), which
+is accepted at login and automatically upgraded to bcrypt on first use. There is
+no CLI flag to emit bcrypt directly; use normal login to trigger the migration.
 
 ```bash
 # Build first, then:
@@ -625,7 +629,8 @@ java -cp wikantik-util/target/wikantik-util-*.jar \
 ### Updating a user's password via SQL
 
 ```sql
--- Generate a new hash using CryptoUtil first, then:
+-- Generate a legacy hash using CryptoUtil first.
+-- It will be accepted at login and automatically upgraded to bcrypt.
 UPDATE users
 SET password = '{SHA-256}your_generated_hash_here',
     modified = CURRENT_TIMESTAMP

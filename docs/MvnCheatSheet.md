@@ -31,7 +31,8 @@ under the License.
 |-----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
 | mvn                                                             | performs a default build `clean verify apache-rat:check`                                                                            |
 | mvn clean install                                               | performs a build                                                                                                                    |
-| mvn clean install -Dmaven.test.skip                             | performs a build, skipping the tests (not recommended)                                                                              |
+| mvn clean install -DskipTests                                   | performs a build, skipping test execution but still compiling tests and building test-jars (preferred — use this instead of `-Dmaven.test.skip`) |
+| mvn clean install -Dmaven.test.skip                             | performs a build, skipping the tests (discouraged — also skips building test-jars, breaking the reactor when other modules depend on them) |
 | mvn clean test                                                  | compiles the source and executes the tests                                                                                          |
 | mvn test -Dtest=WikantikMarkupParserTest                         | run just a single test class                                                                                                        |
 | mvn test -Dtest=WikantikMarkupParserTest#testHeadingHyperlinks3  | run just a single test within a test class                                                                                          |

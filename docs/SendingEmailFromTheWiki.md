@@ -237,4 +237,4 @@ mail.smtp.starttls.enable = true
 ## Related Documentation
 
 - [PostgreSQL Local Deployment](PostgreSQLLocalDeployment.md) - Local development setup
-- [Wikantik Properties Reference](https://wiki.wikantik.com/Wiki.jsp?page=Documentation) - Full configuration options
+- [Wikantik Properties Reference](https://wiki.wikantik.com/wiki/Documentation) - Full configuration options

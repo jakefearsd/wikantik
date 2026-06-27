@@ -158,7 +158,7 @@ The reader hot path stays in Lucene + the page filesystem; the agent hot path go
 |------|---------|-------|
 | Java (JDK) | 21+ | `java -version` |
 | Maven | 3.9+ | `mvn -version` |
-| Node.js + npm | 18+ | Required — WAR build runs `npm install` + `vite build` automatically |
+| Node.js + npm | 20.19+ (or 22.12+) | Required by Vite 8 (Rolldown); WAR build runs `npm install` + `vite build` automatically |
 | PostgreSQL | 15+ | For local deployment; unit tests use in-memory H2 |
 | pgvector | 0.5+ | PostgreSQL extension — required for the Knowledge Graph (see below) |
 | Tomcat | 11.0.22 | Pinned by `bin/deploy-local.sh` and the `Dockerfile`; bare-metal first-time setup downloads it automatically |
@@ -277,9 +277,9 @@ running (not just the client you have on your PATH).
 
 ```bash
 # 1. Create the database, application role, and full schema (idempotent)
-sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=wikantik \
     DB_APP_PASSWORD='ChangeMe123!' \
-    bin/db/install-fresh.sh
+    bin/db/install-fresh.sh --no-migrate-role
 
 # 2. Configure secrets — copy .env.example to .env and set POSTGRES_PASSWORD
 #    (deploy-local.sh refuses to run while it's the literal "CHANGEME").
@@ -313,7 +313,7 @@ bin/redeploy.sh   # shutdown + rotate catalina.out + swap WAR + startup
 ```
 
 Database schema lives in [`bin/db/migrations/`](bin/db/migrations/README.md)
-(currently V001..V037 — applied idempotently via `schema_migrations`).
+(currently V001..V043 — applied idempotently via `schema_migrations`).
 To bring an existing database up to date (including production), run
 `bin/db/migrate.sh` with connection env vars set.
 
@@ -392,8 +392,6 @@ monitoring, and the bare-metal ↔ container migration.
 | `wikantik-war` | WAR packaging and deployment config; bundles the frontend build output |
 | `wikantik-wikipages` | Default wiki pages shipped with a fresh install |
 | `wikantik-it-tests` | Integration tests (Selenide browser automation, REST, custom-provider suites; Cargo-launched Tomcat + PostgreSQL/pgvector) |
-| `wikantik-wikipages` | Default wiki pages shipped with a fresh install |
-| `wikantik-it-tests` | Integration tests (Selenide browser automation, REST API, Cargo-launched Tomcat against PostgreSQL + pgvector) |
 
 ## Scaling & Performance
 

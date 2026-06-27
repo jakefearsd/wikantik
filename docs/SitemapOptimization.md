@@ -377,23 +377,7 @@ included: when a page has image attachments the servlet emits
 
 ### 5.2 Recommended Enhancements
 
-**Priority 1: Add Image Extension**
-```java
-// Add namespace
-out.println( "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"" );
-out.println( "        xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\">" );
-
-// For each page, include attachments
-AttachmentManager attMgr = m_engine.getManager( AttachmentManager.class );
-List<Attachment> attachments = attMgr.listAttachments( page );
-for ( Attachment att : attachments ) {
-    if ( isImageAttachment( att ) ) {
-        out.println( "    <image:image>" );
-        out.println( "      <image:loc>" + escapeXml( attachmentUrl ) + "</image:loc>" );
-        out.println( "    </image:image>" );
-    }
-}
-```
+**Image sitemaps have already shipped** — see section 5.1.
 
 **Priority 2: Add Hreflang for Internationalization**
 ```java

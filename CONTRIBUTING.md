@@ -28,7 +28,7 @@ for the disclosure process.
 
 ### Prerequisites
 
-- Java 21+, Maven 3.9+, Node 18+, PostgreSQL 15+ with pgvector 0.5+,
+- Java 21+, Maven 3.9+, Node 20.19+ (or 22.12+), PostgreSQL 15+ with pgvector 0.5+,
   Docker (optional but recommended).
 
 See [README.md > Prerequisites](README.md#prerequisites) for the
@@ -40,9 +40,9 @@ full per-platform install guide, especially for `pgvector`.
 git clone https://github.com/jakefearsd/wikantik.git
 cd wikantik
 cp .env.example .env                    # set POSTGRES_PASSWORD
-sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
-    DB_APP_PASSWORD='ChangeMe123!' bin/db/install-fresh.sh
-mvn clean install -Dmaven.test.skip -T 1C
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=wikantik \
+    DB_APP_PASSWORD='ChangeMe123!' bin/db/install-fresh.sh --no-migrate-role
+mvn clean install -DskipTests -T 1C
 bin/deploy-local.sh
 tomcat/tomcat-11/bin/startup.sh
 # http://localhost:8080/  —  admin / admin123

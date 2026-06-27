@@ -154,7 +154,7 @@ Indexes: `(query_set_id, started_at DESC)` and `(mode)`.
 To inspect the last 10 runs directly:
 
 ```bash
-PGPASSWORD=<password> psql -h localhost -U jspwiki -d jspwiki \
+PGPASSWORD=<password> psql -h localhost -U wikantik -d wikantik \
   -c "SELECT run_id, mode, ndcg_at_5, ndcg_at_10, recall_at_20, mrr, started_at \
       FROM retrieval_runs \
       WHERE query_set_id = 'core-agent-queries' \

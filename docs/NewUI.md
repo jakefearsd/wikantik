@@ -1,7 +1,7 @@
 # Wikantik React SPA
 
 The `wikantik-frontend` module implements Wikantik's user interface as a React
-18 single-page application. It is built with Vite as part of the standard
+19 single-page application. It is built with Vite as part of the standard
 Maven build, bundled into the WAR, and served at the web root — there is no
 separate hosting, no CORS configuration, and no legacy JSP templates alongside
 it.
@@ -18,9 +18,9 @@ viewers.
 
 | Concern | Choice |
 |---------|--------|
-| Framework | React 18 (`react`, `react-dom`) |
-| Routing | React Router v7 (`react-router-dom ^7.16`) |
-| Build | Vite 5 (`@vitejs/plugin-react`) |
+| Framework | React 19 (`react`, `react-dom`) |
+| Routing | React Router v7 (`react-router-dom ^7.18`) |
+| Build | Vite 8 (Rolldown) (`@vitejs/plugin-react ^6`) |
 | Editor | CodeMirror 6 (`@uiw/react-codemirror` + `@codemirror/lang-markdown`) |
 | Markdown rendering | `react-markdown` + `remark-gfm`, `remark-math`, `rehype-katex`, `rehype-highlight` |
 | Graph visualisation | `cytoscape` + `cytoscape-cose-bilkent` via `react-cytoscapejs` |
@@ -78,7 +78,7 @@ The full route table from `main.jsx`:
 | `/admin/kg-policy/pending` | `AdminKgPolicyPending` | Pages with pending review |
 | `/admin/kg-policy/bootstrap` | `AdminKgPolicyBootstrap` | Bulk bootstrap tooling |
 | `/admin/page-ownership` | `AdminPageOwnershipPage` | Page-owner assignment |
-| `/admin/audit` | `AdminAuditPage` | Tamper-evident audit log |
+| `/admin/audit` | `AdminAuditPage` | Tamper-evident audit log; rows are clickable and open a record-detail modal |
 
 All `/admin/*` routes are nested under `AdminLayout` (lazy-loaded) and guarded
 server-side by `AdminAuthFilter` (requires `AllPermission`).

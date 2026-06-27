@@ -105,7 +105,7 @@ The full rerank path depends on these migrations being applied (every
 To verify the foundational layer:
 
 ```bash
-PGPASSWORD=… psql -h localhost -U jspwiki -d wikantik \
+PGPASSWORD=… psql -h localhost -U wikantik -d wikantik \
   -c "\d chunk_entity_mentions" \
   -c "\d kg_node_embeddings" \
   -c "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 5;"
@@ -423,8 +423,8 @@ Direct invocation (bypasses the wrapper; useful in CI / systemd):
 
 ```bash
 java -jar wikantik-extract-cli/target/wikantik-extract-cli.jar \
-     --jdbc-url jdbc:postgresql://host/jspwiki \
-     --jdbc-user jspwiki \
+     --jdbc-url jdbc:postgresql://host/wikantik \
+     --jdbc-user wikantik \
      --jdbc-password-env PG_PASSWORD \
      --ollama-url http://inference.jakefear.com:11434 \
      --ollama-model gemma4-assist:latest \
@@ -490,7 +490,7 @@ query until edges exist.
 ### 2. Confirm mentions are flowing
 
 ```bash
-PGPASSWORD=… psql -h localhost -U jspwiki -d wikantik -c "
+PGPASSWORD=… psql -h localhost -U wikantik -d wikantik -c "
   SELECT extractor, count(*) AS mentions,
          count(DISTINCT chunk_id) AS chunks,
          count(DISTINCT node_id)  AS nodes,

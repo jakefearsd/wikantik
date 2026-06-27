@@ -33,6 +33,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -430,6 +431,161 @@ class DefaultSpamPatternMatcherTest {
         assertNotNull( ch.change );
         assertTrue( ch.change.contains( "Alice" ), "Change string should contain the author name" );
         assertTrue( ch.change.contains( "my note" ), "Change string should contain the change note" );
+    }
+
+    // -----------------------------------------------------------------------
+    // Score-mode coverage for checkStrategy call sites (L162, L186)
+    // In stopAtFirstMatch=true mode, checkStrategy throws immediately and JaCoCo
+    // marks those lines nc (post-call probe never fires).  Score mode completes
+    // the call normally, so the probe fires.
+    // -----------------------------------------------------------------------
+
+    @Test
+    void checkPatternList_score_mode_increments_score_on_pattern_match() {
+        // Creates a matcher in score mode (false) to cover L162.
+        final Properties props = new Properties();
+        props.setProperty( "wordlist",  WORDS_PAGE );
+        props.setProperty( "IPlist",    IPS_PAGE );
+        props.setProperty( "errorpage", "RejectedMessage" );
+        final DefaultSpamPatternMatcher scorer =
+                new DefaultSpamPatternMatcher( pageManager, attachmentManager, props, false );
+
+        final Page spamPage = spamWordsPageMock( "buy-viagra" );
+        when( pageManager.getPage( WORDS_PAGE ) ).thenReturn( spamPage );
+        when( pageManager.getPage( IPS_PAGE ) ).thenReturn( null );
+        scorer.refreshBlacklists( context );
+
+        // Wire score variable tracking
+        final Map<String, Object> vars = new java.util.HashMap<>();
+        doAnswer( inv -> { vars.put( inv.getArgument( 0 ), inv.getArgument( 1 ) ); return null; } )
+                .when( context ).setVariable( anyString(), any() );
+        when( context.getVariable( anyString() ) ).thenAnswer( inv -> vars.get( inv.getArgument( 0 ) ) );
+
+        // Score mode: must NOT throw even when the pattern matches
+        assertDoesNotThrow( () -> scorer.checkPatternList( context, "buy-viagra detected" ),
+                "Score mode checkPatternList must not throw even on a pattern match" );
+
+        assertNotNull( vars.get( AbstractSpamStrategy.ATTR_SPAMFILTER_SCORE ),
+                "Score must be set after a pattern match in score mode" );
+    }
+
+    @Test
+    void checkIPList_score_mode_increments_score_on_ip_match() {
+        // Creates a matcher in score mode (false) to cover L186.
+        final Properties props = new Properties();
+        props.setProperty( "wordlist",  WORDS_PAGE );
+        props.setProperty( "IPlist",    IPS_PAGE );
+        props.setProperty( "errorpage", "RejectedMessage" );
+        final DefaultSpamPatternMatcher scorer =
+                new DefaultSpamPatternMatcher( pageManager, attachmentManager, props, false );
+
+        final Page ipPage = ipPageMock( "10\\.0\\.0\\.1" );
+        when( pageManager.getPage( WORDS_PAGE ) ).thenReturn( null );
+        when( pageManager.getPage( IPS_PAGE ) ).thenReturn( ipPage );
+        scorer.refreshBlacklists( context );
+
+        // Wire score variable tracking
+        final Map<String, Object> vars = new java.util.HashMap<>();
+        doAnswer( inv -> { vars.put( inv.getArgument( 0 ), inv.getArgument( 1 ) ); return null; } )
+                .when( context ).setVariable( anyString(), any() );
+        when( context.getVariable( anyString() ) ).thenAnswer( inv -> vars.get( inv.getArgument( 0 ) ) );
+
+        // request.getRemoteAddr() returns "10.0.0.1" which matches
+        assertDoesNotThrow( () -> scorer.checkIPList( context ),
+                "Score mode checkIPList must not throw even on an IP match" );
+
+        assertNotNull( vars.get( AbstractSpamStrategy.ATTR_SPAMFILTER_SCORE ),
+                "Score must be set after an IP match in score mode" );
+    }
+
+    // -----------------------------------------------------------------------
+    // parseWordList — malformed regex triggers PatternSyntaxException catch (L261-263)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void refreshBlacklists_malformed_regex_in_words_page_is_skipped() {
+        // "[invalid" is an unclosed character class — Pattern.compile throws PatternSyntaxException.
+        // The catch at L261 logs and sets an error attribute on the source page; no propagation.
+        final Page spamPage = mock( Page.class );
+        when( spamPage.getName() ).thenReturn( WORDS_PAGE );
+        when( spamPage.getLastModified() ).thenReturn( new Date() );
+        // Mix a valid pattern with a malformed one; parseWordList processes each token
+        when( spamPage.getAttribute( "spamwords" ) ).thenReturn( "valid-pattern [invalid" );
+        when( pageManager.getPage( WORDS_PAGE ) ).thenReturn( spamPage );
+        when( pageManager.getPage( IPS_PAGE ) ).thenReturn( null );
+
+        // Must not propagate the PatternSyntaxException
+        assertDoesNotThrow( () -> matcher.refreshBlacklists( context ),
+                "A malformed regex in the spam words page must be skipped, not propagated" );
+
+        // The valid pattern should still be active
+        assertThrows( RedirectException.class,
+                () -> matcher.checkPatternList( context, "buy valid-pattern online" ),
+                "The valid pattern should still be loaded and detected" );
+    }
+
+    @Test
+    void refreshBlacklists_malformed_pattern_in_blacklist_attachment_is_skipped() throws Exception {
+        // Covers L284-285: PatternSyntaxException in parseBlacklist.
+        final Page spamPage = spamWordsPageMock( "good-pattern" );
+        when( pageManager.getPage( WORDS_PAGE ) ).thenReturn( spamPage );
+        when( pageManager.getPage( IPS_PAGE ) ).thenReturn( null );
+
+        final Attachment att = mock( Attachment.class );
+        when( att.getLastModified() ).thenReturn( new Date() );
+        when( attachmentManager.getAttachmentInfo( context, BLACKLIST ) ).thenReturn( att );
+
+        // Blacklist with one malformed line and one valid line
+        final String blacklistContent = "[unclosed-bracket\nblacklist-spam-word\n";
+        final java.io.ByteArrayInputStream bis = new java.io.ByteArrayInputStream(
+                blacklistContent.getBytes( java.nio.charset.StandardCharsets.UTF_8 ) );
+        when( attachmentManager.getAttachmentStream( att ) ).thenReturn( bis );
+
+        // Must not throw — malformed line is skipped
+        assertDoesNotThrow( () -> matcher.refreshBlacklists( context ),
+                "A malformed regex in the blacklist attachment must be skipped" );
+
+        // The valid blacklist pattern should be detected
+        assertThrows( RedirectException.class,
+                () -> matcher.checkPatternList( context, "contains blacklist-spam-word here" ),
+                "The valid blacklist pattern should still be active" );
+    }
+
+    @Test
+    void refreshBlacklists_provider_exception_on_attachment_stream_is_swallowed() throws Exception {
+        // Covers L144-145: ProviderException catch in refreshBlacklists.
+        final Page spamPage = spamWordsPageMock( "keep-pattern" );
+        when( pageManager.getPage( WORDS_PAGE ) ).thenReturn( spamPage );
+        when( pageManager.getPage( IPS_PAGE ) ).thenReturn( null );
+
+        final Attachment att = mock( Attachment.class );
+        when( att.getLastModified() ).thenReturn( new Date() );
+        when( attachmentManager.getAttachmentInfo( context, BLACKLIST ) ).thenReturn( att );
+        when( attachmentManager.getAttachmentStream( att ) )
+                .thenThrow( new com.wikantik.api.exceptions.ProviderException( "provider failure" ) );
+
+        // ProviderException must be caught and logged, not propagated
+        assertDoesNotThrow( () -> matcher.refreshBlacklists( context ),
+                "A ProviderException reading the blacklist attachment must be swallowed" );
+
+        // The words-page pattern loaded before the attachment error should still work
+        assertThrows( RedirectException.class,
+                () -> matcher.checkPatternList( context, "buy keep-pattern" ),
+                "The words-page pattern must still be active despite the attachment ProviderException" );
+    }
+
+    @Test
+    void getChange_counts_removals_when_lines_deleted() throws Exception {
+        // Covers L222: ch.removals++ for DeleteDelta entries.
+        when( pageManager.getPureText( "TestPage", com.wikantik.api.providers.WikiProvider.LATEST_VERSION ) )
+                .thenReturn( "line one\nline two\nline three" );
+        when( page.getAuthor() ).thenReturn( null );
+        when( page.getAttribute( Page.CHANGENOTE ) ).thenReturn( null );
+
+        // New text is missing "line two" and "line three" → 2 deleted lines
+        final SpamChange ch = matcher.getChange( context, "line one" );
+
+        assertTrue( ch.removals > 0, "Removing lines from the page must increment removals counter" );
     }
 
     // -----------------------------------------------------------------------

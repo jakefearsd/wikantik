@@ -284,7 +284,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                 final List< com.wikantik.api.knowledge.NodeMention > mentions =
                     service.getMentionsForNode( id, limit );
                 final List< Map< String, Object > > rows = mentions.stream()
-                    .map( this::mentionToMap )
+                    .map( KnowledgeJsonMapper::mentionToMap )
                     .toList();
                 final Map< String, Object > result = new LinkedHashMap<>();
                 result.put( "mentions", rows );
@@ -296,10 +296,10 @@ public class AdminKnowledgeResource extends RestServletBase {
                 sendNotFound( response, "Node not found: " + id );
                 return;
             }
-            final Map< String, Object > result = nodeToMap( node );
+            final Map< String, Object > result = KnowledgeJsonMapper.nodeToMap( node );
             final List< KgEdge > edges = service.getEdgesForNode( node.id(), "both" );
             final Map< UUID, String > nameMap = resolveEdgeNames( service, edges );
-            result.put( "edges", edges.stream().map( e -> enrichEdge( e, nameMap ) ).toList() );
+            result.put( "edges", edges.stream().map( e -> KnowledgeJsonMapper.enrichEdge( e, nameMap ) ).toList() );
             sendJson( response, result );
             return;
         }
@@ -310,10 +310,10 @@ public class AdminKnowledgeResource extends RestServletBase {
             if ( node == null ) {
                 sendNotFound( response, "Node not found: " + name );
             } else {
-                final Map< String, Object > result = nodeToMap( node );
+                final Map< String, Object > result = KnowledgeJsonMapper.nodeToMap( node );
                 final List< KgEdge > edges = service.getEdgesForNode( node.id(), "both" );
                 final Map< UUID, String > nameMap = resolveEdgeNames( service, edges );
-                result.put( "edges", edges.stream().map( e -> enrichEdge( e, nameMap ) ).toList() );
+                result.put( "edges", edges.stream().map( e -> KnowledgeJsonMapper.enrichEdge( e, nameMap ) ).toList() );
                 sendJson( response, result );
             }
         } else {
@@ -333,7 +333,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             final List< KgNode > nodes = service.queryNodes( filters, null, limit, offset, true );
             final long total = service.countNodes( filters, null );
             final Map< String, Object > result = new LinkedHashMap<>();
-            result.put( "nodes", nodes.stream().map( this::nodeToMap ).toList() );
+            result.put( "nodes", nodes.stream().map( KnowledgeJsonMapper::nodeToMap ).toList() );
             result.put( "total", total );
             sendJson( response, result );
         }
@@ -369,7 +369,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                 ? request.getParameter( "direction" ) : "both";
         final List< KgEdge > edges = service.getEdgesForNode( nodeId, direction );
         final Map< UUID, String > nameMap = resolveEdgeNames( service, edges );
-        sendJson( response, Map.of( "edges", edges.stream().map( e -> enrichEdge( e, nameMap ) ).toList() ) );
+        sendJson( response, Map.of( "edges", edges.stream().map( e -> KnowledgeJsonMapper.enrichEdge( e, nameMap ) ).toList() ) );
     }
 
     private void handleGetEdgeAudit( final KnowledgeGraphService service,
@@ -470,7 +470,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             final String reasoning = getJsonString( body, "reasoning" );
             final KgProposal proposal = service.submitProposal( proposalType, sourcePage,
                     proposedData, confidence, reasoning );
-            sendJson( response, proposalToMap( proposal ) );
+            sendJson( response, KnowledgeJsonMapper.proposalToMap( proposal ) );
             return;
         }
         // POST /admin/knowledge-graph/proposals/{id}/approve or /reject
@@ -494,7 +494,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                     return;
                 }
                 final KgProposal approved = service.getProposal( proposalId );
-                final Map< String, Object > approveResult = new LinkedHashMap<>( proposalToMap( approved ) );
+                final Map< String, Object > approveResult = new LinkedHashMap<>( KnowledgeJsonMapper.proposalToMap( approved ) );
                 approveResult.put( "warnings", outcome.warnings() );
                 sendJson( response, approveResult );
             }
@@ -508,7 +508,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                     return;
                 }
                 final KgProposal rejected = service.getProposal( proposalId );
-                sendJson( response, proposalToMap( rejected ) );
+                sendJson( response, KnowledgeJsonMapper.proposalToMap( rejected ) );
             }
             case "judge" -> {
                 try {
@@ -722,7 +722,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                     "node not visible after insert (excluded source page or other policy filter)" );
                 return;
             }
-            sendJson( response, nodeToMap( node ) );
+            sendJson( response, KnowledgeJsonMapper.nodeToMap( node ) );
         }
     }
 
@@ -795,7 +795,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             final List< KgEdge > outbound = service.getEdgesForNode( sourceId, "outbound" );
             for ( final KgEdge e : outbound ) {
                 if ( e.targetId().equals( targetId ) && relType.equals( e.relationshipType() ) ) {
-                    before = edgeToMap( e );
+                    before = KnowledgeJsonMapper.edgeToMap( e );
                     break;
                 }
             }
@@ -835,7 +835,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         final var audit = getAuditRepo( service );
         if ( audit != null ) {
             final String action = before == null ? "CREATE" : "UPDATE";
-            final Map< String, Object > after = edgeToMap( edge );
+            final Map< String, Object > after = KnowledgeJsonMapper.edgeToMap( edge );
             try {
                 audit.insert( edge.id(), action, before, after, actor( request ), null );
             } catch ( final RuntimeException e ) {
@@ -843,7 +843,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             }
         }
 
-        sendJson( response, edgeToMap( edge ) );
+        sendJson( response, KnowledgeJsonMapper.edgeToMap( edge ) );
     }
 
     private void handlePostEdgeBulkDelete( final KnowledgeGraphService service,
@@ -943,7 +943,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         final var audit = getAuditRepo( service );
         if ( audit != null ) {
             try {
-                audit.insert( id, "DELETE", edgeToMap( existing ),
+                audit.insert( id, "DELETE", KnowledgeJsonMapper.edgeToMap( existing ),
                     Map.of( "rejected", true ), actorVal, reason );
             } catch ( final RuntimeException e ) {
                 LOG.warn( "handlePostEdgeDeleteAndReject: audit insert failed for edge {}: {}",
@@ -997,7 +997,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         try {
             final KgEdge existing = service.getEdge( id );
             if ( existing != null ) {
-                before = edgeToMap( existing );
+                before = KnowledgeJsonMapper.edgeToMap( existing );
             }
         } catch ( final RuntimeException e ) {
             LOG.warn( "handleDeleteEdge: failed to fetch before-state for audit (id={}): {}", id, e.getMessage() );
@@ -1104,59 +1104,6 @@ public class AdminKnowledgeResource extends RestServletBase {
         return service.getNodeNames( ids );
     }
 
-    private Map< String, Object > enrichEdge( final KgEdge edge, final Map< UUID, String > nameMap ) {
-        final Map< String, Object > m = edgeToMap( edge );
-        m.put( "source_name", nameMap.getOrDefault( edge.sourceId(), edge.sourceId().toString() ) );
-        m.put( "target_name", nameMap.getOrDefault( edge.targetId(), edge.targetId().toString() ) );
-        return m;
-    }
-
-    private Map< String, Object > mentionToMap( final com.wikantik.api.knowledge.NodeMention mention ) {
-        final Map< String, Object > m = new LinkedHashMap<>();
-        m.put( "chunk_id", mention.chunkId().toString() );
-        m.put( "page_name", mention.pageName() );
-        m.put( "chunk_index", mention.chunkIndex() );
-        m.put( "heading_path", mention.headingPath() );
-        m.put( "text", mention.text() );
-        m.put( "confidence", mention.confidence() );
-        m.put( "extractor", mention.extractor() );
-        return m;
-    }
-
-    // --- Helpers ---
-
-    private Map< String, Object > nodeToMap( final KgNode node ) {
-        final Map< String, Object > map = new LinkedHashMap<>();
-        map.put( "id", node.id().toString() );
-        map.put( "name", node.name() );
-        map.put( "node_type", node.nodeType() );
-        map.put( "source_page", node.sourcePage() );
-        map.put( "provenance", node.provenance().value() );
-        map.put( "properties", node.properties() );
-        map.put( "is_stub", node.isStub() );
-        map.put( "created", node.created() != null ? node.created().toString() : null );
-        map.put( "modified", node.modified() != null ? node.modified().toString() : null );
-        return map;
-    }
-
-    private Map< String, Object > edgeToMap( final KgEdge edge ) {
-        final Map< String, Object > map = new LinkedHashMap<>();
-        map.put( "id", edge.id().toString() );
-        map.put( "source_id", edge.sourceId().toString() );
-        map.put( "target_id", edge.targetId().toString() );
-        map.put( "relationship_type", edge.relationshipType() );
-        map.put( "provenance", edge.provenance().value() );
-        map.put( "tier", edge.tier() );
-        map.put( "properties", edge.properties() );
-        map.put( "created", edge.created() != null ? edge.created().toString() : null );
-        map.put( "modified", edge.modified() != null ? edge.modified().toString() : null );
-        return map;
-    }
-
-    private Map< String, Object > proposalToMap( final KgProposal p ) {
-        return proposalToMap( null, p );
-    }
-
     /**
      * Serialises a proposal for the admin UI. When {@code service} is non-null,
      * also enriches with two cross-reference flags the queue uses to surface
@@ -1174,42 +1121,10 @@ public class AdminKnowledgeResource extends RestServletBase {
      * flag is omitted rather than failing the whole listing.
      */
     private Map< String, Object > proposalToMap( final KnowledgeGraphService service, final KgProposal p ) {
-        final Map< String, Object > map = new LinkedHashMap<>();
-        map.put( "id", p.id().toString() );
-        map.put( "proposal_type", p.proposalType() );
-        map.put( "source_page", p.sourcePage() );
-        map.put( "proposed_data", p.proposedData() );
-        map.put( "confidence", p.confidence() );
-        map.put( "reasoning", p.reasoning() );
-        map.put( "status", p.status() );
-        map.put( "reviewed_by", p.reviewedBy() );
-        map.put( "created", p.created() != null ? p.created().toString() : null );
-        map.put( "reviewed_at", p.reviewedAt() != null ? p.reviewedAt().toString() : null );
-        map.put( "tier", p.tier() );
-        map.put( "machine_status", p.machineStatus() );
-        map.put( "machine_confidence", p.machineConfidence() );
-        map.put( "machine_judged_at", p.machineJudgedAt() != null ? p.machineJudgedAt().toString() : null );
-        map.put( "machine_model", p.machineModel() );
-
+        final Map< String, Object > map = KnowledgeJsonMapper.proposalToMap( p );
         if ( service != null ) {
-            final Map< String, Object > flags = ProposalConflictFlags.forProposal( service, p, true );
-            map.putAll( flags );
+            map.putAll( ProposalConflictFlags.forProposal( service, p, true ) );
         }
-        return map;
-    }
-
-    private Map< String, Object > hubProposalToMap( final HubProposalRepository.HubProposal p ) {
-        final Map< String, Object > map = new LinkedHashMap<>();
-        map.put( "id", p.id() );
-        map.put( "hub_name", p.hubName() );
-        map.put( "page_name", p.pageName() );
-        map.put( "raw_similarity", p.rawSimilarity() );
-        map.put( "percentile_score", p.percentileScore() );
-        map.put( "status", p.status() );
-        map.put( "reason", p.reason() );
-        map.put( "reviewed_by", p.reviewedBy() );
-        map.put( "reviewed_at", p.reviewedAt() != null ? p.reviewedAt().toString() : null );
-        map.put( "created", p.created() != null ? p.created().toString() : null );
         return map;
     }
 
@@ -1359,7 +1274,7 @@ public class AdminKnowledgeResource extends RestServletBase {
 
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "total", total );
-        result.put( "proposals", proposals.stream().map( this::hubProposalToMap ).toList() );
+        result.put( "proposals", proposals.stream().map( KnowledgeJsonMapper::hubProposalToMap ).toList() );
         sendJson( response, result );
     }
 

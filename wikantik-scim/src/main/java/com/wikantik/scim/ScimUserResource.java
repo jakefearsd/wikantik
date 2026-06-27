@@ -82,69 +82,25 @@ public class ScimUserResource extends AbstractScimServlet {
     }
 
     // -------------------------------------------------------------------------
-    // HTTP method dispatch
+    // Identity hooks
     // -------------------------------------------------------------------------
 
     @Override
-    protected void doPost( final HttpServletRequest req, final HttpServletResponse resp )
-            throws IOException {
-        handleCreate( req, resp );
+    protected String identifierLabel() {
+        return "user id";
     }
 
     @Override
-    protected void doGet( final HttpServletRequest req, final HttpServletResponse resp )
-            throws IOException {
-        final String id = extractId( req );
-        if ( id != null ) {
-            handleGetById( id, req, resp );
-        } else {
-            handleList( req, resp );
-        }
-    }
-
-    @Override
-    protected void doPut( final HttpServletRequest req, final HttpServletResponse resp )
-            throws IOException {
-        final String id = extractId( req );
-        if ( id == null ) {
-            sendError( resp, 400, null, "PUT requires a user id in the path" );
-            return;
-        }
-        handleReplace( id, req, resp );
-    }
-
-    /** Dispatches PATCH (not a standard HttpServlet override — must override service). */
-    @Override
-    protected void service( final HttpServletRequest req, final HttpServletResponse resp )
-            throws ServletException, IOException {
-        if ( "PATCH".equalsIgnoreCase( req.getMethod() ) ) {
-            final String id = extractId( req );
-            if ( id == null ) {
-                sendError( resp, 400, null, "PATCH requires a user id in the path" );
-                return;
-            }
-            handlePatch( id, req, resp );
-        } else {
-            super.service( req, resp );
-        }
-    }
-
-    @Override
-    protected void doDelete( final HttpServletRequest req, final HttpServletResponse resp )
-            throws IOException {
-        final String id = extractId( req );
-        if ( id == null ) {
-            sendError( resp, 400, null, "DELETE requires a user id in the path" );
-            return;
-        }
-        handleDelete( id, resp );
+    protected String extractIdentifier( final HttpServletRequest req ) {
+        return extractId( req );
     }
 
     // -------------------------------------------------------------------------
     // Handlers
     // -------------------------------------------------------------------------
 
-    private void handleCreate( final HttpServletRequest req, final HttpServletResponse resp )
+    @Override
+    protected void handleCreate( final HttpServletRequest req, final HttpServletResponse resp )
             throws IOException {
         final JsonObject body = parseBody( req, resp );
         if ( body == null ) return;
@@ -226,8 +182,9 @@ public class ScimUserResource extends AbstractScimServlet {
         }
     }
 
-    private void handleGetById( final String id, final HttpServletRequest req,
-                                final HttpServletResponse resp ) throws IOException {
+    @Override
+    protected void handleGet( final String id, final HttpServletRequest req,
+                              final HttpServletResponse resp ) throws IOException {
         final UserDatabase db = getUserDatabase();
         if ( db == null ) { sendError( resp, 503, null, "user database unavailable" ); return; }
         try {
@@ -241,7 +198,8 @@ public class ScimUserResource extends AbstractScimServlet {
         }
     }
 
-    private void handleList( final HttpServletRequest req, final HttpServletResponse resp )
+    @Override
+    protected void handleList( final HttpServletRequest req, final HttpServletResponse resp )
             throws IOException {
         final UserDatabase db = getUserDatabase();
         if ( db == null ) { sendError( resp, 503, null, "user database unavailable" ); return; }
@@ -312,8 +270,9 @@ public class ScimUserResource extends AbstractScimServlet {
         }
     }
 
-    private void handleReplace( final String id, final HttpServletRequest req,
-                                final HttpServletResponse resp ) throws IOException {
+    @Override
+    protected void handleReplace( final String id, final HttpServletRequest req,
+                                  final HttpServletResponse resp ) throws IOException {
         final UserDatabase db = getUserDatabase();
         if ( db == null ) { sendError( resp, 503, null, "user database unavailable" ); return; }
 
@@ -371,8 +330,9 @@ public class ScimUserResource extends AbstractScimServlet {
         }
     }
 
-    private void handlePatch( final String id, final HttpServletRequest req,
-                              final HttpServletResponse resp ) throws IOException {
+    @Override
+    protected void handlePatch( final String id, final HttpServletRequest req,
+                                final HttpServletResponse resp ) throws IOException {
         final UserDatabase db = getUserDatabase();
         if ( db == null ) { sendError( resp, 503, null, "user database unavailable" ); return; }
 
@@ -451,7 +411,8 @@ public class ScimUserResource extends AbstractScimServlet {
         }
     }
 
-    private void handleDelete( final String id, final HttpServletResponse resp )
+    @Override
+    protected void handleDelete( final String id, final HttpServletResponse resp )
             throws IOException {
         final UserDatabase db = getUserDatabase();
         if ( db == null ) { sendError( resp, 503, null, "user database unavailable" ); return; }

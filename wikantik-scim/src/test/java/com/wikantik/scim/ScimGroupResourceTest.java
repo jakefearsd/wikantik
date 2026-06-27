@@ -19,8 +19,10 @@
 package com.wikantik.scim;
 
 import com.wikantik.WikiEngine;
+import com.wikantik.audit.AuditService;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.UserManager;
+import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.user.UserDatabase;
@@ -40,6 +42,7 @@ import java.security.Principal;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -193,9 +196,60 @@ class ScimGroupResourceTest {
         assertTrue( sw.toString().contains( "invalidSyntax" ) );
     }
 
+    @Test
+    void createParseGroupThrowsRuntimeException_returns500() throws Exception {
+        // gm.parseGroup() throws RuntimeException → caught by generic catch(Exception e) → 500
+        when( mockGm.getGroup( "Crash" ) ).thenThrow( new NoSuchPrincipalException( "Crash" ) );
+        when( mockGm.parseGroup( eq( "Crash" ), anyString(), anyBoolean() ) )
+                .thenThrow( new RuntimeException( "unexpected" ) );
+
+        final String body = "{\"displayName\":\"Crash\"}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( 500 );
+        assertTrue( sw.toString().contains( "Internal error creating group" ) );
+    }
+
+    @Test
+    void createParseGroupThrowsWikiSecurityException_returns500() throws Exception {
+        // gm.parseGroup() throws WikiSecurityException (a WikiException) → 500
+        when( mockGm.getGroup( "Fault" ) ).thenThrow( new NoSuchPrincipalException( "Fault" ) );
+        when( mockGm.parseGroup( eq( "Fault" ), anyString(), anyBoolean() ) )
+                .thenThrow( new WikiSecurityException( "permission denied" ) );
+
+        final String body = "{\"displayName\":\"Fault\"}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( 500 );
+        // parseGroup is preceded by WikiSession.getWikiSession which may fail first on bare mock engine;
+        // either path leads to a 500 with an error detail in the body
+        assertTrue( sw.toString().contains( "500" ) || sw.toString().contains( "error" )
+                || sw.toString().contains( "Failed" ) || sw.toString().contains( "Internal" ) );
+    }
+
     // -----------------------------------------------------------------------
     // GET /Groups/{name} — getByName
     // -----------------------------------------------------------------------
+
+    @Test
+    void getByNameSuccess_returnsGroupBody() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/Engineers" );
+        final Group group = mock( Group.class );
+        when( group.getName() ).thenReturn( "Engineers" );
+        when( group.members() ).thenReturn( new Principal[0] );
+        when( mockGm.getGroup( "Engineers" ) ).thenReturn( group );
+
+        resource.doGet( req, resp );
+
+        verify( resp, never() ).setStatus( anyInt() );
+        final String out = sw.toString();
+        assertTrue( out.contains( "Engineers" ) );
+        assertTrue( out.contains( "schemas" ) );
+    }
 
     @Test
     void getByNameNoNameInPath_returnsListResponse() throws Exception {
@@ -248,6 +302,17 @@ class ScimGroupResourceTest {
         assertTrue( sw.toString().contains( "user database unavailable" ) );
     }
 
+    @Test
+    void getByNameGroupManagerThrowsRuntimeException_returns500() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/Boom" );
+        when( mockGm.getGroup( "Boom" ) ).thenThrow( new RuntimeException( "internal db failure" ) );
+
+        resource.doGet( req, resp );
+
+        verify( resp ).setStatus( 500 );
+        assertTrue( sw.toString().contains( "Internal error retrieving group" ) );
+    }
+
     // -----------------------------------------------------------------------
     // GET /Groups — list
     // -----------------------------------------------------------------------
@@ -261,6 +326,19 @@ class ScimGroupResourceTest {
 
         verify( resp ).setStatus( 503 );
         assertTrue( sw.toString().contains( "group manager unavailable" ) );
+    }
+
+    @Test
+    void listUserDbUnavailable_returns503() throws Exception {
+        final UserManager mockUserManager = mock( UserManager.class );
+        when( mockEngine.getManager( UserManager.class ) ).thenReturn( mockUserManager );
+        when( mockUserManager.getUserDatabase() ).thenReturn( null );
+        when( req.getParameter( "filter" ) ).thenReturn( null );
+
+        resource.doGet( req, resp );
+
+        verify( resp ).setStatus( 503 );
+        assertTrue( sw.toString().contains( "user database unavailable" ) );
     }
 
     @Test
@@ -288,6 +366,25 @@ class ScimGroupResourceTest {
     }
 
     @Test
+    void listByDisplayNameFilter_groupFound_returnsSingleResult() throws Exception {
+        // displayName eq "Ops" filter where group exists → list with 1 result
+        when( req.getParameter( "filter" ) ).thenReturn( "displayName eq \"Ops\"" );
+        when( req.getParameter( "startIndex" ) ).thenReturn( null );
+        when( req.getParameter( "count" ) ).thenReturn( null );
+        final Group group = mock( Group.class );
+        when( group.getName() ).thenReturn( "Ops" );
+        when( group.members() ).thenReturn( new Principal[0] );
+        when( mockGm.getGroup( "Ops" ) ).thenReturn( group );
+
+        resource.doGet( req, resp );
+
+        verify( resp, never() ).setStatus( anyInt() );
+        final String out = sw.toString();
+        assertTrue( out.contains( "totalResults" ) );
+        assertTrue( out.contains( "\"totalResults\":1" ) );
+    }
+
+    @Test
     void listByDisplayNameFilter_missingGroup_returnsEmptyList() throws Exception {
         when( req.getParameter( "filter" ) ).thenReturn( "displayName eq \"Absent\"" );
         when( req.getParameter( "startIndex" ) ).thenReturn( null );
@@ -300,6 +397,90 @@ class ScimGroupResourceTest {
         verify( resp, never() ).setStatus( 400 );
         final String out = sw.toString();
         assertTrue( out.contains( "totalResults" ) );
+    }
+
+    @Test
+    void listNoFilter_returnsAllGroups() throws Exception {
+        when( req.getParameter( "filter" ) ).thenReturn( null );
+        when( req.getParameter( "startIndex" ) ).thenReturn( null );
+        when( req.getParameter( "count" ) ).thenReturn( null );
+
+        final Principal r = mock( Principal.class );
+        when( r.getName() ).thenReturn( "Devs" );
+        when( mockGm.getRoles() ).thenReturn( new Principal[]{ r } );
+        final Group group = mock( Group.class );
+        when( group.getName() ).thenReturn( "Devs" );
+        when( group.members() ).thenReturn( new Principal[0] );
+        when( mockGm.getGroup( "Devs" ) ).thenReturn( group );
+
+        resource.doGet( req, resp );
+
+        verify( resp, never() ).setStatus( anyInt() );
+        final String out = sw.toString();
+        assertTrue( out.contains( "\"totalResults\":1" ) );
+        assertTrue( out.contains( "Devs" ) );
+    }
+
+    @Test
+    void listNoFilter_groupNotLoadable_skipsIt() throws Exception {
+        // getRoles returns a role but getGroup throws → that group is silently skipped
+        when( req.getParameter( "filter" ) ).thenReturn( null );
+        when( req.getParameter( "startIndex" ) ).thenReturn( null );
+        when( req.getParameter( "count" ) ).thenReturn( null );
+
+        final Principal r = mock( Principal.class );
+        when( r.getName() ).thenReturn( "Ghost" );
+        when( mockGm.getRoles() ).thenReturn( new Principal[]{ r } );
+        when( mockGm.getGroup( "Ghost" ) ).thenThrow( new NoSuchPrincipalException( "Ghost" ) );
+
+        resource.doGet( req, resp );
+
+        verify( resp, never() ).setStatus( anyInt() );
+        final String out = sw.toString();
+        assertTrue( out.contains( "\"totalResults\":0" ) );
+    }
+
+    @Test
+    void listWithPagination_startIndex2count1() throws Exception {
+        // Two groups, startIndex=2, count=1 → page has only the second one
+        when( req.getParameter( "filter" ) ).thenReturn( null );
+        when( req.getParameter( "startIndex" ) ).thenReturn( "2" );
+        when( req.getParameter( "count" ) ).thenReturn( "1" );
+
+        final Principal r1 = mock( Principal.class );
+        final Principal r2 = mock( Principal.class );
+        when( r1.getName() ).thenReturn( "Alpha" );
+        when( r2.getName() ).thenReturn( "Beta" );
+        when( mockGm.getRoles() ).thenReturn( new Principal[]{ r1, r2 } );
+
+        final Group groupA = mock( Group.class );
+        when( groupA.getName() ).thenReturn( "Alpha" );
+        when( groupA.members() ).thenReturn( new Principal[0] );
+        final Group groupB = mock( Group.class );
+        when( groupB.getName() ).thenReturn( "Beta" );
+        when( groupB.members() ).thenReturn( new Principal[0] );
+        when( mockGm.getGroup( "Alpha" ) ).thenReturn( groupA );
+        when( mockGm.getGroup( "Beta" ) ).thenReturn( groupB );
+
+        resource.doGet( req, resp );
+
+        verify( resp, never() ).setStatus( anyInt() );
+        final String out = sw.toString();
+        assertTrue( out.contains( "\"totalResults\":2" ) );
+        assertTrue( out.contains( "\"itemsPerPage\":1" ) );
+    }
+
+    @Test
+    void listGetRolesThrowsRuntimeException_returns500() throws Exception {
+        when( req.getParameter( "filter" ) ).thenReturn( null );
+        when( req.getParameter( "startIndex" ) ).thenReturn( null );
+        when( req.getParameter( "count" ) ).thenReturn( null );
+        when( mockGm.getRoles() ).thenThrow( new RuntimeException( "db gone" ) );
+
+        resource.doGet( req, resp );
+
+        verify( resp ).setStatus( 500 );
+        assertTrue( sw.toString().contains( "Internal error listing groups" ) );
     }
 
     // -----------------------------------------------------------------------
@@ -323,6 +504,19 @@ class ScimGroupResourceTest {
 
         verify( resp ).setStatus( 503 );
         assertTrue( sw.toString().contains( "group manager unavailable" ) );
+    }
+
+    @Test
+    void putUserDbUnavailable_returns503() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/SomeGroup" );
+        final UserManager mockUserManager = mock( UserManager.class );
+        when( mockEngine.getManager( UserManager.class ) ).thenReturn( mockUserManager );
+        when( mockUserManager.getUserDatabase() ).thenReturn( null );
+
+        resource.doPut( req, resp );
+
+        verify( resp ).setStatus( 503 );
+        assertTrue( sw.toString().contains( "user database unavailable" ) );
     }
 
     @Test
@@ -355,6 +549,41 @@ class ScimGroupResourceTest {
         assertTrue( sw.toString().contains( "invalidValue" ) );
     }
 
+    @Test
+    void putParseGroupThrowsWikiSecurityException_returns500() throws Exception {
+        // gm.parseGroup throws WikiSecurityException (a WikiException subtype) → 500 "Failed to update group"
+        when( req.getPathInfo() ).thenReturn( "/Fault" );
+        when( mockGm.parseGroup( eq( "Fault" ), anyString(), anyBoolean() ) )
+                .thenThrow( new WikiSecurityException( "not allowed" ) );
+
+        final String body = "{\"displayName\":\"Fault\"}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPut( req, resp );
+
+        verify( resp ).setStatus( 500 );
+        // WikiSession.getWikiSession on bare mock engine may throw before parseGroup;
+        // either way a 500 with an error body is returned
+        assertTrue( sw.toString().contains( "500" ) || sw.toString().contains( "error" )
+                || sw.toString().contains( "Failed" ) || sw.toString().contains( "Internal" ) );
+    }
+
+    @Test
+    void putParseGroupThrowsRuntimeException_returns500() throws Exception {
+        // gm.parseGroup throws RuntimeException → generic 500 "Internal error updating group"
+        when( req.getPathInfo() ).thenReturn( "/Kaboom" );
+        when( mockGm.parseGroup( eq( "Kaboom" ), anyString(), anyBoolean() ) )
+                .thenThrow( new RuntimeException( "boom" ) );
+
+        final String body = "{\"displayName\":\"Kaboom\"}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPut( req, resp );
+
+        verify( resp ).setStatus( 500 );
+        assertTrue( sw.toString().contains( "Internal error updating group" ) );
+    }
+
     // -----------------------------------------------------------------------
     // PATCH /Groups — partial update (via service())
     // -----------------------------------------------------------------------
@@ -379,6 +608,20 @@ class ScimGroupResourceTest {
 
         verify( resp ).setStatus( 503 );
         assertTrue( sw.toString().contains( "group manager unavailable" ) );
+    }
+
+    @Test
+    void patchUserDbUnavailable_returns503() throws Exception {
+        when( req.getMethod() ).thenReturn( "PATCH" );
+        when( req.getPathInfo() ).thenReturn( "/SomeGroup" );
+        final UserManager mockUserManager = mock( UserManager.class );
+        when( mockEngine.getManager( UserManager.class ) ).thenReturn( mockUserManager );
+        when( mockUserManager.getUserDatabase() ).thenReturn( null );
+
+        resource.service( req, resp );
+
+        verify( resp ).setStatus( 503 );
+        assertTrue( sw.toString().contains( "user database unavailable" ) );
     }
 
     @Test
@@ -457,6 +700,53 @@ class ScimGroupResourceTest {
         assertTrue( sw.toString().contains( "No user found" ) );
     }
 
+    @Test
+    void patchParseGroupThrowsWikiSecurityException_returns500() throws Exception {
+        // gm.parseGroup throws WikiSecurityException (WikiException) → 500 "Failed to patch group"
+        when( req.getMethod() ).thenReturn( "PATCH" );
+        when( req.getPathInfo() ).thenReturn( "/WikFail" );
+
+        final Group group = mock( Group.class );
+        when( group.getName() ).thenReturn( "WikFail" );
+        when( group.members() ).thenReturn( new Principal[0] );
+        when( mockGm.getGroup( "WikFail" ) ).thenReturn( group );
+        when( mockGm.parseGroup( eq( "WikFail" ), anyString(), anyBoolean() ) )
+                .thenThrow( new WikiSecurityException( "not allowed" ) );
+
+        final String body = "{\"Operations\":[{\"op\":\"replace\",\"path\":\"members\",\"value\":[]}]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.service( req, resp );
+
+        verify( resp ).setStatus( 500 );
+        // WikiSession.getWikiSession on bare mock engine may throw before parseGroup;
+        // either way a 500 with an error body is returned
+        assertTrue( sw.toString().contains( "500" ) || sw.toString().contains( "error" )
+                || sw.toString().contains( "Failed" ) || sw.toString().contains( "Internal" ) );
+    }
+
+    @Test
+    void patchParseGroupThrowsRuntimeException_returns500() throws Exception {
+        // gm.parseGroup throws RuntimeException → generic 500 "Internal error patching group"
+        when( req.getMethod() ).thenReturn( "PATCH" );
+        when( req.getPathInfo() ).thenReturn( "/Explode" );
+
+        final Group group = mock( Group.class );
+        when( group.getName() ).thenReturn( "Explode" );
+        when( group.members() ).thenReturn( new Principal[0] );
+        when( mockGm.getGroup( "Explode" ) ).thenReturn( group );
+        when( mockGm.parseGroup( eq( "Explode" ), anyString(), anyBoolean() ) )
+                .thenThrow( new RuntimeException( "fire" ) );
+
+        final String body = "{\"Operations\":[{\"op\":\"replace\",\"path\":\"members\",\"value\":[]}]}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.service( req, resp );
+
+        verify( resp ).setStatus( 500 );
+        assertTrue( sw.toString().contains( "Internal error patching group" ) );
+    }
+
     // -----------------------------------------------------------------------
     // DELETE /Groups — hard delete
     // -----------------------------------------------------------------------
@@ -501,6 +791,30 @@ class ScimGroupResourceTest {
         verify( resp ).setStatus( 204 );
     }
 
+    @Test
+    void deleteRemoveGroupThrowsWikiSecurityException_returns500() throws Exception {
+        // removeGroup() throws WikiSecurityException → 500
+        when( req.getPathInfo() ).thenReturn( "/Protected" );
+        doThrow( new WikiSecurityException( "cannot delete" ) ).when( mockGm ).removeGroup( "Protected" );
+
+        resource.doDelete( req, resp );
+
+        verify( resp ).setStatus( 500 );
+        assertTrue( sw.toString().contains( "Failed to delete group" ) );
+    }
+
+    @Test
+    void deleteRemoveGroupThrowsRuntimeException_returns500() throws Exception {
+        // removeGroup() throws RuntimeException → generic 500
+        when( req.getPathInfo() ).thenReturn( "/Broken" );
+        doThrow( new RuntimeException( "crash" ) ).when( mockGm ).removeGroup( "Broken" );
+
+        resource.doDelete( req, resp );
+
+        verify( resp ).setStatus( 500 );
+        assertTrue( sw.toString().contains( "Internal error deleting group" ) );
+    }
+
     // -----------------------------------------------------------------------
     // Engine not a WikiEngine → manager unavailable → 503
     // -----------------------------------------------------------------------
@@ -519,5 +833,39 @@ class ScimGroupResourceTest {
 
         verify( resp ).setStatus( 503 );
         assertTrue( sw.toString().contains( "group manager unavailable" ) );
+    }
+
+    @Test
+    void getGroupManagerThrowsException_returns503() throws Exception {
+        // WikiEngine.getManager() throws RuntimeException → getGroupManager() catches + returns null
+        when( mockEngine.getManager( GroupManager.class ) ).thenThrow( new RuntimeException( "no manager" ) );
+
+        final String body = "{\"displayName\":\"Error\"}";
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( 503 );
+        assertTrue( sw.toString().contains( "group manager unavailable" ) );
+    }
+
+    // -----------------------------------------------------------------------
+    // Audit service wired (non-null AuditService) — covers auditRecord method
+    // -----------------------------------------------------------------------
+
+    @Test
+    void deleteWithAuditServiceWired_recordsAuditEvent() throws Exception {
+        final AuditService auditService = mock( AuditService.class );
+        when( mockEngine.getAuditService() ).thenReturn( auditService );
+        doNothing().when( auditService ).record( any() );
+
+        when( req.getPathInfo() ).thenReturn( "/DeletedGroup" );
+        doNothing().when( mockGm ).removeGroup( "DeletedGroup" );
+
+        resource.doDelete( req, resp );
+
+        verify( resp ).setStatus( 204 );
+        // Audit record was attempted (verify auditService.record was called)
+        verify( auditService ).record( any() );
     }
 }

@@ -158,7 +158,7 @@ public class WikiDocument extends Document {
      */
     public Context getContext()
     {
-        return context.get();
+        return context != null ? context.get() : null;
     }
 
 }

@@ -21,6 +21,7 @@ package com.wikantik.scim;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -33,11 +34,111 @@ import java.io.Reader;
  * {@link ScimGroupResource}). Holds the {@code application/scim+json} content
  * type, a shared Gson instance, and the request-parsing / response-writing
  * helpers that both resources previously carried as identical private copies.
+ *
+ * <p>Also provides Template Method implementations of the five HTTP verbs
+ * (POST, GET, PUT, PATCH via {@code service()}, DELETE) that handle id/name
+ * extraction and missing-identifier 400 errors uniformly. Subclasses implement
+ * the abstract hooks to supply the identifier label, extraction logic, and the
+ * actual per-verb business logic.</p>
  */
 abstract class AbstractScimServlet extends HttpServlet {
 
     protected static final String CONTENT_TYPE = "application/scim+json";
     protected static final Gson GSON = new Gson();
+
+    // -------------------------------------------------------------------------
+    // Abstract hooks — subclasses supply identity + handlers
+    // -------------------------------------------------------------------------
+
+    /** Returns the human-readable label used in 400 error messages, e.g. {@code "user id"} or {@code "group name"}. */
+    protected abstract String identifierLabel();
+
+    /**
+     * Extracts the resource identifier from the request path-info.
+     * Returns {@code null} when the request targets the collection endpoint.
+     */
+    protected abstract String extractIdentifier( HttpServletRequest req );
+
+    protected abstract void handleCreate( HttpServletRequest req, HttpServletResponse resp )
+            throws IOException;
+
+    protected abstract void handleGet( String id, HttpServletRequest req, HttpServletResponse resp )
+            throws IOException;
+
+    protected abstract void handleList( HttpServletRequest req, HttpServletResponse resp )
+            throws IOException;
+
+    protected abstract void handleReplace( String id, HttpServletRequest req, HttpServletResponse resp )
+            throws IOException;
+
+    protected abstract void handlePatch( String id, HttpServletRequest req, HttpServletResponse resp )
+            throws IOException;
+
+    protected abstract void handleDelete( String id, HttpServletResponse resp )
+            throws IOException;
+
+    // -------------------------------------------------------------------------
+    // Template Method dispatch — final; subclasses must not override these
+    // -------------------------------------------------------------------------
+
+    @Override
+    protected final void doPost( final HttpServletRequest req, final HttpServletResponse resp )
+            throws IOException {
+        handleCreate( req, resp );
+    }
+
+    @Override
+    protected final void doGet( final HttpServletRequest req, final HttpServletResponse resp )
+            throws IOException {
+        final String id = extractIdentifier( req );
+        if ( id != null ) {
+            handleGet( id, req, resp );
+        } else {
+            handleList( req, resp );
+        }
+    }
+
+    @Override
+    protected final void doPut( final HttpServletRequest req, final HttpServletResponse resp )
+            throws IOException {
+        final String id = extractIdentifier( req );
+        if ( id == null ) {
+            sendError( resp, 400, null, "PUT requires a " + identifierLabel() + " in the path" );
+            return;
+        }
+        handleReplace( id, req, resp );
+    }
+
+    /** Dispatches PATCH (not a standard HttpServlet override — must override service). */
+    @Override
+    protected final void service( final HttpServletRequest req, final HttpServletResponse resp )
+            throws ServletException, IOException {
+        if ( "PATCH".equalsIgnoreCase( req.getMethod() ) ) {
+            final String id = extractIdentifier( req );
+            if ( id == null ) {
+                sendError( resp, 400, null, "PATCH requires a " + identifierLabel() + " in the path" );
+                return;
+            }
+            handlePatch( id, req, resp );
+        } else {
+            super.service( req, resp );
+        }
+    }
+
+    @Override
+    protected final void doDelete( final HttpServletRequest req, final HttpServletResponse resp )
+            throws IOException {
+        final String id = extractIdentifier( req );
+        if ( id == null ) {
+            sendError( resp, 400, null, "DELETE requires a " + identifierLabel() + " in the path" );
+            return;
+        }
+        handleDelete( id, resp );
+    }
+
+    // -------------------------------------------------------------------------
+    // Shared helpers
+    // -------------------------------------------------------------------------
 
     /** Parses a positive int query parameter, falling back to {@code defaultVal}. */
     protected static int parseIntParam( final HttpServletRequest req, final String name,

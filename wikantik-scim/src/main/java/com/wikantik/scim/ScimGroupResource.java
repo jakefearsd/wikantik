@@ -85,69 +85,25 @@ public class ScimGroupResource extends AbstractScimServlet {
     }
 
     // -------------------------------------------------------------------------
-    // HTTP method dispatch
+    // Identity hooks
     // -------------------------------------------------------------------------
 
     @Override
-    protected void doPost( final HttpServletRequest req, final HttpServletResponse resp )
-            throws IOException {
-        handleCreate( req, resp );
+    protected String identifierLabel() {
+        return "group name";
     }
 
     @Override
-    protected void doGet( final HttpServletRequest req, final HttpServletResponse resp )
-            throws IOException {
-        final String name = extractName( req );
-        if ( name != null ) {
-            handleGetByName( name, req, resp );
-        } else {
-            handleList( req, resp );
-        }
-    }
-
-    @Override
-    protected void doPut( final HttpServletRequest req, final HttpServletResponse resp )
-            throws IOException {
-        final String name = extractName( req );
-        if ( name == null ) {
-            sendError( resp, 400, null, "PUT requires a group name in the path" );
-            return;
-        }
-        handleReplace( name, req, resp );
-    }
-
-    /** Dispatches PATCH (not a standard HttpServlet override — must override service). */
-    @Override
-    protected void service( final HttpServletRequest req, final HttpServletResponse resp )
-            throws ServletException, IOException {
-        if ( "PATCH".equalsIgnoreCase( req.getMethod() ) ) {
-            final String name = extractName( req );
-            if ( name == null ) {
-                sendError( resp, 400, null, "PATCH requires a group name in the path" );
-                return;
-            }
-            handlePatch( name, req, resp );
-        } else {
-            super.service( req, resp );
-        }
-    }
-
-    @Override
-    protected void doDelete( final HttpServletRequest req, final HttpServletResponse resp )
-            throws IOException {
-        final String name = extractName( req );
-        if ( name == null ) {
-            sendError( resp, 400, null, "DELETE requires a group name in the path" );
-            return;
-        }
-        handleDelete( name, resp );
+    protected String extractIdentifier( final HttpServletRequest req ) {
+        return extractName( req );
     }
 
     // -------------------------------------------------------------------------
     // Handlers
     // -------------------------------------------------------------------------
 
-    private void handleCreate( final HttpServletRequest req, final HttpServletResponse resp )
+    @Override
+    protected void handleCreate( final HttpServletRequest req, final HttpServletResponse resp )
             throws IOException {
         final JsonObject body = parseBody( req, resp );
         if ( body == null ) return;
@@ -203,8 +159,9 @@ public class ScimGroupResource extends AbstractScimServlet {
         }
     }
 
-    private void handleGetByName( final String name, final HttpServletRequest req,
-                                   final HttpServletResponse resp ) throws IOException {
+    @Override
+    protected void handleGet( final String name, final HttpServletRequest req,
+                              final HttpServletResponse resp ) throws IOException {
         final GroupManager gm = getGroupManager();
         if ( gm == null ) { sendError( resp, 503, null, "group manager unavailable" ); return; }
         final UserDatabase db = getUserDatabase();
@@ -222,7 +179,8 @@ public class ScimGroupResource extends AbstractScimServlet {
         }
     }
 
-    private void handleList( final HttpServletRequest req, final HttpServletResponse resp )
+    @Override
+    protected void handleList( final HttpServletRequest req, final HttpServletResponse resp )
             throws IOException {
         final GroupManager gm = getGroupManager();
         if ( gm == null ) { sendError( resp, 503, null, "group manager unavailable" ); return; }
@@ -293,8 +251,9 @@ public class ScimGroupResource extends AbstractScimServlet {
         }
     }
 
-    private void handleReplace( final String name, final HttpServletRequest req,
-                                 final HttpServletResponse resp ) throws IOException {
+    @Override
+    protected void handleReplace( final String name, final HttpServletRequest req,
+                                  final HttpServletResponse resp ) throws IOException {
         final GroupManager gm = getGroupManager();
         if ( gm == null ) { sendError( resp, 503, null, "group manager unavailable" ); return; }
         final UserDatabase db = getUserDatabase();
@@ -331,8 +290,9 @@ public class ScimGroupResource extends AbstractScimServlet {
         }
     }
 
-    private void handlePatch( final String name, final HttpServletRequest req,
-                               final HttpServletResponse resp ) throws IOException {
+    @Override
+    protected void handlePatch( final String name, final HttpServletRequest req,
+                                final HttpServletResponse resp ) throws IOException {
         final GroupManager gm = getGroupManager();
         if ( gm == null ) { sendError( resp, 503, null, "group manager unavailable" ); return; }
         final UserDatabase db = getUserDatabase();
@@ -379,7 +339,8 @@ public class ScimGroupResource extends AbstractScimServlet {
         }
     }
 
-    private void handleDelete( final String name, final HttpServletResponse resp )
+    @Override
+    protected void handleDelete( final String name, final HttpServletResponse resp )
             throws IOException {
         final GroupManager gm = getGroupManager();
         if ( gm == null ) { sendError( resp, 503, null, "group manager unavailable" ); return; }

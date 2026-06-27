@@ -26,7 +26,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Iterator;
 import java.util.Properties;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
@@ -75,13 +74,13 @@ public class DefaultSpamRateLimiter extends AbstractSpamStrategy implements Spam
     @Override
     public synchronized void cleanBanList() {
         final long now = System.currentTimeMillis();
-        for( final Iterator<SpamHost> i = temporaryBanList.iterator(); i.hasNext(); ) {
-            final SpamHost host = i.next();
+        temporaryBanList.removeIf( host -> {
             if( host.releaseTime() < now ) {
                 LOG.debug( "Removed host {} from temporary ban list (expired)", host.address() );
-                i.remove();
+                return true;
             }
-        }
+            return false;
+        } );
     }
 
     @Override
@@ -114,13 +113,17 @@ public class DefaultSpamRateLimiter extends AbstractSpamStrategy implements Spam
 
             final long time = System.currentTimeMillis() - 60 * 1000L; // 1 minute
 
-            for( final Iterator<SpamHost> i = lastModifications.iterator(); i.hasNext(); ) {
-                final SpamHost host = i.next();
+            // First pass: remove expired entries (CopyOnWriteArrayList.iterator() does not support remove())
+            lastModifications.removeIf( host -> {
                 if( host.addedTime() < time ) {
                     LOG.debug( "Removed host {} from modification queue (expired)", host.address() );
-                    i.remove();
-                    continue;
+                    return true;
                 }
+                return false;
+            } );
+
+            // Second pass: count recent entries from this host / with this change
+            for( final SpamHost host : lastModifications ) {
                 if( host.address().equals( addr ) ) {
                     hostCounter++;
                 }

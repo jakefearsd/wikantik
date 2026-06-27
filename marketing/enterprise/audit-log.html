@@ -151,7 +151,7 @@
           <p>The combination of hash-chain integrity, explicit <code>REVOKE UPDATE, DELETE</code> at the database level, append-only writes, and configurable long-term retention is designed to satisfy the audit trail requirements in frameworks such as SOC 2 Type II, ISO 27001, and GDPR record-keeping obligations. Your security team can verify the chain at any time and export the full log for independent review.</p>
 
           <div class="callout">
-            <p><strong>Separation of privilege.</strong> The application role can only INSERT and SELECT audit rows. Creating and dropping monthly partitions requires the <code>migrate</code> role — a separate, privileged role used only by the retention script and schema migrations, not by the running application.</p>
+            <p><strong>Separation of privilege.</strong> The application role can only INSERT and SELECT audit rows. Creating and dropping monthly partitions requires a privileged role separate from the application role — the <code>migrate</code> role in a least-privilege deployment, or the database superuser in a simpler single-role setup. Either way, the running application cannot drop partitions.</p>
           </div>
 
           <section class="faq">

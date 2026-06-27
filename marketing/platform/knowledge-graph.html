@@ -118,7 +118,7 @@
           <p>Edges in <code>kg_edges</code> are of two kinds:</p>
           <ul>
             <li><strong>Co-mention edges</strong> — two entities that appear in the same passage are co-mentioned. These are inferred automatically by the extraction pipeline.</li>
-            <li><strong>Typed-relation edges</strong> — relationship predicates (e.g. <code>links_to</code>, <code>part_of</code>) between approved entities, promoted from the extraction pipeline's reviewed proposals or written by the admin curation tools. These are curated, not automatically inferred.</li>
+            <li><strong>Typed-relation edges</strong> — relationship predicates (e.g. <code>partOf</code>, <code>implements</code>, <code>requires</code>) between approved entities, promoted from the extraction pipeline's reviewed proposals or written by the admin curation tools. These are curated, not automatically inferred.</li>
           </ul>
           <p>An experimental proximity-rerank stage can use a multi-source BFS over <code>kg_edges</code> (2-hop radius, <code>wikantik.search.graph.max-hops = 2</code>) to score retrieval candidates by entity proximity. This stage is off by default (<code>wikantik.search.graph.boost = 0</code>) — empirical measurement found no net ranking lift and production search runs BM25 + dense only.</p>
 

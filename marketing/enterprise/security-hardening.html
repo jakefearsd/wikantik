@@ -114,6 +114,7 @@
             <li><strong>Minimum length</strong> is enforced.</li>
             <li><strong>Common-password blocklist</strong> — new passwords are checked against a list of known breached and trivially guessable passwords. <code>password</code>, <code>123456</code>, and their obvious variants are rejected.</li>
             <li>Mandatory rotation and arbitrary complexity rules are <em>not</em> enforced — NIST explicitly recommends against them.</li>
+            <li><strong>Stored as bcrypt</strong> — passwords are hashed with bcrypt (work factor tuned to roughly a quarter-second per hash), never reversible encryption or a bare digest. Installs upgraded from older builds re-hash legacy SHA hashes to bcrypt transparently on the owner's next login.</li>
           </ul>
           <p>This means your team's passwords are longer and more unique in practice, because they weren't forced into a corner by rules that reward gaming the system.</p>
 
@@ -149,6 +150,10 @@
           <h2>Session management</h2>
           <p>Wikantik rotates the HTTP session on every authentication event — both local password login and SSO callback. The old session ID is invalidated and a fresh one is issued before any privileged state is written. This closes the session fixation attack, where an attacker tricks a user into using a pre-seeded session token.</p>
           <p>Authentication is JAAS-based. Pluggable login modules support local database, LDAP, SSO (pac4j), and container-managed authentication. All modules coexist and can be active simultaneously.</p>
+
+          <h2>Access control enforced on the read path — including the agent surface</h2>
+          <p>View ACLs are not just a UI concern. Wikantik enforces page view permissions on every read surface: the REST read endpoints (page fetch, diff, history, backlinks, recent-changes, search, and the agent projection) and — critically — the machine surfaces an AI agent uses. The <code>/knowledge-mcp</code> retrieval and Knowledge Graph tools and the <code>/api/bundle</code> context bundle all run candidate results through the same session view gate.</p>
+          <p>The practical guarantee: a page a caller is not permitted to see never appears in their search results, their retrieval, or an agent's assembled context bundle — restricted content cannot leak into a RAG pipeline through a side door. Restricted hub descriptors are likewise redacted from cluster listings.</p>
 
           <h2>Defense in depth</h2>
           <p>The hardening described here is one layer of a broader stack. For a complete picture, see:</p>

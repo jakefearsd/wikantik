@@ -65,7 +65,7 @@
       { "@type": "Question", "name": "What happens to wikilinks when a page is renamed?",
         "acceptedAnswer": { "@type": "Answer", "text": "Each page has a canonical_id — a 26-character ULID assigned at first save and immutable thereafter. External references can use the canonical_id instead of the slug; GET /api/pages/by-id/{canonical_id} resolves to the current page regardless of renames. The slug history is also tracked in page_slug_history." } },
       { "@type": "Question", "name": "How do agents navigate the Page Graph?",
-        "acceptedAnswer": { "@type": "Answer", "text": "The /knowledge-mcp server exposes structural spine tools — list_clusters, list_pages_by_filter, get_page_by_id, and sitemap — that let agents navigate by cluster membership, type, and canonical ID. The /api/structure/* REST endpoints serve the same data for non-MCP clients." } }
+        "acceptedAnswer": { "@type": "Answer", "text": "The /knowledge-mcp server exposes structural spine tools — list_clusters, list_tags, list_pages_by_filter, and get_page_by_id — that let agents navigate by cluster membership, type, and canonical ID. The /api/structure/* REST endpoints (including /api/structure/sitemap) serve the same data for non-MCP clients." } }
     ] }
   </script>
 </head>
@@ -141,7 +141,7 @@
             </details>
             <details>
               <summary>How do agents navigate the Page Graph?</summary>
-              <p>The <code>/knowledge-mcp</code> server exposes structural spine tools — <code>list_clusters</code>, <code>list_pages_by_filter</code>, <code>get_page_by_id</code>, and a sitemap endpoint — that let agents navigate by cluster membership, type, and canonical ID. The <code>/api/structure/*</code> REST endpoints serve the same data for non-MCP clients.</p>
+              <p>The <code>/knowledge-mcp</code> server exposes structural spine tools — <code>list_clusters</code>, <code>list_tags</code>, <code>list_pages_by_filter</code>, and <code>get_page_by_id</code> — that let agents navigate by cluster membership, type, and canonical ID. The <code>/api/structure/*</code> REST endpoints (including <code>/api/structure/sitemap</code>) serve the same data for non-MCP clients.</p>
             </details>
           </section>
         </div>

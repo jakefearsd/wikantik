@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
@@ -38,6 +38,20 @@ export default function BlogHome() {
       renderMath(articleRef.current);
     }
   }, [page]);
+
+  // React 19 re-applies dangerouslySetInnerHTML on every re-render of the host
+  // element, which wipes the KaTeX output renderMath injects. Memoize the
+  // article on the HTML string so unrelated re-renders (e.g. opening the delete
+  // modal) reuse the same element and React bails out of re-applying innerHTML.
+  // The content still ships in the initial SSR HTML.
+  const articleHtml = page?.contentHtml || page?.content || '';
+  const articleEl = useMemo(() => (
+    <article
+      ref={articleRef}
+      className="article-prose"
+      dangerouslySetInnerHTML={{ __html: articleHtml }}
+    />
+  ), [articleHtml]);
 
   const isOwner = user?.authenticated && user.loginPrincipal?.toLowerCase() === username?.toLowerCase();
   const isAdmin = user?.authenticated && user.roles?.includes('Admin');
@@ -92,11 +106,7 @@ export default function BlogHome() {
         )}
       </div>
 
-      <article
-        ref={articleRef}
-        className="article-prose"
-        dangerouslySetInnerHTML={{ __html: page.contentHtml || page.content || '' }}
-      />
+      {articleEl}
 
       {confirmDelete && (
         <div className="modal-overlay" onClick={() => setConfirmDelete(false)}>

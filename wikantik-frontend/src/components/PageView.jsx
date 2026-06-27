@@ -237,13 +237,16 @@ export default function PageView() {
     addHeadingAnchors(root);
   }, [page, headings]);
 
-  const onArticleMouseUp = () => {
+  // Stable identity (all deps below are stable refs/setters/imports) so the
+  // memoized article element (see `articleEl`) keeps a constant reference across
+  // unrelated re-renders and React doesn't re-apply dangerouslySetInnerHTML.
+  const onArticleMouseUp = useCallback(() => {
     const root = articleRef.current;
     if (!root) return;
     clearPendingHighlight(root); // drop any stale pending paint from a prior selection
     setComposerOpen(false);      // any new selection starts with composer closed
     setSelection(captureSelection(root));
-  };
+  }, []);
 
   const focusThread = (threadId) => {
     setFocusedThreadId(threadId);
@@ -418,6 +421,25 @@ export default function PageView() {
     navigate(internalPath);
   }, [navigate]);
 
+  // Memoize the article element on the HTML string alone. React 19 re-applies
+  // dangerouslySetInnerHTML on every re-render of the host element, which wipes
+  // the DOM mutations our post-render effects inject (copy buttons, KaTeX,
+  // heading anchors, comment <mark>s). Keying the element on the content string
+  // (with stable handlers) gives React a referentially-identical child on
+  // unrelated re-renders (scroll-spy, drawer, selection), so it bails out of
+  // reconciling the subtree and the injected DOM survives. The content still
+  // ships in the initial SSR HTML — this only changes re-render behavior.
+  const articleHtml = page?.contentHtml || page?.content || '';
+  const articleEl = useMemo(() => (
+    <article
+      ref={articleRef}
+      className="article-prose"
+      onClick={handleContentClick}
+      onMouseUp={onArticleMouseUp}
+      dangerouslySetInnerHTML={{ __html: articleHtml }}
+    />
+  ), [articleHtml, handleContentClick, onArticleMouseUp]);
+
   // Show the spinner only when we have nothing to display for THIS page yet.
   // Once we have data for `name` (seeded from the SSR island or fetched), a
   // background refresh (e.g. the auth-state-driven refetch) keeps the content
@@ -518,13 +540,7 @@ export default function PageView() {
       <ChangeNotesPanel pageName={name} />
 
       <div className="page-toc-wrapper">
-        <article
-          ref={articleRef}
-          className="article-prose"
-          onClick={handleContentClick}
-          onMouseUp={onArticleMouseUp}
-          dangerouslySetInnerHTML={{ __html: page.contentHtml || page.content || '' }}
-        />
+        {articleEl}
         <TableOfContents headings={headings} activeId={activeHeadingId} />
       </div>
 

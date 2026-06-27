@@ -44,7 +44,7 @@
     <maven.version>3.5</maven.version>
 
     <akismet-java.version>1.0.0</akismet-java.version>
-    <anthropic-java.version>2.44.0</anthropic-java.version>
+    <anthropic-java.version>2.44.1</anthropic-java.version>
     <awaitility.version>4.3.0</awaitility.version>
     <bcrypt.version>0.10.2</bcrypt.version>
     <commons-collections.version>4.5.0</commons-collections.version>

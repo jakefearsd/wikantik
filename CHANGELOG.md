@@ -6,6 +6,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Dependency upgrades.** Apache Jena 5.2.0 → 6.1.0 (major; the ontology RDF/SPARQL/SHACL/TDB2
+  surface uses only bedrock APIs and is unaffected), Lucene 10.4 → 10.5, pac4j 6.5.3 → 6.5.4,
+  anthropic-java 2.42 → 2.44, cyclonedx-maven-plugin 2.9.1 → 2.9.2. Verified across the full unit
+  and integration suites.
+- **Frontend upgraded to React 19 and Vite 8 (Rolldown).** React 18 → 19 and the build toolchain to
+  Vite 8 with the Rust-based Rolldown bundler — ~8× faster production builds, and esbuild + rollup are
+  dropped (clearing their advisories; `npm audit` is clean). Heavy vendor libraries (React, katex,
+  CodeMirror, Cytoscape) are split into separate long-term-cacheable chunks, shrinking the eager entry
+  bundle. Node 20.19+ (or 22.12+) is the documented build prerequisite (corrected from "18+").
+
+### Fixed
+- **React 19 rendering regression.** React 19 re-applies `dangerouslySetInnerHTML` on every re-render
+  of the host element (React 18 skipped an unchanged value), which wiped the copy buttons, KaTeX
+  output, and comment highlights that post-render effects inject into rendered pages. The article
+  element is now memoized on its HTML string, so unrelated re-renders (scroll-spy, drawer, text
+  selection, modals) keep the enhancements. Affected the page reader (`PageView`) and the blog views.
+- **Spam rate-limiter crash.** `DefaultSpamRateLimiter` cleared its temporary-ban list and
+  modification queue via `CopyOnWriteArrayList.iterator().remove()`, which throws
+  `UnsupportedOperationException` — so cleanup threw whenever an expired entry was present. Rewritten
+  with `removeIf()`.
+- **`WikiDocument.getContext()` NPE** when `setContext()` had never been called (the `WeakReference`
+  field was null); now null-guarded.
+
+### Removed
+- **Dead Guice integration.** `WikiModule`, the `WikiEngine` Guice `injector` field/branch, and the
+  `com.google.inject:guice` dependency are removed — Guice was scaffolded but never wired (never
+  instantiated, no injector ever assigned, no `@Inject` anywhere). The `guava` security pin is
+  retained (guava is still pulled transitively via pac4j-oidc/pac4j-saml).
+
+### Internal
+- **Code-quality pass.** Extracted `KnowledgeJsonMapper` from `AdminKnowledgeResource` (Extract Class),
+  deduplicated the SCIM resource HTTP dispatch into `AbstractScimServlet` (Template Method), and added
+  ~315 behavior-asserting unit tests — reactor line coverage 79.0% → 80.2%.
+- **SpotBugs configured for deeper analysis** (effort=Max, threshold=Low). Fixed the genuine findings
+  (audit-chain `ResultSet` handling, `Locale.ROOT` on locale-independent case conversions, XHTML DTD
+  constants made `final`) and suppressed the documented-convention noise so the scan stays actionable.
+
 ## [2.1.6] - 2026-06-26
 
 ### Security

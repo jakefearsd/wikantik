@@ -38,7 +38,7 @@ uncovers a bug), escalate to the matching skill the moment it stops being mechan
 |------|---------|-------|
 | Java (JDK) | 21+ | `java -version` |
 | Maven | 3.9+ | `mvn -version` |
-| Node.js + npm | 18+ | Required — WAR build runs `npm install` + `vite build` automatically |
+| Node.js + npm | 20.19+ (or 22.12+) | Required by Vite 8 (Rolldown). WAR build runs `npm install` + `vite build` automatically |
 | PostgreSQL | 15+ | For local deployment; unit tests use in-memory H2 |
 
 The `tomcat/` directory is **gitignored** and created on first run of `deploy-local.sh`.

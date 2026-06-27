@@ -34,6 +34,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -96,7 +97,7 @@ public class AdminAuditResource extends RestServletBase {
         AuditCategory cat = null;
         if ( category != null && !category.isBlank() ) {
             try {
-                cat = AuditCategory.valueOf( category.toUpperCase() );
+                cat = AuditCategory.valueOf( category.toUpperCase( Locale.ROOT ) );
             } catch ( final IllegalArgumentException e ) {
                 sendError( response, HttpServletResponse.SC_BAD_REQUEST,
                         "Unknown category: " + category );
@@ -107,7 +108,7 @@ public class AdminAuditResource extends RestServletBase {
         AuditOutcome out = null;
         if ( outcome != null && !outcome.isBlank() ) {
             try {
-                out = AuditOutcome.valueOf( outcome.toUpperCase() );
+                out = AuditOutcome.valueOf( outcome.toUpperCase( Locale.ROOT ) );
             } catch ( final IllegalArgumentException e ) {
                 sendError( response, HttpServletResponse.SC_BAD_REQUEST,
                         "Unknown outcome: " + outcome );

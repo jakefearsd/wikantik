@@ -65,9 +65,6 @@ import com.wikantik.util.PropertyReader;
 import com.wikantik.util.TextUtil;
 import com.wikantik.variables.VariableManager;
 
-import com.google.inject.ConfigurationException;
-import com.google.inject.Injector;
-import com.google.inject.ProvisionException;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import java.io.File;
@@ -610,9 +607,6 @@ public class WikiEngine implements Engine {
     // account's last-login timestamp on LOGIN_AUTHENTICATED.
     private volatile com.wikantik.auth.LastLoginEventListener lastLoginEventListener;
 
-    /** Guice injector for modern dependency management. */
-    private Injector injector;
-
     /** Hybrid-retrieval lifecycle handles; null when hybrid is disabled. */
     private com.wikantik.search.embedding.AsyncEmbeddingIndexListener hybridIndexListener;
     private com.wikantik.search.hybrid.QueryEmbedder hybridQueryEmbedder;
@@ -1154,17 +1148,7 @@ public class WikiEngine implements Engine {
         final T fromField = readTypedField( manager );
         if ( fromField != null ) return fromField;
 
-        // 2. Try Guice (for classes not in the typed table — plugin-contributed, etc.)
-        try {
-            if( injector != null ) {
-                return injector.getInstance( manager );
-            }
-        } catch( final ConfigurationException | ProvisionException e ) {
-            // Not bound in Guice — fall through to coreSubsystem bridge.
-            LOG.trace( "Manager {} not found in Guice or typed field", manager.getName() );
-        }
-
-        // 3. Fall through to typed subsystem services. Phase 2 of the
+        // 2. Fall through to typed subsystem services. Phase 2 of the
         //    wikantik-main decomposition removed SystemPageRegistry,
         //    RecentArticlesManager, and BlogManager from the typed-field table;
         //    this bridge keeps getManager(X.class) returning them transparently.

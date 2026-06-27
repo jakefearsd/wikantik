@@ -34,6 +34,7 @@ import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -106,7 +107,7 @@ public class TikaSourceExtractor implements SourceExtractor {
     @Override
     public boolean supports( final String contentType ) {
         if ( contentType == null ) { return false; }
-        return SUPPORTED_TYPES.contains( contentType.toLowerCase() );
+        return SUPPORTED_TYPES.contains( contentType.toLowerCase( Locale.ROOT ) );
     }
 
     @Override

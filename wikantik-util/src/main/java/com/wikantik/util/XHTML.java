@@ -69,17 +69,17 @@ public enum XHTML
     /** A String containing the Formal Public Identifier (FPI) for the XHTML 1.0 Strict DTD. */
     public static final String STRICT_DTD_PubId = "-//W3C//DTD XHTML 1.0 Strict//EN";
     /** A String containing a system identifier for the XHTML 1.0 Strict DTD. */
-    public static String STRICT_DTD_SysId = "xhtml1-strict.dtd";
+    public static final String STRICT_DTD_SysId = "xhtml1-strict.dtd";
 
     /** A String containing the Formal Public Identifier (FPI) for the XHTML 1.0 Transitional DTD. */
     public static final String TRANSITIONAL_DTD_PubId = "-//W3C//DTD XHTML 1.0 Transitional//EN";
     /** A String containing a system identifier for the XHTML 1.0 Transitional DTD. */
-    public static String TRANSITIONAL_DTD_SysId = "xhtml1-transitional.dtd";
+    public static final String TRANSITIONAL_DTD_SysId = "xhtml1-transitional.dtd";
 
     /** A String containing the Formal Public Identifier (FPI) for the XHTML 1.0 Frameset DTD. */
     public static final String FRAMESET_DTD_PubId = "-//W3C//DTD XHTML 1.0 Frameset//EN";
     /** A String containing a system identifier for the XHTML 1.0 Frameset DTD. */
-    public static String FRAMESET_DTD_SysId = "xhtml1-frameset.dtd";
+    public static final String FRAMESET_DTD_SysId = "xhtml1-frameset.dtd";
 
     // CSS strings ........................................................
 

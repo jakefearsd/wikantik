@@ -1267,6 +1267,16 @@
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-maven-plugin</artifactId>
             <version>${plugin.spotbugs.version}</version>
+            <configuration>
+                <!-- Maximum analysis depth + lowest reporting threshold so the
+                     scan surfaces low-priority correctness/security findings the
+                     default (medium) threshold hides. Main sources only; the
+                     reasoned suppressions live in build-support/spotbugs-exclude.xml. -->
+                <effort>Max</effort>
+                <threshold>Low</threshold>
+                <includeTests>false</includeTests>
+                <excludeFilterFile>${spotbugs.excludeFilterFile}</excludeFilterFile>
+            </configuration>
         </plugin>
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
@@ -1409,6 +1419,12 @@
         <groupId>com.github.spotbugs</groupId>
         <artifactId>spotbugs-maven-plugin</artifactId>
         <version>${plugin.spotbugs.version}</version>
+        <configuration>
+          <effort>Max</effort>
+          <threshold>Low</threshold>
+          <includeTests>false</includeTests>
+          <excludeFilterFile>${spotbugs.excludeFilterFile}</excludeFilterFile>
+        </configuration>
       </plugin>
 
       <!-- Code style -->

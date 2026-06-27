@@ -123,7 +123,12 @@ public final class JdbcAuditRepository implements AuditRepository {
     private void lockChain( final Connection c ) throws java.sql.SQLException {
         try ( PreparedStatement ps = c.prepareStatement( "SELECT pg_advisory_xact_lock( ? )" ) ) {
             ps.setLong( 1, CHAIN_LOCK_KEY );
-            ps.executeQuery();
+            // pg_advisory_xact_lock acquires the transaction-scoped lock as a
+            // side effect of execution; there are no rows to consume. Capturing
+            // the ResultSet in try-with-resources closes it explicitly.
+            try ( ResultSet rs = ps.executeQuery() ) {
+                // lock acquired; intentionally nothing to read
+            }
         }
     }
 

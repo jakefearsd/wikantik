@@ -20,6 +20,7 @@ package com.wikantik.api.knowledge;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -66,7 +67,7 @@ public final class RelationshipTypeVocabulary {
      */
     public static List< String > closestMatches( final String candidate, final int limit ) {
         if ( candidate == null || candidate.isBlank() ) return List.of();
-        final String lower = candidate.toLowerCase();
+        final String lower = candidate.toLowerCase( Locale.ROOT );
         record Scored( String name, int distance ) {}
         final List< Scored > scored = new ArrayList<>( CLOSED_VOCAB.size() );
         for ( final String v : CLOSED_VOCAB ) {

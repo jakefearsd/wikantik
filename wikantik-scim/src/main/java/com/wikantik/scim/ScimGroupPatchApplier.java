@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -53,7 +54,7 @@ public final class ScimGroupPatchApplier {
         }
         for ( final JsonElement opEl : patchOp.getAsJsonArray( "Operations" ) ) {
             final JsonObject op = opEl.getAsJsonObject();
-            final String operation = op.has( "op" ) ? op.get( "op" ).getAsString().toLowerCase() : "";
+            final String operation = op.has( "op" ) ? op.get( "op" ).getAsString().toLowerCase( Locale.ROOT ) : "";
             final String path = ( op.has( "path" ) && !op.get( "path" ).isJsonNull() )
                     ? op.get( "path" ).getAsString() : null;
             switch ( operation ) {

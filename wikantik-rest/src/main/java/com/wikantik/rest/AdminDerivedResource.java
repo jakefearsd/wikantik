@@ -40,6 +40,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -111,7 +112,7 @@ public class AdminDerivedResource extends RestServletBase {
             final IngestResult result = svc.reflow( page, admin );
             sendJsonWithStatus( response, 200, Map.of(
                 "page",    result.pageName(),
-                "status",  result.status().name().toLowerCase(),
+                "status",  result.status().name().toLowerCase( Locale.ROOT ),
                 "message", result.message() != null ? result.message() : "" ) );
         } else {
             // Corpus-wide reflow

@@ -84,4 +84,19 @@
         <Bug pattern="UWF_UNWRITTEN_FIELD"/>
     </Match>
 
+    <!-- ================================================================
+         THROWS_METHOD_THROWS_RUNTIMEEXCEPTION
+         The codebase deliberately documents the unchecked exceptions a
+         method may raise in its `throws` clause (e.g. throws RuntimeException
+         / IllegalStateException) as caller-facing documentation. SpotBugs
+         flags this as redundant bad practice, but it is an intentional,
+         pervasive convention (~130 sites) — suppressed app-wide so the scan
+         stays actionable. Genuine bugs in those methods still surface under
+         every other detector.
+    ================================================================ -->
+    <Match>
+        <Class name="~com\.wikantik\..*"/>
+        <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
+    </Match>
+
 </FindBugsFilter>

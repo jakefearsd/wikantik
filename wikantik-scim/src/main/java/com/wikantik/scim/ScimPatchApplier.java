@@ -21,6 +21,8 @@ package com.wikantik.scim;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import java.util.Locale;
+
 /**
  * Interprets a SCIM PatchOp (RFC 7644 §3.5.2), supporting the subset IdPs use:
  * add/remove/replace on simple paths. The load-bearing case is toggling
@@ -48,7 +50,7 @@ public final class ScimPatchApplier {
         }
         for ( final JsonElement opEl : patchOp.getAsJsonArray( "Operations" ) ) {
             final JsonObject op = opEl.getAsJsonObject();
-            final String operation = op.has( "op" ) ? op.get( "op" ).getAsString().toLowerCase() : "";
+            final String operation = op.has( "op" ) ? op.get( "op" ).getAsString().toLowerCase( Locale.ROOT ) : "";
             final String path = op.has( "path" ) && !op.get( "path" ).isJsonNull()
                     ? op.get( "path" ).getAsString() : null;
             if ( path != null && ( path.contains( "[" ) || path.contains( "." ) && path.contains( " " ) ) ) {

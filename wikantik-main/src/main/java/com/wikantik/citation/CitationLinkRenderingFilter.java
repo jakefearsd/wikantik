@@ -27,6 +27,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -127,7 +128,7 @@ public final class CitationLinkRenderingFilter implements PageFilter {
         lastSegment = ( slash >= 0 ) ? decoded.substring( slash + 1 ) : decoded;
 
         // Normalise: lowercase, spaces → '-', strip non-alphanumerics (except '-').
-        final String anchor = lastSegment.toLowerCase()
+        final String anchor = lastSegment.toLowerCase( Locale.ROOT )
             .replaceAll( "\\s+", "-" )
             .replaceAll( "[^a-z0-9\\-]", "" );
         return anchor.isEmpty() ? "" : "#" + anchor;

@@ -18,6 +18,8 @@
  */
 package com.wikantik.markdown.extensions.math;
 
+import java.util.Locale;
+
 /**
  * Marks the byte offsets of a Markdown body that fall inside code — fenced code blocks
  * ({@code ```} / {@code ~~~}, but NOT {@code ```math}, which is display math) and inline
@@ -50,7 +52,7 @@ public final class CodeRegions {
             if (!inFence && isFence) {
                 inFence = true;
                 fenceMarker = trimmed.startsWith("```") ? "```" : "~~~";
-                final String info = trimmed.substring(3).strip().toLowerCase();
+                final String info = trimmed.substring(3).strip().toLowerCase( Locale.ROOT );
                 fenceIsMath = info.equals("math");
                 if (!fenceIsMath) { maskLine(masked, offset, line.length()); }
             } else if (inFence && isFence && trimmed.startsWith(fenceMarker)) {

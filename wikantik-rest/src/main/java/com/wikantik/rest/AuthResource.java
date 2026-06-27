@@ -299,7 +299,7 @@ public class AuthResource extends RestServletBase {
      * providers so the button always reads sensibly.
      */
     private static String ssoProviderLabel( final Properties props ) {
-        final String discovery = props.getProperty( SSOConfig.PROP_OIDC_DISCOVERY_URI, "" ).toLowerCase();
+        final String discovery = props.getProperty( SSOConfig.PROP_OIDC_DISCOVERY_URI, "" ).toLowerCase( Locale.ROOT );
         if ( discovery.contains( "google" ) ) {
             return "Google";
         }

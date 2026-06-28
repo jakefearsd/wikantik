@@ -266,6 +266,10 @@ public class EmbeddingIndexService {
                 conn.rollback();
                 LOG.warn( "indexAll rolled back (model={}): {}", modelCode, e.getMessage(), e );
                 throw new RuntimeException( "indexAll failed for " + modelCode, e );
+            } catch( final RuntimeException e ) {
+                conn.rollback();   // explicit — do not depend on implicit rollback-on-close
+                LOG.warn( "indexAll rolled back on runtime error (model={}): {}", modelCode, e.getMessage(), e );
+                throw e;
             }
         } catch( final SQLException e ) {
             LOG.warn( "indexAll connection failed (model={}): {}", modelCode, e.getMessage(), e );
@@ -321,6 +325,10 @@ public class EmbeddingIndexService {
                 conn.rollback();
                 LOG.warn( "indexStale rolled back (model={}): {}", modelCode, e.getMessage(), e );
                 throw new RuntimeException( "indexStale failed for " + modelCode, e );
+            } catch( final RuntimeException e ) {
+                conn.rollback();   // explicit — do not depend on implicit rollback-on-close
+                LOG.warn( "indexStale rolled back on runtime error (model={}): {}", modelCode, e.getMessage(), e );
+                throw e;
             }
         } catch( final SQLException e ) {
             LOG.warn( "indexStale connection failed (model={}): {}", modelCode, e.getMessage(), e );
@@ -388,6 +396,11 @@ public class EmbeddingIndexService {
                 LOG.warn( "indexChunks rolled back (model={}, ids={}): {}",
                     modelCode, chunkIds.size(), e.getMessage(), e );
                 throw new RuntimeException( "indexChunks failed for " + modelCode, e );
+            } catch( final RuntimeException e ) {
+                conn.rollback();   // explicit — do not depend on implicit rollback-on-close
+                LOG.warn( "indexChunks rolled back on runtime error (model={}, ids={}): {}",
+                    modelCode, chunkIds.size(), e.getMessage(), e );
+                throw e;
             }
         } catch( final SQLException e ) {
             LOG.warn( "indexChunks connection failed (model={}): {}", modelCode, e.getMessage(), e );

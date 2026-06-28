@@ -117,10 +117,11 @@ public class RetrieveContextTool implements McpTool {
 
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
-            .description( "Retrieve wiki context for a natural-language query. " +
-                "Returns {query, pages: [{name, url, score, summary, cluster, tags, " +
-                "contributingChunks, relatedPages, author, lastModified}], totalMatched}. " +
-                "Primary RAG entry point for agents consuming wiki context." )
+            .description( "Discover which wiki pages/sections are relevant to a query. Returns {query, pages: [{name, url, " +
+                "score, summary, cluster, tags, contributingChunks, relatedPages, author, lastModified}], totalMatched}. " +
+                "To COMPOSE AN ANSWER, prefer assemble_bundle (cited section text). One call usually suffices — raise " +
+                "maxPages/chunksPerPage rather than re-querying with reworded queries. Ground any claim only in the " +
+                "returned chunk text; do not add specifics that are not present." )
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties, List.of( "query" ), null, null, null ) )
             .outputSchema( outputSchema )

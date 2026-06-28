@@ -80,9 +80,10 @@ public class AssembleBundleTool implements McpTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Assemble a RAG-as-a-Service context bundle: a ranked, de-duplicated, "
-                        + "version-pinned, citation-bearing set of wiki sections for a query. Returns evidence "
-                        + "to ground on — it does NOT synthesize an answer." )
+                .description( "PRIMARY tool for answering a question from the wiki. Returns a ranked, de-duplicated, "
+                        + "version-pinned, citation-bearing set of section texts to ground your answer on. Prefer this "
+                        + "for how/why/what questions. Ground your answer ONLY in the returned sections and cite them. "
+                        + "Optional 'mode' arg: hybrid (default), dense, or lexical. Does NOT synthesize an answer." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of( "query" ), null, null, null ) )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();

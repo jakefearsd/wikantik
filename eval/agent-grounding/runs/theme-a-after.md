@@ -34,7 +34,11 @@ Both grounded arms improved; cold unchanged (as expected — no grounding).
   `kg-rerank-default` mcp 0→2, `contextual-embeddings-prefix` mcp 0→2,
   `chunker-heading-fidelity` mcp 0→1, `kg-inclusion-default` bundle 0→1.
 
-### The three per-arm drops — each explained, none from a Theme A edit
+### The three per-arm drops — each explained; none is corpus damage
+
+(Two are on content Theme A never touched; the third *is* caused by a Theme A
+edit, but it is correct content meeting a too-narrow reference, not a regression
+in the corpus.)
 
 The plan's strict "no per-arm regression" sub-clause tripped on three cells.
 Graded-rationale review (the design's "manual review of graded rows is cheap"

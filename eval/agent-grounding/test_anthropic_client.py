@@ -40,3 +40,38 @@ def test_run_tool_loop_caps_iterations():
                            tools=[{"name": "search_knowledge", "input_schema": {}}],
                            exec_tool=exec_tool, http=fake_http, max_iters=3)
     assert len(out["tool_calls"]) == 3  # stopped at the cap
+
+def test_cap_hit_no_consecutive_roles_and_no_tools():
+    """Cap-hit final call must use messages as-is (strict role alternation, no tools key)."""
+    max_iters = 2
+    call_count = {"n": 0}
+    captured_payloads = []
+
+    def fake_http(payload):
+        captured_payloads.append(payload)
+        n = call_count["n"]
+        call_count["n"] += 1
+        if n < max_iters:
+            return _tool_resp("search_knowledge", {"q": "x"}, tid=f"t{n}")
+        return _text_resp("capped answer")
+
+    def exec_tool(name, inp):
+        return "result"
+
+    out = ac.run_tool_loop(CFG, "m", "sys", "question",
+                           tools=[{"name": "search_knowledge", "input_schema": {}}],
+                           exec_tool=exec_tool, http=fake_http, max_iters=max_iters)
+
+    assert out["answer"] == "capped answer"
+    assert len(out["tool_calls"]) == max_iters
+
+    # Final payload is the cap-hit call (tools-less)
+    final_payload = captured_payloads[-1]
+    assert "tools" not in final_payload, "cap-hit call must not include a tools key"
+
+    # No two consecutive messages with the same role
+    msgs = final_payload["messages"]
+    for i in range(len(msgs) - 1):
+        assert msgs[i]["role"] != msgs[i + 1]["role"], (
+            f"Consecutive same role '{msgs[i]['role']}' at positions {i} and {i + 1}"
+        )

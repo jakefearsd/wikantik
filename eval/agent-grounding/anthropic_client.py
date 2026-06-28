@@ -28,7 +28,7 @@ def complete(cfg, model, system, messages, tools=None, http=None):
     post = http or _default_http(cfg)
     payload = {"model": model, "max_tokens": _MAX_TOKENS, "system": system,
                "messages": messages}
-    if tools:
+    if tools is not None:
         payload["tools"] = tools
     return post(payload)
 
@@ -51,8 +51,6 @@ def run_tool_loop(cfg, model, system, user_text, tools, exec_tool, http=None, ma
                                "result_excerpt": (out or "")[:500]})
             results.append({"type": "tool_result", "tool_use_id": tu["id"], "content": out})
         messages.append({"role": "user", "content": results})
-    # cap hit: ask once more for a final answer with tools disabled
-    final = complete(cfg, model, system,
-                     messages + [{"role": "user", "content": "Answer now with what you have."}],
-                     tools=None, http=post)
+    # cap hit: messages already ends with a user (tool_result) turn; pass as-is with tools disabled
+    final = complete(cfg, model, system, messages, tools=None, http=post)
     return {"answer": extract_text(final), "tool_calls": tool_calls}

@@ -36,7 +36,8 @@ def scorecard_md(summary, graded, meta):
         if arm in summary:
             lines.append("")
             lines.append("**%s − cold delta:** %+.3f" % (arm, summary[arm]["mean_correctness"] - cold))
-    lines += ["", "_Small-N directional result; not a statistical claim._", "",
+    lines += ["", "_Small-N directional result; not a statistical claim._",
+              "_Citation-hit rates are per-arm heuristics (bundle = retrieval slugs; mcp/cold = the model's Sources: line) and are NOT directly comparable across arms; the correctness column is the comparable headline. Errored rows score correctness 0._", "",
               "## Per-question", "", "| qid | cold | bundle | mcp |", "|---|---|---|---|"]
     by_q = collections.defaultdict(dict)
     for r in graded:

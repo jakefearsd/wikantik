@@ -89,6 +89,11 @@ python3 run_eval.py --run-id "${RUN}-bm25" --lexical && \
 --max-tool-iters N    Max tool-loop iterations for grounded_mcp arm (default: 6)
 ```
 
+## Caveats
+
+- **Citation-hit rates are per-arm heuristics and not directly comparable across arms.** The `grounded_bundle` arm is auto-credited the retrieved section slugs, while `grounded_mcp` and `cold` rely on the model's `Sources:` line to identify cited pages. Use the correctness score for the head-to-head comparison.
+- **A row that errors (e.g., MCP unreachable) is graded correctness 0**, so a run with a flaky backend will deflate that arm's mean. Check `interface-findings.md` / `raw.json` for error rows before trusting an arm's mean correctness.
+
 ## Running tests
 
 ```bash

@@ -34,3 +34,15 @@ def test_load_config_missing_anthropic_key(monkeypatch):
         assert False, "should have raised"
     except SystemExit:
         pass
+
+def test_load_config_samples_default(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("MCP_ACCESS_KEYS", "k1")
+    cfg = config.load_config([])
+    assert cfg.samples == 1
+
+def test_load_config_samples_set(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("MCP_ACCESS_KEYS", "k1")
+    cfg = config.load_config(["--samples", "3"])
+    assert cfg.samples == 3

@@ -17,6 +17,8 @@ def load_config(argv):
     p.add_argument("--lexical", action="store_true",
                    help="hint the bundle/retrieval to lexical (BM25) mode for the dense-vs-BM25 comparison")
     p.add_argument("--max-tool-iters", type=int, default=6)
+    p.add_argument("--samples", type=int, default=1,
+                   help="how many independent runs to collect per (arm, question) before taking median")
     args = p.parse_args(argv)
 
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -34,4 +36,5 @@ def load_config(argv):
         judge_model=args.judge_model,
         lexical=args.lexical,
         max_tool_iters=args.max_tool_iters,
+        samples=args.samples,
     )

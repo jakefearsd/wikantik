@@ -53,3 +53,11 @@ def test_fetch_bundle_empty_sections():
     out = bundle_client.fetch_bundle("http://x", "q", http=fake_http)
     assert out["cited_pages"] == []
     assert out["context"] == ""
+
+
+def test_fetch_bundle_raises_on_non_200():
+    import pytest
+    def fake_http(url):
+        return 500, ""
+    with pytest.raises(RuntimeError, match="bundle HTTP 500"):
+        bundle_client.fetch_bundle("http://x", "q", http=fake_http)

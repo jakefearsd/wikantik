@@ -8,27 +8,34 @@ import arms as arms_mod
 import mcp_client
 
 
-def _safe(fn, arm, qid):
+def _safe(fn, arm, qid, sample=0):
     try:
-        return fn()
+        row = fn()
+        row["sample"] = sample
+        return row
     except Exception as e:  # isolate one failure
         return {"arm": arm, "qid": qid, "answer": "", "tool_calls": [],
-                "cited_pages": [], "error": "%s: %s" % (type(e).__name__, e)}
+                "cited_pages": [], "error": "%s: %s" % (type(e).__name__, e),
+                "sample": sample}
 
 
 def run_all(cfg, qs, arms_impl, mcp):
     rows = []
     for q in qs:
-        rows.append(_safe(lambda: arms_impl.cold(cfg, q), "cold", q["id"]))
-        rows.append(_safe(lambda: arms_impl.grounded_bundle(cfg, q), "grounded_bundle", q["id"]))
-        rows.append(_safe(lambda: arms_impl.grounded_mcp(cfg, q, mcp=mcp), "grounded_mcp", q["id"]))
+        for s in range(cfg.samples):
+            rows.append(_safe(lambda: arms_impl.cold(cfg, q), "cold", q["id"], s))
+            rows.append(_safe(lambda: arms_impl.grounded_bundle(cfg, q), "grounded_bundle", q["id"], s))
+            rows.append(_safe(lambda: arms_impl.grounded_mcp(cfg, q, mcp=mcp), "grounded_mcp", q["id"], s))
     return rows
 
 
 def main(argv):
     run_id = None
     if "--run-id" in argv:
-        i = argv.index("--run-id"); run_id = argv[i + 1]; argv = argv[:i] + argv[i + 2:]
+        i = argv.index("--run-id")
+        if i + 1 < len(argv):
+            run_id = argv[i + 1]
+            argv = argv[:i] + argv[i + 2:]
     if not run_id:
         sys.exit("pass --run-id <timestamp> (e.g. --run-id $(date -u +%Y%m%dT%H%M%SZ))")
     cfg = config.load_config(argv)

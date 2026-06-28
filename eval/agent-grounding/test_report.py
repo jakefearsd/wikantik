@@ -1,5 +1,21 @@
 import report
 
+def test_reduce_samples_collapses_to_median():
+    rows = [
+        {"arm": "cold", "qid": "q1", "correctness": 2, "citation_hit": True, "rationale": "ok", "tool_calls": [], "sample": 0},
+        {"arm": "cold", "qid": "q1", "correctness": 1, "citation_hit": False, "rationale": "ok", "tool_calls": [], "sample": 1},
+        {"arm": "cold", "qid": "q1", "correctness": 2, "citation_hit": True, "rationale": "ok", "tool_calls": [], "sample": 2},
+    ]
+    reduced = report._reduce_samples(rows)
+    assert len(reduced) == 1
+    assert reduced[0]["correctness"] == 2  # median of [2, 1, 2] = 2, not mean 1.67
+
+def test_reduce_samples_identity():
+    rows = [{"arm": "cold", "qid": "q1", "correctness": 1, "citation_hit": False, "rationale": "ok", "tool_calls": [], "sample": 0}]
+    reduced = report._reduce_samples(rows)
+    assert len(reduced) == 1
+    assert reduced[0]["correctness"] == 1
+
 GRADED = [
     {"arm": "cold", "qid": "q1", "correctness": 0, "citation_hit": False, "tool_calls": [], "rationale": "wrong"},
     {"arm": "grounded_mcp", "qid": "q1", "correctness": 2, "citation_hit": True,

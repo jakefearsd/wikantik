@@ -47,6 +47,8 @@ def fetch_bundle(base_url, query, lexical=False, http=None):  # noqa: ARG001  le
     params = {"q": query}
     url = base_url.rstrip("/") + "/api/bundle?" + urllib.parse.urlencode(params)
     status, body = http(url)
+    if not (200 <= status < 300):
+        raise RuntimeError("bundle HTTP %d" % status)
     data = json.loads(body) if body else {}
     sections = data.get("sections", [])
     cited = []

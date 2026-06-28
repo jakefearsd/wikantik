@@ -7,7 +7,7 @@ _JUDGE_SYS = ("You are a strict grader. Compare a candidate ANSWER to a REFERENC
               "1 = partially correct or vague, 0 = wrong, refused, or hallucinated. "
               "Reply with one or two sentences of rationale, then a final line exactly "
               "'SCORE: N' where N is 0, 1, or 2.")
-_SCORE_RE = re.compile(r"SCORE:\s*([012])")
+_SCORE_LINE_RE = re.compile(r"^\s*SCORE:\s*([0-2])\s*$")
 
 
 def citation_hit(cited_pages, expect_sources):
@@ -22,8 +22,12 @@ def judge_one(cfg, question, answer, http=None):
     resp = anthropic_client.complete(cfg, cfg.judge_model, _JUDGE_SYS,
                                      [{"role": "user", "content": user}], http=http)
     text = anthropic_client.extract_text(resp)
-    m = _SCORE_RE.search(text)
-    return (int(m.group(1)) if m else 0), text.strip()
+    last_match = None
+    for line in text.splitlines():
+        m = _SCORE_LINE_RE.match(line)
+        if m:
+            last_match = m
+    return (int(last_match.group(1)) if last_match else 0), text.strip()
 
 
 def grade_run(cfg, raw, questions_by_id, http=None):

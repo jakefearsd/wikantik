@@ -1,7 +1,28 @@
 """Render scorecard.md + interface-findings.md from graded.json. Stdlib only."""
 import collections
+import statistics
 
 _ARMS = ["cold", "grounded_bundle", "grounded_mcp"]
+
+
+def _reduce_samples(graded):
+    """Collapse multiple samples per (arm, qid) to a single row with median correctness.
+
+    Groups rows by (arm, qid). For each group, emits one row — a copy of the first
+    row in the group — with ``correctness`` overwritten by the integer median of all
+    correctness values in that group. With samples=1 every group has one row and this
+    is the identity transformation.
+    """
+    groups = collections.OrderedDict()
+    for r in graded:
+        key = (r["arm"], r["qid"])
+        groups.setdefault(key, []).append(r)
+    result = []
+    for rows in groups.values():
+        representative = dict(rows[0])
+        representative["correctness"] = int(statistics.median(r["correctness"] for r in rows))
+        result.append(representative)
+    return result
 
 
 def summarize(graded):
@@ -105,7 +126,7 @@ def main(argv):
     run_dir = argv[0]
     with open(os.path.join(run_dir, "graded.json")) as f:
         data = json.load(f)
-    graded = data["results"]
+    graded = _reduce_samples(data["results"])
     summary = summarize(graded)
     with open(os.path.join(run_dir, "scorecard.md"), "w") as f:
         f.write(scorecard_md(summary, graded, data))

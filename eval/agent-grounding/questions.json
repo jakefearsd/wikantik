@@ -1,0 +1,128 @@
+[
+  {
+    "id": "stale-citation-grading",
+    "question": "When a Wikantik page cites another page's section, how does the system later notice that citation has gone stale, and at what granularity does it report staleness?",
+    "reference": "Citations are parsed from inline cite:// markup at save into the citations table, version-pinned and span-hashed. A check compares the stored span hash against the current target section and reports graded span-level staleness, surfaced via list_stale_citations and /admin/drift/citations.",
+    "expect_sources": ["WikantikKnowledgeGraph"],
+    "difficulty": "medium"
+  },
+  {
+    "id": "kg-rerank-default",
+    "question": "Does Wikantik's hybrid search use the Knowledge Graph to rerank results by default? Why or why not?",
+    "reference": "No. The KG graph-rerank is shelved: boost defaults to 0 and it is never wired into production. A 2026-06-16 ceiling experiment measured zero net lift, so production search runs BM25 + dense only.",
+    "expect_sources": ["KnowledgeGraphRerank", "HybridRetrieval"],
+    "difficulty": "hard"
+  },
+  {
+    "id": "page-vs-knowledge-graph",
+    "question": "What is the difference between Wikantik's Page Graph and its Knowledge Graph, and what are the edges in each?",
+    "reference": "The Page Graph's edges are real page-to-page wikilinks (plus canonical_id and cluster companions). The Knowledge Graph's nodes are LLM-extracted entities and its edges are co-mention or typed-relation predicates (kg_* tables).",
+    "expect_sources": ["PageGraphVsKnowledgeGraph"],
+    "difficulty": "easy"
+  },
+  {
+    "id": "derived-page-definition",
+    "question": "What makes a page 'derived' in Wikantik, and what is special about its body?",
+    "reference": "A page is derived iff its frontmatter has derived_from (the retained source attachment). Its body is machine-owned/regenerable; reflow re-extracts the body while preserving body-independent curation.",
+    "expect_sources": ["AgentGradeContentDesign", "WikantikKnowledgeGraph"],
+    "difficulty": "medium"
+  },
+  {
+    "id": "bundle-vs-synthesis",
+    "question": "Does Wikantik's RAG endpoint answer questions, or do something else? What does it return?",
+    "reference": "It never synthesizes answers (ADR-0001). /api/bundle and assemble_bundle return a ranked, de-duplicated, version-pinned-cited context bundle of sections; answer synthesis is left to the caller.",
+    "expect_sources": ["WikantikKnowledgeGraph"],
+    "difficulty": "medium"
+  },
+  {
+    "id": "entity-class-count",
+    "question": "How many entity classes can Wikantik's extractor emit, and what governs the list?",
+    "reference": "Exactly 9 canonical classes (person, organization, place, event, product, technology, concept, project, version) defined in EntityTypeVocabulary; both extractors are allowlisted to it, defaulting unknowns to concept.",
+    "expect_sources": ["WikantikKnowledgeGraph"],
+    "difficulty": "medium"
+  },
+  {
+    "id": "read-path-acl",
+    "question": "If a page is restricted, can it still show up in an agent's retrieved context or search results?",
+    "reference": "No. View ACLs are enforced on the read path including the agent surface — REST read endpoints, the /knowledge-mcp retrieval/KG tools, and /api/bundle all run candidates through a session view gate, so restricted content never enters search, retrieval, or a context bundle.",
+    "expect_sources": ["WikiPermissionModelGuide", "WikantikArchitecture"],
+    "difficulty": "medium"
+  },
+  {
+    "id": "canonical-id-rename",
+    "question": "What happens to inbound wikilinks when a Wikantik page is renamed?",
+    "reference": "Each page has an immutable 26-char canonical_id assigned at first save; references can resolve by canonical_id regardless of renames, and slug history is tracked, so links survive renames.",
+    "expect_sources": ["StructuralSpineDesign", "PageGraphVsKnowledgeGraph"],
+    "difficulty": "easy"
+  },
+  {
+    "id": "kg-inclusion-default",
+    "question": "Which pages contribute entities to Wikantik's Knowledge Graph by default, and how can an individual page override the default?",
+    "reference": "Cluster-primary policy: whole clusters are excluded by default. Pages in an included cluster contribute automatically; pages in an excluded cluster can opt in via kg_include: true in frontmatter. The policy is managed via bin/kg-policy.sh and the admin KG policy dashboard.",
+    "expect_sources": ["KgInclusionPolicy"],
+    "difficulty": "medium"
+  },
+  {
+    "id": "mcp-tool-counts",
+    "question": "How many tools does each Wikantik MCP server expose, and which one supports write operations?",
+    "reference": "The /wikantik-admin-mcp server exposes 26 tools including write/analytics/KG-curation operations. The /knowledge-mcp server exposes 19-20 read-only tools. The /tools/* OpenAPI surface has 2 tools. Only admin-mcp supports writes.",
+    "expect_sources": ["McpIntegration", "WikantikKnowledgeGraph"],
+    "difficulty": "medium"
+  },
+  {
+    "id": "chunker-heading-fidelity",
+    "question": "What chunker bug was fixed to improve Wikantik's retrieval section recall, and what configuration controls fragment merging?",
+    "reference": "ContentChunker was fixed to force-emit the merge-forward buffer at each heading boundary so early/first-H2 sections keep their own heading_path instead of being mis-attributed. The config option wikantik.chunker.fragment_floor_tokens=24 merges sub-floor fragments forward. Together with contextual embeddings this raised global section recall@12 from 0.60 to 0.74.",
+    "expect_sources": ["HybridRetrieval"],
+    "difficulty": "hard"
+  },
+  {
+    "id": "dense-backend-options",
+    "question": "What are the three dense index backend options in Wikantik's hybrid retrieval, and which is the default in production Docker deployments?",
+    "reference": "The three options are inmemory, pgvector, and lucene-hnsw, configured via wikantik.search.dense.backend. The lucene-hnsw backend is the docker1 production default. The inmemory backend requires a restart after re-indexing for the dense-chunk bundle to hydrate, unlike lucene-hnsw and pgvector.",
+    "expect_sources": ["HybridRetrieval"],
+    "difficulty": "medium"
+  },
+  {
+    "id": "agent-grade-runbook-frontmatter",
+    "question": "What additional frontmatter block does the 'type: runbook' page type require in Wikantik, and what fields must it contain?",
+    "reference": "A runbook: block in frontmatter with three required fields: when_to_use (specific triggers), steps (ordered list of atomic actions), and pitfalls (common failure modes and mitigations). This structure drives the agent-grade page projection.",
+    "expect_sources": ["AgentGradeContentDesign"],
+    "difficulty": "medium"
+  },
+  {
+    "id": "ontology-shacl-gate",
+    "question": "What happens when an attempted Knowledge Graph edge fails SHACL validation in Wikantik, and how narrow is the gate?",
+    "reference": "The gate is narrow — currently only 2 shaped predicates (implements, located_in). On the human curation path, DefaultKgCurationOps.tryUpsertEdge refuses a non-conformant edge with the violated shape name. On the machine path, KgMaterializationService skips, logs, and counts non-conformant edges without failing the pipeline.",
+    "expect_sources": ["WikantikKnowledgeGraph"],
+    "difficulty": "hard"
+  },
+  {
+    "id": "bcrypt-transparent-migration",
+    "question": "How does Wikantik handle the upgrade from legacy SHA-256 password hashing to bcrypt without forcing users to change their passwords?",
+    "reference": "Transparent bcrypt migration: on successful login with a SHA-256 (or SSHA) hashed password, the system re-hashes the supplied plaintext to bcrypt and updates the stored hash in the database. The user notices nothing; the upgrade happens at first login.",
+    "expect_sources": ["CryptographyFundamentals"],
+    "difficulty": "medium"
+  },
+  {
+    "id": "contextual-embeddings-prefix",
+    "question": "What text prefix does Wikantik prepend to page sections when building embeddings for the dense retrieval index, and why?",
+    "reference": "EmbeddingTextBuilder.forDocument prepends 'Page: {title} | Cluster: {cluster} | Section: {heading}' plus the page summary from frontmatter before embedding each chunk. This contextual document embedding approach helps the model disambiguate sections that would otherwise lack enough context, and was one of the two changes that lifted global section recall@12 from 0.60 to 0.74.",
+    "expect_sources": ["HybridRetrieval"],
+    "difficulty": "hard"
+  },
+  {
+    "id": "scim-group-admin-restriction",
+    "question": "Can an IdP use SCIM group provisioning to grant a Wikantik user the Admin role?",
+    "reference": "No. SCIM Groups never grant the Admin role by design. Group membership provisioned via /scim/v2/Groups routes through GroupManager but the Admin role cannot be elevated through SCIM even if the IdP group is named Admin.",
+    "expect_sources": ["WikantikArchitecture"],
+    "difficulty": "medium"
+  },
+  {
+    "id": "kg-predicates-count",
+    "question": "How many KG predicates are defined in Wikantik's wikantik.ttl T-Box ontology, and what external vocabularies do they map to?",
+    "reference": "21 KG predicates are defined in the T-Box, each with domain and range constraints. They include public mappings to schema.org, SKOS, Dublin Core, and PROV-O, making the ontology interoperable with standard semantic web vocabularies.",
+    "expect_sources": ["WikantikKnowledgeGraph"],
+    "difficulty": "hard"
+  }
+]

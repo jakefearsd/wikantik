@@ -51,12 +51,7 @@ The results from BM25 and Dense retrieval are combined using **Reciprocal Rank F
 *   **Resilience**: The system is designed to "fail-safe." If the embedding service is down, the fuser automatically collapses to the lexical result, ensuring search remains functional.
 
 ### D. Knowledge Graph Reranking
-The final stage is the **KG-Aware Reranker** (`GraphRerankStep`). It applies a "proximity boost" to the fused results based on the Wikantik Knowledge Graph.
-
-1.  **Query-Entity Resolution**: `QueryEntityResolver` matches query terms to canonical KG entity names.
-2.  **Graph Traversal**: `GraphProximityScorer` runs a multi-source BFS from the query entities through the **undirected co-mention neighborhood**.
-3.  **Proximity Score**: Reachable entities get a distance score of $1 / (1 + \text{hops})$, capped at a maximum radius.
-4.  **Final Ordering**: The boost is applied to the fused list: $\text{Rank}_{fused} + (\text{boost} \times \text{proximity})$. This surfaces highly relevant documentation clusters together.
+KG reranking is **off by default** (boost=0, never wired into production; shelved 2026-06-16 after a measured zero-lift ceiling spike). See `KnowledgeGraphRerank`.
 
 ## 2. The Embedding Infrastructure
 

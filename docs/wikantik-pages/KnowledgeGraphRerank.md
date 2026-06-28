@@ -19,6 +19,14 @@ canonical_id: 01KQPQVYPFSBSGX38YP6XFQPMV
 
 # Knowledge Graph Rerank
 
+> **Status: OFF by default — shelved.** Knowledge-Graph reranking is **not**
+> used in default hybrid search. The boost weight defaults to **0** and the
+> page-level reranker was **never wired into production**. A 2026-06-16 ceiling
+> spike measured **zero net lift** even with a Claude-quality KG: relational
+> section relevance is not the same as entity-proximity. The rerank was shelved
+> (Phase 4 Track A) and left **dormant, not removed**. Do not expect KG
+> reranking to affect retrieval results unless it is explicitly re-enabled.
+
 > 🌐 **Product overview:** [Knowledge graph on wikantik.com](https://www.wikantik.com/platform/knowledge-graph.html) — a plain-language walkthrough for readers and AI agents.
 
 
@@ -46,8 +54,8 @@ The reranker identifies "seed nodes" within the top-N results from the hybrid fu
 Reranking behavior is controlled via `wikantik-custom.properties`:
 
 ```properties
-# Enable/Disable graph reranking
-jspwiki.search.graphRerank.enabled = true
+# Graph reranking boost weight — defaults to 0 (OFF; shelved 2026-06-16)
+wikantik.search.graphRerank.boost = 0
 
 # Weights for different retrieval signals
 jspwiki.search.hybrid.bm25Weight = 0.4

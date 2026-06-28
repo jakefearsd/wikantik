@@ -35,7 +35,12 @@ def main(argv):
     qs = questions_mod.load_questions()
     questions_mod.validate(qs)
     mcp = mcp_client.McpClient(cfg.base_url, cfg.mcp_key)
-    mcp.connect()
+    try:
+        mcp.connect()
+    except Exception as e:
+        print("WARN: MCP connect failed (%s: %s); grounded_mcp rows will record the error" % (
+            type(e).__name__, e))
+        mcp = None
     rows = run_all(cfg, qs, arms_mod, mcp)
     out_dir = os.path.join(os.path.dirname(__file__), "runs", run_id)
     os.makedirs(out_dir, exist_ok=True)

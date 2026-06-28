@@ -34,6 +34,7 @@ class McpClient:
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
             "Authorization": "Bearer " + self._bearer,
+            "User-Agent": "curl/7.68.0",
         }
         if self._session_id:
             headers["Mcp-Session-Id"] = self._session_id

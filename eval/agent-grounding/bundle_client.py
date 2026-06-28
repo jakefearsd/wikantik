@@ -14,7 +14,10 @@ import urllib.request
 
 
 def _default_http(url):
-    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    req = urllib.request.Request(url, headers={
+        "Accept": "application/json",
+        "User-Agent": "curl/7.68.0",
+    })
     with urllib.request.urlopen(req, timeout=120) as r:
         return r.status, r.read().decode()
 

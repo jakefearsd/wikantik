@@ -117,45 +117,50 @@ page/cluster/heading context. The **query** side keeps its own instruction
 prefix (the two prefixes are deliberately different).
 ```
 
-- [ ] **Step 3: Make the dense-backend fact a single retrievable statement**
+> **Task 1 baseline correction:** the dense-backend gap is **already-works** —
+> `HybridRetrieval` has a complete 3-option table and bundle ranks it #1. Do NOT
+> add a dense-backend statement (it would risk a recall regression for zero
+> gain). This task now covers ONLY the chunker fix + contextual embeddings.
 
-In `docs/wikantik-pages/HybridRetrieval.md`, ensure the `### Dense backend selection` section opens with this exact sentence (add it if the section buries the options in prose):
+- [ ] **Step 3: Push the merged body to prod via MCP**
 
-```markdown
-Three dense index backends are selectable via `wikantik.search.dense.backend`:
-`inmemory`, `pgvector`, and `lucene-hnsw`. **`lucene-hnsw` is the docker1
-production default.**
-```
+Call MCP `read_page` for `HybridRetrieval` to get the current live body, splice in the Step 2 additions (chunker + contextual embeddings), then call MCP `update_page` with the merged content. Confirm the MCP endpoint targets prod (Global Constraints).
 
-- [ ] **Step 4: Push the merged body to prod via MCP**
+- [ ] **Step 4: Verify the fix (passing state)**
 
-Call MCP `read_page` for `HybridRetrieval` to get the current live body, splice in the same two additions (Steps 2 + 3), then call MCP `update_page` with the merged content. Confirm the MCP endpoint targets prod (Global Constraints).
+After allowing the async re-embed to drain (retry up to ~60s), call MCP `assemble_bundle` for the two chunker / contextual-embeddings queries from Task 1 Step 3.
+Expected: each returns a section containing the new fact (force-emit + `fragment_floor_tokens`; the `Page: … | Cluster: … | Section: …` prefix).
 
-- [ ] **Step 5: Verify the fix (passing state)**
-
-After allowing the async re-embed to drain (retry up to ~60s), call MCP `assemble_bundle` for all three queries from Task 1 Step 3 (chunker / contextual embeddings / dense backends).
-Expected: each returns a section containing the new fact (force-emit + `fragment_floor_tokens`; the `Page: … | Cluster: … | Section: …` prefix; the three backends + `lucene-hnsw` default).
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add docs/wikantik-pages/HybridRetrieval.md
-git commit -m "docs(corpus): HybridRetrieval — chunker fix, contextual embeddings, dense backends"
+git commit -m "docs(corpus): HybridRetrieval — chunker heading-fidelity fix + contextual embeddings"
 ```
 
 ---
 
-### Task 3: KnowledgeGraphRerank — make "default OFF / shelved" authoritative
+### Task 3: Correct the "KG rerank is active" claim everywhere it appears
 
-The grounded agent confidently said the KG reranker is "enabled by default." It is OFF (boost=0, never wired) and was shelved with zero net lift. Make that the page's headline fact.
+The grounded agent confidently said the KG reranker is "enabled by default." It is OFF (boost=0, never wired) and was shelved with zero net lift.
+
+> **Task 1 baseline correction (expanded scope):** `KnowledgeGraphRerank`
+> doesn't just *omit* the fact — it **actively asserts the wrong one**
+> (`jspwiki.search.graphRerank.enabled = true`, wrong property + wrong default).
+> The bundle surfaces this wrong content at ranks 1–3, AND **two other pages**
+> (`WikantikSearchAndRetrieval`, `WikiSearchOptimization`) also describe KG
+> rerank as active. A corrective banner on one page won't win if three pages
+> contradict it, so this task fixes all three. (Edit only the rerank claims;
+> leave the rest of those pages alone — targeted, no broad rewrite.)
 
 **Files:**
-- Modify: `docs/wikantik-pages/KnowledgeGraphRerank.md`
-- Push (MCP): live `KnowledgeGraphRerank`
+- Modify: `docs/wikantik-pages/KnowledgeGraphRerank.md` (primary — add status banner)
+- Push (MCP): live `KnowledgeGraphRerank`, `WikantikSearchAndRetrieval`, `WikiSearchOptimization`
+- (The latter two may not have repo copies under `docs/wikantik-pages/`; if a repo copy exists, mirror the edit there, otherwise the prod MCP push is the only change. Read each live page first to find the exact stale sentence.)
 
 **Interfaces:**
-- Consumes: Task 1 classification for the rerank-default gap.
-- Produces: a live `KnowledgeGraphRerank` page whose opening, retrievable statement is that KG rerank is default-OFF and shelved.
+- Consumes: Task 1 classification for the rerank-default gap (missing + actively-wrong on 3 pages).
+- Produces: no live page asserting KG rerank is active; `KnowledgeGraphRerank` carries the authoritative default-OFF/shelved banner that the bundle surfaces first.
 
 - [ ] **Step 1: Verify the gap (failing state)**
 
@@ -176,129 +181,100 @@ Insert this as the first section of the body in `docs/wikantik-pages/KnowledgeGr
 > reranking to affect retrieval results unless it is explicitly re-enabled.
 ```
 
-- [ ] **Step 3: Push to prod via MCP**
+- [ ] **Step 3: Push the banner to prod via MCP**
 
-Call MCP `read_page` for `KnowledgeGraphRerank`, splice the banner in after the H1, and call MCP `update_page` with the merged content.
+Call MCP `read_page` for `KnowledgeGraphRerank`, splice the banner in after the H1, and (a) **remove/correct** the stale `jspwiki.search.graphRerank.enabled = true` assertion in the body so it no longer says rerank is on, then call MCP `update_page` with the merged content.
 
-- [ ] **Step 4: Verify the fix (passing state)**
+- [ ] **Step 4: Correct the two other stale pages**
 
-After the re-embed drains, call MCP `assemble_bundle` with the Step 1 query.
-Expected: the returned section states default-OFF / boost=0 / shelved.
+For each of `WikantikSearchAndRetrieval` and `WikiSearchOptimization`: MCP `read_page`, find the sentence/section that describes KG rerank as active/enabled, and replace just that claim with: "KG reranking is **off by default** (boost=0, never wired into production; shelved 2026-06-16 after a measured zero-lift ceiling spike). See `KnowledgeGraphRerank`." Push each via MCP `update_page`. Do not otherwise rewrite the pages.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Verify the fix (passing state)**
+
+After the re-embeds drain, call MCP `assemble_bundle` with the Step 1 query.
+Expected: the top sections state default-OFF / boost=0 / shelved, and NO returned section asserts rerank is active.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add docs/wikantik-pages/KnowledgeGraphRerank.md
-git commit -m "docs(corpus): KnowledgeGraphRerank — state default-OFF/shelved authoritatively"
+# include WikantikSearchAndRetrieval.md / WikiSearchOptimization.md if repo copies exist
+git commit -m "docs(corpus): correct KG-rerank-is-active claim on all three pages"
 ```
 
 ---
 
-### Task 4: WikantikKnowledgeGraph — 21 predicates + external vocab mappings
+### Task 4: WikantikKnowledgeGraph — 21 predicates + external vocab mappings — SKIPPED
 
-The agent was only partial on the predicate count and vocabulary mappings. State them exactly.
-
-**Files:**
-- Modify: `docs/wikantik-pages/WikantikKnowledgeGraph.md`
-- Push (MCP): live `WikantikKnowledgeGraph`
-
-**Interfaces:**
-- Consumes: Task 1 classification for the KG-predicates gap.
-- Produces: a live `WikantikKnowledgeGraph` page with a retrievable statement of the 21-predicate count + the four external vocabularies.
-
-- [ ] **Step 1: Verify the gap (failing state)**
-
-Call MCP `assemble_bundle` with `How many KG predicates are in the wikantik.ttl T-Box and what external vocabularies do they map to?`.
-Expected: returned sections lack a clear "21 predicates" + the four named vocabularies.
-
-- [ ] **Step 2: Add the T-Box vocabulary section to the repo page**
-
-Append to `docs/wikantik-pages/WikantikKnowledgeGraph.md`:
-
-```markdown
-## Ontology vocabulary (wikantik.ttl T-Box)
-
-The formal T-Box (`wikantik.ttl`) defines **21 KG predicates**, each with
-domain/range, plus **9 entity classes** and **5 content classes** and a SKOS
-concept scheme. The 21 predicates carry **public mappings to four external
-vocabularies**:
-
-- **schema.org**
-- **SKOS**
-- **Dublin Core**
-- **PROV-O**
-
-These mappings are what make the public `/sparql` and `/id/{type}/{id}`
-dereferencing interoperable with standard linked-data tooling.
-```
-
-- [ ] **Step 3: Push to prod via MCP**
-
-Call MCP `read_page` for `WikantikKnowledgeGraph`, splice in the section, call MCP `update_page`.
-
-- [ ] **Step 4: Verify the fix (passing state)**
-
-After the re-embed drains, call MCP `assemble_bundle` with the Step 1 query.
-Expected: returned section states "21 predicates" + schema.org/SKOS/Dublin Core/PROV-O.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add docs/wikantik-pages/WikantikKnowledgeGraph.md
-git commit -m "docs(corpus): WikantikKnowledgeGraph — 21 predicates + external vocab mappings"
-```
+> **Task 1 baseline correction: SKIP — already-works.** Live `WikantikKnowledgeGraph`
+> already states "21 KG predicates… schema.org/SKOS/Dublin Core/PROV-O" and the
+> bundle ranks that exact section #1 for the predicate query. No edit needed;
+> adding more would risk a recall regression for zero gain. Task 6 will confirm
+> the eval question scores well; if it still scores partial, the cause is answer
+> phrasing, not corpus content — do NOT add content.
 
 ---
 
-### Task 5: KgInclusionPolicy — make default-exclude + override retrievable
+### Task 5: Make the KG-inclusion default retrievable (edit a page that ranks)
 
-`docs/wikantik-pages/KgInclusionPolicy.md` already documents the four-step decision model, but the single bundle query scored 0 (not-retrievable). Add a tight, self-contained summary section the bundle can surface.
+The eval's KG-inclusion question scored 0 on the bundle arm. `KgInclusionPolicy`
+has correct content but is **not the problem to edit**:
+
+> **Task 1 baseline correction (redirect):** the audit found `KgInclusionPolicy`
+> **never appears in the bundle at all** for this query — it does not rank
+> (likely `type: runbook` + `audience: humans` depressing agent retrieval).
+> Therefore editing `KgInclusionPolicy` would NOT fix retrievability. Instead,
+> add a concise inclusion-policy summary to a page that **already ranks #1** for
+> KG queries — `WikantikKnowledgeGraph` — so the fact rides existing retrieval.
+> Also bump `KgInclusionPolicy`'s own `summary`/`audience` so it has a chance to
+> rank later, but the load-bearing fix is the summary on `WikantikKnowledgeGraph`.
 
 **Files:**
-- Modify: `docs/wikantik-pages/KgInclusionPolicy.md`
-- Push (MCP): live `KgInclusionPolicy`
+- Push (MCP): live `WikantikKnowledgeGraph` (load-bearing), `KgInclusionPolicy` (metadata only)
+- Modify (mirror): `docs/wikantik-pages/WikantikKnowledgeGraph.md`, `docs/wikantik-pages/KgInclusionPolicy.md`
 
 **Interfaces:**
-- Consumes: Task 1 classification for the KG-inclusion gap (expected: not-retrievable).
-- Produces: a live `KgInclusionPolicy` page with a one-paragraph retrievable answer to "what's the default and how do I override it."
+- Consumes: Task 1 classification for the KG-inclusion gap (not-retrievable; `KgInclusionPolicy` doesn't rank).
+- Produces: a bundle that, for the inclusion query, returns a section stating default-exclude + the `kg_include` override.
 
 - [ ] **Step 1: Verify the gap (failing state)**
 
 Call MCP `assemble_bundle` with `Which pages contribute entities to the Knowledge Graph by default and how does a page override it?`.
-Expected: the answer is absent or buried (bundle scored 0 in the eval).
+Expected: no returned section answers default-exclude + `kg_include` override (and `KgInclusionPolicy` is absent from the results — matches Task 1).
 
-- [ ] **Step 2: Add a TL;DR section near the top of the repo page**
+- [ ] **Step 2: Add the inclusion summary to WikantikKnowledgeGraph**
 
-Insert this directly after the H1 in `docs/wikantik-pages/KgInclusionPolicy.md` (before "The decision model"):
+In `docs/wikantik-pages/WikantikKnowledgeGraph.md`, append this section (and mirror it into the live page in Step 3):
 
 ```markdown
-## Default and overrides (summary)
+## Which pages contribute entities (KG inclusion)
 
-**By default a page contributes NO entities to the Knowledge Graph** — the
-policy is **default-exclude**. A page is included only if its **cluster** has an
-`include` row in `kg_cluster_policy`, OR its frontmatter sets
-`kg_include: true`. A page overrides its cluster either way:
+**By default a page contributes NO entities to the Knowledge Graph** — inclusion
+is **default-exclude**. A page is included only if its **cluster** has an
+`include` row in `kg_cluster_policy`, OR its frontmatter sets `kg_include: true`.
+A page overrides its cluster either way:
 
 - `kg_include: true` — force the page **in**, regardless of cluster.
 - `kg_include: false` — force the page **out**; this **beats** `cluster: include`.
 
-System pages (Sandbox, Main, navigation) are always excluded.
+System pages (Sandbox, Main, navigation) are always excluded. Full operator
+guide: `KgInclusionPolicy`.
 ```
 
 - [ ] **Step 3: Push to prod via MCP**
 
-Call MCP `read_page` for `KgInclusionPolicy`, splice the summary in after the H1, call MCP `update_page`.
+MCP `read_page` `WikantikKnowledgeGraph`, splice in the Step 2 section, MCP `update_page`. Then MCP `read_page` `KgInclusionPolicy` and `update_page` with an improved `summary` frontmatter line (e.g. "Which pages contribute entities to the Knowledge Graph by default, and how a page overrides inclusion with kg_include") and `audience: [humans, agents]` — metadata only, no body change.
 
 - [ ] **Step 4: Verify the fix (passing state)**
 
-After the re-embed drains, call MCP `assemble_bundle` with the Step 1 query.
-Expected: a returned section states default-exclude + the `kg_include` override semantics.
+After the re-embeds drain, call MCP `assemble_bundle` with the Step 1 query.
+Expected: a returned section (from `WikantikKnowledgeGraph`) states default-exclude + the `kg_include` override semantics.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add docs/wikantik-pages/KgInclusionPolicy.md
-git commit -m "docs(corpus): KgInclusionPolicy — retrievable default-exclude + override summary"
+git add docs/wikantik-pages/WikantikKnowledgeGraph.md docs/wikantik-pages/KgInclusionPolicy.md
+git commit -m "docs(corpus): surface KG-inclusion default on a page that ranks (WikantikKnowledgeGraph)"
 ```
 
 ---
@@ -328,11 +304,17 @@ Expected: a new `runs/<ts>/scorecard.md` + `interface-findings.md`.
 
 The run PASSES the gate iff ALL of:
 - `grounded_mcp` mean correctness ≥ **1.438** (prior), and `grounded_bundle` mean ≥ **1.312**.
-- Each previously-regressed question now scores **≥ its prior bundle score**: `kg-rerank-default` ≥ 1, `chunker-heading-fidelity` ≥ 1, `contextual-embeddings-prefix` ≥ 1, `kg-predicates-count` ≥ 2.
-- The two retrieval-miss questions improve on the bundle arm: `dense-backend-options` bundle ≥ 1, `kg-inclusion-default` bundle ≥ 1.
+- The four questions whose content this theme actually changed each improve on the **mcp** arm vs prior (these were the hallucination regressions): `kg-rerank-default` ≥ 1 (was 0), `chunker-heading-fidelity` ≥ 1 (was 0), `contextual-embeddings-prefix` ≥ 1 (was 0), and `kg-inclusion-default` bundle ≥ 1 (was 0).
 - **No regression:** no question's per-arm score drops below its prior value.
 
-If a question still misses, re-open the matching Task 2–5, inspect `interface-findings.md` + the failing answer, strengthen the section, re-push, re-verify, then re-run.
+**Baseline caveat (do not chase these with more content):** Task 1 confirmed
+`dense-backend-options` and `kg-predicates-count` are already correct and
+bundle-rank-#1 in the live corpus (Tasks 3-dense and 4 were SKIPPED). If either
+still scores below 2 in the re-run, the cause is answer phrasing / judge, NOT
+missing content — record it as a finding; do **not** add corpus text (it would
+risk a recall regression).
+
+If a *content-changed* question still misses, re-open the matching Task 2/3/5, inspect `interface-findings.md` + the failing answer, strengthen the section, re-push, re-verify, then re-run.
 
 - [ ] **Step 4: Record before/after and commit**
 
@@ -351,7 +333,7 @@ Append a one-line pointer to the existing `[[reference_mcp_content_authoring_sur
 
 ## Self-Review
 
-**Spec coverage (vs roadmap Theme A table):** rerank-OFF → Task 3 ✓; chunker fix → Task 2 ✓; contextual embeddings → Task 2 ✓; dense backends → Task 2 ✓; KG predicates(21)+vocab → Task 4 ✓; KG-inclusion default → Task 5 ✓; eval-re-run gate → Task 6 ✓; targeted/no-regression constraint → Global Constraints + Task 6 gate ✓; GPU dependency → Global Constraints + Task 1 Step 1 ✓; MCP-only → Global Constraints ✓.
+**Spec coverage (vs roadmap Theme A table; updated after Task 1 baseline):** rerank-OFF → Task 3 ✓ (expanded to 3 stale pages); chunker fix → Task 2 ✓; contextual embeddings → Task 2 ✓; dense backends → **already-works, no edit** (Task 1); KG predicates(21)+vocab → **already-works, Task 4 SKIPPED** (Task 1); KG-inclusion default → Task 5 ✓ (redirected to `WikantikKnowledgeGraph`, the page that ranks); eval-re-run gate → Task 6 ✓; targeted/no-regression constraint → Global Constraints + Task 6 gate ✓; GPU dependency → Global Constraints + Task 1 Step 1 ✓; MCP-only → Global Constraints ✓.
 
 **Placeholder scan:** none — every content block is verbatim prose; every verification has an exact `assemble_bundle` query; the eval gate has numeric thresholds.
 

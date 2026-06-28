@@ -381,7 +381,11 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
             final JsonObject outerObj = outer.getAsJsonObject();
             final String inner;
             if ( outerObj.has( "message" ) && outerObj.get( "message" ).isJsonObject() ) {
-                inner = outerObj.getAsJsonObject( "message" ).get( "content" ).getAsString();
+                final JsonObject msg = outerObj.getAsJsonObject( "message" );
+                if ( !msg.has( "content" ) || !msg.get( "content" ).isJsonPrimitive() ) {
+                    return abstain( "judge_unavailable: response missing content" );
+                }
+                inner = msg.get( "content" ).getAsString();
             } else if ( outerObj.has( "response" ) ) {
                 // /api/generate fallback
                 inner = outerObj.get( "response" ).getAsString();
@@ -395,7 +399,7 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
             final String rationale = verdictObj.has( "rationale" ) ? verdictObj.get( "rationale" ).getAsString() : "";
             return new JudgeVerdict( verdict, clamped, rationale, config.model() );
         } catch ( final RuntimeException e ) {
-            LOG.warn( "judge response parse failure: {}", e.getMessage() );
+            LOG.debug( "judge response parse failure: {}", e.getMessage() );
             return abstain( "judge_unavailable: parse error" );
         }
     }

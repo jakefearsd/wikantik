@@ -125,6 +125,43 @@ class DefaultKgProposalJudgeServiceJsonExtractTest {
         assertEquals( "The triple lacks factual grounding.", v.rationale() );
     }
 
+    @Test
+    void judge_fenced_json_response_parses_successfully() throws Exception {
+        // LLM wraps the verdict object in ```json fences — extractJsonObject must still recover it.
+        final String inner = "```json\n"
+            + "{\"verdict\":\"approved\",\"confidence\":0.9,\"rationale\":\"Well grounded.\"}\n```";
+        final String body = "{\"message\":{\"role\":\"assistant\",\"content\":"
+            + escapeJsonString( inner ) + "}}";
+        final var svc = new DefaultKgProposalJudgeService( httpClientReturning( mockResponse( 200, body ) ), cfg() );
+        final JudgeVerdict v = svc.judge( sampleProposal() );
+        assertEquals( "approved", v.verdict() );
+        assertEquals( 0.9, v.confidence() );
+        assertEquals( "Well grounded.", v.rationale() );
+    }
+
+    @Test
+    void judge_truncated_response_degrades_to_transient_abstain() throws Exception {
+        // Truncated mid-object (unbalanced braces) — must NOT crash; must be a transient abstain.
+        final String inner = "{\"verdict\":\"approved\",\"confidence\":0.9,\"rationale\":\"Well groun";
+        final String body = "{\"message\":{\"role\":\"assistant\",\"content\":"
+            + escapeJsonString( inner ) + "}}";
+        final var svc = new DefaultKgProposalJudgeService( httpClientReturning( mockResponse( 200, body ) ), cfg() );
+        final JudgeVerdict v = svc.judge( sampleProposal() );
+        assertEquals( JudgeVerdict.ABSTAIN, v.verdict() );
+        assertTrue( v.rationale().startsWith( "judge_unavailable:" ),
+            "truncation must yield a transient (judge_unavailable:) abstain, got: " + v.rationale() );
+    }
+
+    @Test
+    void judge_message_without_content_key_is_transient_abstain_not_npe() throws Exception {
+        // message object present but no "content" — previously NPE'd into a generic parse error.
+        final String body = "{\"message\":{\"role\":\"assistant\"}}";
+        final var svc = new DefaultKgProposalJudgeService( httpClientReturning( mockResponse( 200, body ) ), cfg() );
+        final JudgeVerdict v = svc.judge( sampleProposal() );
+        assertEquals( JudgeVerdict.ABSTAIN, v.verdict() );
+        assertEquals( "judge_unavailable: response missing content", v.rationale() );
+    }
+
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------

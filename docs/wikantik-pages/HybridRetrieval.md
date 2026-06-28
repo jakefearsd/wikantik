@@ -200,3 +200,32 @@ The vector index is keyed by `model_code`. If you change `wikantik.search.embedd
 3. Dense retrieval degrades gracefully to BM25-only until `size > 0`.
 
 Force a re-embed explicitly via the admin "Reindex Embeddings" button if you want determinism rather than drift.
+
+## Section recall levers
+
+Two changes moved global **section recall@12 from 0.60 to 0.74** (measured in
+`eval/bundle-corpus/baseline-notes.md`):
+
+### Chunker heading-fidelity fix
+
+`ContentChunker` force-emits the merge-forward buffer **at each heading
+boundary**, so early sections and the first H2 keep their own `heading_path`.
+Before the fix they were mis-attributed to the *previous* heading — and
+therefore mis-cited. Two config knobs tune fragment merging:
+
+- `wikantik.chunker.fragment_floor_tokens` (default **24**) — fragments below
+  this token count merge **forward** into the next chunk, adopting the
+  destination heading.
+- `wikantik.chunker.overlap_tokens` (default **40**) — token overlap carried
+  between adjacent chunks.
+
+### Contextual document embeddings
+
+`EmbeddingTextBuilder.forDocument` prepends a context line before embedding
+each section:
+
+    Page: {title} | Cluster: {cluster} | Section: {heading}
+
+followed by the frontmatter `summary`. This gives each section's vector its
+page/cluster/heading context. The **query** side keeps its own instruction
+prefix (the two prefixes are deliberately different).

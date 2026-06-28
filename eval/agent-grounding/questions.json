@@ -3,7 +3,7 @@
     "id": "stale-citation-grading",
     "question": "When a Wikantik page cites another page's section, how does the system later notice that citation has gone stale, and at what granularity does it report staleness?",
     "reference": "Citations are parsed from inline cite:// markup at save into the citations table, version-pinned and span-hashed. A check compares the stored span hash against the current target section and reports graded span-level staleness, surfaced via list_stale_citations and /admin/drift/citations.",
-    "expect_sources": ["WikantikKnowledgeGraph"],
+    "expect_sources": ["WikantikArchitecture"],
     "difficulty": "medium"
   },
   {
@@ -31,7 +31,7 @@
     "id": "bundle-vs-synthesis",
     "question": "Does Wikantik's RAG endpoint answer questions, or do something else? What does it return?",
     "reference": "It never synthesizes answers (ADR-0001). /api/bundle and assemble_bundle return a ranked, de-duplicated, version-pinned-cited context bundle of sections; answer synthesis is left to the caller.",
-    "expect_sources": ["WikantikKnowledgeGraph"],
+    "expect_sources": ["WikantikArchitecture"],
     "difficulty": "medium"
   },
   {

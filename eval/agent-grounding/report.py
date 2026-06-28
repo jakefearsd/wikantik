@@ -77,6 +77,23 @@ def findings_md(graded):
     lines += ["", "## grounded-mcp answers that used NO tools"]
     notool = [r["qid"] for r in mcp if not r.get("tool_calls")]
     lines.append("- " + (", ".join(notool) if notool else "none"))
+    # repeated tool calls within one answer (possible loops)
+    lines += ["", "## Repeated tool calls within one answer (possible loops)"]
+    loop_bullets = []
+    for r in mcp:
+        per_record = collections.Counter(tc["name"] for tc in r.get("tool_calls", []))
+        for tool_name, count in per_record.items():
+            if count >= 3:
+                loop_bullets.append("- %s: `%s` ×%d" % (r["qid"], tool_name, count))
+    lines += loop_bullets if loop_bullets else ["- none"]
+    # judge flagged vague or hallucinated
+    lines += ["", "## Judge flagged vague or hallucinated"]
+    flag_bullets = []
+    for r in graded:
+        rationale = r.get("rationale", "")
+        if "vague" in rationale.lower() or "hallucinated" in rationale.lower():
+            flag_bullets.append("- %s (%s): %s" % (r["qid"], r["arm"], rationale[:140]))
+    lines += flag_bullets if flag_bullets else ["- none"]
     return "\n".join(lines) + "\n"
 
 

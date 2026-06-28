@@ -44,8 +44,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -454,5 +457,125 @@ class EmbeddingIndexServiceTest {
 
         assertEquals( 0, reconciled, "no stale rows — reconcile is a no-op" );
         assertEquals( 2, countRows(), "row count unchanged" );
+    }
+
+    // ---- transient-retry tests (A, B, C) ----
+
+    /**
+     * Test A — persistent transient 503: reconcile retries the batch, then aborts.
+     *
+     * <p>Before the fix: per-item fallback was attempted for every chunk,
+     * resulting in ~N WARNs and upserted=0 with all chunks marked poisoned.
+     * After the fix: the batch is retried {@code maxTransientRetries} times,
+     * then a transient {@link EmbeddingException} is thrown — no chunks are
+     * poisoned, no rows are committed.</p>
+     */
+    @Test
+    void embedTransientAlwaysFails_abortsReconcileWithoutPoisoningChunks() throws SQLException {
+        final EmbeddingIndexService.Sleeper noOpSleeper = millis -> { /* no-op for tests */ };
+
+        seedChunks( 3 );
+
+        // Every embed() call throws a transient 503-style exception.
+        when( client.embed( ArgumentMatchers.anyList(),
+                            ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) ) )
+            .thenThrow( new EmbeddingException( "Ollama embed HTTP 503: server busy", true ) );
+
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, /*batchSize*/ 32 );
+        svc.configureTransientRetryForTest( 2, noOpSleeper );
+
+        // Must throw a transient EmbeddingException — NOT silently swallow it.
+        final EmbeddingException thrown = assertThrows( EmbeddingException.class,
+            () -> svc.indexAll( MODEL ),
+            "persistent transient failure must abort the reconcile" );
+        assertTrue( thrown.isTransient(), "aborted exception must be flagged transient" );
+
+        // embed() must have been called exactly 3 times: initial + 2 retries (maxTransientRetries=2).
+        verify( client, times( 3 ) )
+            .embed( ArgumentMatchers.anyList(), ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) );
+
+        // No rows committed — all chunks remain stale for the next reconcile cycle.
+        assertEquals( 0, countRows(), "no rows must be upserted when the reconcile aborts" );
+    }
+
+    /**
+     * Test B — non-transient poison pill: bad chunk is isolated, good chunks succeed.
+     *
+     * <p>A non-transient {@link EmbeddingException} on the batch call triggers the
+     * per-item fallback. The poison chunk (chunk #1) is skipped; the other two are
+     * upserted normally.</p>
+     */
+    @Test
+    void embedNonTransientBatchFail_perItemFallbackSkipsPoisonChunkOnly() throws SQLException {
+        final List< UUID > ids = seedChunks( 3 );
+
+        final AtomicInteger call = new AtomicInteger();
+        when( client.embed( ArgumentMatchers.anyList(),
+                            ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) ) )
+            .thenAnswer( ( InvocationOnMock inv ) -> {
+                final int n = call.incrementAndGet();
+                final List< String > texts = inv.getArgument( 0 );
+                if ( n == 1 ) {
+                    // Batch call fails with a non-transient EmbeddingException (e.g., bad response shape).
+                    throw new EmbeddingException( "non-transient: unexpected response shape", false );
+                }
+                // Per-item calls (size 1) — chunk #1 is poisoned.
+                if ( texts.get( 0 ).contains( "#1" ) ) {
+                    throw new EmbeddingException( "poison chunk: model rejected this input", false );
+                }
+                return List.of( randomVec() );
+            } );
+
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, /*batchSize*/ 32 );
+        final int embedded = svc.indexAll( MODEL );
+
+        assertEquals( 2, embedded, "poison chunk skipped; two good chunks must be upserted" );
+        assertEquals( 2, countRows() );
+        assertTrue(  hasEmbedding( ids.get( 0 ) ), "chunk #0 must be embedded" );
+        assertTrue( !hasEmbedding( ids.get( 1 ) ), "chunk #1 (poison) must be skipped" );
+        assertTrue(  hasEmbedding( ids.get( 2 ) ), "chunk #2 must be embedded" );
+    }
+
+    /**
+     * Test C — transient failure recovers on retry: reconcile succeeds.
+     *
+     * <p>The first batch call throws a transient exception; the second succeeds.
+     * With a no-op sleeper the retry is instant. All chunks must be upserted and
+     * none should be marked poisoned.</p>
+     */
+    @Test
+    void embedTransientFailsOnce_recoversOnRetry_upsertAll() throws SQLException {
+        final EmbeddingIndexService.Sleeper noOpSleeper = millis -> { /* no-op for tests */ };
+
+        seedChunks( 3 );
+
+        final AtomicInteger call = new AtomicInteger();
+        when( client.embed( ArgumentMatchers.anyList(),
+                            ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) ) )
+            .thenAnswer( ( InvocationOnMock inv ) -> {
+                final int n = call.incrementAndGet();
+                if ( n == 1 ) {
+                    // First attempt throws transient (Ollama 503).
+                    throw new EmbeddingException( "Ollama embed HTTP 503: max pending requests", true );
+                }
+                // Retry succeeds — return valid vectors for all texts in the batch.
+                final List< String > texts = inv.getArgument( 0 );
+                final List< float[] > out = new ArrayList<>( texts.size() );
+                for ( int i = 0; i < texts.size(); i++ ) {
+                    out.add( randomVec() );
+                }
+                return out;
+            } );
+
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, /*batchSize*/ 32 );
+        svc.configureTransientRetryForTest( 2, noOpSleeper );
+
+        final int embedded = svc.indexAll( MODEL );
+
+        assertEquals( 3, embedded, "all chunks must be upserted after recovery" );
+        assertEquals( 3, countRows(), "all 3 rows present" );
+        // embed() called exactly twice: 1 failing attempt + 1 successful retry.
+        verify( client, times( 2 ) )
+            .embed( ArgumentMatchers.anyList(), ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) );
     }
 }

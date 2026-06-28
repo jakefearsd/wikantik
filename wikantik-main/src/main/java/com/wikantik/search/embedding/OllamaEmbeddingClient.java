@@ -151,16 +151,18 @@ public class OllamaEmbeddingClient implements TextEmbeddingClient {
         try {
             resp = httpClient.send( req.build(), HttpResponse.BodyHandlers.ofString( StandardCharsets.UTF_8 ) );
         } catch( final IOException e ) {
-            throw new EmbeddingException( "Ollama embed request failed: " + e.getMessage(), e );
+            throw new EmbeddingException( "Ollama embed request failed: " + e.getMessage(), e, true );
         } catch( final InterruptedException e ) {
             Thread.currentThread().interrupt();
-            throw new EmbeddingException( "Ollama embed request interrupted", e );
+            throw new EmbeddingException( "Ollama embed request interrupted", e, true );
         }
 
         if( resp.statusCode() / 100 != 2 ) {
+            final int status = resp.statusCode();
+            final boolean isTransient = status == 503 || status == 429 || status >= 500;
             LOG.warn( "Ollama embed returned HTTP {} for model {}: {}",
-                      resp.statusCode(), config.resolvedOllamaTag(), resp.body() );
-            throw new EmbeddingException( "Ollama embed HTTP " + resp.statusCode() + ": " + resp.body() );
+                      status, config.resolvedOllamaTag(), resp.body() );
+            throw new EmbeddingException( "Ollama embed HTTP " + status + ": " + resp.body(), isTransient );
         }
 
         return parseEmbeddings( resp.body(), batch.size() );
@@ -196,13 +198,15 @@ public class OllamaEmbeddingClient implements TextEmbeddingClient {
                     final Throwable cause = err instanceof CompletionException ce && ce.getCause() != null
                         ? ce.getCause() : err;
                     throw new CompletionException(
-                        new EmbeddingException( "Ollama embed request failed: " + cause.getMessage(), cause ) );
+                        new EmbeddingException( "Ollama embed request failed: " + cause.getMessage(), cause, true ) );
                 }
                 if( resp.statusCode() / 100 != 2 ) {
+                    final int status = resp.statusCode();
+                    final boolean isTransient = status == 503 || status == 429 || status >= 500;
                     LOG.warn( "Ollama embed returned HTTP {} for model {}: {}",
-                              resp.statusCode(), config.resolvedOllamaTag(), resp.body() );
+                              status, config.resolvedOllamaTag(), resp.body() );
                     throw new CompletionException(
-                        new EmbeddingException( "Ollama embed HTTP " + resp.statusCode() + ": " + resp.body() ) );
+                        new EmbeddingException( "Ollama embed HTTP " + status + ": " + resp.body(), isTransient ) );
                 }
                 return parseEmbeddings( resp.body(), batch.size() );
             } );

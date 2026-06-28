@@ -321,6 +321,38 @@ class OllamaEmbeddingClientTest {
         assertNotNull( sent.getAsJsonArray( "input" ) );
     }
 
+    @Test
+    void http503IsMarkedTransient() {
+        server.createContext( "/api/embed", exchange -> {
+            final byte[] body = "server busy".getBytes( StandardCharsets.UTF_8 );
+            exchange.sendResponseHeaders( 503, body.length );
+            try( final OutputStream os = exchange.getResponseBody() ) { os.write( body ); }
+        } );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final EmbeddingException ex = assertThrows( EmbeddingException.class,
+            () -> client.embed( List.of( "x" ), EmbeddingKind.QUERY ) );
+        assertTrue( ex.getMessage().contains( "503" ) );
+        assertTrue( ex.isTransient(), "HTTP 503 must be flagged as transient" );
+    }
+
+    @Test
+    void http404IsNotTransient() {
+        server.createContext( "/api/embed", exchange -> {
+            final byte[] body = "model not found".getBytes( StandardCharsets.UTF_8 );
+            exchange.sendResponseHeaders( 404, body.length );
+            try( final OutputStream os = exchange.getResponseBody() ) { os.write( body ); }
+        } );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final EmbeddingException ex = assertThrows( EmbeddingException.class,
+            () -> client.embed( List.of( "x" ), EmbeddingKind.QUERY ) );
+        assertTrue( ex.getMessage().contains( "404" ) );
+        assertTrue( !ex.isTransient(), "HTTP 404 must NOT be flagged as transient" );
+    }
+
     private static float[] makeVec( final int base, final int dim ) {
         final float[] v = new float[ dim ];
         for( int j = 0; j < dim; j++ ) v[ j ] = (float) ( base + j ) / 100f;

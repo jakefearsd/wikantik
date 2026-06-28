@@ -119,11 +119,30 @@ public class EmbeddingIndexService {
      */
     public record Status( String modelCode, int dim, int rowCount, Instant lastUpdated ) {}
 
+    /**
+     * Allows tests to replace {@link Thread#sleep} with a no-op so transient-retry
+     * backoff does not slow unit/integration tests. Package-private so the same
+     * package's test class can implement it as a lambda.
+     */
+    @FunctionalInterface
+    interface Sleeper {
+        void sleep( long millis ) throws InterruptedException;
+    }
+
     private final DataSource dataSource;
     private final TextEmbeddingClient client;
     private final int batchSize;
     /** page_name → frontmatter context for contextual document embeddings; never null. */
     private final java.util.function.Function< String, EmbeddingTextBuilder.PageContext > contextResolver;
+
+    /**
+     * Maximum number of whole-batch retries on a transient embedding failure
+     * before the reconcile is aborted. Default 3. Configurable for tests.
+     */
+    private int maxTransientRetries = 3;
+
+    /** Sleeper used for exponential backoff between transient-retry attempts. Tests inject a no-op. */
+    private Sleeper sleeper = Thread::sleep;
 
     public EmbeddingIndexService( final DataSource dataSource, final TextEmbeddingClient client ) {
         this( dataSource, client, DEFAULT_BATCH_SIZE );
@@ -158,6 +177,19 @@ public class EmbeddingIndexService {
         this.batchSize = batchSize;
         this.contextResolver = contextResolver != null
             ? contextResolver : pageName -> EmbeddingTextBuilder.PageContext.EMPTY;
+    }
+
+    /**
+     * Overrides retry behaviour for unit/integration tests. Injects a no-op
+     * sleeper so exponential backoff does not add wall-clock delay to the test
+     * suite, and a reduced retry count to keep tests fast.
+     *
+     * <p><strong>Not for production use.</strong> Only intended to be called
+     * from test code in the same package before the first indexing call.</p>
+     */
+    void configureTransientRetryForTest( final int retries, final Sleeper sleeper ) {
+        this.maxTransientRetries = retries;
+        this.sleeper = sleeper;
     }
 
     /** Batch size this service uses when fanning out to the embedding backend. */
@@ -434,24 +466,82 @@ public class EmbeddingIndexService {
     }
 
     /**
-     * Embeds a batch, falling back to per-item calls when the batch-level
-     * call fails. Items that still fail per-item are returned as {@code null}
-     * so the caller can skip them without aborting the surrounding batch.
+     * Embeds a batch with transient-failure awareness.
+     *
+     * <p><b>Transient backend failures</b> (HTTP 503/429/5xx, connection errors —
+     * flagged via {@link EmbeddingException#isTransient()}): the whole batch is
+     * retried up to {@link #maxTransientRetries} times with exponential backoff
+     * (500 ms × 2<sup>attempt</sup>). If the backend is still unavailable after
+     * all retries, a transient {@link EmbeddingException} is rethrown — the
+     * reconcile aborts, chunks stay un-embedded (not poisoned), and the next
+     * reconcile cycle picks them up.</p>
+     *
+     * <p><b>Permanent / poison-pill failures</b> (non-transient
+     * {@link EmbeddingException} or any other {@link RuntimeException}): falls
+     * through to per-item retry. Items that still fail individually are returned
+     * as {@code null} so the caller can skip them without aborting the batch.
+     * If a per-item call throws a <em>transient</em> exception, it is rethrown
+     * immediately (the backend is down, not the chunk).</p>
      */
     private List< float[] > embedBatchSkippingPoisoned( final List< UUID > ids,
                                                         final List< String > texts ) {
-        try {
-            return new ArrayList<>( client.embed( texts, EmbeddingKind.DOCUMENT ) );
-        } catch( final RuntimeException batchFailed ) {
-            LOG.warn( "Embedding batch of {} failed, retrying per-item: {}",
-                texts.size(), batchFailed.getMessage() );
+        // Batch call with transient-retry loop.
+        for( int attempt = 0; attempt <= maxTransientRetries; attempt++ ) {
+            try {
+                return new ArrayList<>( client.embed( texts, EmbeddingKind.DOCUMENT ) );
+            } catch( final EmbeddingException batchFailed ) {
+                if( !batchFailed.isTransient() ) {
+                    // Non-transient batch failure: fall through to per-item retry.
+                    LOG.warn( "Embedding batch of {} failed (non-transient), retrying per-item: {}",
+                        texts.size(), batchFailed.getMessage() );
+                    break;
+                }
+                // Transient: retry if we have attempts left.
+                if( attempt < maxTransientRetries ) {
+                    LOG.warn( "Embedding batch of {} failed (transient attempt {}/{}): {}",
+                        texts.size(), attempt + 1, maxTransientRetries, batchFailed.getMessage() );
+                    try {
+                        sleeper.sleep( 500L << attempt );   // 500 ms, 1000 ms, 2000 ms, …
+                    } catch( final InterruptedException ie ) {
+                        Thread.currentThread().interrupt();
+                        throw new EmbeddingException(
+                            "Embedding backend retry interrupted — aborting reconcile, will retry next cycle",
+                            ie, true );
+                    }
+                } else {
+                    // All retries exhausted — abort; chunks remain stale for next reconcile.
+                    throw new EmbeddingException(
+                        "Embedding backend unavailable after " + maxTransientRetries
+                        + " retries — aborting reconcile, will retry next cycle",
+                        batchFailed, true );
+                }
+            } catch( final RuntimeException batchFailed ) {
+                // Non-EmbeddingException (legacy or third-party exception): treat as non-transient,
+                // fall through to per-item retry (preserves existing behaviour for bge-m3 NaN cases).
+                LOG.warn( "Embedding batch of {} failed, retrying per-item: {}",
+                    texts.size(), batchFailed.getMessage() );
+                break;
+            }
         }
+
+        // Per-item fallback (reached only for non-transient batch failures).
         final List< float[] > out = new ArrayList<>( texts.size() );
         int poisoned = 0;
         for( int i = 0; i < texts.size(); i++ ) {
             try {
                 out.add( client.embed( List.of( texts.get( i ) ), EmbeddingKind.DOCUMENT ).get( 0 ) );
+            } catch( final EmbeddingException perItem ) {
+                if( perItem.isTransient() ) {
+                    // Backend went down mid-fallback — propagate immediately; do NOT poison the chunk.
+                    throw perItem;
+                }
+                poisoned++;
+                LOG.warn( "Skipping chunk id={} len={} — embedding failed: {}",
+                    ids.get( i ), texts.get( i ) == null ? 0 : texts.get( i ).length(),
+                    perItem.getMessage() );
+                out.add( null );
             } catch( final RuntimeException perItem ) {
+                // Non-EmbeddingException per-item failure: mark poisoned (existing behaviour).
                 poisoned++;
                 LOG.warn( "Skipping chunk id={} len={} — embedding failed: {}",
                     ids.get( i ), texts.get( i ) == null ? 0 : texts.get( i ).length(),

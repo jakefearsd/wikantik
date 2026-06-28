@@ -94,7 +94,7 @@ class BundleResourceTest {
         final ContextBundle bundle = new ContextBundle( "deploy", List.of(
                 new BundleSection( "01DEP", "DeployGuide", List.of( "Setup" ), "do x", 0.9,
                         new CitationHandle( "01DEP", 7, List.of( "Setup" ), "do x", "abc123" ) ) ) );
-        when( svc.assemble( "deploy" ) ).thenReturn( bundle );
+        when( svc.assemble( eq( "deploy" ), any( RetrievalMode.class ) ) ).thenReturn( bundle );
 
         final HttpServletRequest req = mock( HttpServletRequest.class );
         final HttpServletResponse resp = mock( HttpServletResponse.class );
@@ -124,7 +124,7 @@ class BundleResourceTest {
                         new CitationHandle( "01PUB", 7, List.of( "Setup" ), "public step", "aaa" ) ),
                 new BundleSection( "01SEC", "DeploySecret", List.of( "Keys" ), "TOP SECRET STEP", 0.8,
                         new CitationHandle( "01SEC", 3, List.of( "Keys" ), "TOP SECRET STEP", "bbb" ) ) ) );
-        when( svc.assemble( "deploy" ) ).thenReturn( bundle );
+        when( svc.assemble( eq( "deploy" ), any( RetrievalMode.class ) ) ).thenReturn( bundle );
         // The caller may view everything except the restricted page (DeploySecret).
         final BundleResource resource = new BundleResource() {
             @Override protected BundleAssemblyService bundleService() { return svc; }
@@ -158,7 +158,7 @@ class BundleResourceTest {
         final ContextBundle bundle = new ContextBundle( "deploy", List.of(
                 new BundleSection( "01DEP", "DeployGuide", List.of( "Setup" ), "do x", 0.9,
                         new CitationHandle( "01DEP", 7, List.of( "Setup" ), "do x", "abc123" ) ) ) );
-        when( svc.assemble( "deploy" ) ).thenReturn( bundle );
+        when( svc.assemble( eq( "deploy" ), any( RetrievalMode.class ) ) ).thenReturn( bundle );
         final QueryLogService qlog = mock( QueryLogService.class );
         final BundleResource resource = new BundleResource() {
             @Override protected BundleAssemblyService bundleService() { return svc; }
@@ -200,7 +200,7 @@ class BundleResourceTest {
     @Test
     void assembleThrows_returns_500() throws Exception {
         final BundleAssemblyService svc = mock( BundleAssemblyService.class );
-        when( svc.assemble( "boom" ) ).thenThrow( new RuntimeException( "kaboom" ) );
+        when( svc.assemble( eq( "boom" ), any( RetrievalMode.class ) ) ).thenThrow( new RuntimeException( "kaboom" ) );
         final BundleResource resource = new BundleResource() {
             @Override protected BundleAssemblyService bundleService() { return svc; }
         };
@@ -306,5 +306,77 @@ class BundleResourceTest {
         resourceWithEngine( engine ).doGet( debugReq( "foo", "abc" ), resp );
 
         verify( hybrid ).debugRankings( "foo", 500 );   // unparseable k → default 500
+    }
+
+    /* ---------- mode parameter ---------- */
+
+    @Test
+    void mode_lexical_routes_to_assemble_with_LEXICAL() throws Exception {
+        final BundleAssemblyService svc = mock( BundleAssemblyService.class );
+        final ContextBundle bundle = new ContextBundle( "query", List.of() );
+        when( svc.assemble( eq( "query" ), eq( RetrievalMode.LEXICAL ) ) ).thenReturn( bundle );
+        final BundleResource resource = new BundleResource() {
+            @Override protected BundleAssemblyService bundleService() { return svc; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                return new java.util.HashSet<>( names );
+            }
+        };
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getParameter( "q" ) ).thenReturn( "query" );
+        when( req.getParameter( "mode" ) ).thenReturn( "lexical" );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( req, resp );
+
+        verify( svc ).assemble( "query", RetrievalMode.LEXICAL );
+        verify( resp ).setStatus( 200 );
+    }
+
+    @Test
+    void invalid_mode_returns_400_listing_valid_modes() throws Exception {
+        final BundleAssemblyService svc = mock( BundleAssemblyService.class );
+        final BundleResource resource = new BundleResource() {
+            @Override protected BundleAssemblyService bundleService() { return svc; }
+        };
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getParameter( "q" ) ).thenReturn( "query" );
+        when( req.getParameter( "mode" ) ).thenReturn( "bogus" );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        resource.doGet( req, resp );
+
+        verify( resp ).setStatus( 400 );
+        final String body = sw.toString();
+        assertTrue( body.contains( "hybrid" ) && body.contains( "dense" ) && body.contains( "lexical" ),
+                "400 body must list valid mode values; got: " + body );
+        verifyNoInteractions( svc );
+    }
+
+    @Test
+    void no_mode_routes_to_assemble_with_HYBRID() throws Exception {
+        final BundleAssemblyService svc = mock( BundleAssemblyService.class );
+        final ContextBundle bundle = new ContextBundle( "query", List.of() );
+        when( svc.assemble( eq( "query" ), eq( RetrievalMode.HYBRID ) ) ).thenReturn( bundle );
+        final BundleResource resource = new BundleResource() {
+            @Override protected BundleAssemblyService bundleService() { return svc; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                return new java.util.HashSet<>( names );
+            }
+        };
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getParameter( "q" ) ).thenReturn( "query" );
+        when( req.getParameter( "mode" ) ).thenReturn( null );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( req, resp );
+
+        verify( svc ).assemble( "query", RetrievalMode.HYBRID );
+        verify( resp ).setStatus( 200 );
     }
 }

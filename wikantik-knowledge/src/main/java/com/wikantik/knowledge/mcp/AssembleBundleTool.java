@@ -20,6 +20,7 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.ContextBundle;
+import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
@@ -72,6 +73,10 @@ public class AssembleBundleTool implements McpTool {
                 "type", "string",
                 "description", "Natural-language query to assemble a ranked, cited context bundle for."
         ) );
+        props.put( "mode", Map.of(
+                "type", "string",
+                "description", "Retrieval mode: hybrid (default), dense, or lexical."
+        ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -90,7 +95,13 @@ public class AssembleBundleTool implements McpTool {
             if ( query == null || query.isBlank() ) {
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "query argument is required" );
             }
-            final ContextBundle bundle = service.assemble( query );
+            final RetrievalMode mode;
+            try {
+                mode = RetrievalMode.fromWire( McpToolUtils.getString( arguments, "mode" ) );
+            } catch ( final IllegalArgumentException e ) {
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
+            }
+            final ContextBundle bundle = service.assemble( query, mode );
             // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
             final List< com.wikantik.api.bundle.BundleSection > filteredSections = bundle.sections().stream()
                     .filter( s -> viewGate.canView( s.slug() ) )

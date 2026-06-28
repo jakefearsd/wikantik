@@ -23,6 +23,7 @@ import com.google.gson.GsonBuilder;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.ContextBundle;
+import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.QueryLogService;
@@ -79,6 +80,16 @@ public class BundleResource extends RestServletBase {
             return;
         }
 
+        final RetrievalMode mode;
+        try {
+            mode = RetrievalMode.fromWire( req.getParameter( "mode" ) );
+        } catch ( final IllegalArgumentException e ) {
+            resp.setStatus( 400 );
+            resp.setContentType( "application/json; charset=UTF-8" );
+            resp.getWriter().write( "{\"error\":\"" + e.getMessage().replace( "\"", "'" ) + "\"}" );
+            return;
+        }
+
         // Spike sweep hook: raw dense + BM25 chunk rankings for the offline fusion/grouping sweep.
         // Only available when the chunk-hybrid source is active (wikantik.bundle.bm25.enabled).
         if ( "rankings".equals( req.getParameter( "debug" ) ) ) {
@@ -96,7 +107,7 @@ public class BundleResource extends RestServletBase {
 
         final ContextBundle assembled;
         try {
-            assembled = svc.assemble( q );
+            assembled = svc.assemble( q, mode );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Bundle assembly failed for query '{}': {}", q, e.getMessage(), e );
             resp.setStatus( 500 );
@@ -133,7 +144,7 @@ public class BundleResource extends RestServletBase {
         final java.util.Map< ?, ? > modeMap =
             ( engine instanceof WikiEngine we ) ? we.bundleSectionSources() : null;
         final SectionCandidateSource src = ( modeMap != null )
-            ? (SectionCandidateSource) modeMap.get( com.wikantik.api.bundle.RetrievalMode.HYBRID )
+            ? (SectionCandidateSource) modeMap.get( RetrievalMode.HYBRID )
             : null;
         int k = 500;
         try {

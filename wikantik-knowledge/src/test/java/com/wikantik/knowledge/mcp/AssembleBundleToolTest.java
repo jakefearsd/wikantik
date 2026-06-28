@@ -24,6 +24,7 @@ import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
+import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
@@ -35,9 +36,11 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 class AssembleBundleToolTest {
 
@@ -128,5 +131,45 @@ class AssembleBundleToolTest {
                 "restricted page content must not leak through assemble_bundle" );
         assertTrue( text.contains( "public content" ),
                 "non-restricted sections must still appear" );
+    }
+
+    /* ---------- mode argument ---------- */
+
+    @Test
+    void mode_dense_calls_assemble_with_DENSE() {
+        final BundleAssemblyService svc = mock( BundleAssemblyService.class );
+        when( svc.assemble( eq( "deploy" ), eq( RetrievalMode.DENSE ) ) ).thenReturn( FIXED_BUNDLE );
+        final AssembleBundleTool t = new AssembleBundleTool( svc, () -> null );
+
+        final McpSchema.CallToolResult result = t.execute( Map.of( "query", "deploy", "mode", "dense" ) );
+
+        assertFalse( result.isError() );
+        verify( svc ).assemble( "deploy", RetrievalMode.DENSE );
+    }
+
+    @Test
+    void missing_mode_calls_assemble_with_HYBRID() {
+        final BundleAssemblyService svc = mock( BundleAssemblyService.class );
+        when( svc.assemble( eq( "deploy" ), eq( RetrievalMode.HYBRID ) ) ).thenReturn( FIXED_BUNDLE );
+        final AssembleBundleTool t = new AssembleBundleTool( svc, () -> null );
+
+        final McpSchema.CallToolResult result = t.execute( Map.of( "query", "deploy" ) );   // no mode key
+
+        assertFalse( result.isError() );
+        verify( svc ).assemble( "deploy", RetrievalMode.HYBRID );
+    }
+
+    @Test
+    void bogus_mode_returns_error_result_and_no_assemble_call() {
+        final BundleAssemblyService svc = mock( BundleAssemblyService.class );
+        final AssembleBundleTool t = new AssembleBundleTool( svc, () -> null );
+
+        final McpSchema.CallToolResult result = t.execute( Map.of( "query", "deploy", "mode", "bogus" ) );
+
+        assertTrue( result.isError(), "invalid mode must return isError = true" );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "hybrid" ) && text.contains( "dense" ) && text.contains( "lexical" ),
+                "error must list valid mode values; got: " + text );
+        verifyNoInteractions( svc );
     }
 }

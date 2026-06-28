@@ -162,6 +162,16 @@ class DefaultKgProposalJudgeServiceJsonExtractTest {
         assertEquals( "judge_unavailable: response missing content", v.rationale() );
     }
 
+    @Test
+    void judge_message_with_null_content_is_transient_abstain_not_npe() throws Exception {
+        // "content" present but JSON null (non-primitive) — guard's second arm must catch it.
+        final String body = "{\"message\":{\"role\":\"assistant\",\"content\":null}}";
+        final var svc = new DefaultKgProposalJudgeService( httpClientReturning( mockResponse( 200, body ) ), cfg() );
+        final JudgeVerdict v = svc.judge( sampleProposal() );
+        assertEquals( JudgeVerdict.ABSTAIN, v.verdict() );
+        assertEquals( "judge_unavailable: response missing content", v.rationale() );
+    }
+
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------

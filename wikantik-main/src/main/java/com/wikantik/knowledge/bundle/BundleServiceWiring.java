@@ -88,9 +88,12 @@ public final class BundleServiceWiring {
             LOG.debug( "ContextRetrievalService not yet wired — bundle assembly service unavailable" );
             return null;
         }
-        // Null or empty map → page-gated fallback (dense index unavailable or not configured).
+        // dense.enabled=false → force page-gated path regardless of sourceMap content.
+        // Null/empty map also falls back to page-gated (dense index unavailable or not configured).
+        final boolean denseEnabled = props == null || Boolean.parseBoolean(
+            props.getProperty( "wikantik.bundle.dense.enabled", "true" ) );
         final Map< RetrievalMode, SectionCandidateSource > sources =
-            ( sourceMap == null || sourceMap.isEmpty() )
+            ( !denseEnabled || sourceMap == null || sourceMap.isEmpty() )
                 ? Map.of( RetrievalMode.HYBRID, new RetrievalSectionSource( retrieval, sectionsPerPageFrom( props ) ) )
                 : sourceMap;
 

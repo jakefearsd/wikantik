@@ -204,6 +204,33 @@ class BundleServiceWiringTest {
     }
 
     @Test
+    void build_denseDisabled_usesPageGated() {
+        // dense.enabled=false with a non-empty source map → must ignore the map and use page-gated path.
+        final ContextRetrievalService retrieval = mock( ContextRetrievalService.class );
+        when( retrieval.retrieve( any() ) ).thenReturn( new RetrievalResult( "q", List.of(), 0 ) );
+
+        // Spy source in the map: records whether it was invoked.
+        final boolean[] sourceCalled = { false };
+        final SectionCandidateSource spySource = q -> { sourceCalled[0] = true; return List.of(); };
+
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.bundle.dense.enabled", "false" );
+
+        final BundleAssemblyService svc = BundleServiceWiring.build(
+            retrieval,
+            Map.of( RetrievalMode.HYBRID, spySource, RetrievalMode.DENSE, spySource ),
+            null, null, props );
+
+        assertNotNull( svc );
+        svc.assemble( "q" );
+
+        // Page-gated path: retrieval must have been called; supplied dense source must NOT.
+        verify( retrieval ).retrieve( any() );
+        assertTrue( !sourceCalled[0],
+            "dense.enabled=false must bypass the supplied source map and use page-gated retrieval" );
+    }
+
+    @Test
     void build_with_mode_map_routes_each_mode() {
         final SectionCandidateSource dense   = q -> List.of();
         final SectionCandidateSource lexical = q -> List.of();

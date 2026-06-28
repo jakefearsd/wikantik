@@ -22,7 +22,11 @@ import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
+import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.knowledge.ContextRetrievalService;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -30,6 +34,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -37,7 +42,10 @@ import java.util.function.Function;
 /** Orchestrates retrieve → per-page shortlist → rerank → dedup → top-N → cite (ADR-0001/0003/0005). */
 public final class DefaultBundleAssemblyService implements BundleAssemblyService {
 
-    private final SectionCandidateSource source;
+    private static final Logger LOG = LogManager.getLogger( DefaultBundleAssemblyService.class );
+
+    private final Map< RetrievalMode, SectionCandidateSource > sources;
+    private final RetrievalMode defaultMode;
     private final SectionReranker reranker;
     private final Function< String, Optional< String > > canonicalIdOf;  // slug -> canonical_id
     private final Function< String, Integer > versionOf;                  // slug -> page version
@@ -60,13 +68,29 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
     /**
      * Source-based constructor — the {@link SectionCandidateSource} decides page-gated
      * ({@link RetrievalSectionSource}) vs global dense-chunk ({@link DenseChunkSectionSource}).
+     * Registers the source under {@link RetrievalMode#HYBRID} with HYBRID as the default mode.
      */
     public DefaultBundleAssemblyService( final SectionCandidateSource source,
                                          final SectionReranker reranker,
                                          final Function< String, Optional< String > > canonicalIdOf,
                                          final Function< String, Integer > versionOf,
                                          final int maxSections ) {
-        this.source = source;
+        this( Map.of( RetrievalMode.HYBRID, source ), RetrievalMode.HYBRID,
+              reranker, canonicalIdOf, versionOf, maxSections );
+    }
+
+    /**
+     * Map-based constructor — each {@link RetrievalMode} may have its own {@link SectionCandidateSource}.
+     * Requests for a mode with no wired source degrade to the default mode's source with a single warn log.
+     */
+    public DefaultBundleAssemblyService( final Map< RetrievalMode, SectionCandidateSource > sources,
+                                         final RetrievalMode defaultMode,
+                                         final SectionReranker reranker,
+                                         final Function< String, Optional< String > > canonicalIdOf,
+                                         final Function< String, Integer > versionOf,
+                                         final int maxSections ) {
+        this.sources = Map.copyOf( sources );
+        this.defaultMode = defaultMode;
         this.reranker = reranker;
         this.canonicalIdOf = canonicalIdOf;
         this.versionOf = versionOf;
@@ -75,7 +99,17 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
 
     @Override
     public ContextBundle assemble( final String query ) {
-        final List< CandidateSection > ranked = reranker.rerank( query, source.candidates( query ) );
+        return assemble( query, defaultMode );
+    }
+
+    @Override
+    public ContextBundle assemble( final String query, final RetrievalMode mode ) {
+        SectionCandidateSource src = sources.get( mode );
+        if ( src == null ) {
+            LOG.warn( "Retrieval mode {} has no wired source; degrading to default {}", mode, defaultMode );
+            src = sources.get( defaultMode );
+        }
+        final List< CandidateSection > ranked = reranker.rerank( query, src.candidates( query ) );
 
         final Set< SectionKey > seen = new LinkedHashSet<>();
         final List< BundleSection > out = new ArrayList<>();

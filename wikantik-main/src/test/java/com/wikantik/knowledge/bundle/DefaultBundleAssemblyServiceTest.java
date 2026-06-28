@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.bundle;
 
 import com.wikantik.api.bundle.ContextBundle;
+import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.knowledge.*;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
@@ -80,6 +81,29 @@ class DefaultBundleAssemblyServiceTest {
         final ContextBundle b = new DefaultBundleAssemblyService(
             source, ( q, s ) -> s, slug -> Optional.of( "c-" + slug ), slug -> 1, 3 ).assemble( "q" );
         assertEquals( 3, b.sections().size(), "output capped at maxSections" );
+    }
+
+    /** Helper matching the shape used elsewhere in this test class. */
+    private static CandidateSection candidate( final String slug, final String text ) {
+        return new CandidateSection( slug, List.of( "H" ), text, 1.0 );
+    }
+
+    @Test
+    void assemble_selects_source_by_mode_and_degrades_to_default_when_missing() {
+        final SectionCandidateSource denseSrc   = q -> List.of( candidate( "DensePage", "d" ) );
+        final SectionCandidateSource lexicalSrc = q -> List.of( candidate( "LexPage", "l" ) );
+        final java.util.Map< RetrievalMode, SectionCandidateSource > sources =
+            java.util.Map.of( RetrievalMode.HYBRID, denseSrc, RetrievalMode.LEXICAL, lexicalSrc );
+        final DefaultBundleAssemblyService svc = new DefaultBundleAssemblyService(
+            sources, RetrievalMode.HYBRID, (q, s) -> s, slug -> Optional.of( slug ),
+            slug -> 0, 12 );
+
+        // explicit mode routes to its source
+        assertEquals( "LexPage", svc.assemble( "x", RetrievalMode.LEXICAL ).sections().get( 0 ).slug() );
+        // DENSE has no source → degrade to default (HYBRID) source
+        assertEquals( "DensePage", svc.assemble( "x", RetrievalMode.DENSE ).sections().get( 0 ).slug() );
+        // no-mode call uses default
+        assertEquals( "DensePage", svc.assemble( "x" ).sections().get( 0 ).slug() );
     }
 
     private record StubRetrieval( RetrievalResult fixed ) implements ContextRetrievalService {

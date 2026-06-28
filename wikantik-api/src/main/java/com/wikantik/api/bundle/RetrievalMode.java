@@ -18,17 +18,21 @@
  */
 package com.wikantik.api.bundle;
 
-/** RAG-as-a-Service: assemble retrieval into a ranked, de-duplicated, cited context bundle.
- *  No answer synthesis (ADR-0001). */
-public interface BundleAssemblyService {
-    ContextBundle assemble( String query );
+/** Retrieval strategy for a context-bundle request. Wire form is the lowercase name. */
+public enum RetrievalMode {
+    HYBRID, DENSE, LEXICAL;
 
-    /**
-     * Assemble a bundle using the given retrieval mode. Default implementation ignores
-     * mode and delegates to {@link #assemble(String)}; the production implementation
-     * selects a per-mode candidate source.
-     */
-    default ContextBundle assemble( String query, RetrievalMode mode ) {
-        return assemble( query );
+    /** Parse a wire value (case-insensitive); null/blank → HYBRID; unknown → IllegalArgumentException. */
+    public static RetrievalMode fromWire( final String raw ) {
+        if ( raw == null || raw.isBlank() ) {
+            return HYBRID;
+        }
+        switch ( raw.trim().toLowerCase( java.util.Locale.ROOT ) ) {
+            case "hybrid":  return HYBRID;
+            case "dense":   return DENSE;
+            case "lexical": return LEXICAL;
+            default: throw new IllegalArgumentException(
+                "invalid retrieval mode '" + raw + "'; valid: hybrid, dense, lexical" );
+        }
     }
 }

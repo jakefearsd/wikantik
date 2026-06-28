@@ -39,11 +39,13 @@ tags:
 - runbook
 type: runbook
 status: active
-summary: How to control which pages contribute to the knowledge graph — the cluster-primary
-  policy model, the admin dashboard, the CLI, and the day-to-day operator workflows.
+summary: Which pages contribute entities to the Knowledge Graph by default, and how
+  a page overrides inclusion with kg_include.
 title: KG Inclusion Policy
 cluster: wikantik-development
-audience: humans
+audience:
+- humans
+- agents
 ---
 
 # KG Inclusion Policy

@@ -75,6 +75,19 @@ The KG is exposed through two MCP servers:
 
 The KG participates in the RAG-as-a-Service context bundle (`GET /api/bundle?q=` / `assemble_bundle` MCP tool): retrieved sections carry version-pinned citation edges into the `citations` table, and a span-level staleness score drives the self-healing loop — `list_stale_citations` surfaces citations whose grounding sections have drifted. The drift burn-down dashboard is at `/admin/drift/citations`.
 
+## Which pages contribute entities (KG inclusion)
+
+**By default a page contributes NO entities to the Knowledge Graph** — inclusion
+is **default-exclude**. A page is included only if its **cluster** has an
+`include` row in `kg_cluster_policy`, OR its frontmatter sets `kg_include: true`.
+A page overrides its cluster either way:
+
+- `kg_include: true` — force the page **in**, regardless of cluster.
+- `kg_include: false` — force the page **out**; this **beats** `cluster: include`.
+
+System pages (Sandbox, Main, navigation) are always excluded. Full operator
+guide: `KgInclusionPolicy`.
+
 ## See Also
 
 - [PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph) — canonical explainer for the two graph subsystems

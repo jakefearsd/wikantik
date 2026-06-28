@@ -106,6 +106,15 @@ class DefaultBundleAssemblyServiceTest {
         assertEquals( "DensePage", svc.assemble( "x" ).sections().get( 0 ).slug() );
     }
 
+    @Test
+    void mapCtor_defaultModeAbsent_throwsNullPointer() {
+        // defaultMode not in sources → fail fast rather than NPE at first assemble() call
+        final java.util.Map< RetrievalMode, SectionCandidateSource > empty = java.util.Map.of();
+        assertThrows( NullPointerException.class, () ->
+            new DefaultBundleAssemblyService( empty, RetrievalMode.HYBRID, (q, s) -> s,
+                slug -> Optional.empty(), slug -> 0, 5 ) );
+    }
+
     private record StubRetrieval( RetrievalResult fixed ) implements ContextRetrievalService {
         public RetrievalResult retrieve( ContextQuery q ) { return fixed; }
         public RetrievedPage getPage( String n ) { return null; }

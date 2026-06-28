@@ -248,7 +248,7 @@ public final class SearchWiringHelper {
         // the retrieval-patch seam. The 2026-06-14 measurement showed retrieving the top-K chunks
         // directly (no page pre-select) realises the section-recall ceiling (recall@12 0.735) where
         // the page-gated path only reaches ~0.685.
-        engine.setBundleSectionSource( buildBundleSource( props, embedder, vectorIndex, chunkRepo, ds ) );
+        engine.setBundleSectionSources( buildBundleSourceMap( props, embedder, vectorIndex, chunkRepo, ds ) );
 
         final BootstrapEmbeddingIndexer bootstrap =
             new BootstrapEmbeddingIndexer( ds, indexService, modelCode, indexReloadHook );
@@ -289,51 +289,61 @@ public final class SearchWiringHelper {
     }
 
     /**
-     * Builds the context-bundle candidate source from config + the in-scope embedder / vector index /
-     * chunk repository: a global dense-chunk source by default ({@code wikantik.bundle.dense.top_k}),
-     * optionally wrapped with a BM25 chunk-hybrid layer ({@code wikantik.bundle.bm25.enabled}). The
-     * optional layer fails open — a build failure logs and leaves the base source untouched.
+     * Builds the per-mode context-bundle candidate source map from config + the in-scope embedder /
+     * vector index / chunk repository. Always produces a DENSE entry (global top-K dense-chunk source).
+     * When {@code wikantik.bundle.bm25.enabled} is true and the BM25 index builds successfully, also
+     * populates HYBRID (dense+BM25 RRF) and LEXICAL (BM25-only ranking, dense weight=0). If BM25 fails
+     * to build, HYBRID and LEXICAL remain pointing to the dense source — logged once at WARN, not thrown.
      */
-    private static com.wikantik.knowledge.bundle.SectionCandidateSource buildBundleSource(
-            final java.util.Properties props, final QueryEmbedder embedder,
-            final com.wikantik.search.hybrid.ChunkVectorIndex vectorIndex,
-            final com.wikantik.knowledge.chunking.ContentChunkRepository chunkRepo,
-            final javax.sql.DataSource ds ) {
+    private static java.util.Map< com.wikantik.api.bundle.RetrievalMode,
+                                   com.wikantik.knowledge.bundle.SectionCandidateSource >
+            buildBundleSourceMap(
+                    final java.util.Properties props, final QueryEmbedder embedder,
+                    final com.wikantik.search.hybrid.ChunkVectorIndex vectorIndex,
+                    final com.wikantik.knowledge.chunking.ContentChunkRepository chunkRepo,
+                    final javax.sql.DataSource ds ) {
         final int denseTopK = com.wikantik.util.TextUtil.getIntegerProperty(
             props, "wikantik.bundle.dense.top_k", 300 );
-        com.wikantik.knowledge.bundle.SectionCandidateSource bundleSource =
+        final com.wikantik.knowledge.bundle.DenseChunkSectionSource dense =
             new com.wikantik.knowledge.bundle.DenseChunkSectionSource( embedder, vectorIndex, chunkRepo, denseTopK );
 
-        // Chunk-level hybrid: the dense-chunk source is lexically blind; wikantik.bundle.bm25.enabled
-        // wraps it with a RAM BM25 chunk index + RRF fusion. Default OFF; falls back to dense-only on
-        // a failed index build.
+        final java.util.Map< com.wikantik.api.bundle.RetrievalMode,
+                             com.wikantik.knowledge.bundle.SectionCandidateSource > map =
+            new java.util.EnumMap<>( com.wikantik.api.bundle.RetrievalMode.class );
+        map.put( com.wikantik.api.bundle.RetrievalMode.DENSE, dense );
+        map.put( com.wikantik.api.bundle.RetrievalMode.HYBRID, dense );   // overwritten below if BM25 builds
+
+        // Chunk-level hybrid: wikantik.bundle.bm25.enabled wraps HYBRID/LEXICAL with a RAM BM25 chunk
+        // index + RRF fusion. Default OFF; LEXICAL = dense-weight-0 fuser (BM25-only ranking).
+        // The 2026-06-18 sweep (eval/bm25-chunk-spike/) found bm25=0.5/dense=1.5/rrfK=20/truncate=20.
         if ( Boolean.parseBoolean( props.getProperty( "wikantik.bundle.bm25.enabled", "false" ) ) ) {
             try {
                 final String bm25Analyzer = props.getProperty( "wikantik.bundle.bm25.analyzer", "standard" );
                 final com.wikantik.search.hybrid.LuceneBm25ChunkIndex bm25Index =
                     com.wikantik.search.hybrid.LuceneBm25ChunkIndex.fromDataSource( ds,
                         com.wikantik.search.hybrid.LuceneBm25ChunkIndex.analyzerFor( bm25Analyzer ) );
-                // Bundle-specific fusion (NOT the page-level fuser). The 2026-06-18 sweep
-                // (eval/bm25-chunk-spike/) found bm25=0.5/dense=1.5/rrfK=20/truncate=20 keeps the
-                // similarity recall gain (+0.026 @12) with NO boundary@5 regression — the reused
-                // page-level bm25=1.0 over-weighted lexical and dropped boundary@5 0.692→0.615.
                 // Resolve each knob to a local ONCE so the log line can never drift from the wiring.
-                final double bm25Weight = com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.bm25.bm25_weight", 0.5 );
+                final double bm25Weight  = com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.bm25.bm25_weight", 0.5 );
                 final double denseWeight = com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.bm25.dense_weight", 1.5 );
-                final int rrfK = com.wikantik.util.TextUtil.getIntegerProperty( props, "wikantik.bundle.bm25.rrf_k", 20 );
+                final int rrfK     = com.wikantik.util.TextUtil.getIntegerProperty( props, "wikantik.bundle.bm25.rrf_k", 20 );
                 final int truncate = com.wikantik.util.TextUtil.getIntegerProperty( props, "wikantik.bundle.bm25.truncate", 20 );
-                final com.wikantik.search.hybrid.HybridFuser bundleFuser =
+                final com.wikantik.search.hybrid.HybridFuser hybridFuser =
                     new com.wikantik.search.hybrid.HybridFuser( rrfK, bm25Weight, denseWeight, truncate );
-                bundleSource = new com.wikantik.knowledge.bundle.HybridChunkSectionSource(
-                    embedder, vectorIndex, bm25Index, chunkRepo, bundleFuser, denseTopK );
-                LOG.info( "Bundle source: HYBRID chunk (dense + BM25 RRF, bm25_w={}, dense_w={}, rrfK={}, trunc={}),"
-                        + " bm25 chunks indexed={}",
+                final com.wikantik.search.hybrid.HybridFuser lexicalFuser =
+                    new com.wikantik.search.hybrid.HybridFuser( rrfK, bm25Weight, 0.0, truncate );  // dense weight 0 → BM25-only ranking
+                map.put( com.wikantik.api.bundle.RetrievalMode.HYBRID,
+                    new com.wikantik.knowledge.bundle.HybridChunkSectionSource(
+                        embedder, vectorIndex, bm25Index, chunkRepo, hybridFuser, denseTopK ) );
+                map.put( com.wikantik.api.bundle.RetrievalMode.LEXICAL,
+                    new com.wikantik.knowledge.bundle.HybridChunkSectionSource(
+                        embedder, vectorIndex, bm25Index, chunkRepo, lexicalFuser, denseTopK ) );
+                LOG.info( "Bundle sources: HYBRID+DENSE+LEXICAL (bm25_w={}, dense_w={}, rrfK={}, trunc={}), bm25 chunks={}",
                     bm25Weight, denseWeight, rrfK, truncate, bm25Index.size() );
             } catch ( final RuntimeException e ) {
-                LOG.warn( "BM25 chunk index build failed; using dense-only bundle source: {}", e.getMessage(), e );
+                LOG.warn( "BM25 chunk index build failed; LEXICAL/HYBRID degrade to dense-only: {}", e.getMessage(), e );
             }
         }
-        return bundleSource;
+        return map;
     }
 
     // -----------------------------------------------------------------------

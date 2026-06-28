@@ -25,6 +25,7 @@ import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
+import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.QueryLogService;
@@ -245,7 +246,8 @@ class BundleResourceTest {
     void debugRankings_nonHybridSource_returns_409() throws Exception {
         final WikiEngine engine = mock( WikiEngine.class );
         // a plain dense source (the shipped default) is neither hybrid nor injection → 409.
-        when( engine.bundleSectionSource() ).thenReturn( mock( SectionCandidateSource.class ) );
+        when( engine.bundleSectionSources() ).thenReturn(
+            Map.of( RetrievalMode.HYBRID, mock( SectionCandidateSource.class ) ) );
         final BundleResource resource = resourceWithEngine( engine );
         final HttpServletResponse resp = mock( HttpServletResponse.class );
         when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
@@ -263,7 +265,7 @@ class BundleResourceTest {
         ranks.put( "bm25", List.of( new HybridChunkSectionSource.DebugRank( "id2", 1.0 ) ) );
         when( hybrid.debugRankings( "foo", 10 ) ).thenReturn( ranks );
         final WikiEngine engine = mock( WikiEngine.class );
-        when( engine.bundleSectionSource() ).thenReturn( hybrid );
+        when( engine.bundleSectionSources() ).thenReturn( Map.of( RetrievalMode.HYBRID, hybrid ) );
         final BundleResource resource = resourceWithEngine( engine );
         final HttpServletResponse resp = mock( HttpServletResponse.class );
         final StringWriter sw = new StringWriter();
@@ -283,7 +285,7 @@ class BundleResourceTest {
         final HybridChunkSectionSource hybrid = mock( HybridChunkSectionSource.class );
         when( hybrid.debugRankings( "foo", 500 ) ).thenReturn( new LinkedHashMap<>() );
         final WikiEngine engine = mock( WikiEngine.class );
-        when( engine.bundleSectionSource() ).thenReturn( hybrid );
+        when( engine.bundleSectionSources() ).thenReturn( Map.of( RetrievalMode.HYBRID, hybrid ) );
         final HttpServletResponse resp = mock( HttpServletResponse.class );
         when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
 
@@ -297,7 +299,7 @@ class BundleResourceTest {
         final HybridChunkSectionSource hybrid = mock( HybridChunkSectionSource.class );
         when( hybrid.debugRankings( "foo", 500 ) ).thenReturn( new LinkedHashMap<>() );
         final WikiEngine engine = mock( WikiEngine.class );
-        when( engine.bundleSectionSource() ).thenReturn( hybrid );
+        when( engine.bundleSectionSources() ).thenReturn( Map.of( RetrievalMode.HYBRID, hybrid ) );
         final HttpServletResponse resp = mock( HttpServletResponse.class );
         when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
 

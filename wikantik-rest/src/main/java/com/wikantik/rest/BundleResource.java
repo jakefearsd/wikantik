@@ -130,8 +130,11 @@ public class BundleResource extends RestServletBase {
                                       final String q ) throws IOException {
         resp.setContentType( "application/json; charset=UTF-8" );
         final Engine engine = getEngine();
-        final SectionCandidateSource src =
-            ( engine instanceof WikiEngine we ) ? we.bundleSectionSource() : null;
+        final java.util.Map< ?, ? > modeMap =
+            ( engine instanceof WikiEngine we ) ? we.bundleSectionSources() : null;
+        final SectionCandidateSource src = ( modeMap != null )
+            ? (SectionCandidateSource) modeMap.get( com.wikantik.api.bundle.RetrievalMode.HYBRID )
+            : null;
         int k = 500;
         try {
             final String kp = req.getParameter( "k" );

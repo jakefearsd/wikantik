@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -89,6 +90,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
                                          final Function< String, Optional< String > > canonicalIdOf,
                                          final Function< String, Integer > versionOf,
                                          final int maxSections ) {
+        Objects.requireNonNull( sources.get( defaultMode ), "defaultMode must be present in sources" );
         this.sources = Map.copyOf( sources );
         this.defaultMode = defaultMode;
         this.reranker = reranker;

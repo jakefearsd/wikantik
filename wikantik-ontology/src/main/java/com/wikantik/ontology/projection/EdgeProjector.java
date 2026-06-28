@@ -47,11 +47,11 @@ public final class EdgeProjector {
 
     /**
      * Returns the triple {@code entity(source) wk:<prop> entity(target)}, or empty if the
-     * relationship_type is outside the closed vocabulary (logged at WARN, never silently dropped).
+     * relationship_type is outside the closed vocabulary (logged at INFO (guard outcome), never silently dropped).
      */
     public static Optional< Statement > toStatement( final KgEdge edge ) {
         if ( !RelationshipTypeVocabulary.isValid( edge.relationshipType() ) ) {
-            LOG.warn( "skipping edge {} -> {}: relationship_type '{}' not in closed vocabulary",
+            LOG.info( "projection: rejected edge {} -> {}: relationship_type '{}' not in closed vocabulary [guard]",
                     edge.sourceId(), edge.targetId(), edge.relationshipType() );
             return Optional.empty();
         }

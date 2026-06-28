@@ -141,9 +141,10 @@ public class KgMaterializationService {
             final var violations = ontologyValidator.validateEdge( src.nodeType(), rel, tgt.nodeType() );
             if ( !violations.isEmpty() ) {
                 skippedNonConformant.incrementAndGet();
-                LOG.warn( "materialize: skipping ontology-non-conformant edge for proposal {} "
-                    + "({} --{}--> {}): {}",
-                    proposal.id(), src.nodeType(), rel, tgt.nodeType(), violations.get( 0 ).message() );
+                LOG.info( "materialize: rejected ontology-non-conformant edge for proposal {} "
+                    + "({} --{}--> {}): {} [skipped by SHACL gate, count={}]",
+                    proposal.id(), src.nodeType(), rel, tgt.nodeType(),
+                    violations.get( 0 ).message(), skippedNonConformant.get() );
                 return;
             }
         }

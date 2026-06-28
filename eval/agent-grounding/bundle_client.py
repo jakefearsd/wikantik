@@ -5,8 +5,9 @@ Field names match the live BundleSection JSON serialisation:
   sections[].headingPath — list[str] heading path (camelCase)
   sections[].text        — section body text
 
-Note: --lexical is a no-op for the bundle arm; /api/bundle has no lexical-toggle
-param. The --lexical flag is meaningful only for the MCP tool arm (assemble_bundle).
+When lexical=True, appends &mode=lexical to the request so the server uses
+BM25-only retrieval (A3). When lexical=False (default), mode is omitted and
+the server applies its default HYBRID strategy.
 """
 import json
 import urllib.parse
@@ -33,18 +34,21 @@ def sections_to_context(sections):
     return "\n\n".join(blocks)
 
 
-def fetch_bundle(base_url, query, lexical=False, http=None):  # noqa: ARG001  lexical unused (MCP-arm-only)
-    """GET /api/bundle?q=<query> and return {"context": str, "cited_pages": [str]}.
+def fetch_bundle(base_url, query, lexical=False, http=None):
+    """GET /api/bundle?q=<query>[&mode=lexical] and return {"context": str, "cited_pages": [str]}.
 
     Args:
         base_url: Wiki base URL (e.g. "http://localhost:8080").
         query:    Natural-language retrieval query.
-        lexical:  Accepted but ignored — /api/bundle has no lexical toggle.
-                  Pass lexical=True to assemble_bundle MCP tool instead.
+        lexical:  When True, appends mode=lexical so the server uses BM25-only
+                  retrieval. When False (default), mode is omitted and the server
+                  applies its default HYBRID strategy (dense+BM25 RRF).
         http:     Optional injectable (url) -> (status, body_str) for testing.
     """
     http = http or _default_http
     params = {"q": query}
+    if lexical:
+        params["mode"] = "lexical"
     url = base_url.rstrip("/") + "/api/bundle?" + urllib.parse.urlencode(params)
     status, body = http(url)
     if not (200 <= status < 300):

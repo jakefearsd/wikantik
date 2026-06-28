@@ -61,3 +61,25 @@ def test_fetch_bundle_raises_on_non_200():
         return 500, ""
     with pytest.raises(RuntimeError, match="bundle HTTP 500"):
         bundle_client.fetch_bundle("http://x", "q", http=fake_http)
+
+
+def test_fetch_bundle_lexical_sends_mode_param():
+    captured = {}
+
+    def fake_http(url):
+        captured["url"] = url
+        return 200, json.dumps(SAMPLE)
+
+    bundle_client.fetch_bundle("http://x", "query text", lexical=True, http=fake_http)
+    assert "mode=lexical" in captured["url"]
+
+
+def test_fetch_bundle_non_lexical_omits_mode_param():
+    captured = {}
+
+    def fake_http(url):
+        captured["url"] = url
+        return 200, json.dumps(SAMPLE)
+
+    bundle_client.fetch_bundle("http://x", "query text", lexical=False, http=fake_http)
+    assert "mode=" not in captured["url"]

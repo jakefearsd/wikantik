@@ -58,10 +58,17 @@ def grounded_mcp(cfg, question, mcp=None, http=None):
     if client is None:
         client = mcp_mod.McpClient(cfg.base_url, cfg.mcp_key)
         client.connect()
+
+    def _exec_tool(name, arguments):
+        if name == "assemble_bundle" and cfg.lexical:
+            arguments = dict(arguments)
+            arguments["mode"] = "lexical"
+        return client.call_tool(name, arguments)
+
     tools = mcp_tools_to_anthropic(client.list_tools())
     loop = anthropic_client.run_tool_loop(
         cfg, cfg.agent_model, SYSTEM, question["question"], tools,
-        exec_tool=client.call_tool, http=http, max_iters=cfg.max_tool_iters)
+        exec_tool=_exec_tool, http=http, max_iters=cfg.max_tool_iters)
     pages = _pages_from_answer(loop["answer"]) or \
         cited_pages_from_tool_calls(loop["tool_calls"])
     return {"arm": "grounded_mcp", "qid": question["id"], "answer": loop["answer"],

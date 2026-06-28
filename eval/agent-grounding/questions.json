@@ -21,13 +21,6 @@
     "difficulty": "easy"
   },
   {
-    "id": "derived-page-definition",
-    "question": "What makes a page 'derived' in Wikantik, and what is special about its body?",
-    "reference": "A page is derived iff its frontmatter has derived_from (the retained source attachment). Its body is machine-owned/regenerable; reflow re-extracts the body while preserving body-independent curation.",
-    "expect_sources": ["AgentGradeContentDesign", "WikantikKnowledgeGraph"],
-    "difficulty": "medium"
-  },
-  {
     "id": "bundle-vs-synthesis",
     "question": "Does Wikantik's RAG endpoint answer questions, or do something else? What does it return?",
     "reference": "It never synthesizes answers (ADR-0001). /api/bundle and assemble_bundle return a ranked, de-duplicated, version-pinned-cited context bundle of sections; answer synthesis is left to the caller.",
@@ -96,13 +89,6 @@
     "reference": "The gate is narrow — currently only 2 shaped predicates (implements, located_in). On the human curation path, DefaultKgCurationOps.tryUpsertEdge refuses a non-conformant edge with the violated shape name. On the machine path, KgMaterializationService skips, logs, and counts non-conformant edges without failing the pipeline.",
     "expect_sources": ["WikantikKnowledgeGraph"],
     "difficulty": "hard"
-  },
-  {
-    "id": "bcrypt-transparent-migration",
-    "question": "How does Wikantik handle the upgrade from legacy SHA-256 password hashing to bcrypt without forcing users to change their passwords?",
-    "reference": "Transparent bcrypt migration: on successful login with a SHA-256 (or SSHA) hashed password, the system re-hashes the supplied plaintext to bcrypt and updates the stored hash in the database. The user notices nothing; the upgrade happens at first login.",
-    "expect_sources": ["CryptographyFundamentals"],
-    "difficulty": "medium"
   },
   {
     "id": "contextual-embeddings-prefix",

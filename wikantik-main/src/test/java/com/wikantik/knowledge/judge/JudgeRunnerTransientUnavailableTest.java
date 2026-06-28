@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -92,6 +93,32 @@ class JudgeRunnerTransientUnavailableTest {
             any(), any() );
         // And neither materialise path fired.
         verify( materialization, never() ).materializeMachine( any() );
+    }
+
+    @Test
+    void transient_unavailable_batch_is_counted() {
+        // TDD: this test should FAIL before Part A is implemented (lastRunTransientUnavailable()
+        // won't exist / counter stays 0). It passes once the counter and getter are wired up.
+        final KgProposalRepository proposals = mock( KgProposalRepository.class );
+        final KgRejectionRepository rejections = mock( KgRejectionRepository.class );
+        final KgProposalJudgeService judge = mock( KgProposalJudgeService.class );
+        final KgMaterializationService materialization = mock( KgMaterializationService.class );
+
+        final List< KgProposal > batch = List.of( proposal(), proposal(), proposal() );
+        when( proposals.getProposalsForJudging( anyInt() ) ).thenReturn( batch );
+        when( proposals.listReviews( any() ) ).thenReturn( List.of() );
+        when( judge.judge( any() ) ).thenReturn( new JudgeVerdict(
+            JudgeVerdict.ABSTAIN, 0.0,
+            "judge_unavailable: connection refused",
+            "test-model" ) );
+
+        final JudgeRunner runner = new JudgeRunner( proposals, rejections, judge, materialization, cfg() );
+        runner.runOnce();
+
+        assertEquals( batch.size(), runner.lastRunTransientUnavailable(),
+            "all transient-unavailable proposals must be counted" );
+        assertEquals( 0, runner.status( 0 ).lastRunCompleted(),
+            "no proposals should be completed (persisted) when all are transient-unavailable" );
     }
 
     @Test

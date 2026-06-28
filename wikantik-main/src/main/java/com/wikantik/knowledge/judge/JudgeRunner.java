@@ -62,12 +62,14 @@ public class JudgeRunner implements AutoCloseable {
     private boolean started;
 
     // --- Runtime progress state ---
-    private final AtomicBoolean inFlight           = new AtomicBoolean();
-    private final AtomicInteger lastRunSubmitted   = new AtomicInteger();
-    private final AtomicInteger lastRunCompleted   = new AtomicInteger();
+    private final AtomicBoolean inFlight                     = new AtomicBoolean();
+    private final AtomicInteger lastRunSubmitted             = new AtomicInteger();
+    private final AtomicInteger lastRunCompleted             = new AtomicInteger();
+    private final AtomicInteger lastRunTransientUnavailable  = new AtomicInteger();
     private volatile Instant    lastRunStartedAt;
     private volatile Instant    lastRunFinishedAt;
-    private volatile String     lastRunError;   // null on success
+    private volatile String     lastRunError;           // null on success
+    private volatile String     lastTransientSample;    // sample rationale from last tick
 
     /**
      * Immutable snapshot of the runner's current status. {@code queueDepth} is
@@ -98,6 +100,11 @@ public class JudgeRunner implements AutoCloseable {
             lastRunError,
             Math.toIntExact( Math.min( Integer.MAX_VALUE, queueDepth ) )
         );
+    }
+
+    /** Package-private: exposed for tests to verify the transient-unavailable count per tick. */
+    int lastRunTransientUnavailable() {
+        return lastRunTransientUnavailable.get();
     }
 
     public JudgeRunner( final KgProposalRepository proposals,
@@ -148,6 +155,8 @@ public class JudgeRunner implements AutoCloseable {
         lastRunStartedAt = Instant.now();
         lastRunSubmitted.set( 0 );
         lastRunCompleted.set( 0 );
+        lastRunTransientUnavailable.set( 0 );
+        lastTransientSample = null;
         lastRunError = null;
         try {
             return runOnceInternal();
@@ -186,6 +195,12 @@ public class JudgeRunner implements AutoCloseable {
                 LOG.warn( "judge pool timed out after {}s — {} tasks may still be running",
                     awaitSec, submitted );
             }
+            final int transientCount = lastRunTransientUnavailable.get();
+            if ( transientCount > 0 ) {
+                LOG.warn( "judge: {}/{} proposals could not reach the model backend this tick"
+                    + " (transient — left for retry); sample: {}",
+                    transientCount, submitted, lastTransientSample );
+            }
             return submitted;
         } catch ( final InterruptedException e ) {
             Thread.currentThread().interrupt();
@@ -206,14 +221,19 @@ public class JudgeRunner implements AutoCloseable {
             final JudgeVerdict v = judge.judge( proposal );
             if ( v.isTransientUnavailable() ) {
                 // Infrastructure failure (Ollama timeout, connection refused,
-                // malformed response). The service already logged a WARN with
-                // the cause. Don't persist a review or stamp machine_status —
+                // malformed response). Don't persist a review or stamp machine_status —
                 // leave the proposal at machine_status=NULL so the next cron
                 // pass naturally retries it on a (hopefully) warm model. This
                 // prevents transient failures from polluting review history or
                 // counting against the max_attempts cap.
+                // Per-proposal logging is DEBUG; one tick-level WARN summary is
+                // emitted by runOnceInternal() after the pool drains.
                 LOG.debug( "judge transient-unavailable for proposal {} — leaving for retry: {}",
                     proposal.id(), v.rationale() );
+                final int count = lastRunTransientUnavailable.incrementAndGet();
+                if ( count == 1 ) {
+                    lastTransientSample = v.rationale();
+                }
                 return;
             }
             proposals.applyMachineVerdict( proposal.id(), v.verdict(), v.confidence(), v.model() );

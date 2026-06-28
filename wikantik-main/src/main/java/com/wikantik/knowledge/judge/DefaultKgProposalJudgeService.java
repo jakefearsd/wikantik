@@ -203,13 +203,13 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
             // for this proposal. Drop the tracking row regardless of status.
             clearTrackedTimeout( proposal.id() );
             if ( resp.statusCode() / 100 != 2 ) {
-                LOG.warn( "judge HTTP {} for proposal {}", resp.statusCode(), proposal.id() );
+                LOG.debug( "judge HTTP {} for proposal {}", resp.statusCode(), proposal.id() );
                 return abstain( "judge_unavailable: http " + resp.statusCode() );
             }
             return parseResponse( resp.body() );
         } catch ( final HttpTimeoutException e ) {
             recordTrackedTimeout( proposal, userPrompt, e.getMessage(), baseTimeout );
-            LOG.warn( "judge timeout for proposal {} (effective={}s, base={}s): {}",
+            LOG.debug( "judge timeout for proposal {} (effective={}s, base={}s): {}",
                 proposal.id(), effectiveTimeout, baseTimeout, e.getMessage() );
             Metrics.counter( "wikantik.kg_judge.timeouts" ).increment();
             return abstain( "judge_unavailable: timeout after " + effectiveTimeout + "s" );
@@ -218,7 +218,7 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
             LOG.warn( "judge interrupted for proposal {}: {}", proposal.id(), e.getMessage() );
             return abstain( "judge_unavailable: interrupted" );
         } catch ( final IOException e ) {
-            LOG.warn( "judge HTTP failure for proposal {}: {}", proposal.id(), e.getMessage() );
+            LOG.debug( "judge HTTP failure for proposal {}: {}", proposal.id(), e.getMessage() );
             return abstain( "judge_unavailable: " + e.getMessage() );
         }
     }

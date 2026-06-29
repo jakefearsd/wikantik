@@ -54,15 +54,17 @@ The reranker identifies "seed nodes" within the top-N results from the hybrid fu
 Reranking behavior is controlled via `wikantik-custom.properties`:
 
 ```properties
-# Graph reranking boost weight — defaults to 0 (OFF; shelved 2026-06-16)
-wikantik.search.graphRerank.boost = 0
+# Graph reranking is OFF by default (shelved 2026-06-16). The boost weight is the
+# on/off gate: 0 disables it (the default), and the rerank step is not even wired
+# when boost = 0. This is the property that matters.
+wikantik.search.graph.boost = 0
 
-# Weights for different retrieval signals
-jspwiki.search.hybrid.bm25Weight = 0.4
-jspwiki.search.hybrid.vectorWeight = 0.6
-
-# Rerank depth (how many initial results to consider)
-jspwiki.search.graphRerank.depth = 20
+# The remaining graph-rerank knobs all live under wikantik.search.graph.* and are
+# inert while boost = 0 — e.g. wikantik.search.graph.max-hops,
+# wikantik.search.graph.weight.tier.human / .tier.machine,
+# wikantik.search.graph.weight.mention.floor. See GraphRerankConfig for the full
+# set and defaults. (BM25/dense fusion weights are a separate concern — they live
+# under wikantik.search.hybrid.rrf.* and are documented on HybridRetrieval.)
 ```
 
 ## Performance Impact

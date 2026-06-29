@@ -173,6 +173,31 @@ The Wikantik project uses:
 
 The model is hybrid — role-based default with per-page ACL override.
 
+### View ACLs on the agent read path
+
+A restricted page **never** appears in an agent's retrieved context, search
+results, or a RAG context bundle for a caller who lacks `view` permission. View
+ACLs are enforced on the **read path**, not just in the UI: every agent-facing
+surface runs its candidate pages through a session **view gate**
+(`PageViewGate`) before returning them —
+
+- the REST read endpoints (`/api/*`, `/wiki/{slug}?format=md|json`),
+- the `/knowledge-mcp` retrieval and Knowledge-Graph tools
+  (`retrieve_context`, `assemble_bundle`, `search_knowledge`, `query_nodes`, …), and
+- `/api/bundle` (the RAG context bundle).
+
+So restricted content cannot leak into search, retrieval, or a context bundle
+through the agent interface. (The public RDF/SPARQL surface applies the same
+guest-view ACL split — only anonymously-viewable pages are materialized.)
+
+**Not to be confused with KG Inclusion Policy.** View-ACL read-path enforcement
+is the *security* boundary and is always on. [KG Inclusion Policy](KgInclusionPolicy)
+is a separate *curation* control that decides which (already-viewable) pages
+contribute **entities** to the Knowledge Graph — it is **not** access control,
+and its admin-bypass on KG reads is for curators only and never bypasses a
+guest's view ACL. KG-including a page does not make a restricted page visible;
+KG-excluding a page does not hide a viewable page from page search.
+
 ## Common failure patterns
 
 ### Excessive permissions

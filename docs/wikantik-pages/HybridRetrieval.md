@@ -96,13 +96,13 @@ wikantik.search.hybrid.dense.page-top  = 100
 wikantik.search.dense.backend = inmemory
 ```
 
-Three backends are available:
+Three backends are available (docker1 **production** runs `lucene-hnsw` — the shipped properties file defaults to `inmemory`, but production overrides it; see below):
 
 | Value | Description |
 |-------|-------------|
-| `inmemory` | Brute-force float[] cosine scan over all chunks. Simple and exact, but O(N) per query — CPU cost grows linearly with corpus size. Default. |
+| `inmemory` | Brute-force float[] cosine scan over all chunks. Simple and exact, but O(N) per query — CPU cost grows linearly with corpus size. The shipped-properties default (docker1 production overrides to `lucene-hnsw`). |
 | `pgvector` | Delegates to PostgreSQL's HNSW index on `content_chunk_embeddings.embedding` (V032). Offloads CPU to the DB; requires the backfill one-shot. |
-| `lucene-hnsw` | In-process Lucene HNSW approximate nearest-neighbour index. Held in RAM; rebuilt on boot from `content_chunk_embeddings`. See below. |
+| `lucene-hnsw` | In-process Lucene HNSW approximate nearest-neighbour index. Held in RAM; rebuilt on boot from `content_chunk_embeddings`. **The docker1 production default.** See below. |
 
 #### `lucene-hnsw` — in-process HNSW
 

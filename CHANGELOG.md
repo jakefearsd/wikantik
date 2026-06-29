@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-06-29
+
 ### Added
 - **Per-request retrieval-mode toggle on the context bundle.** `GET /api/bundle?mode=hybrid|dense|lexical`
   and a `mode` argument on the `assemble_bundle` MCP tool now select the retrieval strategy per call:

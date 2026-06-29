@@ -6,6 +6,46 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Per-request retrieval-mode toggle on the context bundle.** `GET /api/bundle?mode=hybrid|dense|lexical`
+  and a `mode` argument on the `assemble_bundle` MCP tool now select the retrieval strategy per call:
+  `hybrid` (default — unchanged behavior), `dense` (vector-only), `lexical` (BM25-only). Backed by a
+  `RetrievalMode` enum and a per-mode candidate-source map wired through the bundle assembly service;
+  an unavailable mode degrades to the default with a logged warning, and an invalid value returns a
+  clear error listing the valid modes. The existing `assemble(query)` API and the no-`mode` request
+  path are fully backward compatible.
+
+### Changed
+- **`assemble_bundle` repositioned as the primary answer-grounding MCP tool; `retrieve_context`
+  reframed as page/section discovery.** The tool descriptions now steer agents to `assemble_bundle`
+  (ranked, de-duplicated, version-pinned, citation-bearing section text) for composing answers, and
+  add anti-loop and ground-only-in-returned-text guardrails to `retrieve_context`. Measured against
+  the grounded-agent eval: agents adopt `assemble_bundle` as their primary tool (from unused to
+  most-used) and per-answer retrieval looping drops sharply, with answer correctness held flat.
+- **KG judge guard-rejections log at INFO instead of WARN.** Closed-vocabulary and
+  SHACL-non-conformant edge skips are the ontology gate working as designed; they no longer read as
+  errors in the logs.
+
+### Fixed
+- **Embedding indexer distinguishes transient backend failures from poison-pill chunks.** A
+  503 / timeout / connection error while (re)embedding is now retried with bounded backoff instead of
+  being treated like a permanently-bad chunk and mass-skipped, so a brief inference-backend hiccup no
+  longer leaves silent holes in the dense index. Transactional indexing paths also roll back
+  explicitly on a runtime error rather than relying on connection-close.
+- **KG judge log-spam during a backend outage.** The per-proposal WARN flood is replaced by one
+  per-tick transient-unavailable summary, and transport + parse failures are demoted to DEBUG (they
+  are aggregated in the tick summary).
+- **KG judge JSON parsing hardened.** A judge response missing its message content now degrades to a
+  clean transient-retry verdict instead of throwing a `NullPointerException`.
+- **`wikantik.bundle.dense.enabled=false` honored again.** The page-gated fallback that this property
+  documents was inadvertently bypassed by the per-mode rewiring; it is restored.
+
+### Internal
+- **Grounded-agent eval harness** (`eval/agent-grounding/`) — a reproducible scorecard measuring
+  whether MCP grounding beats a cold model on Wikantik-internals questions; gained an opt-in
+  `--samples N` median mode for noise-robust gated runs and was used to validate the interface
+  changes above.
+
 ## [2.1.7] - 2026-06-27
 
 ### Changed

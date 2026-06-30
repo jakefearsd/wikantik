@@ -20,12 +20,18 @@ package com.wikantik.api.bundle;
 
 import java.util.List;
 
-/** The unit RAG-as-a-Service returns: a ranked, de-duplicated, cited set of sections. */
-public record ContextBundle( String query, List< BundleSection > sections ) {
+/** The unit RAG-as-a-Service returns: a ranked, de-duplicated, cited set of sections + coverage. */
+public record ContextBundle( String query, List< BundleSection > sections, BundleCoverage coverage ) {
     public ContextBundle {
         if ( query == null ) {
             throw new IllegalArgumentException( "query must not be null" );
         }
         sections = sections == null ? List.of() : List.copyOf( sections );
+        coverage = coverage == null ? BundleCoverage.empty() : coverage;
+    }
+
+    /** Back-compat: bundle without an explicit coverage signal (defaults to empty/unknown). */
+    public ContextBundle( final String query, final List< BundleSection > sections ) {
+        this( query, sections, BundleCoverage.empty() );
     }
 }

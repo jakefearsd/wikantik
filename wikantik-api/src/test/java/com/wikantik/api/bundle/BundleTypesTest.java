@@ -45,4 +45,18 @@ class BundleTypesTest {
         assertEquals( 1, b.sections().size() );
         assertThrows( IllegalArgumentException.class, () -> new ContextBundle( null, List.of() ) );
     }
+
+    @Test
+    void twoArgConstructorDefaultsToEmptyCoverage() {
+        final ContextBundle b = new ContextBundle( "q", java.util.List.of() );
+        assertNotNull( b.coverage() );
+        assertEquals( BundleCoverage.UNKNOWN, b.coverage().confidence() );
+    }
+
+    @Test
+    void threeArgConstructorRetainsCoverage() {
+        final BundleCoverage cov = new BundleCoverage( 3, 2, 0.7, BundleCoverage.PARTIAL );
+        final ContextBundle b = new ContextBundle( "q", java.util.List.of(), cov );
+        assertEquals( cov, b.coverage() );
+    }
 }

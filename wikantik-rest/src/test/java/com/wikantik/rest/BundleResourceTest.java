@@ -42,6 +42,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.wikantik.api.bundle.BundleCoverage;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -306,6 +308,40 @@ class BundleResourceTest {
         resourceWithEngine( engine ).doGet( debugReq( "foo", "abc" ), resp );
 
         verify( hybrid ).debugRankings( "foo", 500 );   // unparseable k → default 500
+    }
+
+    /* ---------- coverage block ---------- */
+
+    @Test
+    void responseIncludesCoverageBlock() throws Exception {
+        final BundleAssemblyService svc = mock( BundleAssemblyService.class );
+        final List< BundleSection > sections = List.of(
+                new BundleSection( "01A", "PageA", List.of( "Intro" ), "text a", 0.9,
+                        new CitationHandle( "01A", 1, List.of( "Intro" ), "text a", "sha1" ) ),
+                new BundleSection( "01B", "PageB", List.of( "Intro" ), "text b", 0.7,
+                        new CitationHandle( "01B", 2, List.of( "Intro" ), "text b", "sha2" ) ) );
+        final BundleCoverage cov = new BundleCoverage( 2, 2, 0.6, BundleCoverage.STRONG );
+        when( svc.assemble( eq( "anything" ), any( RetrievalMode.class ) ) )
+                .thenReturn( new ContextBundle( "anything", sections, cov ) );
+        final BundleResource resource = new BundleResource() {
+            @Override protected BundleAssemblyService bundleService() { return svc; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                return new java.util.HashSet<>( names );   // allow all — ACL not under test
+            }
+        };
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getParameter( "q" ) ).thenReturn( "anything" );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        resource.doGet( req, resp );
+
+        verify( resp ).setStatus( 200 );
+        final JsonObject obj = JsonParser.parseString( sw.toString() ).getAsJsonObject();
+        assertTrue( obj.has( "coverage" ), "response must include a coverage block" );
+        assertEquals( "strong", obj.getAsJsonObject( "coverage" ).get( "confidence" ).getAsString() );
     }
 
     /* ---------- mode parameter ---------- */

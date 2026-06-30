@@ -121,9 +121,11 @@ public class BundleResource extends RestServletBase {
         final java.util.Set< String > viewable = filterViewable( req,
                 assembled.sections().stream().map( com.wikantik.api.bundle.BundleSection::slug )
                         .filter( java.util.Objects::nonNull ).toList() );
-        final ContextBundle bundle = new ContextBundle( assembled.query(),
+        final java.util.List< com.wikantik.api.bundle.BundleSection > viewableSections =
                 assembled.sections().stream()
-                        .filter( s -> viewable.contains( s.slug() ) ).toList() );
+                        .filter( s -> viewable.contains( s.slug() ) ).toList();
+        final ContextBundle bundle = new ContextBundle( assembled.query(), viewableSections,
+                com.wikantik.api.bundle.BundleCoverage.recount( assembled.coverage(), viewableSections ) );
 
         resp.setStatus( 200 );
         resp.setContentType( "application/json; charset=UTF-8" );

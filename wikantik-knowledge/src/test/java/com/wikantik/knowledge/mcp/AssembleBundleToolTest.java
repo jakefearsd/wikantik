@@ -176,9 +176,17 @@ class AssembleBundleToolTest {
 
     @Test
     void serializesCoverageBlock() {
-        final BundleCoverage cov = new BundleCoverage( 1, 1, 0.82, BundleCoverage.STRONG );
-        final ContextBundle withCoverage = new ContextBundle(
-                "deploy", FIXED_BUNDLE.sections(), cov );
+        // Three viewable sections so the strong coverage survives the >=3 floor check in recount.
+        final List< BundleSection > three = List.of(
+                new BundleSection( "01DEP", "DeployGuide", List.of( "Setup" ), "do x", 0.9,
+                        new CitationHandle( "01DEP", 7, List.of( "Setup" ), "do x", "abc123" ) ),
+                new BundleSection( "02CFG", "Config", List.of( "Setup" ), "config y", 0.85,
+                        new CitationHandle( "02CFG", 1, List.of( "Setup" ), "config y", "def456" ) ),
+                new BundleSection( "03RUN", "Runbook", List.of( "Run" ), "run z", 0.80,
+                        new CitationHandle( "03RUN", 2, List.of( "Run" ), "run z", "ghi789" ) )
+        );
+        final BundleCoverage cov = new BundleCoverage( 3, 3, 0.82, BundleCoverage.STRONG );
+        final ContextBundle withCoverage = new ContextBundle( "deploy", three, cov );
         final BundleAssemblyService stub = query -> withCoverage;
         final AssembleBundleTool t = new AssembleBundleTool( stub, () -> null );
 
@@ -188,6 +196,6 @@ class AssembleBundleToolTest {
         final JsonObject coverage = obj.getAsJsonObject( "coverage" );
         assertEquals( "strong", coverage.get( "confidence" ).getAsString() );
         assertEquals( 0.82, coverage.get( "topSimilarity" ).getAsDouble(), 1e-9 );
-        assertEquals( 1, coverage.get( "sectionCount" ).getAsInt() );
+        assertEquals( 3, coverage.get( "sectionCount" ).getAsInt() );
     }
 }

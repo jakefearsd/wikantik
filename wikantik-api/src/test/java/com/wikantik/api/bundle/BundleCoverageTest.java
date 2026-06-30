@@ -51,12 +51,44 @@ class BundleCoverageTest {
     }
 
     @Test
-    void recountFixesCountsButPreservesCosineAndConfidence() {
+    void recountFixesCountsAndDowngradesThinnedStrong() {
         final BundleCoverage original = new BundleCoverage( 12, 5, 0.8, BundleCoverage.STRONG );
         final BundleCoverage r = BundleCoverage.recount( original, List.of( sec( "A", "Pa" ) ) );
         assertEquals( 1, r.sectionCount() );
         assertEquals( 1, r.distinctPageCount() );
         assertEquals( 0.8, r.topSimilarity() );
+        assertEquals( BundleCoverage.PARTIAL, r.confidence() );
+    }
+
+    @Test
+    void recountDowngradesStrongToPartialWhenGateThinsBelowFloor() {
+        final BundleCoverage original = new BundleCoverage( 12, 5, 0.8, BundleCoverage.STRONG );
+        // gate leaves only 2 viewable sections → below the strong floor of 3
+        final BundleCoverage r = BundleCoverage.recount( original, List.of( sec( "A", "Pa" ), sec( "B", "Pb" ) ) );
+        assertEquals( 2, r.sectionCount() );
+        assertEquals( 0.8, r.topSimilarity() );           // cosine preserved
+        assertEquals( BundleCoverage.PARTIAL, r.confidence() );
+    }
+
+    @Test
+    void recountKeepsStrongWhenGateLeavesAtLeastThree() {
+        final BundleCoverage original = new BundleCoverage( 12, 5, 0.8, BundleCoverage.STRONG );
+        final BundleCoverage r = BundleCoverage.recount( original,
+                List.of( sec( "A", "Pa" ), sec( "B", "Pb" ), sec( "C", "Pc" ) ) );
         assertEquals( BundleCoverage.STRONG, r.confidence() );
+    }
+
+    @Test
+    void recountEmptiedGateGoesWeakWhenCosineKnown() {
+        final BundleCoverage original = new BundleCoverage( 12, 5, 0.8, BundleCoverage.STRONG );
+        final BundleCoverage r = BundleCoverage.recount( original, List.of() );
+        assertEquals( BundleCoverage.WEAK, r.confidence() );
+    }
+
+    @Test
+    void recountEmptiedGateGoesUnknownWhenCosineUnavailable() {
+        final BundleCoverage original = new BundleCoverage( 4, 2, -1.0, BundleCoverage.UNKNOWN );
+        final BundleCoverage r = BundleCoverage.recount( original, List.of() );
+        assertEquals( BundleCoverage.UNKNOWN, r.confidence() );
     }
 }

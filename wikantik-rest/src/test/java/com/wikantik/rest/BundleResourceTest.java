@@ -315,12 +315,15 @@ class BundleResourceTest {
     @Test
     void responseIncludesCoverageBlock() throws Exception {
         final BundleAssemblyService svc = mock( BundleAssemblyService.class );
+        // Three sections so the strong coverage survives the >=3 floor check in recount.
         final List< BundleSection > sections = List.of(
                 new BundleSection( "01A", "PageA", List.of( "Intro" ), "text a", 0.9,
                         new CitationHandle( "01A", 1, List.of( "Intro" ), "text a", "sha1" ) ),
                 new BundleSection( "01B", "PageB", List.of( "Intro" ), "text b", 0.7,
-                        new CitationHandle( "01B", 2, List.of( "Intro" ), "text b", "sha2" ) ) );
-        final BundleCoverage cov = new BundleCoverage( 2, 2, 0.6, BundleCoverage.STRONG );
+                        new CitationHandle( "01B", 2, List.of( "Intro" ), "text b", "sha2" ) ),
+                new BundleSection( "01C", "PageC", List.of( "Body" ), "text c", 0.6,
+                        new CitationHandle( "01C", 3, List.of( "Body" ), "text c", "sha3" ) ) );
+        final BundleCoverage cov = new BundleCoverage( 3, 3, 0.6, BundleCoverage.STRONG );
         when( svc.assemble( eq( "anything" ), any( RetrievalMode.class ) ) )
                 .thenReturn( new ContextBundle( "anything", sections, cov ) );
         final BundleResource resource = new BundleResource() {

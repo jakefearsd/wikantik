@@ -44,10 +44,20 @@ public record BundleCoverage(
     }
 
     /** Recompute counts over a (post-ACL-gate) section subset, preserving the retrieval-derived
-     *  topSimilarity + confidence (cosine is unaffected by view filtering). See design §5. */
+     *  topSimilarity and re-evaluating confidence: a strong bundle thinned below the 3-section
+     *  floor by the view gate steps down to partial. See design §5. */
     public static BundleCoverage recount( final BundleCoverage original,
                                           final List< BundleSection > gatedSections ) {
-        return new BundleCoverage( gatedSections.size(), distinctPages( gatedSections ),
-            original.topSimilarity(), original.confidence() );
+        final int n = gatedSections.size();
+        final int pages = distinctPages( gatedSections );
+        final String confidence;
+        if ( n == 0 ) {
+            confidence = original.topSimilarity() < 0 ? UNKNOWN : WEAK;
+        } else if ( STRONG.equals( original.confidence() ) && n < 3 ) {
+            confidence = PARTIAL;   // gate thinned a strong bundle below the >=3 floor
+        } else {
+            confidence = original.confidence();
+        }
+        return new BundleCoverage( n, pages, original.topSimilarity(), confidence );
     }
 }

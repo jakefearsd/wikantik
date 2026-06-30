@@ -71,14 +71,16 @@ public final class HybridChunkSectionSource implements SectionCandidateSource {
     }
 
     @Override
-    public List< CandidateSection > candidates( final String query ) {
+    public SectionCandidates candidates( final String query ) {
         final Optional< float[] > qv = embedder.embed( query );
-        final List< String > denseRanked = qv.isPresent()
-            ? rankedIds( denseIndex.topKChunks( qv.get(), topK ) ) : List.of();
+        final List< ScoredChunk > dense = qv.isPresent()
+            ? denseIndex.topKChunks( qv.get(), topK ) : List.of();
+        final double topSim = dense.stream().mapToDouble( ScoredChunk::score ).max().orElse( -1.0 );
+        final List< String > denseRanked = rankedIds( dense );
         final List< String > bm25Ranked = rankedIds( bm25Index.topKChunks( query, topK ) );
         if ( denseRanked.isEmpty() && bm25Ranked.isEmpty() ) {
             LOG.warn( "Hybrid chunk source: no dense and no BM25 candidates for '{}'", query );
-            return List.of();
+            return SectionCandidates.of( List.of(), topSim );
         }
         final List< String > fusedIds = fuser.fuse( bm25Ranked, denseRanked );
 
@@ -87,7 +89,7 @@ public final class HybridChunkSectionSource implements SectionCandidateSource {
         final Map< UUID, MentionableChunk > byId = new LinkedHashMap<>();
         for ( final MentionableChunk c : chunkRepo.findByIds( ids ) ) byId.put( c.id(), c );
 
-        return groupToSections( fusedIds, byId );
+        return SectionCandidates.of( groupToSections( fusedIds, byId ), topSim );
     }
 
     /** One ranked chunk for the debug/sweep endpoint: id + raw ranker score. */

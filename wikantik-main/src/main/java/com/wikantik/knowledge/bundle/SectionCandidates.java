@@ -18,17 +18,16 @@
  */
 package com.wikantik.knowledge.bundle;
 
-/**
- * Supplies the candidate sections for a context bundle, before rerank → dedup →
- * cite → top-N. Two implementations: {@link RetrievalSectionSource} (the original
- * page-gated hybrid path) and {@link DenseChunkSectionSource} (global dense-chunk
- * retrieval — the 2026-06-14 measurement showed it beats the page-gated path,
- * recall@12 0.735 vs 0.685, because the page pre-select discards retrievable
- * sections).
- */
-@FunctionalInterface
-public interface SectionCandidateSource {
+import java.util.List;
 
-    /** Candidate sections for the query (best-first) plus the top dense cosine. */
-    SectionCandidates candidates( String query );
+/** Candidate sections for a query plus the true top dense cosine (for the coverage signal).
+ *  topSimilarity is -1.0 when no dense similarity is available (e.g. embedder down,
+ *  or the page-gated path which has no per-section cosine). */
+record SectionCandidates( List< CandidateSection > sections, double topSimilarity ) {
+    SectionCandidates {
+        sections = sections == null ? List.of() : List.copyOf( sections );
+    }
+    static SectionCandidates of( final List< CandidateSection > sections, final double topSimilarity ) {
+        return new SectionCandidates( sections, topSimilarity );
+    }
 }

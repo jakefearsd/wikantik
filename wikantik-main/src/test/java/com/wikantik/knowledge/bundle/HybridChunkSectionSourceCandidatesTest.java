@@ -53,6 +53,7 @@ class HybridChunkSectionSourceCandidatesTest {
 
     private static final UUID A1 = UUID.fromString( "00000000-0000-0000-0000-0000000000a1" );
     private static final UUID B1 = UUID.fromString( "00000000-0000-0000-0000-0000000000b1" );
+    private static final double EXPECTED_MAX_DENSE_SCORE = 0.9;
 
     private static MentionableChunk chunk( final UUID id, final String page, final String head, final String text ) {
         return new MentionableChunk( id, page, 0, List.of( head ), text );
@@ -81,7 +82,7 @@ class HybridChunkSectionSourceCandidatesTest {
             chunk( A1, "PageA", "Intro", "a1 text" ), chunk( B1, "PageB", "Details", "b1 text" ) ) );
 
         final List< CandidateSection > out = new HybridChunkSectionSource(
-            embedder, dense, bm25, repo, fuser(), 50 ).candidates( "query" );
+            embedder, dense, bm25, repo, fuser(), 50 ).candidates( "query" ).sections();
 
         // A1 ranks first in both lists → fuses ahead of B1; one section per (slug, heading).
         assertEquals( 2, out.size() );
@@ -102,7 +103,7 @@ class HybridChunkSectionSourceCandidatesTest {
         when( repo.findByIds( anyList() ) ).thenReturn( List.of( chunk( B1, "PageB", "Details", "b1 text" ) ) );
 
         final List< CandidateSection > out = new HybridChunkSectionSource(
-            embedder, dense, bm25, repo, fuser(), 50 ).candidates( "query" );
+            embedder, dense, bm25, repo, fuser(), 50 ).candidates( "query" ).sections();
 
         assertEquals( 1, out.size() );
         assertEquals( "PageB", out.get( 0 ).slug() );
@@ -119,7 +120,7 @@ class HybridChunkSectionSourceCandidatesTest {
         final ContentChunkRepository repo = mock( ContentChunkRepository.class );
 
         final List< CandidateSection > out = new HybridChunkSectionSource(
-            embedder, dense, bm25, repo, fuser(), 50 ).candidates( "query" );
+            embedder, dense, bm25, repo, fuser(), 50 ).candidates( "query" ).sections();
 
         assertTrue( out.isEmpty() );
         verify( repo, org.mockito.Mockito.never() ).findByIds( anyList() );
@@ -166,5 +167,41 @@ class HybridChunkSectionSourceCandidatesTest {
         final ArgumentCaptor< Integer > k = ArgumentCaptor.forClass( Integer.class );
         verify( dense ).topKChunks( any(), k.capture() );
         assertEquals( 77, k.getValue(), "k<=0 falls back to the configured topK" );
+    }
+
+    @Test
+    void topSimilarityIsMaxDenseCosineBeforeFusion() {
+        // dense index returns scored chunks; the max score must surface even though
+        // the fused section order uses the rank proxy.
+        final QueryEmbedder embedder = mock( QueryEmbedder.class );
+        when( embedder.embed( anyString() ) ).thenReturn( Optional.of( new float[]{ 0.1f } ) );
+        final ChunkVectorIndex dense = mock( ChunkVectorIndex.class );
+        when( dense.topKChunks( any(), anyInt() ) ).thenReturn( List.of(
+            scored( A1, "PageA", 0.9 ), scored( B1, "PageB", 0.8 ) ) );
+        final LuceneBm25ChunkIndex bm25 = mock( LuceneBm25ChunkIndex.class );
+        when( bm25.topKChunks( anyString(), anyInt() ) ).thenReturn( List.of(
+            scored( A1, "PageA", 5.0 ), scored( B1, "PageB", 3.0 ) ) );
+        final ContentChunkRepository repo = mock( ContentChunkRepository.class );
+        when( repo.findByIds( anyList() ) ).thenReturn( List.of(
+            chunk( A1, "PageA", "Intro", "a1 text" ), chunk( B1, "PageB", "Details", "b1 text" ) ) );
+
+        final SectionCandidates c = new HybridChunkSectionSource(
+            embedder, dense, bm25, repo, fuser(), 50 ).candidates( "deploy" );
+        assertEquals( EXPECTED_MAX_DENSE_SCORE, c.topSimilarity(), 1e-9 );
+    }
+
+    @Test
+    void noDenseRankingYieldsMinusOne() {
+        final QueryEmbedder embedder = mock( QueryEmbedder.class );
+        when( embedder.embed( anyString() ) ).thenReturn( Optional.empty() );
+        final ChunkVectorIndex dense = mock( ChunkVectorIndex.class );
+        final LuceneBm25ChunkIndex bm25 = mock( LuceneBm25ChunkIndex.class );
+        when( bm25.topKChunks( anyString(), anyInt() ) ).thenReturn( List.of( scored( B1, "PageB", 5.0 ) ) );
+        final ContentChunkRepository repo = mock( ContentChunkRepository.class );
+        when( repo.findByIds( anyList() ) ).thenReturn( List.of( chunk( B1, "PageB", "Details", "b1 text" ) ) );
+
+        final SectionCandidates c = new HybridChunkSectionSource(
+            embedder, dense, bm25, repo, fuser(), 50 ).candidates( "deploy" );
+        assertEquals( -1.0, c.topSimilarity() );
     }
 }

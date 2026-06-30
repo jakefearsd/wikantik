@@ -31,7 +31,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -75,7 +74,7 @@ class DenseChunkSectionSourceTest {
             chunk( B1, "PageB", List.of( "Details" ), "b1 text" ) ) );
 
         final List< CandidateSection > out = new DenseChunkSectionSource( embedder, index, repo, 50 )
-            .candidates( "query" );
+            .candidates( "query" ).sections();
 
         assertEquals( 2, out.size() );
         assertEquals( "PageA", out.get( 0 ).slug() );
@@ -94,9 +93,9 @@ class DenseChunkSectionSourceTest {
         final ContentChunkRepository repo = mock( ContentChunkRepository.class );
 
         final List< CandidateSection > out = new DenseChunkSectionSource( embedder, index, repo, 50 )
-            .candidates( "query" );
+            .candidates( "query" ).sections();
 
-        assertSame( List.of(), out );
+        assertTrue( out.isEmpty() );
         verify( index, org.mockito.Mockito.never() ).topKChunks( any(), anyInt() );
     }
 
@@ -109,7 +108,7 @@ class DenseChunkSectionSourceTest {
         final ContentChunkRepository repo = mock( ContentChunkRepository.class );
 
         final List< CandidateSection > out = new DenseChunkSectionSource( embedder, index, repo, 50 )
-            .candidates( "query" );
+            .candidates( "query" ).sections();
 
         assertTrue( out.isEmpty() );
         verify( repo, org.mockito.Mockito.never() ).findByIds( anyList() );
@@ -128,5 +127,38 @@ class DenseChunkSectionSourceTest {
         final ArgumentCaptor< Integer > k = ArgumentCaptor.forClass( Integer.class );
         verify( index ).topKChunks( any(), k.capture() );
         assertEquals( 300, k.getValue(), "topK<=0 falls back to 300" );
+    }
+
+    @Test
+    void topSimilarityIsMaxCosine() {
+        // existing fixture wiring: embedder returns a vector, index returns scored chunks.
+        // The highest ScoredChunk.score() must surface as topSimilarity.
+        final QueryEmbedder embedder = mock( QueryEmbedder.class );
+        when( embedder.embed( anyString() ) ).thenReturn( Optional.of( new float[]{ 0.1f } ) );
+        final ChunkVectorIndex index = mock( ChunkVectorIndex.class );
+        when( index.topKChunks( any(), anyInt() ) ).thenReturn( List.of(
+            scored( A1, "PageA", 0.9 ), scored( B1, "PageB", 0.8 ), scored( A2, "PageA", 0.95 ) ) );
+        final ContentChunkRepository repo = mock( ContentChunkRepository.class );
+        when( repo.findByIds( anyList() ) ).thenReturn( List.of(
+            chunk( A1, "PageA", List.of( "Intro" ), "a1 text" ),
+            chunk( A2, "PageA", List.of( "Intro" ), "a2 text" ),
+            chunk( B1, "PageB", List.of( "Details" ), "b1 text" ) ) );
+
+        final SectionCandidates c = new DenseChunkSectionSource( embedder, index, repo, 50 )
+            .candidates( "deploy" );
+        assertEquals( c.sections().get( 0 ).denseScore(), c.topSimilarity(), 1e-9 );
+    }
+
+    @Test
+    void embedderUnavailableYieldsMinusOne() {
+        final QueryEmbedder embedder = mock( QueryEmbedder.class );
+        when( embedder.embed( anyString() ) ).thenReturn( Optional.empty() );
+        final ChunkVectorIndex index = mock( ChunkVectorIndex.class );
+        final ContentChunkRepository repo = mock( ContentChunkRepository.class );
+
+        final SectionCandidates c = new DenseChunkSectionSource( embedder, index, repo, 50 )
+            .candidates( "deploy" );
+        assertTrue( c.sections().isEmpty() );
+        assertEquals( -1.0, c.topSimilarity() );
     }
 }

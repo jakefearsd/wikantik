@@ -21,8 +21,6 @@ package com.wikantik.knowledge.bundle;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 
-import java.util.List;
-
 /**
  * Page-gated candidate source: hybrid (BM25+dense) retrieval picks the top pages,
  * then {@link SectionAssembler} takes the top-S sections per page. This is the
@@ -40,8 +38,8 @@ public final class RetrievalSectionSource implements SectionCandidateSource {
     }
 
     @Override
-    public List< CandidateSection > candidates( final String query ) {
-        return assembler.assemble( retrieval.retrieve( new ContextQuery(
-            query, ContextQuery.MAX_PAGES_CAP, ContextQuery.MAX_CHUNKS_PER_PAGE_CAP, null ) ) );
+    public SectionCandidates candidates( final String query ) {
+        return SectionCandidates.of( assembler.assemble( retrieval.retrieve( new ContextQuery(
+            query, ContextQuery.MAX_PAGES_CAP, ContextQuery.MAX_CHUNKS_PER_PAGE_CAP, null ) ) ), -1.0 );
     }
 }

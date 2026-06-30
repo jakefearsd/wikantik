@@ -65,22 +65,20 @@ public final class DenseChunkSectionSource implements SectionCandidateSource {
     }
 
     @Override
-    public List< CandidateSection > candidates( final String query ) {
+    public SectionCandidates candidates( final String query ) {
         final Optional< float[] > qv = embedder.embed( query );
         if ( qv.isEmpty() ) {
             LOG.warn( "Query embedding unavailable; dense-chunk bundle candidates empty for '{}'", query );
-            return List.of();
+            return SectionCandidates.of( List.of(), -1.0 );
         }
         final List< ScoredChunk > top = index.topKChunks( qv.get(), topK );
-        if ( top.isEmpty() ) return List.of();
+        if ( top.isEmpty() ) return SectionCandidates.of( List.of(), -1.0 );
 
         final List< UUID > ids = new ArrayList<>( top.size() );
         for ( final ScoredChunk sc : top ) ids.add( sc.chunkId() );
         final Map< UUID, MentionableChunk > byId = new LinkedHashMap<>();
         for ( final MentionableChunk c : chunkRepo.findByIds( ids ) ) byId.put( c.id(), c );
 
-        // Group to sections, keeping the best-scoring chunk per (slug, heading-path).
-        // Max-score (not first-seen), so correctness does not depend on topKChunks ordering.
         final Map< SectionKey, CandidateSection > best = new LinkedHashMap<>();
         for ( final ScoredChunk sc : top ) {
             final MentionableChunk c = byId.get( sc.chunkId() );
@@ -93,6 +91,7 @@ public final class DenseChunkSectionSource implements SectionCandidateSource {
         }
         final List< CandidateSection > out = new ArrayList<>( best.values() );
         out.sort( Comparator.comparingDouble( CandidateSection::denseScore ).reversed() );
-        return out;
+        final double topSim = out.isEmpty() ? -1.0 : out.get( 0 ).denseScore();
+        return SectionCandidates.of( out, topSim );
     }
 }

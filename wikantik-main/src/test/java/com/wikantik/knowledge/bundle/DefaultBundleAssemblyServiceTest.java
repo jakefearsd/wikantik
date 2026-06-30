@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.bundle;
 
+import com.wikantik.api.bundle.BundleCoverage;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.knowledge.*;
@@ -62,7 +63,8 @@ class DefaultBundleAssemblyServiceTest {
     @Test
     void skipsSectionWhenCanonicalIdMissing() {
         // canonicalIdOf returns empty → the section is un-citable and must be dropped, not emitted.
-        final SectionCandidateSource source = q -> List.of( new CandidateSection( "PageA", List.of( "H" ), "a", 0.9 ) );
+        final SectionCandidateSource source = q -> SectionCandidates.of(
+            List.of( new CandidateSection( "PageA", List.of( "H" ), "a", 0.9 ) ), -1.0 );
         final ContextBundle b = new DefaultBundleAssemblyService(
             source, ( q, s ) -> s, slug -> Optional.empty(), slug -> 1, 5 ).assemble( "q" );
         assertTrue( b.sections().isEmpty(), "section without a canonical_id is skipped" );
@@ -77,7 +79,7 @@ class DefaultBundleAssemblyServiceTest {
                 six.add( new CandidateSection( "Page" + p, List.of( "H" + s ), "t" + p + s, 1.0 - 0.01 * ( p * 2 + s ) ) );
             }
         }
-        final SectionCandidateSource source = q -> six;
+        final SectionCandidateSource source = q -> SectionCandidates.of( six, -1.0 );
         final ContextBundle b = new DefaultBundleAssemblyService(
             source, ( q, s ) -> s, slug -> Optional.of( "c-" + slug ), slug -> 1, 3 ).assemble( "q" );
         assertEquals( 3, b.sections().size(), "output capped at maxSections" );
@@ -90,13 +92,13 @@ class DefaultBundleAssemblyServiceTest {
 
     @Test
     void assemble_selects_source_by_mode_and_degrades_to_default_when_missing() {
-        final SectionCandidateSource denseSrc   = q -> List.of( candidate( "DensePage", "d" ) );
-        final SectionCandidateSource lexicalSrc = q -> List.of( candidate( "LexPage", "l" ) );
+        final SectionCandidateSource denseSrc   = q -> SectionCandidates.of( List.of( candidate( "DensePage", "d" ) ), -1.0 );
+        final SectionCandidateSource lexicalSrc = q -> SectionCandidates.of( List.of( candidate( "LexPage", "l" ) ), -1.0 );
         final java.util.Map< RetrievalMode, SectionCandidateSource > sources =
             java.util.Map.of( RetrievalMode.HYBRID, denseSrc, RetrievalMode.LEXICAL, lexicalSrc );
         final DefaultBundleAssemblyService svc = new DefaultBundleAssemblyService(
             sources, RetrievalMode.HYBRID, (q, s) -> s, slug -> Optional.of( slug ),
-            slug -> 0, 12 );
+            slug -> 0, 12, BundleCoverageCalculator.defaults() );
 
         // explicit mode routes to its source
         assertEquals( "LexPage", svc.assemble( "x", RetrievalMode.LEXICAL ).sections().get( 0 ).slug() );
@@ -112,7 +114,24 @@ class DefaultBundleAssemblyServiceTest {
         final java.util.Map< RetrievalMode, SectionCandidateSource > empty = java.util.Map.of();
         assertThrows( NullPointerException.class, () ->
             new DefaultBundleAssemblyService( empty, RetrievalMode.HYBRID, (q, s) -> s,
-                slug -> Optional.empty(), slug -> 0, 5 ) );
+                slug -> Optional.empty(), slug -> 0, 5, BundleCoverageCalculator.defaults() ) );
+    }
+
+    @Test
+    void assemblePopulatesCoverageFromSourceTopSimilarity() {
+        // Source stub returns 3 sections with topSimilarity 0.7 (>= strong threshold).
+        final SectionCandidateSource src = q -> SectionCandidates.of( List.of(
+                new CandidateSection( "Pa", List.of( "H1" ), "t1", 0.9 ),
+                new CandidateSection( "Pb", List.of( "H2" ), "t2", 0.8 ),
+                new CandidateSection( "Pc", List.of( "H3" ), "t3", 0.7 ) ), 0.7 );
+        final DefaultBundleAssemblyService svc = new DefaultBundleAssemblyService(
+                src, ( q, s ) -> s, slug -> java.util.Optional.of( slug ), slug -> 1, 12,
+                BundleCoverageCalculator.defaults() );
+
+        final ContextBundle b = svc.assemble( "q" );
+        assertEquals( 3, b.coverage().sectionCount() );
+        assertEquals( 0.7, b.coverage().topSimilarity(), 1e-9 );
+        assertEquals( BundleCoverage.STRONG, b.coverage().confidence() );
     }
 
     private record StubRetrieval( RetrievalResult fixed ) implements ContextRetrievalService {

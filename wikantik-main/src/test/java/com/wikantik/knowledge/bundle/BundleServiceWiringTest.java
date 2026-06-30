@@ -98,7 +98,7 @@ class BundleServiceWiringTest {
     /* ---------- build() ---------- */
 
     private static SectionCandidateSource denseWith( final String slug ) {
-        return q -> List.of( new CandidateSection( slug, List.of( "H" ), "text", 0.9 ) );
+        return q -> SectionCandidates.of( List.of( new CandidateSection( slug, List.of( "H" ), "text", 0.9 ) ), 0.9 );
     }
 
     private static ContextRetrievalService stubRetrieval() {
@@ -211,7 +211,7 @@ class BundleServiceWiringTest {
 
         // Spy source in the map: records whether it was invoked.
         final boolean[] sourceCalled = { false };
-        final SectionCandidateSource spySource = q -> { sourceCalled[0] = true; return List.of(); };
+        final SectionCandidateSource spySource = q -> { sourceCalled[0] = true; return SectionCandidates.of( List.of(), -1.0 ); };
 
         final Properties props = new Properties();
         props.setProperty( "wikantik.bundle.dense.enabled", "false" );
@@ -232,8 +232,8 @@ class BundleServiceWiringTest {
 
     @Test
     void build_with_mode_map_routes_each_mode() {
-        final SectionCandidateSource dense   = q -> List.of();
-        final SectionCandidateSource lexical = q -> List.of();
+        final SectionCandidateSource dense   = q -> SectionCandidates.of( List.of(), -1.0 );
+        final SectionCandidateSource lexical = q -> SectionCandidates.of( List.of(), -1.0 );
         final var map = java.util.Map.of( RetrievalMode.HYBRID, dense, RetrievalMode.DENSE, dense,
                                           RetrievalMode.LEXICAL, lexical );
         final BundleAssemblyService svc = BundleServiceWiring.build(

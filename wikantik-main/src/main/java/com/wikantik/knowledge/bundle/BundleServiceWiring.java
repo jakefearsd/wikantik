@@ -110,7 +110,18 @@ public final class BundleServiceWiring {
         LOG.info( "Bundle assembly service wired (modes={}, reranker={}, maxSections={})",
             sources.keySet(), reranker instanceof LlmSectionReranker ? "on" : "off", MAX_SECTIONS );
         return new DefaultBundleAssemblyService(
-            sources, RetrievalMode.HYBRID, reranker, canonicalIdOf, versionOf, MAX_SECTIONS );
+            sources, RetrievalMode.HYBRID, reranker, canonicalIdOf, versionOf, MAX_SECTIONS,
+            coverageCalcFrom( props ) );
+    }
+
+    /** Coverage confidence thresholds from config (provisional defaults 0.55 / 0.40). */
+    static BundleCoverageCalculator coverageCalcFrom( final Properties props ) {
+        if ( props == null ) return BundleCoverageCalculator.defaults();
+        final double strong = com.wikantik.util.TextUtil.getDoubleProperty(
+            props, "wikantik.bundle.coverage.strong_similarity", BundleCoverageCalculator.DEFAULT_STRONG );
+        final double partial = com.wikantik.util.TextUtil.getDoubleProperty(
+            props, "wikantik.bundle.coverage.partial_similarity", BundleCoverageCalculator.DEFAULT_PARTIAL );
+        return new BundleCoverageCalculator( strong, partial );
     }
 
     /** Per-page shortlist depth from {@code wikantik.bundle.sections_per_page}, default {@link #SECTIONS_PER_PAGE}. */

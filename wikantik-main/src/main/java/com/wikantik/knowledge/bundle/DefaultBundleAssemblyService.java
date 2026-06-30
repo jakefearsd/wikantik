@@ -51,6 +51,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
     private final Function< String, Optional< String > > canonicalIdOf;  // slug -> canonical_id
     private final Function< String, Integer > versionOf;                  // slug -> page version
     private final int maxSections;
+    private final BundleCoverageCalculator coverageCalc;
 
     /**
      * Page-gated constructor (retained for back-compat): wraps hybrid retrieval +
@@ -70,14 +71,29 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
      * Source-based constructor — the {@link SectionCandidateSource} decides page-gated
      * ({@link RetrievalSectionSource}) vs global dense-chunk ({@link DenseChunkSectionSource}).
      * Registers the source under {@link RetrievalMode#HYBRID} with HYBRID as the default mode.
+     * Uses {@link BundleCoverageCalculator#defaults()} for the coverage thresholds.
      */
     public DefaultBundleAssemblyService( final SectionCandidateSource source,
                                          final SectionReranker reranker,
                                          final Function< String, Optional< String > > canonicalIdOf,
                                          final Function< String, Integer > versionOf,
                                          final int maxSections ) {
+        this( source, reranker, canonicalIdOf, versionOf, maxSections,
+              BundleCoverageCalculator.defaults() );
+    }
+
+    /**
+     * Source-based constructor with explicit coverage thresholds.
+     * Registers the source under {@link RetrievalMode#HYBRID} with HYBRID as the default mode.
+     */
+    public DefaultBundleAssemblyService( final SectionCandidateSource source,
+                                         final SectionReranker reranker,
+                                         final Function< String, Optional< String > > canonicalIdOf,
+                                         final Function< String, Integer > versionOf,
+                                         final int maxSections,
+                                         final BundleCoverageCalculator coverageCalc ) {
         this( Map.of( RetrievalMode.HYBRID, source ), RetrievalMode.HYBRID,
-              reranker, canonicalIdOf, versionOf, maxSections );
+              reranker, canonicalIdOf, versionOf, maxSections, coverageCalc );
     }
 
     /**
@@ -89,7 +105,8 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
                                          final SectionReranker reranker,
                                          final Function< String, Optional< String > > canonicalIdOf,
                                          final Function< String, Integer > versionOf,
-                                         final int maxSections ) {
+                                         final int maxSections,
+                                         final BundleCoverageCalculator coverageCalc ) {
         Objects.requireNonNull( sources.get( defaultMode ), "defaultMode must be present in sources" );
         this.sources = Map.copyOf( sources );
         this.defaultMode = defaultMode;
@@ -97,6 +114,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         this.canonicalIdOf = canonicalIdOf;
         this.versionOf = versionOf;
         this.maxSections = maxSections;
+        this.coverageCalc = coverageCalc;
     }
 
     @Override
@@ -111,7 +129,8 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
             LOG.warn( "Retrieval mode {} has no wired source; degrading to default {}", mode, defaultMode );
             src = sources.get( defaultMode );
         }
-        final List< CandidateSection > ranked = reranker.rerank( query, src.candidates( query ) );
+        final SectionCandidates cand = src.candidates( query );
+        final List< CandidateSection > ranked = reranker.rerank( query, cand.sections() );
 
         final Set< SectionKey > seen = new LinkedHashSet<>();
         final List< BundleSection > out = new ArrayList<>();
@@ -124,7 +143,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
             out.add( new BundleSection( canonical, cs.slug(), cs.headingPath(), cs.text(), cs.denseScore(), cite ) );
             if ( out.size() >= maxSections ) break;     // top-N
         }
-        return new ContextBundle( query, out );
+        return new ContextBundle( query, out, coverageCalc.compute( cand.topSimilarity(), out ) );
     }
 
     static String sha256( final String text ) {

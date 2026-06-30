@@ -21,6 +21,7 @@ package com.wikantik.knowledge.mcp;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.wikantik.api.bundle.BundleAssemblyService;
+import com.wikantik.api.bundle.BundleCoverage;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
@@ -171,5 +172,22 @@ class AssembleBundleToolTest {
         assertTrue( text.contains( "hybrid" ) && text.contains( "dense" ) && text.contains( "lexical" ),
                 "error must list valid mode values; got: " + text );
         verifyNoInteractions( svc );
+    }
+
+    @Test
+    void serializesCoverageBlock() {
+        final BundleCoverage cov = new BundleCoverage( 1, 1, 0.82, BundleCoverage.STRONG );
+        final ContextBundle withCoverage = new ContextBundle(
+                "deploy", FIXED_BUNDLE.sections(), cov );
+        final BundleAssemblyService stub = query -> withCoverage;
+        final AssembleBundleTool t = new AssembleBundleTool( stub, () -> null );
+
+        final McpSchema.CallToolResult res = t.execute( Map.of( "query", "deploy" ) );
+        final String json = ( (McpSchema.TextContent) res.content().get( 0 ) ).text();
+        final JsonObject obj = JsonParser.parseString( json ).getAsJsonObject();
+        final JsonObject coverage = obj.getAsJsonObject( "coverage" );
+        assertEquals( "strong", coverage.get( "confidence" ).getAsString() );
+        assertEquals( 0.82, coverage.get( "topSimilarity" ).getAsDouble(), 1e-9 );
+        assertEquals( 1, coverage.get( "sectionCount" ).getAsInt() );
     }
 }

@@ -107,7 +107,8 @@ public class AssembleBundleTool implements McpTool {
             final List< com.wikantik.api.bundle.BundleSection > filteredSections = bundle.sections().stream()
                     .filter( s -> viewGate.canView( s.slug() ) )
                     .collect( Collectors.toList() );
-            final ContextBundle gated = new ContextBundle( bundle.query(), filteredSections );
+            final ContextBundle gated = new ContextBundle( bundle.query(), filteredSections,
+                    com.wikantik.api.bundle.BundleCoverage.recount( bundle.coverage(), filteredSections ) );
             final QueryLogService qlog = queryLog == null ? null : queryLog.get();
             if ( qlog != null ) {
                 qlog.log( query, ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, filteredSections.size() );

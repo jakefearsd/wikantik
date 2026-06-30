@@ -19,6 +19,12 @@ def _default_http(cfg):
     return post
 
 
+def tools_from_mcp(tools):
+    """MCP tool defs -> Anthropic tool schema."""
+    return [{"name": t["name"], "description": t.get("description", ""),
+             "input_schema": t.get("input_schema", {"type": "object"})} for t in tools]
+
+
 def extract_text(response):
     return "".join(b.get("text", "") for b in response.get("content", [])
                    if b.get("type") == "text")

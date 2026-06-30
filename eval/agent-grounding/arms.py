@@ -1,6 +1,8 @@
 """The three answer arms: cold, grounded_bundle, grounded_mcp."""
 import re
 import anthropic_client
+import ollama_client
+import llm_client
 import bundle_client
 import mcp_client as mcp_mod
 
@@ -12,8 +14,7 @@ _SRC_RE = re.compile(r"Sources:\s*\[([^\]]*)\]")
 
 
 def mcp_tools_to_anthropic(tools):
-    return [{"name": t["name"], "description": t.get("description", ""),
-             "input_schema": t.get("input_schema", {"type": "object"})} for t in tools]
+    return anthropic_client.tools_from_mcp(tools)
 
 
 def _pages_from_answer(answer):
@@ -33,9 +34,10 @@ def cited_pages_from_tool_calls(tool_calls, extra_text=""):
 
 
 def cold(cfg, question, http=None):
-    resp = anthropic_client.complete(cfg, cfg.agent_model, SYSTEM,
-                                     [{"role": "user", "content": question["question"]}], http=http)
-    ans = anthropic_client.extract_text(resp)
+    client = llm_client.for_cfg(cfg)
+    resp = client.complete(cfg, cfg.agent_model, SYSTEM,
+                           [{"role": "user", "content": question["question"]}], http=http)
+    ans = client.extract_text(resp)
     return {"arm": "cold", "qid": question["id"], "answer": ans,
             "tool_calls": [], "cited_pages": _pages_from_answer(ans), "error": None}
 
@@ -45,28 +47,30 @@ def grounded_bundle(cfg, question, bundle_fetch=None, http=None):
     b = fetch(cfg.base_url, question["question"], lexical=cfg.lexical, http=None)
     user = ("Context from the wiki:\n\n" + b["context"] +
             "\n\n---\nUsing ONLY the context above, answer: " + question["question"])
-    resp = anthropic_client.complete(cfg, cfg.agent_model, SYSTEM,
-                                     [{"role": "user", "content": user}], http=http)
-    ans = anthropic_client.extract_text(resp)
+    client = llm_client.for_cfg(cfg)
+    resp = client.complete(cfg, cfg.agent_model, SYSTEM,
+                           [{"role": "user", "content": user}], http=http)
+    ans = client.extract_text(resp)
     return {"arm": "grounded_bundle", "qid": question["id"], "answer": ans,
             "tool_calls": [], "cited_pages": b["cited_pages"] or _pages_from_answer(ans),
             "error": None}
 
 
 def grounded_mcp(cfg, question, mcp=None, http=None):
-    client = mcp
-    if client is None:
-        client = mcp_mod.McpClient(cfg.base_url, cfg.mcp_key)
-        client.connect()
+    mcp_client = mcp
+    if mcp_client is None:
+        mcp_client = mcp_mod.McpClient(cfg.base_url, cfg.mcp_key)
+        mcp_client.connect()
 
     def _exec_tool(name, arguments):
         if name == "assemble_bundle" and cfg.lexical:
             arguments = dict(arguments)
             arguments["mode"] = "lexical"
-        return client.call_tool(name, arguments)
+        return mcp_client.call_tool(name, arguments)
 
-    tools = mcp_tools_to_anthropic(client.list_tools())
-    loop = anthropic_client.run_tool_loop(
+    client = llm_client.for_cfg(cfg)
+    tools = client.tools_from_mcp(mcp_client.list_tools())
+    loop = client.run_tool_loop(
         cfg, cfg.agent_model, SYSTEM, question["question"], tools,
         exec_tool=_exec_tool, http=http, max_iters=cfg.max_tool_iters)
     pages = _pages_from_answer(loop["answer"]) or \

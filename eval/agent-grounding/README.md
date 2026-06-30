@@ -1,7 +1,13 @@
 # Grounded-agent eval — `eval/agent-grounding/`
 
-Measures whether retrieval-augmented grounding helps Claude answer questions about Wikantik internals
+Measures whether retrieval-augmented grounding helps an LLM answer questions about Wikantik internals
 compared to a cold (no-context) baseline.
+
+The agent arms and the judge run on the **local Ollama stack by default** (`gemma4:12b` at
+`inference.jakefear.com:11434`) for consistency with the rest of the deployment and zero API cost.
+Pass `--provider anthropic` to run against `claude-sonnet-4-6` instead (requires `ANTHROPIC_API_KEY`).
+Note: absolute scores are not comparable across providers — a local ~12B model answers and grades
+more coarsely than sonnet, so switching providers resets the baseline.
 
 ## What it measures
 
@@ -9,13 +15,13 @@ compared to a cold (no-context) baseline.
 
 | Arm | How it answers |
 |-----|----------------|
-| `cold` | Raw Claude call — no wiki context, no tools. |
+| `cold` | Raw model call — no wiki context, no tools. |
 | `grounded_bundle` | Bundle-injected: the wiki's `/api/bundle?q=…` endpoint is called first; the ranked, de-duplicated section context is prepended to the user turn. |
-| `grounded_mcp` | Tool-augmented: Claude is given the full live tool list from `/knowledge-mcp` and runs an agentic tool-use loop (max 6 iterations). |
+| `grounded_mcp` | Tool-augmented: the model is given the full live tool list from `/knowledge-mcp` and runs an agentic tool-use loop (max 6 iterations). |
 
 **Two signals per answer:**
 
-- **Correctness (0–2):** scored by a blind LLM judge (claude-sonnet-4-6) against a hand-written reference answer. 2 = fully correct, 1 = partial/vague, 0 = wrong or hallucinated.
+- **Correctness (0–2):** scored by a blind LLM judge (the configured model — default local `gemma4:12b`) against a hand-written reference answer. 2 = fully correct, 1 = partial/vague, 0 = wrong or hallucinated.
 - **Citation hit:** programmatic check — does the answer cite at least one page listed in the question's `expect_sources`?
 
 **Question set:** 16 questions on Wikantik internals (architecture, retrieval, security, rendering pipeline, Knowledge Graph, Page Graph, module layout, configuration).
@@ -27,7 +33,8 @@ compared to a cold (no-context) baseline.
 | Requirement | Notes |
 |-------------|-------|
 | Python 3.9+ | Stdlib only — no pip install needed |
-| `ANTHROPIC_API_KEY` | Needed for the agent model and the judge |
+| Ollama at `inference.jakefear.com:11434` | Default backend (`gemma4:12b`); override with `--ollama-base-url`. No API key needed. |
+| `ANTHROPIC_API_KEY` | **Only** for `--provider anthropic` |
 | `MCP_ACCESS_KEYS` | Bearer key for `/knowledge-mcp`; space- or comma-separated; first token is used |
 | Wikantik running at `https://wiki.wikantik.com` | Dense retrieval must be live for `grounded_bundle`; `/knowledge-mcp` must be reachable for `grounded_mcp` |
 
@@ -83,9 +90,11 @@ python3 run_eval.py --run-id "${RUN}-bm25" --lexical && \
 ## Advanced options
 
 ```
+--provider P          LLM backend: ollama (default) | anthropic
 --base-url URL        Wiki base URL (default: https://wiki.wikantik.com)
---agent-model MODEL   Anthropic model for answering (default: claude-sonnet-4-6)
---judge-model MODEL   Anthropic model for grading (default: claude-sonnet-4-6)
+--ollama-base-url URL Ollama host (default: http://inference.jakefear.com:11434)
+--agent-model MODEL   Model for answering (default: gemma4:12b, or claude-sonnet-4-6 for anthropic)
+--judge-model MODEL   Model for grading (default: gemma4:12b, or claude-sonnet-4-6 for anthropic)
 --max-tool-iters N    Max tool-loop iterations for grounded_mcp arm (default: 6)
 ```
 
@@ -101,4 +110,4 @@ cd eval/agent-grounding
 python3 -m pytest -v
 ```
 
-All 33 unit tests are stdlib-only (no network calls; all I/O is mocked).
+All 54 unit tests are stdlib-only (no network calls; all I/O is mocked).

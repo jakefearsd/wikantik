@@ -1,6 +1,6 @@
 """Grade answers: programmatic citation check + blind LLM correctness judge."""
 import re
-import anthropic_client
+import llm_client
 
 _JUDGE_SYS = ("You are a strict grader. Compare a candidate ANSWER to a REFERENCE answer "
               "for the same QUESTION. Score correctness: 2 = fully correct and complete, "
@@ -19,9 +19,10 @@ def citation_hit(cited_pages, expect_sources):
 def judge_one(cfg, question, answer, http=None):
     user = ("QUESTION:\n%s\n\nREFERENCE:\n%s\n\nANSWER:\n%s" %
             (question["question"], question["reference"], answer or "(empty)"))
-    resp = anthropic_client.complete(cfg, cfg.judge_model, _JUDGE_SYS,
-                                     [{"role": "user", "content": user}], http=http)
-    text = anthropic_client.extract_text(resp)
+    client = llm_client.for_cfg(cfg)
+    resp = client.complete(cfg, cfg.judge_model, _JUDGE_SYS,
+                           [{"role": "user", "content": user}], http=http)
+    text = client.extract_text(resp)
     last_match = None
     for line in text.splitlines():
         m = _SCORE_LINE_RE.match(line)

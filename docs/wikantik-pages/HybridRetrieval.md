@@ -229,3 +229,32 @@ each section:
 followed by the frontmatter `summary`. This gives each section's vector its
 page/cluster/heading context. The **query** side keeps its own instruction
 prefix (the two prefixes are deliberately different).
+
+## Bundle coverage signal
+
+Every context bundle (`assemble_bundle` MCP, `GET /api/bundle`) carries a
+`coverage` block so an agent can tell whether it has enough grounding or should
+refine/escalate, instead of re-querying blindly:
+
+    "coverage": { "sectionCount": 12, "distinctPageCount": 5,
+                  "topSimilarity": 0.71, "confidence": "strong" }
+
+`topSimilarity` is the **true top dense cosine** for the query (threaded out of
+the candidate source — the hybrid path's per-section `score` is a rank proxy and
+is *not* usable for this). `confidence` is derived from that cosine plus the
+section count:
+
+- `topSimilarity` unavailable (`-1`) → `unknown`
+- `≥ strong_similarity` **and** `sectionCount ≥ 3` → `strong`
+- `≥ partial_similarity` → `partial`
+- otherwise → `weak`
+
+After a view-ACL gate drops sections, the counts are recomputed but the
+retrieval-derived `topSimilarity`/`confidence` are preserved (cosine is a
+property of retrieval, not of who may read the result).
+
+Thresholds (provisional — calibrate against the
+`eval/agent-grounding` top-cosine distribution):
+
+- `wikantik.bundle.coverage.strong_similarity` (default **0.55**)
+- `wikantik.bundle.coverage.partial_similarity` (default **0.40**)

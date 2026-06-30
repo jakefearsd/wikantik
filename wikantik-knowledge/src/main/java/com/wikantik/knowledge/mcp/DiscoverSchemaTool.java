@@ -81,7 +81,8 @@ public class DiscoverSchemaTool implements McpTool {
                 .description( "Returns the current shape of the knowledge base: node types, " +
                         "relationship types, property keys with cardinalities and sample values, " +
                         "and aggregate statistics. Use this first to understand what's in this " +
-                        "knowledge base before querying." )
+                        "knowledge base before querying. " +
+                        "Use this to enumerate node types and counts in the knowledge base." )
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
                 .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )

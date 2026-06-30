@@ -83,7 +83,10 @@ public class AssembleBundleTool implements McpTool {
                 .description( "PRIMARY tool for answering a question from the wiki. Returns a ranked, de-duplicated, "
                         + "version-pinned, citation-bearing set of section texts to ground your answer on. Prefer this "
                         + "for how/why/what questions. Ground your answer ONLY in the returned sections and cite them. "
-                        + "Optional 'mode' arg: hybrid (default), dense, or lexical. Does NOT synthesize an answer." )
+                        + "Optional 'mode' arg: hybrid (default), dense, or lexical. Does NOT synthesize an answer. "
+                        + "The response includes a 'coverage' block (confidence: strong|partial|weak|unknown);"
+                        + " when confidence is weak or partial, refine your query or escalate to sparql_query /"
+                        + " get_ontology for exact counts and enumerations." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of( "query" ), null, null, null ) )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();

@@ -83,7 +83,9 @@ public class SparqlQueryTool implements McpTool {
                 .name( TOOL_NAME )
                 .description( "Runs a read-only SPARQL query over the materialized ontology (classes, "
                         + "entities, page/concept metadata, with subClassOf entailment). Use get_ontology "
-                        + "first to learn the schema. SELECT/ASK -> SPARQL-results-JSON; CONSTRUCT -> Turtle." )
+                        + "first to learn the schema. SELECT/ASK -> SPARQL-results-JSON; CONSTRUCT -> Turtle. "
+                        + "Use this for EXACT counts and enumerations (e.g. how many predicates/classes, list all of a type)"
+                        + " rather than free-text retrieval." )
                 .inputSchema( input )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();

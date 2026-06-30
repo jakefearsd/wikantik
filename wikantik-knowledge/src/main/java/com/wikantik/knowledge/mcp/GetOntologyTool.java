@@ -68,7 +68,8 @@ public class GetOntologyTool implements McpTool {
                         + "properties (with domain/range and public subPropertyOf mappings to "
                         + "schema.org/SKOS/Dublin Core), and SKOS concept schemes. Use it to plan "
                         + "SPARQL queries or to understand how query terms relate. Complements "
-                        + "discover_schema (which reports the empirical data shape)." )
+                        + "discover_schema (which reports the empirical data shape). "
+                        + "Use this for authoritative counts/lists of classes and predicates rather than free-text search." )
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();

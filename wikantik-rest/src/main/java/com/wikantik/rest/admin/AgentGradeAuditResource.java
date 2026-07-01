@@ -22,6 +22,8 @@ import com.google.gson.Gson;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.*;
 import com.wikantik.pagegraph.spine.ConfidenceComputer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -45,6 +47,8 @@ import java.util.stream.Collectors;
  * whose underlying signals are too weak to derive useful hints from.</p>
  */
 public final class AgentGradeAuditResource {
+
+    private static final Logger LOG = LoggerFactory.getLogger( AgentGradeAuditResource.class );
 
     private static final Gson GSON = new Gson();
     private static final Pattern GENERIC = Pattern.compile(
@@ -118,8 +122,10 @@ public final class AgentGradeAuditResource {
                 cluster = index.getCluster( p.cluster() );
                 isHub = cluster.map( c -> c.hubPage() != null && c.hubPage().slug().equals( p.slug() ) )
                                .orElse( false );
-            } catch ( final Exception ignored ) {
+            } catch ( final Exception e ) {
                 // treat as no cluster details available
+                LOG.warn( "cluster lookup failed for page {} (cluster {}); omitting hub-aware flags: {}",
+                        p.slug(), p.cluster(), e.toString() );
             }
         }
 
@@ -132,8 +138,10 @@ public final class AgentGradeAuditResource {
                 final Set< String > referrers = refs.findReferrers( p.slug() );
                 final boolean hasIntra = referrers != null && referrers.stream().anyMatch( clusterSlugs::contains );
                 if ( !hasIntra ) flags.add( "no_inbound_cluster_links" );
-            } catch ( final Exception ignored ) {
+            } catch ( final Exception e ) {
                 // omit flag on lookup failure rather than mis-flagging
+                LOG.warn( "referrer lookup failed for page {}; omitting no_inbound_cluster_links flag: {}",
+                        p.slug(), e.toString() );
             }
         }
 
@@ -154,8 +162,10 @@ public final class AgentGradeAuditResource {
                     flags.add( "stale_verification" );
                 }
             }
-        } catch ( final Exception ignored ) {
+        } catch ( final Exception e ) {
             // omit verification-related flags on failure
+            LOG.warn( "verification lookup failed for page {}; omitting verification flags: {}",
+                    p.canonicalId(), e.toString() );
         }
 
         return flags;

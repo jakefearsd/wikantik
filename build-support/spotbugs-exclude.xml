@@ -51,6 +51,15 @@
             <Class name="com.wikantik.knowledge.embedding.NodeMentionSimilarity"/>
             <Class name="com.wikantik.knowledge.extraction.AsyncEntityExtractionListener"/>
             <Class name="com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer"/>
+            <!-- KG judge subsystem (fail-fast validation of injected deps) -->
+            <Class name="com.wikantik.knowledge.judge.DefaultKgProposalJudgeService"/>
+            <Class name="com.wikantik.knowledge.judge.JdbcKgJudgeTimeoutRepository"/>
+            <Class name="com.wikantik.knowledge.judge.JudgeRunner"/>
+            <Class name="com.wikantik.knowledge.judge.KgMaterializationService"/>
+            <!-- Access filters + provider decorator (fail-fast on missing config/deps) -->
+            <Class name="com.wikantik.mcp.McpAccessFilter"/>
+            <Class name="com.wikantik.tools.ToolsAccessFilter"/>
+            <Class name="com.wikantik.providers.PageProviderDecorator"/>
             <!-- MBean -->
             <Class name="com.wikantik.management.SimpleMBean"/>
             <!-- Providers -->
@@ -97,6 +106,23 @@
     <Match>
         <Class name="~com\.wikantik\..*"/>
         <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
+    </Match>
+
+    <!-- ================================================================
+         THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION
+         Same rationale as THROWS_METHOD_THROWS_RUNTIMEEXCEPTION above: the
+         codebase deliberately declares `throws Exception` (the basic
+         checked type) as caller-facing documentation on ~29 methods —
+         chiefly servlet/MCP handler entry points that legitimately fan a
+         wide variety of checked failures back to a single framework-level
+         catch. SpotBugs flags the broad declared type as bad practice, but
+         it is an intentional, pervasive convention here. Suppressed
+         app-wide so the scan stays actionable; genuine bugs in those
+         methods still surface under every other detector.
+    ================================================================ -->
+    <Match>
+        <Class name="~com\.wikantik\..*"/>
+        <Bug pattern="THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION"/>
     </Match>
 
 </FindBugsFilter>

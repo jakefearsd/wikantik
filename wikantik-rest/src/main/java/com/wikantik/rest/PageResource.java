@@ -509,7 +509,6 @@ public class PageResource extends RestServletBase {
         LOG.debug( "DELETE page: {}", pageName );
 
         try {
-            final Engine engine = getEngine();
             final PageManager pm = getSubsystems().page().pages();
             pm.deletePage( pageName );
 

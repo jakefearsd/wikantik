@@ -122,7 +122,6 @@ public class AttachmentResource extends RestServletBase {
     private void doListAttachments( final String pageName, final HttpServletResponse response ) throws IOException {
         LOG.debug( "GET attachments list: {}", pageName );
 
-        final Engine engine = getEngine();
         final PageManager pm = getSubsystems().page().pages();
         final Page page = pm.getPage( pageName );
 
@@ -168,7 +167,6 @@ public class AttachmentResource extends RestServletBase {
                                         final HttpServletResponse response ) throws IOException {
         LOG.debug( "GET attachment download: {}/{}", pageName, fileName );
 
-        final Engine engine = getEngine();
         final AttachmentManager am = getSubsystems().page().attachments();
 
         try {
@@ -394,7 +392,6 @@ public class AttachmentResource extends RestServletBase {
         LOG.debug( "DELETE attachment: {}/{}", pageName, fileName );
 
         try {
-            final Engine engine = getEngine();
             final AttachmentManager am = getSubsystems().page().attachments();
 
             final Attachment att = am.getAttachmentInfo( pageName + "/" + fileName );

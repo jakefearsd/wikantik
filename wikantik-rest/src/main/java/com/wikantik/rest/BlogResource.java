@@ -365,7 +365,6 @@ public class BlogResource extends RestServletBase {
      */
     private void handleListEntries( final HttpServletResponse response, final String username ) throws IOException {
         try {
-            final Engine engine = getEngine();
             final BlogManager blogManager = getSubsystems().core().blogManager();
 
             if ( !blogManager.blogExists( username ) ) {
@@ -527,7 +526,6 @@ public class BlogResource extends RestServletBase {
         }
 
         final String pageName = BlogManager.blogPagePath( username, BlogManager.BLOG_HOME_PAGE );
-        final Engine engine = getEngine();
         final PageManager pm = getSubsystems().page().pages();
         final Page page = pm.getPage( pageName );
 
@@ -575,7 +573,6 @@ public class BlogResource extends RestServletBase {
         }
 
         final String pageName = BlogManager.blogPagePath( username, entryName );
-        final Engine engine = getEngine();
         final PageManager pm = getSubsystems().page().pages();
         final Page page = pm.getPage( pageName );
 
@@ -627,7 +624,6 @@ public class BlogResource extends RestServletBase {
         }
 
         final String pageName = BlogManager.blogPagePath( username, entryName );
-        final Engine engine = getEngine();
         final PageManager pm = getSubsystems().page().pages();
         final Page page = pm.getPage( pageName );
 

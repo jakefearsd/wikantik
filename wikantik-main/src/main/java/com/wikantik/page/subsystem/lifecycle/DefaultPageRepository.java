@@ -362,13 +362,9 @@ public class DefaultPageRepository implements PageRepository {
             if ( pageToDelete instanceof Attachment att ) {
                 getAttachmentManager().deleteAttachment( att );
             } else {
-                final Collection<String> refTo = new ArrayList<>( getReferenceManager().findRefersTo( pageName ) );
-
                 if ( getAttachmentManager().hasAttachments( pageToDelete ) ) {
                     final List<Attachment> attachments = getAttachmentManager().listAttachments( pageToDelete );
                     for ( final Attachment attachment : attachments ) {
-                        refTo.remove( attachment.getName() );
-
                         getAttachmentManager().deleteAttachment( attachment );
                     }
                 }

@@ -109,8 +109,6 @@ public final class KgNodeRepository extends KgJdbcSupport {
      * Package-private SQL builder for {@link #queryNodes}. Allows test introspection of
      * the generated SQL without standing up a database connection.
      */
-    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
-            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     static String buildQueryNodesSql( final Map< String, Object > filters,
                                       final Set< Provenance > provenanceFilter,
                                       final boolean adminBypass ) {
@@ -126,8 +124,6 @@ public final class KgNodeRepository extends KgJdbcSupport {
      * Package-private SQL builder for {@link #searchNodes}. Allows test introspection of
      * the generated SQL without standing up a database connection.
      */
-    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
-            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     static String buildSearchNodesSql( final Set< Provenance > provenanceFilter,
                                        final boolean adminBypass ) {
         final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )

@@ -23,7 +23,6 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.admin.ContentIndexRebuildService;
 import com.wikantik.admin.IndexStatusSnapshot;
-import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.managers.PageManager;
@@ -308,7 +307,6 @@ public class AdminContentResource extends RestServletBase {
         response.setHeader( "Link",
             "</admin/content/rebuild-indexes>; rel=\"successor-version\"" );
         try {
-            final Engine engine = getEngine();
             final SearchManager sm = getSubsystems().search().searchManager();
             final PageManager pm = getSubsystems().page().pages();
 

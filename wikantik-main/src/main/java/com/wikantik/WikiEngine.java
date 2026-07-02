@@ -223,7 +223,7 @@ public class WikiEngine implements Engine {
      * Maps each class key to the subsystem-snapshot rebuilder that must run when that
      * class is hot-swapped via {@link #setManager}.  One entry per class; the lambda
      * is a no-op if the relevant subsystem snapshot is still null (i.e. during boot).
-     * Populated in the same static block as TYPED_FIELD_WRITERS / TYPED_FIELD_READERS.
+     * Populated in its own static block below.
      *
      * <p>ContextRetrievalService is intentionally absent — see the comment in
      * {@link #setManager} for the reason.</p>

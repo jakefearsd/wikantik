@@ -68,9 +68,11 @@ class DecompositionArchTest {
      * {@code *Subsystem.Services} record.</p>
      *
      * <p>The current ~1,070 callers are baselined into the violation store.
-     * Each phase of the decomposition burns down a subset; the store shrinks
-     * monotonically until Phase 9 deletes both the registry and this rule
-     * (replacing it with one that bans the API entirely).</p>
+     * Each phase of the decomposition burns down a subset. The migration
+     * concluded at Phase 12 (2026-05-14) with getManager/setManager retained
+     * as the stable service-locator API on the WikiEngine concrete class;
+     * this freeze is permanent, not transitional. Service storage moved to
+     * EngineServiceRegistry on 2026-07-02 (ADR-0008).</p>
      */
     @ArchTest
     static final ArchRule no_new_get_manager_callers = freeze(
@@ -87,8 +89,8 @@ class DecompositionArchTest {
                 )
             )
             .as( "no new WikiEngine#getManager callers — services must receive "
-               + "collaborators via constructor injection. See spec: "
-               + "docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md" )
+               + "collaborators via constructor injection. See "
+               + "docs/adr/0008-late-bound-service-registration.md" )
     );
 
     /**
@@ -144,6 +146,33 @@ class DecompositionArchTest {
             .as( "no_get_manager_anywhere — only WikiEngine, *SubsystemFactory, "
                + "*SubsystemBridge, and *WiringHelper may call WikiEngine#getManager; "
                + "all others must receive collaborators via constructor injection. "
-               + "See Phase 10 Ckpt A2: docs/superpowers/plans/2026-05-08-decomposition-phase-10.md" )
+               + "See docs/adr/0008-late-bound-service-registration.md" )
     );
+
+    /**
+     * R-5: WikiEngine must not re-accrete late-bound service state.
+     *
+     * <p>After the 2026-07-02 storage extraction, late-bound services live in
+     * {@link com.wikantik.core.registry.EngineServiceRegistry}. New services
+     * register via {@code engine.setManager(Type.class, impl)} from the owning
+     * *WiringHelper — never as a {@code mgr_*} field or {@code register*} setter on
+     * WikiEngine. This freezes that surface so the god class cannot silently regrow
+     * (it grew 1909 -> 2337 LOC after the original decomposition "completed").
+     * See docs/adr/0008-late-bound-service-registration.md.</p>
+     */
+    @ArchTest
+    static final ArchRule wikiengine_holds_no_mgr_fields =
+        com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields()
+            .that().areDeclaredInClassesThat().haveSimpleName( "WikiEngine" )
+            .should().haveNameMatching( "mgr_.*" )
+            .as( "WikiEngine must hold no mgr_* service fields — store late-bound "
+               + "services in EngineServiceRegistry. See ADR-0008." );
+
+    @ArchTest
+    static final ArchRule wikiengine_has_no_register_setters =
+        com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods()
+            .that().areDeclaredInClassesThat().haveSimpleName( "WikiEngine" )
+            .should().haveNameMatching( "register[A-Z].*" )
+            .as( "WikiEngine must expose no register* service setters — call "
+               + "engine.setManager(Type.class, impl) from a *WiringHelper. See ADR-0008." );
 }

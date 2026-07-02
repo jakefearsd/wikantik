@@ -57,11 +57,15 @@ import java.util.function.Supplier;
  * different package — it is not part of any documented public API of {@code wikantik-rest}.
  * <p>
  * The {@code backfillRunning}/{@code backfillTotal}/{@code backfillProcessed}/{@code backfillErrors}
- * fields are instance state, exactly as they were on {@code AdminKnowledgeResource}: this handler
- * instance is constructed once in {@code buildResources()} and held for the life of the servlet
- * (rebuilt only on deserialization), so the backfill-progress state observed by
- * {@code GET /backfill-frontmatter} continues to reflect the single background job started by
- * {@code POST /backfill-frontmatter}, unchanged from the pre-extraction behavior.
+ * fields are instance state: this handler is constructed once in {@code buildResources()} and held
+ * for the life of the servlet, so the backfill-progress state observed by
+ * {@code GET /backfill-frontmatter} reflects the single background job started by
+ * {@code POST /backfill-frontmatter}. One deliberate divergence from the pre-extraction layout:
+ * these fields used to live on the servlet itself and survived Java deserialization
+ * ({@code readObject} rebuilds only the dispatch table), whereas now deserialization constructs a
+ * fresh handler and resets the guard. That path is inert in this deployment — web.xml declares no
+ * {@code <distributable/>} and nothing serializes this servlet — but if session replication or
+ * clustering is ever enabled, an in-flight backfill's guard would reset on failover.
  */
 public final class KgMaintenanceAdminHandlers {
 

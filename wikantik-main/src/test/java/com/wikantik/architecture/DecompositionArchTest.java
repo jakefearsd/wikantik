@@ -28,8 +28,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.freeze.FreezingArchRule.freeze;
 
 /**
- * Architecture guards for the wikantik-main subsystem decomposition
- * (see docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md).
+ * Architecture guards for the wikantik-main subsystem decomposition, including the
+ * late-bound service registration path (see docs/adr/0008-late-bound-service-registration.md).
  *
  * <p>Each rule is wrapped in {@link com.tngtech.archunit.library.freeze.FreezingArchRule}
  * so existing violations are baselined into a violation store. New violations

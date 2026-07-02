@@ -125,3 +125,9 @@ save-time error and never alarming — in a highly dynamic base, churn is the st
 Surfaced per page two ways: **outbound** (stale citations this page makes) and **inbound**
 (citations others make to a span of this page that has since changed).
 _Avoid_: "broken link", "dead reference", "drift" (that's the ontology term).
+
+## Adding a late-bound service
+Register via `engine.setManager(Type.class, impl)` from the owning *WiringHelper.
+Never add a `mgr_*` field or `register*` setter to WikiEngine — ArchUnit R-5
+enforces this. Storage lives in EngineServiceRegistry; the per-class hot-swap
+rebuild policy is WikiEngine.SNAPSHOT_REBUILDERS. See docs/adr/0008-late-bound-service-registration.md.

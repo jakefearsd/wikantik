@@ -40,7 +40,7 @@ import java.util.UUID;
  * service-dependent conflict-flag enrichment for proposals stays in the controller (it needs a
  * live {@code KnowledgeGraphService}); this class produces only the base proposal shape.</p>
  */
-final class KnowledgeJsonMapper {
+public final class KnowledgeJsonMapper {
 
     private KnowledgeJsonMapper() {
     }
@@ -96,8 +96,11 @@ final class KnowledgeJsonMapper {
     /**
      * Base serialisation of a proposal (no service-dependent conflict flags). The controller adds
      * {@code node_exists}/{@code edge_previously_rejected} flags when it has a live service.
+     * <p>
+     * Public (unlike its siblings here) because {@code com.wikantik.rest.knowledge.KgProposalAdminHandlers}
+     * — extracted from {@code AdminKnowledgeResource} — calls it from a different package.
      */
-    static Map< String, Object > proposalToMap( final KgProposal p ) {
+    public static Map< String, Object > proposalToMap( final KgProposal p ) {
         final Map< String, Object > map = new LinkedHashMap<>();
         map.put( "id", p.id().toString() );
         map.put( "proposal_type", p.proposalType() );

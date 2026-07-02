@@ -18,17 +18,13 @@
  */
 package com.wikantik.rest;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.api.frontmatter.FrontmatterParser;
-import com.wikantik.api.knowledge.ProposalConflictFlags;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
-import com.wikantik.knowledge.judge.JudgeRunner;
 import com.wikantik.knowledge.SummaryExtractor;
 import com.wikantik.knowledge.TagExtractor;
 import com.wikantik.knowledge.TitleDeriver;
@@ -42,6 +38,9 @@ import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.rest.knowledge.AdminKnowledgeIo;
+import com.wikantik.rest.knowledge.KgJudgeAdminHandlers;
+import com.wikantik.rest.knowledge.KgProposalAdminHandlers;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -139,6 +138,17 @@ public class AdminKnowledgeResource extends RestServletBase {
     private transient Map< String, Resource > resources = buildResources();
 
     private Map< String, Resource > buildResources() {
+        // Constructed fresh on every call (including after deserialization — see #readObject)
+        // so the injected suppliers always resolve subsystems from the *current* engine/servlet
+        // context, exactly like the inline getSubsystems() calls these handlers used to make
+        // directly before they were extracted to com.wikantik.rest.knowledge.
+        final KgProposalAdminHandlers proposalHandlers = new KgProposalAdminHandlers(
+                this::getKgCurationOps );
+        final KgJudgeAdminHandlers judgeHandlers = new KgJudgeAdminHandlers(
+                () -> getSubsystems().knowledge().judgeRunner(),
+                () -> getSubsystems().knowledge().judgeTimeoutRepository(),
+                () -> getSubsystems().knowledge().kgService() );
+
         final Map< String, Resource > m = new LinkedHashMap<>();
         m.put( "schema", Resource.get(
                 ( svc, req, resp, seg ) -> handleGetSchema( svc, resp ) ) );
@@ -151,8 +161,8 @@ public class AdminKnowledgeResource extends RestServletBase {
                 this::handlePostEdgeDispatch,
                 ( svc, req, resp, seg ) -> handleDeleteEdge( svc, req, resp, seg[ 1 ] ) ) );
         m.put( "proposals", new Resource(
-                ( svc, req, resp, seg ) -> handleGetProposals( svc, req, resp, seg ),
-                this::handlePostProposal,
+                proposalHandlers::handleGetProposals,
+                proposalHandlers::handlePostProposal,
                 null ) );
         m.put( "embeddings", new Resource(
                 ( svc, req, resp, seg ) -> handleGetEmbeddings( req, resp, seg ),
@@ -169,13 +179,13 @@ public class AdminKnowledgeResource extends RestServletBase {
                 ( svc, req, resp, seg ) -> handlePostBackfillFrontmatter( resp ),
                 null ) );
         m.put( "judge", new Resource(
-                ( svc, req, resp, seg ) -> handleGetJudge( req, resp, seg ),
-                ( svc, req, resp, seg ) -> handlePostJudge( req, resp, seg ),
+                ( svc, req, resp, seg ) -> judgeHandlers.handleGetJudge( req, resp, seg ),
+                ( svc, req, resp, seg ) -> judgeHandlers.handlePostJudge( req, resp, seg ),
                 null ) );
         m.put( "judge-timeouts", new Resource(
-                ( svc, req, resp, seg ) -> handleGetJudgeTimeouts( svc, req, resp ),
+                ( svc, req, resp, seg ) -> judgeHandlers.handleGetJudgeTimeouts( svc, req, resp ),
                 null,
-                ( svc, req, resp, seg ) -> handleDeleteJudgeTimeout( resp, seg ) ) );
+                ( svc, req, resp, seg ) -> judgeHandlers.handleDeleteJudgeTimeout( resp, seg ) ) );
         m.put( "clear-all", Resource.post(
                 ( svc, req, resp, seg ) -> handleClearAll( svc, resp ) ) );
         m.put( "sync-hub-memberships", Resource.post(
@@ -382,283 +392,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         sendJson( response, Map.of( "audit", service.getEdgeAudit( id, limit ) ) );
     }
 
-    private void handleGetProposals( final KnowledgeGraphService service,
-                                     final HttpServletRequest request,
-                                     final HttpServletResponse response,
-                                     final String[] segments ) throws IOException {
-        // GET /admin/knowledge-graph/proposals/{id}/reviews
-        if ( segments.length >= 3 && "reviews".equals( segments[2] ) ) {
-            final UUID proposalId = parseUuid( segments[1], response );
-            if ( proposalId == null ) return;
-            sendJson( response, Map.of( "reviews", service.listReviews( proposalId ).stream()
-                .map( r -> {
-                    final Map< String, Object > m = new LinkedHashMap<>();
-                    m.put( "id", r.id().toString() );
-                    m.put( "reviewer_kind", r.reviewerKind() );
-                    m.put( "reviewer_id", r.reviewerId() );
-                    m.put( "verdict", r.verdict() );
-                    m.put( "confidence", r.confidence() );
-                    m.put( "rationale", r.rationale() != null ? r.rationale() : "" );
-                    m.put( "created", r.created().toString() );
-                    return m;
-                } ).toList() ) );
-            return;
-        }
-
-        final String status = request.getParameter( "status" );
-        final String sourcePage = request.getParameter( "source_page" );
-        final String tier = request.getParameter( "tier" );
-        final String machineStatus = request.getParameter( "machine_status" );
-        final boolean includeMachineRejected = Boolean.parseBoolean(
-            request.getParameter( "include_machine_rejected" ) );
-        // Server-enforced upper bound — the UI should never request more than
-        // a few hundred at a time, but the REST surface guards against
-        // pathological queries (single request fetching every proposal).
-        final int rawLimit = parseIntParam( request, "limit", 50 );
-        final int limit = Math.max( 1, Math.min( rawLimit, MAX_PROPOSAL_PAGE_SIZE ) );
-        final int offset = Math.max( 0, parseIntParam( request, "offset", 0 ) );
-
-        final List< KgProposal > proposals;
-        final long totalCount;
-        if ( tier != null || machineStatus != null || includeMachineRejected ) {
-            proposals = service.listProposals( status, tier, machineStatus,
-                includeMachineRejected, sourcePage, limit, offset );
-            totalCount = service.countProposals( status, tier, machineStatus,
-                includeMachineRejected, sourcePage );
-        } else {
-            proposals = service.listProposals( status, sourcePage, limit, offset );
-            // The simple overload doesn't expose tier / machine_status filtering;
-            // route through the extended count with the equivalent defaults so
-            // the totals add up to what the client filtered on.
-            totalCount = service.countProposals( status, null, null, false, sourcePage );
-        }
-        sendJson( response, Map.of(
-            "proposals", proposals.stream().map( p -> proposalToMap( service, p ) ).toList(),
-            "total_count", totalCount,
-            "limit", limit,
-            "offset", offset
-        ) );
-    }
-
-    /** Hard upper bound on a single page fetch from /admin/knowledge-graph/proposals. */
-    private static final int MAX_PROPOSAL_PAGE_SIZE = 500;
-
     // --- POST handlers ---
-
-    private void handlePostProposal( final KnowledgeGraphService service,
-                                     final HttpServletRequest request,
-                                     final HttpServletResponse response,
-                                     final String[] segments ) throws IOException {
-        // POST /admin/knowledge-graph/proposals/bulk-action — handled before any per-id dispatch
-        if ( segments.length == 2 && "bulk-action".equals( segments[1] ) ) {
-            doBulkProposalAction( service, request, response );
-            return;
-        }
-        // POST /admin/knowledge-graph/proposals — create a new proposal
-        if ( segments.length == 1 ) {
-            final JsonObject body = parseJsonBody( request, response );
-            if ( body == null ) return;
-            final String proposalType = getJsonString( body, "proposal_type" );
-            if ( proposalType == null || proposalType.isBlank() ) {
-                sendError( response, HttpServletResponse.SC_BAD_REQUEST, "proposal_type is required" );
-                return;
-            }
-            final String sourcePage = getJsonString( body, "source_page" );
-            final Map< String, Object > proposedData = body.has( "proposed_data" )
-                    ? GSON.fromJson( body.get( "proposed_data" ), MAP_TYPE ) : Map.of();
-            final double confidence = getJsonDouble( body, "confidence", 0.5 );
-            final String reasoning = getJsonString( body, "reasoning" );
-            final KgProposal proposal = service.submitProposal( proposalType, sourcePage,
-                    proposedData, confidence, reasoning );
-            sendJson( response, KnowledgeJsonMapper.proposalToMap( proposal ) );
-            return;
-        }
-        // POST /admin/knowledge-graph/proposals/{id}/approve or /reject
-        if ( segments.length < 3 ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Expected: /proposals or /proposals/{id}/approve or /proposals/{id}/reject" );
-            return;
-        }
-        final UUID proposalId = parseUuid( segments[1], response );
-        if ( proposalId == null ) return;
-
-        final String action = segments[2];
-        final String reviewedBy = request.getRemoteUser() != null ? request.getRemoteUser() : "admin";
-
-        final KgCurationOps ops = getKgCurationOps();
-        switch ( action ) {
-            case "approve" -> {
-                final KgCurationOps.ApproveOutcome outcome = ops.tryApprove( proposalId, reviewedBy );
-                if ( outcome.error().isPresent() ) {
-                    sendNotFound( response, outcome.error().get() );
-                    return;
-                }
-                final KgProposal approved = service.getProposal( proposalId );
-                final Map< String, Object > approveResult = new LinkedHashMap<>( KnowledgeJsonMapper.proposalToMap( approved ) );
-                approveResult.put( "warnings", outcome.warnings() );
-                sendJson( response, approveResult );
-            }
-            case "reject" -> {
-                final JsonObject body = parseJsonBody( request, response );
-                if ( body == null ) return;
-                final String reason = getJsonString( body, "reason" );
-                final java.util.Optional< String > err = ops.tryRejectProposal( proposalId, reviewedBy, reason );
-                if ( err.isPresent() ) {
-                    sendNotFound( response, err.get() );
-                    return;
-                }
-                final KgProposal rejected = service.getProposal( proposalId );
-                sendJson( response, KnowledgeJsonMapper.proposalToMap( rejected ) );
-            }
-            case "judge" -> {
-                try {
-                    final JudgeVerdict v = service.judgeNow( proposalId, reviewedBy );
-                    final Map< String, Object > result = new LinkedHashMap<>();
-                    result.put( "verdict", v.verdict() );
-                    result.put( "confidence", v.confidence() );
-                    result.put( "rationale", v.rationale() );
-                    result.put( "model", v.model() );
-                    sendJson( response, result );
-                } catch ( final IllegalStateException e ) {
-                    LOG.warn( "judgeNow refused for proposal {}: {}", proposalId, e.getMessage() );
-                    sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, e.getMessage() );
-                } catch ( final IllegalArgumentException e ) {
-                    sendNotFound( response, e.getMessage() );
-                }
-            }
-            default -> sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Unknown action: " + action + ". Use 'approve', 'reject', or 'judge'." );
-        }
-    }
-
-    // --- Bulk proposal action ---
-
-    /**
-     * Handles {@code POST /admin/knowledge-graph/proposals/bulk-action}.
-     *
-     * <p>Request body:
-     * {@code { "action": "approve"|"reject"|"judge", "ids": ["uuid1", ...], "reason": "..." }}
-     * (reason required for reject at the request level — missing reason → 400).
-     *
-     * <p>Returns a standard bulk-result envelope:
-     * {@code { "succeeded": [...], "failed": [{id, error}], "status": "completed",
-     * "message": "N of M proposals approved" }}.
-     *
-     * <p>Loops over all ids without aborting on first failure.
-     * Emits a single audit log entry per bulk call.
-     */
-    private void doBulkProposalAction( final KnowledgeGraphService service,
-                                        final HttpServletRequest request,
-                                        final HttpServletResponse response ) throws IOException {
-        final JsonObject body = parseJsonBody( request, response );
-        if ( body == null ) return;
-
-        final String action = getJsonString( body, "action" );
-        if ( action == null || action.isBlank() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "action is required (supported: approve, reject, judge)" );
-            return;
-        }
-        if ( !"approve".equals( action ) && !"reject".equals( action ) && !"judge".equals( action ) ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Unsupported action '" + action + "' — supported: approve, reject, judge" );
-            return;
-        }
-
-        // For reject: require a top-level reason (request-level invariant, not per-id).
-        final String reason;
-        if ( "reject".equals( action ) ) {
-            reason = getJsonString( body, "reason" );
-            if ( reason == null || reason.isBlank() ) {
-                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                        "reason is required for action 'reject'" );
-                return;
-            }
-        } else {
-            reason = null;
-        }
-
-        final JsonElement idsEl = body.get( "ids" );
-        if ( idsEl == null || !idsEl.isJsonArray() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "ids is required and must be a JSON array" );
-            return;
-        }
-        final JsonArray idsArr = idsEl.getAsJsonArray();
-        if ( idsArr.isEmpty() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "ids must not be empty" );
-            return;
-        }
-
-        final String actor = request.getRemoteUser() != null ? request.getRemoteUser() : "admin";
-        final KgCurationOps ops = getKgCurationOps();
-        final List< String > succeeded = new ArrayList<>();
-        final List< Map< String, Object > > failed = new ArrayList<>();
-        final Map< String, List< String > > warningsByProposal = new LinkedHashMap<>();
-
-        for ( final JsonElement idEl : idsArr ) {
-            final String idStr = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
-            if ( idStr == null || idStr.isBlank() ) {
-                final Map< String, Object > f = new LinkedHashMap<>();
-                f.put( "id", idEl.toString() );
-                f.put( "error", "id must be a non-blank string" );
-                failed.add( f );
-                continue;
-            }
-            final UUID proposalId;
-            try {
-                proposalId = UUID.fromString( idStr );
-            } catch ( final IllegalArgumentException e ) {
-                final Map< String, Object > f = new LinkedHashMap<>();
-                f.put( "id", idStr );
-                f.put( "error", "Invalid UUID: " + idStr );
-                failed.add( f );
-                continue;
-            }
-
-            if ( "approve".equals( action ) ) {
-                final KgCurationOps.ApproveOutcome outcome = ops.tryApprove( proposalId, actor );
-                if ( outcome.error().isPresent() ) {
-                    final Map< String, Object > f = new LinkedHashMap<>();
-                    f.put( "id", idStr );
-                    f.put( "error", outcome.error().get() );
-                    failed.add( f );
-                } else {
-                    succeeded.add( idStr );
-                    if ( !outcome.warnings().isEmpty() ) {
-                        warningsByProposal.put( idStr, outcome.warnings() );
-                    }
-                }
-            } else {
-                final java.util.Optional< String > err;
-                switch ( action ) {
-                    case "reject"  -> err = ops.tryRejectProposal( proposalId, actor, reason );
-                    default        -> err = ops.tryJudgeProposal( proposalId, actor );
-                }
-                if ( err.isEmpty() ) {
-                    succeeded.add( idStr );
-                } else {
-                    final Map< String, Object > f = new LinkedHashMap<>();
-                    f.put( "id", idStr );
-                    f.put( "error", err.get() );
-                    failed.add( f );
-                }
-            }
-        }
-
-        LOG.info( "bulk action={} resource=kg-proposals actor={} attempted={} succeeded={} failed={}",
-                action, actor, idsArr.size(), succeeded.size(), failed.size() );
-
-        final Map< String, Object > result = new LinkedHashMap<>();
-        result.put( "succeeded", succeeded );
-        result.put( "failed", failed );
-        result.put( "status", "completed" );
-        result.put( "message", succeeded.size() + " of " + idsArr.size() + " proposals " + action + "d" );
-        if ( !warningsByProposal.isEmpty() ) {
-            result.put( "warnings_by_proposal", warningsByProposal );
-        }
-        sendJson( response, result );
-    }
 
     private void handlePostNode( final KnowledgeGraphService service,
                                  final HttpServletRequest request,
@@ -1104,31 +838,6 @@ public class AdminKnowledgeResource extends RestServletBase {
         return service.getNodeNames( ids );
     }
 
-    /**
-     * Serialises a proposal for the admin UI. When {@code service} is non-null,
-     * also enriches with two cross-reference flags the queue uses to surface
-     * conflicts before the admin acts:
-     * <ul>
-     *   <li>{@code node_exists} — for {@code new-node} proposals, whether the
-     *       proposed name already resolves to an existing KG node (likely
-     *       duplicate);</li>
-     *   <li>{@code edge_previously_rejected} — for {@code new-edge} proposals,
-     *       whether the same {@code (source, target, relationship)} tuple has
-     *       been rejected before (so the same suggestion is being made
-     *       repeatedly).</li>
-     * </ul>
-     * Both lookups are best-effort — exceptions are logged at WARN and the
-     * flag is omitted rather than failing the whole listing.
-     */
-    private Map< String, Object > proposalToMap( final KnowledgeGraphService service, final KgProposal p ) {
-        final Map< String, Object > map = KnowledgeJsonMapper.proposalToMap( p );
-        if ( service != null ) {
-            map.putAll( ProposalConflictFlags.forProposal( service, p, true ) );
-        }
-        return map;
-    }
-
-
     // --- Embedding handlers ---
 
     private NodeMentionSimilarity getSimilarity() {
@@ -1217,14 +926,11 @@ public class AdminKnowledgeResource extends RestServletBase {
         } ).toList() ) );
     }
 
+    /** Delegates to {@link AdminKnowledgeIo#parseUuid} — moved there so the extracted
+     *  {@code com.wikantik.rest.knowledge} handler classes can share it too; kept here as a
+     *  thin wrapper so the many existing call sites in this class don't need to change. */
     private UUID parseUuid( final String str, final HttpServletResponse response ) throws IOException {
-        try {
-            return UUID.fromString( str );
-        } catch ( final IllegalArgumentException e ) {
-            LOG.info( "Rejecting request with malformed UUID '{}': {}", str, e.getMessage() );
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid UUID: " + str );
-            return null;
-        }
+        return AdminKnowledgeIo.parseUuid( str, response );
     }
 
     /**
@@ -1492,151 +1198,6 @@ public class AdminKnowledgeResource extends RestServletBase {
         } finally {
             backfillRunning = false;
         }
-    }
-
-    private void handleGetJudge( final HttpServletRequest request,
-                                 final HttpServletResponse response,
-                                 final String[] segments ) throws IOException {
-        if ( segments.length < 2 || !"status".equals( segments[1] ) ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Expected: /judge/status" );
-            return;
-        }
-        final com.wikantik.knowledge.judge.JudgeRunner runner =
-            getSubsystems().knowledge().judgeRunner();
-        final KnowledgeGraphService svc = getSubsystems().knowledge().kgService();
-        final long depth = svc == null ? 0L : svc.countPendingUnjudgedProposals();
-        if ( runner == null ) {
-            sendJson( response, Map.of( "configured", false, "in_flight", false, "queue_depth", depth ) );
-            return;
-        }
-        final com.wikantik.knowledge.judge.JudgeRunner.Status s = runner.status( depth );
-        final Map< String, Object > body = new LinkedHashMap<>();
-        body.put( "configured", true );
-        body.put( "in_flight", s.inFlight() );
-        body.put( "last_run_submitted", s.lastRunSubmitted() );
-        body.put( "last_run_completed", s.lastRunCompleted() );
-        // Use empty strings (not null) for "not applicable" timestamp / error fields.
-        // Default Gson omits null map values, which makes the keys disappear from
-        // the response body and breaks clients that probe for their presence.
-        body.put( "last_run_started_at",
-            s.lastRunStartedAt() != null ? s.lastRunStartedAt().toString() : "" );
-        body.put( "last_run_finished_at",
-            s.lastRunFinishedAt() != null ? s.lastRunFinishedAt().toString() : "" );
-        body.put( "last_run_error", s.lastRunError() != null ? s.lastRunError() : "" );
-        body.put( "queue_depth", s.queueDepth() );
-        sendJson( response, body );
-    }
-
-    private void handlePostJudge( final HttpServletRequest request,
-                                  final HttpServletResponse response,
-                                  final String[] segments ) throws IOException {
-        if ( segments.length < 2 || !"run".equals( segments[1] ) ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Expected: /judge/run" );
-            return;
-        }
-        final JudgeRunner runner = getSubsystems().knowledge().judgeRunner();
-        if ( runner == null ) {
-            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                "judge runner not configured" );
-            return;
-        }
-        final Thread t = new Thread( runner::runOnceQuietly, "kg-judge-adhoc" );
-        t.setDaemon( true );
-        t.start();
-        response.setStatus( HttpServletResponse.SC_ACCEPTED );
-        sendJson( response, Map.of( "status", "started" ) );
-    }
-
-    /**
-     * GET /admin/knowledge-graph/judge-timeouts?limit=N
-     *
-     * Lists chronic-timeout proposals (those that have read-timed out the LLM
-     * judge at least once), sorted by timeout count desc. Each entry is enriched
-     * with the proposal's source/target/relationship so the admin can decide
-     * whether to manually approve or reject without an extra round-trip.
-     */
-    private void handleGetJudgeTimeouts( final KnowledgeGraphService svc,
-                                         final HttpServletRequest request,
-                                         final HttpServletResponse response ) throws IOException {
-        final com.wikantik.knowledge.judge.KgJudgeTimeoutRepository repo =
-            getSubsystems().knowledge().judgeTimeoutRepository();
-        if ( repo == null ) {
-            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                "judge timeout tracking is not configured" );
-            return;
-        }
-        final int limit = parseIntParam( request, "limit", 50 );
-        final List< com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.TimeoutRow > rows =
-            repo.listTopChronic( limit );
-
-        final List< Map< String, Object > > out = new ArrayList<>( rows.size() );
-        for ( final var r : rows ) {
-            final Map< String, Object > m = new LinkedHashMap<>();
-            m.put( "proposal_id", r.proposalId().toString() );
-            m.put( "content_sha256", r.contentSha256() );
-            m.put( "source_page", r.sourcePage() != null ? r.sourcePage() : "" );
-            m.put( "proposal_type", r.proposalType() != null ? r.proposalType() : "" );
-            m.put( "model_name", r.modelName() != null ? r.modelName() : "" );
-            m.put( "content_bytes", r.contentBytes() );
-            m.put( "timeout_count", r.timeoutCount() );
-            m.put( "last_error_excerpt", r.lastErrorExcerpt() != null ? r.lastErrorExcerpt() : "" );
-            m.put( "base_timeout_seconds", r.baseTimeoutSeconds() );
-            m.put( "first_seen", r.firstSeen() != null ? r.firstSeen().toString() : "" );
-            m.put( "last_seen",  r.lastSeen()  != null ? r.lastSeen().toString()  : "" );
-            // Effective timeout that would be applied on next attempt — surfaces
-            // the multiplier admin has been seeing.
-            final int multiplier = Math.min( 1 + r.timeoutCount(),
-                com.wikantik.knowledge.judge.DefaultKgProposalJudgeService.MAX_TIMEOUT_MULTIPLIER );
-            m.put( "next_effective_timeout_seconds", r.baseTimeoutSeconds() * multiplier );
-            // Enrich with proposal triple if the proposal still exists. Pending
-            // proposals are the actionable ones; if approved/rejected/deleted
-            // we still emit the row so the admin has the trail.
-            try {
-                final com.wikantik.api.knowledge.KgProposal p = svc.getProposal( r.proposalId() );
-                if ( p != null ) {
-                    final Map< String, Object > pd = p.proposedData();
-                    final Map< String, Object > triple = new LinkedHashMap<>();
-                    triple.put( "source", pd.get( "source" ) );
-                    triple.put( "target", pd.get( "target" ) );
-                    triple.put( "relationship", pd.get( "relationship" ) );
-                    m.put( "proposal", Map.of(
-                        "status", p.status() != null ? p.status() : "",
-                        "tier", p.tier() != null ? p.tier() : "",
-                        "confidence", p.confidence(),
-                        "triple", triple ) );
-                } else {
-                    m.put( "proposal", Map.of( "status", "missing" ) );
-                }
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "judge-timeouts: proposal lookup failed for {}: {}",
-                    r.proposalId(), e.getMessage() );
-                m.put( "proposal", Map.of( "status", "lookup_error" ) );
-            }
-            out.add( m );
-        }
-        sendJson( response, Map.of( "timeouts", out ) );
-    }
-
-    /**
-     * DELETE /admin/knowledge-graph/judge-timeouts/{proposal_id}
-     *
-     * Clears a tracked timeout — useful when the admin has manually resolved
-     * the underlying problem (rephrased the proposal, restarted Ollama, etc.)
-     * and wants the next call to start fresh at the base timeout.
-     */
-    private void handleDeleteJudgeTimeout( final HttpServletResponse response,
-                                           final String[] segments ) throws IOException {
-        final com.wikantik.knowledge.judge.KgJudgeTimeoutRepository repo =
-            getSubsystems().knowledge().judgeTimeoutRepository();
-        if ( repo == null ) {
-            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                "judge timeout tracking is not configured" );
-            return;
-        }
-        final UUID id = parseUuid( segments[ 1 ], response );
-        if ( id == null ) return;
-        repo.clear( id );
-        sendJson( response, Map.of( "status", "cleared", "proposal_id", id.toString() ) );
     }
 
     private void handlePostSyncHubMemberships( final HttpServletResponse response ) throws IOException {

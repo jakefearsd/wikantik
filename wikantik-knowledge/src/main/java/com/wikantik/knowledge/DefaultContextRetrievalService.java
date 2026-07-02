@@ -23,7 +23,6 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.search.SearchResult;
-import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.MetadataValue;
@@ -34,10 +33,12 @@ import com.wikantik.api.knowledge.RelatedPage;
 import com.wikantik.api.knowledge.RetrievedChunk;
 import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.providers.PageProvider;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
+import com.wikantik.knowledge.retrieval.ContributingChunkAssembler;
+import com.wikantik.knowledge.retrieval.PageListEngine;
+import com.wikantik.knowledge.retrieval.RelatedPagesFinder;
 import com.wikantik.search.FrontmatterMetadataCache;
 import com.wikantik.search.SearchManager;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
@@ -49,16 +50,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Composes the retrieval singletons into the agent-facing contract defined
@@ -85,6 +80,9 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
     private final FrontmatterMetadataCache fmCache;
     private final String publicBaseUrl;
     private final com.wikantik.api.ontology.OntologyQueryService ontologyQuery;
+    private final RelatedPagesFinder relatedPagesFinder;
+    private final PageListEngine pageListEngine;
+    private final ContributingChunkAssembler contributingChunkAssembler;
 
     public DefaultContextRetrievalService(
             final Engine engine,
@@ -118,6 +116,10 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         // Optional: when present (and the flag enabled at the wiring site), the query is
         // expanded with ontology-derived terms before search. Null = no expansion.
         this.ontologyQuery = ontologyQuery;
+        this.relatedPagesFinder = new RelatedPagesFinder( mentionIndex );
+        this.pageListEngine = new PageListEngine( pageManager, fmCache,
+            ( page, meta ) -> buildRetrievedPage( page, meta, 0.0, List.of(), List.of() ) );
+        this.contributingChunkAssembler = new ContributingChunkAssembler( chunkIndex, chunkRepo, hybridSearch );
     }
 
     /**
@@ -212,7 +214,8 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         // produced enough material. Empty Optional → fall through to the
         // current path (re-embed + topKChunks).
         final Map< String, List< RetrievedChunk > > chunksByPage =
-            fetchContributingChunks( query.query(), ordered, query.chunksPerPage(), pipeline.reusableChunks() );
+            contributingChunkAssembler.fetchContributingChunks(
+                query.query(), ordered, query.chunksPerPage(), pipeline.reusableChunks() );
 
         // Pre-compute related-pages for every candidate in ONE batched call.
         // The previous per-page fetchRelatedPages call inside the loop was an
@@ -223,15 +226,15 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         for ( final SearchResult sr : ordered ) {
             if ( sr.getPage() != null ) candidateNames.add( sr.getPage().getName() );
         }
-        final Map< String, List< RelatedPage > > relatedByPage = fetchRelatedPagesBatch( candidateNames );
+        final Map< String, List< RelatedPage > > relatedByPage = relatedPagesFinder.fetchRelatedPagesBatch( candidateNames );
 
         final PageListFilter f = query.filter();
         final List< RetrievedPage > pages = new ArrayList<>();
         for ( final SearchResult sr : ordered ) {
             final Page page = sr.getPage();
             if ( page == null ) continue;
-            final Map< String, Object > meta = metadataFor( page );
-            if ( f != null && !matchesFilter( page, meta, f ) ) continue;
+            final Map< String, Object > meta = pageListEngine.metadataFor( page );
+            if ( f != null && !pageListEngine.matchesFilter( page, meta, f ) ) continue;
             pages.add( buildRetrievedPage(
                 page,
                 meta,
@@ -241,99 +244,6 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             if ( pages.size() >= query.maxPages() ) break;
         }
         return new RetrievalResult( query.query(), pages, ordered.size() );
-    }
-
-    private Map< String, List< RetrievedChunk > > fetchContributingChunks(
-            final String query,
-            final List< SearchResult > ordered,
-            final int chunksPerPage,
-            final Optional< List< ScoredChunk > > reusableChunks ) {
-        // Guard #1 — short-circuit when the caller doesn't want contributing
-        // chunks. Skips both the embedding fetch AND the brute-force scan.
-        if ( chunksPerPage <= 0 ) return Map.of();
-
-        if ( chunkIndex == null || !chunkIndex.isReady()
-                || chunkRepo == null || hybridSearch == null ) {
-            return Map.of();
-        }
-
-        // Guard #2 — reuse the chunks from the first dense scan when they're
-        // already sufficient (chunks count >= pages × chunksPerPage). Skips
-        // the second topKChunks scan entirely.
-        final int neededChunks = ordered.size() * chunksPerPage;
-        final List< ScoredChunk > topChunks;
-        if ( reusableChunks.isPresent() && reusableChunks.get().size() >= neededChunks
-                && neededChunks > 0 ) {
-            topChunks = reusableChunks.get();
-        } else {
-            final Optional< float[] > embedding;
-            try {
-                embedding = hybridSearch.prefetchQueryEmbedding( query ).get( 2500, TimeUnit.MILLISECONDS );
-            } catch ( final Exception e ) {
-                LOG.info( "Embedding fetch for contributing-chunk scoring failed — continuing with unscored chunks: {}",
-                    e.getMessage() );
-                return Map.of();
-            }
-            if ( embedding.isEmpty() ) return Map.of();
-            topChunks = chunkIndex.topKChunks( embedding.get(), 200 );
-        }
-        if ( topChunks.isEmpty() ) return Map.of();
-
-        final Map< String, List< ScoredChunk > > grouped =
-            groupChunksByInterestingPage( topChunks, interestingPageNames( ordered ), chunksPerPage );
-        return shapeChunkOutput( grouped );
-    }
-
-    private static Set< String > interestingPageNames( final List< SearchResult > ordered ) {
-        final Set< String > out = new HashSet<>();
-        for ( final SearchResult sr : ordered ) {
-            if ( sr.getPage() != null ) out.add( sr.getPage().getName() );
-        }
-        return out;
-    }
-
-    /**
-     * Groups scored chunks by page name, pre-truncating each per-page list to
-     * {@code chunksPerPage} so downstream callers don't re-slice.
-     */
-    private static Map< String, List< ScoredChunk > > groupChunksByInterestingPage(
-            final List< ScoredChunk > topChunks,
-            final Set< String > interestingPages,
-            final int chunksPerPage ) {
-        final Map< String, List< ScoredChunk > > grouped = new LinkedHashMap<>();
-        for ( final ScoredChunk sc : topChunks ) {
-            if ( !interestingPages.contains( sc.pageName() ) ) continue;
-            final List< ScoredChunk > list = grouped.computeIfAbsent(
-                sc.pageName(), k -> new ArrayList<>() );
-            if ( list.size() < chunksPerPage ) list.add( sc );
-        }
-        return grouped;
-    }
-
-    /** Loads chunk bodies via {@link ContentChunkRepository} and shapes per-page RetrievedChunk lists. */
-    private Map< String, List< RetrievedChunk > > shapeChunkOutput(
-            final Map< String, List< ScoredChunk > > grouped ) {
-        final List< UUID > allIds = new ArrayList<>();
-        for ( final List< ScoredChunk > list : grouped.values() ) {
-            for ( final ScoredChunk sc : list ) allIds.add( sc.chunkId() );
-        }
-        final Map< UUID, ContentChunkRepository.MentionableChunk > byId = new HashMap<>();
-        for ( final ContentChunkRepository.MentionableChunk mc : chunkRepo.findByIds( allIds ) ) {
-            byId.put( mc.id(), mc );
-        }
-        final Map< String, List< RetrievedChunk > > out = new LinkedHashMap<>();
-        for ( final Map.Entry< String, List< ScoredChunk > > entry : grouped.entrySet() ) {
-            final List< RetrievedChunk > pageChunks = new ArrayList<>( entry.getValue().size() );
-            for ( final ScoredChunk sc : entry.getValue() ) {
-                final ContentChunkRepository.MentionableChunk mc = byId.get( sc.chunkId() );
-                if ( mc != null ) {
-                    pageChunks.add( new RetrievedChunk(
-                        mc.headingPath(), mc.text(), sc.score(), List.of() ) );
-                }
-            }
-            out.put( entry.getKey(), pageChunks );
-        }
-        return out;
     }
 
     private Context buildContext() {
@@ -409,23 +319,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         if ( pageName == null || pageName.isBlank() ) return null;
         final Page page = pageManager.getPage( pageName );
         if ( page == null ) return null;
-        return buildRetrievedPage( page, metadataFor( page ), 0.0, List.of(), List.of() );
-    }
-
-    /**
-     * Returns the frontmatter metadata for the given page. The retrieval path
-     * needs only metadata (never the body), so this routes through the shared
-     * {@link FrontmatterMetadataCache} — keyed on {@code (pageName, lastModified)}
-     * so an edit invalidates naturally — avoiding a fresh text read + YAML parse of
-     * every candidate page on every query. The cache is an optional dependency; when
-     * absent the read degrades to a direct parse. Returns an empty (never null) map.
-     */
-    private Map< String, Object > metadataFor( final Page page ) {
-        if ( fmCache != null ) {
-            return fmCache.get( page.getName(), page.getLastModified() );
-        }
-        final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
-        return FrontmatterParser.parse( text == null ? "" : text ).metadata();
+        return buildRetrievedPage( page, pageListEngine.metadataFor( page ), 0.0, List.of(), List.of() );
     }
 
     /**
@@ -444,9 +338,9 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             page.getName(),
             buildUrl( page.getName() ),
             score,
-            stringOrEmpty( meta.get( "summary" ) ),
-            stringOrNull( meta.get( "cluster" ) ),
-            stringList( meta.get( "tags" ) ),
+            PageListEngine.stringOrEmpty( meta.get( "summary" ) ),
+            PageListEngine.stringOrNull( meta.get( "cluster" ) ),
+            PageListEngine.stringList( meta.get( "tags" ) ),
             chunks,
             related,
             page.getAuthor(),
@@ -459,151 +353,9 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         return base + pageName;
     }
 
-    private static String stringOrEmpty( final Object o ) {
-        return o == null ? "" : o.toString();
-    }
-
-    private static String stringOrNull( final Object o ) {
-        return o == null ? null : o.toString();
-    }
-
-    @SuppressWarnings( "unchecked" )
-    private static List< String > stringList( final Object o ) {
-        if ( !( o instanceof List< ? > raw ) ) return List.of();
-        final List< String > out = new ArrayList<>( raw.size() );
-        for ( final Object item : raw ) if ( item != null ) out.add( item.toString() );
-        return List.copyOf( out );
-    }
-
-    private static final int RELATED_PAGES_LIMIT = 5;
-    private static final int REASON_ENTITY_LIMIT = 3;
-
-    /**
-     * Finds pages related to {@code pageName} via shared extractor mentions.
-     * Uses {@link MentionIndex#findRelatedPages} which walks
-     * {@code chunk_entity_mentions} directly — no reliance on a KG node
-     * keyed by page name (those stopped existing after the cycle-6
-     * GraphProjector retirement).
-     *
-     * <p>The {@code reason} string lists the top shared entity names, so
-     * the agent sees concrete evidence ("shared entities: BM25, Qwen3")
-     * instead of an opaque similarity score.</p>
-     */
-    private List< RelatedPage > fetchRelatedPages( final String pageName ) {
-        if ( mentionIndex == null ) return List.of();
-        final List< MentionIndex.RelatedByMention > matches;
-        try {
-            matches = mentionIndex.findRelatedPages( pageName, RELATED_PAGES_LIMIT );
-        } catch ( final RuntimeException e ) {
-            LOG.info( "MentionIndex.findRelatedPages failed for '{}' — returning no related pages: {}",
-                pageName, e.getMessage() );
-            return List.of();
-        }
-        if ( matches.isEmpty() ) return List.of();
-        final List< RelatedPage > out = new ArrayList<>( matches.size() );
-        for ( final MentionIndex.RelatedByMention m : matches ) {
-            out.add( new RelatedPage( m.pageName(), describeSharedEntities( m ) ) );
-        }
-        return out;
-    }
-
-    /**
-     * Batched sibling of {@link #fetchRelatedPages}. Returns a per-page map;
-     * missing input names map to {@link List#of()} (callers should use
-     * {@code Map::getOrDefault} with the empty list). One DBCP acquire and
-     * one PreparedStatement preparation across the N inputs — replaces the
-     * N+1 pattern in {@link #retrieve}.
-     */
-    private Map< String, List< RelatedPage > > fetchRelatedPagesBatch(
-            final List< String > pageNames ) {
-        if ( mentionIndex == null || pageNames == null || pageNames.isEmpty() ) {
-            return Map.of();
-        }
-        final Map< String, List< MentionIndex.RelatedByMention > > batched;
-        try {
-            batched = mentionIndex.findRelatedPagesBatch( pageNames, RELATED_PAGES_LIMIT );
-        } catch ( final RuntimeException e ) {
-            LOG.info( "MentionIndex.findRelatedPagesBatch failed for {} pages — returning empty: {}",
-                pageNames.size(), e.getMessage() );
-            return Map.of();
-        }
-        final Map< String, List< RelatedPage > > out = new LinkedHashMap<>();
-        for ( final var entry : batched.entrySet() ) {
-            final List< MentionIndex.RelatedByMention > matches = entry.getValue();
-            if ( matches.isEmpty() ) {
-                out.put( entry.getKey(), List.of() );
-                continue;
-            }
-            final List< RelatedPage > shaped = new ArrayList<>( matches.size() );
-            for ( final MentionIndex.RelatedByMention m : matches ) {
-                shaped.add( new RelatedPage( m.pageName(), describeSharedEntities( m ) ) );
-            }
-            out.put( entry.getKey(), shaped );
-        }
-        return out;
-    }
-
-    private static String describeSharedEntities( final MentionIndex.RelatedByMention m ) {
-        final List< String > names = m.sharedEntityNames();
-        if ( names.isEmpty() ) {
-            return "shared entities: " + m.sharedCount();
-        }
-        final int take = Math.min( names.size(), REASON_ENTITY_LIMIT );
-        final String joined = String.join( ", ", names.subList( 0, take ) );
-        final String more = names.size() > take ? " (+" + ( names.size() - take ) + " more)" : "";
-        return "shared entities: " + joined + more;
-    }
-
     @Override
     public PageList listPages( final PageListFilter filter ) {
-        final PageListFilter f = filter == null ? PageListFilter.unfiltered() : filter;
-
-        final Collection< Page > allPages;
-        try {
-            allPages = pageManager.getAllPages();
-        } catch ( final ProviderException e ) {
-            LOG.warn( "getAllPages failed: {}", e.getMessage(), e );
-            return new PageList( List.of(), 0, f.limit(), f.offset() );
-        }
-
-        final List< RetrievedPage > matched = new ArrayList<>();
-        for ( final Page page : allPages ) {
-            if ( page == null ) continue;
-            final Map< String, Object > meta = metadataFor( page );
-            if ( !matchesFilter( page, meta, f ) ) continue;
-            matched.add( buildRetrievedPage( page, meta, 0.0, List.of(), List.of() ) );
-        }
-        final int total = matched.size();
-        final int from = Math.min( f.offset(), total );
-        final int to = Math.min( from + Math.max( f.limit(), 1 ), total );
-        return new PageList( matched.subList( from, to ), total, f.limit(), f.offset() );
-    }
-
-    private boolean matchesFilter( final Page page, final Map< String, Object > meta, final PageListFilter f ) {
-        if ( f.cluster() != null
-                && !f.cluster().equals( meta.get( "cluster" ) ) ) {
-            return false;
-        }
-        if ( f.type() != null
-                && !f.type().equals( meta.get( "type" ) ) ) {
-            return false;
-        }
-        if ( f.author() != null && !f.author().equals( page.getAuthor() ) ) {
-            return false;
-        }
-        final List< String > tags = stringList( meta.get( "tags" ) );
-        for ( final String required : f.tags() ) {
-            if ( !tags.contains( required ) ) return false;
-        }
-        if ( f.modifiedAfter() != null ) {
-            final Date d = page.getLastModified();
-            if ( d == null || d.toInstant().isBefore( f.modifiedAfter() ) ) return false;
-        }
-        if ( f.modifiedBefore() != null ) {
-            final Date d = page.getLastModified();
-            if ( d == null || d.toInstant().isAfter( f.modifiedBefore() ) ) return false;
-        }
-        return true;
+        return pageListEngine.listPages( filter );
     }
 
     @Override
@@ -618,7 +370,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         }
         final Map< String, Integer > counts = new LinkedHashMap<>();
         for ( final Page page : allPages ) {
-            final Object raw = metadataFor( page ).get( field );
+            final Object raw = pageListEngine.metadataFor( page ).get( field );
             if ( raw == null ) continue;
             if ( raw instanceof List< ? > listVal ) {
                 for ( final Object v : listVal ) {

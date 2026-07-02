@@ -46,11 +46,9 @@ class EngineServiceRegistryTest {
     }
 
     @Test
-    void isKnownTypeTracksEverWrittenIncludingNullValue() {
+    void putAcceptsNullValue() {
         final EngineServiceRegistry reg = new EngineServiceRegistry();
-        assertFalse( reg.isKnownType( Foo.class ) );
-        reg.put( Foo.class, null );      // known even though value is null
-        assertTrue( reg.isKnownType( Foo.class ) );
+        reg.put( Foo.class, null );
         assertNull( reg.get( Foo.class ) );
     }
 

@@ -35,22 +35,15 @@ import java.util.Map;
 public final class EngineServiceRegistry {
 
     private final Map<Class<?>, Object> services = new IdentityHashMap<>( 128 );
-    private final Map<Class<?>, Boolean> everWritten = new IdentityHashMap<>( 128 );
 
-    /** Stores {@code impl} under {@code type}, overwriting any prior value; marks the key known. */
+    /** Stores {@code impl} under {@code type}, overwriting any prior value. */
     public <T> void put( final Class<T> type, final T impl ) {
         services.put( type, impl );
-        everWritten.put( type, Boolean.TRUE );
     }
 
     /** Returns the instance registered under {@code type}, or {@code null} if none. */
     @SuppressWarnings( "unchecked" )
     public <T> T get( final Class<T> type ) {
         return ( T ) services.get( type );
-    }
-
-    /** Whether {@code type} has ever been written (even with a null value). */
-    public boolean isKnownType( final Class<?> type ) {
-        return everWritten.containsKey( type );
     }
 }

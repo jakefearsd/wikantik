@@ -122,7 +122,7 @@ public class WikiEngine implements Engine {
 
     /** Knowledge subsystem services produced by {@code KnowledgeSubsystemFactory}.
      *  Phase 1 of the wikantik-main decomposition (2026-05-05). Ckpt A2: all
-     *  KG-flavored service registrations go through typed backing fields.
+     *  KG-flavored service registrations go through the EngineServiceRegistry.
      *  Volatile: written once during init (unsynchronized path in initialize())
      *  and read from both the unsynchronized wireLuceneMltPostConstruction helper
      *  and the synchronized patchContextRetrievalService method. */
@@ -190,7 +190,8 @@ public class WikiEngine implements Engine {
     /** Stores wikiengine attributes. */
     private final Map< String, Object > attributes = new ConcurrentHashMap<>();
 
-    // Ckpt A2: managers Map deleted — all reads/writes go through typed backing fields.
+    // Ckpt A2: managers Map deleted. 2026-07-02 (ADR-0008): the 78 typed mgr_* fields
+    // deleted too — all service reads/writes now go through the EngineServiceRegistry.
 
     /**
      * The late-bound service registry: replaces the former 78 per-class typed backing
@@ -842,7 +843,7 @@ public class WikiEngine implements Engine {
 
         // 2. Fall through to typed subsystem services. Phase 2 of the
         //    wikantik-main decomposition removed SystemPageRegistry,
-        //    RecentArticlesManager, and BlogManager from the typed-field table;
+        //    RecentArticlesManager, and BlogManager from the registered-service set;
         //    this bridge keeps getManager(X.class) returning them transparently.
         //    New code should reach the typed accessor directly: getCoreSubsystem().xxx().
         if ( coreSubsystem != null ) {
@@ -857,15 +858,15 @@ public class WikiEngine implements Engine {
             }
         }
 
-        // Differentiate "known class, field not yet populated (boot-ordering between
+        // Differentiate "known class, not yet registered (boot-ordering between
         // cross-manager getManager calls)" vs "genuinely unknown class". The former is
         // expected during init — managers reach for siblings before all initComponent
         // calls have finished — and produced 9000+ WARN lines on every boot. Only
-        // warn when the class isn't on the typed table at all.
+        // warn when the class isn't a known manager type at all.
         if ( ! isKnownManagerType( manager ) ) {
-            LOG.warn( "getManager({}) returned null — class has no typed backing field and was not found in Guice", manager.getName() );
+            LOG.warn( "getManager({}) returned null — class is not a known registered service type", manager.getName() );
         } else {
-            LOG.debug( "getManager({}) returned null — typed field not yet populated (called before its initComponent)", manager.getName() );
+            LOG.debug( "getManager({}) returned null — service not yet registered (called before its initComponent)", manager.getName() );
         }
         return null;
     }

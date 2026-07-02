@@ -18,9 +18,6 @@
  */
 package com.wikantik.rest;
 
-import com.google.gson.JsonObject;
-import com.google.gson.reflect.TypeToken;
-
 import com.wikantik.api.knowledge.*;
 import com.wikantik.rest.knowledge.HubProposalAdminHandlers;
 import com.wikantik.rest.knowledge.KgEdgeAdminHandlers;
@@ -38,7 +35,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.lang.reflect.Type;
 import java.util.*;
 
 /**
@@ -74,7 +70,6 @@ public class AdminKnowledgeResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( AdminKnowledgeResource.class );
-    private static final Type MAP_TYPE = new TypeToken< Map< String, Object > >() {}.getType();
 
     @Override
     protected boolean isCrossOriginAllowed() {

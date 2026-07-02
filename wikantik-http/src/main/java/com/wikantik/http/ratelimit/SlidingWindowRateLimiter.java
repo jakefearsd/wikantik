@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.mcp;
+package com.wikantik.http.ratelimit;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
  * the last write — replacing the previous {@code ConcurrentHashMap} +
  * probabilistic-cleanup pattern with deterministic eviction.</p>
  */
-public class McpRateLimiter {
+public class SlidingWindowRateLimiter {
 
     private static final long WINDOW_NS = 1_000_000_000L;
 
@@ -45,11 +45,11 @@ public class McpRateLimiter {
     private final ConcurrentLinkedDeque< Long > globalBucket;
     private final Cache< String, ConcurrentLinkedDeque< Long > > clientBuckets;
 
-    public McpRateLimiter( final int globalLimit, final int perClientLimit ) {
+    public SlidingWindowRateLimiter( final int globalLimit, final int perClientLimit ) {
         this( globalLimit, perClientLimit, 10000, Ticker.systemTicker() );
     }
 
-    public McpRateLimiter( final int globalLimit, final int perClientLimit,
+    public SlidingWindowRateLimiter( final int globalLimit, final int perClientLimit,
                            final int maxClients, final Ticker ticker ) {
         this.globalLimit = globalLimit;
         this.perClientLimit = perClientLimit;

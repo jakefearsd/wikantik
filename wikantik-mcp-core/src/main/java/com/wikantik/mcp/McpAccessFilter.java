@@ -18,6 +18,7 @@
  */
 package com.wikantik.mcp;
 
+import com.wikantik.http.ratelimit.SlidingWindowRateLimiter;
 import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
 import com.wikantik.auth.apikeys.ApiKeyService;
 
@@ -69,16 +70,16 @@ public class McpAccessFilter implements Filter {
     private final List< CidrEntry > cidrEntries;
     private final boolean unrestricted;
     private final boolean failClosed;
-    private final McpRateLimiter rateLimiter;
+    private final SlidingWindowRateLimiter rateLimiter;
     private final ApiKeyService apiKeyService;
 
     record CidrEntry( byte[] network, int prefixLen ) { }
 
-    public McpAccessFilter( final McpConfig config, final McpRateLimiter rateLimiter ) {
+    public McpAccessFilter( final McpConfig config, final SlidingWindowRateLimiter rateLimiter ) {
         this( config, rateLimiter, null );
     }
 
-    public McpAccessFilter( final McpConfig config, final McpRateLimiter rateLimiter,
+    public McpAccessFilter( final McpConfig config, final SlidingWindowRateLimiter rateLimiter,
                             final ApiKeyService apiKeyService ) {
         this.cidrEntries = parseCidrs( config.allowedCidrs() );
         final boolean hasDbKeys = apiKeyService != null;

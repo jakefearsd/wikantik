@@ -18,6 +18,7 @@
  */
 package com.wikantik.mcp;
 
+import com.wikantik.http.ratelimit.SlidingWindowRateLimiter;
 import com.wikantik.api.core.Engine;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.auth.apikeys.ApiKeyService;
@@ -75,7 +76,7 @@ public final class McpEndpointBootstrapper {
 
     /**
      * Builds a fresh {@link McpAccessFilter} (loading {@link McpConfig}, the
-     * shared {@link McpRateLimiter}, and an optional {@link ApiKeyService})
+     * shared {@link SlidingWindowRateLimiter}, and an optional {@link ApiKeyService})
      * and registers it at {@link #endpointPath} on the supplied
      * {@link ServletContext}. Must run before {@link #registerTransport} so
      * the filter is fronting the transport servlet on first request.
@@ -86,7 +87,7 @@ public final class McpEndpointBootstrapper {
                 logTag, config.serverName(), config.serverTitle(), config.serverVersion(),
                 config.instructions() != null ? config.instructions().length() + " chars" : "none" );
 
-        final McpRateLimiter rateLimiter = new McpRateLimiter(
+        final SlidingWindowRateLimiter rateLimiter = new SlidingWindowRateLimiter(
                 config.rateLimitGlobal(), config.rateLimitPerClient(),
                 config.rateLimiterMaxClients(), com.github.benmanes.caffeine.cache.Ticker.systemTicker() );
         LOG.info( "{}: rate limiting — global={}/s, perClient={}/s, maxClients={}",

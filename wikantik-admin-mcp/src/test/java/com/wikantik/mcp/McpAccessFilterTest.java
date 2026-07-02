@@ -18,6 +18,7 @@
  */
 package com.wikantik.mcp;
 
+import com.wikantik.http.ratelimit.SlidingWindowRateLimiter;
 import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
 import com.wikantik.auth.apikeys.ApiKeyService;
 
@@ -53,7 +54,7 @@ class McpAccessFilterTest {
         if ( cidrs != null ) {
             props.setProperty( "mcp.access.allowedCidrs", cidrs );
         }
-        return new McpAccessFilter( new McpConfig( props ), new McpRateLimiter( 0, 0 ) );
+        return new McpAccessFilter( new McpConfig( props ), new SlidingWindowRateLimiter( 0, 0 ) );
     }
 
     @Test
@@ -100,7 +101,7 @@ class McpAccessFilterTest {
         final Properties props = new Properties();
         props.setProperty( "mcp.access.allowUnrestricted", "true" );
         final McpAccessFilter filter = new McpAccessFilter(
-                new McpConfig( props ), new McpRateLimiter( 0, 0 ) );
+                new McpConfig( props ), new SlidingWindowRateLimiter( 0, 0 ) );
         when( request.getRemoteAddr() ).thenReturn( "1.2.3.4" );
 
         filter.doFilter( request, response, chain );
@@ -132,7 +133,7 @@ class McpAccessFilterTest {
 
     @Test
     void testRateLimitExceededReturns429() throws Exception {
-        final McpRateLimiter mockLimiter = mock( McpRateLimiter.class );
+        final SlidingWindowRateLimiter mockLimiter = mock( SlidingWindowRateLimiter.class );
         when( mockLimiter.tryAcquire( anyString() ) ).thenReturn( false );
 
         // Use CIDR allowlist so the filter is not fail-closed
@@ -154,7 +155,7 @@ class McpAccessFilterTest {
 
     @Test
     void testRateLimitExceededIncludesRetryAfterHeader() throws Exception {
-        final McpRateLimiter mockLimiter = mock( McpRateLimiter.class );
+        final SlidingWindowRateLimiter mockLimiter = mock( SlidingWindowRateLimiter.class );
         when( mockLimiter.tryAcquire( anyString() ) ).thenReturn( false );
 
         // Unrestricted mode (explicitly opted-in) — no auth needed, just rate limit
@@ -172,7 +173,7 @@ class McpAccessFilterTest {
 
     @Test
     void testRateLimitCheckedInUnrestrictedMode() throws Exception {
-        final McpRateLimiter mockLimiter = mock( McpRateLimiter.class );
+        final SlidingWindowRateLimiter mockLimiter = mock( SlidingWindowRateLimiter.class );
         when( mockLimiter.tryAcquire( anyString() ) ).thenReturn( false );
 
         // No CIDR, explicit unrestricted opt-in → allowed, but rate limiter still applies
@@ -202,7 +203,7 @@ class McpAccessFilterTest {
     private McpAccessFilter createFilterWithDbService( final ApiKeyService svc,
                                                        final Properties extraProps ) {
         final Properties props = extraProps != null ? extraProps : new Properties();
-        return new McpAccessFilter( new McpConfig( props ), new McpRateLimiter( 0, 0 ), svc );
+        return new McpAccessFilter( new McpConfig( props ), new SlidingWindowRateLimiter( 0, 0 ), svc );
     }
 
     @Test
@@ -336,7 +337,7 @@ class McpAccessFilterTest {
         final Properties p = new Properties();
         // No CIDRs, no DB service, no allowUnrestricted → fail-closed
         final McpConfig config = new McpConfig( p );
-        final McpRateLimiter rl = new McpRateLimiter( 0, 0 );
+        final SlidingWindowRateLimiter rl = new SlidingWindowRateLimiter( 0, 0 );
         final McpAccessFilter filter = new McpAccessFilter( config, rl );
 
         final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );

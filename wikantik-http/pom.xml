@@ -48,6 +48,12 @@
       <version>${project.version}</version>
     </dependency>
 
+    <!-- Caffeine cache (SlidingWindowRateLimiter per-client bucket eviction) -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-api</artifactId>

@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.mcp;
+package com.wikantik.http.ratelimit;
 
 import com.github.benmanes.caffeine.cache.Ticker;
 import org.junit.jupiter.api.Test;
@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class McpRateLimiterTest {
+class SlidingWindowRateLimiterTest {
 
     private static final class FakeTicker implements Ticker {
         private long nanos = 0L;
@@ -38,19 +38,19 @@ class McpRateLimiterTest {
     /**
      * Testable rate limiter with a controllable clock.
      */
-    private static McpRateLimiter createWithClock( final int globalLimit, final int perClientLimit,
+    private static SlidingWindowRateLimiter createWithClock( final int globalLimit, final int perClientLimit,
                                                     final AtomicLong clock ) {
         final FakeTicker ticker = new FakeTicker();
         ticker.set( clock.get() );
         // We wrap AtomicLong into a delegating ticker that reads the AtomicLong on each call
         final Ticker delegating = () -> clock.get();
-        return new McpRateLimiter( globalLimit, perClientLimit, 10000, delegating );
+        return new SlidingWindowRateLimiter( globalLimit, perClientLimit, 10000, delegating );
     }
 
     @Test
     void testGlobalLimitEnforced() {
         final AtomicLong clock = new AtomicLong( 0 );
-        final McpRateLimiter limiter = createWithClock( 3, 0, clock );
+        final SlidingWindowRateLimiter limiter = createWithClock( 3, 0, clock );
 
         assertTrue( limiter.tryAcquire( "client-a" ) );
         assertTrue( limiter.tryAcquire( "client-b" ) );
@@ -62,7 +62,7 @@ class McpRateLimiterTest {
     @Test
     void testPerClientLimitEnforced() {
         final AtomicLong clock = new AtomicLong( 0 );
-        final McpRateLimiter limiter = createWithClock( 0, 1, clock );
+        final SlidingWindowRateLimiter limiter = createWithClock( 0, 1, clock );
 
         assertTrue( limiter.tryAcquire( "client-a" ) );
         // Same client, 2nd call exceeds per-client limit
@@ -73,7 +73,7 @@ class McpRateLimiterTest {
 
     @Test
     void testDisabledWhenBothZero() {
-        final McpRateLimiter limiter = new McpRateLimiter( 0, 0 );
+        final SlidingWindowRateLimiter limiter = new SlidingWindowRateLimiter( 0, 0 );
 
         for ( int i = 0; i < 100; i++ ) {
             assertTrue( limiter.tryAcquire( "client-" + i ) );
@@ -83,7 +83,7 @@ class McpRateLimiterTest {
     @Test
     void testWindowSlidesAfterOneSecond() {
         final AtomicLong clock = new AtomicLong( 0 );
-        final McpRateLimiter limiter = createWithClock( 2, 0, clock );
+        final SlidingWindowRateLimiter limiter = createWithClock( 2, 0, clock );
 
         assertTrue( limiter.tryAcquire( "client-a" ) );
         assertTrue( limiter.tryAcquire( "client-b" ) );
@@ -101,7 +101,7 @@ class McpRateLimiterTest {
     @Test
     void testPerClientWindowSlides() {
         final AtomicLong clock = new AtomicLong( 0 );
-        final McpRateLimiter limiter = createWithClock( 0, 1, clock );
+        final SlidingWindowRateLimiter limiter = createWithClock( 0, 1, clock );
 
         assertTrue( limiter.tryAcquire( "client-a" ) );
         assertFalse( limiter.tryAcquire( "client-a" ) );
@@ -115,7 +115,7 @@ class McpRateLimiterTest {
     void testBothLimitsEnforced() {
         final AtomicLong clock = new AtomicLong( 0 );
         // Global=3, per-client=1
-        final McpRateLimiter limiter = createWithClock( 3, 1, clock );
+        final SlidingWindowRateLimiter limiter = createWithClock( 3, 1, clock );
 
         assertTrue( limiter.tryAcquire( "client-a" ) );
         // client-a is now rate limited per-client
@@ -130,7 +130,7 @@ class McpRateLimiterTest {
     @Test
     void testNullClientIdThrowsNpe() {
         final AtomicLong clock = new AtomicLong( 0 );
-        final McpRateLimiter limiter = createWithClock( 10, 2, clock );
+        final SlidingWindowRateLimiter limiter = createWithClock( 10, 2, clock );
 
         // ConcurrentHashMap does not allow null keys, so null clientId throws NPE
         assertThrows( NullPointerException.class, () -> limiter.tryAcquire( null ) );
@@ -138,7 +138,7 @@ class McpRateLimiterTest {
 
     @Test
     void testNegativeLimitsDisable() {
-        final McpRateLimiter limiter = new McpRateLimiter( -1, -5 );
+        final SlidingWindowRateLimiter limiter = new SlidingWindowRateLimiter( -1, -5 );
 
         // Negative limits should be treated the same as 0 (disabled)
         for ( int i = 0; i < 100; i++ ) {
@@ -150,7 +150,7 @@ class McpRateLimiterTest {
     void testGlobalLimitOnlyIgnoresPerClient() {
         final AtomicLong clock = new AtomicLong( 0 );
         // Only global limit, no per-client limit
-        final McpRateLimiter limiter = createWithClock( 5, 0, clock );
+        final SlidingWindowRateLimiter limiter = createWithClock( 5, 0, clock );
 
         // Same client can make all 5 calls
         for ( int i = 0; i < 5; i++ ) {
@@ -163,7 +163,7 @@ class McpRateLimiterTest {
     void testPerClientOnlyIgnoresGlobal() {
         final AtomicLong clock = new AtomicLong( 0 );
         // No global limit, per-client limit of 2
-        final McpRateLimiter limiter = createWithClock( 0, 2, clock );
+        final SlidingWindowRateLimiter limiter = createWithClock( 0, 2, clock );
 
         assertTrue( limiter.tryAcquire( "client-a" ) );
         assertTrue( limiter.tryAcquire( "client-a" ) );
@@ -180,7 +180,7 @@ class McpRateLimiterTest {
         // This test exercises the cleanupStaleEntries path by making
         // enough calls that the 1-in-100 probability cleanup triggers
         final AtomicLong clock = new AtomicLong( 0 );
-        final McpRateLimiter limiter = createWithClock( 1000, 1000, clock );
+        final SlidingWindowRateLimiter limiter = createWithClock( 1000, 1000, clock );
 
         // Make a request from a client
         assertTrue( limiter.tryAcquire( "stale-client" ) );
@@ -204,7 +204,7 @@ class McpRateLimiterTest {
     @Test
     void testWindowEvictionWithPerClientLimit() {
         final AtomicLong clock = new AtomicLong( 0 );
-        final McpRateLimiter limiter = createWithClock( 0, 3, clock );
+        final SlidingWindowRateLimiter limiter = createWithClock( 0, 3, clock );
 
         // Fill up the per-client budget
         assertTrue( limiter.tryAcquire( "client-a" ) );
@@ -225,7 +225,7 @@ class McpRateLimiterTest {
     void testBothLimitsGlobalHitsFirst() {
         final AtomicLong clock = new AtomicLong( 0 );
         // Global=2, per-client=5 — global limit is more restrictive
-        final McpRateLimiter limiter = createWithClock( 2, 5, clock );
+        final SlidingWindowRateLimiter limiter = createWithClock( 2, 5, clock );
 
         assertTrue( limiter.tryAcquire( "client-a" ) );
         assertTrue( limiter.tryAcquire( "client-b" ) );
@@ -237,7 +237,7 @@ class McpRateLimiterTest {
     void testFailedPerClientDoesNotPolluteGlobalBucket() {
         final AtomicLong clock = new AtomicLong( 0 );
         // Global=3, per-client=1
-        final McpRateLimiter limiter = createWithClock( 3, 1, clock );
+        final SlidingWindowRateLimiter limiter = createWithClock( 3, 1, clock );
 
         assertTrue( limiter.tryAcquire( "client-a" ) );
         // client-a per-client limit reached — this should NOT consume global budget
@@ -253,7 +253,7 @@ class McpRateLimiterTest {
     @Test
     void evictsClientEntryAfterTtl() {
         final FakeTicker ticker = new FakeTicker();
-        final McpRateLimiter rl = new McpRateLimiter( 100, 10, 10000, ticker );
+        final SlidingWindowRateLimiter rl = new SlidingWindowRateLimiter( 100, 10, 10000, ticker );
 
         rl.tryAcquire( "key:transient" );
         assertTrue( rl.clientCacheSize() >= 1 );
@@ -268,20 +268,20 @@ class McpRateLimiterTest {
 
     @Test
     void capsCacheAtMaxClients() {
-        final McpRateLimiter rl = new McpRateLimiter( 0, 10, 5, new FakeTicker() );
+        final SlidingWindowRateLimiter rl = new SlidingWindowRateLimiter( 0, 10, 5, new FakeTicker() );
         for ( int i = 0; i < 50; i++ ) rl.tryAcquire( "client:" + i );
         rl.invalidateNow();
         assertTrue( rl.clientCacheSize() <= 5,
                 "Caffeine size cap should bound the map at 5 entries; was " + rl.clientCacheSize() );
     }
 
-    // Covers McpRateLimiter.java:58 + 77-87 — globalLimit=0 means globalBucket
+    // Covers SlidingWindowRateLimiter.java:58 + 77-87 — globalLimit=0 means globalBucket
     // is null, so the global-bucket branch is skipped entirely; but a positive
     // per-client limit still gates each client to its own budget.
     @Test
     void globalDisabledStillRespectsPerClientLimit() {
         final AtomicLong clock = new AtomicLong( 0 );
-        final McpRateLimiter limiter = createWithClock( 0, 2, clock );
+        final SlidingWindowRateLimiter limiter = createWithClock( 0, 2, clock );
 
         // Client A burns its 2-call budget.
         assertTrue( limiter.tryAcquire( "client-a" ) );

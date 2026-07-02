@@ -40,10 +40,10 @@ import java.util.UUID;
  * service-dependent conflict-flag enrichment for proposals stays in the controller (it needs a
  * live {@code KnowledgeGraphService}); this class produces only the base proposal shape.</p>
  * <p>
- * {@code nodeToMap}/{@code edgeToMap}/{@code enrichEdge}/{@code mentionToMap} are {@code public}
- * (unlike {@code hubProposalToMap}, which stays package-private) because
- * {@code com.wikantik.rest.knowledge.KgNodeAdminHandlers}/{@code KgEdgeAdminHandlers} —
- * extracted from {@code AdminKnowledgeResource} — call them from a different package.
+ * {@code nodeToMap}/{@code edgeToMap}/{@code enrichEdge}/{@code mentionToMap}/{@code hubProposalToMap}
+ * are all {@code public} because {@code com.wikantik.rest.knowledge.KgNodeAdminHandlers}/
+ * {@code KgEdgeAdminHandlers}/{@code HubProposalAdminHandlers} — extracted from
+ * {@code AdminKnowledgeResource} — call them from a different package.
  */
 public final class KnowledgeJsonMapper {
 
@@ -125,7 +125,7 @@ public final class KnowledgeJsonMapper {
         return map;
     }
 
-    static Map< String, Object > hubProposalToMap( final HubProposalRepository.HubProposal p ) {
+    public static Map< String, Object > hubProposalToMap( final HubProposalRepository.HubProposal p ) {
         final Map< String, Object > map = new LinkedHashMap<>();
         map.put( "id", p.id() );
         map.put( "hub_name", p.hubName() );

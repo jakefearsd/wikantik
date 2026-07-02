@@ -60,36 +60,38 @@ import java.util.UUID;
  * servlet) and nothing in {@code AdminKnowledgeResource}'s ~40 call sites that stay on the
  * inherited versions.
  * <p>
- * {@code parseUuid} is the exception: it is genuinely local to {@code AdminKnowledgeResource}
- * (not inherited) and is used by both the extracted handlers and the handlers that remain, so it
- * moved here verbatim and {@code AdminKnowledgeResource} now delegates to it.
+ * {@code parseUuid}, {@code actor}, and {@code resolveEdgeNames} are the exceptions: each is
+ * genuinely local to the pre-extraction {@code AdminKnowledgeResource} (not inherited from
+ * {@code RestServletBase}) and was shared by more than one handler group as they were extracted
+ * across Tasks 1–3, so each moved here verbatim as the single canonical copy rather than being
+ * duplicated per handler class.
  * <p>
- * {@code actor} and {@code resolveEdgeNames} are also genuinely local to
- * {@code AdminKnowledgeResource} (not inherited), and each was shared by <em>both</em> of the
- * node and edge handler groups extracted in Task 2 (never by a handler that stayed behind) — so
- * both moved here verbatim as the single canonical copy, and neither left a delegating wrapper on
- * {@code AdminKnowledgeResource} (they had zero remaining call sites there once the node/edge
- * groups moved out).
+ * <b>Visibility (as of the Task 3 decomposition, which extracted the final two handler
+ * groups):</b> the class and every member here are package-private. Every caller — the six
+ * {@code com.wikantik.rest.knowledge} handler classes — lives in this same package, and
+ * {@code AdminKnowledgeResource} (a different package, {@code com.wikantik.rest}) no longer calls
+ * any of them directly (it only constructs and dispatches to the handler classes). Confirmed via a
+ * repo-wide grep for {@code AdminKnowledgeIo.} outside this package before narrowing.
  */
-public final class AdminKnowledgeIo {
+final class AdminKnowledgeIo {
 
     private static final Logger LOG = LogManager.getLogger( AdminKnowledgeIo.class );
 
     /** Shared Gson instance — same configuration as {@link RestServletBase#GSON}. */
-    public static final Gson GSON = new GsonBuilder()
+    static final Gson GSON = new GsonBuilder()
             .setPrettyPrinting()
             .registerTypeAdapter( Date.class, RestServletBase.UTC_ISO_DATE_SERIALIZER )
             .create();
 
     /** Same shape as the {@code Map<String, Object>} type token used throughout AdminKnowledgeResource. */
-    public static final Type MAP_TYPE = new TypeToken< Map< String, Object > >() {}.getType();
+    static final Type MAP_TYPE = new TypeToken< Map< String, Object > >() {}.getType();
 
     private AdminKnowledgeIo() {
     }
 
     /** Verbatim copy of {@code AdminKnowledgeResource#parseUuid} — genuinely local helper, shared
      *  across handlers that stayed on the resource and handlers that moved out of it. */
-    public static UUID parseUuid( final String str, final HttpServletResponse response ) throws IOException {
+    static UUID parseUuid( final String str, final HttpServletResponse response ) throws IOException {
         try {
             return UUID.fromString( str );
         } catch ( final IllegalArgumentException e ) {
@@ -100,14 +102,14 @@ public final class AdminKnowledgeIo {
     }
 
     /** Verbatim copy of {@link RestServletBase#sendJson}. */
-    public static void sendJson( final HttpServletResponse response, final Object object ) throws IOException {
+    static void sendJson( final HttpServletResponse response, final Object object ) throws IOException {
         response.setContentType( "application/json" );
         response.setCharacterEncoding( "UTF-8" );
         response.getWriter().write( GSON.toJson( object ) );
     }
 
     /** Verbatim copy of {@link RestServletBase#sendError}. */
-    public static void sendError( final HttpServletResponse response, final int status, final String message )
+    static void sendError( final HttpServletResponse response, final int status, final String message )
             throws IOException {
         response.setStatus( status );
         response.setContentType( "application/json" );
@@ -120,12 +122,12 @@ public final class AdminKnowledgeIo {
     }
 
     /** Verbatim copy of {@link RestServletBase#sendNotFound}. */
-    public static void sendNotFound( final HttpServletResponse response, final String message ) throws IOException {
+    static void sendNotFound( final HttpServletResponse response, final String message ) throws IOException {
         sendError( response, HttpServletResponse.SC_NOT_FOUND, message );
     }
 
     /** Verbatim copy of {@link RestServletBase#parseJsonBody}. */
-    public static JsonObject parseJsonBody( final HttpServletRequest request, final HttpServletResponse response )
+    static JsonObject parseJsonBody( final HttpServletRequest request, final HttpServletResponse response )
             throws IOException {
         try ( BufferedReader reader = request.getReader() ) {
             return JsonParser.parseReader( reader ).getAsJsonObject();
@@ -153,7 +155,7 @@ public final class AdminKnowledgeIo {
     }
 
     /** Verbatim copy of {@link RestServletBase#getJsonString}. */
-    public static String getJsonString( final JsonObject obj, final String key ) {
+    static String getJsonString( final JsonObject obj, final String key ) {
         if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
             return obj.get( key ).getAsString();
         }
@@ -161,7 +163,7 @@ public final class AdminKnowledgeIo {
     }
 
     /** Verbatim copy of {@link RestServletBase#getJsonDouble}. */
-    public static double getJsonDouble( final JsonObject obj, final String key, final double def ) {
+    static double getJsonDouble( final JsonObject obj, final String key, final double def ) {
         if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
             try {
                 return obj.get( key ).getAsDouble();
@@ -173,7 +175,7 @@ public final class AdminKnowledgeIo {
     }
 
     /** Verbatim copy of {@link RestServletBase#parseIntParam}. */
-    public static int parseIntParam( final HttpServletRequest request, final String paramName, final int defaultValue ) {
+    static int parseIntParam( final HttpServletRequest request, final String paramName, final int defaultValue ) {
         final String value = request.getParameter( paramName );
         if ( value == null ) {
             return defaultValue;
@@ -186,7 +188,7 @@ public final class AdminKnowledgeIo {
     }
 
     /** Verbatim copy of {@link RestServletBase#getJsonInt}. */
-    public static int getJsonInt( final JsonObject obj, final String key, final int def ) {
+    static int getJsonInt( final JsonObject obj, final String key, final int def ) {
         if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
             try {
                 return obj.get( key ).getAsInt();
@@ -199,14 +201,14 @@ public final class AdminKnowledgeIo {
 
     /** Verbatim copy of {@code AdminKnowledgeResource#actor} — genuinely local helper, shared by
      *  both the node and edge admin handler groups. */
-    public static String actor( final HttpServletRequest request ) {
+    static String actor( final HttpServletRequest request ) {
         final String remoteUser = request.getRemoteUser();
         return remoteUser != null ? remoteUser : "admin";
     }
 
     /** Verbatim copy of {@code AdminKnowledgeResource#resolveEdgeNames} — genuinely local helper,
      *  shared by both the node and edge admin handler groups. */
-    public static Map< UUID, String > resolveEdgeNames( final KnowledgeGraphService service,
+    static Map< UUID, String > resolveEdgeNames( final KnowledgeGraphService service,
                                                           final List< KgEdge > edges ) {
         final Set< UUID > ids = new HashSet<>();
         for ( final KgEdge e : edges ) {

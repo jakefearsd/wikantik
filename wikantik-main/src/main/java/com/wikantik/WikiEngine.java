@@ -85,8 +85,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
 
 
 /**
@@ -194,193 +192,31 @@ public class WikiEngine implements Engine {
 
     // Ckpt A2: managers Map deleted — all reads/writes go through typed backing fields.
 
-    // -----------------------------------------------------------------------
-    // Phase 11 Ckpt 1: static class→writer/reader maps replace the 75-arm if-chains.
-    // IdentityHashMap gives O(1) reference-equality lookup (Class.hashCode is
-    // identity-based, but IdentityHashMap makes the intent explicit and avoids
-    // equals() dispatch).
-    // -----------------------------------------------------------------------
-    @SuppressWarnings( { "unchecked", "rawtypes" } )
-    private static final Map<Class<?>, BiConsumer<WikiEngine, Object>> TYPED_FIELD_WRITERS;
-    @SuppressWarnings( { "unchecked", "rawtypes" } )
-    private static final Map<Class<?>, Function<WikiEngine, Object>> TYPED_FIELD_READERS;
+    /**
+     * The late-bound service registry: replaces the former 78 per-class typed backing
+     * fields and their class-to-writer/reader dispatch maps. New services
+     * register here via setManager — never as a WikiEngine field.
+     */
+    private final com.wikantik.core.registry.EngineServiceRegistry serviceRegistry =
+            new com.wikantik.core.registry.EngineServiceRegistry();
 
-    static {
-        final IdentityHashMap<Class<?>, BiConsumer<WikiEngine, Object>> w = new IdentityHashMap<>( 128 );
-        // Auth
-        w.put( com.wikantik.auth.AuthenticationManager.class,      ( e, m ) -> e.mgr_AuthenticationManager      = (com.wikantik.auth.AuthenticationManager) m );
-        w.put( com.wikantik.auth.AuthorizationManager.class,       ( e, m ) -> e.mgr_AuthorizationManager       = (com.wikantik.auth.AuthorizationManager) m );
-        w.put( com.wikantik.auth.UserManager.class,                ( e, m ) -> e.mgr_UserManager                = (com.wikantik.auth.UserManager) m );
-        w.put( com.wikantik.auth.authorize.GroupManager.class,     ( e, m ) -> e.mgr_GroupManager               = (com.wikantik.auth.authorize.GroupManager) m );
-        w.put( com.wikantik.auth.acl.AclManager.class,             ( e, m ) -> e.mgr_AclManager                 = (com.wikantik.auth.acl.AclManager) m );
-        // Page
-        w.put( com.wikantik.api.managers.PageManager.class,        ( e, m ) -> e.mgr_PageManager                = (com.wikantik.api.managers.PageManager) m );
-        w.put( com.wikantik.api.managers.AttachmentManager.class,  ( e, m ) -> e.mgr_AttachmentManager          = (com.wikantik.api.managers.AttachmentManager) m );
-        w.put( com.wikantik.content.PageRenamer.class,             ( e, m ) -> e.mgr_PageRenamer                = (com.wikantik.content.PageRenamer) m );
-        w.put( com.wikantik.api.managers.ReferenceManager.class,   ( e, m ) -> e.mgr_ReferenceManager           = (com.wikantik.api.managers.ReferenceManager) m );
-        // Core
-        w.put( com.wikantik.cache.CachingManager.class,                   ( e, m ) -> e.mgr_CachingManager                   = (com.wikantik.cache.CachingManager) m );
-        w.put( com.wikantik.variables.VariableManager.class,              ( e, m ) -> e.mgr_VariableManager                  = (com.wikantik.variables.VariableManager) m );
-        w.put( com.wikantik.ui.progress.ProgressManager.class,            ( e, m ) -> e.mgr_ProgressManager                  = (com.wikantik.ui.progress.ProgressManager) m );
-        w.put( com.wikantik.ui.CommandResolver.class,                     ( e, m ) -> e.mgr_CommandResolver                  = (com.wikantik.ui.CommandResolver) m );
-        w.put( com.wikantik.url.URLConstructor.class,                     ( e, m ) -> e.mgr_URLConstructor                   = (com.wikantik.url.URLConstructor) m );
-        w.put( com.wikantik.i18n.InternationalizationManager.class,       ( e, m ) -> e.mgr_InternationalizationManager      = (com.wikantik.i18n.InternationalizationManager) m );
-        w.put( com.wikantik.api.managers.SystemPageRegistry.class,        ( e, m ) -> e.mgr_SystemPageRegistry               = (com.wikantik.api.managers.SystemPageRegistry) m );
-        w.put( com.wikantik.content.RecentArticlesManager.class,          ( e, m ) -> e.mgr_RecentArticlesManager            = (com.wikantik.content.RecentArticlesManager) m );
-        w.put( com.wikantik.blog.BlogManager.class,                       ( e, m ) -> e.mgr_BlogManager                      = (com.wikantik.blog.BlogManager) m );
-        // Rendering
-        w.put( com.wikantik.render.RenderingManager.class,         ( e, m ) -> e.mgr_RenderingManager           = (com.wikantik.render.RenderingManager) m );
-        w.put( com.wikantik.plugin.PluginManager.class,            ( e, m ) -> e.mgr_PluginManager              = (com.wikantik.plugin.PluginManager) m );
-        w.put( com.wikantik.filters.FilterManager.class,           ( e, m ) -> e.mgr_FilterManager              = (com.wikantik.filters.FilterManager) m );
-        w.put( com.wikantik.diff.DifferenceManager.class,          ( e, m ) -> e.mgr_DifferenceManager          = (com.wikantik.diff.DifferenceManager) m );
-        // Search
-        w.put( com.wikantik.search.SearchManager.class,                                  ( e, m ) -> e.mgr_SearchManager                = (com.wikantik.search.SearchManager) m );
-        w.put( com.wikantik.search.SearchProvider.class,                                 ( e, m ) -> e.mgr_SearchProvider               = (com.wikantik.search.SearchProvider) m );
-        w.put( com.wikantik.search.hybrid.HybridSearchService.class,                     ( e, m ) -> e.mgr_HybridSearchService          = (com.wikantik.search.hybrid.HybridSearchService) m );
-        w.put( com.wikantik.search.hybrid.QueryEmbedder.class,                           ( e, m ) -> e.mgr_QueryEmbedder                = (com.wikantik.search.hybrid.QueryEmbedder) m );
-        w.put( com.wikantik.search.hybrid.QueryEntityResolver.class,                     ( e, m ) -> e.mgr_QueryEntityResolver          = (com.wikantik.search.hybrid.QueryEntityResolver) m );
-        w.put( com.wikantik.search.hybrid.GraphRerankStep.class,                         ( e, m ) -> e.mgr_GraphRerankStep              = (com.wikantik.search.hybrid.GraphRerankStep) m );
-        w.put( com.wikantik.search.hybrid.GraphProximityScorer.class,                    ( e, m ) -> e.mgr_GraphProximityScorer         = (com.wikantik.search.hybrid.GraphProximityScorer) m );
-        w.put( com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class,                ( e, m ) -> e.mgr_InMemoryChunkVectorIndex      = (com.wikantik.search.hybrid.InMemoryChunkVectorIndex) m );
-        w.put( com.wikantik.search.hybrid.ChunkVectorIndex.class,                        ( e, m ) -> e.mgr_ChunkVectorIndex             = (com.wikantik.search.hybrid.ChunkVectorIndex) m );
-        w.put( com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class,              ( e, m ) -> e.mgr_InMemoryGraphNeighborIndex   = (com.wikantik.search.hybrid.InMemoryGraphNeighborIndex) m );
-        w.put( com.wikantik.search.hybrid.GraphNeighborIndex.class,                      ( e, m ) -> e.mgr_GraphNeighborIndex           = (com.wikantik.search.hybrid.GraphNeighborIndex) m );
-        w.put( com.wikantik.search.hybrid.PageMentionsLoader.class,                      ( e, m ) -> e.mgr_PageMentionsLoader           = (com.wikantik.search.hybrid.PageMentionsLoader) m );
-        w.put( com.wikantik.search.embedding.EmbeddingIndexService.class,                ( e, m ) -> e.mgr_EmbeddingIndexService        = (com.wikantik.search.embedding.EmbeddingIndexService) m );
-        w.put( com.wikantik.search.embedding.OllamaEmbeddingClient.class,                ( e, m ) -> e.mgr_OllamaEmbeddingClient        = (com.wikantik.search.embedding.OllamaEmbeddingClient) m );
-        w.put( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class,            ( e, m ) -> e.mgr_BootstrapEmbeddingIndexer    = (com.wikantik.search.embedding.BootstrapEmbeddingIndexer) m );
-        w.put( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class,          ( e, m ) -> e.mgr_AsyncEmbeddingIndexListener  = (com.wikantik.search.embedding.AsyncEmbeddingIndexListener) m );
-        w.put( com.wikantik.search.FrontmatterMetadataCache.class,                       ( e, m ) -> e.mgr_FrontmatterMetadataCache     = (com.wikantik.search.FrontmatterMetadataCache) m );
-        w.put( com.wikantik.search.subsystem.lucene.LuceneIndexer.class,                 ( e, m ) -> e.mgr_LuceneIndexer               = (com.wikantik.search.subsystem.lucene.LuceneIndexer) m );
-        w.put( com.wikantik.search.subsystem.lucene.LuceneSearcher.class,                ( e, m ) -> e.mgr_LuceneSearcher              = (com.wikantik.search.subsystem.lucene.LuceneSearcher) m );
-        w.put( com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle.class,          ( e, m ) -> e.mgr_LuceneIndexLifecycle        = (com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle) m );
-        // Page Graph
-        w.put( com.wikantik.api.pagegraph.StructuralIndexService.class,                  ( e, m ) -> e.mgr_StructuralIndexService       = (com.wikantik.api.pagegraph.StructuralIndexService) m );
-        w.put( com.wikantik.api.pagegraph.PageGraphService.class,                        ( e, m ) -> e.mgr_PageGraphService             = (com.wikantik.api.pagegraph.PageGraphService) m );
-        w.put( com.wikantik.admin.ContentIndexRebuildService.class,                      ( e, m ) -> e.mgr_ContentIndexRebuildService   = (com.wikantik.admin.ContentIndexRebuildService) m );
-        w.put( com.wikantik.ontology.runtime.OntologyRebuildCoordinator.class,           ( e, m ) -> e.mgr_OntologyRebuildCoordinator   = (com.wikantik.ontology.runtime.OntologyRebuildCoordinator) m );
-        w.put( com.wikantik.drift.DriftSweepService.class,                               ( e, m ) -> e.mgr_DriftSweepService            = (com.wikantik.drift.DriftSweepService) m );
-        w.put( com.wikantik.citation.CitationRepository.class,                           ( e, m ) -> e.mgr_CitationRepository           = (com.wikantik.citation.CitationRepository) m );
-        w.put( com.wikantik.citation.CitationSync.class,                                 ( e, m ) -> e.mgr_CitationSync                 = (com.wikantik.citation.CitationSync) m );
-        w.put( com.wikantik.pagegraph.spine.PageVerificationDao.class,                   ( e, m ) -> e.mgr_PageVerificationDao          = (com.wikantik.pagegraph.spine.PageVerificationDao) m );
-        w.put( com.wikantik.pagegraph.spine.TrustedAuthorsDao.class,                     ( e, m ) -> e.mgr_TrustedAuthorsDao            = (com.wikantik.pagegraph.spine.TrustedAuthorsDao) m );
-        w.put( com.wikantik.pagegraph.spine.StructuralIndexEventListener.class,          ( e, m ) -> e.mgr_StructuralIndexEventListener = (com.wikantik.pagegraph.spine.StructuralIndexEventListener) m );
-        // Knowledge
-        w.put( com.wikantik.api.knowledge.KnowledgeGraphService.class,                         ( e, m ) -> e.mgr_KnowledgeGraphService              = (com.wikantik.api.knowledge.KnowledgeGraphService) m );
-        w.put( com.wikantik.api.knowledge.KgProposalJudgeService.class,                        ( e, m ) -> e.mgr_KgProposalJudgeService             = (com.wikantik.api.knowledge.KgProposalJudgeService) m );
-        w.put( com.wikantik.knowledge.judge.JudgeRunner.class,                                 ( e, m ) -> e.mgr_JudgeRunner                        = (com.wikantik.knowledge.judge.JudgeRunner) m );
-        w.put( com.wikantik.knowledge.judge.KgMaterializationService.class,                    ( e, m ) -> e.mgr_KgMaterializationService           = (com.wikantik.knowledge.judge.KgMaterializationService) m );
-        w.put( com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class,                    ( e, m ) -> e.mgr_KgJudgeTimeoutRepository           = (com.wikantik.knowledge.judge.KgJudgeTimeoutRepository) m );
-        w.put( com.wikantik.knowledge.HubProposalService.class,                                ( e, m ) -> e.mgr_HubProposalService                 = (com.wikantik.knowledge.HubProposalService) m );
-        w.put( com.wikantik.knowledge.HubDiscoveryService.class,                               ( e, m ) -> e.mgr_HubDiscoveryService                = (com.wikantik.knowledge.HubDiscoveryService) m );
-        w.put( com.wikantik.knowledge.HubOverviewService.class,                                ( e, m ) -> e.mgr_HubOverviewService                 = (com.wikantik.knowledge.HubOverviewService) m );
-        w.put( com.wikantik.knowledge.HubProposalRepository.class,                             ( e, m ) -> e.mgr_HubProposalRepository              = (com.wikantik.knowledge.HubProposalRepository) m );
-        w.put( com.wikantik.knowledge.HubDiscoveryRepository.class,                            ( e, m ) -> e.mgr_HubDiscoveryRepository             = (com.wikantik.knowledge.HubDiscoveryRepository) m );
-        w.put( com.wikantik.knowledge.chunking.ContentChunkRepository.class,                   ( e, m ) -> e.mgr_ContentChunkRepository             = (com.wikantik.knowledge.chunking.ContentChunkRepository) m );
-        w.put( com.wikantik.knowledge.chunking.ChunkProjector.class,                           ( e, m ) -> e.mgr_ChunkProjector                     = (com.wikantik.knowledge.chunking.ChunkProjector) m );
-        w.put( com.wikantik.knowledge.MentionIndex.class,                                      ( e, m ) -> e.mgr_MentionIndex                       = (com.wikantik.knowledge.MentionIndex) m );
-        w.put( com.wikantik.knowledge.embedding.NodeMentionSimilarity.class,                   ( e, m ) -> e.mgr_NodeMentionSimilarity              = (com.wikantik.knowledge.embedding.NodeMentionSimilarity) m );
-        w.put( com.wikantik.knowledge.FrontmatterDefaultsFilter.class,                         ( e, m ) -> e.mgr_FrontmatterDefaultsFilter          = (com.wikantik.knowledge.FrontmatterDefaultsFilter) m );
-        w.put( com.wikantik.knowledge.HubSyncFilter.class,                                     ( e, m ) -> e.mgr_HubSyncFilter                      = (com.wikantik.knowledge.HubSyncFilter) m );
-        w.put( com.wikantik.api.knowledge.ContextRetrievalService.class,                       ( e, m ) -> e.mgr_ContextRetrievalService            = (com.wikantik.api.knowledge.ContextRetrievalService) m );
-        w.put( com.wikantik.api.agent.ForAgentProjectionService.class,                         ( e, m ) -> e.mgr_ForAgentProjectionService          = (com.wikantik.api.agent.ForAgentProjectionService) m );
-        w.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class,       ( e, m ) -> e.mgr_BootstrapEntityExtractionIndexer   = (com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer) m );
-        w.put( com.wikantik.api.kgpolicy.KgInclusionPolicy.class,                              ( e, m ) -> e.mgr_KgInclusionPolicy                  = (com.wikantik.api.kgpolicy.KgInclusionPolicy) m );
-        w.put( com.wikantik.kgpolicy.ReconciliationJobRunner.class,                            ( e, m ) -> e.mgr_ReconciliationJobRunner            = (com.wikantik.kgpolicy.ReconciliationJobRunner) m );
-        w.put( com.wikantik.api.eval.RetrievalQualityRunner.class,                             ( e, m ) -> e.mgr_RetrievalQualityRunner             = (com.wikantik.api.eval.RetrievalQualityRunner) m );
-        w.put( com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class,           ( e, m ) -> e.mgr_ChunkEntityMentionRepository       = (com.wikantik.knowledge.extraction.ChunkEntityMentionRepository) m );
-        w.put( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class,          ( e, m ) -> e.mgr_KgAsyncEntityExtractionListener    = (com.wikantik.knowledge.extraction.AsyncEntityExtractionListener) m );
-        w.put( com.wikantik.kgpolicy.KgClusterPolicyRepository.class,                         ( e, m ) -> e.mgr_KgClusterPolicyRepository          = (com.wikantik.kgpolicy.KgClusterPolicyRepository) m );
-        w.put( com.wikantik.kgpolicy.KgExcludedPagesRepository.class,                         ( e, m ) -> e.mgr_KgExcludedPagesRepository          = (com.wikantik.kgpolicy.KgExcludedPagesRepository) m );
-        TYPED_FIELD_WRITERS = w;
+    /** The late-bound service registry. New services register here via setManager — never as a WikiEngine field. */
+    public com.wikantik.core.registry.EngineServiceRegistry serviceRegistry() { return serviceRegistry; }
 
-        final IdentityHashMap<Class<?>, Function<WikiEngine, Object>> r = new IdentityHashMap<>( 128 );
-        // Auth
-        r.put( com.wikantik.auth.AuthenticationManager.class,      e -> e.mgr_AuthenticationManager );
-        r.put( com.wikantik.auth.AuthorizationManager.class,       e -> e.mgr_AuthorizationManager );
-        r.put( com.wikantik.auth.UserManager.class,                e -> e.mgr_UserManager );
-        r.put( com.wikantik.auth.authorize.GroupManager.class,     e -> e.mgr_GroupManager );
-        r.put( com.wikantik.auth.acl.AclManager.class,             e -> e.mgr_AclManager );
-        // Page
-        r.put( com.wikantik.api.managers.PageManager.class,        e -> e.mgr_PageManager );
-        r.put( com.wikantik.api.managers.AttachmentManager.class,  e -> e.mgr_AttachmentManager );
-        r.put( com.wikantik.content.PageRenamer.class,             e -> e.mgr_PageRenamer );
-        r.put( com.wikantik.api.managers.ReferenceManager.class,   e -> e.mgr_ReferenceManager );
-        // Core
-        r.put( com.wikantik.cache.CachingManager.class,                   e -> e.mgr_CachingManager );
-        r.put( com.wikantik.variables.VariableManager.class,              e -> e.mgr_VariableManager );
-        r.put( com.wikantik.ui.progress.ProgressManager.class,            e -> e.mgr_ProgressManager );
-        r.put( com.wikantik.ui.CommandResolver.class,                     e -> e.mgr_CommandResolver );
-        r.put( com.wikantik.url.URLConstructor.class,                     e -> e.mgr_URLConstructor );
-        r.put( com.wikantik.i18n.InternationalizationManager.class,       e -> e.mgr_InternationalizationManager );
-        r.put( com.wikantik.api.managers.SystemPageRegistry.class,        e -> e.mgr_SystemPageRegistry );
-        r.put( com.wikantik.content.RecentArticlesManager.class,          e -> e.mgr_RecentArticlesManager );
-        r.put( com.wikantik.blog.BlogManager.class,                       e -> e.mgr_BlogManager );
-        // Rendering
-        r.put( com.wikantik.render.RenderingManager.class,         e -> e.mgr_RenderingManager );
-        r.put( com.wikantik.plugin.PluginManager.class,            e -> e.mgr_PluginManager );
-        r.put( com.wikantik.filters.FilterManager.class,           e -> e.mgr_FilterManager );
-        r.put( com.wikantik.diff.DifferenceManager.class,          e -> e.mgr_DifferenceManager );
-        // Search
-        r.put( com.wikantik.search.SearchManager.class,                                  e -> e.mgr_SearchManager );
-        r.put( com.wikantik.search.SearchProvider.class,                                 e -> e.mgr_SearchProvider );
-        r.put( com.wikantik.search.hybrid.HybridSearchService.class,                     e -> e.mgr_HybridSearchService );
-        r.put( com.wikantik.search.hybrid.QueryEmbedder.class,                           e -> e.mgr_QueryEmbedder );
-        r.put( com.wikantik.search.hybrid.QueryEntityResolver.class,                     e -> e.mgr_QueryEntityResolver );
-        r.put( com.wikantik.search.hybrid.GraphRerankStep.class,                         e -> e.mgr_GraphRerankStep );
-        r.put( com.wikantik.search.hybrid.GraphProximityScorer.class,                    e -> e.mgr_GraphProximityScorer );
-        r.put( com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class,                e -> e.mgr_InMemoryChunkVectorIndex );
-        r.put( com.wikantik.search.hybrid.ChunkVectorIndex.class,                        e -> e.mgr_ChunkVectorIndex );
-        r.put( com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class,              e -> e.mgr_InMemoryGraphNeighborIndex );
-        r.put( com.wikantik.search.hybrid.GraphNeighborIndex.class,                      e -> e.mgr_GraphNeighborIndex );
-        r.put( com.wikantik.search.hybrid.PageMentionsLoader.class,                      e -> e.mgr_PageMentionsLoader );
-        r.put( com.wikantik.search.embedding.EmbeddingIndexService.class,                e -> e.mgr_EmbeddingIndexService );
-        r.put( com.wikantik.search.embedding.OllamaEmbeddingClient.class,                e -> e.mgr_OllamaEmbeddingClient );
-        r.put( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class,            e -> e.mgr_BootstrapEmbeddingIndexer );
-        r.put( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class,          e -> e.mgr_AsyncEmbeddingIndexListener );
-        r.put( com.wikantik.search.FrontmatterMetadataCache.class,                       e -> e.mgr_FrontmatterMetadataCache );
-        r.put( com.wikantik.search.subsystem.lucene.LuceneIndexer.class,                 e -> e.mgr_LuceneIndexer );
-        r.put( com.wikantik.search.subsystem.lucene.LuceneSearcher.class,                e -> e.mgr_LuceneSearcher );
-        r.put( com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle.class,          e -> e.mgr_LuceneIndexLifecycle );
-        // Page Graph
-        r.put( com.wikantik.api.pagegraph.StructuralIndexService.class,                  e -> e.mgr_StructuralIndexService );
-        r.put( com.wikantik.api.pagegraph.PageGraphService.class,                        e -> e.mgr_PageGraphService );
-        r.put( com.wikantik.admin.ContentIndexRebuildService.class,                      e -> e.mgr_ContentIndexRebuildService );
-        r.put( com.wikantik.ontology.runtime.OntologyRebuildCoordinator.class,           e -> e.mgr_OntologyRebuildCoordinator );
-        r.put( com.wikantik.drift.DriftSweepService.class,                               e -> e.mgr_DriftSweepService );
-        r.put( com.wikantik.citation.CitationRepository.class,                           e -> e.mgr_CitationRepository );
-        r.put( com.wikantik.citation.CitationSync.class,                                 e -> e.mgr_CitationSync );
-        r.put( com.wikantik.pagegraph.spine.PageVerificationDao.class,                   e -> e.mgr_PageVerificationDao );
-        r.put( com.wikantik.pagegraph.spine.TrustedAuthorsDao.class,                     e -> e.mgr_TrustedAuthorsDao );
-        r.put( com.wikantik.pagegraph.spine.StructuralIndexEventListener.class,          e -> e.mgr_StructuralIndexEventListener );
-        // Knowledge
-        r.put( com.wikantik.api.knowledge.KnowledgeGraphService.class,                         e -> e.mgr_KnowledgeGraphService );
-        r.put( com.wikantik.api.knowledge.KgProposalJudgeService.class,                        e -> e.mgr_KgProposalJudgeService );
-        r.put( com.wikantik.knowledge.judge.JudgeRunner.class,                                 e -> e.mgr_JudgeRunner );
-        r.put( com.wikantik.knowledge.judge.KgMaterializationService.class,                    e -> e.mgr_KgMaterializationService );
-        r.put( com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class,                    e -> e.mgr_KgJudgeTimeoutRepository );
-        r.put( com.wikantik.knowledge.HubProposalService.class,                                e -> e.mgr_HubProposalService );
-        r.put( com.wikantik.knowledge.HubDiscoveryService.class,                               e -> e.mgr_HubDiscoveryService );
-        r.put( com.wikantik.knowledge.HubOverviewService.class,                                e -> e.mgr_HubOverviewService );
-        r.put( com.wikantik.knowledge.HubProposalRepository.class,                             e -> e.mgr_HubProposalRepository );
-        r.put( com.wikantik.knowledge.HubDiscoveryRepository.class,                            e -> e.mgr_HubDiscoveryRepository );
-        r.put( com.wikantik.knowledge.chunking.ContentChunkRepository.class,                   e -> e.mgr_ContentChunkRepository );
-        r.put( com.wikantik.knowledge.chunking.ChunkProjector.class,                           e -> e.mgr_ChunkProjector );
-        r.put( com.wikantik.knowledge.MentionIndex.class,                                      e -> e.mgr_MentionIndex );
-        r.put( com.wikantik.knowledge.embedding.NodeMentionSimilarity.class,                   e -> e.mgr_NodeMentionSimilarity );
-        r.put( com.wikantik.knowledge.FrontmatterDefaultsFilter.class,                         e -> e.mgr_FrontmatterDefaultsFilter );
-        r.put( com.wikantik.knowledge.HubSyncFilter.class,                                     e -> e.mgr_HubSyncFilter );
-        r.put( com.wikantik.api.knowledge.ContextRetrievalService.class,                       e -> e.mgr_ContextRetrievalService );
-        r.put( com.wikantik.api.agent.ForAgentProjectionService.class,                         e -> e.mgr_ForAgentProjectionService );
-        r.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class,       e -> e.mgr_BootstrapEntityExtractionIndexer );
-        r.put( com.wikantik.api.kgpolicy.KgInclusionPolicy.class,                              e -> e.mgr_KgInclusionPolicy );
-        r.put( com.wikantik.kgpolicy.ReconciliationJobRunner.class,                            e -> e.mgr_ReconciliationJobRunner );
-        r.put( com.wikantik.api.eval.RetrievalQualityRunner.class,                             e -> e.mgr_RetrievalQualityRunner );
-        r.put( com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class,           e -> e.mgr_ChunkEntityMentionRepository );
-        r.put( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class,          e -> e.mgr_KgAsyncEntityExtractionListener );
-        r.put( com.wikantik.kgpolicy.KgClusterPolicyRepository.class,                         e -> e.mgr_KgClusterPolicyRepository );
-        r.put( com.wikantik.kgpolicy.KgExcludedPagesRepository.class,                         e -> e.mgr_KgExcludedPagesRepository );
-        TYPED_FIELD_READERS = r;
+    /**
+     * The set of manager types WikiEngine knows about — used only to distinguish
+     * "known type, not yet populated" (debug, expected during boot) from "genuinely
+     * unknown type" (warn). Equals the former typed-field-readers keyset:
+     * every SNAPSHOT_REBUILDERS key, plus ContextRetrievalService, SystemPageRegistry,
+     * RecentArticlesManager, and BlogManager (excluded from SNAPSHOT_REBUILDERS by
+     * design; see setManager and the getManager coreSubsystem fallthrough).
+     */
+    private static boolean isKnownManagerType( final Class<?> t ) {
+        return SNAPSHOT_REBUILDERS.containsKey( t )
+            || t == com.wikantik.api.knowledge.ContextRetrievalService.class
+            || t == com.wikantik.api.managers.SystemPageRegistry.class
+            || t == com.wikantik.content.RecentArticlesManager.class
+            || t == com.wikantik.blog.BlogManager.class;
     }
 
     /**
@@ -496,104 +332,6 @@ public class WikiEngine implements Engine {
         s.put( com.wikantik.kgpolicy.KgExcludedPagesRepository.class,                         e -> {} ); // no subsystem snapshot
         SNAPSHOT_REBUILDERS = s;
     }
-
-    // -----------------------------------------------------------------------
-    // Per-class typed backing fields — Phase 10 (Ckpt A1 + A2)
-    // Populated by setManager / initComponent; read by getManager.
-    // Names use mgr_ prefix to avoid collisions with existing subsystem fields.
-    // -----------------------------------------------------------------------
-
-    // Auth group
-    private com.wikantik.auth.AuthenticationManager mgr_AuthenticationManager;
-    private com.wikantik.auth.AuthorizationManager mgr_AuthorizationManager;
-    private com.wikantik.auth.UserManager mgr_UserManager;
-    private com.wikantik.auth.authorize.GroupManager mgr_GroupManager;
-    private com.wikantik.auth.acl.AclManager mgr_AclManager;
-
-    // Page group
-    private com.wikantik.api.managers.PageManager mgr_PageManager;
-    private com.wikantik.api.managers.AttachmentManager mgr_AttachmentManager;
-    private com.wikantik.content.PageRenamer mgr_PageRenamer;
-    private com.wikantik.api.managers.ReferenceManager mgr_ReferenceManager;
-
-    // Core group
-    private com.wikantik.cache.CachingManager mgr_CachingManager;
-    private com.wikantik.variables.VariableManager mgr_VariableManager;
-    private com.wikantik.ui.progress.ProgressManager mgr_ProgressManager;
-    private com.wikantik.ui.CommandResolver mgr_CommandResolver;
-    private com.wikantik.url.URLConstructor mgr_URLConstructor;
-    private com.wikantik.i18n.InternationalizationManager mgr_InternationalizationManager;
-    private com.wikantik.api.managers.SystemPageRegistry mgr_SystemPageRegistry;
-    private com.wikantik.content.RecentArticlesManager mgr_RecentArticlesManager;
-    private com.wikantik.blog.BlogManager mgr_BlogManager;
-
-    // Rendering group
-    private com.wikantik.render.RenderingManager mgr_RenderingManager;
-    private com.wikantik.plugin.PluginManager mgr_PluginManager;
-    private com.wikantik.filters.FilterManager mgr_FilterManager;
-    private com.wikantik.diff.DifferenceManager mgr_DifferenceManager;
-
-    // Search group
-    private com.wikantik.search.SearchManager mgr_SearchManager;
-    private com.wikantik.search.SearchProvider mgr_SearchProvider;
-    private com.wikantik.search.hybrid.HybridSearchService mgr_HybridSearchService;
-    private com.wikantik.search.hybrid.QueryEmbedder mgr_QueryEmbedder;
-    private com.wikantik.search.hybrid.QueryEntityResolver mgr_QueryEntityResolver;
-    private com.wikantik.search.hybrid.GraphRerankStep mgr_GraphRerankStep;
-    private com.wikantik.search.hybrid.GraphProximityScorer mgr_GraphProximityScorer;
-    private com.wikantik.search.hybrid.InMemoryChunkVectorIndex mgr_InMemoryChunkVectorIndex;
-    private com.wikantik.search.hybrid.ChunkVectorIndex mgr_ChunkVectorIndex;
-    private com.wikantik.search.hybrid.InMemoryGraphNeighborIndex mgr_InMemoryGraphNeighborIndex;
-    private com.wikantik.search.hybrid.GraphNeighborIndex mgr_GraphNeighborIndex;
-    private com.wikantik.search.hybrid.PageMentionsLoader mgr_PageMentionsLoader;
-    private com.wikantik.search.embedding.EmbeddingIndexService mgr_EmbeddingIndexService;
-    private com.wikantik.search.embedding.OllamaEmbeddingClient mgr_OllamaEmbeddingClient;
-    private com.wikantik.search.embedding.BootstrapEmbeddingIndexer mgr_BootstrapEmbeddingIndexer;
-    private com.wikantik.search.embedding.AsyncEmbeddingIndexListener mgr_AsyncEmbeddingIndexListener;
-    private com.wikantik.search.FrontmatterMetadataCache mgr_FrontmatterMetadataCache;
-    private com.wikantik.search.subsystem.lucene.LuceneIndexer mgr_LuceneIndexer;
-    private com.wikantik.search.subsystem.lucene.LuceneSearcher mgr_LuceneSearcher;
-    private com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle mgr_LuceneIndexLifecycle;
-
-    // Page Graph group
-    private com.wikantik.api.pagegraph.StructuralIndexService mgr_StructuralIndexService;
-    private com.wikantik.api.pagegraph.PageGraphService mgr_PageGraphService;
-    private com.wikantik.admin.ContentIndexRebuildService mgr_ContentIndexRebuildService;
-    private com.wikantik.ontology.runtime.OntologyRebuildCoordinator mgr_OntologyRebuildCoordinator;
-    private com.wikantik.drift.DriftSweepService mgr_DriftSweepService;
-    private com.wikantik.citation.CitationRepository mgr_CitationRepository;
-    private com.wikantik.citation.CitationSync mgr_CitationSync;
-    private com.wikantik.pagegraph.spine.PageVerificationDao mgr_PageVerificationDao;
-    private com.wikantik.pagegraph.spine.TrustedAuthorsDao mgr_TrustedAuthorsDao;
-    private com.wikantik.pagegraph.spine.StructuralIndexEventListener mgr_StructuralIndexEventListener;
-
-    // Knowledge group
-    private com.wikantik.api.knowledge.KnowledgeGraphService mgr_KnowledgeGraphService;
-    private com.wikantik.api.knowledge.KgProposalJudgeService mgr_KgProposalJudgeService;
-    private com.wikantik.knowledge.judge.JudgeRunner mgr_JudgeRunner;
-    private com.wikantik.knowledge.judge.KgMaterializationService mgr_KgMaterializationService;
-    private com.wikantik.knowledge.judge.KgJudgeTimeoutRepository mgr_KgJudgeTimeoutRepository;
-    private com.wikantik.knowledge.HubProposalService mgr_HubProposalService;
-    private com.wikantik.knowledge.HubDiscoveryService mgr_HubDiscoveryService;
-    private com.wikantik.knowledge.HubOverviewService mgr_HubOverviewService;
-    private com.wikantik.knowledge.HubProposalRepository mgr_HubProposalRepository;
-    private com.wikantik.knowledge.HubDiscoveryRepository mgr_HubDiscoveryRepository;
-    private com.wikantik.knowledge.chunking.ContentChunkRepository mgr_ContentChunkRepository;
-    private com.wikantik.knowledge.chunking.ChunkProjector mgr_ChunkProjector;
-    private com.wikantik.knowledge.MentionIndex mgr_MentionIndex;
-    private com.wikantik.knowledge.embedding.NodeMentionSimilarity mgr_NodeMentionSimilarity;
-    private com.wikantik.knowledge.FrontmatterDefaultsFilter mgr_FrontmatterDefaultsFilter;
-    private com.wikantik.knowledge.HubSyncFilter mgr_HubSyncFilter;
-    private com.wikantik.api.knowledge.ContextRetrievalService mgr_ContextRetrievalService;
-    private com.wikantik.api.agent.ForAgentProjectionService mgr_ForAgentProjectionService;
-    private com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer mgr_BootstrapEntityExtractionIndexer;
-    private com.wikantik.api.kgpolicy.KgInclusionPolicy mgr_KgInclusionPolicy;
-    private com.wikantik.kgpolicy.ReconciliationJobRunner mgr_ReconciliationJobRunner;
-    private com.wikantik.api.eval.RetrievalQualityRunner mgr_RetrievalQualityRunner;
-    private com.wikantik.knowledge.extraction.ChunkEntityMentionRepository mgr_ChunkEntityMentionRepository;
-    private com.wikantik.knowledge.extraction.AsyncEntityExtractionListener mgr_KgAsyncEntityExtractionListener;
-    private com.wikantik.kgpolicy.KgClusterPolicyRepository mgr_KgClusterPolicyRepository;
-    private com.wikantik.kgpolicy.KgExcludedPagesRepository mgr_KgExcludedPagesRepository;
 
     // Audit subsystem (built in initKnowledgeGraph where the DataSource is in scope).
     private volatile com.wikantik.audit.AuditService auditService;
@@ -1104,49 +842,25 @@ public class WikiEngine implements Engine {
         } else {
             component = ClassUtil.getMappedObject( componentInitClass, initArgs );
         }
-        // Write directly to the typed backing field. Do NOT call setManager here:
+        // Write directly to the service registry. Do NOT call setManager here:
         // setManager triggers subsystem snapshot rebuilds which would produce partial
         // snapshots (e.g. coreSubsystem with null systemPageRegistry) that subsequent
         // initializers then see via getCoreSubsystem(). The full snapshots are built
         // by the factory calls (CoreSubsystemFactory.create etc.) after all
         // initComponent calls complete.
-        writeTypedField( componentClass, component );
+        serviceRegistry.put( componentClass, component );
         if( Initializable.class.isAssignableFrom( component.getClass() ) ) {
             ( ( Initializable )component ).initialize( this, properties );
         }
     }
 
-    /**
-     * Writes {@code mgr} to the per-class typed backing field for {@code clazz}.
-     * Called from {@link #setManager} and {@link #initComponent}.
-     *
-     * <p>Unknown class keys are silently ignored — they carry no typed field.</p>
-     */
-    private < T > void writeTypedField( final Class< T > clazz, final T mgr ) {
-        final BiConsumer<WikiEngine, Object> writer = TYPED_FIELD_WRITERS.get( clazz );
-        if ( writer != null ) writer.accept( this, mgr );
-        // Unknown class: silently skip — matches original switch no-op default.
-    }
-
-    /**
-     * Reads the per-class typed backing field for {@code clazz}, or {@code null}
-     * when the class is not in the known-types table. Used by
-     * {@link #getManager(Class)} as the primary lookup.
-     */
-    @SuppressWarnings( "unchecked" )
-    private < T > T readTypedField( final Class< T > clazz ) {
-        final Function<WikiEngine, Object> reader = TYPED_FIELD_READERS.get( clazz );
-        if ( reader == null ) return null;
-        return clazz.cast( reader.apply( this ) );
-    }
-
     /** Retrieves the object registered under the given type key. Not part of the {@link Engine} interface. */
     @SuppressWarnings( "unchecked" )
     public < T > T getManager( final Class< T > manager ) {
-        // 1. Typed backing field — O(1) exact-class lookup for all known types.
-        //    Returns non-null when the field has been written by setManager / initComponent.
-        final T fromField = readTypedField( manager );
-        if ( fromField != null ) return fromField;
+        // 1. Service registry — O(1) exact-class lookup for all known types.
+        //    Returns non-null when the type has been registered by setManager / initComponent.
+        final T fromRegistry = serviceRegistry.get( manager );
+        if ( fromRegistry != null ) return fromRegistry;
 
         // 2. Fall through to typed subsystem services. Phase 2 of the
         //    wikantik-main decomposition removed SystemPageRegistry,
@@ -1170,7 +884,7 @@ public class WikiEngine implements Engine {
         // expected during init — managers reach for siblings before all initComponent
         // calls have finished — and produced 9000+ WARN lines on every boot. Only
         // warn when the class isn't on the typed table at all.
-        if ( ! TYPED_FIELD_READERS.containsKey( manager ) ) {
+        if ( ! isKnownManagerType( manager ) ) {
             LOG.warn( "getManager({}) returned null — class has no typed backing field and was not found in Guice", manager.getName() );
         } else {
             LOG.debug( "getManager({}) returned null — typed field not yet populated (called before its initComponent)", manager.getName() );
@@ -1180,7 +894,7 @@ public class WikiEngine implements Engine {
 
     /** Registers an object under the given type key. Not part of the {@link Engine} interface. */
     public < T > void setManager( final Class< T > clazz, final T manager ) {
-        writeTypedField( clazz, manager );
+        serviceRegistry.put( clazz, manager );
         // When a subsystem-owned manager is hot-swapped POST-BOOT (e.g. by a unit test installing
         // a mock), rebuild the typed snapshot so callers reaching the subsystem directly see the
         // new value without a full re-init. During boot the snapshot is null — DO NOT rebuild

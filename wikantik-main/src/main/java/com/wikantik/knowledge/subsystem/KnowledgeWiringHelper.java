@@ -132,15 +132,15 @@ public final class KnowledgeWiringHelper {
 
             final PagesByCluster pagesByCluster =
                 PagesByCluster.fromStructural( structuralIndex );
-            @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to engine.registerReconciliationJobRunner()
+            @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to engine.setManager(ReconciliationJobRunner.class, ...)
             final ReconciliationJobRunner reconciler =
                 new ReconciliationJobRunner( policy, excludedRepo, pagesByCluster );
             ReconciliationHook.install( reconciler::enqueue );
 
-            engine.registerKgInclusionPolicy( policy );
-            engine.registerKgClusterPolicyRepository( policyRepo );
-            engine.registerKgExcludedPagesRepository( excludedRepo );
-            engine.registerReconciliationJobRunner( reconciler );
+            engine.setManager( com.wikantik.api.kgpolicy.KgInclusionPolicy.class, policy );
+            engine.setManager( KgClusterPolicyRepository.class, policyRepo );
+            engine.setManager( KgExcludedPagesRepository.class, excludedRepo );
+            engine.setManager( ReconciliationJobRunner.class, reconciler );
 
             LOG.info( "KG inclusion policy wired (default-exclude active)" );
 
@@ -165,7 +165,7 @@ public final class KnowledgeWiringHelper {
                 hintsDeriver,
                 new HubSummarySynthesizer(),
                 citationRepo );
-        engine.registerForAgentProjectionService( forAgentService );
+        engine.setManager( ForAgentProjectionService.class, forAgentService );
         LOG.info( "ForAgentProjectionService registered" );
 
         // ContentIndexRebuildService (Lucene-only)
@@ -196,7 +196,7 @@ public final class KnowledgeWiringHelper {
                     rebuildChunker,
                     () -> TextUtil.getBooleanProperty( props, "wikantik.rebuild.enabled", true ),
                     TextUtil.getIntegerProperty( props, "wikantik.rebuild.lucene_drain_poll_ms", 2000 ) );
-            engine.registerContentIndexRebuildService( rebuildService );
+            engine.setManager( ContentIndexRebuildService.class, rebuildService );
             LOG.info( "ContentIndexRebuildService registered" );
         } else {
             LOG.info( "ContentIndexRebuildService NOT registered — no LuceneSearchProvider in use" );
@@ -256,9 +256,8 @@ public final class KnowledgeWiringHelper {
             new AsyncEntityExtractionListener(
                 extractorOpt.get(), extractorCfg, contentChunkRepo, mentionRepo,
                 kgNodes, kgProposals, kgRejections, meter, excludedPagesRepo );
-        engine.setEntityExtractionListener( listener );
-        engine.registerChunkEntityMentionRepository( mentionRepo );
-        engine.registerAsyncEntityExtractionListener( listener );
+        engine.setManager( ChunkEntityMentionRepository.class, mentionRepo );
+        engine.setManager( AsyncEntityExtractionListener.class, listener );
 
         if ( "ollama".equalsIgnoreCase( extractorCfg.backend() ) ) {
             wireBootstrapIndexer( props, ds, contentChunkRepo, mentionRepo, kgNodes,
@@ -320,7 +319,7 @@ public final class KnowledgeWiringHelper {
                 http, extractorCfg.ollamaBaseUrl(), extractorCfg.ollamaModel(),
                 extractorCfg.timeoutMs(), parser );
 
-        @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to engine.registerBootstrapEntityExtractionIndexer()
+        @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to engine.setManager(BootstrapEntityExtractionIndexer.class, ...)
         final BootstrapEntityExtractionIndexer indexer =
             new BootstrapEntityExtractionIndexer(
                 extractor,
@@ -335,7 +334,7 @@ public final class KnowledgeWiringHelper {
                 excludedPagesRepo,
                 extractorCfg.concurrency(), dictionaryTopK,
                 maxEntitiesPerPage, maxRelationsPerPage );
-        engine.registerBootstrapEntityExtractionIndexer( indexer );
+        engine.setManager( BootstrapEntityExtractionIndexer.class, indexer );
         LOG.info( "Bootstrap indexer wired (model={}, concurrency={}, judge=none, "
                 + "maxEntitiesPerPage={}, maxRelationsPerPage={})",
             extractorCfg.ollamaModel(), extractorCfg.concurrency(),

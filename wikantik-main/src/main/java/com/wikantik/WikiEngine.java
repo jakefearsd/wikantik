@@ -345,43 +345,19 @@ public class WikiEngine implements Engine {
     // account's last-login timestamp on LOGIN_AUTHENTICATED.
     private volatile com.wikantik.auth.LastLoginEventListener lastLoginEventListener;
 
-    /** Hybrid-retrieval lifecycle handles; null when hybrid is disabled. */
-    private com.wikantik.search.embedding.AsyncEmbeddingIndexListener hybridIndexListener;
-    private com.wikantik.search.hybrid.QueryEmbedder hybridQueryEmbedder;
-    private com.wikantik.search.embedding.BootstrapEmbeddingIndexer hybridBootstrapIndexer;
-
-    /** Entity-extraction lifecycle handle; null when the extractor is disabled. */
-    private com.wikantik.knowledge.extraction.AsyncEntityExtractionListener entityExtractionListener;
-
     /** Citation subsystem wired holder; retains a strong ref to the event listener. */
     private com.wikantik.citation.CitationWiringHelper.Wired citationWired;
 
     // -----------------------------------------------------------------------
-    // Lifecycle-handle setters — called by the subsystem wiring helpers
-    // (SearchWiringHelper, KnowledgeWiringHelper) that live in other packages.
-    // These are intentionally not part of the Engine interface; they are
-    // internal plumbing used during initialize() and deleted in Ckpt 4d.
+    // Hybrid-retrieval / entity-extraction lifecycle handles are no longer
+    // tracked as WikiEngine fields — they live in the service registry
+    // (set via setManager by SearchWiringHelper / KnowledgeWiringHelper) and
+    // are read back via getManager, including at shutdown() for close().
     // -----------------------------------------------------------------------
 
-    /** Sets the hybrid-retrieval async embedding listener. Called by {@link com.wikantik.search.subsystem.SearchWiringHelper}. */
-    public void setHybridIndexListener( final com.wikantik.search.embedding.AsyncEmbeddingIndexListener l ) {
-        this.hybridIndexListener = l;
-    }
     /** Returns the hybrid-retrieval async embedding listener (for composing the entity-extraction chain). */
     public com.wikantik.search.embedding.AsyncEmbeddingIndexListener getHybridIndexListener() {
-        return hybridIndexListener;
-    }
-    /** Sets the query embedder lifecycle handle. Called by {@link com.wikantik.search.subsystem.SearchWiringHelper}. */
-    public void setHybridQueryEmbedder( final com.wikantik.search.hybrid.QueryEmbedder e ) {
-        this.hybridQueryEmbedder = e;
-    }
-    /** Sets the bootstrap embedding indexer lifecycle handle. Called by {@link com.wikantik.search.subsystem.SearchWiringHelper}. */
-    public void setHybridBootstrapIndexer( final com.wikantik.search.embedding.BootstrapEmbeddingIndexer b ) {
-        this.hybridBootstrapIndexer = b;
-    }
-    /** Sets the entity-extraction listener lifecycle handle. Called by {@link com.wikantik.knowledge.subsystem.KnowledgeWiringHelper}. */
-    public void setEntityExtractionListener( final com.wikantik.knowledge.extraction.AsyncEntityExtractionListener l ) {
-        this.entityExtractionListener = l;
+        return getManager( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class );
     }
 
     /**
@@ -911,152 +887,11 @@ public class WikiEngine implements Engine {
         if ( rebuilder != null ) rebuilder.accept( this );
     }
 
-    // -----------------------------------------------------------------------
-    // Typed register setters — Ckpt 4d-i
-    // Each delegates to setManager(Class, T) so the registry stays intact and
-    // snapshot-invalidation logic in setManager fires normally.
-    // -----------------------------------------------------------------------
-
-    // -- Search / embedding --
-
-    /** Registers {@link com.wikantik.search.embedding.EmbeddingIndexService}. Called by SearchWiringHelper. */
-    public void registerEmbeddingIndexService( final com.wikantik.search.embedding.EmbeddingIndexService svc ) {
-        setManager( com.wikantik.search.embedding.EmbeddingIndexService.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.search.hybrid.ChunkVectorIndex} (and its in-memory impl). Called by SearchWiringHelper. */
-    public void registerChunkVectorIndex( final com.wikantik.search.hybrid.InMemoryChunkVectorIndex svc ) {
-        setManager( com.wikantik.search.hybrid.ChunkVectorIndex.class, svc );
-        setManager( com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.search.hybrid.QueryEmbedder}. Called by SearchWiringHelper. */
-    public void registerQueryEmbedder( final com.wikantik.search.hybrid.QueryEmbedder svc ) {
-        setManager( com.wikantik.search.hybrid.QueryEmbedder.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.search.hybrid.HybridSearchService}. Called by SearchWiringHelper. */
-    public void registerHybridSearchService( final com.wikantik.search.hybrid.HybridSearchService svc ) {
-        setManager( com.wikantik.search.hybrid.HybridSearchService.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.search.embedding.BootstrapEmbeddingIndexer}. Called by SearchWiringHelper. */
-    public void registerBootstrapEmbeddingIndexer( final com.wikantik.search.embedding.BootstrapEmbeddingIndexer svc ) {
-        setManager( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class, svc );
-    }
-
-    // -- Graph rerank --
-
-    /** Registers {@link com.wikantik.search.hybrid.InMemoryGraphNeighborIndex} (and its interface). Called by SearchWiringHelper. */
-    public void registerGraphNeighborIndex( final com.wikantik.search.hybrid.InMemoryGraphNeighborIndex svc ) {
-        setManager( com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class, svc );
-        setManager( com.wikantik.search.hybrid.GraphNeighborIndex.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.search.hybrid.GraphProximityScorer}. Called by SearchWiringHelper. */
-    public void registerGraphProximityScorer( final com.wikantik.search.hybrid.GraphProximityScorer svc ) {
-        setManager( com.wikantik.search.hybrid.GraphProximityScorer.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.search.hybrid.QueryEntityResolver}. Called by SearchWiringHelper. */
-    public void registerQueryEntityResolver( final com.wikantik.search.hybrid.QueryEntityResolver svc ) {
-        setManager( com.wikantik.search.hybrid.QueryEntityResolver.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.search.hybrid.PageMentionsLoader}. Called by SearchWiringHelper. */
-    public void registerPageMentionsLoader( final com.wikantik.search.hybrid.PageMentionsLoader svc ) {
-        setManager( com.wikantik.search.hybrid.PageMentionsLoader.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.search.hybrid.GraphRerankStep}. Called by SearchWiringHelper. */
-    public void registerGraphRerankStep( final com.wikantik.search.hybrid.GraphRerankStep svc ) {
-        setManager( com.wikantik.search.hybrid.GraphRerankStep.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.api.eval.RetrievalQualityRunner}. Called by SearchWiringHelper. */
-    public void registerRetrievalQualityRunner( final com.wikantik.api.eval.RetrievalQualityRunner svc ) {
-        setManager( com.wikantik.api.eval.RetrievalQualityRunner.class, svc );
-    }
-
-    // -- Page Graph --
-
-    /** Registers {@link com.wikantik.pagegraph.spine.PageVerificationDao}. Called by PageGraphWiringHelper. */
-    public void registerPageVerificationDao( final com.wikantik.pagegraph.spine.PageVerificationDao svc ) {
-        setManager( com.wikantik.pagegraph.spine.PageVerificationDao.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.pagegraph.spine.TrustedAuthorsDao}. Called by PageGraphWiringHelper. */
-    public void registerTrustedAuthorsDao( final com.wikantik.pagegraph.spine.TrustedAuthorsDao svc ) {
-        setManager( com.wikantik.pagegraph.spine.TrustedAuthorsDao.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.api.pagegraph.StructuralIndexService}. Called by PageGraphWiringHelper. */
-    public void registerStructuralIndexService( final com.wikantik.api.pagegraph.StructuralIndexService svc ) {
-        setManager( com.wikantik.api.pagegraph.StructuralIndexService.class, svc );
-    }
-
     /** The async audit service; {@code null} when no datasource is configured. */
     public com.wikantik.audit.AuditService getAuditService() { return auditService; }
 
     /** The read-audit policy; {@code null} when no datasource is configured. */
     public com.wikantik.audit.AuditReadPolicy getAuditReadPolicy() { return auditReadPolicy; }
-
-    /** Registers {@link com.wikantik.pagegraph.spine.StructuralIndexEventListener}. Called by PageGraphWiringHelper. */
-    public void registerStructuralIndexEventListener( final com.wikantik.pagegraph.spine.StructuralIndexEventListener svc ) {
-        setManager( com.wikantik.pagegraph.spine.StructuralIndexEventListener.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.api.pagegraph.PageGraphService}. Called by PageGraphWiringHelper. */
-    public void registerPageGraphService( final com.wikantik.api.pagegraph.PageGraphService svc ) {
-        setManager( com.wikantik.api.pagegraph.PageGraphService.class, svc );
-    }
-
-    // -- Knowledge Graph / KG policy --
-
-    /** Registers {@link com.wikantik.api.kgpolicy.KgInclusionPolicy}. Called by KnowledgeWiringHelper. */
-    public void registerKgInclusionPolicy( final com.wikantik.api.kgpolicy.KgInclusionPolicy svc ) {
-        setManager( com.wikantik.api.kgpolicy.KgInclusionPolicy.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.kgpolicy.KgClusterPolicyRepository}. Called by KnowledgeWiringHelper. */
-    public void registerKgClusterPolicyRepository( final com.wikantik.kgpolicy.KgClusterPolicyRepository svc ) {
-        setManager( com.wikantik.kgpolicy.KgClusterPolicyRepository.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.kgpolicy.KgExcludedPagesRepository}. Called by KnowledgeWiringHelper. */
-    public void registerKgExcludedPagesRepository( final com.wikantik.kgpolicy.KgExcludedPagesRepository svc ) {
-        setManager( com.wikantik.kgpolicy.KgExcludedPagesRepository.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.kgpolicy.ReconciliationJobRunner}. Called by KnowledgeWiringHelper. */
-    public void registerReconciliationJobRunner( final com.wikantik.kgpolicy.ReconciliationJobRunner svc ) {
-        setManager( com.wikantik.kgpolicy.ReconciliationJobRunner.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.api.agent.ForAgentProjectionService}. Called by KnowledgeWiringHelper. */
-    public void registerForAgentProjectionService( final com.wikantik.api.agent.ForAgentProjectionService svc ) {
-        setManager( com.wikantik.api.agent.ForAgentProjectionService.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.admin.ContentIndexRebuildService}. Called by KnowledgeWiringHelper. */
-    public void registerContentIndexRebuildService( final com.wikantik.admin.ContentIndexRebuildService svc ) {
-        setManager( com.wikantik.admin.ContentIndexRebuildService.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.knowledge.extraction.ChunkEntityMentionRepository}. Called by KnowledgeWiringHelper. */
-    public void registerChunkEntityMentionRepository( final com.wikantik.knowledge.extraction.ChunkEntityMentionRepository svc ) {
-        setManager( com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.knowledge.extraction.AsyncEntityExtractionListener}. Called by KnowledgeWiringHelper. */
-    public void registerAsyncEntityExtractionListener( final com.wikantik.knowledge.extraction.AsyncEntityExtractionListener svc ) {
-        setManager( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class, svc );
-    }
-
-    /** Registers {@link com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer}. Called by KnowledgeWiringHelper. */
-    public void registerBootstrapEntityExtractionIndexer( final com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer svc ) {
-        setManager( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class, svc );
-    }
 
     /** {@inheritDoc} */
     @Override
@@ -1966,18 +1801,26 @@ public class WikiEngine implements Engine {
         fireEvent( WikiEngineEvent.SHUTDOWN );
         getManager( CachingManager.class ).shutdown();
         getManager( FilterManager.class ).destroy();
+        final com.wikantik.search.embedding.AsyncEmbeddingIndexListener hybridIndexListener =
+            getManager( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class );
         if ( hybridIndexListener != null ) {
             try { hybridIndexListener.close(); }
             catch( final RuntimeException e ) { LOG.warn( "hybridIndexListener close failed: {}", e.getMessage(), e ); }
         }
+        final com.wikantik.knowledge.extraction.AsyncEntityExtractionListener entityExtractionListener =
+            getManager( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class );
         if ( entityExtractionListener != null ) {
             try { entityExtractionListener.close(); }
             catch( final RuntimeException e ) { LOG.warn( "entityExtractionListener close failed: {}", e.getMessage(), e ); }
         }
+        final com.wikantik.search.hybrid.QueryEmbedder hybridQueryEmbedder =
+            getManager( com.wikantik.search.hybrid.QueryEmbedder.class );
         if ( hybridQueryEmbedder != null ) {
             try { hybridQueryEmbedder.close(); }
             catch( final RuntimeException e ) { LOG.warn( "hybridQueryEmbedder close failed: {}", e.getMessage(), e ); }
         }
+        final com.wikantik.search.embedding.BootstrapEmbeddingIndexer hybridBootstrapIndexer =
+            getManager( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
         if ( hybridBootstrapIndexer != null ) {
             try { hybridBootstrapIndexer.close(); }
             catch( final RuntimeException e ) { LOG.warn( "hybridBootstrapIndexer close failed: {}", e.getMessage(), e ); }

@@ -144,7 +144,7 @@ public final class SearchWiringHelper {
             };
         final EmbeddingIndexService indexService =
             new EmbeddingIndexService( ds, client, cfg.batchSize(), ctxResolver );
-        engine.registerEmbeddingIndexService( indexService );
+        engine.setManager( EmbeddingIndexService.class, indexService );
 
         // Pick the dense retrieval backend up front so DenseRetriever (constructed
         // below) actually holds the configured impl. SearchSubsystemFactory exposes
@@ -190,7 +190,8 @@ public final class SearchWiringHelper {
                 vectorIndex = memIndex;
                 upsertCallback = memIndex::upsertChunks;
                 indexReloadHook = memIndex::reload;
-                engine.registerChunkVectorIndex( memIndex );
+                engine.setManager( com.wikantik.search.hybrid.ChunkVectorIndex.class, memIndex );
+                engine.setManager( InMemoryChunkVectorIndex.class, memIndex );
                 LOG.info( "Dense retrieval backend: in-memory brute-force (model={}, size={})",
                     modelCode, memIndex.size() );
             } else {
@@ -213,7 +214,7 @@ public final class SearchWiringHelper {
             listener.setPostIndexCallback( upsertCallback );
         }
         chunkProjector.setPostChunkSink( listener );
-        engine.setHybridIndexListener( listener );
+        engine.setManager( AsyncEmbeddingIndexListener.class, listener );
 
         if ( rebuildService != null ) {
             rebuildService.setEmbeddingHook( indexService, modelCode );
@@ -222,8 +223,7 @@ public final class SearchWiringHelper {
         final QueryEmbedderConfig qeCfg = QueryEmbedderConfig.fromProperties( props );
         final QueryEmbedder embedder =
             new QueryEmbedder( client, qeCfg, java.time.Clock.systemUTC() );
-        engine.registerQueryEmbedder( embedder );
-        engine.setHybridQueryEmbedder( embedder );
+        engine.setManager( QueryEmbedder.class, embedder );
 
         final HybridConfig hybridCfg;
         try {
@@ -241,7 +241,7 @@ public final class SearchWiringHelper {
                 hybridCfg.bm25Weight(), hybridCfg.denseWeight(), hybridCfg.rrfTruncate() );
         final HybridSearchService hybridSearch =
             new HybridSearchService( embedder, denseRetriever, fuser, hybridCfg.enabled() );
-        engine.registerHybridSearchService( hybridSearch );
+        engine.setManager( HybridSearchService.class, hybridSearch );
 
         // Global dense-chunk candidate source for the context bundle (optionally BM25-hybrid).
         // Built here where the embedder + vector index are in scope; read at
@@ -252,8 +252,7 @@ public final class SearchWiringHelper {
 
         final BootstrapEmbeddingIndexer bootstrap =
             new BootstrapEmbeddingIndexer( ds, indexService, modelCode, indexReloadHook );
-        engine.registerBootstrapEmbeddingIndexer( bootstrap );
-        engine.setHybridBootstrapIndexer( bootstrap );
+        engine.setManager( BootstrapEmbeddingIndexer.class, bootstrap );
         try {
             bootstrap.startIfNeeded();
         } catch ( final RuntimeException e ) {
@@ -389,11 +388,12 @@ public final class SearchWiringHelper {
         final GraphRerankStep step =
             new GraphRerankStep( resolver, mentionsLoader, scorer, neighborIndex, cfg );
 
-        engine.registerGraphNeighborIndex( neighborIndex );
-        engine.registerGraphProximityScorer( scorer );
-        engine.registerQueryEntityResolver( resolver );
-        engine.registerPageMentionsLoader( mentionsLoader );
-        engine.registerGraphRerankStep( step );
+        engine.setManager( InMemoryGraphNeighborIndex.class, neighborIndex );
+        engine.setManager( com.wikantik.search.hybrid.GraphNeighborIndex.class, neighborIndex );
+        engine.setManager( GraphProximityScorer.class, scorer );
+        engine.setManager( QueryEntityResolver.class, resolver );
+        engine.setManager( PageMentionsLoader.class, mentionsLoader );
+        engine.setManager( GraphRerankStep.class, step );
 
         // Caffeine cache metrics for the two graph-rerank caches (query_entities,
         // page_mentions, page_mentions_confidence). Their owning components are
@@ -445,10 +445,10 @@ public final class SearchWiringHelper {
             final DefaultRetrievalQualityRunner.CanonicalIdResolver resolver =
                 slug -> structuralIndex.resolveCanonicalIdFromSlug( slug );
             final int hour = TextUtil.getIntegerProperty( props, "wikantik.retrieval.cron.hour_utc", 3 );
-            @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to engine.registerRetrievalQualityRunner()
+            @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to engine.setManager(RetrievalQualityRunner.class, ...)
             final DefaultRetrievalQualityRunner runner =
                 new DefaultRetrievalQualityRunner( rqDao, retriever, resolver, rqMetrics, hour );
-            engine.registerRetrievalQualityRunner( runner );
+            engine.setManager( RetrievalQualityRunner.class, runner );
 
             if ( TextUtil.getBooleanProperty( props, "wikantik.retrieval.cron.enabled", true ) ) {
                 runner.scheduleNightly();

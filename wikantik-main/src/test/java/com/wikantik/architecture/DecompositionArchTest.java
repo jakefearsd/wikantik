@@ -88,9 +88,12 @@ class DecompositionArchTest {
                     )
                 )
             )
+            // The .as() text below is the FreezingArchRule violation-store KEY and
+            // MUST match archunit_store/stored.rules byte-for-byte — do not edit it.
+            // The ADR-0008 pointer lives in this rule's Javadoc, not in the key.
             .as( "no new WikiEngine#getManager callers — services must receive "
-               + "collaborators via constructor injection. See "
-               + "docs/adr/0008-late-bound-service-registration.md" )
+               + "collaborators via constructor injection. See spec: "
+               + "docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md" )
     );
 
     /**
@@ -143,10 +146,13 @@ class DecompositionArchTest {
                     )
                 )
             )
+            // The .as() text below is the FreezingArchRule violation-store KEY and
+            // MUST match archunit_store/stored.rules byte-for-byte — do not edit it.
+            // The ADR-0008 pointer lives in this rule's Javadoc, not in the key.
             .as( "no_get_manager_anywhere — only WikiEngine, *SubsystemFactory, "
                + "*SubsystemBridge, and *WiringHelper may call WikiEngine#getManager; "
                + "all others must receive collaborators via constructor injection. "
-               + "See docs/adr/0008-late-bound-service-registration.md" )
+               + "See Phase 10 Ckpt A2: docs/superpowers/plans/2026-05-08-decomposition-phase-10.md" )
     );
 
     /**

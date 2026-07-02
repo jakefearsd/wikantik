@@ -357,7 +357,9 @@ public class WikiEngine implements Engine {
 
     /** Returns the hybrid-retrieval async embedding listener (for composing the entity-extraction chain). */
     public com.wikantik.search.embedding.AsyncEmbeddingIndexListener getHybridIndexListener() {
-        return getManager( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class );
+        // Read the registry directly — WikiEngine-internal reads must not go through the
+        // getManager() service-locator (ArchUnit R-2 freezes its caller set).
+        return serviceRegistry.get( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class );
     }
 
     /**
@@ -1802,25 +1804,25 @@ public class WikiEngine implements Engine {
         getManager( CachingManager.class ).shutdown();
         getManager( FilterManager.class ).destroy();
         final com.wikantik.search.embedding.AsyncEmbeddingIndexListener hybridIndexListener =
-            getManager( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class );
+            serviceRegistry.get( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class );
         if ( hybridIndexListener != null ) {
             try { hybridIndexListener.close(); }
             catch( final RuntimeException e ) { LOG.warn( "hybridIndexListener close failed: {}", e.getMessage(), e ); }
         }
         final com.wikantik.knowledge.extraction.AsyncEntityExtractionListener entityExtractionListener =
-            getManager( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class );
+            serviceRegistry.get( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class );
         if ( entityExtractionListener != null ) {
             try { entityExtractionListener.close(); }
             catch( final RuntimeException e ) { LOG.warn( "entityExtractionListener close failed: {}", e.getMessage(), e ); }
         }
         final com.wikantik.search.hybrid.QueryEmbedder hybridQueryEmbedder =
-            getManager( com.wikantik.search.hybrid.QueryEmbedder.class );
+            serviceRegistry.get( com.wikantik.search.hybrid.QueryEmbedder.class );
         if ( hybridQueryEmbedder != null ) {
             try { hybridQueryEmbedder.close(); }
             catch( final RuntimeException e ) { LOG.warn( "hybridQueryEmbedder close failed: {}", e.getMessage(), e ); }
         }
         final com.wikantik.search.embedding.BootstrapEmbeddingIndexer hybridBootstrapIndexer =
-            getManager( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
+            serviceRegistry.get( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
         if ( hybridBootstrapIndexer != null ) {
             try { hybridBootstrapIndexer.close(); }
             catch( final RuntimeException e ) { LOG.warn( "hybridBootstrapIndexer close failed: {}", e.getMessage(), e ); }

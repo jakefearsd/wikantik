@@ -109,6 +109,27 @@
      <url-pattern>/knowledge-mcp/*</url-pattern>
    </filter-mapping>
 
+   <!-- Per-client-IP rate limiting for the public HTTP surface. Two tiers:
+        default (25/s per client) on everything mapped below; expensive
+        (3/s per client + 10/s global) on /api/bundle, /api/search, /sparql —
+        the endpoints that do per-request embedding inference / heavy query
+        work. Loopback + /api/health always exempt. Runs after
+        RequestMetricsFilter (429s get measured) and before the auth filters
+        (reject cheaply before any auth/DB work). Tune via WIKANTIK_RATELIMIT_*
+        env vars; see docs/superpowers/specs/2026-07-02-api-rate-limiting-design.md -->
+   <filter>
+     <filter-name>RateLimitFilter</filter-name>
+     <filter-class>com.wikantik.observability.RateLimitFilter</filter-class>
+     <async-supported>true</async-supported>
+   </filter>
+   <filter-mapping>
+     <filter-name>RateLimitFilter</filter-name>
+     <url-pattern>/api/*</url-pattern>
+     <url-pattern>/id/*</url-pattern>
+     <url-pattern>/export/*</url-pattern>
+     <url-pattern>/sparql</url-pattern>
+   </filter-mapping>
+
    <!-- HTTP Basic authentication: converts Authorization: Basic headers into
         real wiki logins so automation (curl, CI, scripts) can exercise /api/*
         and /admin/* endpoints as an authenticated principal. No Authorization

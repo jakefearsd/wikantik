@@ -24,6 +24,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
+import com.wikantik.api.knowledge.KgEdge;
+import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.rest.RestServletBase;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,7 +38,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -58,6 +63,13 @@ import java.util.UUID;
  * {@code parseUuid} is the exception: it is genuinely local to {@code AdminKnowledgeResource}
  * (not inherited) and is used by both the extracted handlers and the handlers that remain, so it
  * moved here verbatim and {@code AdminKnowledgeResource} now delegates to it.
+ * <p>
+ * {@code actor} and {@code resolveEdgeNames} are also genuinely local to
+ * {@code AdminKnowledgeResource} (not inherited), and each was shared by <em>both</em> of the
+ * node and edge handler groups extracted in Task 2 (never by a handler that stayed behind) — so
+ * both moved here verbatim as the single canonical copy, and neither left a delegating wrapper on
+ * {@code AdminKnowledgeResource} (they had zero remaining call sites there once the node/edge
+ * groups moved out).
  */
 public final class AdminKnowledgeIo {
 
@@ -171,5 +183,36 @@ public final class AdminKnowledgeIo {
         } catch ( final NumberFormatException e ) {
             return defaultValue;
         }
+    }
+
+    /** Verbatim copy of {@link RestServletBase#getJsonInt}. */
+    public static int getJsonInt( final JsonObject obj, final String key, final int def ) {
+        if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
+            try {
+                return obj.get( key ).getAsInt();
+            } catch ( final NumberFormatException e ) {
+                return def;
+            }
+        }
+        return def;
+    }
+
+    /** Verbatim copy of {@code AdminKnowledgeResource#actor} — genuinely local helper, shared by
+     *  both the node and edge admin handler groups. */
+    public static String actor( final HttpServletRequest request ) {
+        final String remoteUser = request.getRemoteUser();
+        return remoteUser != null ? remoteUser : "admin";
+    }
+
+    /** Verbatim copy of {@code AdminKnowledgeResource#resolveEdgeNames} — genuinely local helper,
+     *  shared by both the node and edge admin handler groups. */
+    public static Map< UUID, String > resolveEdgeNames( final KnowledgeGraphService service,
+                                                          final List< KgEdge > edges ) {
+        final Set< UUID > ids = new HashSet<>();
+        for ( final KgEdge e : edges ) {
+            ids.add( e.sourceId() );
+            ids.add( e.targetId() );
+        }
+        return service.getNodeNames( ids );
     }
 }

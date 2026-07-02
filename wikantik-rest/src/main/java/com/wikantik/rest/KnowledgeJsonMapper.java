@@ -39,13 +39,18 @@ import java.util.UUID;
  * {@link java.util.LinkedHashMap} return preserves key order for stable JSON output. The
  * service-dependent conflict-flag enrichment for proposals stays in the controller (it needs a
  * live {@code KnowledgeGraphService}); this class produces only the base proposal shape.</p>
+ * <p>
+ * {@code nodeToMap}/{@code edgeToMap}/{@code enrichEdge}/{@code mentionToMap} are {@code public}
+ * (unlike {@code hubProposalToMap}, which stays package-private) because
+ * {@code com.wikantik.rest.knowledge.KgNodeAdminHandlers}/{@code KgEdgeAdminHandlers} —
+ * extracted from {@code AdminKnowledgeResource} — call them from a different package.
  */
 public final class KnowledgeJsonMapper {
 
     private KnowledgeJsonMapper() {
     }
 
-    static Map< String, Object > nodeToMap( final KgNode node ) {
+    public static Map< String, Object > nodeToMap( final KgNode node ) {
         final Map< String, Object > map = new LinkedHashMap<>();
         map.put( "id", node.id().toString() );
         map.put( "name", node.name() );
@@ -59,7 +64,7 @@ public final class KnowledgeJsonMapper {
         return map;
     }
 
-    static Map< String, Object > edgeToMap( final KgEdge edge ) {
+    public static Map< String, Object > edgeToMap( final KgEdge edge ) {
         final Map< String, Object > map = new LinkedHashMap<>();
         map.put( "id", edge.id().toString() );
         map.put( "source_id", edge.sourceId().toString() );
@@ -74,14 +79,14 @@ public final class KnowledgeJsonMapper {
     }
 
     /** {@link #edgeToMap(KgEdge)} plus resolved {@code source_name}/{@code target_name} labels. */
-    static Map< String, Object > enrichEdge( final KgEdge edge, final Map< UUID, String > nameMap ) {
+    public static Map< String, Object > enrichEdge( final KgEdge edge, final Map< UUID, String > nameMap ) {
         final Map< String, Object > m = edgeToMap( edge );
         m.put( "source_name", nameMap.getOrDefault( edge.sourceId(), edge.sourceId().toString() ) );
         m.put( "target_name", nameMap.getOrDefault( edge.targetId(), edge.targetId().toString() ) );
         return m;
     }
 
-    static Map< String, Object > mentionToMap( final NodeMention mention ) {
+    public static Map< String, Object > mentionToMap( final NodeMention mention ) {
         final Map< String, Object > m = new LinkedHashMap<>();
         m.put( "chunk_id", mention.chunkId().toString() );
         m.put( "page_name", mention.pageName() );

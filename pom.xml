@@ -189,6 +189,7 @@
     <module>wikantik-http</module>
     <module>wikantik-ingest</module>
     <module>wikantik-main</module>
+    <module>wikantik-mcp-core</module>
     <module>wikantik-admin-mcp</module>
     <module>wikantik-tools</module>
     <module>wikantik-scim</module>
@@ -1563,6 +1564,7 @@
               <failOnViolation>false</failOnViolation>
               <rulesets combine.self="override">
                 <ruleset>${maven.multiModuleProjectDirectory}/build-support/pmd-complexity-ruleset.xml</ruleset>
+                <ruleset>${maven.multiModuleProjectDirectory}/build-support/pmd-coupling-ruleset.xml</ruleset>
               </rulesets>
             </configuration>
           </plugin>

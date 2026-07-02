@@ -288,7 +288,7 @@ public final class McpToolUtils {
      * @param toolName tool name passed to the audit logger
      * @param entityLabel singular noun for the {@code message} field (e.g. "edge", "node")
      * @param rawList raw {@code operations} payload (must be a non-empty {@code List<?>})
-     * @param bulkLimit per-call cap from {@link McpConfig#kgCurationBulkLimit()}
+     * @param bulkLimit per-call cap (e.g. {@code McpConfig#kgCurationBulkLimit()} in admin-mcp)
      * @param defaultAuthor author audit attribute
      * @param dispatch maps the parsed per-op map (with {@code tag} and {@code action} already extracted)
      *                 to either an {@code id} map (success) or an {@code error} map (failure).

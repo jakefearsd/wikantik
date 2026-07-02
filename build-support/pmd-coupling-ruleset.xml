@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<ruleset name="wikantik-coupling"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0
+                             https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>
+        Coupling-focused ruleset. PMD measures EFFERENT (outgoing) coupling at the
+        class level. Thresholds lowered below PMD defaults to produce a ranked
+        hotspot list rather than only the worst offenders.
+    </description>
+
+    <!-- Efferent coupling proxy: count of unique class references a class makes
+         through fields, params, return types and locals. PMD default threshold=20. -->
+    <rule ref="category/java/design.xml/CouplingBetweenObjects">
+        <properties>
+            <property name="threshold" value="15"/>
+        </properties>
+    </rule>
+
+    <!-- Efferent coupling proxy via import count. PMD default minimum=30. -->
+    <rule ref="category/java/design.xml/ExcessiveImports">
+        <properties>
+            <property name="minimum" value="25"/>
+        </properties>
+    </rule>
+
+</ruleset>

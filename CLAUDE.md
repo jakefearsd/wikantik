@@ -203,6 +203,11 @@ mvn apache-rat:check
 
 # Generate Javadocs with UML diagrams
 mvn javadoc:javadoc
+
+# CI-enforced complexity ratchet — fails on any NEW PMD design-rule violation
+# not already in the burn-down baseline build-support/pmd-complexity-baseline.properties
+# (entries only ever come out)
+mvn pmd:check -Pcomplexity-gate
 ```
 High test coverage at the line level, above 90% is a goal for this development team,
 and while we recognize it is not a perfect measurement, it is one we choose to pursue.

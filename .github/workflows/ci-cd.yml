@@ -34,6 +34,15 @@ jobs:
       - name: Unit tests
         run: mvn clean test -T 1C -B
 
+      # CI complexity ratchet: fails on any NEW complexity violation (PMD
+      # design rules — cyclomatic/cognitive complexity, GodClass, NcssCount,
+      # etc.) not already carved out in build-support/pmd-complexity-baseline.properties.
+      # Burn down debt by shrinking/decomposing a class until it clears its
+      # rule(s), then delete that rule (or the whole line) from the baseline.
+      # Adding a NEW baseline line requires justification in the PR/commit.
+      - name: Complexity ratchet
+        run: mvn -B -T 1C pmd:check -Pcomplexity-gate
+
       - name: Build Docker image
         run: docker build -t $IMAGE_NAME:$IMAGE_TAG .
 

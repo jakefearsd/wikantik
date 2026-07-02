@@ -1572,6 +1572,34 @@
       </build>
     </profile>
 
+    <profile> <!-- CI complexity ratchet: pmd:check gate against the same complexity
+                   ruleset as `complexity-report`, but failOnViolation=true so new
+                   violations break the build. Pre-existing violations are carved out
+                   via excludeFromFailureFile (build-support/pmd-complexity-baseline.properties) —
+                   see that file's header for the burn-down rule. -->
+      <id>complexity-gate</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-pmd-plugin</artifactId>
+            <version>${plugin.pmd.version}</version>
+            <configuration>
+              <targetJdk>${jdk.version}</targetJdk>
+              <linkXRef>false</linkXRef>
+              <failOnViolation>true</failOnViolation>
+              <printFailingErrors>true</printFailingErrors>
+              <includeTests>false</includeTests>
+              <aggregate>false</aggregate>
+              <excludeFromFailureFile>${maven.multiModuleProjectDirectory}/build-support/pmd-complexity-baseline.properties</excludeFromFailureFile>
+              <rulesets combine.self="override">
+                <ruleset>${maven.multiModuleProjectDirectory}/build-support/pmd-complexity-ruleset.xml</ruleset>
+              </rulesets>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
     <profile> <!-- enable memory profiling -->
       <id>mem-profiling</id>
 

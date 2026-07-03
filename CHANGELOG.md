@@ -6,6 +6,51 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Two-tier per-IP rate limiting on the public HTTP surface.** A `RateLimitFilter`
+  (sliding-window, Caffeine-backed) guards `/api/*`, `/sparql`, `/id/*`, and `/export/*` against
+  compute-amplification abuse, with separate burst and sustained tiers per client IP. Client IP is
+  resolved through Tomcat's `RemoteIpValve` (CF-Connecting-IP), so limits key on the real caller
+  behind Cloudflare. Default-on; tunable via `WIKANTIK_RATELIMIT_*` environment variables. The
+  reusable `SlidingWindowRateLimiter` lives in `wikantik-http`.
+- **Retrieval-coverage signal on the context bundle.** Every `/api/bundle` response and
+  `assemble_bundle` MCP result now carries a `coverage` block — `sectionCount`, `distinctPageCount`,
+  `topSimilarity` (true dense cosine), and a `confidence` label (`strong` / `partial` / `weak`) —
+  so an agent can tell how well-grounded an answer will be before composing it. Coverage is recounted
+  after the ACL view-gate, downgrading `strong`→`partial` when access filtering thins the result
+  below the strong floor. MCP tool descriptions now route count / enumeration questions to the
+  structured `sparql_query` / ontology tools rather than the prose bundle.
+
+### Changed
+- **`wikantik-mcp-core` module extracted.** The shared MCP substrate (`McpTool`, `McpToolUtils`,
+  `McpAudit`, endpoint bootstrap, access filter, config, and the shared `query_nodes` /
+  `search_knowledge` tools) moved into a new `wikantik-mcp-core` module, eliminating the
+  `wikantik-knowledge → wikantik-admin-mcp` dependency edge (a module cycle).
+- **WikiEngine god-class reduced via a late-bound service registry.** The 78 hand-maintained
+  `mgr_*` fields and their typed reader/writer maps are replaced by a generic
+  `EngineServiceRegistry` (CBO 143→86, ~2337→1894 LOC); an ArchUnit guard (R-5) prevents
+  re-accretion of service fields/setters. Documented in ADR-0008.
+- **Three critical-area god-class / complexity decompositions.** `AdminKnowledgeResource`
+  (1666→290 LOC dispatch-only; handlers extracted to `com.wikantik.rest.knowledge`),
+  `DefaultContextRetrievalService` (644→396 LOC; `RelatedPagesFinder` / `PageListEngine` /
+  `ContributingChunkAssembler` extracted), and `SemanticHeadRenderer` (516→182 LOC facade;
+  `PageSeoModel` + `JsonLdEmitter` + `HeadTagWriter`, NPath 46,080→clean) — all behavior-preserving,
+  guarded by their characterization suites.
+
+### Fixed
+- **SpotBugs real findings repaired.** A lock-chain return-value bug and dead `WikiEngine.injector`
+  Guice plumbing were fixed; two idiom-level detectors that produce only false positives in this
+  codebase were suppressed.
+
+### Internal
+- **CI complexity ratchet.** A `pmd:check`-backed `complexity-gate` profile fails the build on any
+  *new* PMD design-rule violation not already in `build-support/pmd-complexity-baseline.properties`
+  (a burn-down baseline — entries only ever come out). `SemanticHeadRenderer` (6 rules) is the first
+  burn-down.
+- **Retrieval-experiment harness moved out of the production WAR.** The 14 experiment classes moved
+  from `src/main` to `src/test` (test-scope only); the production jar now contains zero experiment
+  classes. The grounded-agent eval harness defaults to a local Ollama (`gemma4:12b`) backend.
+
 ## [2.2.0] - 2026-06-29
 
 ### Added

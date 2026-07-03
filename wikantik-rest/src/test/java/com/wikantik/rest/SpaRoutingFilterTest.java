@@ -41,6 +41,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -661,6 +662,18 @@ class SpaRoutingFilterTest {
     @Test
     void stripShellTitleHandlesNull() {
         assertEquals( null, SpaRoutingFilter.stripShellTitle( null ) );
+    }
+
+    // ---- ETag / conditional GET ----
+
+    @Test
+    void etagIsStableAndVersionSensitive() {
+        final String a = SpaRoutingFilter.etagFor( "abc123", 4, 1_700_000_000_000L );
+        assertEquals( a, SpaRoutingFilter.etagFor( "abc123", 4, 1_700_000_000_000L ) );
+        assertNotEquals( a, SpaRoutingFilter.etagFor( "abc123", 5, 1_700_000_000_000L ) );
+        assertNotEquals( a, SpaRoutingFilter.etagFor( "abc123", 4, 1_700_000_000_001L ) );
+        assertNotEquals( a, SpaRoutingFilter.etagFor( "zzz999", 4, 1_700_000_000_000L ) );
+        assertTrue( a.startsWith( "W/\"" ) && a.endsWith( "\"" ) );
     }
 
     // ---- helpers ----

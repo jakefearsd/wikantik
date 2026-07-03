@@ -669,6 +669,21 @@ class SemanticHeadRendererTest {
         assertTrue( fragment.contains( "&lt;script&gt;" ) );
     }
 
+    @Test
+    void parsedPageOverloadMatchesRawTextPath() {
+        final String raw = "---\ntitle: T\nsummary: A fifty-plus character summary for the head renderer test.\ntags: [a, b]\n---\n# Heading\n\nBody text.";
+        final java.util.Date modified = new java.util.Date( 1_700_000_000_000L );
+        final com.wikantik.api.frontmatter.ParsedPage parsed = com.wikantik.api.frontmatter.FrontmatterParser.parse( raw );
+
+        assertEquals(
+            SemanticHeadRenderer.renderHead( "TestPage", raw, "https://w.example", "Wikantik", modified ),
+            SemanticHeadRenderer.renderHead( "TestPage", parsed, "https://w.example", "Wikantik", modified ) );
+
+        assertEquals(
+            SemanticHeadRenderer.renderBodyFragment( "TestPage", raw ),
+            SemanticHeadRenderer.renderBodyFragment( "TestPage", parsed ) );
+    }
+
     // ==== helpers (mirror SemanticWebIT helpers) ====
 
     private static String extractMetaContent( final String html, final String attr, final String value ) {

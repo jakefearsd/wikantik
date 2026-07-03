@@ -78,7 +78,29 @@ public final class SemanticHeadRenderer {
     public static String renderHead( final String pageName, final String rawPageText,
                                       final String baseUrl, final String appName,
                                       final Date modified ) {
-        final PageSeoModel model = PageSeoModel.from( pageName, rawPageText, baseUrl, appName, modified );
+        return renderHead( pageName, FrontmatterParser.parse( rawPageText == null ? "" : rawPageText ),
+                baseUrl, appName, modified );
+    }
+
+    /**
+     * Render the full semantic {@code <head>} fragment for a page from an
+     * already-parsed {@link ParsedPage}, so a caller that needs the parse
+     * result for other purposes in the same request (e.g. the data island)
+     * does not pay for parsing the frontmatter twice.
+     *
+     * @param pageName the wiki page name (used as the heading and URL slug)
+     * @param parsed   the already-parsed page (frontmatter + body)
+     * @param baseUrl  the fully-qualified base URL (no trailing slash), e.g. {@code http://host:port/ctx}
+     * @param appName  the wiki application name (used as the OG site_name / publisher)
+     * @param modified the page's last-modified timestamp, emitted as
+     *                 {@code dateModified} in the Article JSON-LD; {@code null} to omit
+     * @return an HTML fragment containing only {@code <meta>}, {@code <link>}, and
+     *         {@code <script type="application/ld+json">} tags — no wrapping element
+     */
+    public static String renderHead( final String pageName, final ParsedPage parsed,
+                                      final String baseUrl, final String appName,
+                                      final Date modified ) {
+        final PageSeoModel model = PageSeoModel.from( pageName, parsed, baseUrl, appName, modified );
 
         final StringBuilder sb = new StringBuilder( 2048 );
 
@@ -122,7 +144,20 @@ public final class SemanticHeadRenderer {
      * @return an HTML fragment containing an {@code <article>} with a heading and text
      */
     public static String renderBodyFragment( final String pageName, final String rawPageText ) {
-        final ParsedPage parsed = FrontmatterParser.parse( rawPageText == null ? "" : rawPageText );
+        return renderBodyFragment( pageName, FrontmatterParser.parse( rawPageText == null ? "" : rawPageText ) );
+    }
+
+    /**
+     * Render the no-JS fallback body fragment from an already-parsed
+     * {@link ParsedPage} — see {@link #renderBodyFragment(String, String)} for
+     * the full contract. Avoids re-parsing frontmatter that a caller already
+     * parsed for another purpose in the same request.
+     *
+     * @param pageName the wiki page name (used as heading fallback)
+     * @param parsed   the already-parsed page (frontmatter + body)
+     * @return an HTML fragment containing an {@code <article>} with a heading and text
+     */
+    public static String renderBodyFragment( final String pageName, final ParsedPage parsed ) {
         final String body = parsed.body() == null ? "" : parsed.body();
         final String safePageName = pageName == null ? "" : pageName;
 

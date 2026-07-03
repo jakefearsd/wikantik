@@ -97,6 +97,7 @@ public class SpaRoutingFilter implements Filter {
 
     private volatile Engine engine;
     private ServletContext servletContext;
+    private volatile String shellFingerprint;
 
     @Override
     public void init( final FilterConfig filterConfig ) throws ServletException {
@@ -258,7 +259,27 @@ public class SpaRoutingFilter implements Filter {
      */
     private void serveIndexHtml( final HttpServletRequest req, final HttpServletResponse resp,
                                   final String contextPath, final String pageName ) throws IOException {
-        setNoCacheHeaders( resp );
+        final Page cacheablePage = pageName != null && !pageName.isEmpty()
+                ? resolvePageForCaching( pageName ) : null;
+        if ( cacheablePage != null ) {
+            // The SSR output for a page is a pure function of (shell build, page
+            // version, mtime) — the underlying render cache is already shared
+            // across users by content hash. private+no-cache forces revalidation
+            // on every navigation; matching validators short-circuit to a 304
+            // before any body read, render, or injection work.
+            final long lm = cacheablePage.getLastModified() == null
+                    ? 0L : cacheablePage.getLastModified().getTime();
+            final String etag = etagFor( shellFingerprint( req.getServletContext() ),
+                    Math.max( cacheablePage.getVersion(), 1 ), lm );
+            resp.setHeader( "ETag", etag );
+            resp.setHeader( "Cache-Control", "private, no-cache" );
+            if ( etag.equals( req.getHeader( "If-None-Match" ) ) ) {
+                resp.setStatus( HttpServletResponse.SC_NOT_MODIFIED );
+                return;
+            }
+        } else {
+            setNoCacheHeaders( resp );
+        }
         final ServletContext ctx = req.getServletContext();
         try ( InputStream in = ctx != null ? ctx.getResourceAsStream( "/index.html" ) : null ) {
             if ( in == null ) {
@@ -275,6 +296,54 @@ public class SpaRoutingFilter implements Filter {
             resp.setCharacterEncoding( "UTF-8" );
             resp.setContentLength( bytes.length );
             resp.getOutputStream().write( bytes );
+        }
+    }
+
+    /** SHA-256-prefix fingerprint of the deployed index.html; stable per deployment. */
+    private String shellFingerprint( final ServletContext ctx ) {
+        String fp = shellFingerprint;
+        if ( fp == null ) {
+            try ( InputStream in = ctx != null ? ctx.getResourceAsStream( "/index.html" ) : null ) {
+                if ( in == null ) {
+                    return "0";
+                }
+                final byte[] digest = java.security.MessageDigest.getInstance( "SHA-256" )
+                        .digest( in.readAllBytes() );
+                final StringBuilder sb = new StringBuilder( 12 );
+                for ( int i = 0; i < 6; i++ ) {
+                    sb.append( String.format( "%02x", digest[ i ] ) );
+                }
+                fp = sb.toString();
+                shellFingerprint = fp;
+            } catch ( final Exception e ) {
+                LOG.warn( "SpaRoutingFilter: shell fingerprint failed: {}", e.getMessage() );
+                return "0";
+            }
+        }
+        return fp;
+    }
+
+    /** Weak ETag for a served /wiki/{page} document: shell build + page version + mtime. */
+    static String etagFor( final String shellFp, final int version, final long lastModifiedMillis ) {
+        return "W/\"" + shellFp + '-' + version + '-' + lastModifiedMillis + '"';
+    }
+
+    /** Null-safe page lookup mirroring injectSemantic's ladder; null = engine/pm/page unavailable. */
+    private Page resolvePageForCaching( final String pageName ) {
+        final Engine eng = resolveEngine();
+        if ( eng == null || pageName == null || pageName.isEmpty() ) {
+            return null;
+        }
+        try {
+            final PageManager pm = PageSubsystemBridge.fromLegacyEngine( eng ).pages();
+            if ( pm == null || !pm.wikiPageExists( pageName ) ) {
+                return null;
+            }
+            return pm.getPage( pageName );
+        } catch ( final RuntimeException ex ) {
+            LOG.warn( "SpaRoutingFilter: page lookup for caching failed for '{}': {}",
+                    pageName, ex.getMessage() );
+            return null;
         }
     }
 
@@ -325,9 +394,12 @@ public class SpaRoutingFilter implements Filter {
             LOG.warn( "SpaRoutingFilter: failed to load page '{}': {}", pageName, ex.getMessage() );
             return indexHtml;
         }
+        // Parsed once and threaded through the head, body-fallback, and data-island
+        // derivations below — those used to each re-parse the same frontmatter.
+        final ParsedPage parsed = FrontmatterParser.parse( rawText == null ? "" : rawText );
         final String baseUrl = BaseUrlResolver.resolve( eng, req, null );
         final String appName = eng.getApplicationName();
-        final String head = SemanticHeadRenderer.renderHead( pageName, rawText, baseUrl, appName, modified );
+        final String head = SemanticHeadRenderer.renderHead( pageName, parsed, baseUrl, appName, modified );
         // Full flexmark render of the body, reused for BOTH the no-JS #root body
         // and the JSON data island (rendered once). Falls back to the lightweight
         // no-JS fragment if the full render is unavailable. Putting real rendered
@@ -336,7 +408,7 @@ public class SpaRoutingFilter implements Filter {
         final String contentHtml = renderContentHtml( eng, req, page, pageName, rawText );
         final String rootBody = ( contentHtml != null && !contentHtml.isBlank() )
                 ? contentHtml
-                : SemanticHeadRenderer.renderBodyFragment( pageName, rawText );
+                : SemanticHeadRenderer.renderBodyFragment( pageName, parsed );
 
         // Drop the static shell <title>; renderHead emits a per-page <title>,
         // so stripping the shell one leaves exactly one (correct) title element.
@@ -362,7 +434,7 @@ public class SpaRoutingFilter implements Filter {
         // "Loading…" DOM that Google classifies as Soft 404. Seeding from the
         // island keeps content on screen for the first paint and for crawlers.
         // See PageView.jsx + useApi.js (initialData).
-        final String island = buildPageIsland( pageName, rawText, contentHtml );
+        final String island = buildPageIsland( pageName, parsed, contentHtml );
         if ( island != null ) {
             final int bodyClose = out.lastIndexOf( "</body>" );
             if ( bodyClose >= 0 ) {
@@ -399,10 +471,9 @@ public class SpaRoutingFilter implements Filter {
      * seed its initial state without a render-critical network fetch. Returns
      * {@code null} on failure (the SPA then falls back to its normal fetch).
      */
-    private static String buildPageIsland( final String pageName, final String rawText,
+    private static String buildPageIsland( final String pageName, final ParsedPage parsed,
                                            final String contentHtml ) {
         try {
-            final ParsedPage parsed = FrontmatterParser.parse( rawText == null ? "" : rawText );
             final java.util.Map< String, Object > island = new java.util.LinkedHashMap<>();
             island.put( "name", pageName );
             island.put( "content", parsed.body() );

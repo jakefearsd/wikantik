@@ -187,7 +187,7 @@ class PageSeoModelTest {
 
     @Test
     void nullRawPageTextTreatedAsEmptyBody() {
-        final PageSeoModel model = PageSeoModel.from( "P", null, BASE_URL, APP_NAME, null );
+        final PageSeoModel model = PageSeoModel.from( "P", ( String ) null, BASE_URL, APP_NAME, null );
         assertEquals( "P", model.effectiveTitle() );
         assertEquals( "P - Wikantik", model.documentTitle() );
     }

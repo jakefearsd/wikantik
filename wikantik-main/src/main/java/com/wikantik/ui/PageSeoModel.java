@@ -92,7 +92,23 @@ record PageSeoModel(
      */
     static PageSeoModel from( final String pageName, final String rawPageText, final String baseUrl,
                                final String appName, final Date modified ) {
-        final ParsedPage parsed = FrontmatterParser.parse( orEmpty( rawPageText ) );
+        return from( pageName, FrontmatterParser.parse( orEmpty( rawPageText ) ), baseUrl, appName, modified );
+    }
+
+    /**
+     * Derive a {@link PageSeoModel} from an already-parsed {@link ParsedPage},
+     * so a caller that needs the parse result for other purposes in the same
+     * request does not pay for parsing the frontmatter twice.
+     *
+     * @param pageName the wiki page name
+     * @param parsed   the already-parsed page (frontmatter + body)
+     * @param baseUrl  the fully-qualified base URL (no trailing slash)
+     * @param appName  the wiki application name
+     * @param modified the page's last-modified timestamp, or {@code null}
+     * @return the derived model
+     */
+    static PageSeoModel from( final String pageName, final ParsedPage parsed, final String baseUrl,
+                               final String appName, final Date modified ) {
         final Map< String, Object > meta = parsed.metadata();
 
         final String safePageName = orEmpty( pageName );

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-07-03
+
 ### Added
 - **Two-tier per-IP rate limiting on the public HTTP surface.** A `RateLimitFilter`
   (sliding-window, Caffeine-backed) guards `/api/*`, `/sparql`, `/id/*`, and `/export/*` against

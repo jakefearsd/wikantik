@@ -130,7 +130,7 @@ PGPASSWORD='<pw>' psql -h localhost -U jspwiki -d jspwiki \
 ### Indexer (once per model)
 
 ```
-mvn -pl wikantik-main -am -q exec:java \
+mvn -pl wikantik-main -am -q exec:java -Dexec.classpathScope=test \
     -Dexec.mainClass=com.wikantik.search.embedding.experiment.ExperimentIndexer \
     -Dexec.args="nomic-embed-v1.5" \
     -Dwikantik.experiment.db.password='<pw>'
@@ -142,7 +142,7 @@ so reruns only top up what's missing. Batches of 32 chunks per HTTP call.
 ### Evaluator (once per model)
 
 ```
-mvn -pl wikantik-main -am -q exec:java \
+mvn -pl wikantik-main -am -q exec:java -Dexec.classpathScope=test \
     -Dexec.mainClass=com.wikantik.search.embedding.experiment.ExperimentEvaluator \
     -Dexec.args="nomic-embed-v1.5 eval/retrieval-queries.csv eval/report-nomic.txt" \
     -Dwikantik.experiment.db.password='<pw>' \
@@ -153,7 +153,7 @@ mvn -pl wikantik-main -am -q exec:java \
 ### Side-by-side comparison
 
 ```
-mvn -pl wikantik-main -am -q exec:java \
+mvn -pl wikantik-main -am -q exec:java -Dexec.classpathScope=test \
     -Dexec.mainClass=com.wikantik.search.embedding.experiment.ExperimentCompare \
     -Dexec.args="eval/report-nomic-embed-v1.5.txt eval/report-bge-m3.txt eval/report-qwen3-embedding-0.6b.txt"
 ```
@@ -214,7 +214,7 @@ in Section 7 below.
 | `bin/run-embedding-experiment.sh` | End-to-end driver |
 | `eval/experiment-embeddings.sql` | Sandbox DDL (not a migration) |
 | `eval/retrieval-queries.csv` | 40-query, 7-category ground truth |
-| `wikantik-main/src/main/java/com/wikantik/search/embedding/experiment/` | `ExperimentIndexer`, `ExperimentEvaluator`, `ExperimentCompare`, `ExperimentAggSweep`, `ExperimentRrfSweep`, `ExperimentFinalSweep`, `ExperimentGrandFinale`, `ExperimentHarness`, `Bm25Client`, `ExperimentDb`, `QueryCorpus`, `ReciprocalRankFusion`, `CosineSimilarity`, `VectorCodec` |
+| `wikantik-main/src/test/java/com/wikantik/search/embedding/experiment/` (test scope — deliberately excluded from the production WAR) | `ExperimentIndexer`, `ExperimentEvaluator`, `ExperimentCompare`, `ExperimentAggSweep`, `ExperimentRrfSweep`, `ExperimentFinalSweep`, `ExperimentGrandFinale`, `ExperimentHarness`, `Bm25Client`, `ExperimentDb`, `QueryCorpus`, `ReciprocalRankFusion`, `CosineSimilarity`, `VectorCodec` |
 | `wikantik-main/src/main/java/com/wikantik/search/embedding/` | Production-side client + config (now `enabled=true` by default; feature-flag remains as the kill switch) |
 
 The experiment code stays in place after each decision so regression runs
@@ -422,7 +422,7 @@ not in the hybrid overall.
 Reproduce with:
 
 ```
-mvn -pl wikantik-main exec:java \
+mvn -pl wikantik-main exec:java -Dexec.classpathScope=test \
     -Dexec.mainClass=com.wikantik.search.embedding.experiment.ExperimentCompare \
     -Dexec.args="<before.txt> <after.txt>"
 ```
@@ -523,11 +523,11 @@ bin/trigger-rebuild-indexes.sh          # already done — 23k chunks live
 # still keyed by the old chunk ids which were cascaded away by V011):
 PGPASSWORD='…' psql -h localhost -U jspwiki -d jspwiki -c "DELETE FROM experiment_embeddings WHERE model_code='qwen3-embedding-0.6b'"
 # Re-index + evaluate:
-mvn -pl wikantik-main exec:java \
+mvn -pl wikantik-main exec:java -Dexec.classpathScope=test \
     -Dexec.mainClass=com.wikantik.search.embedding.experiment.ExperimentIndexer \
     -Dexec.args="qwen3-embedding-0.6b" \
     -Dwikantik.experiment.db.password='…'
-mvn -pl wikantik-main exec:java \
+mvn -pl wikantik-main exec:java -Dexec.classpathScope=test \
     -Dexec.mainClass=com.wikantik.search.embedding.experiment.ExperimentEvaluator \
     -Dexec.args="qwen3-embedding-0.6b eval/retrieval-queries.csv \
                  eval/report-qwen3-embedding-0.6b-2026-04-23-postmerge.txt" \

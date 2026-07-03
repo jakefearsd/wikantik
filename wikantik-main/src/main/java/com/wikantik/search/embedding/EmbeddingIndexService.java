@@ -45,7 +45,7 @@ import java.util.function.IntConsumer;
  * saves converge on the same invariant.
  *
  * <p>The batch-with-per-item-fallback pattern is lifted directly from
- * {@link com.wikantik.search.embedding.experiment.ExperimentIndexer}: when a
+ * {@code ExperimentIndexer} (retrieval-experiment harness, test scope): when a
  * batch call to the embedding backend fails (the concrete reason we saw in the
  * offline harness was bge-m3 returning HTTP 500 with NaN in the response for
  * specific inputs — deterministic per input), we retry item-by-item. Items that

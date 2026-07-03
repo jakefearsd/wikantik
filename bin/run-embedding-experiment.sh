@@ -79,16 +79,21 @@ mkdir -p "${OUTPUT_DIR}"
 # exec:java attaches to every project selected by -pl/-am, so it would try to
 # run the main class against the root reactor first. Root exec:java against
 # wikantik-main only (its deps must already be installed in the local repo
-# from a prior `mvn install`).
+# from a prior `mvn install`). The experiment harness lives in TEST scope
+# (src/test/java — deliberately kept out of the production WAR), hence
+# classpathScope=test and the test-compile prep below.
 run_main() {
     local main_class="$1"; shift
     local exec_args="$*"
     mvn -f wikantik-main/pom.xml "${QUIET_FLAG[@]}" exec:java \
         -Dexec.mainClass="${main_class}" \
-        -Dexec.classpathScope=compile \
+        -Dexec.classpathScope=test \
         -Dexec.args="${exec_args}" \
         "${SYSPROPS[@]}"
 }
+
+# Compile the test-scope harness classes once up front (does NOT run tests).
+mvn -f wikantik-main/pom.xml "${QUIET_FLAG[@]}" test-compile -DskipTests
 
 step=1
 

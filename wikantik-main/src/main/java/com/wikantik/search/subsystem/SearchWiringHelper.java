@@ -158,11 +158,12 @@ public final class SearchWiringHelper {
         engine.setManager( EmbeddingIndexService.class, indexService );
 
         // Pick the dense retrieval backend up front so DenseRetriever (constructed
-        // below) actually holds the configured impl. SearchSubsystemFactory exposes
-        // the same choice via Services.chunkVectorIndex(), but nothing in production
-        // reads that slot — the live wiring is here. Default lucene-hnsw: true ANN
-        // (sub-linear queries), RAM-backed, incremental upserts — matches prod.
-        // 'inmemory' remains available for dev/small corpora.
+        // below) actually holds the configured impl. The index built here is the
+        // single canonical instance: it is registered as ChunkVectorIndex.class
+        // below, and SearchSubsystemFactory.Services.chunkVectorIndex() (read by
+        // DefaultContextRetrievalService) reuses it rather than building its own.
+        // Default lucene-hnsw: true ANN (sub-linear queries), RAM-backed,
+        // incremental upserts — matches prod. 'inmemory' remains for dev corpora.
         final String denseBackend = resolveDenseBackend( props );
 
         final com.wikantik.search.hybrid.ChunkVectorIndex vectorIndex;

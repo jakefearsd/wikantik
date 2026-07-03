@@ -47,6 +47,16 @@ public class MarkdownDocument extends WikiDocument {
 
     private static final long serialVersionUID = 1L;
 
+    // Stock flexmark extensions are stateless configuration carriers — flexmark's
+    // own guidance is to create them once and share across parsers/renderers.
+    // Only MarkdownForWikantikExtension is context-bound and must stay per-call.
+    private static final com.vladsch.flexmark.util.misc.Extension ATTRIBUTES_EXT = AttributesExtension.create();
+    private static final com.vladsch.flexmark.util.misc.Extension DEFINITION_EXT = DefinitionExtension.create();
+    private static final com.vladsch.flexmark.util.misc.Extension FOOTNOTE_EXT = FootnoteExtension.create();
+    private static final com.vladsch.flexmark.util.misc.Extension GITLAB_EXT = GitLabExtension.create();
+    private static final com.vladsch.flexmark.util.misc.Extension TABLES_EXT = TablesExtension.create();
+    private static final com.vladsch.flexmark.util.misc.Extension TOC_EXT = TocExtension.create();
+
     private final transient Node md;
 
     public MarkdownDocument( final Page page, final Node md ) {
@@ -85,12 +95,8 @@ public class MarkdownDocument extends WikiDocument {
         options.set( GitLabExtension.RENDER_VIDEO_LINK, false );
         options.set( GitLabExtension.RENDER_BLOCK_MERMAID, false );
         options.set( Parser.EXTENSIONS, Arrays.asList( new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),
-                                                       AttributesExtension.create(),
-                                                       DefinitionExtension.create(),
-                                                       FootnoteExtension.create(),
-                                                       GitLabExtension.create(),
-                                                       TablesExtension.create(),
-                                                       TocExtension.create() ) );
+                                                       ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
+                                                       GITLAB_EXT, TABLES_EXT, TOC_EXT ) );
         return options;
     }
 

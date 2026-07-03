@@ -19,7 +19,6 @@
 package com.wikantik.render.markdown;
 
 import com.vladsch.flexmark.html.HtmlRenderer;
-import org.apache.commons.lang3.StringUtils;
 import com.wikantik.api.core.Context;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
@@ -28,8 +27,6 @@ import com.wikantik.parser.markdown.WikantikHtmlSanitizer;
 import com.wikantik.render.WikiRenderer;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.regex.Pattern;
 
 
 /**
@@ -42,13 +39,13 @@ public class MarkdownRenderer extends WikiRenderer {
 
 	public MarkdownRenderer( final Context context, final WikiDocument doc ) {
 		super( context, doc );
-		final MarkupParser mp = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( context.getEngine() )
-				                       .renderingManager()
-				                       .getParser( context, StringUtils.defaultString( doc.getPageData() ) );
-		final boolean isImageInlining = mp.isImageInlining();
-		final List< Pattern > inlineImagePatterns = mp.getInlineImagePatterns();
 		this.allowHtml = context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false );
-		renderer = HtmlRenderer.builder( MarkdownDocument.options( context, isImageInlining, inlineImagePatterns ) ).build();
+		// The previous implementation instantiated a full throwaway MarkdownParser
+		// (building a second flexmark Parser) just to read the image-inlining
+		// default and the engine-cached pattern list. Read both directly.
+		renderer = HtmlRenderer.builder( MarkdownDocument.options( context,
+				MarkupParser.DEFAULT_IMAGE_INLINING,
+				MarkupParser.inlineImagePatterns( context.getEngine() ) ) ).build();
 	}
 
 	/**

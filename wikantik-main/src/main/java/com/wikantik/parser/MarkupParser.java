@@ -57,7 +57,7 @@ public abstract class MarkupParser {
     protected final ArrayList< StringTransmutator > externalLinkMutatorChain = new ArrayList<>();
     protected final ArrayList< StringTransmutator > attachmentLinkMutatorChain = new ArrayList<>();
     protected final ArrayList< StringTransmutator > linkMutators = new ArrayList<>();
-    protected boolean inlineImages = true;
+    protected boolean inlineImages = DEFAULT_IMAGE_INLINING;
     protected boolean parseAccessRules = true;
     /** Keeps image regexp Patterns */
     protected List< Pattern > inlineImagePatterns;
@@ -92,6 +92,14 @@ public abstract class MarkupParser {
     public static final String OUTLINK = "outlink";
 
     private static final String INLINE_IMAGE_PATTERNS = "WikantikMarkupParser.inlineImagePatterns";
+
+    /**
+     * Image inlining default for renderers. A parser reports {@code false} only
+     * after an explicit {@link #enableImageInlining} call; the value read off a
+     * freshly-constructed parser (the old MarkdownRenderer pattern) is always
+     * this default.
+     */
+    public static final boolean DEFAULT_IMAGE_INLINING = true;
 
     /** The value for anchor element <tt>class</tt> attributes when used for wiki page (normal) links. The value is "wikipage". */
    public static final String CLASS_WIKIPAGE = "wikipage";
@@ -230,6 +238,15 @@ public abstract class MarkupParser {
     }
 
     protected final void initInlineImagePatterns() {
+        inlineImagePatterns = inlineImagePatterns( engine );
+	}
+
+    /**
+     * Engine-cached compiled inline-image patterns. Identical cache and
+     * semantics to the parser's own {@link #initInlineImagePatterns()}; callable
+     * without constructing a parser.
+     */
+    public static List< Pattern > inlineImagePatterns( final Engine engine ) {
         //  We cache compiled patterns in the engine, since their creation is really expensive
         List< Pattern > compiledpatterns = engine.getAttribute( INLINE_IMAGE_PATTERNS );
 
@@ -249,8 +266,8 @@ public abstract class MarkupParser {
             engine.setAttribute( INLINE_IMAGE_PATTERNS, compiledpatterns );
         }
 
-        inlineImagePatterns = Collections.unmodifiableList( compiledpatterns );
-	}
+        return Collections.unmodifiableList( compiledpatterns );
+    }
 
     /**
      * Compiles a glob pattern (like *.jpg) into a Java regex Pattern.

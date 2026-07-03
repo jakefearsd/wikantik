@@ -22,6 +22,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.engine.Initializable;
 import com.wikantik.auth.authorize.Role;
+import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.event.WikiEventListener;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiSecurityEvent;
@@ -31,6 +32,9 @@ import java.io.IOException;
 import java.security.AccessController;
 import java.security.Permission;
 import java.security.Principal;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 
 /**
@@ -115,6 +119,25 @@ public interface AuthorizationManager extends Initializable {
      * @return true if permitted
      */
     boolean isPermitted( Session session, Permission permission );
+
+    /**
+     * Returns the subset of {@code pageNames} the session may {@code view}.
+     * Silent — evaluates via {@link #isPermitted} semantics, never fires audit
+     * events (bulk visibility filtering is speculative, not enforcement).
+     * <p>
+     * This default is a naive per-name loop for alternate implementations;
+     * {@code DefaultAuthorizationManager} overrides it with a blanket-grant
+     * fast path that skips per-page policy evaluation for ACL-less pages.
+     */
+    default Set< String > filterViewable( final Session session, final Collection< String > pageNames ) {
+        final Set< String > out = new HashSet<>();
+        for ( final String name : pageNames ) {
+            if ( isPermitted( session, new PagePermission( name, "view" ) ) ) {
+                out.add( name );
+            }
+        }
+        return out;
+    }
 
     /**
      * <p>Determines if the Subject associated with a supplied Session contains a desired Role or GroupPrincipal. The algorithm

@@ -105,4 +105,20 @@ public class PermissionFilter {
         }
         return out;
     }
+
+    /**
+     * Batch form of {@link #canAccessQuietly} for {@code view}: returns the
+     * subset of {@code pageNames} the session may view. Silent (no audit).
+     * Short-circuits on empty input without consulting the authorization
+     * subsystem at all, mirroring {@link #filterAccessible}'s behavior for
+     * an empty collection.
+     */
+    public java.util.Set< String > filterViewableQuietly( final Session session,
+                                                          final Collection< String > pageNames ) {
+        if ( pageNames.isEmpty() ) {
+            return java.util.Set.of();
+        }
+        return AuthSubsystemBridge.fromLegacyEngine( engine ).authorization()
+                .filterViewable( session, pageNames );
+    }
 }

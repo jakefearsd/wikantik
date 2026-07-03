@@ -129,8 +129,13 @@ public class PageListResource extends RestServletBase {
 
         // Cluster membership lives in the structural index (frontmatter-derived),
         // not on the Page itself. Build a slug→cluster map so the sidebar can
-        // group pages by cluster. Degrade gracefully if the index is unavailable.
-        final Map< String, String > clusterBySlug = loadClusterBySlug();
+        // group pages by cluster. Restricted to the returned slice (post-pagination)
+        // so this doesn't walk the entire sitemap on every request. Degrade
+        // gracefully if the index is unavailable.
+        final java.util.Set< String > sliceNames = filtered.stream()
+                .map( Page::getName )
+                .collect( java.util.stream.Collectors.toSet() );
+        final Map< String, String > clusterBySlug = loadClusterBySlug( sliceNames );
 
         final List< Map< String, Object > > pageList = filtered.stream()
                 .map( page -> {
@@ -157,12 +162,17 @@ public class PageListResource extends RestServletBase {
     }
 
     /**
-     * Slug → cluster map sourced from the structural index. Returns an empty
-     * map (never null) when the index is unavailable or errors, so the page
-     * list still renders — just without cluster grouping in the sidebar.
+     * Slug → cluster map sourced from the structural index, restricted to
+     * {@code wanted} (the page names actually returned in this response, i.e.
+     * the post-pagination slice). Returns an empty map (never null) when the
+     * index is unavailable or errors, so the page list still renders — just
+     * without cluster grouping in the sidebar.
      */
-    private Map< String, String > loadClusterBySlug() {
+    private Map< String, String > loadClusterBySlug( final java.util.Set< String > wanted ) {
         final Map< String, String > clusterBySlug = new HashMap<>();
+        if ( wanted.isEmpty() ) {
+            return clusterBySlug;
+        }
         try {
             final StructuralIndexService idx = getSubsystems().pageGraph().structuralIndexService();
             if ( idx == null ) {
@@ -172,7 +182,7 @@ public class PageListResource extends RestServletBase {
             // (with StructuralFilter.none()) silently caps at 100 pages, which
             // would leave all but the first 100 pages clusterless in the sidebar.
             for ( final PageDescriptor d : idx.sitemap().pages() ) {
-                if ( d.cluster() != null && !d.cluster().isBlank() ) {
+                if ( wanted.contains( d.slug() ) && d.cluster() != null && !d.cluster().isBlank() ) {
                     clusterBySlug.put( d.slug(), d.cluster() );
                 }
             }

@@ -18,7 +18,9 @@
  */
 package com.wikantik.auth.permissions;
 
+import com.wikantik.TestEngine;
 import com.wikantik.WikiEngine;
+import com.wikantik.WikiSessionTest;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.managers.PageManager;
@@ -27,7 +29,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.security.Permission;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Properties;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -126,5 +131,38 @@ class PermissionFilterTest {
         verify( authMgr ).checkPermission( eq( session ), any( Permission.class ) );
         // isPermitted must NOT have been called during canAccess
         verify( authMgr, times( 1 ) ).isPermitted( eq( session ), any( Permission.class ) );
+    }
+
+    /**
+     * End-to-end equivalence check against a real {@link TestEngine} (the other
+     * tests in this class use pure Mockito doubles, which can't exercise real
+     * page saves / ACLs / session login). Fresh sessions are built per-iteration
+     * via {@link WikiSessionTest} to avoid the shared mock-session-id pollution
+     * gotcha (an admin action leaking into what should be an anonymous request).
+     */
+    @Test
+    void batchViewabilityMatchesPerPageChecks() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        final TestEngine realEngine = new TestEngine( props );
+        realEngine.saveText( "BatchPublicPage", "No ACL here." );
+        realEngine.saveText( "BatchRestrictedPage", "[{ALLOW view Admin}]\n\nSecret." );
+
+        final List< String > names = List.of(
+            "BatchPublicPage", "BatchRestrictedPage", "BatchNoSuchPage" );
+
+        final PermissionFilter pf = new PermissionFilter( realEngine );
+
+        for ( final Session s : List.of(
+                WikiSessionTest.anonymousSession( realEngine ),
+                WikiSessionTest.adminSession( realEngine ) ) ) {
+            final Set< String > expected = new HashSet<>();
+            for ( final String n : names ) {
+                if ( pf.canAccessQuietly( s, n, "view" ) ) {
+                    expected.add( n );
+                }
+            }
+            assertEquals( expected, pf.filterViewableQuietly( s, names ),
+                "batch filter must be decision-for-decision identical to canAccessQuietly" );
+        }
     }
 }

@@ -36,6 +36,7 @@ import com.wikantik.auth.authorize.Role;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.permissions.PermissionChecks;
+import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.event.WikiEventListener;
@@ -61,10 +62,13 @@ import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.text.MessageFormat;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
@@ -158,6 +162,45 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     @Override
     public boolean isPermitted( final Session session, final Permission permission ) {
         return decide( session, permission ).allowed();
+    }
+
+    /** {@inheritDoc}
+     * <p>Fast path: one blanket {@code <wiki>:*} view check per call; pages with
+     * no ACL are then viewable without any per-page policy evaluation. Pages
+     * carrying an ACL (and callers without the blanket grant) fall through to
+     * the exact same per-page {@link #isPermitted} decision as before.
+     * <p><b>Correctness argument:</b> {@link #decide} allows a page iff
+     * (AllPermission &or; bootstrap &or; static-grant) &and; (no-ACL &or; ACL-match).
+     * {@code blanketView == true} means the session statically holds view on
+     * {@code <wiki>:*}, which implies the static grant for every concrete page
+     * (PagePermission implication), so for ACL-less pages the outcome is
+     * "allowed" — identical to {@code decide()}. Every other combination falls
+     * through to the unmodified per-page path. */
+    @Override
+    public Set< String > filterViewable( final Session session, final Collection< String > pageNames ) {
+        final Set< String > out = new HashSet<>();
+        if ( session == null ) {
+            return out;
+        }
+        final boolean blanketView = isPermitted( session,
+            new PagePermission( engine.getApplicationName() + ":*", "view" ) );
+        for ( final String name : pageNames ) {
+            final Page page = pageManager().getPage( name );
+            if ( blanketView && page != null ) {
+                final Acl acl = aclManager().getPermissions( page );
+                if ( acl == null || acl.isEmpty() ) {
+                    out.add( name );
+                    continue;
+                }
+            }
+            final Permission perm = ( page != null )
+                ? PermissionFactory.getPagePermission( page, "view" )
+                : new PagePermission( engine.getApplicationName() + ":" + name, "view" );
+            if ( isPermitted( session, perm ) ) {
+                out.add( name );
+            }
+        }
+        return out;
     }
 
     /**

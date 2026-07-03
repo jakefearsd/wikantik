@@ -1,4 +1,4 @@
-/* 
+/*
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -14,13 +14,13 @@
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
-    under the License.  
+    under the License.
  */
 package com.wikantik.auth.permissions;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.wikantik.api.core.Page;
-
-import java.util.WeakHashMap;
 
 
 /**
@@ -36,16 +36,19 @@ public final class PermissionFactory
      *  Prevent instantiation.
      */
     private PermissionFactory() {}
-    
+
     /**
-     *  This is a WeakHashMap<Integer,PagePermission>, which stores the
-     *  cached page permissions.
+     * Bounded, lock-free-on-hit cache of immutable PagePermission objects.
+     * Replaces the legacy synchronized(WeakHashMap) keyed by XOR'd hashcodes,
+     * which (a) took a process-global monitor on every permission check and
+     * (b) could return the wrong permission on a hashcode collision.
      */
-    private static final WeakHashMap<Integer, PagePermission> cache = new WeakHashMap<>();
-    
+    private static final Cache< String, PagePermission > CACHE =
+        Caffeine.newBuilder().maximumSize( 50_000 ).build();
+
     /**
      *  Get a permission object for a WikiPage and a set of actions.
-     *  
+     *
      *  @param page The page object.
      *  @param actions A list of actions.
      *  @return A PagePermission object, presenting this page+actions combination.
@@ -54,10 +57,10 @@ public final class PermissionFactory
     {
         return getPagePermission( page.getWiki(), page.getName(), actions );
     }
-    
+
     /**
      *  Get a permission object for a WikiPage and a set of actions.
-     *  
+     *
      *  @param page The name of the page.
      *  @param actions A list of actions.
      *  @return A PagePermission object, presenting this page+actions combination.
@@ -69,7 +72,7 @@ public final class PermissionFactory
 
     /**
      *  Get a page permission based on a wiki, page, and actions.
-     *  
+     *
      *  @param wiki The name of the wiki. Can be an empty string, but must not be null.
      *  @param page The page name
      *  @param actions A list of actions.
@@ -77,39 +80,11 @@ public final class PermissionFactory
      */
     private static PagePermission getPagePermission( final String wiki, String page, final String actions )
     {
-        PagePermission perm;
-        //
-        //  Since this is pretty speed-critical, we try to avoid the StringBuffer creation
-        //  overhead by XORring the hashcodes.  However, if page name length > 32 characters,
-        //  this might result in two same hashCodes.
-        //  FIXME: Make this work for page-name lengths > 32 characters (use the alt implementation
-        //         if page.length() > 32?)
-        // Alternative implementation below, but it does create an extra StringBuffer.
-        //String         key = wiki+":"+page+":"+actions;
-        
-        final Integer key = wiki.hashCode() ^ page.hashCode() ^ actions.hashCode();
-   
-        //
-        //  It's fine if two threads update the cache, since the objects mean the same
-        //  thing anyway.  And this avoids nasty blocking effects.
-        //
-        synchronized( cache )
-        {
-            perm = cache.get( key );
-        }
-        
-        if( perm == null )
-        {
-            if( !wiki.isEmpty() ) page = wiki+":"+page;
-            perm = new PagePermission( page, actions );
-            
-            synchronized( cache )
-            {
-                cache.put( key, perm );
-            }
-        }
-        
-        return perm;
+        final String key = wiki + ' ' + page + ' ' + actions;
+        return CACHE.get( key, k -> {
+            final String qualified = wiki.isEmpty() ? page : wiki + ":" + page;
+            return new PagePermission( qualified, actions );
+        } );
     }
 
 }

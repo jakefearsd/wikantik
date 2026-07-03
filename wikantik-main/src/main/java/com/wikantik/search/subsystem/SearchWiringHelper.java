@@ -159,7 +159,7 @@ public final class SearchWiringHelper {
 
         // Pick the dense retrieval backend up front so DenseRetriever (constructed
         // below) actually holds the configured impl. The index built here is the
-        // single canonical instance: it is registered as ChunkVectorIndex.class
+        // single canonical instance: it is set via engine.setChunkVectorIndex(...)
         // below, and SearchSubsystemFactory.Services.chunkVectorIndex() (read by
         // DefaultContextRetrievalService) reuses it rather than building its own.
         // Default lucene-hnsw: true ANN (sub-linear queries), RAM-backed,
@@ -220,15 +220,18 @@ public final class SearchWiringHelper {
         // (not just inmemory, as before this fix) so SearchSubsystemFactory — which
         // runs later in WikiEngine.initialize() (buildSearchSubsystem(), after
         // wireHybridRetrieval inside initKnowledgeGraph()) — can resolve and reuse
-        // *this* instance via engine.getManager(ChunkVectorIndex.class) instead of
-        // constructing an orphaned second instance from the same
-        // wikantik.search.dense.backend property. That second instance never
-        // received the AsyncEmbeddingIndexListener upserts wired below, so it would
-        // silently go stale until restart — the sharing fix keeps both consumers
-        // (this method's HybridSearchService/bundle sources, and
-        // DefaultContextRetrievalService's ContributingChunkAssembler downstream of
+        // *this* instance via engine.getChunkVectorIndex() instead of constructing
+        // an orphaned second instance from the same wikantik.search.dense.backend
+        // property. That second instance never received the
+        // AsyncEmbeddingIndexListener upserts wired below, so it would silently go
+        // stale until restart — the sharing fix keeps both consumers (this method's
+        // HybridSearchService/bundle sources, and DefaultContextRetrievalService's
+        // ContributingChunkAssembler downstream of
         // SearchSubsystem.Services.chunkVectorIndex()) reading the same object.
-        engine.setManager( com.wikantik.search.hybrid.ChunkVectorIndex.class, vectorIndex );
+        // A typed field rather than the manager registry (getChunkVectorIndex/
+        // setChunkVectorIndex on WikiEngine) so SearchSubsystemFactory's read of it
+        // doesn't add a new engine.getManager() call site (see DecompositionArchTest).
+        engine.setChunkVectorIndex( vectorIndex );
 
         final AsyncEmbeddingIndexListener listener =
             new AsyncEmbeddingIndexListener( indexService, modelCode );

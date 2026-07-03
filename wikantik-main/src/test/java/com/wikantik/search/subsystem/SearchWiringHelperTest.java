@@ -33,7 +33,6 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -70,10 +69,10 @@ class SearchWiringHelperTest {
     //
     // SearchSubsystemFactory runs later in boot (WikiEngine.initialize():
     // buildSearchSubsystem(), AFTER initKnowledgeGraph() -> wireHybridRetrieval) and reads
-    // engine.getManager(ChunkVectorIndex.class) to avoid building its own, orphaned, second
-    // index instance. Before this fix, wireHybridRetrieval only registered that manager slot
-    // for the "inmemory" backend — pgvector/lucene-hnsw left it unregistered, so the factory
-    // always built (and the AsyncEmbeddingIndexListener upserts never reached) a second copy.
+    // engine.getChunkVectorIndex() to avoid building its own, orphaned, second index instance.
+    // Before this fix, wireHybridRetrieval only wired that typed slot for the "inmemory"
+    // backend — pgvector/lucene-hnsw left it unwired, so the factory always built (and the
+    // AsyncEmbeddingIndexListener upserts never reached) a second copy.
 
     @Test
     void wireHybridRetrieval_luceneHnswBackend_registersSharedChunkVectorIndex() throws SQLException {
@@ -91,9 +90,9 @@ class SearchWiringHelperTest {
             /*chunkRepo=*/ null, /*fmCache=*/ null, /*rebuildService=*/ null, engine );
 
         final ArgumentCaptor< ChunkVectorIndex > captor = ArgumentCaptor.forClass( ChunkVectorIndex.class );
-        verify( engine ).setManager( eq( ChunkVectorIndex.class ), captor.capture() );
+        verify( engine ).setChunkVectorIndex( captor.capture() );
         assertInstanceOf( LuceneHnswChunkVectorIndex.class, captor.getValue(),
-            "the lucene-hnsw backend must register its ChunkVectorIndex, same as inmemory always did" );
+            "the lucene-hnsw backend must wire its ChunkVectorIndex, same as inmemory always did" );
     }
 
     @Test
@@ -110,8 +109,8 @@ class SearchWiringHelperTest {
             /*chunkRepo=*/ null, /*fmCache=*/ null, /*rebuildService=*/ null, engine );
 
         final ArgumentCaptor< ChunkVectorIndex > captor = ArgumentCaptor.forClass( ChunkVectorIndex.class );
-        verify( engine ).setManager( eq( ChunkVectorIndex.class ), captor.capture() );
+        verify( engine ).setChunkVectorIndex( captor.capture() );
         assertInstanceOf( PgVectorChunkVectorIndex.class, captor.getValue(),
-            "the pgvector backend must register its ChunkVectorIndex, same as inmemory always did" );
+            "the pgvector backend must wire its ChunkVectorIndex, same as inmemory always did" );
     }
 }

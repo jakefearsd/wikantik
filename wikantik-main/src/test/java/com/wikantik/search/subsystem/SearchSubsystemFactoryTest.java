@@ -411,8 +411,8 @@ final class SearchSubsystemFactoryTest {
         // Regression: SearchWiringHelper.wireHybridRetrieval runs earlier in boot
         // (WikiEngine.initialize() -> initKnowledgeGraph() -> wireHybridRetrieval,
         // BEFORE buildSearchSubsystem() -> SearchSubsystemFactory.create()) and, once
-        // fixed, registers the single ChunkVectorIndex instance it built (and wired
-        // AsyncEmbeddingIndexListener upserts into) via engine.setManager(ChunkVectorIndex.class, ...)
+        // fixed, wires the single ChunkVectorIndex instance it built (and wired
+        // AsyncEmbeddingIndexListener upserts into) via engine.setChunkVectorIndex(...)
         // for every backend. The factory must reuse that exact instance rather than
         // constructing its own orphaned copy from the same wikantik.search.dense.backend
         // property — otherwise retrieve_context's dense fallback (fed by
@@ -425,7 +425,7 @@ final class SearchSubsystemFactoryTest {
         final DataSource dataSource = mock( DataSource.class );
         final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getWikiProperties() ).thenReturn( props );
-        when( engine.getManager( ChunkVectorIndex.class ) ).thenReturn( wired );
+        when( engine.getChunkVectorIndex() ).thenReturn( wired );
 
         final SearchSubsystem.Services services = SearchSubsystemFactory.create(
             new SearchSubsystem.Deps(

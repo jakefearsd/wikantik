@@ -96,7 +96,7 @@ public final class SearchSubsystemFactory {
         final GraphProximityScorer graphProximityScorer = engine.getManager( GraphProximityScorer.class );
 
         // Chunk vector index: reuse the single instance SearchWiringHelper.wireHybridRetrieval
-        // already built and registered (it runs earlier — inside initKnowledgeGraph(), before
+        // already built and wired (it runs earlier — inside initKnowledgeGraph(), before
         // buildSearchSubsystem() calls this factory — see WikiEngine.initialize()). Reusing it
         // is what keeps this Services.chunkVectorIndex() slot (read by
         // DefaultContextRetrievalService -> ContributingChunkAssembler, the retrieve_context
@@ -115,7 +115,10 @@ public final class SearchSubsystemFactory {
         final String backend = ( wikiProps != null
             ? wikiProps.getProperty( "wikantik.search.dense.backend", "inmemory" )
             : "inmemory" ).toLowerCase( Locale.ROOT );
-        final ChunkVectorIndex wiredChunkVectorIndex = engine.getManager( ChunkVectorIndex.class );
+        // Typed field read (engine.getChunkVectorIndex()), not the manager registry —
+        // satisfies the no-new-getManager-callers architecture rule (see
+        // WikiEngine.setChunkVectorIndex/getChunkVectorIndex).
+        final ChunkVectorIndex wiredChunkVectorIndex = engine.getChunkVectorIndex();
         final ChunkVectorIndex chunkVectorIndex;
         if ( wiredChunkVectorIndex != null ) {
             chunkVectorIndex = wiredChunkVectorIndex;

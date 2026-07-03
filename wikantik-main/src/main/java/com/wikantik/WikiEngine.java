@@ -1413,6 +1413,21 @@ public class WikiEngine implements Engine {
         return bundleSectionSources;
     }
 
+    /** The single canonical dense index, wired by {@code SearchWiringHelper} and read by
+     *  {@code SearchSubsystemFactory}. A typed field instead of the manager registry to
+     *  satisfy the no-new-getManager-callers architecture rule. */
+    private volatile com.wikantik.search.hybrid.ChunkVectorIndex chunkVectorIndex;
+
+    /** Called by {@code SearchWiringHelper} once the dense index backend has been constructed. */
+    public void setChunkVectorIndex( final com.wikantik.search.hybrid.ChunkVectorIndex index ) {
+        this.chunkVectorIndex = index;
+    }
+
+    /** The wired dense index, or {@code null} if it has not been wired yet. */
+    public com.wikantik.search.hybrid.ChunkVectorIndex getChunkVectorIndex() {
+        return chunkVectorIndex;
+    }
+
     /** Retrieval-query log; set at startup, read by the retrieval endpoints. Null when disabled
      *  or not yet wired (callers no-op). A plain field — carries no snapshot machinery. */
     private volatile com.wikantik.api.querylog.QueryLogService queryLogService;

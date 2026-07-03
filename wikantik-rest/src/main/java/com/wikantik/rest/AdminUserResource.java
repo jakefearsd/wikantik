@@ -439,7 +439,7 @@ public class AdminUserResource extends RestServletBase {
                     try {
                         loginInfo = profile != null ? profile.getLoginName() : "unknown";
                     } catch ( final Exception ex ) {
-                        // Swallow; loginInfo stays "unknown"
+                        LOG.warn( "Could not resolve login name of unmappable profile: {}", ex.getMessage() );
                     }
                     LOG.warn( "Failed to map profile for login={}: {}", loginInfo, e.getMessage(), e );
                     // Continue with next profile; skip this one

@@ -6,6 +6,35 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Ontology snapshots are now cached.** `/sparql`, the `sparql_query` MCP tool, ontology-aware
+  query expansion, and the RDF export no longer rebuild the full corpus-wide RDFS materialization
+  per call; `OntologyModelManager` caches the inference/union snapshots and invalidates on write,
+  guarded by a write-generation counter against concurrent-build races.
+- **Default dense retrieval backend is now `lucene-hnsw`** (was `inmemory`). True ANN with
+  incremental upserts replaces the O(corpus) brute-force scan per query; `inmemory` remains
+  available for dev/small corpora. One canonical `ChunkVectorIndex` instance is now shared by the
+  hybrid search wiring and `retrieve_context`'s dense path (previously two full index builds per
+  boot, one silently stale).
+- **SSR `/wiki/*` responses are now revalidatable.** `private, no-cache` + weak ETag (shell
+  fingerprint, page version, mtime) replaces `no-store`; repeat navigations get 304s that skip the
+  body read, render, and injection entirely. Frontmatter is parsed once per SSR request (was 2-3×).
+
+### Fixed
+- **`PermissionFactory` could return the wrong page's permission on a hashcode collision** (the
+  long-standing XOR-key FIXME). Replaced the `synchronized(WeakHashMap)` — a process-global lock
+  taken on every permission check — with a bounded Caffeine cache keyed by a value record.
+- **Bulk viewability filtering no longer re-reads page bodies.** `DefaultAclManager` caches parsed
+  ACLs keyed by (name, version, mtime), and `/api/pages` uses a batch filter with a one-time
+  blanket-grant fast path — ACL-less pages skip per-page policy evaluation entirely; response
+  semantics (`total` over the viewable set, restricted names hidden) unchanged.
+- **`GET /admin/users` N+1 query storm.** One `SELECT` via the new `UserDatabase.findAllProfiles()`
+  replaces 1+N pool checkouts; a single unmappable profile no longer fails the whole response.
+- **Rendering no longer builds throwaway flexmark machinery.** `MarkdownRenderer` stops
+  instantiating a full discarded `MarkdownParser` per render; the six stateless stock flexmark
+  extensions are shared statics; `InMemoryChunkVectorIndex.upsertChunks` drops from ~3 corpus
+  copies per save to 1.
+
 ## [2.3.0] - 2026-07-03
 
 ### Added

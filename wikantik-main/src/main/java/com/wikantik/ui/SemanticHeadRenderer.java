@@ -20,13 +20,8 @@ package com.wikantik.ui;
 
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
-import com.wikantik.ontology.Iris;
-import java.util.Locale;
 
-import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.List;
-import java.util.TimeZone;
 
 /**
  * Builds the semantic-web {@code <head>} fragment for a wiki page: meta
@@ -87,80 +82,24 @@ public final class SemanticHeadRenderer {
 
         final StringBuilder sb = new StringBuilder( 2048 );
 
-        sb.append( "<title>" ).append( escAttr( model.documentTitle() ) ).append( "</title>" ).append( NL );
-
-        sb.append( "<link rel=\"canonical\" href=\"" ).append( escAttr( model.canonical() ) ).append( "\" />" ).append( NL );
-
-        sb.append( "<meta name=\"description\" content=\"" )
-          .append( escAttr( model.effectiveDescription() ) ).append( "\" />" ).append( NL );
-
-        if ( !model.effectiveKeywords().isBlank() ) {
-            sb.append( "<meta name=\"keywords\" content=\"" )
-              .append( escAttr( model.effectiveKeywords() ) ).append( "\" />" ).append( NL );
-        }
-
-        // meta robots — lift Google snippet/preview caps (does NOT noindex)
-        sb.append( "<meta name=\"robots\" content=\"max-image-preview:large, max-snippet:-1, max-video-preview:-1\" />" ).append( NL );
-
-        // Open Graph
-        sb.append( "<meta property=\"og:title\" content=\"" )
-          .append( escAttr( model.documentTitle() ) ).append( "\" />" ).append( NL );
-        sb.append( "<meta property=\"og:type\" content=\"article\" />" ).append( NL );
-        sb.append( "<meta property=\"og:url\" content=\"" ).append( escAttr( model.canonical() ) ).append( "\" />" ).append( NL );
-        sb.append( "<meta property=\"og:description\" content=\"" )
-          .append( escAttr( model.effectiveDescription() ) ).append( "\" />" ).append( NL );
-        sb.append( "<meta property=\"og:site_name\" content=\"" )
-          .append( escAttr( model.safeAppName() ) ).append( "\" />" ).append( NL );
-        sb.append( "<meta property=\"og:image\" content=\"" )
-          .append( escAttr( model.imageUrl() ) ).append( "\" />" ).append( NL );
-        if ( !model.hasCustomImage() ) {
-            sb.append( "<meta property=\"og:image:width\" content=\"1200\" />" ).append( NL );
-            sb.append( "<meta property=\"og:image:height\" content=\"630\" />" ).append( NL );
-        }
-
-        // article:tag per tag
-        for ( final String tag : model.tags() ) {
-            sb.append( "<meta property=\"article:tag\" content=\"" )
-              .append( escAttr( tag ) ).append( "\" />" ).append( NL );
-        }
-
-        // Twitter Card
-        sb.append( "<meta name=\"twitter:card\" content=\"summary_large_image\" />" ).append( NL );
-        sb.append( "<meta name=\"twitter:title\" content=\"" )
-          .append( escAttr( model.documentTitle() ) ).append( "\" />" ).append( NL );
-        sb.append( "<meta name=\"twitter:description\" content=\"" )
-          .append( escAttr( model.effectiveDescription() ) ).append( "\" />" ).append( NL );
-        sb.append( "<meta name=\"twitter:image\" content=\"" )
-          .append( escAttr( model.imageUrl() ) ).append( "\" />" ).append( NL );
-
-        // Atom feed autodiscovery — global and (optionally) cluster-filtered
-        sb.append( "<link rel=\"alternate\" type=\"application/atom+xml\" title=\"" )
-          .append( escAttr( model.safeAppName() + " - Recent Articles" ) ).append( "\" href=\"" )
-          .append( escAttr( model.safeBaseUrl() + "/feed.xml" ) ).append( "\" />" ).append( NL );
-        if ( !model.cluster().isBlank() ) {
-            sb.append( "<link rel=\"alternate\" type=\"application/atom+xml\" title=\"" )
-              .append( escAttr( model.safeAppName() + " - " + model.cluster() + " Articles" ) ).append( "\" href=\"" )
-              .append( escAttr( model.safeBaseUrl() + "/feed.xml?cluster=" + model.cluster() ) ).append( "\" />" ).append( NL );
-        }
+        HeadTagWriter.write( sb, model );
 
         // Main JSON-LD
         sb.append( "<script type=\"application/ld+json\">" ).append( NL );
-        sb.append( buildMainJsonLd( model.safePageName(), model.safeAppName(), model.canonical(), model.safeBaseUrl(),
-                model.effectiveDescription(), model.effectiveKeywords(), model.pageDate(), model.modified(),
-                model.cluster(), model.isHub(), model.related(), model.schemaType(), model.canonicalId() ) );
+        sb.append( JsonLdEmitter.buildMainJsonLd( model ) );
         sb.append( NL ).append( "</script>" ).append( NL );
 
         // BreadcrumbList for clustered non-hub pages
         if ( !model.cluster().isBlank() && !model.isHub() ) {
             sb.append( "<script type=\"application/ld+json\">" ).append( NL );
-            sb.append( buildBreadcrumbJsonLd( model.safePageName(), model.safeBaseUrl(), model.canonical(), model.cluster() ) );
+            sb.append( JsonLdEmitter.buildBreadcrumbJsonLd( model.safePageName(), model.safeBaseUrl(), model.canonical(), model.cluster() ) );
             sb.append( NL ).append( "</script>" ).append( NL );
         }
 
         // WebSite + SearchAction — homepage only
         if ( "Main".equals( model.safePageName() ) ) {
             sb.append( "<script type=\"application/ld+json\">" ).append( NL );
-            sb.append( buildWebSiteJsonLd( model.safeBaseUrl() ) );
+            sb.append( JsonLdEmitter.buildWebSiteJsonLd( model.safeBaseUrl() ) );
             sb.append( NL ).append( "</script>" ).append( NL );
         }
 
@@ -215,123 +154,14 @@ public final class SemanticHeadRenderer {
         return out.toString();
     }
 
-    // -------- JSON-LD builders --------
-
-    private static String buildMainJsonLd( final String pageName, final String appName,
-                                            final String canonical, final String baseUrl,
-                                            final String description, final String keywords,
-                                            final String datePublished, final Date modified,
-                                            final String cluster, final boolean isHub,
-                                            final List< String > related,
-                                            final String schemaType, final String canonicalId ) {
-        final StringBuilder sb = new StringBuilder( 512 );
-        sb.append( '{' );
-        sb.append( "\"@context\":\"https://schema.org\"," );
-        if ( isHub ) {
-            sb.append( "\"@type\":" ).append( jsonStr( schemaType ) ).append(',');
-            sb.append( "\"name\":" ).append( jsonStr( pageName ) ).append(',');
-            if ( !related.isEmpty() ) {
-                sb.append( "\"hasPart\":[" );
-                for ( int i = 0; i < related.size(); i++ ) {
-                    final String rel = related.get( i );
-                    if ( i > 0 ) {
-                        sb.append( ',' );
-                    }
-                    sb.append( '{' );
-                    sb.append( "\"@type\":\"Article\"," );
-                    sb.append( "\"name\":" ).append( jsonStr( rel ) ).append(',');
-                    sb.append( "\"url\":" ).append( jsonStr( baseUrl + "/wiki/" + rel ) );
-                    sb.append( '}' );
-                }
-                sb.append( "]," );
-            }
-        } else {
-            sb.append( "\"@type\":" ).append( jsonStr( schemaType ) ).append(',');
-        }
-        sb.append( "\"headline\":" ).append( jsonStr( pageName ) ).append(',');
-        if ( !description.isBlank() ) {
-            sb.append( "\"description\":" ).append( jsonStr( description ) ).append(',');
-        }
-        if ( !keywords.isBlank() ) {
-            sb.append( "\"keywords\":" ).append( jsonStr( keywords ) ).append(',');
-        }
-        if ( !datePublished.isBlank() ) {
-            sb.append( "\"datePublished\":" ).append( jsonStr( datePublished ) ).append(',');
-        }
-        if ( modified != null ) {
-            final SimpleDateFormat modFmt = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ROOT );
-            modFmt.setTimeZone( TimeZone.getTimeZone( "UTC" ) );
-            sb.append( "\"dateModified\":" ).append( jsonStr( modFmt.format( modified ) ) ).append(',');
-        }
-        if ( !cluster.isBlank() ) {
-            sb.append( "\"articleSection\":" ).append( jsonStr( cluster ) ).append(',');
-        }
-        sb.append( "\"publisher\":{\"@type\":\"Organization\",\"name\":" )
-          .append( jsonStr( appName ) ).append( ",\"url\":" ).append( jsonStr( baseUrl + "/" ) )
-          .append( ",\"logo\":{\"@type\":\"ImageObject\",\"url\":" )
-          .append( jsonStr( baseUrl + "/og-default.png" ) ).append( "}}," );
-        sb.append( "\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":" )
-          .append( jsonStr( canonical ) ).append('}');
-        if ( !isHub && !cluster.isBlank() ) {
-            sb.append( ",\"isPartOf\":{\"@type\":\"CollectionPage\",\"name\":" )
-              .append( jsonStr( cluster ) ).append('}');
-        }
-        if ( !isHub && !related.isEmpty() ) {
-            sb.append( ",\"relatedLink\":[" );
-            for ( int i = 0; i < related.size(); i++ ) {
-                if ( i > 0 ) {
-                    sb.append( ',' );
-                }
-                sb.append( jsonStr( baseUrl + "/wiki/" + related.get( i ) ) );
-            }
-            sb.append( ']' );
-        }
-        // Additive: link the schema.org entity to its dereferenceable RDF resource (Phase 6).
-        if ( canonicalId != null && !canonicalId.isBlank() ) {
-            sb.append( ",\"sameAs\":" ).append( jsonStr( Iris.page( canonicalId ) ) );
-        }
-        sb.append( '}' );
-        return sb.toString();
-    }
-
-    private static String buildBreadcrumbJsonLd( final String pageName, final String baseUrl,
-                                                   final String canonical, final String cluster ) {
-        final StringBuilder sb = new StringBuilder( 256 );
-        sb.append( '{' );
-        sb.append( "\"@context\":\"https://schema.org\"," );
-        sb.append( "\"@type\":\"BreadcrumbList\"," );
-        sb.append( "\"itemListElement\":[" );
-        sb.append( "{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":" )
-          .append( jsonStr( baseUrl + "/" ) ).append( "}," );
-        sb.append( "{\"@type\":\"ListItem\",\"position\":2,\"name\":" )
-          .append( jsonStr( cluster ) ).append( ",\"item\":" )
-          .append( jsonStr( baseUrl + "/wiki/" + cluster ) ).append( "}," );
-        sb.append( "{\"@type\":\"ListItem\",\"position\":3,\"name\":" )
-          .append( jsonStr( pageName ) ).append( ",\"item\":" )
-          .append( jsonStr( canonical ) ).append('}');
-        sb.append( "]}" );
-        return sb.toString();
-    }
-
-    private static String buildWebSiteJsonLd( final String baseUrl ) {
-        final StringBuilder sb = new StringBuilder( 256 );
-        sb.append( '{' );
-        sb.append( "\"@context\":\"https://schema.org\"," );
-        sb.append( "\"@type\":\"WebSite\"," );
-        sb.append( "\"url\":" ).append( jsonStr( baseUrl + "/" ) ).append( ',' );
-        sb.append( "\"potentialAction\":{" );
-        sb.append( "\"@type\":\"SearchAction\"," );
-        sb.append( "\"target\":{\"@type\":\"EntryPoint\",\"urlTemplate\":" )
-          .append( jsonStr( baseUrl + "/search?q={search_term_string}" ) ).append( "}," );
-        sb.append( "\"query-input\":\"required name=search_term_string\"" );
-        sb.append( "}}" );
-        return sb.toString();
-    }
-
     // -------- escaping --------
 
-    /** Minimal HTML attribute-value escaping: {@code & < > " '}. */
-    private static String escAttr( final String s ) {
+    /**
+     * Minimal HTML attribute-value escaping: {@code & < > " '}. Package-private —
+     * shared between this class's {@link #renderBodyFragment} and
+     * {@link HeadTagWriter}'s head-tag emission.
+     */
+    static String escAttr( final String s ) {
         if ( s == null || s.isEmpty() ) {
             return "";
         }
@@ -347,35 +177,6 @@ public final class SemanticHeadRenderer {
                 default -> out.append( c );
             }
         }
-        return out.toString();
-    }
-
-    /** JSON string literal with quotes. Escapes backslash, quote, and control chars. */
-    private static String jsonStr( final String s ) {
-        if ( s == null ) {
-            return "\"\"";
-        }
-        final StringBuilder out = new StringBuilder( s.length() + 16 );
-        out.append( '"' );
-        for ( int i = 0; i < s.length(); i++ ) {
-            final char c = s.charAt( i );
-            switch ( c ) {
-                case '\\' -> out.append( "\\\\" );
-                case '"' -> out.append( "\\\"" );
-                case '\n' -> out.append( "\\n" );
-                case '\r' -> out.append( "\\r" );
-                case '\t' -> out.append( "\\t" );
-                case '/' -> out.append( "\\/" );
-                default -> {
-                    if ( c < 0x20 ) {
-                        out.append( String.format( "\\u%04x", ( int ) c ) );
-                    } else {
-                        out.append( c );
-                    }
-                }
-            }
-        }
-        out.append( '"' );
         return out.toString();
     }
 }

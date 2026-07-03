@@ -223,6 +223,11 @@ public final class OntologyModelManager {
                     postBuildTestHook.run();
                     if ( writeGeneration.get() == gen ) {
                         cachedInferenceSnapshot = snap;
+                        // Writer increments then nulls; whichever of (reader's re-check, writer's null)
+                        // runs last clears the stale entry — the check-then-act window is closed.
+                        if ( writeGeneration.get() != gen ) {
+                            cachedInferenceSnapshot = null;   // a write landed during publish; drop it
+                        }
                     }
                 }
             }
@@ -245,6 +250,11 @@ public final class OntologyModelManager {
                     postBuildTestHook.run();
                     if ( writeGeneration.get() == gen ) {
                         cachedUnionSnapshot = snap;
+                        // Writer increments then nulls; whichever of (reader's re-check, writer's null)
+                        // runs last clears the stale entry — the check-then-act window is closed.
+                        if ( writeGeneration.get() != gen ) {
+                            cachedUnionSnapshot = null;   // a write landed during publish; drop it
+                        }
                     }
                 }
             }

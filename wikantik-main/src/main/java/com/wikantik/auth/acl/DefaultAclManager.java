@@ -18,6 +18,8 @@
  */
 package com.wikantik.auth.acl;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.vladsch.flexmark.ast.Code;
@@ -96,6 +98,12 @@ public class DefaultAclManager implements AclManager {
      */
     private static final Parser CODE_REGION_PARSER = Parser.builder().build();
 
+    /** Parsed-ACL cache surviving Page-instance churn. Keyed by page name; entry valid only for a matching (version, lastModified). */
+    private record CachedAcl( int version, long lastModified, Acl acl ) {}
+
+    private final Cache< String, CachedAcl > aclCache =
+        Caffeine.newBuilder().maximumSize( 20_000 ).build();
+
     /** {@inheritDoc} */
     @Override
     public void initialize( final Engine engine, final Properties props ) {
@@ -153,19 +161,30 @@ public class DefaultAclManager implements AclManager {
         //  Does the page already have cached ACLs?
         Acl acl = page.getAcl();
         LOG.debug( "page={}\n{}", page.getName(), acl );
-
-        if( acl == null ) {
-            //  If null, try the parent.
-            if( page instanceof Attachment att ) {
-                final Page parent = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( att.getParentName() );
-                acl = getPermissions(parent);
-            } else {
-                //  Extract ACLs directly from page text using regex - much faster than full page render
-                acl = extractAclFromPageText( page );
-                page.setAcl( acl );
-            }
+        if( acl != null ) {
+            return acl;
         }
 
+        //  If null, try the parent.
+        if( page instanceof Attachment att ) {
+            final Page parent = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( att.getParentName() );
+            return getPermissions( parent );
+        }
+
+        //  Parsed-ACL cache keyed by (name, version, lastModified) survives the Page-instance
+        //  churn caused by the 60s page-cache TTL, so bulk viewability filtering doesn't have
+        //  to re-read and re-scan every page body on every cache recycle.
+        final long lastModified = page.getLastModified() == null ? 0L : page.getLastModified().getTime();
+        final CachedAcl hit = aclCache.getIfPresent( page.getName() );
+        if( hit != null && hit.version() == page.getVersion() && hit.lastModified() == lastModified ) {
+            page.setAcl( hit.acl() );
+            return hit.acl();
+        }
+
+        //  Extract ACLs directly from page text using regex - much faster than full page render
+        acl = extractAclFromPageText( page );
+        page.setAcl( acl );
+        aclCache.put( page.getName(), new CachedAcl( page.getVersion(), lastModified, acl ) );
         return acl;
     }
 

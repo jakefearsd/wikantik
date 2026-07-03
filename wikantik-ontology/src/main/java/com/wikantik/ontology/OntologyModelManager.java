@@ -45,8 +45,23 @@ public final class OntologyModelManager {
 
     private final Dataset dataset;
 
+    /**
+     * Cached detached snapshots, invalidated by every successful write
+     * ({@link #loadTBox}, {@link #replaceNamedGraph}, {@link #removeNamedGraph},
+     * {@link #clearAbox}). Callers receive a SHARED model and must treat it as
+     * read-only; all production callers only run read queries against it.
+     */
+    private volatile Model cachedInferenceSnapshot;
+    private volatile Model cachedUnionSnapshot;
+    private final Object snapshotBuildLock = new Object();
+
     private OntologyModelManager( final Dataset dataset ) {
         this.dataset = dataset;
+    }
+
+    private void invalidateSnapshots() {
+        cachedInferenceSnapshot = null;
+        cachedUnionSnapshot = null;
     }
 
     /** In-memory transactional dataset (tests). */
@@ -70,6 +85,7 @@ public final class OntologyModelManager {
             def.removeAll();
             RDFDataMgr.read( def, in, Lang.TURTLE );
             dataset.commit();
+            invalidateSnapshots();
         } catch ( final Exception e ) {
             dataset.abort();
             LOG.warn( "failed loading T-Box {}: {}", TBOX_RESOURCE, e.getMessage(), e );
@@ -85,6 +101,7 @@ public final class OntologyModelManager {
         try {
             dataset.replaceNamedModel( graphIri, triples );
             dataset.commit();
+            invalidateSnapshots();
         } catch ( final RuntimeException e ) {
             dataset.abort();
             LOG.warn( "replaceNamedGraph failed for {}: {}", graphIri, e.getMessage(), e );
@@ -100,6 +117,7 @@ public final class OntologyModelManager {
         try {
             dataset.removeNamedModel( graphIri );
             dataset.commit();
+            invalidateSnapshots();
         } catch ( final RuntimeException e ) {
             dataset.abort();
             LOG.warn( "removeNamedGraph failed for {}: {}", graphIri, e.getMessage(), e );
@@ -145,6 +163,7 @@ public final class OntologyModelManager {
                 dataset.removeNamedModel( name );
             }
             dataset.commit();
+            invalidateSnapshots();
         } catch ( final RuntimeException e ) {
             dataset.abort();
             throw e;
@@ -165,9 +184,39 @@ public final class OntologyModelManager {
 
     /**
      * Detached RDFS inference model over (T-Box default graph union all named graphs).
-     * Sized for the current corpus; callers query it outside any transaction.
+     * Cached until the next write; the returned model is shared across callers and
+     * MUST be treated as read-only.
      */
     public Model inferenceSnapshot() {
+        Model snap = cachedInferenceSnapshot;
+        if ( snap == null ) {
+            synchronized ( snapshotBuildLock ) {
+                snap = cachedInferenceSnapshot;
+                if ( snap == null ) {
+                    snap = buildInferenceSnapshot();
+                    cachedInferenceSnapshot = snap;
+                }
+            }
+        }
+        return snap;
+    }
+
+    /** Detached union of the T-Box + all named graphs — NO inference. Cached; read-only. */
+    public Model unionSnapshot() {
+        Model snap = cachedUnionSnapshot;
+        if ( snap == null ) {
+            synchronized ( snapshotBuildLock ) {
+                snap = cachedUnionSnapshot;
+                if ( snap == null ) {
+                    snap = buildUnionSnapshot();
+                    cachedUnionSnapshot = snap;
+                }
+            }
+        }
+        return snap;
+    }
+
+    private Model buildInferenceSnapshot() {
         dataset.begin( ReadWrite.READ );
         try {
             final Model union = ModelFactory.createDefaultModel();
@@ -182,8 +231,7 @@ public final class OntologyModelManager {
         }
     }
 
-    /** Detached union of the T-Box (default graph) + all named graphs — NO inference. For dumps/SPARQL base. */
-    public Model unionSnapshot() {
+    private Model buildUnionSnapshot() {
         dataset.begin( ReadWrite.READ );
         try {
             final Model union = ModelFactory.createDefaultModel();

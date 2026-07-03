@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.wikantik.it</groupId>
     <artifactId>wikantik-it-tests</artifactId>
-    <version>2.3.1-SNAPSHOT</version>
+    <version>2.3.1</version>
   </parent>
 
   <artifactId>wikantik-it-test-rest</artifactId>

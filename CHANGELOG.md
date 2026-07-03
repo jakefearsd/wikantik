@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-07-03
+
 ### Changed
 - **Ontology snapshots are now cached.** `/sparql`, the `sparql_query` MCP tool, ontology-aware
   query expansion, and the RDF export no longer rebuild the full corpus-wide RDFS materialization

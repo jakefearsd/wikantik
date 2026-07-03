@@ -700,6 +700,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      * <p>Rows with a null/empty {@code wiki_name} are skipped, mirroring
      * {@link #getWikiNames()}'s filtering, so this stays behaviorally
      * equivalent to the enumerate-then-refetch default it replaces.
+     * Duplicate {@code wiki_name} values are impossible via the V015 UNIQUE constraint.
      */
     @Override
     public Collection< UserProfile > findAllProfiles() throws WikiSecurityException {

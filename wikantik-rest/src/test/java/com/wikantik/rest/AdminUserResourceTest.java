@@ -39,6 +39,8 @@ import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.Date;
+import java.util.List;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -619,6 +621,60 @@ class AdminUserResourceTest {
             }
         }
         assertTrue( found, "listFieldsUser should appear in user list" );
+    }
+
+    @Test
+    void testListUsersHandlesProfileMappingFailureIsolation() throws Exception {
+        // Create a good user that should appear in the list
+        final JsonObject createBody = new JsonObject();
+        createBody.addProperty( "loginName", "goodUserAfterBadOne" );
+        createBody.addProperty( "fullName", "Good User" );
+        createBody.addProperty( "password", "StrongPassword123!" );
+        doPost( null, createBody );
+
+        // Spy on the servlet to mock the user database and make the first profile throw
+        final AdminUserResource spy = Mockito.spy( servlet );
+        final com.wikantik.auth.user.UserDatabase userDbMock = Mockito.mock( com.wikantik.auth.user.UserDatabase.class );
+        Mockito.doReturn( userDbMock ).when( spy ).getUserDatabase();
+
+        // Create two profiles: first throws on getLoginName(), second is normal
+        final com.wikantik.auth.user.UserProfile badProfile = Mockito.mock( com.wikantik.auth.user.UserProfile.class );
+        Mockito.doThrow( new RuntimeException( "Simulated profile mapping failure" ) )
+                .when( badProfile ).getLoginName();
+
+        final com.wikantik.auth.user.UserProfile goodProfile = Mockito.mock( com.wikantik.auth.user.UserProfile.class );
+        Mockito.doReturn( "goodProfileFromMock" ).when( goodProfile ).getLoginName();
+        Mockito.doReturn( "Good Profile User" ).when( goodProfile ).getFullname();
+        Mockito.doReturn( "goodprofile@test.com" ).when( goodProfile ).getEmail();
+        Mockito.doReturn( null ).when( goodProfile ).getBio();
+        Mockito.doReturn( "GoodProfileWikiName" ).when( goodProfile ).getWikiName();
+        Mockito.doReturn( new Date( System.currentTimeMillis() - 86400000L ) ).when( goodProfile ).getCreated();
+        Mockito.doReturn( new Date( System.currentTimeMillis() - 3600000L ) ).when( goodProfile ).getLastModified();
+        Mockito.doReturn( null ).when( goodProfile ).getLastLogin();
+        Mockito.doReturn( null ).when( goodProfile ).getLockExpiry();
+        Mockito.doReturn( false ).when( goodProfile ).isPasswordMustChange();
+
+        Mockito.doReturn( List.of( badProfile, goodProfile ) ).when( userDbMock ).findAllProfiles();
+
+        // Execute the GET /admin/users request
+        final HttpServletRequest request = createRequest( null );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        spy.doGet( request, response );
+
+        // Parse the response — it should succeed (not 500)
+        final String json = sw.toString();
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Response should succeed even with one bad profile; got: " + json );
+        assertTrue( obj.has( "users" ), "Response should contain users array" );
+        final JsonArray users = obj.getAsJsonArray( "users" );
+
+        // The bad profile should be skipped (isolated failure), the good one should appear
+        assertEquals( 1, users.size(), "Should contain only the good profile; bad one should be skipped" );
+        assertEquals( "goodProfileFromMock", users.get( 0 ).getAsJsonObject().get( "loginName" ).getAsString() );
     }
 
     @Test

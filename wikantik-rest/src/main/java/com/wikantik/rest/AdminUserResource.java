@@ -432,7 +432,18 @@ public class AdminUserResource extends RestServletBase {
             final UserDatabase db = getUserDatabase();
             final List< Map< String, Object > > users = new ArrayList<>();
             for ( final UserProfile profile : db.findAllProfiles() ) {
-                users.add( profileToMap( profile ) );
+                try {
+                    users.add( profileToMap( profile ) );
+                } catch ( final Exception e ) {
+                    String loginInfo = "unknown";
+                    try {
+                        loginInfo = profile != null ? profile.getLoginName() : "unknown";
+                    } catch ( final Exception ex ) {
+                        // Swallow; loginInfo stays "unknown"
+                    }
+                    LOG.warn( "Failed to map profile for login={}: {}", loginInfo, e.getMessage(), e );
+                    // Continue with next profile; skip this one
+                }
             }
             users.sort( Comparator.comparing( m -> String.valueOf( m.get( "loginName" ) ) ) );
             sendJson( response, Map.of( "users", users ) );

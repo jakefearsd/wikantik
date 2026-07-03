@@ -42,9 +42,20 @@ public final class PermissionFactory
      * Replaces the legacy synchronized(WeakHashMap) keyed by XOR'd hashcodes,
      * which (a) took a process-global monitor on every permission check and
      * (b) could return the wrong permission on a hashcode collision.
+     * Keyed by a value-based {@link CacheKey} record (not a delimiter-joined
+     * String) so a wiki/page boundary such as ("My Wiki","Test") can never
+     * collide with ("My","Wiki Test").
      */
-    private static final Cache< String, PagePermission > CACHE =
+    private static final Cache< CacheKey, PagePermission > CACHE =
         Caffeine.newBuilder().maximumSize( 50_000 ).build();
+
+    /**
+     * Composite cache key. Using a record of the three distinct fields instead of a
+     * separator-joined String eliminates boundary ambiguity: no single delimiter can be chosen
+     * that never appears in a wiki or page name, so any String-concatenation key is inherently
+     * collision-prone.
+     */
+    private record CacheKey( String wiki, String page, String actions ) {}
 
     /**
      *  Get a permission object for a WikiPage and a set of actions.
@@ -78,10 +89,9 @@ public final class PermissionFactory
      *  @param actions A list of actions.
      *  @return A PagePermission object.
      */
-    private static PagePermission getPagePermission( final String wiki, String page, final String actions )
+    private static PagePermission getPagePermission( final String wiki, final String page, final String actions )
     {
-        final String key = wiki + ' ' + page + ' ' + actions;
-        return CACHE.get( key, k -> {
+        return CACHE.get( new CacheKey( wiki, page, actions ), k -> {
             final String qualified = wiki.isEmpty() ? page : wiki + ":" + page;
             return new PagePermission( qualified, actions );
         } );

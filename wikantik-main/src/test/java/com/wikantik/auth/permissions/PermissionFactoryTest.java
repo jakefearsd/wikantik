@@ -18,10 +18,14 @@
  */
 package com.wikantik.auth.permissions;
 
+import com.wikantik.api.core.Page;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class PermissionFactoryTest {
 
@@ -45,5 +49,31 @@ class PermissionFactoryTest {
     void sameKeyReturnsCachedInstance() {
         assertSame( PermissionFactory.getPagePermission( "PermissionFactoryTestPage", "view" ),
                     PermissionFactory.getPagePermission( "PermissionFactoryTestPage", "view" ) );
+    }
+
+    /**
+     * The space-joined cache key ("wiki + ' ' + page + ' ' + actions") is ambiguous at the
+     * wiki/page boundary: wiki="My Wiki", page="Test" and wiki="My", page="Wiki Test" both
+     * produce the key "My Wiki Test view" — the second lookup wrongly returns the first
+     * page's cached PagePermission, the same wrong-permission bug class the Caffeine
+     * migration (commit fdf52398f1) was meant to eliminate.
+     */
+    @Test
+    void wikiPageBoundaryIsUnambiguous() {
+        final Page p1 = mock( Page.class );
+        when( p1.getWiki() ).thenReturn( "My Wiki" );
+        when( p1.getName() ).thenReturn( "Test" );
+        final Page p2 = mock( Page.class );
+        when( p2.getWiki() ).thenReturn( "My" );
+        when( p2.getName() ).thenReturn( "Wiki Test" );
+
+        final PagePermission a = PermissionFactory.getPagePermission( p1, "view" );
+        final PagePermission b = PermissionFactory.getPagePermission( p2, "view" );
+
+        assertNotSame( a, b );
+        assertEquals( "My Wiki", a.getWiki() );
+        assertEquals( "Test", a.getPage() );
+        assertEquals( "My", b.getWiki() );
+        assertEquals( "Wiki Test", b.getPage() );
     }
 }

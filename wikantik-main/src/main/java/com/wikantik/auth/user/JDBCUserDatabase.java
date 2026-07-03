@@ -42,8 +42,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -638,35 +641,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                         unique = false;
                         break;
                     }
-                    profile = newProfile();
-                    
-                    // Fetch the basic user attributes
-                    profile.setUid( rs.getString( "uid" ) );
-                    if ( profile.getUid() == null ) {
-                        profile.setUid( generateUid( this ) );
-                    }
-                    profile.setCreated( rs.getTimestamp( "created" ) );
-                    profile.setEmail( rs.getString( "email" ) );
-                    profile.setFullname( rs.getString( "full_name" ) );
-                    profile.setLastModified( rs.getTimestamp( "modified" ) );
-                    profile.setLastLogin( rs.getTimestamp( "last_login" ) );
-                    final Date lockExpiryDate = rs.getDate( "lock_expiry" );
-                    profile.setLockExpiry( rs.wasNull() ? null : lockExpiryDate );
-                    profile.setLoginName( rs.getString( "login_name" ) );
-                    profile.setPassword( rs.getString( "password" ) );
-                    profile.setBio( rs.getString( "bio" ) );
-                    profile.setPasswordMustChange( rs.getBoolean( "password_must_change" ) );
-
-                    // Fetch the user attributes
-                    final String rawAttributes = rs.getString( "attributes" );
-                    if ( rawAttributes != null ) {
-                        try {
-                            final Map<String,? extends Serializable> userAttributes = Serializer.deserializeFromBase64( rawAttributes );
-                            profile.getAttributes().putAll( userAttributes );
-                        } catch ( final IOException e ) {
-                            LOG.error( "Could not parse user profile attributes!", e );
-                        }
-                    }
+                    profile = mapProfileRow( rs );
                     found = true;
                 }
             }
@@ -681,6 +656,69 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             throw new NoSuchPrincipalException( "More than one profile in database!" );
         }
         return profile;
+    }
+
+    /** Maps the current row of {@code rs} onto a freshly-created {@link UserProfile}. */
+    private UserProfile mapProfileRow( final ResultSet rs ) throws SQLException {
+        final UserProfile profile = newProfile();
+
+        // Fetch the basic user attributes
+        profile.setUid( rs.getString( "uid" ) );
+        if ( profile.getUid() == null ) {
+            profile.setUid( generateUid( this ) );
+        }
+        profile.setCreated( rs.getTimestamp( "created" ) );
+        profile.setEmail( rs.getString( "email" ) );
+        profile.setFullname( rs.getString( "full_name" ) );
+        profile.setLastModified( rs.getTimestamp( "modified" ) );
+        profile.setLastLogin( rs.getTimestamp( "last_login" ) );
+        final Date lockExpiryDate = rs.getDate( "lock_expiry" );
+        profile.setLockExpiry( rs.wasNull() ? null : lockExpiryDate );
+        profile.setLoginName( rs.getString( "login_name" ) );
+        profile.setPassword( rs.getString( "password" ) );
+        profile.setBio( rs.getString( "bio" ) );
+        profile.setPasswordMustChange( rs.getBoolean( "password_must_change" ) );
+
+        // Fetch the user attributes
+        final String rawAttributes = rs.getString( "attributes" );
+        if ( rawAttributes != null ) {
+            try {
+                final Map<String,? extends Serializable> userAttributes = Serializer.deserializeFromBase64( rawAttributes );
+                profile.getAttributes().putAll( userAttributes );
+            } catch ( final IOException e ) {
+                LOG.error( "Could not parse user profile attributes!", e );
+            }
+        }
+        return profile;
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>Overrides the interface default with a single {@code SELECT * FROM users}
+     * pass — the default's enumerate-then-refetch pattern costs 1+N pool
+     * checkouts on every admin user-list view.
+     * <p>Rows with a null/empty {@code wiki_name} are skipped, mirroring
+     * {@link #getWikiNames()}'s filtering, so this stays behaviorally
+     * equivalent to the enumerate-then-refetch default it replaces.
+     */
+    @Override
+    public Collection< UserProfile > findAllProfiles() throws WikiSecurityException {
+        final List< UserProfile > profiles = new ArrayList<>();
+        try ( Connection conn = ds.getConnection();
+              PreparedStatement ps = conn.prepareStatement( FIND_ALL );
+              ResultSet rs = ps.executeQuery() ) {
+            while ( rs.next() ) {
+                final String wikiNameValue = rs.getString( "wiki_name" );
+                if ( StringUtils.isEmpty( wikiNameValue ) ) {
+                    LOG.warn( "Detected null or empty wiki name for {} in JDBCUserDataBase. Check your user database.", rs.getString( "login_name" ) );
+                    continue;
+                }
+                profiles.add( mapProfileRow( rs ) );
+            }
+        } catch ( final SQLException e ) {
+            throw new WikiSecurityException( e.getMessage(), e );
+        }
+        return profiles;
     }
 
 }

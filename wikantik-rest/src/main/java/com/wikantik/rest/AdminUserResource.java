@@ -48,6 +48,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.LinkedHashMap;
@@ -429,18 +430,11 @@ public class AdminUserResource extends RestServletBase {
     private void handleListUsers( final HttpServletResponse response ) throws IOException {
         try {
             final UserDatabase db = getUserDatabase();
-            final Principal[] wikiNames = db.getWikiNames();
             final List< Map< String, Object > > users = new ArrayList<>();
-
-            for ( final Principal wikiName : wikiNames ) {
-                try {
-                    final UserProfile profile = db.findByWikiName( wikiName.getName() );
-                    users.add( profileToMap( profile ) );
-                } catch ( final Exception e ) {
-                    LOG.warn( "Could not load profile for wiki name {}: {}", wikiName.getName(), e.getMessage() );
-                }
+            for ( final UserProfile profile : db.findAllProfiles() ) {
+                users.add( profileToMap( profile ) );
             }
-
+            users.sort( Comparator.comparing( m -> String.valueOf( m.get( "loginName" ) ) ) );
             sendJson( response, Map.of( "users", users ) );
         } catch ( final WikiSecurityException e ) {
             LOG.error( "Failed to list users", e );

@@ -23,8 +23,13 @@ import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
 
+import org.apache.logging.log4j.LogManager;
+
 import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 import java.util.Properties;
 
 /**
@@ -154,6 +159,29 @@ public interface UserDatabase {
             }
         }
         return locked;
+    }
+
+    /**
+     * Returns every stored {@link UserProfile}. This default implementation
+     * iterates {@link #getWikiNames()} and resolves each profile via
+     * {@link #findByWikiName(String)}; profiles that vanish between the
+     * enumeration and the lookup are skipped. Implementations backed by a
+     * database should override this with a single bulk query.
+     *
+     * @return all user profiles; never {@code null}
+     * @throws WikiSecurityException if the profiles cannot be enumerated
+     */
+    default Collection< UserProfile > findAllProfiles() throws WikiSecurityException {
+        final List< UserProfile > profiles = new ArrayList<>();
+        for( final Principal wikiName : getWikiNames() ) {
+            try {
+                profiles.add( findByWikiName( wikiName.getName() ) );
+            } catch( final NoSuchPrincipalException e ) {
+                LogManager.getLogger( UserDatabase.class ).warn(
+                    "Profile for wiki name {} vanished during enumeration: {}", wikiName.getName(), e.getMessage() );
+            }
+        }
+        return profiles;
     }
 
     /** Initializes the user database based on values from a Properties object. */

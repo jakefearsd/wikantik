@@ -48,10 +48,13 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -334,6 +337,18 @@ public class JDBCUserDatabaseTest {
     public void testGetWikiName() throws WikiSecurityException {
         final Principal[] principals = m_db.getWikiNames();
         Assertions.assertEquals( 1, principals.length );
+    }
+
+    @Test
+    void findAllProfilesMatchesPerNameLookups() throws Exception {
+        final Set< String > viaBulk = m_db.findAllProfiles().stream()
+            .map( UserProfile::getLoginName ).collect( Collectors.toSet() );
+        final Set< String > viaLoop = new HashSet<>();
+        for ( final Principal p : m_db.getWikiNames() ) {
+            viaLoop.add( m_db.findByWikiName( p.getName() ).getLoginName() );
+        }
+        Assertions.assertEquals( viaLoop, viaBulk );
+        Assertions.assertFalse( viaBulk.isEmpty(), "fixture must contain seeded users" );
     }
 
     @Test

@@ -21,14 +21,11 @@ package com.wikantik.ui;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.ontology.Iris;
-import com.wikantik.ontology.NodeTypeMapping;
 import java.util.Locale;
 
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.TimeZone;
 
 /**
@@ -86,94 +83,43 @@ public final class SemanticHeadRenderer {
     public static String renderHead( final String pageName, final String rawPageText,
                                       final String baseUrl, final String appName,
                                       final Date modified ) {
-        final ParsedPage parsed = FrontmatterParser.parse( rawPageText == null ? "" : rawPageText );
-        final Map< String, Object > meta = parsed.metadata();
-
-        final String safePageName = pageName == null ? "" : pageName;
-        final String safeAppName = appName == null ? "" : appName;
-        final String safeBaseUrl = stripTrailingSlash( baseUrl == null ? "" : baseUrl );
-        final String canonical = safeBaseUrl + "/wiki/" + safePageName;
-
-        final String fmTitle = strOrEmpty( meta.get( "title" ) );
-        // Document title: human-authored frontmatter title when present, else the
-        // raw page name. The application name is appended for SERP context unless
-        // it is already part of the title (avoids "WikantikOnDocker - Wikantik").
-        final String effectiveTitle = !fmTitle.isBlank() ? fmTitle : safePageName;
-        final String documentTitle = titleWithApp( effectiveTitle, safeAppName );
-
-        final String summary = strOrEmpty( meta.get( "summary" ) );
-        final String description = strOrEmpty( meta.get( "description" ) );
-        final String pageType = strOrEmpty( meta.get( "type" ) );
-        final String cluster = strOrEmpty( meta.get( "cluster" ) );
-        final String pageDate = dateOrString( meta.get( "date" ) );
-        final List< String > tags = stringList( meta.get( "tags" ) );
-        final List< String > related = stringList( meta.get( "related" ) );
-        final boolean isHub = "hub".equalsIgnoreCase( pageType );
-        // schema.org @type re-sourced from the ontology's page-type mapping (Phase 6): the SEO
-        // classification and the ontology projection share one source. Upgrade-only.
-        final String schemaType = NodeTypeMapping.schemaOrgType( pageType );
-        final String canonicalId = strOrEmpty( meta.get( "canonical_id" ) );
-
-        // effective description: summary > description > generic fallback
-        final String effectiveDescription;
-        if ( !summary.isBlank() ) {
-            effectiveDescription = summary;
-        } else if ( !description.isBlank() ) {
-            effectiveDescription = description;
-        } else {
-            effectiveDescription = safePageName + " - " + safeAppName + " wiki page.";
-        }
-        final String effectiveKeywords = String.join( ", ", tags );
+        final PageSeoModel model = PageSeoModel.from( pageName, rawPageText, baseUrl, appName, modified );
 
         final StringBuilder sb = new StringBuilder( 2048 );
 
-        sb.append( "<title>" ).append( escAttr( documentTitle ) ).append( "</title>" ).append( NL );
+        sb.append( "<title>" ).append( escAttr( model.documentTitle() ) ).append( "</title>" ).append( NL );
 
-        sb.append( "<link rel=\"canonical\" href=\"" ).append( escAttr( canonical ) ).append( "\" />" ).append( NL );
+        sb.append( "<link rel=\"canonical\" href=\"" ).append( escAttr( model.canonical() ) ).append( "\" />" ).append( NL );
 
         sb.append( "<meta name=\"description\" content=\"" )
-          .append( escAttr( effectiveDescription ) ).append( "\" />" ).append( NL );
+          .append( escAttr( model.effectiveDescription() ) ).append( "\" />" ).append( NL );
 
-        if ( !effectiveKeywords.isBlank() ) {
+        if ( !model.effectiveKeywords().isBlank() ) {
             sb.append( "<meta name=\"keywords\" content=\"" )
-              .append( escAttr( effectiveKeywords ) ).append( "\" />" ).append( NL );
+              .append( escAttr( model.effectiveKeywords() ) ).append( "\" />" ).append( NL );
         }
 
         // meta robots — lift Google snippet/preview caps (does NOT noindex)
         sb.append( "<meta name=\"robots\" content=\"max-image-preview:large, max-snippet:-1, max-video-preview:-1\" />" ).append( NL );
 
-        // Determine image URL: frontmatter image field > default
-        final String fmImage = strOrEmpty( meta.get( "image" ) );
-        final boolean hasCustomImage = !fmImage.isBlank();
-        final String imageUrl;
-        if ( hasCustomImage ) {
-            if ( fmImage.startsWith( "http://" ) || fmImage.startsWith( "https://" ) ) {
-                imageUrl = fmImage;
-            } else {
-                imageUrl = safeBaseUrl + "/" + ( fmImage.startsWith( "/" ) ? fmImage.substring( 1 ) : fmImage );
-            }
-        } else {
-            imageUrl = safeBaseUrl + "/og-default.png";
-        }
-
         // Open Graph
         sb.append( "<meta property=\"og:title\" content=\"" )
-          .append( escAttr( documentTitle ) ).append( "\" />" ).append( NL );
+          .append( escAttr( model.documentTitle() ) ).append( "\" />" ).append( NL );
         sb.append( "<meta property=\"og:type\" content=\"article\" />" ).append( NL );
-        sb.append( "<meta property=\"og:url\" content=\"" ).append( escAttr( canonical ) ).append( "\" />" ).append( NL );
+        sb.append( "<meta property=\"og:url\" content=\"" ).append( escAttr( model.canonical() ) ).append( "\" />" ).append( NL );
         sb.append( "<meta property=\"og:description\" content=\"" )
-          .append( escAttr( effectiveDescription ) ).append( "\" />" ).append( NL );
+          .append( escAttr( model.effectiveDescription() ) ).append( "\" />" ).append( NL );
         sb.append( "<meta property=\"og:site_name\" content=\"" )
-          .append( escAttr( safeAppName ) ).append( "\" />" ).append( NL );
+          .append( escAttr( model.safeAppName() ) ).append( "\" />" ).append( NL );
         sb.append( "<meta property=\"og:image\" content=\"" )
-          .append( escAttr( imageUrl ) ).append( "\" />" ).append( NL );
-        if ( !hasCustomImage ) {
+          .append( escAttr( model.imageUrl() ) ).append( "\" />" ).append( NL );
+        if ( !model.hasCustomImage() ) {
             sb.append( "<meta property=\"og:image:width\" content=\"1200\" />" ).append( NL );
             sb.append( "<meta property=\"og:image:height\" content=\"630\" />" ).append( NL );
         }
 
         // article:tag per tag
-        for ( final String tag : tags ) {
+        for ( final String tag : model.tags() ) {
             sb.append( "<meta property=\"article:tag\" content=\"" )
               .append( escAttr( tag ) ).append( "\" />" ).append( NL );
         }
@@ -181,40 +127,40 @@ public final class SemanticHeadRenderer {
         // Twitter Card
         sb.append( "<meta name=\"twitter:card\" content=\"summary_large_image\" />" ).append( NL );
         sb.append( "<meta name=\"twitter:title\" content=\"" )
-          .append( escAttr( documentTitle ) ).append( "\" />" ).append( NL );
+          .append( escAttr( model.documentTitle() ) ).append( "\" />" ).append( NL );
         sb.append( "<meta name=\"twitter:description\" content=\"" )
-          .append( escAttr( effectiveDescription ) ).append( "\" />" ).append( NL );
+          .append( escAttr( model.effectiveDescription() ) ).append( "\" />" ).append( NL );
         sb.append( "<meta name=\"twitter:image\" content=\"" )
-          .append( escAttr( imageUrl ) ).append( "\" />" ).append( NL );
+          .append( escAttr( model.imageUrl() ) ).append( "\" />" ).append( NL );
 
         // Atom feed autodiscovery — global and (optionally) cluster-filtered
         sb.append( "<link rel=\"alternate\" type=\"application/atom+xml\" title=\"" )
-          .append( escAttr( safeAppName + " - Recent Articles" ) ).append( "\" href=\"" )
-          .append( escAttr( safeBaseUrl + "/feed.xml" ) ).append( "\" />" ).append( NL );
-        if ( !cluster.isBlank() ) {
+          .append( escAttr( model.safeAppName() + " - Recent Articles" ) ).append( "\" href=\"" )
+          .append( escAttr( model.safeBaseUrl() + "/feed.xml" ) ).append( "\" />" ).append( NL );
+        if ( !model.cluster().isBlank() ) {
             sb.append( "<link rel=\"alternate\" type=\"application/atom+xml\" title=\"" )
-              .append( escAttr( safeAppName + " - " + cluster + " Articles" ) ).append( "\" href=\"" )
-              .append( escAttr( safeBaseUrl + "/feed.xml?cluster=" + cluster ) ).append( "\" />" ).append( NL );
+              .append( escAttr( model.safeAppName() + " - " + model.cluster() + " Articles" ) ).append( "\" href=\"" )
+              .append( escAttr( model.safeBaseUrl() + "/feed.xml?cluster=" + model.cluster() ) ).append( "\" />" ).append( NL );
         }
 
         // Main JSON-LD
         sb.append( "<script type=\"application/ld+json\">" ).append( NL );
-        sb.append( buildMainJsonLd( safePageName, safeAppName, canonical, safeBaseUrl,
-                effectiveDescription, effectiveKeywords, pageDate, modified, cluster, isHub, related,
-                schemaType, canonicalId ) );
+        sb.append( buildMainJsonLd( model.safePageName(), model.safeAppName(), model.canonical(), model.safeBaseUrl(),
+                model.effectiveDescription(), model.effectiveKeywords(), model.pageDate(), model.modified(),
+                model.cluster(), model.isHub(), model.related(), model.schemaType(), model.canonicalId() ) );
         sb.append( NL ).append( "</script>" ).append( NL );
 
         // BreadcrumbList for clustered non-hub pages
-        if ( !cluster.isBlank() && !isHub ) {
+        if ( !model.cluster().isBlank() && !model.isHub() ) {
             sb.append( "<script type=\"application/ld+json\">" ).append( NL );
-            sb.append( buildBreadcrumbJsonLd( safePageName, safeBaseUrl, canonical, cluster ) );
+            sb.append( buildBreadcrumbJsonLd( model.safePageName(), model.safeBaseUrl(), model.canonical(), model.cluster() ) );
             sb.append( NL ).append( "</script>" ).append( NL );
         }
 
         // WebSite + SearchAction — homepage only
-        if ( "Main".equals( safePageName ) ) {
+        if ( "Main".equals( model.safePageName() ) ) {
             sb.append( "<script type=\"application/ld+json\">" ).append( NL );
-            sb.append( buildWebSiteJsonLd( safeBaseUrl ) );
+            sb.append( buildWebSiteJsonLd( model.safeBaseUrl() ) );
             sb.append( NL ).append( "</script>" ).append( NL );
         }
 
@@ -267,30 +213,6 @@ public final class SemanticHeadRenderer {
         out.append( content );
         out.append( "</article>" ).append( NL );
         return out.toString();
-    }
-
-    /**
-     * Compose the document title, appending the application name for SERP
-     * context but only when it is not already present in the title (so
-     * "Wikantik on Docker" does not become "Wikantik on Docker - Wikantik").
-     *
-     * @param title   the page-level title (frontmatter title or page name)
-     * @param appName the wiki application name
-     * @return the composed document title
-     */
-    private static String titleWithApp( final String title, final String appName ) {
-        final String t = title == null ? "" : title.trim();
-        final String app = appName == null ? "" : appName.trim();
-        if ( app.isEmpty() ) {
-            return t;
-        }
-        if ( t.isEmpty() ) {
-            return app;
-        }
-        if ( t.toLowerCase( Locale.ROOT ).contains( app.toLowerCase( Locale.ROOT ) ) ) {
-            return t;
-        }
-        return t + " - " + app;
     }
 
     // -------- JSON-LD builders --------
@@ -404,63 +326,6 @@ public final class SemanticHeadRenderer {
         sb.append( "\"query-input\":\"required name=search_term_string\"" );
         sb.append( "}}" );
         return sb.toString();
-    }
-
-    // -------- type coercion helpers --------
-
-    private static String strOrEmpty( final Object value ) {
-        if ( value == null ) {
-            return "";
-        }
-        if ( value instanceof Date date ) {
-            return new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).format( date );
-        }
-        return value.toString();
-    }
-
-    private static String dateOrString( final Object value ) {
-        if ( value == null ) {
-            return "";
-        }
-        if ( value instanceof Date date ) {
-            return new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).format( date );
-        }
-        return value.toString();
-    }
-
-    private static List< String > stringList( final Object value ) {
-        if ( value == null ) {
-            return List.of();
-        }
-        if ( value instanceof List< ? > list ) {
-            final List< String > out = new ArrayList<>( list.size() );
-            for ( final Object e : list ) {
-                if ( e != null ) {
-                    out.add( e.toString().trim() );
-                }
-            }
-            return out;
-        }
-        // Comma-separated scalar (e.g. "a, b, c")
-        final String csv = value.toString();
-        if ( csv.isBlank() ) {
-            return List.of();
-        }
-        final List< String > out = new ArrayList<>();
-        for ( final String part : csv.split( "," ) ) {
-            final String trimmed = part.trim();
-            if ( !trimmed.isEmpty() ) {
-                out.add( trimmed );
-            }
-        }
-        return out;
-    }
-
-    private static String stripTrailingSlash( final String s ) {
-        if ( s == null || s.isEmpty() ) {
-            return s;
-        }
-        return s.endsWith( "/" ) ? s.substring( 0, s.length() - 1 ) : s;
     }
 
     // -------- escaping --------

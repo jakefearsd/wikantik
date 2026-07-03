@@ -84,6 +84,17 @@ public final class SearchWiringHelper {
     // -----------------------------------------------------------------------
 
     /**
+     * Resolves the configured dense retrieval backend, defaulting to
+     * {@code lucene-hnsw} (true ANN, RAM-backed, incremental upserts — matches
+     * prod) when the property is absent. Package-private static so the default
+     * is independently testable without standing up the rest of the wiring.
+     */
+    static String resolveDenseBackend( final Properties props ) {
+        return props.getProperty( "wikantik.search.dense.backend", "lucene-hnsw" )
+            .toLowerCase( java.util.Locale.ROOT );
+    }
+
+    /**
      * Wires the hybrid-retrieval infrastructure: embedding client, batch indexer,
      * async listener on {@code ChunkProjector}, in-memory vector index, and the
      * query-side {@link QueryEmbedder}.
@@ -149,10 +160,10 @@ public final class SearchWiringHelper {
         // Pick the dense retrieval backend up front so DenseRetriever (constructed
         // below) actually holds the configured impl. SearchSubsystemFactory exposes
         // the same choice via Services.chunkVectorIndex(), but nothing in production
-        // reads that slot — the live wiring is here. Defaulting to in-memory matches
-        // the ini bundle default and preserves zero-risk first-deploys.
-        final String denseBackend = props.getProperty(
-            "wikantik.search.dense.backend", "inmemory" ).toLowerCase( java.util.Locale.ROOT );
+        // reads that slot — the live wiring is here. Default lucene-hnsw: true ANN
+        // (sub-linear queries), RAM-backed, incremental upserts — matches prod.
+        // 'inmemory' remains available for dev/small corpora.
+        final String denseBackend = resolveDenseBackend( props );
 
         final com.wikantik.search.hybrid.ChunkVectorIndex vectorIndex;
         final Runnable indexReloadHook;

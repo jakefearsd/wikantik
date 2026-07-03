@@ -154,34 +154,35 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
             return;
         }
 
-        // Build the new snapshot: keep prev rows whose chunkId is NOT in targetIds, then
-        // append the freshly loaded rows for ids that came back from the DB.
-        final List< UUID > ids = new ArrayList<>( prev.size() + loadedVecs.size() );
-        final List< String > pages = new ArrayList<>( prev.size() + loadedVecs.size() );
-        final List< float[] > vecs = new ArrayList<>( prev.size() + loadedVecs.size() );
-
-        for( int i = 0; i < prev.size(); i++ ) {
-            final UUID id = prev.chunkIds[ i ];
-            if ( targetIds.contains( id ) ) continue; // about to be re-added or removed
-            ids.add( id );
-            pages.add( prev.pageNames[ i ] );
-            // Reuse the existing flat row by copying out the dim slice
-            final float[] row = new float[ prevDim ];
-            System.arraycopy( prev.flatVectors, i * prevDim, row, 0, prevDim );
-            vecs.add( row );
+        // Build the new snapshot with exactly one corpus-sized allocation: bulk-copy
+        // retained rows straight from the previous flat buffer, then append the
+        // freshly loaded rows. (The old path boxed every retained row into a
+        // List<float[]>, re-flattened, and then cloned all three arrays again in
+        // the Snapshot constructor — ~3 full corpus copies per page save.)
+        final int prevSize = prev.size();
+        final boolean[] keep = new boolean[ prevSize ];
+        int retained = 0;
+        for( int i = 0; i < prevSize; i++ ) {
+            keep[ i ] = !targetIds.contains( prev.chunkIds[ i ] );
+            if ( keep[ i ] ) retained++;
+        }
+        final int n = retained + loadedVecs.size();
+        final UUID[] idArr = new UUID[ n ];
+        final String[] pageArr = new String[ n ];
+        final float[] flat = new float[ n * dim ];
+        int w = 0;
+        for( int i = 0; i < prevSize; i++ ) {
+            if ( !keep[ i ] ) continue;
+            idArr[ w ] = prev.chunkIds[ i ];
+            pageArr[ w ] = prev.pageNames[ i ];
+            System.arraycopy( prev.flatVectors, i * prevDim, flat, w * dim, dim );
+            w++;
         }
         for( final Map.Entry< UUID, float[] > e : loadedVecs.entrySet() ) {
-            ids.add( e.getKey() );
-            pages.add( loadedPages.get( e.getKey() ) );
-            vecs.add( e.getValue() );
-        }
-
-        final int n = ids.size();
-        final UUID[] idArr = ids.toArray( new UUID[ 0 ] );
-        final String[] pageArr = pages.toArray( new String[ 0 ] );
-        final float[] flat = new float[ n * dim ];
-        for( int i = 0; i < n; i++ ) {
-            System.arraycopy( vecs.get( i ), 0, flat, i * dim, dim );
+            idArr[ w ] = e.getKey();
+            pageArr[ w ] = loadedPages.get( e.getKey() );
+            System.arraycopy( e.getValue(), 0, flat, w * dim, dim );
+            w++;
         }
         this.snapshot = new Snapshot( idArr, pageArr, flat, dim );
         this.lastRefreshMillis = System.currentTimeMillis();
@@ -462,11 +463,12 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
         final float[] flatVectors;
         final int dim;
 
+        /** Takes ownership of the arrays — callers must pass freshly-built, never-shared arrays. */
         Snapshot( final UUID[] chunkIds, final String[] pageNames,
                   final float[] flatVectors, final int dim ) {
-            this.chunkIds = chunkIds.clone();
-            this.pageNames = pageNames.clone();
-            this.flatVectors = flatVectors.clone();
+            this.chunkIds = chunkIds;
+            this.pageNames = pageNames;
+            this.flatVectors = flatVectors;
             this.dim = dim;
         }
 

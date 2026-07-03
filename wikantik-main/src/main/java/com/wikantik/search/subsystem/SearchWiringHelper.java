@@ -201,7 +201,6 @@ public final class SearchWiringHelper {
                 vectorIndex = memIndex;
                 upsertCallback = memIndex::upsertChunks;
                 indexReloadHook = memIndex::reload;
-                engine.setManager( com.wikantik.search.hybrid.ChunkVectorIndex.class, memIndex );
                 engine.setManager( InMemoryChunkVectorIndex.class, memIndex );
                 LOG.info( "Dense retrieval backend: in-memory brute-force (model={}, size={})",
                     modelCode, memIndex.size() );
@@ -215,6 +214,20 @@ public final class SearchWiringHelper {
                 + "hybrid retrieval disabled: {}", denseBackend, modelCode, e.getMessage(), e );
             return;
         }
+
+        // Register the single canonical ChunkVectorIndex instance for EVERY backend
+        // (not just inmemory, as before this fix) so SearchSubsystemFactory — which
+        // runs later in WikiEngine.initialize() (buildSearchSubsystem(), after
+        // wireHybridRetrieval inside initKnowledgeGraph()) — can resolve and reuse
+        // *this* instance via engine.getManager(ChunkVectorIndex.class) instead of
+        // constructing an orphaned second instance from the same
+        // wikantik.search.dense.backend property. That second instance never
+        // received the AsyncEmbeddingIndexListener upserts wired below, so it would
+        // silently go stale until restart — the sharing fix keeps both consumers
+        // (this method's HybridSearchService/bundle sources, and
+        // DefaultContextRetrievalService's ContributingChunkAssembler downstream of
+        // SearchSubsystem.Services.chunkVectorIndex()) reading the same object.
+        engine.setManager( com.wikantik.search.hybrid.ChunkVectorIndex.class, vectorIndex );
 
         final AsyncEmbeddingIndexListener listener =
             new AsyncEmbeddingIndexListener( indexService, modelCode );

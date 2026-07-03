@@ -39,7 +39,6 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -99,34 +98,42 @@ final class SearchSubsystemCoverageBranchTest {
     }
 
     // -----------------------------------------------------------------------
-    // SearchSubsystemFactory — pgvector with null DataSource throws
+    // SearchSubsystemFactory — pgvector with null DataSource degrades
     // -----------------------------------------------------------------------
 
+    /**
+     * {@code buildSearchSubsystem()} runs on every boot, including the documented
+     * no-datasource mode. This used to throw {@link IllegalStateException} and
+     * crash engine startup under a non-inmemory backend (fixed alongside the
+     * lucene-hnsw default flip in d027a546da) — it must now degrade to a null
+     * {@code chunkVectorIndex} slot, matching {@code SearchWiringHelper}'s own
+     * catch-and-warn behaviour, and let the engine boot anyway.
+     */
     @Test
-    void pgvectorBackend_withNullDataSource_throwsIllegalState() {
+    void pgvectorBackend_withNullDataSource_degradesWithoutThrowing() {
         final Properties props = new Properties();
         props.setProperty( "wikantik.search.dense.backend", "pgvector" );
 
         final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getWikiProperties() ).thenReturn( props );
 
-        final IllegalStateException ex = assertThrows( IllegalStateException.class,
-            () -> SearchSubsystemFactory.create(
-                new SearchSubsystem.Deps(
-                    /*dataSource=*/ null,
-                    /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
-                    /*persistence=*/ null, /*page=*/ null, /*knowledge=*/ null,
-                    engine ) ) );
-        assertTrue( ex.getMessage().contains( "pgvector" ),
-            "exception message should name the backend: " + ex.getMessage() );
+        final SearchSubsystem.Services services = SearchSubsystemFactory.create(
+            new SearchSubsystem.Deps(
+                /*dataSource=*/ null,
+                /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
+                /*persistence=*/ null, /*page=*/ null, /*knowledge=*/ null,
+                engine ) );
+
+        assertNull( services.chunkVectorIndex(),
+            "no DataSource and nothing wired -> dense retrieval degrades to null, not a crash" );
     }
 
     // -----------------------------------------------------------------------
-    // SearchSubsystemFactory — lucene-hnsw with null DataSource throws
+    // SearchSubsystemFactory — lucene-hnsw with null DataSource degrades
     // -----------------------------------------------------------------------
 
     @Test
-    void luceneHnswBackend_withNullDataSource_throwsIllegalState() {
+    void luceneHnswBackend_withNullDataSource_degradesWithoutThrowing() {
         final Properties props = new Properties();
         props.setProperty( "wikantik.search.dense.backend", "lucene-hnsw" );
         props.setProperty( EmbeddingConfig.PROP_MODEL, "qwen3-embedding-0.6b" );
@@ -134,15 +141,15 @@ final class SearchSubsystemCoverageBranchTest {
         final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getWikiProperties() ).thenReturn( props );
 
-        final IllegalStateException ex = assertThrows( IllegalStateException.class,
-            () -> SearchSubsystemFactory.create(
-                new SearchSubsystem.Deps(
-                    /*dataSource=*/ null,
-                    /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
-                    /*persistence=*/ null, /*page=*/ null, /*knowledge=*/ null,
-                    engine ) ) );
-        assertTrue( ex.getMessage().contains( "lucene-hnsw" ),
-            "exception message should name the backend: " + ex.getMessage() );
+        final SearchSubsystem.Services services = SearchSubsystemFactory.create(
+            new SearchSubsystem.Deps(
+                /*dataSource=*/ null,
+                /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
+                /*persistence=*/ null, /*page=*/ null, /*knowledge=*/ null,
+                engine ) );
+
+        assertNull( services.chunkVectorIndex(),
+            "no DataSource and nothing wired -> dense retrieval degrades to null, not a crash" );
     }
 
     // -----------------------------------------------------------------------

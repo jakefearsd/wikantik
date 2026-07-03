@@ -30,6 +30,7 @@ import com.wikantik.search.embedding.AsyncEmbeddingIndexListener;
 import com.wikantik.search.embedding.BootstrapEmbeddingIndexer;
 import com.wikantik.search.embedding.EmbeddingIndexService;
 import com.wikantik.search.embedding.OllamaEmbeddingClient;
+import com.wikantik.search.hybrid.ChunkVectorIndex;
 import com.wikantik.search.hybrid.GraphProximityScorer;
 import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridSearchService;
@@ -354,6 +355,89 @@ final class SearchSubsystemFactoryTest {
                     /*page=*/ null,
                     /*knowledge=*/ null,
                     engine ) ) );
+    }
+
+    // -- Boot-crash / duplicate-instance regression tests (post d027a546da default flip) --
+
+    @Test
+    void luceneHnswBackendWithNullDataSourceDegradesInsteadOfCrashingBoot() {
+        // Regression: buildSearchSubsystem() runs on EVERY boot, including the documented
+        // no-datasource mode (WikiEngine.persistenceSubsystem == null -> deps.dataSource()
+        // == null). Under the new lucene-hnsw default this used to throw
+        // IllegalStateException and kill engine startup; it must now degrade like
+        // SearchWiringHelper's own catch-and-warn behaviour.
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.search.dense.backend", "lucene-hnsw" );
+
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.getWikiProperties() ).thenReturn( props );
+
+        final SearchSubsystem.Services services = SearchSubsystemFactory.create(
+            new SearchSubsystem.Deps(
+                /*dataSource=*/ null,
+                /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
+                /*persistence=*/ null,
+                /*page=*/ null,
+                /*knowledge=*/ null,
+                engine ) );
+
+        assertNotNull( services, "factory must not throw with a null DataSource" );
+        assertNull( services.chunkVectorIndex(), "dense retrieval degrades to null, not a crash" );
+    }
+
+    @Test
+    void pgvectorBackendWithNullDataSourceDegradesInsteadOfCrashingBoot() {
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.search.dense.backend", "pgvector" );
+
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.getWikiProperties() ).thenReturn( props );
+
+        final SearchSubsystem.Services services = SearchSubsystemFactory.create(
+            new SearchSubsystem.Deps(
+                /*dataSource=*/ null,
+                /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
+                /*persistence=*/ null,
+                /*page=*/ null,
+                /*knowledge=*/ null,
+                engine ) );
+
+        assertNotNull( services, "factory must not throw with a null DataSource" );
+        assertNull( services.chunkVectorIndex(), "dense retrieval degrades to null, not a crash" );
+    }
+
+    @Test
+    void reusesChunkVectorIndexWiredBySearchWiringHelperInsteadOfBuildingASecondInstance() {
+        // Regression: SearchWiringHelper.wireHybridRetrieval runs earlier in boot
+        // (WikiEngine.initialize() -> initKnowledgeGraph() -> wireHybridRetrieval,
+        // BEFORE buildSearchSubsystem() -> SearchSubsystemFactory.create()) and, once
+        // fixed, registers the single ChunkVectorIndex instance it built (and wired
+        // AsyncEmbeddingIndexListener upserts into) via engine.setManager(ChunkVectorIndex.class, ...)
+        // for every backend. The factory must reuse that exact instance rather than
+        // constructing its own orphaned copy from the same wikantik.search.dense.backend
+        // property — otherwise retrieve_context's dense fallback (fed by
+        // Services.chunkVectorIndex()) silently misses new content until restart.
+        final ChunkVectorIndex wired = mock( ChunkVectorIndex.class );
+
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.search.dense.backend", "lucene-hnsw" );
+
+        final DataSource dataSource = mock( DataSource.class );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.getWikiProperties() ).thenReturn( props );
+        when( engine.getManager( ChunkVectorIndex.class ) ).thenReturn( wired );
+
+        final SearchSubsystem.Services services = SearchSubsystemFactory.create(
+            new SearchSubsystem.Deps(
+                /*dataSource=*/ dataSource,
+                /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
+                /*persistence=*/ null,
+                /*page=*/ null,
+                /*knowledge=*/ null,
+                engine ) );
+
+        assertSame( wired, services.chunkVectorIndex(),
+            "factory must reuse the wired instance, not construct a second one" );
     }
 
     @Test

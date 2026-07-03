@@ -95,53 +95,76 @@ public final class SearchSubsystemFactory {
         final GraphRerankStep      graphRerankStep      = engine.getManager( GraphRerankStep.class );
         final GraphProximityScorer graphProximityScorer = engine.getManager( GraphProximityScorer.class );
 
-        // Chunk vector index: select implementation based on
-        // wikantik.search.dense.backend (default "inmemory").
+        // Chunk vector index: reuse the single instance SearchWiringHelper.wireHybridRetrieval
+        // already built and registered (it runs earlier — inside initKnowledgeGraph(), before
+        // buildSearchSubsystem() calls this factory — see WikiEngine.initialize()). Reusing it
+        // is what keeps this Services.chunkVectorIndex() slot (read by
+        // DefaultContextRetrievalService -> ContributingChunkAssembler, the retrieve_context
+        // MCP tool's dense fallback) in sync with the AsyncEmbeddingIndexListener upserts;
+        // constructing a second instance here from the same property would silently drop new
+        // content from that path until restart.
+        //
+        // Only fall back to constructing our own instance when nothing was wired (embeddings
+        // disabled, wireHybridRetrieval failed, or direct factory use in tests) — and even then,
+        // a null DataSource must degrade (matching SearchWiringHelper's own catch-and-warn
+        // behaviour) rather than throw and crash engine boot. "inmemory" stays the fallback
+        // default here (unchanged from before this fix) — it is the one backend that never
+        // needs a DataSource, so it is the safest thing to fall back to when properties
+        // aren't even available (e.g. a bare mocked Engine in a unit test).
         final Properties wikiProps = engine.getWikiProperties();
         final String backend = ( wikiProps != null
             ? wikiProps.getProperty( "wikantik.search.dense.backend", "inmemory" )
             : "inmemory" ).toLowerCase( Locale.ROOT );
+        final ChunkVectorIndex wiredChunkVectorIndex = engine.getManager( ChunkVectorIndex.class );
         final ChunkVectorIndex chunkVectorIndex;
-        switch ( backend ) {
-            case "pgvector" -> {
-                final DataSource dataSource = deps.dataSource();
-                if ( dataSource == null ) {
-                    throw new IllegalStateException(
-                        "wikantik.search.dense.backend=pgvector but no DataSource is available; "
-                      + "check that wikantik.datasource is configured" );
+        if ( wiredChunkVectorIndex != null ) {
+            chunkVectorIndex = wiredChunkVectorIndex;
+            LOG.info( "Dense retrieval backend: reusing ChunkVectorIndex wired by SearchWiringHelper ({})",
+                wiredChunkVectorIndex.getClass().getSimpleName() );
+        } else {
+            switch ( backend ) {
+                case "pgvector" -> {
+                    final DataSource dataSource = deps.dataSource();
+                    if ( dataSource == null ) {
+                        LOG.warn( "wikantik.search.dense.backend=pgvector but no DataSource is available "
+                          + "and no ChunkVectorIndex was wired; dense retrieval disabled for this process." );
+                        chunkVectorIndex = null;
+                    } else {
+                        final String modelCode = wikiProps.getProperty(
+                            EmbeddingConfig.PROP_MODEL, EmbeddingConfig.DEFAULT_MODEL_CODE );
+                        final int efSearch = Integer.parseInt( wikiProps.getProperty(
+                            "wikantik.search.dense.pgvector.ef_search", "100" ) );
+                        chunkVectorIndex = new PgVectorChunkVectorIndex( dataSource, modelCode, efSearch );
+                        LOG.info( "Dense retrieval backend: pgvector HNSW (model={}, ef_search={})",
+                            modelCode, efSearch );
+                    }
                 }
-                final String modelCode = wikiProps.getProperty(
-                    EmbeddingConfig.PROP_MODEL, EmbeddingConfig.DEFAULT_MODEL_CODE );
-                final int efSearch = Integer.parseInt( wikiProps.getProperty(
-                    "wikantik.search.dense.pgvector.ef_search", "100" ) );
-                chunkVectorIndex = new PgVectorChunkVectorIndex( dataSource, modelCode, efSearch );
-                LOG.info( "Dense retrieval backend: pgvector HNSW (model={}, ef_search={})",
-                    modelCode, efSearch );
-            }
-            case "lucene-hnsw" -> {
-                final DataSource dataSource = deps.dataSource();
-                if ( dataSource == null ) {
-                    throw new IllegalStateException(
-                        "wikantik.search.dense.backend=lucene-hnsw but no DataSource is available; "
-                      + "check that wikantik.datasource is configured" );
+                case "lucene-hnsw" -> {
+                    final DataSource dataSource = deps.dataSource();
+                    if ( dataSource == null ) {
+                        LOG.warn( "wikantik.search.dense.backend=lucene-hnsw but no DataSource is available "
+                          + "and no ChunkVectorIndex was wired; dense retrieval disabled for this process." );
+                        chunkVectorIndex = null;
+                    } else {
+                        final String modelCode = wikiProps.getProperty(
+                            EmbeddingConfig.PROP_MODEL, EmbeddingConfig.DEFAULT_MODEL_CODE );
+                        final com.wikantik.search.hybrid.HnswParams params =
+                            com.wikantik.search.hybrid.HnswParams.fromProperties( wikiProps );
+                        chunkVectorIndex = new com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex(
+                            dataSource, modelCode,
+                            com.wikantik.search.hybrid.PgVectorChunkVectorIndex.EMBEDDING_DIM, params );
+                        LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, ef_search={})",
+                            modelCode, params.m(), params.efConstruction(), params.efSearch() );
+                    }
                 }
-                final String modelCode = wikiProps.getProperty(
-                    EmbeddingConfig.PROP_MODEL, EmbeddingConfig.DEFAULT_MODEL_CODE );
-                final com.wikantik.search.hybrid.HnswParams params =
-                    com.wikantik.search.hybrid.HnswParams.fromProperties( wikiProps );
-                chunkVectorIndex = new com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex(
-                    dataSource, modelCode,
-                    com.wikantik.search.hybrid.PgVectorChunkVectorIndex.EMBEDDING_DIM, params );
-                LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, ef_search={})",
-                    modelCode, params.m(), params.efConstruction(), params.efSearch() );
+                case "inmemory" -> {
+                    chunkVectorIndex = engine.getManager( InMemoryChunkVectorIndex.class );
+                    LOG.info( "Dense retrieval backend: in-memory brute-force" );
+                }
+                default -> throw new IllegalArgumentException(
+                    "wikantik.search.dense.backend must be 'inmemory', 'pgvector', or 'lucene-hnsw', got: '"
+                  + backend + "'" );
             }
-            case "inmemory" -> {
-                chunkVectorIndex = engine.getManager( InMemoryChunkVectorIndex.class );
-                LOG.info( "Dense retrieval backend: in-memory brute-force" );
-            }
-            default -> throw new IllegalArgumentException(
-                "wikantik.search.dense.backend must be 'inmemory', 'pgvector', or 'lucene-hnsw', got: '"
-              + backend + "'" );
         }
 
         // In-memory graph neighbor index (registered by wireGraphRerank).

@@ -55,11 +55,29 @@ public final class OntologyModelManager {
     private volatile Model cachedUnionSnapshot;
     private final Object snapshotBuildLock = new Object();
 
+    /**
+     * Monotonic write counter. A build's result is only published to the cache
+     * if no write landed between when the build started and when it finished —
+     * otherwise a build that started against a stale dataset state could
+     * overwrite (mask) a concurrently-committed write that already ran
+     * {@link #invalidateSnapshots()}. See generation-guard usage in
+     * {@link #inferenceSnapshot()} and {@link #unionSnapshot()}.
+     */
+    private final java.util.concurrent.atomic.AtomicLong writeGeneration = new java.util.concurrent.atomic.AtomicLong();
+
+    /**
+     * Test-only seam: invoked after a snapshot is built but before it is
+     * published to the cache, so tests can simulate a write landing mid-build.
+     * No-op in production.
+     */
+    Runnable postBuildTestHook = () -> {};
+
     private OntologyModelManager( final Dataset dataset ) {
         this.dataset = dataset;
     }
 
     private void invalidateSnapshots() {
+        writeGeneration.incrementAndGet();
         cachedInferenceSnapshot = null;
         cachedUnionSnapshot = null;
     }
@@ -186,6 +204,13 @@ public final class OntologyModelManager {
      * Detached RDFS inference model over (T-Box default graph union all named graphs).
      * Cached until the next write; the returned model is shared across callers and
      * MUST be treated as read-only.
+     *
+     * <p>Guarded by a write-generation counter: a build started against dataset
+     * state V1 must not overwrite the cache if a write (V2) committed and called
+     * {@link #invalidateSnapshots()} while the build was in flight — otherwise the
+     * stale V1 snapshot would be published AFTER the invalidation and served
+     * forever. The in-flight build is still returned to its own caller; it is
+     * simply not cached for the next caller.
      */
     public Model inferenceSnapshot() {
         Model snap = cachedInferenceSnapshot;
@@ -193,23 +218,34 @@ public final class OntologyModelManager {
             synchronized ( snapshotBuildLock ) {
                 snap = cachedInferenceSnapshot;
                 if ( snap == null ) {
+                    final long gen = writeGeneration.get();
                     snap = buildInferenceSnapshot();
-                    cachedInferenceSnapshot = snap;
+                    postBuildTestHook.run();
+                    if ( writeGeneration.get() == gen ) {
+                        cachedInferenceSnapshot = snap;
+                    }
                 }
             }
         }
         return snap;
     }
 
-    /** Detached union of the T-Box + all named graphs — NO inference. Cached; read-only. */
+    /**
+     * Detached union of the T-Box + all named graphs — NO inference. Cached; read-only.
+     * See {@link #inferenceSnapshot()} for the write-generation guard rationale.
+     */
     public Model unionSnapshot() {
         Model snap = cachedUnionSnapshot;
         if ( snap == null ) {
             synchronized ( snapshotBuildLock ) {
                 snap = cachedUnionSnapshot;
                 if ( snap == null ) {
+                    final long gen = writeGeneration.get();
                     snap = buildUnionSnapshot();
-                    cachedUnionSnapshot = snap;
+                    postBuildTestHook.run();
+                    if ( writeGeneration.get() == gen ) {
+                        cachedUnionSnapshot = snap;
+                    }
                 }
             }
         }

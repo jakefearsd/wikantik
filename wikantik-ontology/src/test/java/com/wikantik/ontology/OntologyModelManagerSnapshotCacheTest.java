@@ -89,4 +89,35 @@ class OntologyModelManagerSnapshotCacheTest {
         mgr.clearAbox();
         assertNotSame( before, mgr.inferenceSnapshot() );
     }
+
+    @Test
+    void writeLandingDuringBuildIsNotMaskedByLatePublish() {
+        // Simulate: a write commits while a snapshot build is in flight.
+        // The in-flight build may be returned to ITS caller, but must NOT be
+        // cached — the next call must see the concurrent write.
+        final Model g = ModelFactory.createDefaultModel();
+        g.add( g.createResource( "urn:test:mid-build" ), RDFS.label, "landed-mid-build" );
+        mgr.postBuildTestHook = () -> mgr.replaceNamedGraph( "urn:test:graph:midbuild", g );
+
+        mgr.inferenceSnapshot();               // build with the hook firing mid-flight
+        mgr.postBuildTestHook = () -> {};      // disarm
+
+        final Model next = mgr.inferenceSnapshot();
+        assertTrue( next.contains( next.createResource( "urn:test:mid-build" ), RDFS.label ),
+            "snapshot published after a concurrent write must not mask that write" );
+    }
+
+    @Test
+    void unionWriteLandingDuringBuildIsNotMaskedByLatePublish() {
+        final Model g = ModelFactory.createDefaultModel();
+        g.add( g.createResource( "urn:test:mid-build-union" ), RDFS.label, "landed-mid-build" );
+        mgr.postBuildTestHook = () -> mgr.replaceNamedGraph( "urn:test:graph:midbuild-union", g );
+
+        mgr.unionSnapshot();                   // build with the hook firing mid-flight
+        mgr.postBuildTestHook = () -> {};      // disarm
+
+        final Model next = mgr.unionSnapshot();
+        assertTrue( next.contains( next.createResource( "urn:test:mid-build-union" ), RDFS.label ),
+            "snapshot published after a concurrent write must not mask that write" );
+    }
 }

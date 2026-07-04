@@ -36,6 +36,8 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.Statement;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -145,5 +147,164 @@ class KgPolicyCliTest {
         new KgClusterPolicyRepository( ds ).appendAudit( "java", "include", "exclude", "noisy", "a" );
         final String text = stdoutOf( "audit", "--cluster", "java" );
         assertTrue( text.contains( "include" ) && text.contains( "exclude" ) );
+    }
+
+    @Test
+    void explain_reports_no_policy_row_for_unknown_cluster() {
+        final String text = stdoutOf( "explain", "unknown-cluster" );
+        assertTrue( text.contains( "unknown-cluster: no policy row (default exclude)" ), text );
+    }
+
+    @Test
+    void explain_reports_existing_policy_details() {
+        new KgClusterPolicyRepository( ds ).upsert( "java", ClusterAction.EXCLUDE, "too noisy", "admin" );
+        final String text = stdoutOf( "explain", "java" );
+        assertTrue( text.contains( "java: exclude" ), text );
+        assertTrue( text.contains( "set_by=admin" ), text );
+        assertTrue( text.contains( "reason=too noisy" ), text );
+    }
+
+    @Test
+    void review_lists_only_stale_or_never_reviewed_clusters() {
+        final KgClusterPolicyRepository repo = new KgClusterPolicyRepository( ds );
+        repo.upsert( "fresh", ClusterAction.INCLUDE, "x", "admin" );
+        repo.markReviewed( "fresh" );
+        repo.upsert( "never-reviewed", ClusterAction.EXCLUDE, "y", "admin" );
+
+        final String text = stdoutOf( "review" );
+        assertTrue( text.contains( "never-reviewed" ), text );
+        assertFalse( text.contains( "fresh" ), "recently-reviewed cluster should not be listed: " + text );
+    }
+
+    @Test
+    void mark_reviewed_updates_reviewed_at_for_each_named_cluster() {
+        final KgClusterPolicyRepository repo = new KgClusterPolicyRepository( ds );
+        repo.upsert( "java", ClusterAction.INCLUDE, "x", "admin" );
+        repo.upsert( "rust", ClusterAction.INCLUDE, "y", "admin" );
+
+        final String text = stdoutOf( "mark-reviewed", "java", "rust" );
+        assertTrue( text.contains( "marked reviewed: java" ), text );
+        assertTrue( text.contains( "marked reviewed: rust" ), text );
+
+        final Instant cutoff = Instant.now().minus( 1, ChronoUnit.MINUTES );
+        assertTrue( repo.find( "java" ).get().reviewedAt().isAfter( cutoff ) );
+        assertTrue( repo.find( "rust" ).get().reviewedAt().isAfter( cutoff ) );
+    }
+
+    @Test
+    void mark_reviewed_without_cluster_names_returns_exit_two() {
+        final ByteArrayOutputStream o = new ByteArrayOutputStream();
+        final ByteArrayOutputStream e = new ByteArrayOutputStream();
+        final int rc = new KgPolicyCli( new PrintStream( o ), new PrintStream( e ) )
+                .runWithDataSource( ds, new String[] { "mark-reviewed" } );
+        assertEquals( 2, rc );
+        assertTrue( e.toString( StandardCharsets.UTF_8 ).contains( "requires at least one cluster name" ) );
+    }
+
+    @Test
+    void diff_lists_pages_excluded_under_cluster_policy_reason() {
+        new KgExcludedPagesRepository( ds ).exclude( "Alpha", ExclusionReason.CLUSTER_POLICY );
+        new KgExcludedPagesRepository( ds ).exclude( "Beta", ExclusionReason.SYSTEM_PAGE );
+
+        final String text = stdoutOf( "diff", "java" );
+        assertTrue( text.contains( "Alpha" ), text );
+        assertFalse( text.contains( "Beta" ), "system_page-excluded pages must not appear in a cluster_policy diff: " + text );
+        assertTrue( text.contains( "(1 pages)" ), text );
+    }
+
+    @Test
+    void reconcile_reports_counts_by_exclusion_reason() {
+        new KgExcludedPagesRepository( ds ).exclude( "Alpha", ExclusionReason.CLUSTER_POLICY );
+        new KgExcludedPagesRepository( ds ).exclude( "Beta", ExclusionReason.CLUSTER_POLICY );
+        new KgExcludedPagesRepository( ds ).exclude( "Gamma", ExclusionReason.SYSTEM_PAGE );
+
+        final String text = stdoutOf( "reconcile" );
+        assertTrue( text.contains( "cluster_policy" ) && text.contains( "2 pages" ), text );
+        assertTrue( text.contains( "system_page" ) && text.contains( "1 pages" ), text );
+    }
+
+    @Test
+    void no_subcommand_prints_usage_and_returns_exit_two() {
+        final ByteArrayOutputStream o = new ByteArrayOutputStream();
+        final ByteArrayOutputStream e = new ByteArrayOutputStream();
+        final int rc = new KgPolicyCli( new PrintStream( o ), new PrintStream( e ) )
+                .runWithDataSource( ds, new String[0] );
+        assertEquals( 2, rc );
+        assertTrue( e.toString( StandardCharsets.UTF_8 ).contains( "usage: kg-policy" ) );
+    }
+
+    @Test
+    void unknown_subcommand_prints_usage_and_returns_exit_two() {
+        final ByteArrayOutputStream o = new ByteArrayOutputStream();
+        final ByteArrayOutputStream e = new ByteArrayOutputStream();
+        final int rc = new KgPolicyCli( new PrintStream( o ), new PrintStream( e ) )
+                .runWithDataSource( ds, new String[] { "bogus-command" } );
+        assertEquals( 2, rc );
+        assertTrue( e.toString( StandardCharsets.UTF_8 ).contains( "usage: kg-policy" ) );
+    }
+
+    @Test
+    void run_with_jdbc_flags_parses_them_and_dispatches_to_a_real_connection() {
+        // Exercises KgPolicyCli.run(String[]) end-to-end: JdbcArgs.parse() strips
+        // the --jdbc-* flags, JdbcArgs.dataSource() builds a real PGSimpleDataSource
+        // pointed at the Testcontainers instance, and the remaining "list" args are
+        // dispatched exactly like runWithDataSource would.
+        new KgClusterPolicyRepository( ds ).upsert( "java", ClusterAction.INCLUDE, "boot", "admin" );
+
+        final ByteArrayOutputStream o = new ByteArrayOutputStream();
+        final ByteArrayOutputStream e = new ByteArrayOutputStream();
+        final int rc = new KgPolicyCli( new PrintStream( o ), new PrintStream( e ) ).run( new String[] {
+                "--jdbc-url", pg.getJdbcUrl(),
+                "--jdbc-user", pg.getUsername(),
+                "--jdbc-password", pg.getPassword(),
+                "list"
+        } );
+        assertEquals( 0, rc, "stderr=" + e.toString( StandardCharsets.UTF_8 ) );
+        assertTrue( o.toString( StandardCharsets.UTF_8 ).contains( "java" ) );
+    }
+
+    @Test
+    void jdbcArgsParseAppliesOverridesAndLeavesRemainingArgs() {
+        final KgPolicyCli.JdbcArgs j = KgPolicyCli.JdbcArgs.parse( new String[] {
+                "--jdbc-url", "jdbc:postgresql://example:5432/db",
+                "--jdbc-user", "custom-user",
+                "--jdbc-password", "custom-pass",
+                "list", "--filter", "include"
+        } );
+        assertEquals( "jdbc:postgresql://example:5432/db", j.jdbcUrl );
+        assertEquals( "custom-user", j.jdbcUser );
+        assertEquals( "custom-pass", j.jdbcPassword );
+        assertArrayEquals( new String[] { "list", "--filter", "include" }, j.remaining );
+    }
+
+    @Test
+    void jdbcArgsParseAppliesDefaultsWhenNoFlagsGiven() {
+        final KgPolicyCli.JdbcArgs j = KgPolicyCli.JdbcArgs.parse( new String[] { "list" } );
+        assertEquals( "jdbc:postgresql://localhost:5432/jspwiki", j.jdbcUrl );
+        assertEquals( "jspwiki", j.jdbcUser );
+        assertArrayEquals( new String[] { "list" }, j.remaining );
+    }
+
+    @Test
+    void jdbcArgsPasswordEnvReadsFromEnvironment() {
+        final KgPolicyCli.JdbcArgs j = KgPolicyCli.JdbcArgs.parse( new String[] {
+                "--jdbc-password-env", "PATH", "list" } );
+        assertEquals( System.getenv( "PATH" ), j.jdbcPassword );
+    }
+
+    @Test
+    void jdbcArgsDataSourceReflectsParsedFields() {
+        final KgPolicyCli.JdbcArgs j = KgPolicyCli.JdbcArgs.parse( new String[] {
+                "--jdbc-url", "jdbc:postgresql://myhost:5432/mydb",
+                "--jdbc-user", "myuser",
+                "--jdbc-password", "mypass" } );
+        final DataSource built = j.dataSource();
+        assertInstanceOf( PGSimpleDataSource.class, built );
+        final PGSimpleDataSource pgds = ( PGSimpleDataSource ) built;
+        // PGSimpleDataSource.getUrl() re-serializes with all driver defaults appended,
+        // so assert the host/port/db prefix rather than an exact string match.
+        assertTrue( pgds.getUrl().startsWith( "jdbc:postgresql://myhost:5432/mydb" ), pgds.getUrl() );
+        assertEquals( "myuser", pgds.getUser() );
+        assertEquals( "mypass", pgds.getPassword() );
     }
 }

@@ -21,6 +21,9 @@ package com.wikantik.extractcli;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -89,5 +92,31 @@ class GenerateMainPageCliTest {
     void missing_pages_dir_returns_exit_three( @TempDir final Path tmp ) throws Exception {
         final var result = new GenerateMainPageCli().run( tmp.resolve( "nope" ), GenerateMainPageCli.Mode.CHECK );
         assertEquals( 3, result.exitCode() );
+    }
+
+    @Test
+    void unresolved_canonical_id_in_pins_surfaces_a_warning_on_stderr( @TempDir final Path tmp ) throws Exception {
+        // No page in the directory carries this canonical_id, so MainPageDataLoader
+        // must drop the pin and record a warning rather than fail the whole run.
+        Files.writeString( tmp.resolve( "Main.pins.yaml" ), """
+                sections:
+                  - label: "S"
+                    pages: [01ZZZZZZZZZZZZZZZZZZZZZZZZ]
+                """ );
+
+        final PrintStream original = System.err;
+        final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        System.setErr( new PrintStream( captured, true, StandardCharsets.UTF_8 ) );
+        final GenerateMainPageCli.Result result;
+        try {
+            result = new GenerateMainPageCli().run( tmp, GenerateMainPageCli.Mode.WRITE );
+        } finally {
+            System.setErr( original );
+        }
+
+        assertEquals( 0, result.exitCode() );
+        final String stderr = captured.toString( StandardCharsets.UTF_8 );
+        assertTrue( stderr.contains( "WARNING:" ), stderr );
+        assertTrue( stderr.contains( "01ZZZZZZZZZZZZZZZZZZZZZZZZ" ), stderr );
     }
 }

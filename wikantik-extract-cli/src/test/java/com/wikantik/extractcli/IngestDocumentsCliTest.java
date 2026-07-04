@@ -18,9 +18,15 @@
  */
 package com.wikantik.extractcli;
 
+import com.sun.net.httpserver.HttpServer;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,6 +35,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -214,5 +221,202 @@ class IngestDocumentsCliTest {
     void tallyTotalIsSum() {
         final IngestDocumentsCli.Tally t = new IngestDocumentsCli.Tally( 2, 3, 1, 4 );
         assertEquals( 10, t.total() );
+    }
+
+    // ---- extractStatus ----
+
+    @Test
+    void extractStatusParsesStandardResponse() {
+        assertEquals( "created", IngestDocumentsCli.extractStatus( "{\"page\":\"Foo\",\"status\":\"created\"}" ) );
+    }
+
+    @Test
+    void extractStatusHandlesWhitespaceBetweenColonAndValue() {
+        assertEquals( "updated", IngestDocumentsCli.extractStatus( "{\"status\" : \"updated\"}" ) );
+    }
+
+    @Test
+    void extractStatusFallsBackToRawBodyWhenStatusFieldAbsent() {
+        assertEquals( "no status field here", IngestDocumentsCli.extractStatus( "no status field here" ) );
+    }
+
+    @Test
+    void extractStatusFallsBackWhenColonMissingAfterKey() {
+        assertEquals( "\"status\"", IngestDocumentsCli.extractStatus( "\"status\"" ) );
+    }
+
+    @Test
+    void extractStatusFallsBackOnUnterminatedValue() {
+        final String malformed = "{\"status\":\"unterminated";
+        assertEquals( malformed, IngestDocumentsCli.extractStatus( malformed ) );
+    }
+
+    @Test
+    void extractStatusTrimsFallbackBody() {
+        assertEquals( "plain text", IngestDocumentsCli.extractStatus( "  plain text  \n" ) );
+    }
+
+    // ---- buildMultipartBody ----
+
+    @Test
+    void buildMultipartBodyIncludesFilenameAndFileContent() {
+        final byte[] body = IngestDocumentsCli.buildMultipartBody(
+            "B123", "report.pdf", "PDF-BYTES".getBytes( StandardCharsets.UTF_8 ), false );
+        final String text = new String( body, StandardCharsets.UTF_8 );
+
+        assertTrue( text.startsWith( "--B123\r\n" ), text );
+        assertTrue( text.contains( "Content-Disposition: form-data; name=\"file\"; filename=\"report.pdf\"" ), text );
+        assertTrue( text.contains( "Content-Type: application/octet-stream" ), text );
+        assertTrue( text.contains( "PDF-BYTES" ), text );
+        assertTrue( text.endsWith( "--B123--\r\n" ), text );
+        assertFalse( text.contains( "name=\"force\"" ), "force field must be absent when force=false: " + text );
+    }
+
+    @Test
+    void buildMultipartBodyIncludesForceFieldWhenRequested() {
+        final byte[] body = IngestDocumentsCli.buildMultipartBody(
+            "B999", "notes.md", "hello".getBytes( StandardCharsets.UTF_8 ), true );
+        final String text = new String( body, StandardCharsets.UTF_8 );
+
+        assertTrue( text.contains( "Content-Disposition: form-data; name=\"force\"" ), text );
+        assertTrue( text.contains( "\r\ntrue\r\n" ), text );
+        // The force part must appear after the file part and before the closing boundary.
+        final int forceIdx = text.indexOf( "name=\"force\"" );
+        final int closingIdx = text.lastIndexOf( "--B999--" );
+        assertTrue( forceIdx > 0 && forceIdx < closingIdx );
+    }
+
+    @Test
+    void buildMultipartBodyLengthMatchesComponentSizes() {
+        final byte[] fileBytes = "0123456789".getBytes( StandardCharsets.UTF_8 );
+        final byte[] withoutForce = IngestDocumentsCli.buildMultipartBody( "B", "f.txt", fileBytes, false );
+        final byte[] withForce = IngestDocumentsCli.buildMultipartBody( "B", "f.txt", fileBytes, true );
+        assertTrue( withForce.length > withoutForce.length,
+            "adding the force field must grow the body" );
+    }
+
+    // ---- run(): embedded HTTP server, no mocking framework needed ----
+
+    private HttpServer server;
+
+    @AfterEach
+    void stopServer() {
+        if ( server != null ) {
+            server.stop( 0 );
+            server = null;
+        }
+    }
+
+    /** Starts a loopback HTTP server that always answers the given status/body pair. */
+    private String startFixedResponseServer( final int httpStatus, final String jsonBody,
+                                              final List<String> capturedAuthHeaders ) throws Exception {
+        server = HttpServer.create( new InetSocketAddress( "127.0.0.1", 0 ), 0 );
+        server.createContext( "/api/ingest", exchange -> {
+            capturedAuthHeaders.add( exchange.getRequestHeaders().getFirst( "Authorization" ) );
+            // Drain the request body so the client doesn't see a connection reset.
+            exchange.getRequestBody().readAllBytes();
+            final byte[] resp = jsonBody.getBytes( StandardCharsets.UTF_8 );
+            exchange.sendResponseHeaders( httpStatus, resp.length );
+            try ( OutputStream os = exchange.getResponseBody() ) {
+                os.write( resp );
+            }
+        } );
+        server.start();
+        return "http://127.0.0.1:" + server.getAddress().getPort();
+    }
+
+    private static String runCapturingStdout( final IngestDocumentsCli.Args a, final int[] rcOut ) {
+        final PrintStream original = System.out;
+        final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        System.setOut( new PrintStream( captured, true, StandardCharsets.UTF_8 ) );
+        try {
+            rcOut[ 0 ] = IngestDocumentsCli.run( a );
+        } finally {
+            System.setOut( original );
+        }
+        return captured.toString( StandardCharsets.UTF_8 );
+    }
+
+    @Test
+    void runReturnsTwoWhenDirDoesNotExist( @TempDir final Path tmp ) {
+        final IngestDocumentsCli.Args a = new IngestDocumentsCli.Args();
+        a.baseUrl = "http://127.0.0.1:1";
+        a.dir = tmp.resolve( "missing" ).toString();
+        a.user = "admin";
+        a.password = "secret";
+
+        final int[] rc = new int[1];
+        final String out = runCapturingStdout( a, rc );
+        assertEquals( 2, rc[ 0 ] );
+        assertFalse( out.contains( "walking" ), out );
+    }
+
+    @Test
+    void runPostsFileWithBasicAuthAndReturnsZeroOnSuccess( @TempDir final Path tmp ) throws Exception {
+        Files.writeString( tmp.resolve( "doc.md" ), "# hello" );
+        final List<String> authHeaders = new CopyOnWriteArrayList<>();
+        final String baseUrl = startFixedResponseServer( 200, "{\"page\":\"doc\",\"status\":\"created\"}", authHeaders );
+
+        final IngestDocumentsCli.Args a = new IngestDocumentsCli.Args();
+        a.baseUrl = baseUrl;
+        a.dir = tmp.toString();
+        a.user = "admin";
+        a.password = "sekrit";
+
+        final int[] rc = new int[1];
+        final String out = runCapturingStdout( a, rc );
+
+        assertEquals( 0, rc[ 0 ] );
+        assertTrue( out.contains( "[created]   doc.md" ), out );
+        assertTrue( out.contains( "total=1  created=1  updated=0  unchanged=0  failed=0" ), out );
+        assertEquals( 1, authHeaders.size() );
+        assertEquals( IngestDocumentsCli.basicAuthHeader( "admin", "sekrit" ), authHeaders.get( 0 ) );
+    }
+
+    @Test
+    void runReturnsOneWhenServerRejectsTheUpload( @TempDir final Path tmp ) throws Exception {
+        Files.writeString( tmp.resolve( "doc.md" ), "# hello" );
+        final String baseUrl = startFixedResponseServer( 500, "internal error", new CopyOnWriteArrayList<>() );
+
+        final IngestDocumentsCli.Args a = new IngestDocumentsCli.Args();
+        a.baseUrl = baseUrl;
+        a.dir = tmp.toString();
+        a.user = "admin";
+        a.password = "sekrit";
+
+        final int[] rc = new int[1];
+        final String out = runCapturingStdout( a, rc );
+
+        assertEquals( 1, rc[ 0 ] );
+        assertTrue( out.contains( "[FAILED]" ), out );
+        assertTrue( out.contains( "failed=1" ), out );
+    }
+
+    @Test
+    void runWithForceFlagSetsForceFieldOnTheRequest( @TempDir final Path tmp ) throws Exception {
+        Files.writeString( tmp.resolve( "doc.txt" ), "content" );
+        server = HttpServer.create( new InetSocketAddress( "127.0.0.1", 0 ), 0 );
+        final List<String> capturedBodies = new CopyOnWriteArrayList<>();
+        server.createContext( "/api/ingest", exchange -> {
+            capturedBodies.add( new String( exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8 ) );
+            final byte[] resp = "{\"status\":\"updated\"}".getBytes( StandardCharsets.UTF_8 );
+            exchange.sendResponseHeaders( 200, resp.length );
+            try ( OutputStream os = exchange.getResponseBody() ) { os.write( resp ); }
+        } );
+        server.start();
+
+        final IngestDocumentsCli.Args a = new IngestDocumentsCli.Args();
+        a.baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+        a.dir = tmp.toString();
+        a.user = "admin";
+        a.password = "sekrit";
+        a.force = true;
+
+        final int[] rc = new int[1];
+        runCapturingStdout( a, rc );
+
+        assertEquals( 0, rc[ 0 ] );
+        assertEquals( 1, capturedBodies.size() );
+        assertTrue( capturedBodies.get( 0 ).contains( "name=\"force\"" ), capturedBodies.get( 0 ) );
     }
 }

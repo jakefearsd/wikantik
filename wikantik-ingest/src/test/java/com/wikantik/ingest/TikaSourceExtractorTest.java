@@ -20,6 +20,7 @@ package com.wikantik.ingest;
 
 import static org.junit.jupiter.api.Assertions.*;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
@@ -162,5 +163,58 @@ class TikaSourceExtractorTest {
                 zero.extract( in, "text/plain", "timeout.txt" );
             }
         }, "A 0-second timeout must throw ExtractionException" );
+    }
+
+    /** The single-arg timeout ExtractionException names the timeout and the filename. */
+    @Test
+    void zeroTimeoutMessageNamesTimeoutAndFile() {
+        final TikaSourceExtractor zero = new TikaSourceExtractor( TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 0 );
+        final ExtractionException thrown = assertThrows( ExtractionException.class,
+            () -> zero.extract( new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ),
+                                "text/plain", "slow.txt" ) );
+        assertTrue( thrown.getMessage().contains( "timed out" ),
+            "timeout message must say it timed out, got: " + thrown.getMessage() );
+        assertTrue( thrown.getMessage().contains( "slow.txt" ),
+            "timeout message must name the offending file, got: " + thrown.getMessage() );
+    }
+
+    // ------------------------------------------------------------------ content-type guard
+
+    @Test
+    void supportsNullContentTypeIsFalse() {
+        // The null-guard branch: a missing content type is never "supported".
+        assertFalse( ex.supports( null ), "null content type must not be reported as supported" );
+    }
+
+    @Test
+    void supportsIsCaseInsensitive() {
+        // toLowerCase(ROOT) normalisation branch — an uppercased known type still matches.
+        assertTrue( ex.supports( "APPLICATION/PDF" ) );
+        assertTrue( ex.supports( "Text/Plain" ) );
+    }
+
+    // ------------------------------------------------------------------ parse-failure dispatch
+
+    /**
+     * A stream that throws on read drives Tika's parse to fail; the ExecutionException
+     * cause-dispatch must surface an ExtractionException that (a) names the file, (b) uses
+     * the "Failed to parse document" prefix, and (c) chains the original cause — pinning the
+     * error-wrapping contract, not merely that "something threw".
+     */
+    @Test
+    void readFailureIsWrappedWithFilenameAndCause() {
+        final InputStream boom = new InputStream() {
+            @Override public int read() throws IOException { throw new IOException( "disk vanished" ); }
+            @Override public int read( final byte[] b, final int off, final int len ) throws IOException {
+                throw new IOException( "disk vanished" );
+            }
+        };
+        final ExtractionException thrown = assertThrows( ExtractionException.class,
+            () -> ex.extract( boom, "text/plain", "broken.txt" ) );
+        assertTrue( thrown.getMessage().startsWith( "Failed to parse document 'broken.txt'" ),
+            "parse-failure message must name the file with the standard prefix, got: " + thrown.getMessage() );
+        assertNotNull( thrown.getCause(), "the original parse failure must be chained as the cause" );
+        assertTrue( thrown.getCause().getMessage().contains( "disk vanished" ),
+            "the underlying read failure must be preserved in the cause chain" );
     }
 }

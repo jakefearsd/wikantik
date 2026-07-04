@@ -29,12 +29,15 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.authorize.GroupManager;
+import com.wikantik.auth.sso.SSOConfig;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -392,6 +395,50 @@ class AuthResourceTest {
         assertTrue( obj.get( "message" ).getAsString().contains( "If an account exists" ) );
     }
 
+    @Test
+    void testResetPasswordRateLimitedAfterThreeAttemptsPerHour() throws Exception {
+        // A 4th request within the hour for the same (real, known) email must be
+        // short-circuited by the rate limiter BEFORE the db lookup / mail send —
+        // generic success is still returned (no enumeration signal), but the mail
+        // send count must stop growing after the 3rd attempt. If the rate limiter
+        // were removed, the 4th call would also send mail (call count 4), so this
+        // assertion fails under that regression.
+        final com.wikantik.auth.UserManager um =
+                engine.getManager( com.wikantik.auth.UserManager.class );
+        final UserDatabase db = um.getUserDatabase();
+        final UserProfile profile = db.newProfile();
+        profile.setLoginName( "ratelimituser" );
+        profile.setFullname( "Rate Limit User" );
+        profile.setEmail( "rate-limit-target@example.com" );
+        profile.setPassword( "Xk3-Valid-Pass-77!" );
+        db.save( profile );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "email", "rate-limit-target@example.com" );
+
+        try ( MockedStatic< com.wikantik.util.MailUtil > mail =
+                      Mockito.mockStatic( com.wikantik.util.MailUtil.class ) ) {
+            mail.when( () -> com.wikantik.util.MailUtil.sendMessage(
+                            Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any() ) )
+                    .then( invocation -> null );
+
+            for ( int i = 0; i < 3; i++ ) {
+                final JsonObject obj = gson.fromJson( doPost( "reset-password", body ), JsonObject.class );
+                assertTrue( obj.get( "success" ).getAsBoolean() );
+            }
+            mail.verify( () -> com.wikantik.util.MailUtil.sendMessage(
+                    Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any() ), Mockito.times( 3 ) );
+
+            final JsonObject fourth = gson.fromJson( doPost( "reset-password", body ), JsonObject.class );
+            assertTrue( fourth.get( "success" ).getAsBoolean(),
+                    "rate-limited response must still be generic success" );
+
+            // Still exactly 3 — the 4th attempt must NOT have reached the mail-send step.
+            mail.verify( () -> com.wikantik.util.MailUtil.sendMessage(
+                    Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any() ), Mockito.times( 3 ) );
+        }
+    }
+
     // ----- Task 3: mustChangePassword flag tests -----
 
     @Test
@@ -491,6 +538,44 @@ class AuthResourceTest {
                 "passwordMustChange should be true after email-based password reset" );
     }
 
+    @Test
+    void resetPasswordMailFailureStillReturnsGenericSuccessAndLeavesPasswordUnchanged() throws Exception {
+        // Arrange: a real user with a known email and a known (unchanged) password.
+        final com.wikantik.auth.UserManager um =
+                engine.getManager( com.wikantik.auth.UserManager.class );
+        final UserDatabase db = um.getUserDatabase();
+        final UserProfile profile = db.newProfile();
+        profile.setLoginName( "mailfailuser" );
+        profile.setFullname( "Mail Fail User" );
+        profile.setEmail( "mailfail@example.com" );
+        profile.setPassword( "Xk3-Valid-Pass-77!" );
+        profile.setPasswordMustChange( false );
+        db.save( profile );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "email", "mailfail@example.com" );
+
+        try ( MockedStatic< com.wikantik.util.MailUtil > mail =
+                      Mockito.mockStatic( com.wikantik.util.MailUtil.class ) ) {
+            mail.when( () -> com.wikantik.util.MailUtil.sendMessage(
+                            Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any() ) )
+                    .thenThrow( new RuntimeException( "SMTP unreachable" ) );
+
+            final String json = doPost( "reset-password", body );
+            final JsonObject obj = gson.fromJson( json, JsonObject.class );
+            // Generic success even on mail failure — prevents email enumeration.
+            assertTrue( obj.get( "success" ).getAsBoolean(),
+                    "reset-password must still report generic success, got: " + json );
+        }
+
+        // The password must NOT have been changed since the email send failed
+        // before the save() call in the try block.
+        assertTrue( db.validatePassword( "mailfailuser", "Xk3-Valid-Pass-77!" ),
+                "password must be unchanged when the reset email fails to send" );
+        assertFalse( db.findByEmail( "mailfail@example.com" ).isPasswordMustChange(),
+                "passwordMustChange must remain false when the reset email fails to send" );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String action ) throws Exception {
@@ -532,6 +617,19 @@ class AuthResourceTest {
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
 
         servlet.doPut( request, response );
+        return sw.toString();
+    }
+
+    private String doDelete( final String action, final JsonObject body ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/auth/" + action );
+        Mockito.doReturn( "/" + action ).when( request ).getPathInfo();
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doDelete( request, response );
         return sw.toString();
     }
 
@@ -725,6 +823,296 @@ class AuthResourceTest {
         try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
             final JsonObject obj = gson.fromJson( doPut( "profile", body ), JsonObject.class );
             assertEquals( 500, obj.get( "status" ).getAsInt() );
+        }
+    }
+
+    // ----- GET /api/auth/{me,session,status} (D24 aliases) -----
+
+    @Test
+    void handleGetMe_anonymousReturnsUnauthenticatedShapeWithNullFields() throws Exception {
+        final JsonObject obj = gson.fromJson( doGet( "me" ), JsonObject.class );
+        assertFalse( obj.get( "authenticated" ).getAsBoolean() );
+        // RestServletBase's shared Gson does not serializeNulls(), so null-valued
+        // map entries (login/fullName for an anonymous caller) are omitted entirely.
+        assertFalse( obj.has( "login" ), "anonymous login must be omitted (null), not present" );
+        assertFalse( obj.has( "fullName" ), "anonymous fullName must be omitted (null), not present" );
+        assertFalse( obj.has( "mustChangePassword" ), "anonymous callers must not carry mustChangePassword" );
+        assertTrue( obj.has( "roles" ) );
+    }
+
+    @Test
+    void handleGetMe_sessionAndStatusAliasesReturnSameShapeAsMe() throws Exception {
+        final JsonObject viaSession = gson.fromJson( doGet( "session" ), JsonObject.class );
+        final JsonObject viaStatus = gson.fromJson( doGet( "status" ), JsonObject.class );
+        assertFalse( viaSession.get( "authenticated" ).getAsBoolean() );
+        assertFalse( viaStatus.get( "authenticated" ).getAsBoolean() );
+    }
+
+    @Test
+    void handleGetMe_authenticatedCarriesLoginFullNameRolesAndMustChangePassword() throws Exception {
+        final com.wikantik.auth.UserManager um =
+                engine.getManager( com.wikantik.auth.UserManager.class );
+        final UserDatabase db = um.getUserDatabase();
+        final UserProfile profile = db.newProfile();
+        profile.setLoginName( "mustchangemeuser" );
+        profile.setFullname( "Must Change Me User" );
+        profile.setEmail( "mustchangeme@example.com" );
+        profile.setPassword( "Xk3-Valid-Pass-77!" );
+        profile.setPasswordMustChange( true );
+        db.save( profile );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "mustchangemeuser" ) ) ) {
+            final JsonObject obj = gson.fromJson( doGet( "me" ), JsonObject.class );
+            assertTrue( obj.get( "authenticated" ).getAsBoolean() );
+            assertEquals( "mustchangemeuser", obj.get( "login" ).getAsString() );
+            assertEquals( "mustchangemeuser", obj.get( "fullName" ).getAsString() );
+            assertTrue( obj.get( "mustChangePassword" ).getAsBoolean() );
+            assertTrue( obj.get( "roles" ).getAsJsonArray().size() > 0 );
+        }
+    }
+
+    // ----- GET /api/auth/user: sso descriptor -----
+
+    @Test
+    void ssoInfo_disabledByDefault() throws Exception {
+        final JsonObject obj = gson.fromJson( doGetUser(), JsonObject.class );
+        final JsonObject sso = obj.getAsJsonObject( "sso" );
+        assertFalse( sso.get( "enabled" ).getAsBoolean() );
+        assertFalse( sso.has( "loginUrl" ), "loginUrl must be omitted when SSO is disabled" );
+        assertFalse( sso.has( "providerLabel" ) );
+    }
+
+    private JsonObject doGetUserWithSsoProps( final String discoveryUri ) throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
+        if ( discoveryUri != null ) {
+            props.setProperty( SSOConfig.PROP_OIDC_DISCOVERY_URI, discoveryUri );
+        }
+        final TestEngine ssoEngine = new TestEngine( props );
+        try {
+            final AuthResource ssoServlet = new AuthResource();
+            final ServletConfig config = Mockito.mock( ServletConfig.class );
+            Mockito.doReturn( ssoEngine.getServletContext() ).when( config ).getServletContext();
+            ssoServlet.init( config );
+
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/auth/user" );
+            Mockito.doReturn( "/user" ).when( request ).getPathInfo();
+            Mockito.doReturn( "/JSPWiki" ).when( request ).getContextPath();
+
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter sw = new StringWriter();
+            Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+            ssoServlet.doGet( request, response );
+            return gson.fromJson( sw.toString(), JsonObject.class );
+        } finally {
+            ssoEngine.stop();
+        }
+    }
+
+    @Test
+    void ssoInfo_enabledWithGoogleDiscoveryUriYieldsGoogleLabelAndLoginUrl() throws Exception {
+        final JsonObject sso = doGetUserWithSsoProps( "https://accounts.google.com/.well-known/openid-configuration" )
+                .getAsJsonObject( "sso" );
+        assertTrue( sso.get( "enabled" ).getAsBoolean() );
+        assertEquals( "/JSPWiki/sso/login", sso.get( "loginUrl" ).getAsString() );
+        assertEquals( "Google", sso.get( "providerLabel" ).getAsString() );
+    }
+
+    @Test
+    void ssoInfo_enabledWithFacebookDiscoveryUriYieldsFacebookLabel() throws Exception {
+        final JsonObject sso = doGetUserWithSsoProps( "https://www.facebook.com/.well-known/openid-configuration" )
+                .getAsJsonObject( "sso" );
+        assertEquals( "Facebook", sso.get( "providerLabel" ).getAsString() );
+    }
+
+    @Test
+    void ssoInfo_enabledWithUnknownDiscoveryUriYieldsGenericLabel() throws Exception {
+        final JsonObject sso = doGetUserWithSsoProps( "https://idp.example.com/.well-known/openid-configuration" )
+                .getAsJsonObject( "sso" );
+        assertEquals( "single sign-on", sso.get( "providerLabel" ).getAsString() );
+    }
+
+    // ----- DELETE /api/auth/profile (self-service account deletion) -----
+
+    @Test
+    void handleDeleteProfile_unauthenticatedReturns401() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "confirmLoginName", "alice" );
+        final JsonObject obj = gson.fromJson( doDelete( "profile", body ), JsonObject.class );
+        assertEquals( 401, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void handleDeleteProfile_unknownActionReturns404() throws Exception {
+        final JsonObject obj = gson.fromJson( doDelete( "bogus", new JsonObject() ), JsonObject.class );
+        assertEquals( 404, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void handleDeleteProfile_confirmMismatchReturns400() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "confirmLoginName", "someoneelse" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            final JsonObject obj = gson.fromJson( doDelete( "profile", body ), JsonObject.class );
+            assertEquals( 400, obj.get( "status" ).getAsInt() );
+            assertTrue( obj.get( "message" ).getAsString().contains( "confirmLoginName" ) );
+        }
+    }
+
+    @Test
+    void handleDeleteProfile_adminSessionReturns409() throws Exception {
+        final Session admin = Mockito.mock( Session.class );
+        Mockito.when( admin.isAuthenticated() ).thenReturn( true );
+        final Principal p = Mockito.mock( Principal.class );
+        Mockito.when( p.getName() ).thenReturn( "adminuser" );
+        Mockito.when( admin.getLoginPrincipal() ).thenReturn( p );
+        // Build the admin-role principal BEFORE opening the getRoles() stub — nesting a
+        // fresh mock()/when() cycle inside an in-progress thenReturn(...) argument confuses
+        // Mockito's stubbing-progress tracker (UnfinishedStubbingException).
+        final Principal adminRole = principalNamedAdmin();
+        Mockito.when( admin.getRoles() ).thenReturn( new Principal[]{ adminRole } );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "confirmLoginName", "adminuser" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( admin ) ) {
+            final JsonObject obj = gson.fromJson( doDelete( "profile", body ), JsonObject.class );
+            assertEquals( 409, obj.get( "status" ).getAsInt() );
+        }
+    }
+
+    private static Principal principalNamedAdmin() {
+        final Principal p = Mockito.mock( Principal.class );
+        Mockito.when( p.getName() ).thenReturn( "Admin" );
+        return p;
+    }
+
+    @Test
+    void handleDeleteProfile_noSuchPrincipalReturns404() throws Exception {
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.doThrow( new NoSuchPrincipalException( "no such user" ) )
+                .when( db ).deleteByLoginName( "alice" );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final GroupManager gm = Mockito.mock( GroupManager.class );
+        Mockito.when( gm.getRoles() ).thenReturn( new Principal[ 0 ] );
+        ( (com.wikantik.WikiEngine) engine ).setManager( GroupManager.class, gm );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "confirmLoginName", "alice" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            final JsonObject obj = gson.fromJson( doDelete( "profile", body ), JsonObject.class );
+            assertEquals( 404, obj.get( "status" ).getAsInt() );
+        }
+        Mockito.verify( db, Mockito.never() ).save( any() );
+    }
+
+    @Test
+    void handleDeleteProfile_wikiSecurityExceptionReturns500() throws Exception {
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.doThrow( new WikiSecurityException( "db down" ) )
+                .when( db ).deleteByLoginName( "alice" );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final GroupManager gm = Mockito.mock( GroupManager.class );
+        Mockito.when( gm.getRoles() ).thenReturn( new Principal[ 0 ] );
+        ( (com.wikantik.WikiEngine) engine ).setManager( GroupManager.class, gm );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "confirmLoginName", "alice" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            final JsonObject obj = gson.fromJson( doDelete( "profile", body ), JsonObject.class );
+            assertEquals( 500, obj.get( "status" ).getAsInt() );
+        }
+    }
+
+    @Test
+    void handleDeleteProfile_successDeletesAccountAndInvalidatesSession() throws Exception {
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final GroupManager gm = Mockito.mock( GroupManager.class );
+        Mockito.when( gm.getRoles() ).thenReturn( new Principal[ 0 ] );
+        ( (com.wikantik.WikiEngine) engine ).setManager( GroupManager.class, gm );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "confirmLoginName", "alice" );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/auth/profile" );
+        Mockito.doReturn( "/profile" ).when( request ).getPathInfo();
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+        final HttpSession httpSession = Mockito.mock( HttpSession.class );
+        Mockito.doReturn( httpSession ).when( request ).getSession( false );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            servlet.doDelete( request, response );
+        }
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "deleted" ).getAsBoolean() );
+        assertEquals( "alice", obj.get( "loginName" ).getAsString() );
+        Mockito.verify( db ).deleteByLoginName( "alice" );
+        Mockito.verify( gm ).getRoles();
+        Mockito.verify( httpSession ).invalidate();
+    }
+
+    // ----- POST /api/auth/login: remember-me cookie on success -----
+
+    @Test
+    void loginWithCookieAuthenticationEnabledIssuesRememberMeCookie() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( com.wikantik.auth.AuthenticationManager.PROP_ALLOW_COOKIE_AUTH, "true" );
+        final TestEngine cookieEngine = new TestEngine( props );
+        try {
+            final com.wikantik.auth.UserManager um =
+                    cookieEngine.getManager( com.wikantik.auth.UserManager.class );
+            final UserDatabase db = um.getUserDatabase();
+            final UserProfile profile = db.newProfile();
+            profile.setLoginName( "cookieuser" );
+            profile.setFullname( "Cookie User" );
+            profile.setEmail( "cookieuser@example.com" );
+            profile.setPassword( "Xk3-Valid-Pass-77!" );
+            db.save( profile );
+
+            final AuthResource cookieServlet = new AuthResource();
+            final ServletConfig config = Mockito.mock( ServletConfig.class );
+            Mockito.doReturn( cookieEngine.getServletContext() ).when( config ).getServletContext();
+            cookieServlet.init( config );
+
+            final JsonObject body = new JsonObject();
+            body.addProperty( "username", "cookieuser" );
+            body.addProperty( "password", "Xk3-Valid-Pass-77!" );
+
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/auth/login" );
+            Mockito.doReturn( "/login" ).when( request ).getPathInfo();
+            Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+            Mockito.doReturn( false ).when( request ).isSecure();
+
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter sw = new StringWriter();
+            Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+            cookieServlet.doPost( request, response );
+
+            final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+            assertTrue( obj.get( "success" ).getAsBoolean(), "login should succeed, got: " + sw );
+            Mockito.verify( response ).addCookie( any( jakarta.servlet.http.Cookie.class ) );
+        } finally {
+            cookieEngine.stop();
         }
     }
 }

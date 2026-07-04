@@ -315,7 +315,8 @@ public class SpaRoutingFilter implements Filter {
                 }
                 fp = sb.toString();
                 shellFingerprint = fp;
-            } catch ( final Exception e ) {
+            } catch ( final java.io.IOException | java.security.NoSuchAlgorithmException
+                      | RuntimeException e ) {
                 LOG.warn( "SpaRoutingFilter: shell fingerprint failed: {}", e.getMessage() );
                 return "0";
             }

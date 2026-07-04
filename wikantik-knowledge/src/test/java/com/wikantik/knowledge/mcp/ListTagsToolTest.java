@@ -50,4 +50,43 @@ class ListTagsToolTest {
         new ListTagsTool( svc ).execute( Map.of( "min_pages", 5 ) );
         verify( svc ).listTags( 5 );
     }
+
+    @Test
+    void name_returns_tool_name_constant() {
+        final ListTagsTool tool = new ListTagsTool( mock( StructuralIndexService.class ) );
+        assertEquals( "list_tags", tool.name() );
+        assertEquals( ListTagsTool.TOOL_NAME, tool.name() );
+    }
+
+    @SuppressWarnings( "unchecked" )
+    @Test
+    void definition_declares_min_pages_and_pagination_schema() {
+        final ListTagsTool tool = new ListTagsTool( mock( StructuralIndexService.class ) );
+        final McpSchema.Tool definition = tool.definition();
+
+        assertEquals( "list_tags", definition.name() );
+        assertTrue( definition.description().contains( "tag dictionary" ) );
+
+        final Map< String, Object > props = definition.inputSchema().properties();
+        assertTrue( props.containsKey( "min_pages" ), "input schema must declare min_pages" );
+        final Map< String, Object > minPages = ( Map< String, Object > ) props.get( "min_pages" );
+        assertEquals( "integer", minPages.get( "type" ) );
+
+        assertEquals( "object", definition.outputSchema().get( "type" ) );
+        assertNotNull( definition.annotations() );
+        assertTrue( definition.annotations().readOnlyHint() );
+    }
+
+    @Test
+    void execute_returnsErrorResult_whenServiceThrows() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        when( svc.listTags( 1 ) ).thenThrow( new RuntimeException( "index unavailable" ) );
+
+        final var result = new ListTagsTool( svc ).execute( Map.of() );
+
+        assertTrue( result.isError() );
+        final String text = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "index unavailable" ),
+                "error payload should surface the underlying exception message" );
+    }
 }

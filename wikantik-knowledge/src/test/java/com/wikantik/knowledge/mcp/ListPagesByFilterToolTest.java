@@ -71,6 +71,69 @@ class ListPagesByFilterToolTest {
     }
 
     @Test
+    void name_returns_tool_name_constant() {
+        final ListPagesByFilterTool tool = new ListPagesByFilterTool( mock( StructuralIndexService.class ) );
+        assertEquals( "list_pages_by_filter", tool.name() );
+        assertEquals( ListPagesByFilterTool.TOOL_NAME, tool.name() );
+    }
+
+    @SuppressWarnings( "unchecked" )
+    @Test
+    void definition_declares_filter_properties_and_output_schema() {
+        final ListPagesByFilterTool tool = new ListPagesByFilterTool( mock( StructuralIndexService.class ) );
+        final McpSchema.Tool definition = tool.definition();
+
+        assertEquals( "list_pages_by_filter", definition.name() );
+        assertTrue( definition.description().contains( "structural filter" ) );
+
+        final Map< String, Object > props = definition.inputSchema().properties();
+        assertTrue( props.keySet().containsAll(
+                List.of( "type", "cluster", "tag", "updated_since", "limit" ) ) );
+        final Map< String, Object > tagProp = ( Map< String, Object > ) props.get( "tag" );
+        assertEquals( "array", tagProp.get( "type" ) );
+
+        assertEquals( "object", definition.outputSchema().get( "type" ) );
+        assertTrue( definition.annotations().readOnlyHint() );
+    }
+
+    @Test
+    void coerces_single_string_tag_argument_into_a_singleton_list() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        when( svc.listPagesByFilter( any() ) ).thenReturn( List.of() );
+        final ArgumentCaptor< StructuralFilter > cap = ArgumentCaptor.forClass( StructuralFilter.class );
+
+        new ListPagesByFilterTool( svc ).execute( Map.of( "tag", "retrieval" ) );
+
+        verify( svc ).listPagesByFilter( cap.capture() );
+        assertEquals( List.of( "retrieval" ), cap.getValue().tags() );
+    }
+
+    @Test
+    void execute_returnsErrorResult_whenUpdatedSinceIsUnparseable() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+
+        final var result = new ListPagesByFilterTool( svc )
+                .execute( Map.of( "updated_since", "not-an-instant" ) );
+
+        assertTrue( result.isError() );
+        verify( svc, never() ).listPagesByFilter( any() );
+        final String text = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertFalse( text.isBlank() );
+    }
+
+    @Test
+    void execute_returnsErrorResult_whenServiceThrows() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        when( svc.listPagesByFilter( any() ) ).thenThrow( new RuntimeException( "index unavailable" ) );
+
+        final var result = new ListPagesByFilterTool( svc ).execute( Map.of() );
+
+        assertTrue( result.isError() );
+        final String text = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "index unavailable" ) );
+    }
+
+    @Test
     void restrictedPageFilteredForGuest() {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
         when( svc.listPagesByFilter( any() ) ).thenReturn( List.of(

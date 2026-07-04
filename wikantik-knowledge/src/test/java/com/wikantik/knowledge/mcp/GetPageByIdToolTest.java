@@ -21,6 +21,7 @@ package com.wikantik.knowledge.mcp;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.api.pagegraph.StructuralIndexService;
+import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -40,6 +41,59 @@ class GetPageByIdToolTest {
                 new PageDescriptor( "01A", "X", "X", PageType.ARTICLE, null, List.of(), "s", Instant.EPOCH, Optional.empty() ) ) );
         final var result = new GetPageByIdTool( svc ).execute( Map.of( "canonical_id", "01A" ) );
         assertFalse( result.isError() );
+        final String text = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "\"canonicalId\":\"01A\"" ), "payload must echo the resolved canonical id" );
+        assertTrue( text.contains( "\"slug\":\"X\"" ), "payload must include the page slug" );
+    }
+
+    @Test
+    void name_returns_tool_name_constant() {
+        final GetPageByIdTool tool = new GetPageByIdTool( mock( StructuralIndexService.class ) );
+        assertEquals( "get_page_by_id", tool.name() );
+        assertEquals( GetPageByIdTool.TOOL_NAME, tool.name() );
+    }
+
+    @SuppressWarnings( "unchecked" )
+    @Test
+    void definition_declares_id_and_legacy_alias_properties() {
+        final GetPageByIdTool tool = new GetPageByIdTool( mock( StructuralIndexService.class ) );
+        final McpSchema.Tool definition = tool.definition();
+
+        assertEquals( "get_page_by_id", definition.name() );
+        assertTrue( definition.description().contains( "canonical id" ) );
+
+        final Map< String, Object > props = definition.inputSchema().properties();
+        assertTrue( props.containsKey( "id" ) );
+        assertTrue( props.containsKey( "canonical_id" ) );
+        final Map< String, Object > canonicalIdProp = ( Map< String, Object > ) props.get( "canonical_id" );
+        assertTrue( ( (String) canonicalIdProp.get( "description" ) ).contains( "Deprecated" ) );
+
+        assertEquals( "object", definition.outputSchema().get( "type" ) );
+        assertTrue( definition.annotations().readOnlyHint() );
+    }
+
+    @Test
+    void execute_returnsErrorResult_whenServiceThrows() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        when( svc.getByCanonicalId( "01A" ) ).thenThrow( new RuntimeException( "index unavailable" ) );
+
+        final var result = new GetPageByIdTool( svc ).execute( Map.of( "id", "01A" ) );
+
+        assertTrue( result.isError() );
+        final String text = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "index unavailable" ) );
+    }
+
+    @Test
+    void null_viewGate_defaults_to_allow_all() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        when( svc.getByCanonicalId( "01A" ) ).thenReturn( Optional.of(
+                new PageDescriptor( "01A", "AnyPage", "AnyPage", PageType.ARTICLE, null, List.of(),
+                        "s", Instant.EPOCH, Optional.empty() ) ) );
+
+        final var result = new GetPageByIdTool( svc, null ).execute( Map.of( "id", "01A" ) );
+
+        assertFalse( result.isError(), "a null viewGate must degrade to allow-all rather than blocking every page" );
     }
 
     @Test

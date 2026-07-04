@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -146,5 +147,37 @@ class KnowledgeMcpUtilsTest {
     void asInstant_rejectsInvalidString() {
         assertThrows( IllegalArgumentException.class,
             () -> KnowledgeMcpUtils.asInstant( "not-a-date" ) );
+    }
+
+    @Test
+    void optionalAdapter_writesEmptyOptionalAsJsonNull() {
+        assertEquals( "null", KnowledgeMcpUtils.GSON.toJson( Optional.empty(), Optional.class ) );
+    }
+
+    @Test
+    void optionalAdapter_writesBooleanContentsUnwrapped() {
+        assertEquals( "true", KnowledgeMcpUtils.GSON.toJson( Optional.of( true ), Optional.class ) );
+    }
+
+    @Test
+    void optionalAdapter_writesNumberContentsUnwrapped() {
+        assertEquals( "42", KnowledgeMcpUtils.GSON.toJson( Optional.of( 42 ), Optional.class ) );
+    }
+
+    @Test
+    void optionalAdapter_writesOtherContentsAsString() {
+        assertEquals( "\"hello\"", KnowledgeMcpUtils.GSON.toJson( Optional.of( "hello" ), Optional.class ) );
+    }
+
+    @Test
+    void optionalAdapter_readsJsonNullAsEmptyOptional() {
+        assertEquals( Optional.empty(), KnowledgeMcpUtils.GSON.fromJson( "null", Optional.class ) );
+    }
+
+    @Test
+    void optionalAdapter_readsNonNullTokenAsEmptyOptional() {
+        // Deserialization is not a supported round-trip for MCP responses; any non-null
+        // token is skipped and Optional.empty() is returned rather than throwing.
+        assertEquals( Optional.empty(), KnowledgeMcpUtils.GSON.fromJson( "\"some-value\"", Optional.class ) );
     }
 }

@@ -514,6 +514,10 @@ class JudgeExperimentCliTest {
             a.anthropicKeyEnv = "PATH";
             final ProposalJudge judge = invokeBuildComparator( a );
             assertNotNull( judge );
+            // Pin that the CLAUDE backend was actually selected — not merely that
+            // some judge was returned — so a regression that silently falls back to
+            // ollama on the gated success path would fail this test.
+            assertTrue( judge.code().startsWith( "claude:" ), judge.code() );
         } finally {
             System.clearProperty( "wikantik.kg.judge.allow_claude" );
         }

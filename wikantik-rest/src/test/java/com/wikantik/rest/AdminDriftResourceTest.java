@@ -125,6 +125,15 @@ class AdminDriftResourceTest {
     }
 
     @Test
+    void trendWithInvalidDaysReturns400() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/trend" );
+        when( req.getParameter( "days" ) ).thenReturn( "not-a-number" );
+        servlet.doGet( req, resp );
+        verify( resp ).setStatus( 400 );
+        verify( repo, never() ).trend( anyInt() );
+    }
+
+    @Test
     void trendReturnsWindowedSweeps() throws Exception {
         when( req.getPathInfo() ).thenReturn( "/trend" );
         when( req.getParameter( "days" ) ).thenReturn( "7" );
@@ -194,6 +203,28 @@ class AdminDriftResourceTest {
         servlet.doGet( req, resp );
         // sendError uses setStatus(int), never sendError(int, String)
         verify( resp ).setStatus( 503 );
+    }
+
+    @Test
+    void postServiceUnavailableIs503() throws Exception {
+        service = null;
+        when( req.getPathInfo() ).thenReturn( "/sweep" );
+        servlet.doPost( req, resp );
+        verify( resp ).setStatus( 503 );
+    }
+
+    @Test
+    void postUnknownEndpointIs404() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/bogus" );
+        servlet.doPost( req, resp );
+        verify( resp ).setStatus( 404 );
+        verify( service, never() ).triggerAsync( anyString() );
+    }
+
+    @Test
+    void isCrossOriginAllowedReturnsFalse() {
+        assertFalse( servlet.isCrossOriginAllowed(),
+                "Admin drift endpoint should not allow cross-origin requests" );
     }
 
     @Test

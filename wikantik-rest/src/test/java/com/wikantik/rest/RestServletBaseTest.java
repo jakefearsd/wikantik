@@ -69,6 +69,12 @@ class RestServletBaseTest {
         JsonObject callParseJsonBody( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
             return parseJsonBody( req, resp );
         }
+        boolean callGetJsonBoolean( final JsonObject obj, final String key, final boolean def ) {
+            return getJsonBoolean( obj, key, def );
+        }
+        double callGetJsonDouble( final JsonObject obj, final String key, final double def ) {
+            return getJsonDouble( obj, key, def );
+        }
     }
 
     private WikiEngine engine;
@@ -341,5 +347,111 @@ class RestServletBaseTest {
         assertNotNull( result );
         assertEquals( 1, result.get( "x" ).getAsInt() );
         Mockito.verify( resp, Mockito.never() ).setStatus( Mockito.anyInt() );
+    }
+
+    // ----- getJsonBoolean -----
+
+    @Test
+    void getJsonBoolean_returnsActualValueWhenPresent() {
+        final TestRestServlet servlet = new TestRestServlet( engine );
+        final JsonObject obj = new JsonObject();
+        obj.addProperty( "flag", true );
+
+        assertEquals( true, servlet.callGetJsonBoolean( obj, "flag", false ) );
+    }
+
+    @Test
+    void getJsonBoolean_returnsDefaultWhenKeyAbsent() {
+        final TestRestServlet servlet = new TestRestServlet( engine );
+        final JsonObject obj = new JsonObject();
+
+        assertEquals( true, servlet.callGetJsonBoolean( obj, "missing", true ) );
+    }
+
+    @Test
+    void getJsonBoolean_returnsDefaultWhenValueIsNonPrimitive() {
+        final TestRestServlet servlet = new TestRestServlet( engine );
+        final JsonObject obj = new JsonObject();
+        obj.add( "flag", new JsonObject() );
+
+        assertEquals( false, servlet.callGetJsonBoolean( obj, "flag", false ) );
+    }
+
+    // ----- getJsonDouble -----
+
+    @Test
+    void getJsonDouble_returnsActualValueWhenPresent() {
+        final TestRestServlet servlet = new TestRestServlet( engine );
+        final JsonObject obj = new JsonObject();
+        obj.addProperty( "score", 3.5 );
+
+        assertEquals( 3.5, servlet.callGetJsonDouble( obj, "score", -1.0 ) );
+    }
+
+    @Test
+    void getJsonDouble_returnsDefaultWhenKeyAbsent() {
+        final TestRestServlet servlet = new TestRestServlet( engine );
+        final JsonObject obj = new JsonObject();
+
+        assertEquals( -1.0, servlet.callGetJsonDouble( obj, "missing", -1.0 ) );
+    }
+
+    @Test
+    void getJsonDouble_returnsDefaultWhenValueIsNotParseableNumber() {
+        final TestRestServlet servlet = new TestRestServlet( engine );
+        final JsonObject obj = new JsonObject();
+        obj.addProperty( "score", "not-a-number" );
+
+        assertEquals( -1.0, servlet.callGetJsonDouble( obj, "score", -1.0 ) );
+    }
+
+    // ----- isSafeHeaderValue / originMatches -----
+
+    @Test
+    void isSafeHeaderValue_rejectsValueContainingCarriageReturn() {
+        assertEquals( false, RestServletBase.isSafeHeaderValue( "https://evil.example.com\r\nSet-Cookie: x=1" ) );
+    }
+
+    @Test
+    void isSafeHeaderValue_acceptsOrdinaryOrigin() {
+        assertEquals( true, RestServletBase.isSafeHeaderValue( "https://wiki.example.com" ) );
+    }
+
+    @Test
+    void originMatches_rejectsEmptyCandidate() {
+        assertEquals( false, RestServletBase.originMatches( "https://wiki.example.com", "" ) );
+    }
+
+    // ----- sanitizeParseError -----
+
+    @Test
+    void sanitizeParseError_returnsFallbackMessageForNullInput() {
+        assertEquals( "could not parse body as JSON object", RestServletBase.sanitizeParseError( null ) );
+    }
+
+    @Test
+    void sanitizeParseError_returnsFallbackMessageForEmptyInput() {
+        assertEquals( "could not parse body as JSON object", RestServletBase.sanitizeParseError( "" ) );
+    }
+
+    @Test
+    void sanitizeParseError_returnsFallbackWhenMessageBecomesEmptyAfterStripping() {
+        // The message is entirely made of tokens the sanitizer strips (a URL and the
+        // word "gson"), so after stripping only whitespace remains — the fallback
+        // message must be returned rather than a blank string.
+        assertEquals( "could not parse body as JSON object",
+                RestServletBase.sanitizeParseError( "https://example.com/gson  gson" ) );
+    }
+
+    @Test
+    void sanitizeParseError_stripsUrlsAndGsonReferencesAndClassNames() {
+        final String raw = "com.google.gson.JsonSyntaxException: Expected STRING but was NUMBER "
+                + "at line 1 column 5 path $.name (see https://github.com/google/gson for details)";
+
+        final String sanitized = RestServletBase.sanitizeParseError( raw );
+
+        assertEquals( -1, sanitized.toLowerCase( java.util.Locale.ROOT ).indexOf( "gson" ) );
+        assertEquals( -1, sanitized.indexOf( "https://" ) );
+        assertEquals( -1, sanitized.indexOf( "com.google" ) );
     }
 }

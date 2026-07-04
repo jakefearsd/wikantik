@@ -22,9 +22,12 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
+import com.wikantik.WikiSubsystems;
 import com.wikantik.comments.CommentStore;
 import com.wikantik.comments.PageOwnerService;
 import com.wikantik.comments.mentions.MentionService;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystem;
+import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.h2.jdbcx.JdbcDataSource;
@@ -569,5 +572,97 @@ class CommentThreadResourceTest {
             if ( kv.length == 2 && kv[ 0 ].equals( key ) ) return kv[ 1 ];
         }
         return null;
+    }
+
+    // ----- Real (unstubbed) subsystem-accessor seams -----
+    //
+    // Every other test in this file stubs commentStore()/mentionService()/
+    // pageOwnerService()/resolveCanonicalId()/resolveSlug() on a spy, so the real
+    // one-line bodies (delegating to getSubsystems()) are never exercised. These
+    // tests use a plain instance with a mocked WikiSubsystems to pin the actual
+    // delegation without needing a fully-wired persistence subsystem.
+
+    @Test
+    void commentStoreDelegatesToPersistenceSubsystem() {
+        final CommentStore expected = Mockito.mock( CommentStore.class );
+        final PersistenceSubsystem.Services persistence = Mockito.mock( PersistenceSubsystem.Services.class );
+        Mockito.when( persistence.comments() ).thenReturn( expected );
+        final CommentThreadResource plain = new CommentThreadResource() {
+            @Override protected WikiSubsystems getSubsystems() {
+                final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
+                Mockito.when( subs.persistence() ).thenReturn( persistence );
+                return subs;
+            }
+        };
+
+        assertSame( expected, plain.commentStore() );
+    }
+
+    @Test
+    void mentionServiceDelegatesToPersistenceSubsystem() {
+        final MentionService expected = Mockito.mock( MentionService.class );
+        final PersistenceSubsystem.Services persistence = Mockito.mock( PersistenceSubsystem.Services.class );
+        Mockito.when( persistence.mentions() ).thenReturn( expected );
+        final CommentThreadResource plain = new CommentThreadResource() {
+            @Override protected WikiSubsystems getSubsystems() {
+                final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
+                Mockito.when( subs.persistence() ).thenReturn( persistence );
+                return subs;
+            }
+        };
+
+        assertSame( expected, plain.mentionService() );
+    }
+
+    @Test
+    void pageOwnerServiceDelegatesToPersistenceSubsystem() {
+        final PageOwnerService expected = Mockito.mock( PageOwnerService.class );
+        final PersistenceSubsystem.Services persistence = Mockito.mock( PersistenceSubsystem.Services.class );
+        Mockito.when( persistence.pageOwners() ).thenReturn( expected );
+        final CommentThreadResource plain = new CommentThreadResource() {
+            @Override protected WikiSubsystems getSubsystems() {
+                final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
+                Mockito.when( subs.persistence() ).thenReturn( persistence );
+                return subs;
+            }
+        };
+
+        assertSame( expected, plain.pageOwnerService() );
+    }
+
+    @Test
+    void resolveCanonicalIdDelegatesToStructuralIndexService() {
+        final PageGraphSubsystem.Services pageGraph = Mockito.mock( PageGraphSubsystem.Services.class );
+        final com.wikantik.api.pagegraph.StructuralIndexService sis =
+                Mockito.mock( com.wikantik.api.pagegraph.StructuralIndexService.class );
+        Mockito.when( pageGraph.structuralIndexService() ).thenReturn( sis );
+        Mockito.when( sis.resolveCanonicalIdFromSlug( "PageOne" ) ).thenReturn( Optional.of( "CID1" ) );
+        final CommentThreadResource plain = new CommentThreadResource() {
+            @Override protected WikiSubsystems getSubsystems() {
+                final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
+                Mockito.when( subs.pageGraph() ).thenReturn( pageGraph );
+                return subs;
+            }
+        };
+
+        assertEquals( Optional.of( "CID1" ), plain.resolveCanonicalId( "PageOne" ) );
+    }
+
+    @Test
+    void resolveSlugDelegatesToStructuralIndexService() {
+        final PageGraphSubsystem.Services pageGraph = Mockito.mock( PageGraphSubsystem.Services.class );
+        final com.wikantik.api.pagegraph.StructuralIndexService sis =
+                Mockito.mock( com.wikantik.api.pagegraph.StructuralIndexService.class );
+        Mockito.when( pageGraph.structuralIndexService() ).thenReturn( sis );
+        Mockito.when( sis.resolveSlugFromCanonicalId( "CID1" ) ).thenReturn( Optional.of( "PageOne" ) );
+        final CommentThreadResource plain = new CommentThreadResource() {
+            @Override protected WikiSubsystems getSubsystems() {
+                final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
+                Mockito.when( subs.pageGraph() ).thenReturn( pageGraph );
+                return subs;
+            }
+        };
+
+        assertEquals( Optional.of( "PageOne" ), plain.resolveSlug( "CID1" ) );
     }
 }

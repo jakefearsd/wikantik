@@ -27,8 +27,10 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
+import com.wikantik.TestEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystem;
@@ -38,6 +40,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -45,6 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -674,6 +678,145 @@ class SpaRoutingFilterTest {
         assertNotEquals( a, SpaRoutingFilter.etagFor( "abc123", 4, 1_700_000_000_001L ) );
         assertNotEquals( a, SpaRoutingFilter.etagFor( "zzz999", 4, 1_700_000_000_000L ) );
         assertTrue( a.startsWith( "W/\"" ) && a.endsWith( "\"" ) );
+    }
+
+    /**
+     * A real {@link TestEngine} (a genuine {@code WikiEngine}) is used here instead of a
+     * mocked {@link Engine} — {@code resolvePageForCaching}/{@code injectSemantic} run the
+     * real rendering pipeline once the page-caching branch is taken, and a mocked
+     * {@link Engine} would need heavy {@code PageSubsystemBridge}/{@code RenderingSubsystemBridge}
+     * stubbing to survive it. A real engine exercises the true production path (matching
+     * {@code PageResourceTest}'s convention) without extra mocking risk.
+     */
+    @Test
+    void etagHeaderIsSetWithPrivateNoCacheForAnExistingPage() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        final TestEngine engine = new TestEngine( props );
+        try {
+            engine.saveText( "SpaEtagPage", "Some content for the ETag test." );
+            filter.setEngineForTest( engine );
+
+            final HttpServletRequest request = mockRequest( "/wiki/SpaEtagPage" );
+            filter.doFilter( request, response, chain );
+
+            final ArgumentCaptor< String > etagCaptor = ArgumentCaptor.forClass( String.class );
+            verify( response ).setHeader( eq( "ETag" ), etagCaptor.capture() );
+            assertTrue( etagCaptor.getValue().startsWith( "W/\"" ),
+                    "ETag should be a weak validator, got: " + etagCaptor.getValue() );
+            verify( response ).setHeader( "Cache-Control", "private, no-cache" );
+            verify( response, never() ).setStatus( HttpServletResponse.SC_NOT_MODIFIED );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    @Test
+    void matchingIfNoneMatchReturnsNotModifiedWithNoBody() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        final TestEngine engine = new TestEngine( props );
+        try {
+            engine.saveText( "SpaEtagPage2", "Some other content for the 304 test." );
+            filter.setEngineForTest( engine );
+
+            // First request establishes the current ETag.
+            final HttpServletRequest request1 = mockRequest( "/wiki/SpaEtagPage2" );
+            filter.doFilter( request1, response, chain );
+            final ArgumentCaptor< String > etagCaptor = ArgumentCaptor.forClass( String.class );
+            verify( response ).setHeader( eq( "ETag" ), etagCaptor.capture() );
+            final String etag = etagCaptor.getValue();
+
+            // Second request echoes that ETag back via If-None-Match.
+            final HttpServletResponse response2 = mock( HttpServletResponse.class );
+            final CapturingServletOutputStream capturedOutput2 = new CapturingServletOutputStream();
+            when( response2.getOutputStream() ).thenReturn( capturedOutput2 );
+            final HttpServletRequest request2 = mockRequest( "/wiki/SpaEtagPage2" );
+            when( request2.getHeader( "If-None-Match" ) ).thenReturn( etag );
+
+            filter.doFilter( request2, response2, chain );
+
+            verify( response2 ).setStatus( HttpServletResponse.SC_NOT_MODIFIED );
+            assertEquals( "", capturedOutput2.asString(),
+                    "a 304 response must short-circuit before any body is written" );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    // ---- response-splitting guard on 301 redirects ----
+
+    @Test
+    void redirectTargetContainingCrlfIsRejectedWith400InsteadOfRedirecting() throws Exception {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getContextPath() ).thenReturn( "" );
+        when( req.getRequestURI() ).thenReturn( "/graph" );
+        // A crafted query string attempting HTTP response splitting via the redirect target.
+        when( req.getQueryString() ).thenReturn( "x=1\r\nSet-Cookie:%20evil=1" );
+
+        filter.doFilter( req, resp, mock( FilterChain.class ) );
+
+        verify( resp ).sendError( HttpServletResponse.SC_BAD_REQUEST );
+        verify( resp, never() ).setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
+        verify( resp, never() ).setHeader( eq( "Location" ), anyString() );
+    }
+
+    // ---- SPA_EXACT query-string branch ----
+
+    @Test
+    void exactSpaRouteWithEmbeddedQueryStringInRequestUriStillServesIndexHtml() throws Exception {
+        // getRequestURI() never legitimately contains a "?" in a real container, but the
+        // exact-route matcher has a startsWith(exact + "?") branch guarding against it —
+        // pin that branch directly rather than leaving it silently unexercised.
+        final HttpServletRequest request = mock( HttpServletRequest.class );
+        when( request.getContextPath() ).thenReturn( "" );
+        when( request.getRequestURI() ).thenReturn( "/search?embed=true" );
+        when( request.getHeader( "Accept" ) ).thenReturn( "text/html" );
+        when( request.getServletContext() ).thenReturn( servletContext );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        assertTrue( capturedOutput.asString().contains( "<div id=\"root\">" ),
+                "the exact-route '?' branch should still forward to the SPA shell" );
+    }
+
+    // ---- extractPageName edge cases ----
+
+    @Test
+    void extractPageNameReturnsEmptyForNullInput() {
+        assertEquals( "", SpaRoutingFilter.extractPageName( null ) );
+    }
+
+    @Test
+    void extractPageNameReturnsEmptyForBareWikiSlash() {
+        assertEquals( "", SpaRoutingFilter.extractPageName( "/wiki/" ) );
+    }
+
+    @Test
+    void extractPageNameStripsTrailingPathSegment() {
+        assertEquals( "Foo", SpaRoutingFilter.extractPageName( "/wiki/Foo/attachment.txt" ) );
+    }
+
+    @Test
+    void extractPageNameStripsQueryString() {
+        assertEquals( "Foo", SpaRoutingFilter.extractPageName( "/wiki/Foo?version=3" ) );
+    }
+
+    @Test
+    void extractPageNameStripsFragment() {
+        assertEquals( "Foo", SpaRoutingFilter.extractPageName( "/wiki/Foo#section-1" ) );
+    }
+
+    @Test
+    void extractPageNameUrlDecodesTheSegment() {
+        assertEquals( "Foo Bar", SpaRoutingFilter.extractPageName( "/wiki/Foo%20Bar" ) );
+    }
+
+    @Test
+    void extractPageNameFallsBackToRawSegmentOnMalformedEncoding() {
+        // "%zz" is not a valid percent-encoding triplet; URLDecoder throws
+        // IllegalArgumentException, which extractPageName catches and returns verbatim.
+        assertEquals( "Foo%zzBar", SpaRoutingFilter.extractPageName( "/wiki/Foo%zzBar" ) );
     }
 
     // ---- helpers ----

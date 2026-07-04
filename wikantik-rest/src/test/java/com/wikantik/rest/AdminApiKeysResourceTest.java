@@ -24,8 +24,13 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.WikiSubsystems;
+import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.UserManager;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
+import com.wikantik.auth.subsystem.AuthSubsystem;
+import com.wikantik.auth.user.UserDatabase;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
@@ -458,6 +463,114 @@ class AdminApiKeysResourceTest {
         assertEquals( 0, obj.getAsJsonArray( "succeeded" ).size() );
         assertEquals( 1, obj.getAsJsonArray( "failed" ).size() );
         Mockito.verifyNoInteractions( mockService );
+    }
+
+    @Test
+    void bulkRevokeHandlesBlankIdAsFailure() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "revoke" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "   " );
+        body.add( "ids", ids );
+
+        final JsonObject obj = gson.fromJson( doBulkPost( body.toString() ), JsonObject.class );
+        assertEquals( "completed", obj.get( "status" ).getAsString() );
+        assertEquals( 0, obj.getAsJsonArray( "succeeded" ).size() );
+        assertEquals( 1, obj.getAsJsonArray( "failed" ).size() );
+        final JsonObject failedItem = obj.getAsJsonArray( "failed" ).get( 0 ).getAsJsonObject();
+        assertTrue( failedItem.get( "error" ).getAsString().contains( "non-blank" ) );
+        Mockito.verifyNoInteractions( mockService );
+    }
+
+    @Test
+    void bulkRevokeHandlesServiceExceptionAsFailure() throws Exception {
+        Mockito.when( mockService.revoke( 99, null ) ).thenThrow( new RuntimeException( "db unavailable" ) );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "revoke" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "99" );
+        body.add( "ids", ids );
+
+        final JsonObject obj = gson.fromJson( doBulkPost( body.toString() ), JsonObject.class );
+        assertEquals( "completed", obj.get( "status" ).getAsString() );
+        assertEquals( 0, obj.getAsJsonArray( "succeeded" ).size() );
+        assertEquals( 1, obj.getAsJsonArray( "failed" ).size() );
+        final JsonObject failedItem = obj.getAsJsonArray( "failed" ).get( 0 ).getAsJsonObject();
+        assertEquals( "99", failedItem.get( "id" ).getAsString() );
+        assertEquals( "db unavailable", failedItem.get( "error" ).getAsString() );
+    }
+
+    // ----- principalExists() (real, unoverridden method) -----
+
+    @Test
+    void principalExistsReturnsTrueForRealUserInDatabase() {
+        // A plain instance (no test override) sharing the same real TestEngine,
+        // so getSubsystems().auth().users() resolves to the actual UserManager.
+        final AdminApiKeysResource plain = new AdminApiKeysResource();
+        final ServletConfig config = Mockito.mock( ServletConfig.class );
+        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
+        try {
+            plain.init( config );
+        } catch ( final Exception e ) {
+            throw new RuntimeException( e );
+        }
+
+        assertTrue( plain.principalExists( "admin" ),
+                "The seeded 'admin' account should resolve via the real UserManager" );
+        assertFalse( plain.principalExists( "totally-bogus-user-xyz" ),
+                "A nonexistent login should not resolve" );
+    }
+
+    @Test
+    void principalExistsReturnsFalseWhenUserManagerIsNull() {
+        final AdminApiKeysResource stub = new AdminApiKeysResource() {
+            @Override protected WikiSubsystems getSubsystems() {
+                final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
+                final AuthSubsystem.Services auth =
+                        new AuthSubsystem.Services( null, null, null, null, null, null, null, null );
+                Mockito.when( subs.auth() ).thenReturn( auth );
+                return subs;
+            }
+        };
+
+        assertFalse( stub.principalExists( "anyone" ) );
+    }
+
+    @Test
+    void principalExistsReturnsFalseWhenUserDatabaseIsNull() {
+        final UserManager userManagerNullDb = Mockito.mock( UserManager.class );
+        Mockito.when( userManagerNullDb.getUserDatabase() ).thenReturn( null );
+        final AdminApiKeysResource stub = new AdminApiKeysResource() {
+            @Override protected WikiSubsystems getSubsystems() {
+                final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
+                final AuthSubsystem.Services auth =
+                        new AuthSubsystem.Services( null, null, userManagerNullDb, null, null, null, null, null );
+                Mockito.when( subs.auth() ).thenReturn( auth );
+                return subs;
+            }
+        };
+
+        assertFalse( stub.principalExists( "anyone" ) );
+    }
+
+    @Test
+    void principalExistsReturnsFalseWhenUserDatabaseThrowsNoSuchPrincipal() throws Exception {
+        final UserDatabase throwingDb = Mockito.mock( UserDatabase.class );
+        Mockito.when( throwingDb.findByLoginName( "ghost" ) ).thenThrow( new NoSuchPrincipalException( "ghost" ) );
+        final UserManager userManager = Mockito.mock( UserManager.class );
+        Mockito.when( userManager.getUserDatabase() ).thenReturn( throwingDb );
+        final AdminApiKeysResource stub = new AdminApiKeysResource() {
+            @Override protected WikiSubsystems getSubsystems() {
+                final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
+                final AuthSubsystem.Services auth =
+                        new AuthSubsystem.Services( null, null, userManager, null, null, null, null, null );
+                Mockito.when( subs.auth() ).thenReturn( auth );
+                return subs;
+            }
+        };
+
+        assertFalse( stub.principalExists( "ghost" ) );
     }
 
     // ----- Helper methods -----

@@ -33,6 +33,7 @@ import com.wikantik.api.managers.PageManager;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -399,6 +400,259 @@ class AttachmentResourceTest {
         final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
         assertTrue( obj.get( "error" ).getAsBoolean() );
         assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    // ----- Internal-error (500) branches -----
+
+    @Test
+    void testListAttachmentsInternalErrorReturns500() throws Exception {
+        final AttachmentManager throwing = Mockito.mock( AttachmentManager.class );
+        Mockito.doThrow( new RuntimeException( "listing boom" ) ).when( throwing ).listAttachments( Mockito.any() );
+        engine.setManager( AttachmentManager.class, throwing );
+
+        final JsonObject obj = gson.fromJson( doGet( "RestAttachPage" ), JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 500, obj.get( "status" ).getAsInt() );
+        assertEquals( "Error listing attachments: listing boom", obj.get( "message" ).getAsString() );
+    }
+
+    @Test
+    void testDownloadAttachmentInternalErrorReturns500() throws Exception {
+        final AttachmentManager throwing = Mockito.mock( AttachmentManager.class );
+        Mockito.doThrow( new RuntimeException( "download boom" ) )
+                .when( throwing ).getAttachmentInfo( "RestAttachPage/x.txt" );
+        engine.setManager( AttachmentManager.class, throwing );
+
+        final JsonObject obj = gson.fromJson( doGet( "RestAttachPage/x.txt" ), JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 500, obj.get( "status" ).getAsInt() );
+        assertEquals( "Error downloading attachment: download boom", obj.get( "message" ).getAsString() );
+    }
+
+    @Test
+    void testRenameInternalErrorReturns500() throws Exception {
+        final AttachmentManager throwing = Mockito.mock( AttachmentManager.class );
+        Mockito.doThrow( new RuntimeException( "rename boom" ) )
+                .when( throwing ).getAttachmentInfo( "RestAttachPage/old.txt" );
+        engine.setManager( AttachmentManager.class, throwing );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/attachments/RestAttachPage/old.txt" );
+        Mockito.doReturn( "/RestAttachPage/old.txt" ).when( request ).getPathInfo();
+        Mockito.doReturn( new java.io.BufferedReader( new java.io.StringReader( "{\"newName\":\"new.txt\"}" ) ) )
+                .when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPut( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 500, obj.get( "status" ).getAsInt() );
+        assertEquals( "Error renaming attachment: rename boom", obj.get( "message" ).getAsString() );
+    }
+
+    // ----- Upload tests (anonymous lacks "upload"; bypass permission via spy,
+    //       matching PageResourceTest's doPostAsAuthenticated convention — JAAS
+    //       role-based authorization is not exercisable from wikantik-rest tests) -----
+
+    private Part mockFilePart( final String submittedFileName, final byte[] content ) throws Exception {
+        final Part part = Mockito.mock( Part.class );
+        Mockito.doReturn( submittedFileName ).when( part ).getSubmittedFileName();
+        Mockito.doReturn( new ByteArrayInputStream( content ) ).when( part ).getInputStream();
+        Mockito.doReturn( (long) content.length ).when( part ).getSize();
+        return part;
+    }
+
+    private String doUploadAsAuthenticated( final String pageName, final Part filePart, final String namePart,
+                                             final String contentType ) throws Exception {
+        final AttachmentResource spy = Mockito.spy( servlet );
+        Mockito.doReturn( true ).when( spy ).checkPagePermission(
+                Mockito.any(), Mockito.any(), Mockito.anyString(), Mockito.anyString() );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/attachments/" + pageName );
+        Mockito.doReturn( "/" + pageName ).when( request ).getPathInfo();
+        Mockito.doReturn( contentType ).when( request ).getContentType();
+        if ( filePart != null ) {
+            Mockito.doReturn( filePart ).when( request ).getPart( "file" );
+        }
+        Mockito.doReturn( namePart ).when( request ).getParameter( "name" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        spy.doPost( request, response );
+        return sw.toString();
+    }
+
+    @Test
+    void testUploadSuccessUsesOriginalFileNameWhenNameFieldAbsent() throws Exception {
+        final Part filePart = mockFilePart( "photo.jpg", "binary-ish".getBytes( StandardCharsets.UTF_8 ) );
+
+        final JsonObject obj = gson.fromJson(
+                doUploadAsAuthenticated( "RestAttachPage", filePart, null, "multipart/form-data; boundary=x" ),
+                JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Upload should succeed, got: " + obj );
+        assertTrue( obj.get( "success" ).getAsBoolean() );
+        assertEquals( "RestAttachPage", obj.get( "page" ).getAsString() );
+        assertEquals( "photo.jpg", obj.get( "fileName" ).getAsString() );
+        assertEquals( 10, obj.get( "size" ).getAsInt() );
+
+        final AttachmentManager am = engine.getManager( AttachmentManager.class );
+        assertNotNull( am.getAttachmentInfo( "RestAttachPage/photo.jpg" ),
+                "Attachment should actually be persisted" );
+    }
+
+    @Test
+    void testUploadSuccessUsesExplicitNameFieldWhenExtensionMatches() throws Exception {
+        final Part filePart = mockFilePart( "original.txt", "hello".getBytes( StandardCharsets.UTF_8 ) );
+
+        final JsonObject obj = gson.fromJson(
+                doUploadAsAuthenticated( "RestAttachPage", filePart, "renamed-upload.txt",
+                        "multipart/form-data; boundary=x" ),
+                JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Upload should succeed, got: " + obj );
+        assertEquals( "renamed-upload.txt", obj.get( "fileName" ).getAsString() );
+    }
+
+    @Test
+    void testUploadRejectsInvalidNameField() throws Exception {
+        final Part filePart = mockFilePart( "original.txt", "hello".getBytes( StandardCharsets.UTF_8 ) );
+
+        final JsonObject obj = gson.fromJson(
+                doUploadAsAuthenticated( "RestAttachPage", filePart, "bad name!.txt",
+                        "multipart/form-data; boundary=x" ),
+                JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "Invalid attachment name" ) );
+    }
+
+    @Test
+    void testUploadRejectsExtensionMismatchBetweenFileAndNameField() throws Exception {
+        final Part filePart = mockFilePart( "original.txt", "hello".getBytes( StandardCharsets.UTF_8 ) );
+
+        final JsonObject obj = gson.fromJson(
+                doUploadAsAuthenticated( "RestAttachPage", filePart, "renamed.pdf",
+                        "multipart/form-data; boundary=x" ),
+                JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "Extension mismatch" ) );
+    }
+
+    @Test
+    void testUploadMissingFilePartReturns400() throws Exception {
+        final JsonObject obj = gson.fromJson(
+                doUploadAsAuthenticated( "RestAttachPage", null, null, "multipart/form-data; boundary=x" ),
+                JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertEquals( "File part 'file' is required", obj.get( "message" ).getAsString() );
+    }
+
+    @Test
+    void testUploadBlankSubmittedFileNameReturns400() throws Exception {
+        final Part filePart = mockFilePart( "   ", "hello".getBytes( StandardCharsets.UTF_8 ) );
+
+        final JsonObject obj = gson.fromJson(
+                doUploadAsAuthenticated( "RestAttachPage", filePart, null, "multipart/form-data; boundary=x" ),
+                JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertEquals( "File name is required", obj.get( "message" ).getAsString() );
+    }
+
+    @Test
+    void testUploadNonMultipartContentTypeReturns415() throws Exception {
+        final JsonObject obj = gson.fromJson(
+                doUploadAsAuthenticated( "RestAttachPage", null, null, "application/json" ),
+                JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 415, obj.get( "status" ).getAsInt() );
+        assertEquals( "Attachment upload requires a multipart/form-data request",
+                obj.get( "message" ).getAsString() );
+    }
+
+    @Test
+    void testUploadInternalErrorReturns500() throws Exception {
+        final AttachmentManager throwing = Mockito.mock( AttachmentManager.class );
+        Mockito.doThrow( new java.io.IOException( "disk full" ) )
+                .when( throwing ).storeAttachment( Mockito.any(), Mockito.any( java.io.InputStream.class ) );
+        engine.setManager( AttachmentManager.class, throwing );
+
+        final Part filePart = mockFilePart( "original.txt", "hello".getBytes( StandardCharsets.UTF_8 ) );
+
+        final JsonObject obj = gson.fromJson(
+                doUploadAsAuthenticated( "RestAttachPage", filePart, null, "multipart/form-data; boundary=x" ),
+                JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 500, obj.get( "status" ).getAsInt() );
+        assertEquals( "Error uploading attachment: disk full", obj.get( "message" ).getAsString() );
+    }
+
+    // ----- Delete tests (anonymous lacks "delete"; bypass permission via spy) -----
+
+    private String doDeleteAsAuthenticated( final String path ) throws Exception {
+        final AttachmentResource spy = Mockito.spy( servlet );
+        Mockito.doReturn( true ).when( spy ).checkPagePermission(
+                Mockito.any(), Mockito.any(), Mockito.anyString(), Mockito.anyString() );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/attachments/" + path );
+        Mockito.doReturn( "/" + path ).when( request ).getPathInfo();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        spy.doDelete( request, response );
+        return sw.toString();
+    }
+
+    @Test
+    void testDeleteSuccessRemovesAttachment() throws Exception {
+        final AttachmentManager am = engine.getManager( AttachmentManager.class );
+        am.storeAttachment(
+                Wiki.contents().attachment( engine, "RestAttachPage", "toDelete.txt" ),
+                new ByteArrayInputStream( "bye".getBytes( StandardCharsets.UTF_8 ) ) );
+
+        final JsonObject obj = gson.fromJson(
+                doDeleteAsAuthenticated( "RestAttachPage/toDelete.txt" ), JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Delete should succeed, got: " + obj );
+        assertTrue( obj.get( "success" ).getAsBoolean() );
+        assertEquals( "RestAttachPage", obj.get( "page" ).getAsString() );
+        assertEquals( "toDelete.txt", obj.get( "fileName" ).getAsString() );
+        assertNull( am.getAttachmentInfo( "RestAttachPage/toDelete.txt" ),
+                "Attachment should actually be gone" );
+    }
+
+    @Test
+    void testDeleteInternalErrorReturns500() throws Exception {
+        final AttachmentManager throwing = Mockito.mock( AttachmentManager.class );
+        final Attachment existing = Mockito.mock( Attachment.class );
+        Mockito.doReturn( existing ).when( throwing ).getAttachmentInfo( "RestAttachPage/boom.txt" );
+        Mockito.doThrow( new RuntimeException( "delete boom" ) ).when( throwing ).deleteAttachment( existing );
+        engine.setManager( AttachmentManager.class, throwing );
+
+        final JsonObject obj = gson.fromJson(
+                doDeleteAsAuthenticated( "RestAttachPage/boom.txt" ), JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 500, obj.get( "status" ).getAsInt() );
+        assertEquals( "Error deleting attachment: delete boom", obj.get( "message" ).getAsString() );
     }
 
     // ----- Helper methods -----

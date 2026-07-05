@@ -150,9 +150,9 @@ EOF
 fi
 
 # Optional: dense-retrieval backend override.
-#   WIKANTIK_DENSE_BACKEND        — inmemory | pgvector | lucene-hnsw  (default from ini bundle: inmemory)
+#   WIKANTIK_DENSE_BACKEND        — lucene-hnsw | inmemory | pgvector  (default from ini bundle: lucene-hnsw)
 #   WIKANTIK_DENSE_EF_SEARCH      — pgvector HNSW recall/latency knob (default 100)
-# When unset, the ini-bundle default (inmemory) wins. Setting pgvector
+# When unset, the ini-bundle default (lucene-hnsw) wins. Setting pgvector
 # requires V032 applied + content_chunk_embeddings.embedding populated
 # (run bin/db/one-shots/2026-05-20-backfill-chunk-embeddings.sh first).
 if [ -n "${WIKANTIK_DENSE_BACKEND:-}" ]; then

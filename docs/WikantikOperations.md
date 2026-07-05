@@ -100,6 +100,29 @@ the index is held in RAM and rebuilt on boot from `content_chunk_embeddings`.
 `/api/health` and `/metrics` bypass the semaphore so monitoring never sees a
 false outage; `wikantik_backpressure_rejected_total` counts the shed.
 
+**Public-surface rate limiting** (`RateLimitFilter`, `wikantik-observability`)
+
+A two-tier per-IP sliding-window limiter (algorithm in `wikantik-http`'s
+`SlidingWindowRateLimiter`) fronts the public HTTP surface, protecting the
+single-host box from compute-amplification abuse. It is distinct from
+backpressure: backpressure sheds by *concurrency* (in-flight threads); this sheds
+by *rate* (requests/second per client IP). The client IP is the real caller —
+Tomcat's `RemoteIpValve` resolves `CF-Connecting-IP` behind Cloudflare. Default-on;
+it disables itself only when **both** per-client limits are set ≤ 0.
+
+| Setting (env var) | Default | Applies to | Why |
+|---|---|---|---|
+| `WIKANTIK_RATELIMIT_DEFAULT_PERCLIENT` | **25** req/s | `/api/*`, `/id/*`, `/export/*` (default tier) | Generous per-client ceiling; no global cap (the backpressure semaphore bounds the aggregate). |
+| `WIKANTIK_RATELIMIT_EXPENSIVE_PERCLIENT` | **3** req/s | the expensive paths below | Tighter per-client ceiling for compute-heavy work (dense retrieval, SPARQL materialization). |
+| `WIKANTIK_RATELIMIT_EXPENSIVE_GLOBAL` | **10** req/s | the expensive paths below | Single-host **global** cap across all clients — one abuser can't monopolise the retrieval/ontology CPU. |
+| `WIKANTIK_RATELIMIT_EXPENSIVE_PATHS` | `/api/bundle,/api/search,/sparql` | — | CSV path prefixes routed to the expensive tier. |
+| `WIKANTIK_RATELIMIT_EXEMPT_CIDRS` | *(empty)* | — | CSV IPv4 CIDRs exempt from all limits. Loopback is **always** exempt, and the exact path `/api/health` is never limited. |
+
+On a limit hit the filter returns `429` + `Retry-After: 1`, emits a `SecurityLog`
+line, and increments `wikantik_ratelimit.rejected_total{tier=default|expensive}`.
+The filter is ordered **after** `RequestMetricsFilter`, so rejected requests are
+still counted in the request metrics.
+
 **Database connection pool** (DBCP, in the generated `ROOT.xml`)
 
 | Setting | Value | Why |

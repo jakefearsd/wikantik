@@ -404,7 +404,9 @@ git add wikantik-main/src/main/java/com/wikantik/knowledge/briefing wikantik-mai
 git commit -m "feat(briefing): budgeted briefing assembler with scope + supersede dedup"
 ```
 
----### Task 4: Markdown renderer
+---
+
+### Task 4: Markdown renderer
 
 **Suggested model:** sonnet
 

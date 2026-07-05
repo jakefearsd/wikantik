@@ -19,17 +19,15 @@
 package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.briefing.BriefingAssemblyService;
-import com.wikantik.api.briefing.BriefingItem;
 import com.wikantik.api.briefing.BriefingLogEntry;
 import com.wikantik.api.briefing.BriefingLogService;
 import com.wikantik.api.briefing.BriefingRequest;
 import com.wikantik.api.briefing.ContextBriefing;
 import com.wikantik.api.briefing.ScopeMode;
-import com.wikantik.api.bundle.BundleCoverage;
-import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
+import com.wikantik.knowledge.briefing.BriefingAclGate;
 import com.wikantik.knowledge.briefing.MarkdownBriefingRenderer;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
@@ -137,17 +135,10 @@ public class GetBriefingTool implements McpTool {
 
             // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages
             // are returned. Pointers are gated too — dropping a restricted page's title, not just its
-            // body (404-hiding semantics, see PageViewGate).
-            final List< BundleSection > gatedSections = briefing.sections().stream()
-                    .filter( s -> viewGate.canView( s.slug() ) )
-                    .toList();
-            final List< BriefingItem > gatedItems = briefing.items().stream()
-                    .filter( i -> viewGate.canView( i.slug() ) )
-                    .toList();
-            final BundleCoverage coverage = BundleCoverage.recount( briefing.coverage(), gatedSections );
-
-            final ContextBriefing gated = new ContextBriefing( briefing.prompt(), gatedSections, coverage,
-                    gatedItems, briefing.warnings(), briefing.budgetTokens(), briefing.usedTokens() );
+            // body (404-hiding semantics, see PageViewGate). A dropped-restricted pin gets the same
+            // "unknown pin" warning a nonexistent pin would, so the two are indistinguishable
+            // (see BriefingAclGate).
+            final ContextBriefing gated = BriefingAclGate.gate( briefing, pins, viewGate::canView );
 
             final boolean promptPresent = prompt != null && !prompt.isBlank();
             final QueryLogService qlog = queryLog == null ? null : queryLog.get();

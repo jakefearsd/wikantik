@@ -100,6 +100,8 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
         private final BriefingRequest req;
         private final int budget;
         private final List< String > warnings = new ArrayList<>();
+        private final List< String > cappedPins;      // req.pins() truncated to MAX_PINS
+        private final List< String > cappedClusters;  // req.clusters() truncated to MAX_CLUSTERS
         private final List< BundleSection > sections = new ArrayList<>();  // kept, budget-trimmed
         private final List< BriefingItem > items = new ArrayList<>();
         private final Set< String > includedSlugs = new LinkedHashSet<>(); // every item (full or pointer)
@@ -112,6 +114,17 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
             this.req = req;
             final int requested = req.budgetTokens() == null ? defaultBudget : req.budgetTokens();
             this.budget = clamp( requested, BUDGET_FLOOR, maxBudget );
+            this.cappedPins = cap( req.pins(), BriefingConfig.MAX_PINS,
+                "too many pins; first " + BriefingConfig.MAX_PINS + " included" );
+            this.cappedClusters = cap( req.clusters(), BriefingConfig.MAX_CLUSTERS,
+                "too many clusters; first " + BriefingConfig.MAX_CLUSTERS + " included" );
+        }
+
+        /** Truncate a caller-supplied list to {@code max}, warning once when it actually trims. */
+        private List< String > cap( final List< String > in, final int max, final String warning ) {
+            if ( in.size() <= max ) return in;
+            warnings.add( warning );
+            return in.subList( 0, max );
         }
 
         ContextBriefing run() {
@@ -151,9 +164,9 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
 
         /** Slugs in the requested clusters, or {@code null} when no scoping applies. */
         private Set< String > computeScope() {
-            if ( req.clusters().isEmpty() || structuralIndex == null ) return null;
+            if ( cappedClusters.isEmpty() || structuralIndex == null ) return null;
             final Set< String > inScope = new LinkedHashSet<>();
-            for ( final String name : req.clusters() ) {
+            for ( final String name : cappedClusters ) {
                 final Optional< ClusterDetails > cd = structuralIndex.getCluster( name );
                 if ( cd.isEmpty() ) {
                     if ( warnedClusters.add( name ) ) warnings.add( "unknown cluster: " + name );
@@ -184,7 +197,7 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
         // ------------------------------------------------------------- pins
 
         private void assemblePins() {
-            for ( final String pin : req.pins() ) {
+            for ( final String pin : cappedPins ) {
                 final String slug = resolvePinSlug( pin );
                 if ( slug == null ) {
                     warnings.add( "unknown pin: " + pin );
@@ -239,38 +252,59 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
         // -------------------------------------------------- cluster members
 
         private void assembleClusterMembers() {
-            if ( req.clusters().isEmpty() ) return;
+            if ( cappedClusters.isEmpty() ) return;
             if ( structuralIndex == null ) {
                 warnings.add( "structural index unavailable; clusters skipped" );
                 return;
             }
-            for ( final String name : req.clusters() ) {
-                for ( final String slug : clusterMemberSlugs( name ) ) {
+            for ( final String name : cappedClusters ) {
+                for ( final PageDescriptor member : clusterMembers( name ) ) {
+                    final String slug = member.slug();
                     if ( includedSlugs.contains( slug ) ) continue;
                     if ( pageManager.getPage( slug ) == null ) {
                         LOG.debug( "Cluster member {} has no live page; skipping", slug );
                         continue;
                     }
-                    loadItem( slug, "cluster", bodyOf( slug ) );
+                    // Pointer fast-path: once the budget is all but spent, nothing more can fit, so
+                    // emit a pointer straight from the descriptor (title/summary already loaded)
+                    // rather than reading the full body off disk — read-amplification defence.
+                    if ( budget - used < BriefingConfig.POINTER_ONLY_FLOOR_TOKENS ) {
+                        addPointer( member );
+                    } else {
+                        loadItem( slug, "cluster", bodyOf( slug ) );
+                    }
                 }
             }
         }
 
-        /** Hub first (if any), then articles by {@code updated} descending (nulls last). */
-        private List< String > clusterMemberSlugs( final String name ) {
+        /** Hub first (if any), then articles by {@code updated} descending (nulls last), capped. */
+        private List< PageDescriptor > clusterMembers( final String name ) {
             final Optional< ClusterDetails > cd = structuralIndex.getCluster( name );
             if ( cd.isEmpty() ) {
                 if ( warnedClusters.add( name ) ) warnings.add( "unknown cluster: " + name );
                 return List.of();
             }
             final ClusterDetails c = cd.get();
-            final List< String > slugs = new ArrayList<>();
-            if ( c.hubPage() != null ) slugs.add( c.hubPage().slug() );
+            final List< PageDescriptor > members = new ArrayList<>();
+            if ( c.hubPage() != null ) members.add( c.hubPage() );
             c.articles().stream()
                 .sorted( Comparator.comparing( PageDescriptor::updated,
                     Comparator.nullsLast( Comparator.reverseOrder() ) ) )
-                .forEach( a -> slugs.add( a.slug() ) );
-            return slugs;
+                .forEach( members::add );
+            if ( members.size() > BriefingConfig.MAX_CLUSTER_MEMBERS ) {
+                warnings.add( "too many members in cluster " + name + "; first "
+                    + BriefingConfig.MAX_CLUSTER_MEMBERS + " included" );
+                return members.subList( 0, BriefingConfig.MAX_CLUSTER_MEMBERS );
+            }
+            return members;
+        }
+
+        /** Pointer item built purely from a structural descriptor — no page-body read. */
+        private void addPointer( final PageDescriptor d ) {
+            final String slug = d.slug();
+            items.add( new BriefingItem( slug, d.canonicalId(), str( d.title(), slug ),
+                str( d.summary(), "" ), "cluster", false, null ) );
+            includedSlugs.add( slug );
         }
 
         // --------------------------------------------------------- shared

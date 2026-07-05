@@ -110,6 +110,26 @@ class GetBriefingToolTest {
         assertFalse( md.contains( "Page A Title" ), "restricted pointer must not leak even a title; got: " + md );
     }
 
+    /* ---------- (c2) dropped-restricted pin warns like a nonexistent one ---------- */
+
+    @Test
+    void execute_viewGateDeniesPin_surfacesUnknownPinWarning() {
+        final BriefingItem pinItem = new BriefingItem(
+                "PageA", "01PIN", "Page A Title", "summary A", "pin", true, "full content A" );
+        final ContextBriefing briefing = briefingWith( List.of(), List.of( pinItem ) );
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final PageViewGate denyA = slug -> !"PageA".equals( slug );
+        final GetBriefingTool tool = new GetBriefingTool( svc, () -> null, () -> null, denyA );
+
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "pins", List.of( "PageA" ) ) );
+
+        final String md = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertFalse( md.contains( "Page A Title" ), "restricted pin must not leak a title; got: " + md );
+        assertTrue( md.contains( "unknown pin: PageA" ),
+                "dropped-restricted pin must warn like a nonexistent one; got: " + md );
+    }
+
     /* ---------- (d) definition ---------- */
 
     @Test

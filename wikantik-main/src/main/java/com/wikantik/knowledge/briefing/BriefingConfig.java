@@ -40,6 +40,18 @@ public final class BriefingConfig {
     public static final int DEFAULT_BUDGET = 6000;
     public static final int MAX_BUDGET = 24000;
 
+    /** Read-amplification caps on caller input — a briefing surface is public/anonymous, and the
+     *  assembler reads a full page body per pin and per cluster member. Excess is truncated with a
+     *  warning rather than fanning out to thousands of disk reads per request. */
+    public static final int MAX_PINS = 25;
+    public static final int MAX_CLUSTERS = 10;
+    public static final int MAX_CLUSTER_MEMBERS = 200;
+
+    /** When the remaining token budget drops below this floor, cluster members are emitted as
+     *  pointers straight from their structural descriptor (title/summary already present) instead of
+     *  reading their bodies — nothing more would fit anyway. */
+    public static final int POINTER_ONLY_FLOOR_TOKENS = 50;
+
     /** {@code wikantik.briefing.enabled}, default {@code true}. */
     public static boolean enabled( final Properties props ) {
         return TextUtil.getBooleanProperty( props, PREFIX + "enabled", true );

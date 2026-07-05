@@ -28,12 +28,12 @@ import com.wikantik.api.briefing.BriefingLogService;
 import com.wikantik.api.briefing.BriefingRequest;
 import com.wikantik.api.briefing.ContextBriefing;
 import com.wikantik.api.briefing.ScopeMode;
-import com.wikantik.api.bundle.BundleCoverage;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.knowledge.briefing.BriefingAclGate;
 import com.wikantik.knowledge.briefing.MarkdownBriefingRenderer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -149,20 +149,15 @@ public class BriefingResource extends RestServletBase {
         // Authorization: sections and items must honour each source page's view ACL. The
         // assembly service does not filter, so drop anything the caller cannot view before
         // serializing — pointers included, so restricted pages don't even leak a title (404-hiding
-        // semantics).
+        // semantics). A dropped-restricted pin gets the same "unknown pin" warning a nonexistent
+        // pin would, so restricted pages aren't distinguishable from nonexistent ones (see
+        // BriefingAclGate).
         final Set< String > allSlugs = new LinkedHashSet<>();
         briefing.sections().stream().map( BundleSection::slug ).filter( Objects::nonNull ).forEach( allSlugs::add );
         briefing.items().stream().map( BriefingItem::slug ).filter( Objects::nonNull ).forEach( allSlugs::add );
         final Set< String > viewable = filterViewable( req, allSlugs );
 
-        final List< BundleSection > gatedSections = briefing.sections().stream()
-                .filter( s -> viewable.contains( s.slug() ) ).toList();
-        final List< BriefingItem > gatedItems = briefing.items().stream()
-                .filter( i -> viewable.contains( i.slug() ) ).toList();
-        final BundleCoverage coverage = BundleCoverage.recount( briefing.coverage(), gatedSections );
-
-        final ContextBriefing gated = new ContextBriefing( briefing.prompt(), gatedSections, coverage,
-                gatedItems, briefing.warnings(), briefing.budgetTokens(), briefing.usedTokens() );
+        final ContextBriefing gated = BriefingAclGate.gate( briefing, pins, viewable::contains );
 
         resp.setStatus( 200 );
         if ( "md".equals( format ) ) {

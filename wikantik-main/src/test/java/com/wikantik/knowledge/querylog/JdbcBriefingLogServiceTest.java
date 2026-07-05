@@ -65,6 +65,25 @@ class JdbcBriefingLogServiceTest {
     }
 
     @Test
+    void log_truncatesOversizedPinsAndClustersTo2000Chars() throws Exception {
+        final DataSource ds = mock( DataSource.class );
+        final Connection conn = mock( Connection.class );
+        final PreparedStatement ps = mock( PreparedStatement.class );
+        when( ds.getConnection() ).thenReturn( conn );
+        when( conn.prepareStatement( anyString() ) ).thenReturn( ps );
+
+        final String hugePins = "p".repeat( 5000 );
+        final String hugeClusters = "c".repeat( 3000 );
+        final BriefingLogEntry entry = new BriefingLogEntry(
+            hugePins, hugeClusters, true, 6000, 4200, 5, 2, 1, "api_briefing" );
+
+        new JdbcBriefingLogService( ds, true, INLINE ).log( entry );
+
+        verify( ps ).setString( 1, "p".repeat( 2000 ) );
+        verify( ps ).setString( 2, "c".repeat( 2000 ) );
+    }
+
+    @Test
     void log_isNoOp_whenDisabled() {
         final DataSource ds = mock( DataSource.class );
         final BriefingLogEntry entry = new BriefingLogEntry(

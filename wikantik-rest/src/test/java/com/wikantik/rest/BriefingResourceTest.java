@@ -207,6 +207,39 @@ class BriefingResourceTest {
         assertEquals( 1, obj.getAsJsonObject( "coverage" ).get( "sectionCount" ).getAsInt() );
     }
 
+    /* (f2) ACL: dropped-restricted pin surfaces the same "unknown pin" warning as a nonexistent one */
+    @Test
+    void aclGate_droppedRestrictedPin_getsUnknownPinWarning() throws Exception {
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        final BriefingItem secret = new BriefingItem( "SecretPage", "01SEC", "Secret", "s",
+                "pin", true, "TOP SECRET" );
+        final ContextBriefing briefing = new ContextBriefing( null, List.of(), BundleCoverage.empty(),
+                List.of( secret ), List.of(), 4000, 100 );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final BriefingResource resource = new BriefingResource() {
+            @Override protected BriefingAssemblyService briefingService() { return svc; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                final java.util.Set< String > out = new java.util.HashSet<>( names );
+                out.remove( "SecretPage" );
+                return out;
+            }
+        };
+        final HttpServletRequest request = req( "SecretPage", null, null, null, null, null );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        resource.doGet( request, resp );
+
+        final String body = sw.toString();
+        assertTrue( !body.contains( "TOP SECRET" ), "restricted pin body must not leak" );
+        final JsonObject obj = JsonParser.parseString( body ).getAsJsonObject();
+        assertEquals( 0, obj.getAsJsonArray( "items" ).size(), "restricted pin dropped" );
+        assertTrue( obj.getAsJsonArray( "warnings" ).toString().contains( "unknown pin: SecretPage" ),
+                "dropped-restricted pin must warn like a nonexistent one: " + body );
+    }
+
     /* (g) briefing log receives entry with surface == "api_briefing" */
     @Test
     void briefingLog_receivesEntryWithApiBriefingSurface() throws Exception {

@@ -42,6 +42,10 @@ public final class JdbcBriefingLogService implements BriefingLogService {
         "INSERT INTO briefing_log (pins, clusters, prompt_present, budget_requested, budget_used, "
         + "section_count, pin_count, pointer_count, surface) VALUES (?,?,?,?,?,?,?,?,?)";
 
+    /** Cap on the caller-supplied pins/clusters strings — the columns are unbounded TEXT and the
+     *  input is anonymous, so a pathological request can't stuff megabytes into a log row. */
+    private static final int MAX_TEXT_LEN = 2000;
+
     private final DataSource dataSource;
     private final boolean enabled;
     private final Executor executor;
@@ -68,8 +72,8 @@ public final class JdbcBriefingLogService implements BriefingLogService {
     private void insert( final BriefingLogEntry entry ) {
         try ( Connection conn = dataSource.getConnection();
               PreparedStatement ps = conn.prepareStatement( INSERT_SQL ) ) {
-            ps.setString( 1, entry.pins() );
-            ps.setString( 2, entry.clusters() );
+            ps.setString( 1, truncate( entry.pins() ) );
+            ps.setString( 2, truncate( entry.clusters() ) );
             ps.setBoolean( 3, entry.promptPresent() );
             ps.setInt( 4, entry.budgetRequested() );
             ps.setInt( 5, entry.budgetUsed() );
@@ -81,5 +85,13 @@ public final class JdbcBriefingLogService implements BriefingLogService {
         } catch ( final Exception e ) {
             LOG.warn( "Briefing-log write failed for surface={}: {}", entry.surface(), e.getMessage() );
         }
+    }
+
+    /** Null-safe truncation of a caller-supplied string to {@link #MAX_TEXT_LEN} chars. */
+    private static String truncate( final String s ) {
+        if ( s == null || s.length() <= MAX_TEXT_LEN ) {
+            return s;
+        }
+        return s.substring( 0, MAX_TEXT_LEN );
     }
 }

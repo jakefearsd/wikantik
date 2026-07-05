@@ -56,6 +56,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DefaultBriefingAssemblyServiceTest {
@@ -359,6 +361,85 @@ class DefaultBriefingAssemblyServiceTest {
             "warns when no bundle service is wired: " + b.warnings() );
         final BriefingItem bill = itemBySlug( b, "BillingProcess" );
         assertTrue( bill != null && bill.included(), "pins still assembled without a bundle service" );
+    }
+
+    @Test
+    void pinsCappedWithWarning() {
+        final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
+            q -> new ContextBundle( q, List.of() ), new StubIndex(), pageManagerFixture(),
+            DEFAULT_BUDGET, MAX_BUDGET );
+        final List< String > pins = new ArrayList<>();
+        for ( int i = 0; i < 26; i++ ) pins.add( "Pin" + i );
+
+        final ContextBriefing b = svc.assemble( new BriefingRequest( pins, null, null, null, null ) );
+
+        assertTrue( b.warnings().stream().anyMatch( w -> w.equals( "too many pins; first 25 included" ) ),
+            "26 pins → cap warning: " + b.warnings() );
+    }
+
+    @Test
+    void clustersCappedWithWarning() {
+        final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
+            q -> new ContextBundle( q, List.of() ), new StubIndex(), pageManagerFixture(),
+            DEFAULT_BUDGET, MAX_BUDGET );
+        final List< String > clusters = new ArrayList<>();
+        for ( int i = 0; i < 11; i++ ) clusters.add( "cluster" + i );
+
+        final ContextBriefing b = svc.assemble( new BriefingRequest( null, clusters, null, null, null ) );
+
+        assertTrue( b.warnings().stream().anyMatch( w -> w.equals( "too many clusters; first 10 included" ) ),
+            "11 clusters → cap warning: " + b.warnings() );
+    }
+
+    @Test
+    void clusterMembersCappedWithWarning() {
+        final StubIndex idx = new StubIndex();
+        final PageManager pm = pageManagerFixture();
+        final List< PageDescriptor > articles = new ArrayList<>();
+        for ( int i = 0; i < 201; i++ ) {
+            final String slug = String.format( "Mem%03d", i );
+            articles.add( desc( slug, Instant.now() ) );
+            when( pm.getPage( slug ) ).thenReturn( mock( Page.class ) );
+        }
+        idx.clusters.put( "billing", cluster( "billing", null, articles ) );
+        final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
+            q -> new ContextBundle( q, List.of() ), idx, pm, DEFAULT_BUDGET, MAX_BUDGET );
+
+        final ContextBriefing b = svc.assemble(
+            new BriefingRequest( null, List.of( "billing" ), null, null, null ) );
+
+        assertEquals( 200, b.items().size(), "cluster member list capped at 200" );
+        assertTrue( b.warnings().stream().anyMatch(
+                w -> w.equals( "too many members in cluster billing; first 200 included" ) ),
+            "201 members → cap warning: " + b.warnings() );
+    }
+
+    @Test
+    void pointerFastPathSkipsMemberBodyReadsWhenBudgetExhausted() {
+        final StubIndex idx = new StubIndex();
+        final PageManager pm = pageManagerFixture();
+        // A pin whose body (~186 tokens) all but fills the 200-token floor budget.
+        stub( pm, "FillPage", page( "Fill", "Fill summary.", 700 ) );
+        // Cluster members exist (getPage non-null) but their bodies must NOT be read.
+        idx.clusters.put( "billing", cluster( "billing", desc( "MemberHub", Instant.now() ),
+            List.of( desc( "MemberA", Instant.now() ) ) ) );
+        when( pm.getPage( "MemberHub" ) ).thenReturn( mock( Page.class ) );
+        when( pm.getPage( "MemberA" ) ).thenReturn( mock( Page.class ) );
+        final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
+            q -> new ContextBundle( q, List.of() ), idx, pm, DEFAULT_BUDGET, MAX_BUDGET );
+
+        final ContextBriefing b = svc.assemble(
+            new BriefingRequest( List.of( "FillPage" ), List.of( "billing" ), null, 10, null ) );
+
+        // Members surfaced as pointers straight from the descriptor, no body read.
+        verify( pm, never() ).getPureText( "MemberHub", PageProvider.LATEST_VERSION );
+        verify( pm, never() ).getPureText( "MemberA", PageProvider.LATEST_VERSION );
+        final BriefingItem hub = itemBySlug( b, "MemberHub" );
+        final BriefingItem a = itemBySlug( b, "MemberA" );
+        assertTrue( hub != null && !hub.included(), "hub surfaced as pointer" );
+        assertTrue( a != null && !a.included(), "article surfaced as pointer" );
+        assertNull( hub.content(), "pointer carries no body" );
+        assertEquals( "MemberHub", hub.title(), "pointer title from descriptor" );
     }
 
     @Test

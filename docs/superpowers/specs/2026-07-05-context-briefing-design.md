@@ -44,11 +44,11 @@ leans on deterministic injection, not agent judgment.
 
 Division of labor:
 
-| Owner | Responsibility |
-|-------|----------------|
+| Owner                        | Responsibility                                                          |
+| ---------------------------- | ----------------------------------------------------------------------- |
 | CLAUDE.md / AGENTS.md (repo) | Static instructions + briefing parameters (which scope this repo is in) |
-| Wiki | Live content, cluster membership, verification, ACLs |
-| Briefing service | Assembly, budget, dedup, rendering at session start |
+| Wiki                         | Live content, cluster membership, verification, ACLs                    |
+| Briefing service             | Assembly, budget, dedup, rendering at session start                     |
 
 ## Surface
 
@@ -59,14 +59,14 @@ Mirrors the bundle parity pattern (`assemble_bundle` / `/api/bundle`):
 
 Parameters (all optional except at least one of `pins`/`clusters`/`prompt`):
 
-| Param | Meaning |
-|-------|---------|
-| `pins` | Comma-separated page names or canonical_ids — individually load-bearing pages, included in order |
-| `clusters` | Comma-separated cluster names — retrieval scope + membership expansion |
-| `prompt` | The user's first message; refines retrieval via `BundleAssemblyService` |
-| `budget` | Token budget (default `wikantik.briefing.default_budget`, capped by `max_budget`) |
-| `scope_mode` | `prefer` (default: in-scope sections rank first) or `strict` (out-of-scope dropped) |
-| `format` | REST only: `json` (structured) or `md` (injection-ready markdown — the server owns the final rendered text; shims never format) |
+| Param        | Meaning                                                                                                                         |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `pins`       | Comma-separated page names or canonical_ids — individually load-bearing pages, included in order                                |
+| `clusters`   | Comma-separated cluster names — retrieval scope + membership expansion                                                          |
+| `prompt`     | The user's first message; refines retrieval via `BundleAssemblyService`                                                         |
+| `budget`     | Token budget (default `wikantik.briefing.default_budget`, capped by `max_budget`)                                               |
+| `scope_mode` | `prefer` (default: in-scope sections rank first) or `strict` (out-of-scope dropped)                                             |
+| `format`     | REST only: `json` (structured) or `md` (injection-ready markdown — the server owns the final rendered text; shims never format) |
 
 ## Assembly algorithm
 
@@ -128,7 +128,7 @@ Follows the bundle exactly:
   pins/clusters (text), prompt-present flag, budget requested/used, section/pin/
   pointer counts, surface, created_at.
 - The refinement query additionally flows into the existing `retrieval_query_log`
-  via `JdbcQueryLogService` with `source_surface='briefing'`, so it appears in
+  via `JdbcQueryLogService` with `source_surface='api_briefing'` / `'mcp_get_briefing'`, so it appears in
   `list_retrieval_queries`.
 - Review after a few weeks of dogfooding. No gates, no dashboards yet.
 

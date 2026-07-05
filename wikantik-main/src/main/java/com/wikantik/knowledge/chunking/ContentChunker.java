@@ -242,7 +242,7 @@ public class ContentChunker {
     }
 
     private int estimateTokens(String s) {
-        return (int) Math.ceil(s.length() / 4.0);
+        return com.wikantik.util.TokenEstimator.estimate( s );
     }
 
     private boolean isAtomic(Node block) {

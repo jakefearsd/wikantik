@@ -283,7 +283,10 @@ public final class KnowledgeSubsystemFactory {
             /*kgCurationOps=*/               curation,
             // Derived from contextRetrievalService (null here); built post-startup at the
             // same seam — see BundleServiceWiring / WikiEngine.patchContextRetrievalService.
-            /*bundleAssemblyService=*/       null
+            /*bundleAssemblyService=*/       null,
+            // Derived from the bundle service; built at the same post-startup seam —
+            // see BriefingServiceWiring / WikiEngine.patchContextRetrievalService.
+            /*briefingAssemblyService=*/     null
         );
     }
 
@@ -383,7 +386,11 @@ public final class KnowledgeSubsystemFactory {
             // 24. bundleAssemblyService — DERIVED from contextRetrievalService and built once
             //     at the retrieval-patch seam (WikiEngine.patchContextRetrievalService). Reuse
             //     the existing instance; this side-effect-free rebuild never reconstructs it.
-            existing.bundleAssemblyService()
+            existing.bundleAssemblyService(),
+            // 25. briefingAssemblyService — DERIVED from the bundle service and built once at
+            //     the same retrieval-patch seam. Reuse the existing instance; this
+            //     side-effect-free rebuild never reconstructs it.
+            existing.briefingAssemblyService()
         );
     }
 
@@ -496,6 +503,9 @@ public final class KnowledgeSubsystemFactory {
             // bundleAssemblyService — built at the retrieval-patch seam, not on this cold
             // no-snapshot path (the stashed snapshot, patched with the bundle, is what
             // production reads). Null here is correct: surfaces degrade until the patch fires.
+            null,
+            // briefingAssemblyService — likewise built at the retrieval-patch seam, not on
+            // this cold no-snapshot path. Null here is correct.
             null
         );
     }

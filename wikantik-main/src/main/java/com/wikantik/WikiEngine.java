@@ -1547,7 +1547,9 @@ public class WikiEngine implements Engine {
             getManager( com.wikantik.api.eval.RetrievalQualityRunner.class ),
             base.kgCurationOps(),
             /* bundleAssemblyService — derived from contextRetrievalService, which is null
-               here (wired post-boot); built later at patchContextRetrievalService */ null
+               here (wired post-boot); built later at patchContextRetrievalService */ null,
+            /* briefingAssemblyService — derived from the bundle service, likewise null
+               here; built later at patchContextRetrievalService */ null
         );
     }
 
@@ -1583,6 +1585,15 @@ public class WikiEngine implements Engine {
     public synchronized void patchContextRetrievalService(
             final com.wikantik.api.knowledge.ContextRetrievalService svc ) {
         if ( knowledgeSubsystem == null || servletContext == null ) return;
+        // Build the bundle service once and reuse it: the briefing assembler layers
+        // on top of it (prompt-driven widening), so both derive from the same instance.
+        final com.wikantik.api.bundle.BundleAssemblyService bundleSvc =
+            com.wikantik.knowledge.bundle.BundleServiceWiring.build(
+                svc,
+                bundleSectionSources(),
+                pageCanonicalIdsDao(),
+                pageSubsystem != null ? pageSubsystem.pages() : null,
+                properties );
         knowledgeSubsystem = new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services(
             knowledgeSubsystem.kgService(),
             knowledgeSubsystem.judgeService(),
@@ -1610,10 +1621,13 @@ public class WikiEngine implements Engine {
             // bundleAssemblyService — DERIVED from the now-live retrieval service (svc).
             // Collaborators are passed from typed accessors (no getManager) so the wiring
             // helper stays a plain assembler. Null-safe: build returns null if svc is null.
-            com.wikantik.knowledge.bundle.BundleServiceWiring.build(
-                svc,
-                bundleSectionSources(),
-                pageCanonicalIdsDao(),
+            bundleSvc,
+            // briefingAssemblyService — DERIVED from the just-built bundle service plus the
+            // structural index. Both collaborators are nullable (degraded briefing still
+            // answers explicit pins); requires only a live PageManager. Null-safe build.
+            com.wikantik.knowledge.briefing.BriefingServiceWiring.build(
+                bundleSvc,
+                structuralIndexOrNull(),
                 pageSubsystem != null ? pageSubsystem.pages() : null,
                 properties )
         );
@@ -1627,6 +1641,22 @@ public class WikiEngine implements Engine {
                     current.core(), current.persistence(), current.auth(),
                     current.page(), current.rendering(), current.search(),
                     knowledgeSubsystem, current.pageGraph() ) );
+        }
+    }
+
+    /**
+     * Resolves the {@link com.wikantik.api.pagegraph.StructuralIndexService} for the
+     * briefing wiring via the Page Graph subsystem bridge, degrading to {@code null}
+     * if the bridge is unavailable (the briefing then skips cluster expansion rather
+     * than failing). Never throws.
+     */
+    private com.wikantik.api.pagegraph.StructuralIndexService structuralIndexOrNull() {
+        try {
+            return com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge
+                .fromLegacyEngine( this ).structuralIndexService();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Structural index unavailable for briefing wiring: {}", e.getMessage() );
+            return null;
         }
     }
 

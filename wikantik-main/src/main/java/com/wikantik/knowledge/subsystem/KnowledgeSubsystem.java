@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.subsystem;
 
 import com.wikantik.api.agent.ForAgentProjectionService;
+import com.wikantik.api.briefing.BriefingAssemblyService;
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.eval.RetrievalQualityRunner;
 import com.wikantik.api.kgpolicy.KgInclusionPolicy;
@@ -164,6 +165,7 @@ public final class KnowledgeSubsystem {
         ReconciliationJobRunner reconciliationJobRunner,
         RetrievalQualityRunner retrievalQualityRunner,
         KgCurationOps kgCurationOps,
-        BundleAssemblyService bundleAssemblyService
+        BundleAssemblyService bundleAssemblyService,
+        BriefingAssemblyService briefingAssemblyService
     ) {}
 }

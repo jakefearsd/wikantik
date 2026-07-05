@@ -1166,6 +1166,9 @@ public class WikiEngine implements Engine {
             this.setQueryLogService( com.wikantik.knowledge.querylog.QueryLogWiring.build( ds, props ) );
             this.setQueryLogReader( com.wikantik.knowledge.querylog.QueryLogWiring.buildReader( ds ) );
 
+            // Wire the briefing log (S3 telemetry for session-start context briefings; default on).
+            this.setBriefingLogService( com.wikantik.knowledge.querylog.BriefingLogWiring.build( ds, props ) );
+
             // Register save-time filters.
             filterManager.addPageFilter( svcs.chunkProjector(), -1005 );
             filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), -1004 );
@@ -1452,6 +1455,21 @@ public class WikiEngine implements Engine {
     /** The query-log read side; {@code null} when no datasource is configured. */
     public com.wikantik.api.querylog.QueryLogReader queryLogReader() {
         return queryLogReader;
+    }
+
+    /** Briefing-request log; set at startup, read by nothing yet (write-only telemetry). Null
+     *  when disabled or not yet wired (callers no-op). A plain field — carries no snapshot
+     *  machinery. */
+    private volatile com.wikantik.api.briefing.BriefingLogService briefingLogService;
+
+    /** Called at startup once the persistence DataSource is available. */
+    public void setBriefingLogService( final com.wikantik.api.briefing.BriefingLogService service ) {
+        this.briefingLogService = service;
+    }
+
+    /** The briefing-log service, or {@code null} if logging was not wired. */
+    public com.wikantik.api.briefing.BriefingLogService briefingLogService() {
+        return briefingLogService;
     }
 
     /** {@inheritDoc} */

@@ -829,6 +829,7 @@ command -v jq >/dev/null 2>&1 || exit 0
 [ -n "${WIKANTIK_BASE_URL:-}" ] || exit 0
 
 SESSION_ID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty')
+SESSION_ID=${SESSION_ID//\//_}   # keep state path inside STATE_DIR
 PROMPT=$(printf '%s' "$INPUT" | jq -r '.prompt // empty')
 [ -n "$SESSION_ID" ] || exit 0
 
@@ -841,7 +842,8 @@ STATE_FILE="$STATE_DIR/$SESSION_ID.done"
 AUTH_ARGS=()
 [ -n "${WIKANTIK_BASIC_AUTH:-}" ] && AUTH_ARGS=(-u "$WIKANTIK_BASIC_AUTH")
 
-RESP=$(curl -fsS --max-time 10 "${AUTH_ARGS[@]}" -G "${WIKANTIK_BASE_URL%/}/api/briefing" \
+# ${AUTH_ARGS[@]+...}: empty-array expansion under set -u breaks on bash < 4.4 (macOS stock 3.2)
+RESP=$(curl -fsS --max-time 10 ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} -G "${WIKANTIK_BASE_URL%/}/api/briefing" \
     --data-urlencode "pins=${WIKANTIK_BRIEFING_PINS:-}" \
     --data-urlencode "clusters=${WIKANTIK_BRIEFING_CLUSTERS:-}" \
     --data-urlencode "prompt=$PROMPT" \

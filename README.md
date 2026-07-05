@@ -33,7 +33,7 @@ Key capabilities:
 - **Knowledge Graph viewer** at `/knowledge-graph` — reader-facing visualisation of the LLM-extracted entity graph with tier filter, node-type colours, provenance/status badges, and a large-graph warning gate
 - **REST API** at `/api/` — full CRUD for pages, attachments, search, history, diffs, backlinks, and the Knowledge Graph snapshot, with ACL-based permission enforcement
 - **Admin MCP server** at `/wikantik-admin-mcp` — 26 tools (page writes, Page Graph link analysis, metadata queries, Knowledge Graph proposals, structural audits, verification stamping, query-log reads), 6 resources, 8 prompts, 3 completions. Bearer-token / API-key authenticated.
-- **Knowledge MCP server** at `/knowledge-mcp` — 20 read-only tools for hybrid retrieval (BM25 + dense), Knowledge Graph traversal, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`), schema discovery, the agent-grade `get_page_for_agent` projection, batched markdown reads via `read_pages`, and read-only ontology access (`get_ontology` + `sparql_query`). Same auth scheme.
+- **Knowledge MCP server** at `/knowledge-mcp` — 21 read-only tools for hybrid retrieval (BM25 + dense), Knowledge Graph traversal, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`), schema discovery, the agent-grade `get_page_for_agent` projection, batched markdown reads via `read_pages`, read-only ontology access (`get_ontology` + `sparql_query`), and session-start context briefings via `get_briefing`. Same auth scheme.
 - **OpenAPI tool server** at `/tools/*` — OpenWebUI-compatible OpenAPI 3.1 endpoint exposing `search_wiki` and `get_page` for non-MCP LLM clients
 - **Raw content and change feed** — `GET /wiki/{slug}?format=md|json` and `GET /api/changes?since=…` for search-engine crawlers and RAG ingestion pipelines (see [IndexingSupport.md](IndexingSupport.md))
 - **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60); fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
@@ -109,7 +109,7 @@ flowchart LR
         Raw["/wiki/{slug}?format=md|json<br/>Raw content for crawlers"]
         Changes["/api/changes?since=…<br/>Change feed"]
         AdminMCP["/wikantik-admin-mcp<br/>26 admin/write tools"]
-        KnowMCP["/knowledge-mcp<br/>20 read-only retrieval tools"]
+        KnowMCP["/knowledge-mcp<br/>21 read-only retrieval tools"]
         Tools["/tools/*<br/>OpenAPI 3.1<br/>(search_wiki, get_page)"]
         Scim["/scim/v2/*<br/>SCIM 2.0<br/>Users + Groups"]
         Health["/api/health<br/>/metrics"]
@@ -381,7 +381,7 @@ monitoring, and the bare-metal ↔ container migration.
 | `wikantik-http` | Servlet filters — CSRF, CORS, CSP, security headers, SPA routing |
 | `wikantik-rest` | REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`) |
 | `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 26 tools (writes + analytics + verification stamping + query-log reads), 6 resources, 8 prompts, 3 completions |
-| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 20 read-only retrieval / Knowledge Graph traversal / structural-spine / agent-projection / batched-read / ontology (`get_ontology` + `sparql_query`) tools; also hosts the Knowledge Graph service (pgvector embeddings, co-mention graph, hub discovery) |
+| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 21 read-only retrieval / Knowledge Graph traversal / structural-spine / agent-projection / batched-read / ontology (`get_ontology` + `sparql_query`) / context-briefing (`get_briefing`) tools; also hosts the Knowledge Graph service (pgvector embeddings, co-mention graph, hub discovery) |
 | `wikantik-ontology` | RDF/OWL ontology layer (Apache Jena) — the `wikantik:` T-Box + SHACL shapes, Postgres→RDF projectors, the TDB2 store, and the public SPARQL / JSON-LD / RDF-dump surface |
 | `wikantik-tools` | OpenAPI 3.1 tool server at `/tools/*` — 2 tools for OpenWebUI-compatible non-MCP clients |
 | `wikantik-scim` | SCIM 2.0 provisioning server at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD and discovery for IdP onboarding/offboarding |
@@ -578,7 +578,7 @@ Wikantik exposes two independent Model Context Protocol servers (both using the 
 
 **`/wikantik-admin-mcp`** — `wikantik-admin-mcp` module. Admin / write surface for AI-assisted wiki operations: structural-verification checks, Page Graph link and backlink analysis, history and diffs, metadata querying, recent changes, an export/import workflow for bulk editing, Knowledge Graph proposals, page writes, verification stamping, and query-log reads (`list_retrieval_queries`). Exposes **26 tools, 6 resources, 8 prompts, 3 completions**. Authoritative tool list: `wikantik-admin-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java`. Initializer: `com.wikantik.mcp.McpServerInitializer`.
 
-**`/knowledge-mcp`** — `wikantik-knowledge` module. Read-only retrieval surface designed for coding agents consuming the wiki as a knowledge base: hybrid search (BM25 + dense), Knowledge Graph schema discovery, node querying, traversal, similarity search, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id`), the agent-grade `get_page_for_agent` projection (now also carrying derived `agent_hints` with `prefer_tools` / `prefer_pages`, plus a `summary_synthesized` flag for hub-page overlays), batched markdown reads via `read_pages` (cap 20), and read-only ontology access (`get_ontology` plus `sparql_query` over the `wikantik:` RDF model). Exposes **20 tools**. Authoritative tool list: `wikantik-knowledge/src/main/java/com/wikantik/knowledge/mcp/`. Initializer: `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
+**`/knowledge-mcp`** — `wikantik-knowledge` module. Read-only retrieval surface designed for coding agents consuming the wiki as a knowledge base: hybrid search (BM25 + dense), Knowledge Graph schema discovery, node querying, traversal, similarity search, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id`), the agent-grade `get_page_for_agent` projection (now also carrying derived `agent_hints` with `prefer_tools` / `prefer_pages`, plus a `summary_synthesized` flag for hub-page overlays), batched markdown reads via `read_pages` (cap 20), read-only ontology access (`get_ontology` plus `sparql_query` over the `wikantik:` RDF model), and `get_briefing` — session-start context briefings (budgeted, deduped, injection-ready markdown) for coding agents. Exposes **21 tools**. Authoritative tool list: `wikantik-knowledge/src/main/java/com/wikantik/knowledge/mcp/`. Initializer: `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
 
 **`/tools/*`** — `wikantik-tools` module. OpenAPI 3.1 tool server (OpenWebUI-compatible) exposing two tools (`search_wiki`, `get_page`) for LLM clients that cannot speak MCP.
 

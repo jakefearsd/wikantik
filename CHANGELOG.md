@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Context briefing service: get_briefing MCP tool + GET /api/briefing (session-start context injection for coding agents), briefing_log telemetry (V044), client shims under clients/.
+
 ## [2.3.1] - 2026-07-03
 
 ### Changed

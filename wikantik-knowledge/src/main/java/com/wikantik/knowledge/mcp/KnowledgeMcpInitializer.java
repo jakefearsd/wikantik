@@ -178,6 +178,13 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                     () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null,
                     viewGate ) );
             }
+            final com.wikantik.api.briefing.BriefingAssemblyService briefingService = kg.briefingAssemblyService();
+            if ( briefingService != null ) {
+                tools.add( new GetBriefingTool( briefingService,
+                    () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null,
+                    () -> engine instanceof com.wikantik.WikiEngine we ? we.briefingLogService() : null,
+                    viewGate ) );
+            }
             // Ontology tools (read-only): present only when the ontology runtime is wired.
             final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontoCoord =
                 PageGraphSubsystemBridge.fromLegacyEngine( engine ).ontologyRebuildCoordinator();

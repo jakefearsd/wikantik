@@ -45,7 +45,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "What is an AI-native wiki? A wiki for LLMs and agents",
     "description": "An AI-native wiki serves humans and machines from one source: native MCP, hybrid retrieval, a knowledge graph, and agent-grade projections. Here's what that means and why it matters.",
-    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "datePublished": "2026-06-07", "dateModified": "2026-07-05",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/compare/wiki-for-ai-agents.html" }
@@ -115,7 +115,7 @@
           </ul>
           <p>The practical result is that teams either build bespoke infrastructure on top of their wiki (custom connectors, scrapers, ETL pipelines), or their agents simply do not use the team's knowledge base. Both outcomes are worse than they should be.</p>
 
-          <h2>The five things that make a wiki AI-native</h2>
+          <h2>The six things that make a wiki AI-native</h2>
 
           <h3>1. A native protocol for agent queries (MCP)</h3>
           <p>The most direct way for an AI agent to query a knowledge base is via a purpose-built protocol — not HTTP scraping, not a search API that returns HTML links. The Model Context Protocol (MCP) is an open standard that lets agents discover and call tools exposed by a server over a standardized interface. An AI-native wiki exposes its retrieval capabilities — page lookup, semantic search, knowledge-graph traversal, structural navigation — as native MCP tools. The agent calls a tool, gets structured data back, cites it, and moves on. No connector to build. No middleware to maintain.</p>
@@ -133,8 +133,11 @@
           <h3>5. A change feed for sync pipelines</h3>
           <p>External RAG pipelines and vector stores need to know what changed since they last synced. An AI-native wiki exposes an incremental change feed — a time-ordered log of page additions, modifications, and deletions — so sync pipelines can update their indexes without crawling the entire site on every run. This is the difference between a knowledge base that stays current and one that silently drifts stale.</p>
 
+          <h3>6. Assembled, cited context — not just search results</h3>
+          <p>A search interface hands back a list of hits and leaves the hard part to the agent: rank them, drop the duplicates, pick the sections that matter, trim to a token budget, and track where each fact came from. An AI-native wiki does that assembly server-side and returns a <em>context bundle</em> — ranked, de-duplicated, section-level, with a version-pinned citation on every passage and a coverage signal that tells the agent how well the knowledge base actually covered the question. Crucially, it stops at assembly: it never synthesizes the answer, so grounding stays auditable and nothing is hallucinated on the wiki's behalf. The same machinery produces a session <em>briefing</em> — a budgeted block of context injected at the start of an agent session so it begins already grounded in the team's conventions.</p>
+
           <h2>How Wikantik implements each of these</h2>
-          <p>Wikantik is built around these five properties. On protocol: it ships two native MCP servers — <code>/knowledge-mcp</code> with 20 read-only tools (hybrid retrieval, knowledge-graph traversal, structural navigation, agent projections, batched page reads, ontology/SPARQL access) and <code>/wikantik-admin-mcp</code> with 26 write and analytics tools — plus an OpenAPI 3.1 tool server at <code>/tools/*</code> for non-MCP clients. On retrieval: BM25 + dense embeddings (pluggable backend: in-memory, pgvector, or Lucene HNSW) fused with weighted RRF, fail-closed to BM25. On knowledge graph: LLM-extracted entities and typed-relation edges stored in pgvector, with hub discovery, a curated inclusion policy, and an RDF/OWL ontology layer with SPARQL access. On projections: <code>/api/pages/for-agent/{id}</code> returns a token-budgeted projection with derived agent hints; pages carry <code>type: runbook</code> and verification metadata. On change feed: <code>/api/changes?since=…</code> exposes an incremental feed for sync pipelines; <code>/wiki/{slug}?format=md|json</code> provides raw content for direct RAG ingestion.</p>
+          <p>Wikantik is built around these five properties. On protocol: it ships two native MCP servers — <code>/knowledge-mcp</code> with 21 read-only tools (hybrid retrieval, context bundles, session briefings, knowledge-graph traversal, structural navigation, agent projections, batched page reads, ontology/SPARQL access) and <code>/wikantik-admin-mcp</code> with 26 write and analytics tools — plus an OpenAPI 3.1 tool server at <code>/tools/*</code> for non-MCP clients. On retrieval: BM25 + dense embeddings (pluggable backend: in-memory, pgvector, or Lucene HNSW) fused with weighted RRF, fail-closed to BM25. On knowledge graph: LLM-extracted entities and typed-relation edges stored in pgvector, with hub discovery, a curated inclusion policy, and an RDF/OWL ontology layer with SPARQL access. On projections: <code>/api/pages/for-agent/{id}</code> returns a token-budgeted projection with derived agent hints; pages carry <code>type: runbook</code> and verification metadata. On change feed: <code>/api/changes?since=…</code> exposes an incremental feed for sync pipelines; <code>/wiki/{slug}?format=md|json</code> provides raw content for direct RAG ingestion. On assembled context: <code>assemble_bundle</code> (and <code>GET /api/bundle</code>) returns ranked, de-duplicated, version-pinned-cited sections with a coverage signal, and <code>get_briefing</code> (and <code>GET /api/briefing</code>) returns a budgeted session briefing — retrieval assembled, never an answer synthesized.</p>
 
           <div class="callout">
             <p>The full platform picture — how each of these components works in detail — is on the <a href="/platform/">platform</a> pages: <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>, <a href="/platform/hybrid-retrieval.html">hybrid retrieval</a>, <a href="/platform/knowledge-graph.html">knowledge graph</a>, and <a href="/platform/agent-grade-content.html">agent-grade content</a>.</p>
@@ -167,6 +170,10 @@
             <a class="related-card" href="/platform/mcp-for-ai-agents.html">
               <strong>MCP for AI agents</strong>
               <span>How Wikantik's native MCP servers expose your wiki to any MCP-compatible agent.</span>
+            </a>
+            <a class="related-card" href="/platform/rag-context-bundles.html">
+              <strong>RAG context bundles</strong>
+              <span>Cited, de-duplicated, version-pinned context and agent briefings — assembled, not synthesized.</span>
             </a>
             <a class="related-card" href="/platform/hybrid-retrieval.html">
               <strong>Hybrid retrieval</strong>
@@ -201,6 +208,7 @@
           <h4>Platform</h4>
           <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
           <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/rag-context-bundles.html">RAG context bundles</a>
           <a href="/platform/knowledge-graph.html">Knowledge graph</a>
           <a href="/platform/ontology.html">Ontology &amp; SPARQL</a>
           <a href="/platform/page-graph.html">Page graph</a>

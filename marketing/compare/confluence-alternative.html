@@ -45,7 +45,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "A self-hosted Confluence alternative you actually own",
     "description": "Looking for a Confluence alternative? Wikantik is a self-hosted, plain-markdown wiki with hybrid AI search and native MCP for agents — your data, your infra, no per-seat pricing.",
-    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "datePublished": "2026-06-07", "dateModified": "2026-07-05",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/compare/confluence-alternative.html" }
@@ -117,7 +117,7 @@
           <p>Wikantik's search combines Lucene BM25 keyword matching with dense embedding similarity via weighted Reciprocal Rank Fusion. The result is search that handles natural-language questions, not just keyword matches. If the vector store is unavailable for any reason, the system fails closed to BM25 — you always get results. Learn more on the <a href="/platform/hybrid-retrieval.html">hybrid retrieval</a> page.</p>
 
           <h3>Native MCP for AI agents</h3>
-          <p>Wikantik ships two Model Context Protocol servers: <code>/knowledge-mcp</code> with 20 read-only retrieval and knowledge-graph tools, and <code>/wikantik-admin-mcp</code> with 26 write and analytics tools. Your AI agents — whether Claude, a custom LLM assistant, or any MCP-compatible client — can query your wiki directly, retrieve pages, and cite sources, without a bespoke integration layer. Confluence does not ship a native MCP server. See the full <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a> overview.</p>
+          <p>Wikantik ships two Model Context Protocol servers: <code>/knowledge-mcp</code> with 21 read-only retrieval and knowledge-graph tools, and <code>/wikantik-admin-mcp</code> with 26 write and analytics tools. Your AI agents — whether Claude, a custom LLM assistant, or any MCP-compatible client — can query your wiki directly, retrieve pages, and cite sources, without a bespoke integration layer. Confluence does not ship a native MCP server. See the full <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a> overview.</p>
 
           <h3>A knowledge graph of your content</h3>
           <p>Wikantik extracts a knowledge graph from your pages — LLM-derived entities with co-mention and typed-relation edges, stored in a pgvector-backed graph. This is separate from the plain wikilink graph; it captures semantic relationships agents can reason over. Neither Confluence nor its ecosystem ships this natively. Read more about the <a href="/platform/knowledge-graph.html">knowledge graph</a>.</p>
@@ -193,6 +193,7 @@
           <h4>Platform</h4>
           <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
           <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/rag-context-bundles.html">RAG context bundles</a>
           <a href="/platform/knowledge-graph.html">Knowledge graph</a>
           <a href="/platform/ontology.html">Ontology &amp; SPARQL</a>
           <a href="/platform/page-graph.html">Page graph</a>

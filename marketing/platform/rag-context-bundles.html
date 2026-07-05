@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>RAG as a Service — cited context bundles &amp; agent briefings | Wikantik</title>
+  <meta name="description" content="Wikantik assembles retrieval into a ranked, de-duplicated, version-pinned-cited context bundle — and a session-start briefing for coding agents. Context, not synthesized answers.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/platform/rag-context-bundles.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/platform/rag-context-bundles.html">
+  <meta property="og:title" content="RAG as a Service — cited context bundles &amp; agent briefings | Wikantik">
+  <meta property="og:description" content="Wikantik assembles retrieval into a ranked, de-duplicated, version-pinned-cited context bundle — and a session-start briefing for coding agents. Context, not synthesized answers.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="RAG as a Service — cited context bundles &amp; agent briefings | Wikantik">
+  <meta name="twitter:description" content="Wikantik assembles retrieval into a ranked, de-duplicated, version-pinned-cited context bundle — and a session-start briefing for coding agents. Context, not synthesized answers.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "RAG as a Service — cited context bundles and agent briefings",
+    "description": "Wikantik assembles retrieval into a ranked, de-duplicated, version-pinned-cited context bundle — and a session-start briefing for coding agents. Context, not synthesized answers.",
+    "datePublished": "2026-07-05", "dateModified": "2026-07-05",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/platform/rag-context-bundles.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Platform", "item": "https://www.wikantik.com/platform/" },
+      { "@type": "ListItem", "position": 3, "name": "RAG context bundles", "item": "https://www.wikantik.com/platform/rag-context-bundles.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Does Wikantik answer questions for my agent?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No — and that is deliberate. Wikantik assembles a ranked, de-duplicated context bundle of the most relevant sections with version-pinned citations, then hands it to your model. Your model does the reasoning and writes the answer. The wiki never synthesizes prose, so there is nothing to hallucinate and every claim traces back to a cited page and version." } },
+      { "@type": "Question", "name": "How is a context bundle different from a plain search API?",
+        "acceptedAnswer": { "@type": "Answer", "text": "A search API returns a list of pages and leaves ranking, de-duplication, section selection, and citation to you. A context bundle does that assembly server-side: it retrieves at the section level across the whole corpus, fuses keyword and dense-embedding scores, removes near-duplicate sections, pins each one to a page version, and returns a coverage signal telling the agent how well the knowledge base actually covered the question." } },
+      { "@type": "Question", "name": "What is a session briefing?",
+        "acceptedAnswer": { "@type": "Answer", "text": "A session briefing is a budgeted, injection-ready block of context assembled at the start of an agent session from pinned pages, clusters, and the task prompt. Coding agents such as Claude Code and compatible assistants pull a briefing via the get_briefing MCP tool or the /api/briefing endpoint and inject it as opening context, so the agent starts the task already grounded in your wiki." } },
+      { "@type": "Question", "name": "How do cited sections stay accurate as pages change?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Every citation is version-pinned and span-hashed. When a cited page is edited, Wikantik grades the citation's staleness at the span level and surfaces the drift through the list_stale_citations tool and the drift dashboard, so stale groundings are found and repaired instead of silently rotting. This is the self-healing loop behind Wikantik's RAG-as-a-Service." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/platform/">Platform</a> ›
+        <span aria-current="page">RAG context bundles</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Platform</p>
+          <h1>RAG as a Service: cited context bundles, not answers</h1>
+          <p class="doc-lede">Most retrieval stacks make you build the hard part yourself — rank the hits, drop the duplicates, pick the right sections, trim to a token budget, and keep track of where every fact came from. Wikantik does that assembly server-side and hands your agent a ready-to-use context bundle: ranked, de-duplicated, and version-pinned-cited. It never writes the answer — your model does. Context, with receipts.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>The line Wikantik will not cross: no synthesis</h2>
+          <p>A lot of "RAG platforms" quietly answer for you. You send a question, they run retrieval, feed it to a model they chose, and return prose. That is convenient right up until the answer is wrong — and now the hallucination is coming from your knowledge base, with no way to see which passage it came from or whether that passage still says what the model claimed.</p>
+          <p>Wikantik draws the line at assembly. It retrieves, ranks, de-duplicates, and cites — and then it stops. The synthesized answer is your model's job, in your agent, under your control. Every section in the bundle carries a citation to a specific page <em>and version</em>, so anything your agent asserts can be traced back to a source you can open. That is the whole point of grounding: not a confident paragraph, but a confident paragraph you can <em>check</em>.</p>
+
+          <h2>The context bundle</h2>
+          <p>The context bundle is Wikantik's core retrieval product. Ask for one over the <code>assemble_bundle</code> MCP tool or the <code>GET /api/bundle?q=</code> endpoint, and you get back a compact, ordered set of the most relevant <em>sections</em> across your entire wiki — not whole pages, and not a list of links to go fetch yourself. Assembly does the work that RAG pipelines normally push onto the caller:</p>
+          <ul>
+            <li><strong>Section-level, whole-corpus retrieval.</strong> Candidates are drawn from a global pool of content chunks, so a highly relevant section is never dropped just because its page ranked outside the top-N. No page pre-selection to lose good passages behind.</li>
+            <li><strong>Hybrid scoring.</strong> Keyword (BM25) and dense-embedding similarity are fused with weighted Reciprocal Rank Fusion — the same fail-closed hybrid engine described on the <a href="/platform/hybrid-retrieval.html">hybrid retrieval</a> page — so plain-language questions and domain jargon both land.</li>
+            <li><strong>De-duplication.</strong> Near-duplicate sections are collapsed, so the bundle spends its token budget on distinct information instead of the same paragraph three times.</li>
+            <li><strong>Version-pinned citations.</strong> Each section is stamped with its source page and the exact version it came from — the grounding your agent cites, and the anchor the self-healing loop watches.</li>
+            <li><strong>A coverage signal.</strong> Every bundle carries a small coverage block — how many sections and distinct pages it drew from, the top similarity, and a confidence rating. If the wiki did not really cover the question, the agent is told so up front, and can say "I don't know" or route elsewhere instead of confidently answering from three weak hits.</li>
+          </ul>
+          <p>The result is that an agent's retrieval step is a single call that returns citable context, not a mini-project. Both surfaces return the same structure; the <code>/api/bundle</code> endpoint mirrors the <code>assemble_bundle</code> tool for pipelines that are not MCP clients.</p>
+
+          <div class="callout">
+            <p>Coverage is a routing tool, not just telemetry. A <strong>strong</strong> bundle means answer from it; a <strong>partial</strong> or thin bundle is the agent's cue to widen the search, ask a clarifying question, or fall back to a structural query (clusters, tags, the <a href="/platform/ontology.html">ontology / SPARQL</a> surface) instead of guessing.</p>
+          </div>
+
+          <h2>Session briefings: grounded before the first prompt</h2>
+          <p>Retrieval mid-task is reactive — the agent already has to know what to ask. A lot of the value of a team wiki is the context an agent should have <em>before</em> it starts: the conventions, the runbooks, the design decisions for the area it is about to work in. Wikantik packages that as a <strong>session briefing</strong>.</p>
+          <p>A coding agent — Claude Code, or any compatible assistant — requests a briefing at session start via the <code>get_briefing</code> MCP tool or <code>GET /api/briefing</code>, passing any combination of pinned pages, clusters, and the task prompt. Wikantik assembles a budgeted, de-duplicated block of the most relevant context and returns it as injection-ready Markdown (or structured JSON), which the agent drops in as opening context. The agent starts the task already knowing how your team does things — no "read these ten pages first" ritual, no blank-slate first draft that ignores your conventions. Small client shims make wiring it into an agent runtime a copy-paste.</p>
+
+          <h2>Citations that repair themselves</h2>
+          <p>Grounding is only worth something if it stays true. In Wikantik, an author (or a curator agent) marks a claim's source inline in the page body, and at save time that becomes a first-class citation edge — version-pinned and span-hashed to the exact passage it grounds.</p>
+          <p>When a cited page is later edited, Wikantik does not just invalidate everything that pointed at it. It grades staleness at the span level — did the cited passage actually change, or just something elsewhere on the page? — and surfaces what genuinely drifted through the <code>list_stale_citations</code> tool and a drift dashboard. Stale groundings get found and fixed instead of quietly rotting. This is the self-healing half of RAG-as-a-Service: the same version pins that make a bundle citable also make the corpus tell you when a citation has gone out of date.</p>
+
+          <h2>Access control comes along for free</h2>
+          <p>Bundles and briefings are assembled from the same retrieval candidates as the rest of the platform, so the same page-level ACLs apply. A section from a restricted page never appears in a bundle or briefing for an agent whose session cannot view it — grounding is filtered to what the caller is actually allowed to read, with no separate policy to keep in sync.</p>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>Does Wikantik answer questions for my agent?</summary>
+              <p>No — and that is deliberate. Wikantik assembles a ranked, de-duplicated context bundle of the most relevant sections with version-pinned citations, then hands it to your model. Your model does the reasoning and writes the answer. The wiki never synthesizes prose, so there is nothing to hallucinate and every claim traces back to a cited page and version.</p>
+            </details>
+            <details>
+              <summary>How is a context bundle different from a plain search API?</summary>
+              <p>A search API returns a list of pages and leaves ranking, de-duplication, section selection, and citation to you. A context bundle does that assembly server-side: it retrieves at the section level across the whole corpus, fuses keyword and dense-embedding scores, removes near-duplicate sections, pins each one to a page version, and returns a coverage signal telling the agent how well the knowledge base actually covered the question.</p>
+            </details>
+            <details>
+              <summary>What is a session briefing?</summary>
+              <p>A session briefing is a budgeted, injection-ready block of context assembled at the start of an agent session from pinned pages, clusters, and the task prompt. Coding agents such as Claude Code and compatible assistants pull a briefing via the <code>get_briefing</code> MCP tool or the <code>/api/briefing</code> endpoint and inject it as opening context, so the agent starts the task already grounded in your wiki.</p>
+            </details>
+            <details>
+              <summary>How do cited sections stay accurate as pages change?</summary>
+              <p>Every citation is version-pinned and span-hashed. When a cited page is edited, Wikantik grades the citation's staleness at the span level and surfaces the drift through the <code>list_stale_citations</code> tool and the drift dashboard, so stale groundings are found and repaired instead of silently rotting. This is the self-healing loop behind Wikantik's RAG-as-a-Service.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/platform/hybrid-retrieval.html">
+              <strong>Hybrid retrieval</strong>
+              <span>The BM25 + dense engine that scores the sections a bundle is built from.</span>
+            </a>
+            <a class="related-card" href="/platform/mcp-for-ai-agents.html">
+              <strong>MCP for AI agents</strong>
+              <span>The two native MCP servers that expose assemble_bundle, get_briefing, and the rest.</span>
+            </a>
+            <a class="related-card" href="/platform/agent-grade-content.html">
+              <strong>Agent-grade content</strong>
+              <span>Token-budgeted page projections and verification metadata for reliable answers.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/rag-context-bundles.html">RAG context bundles</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/ontology.html">Ontology &amp; SPARQL</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

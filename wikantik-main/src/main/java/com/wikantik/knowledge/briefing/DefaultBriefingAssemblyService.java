@@ -199,10 +199,10 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
         private void assemblePins() {
             for ( final String pin : cappedPins ) {
                 final String slug = resolvePinSlug( pin );
-                if ( slug == null ) {
-                    warnings.add( "unknown pin: " + pin );
-                    continue;
-                }
+                // Unresolvable/skipped pins are NOT warned here: pin "unknown pin: ..." warnings are
+                // owned solely by BriefingAclGate, which attributes them per requested pin AFTER the
+                // ACL gate so that nonexistent, restricted, and cap-dropped pins are indistinguishable.
+                if ( slug == null ) continue;
                 if ( includedSlugs.contains( slug ) ) continue;
                 addPin( slug );
             }

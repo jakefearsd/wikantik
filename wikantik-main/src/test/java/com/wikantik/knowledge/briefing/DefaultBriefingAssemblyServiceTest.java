@@ -207,7 +207,7 @@ class DefaultBriefingAssemblyServiceTest {
     }
 
     @Test
-    void unknownPinWarnsAndContinues() {
+    void unknownPinSkippedWithoutWarning_warningOwnedByGate() {
         final DefaultBriefingAssemblyService svc = new DefaultBriefingAssemblyService(
             q -> new ContextBundle( q, List.of() ), new StubIndex(), pageManagerFixture(),
             DEFAULT_BUDGET, MAX_BUDGET );
@@ -215,8 +215,10 @@ class DefaultBriefingAssemblyServiceTest {
         final ContextBriefing b = svc.assemble(
             new BriefingRequest( List.of( "Nope", "BillingProcess" ), null, null, null, null ) );
 
-        assertTrue( b.warnings().stream().anyMatch( w -> w.contains( "unknown pin: Nope" ) ),
-            "warns for the unresolvable pin: " + b.warnings() );
+        // The assembler no longer emits "unknown pin" — that is BriefingAclGate's job (oracle defence).
+        assertFalse( b.warnings().stream().anyMatch( w -> w.contains( "unknown pin" ) ),
+            "assembler must NOT emit pin warnings: " + b.warnings() );
+        assertNull( itemBySlug( b, "Nope" ), "unresolvable pin yields no item" );
         final BriefingItem bill = itemBySlug( b, "BillingProcess" );
         assertTrue( bill != null && bill.included(), "the resolvable pin is still included" );
     }

@@ -11,8 +11,9 @@ spec. Where sources disagreed, that's called out explicitly. Re-verify against
 depending on exact field names in a production setup.
 
 **(a) Session-start hooks / auto-run commands — yes, with caveats.**
-Antigravity ships a hooks system (JSON config, introduced with "Antigravity
-2.0") with five consolidated lifecycle events: `PreToolUse`, `PostToolUse`,
+Antigravity ships a hooks system (JSON config; one source dates its
+introduction to "Antigravity 2.0", unverified against first-party release
+notes) with five consolidated lifecycle events: `PreToolUse`, `PostToolUse`,
 `PreInvocation`, `PostInvocation`, `Stop`. `PreInvocation` fires **before each
 model call** and can inject text into the agent's context — hook scripts read
 a JSON payload from stdin (`toolCall.args`, `workspacePaths`,
@@ -89,18 +90,27 @@ context automatically:
 
 1. **`antigravity-briefing-hook.sh`** (deterministic, preferred) — a
    `PreInvocation` hook, structurally identical to
-   `clients/claude-code/briefing-hook.sh`: calls the Wikantik `/knowledge-mcp`
-   `get_briefing` MCP tool once per session and injects the returned markdown
-   as `additionalContext`.
+   `clients/claude-code/briefing-hook.sh`: it fetches the briefing over
+   **REST** (`GET $WIKANTIK_BASE_URL/api/briefing?format=md`, the same
+   endpoint the Claude Code shim uses) once per session and injects the
+   returned markdown as `additionalContext`. It does **not** go through the
+   MCP server — hooks are shell scripts running outside the agent's tool
+   surface, so REST is the right transport here (exactly as it is for the
+   Claude Code hook). Requires `bash`, `curl`, and `jq` on the machine
+   running Antigravity.
 2. **`wikantik-briefing-rules.md`** (fallback, always works) — a snippet to
    paste into the consuming project's `AGENTS.md` (or `GEMINI.md`) that
-   instructs the agent to call `get_briefing` itself at the start of a
-   session.
+   instructs the agent to call the `get_briefing` **MCP tool** itself at the
+   start of a session.
 
-Both rely on the Wikantik `/knowledge-mcp` MCP server being registered with
-Antigravity — do that first.
+The rules-snippet fallback (Option 2) and the `clients/skills/wiki-context`
+skill both require the Wikantik `/knowledge-mcp` MCP server to be registered
+with Antigravity. The hook (Option 1) does not — it only needs the REST env
+vars listed below. Register the MCP server anyway: the wiki-context skill's
+follow-up tools (`assemble_bundle`, `read_pages`, …) need it regardless of
+which briefing-injection path you pick.
 
-## MCP server registration
+## MCP server registration (Option 2 + the wiki-context skill)
 
 Add an entry to `mcp_config.json` (global `~/.gemini/config/mcp_config.json`
 or workspace `.agents/mcp_config.json`):
@@ -123,9 +133,15 @@ way as any other Wikantik MCP client — see the main repo's MCP access-key
 docs). Once registered, `get_briefing`, `assemble_bundle`, `read_pages`, and
 the rest of the `/knowledge-mcp` tool surface are available to the agent —
 this is the same tool surface the `clients/skills/wiki-context` skill
-consumes, and it's MCP-only: no REST/curl fallback is documented or needed.
+consumes, and the skill is MCP-only by rule: agent-driven wiki interaction
+never falls back to REST/curl. (The hook script below is the one deliberate
+exception — it runs *outside* the agent, before the model call, where MCP
+tools aren't available.)
 
 ## Option 1: deterministic hook (preferred)
+
+Prerequisites: `bash`, `curl`, and `jq` on the machine running Antigravity
+(same as the Claude Code hook).
 
 1. Copy `antigravity-briefing-hook.sh` into the consuming repo:
    ```bash
@@ -148,16 +164,21 @@ consumes, and it's MCP-only: no REST/curl fallback is documented or needed.
      }
    }
    ```
-3. Set env vars the hook reads (mirrors the Claude Code hook's contract):
-   `WIKANTIK_BRIEFING_PINS`, `WIKANTIK_BRIEFING_CLUSTERS`,
-   `WIKANTIK_BRIEFING_BUDGET`. The MCP server itself is reached via the
-   `wikantik-knowledge` entry registered above — no base URL or auth
-   duplication needed in the hook's own env.
+3. Set env vars the hook reads (identical contract to the Claude Code hook):
+
+   | Variable | Required | Purpose |
+   |---|---|---|
+   | `WIKANTIK_BASE_URL` | **Yes** | Base URL of the Wikantik instance (e.g. `https://wiki.example.com`). The hook silently no-ops (`{}`) if unset. |
+   | `WIKANTIK_BRIEFING_PINS` | No | Comma-separated page names to always include. |
+   | `WIKANTIK_BRIEFING_CLUSTERS` | No | Comma-separated clusters to include. |
+   | `WIKANTIK_BRIEFING_BUDGET` | No | Token/size budget passed through. |
+   | `WIKANTIK_BASIC_AUTH` | No | `user:pass` for HTTP Basic auth (`curl -u`) when the wiki requires it. |
+
 4. The hook self-gates on `transcriptPath` (one state file per session under
    `${XDG_CACHE_HOME:-$HOME/.cache}/wikantik-briefing/`), matching the
    Claude Code shim's "once per session, never fails the turn" behavior: if
-   the MCP call fails or times out, the hook exits 0 with no output and the
-   model call proceeds unmodified.
+   the REST fetch fails or times out (10s), the hook exits 0 with a no-op
+   `{}` response and the model call proceeds unmodified.
 
 Because `PreInvocation` fires on *every* model call (there is no confirmed
 dedicated session-start event — see Research findings above), the state-file
@@ -175,17 +196,29 @@ way the hook is.
 
 ## Manual test
 
-With the `wikantik-knowledge` MCP server registered and reachable, and a
-recent Antigravity build that supports `.agents/hooks.json`:
+With a Wikantik instance reachable at `$WIKANTIK_BASE_URL`:
 
 ```bash
 chmod +x clients/antigravity/antigravity-briefing-hook.sh
 echo '{"transcriptPath":"/tmp/test-session-1.log","prompt":"how does billing work"}' | \
-  WIKANTIK_BRIEFING_PINS=Main ./clients/antigravity/antigravity-briefing-hook.sh
+  WIKANTIK_BASE_URL=http://localhost:8080 WIKANTIK_BRIEFING_PINS=Main \
+  ./clients/antigravity/antigravity-briefing-hook.sh
 ```
 
 Expected: a JSON object on stdout with `additionalContext` set to the
 briefing markdown (starting `# Wiki context briefing`). Running the same
-command again with the same `transcriptPath` prints nothing (state file
-already exists). Reset with
-`rm ~/.cache/wikantik-briefing/test-session-1.done`.
+command again with the same `transcriptPath` prints `{}` (state file already
+exists — one injection per session). Reset with
+`rm ~/.cache/wikantik-briefing/_tmp_test-session-1.log.done` (the session
+key is the `transcriptPath` with `/` replaced by `_`), or clear all cached
+sessions with `rm -rf ~/.cache/wikantik-briefing`.
+
+Failure path (unreachable wiki, or `WIKANTIK_BASE_URL` unset): the hook
+prints `{}` and exits 0 — the silent no-op degrade is the correct behavior,
+never an error that blocks the model call:
+
+```bash
+echo '{"transcriptPath":"/tmp/test-session-2.log","prompt":"x"}' | \
+  WIKANTIK_BASE_URL=http://localhost:1 ./clients/antigravity/antigravity-briefing-hook.sh
+echo "exit=$?"   # {} on stdout, exit=0
+```

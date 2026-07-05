@@ -27,7 +27,9 @@ public enum SourceSurface {
     API_BUNDLE( "api_bundle" ),
     API_SEARCH( "api_search" ),
     MCP_ASSEMBLE_BUNDLE( "mcp_assemble_bundle" ),
-    TOOLS_SEARCH_WIKI( "tools_search_wiki" );
+    TOOLS_SEARCH_WIKI( "tools_search_wiki" ),
+    API_BRIEFING( "api_briefing" ),
+    MCP_GET_BRIEFING( "mcp_get_briefing" );
 
     private final String wire;
 

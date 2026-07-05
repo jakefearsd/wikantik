@@ -575,6 +575,10 @@
        <servlet-class>com.wikantik.rest.BundleResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>BriefingResource</servlet-name>
+       <servlet-class>com.wikantik.rest.BriefingResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>KnowledgeGraphResource</servlet-name>
        <servlet-class>com.wikantik.rest.KnowledgeGraphResource</servlet-class>
    </servlet>
@@ -873,6 +877,10 @@
    <servlet-mapping>
        <servlet-name>BundleResource</servlet-name>
        <url-pattern>/api/bundle</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>BriefingResource</servlet-name>
+       <url-pattern>/api/briefing</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>KnowledgeGraphResource</servlet-name>

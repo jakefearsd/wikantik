@@ -560,6 +560,17 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             loginModuleOptions.putIfAbsent(
                 com.wikantik.auth.sso.SSOLoginModule.OPTION_CLAIM_EMAIL, ssoConfig.getClaimEmail() );
             LOG.info( "SSO configuration initialized with callback URL: {}", callbackUrl );
+
+            // Fail-loud reachability probe: pac4j fetches the OIDC discovery document
+            // lazily on the first /sso/login, so a loss of outbound egress to the IdP
+            // otherwise surfaces only as a generic "could not start single sign-on" for
+            // end users. Run the same fetch once at boot (async — never blocks startup)
+            // so an unreachable provider is obvious in the log. Only meaningful for OIDC.
+            final String ssoType = props.getProperty( SSOConfig.PROP_SSO_TYPE, "oidc" );
+            if( !"saml".equalsIgnoreCase( ssoType ) ) {
+                final String discoveryUri = props.getProperty( SSOConfig.PROP_OIDC_DISCOVERY_URI );
+                new com.wikantik.auth.sso.OidcDiscoverySelfCheck().checkAsync( discoveryUri );
+            }
         }
     }
 

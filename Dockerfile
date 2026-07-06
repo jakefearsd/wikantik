@@ -6,7 +6,7 @@
 # hard-coded list in this Dockerfile bit-rots silently. Tradeoff: every
 # source change invalidates the dependency cache. Still under a minute on
 # warm builds.
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9-eclipse-temurin-25 AS build
 
 # wikantik-war's reactor build invokes npm + vite to bundle the React
 # frontend into the WAR. The Maven base image has no Node — pull in
@@ -19,11 +19,11 @@ WORKDIR /src
 COPY . .
 RUN mvn -B clean package -pl wikantik-war -am -DskipTests
 
-# Stage 2: Tomcat 11 / JDK 21 runtime
+# Stage 2: Tomcat 11 / JDK 25 runtime
 # Pinned to the same version as bin/deploy-local.sh's TOMCAT_VERSION so the
 # bare-metal and container install paths run on the identical Tomcat patch.
 # Bumping this means bumping deploy-local.sh in lockstep.
-FROM tomcat:11.0.22-jdk21-temurin
+FROM tomcat:11.0.22-jdk25-temurin
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl unzip postgresql-client \
     && rm -rf /var/lib/apt/lists/*

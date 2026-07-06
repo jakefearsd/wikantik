@@ -17,7 +17,7 @@ Configuration for both bare-metal and container environments relies heavily on e
 
 ### 1.2 Containerized Deployment (Recommended for Production)
 The production Docker environment runs three critical services defined in `docker-compose.yml` and `docker-compose.prod.yml`:
-1. `wikantik`: The primary application running on Tomcat 11/JDK 21.
+1. `wikantik`: The primary application running on Tomcat 11/JDK 25.
 2. `db`: PostgreSQL 18 database (`pgvector/pgvector:pg18` — the `vector` extension is required).
 3. `backup`: An Alpine-based container that executes cron jobs for scheduled backups.
 

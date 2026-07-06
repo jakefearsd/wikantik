@@ -28,7 +28,7 @@ for the disclosure process.
 
 ### Prerequisites
 
-- Java 21+, Maven 3.9+, Node 20.19+ (or 22.12+), PostgreSQL 15+ with pgvector 0.5+,
+- Java 25+, Maven 3.9+, Node 20.19+ (or 22.12+), PostgreSQL 15+ with pgvector 0.5+,
   Docker (optional but recommended).
 
 See [README.md > Prerequisites](README.md#prerequisites) for the

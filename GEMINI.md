@@ -28,7 +28,7 @@ When performing refactoring (e.g., decoupling `WikiEngine` or modernizing legacy
 
 *   **Follow the Guice Migration:** Refer to `docs/ArchitectureCritique.md`. Prioritize moving "Leaf" managers (I18n, Variable, Progress) to the hybrid DI bridge before tackling core managers.
 *   **Interface Over Implementation:** Always code against the interfaces in `wikantik-api`, not the implementations in `wikantik-main`.
-*   **Clean Up Legacy "Junk":** Replace legacy `TextUtil` or manual string manipulation with modern Java 21 features (`String.formatted()`, `Record` classes, or the `java.nio.file` API) where it improves readability.
+*   **Clean Up Legacy "Junk":** Replace legacy `TextUtil` or manual string manipulation with modern Java 25 features (`String.formatted()`, `Record` classes, or the `java.nio.file` API) where it improves readability.
 *   **Maintain Semantic Stability:** Ensure that refactors do not break `canonical_id` stability or frontmatter parsing logic.
 
 ---

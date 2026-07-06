@@ -89,12 +89,14 @@ public final class OidcDiscoverySelfCheck {
         try {
             final FetchResult r = fetcher.fetch( discoveryUri );
             if( r.status() < 200 || r.status() >= 300 ) {
+                // LOG.error justified: fail-loud startup self-check; a bad discovery HTTP status breaks all SSO logins until an operator fixes it.
                 LOG.error( "OIDC discovery self-check FAILED for {}: HTTP {} — the identity provider is reachable but did "
                         + "not return its discovery document. SSO login will not work until this is resolved.",
                         discoveryUri, r.status() );
                 return Outcome.HTTP_ERROR;
             }
             if( r.body() == null || !r.body().contains( REQUIRED_FIELD ) ) {
+                // LOG.error justified: fail-loud startup self-check; an invalid discovery payload breaks all SSO logins until an operator fixes it.
                 LOG.error( "OIDC discovery self-check FAILED for {}: HTTP {} but the response is not a valid OIDC discovery "
                         + "document (no '{}'). SSO login will not work until this is resolved.",
                         discoveryUri, r.status(), REQUIRED_FIELD );
@@ -103,6 +105,7 @@ public final class OidcDiscoverySelfCheck {
             LOG.info( "OIDC discovery self-check OK: {} is reachable and returned a valid discovery document.", discoveryUri );
             return Outcome.OK;
         } catch( final Exception e ) {
+            // LOG.error justified: fail-loud startup self-check; an unreachable identity provider breaks all SSO logins until an operator fixes egress/DNS/TLS.
             LOG.error( "OIDC discovery self-check FAILED for {}: {} — the identity provider is UNREACHABLE from this host "
                     + "(check outbound network egress / DNS / TLS). SSO login will not work until this is resolved.",
                     discoveryUri, e.toString(), e );

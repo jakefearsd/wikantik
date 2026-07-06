@@ -29,7 +29,7 @@ The production host runs a Docker Compose stack — `docker-compose.yml` +
 | Service | Image | Role |
 |---------|-------|------|
 | `db` | `pgvector/pgvector:pg18` | PostgreSQL + pgvector — users, groups, policy grants, Knowledge Graph, embeddings, page metadata, `schema_migrations` |
-| `wikantik` | `wikantik:latest` (the released image) | Tomcat 11 / JDK 21 — the wiki application |
+| `wikantik` | `wikantik:latest` (the released image) | Tomcat 11 / JDK 25 — the wiki application |
 | `backup` | `postgres:18-alpine` | Scheduled `pg_dump` + page-tree tarball |
 | *(jakemon)* | external | Grafana Alloy agent on this host scrapes `/metrics` and ships logs to the central Prometheus + Loki + Grafana on host `inference` — no in-repo observability stack |
 

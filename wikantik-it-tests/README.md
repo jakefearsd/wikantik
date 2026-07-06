@@ -10,7 +10,7 @@ submodule. Schema is applied by the production `migrate.sh` script, and
 
 - **Docker daemon** running locally
 - **`psql`** on the `PATH` (used by the seed step)
-- JDK 21+, Maven 3.9+
+- JDK 25+, Maven 3.9+
 - A gitignored `it-db.properties` file — copy from the template on first run:
   ```
   cp wikantik-it-tests/it-db.properties.template wikantik-it-tests/it-db.properties

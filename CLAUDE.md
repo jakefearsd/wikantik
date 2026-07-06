@@ -36,7 +36,7 @@ uncovers a bug), escalate to the matching skill the moment it stops being mechan
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| Java (JDK) | 21+ | `java -version` |
+| Java (JDK) | 25+ | `java -version` |
 | Maven | 3.9+ | `mvn -version` |
 | Node.js + npm | 20.19+ (or 22.12+) | Required by Vite 8 (Rolldown). WAR build runs `npm install` + `vite build` automatically |
 | PostgreSQL | 15+ | For local deployment; unit tests use in-memory H2 |

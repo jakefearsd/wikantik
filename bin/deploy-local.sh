@@ -194,6 +194,27 @@ if ! command -v npm &>/dev/null; then
 fi
 print_status "npm found: $(npm --version)"
 
+# Check Java prerequisite. The WAR is compiled to Java 25 bytecode (class-file
+# v69), so the JDK that launches Tomcat MUST be 25+ or every class fails to load
+# with UnsupportedClassVersionError. Tomcat's startup.sh uses $JAVA_HOME/bin/java
+# when JAVA_HOME is set, otherwise the java on PATH — check the same one here.
+JAVA_BIN="java"
+if [[ -n "${JAVA_HOME:-}" ]]; then
+    JAVA_BIN="${JAVA_HOME}/bin/java"
+fi
+if ! command -v "${JAVA_BIN}" &>/dev/null; then
+    print_error "java not found (${JAVA_BIN}). A JDK 25+ runtime is required — the WAR is Java 25 bytecode."
+    echo "  Install JDK 25 (e.g. 'sdk install java 25.0.3-tem') and/or set JAVA_HOME."
+    exit 1
+fi
+JAVA_MAJOR="$("${JAVA_BIN}" -version 2>&1 | awk -F'"' '/version/{print $2}' | cut -d. -f1)"
+if [[ -z "${JAVA_MAJOR}" || "${JAVA_MAJOR}" -lt 25 ]]; then
+    print_error "JDK ${JAVA_MAJOR:-unknown} will run Tomcat, but the WAR is Java 25 bytecode — it will fail with UnsupportedClassVersionError."
+    echo "  Point JAVA_HOME at a JDK 25+ (e.g. 'sdk use java 25.0.3-tem' or export JAVA_HOME)."
+    exit 1
+fi
+print_status "Java runtime: JDK ${JAVA_MAJOR} (${JAVA_BIN})"
+
 # Check if WAR exists
 if [[ ! -f "${WAR_SOURCE}" ]]; then
     print_error "WAR file not found: ${WAR_SOURCE}"

@@ -48,6 +48,22 @@ if [[ ! -f "${WAR_SOURCE}" ]]; then
     exit 1
 fi
 
+# The WAR is Java 25 bytecode (class-file v69); Tomcat must launch on a JDK 25+
+# runtime or every class fails with UnsupportedClassVersionError. startup.sh uses
+# $JAVA_HOME/bin/java when set, else the java on PATH — check that same one.
+JAVA_BIN="java"
+[[ -n "${JAVA_HOME:-}" ]] && JAVA_BIN="${JAVA_HOME}/bin/java"
+if ! command -v "${JAVA_BIN}" &>/dev/null; then
+    echo "ERROR: java not found (${JAVA_BIN}). A JDK 25+ runtime is required." >&2
+    exit 1
+fi
+JAVA_MAJOR="$("${JAVA_BIN}" -version 2>&1 | awk -F'"' '/version/{print $2}' | cut -d. -f1)"
+if [[ -z "${JAVA_MAJOR}" || "${JAVA_MAJOR}" -lt 25 ]]; then
+    echo "ERROR: JDK ${JAVA_MAJOR:-unknown} will run Tomcat, but the WAR is Java 25 bytecode." >&2
+    echo "       Point JAVA_HOME at a JDK 25+ (e.g. 'sdk use java 25.0.3-tem')." >&2
+    exit 1
+fi
+
 # Shutdown
 if [[ -f "${TOMCAT_DIR}/bin/shutdown.sh" ]]; then
     echo "Stopping Tomcat..."

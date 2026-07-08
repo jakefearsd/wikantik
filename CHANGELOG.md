@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Toolchain and runtime upgraded from Java 21 to Java 25 (LTS).** The `jdk.version`
+  21→25 bump cascades to the compiler source/target, the `requireJavaVersion` enforcer
+  gate, and every PMD `targetJdk`; the Docker build/runtime images move to
+  `maven:3.9-eclipse-temurin-25` / `tomcat:11.0.22-jdk25-temurin`; CI + release workflows
+  and the operator/developer prerequisite docs are synced to JDK 25. The pinned toolchain
+  (JaCoCo 0.8.15, Mockito 5.23.0) already supports class-file v69; the incubating Vector
+  API stays enabled via `--add-modules=jdk.incubator.vector`.
+- Local deploy scripts now fail loud when run on a JDK older than 25.
+
+### Added
+- **Fail-loud OIDC discovery reachability self-check at startup.** When SSO is configured,
+  the engine verifies the OIDC discovery endpoint is reachable at boot and fails loud,
+  instead of surfacing the misconfiguration only on the first (lazily fetched, cached)
+  login attempt.
+
 ## [2.3.3] - 2026-07-05
 
 ### Added

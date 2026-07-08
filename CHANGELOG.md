@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.4] - 2026-07-08
+
 ### Changed
 - **Toolchain and runtime upgraded from Java 21 to Java 25 (LTS).** The `jdk.version`
   21→25 bump cascades to the compiler source/target, the `requireJavaVersion` enforcer

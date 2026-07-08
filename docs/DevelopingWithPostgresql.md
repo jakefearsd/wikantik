@@ -18,7 +18,7 @@ creation, §4 JDBC driver, §5 context/properties, §6 deploy) are preserved as
 |-----------|---------|-------|
 | PostgreSQL | 15 | pgvector requires 15+ |
 | pgvector | 0.5.x | `postgresql-<MAJOR>-pgvector` (apt) or `pgvector_<MAJOR>` (yum) |
-| Java JDK | 21 | Build target |
+| Java JDK | 25 | Build target |
 | Apache Tomcat | 11.0.22 | Pinned by `bin/deploy-local.sh` and the `Dockerfile` |
 | PostgreSQL JDBC Driver | 42.7.x | Auto-downloaded into `tomcat/tomcat-11/lib/` by `bin/deploy-local.sh` |
 

@@ -45,7 +45,7 @@ admin tools under `/admin/*`.
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| Java (JDK) | 21+ | `java -version` |
+| Java (JDK) | 25+ | `java -version` |
 | Maven | 3.9+ | `mvn -version` |
 | Node.js + npm | 20.19+ (or 22.12+) | The WAR build runs `npm install` + `vite build` automatically |
 | PostgreSQL | 15+ | Locally, listening on `localhost:5432` |

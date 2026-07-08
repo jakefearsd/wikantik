@@ -9,7 +9,7 @@
 > prescription as a considered alternative that was not taken.
 
 ## Executive Summary
-Wikantik represents a sophisticated modernization of a legacy codebase (JSPWiki). It successfully introduces "agent-grade" capabilities—such as hybrid retrieval, knowledge graphs, and semantic indexing—into a Java 21/Jakarta EE environment. The code quality is high, characterized by strong design patterns and a robust testing culture. 
+Wikantik represents a sophisticated modernization of a legacy codebase (JSPWiki). It successfully introduces "agent-grade" capabilities—such as hybrid retrieval, knowledge graphs, and semantic indexing—into a Java 25/Jakarta EE environment. The code quality is high, characterized by strong design patterns and a robust testing culture. 
 
 However, the project is currently hitting an architectural ceiling caused by its **manual service discovery and dependency orchestration model**.
 

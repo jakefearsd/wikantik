@@ -33,7 +33,7 @@ cd wikantik
 | Path | You need |
 |------|----------|
 | **A — Docker** | Docker Engine 24+ with the Compose plugin (`docker compose version`). Nothing else. |
-| **B — Bare metal** | Java JDK **21+**, Maven **3.9+**, Node.js **20.19+** (or **22.12+**) + npm, PostgreSQL **15+**. |
+| **B — Bare metal** | Java JDK **25+**, Maven **3.9+**, Node.js **20.19+** (or **22.12+**) + npm, PostgreSQL **15+**. |
 
 Why Node for a Java app? The WAR build compiles the React frontend with Vite;
 `mvn` runs `npm install` + `vite build` automatically, so npm must be on your

@@ -234,7 +234,7 @@ Raw data in `loadtest/results/sweep3-300vu-jfr-top20.txt`. Top frames in the exe
 Working spec title: **`2026-05-DD-search-path-optimization-v2-design.md`** — items ordered by expected (impact / effort) ratio:
 
 1. **Re-capture the JFR with stack-depth 30** to identify the caller of `MatchOps$1MatchSink.accept` (the 1677-sample hotspot). Until we know what it is, the v2 spec leads with one investigation task before any code change.
-2. **Vector-API rewrite of `InMemoryChunkVectorIndex.dotAt`** — Java 21 incubator vector API, 4-wide or 8-wide FMA per iteration. Bench it standalone (JMH) before landing.
+2. **Vector-API rewrite of `InMemoryChunkVectorIndex.dotAt`** — JDK incubator vector API (`jdk.incubator.vector`, still incubating in JDK 25), 4-wide or 8-wide FMA per iteration. Bench it standalone (JMH) before landing.
 3. **Reduce HashMap traffic** — once the JFR's stack-depth-30 capture names the hot maps, swap them for primitive-keyed maps (`IntIntMap` from `eclipse-collections`) or pre-sized non-resizing hash maps.
 4. **Caching layer** — *after* the above three identify the real ceiling. Two-tier (full RetrievalResult, short TTL, event-invalidated; dense top-K, long TTL) per the original 2026-05-20 design draft.
 

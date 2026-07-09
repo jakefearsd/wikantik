@@ -39,12 +39,39 @@ public interface SystemPageRegistry extends Initializable {
     String PROP_EXTRA_PATTERNS = "wikantik.systemPages.extraPatterns";
 
     /**
+     * Property listing system page names (comma-separated, exact) that remain
+     * editable via the MCP {@code update_page} tool despite being system pages.
+     * Absent → the built-in default ({@code About}); an explicit empty value
+     * opts every page back into full write-protection.
+     */
+    String PROP_MCP_EDITABLE = "wikantik.systemPages.mcpEditable";
+
+    /**
      * Returns {@code true} if the given page name refers to a system/template page.
      *
      * @param pageName the wiki page name to check
      * @return true if the page is a system page
      */
     boolean isSystemPage( String pageName );
+
+    /**
+     * Returns {@code true} if the given page may still be edited via the MCP
+     * {@code update_page} tool even when it is a system page. System pages are
+     * normally write-protected against MCP, but editorial default-content pages
+     * (e.g. {@code About}) are exempted so curators can maintain them through the
+     * agent surface. Destructive operations (delete, rename) stay blocked for all
+     * system pages regardless of this flag, so the discovery anchor cannot be
+     * removed or renamed.
+     *
+     * <p>The default contract exempts nothing; {@link #isSystemPage(String)}
+     * implementations opt specific pages in.
+     *
+     * @param pageName the wiki page name to check
+     * @return true if the page is exempt from the MCP edit block
+     */
+    default boolean isMcpEditable( String pageName ) {
+        return false;
+    }
 
     /**
      * Returns the set of all discovered system page names.

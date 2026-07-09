@@ -118,6 +118,52 @@ class SystemPageRegistryTest {
     }
 
     @Test
+    void testAboutIsMcpEditableByDefault() {
+        // About ships as editorial default content (and is the discovery anchor),
+        // so it stays a system page but must be editable via MCP update_page.
+        assertTrue( registry.isSystemPage( "About" ), "About is still a system page" );
+        assertTrue( registry.isMcpEditable( "About" ), "About must be MCP-editable by default" );
+    }
+
+    @Test
+    void testStructuralSystemPagesAreNotMcpEditable() {
+        assertTrue( registry.isSystemPage( "TextFormattingRules" ) );
+        assertFalse( registry.isMcpEditable( "TextFormattingRules" ),
+            "help/structural system pages stay MCP-write-protected" );
+    }
+
+    @Test
+    void testIsMcpEditableNullSafe() {
+        assertFalse( registry.isMcpEditable( null ) );
+    }
+
+    @Test
+    void testMcpEditableIsConfigurable() throws Exception {
+        final Properties props = new Properties();
+        props.setProperty( SystemPageRegistry.PROP_MCP_EDITABLE, "About, SandBox" );
+
+        final DefaultSystemPageRegistry customRegistry = new DefaultSystemPageRegistry();
+        customRegistry.initialize( engine, props );
+
+        assertTrue( customRegistry.isMcpEditable( "About" ) );
+        assertTrue( customRegistry.isMcpEditable( "SandBox" ) );
+        assertFalse( customRegistry.isMcpEditable( "TextFormattingRules" ) );
+    }
+
+    @Test
+    void testEmptyMcpEditablePropertyRestoresFullProtection() throws Exception {
+        // An explicit empty value opts About back into write-protection.
+        final Properties props = new Properties();
+        props.setProperty( SystemPageRegistry.PROP_MCP_EDITABLE, "" );
+
+        final DefaultSystemPageRegistry customRegistry = new DefaultSystemPageRegistry();
+        customRegistry.initialize( engine, props );
+
+        assertFalse( customRegistry.isMcpEditable( "About" ),
+            "empty property removes the default About exemption" );
+    }
+
+    @Test
     void testDiscoveryFromTestResources() {
         // In the test environment, About.md is placed in src/test/resources
         // alongside other .md files. Discovery should enumerate all of them.

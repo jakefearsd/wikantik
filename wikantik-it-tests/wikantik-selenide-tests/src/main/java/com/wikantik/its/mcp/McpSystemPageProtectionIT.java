@@ -65,6 +65,32 @@ public class McpSystemPageProtectionIT extends WithMcpTestSetup {
                 "refusal must mention 'system page' so the agent stops retrying — got: " + result );
     }
 
+    /**
+     * The write-block carves out editorial default-content pages: {@code About} ships
+     * in {@code wikantik-wikipages} (it is the discovery anchor, so it is always a
+     * system page) but stays curator-maintainable via MCP through the
+     * {@code isMcpEditable} exemption. Prove a full read → update cycle succeeds,
+     * unlike the structural {@link #SYSTEM_PAGE}. Destructive ops (delete/rename)
+     * still refuse it — those are covered by the refusal tests above using the
+     * structural page and are intentionally not retried here for About.
+     */
+    @Test
+    public void updatePageAllowsEditorialAboutSystemPage() {
+        final Map< String, Object > current = mcp.callTool( "read_page", Map.of(
+                "pageName", "About" ) );
+        Assertions.assertEquals( Boolean.TRUE, current.get( "exists" ),
+                "About must be seeded into the IT test-repo" );
+        final String hash = String.valueOf( current.get( "contentHash" ) );
+
+        final Map< String, Object > result = mcp.callTool( "update_page", Map.of(
+                "pageName", "About",
+                "content", current.get( "content" ) + "\n\nEdited via MCP.\n",
+                "expectedContentHash", hash ) );
+
+        Assertions.assertEquals( Boolean.TRUE, result.get( "updated" ),
+                "About is MCP-editable, so update_page must succeed instead of refusing — got: " + result );
+    }
+
     @Test
     public void writePagesRefusesSystemPage() {
         final Map< String, Object > response = mcp.callTool( "write_pages", Map.of(

@@ -372,6 +372,33 @@ class UpdatePageToolTest {
     }
 
     @Test
+    void execute_allowsMcpEditableSystemPage() throws Exception {
+        // About is a system page but is MCP-editable (editorial default content),
+        // so update_page must NOT refuse it — it proceeds past the system-page guard.
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final SystemPageRegistry sys = mock( SystemPageRegistry.class );
+        when( sys.isSystemPage( "About" ) ).thenReturn( true );
+        when( sys.isMcpEditable( "About" ) ).thenReturn( true );
+        // Page absent → tool returns "not found", proving it got past the system-page guard.
+        when( pm.getPage( "About" ) ).thenReturn( null );
+
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, sys );
+        tool.setDefaultAuthor( "bot" );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pageName", "About",
+            "content", "# About\n\nupdated",
+            "expectedContentHash", "anything" ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertFalse( text.contains( "system page" ),
+            "an MCP-editable system page must not be refused" );
+        assertTrue( text.contains( "not found" ),
+            "execution proceeds past the system-page guard to the page lookup" );
+        verify( pm ).getPage( "About" );
+    }
+
+    @Test
     void execute_returnsErrorOnRuntimeExceptionFromPageManager() {
         final PageManager pm = mock( PageManager.class );
         when( pm.getPage( anyString() ) ).thenThrow( new RuntimeException( "DB offline" ) );

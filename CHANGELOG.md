@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **MCP `update_page` can now edit editorial default-content system pages (e.g. `About`).**
+  System pages stay write-protected against MCP, but pages exempted via the new
+  `SystemPageRegistry.isMcpEditable` predicate (configurable through
+  `wikantik.systemPages.mcpEditable`, default `About`) are curator-maintainable through
+  the agent surface. Destructive operations (`delete_pages`, `rename_page`,
+  `mark_page_verified`) remain blocked for all system pages, so the discovery anchor
+  cannot be removed or renamed.
+
 ## [2.3.4] - 2026-07-08
 
 ### Changed

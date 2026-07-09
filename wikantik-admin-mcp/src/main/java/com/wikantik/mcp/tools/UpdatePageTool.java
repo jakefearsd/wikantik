@@ -162,7 +162,11 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
                     "expectedContentHash required" );
             }
 
-            if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
+            // System pages are write-protected against MCP, except editorial
+            // default-content pages (e.g. About) that opt in via isMcpEditable.
+            // Destructive ops (delete/rename) stay blocked for all system pages.
+            if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName )
+                    && !systemPageRegistry.isMcpEditable( pageName ) ) {
                 final Map< String, Object > refused = new LinkedHashMap<>();
                 refused.put( "pageName", pageName );
                 refused.put( "updated", false );

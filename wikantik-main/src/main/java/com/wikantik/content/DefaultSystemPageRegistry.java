@@ -62,8 +62,18 @@ public class DefaultSystemPageRegistry implements com.wikantik.api.managers.Syst
     /** The well-known resource used as an anchor to find the wiki pages location. */
     private static final String ANCHOR_RESOURCE = "About.md";
 
+    /**
+     * System page that stays editable via MCP {@code update_page} when no
+     * {@link com.wikantik.api.managers.SystemPageRegistry#PROP_MCP_EDITABLE}
+     * override is configured. {@code About} is editorial default content (and the
+     * discovery anchor), so it must remain curator-maintainable through the agent
+     * surface; destructive ops (delete/rename) stay blocked separately.
+     */
+    private static final String DEFAULT_MCP_EDITABLE = "About";
+
     private Set<String> systemPageNames = Collections.emptySet();
     private List<Pattern> extraPatterns = Collections.emptyList();
+    private Set<String> mcpEditableNames = Set.of( DEFAULT_MCP_EDITABLE );
 
     @Override
     public void initialize( final Engine engine, final Properties props ) {
@@ -71,10 +81,11 @@ public class DefaultSystemPageRegistry implements com.wikantik.api.managers.Syst
         systemPageNames = Collections.unmodifiableSet( discovered );
 
         extraPatterns = parseExtraPatterns( props );
+        mcpEditableNames = parseMcpEditable( props );
 
-        LOG.info( "SystemPageRegistry initialized: {} system pages discovered, {} extra patterns",
-                  systemPageNames.size(), extraPatterns.size() );
-        LOG.debug( "System pages: {}", systemPageNames );
+        LOG.info( "SystemPageRegistry initialized: {} system pages discovered, {} extra patterns, {} MCP-editable",
+                  systemPageNames.size(), extraPatterns.size(), mcpEditableNames.size() );
+        LOG.debug( "System pages: {}; MCP-editable: {}", systemPageNames, mcpEditableNames );
 
         warnOnUnreachableSystemPages( engine );
     }
@@ -130,6 +141,11 @@ public class DefaultSystemPageRegistry implements com.wikantik.api.managers.Syst
             }
         }
         return false;
+    }
+
+    @Override
+    public boolean isMcpEditable( final String pageName ) {
+        return pageName != null && mcpEditableNames.contains( pageName );
     }
 
     @Override
@@ -229,6 +245,27 @@ public class DefaultSystemPageRegistry implements com.wikantik.api.managers.Syst
         } catch ( final URISyntaxException | IOException e ) {
             LOG.error( "Error reading directory for system page discovery: {}", e.getMessage(), e );
         }
+    }
+
+    /**
+     * Parses the set of system pages that remain editable via MCP {@code update_page}.
+     * An absent property yields the built-in default ({@link #DEFAULT_MCP_EDITABLE});
+     * an explicit value replaces the default entirely, so an empty string re-protects
+     * every system page.
+     */
+    private Set<String> parseMcpEditable( final Properties props ) {
+        final String raw = props.getProperty( PROP_MCP_EDITABLE );
+        if ( raw == null ) {
+            return Set.of( DEFAULT_MCP_EDITABLE );
+        }
+        final Set<String> names = new HashSet<>();
+        for ( final String name : raw.split( "," ) ) {
+            final String trimmed = name.trim();
+            if ( !trimmed.isEmpty() ) {
+                names.add( trimmed );
+            }
+        }
+        return Collections.unmodifiableSet( names );
     }
 
     /**

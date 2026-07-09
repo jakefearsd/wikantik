@@ -31,13 +31,13 @@ The primary mission of Wikantik is to solve the "LLM Slop" problem through a tie
 
 ## The Architecture: How It Works
 
-Wikantik is a modern Java 21 / Jakarta EE 10 application built on a decoupled, provider-based architecture. It prioritizes **Optimistic Concurrency** over locks, allowing humans and agents to edit the same corpus without blocking.
+Wikantik is a modern Java 25 / Jakarta EE 10 application built on a decoupled, provider-based architecture. It prioritizes **Optimistic Concurrency** over locks, allowing humans and agents to edit the same corpus without blocking.
 
 ### Technical Stack
 
 | Component | Technology |
 |-----------|-----------|
-| **Runtime** | Java 21 LTS |
+| **Runtime** | Java 25 LTS |
 | **Servlet Container** | Apache Tomcat 11 |
 | **Search & Retrieval** | Apache Lucene (BM25) + `pgvector` (Dense Embeddings) |
 | **Storage** | Versioned File System (Git-like history) |

@@ -31,7 +31,7 @@ Wikantik is an "Agentic Wiki"—a full-stack knowledge management system designe
 ## Core Documentation
 
 ### [System Architecture](WikantikArchitecture)
-Covers the 18-module Maven structure, the hybrid storage model (Git-backed files + PostgreSQL), and the primary tech stack (Java 21, Tomcat 11, Guice DI).
+Covers the 18-module Maven structure, the hybrid storage model (Git-backed files + PostgreSQL), and the primary tech stack (Java 25, Tomcat 11, Guice DI).
 
 ### [Search and Retrieval](WikantikSearchAndRetrieval)
 Details the hybrid search pipeline that integrates traditional Lucene (BM25), dense vector embeddings (pgvector), and Knowledge Graph co-mention reranking.

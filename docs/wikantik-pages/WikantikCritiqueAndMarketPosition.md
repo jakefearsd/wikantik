@@ -73,7 +73,7 @@ As a platform born from a rapid modernization of Apache JSPWiki, Wikantik has un
 | **LLM-extracted Knowledge Graph** | Yes (with reviewer queue) | No | No | No | No | Partial | Partial |
 | **Page Graph viewer** | Yes — Cytoscape, filterable | No | No | No | No | No | No |
 | **Markdown-native** | Yes | Partial | Yes | Yes | No | No | No |
-| **Stack** | Java 21 / Tomcat 11 / PostgreSQL + pgvector / React | PHP / Laravel | Node.js | Node.js | PHP | JVM | Proprietary |
+| **Stack** | Java 25 / Tomcat 11 / PostgreSQL + pgvector / React | PHP / Laravel | Node.js | Node.js | PHP | JVM | Proprietary |
 
 ### The "Agentic" Differentiator
 
@@ -81,7 +81,7 @@ Wikantik is the only project in this table that ships two production MCP servers
 
 Compared to **Confluence:** Wikantik is open-source (Apache 2.0) and protocol-open (MCP, OpenAPI). Where Confluence locks AI integrations into Atlassian Intelligence, Wikantik works with any agent that speaks MCP or OpenAPI.
 
-Compared to **MediaWiki:** Wikantik is modern-stack (Java 21, React, PostgreSQL) and developer-friendly. Semantic MediaWiki is a powerful but complex and fragile add-on; Wikantik's ontology is built in from the start.
+Compared to **MediaWiki:** Wikantik is modern-stack (Java 25, React, PostgreSQL) and developer-friendly. Semantic MediaWiki is a powerful but complex and fragile add-on; Wikantik's ontology is built in from the start.
 
 ## Conclusion
 

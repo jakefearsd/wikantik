@@ -27,7 +27,7 @@ The containerized deployment runs three services orchestrated by Docker Compose:
 | Service | Image | Purpose |
 |---------|-------|---------|
 | **db** | `postgres:17-alpine` | Stores users, groups, and roles |
-| **wikantik** | Custom (Tomcat 11 / JDK 21) | Runs the wiki application |
+| **wikantik** | Custom (Tomcat 11 / JDK 25) | Runs the wiki application |
 | **backup** | `postgres:17-alpine` | Automated database dumps and page file archives (production only) |
 
 All three services share a private Docker network. The `wikantik` container connects to `db` by hostname. The `backup` container connects to `db` for `pg_dump` and mounts the same pages volume as `wikantik` to archive page files. Only port 8080 is exposed to the host.

@@ -7,6 +7,13 @@ bundle path every `wikantik.bundle.eval.interval.hours` and writes one `bundle_e
 Set `wikantik.bundle.eval.interval.hours` > 0 in a deployment that has a live embedding index
 (prod / a local Tomcat with the dense index built). It stays disabled in CI and fresh installs.
 
+**Container/Tomcat deployments:** the default corpus path `eval/bundle-corpus/queries.csv` is
+repo-relative and is NOT bundled into the WAR, so under Tomcat it will not resolve (you'll see a
+"corpus empty/not found" warn every tick and no `bundle_eval_run` rows). Set
+`wikantik.bundle.eval.corpus` to an ABSOLUTE path to a `queries.csv` that exists on the container
+filesystem, and place a `thresholds.properties` next to it (the loader reads it as the corpus
+file's sibling). Shipping the corpus with the deployment is a possible later-phase improvement.
+
 ## Read a result row
 `SELECT run_at, config_id, overall_recall, recall_similarity, recall_relational, recall_boundary,
 questions_scored, regression FROM bundle_eval_run ORDER BY run_at DESC LIMIT 10;`

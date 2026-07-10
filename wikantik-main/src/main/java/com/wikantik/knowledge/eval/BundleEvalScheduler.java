@@ -91,7 +91,7 @@ public final class BundleEvalScheduler {
                 LOG.info( "bundle-eval ok (configId={}, overallRecall={}, questions={})",
                     configId, String.format( "%.3f", report.overallRecall() ), report.questionsScored() );
             }
-        } catch ( final RuntimeException e ) {
+        } catch ( final Exception e ) {
             LOG.warn( "bundle-eval run failed: {}", e.getMessage(), e );
         }
     }

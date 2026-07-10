@@ -51,12 +51,17 @@ final class MetadataBoostSectionReranker implements SectionReranker {
         if ( sections == null ) return List.of();
         if ( confidenceOf == null || factor == 0.0 || sections.size() <= 1 ) return sections;
         try {
+            // decorate: boosted score computed once per window element (confidenceOf may be DB-backed)
             final int w = Math.min( window, sections.size() );
-            final List< CandidateSection > head = new ArrayList<>( sections.subList( 0, w ) );
+            final List< Scored > decorated = new ArrayList<>( w );
+            for ( int i = 0; i < w; i++ ) {
+                final CandidateSection c = sections.get( i );
+                decorated.add( new Scored( c, boosted( c ) ) );
+            }
             // stable sort by boosted score descending (List.sort is stable → ties keep input order)
-            head.sort( ( a, b ) -> Double.compare( boosted( b ), boosted( a ) ) );
+            decorated.sort( ( a, b ) -> Double.compare( b.score(), a.score() ) );
             final List< CandidateSection > out = new ArrayList<>( sections.size() );
-            out.addAll( head );
+            for ( final Scored s : decorated ) out.add( s.section() );
             out.addAll( sections.subList( w, sections.size() ) );  // beyond the window: untouched
             return out;
         } catch ( final RuntimeException e ) {
@@ -74,4 +79,7 @@ final class MetadataBoostSectionReranker implements SectionReranker {
         if ( conf == Confidence.STALE ) return -1;
         return 0;  // PROVISIONAL or null
     }
+
+    /** Decoration record: a candidate paired with its once-computed boosted score. */
+    private record Scored( CandidateSection section, double score ) {}
 }

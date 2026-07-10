@@ -85,6 +85,18 @@ class MetadataBoostSectionRerankerTest {
     }
 
     @Test
+    void window2_reordersWithinWindow_andLeavesRemainderInPlace() {
+        // window=2 with 4 candidates: the boost reorders WITHIN the top-2 window (stale/auth swap),
+        // but indices 2-3 must stay exactly where they started — proving the window boundary by position.
+        final var in = List.of( sec( "stale", 0.80 ), sec( "auth", 0.80 ), sec( "c", 0.70 ), sec( "d", 0.60 ) );
+        final var conf = confidences( Map.of( "stale", Confidence.STALE, "auth", Confidence.AUTHORITATIVE ) );
+        final var out = new MetadataBoostSectionReranker( conf, 0.05, 2 ).rerank( "q", in );
+        assertEquals( in.size(), out.size() );
+        assertTrue( out.containsAll( in ) );
+        assertEquals( List.of( "auth", "stale", "c", "d" ), out.stream().map( CandidateSection::slug ).toList() );
+    }
+
+    @Test
     void lookupThrows_returnsInputOrder() {
         final var in = List.of( sec( "a", 0.9 ), sec( "b", 0.8 ) );
         final Function< String, Confidence > boom = slug -> { throw new IllegalStateException( "boom" ); };

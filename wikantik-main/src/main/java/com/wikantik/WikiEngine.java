@@ -1612,6 +1612,30 @@ public class WikiEngine implements Engine {
                 pageCanonicalIdsDao(),
                 pageSubsystem != null ? pageSubsystem.pages() : null,
                 properties );
+
+        // Scheduled retrieval-quality eval (disabled unless wikantik.bundle.eval.interval.hours > 0).
+        // Same JNDI datasource lookup as initKnowledgeGraph()/initAuditSubsystem() — fail-soft to
+        // null (the scheduler is still built, just persists nowhere until a run tries to write).
+        javax.sql.DataSource evalDs = null;
+        try {
+            final String datasource = properties.getProperty(
+                    AbstractJDBCDatabase.PROP_DATASOURCE, AbstractJDBCDatabase.DEFAULT_DATASOURCE );
+            final javax.naming.Context initCtx = new javax.naming.InitialContext();
+            final javax.naming.Context ctx = ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
+            evalDs = ( javax.sql.DataSource ) ctx.lookup( datasource );
+        } catch ( final javax.naming.NamingException e ) {
+            LOG.warn( "bundle-eval scheduler: no JNDI DataSource ({}); eval persistence disabled", e.getMessage() );
+        }
+        final java.util.function.Function< String, java.util.Optional< String > > evalCanonicalId =
+            slug -> pageCanonicalIdsDao() == null ? java.util.Optional.empty()
+                  : pageCanonicalIdsDao().findBySlug( slug )
+                        .map( com.wikantik.pagegraph.spine.PageCanonicalIdsDao.Row::canonicalId );
+        final com.wikantik.knowledge.eval.BundleEvalScheduler bundleEvalScheduler =
+            com.wikantik.knowledge.eval.BundleEvalWiring.build( bundleSvc, evalDs, properties, evalCanonicalId );
+        if ( bundleEvalScheduler != null ) {
+            bundleEvalScheduler.start();
+        }
+
         knowledgeSubsystem = new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services(
             knowledgeSubsystem.kgService(),
             knowledgeSubsystem.judgeService(),

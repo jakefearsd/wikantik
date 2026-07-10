@@ -38,13 +38,6 @@ class BundleEvalSchedulerTest {
     private static final BundleEvalThresholds FLOORS =
         new BundleEvalThresholds( 0.35, 0.30, 0.40, 0.45 );
 
-    /** DAO that captures the last row instead of touching a DB. */
-    private static final class CapturingDao extends BundleEvalRunDao {
-        final AtomicReference< BundleEvalRun > last = new AtomicReference<>();
-        CapturingDao() { super( null ); }
-        @Override public void insert( final BundleEvalRun run ) { last.set( run ); }
-    }
-
     @Test
     void runOnce_oracleRetriever_persistsNoRegression() {
         // Oracle: return each question's own gold sections -> perfect recall -> above all floors.
@@ -54,11 +47,11 @@ class BundleEvalSchedulerTest {
             .map( q -> q.goldSections().stream()
                 .map( g -> new BundleSection( g.canonicalId(), g.headingPath(), "x" ) ).toList() )
             .orElse( List.of() );
-        final CapturingDao dao = new CapturingDao();
+        final AtomicReference< BundleEvalRun > captured = new AtomicReference<>();
 
-        new BundleEvalScheduler( oracle, CORPUS, FLOORS, dao, "test", 5, 0 ).runOnce();
+        new BundleEvalScheduler( oracle, CORPUS, FLOORS, captured::set, "test", 5, 0 ).runOnce();
 
-        final BundleEvalRun row = dao.last.get();
+        final BundleEvalRun row = captured.get();
         assertNotNull( row, "a row must be persisted" );
         assertFalse( row.regression(), "oracle recall is perfect -> no regression" );
     }
@@ -66,14 +59,14 @@ class BundleEvalSchedulerTest {
     @Test
     void runOnce_emptyRetriever_persistsRegression() {
         // Empty retriever -> zero recall -> below every floor -> regression.
-        final CapturingDao dao = new CapturingDao();
-        new BundleEvalScheduler( query -> List.of(), CORPUS, FLOORS, dao, "test", 5, 0 ).runOnce();
-        assertTrue( dao.last.get().regression(), "zero recall must be flagged as a regression" );
+        final AtomicReference< BundleEvalRun > captured = new AtomicReference<>();
+        new BundleEvalScheduler( query -> List.of(), CORPUS, FLOORS, captured::set, "test", 5, 0 ).runOnce();
+        assertTrue( captured.get().regression(), "zero recall must be flagged as a regression" );
     }
 
     @Test
     void start_disabledWhenIntervalNonPositive_noThrow() {
         // interval 0 -> start() is a no-op (never schedules); must not throw.
-        new BundleEvalScheduler( q -> List.of(), CORPUS, FLOORS, new CapturingDao(), "test", 5, 0 ).start();
+        new BundleEvalScheduler( q -> List.of(), CORPUS, FLOORS, run -> { }, "test", 5, 0 ).start();
     }
 }

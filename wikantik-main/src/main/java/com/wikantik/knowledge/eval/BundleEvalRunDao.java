@@ -27,7 +27,7 @@ import java.sql.PreparedStatement;
 
 /** Fail-safe JDBC writer for {@link BundleEvalRun} rows. A write failure is swallowed with a
  *  {@code LOG.warn} and never propagates — a flaky eval log must never affect the app. */
-public class BundleEvalRunDao {
+public final class BundleEvalRunDao {
 
     private static final Logger LOG = LogManager.getLogger( BundleEvalRunDao.class );
 

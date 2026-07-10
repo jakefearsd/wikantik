@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /** Periodically runs the frozen bundle-eval corpus against the live bundle path, persists the
  *  result, and logs a regression alert when recall falls below a threshold floor. Disabled when
@@ -38,19 +39,19 @@ public final class BundleEvalScheduler {
     private final BundleEvalRunner.BundleRetriever retriever;
     private final Path corpusCsv;
     private final BundleEvalThresholds thresholds;
-    private final BundleEvalRunDao dao;
+    private final Consumer< BundleEvalRun > runWriter;
     private final String configId;
     private final int precisionK;
     private final long intervalHours;
     private ScheduledExecutorService executor;
 
     public BundleEvalScheduler( final BundleEvalRunner.BundleRetriever retriever, final Path corpusCsv,
-                                final BundleEvalThresholds thresholds, final BundleEvalRunDao dao,
+                                final BundleEvalThresholds thresholds, final Consumer< BundleEvalRun > runWriter,
                                 final String configId, final int precisionK, final long intervalHours ) {
         this.retriever = retriever;
         this.corpusCsv = corpusCsv;
         this.thresholds = thresholds;
-        this.dao = dao;
+        this.runWriter = runWriter;
         this.configId = configId;
         this.precisionK = precisionK;
         this.intervalHours = intervalHours;
@@ -82,7 +83,7 @@ public final class BundleEvalScheduler {
             final BundleEvalReport report = new BundleEvalRunner( retriever, precisionK ).run( corpus );
             final BundleEvalRegressionCheck.RegressionResult res =
                 BundleEvalRegressionCheck.evaluate( report, thresholds );
-            dao.insert( BundleEvalRun.from( report, configId, res.regression() ) );
+            runWriter.accept( BundleEvalRun.from( report, configId, res.regression() ) );
             if ( res.regression() ) {
                 LOG.warn( "BUNDLE-EVAL REGRESSION (configId={}, questions={}): {}",
                     configId, report.questionsScored(), res.detail() );

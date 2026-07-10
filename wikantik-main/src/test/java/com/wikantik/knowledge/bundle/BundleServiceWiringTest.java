@@ -25,6 +25,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.RetrievalResult;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.pagegraph.Confidence;
 import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -287,5 +289,53 @@ class BundleServiceWiringTest {
         final Properties p = new Properties();
         p.setProperty( "wikantik.bundle.rerank.mmr.lambda", "0.5" );
         assertEquals( 0.5, BundleServiceWiring.mmrLambda( p ), 1e-9 );
+    }
+
+    @Test
+    void rerankChainMetadataBoost_withConfidence_buildsChainContainingBoost() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.bundle.rerank.chain", "metadata-boost" );
+        final Function< String, Confidence > conf = slug -> Confidence.PROVISIONAL;
+        final SectionReranker r = BundleServiceWiring.rerankerFor( p, conf );
+        final SectionRerankChain chain = (SectionRerankChain) r;
+        assertEquals( 1, chain.stages().size() );
+        assertInstanceOf( MetadataBoostSectionReranker.class, chain.stages().get( 0 ) );
+    }
+
+    @Test
+    void rerankChainMetadataBoost_nullConfidence_skipsStage_fallsBackToIdentity() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.bundle.rerank.chain", "metadata-boost" );
+        final List< CandidateSection > in = List.of( sec( "A" ) );
+        // no confidence lookup wired -> the boost stage is skipped -> empty chain -> IDENTITY
+        assertSame( in, BundleServiceWiring.rerankerFor( p, null ).rerank( "q", in ) );
+    }
+
+    @Test
+    void rerankChainMmrAndBoost_ordersStages() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.bundle.rerank.chain", "mmr, metadata-boost" );
+        final SectionRerankChain chain = (SectionRerankChain) BundleServiceWiring.rerankerFor( p, slug -> Confidence.PROVISIONAL );
+        assertEquals( 2, chain.stages().size() );
+        assertInstanceOf( MmrSectionReranker.class, chain.stages().get( 0 ) );
+        assertInstanceOf( MetadataBoostSectionReranker.class, chain.stages().get( 1 ) );
+    }
+
+    @Test
+    void legacyRerankerFor_singleArg_stillIdentityByDefault() {
+        // the old 1-arg rerankerFor must be unchanged (delegates with null confidence)
+        final List< CandidateSection > in = List.of( sec( "A" ) );
+        assertSame( in, BundleServiceWiring.rerankerFor( new Properties() ).rerank( "q", in ) );
+    }
+
+    @Test
+    void metadataBoostFactorAndWindow_defaultsAndParse() {
+        assertEquals( 0.05, BundleServiceWiring.metadataBoostFactor( new Properties() ), 1e-9 );
+        assertEquals( 24, BundleServiceWiring.metadataBoostWindow( new Properties() ) );
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.bundle.rerank.metadata_boost.factor", "0.1" );
+        p.setProperty( "wikantik.bundle.rerank.metadata_boost.window", "30" );
+        assertEquals( 0.1, BundleServiceWiring.metadataBoostFactor( p ), 1e-9 );
+        assertEquals( 30, BundleServiceWiring.metadataBoostWindow( p ) );
     }
 }

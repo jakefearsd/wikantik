@@ -1603,6 +1603,22 @@ public class WikiEngine implements Engine {
     public synchronized void patchContextRetrievalService(
             final com.wikantik.api.knowledge.ContextRetrievalService svc ) {
         if ( knowledgeSubsystem == null || servletContext == null ) return;
+        // slug -> Confidence lookup for the 'metadata-boost' rerank stage: resolve slug -> canonical_id
+        // via the persistence subsystem's dao, then canonical_id -> Verification.confidence() via the
+        // structural index. Null (stage skipped) when the page-graph subsystem isn't wired.
+        final com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services pg = this.pageGraphSubsystem;
+        final com.wikantik.api.pagegraph.StructuralIndexService structuralIndex =
+            pg != null ? pg.structuralIndexService() : null;
+        final java.util.function.Function< String, com.wikantik.api.pagegraph.Confidence > confidenceOf =
+            structuralIndex == null ? null : slug -> {
+                final com.wikantik.pagegraph.spine.PageCanonicalIdsDao dao = pageCanonicalIdsDao();
+                if ( dao == null ) return com.wikantik.api.pagegraph.Confidence.PROVISIONAL;
+                return dao.findBySlug( slug )
+                    .map( com.wikantik.pagegraph.spine.PageCanonicalIdsDao.Row::canonicalId )
+                    .flatMap( structuralIndex::verificationOf )
+                    .map( com.wikantik.api.pagegraph.Verification::confidence )
+                    .orElse( com.wikantik.api.pagegraph.Confidence.PROVISIONAL );
+            };
         // Build the bundle service once and reuse it: the briefing assembler layers
         // on top of it (prompt-driven widening), so both derive from the same instance.
         final com.wikantik.api.bundle.BundleAssemblyService bundleSvc =
@@ -1611,7 +1627,8 @@ public class WikiEngine implements Engine {
                 bundleSectionSources(),
                 pageCanonicalIdsDao(),
                 pageSubsystem != null ? pageSubsystem.pages() : null,
-                properties );
+                properties,
+                confidenceOf );
 
         // Scheduled retrieval-quality eval (disabled unless wikantik.bundle.eval.interval.hours > 0).
         // Same JNDI datasource lookup as initKnowledgeGraph()/initAuditSubsystem() — fail-soft to

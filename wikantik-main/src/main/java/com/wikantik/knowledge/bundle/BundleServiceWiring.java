@@ -23,6 +23,7 @@ import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.pagegraph.Confidence;
 import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -87,6 +88,23 @@ public final class BundleServiceWiring {
                                                final PageCanonicalIdsDao dao,
                                                final PageManager pageManager,
                                                final Properties props ) {
+        return build( retrieval, sourceMap, dao, pageManager, props, null );
+    }
+
+    /**
+     * Overload accepting a {@code confidenceOf} lookup (slug → {@link Confidence}) so the
+     * {@code metadata-boost} rerank stage can be requested via {@code wikantik.bundle.rerank.chain}.
+     * The 5-arg {@link #build(ContextRetrievalService, Map, PageCanonicalIdsDao, PageManager, Properties)}
+     * delegates here with {@code confidenceOf = null} (the stage then degrades to skipped).
+     *
+     * @param confidenceOf slug → {@link Confidence} lookup for the metadata-boost stage (null tolerated)
+     */
+    public static BundleAssemblyService build( final ContextRetrievalService retrieval,
+                                               final Map< RetrievalMode, SectionCandidateSource > sourceMap,
+                                               final PageCanonicalIdsDao dao,
+                                               final PageManager pageManager,
+                                               final Properties props,
+                                               final Function< String, Confidence > confidenceOf ) {
         if ( retrieval == null ) {
             LOG.debug( "ContextRetrievalService not yet wired — bundle assembly service unavailable" );
             return null;
@@ -100,7 +118,7 @@ public final class BundleServiceWiring {
                 ? Map.of( RetrievalMode.HYBRID, new RetrievalSectionSource( retrieval, sectionsPerPageFrom( props ) ) )
                 : sourceMap;
 
-        final SectionReranker reranker = rerankerFor( props );
+        final SectionReranker reranker = rerankerFor( props, confidenceOf );
         final Function< String, Optional< String > > canonicalIdOf = slug ->
             dao == null ? Optional.empty()
                         : dao.findBySlug( slug ).map( PageCanonicalIdsDao.Row::canonicalId );
@@ -155,9 +173,23 @@ public final class BundleServiceWiring {
      * the bundle ships dense-ordered by default (identity) and opts in to the LLM reranker.
      */
     static SectionReranker rerankerFor( final Properties props ) {
+        return rerankerFor( props, null );
+    }
+
+    /**
+     * Selects the section reranker from config. If {@code wikantik.bundle.rerank.chain} is set
+     * (CSV of stage names: {@code mmr}, {@code metadata-boost}, {@code llm}), builds an ordered
+     * {@link SectionRerankChain} from it — {@code confidenceOf} (slug → {@link Confidence}) feeds
+     * the {@code metadata-boost} stage, which is skipped when null. Otherwise falls back to the
+     * legacy behavior: {@code wikantik.bundle.reranker.enabled} defaults to {@code false} — the
+     * 2026-06-13 live measurement showed the listwise LLM reranker is an ordering lever, not a
+     * recall lever (rerank == dense recall), at ~1.5s per request — so the bundle ships
+     * dense-ordered by default (identity) and opts in to the LLM reranker.
+     */
+    static SectionReranker rerankerFor( final Properties props, final Function< String, Confidence > confidenceOf ) {
         final String chainSpec = props == null ? null : props.getProperty( "wikantik.bundle.rerank.chain" );
         if ( chainSpec != null && !chainSpec.isBlank() ) {
-            return buildChain( chainSpec, props );
+            return buildChain( chainSpec, props, confidenceOf );
         }
         final boolean enabled = props != null && Boolean.parseBoolean(
             props.getProperty( RerankerConfig.PREFIX + "enabled", "false" ) );
@@ -165,14 +197,24 @@ public final class BundleServiceWiring {
     }
 
     /** Builds an ordered reranker chain from a CSV of stage names; unknown names are skipped with a
-     *  warn, and an all-unknown/empty spec degrades to {@link #IDENTITY}. */
-    private static SectionReranker buildChain( final String spec, final Properties props ) {
+     *  warn, and an all-unknown/empty spec degrades to {@link #IDENTITY}. The {@code metadata-boost}
+     *  stage is skipped (with a warn) when {@code confidenceOf} is null. */
+    private static SectionReranker buildChain( final String spec, final Properties props,
+                                               final Function< String, Confidence > confidenceOf ) {
         final List< SectionReranker > stages = new ArrayList<>();
         for ( final String raw : spec.split( "," ) ) {
             final String name = raw.trim().toLowerCase( Locale.ROOT );
             switch ( name ) {
                 case "" -> { /* empty token from stray comma — ignore */ }
                 case "mmr" -> stages.add( new MmrSectionReranker( mmrLambda( props ) ) );
+                case "metadata-boost" -> {
+                    if ( confidenceOf == null ) {
+                        LOG.warn( "rerank stage 'metadata-boost' requested but no confidence lookup wired; skipping" );
+                    } else {
+                        stages.add( new MetadataBoostSectionReranker(
+                            confidenceOf, metadataBoostFactor( props ), metadataBoostWindow( props ) ) );
+                    }
+                }
                 case "llm" -> stages.add( new LlmSectionReranker( RerankerConfig.fromProperties( props ) ) );
                 default -> LOG.warn( "Unknown rerank stage '{}' in wikantik.bundle.rerank.chain; skipping", name );
             }
@@ -184,5 +226,17 @@ public final class BundleServiceWiring {
     static double mmrLambda( final Properties props ) {
         if ( props == null ) return 0.7;
         return com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.rerank.mmr.lambda", 0.7 );
+    }
+
+    /** Confidence boost magnitude, {@code wikantik.bundle.rerank.metadata_boost.factor}, default 0.05. */
+    static double metadataBoostFactor( final Properties props ) {
+        if ( props == null ) return 0.05;
+        return com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.rerank.metadata_boost.factor", 0.05 );
+    }
+
+    /** Top-N candidates the boost may reorder, {@code wikantik.bundle.rerank.metadata_boost.window}, default 24. */
+    static int metadataBoostWindow( final Properties props ) {
+        if ( props == null ) return 24;
+        return (int) com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.rerank.metadata_boost.window", 24 );
     }
 }

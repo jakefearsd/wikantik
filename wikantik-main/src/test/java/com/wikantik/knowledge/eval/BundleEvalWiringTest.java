@@ -38,14 +38,14 @@ class BundleEvalWiringTest {
 
     @Test
     void build_nullBundleService_returnsNull() {
-        assertNull( BundleEvalWiring.build( null, null, new Properties(), s -> java.util.Optional.empty() ) );
+        assertNull( BundleEvalWiring.build( null, null, new Properties() ) );
     }
 
     @Test
     void build_intervalZero_returnsDisabledScheduler_notNull() {
         // A scheduler is still constructed (so it can be stopped), just never scheduled.
         final Properties p = new Properties();  // interval defaults to 0
-        final BundleEvalScheduler s = BundleEvalWiring.build( stubBundle(), null, p, slug -> java.util.Optional.of( "CID" ) );
+        final BundleEvalScheduler s = BundleEvalWiring.build( stubBundle(), null, p );
         assertNotNull( s );
         s.start();  // must be a no-op, no throw
         s.stop();

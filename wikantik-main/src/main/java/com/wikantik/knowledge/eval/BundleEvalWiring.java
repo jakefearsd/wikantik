@@ -26,9 +26,7 @@ import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.nio.file.Path;
-import java.util.Optional;
 import java.util.Properties;
-import java.util.function.Function;
 
 /** Single derivation point for the {@link BundleEvalScheduler}, mirroring {@code BundleServiceWiring}.
  *  Returns {@code null} when no bundle service is available; otherwise builds a scheduler that is
@@ -40,7 +38,7 @@ public final class BundleEvalWiring {
     private BundleEvalWiring() {}
 
     public static BundleEvalScheduler build( final BundleAssemblyService bundleService, final DataSource dataSource,
-                                             final Properties props, final Function< String, Optional< String > > slugToCanonicalId ) {
+                                             final Properties props ) {
         if ( bundleService == null ) {
             LOG.debug( "bundle service not wired — bundle-eval scheduler unavailable" );
             return null;

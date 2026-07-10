@@ -1626,12 +1626,11 @@ public class WikiEngine implements Engine {
         } catch ( final javax.naming.NamingException e ) {
             LOG.warn( "bundle-eval scheduler: no JNDI DataSource ({}); eval persistence disabled", e.getMessage() );
         }
-        final java.util.function.Function< String, java.util.Optional< String > > evalCanonicalId =
-            slug -> pageCanonicalIdsDao() == null ? java.util.Optional.empty()
-                  : pageCanonicalIdsDao().findBySlug( slug )
-                        .map( com.wikantik.pagegraph.spine.PageCanonicalIdsDao.Row::canonicalId );
+        // Assumes patchContextRetrievalService is called once at startup; a re-entrant call
+        // would build a second scheduler here without stopping the first (matches the
+        // BundleServiceWiring build() above, which makes the same single-call assumption).
         final com.wikantik.knowledge.eval.BundleEvalScheduler bundleEvalScheduler =
-            com.wikantik.knowledge.eval.BundleEvalWiring.build( bundleSvc, evalDs, properties, evalCanonicalId );
+            com.wikantik.knowledge.eval.BundleEvalWiring.build( bundleSvc, evalDs, properties );
         if ( bundleEvalScheduler != null ) {
             bundleEvalScheduler.start();
         }

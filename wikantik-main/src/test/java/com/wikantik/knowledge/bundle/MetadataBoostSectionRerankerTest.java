@@ -31,75 +31,82 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MetadataBoostSectionRerankerTest {
 
-    private static CandidateSection sec( final String slug, final double score ) {
-        return new CandidateSection( slug, List.of( "H" ), slug + " text", score );
+    // denseScore is deliberately uniform/irrelevant: the boost works on INCOMING ORDER, not denseScore.
+    private static CandidateSection sec( final String slug ) {
+        return new CandidateSection( slug, List.of( "H" ), slug + " text", 0.5 );
     }
 
-    private static Function< String, Confidence > confidences( final Map< String, Confidence > m ) {
+    private static Function< String, Confidence > conf( final Map< String, Confidence > m ) {
         return slug -> m.getOrDefault( slug, Confidence.PROVISIONAL );
     }
 
     @Test
-    void verifiedRanksAboveStale_whenDenseScoresEqual() {
-        // Equal denseScore: the AUTHORITATIVE section must be promoted above the STALE one.
-        final var in = List.of( sec( "stalePage", 0.80 ), sec( "authPage", 0.80 ) );
-        final var conf = confidences( Map.of( "stalePage", Confidence.STALE, "authPage", Confidence.AUTHORITATIVE ) );
-        final var out = new MetadataBoostSectionReranker( conf, 0.05, 24 ).rerank( "q", in );
-        assertEquals( "authPage", out.get( 0 ).slug() );
-        assertEquals( "stalePage", out.get( 1 ).slug() );
+    void authoritativeAdjacentToStale_isPromoted() {
+        // incoming order [stale, auth]; positions 1.5 -> auth (i=1) key -0.5 < stale (i=0) key 1.5 -> [auth, stale]
+        final var in = List.of( sec( "stale" ), sec( "auth" ) );
+        final var c = conf( Map.of( "stale", Confidence.STALE, "auth", Confidence.AUTHORITATIVE ) );
+        final var out = new MetadataBoostSectionReranker( c, 1.5, 24 ).rerank( "q", in );
+        assertEquals( List.of( "auth", "stale" ), out.stream().map( CandidateSection::slug ).toList() );
     }
 
     @Test
-    void boostDoesNotOverrideARealRelevanceGap() {
-        // A much higher denseScore stale section still beats a barely-lower authoritative one:
-        // 0.90·(1−0.05)=0.855 > 0.83·(1+0.05)=0.8715? No — pick a gap the small factor cannot cross.
-        // stale 0.95·0.95 = 0.9025 vs auth 0.80·1.05 = 0.84 -> stale stays first.
-        final var in = List.of( sec( "staleStrong", 0.95 ), sec( "authWeak", 0.80 ) );
-        final var conf = confidences( Map.of( "staleStrong", Confidence.STALE, "authWeak", Confidence.AUTHORITATIVE ) );
-        final var out = new MetadataBoostSectionReranker( conf, 0.05, 24 ).rerank( "q", in );
-        assertEquals( "staleStrong", out.get( 0 ).slug(), "a small boost must not cross a real relevance gap" );
+    void ignoresDenseScore_usesIncomingOrder() {
+        // Same incoming order as above but give 'stale' the HIGHER denseScore — must not change the result,
+        // proving the boost is rank-based (composable), not denseScore-based.
+        final var in = List.of(
+            new CandidateSection( "stale", List.of( "H" ), "t", 0.99 ),
+            new CandidateSection( "auth", List.of( "H" ), "t", 0.01 ) );
+        final var c = conf( Map.of( "stale", Confidence.STALE, "auth", Confidence.AUTHORITATIVE ) );
+        final var out = new MetadataBoostSectionReranker( c, 1.5, 24 ).rerank( "q", in );
+        assertEquals( List.of( "auth", "stale" ), out.stream().map( CandidateSection::slug ).toList() );
     }
 
     @Test
-    void factorZero_isIdentity() {
-        final var in = List.of( sec( "a", 0.9 ), sec( "b", 0.8 ) );
-        assertSame( in, new MetadataBoostSectionReranker( confidences( Map.of() ), 0.0, 24 ).rerank( "q", in ) );
+    void equalConfidence_preservesIncomingOrder_exactly() {
+        // all PROVISIONAL -> keys = i -> order unchanged. This is the composability guarantee:
+        // metadata-boost does not disturb an upstream stage's ordering among same-confidence items.
+        final var in = List.of( sec( "a" ), sec( "b" ), sec( "c" ), sec( "d" ) );
+        final var out = new MetadataBoostSectionReranker( conf( Map.of() ), 1.5, 24 ).rerank( "q", in );
+        assertEquals( List.of( "a", "b", "c", "d" ), out.stream().map( CandidateSection::slug ).toList() );
+    }
+
+    @Test
+    void boundedByPositions_cannotCrossALargeGap() {
+        // incoming [p0,p1,p2,p3,auth4]; positions 1.5 -> auth key 2.5 -> auth moves 4->3, not to the top.
+        final var in = List.of( sec( "p0" ), sec( "p1" ), sec( "p2" ), sec( "p3" ), sec( "auth4" ) );
+        final var c = conf( Map.of( "auth4", Confidence.AUTHORITATIVE ) );
+        final var out = new MetadataBoostSectionReranker( c, 1.5, 24 ).rerank( "q", in );
+        assertEquals( List.of( "p0", "p1", "p2", "auth4", "p3" ), out.stream().map( CandidateSection::slug ).toList() );
+    }
+
+    @Test
+    void positionsZero_isIdentity() {
+        final var in = List.of( sec( "a" ), sec( "b" ) );
+        assertSame( in, new MetadataBoostSectionReranker( conf( Map.of() ), 0.0, 24 ).rerank( "q", in ) );
     }
 
     @Test
     void nullConfidenceLookup_isIdentity() {
-        final var in = List.of( sec( "a", 0.9 ), sec( "b", 0.8 ) );
-        assertSame( in, new MetadataBoostSectionReranker( null, 0.05, 24 ).rerank( "q", in ) );
+        final var in = List.of( sec( "a" ), sec( "b" ) );
+        assertSame( in, new MetadataBoostSectionReranker( null, 1.5, 24 ).rerank( "q", in ) );
     }
 
     @Test
-    void neverDropsSections_andBeyondWindowUntouched() {
-        // window=1: only the first candidate is in the boost window; the rest keep their order and all survive.
-        final var in = List.of( sec( "a", 0.9 ), sec( "stale", 0.85 ), sec( "auth", 0.80 ) );
-        final var conf = confidences( Map.of( "stale", Confidence.STALE, "auth", Confidence.AUTHORITATIVE ) );
-        final var out = new MetadataBoostSectionReranker( conf, 0.05, 1 ).rerank( "q", in );
+    void neverDrops_andBeyondWindowUntouched() {
+        // window=2: only indices 0,1 are boostable; indices 2,3 keep their order and all survive.
+        final var in = List.of( sec( "stale0" ), sec( "auth1" ), sec( "x2" ), sec( "y3" ) );
+        final var c = conf( Map.of( "stale0", Confidence.STALE, "auth1", Confidence.AUTHORITATIVE ) );
+        final var out = new MetadataBoostSectionReranker( c, 1.5, 2 ).rerank( "q", in );
         assertEquals( in.size(), out.size() );
         assertTrue( out.containsAll( in ) );
-        // beyond the window (index >= 1) order is preserved: stale before auth
-        assertEquals( List.of( "a", "stale", "auth" ), out.stream().map( CandidateSection::slug ).toList() );
-    }
-
-    @Test
-    void window2_reordersWithinWindow_andLeavesRemainderInPlace() {
-        // window=2 with 4 candidates: the boost reorders WITHIN the top-2 window (stale/auth swap),
-        // but indices 2-3 must stay exactly where they started — proving the window boundary by position.
-        final var in = List.of( sec( "stale", 0.80 ), sec( "auth", 0.80 ), sec( "c", 0.70 ), sec( "d", 0.60 ) );
-        final var conf = confidences( Map.of( "stale", Confidence.STALE, "auth", Confidence.AUTHORITATIVE ) );
-        final var out = new MetadataBoostSectionReranker( conf, 0.05, 2 ).rerank( "q", in );
-        assertEquals( in.size(), out.size() );
-        assertTrue( out.containsAll( in ) );
-        assertEquals( List.of( "auth", "stale", "c", "d" ), out.stream().map( CandidateSection::slug ).toList() );
+        // window [stale0,auth1] -> [auth1,stale0]; tail [x2,y3] unchanged
+        assertEquals( List.of( "auth1", "stale0", "x2", "y3" ), out.stream().map( CandidateSection::slug ).toList() );
     }
 
     @Test
     void lookupThrows_returnsInputOrder() {
-        final var in = List.of( sec( "a", 0.9 ), sec( "b", 0.8 ) );
+        final var in = List.of( sec( "a" ), sec( "b" ) );
         final Function< String, Confidence > boom = slug -> { throw new IllegalStateException( "boom" ); };
-        assertSame( in, new MetadataBoostSectionReranker( boom, 0.05, 24 ).rerank( "q", in ) );
+        assertSame( in, new MetadataBoostSectionReranker( boom, 1.5, 24 ).rerank( "q", in ) );
     }
 }

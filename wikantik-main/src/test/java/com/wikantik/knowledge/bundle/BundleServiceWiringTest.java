@@ -242,4 +242,50 @@ class BundleServiceWiringTest {
         // null/empty map → page-gated fallback, still non-null
         assertNotNull( BundleServiceWiring.build( stubRetrieval(), java.util.Map.of(), null, null, new java.util.Properties() ) );
     }
+
+    /* ---------- rerankerFor: config-driven chain (wikantik.bundle.rerank.chain) ---------- */
+
+    @Test
+    void rerankChainUnset_preservesLegacyIdentity() {
+        // No rerank.chain key -> must behave exactly as today (identity when reranker.enabled absent).
+        final List< CandidateSection > in = List.of( sec( "A" ), sec( "B" ) );
+        assertSame( in, BundleServiceWiring.rerankerFor( new Properties() ).rerank( "q", in ) );
+    }
+
+    @Test
+    void rerankChainMmr_buildsChainContainingMmr() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.bundle.rerank.chain", "mmr" );
+        final SectionReranker r = BundleServiceWiring.rerankerFor( p );
+        assertInstanceOf( SectionRerankChain.class, r );
+        final SectionRerankChain chain = (SectionRerankChain) r;
+        assertEquals( 1, chain.stages().size() );
+        assertInstanceOf( MmrSectionReranker.class, chain.stages().get( 0 ) );
+    }
+
+    @Test
+    void rerankChainUnknownStage_isSkipped() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.bundle.rerank.chain", "mmr, bogus" );
+        final SectionRerankChain chain = (SectionRerankChain) BundleServiceWiring.rerankerFor( p );
+        assertEquals( 1, chain.stages().size(), "unknown stage names are skipped with a warn" );
+        assertInstanceOf( MmrSectionReranker.class, chain.stages().get( 0 ) );
+    }
+
+    @Test
+    void rerankChainAllUnknown_fallsBackToIdentity() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.bundle.rerank.chain", "bogus" );
+        final List< CandidateSection > in = List.of( sec( "A" ) );
+        assertSame( in, BundleServiceWiring.rerankerFor( p ).rerank( "q", in ),
+            "an all-unknown chain degrades to identity, not an empty chain" );
+    }
+
+    @Test
+    void mmrLambda_defaultsToPoint7AndParses() {
+        assertEquals( 0.7, BundleServiceWiring.mmrLambda( new Properties() ), 1e-9 );
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.bundle.rerank.mmr.lambda", "0.5" );
+        assertEquals( 0.5, BundleServiceWiring.mmrLambda( p ), 1e-9 );
+    }
 }

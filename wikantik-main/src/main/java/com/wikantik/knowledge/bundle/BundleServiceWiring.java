@@ -27,6 +27,9 @@ import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -142,14 +145,42 @@ public final class BundleServiceWiring {
     private static final SectionReranker IDENTITY = ( query, sections ) -> sections;
 
     /**
-     * Selects the section reranker from config. {@code wikantik.bundle.reranker.enabled}
-     * defaults to {@code false}: the 2026-06-13 live measurement showed the listwise LLM
-     * reranker is an ordering lever, not a recall lever (rerank == dense recall), at ~1.5s
-     * per request — so the bundle ships dense-ordered by default and opts in to reranking.
+     * Selects the section reranker from config. If {@code wikantik.bundle.rerank.chain} is set
+     * (CSV of stage names: {@code mmr}, {@code llm}), builds an ordered {@link SectionRerankChain}
+     * from it. Otherwise falls back to the legacy behavior: {@code wikantik.bundle.reranker.enabled}
+     * defaults to {@code false} — the 2026-06-13 live measurement showed the listwise LLM reranker
+     * is an ordering lever, not a recall lever (rerank == dense recall), at ~1.5s per request — so
+     * the bundle ships dense-ordered by default (identity) and opts in to the LLM reranker.
      */
     static SectionReranker rerankerFor( final Properties props ) {
+        final String chainSpec = props == null ? null : props.getProperty( "wikantik.bundle.rerank.chain" );
+        if ( chainSpec != null && !chainSpec.isBlank() ) {
+            return buildChain( chainSpec, props );
+        }
         final boolean enabled = props != null && Boolean.parseBoolean(
             props.getProperty( RerankerConfig.PREFIX + "enabled", "false" ) );
         return enabled ? new LlmSectionReranker( RerankerConfig.fromProperties( props ) ) : IDENTITY;
+    }
+
+    /** Builds an ordered reranker chain from a CSV of stage names; unknown names are skipped with a
+     *  warn, and an all-unknown/empty spec degrades to {@link #IDENTITY}. */
+    private static SectionReranker buildChain( final String spec, final Properties props ) {
+        final List< SectionReranker > stages = new ArrayList<>();
+        for ( final String raw : spec.split( "," ) ) {
+            final String name = raw.trim().toLowerCase( Locale.ROOT );
+            switch ( name ) {
+                case "" -> { /* empty token from stray comma — ignore */ }
+                case "mmr" -> stages.add( new MmrSectionReranker( mmrLambda( props ) ) );
+                case "llm" -> stages.add( new LlmSectionReranker( RerankerConfig.fromProperties( props ) ) );
+                default -> LOG.warn( "Unknown rerank stage '{}' in wikantik.bundle.rerank.chain; skipping", name );
+            }
+        }
+        return stages.isEmpty() ? IDENTITY : new SectionRerankChain( stages );
+    }
+
+    /** MMR λ from {@code wikantik.bundle.rerank.mmr.lambda}, default 0.7 (higher = more relevance-biased). */
+    static double mmrLambda( final Properties props ) {
+        if ( props == null ) return 0.7;
+        return com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.rerank.mmr.lambda", 0.7 );
     }
 }

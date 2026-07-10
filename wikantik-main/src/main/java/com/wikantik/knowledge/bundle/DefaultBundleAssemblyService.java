@@ -52,6 +52,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
     private final Function< String, Integer > versionOf;                  // slug -> page version
     private final int maxSections;
     private final BundleCoverageCalculator coverageCalc;
+    private final KneeCutoff knee;
 
     /**
      * Page-gated constructor (retained for back-compat): wraps hybrid retrieval +
@@ -99,6 +100,8 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
     /**
      * Map-based constructor — each {@link RetrievalMode} may have its own {@link SectionCandidateSource}.
      * Requests for a mode with no wired source degrade to the default mode's source with a single warn log.
+     * Delegates to the knee-aware canonical constructor with {@link KneeCutoff#disabled()} (fixed
+     * top-N — byte-identical to pre-knee behaviour).
      */
     public DefaultBundleAssemblyService( final Map< RetrievalMode, SectionCandidateSource > sources,
                                          final RetrievalMode defaultMode,
@@ -107,6 +110,24 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
                                          final Function< String, Integer > versionOf,
                                          final int maxSections,
                                          final BundleCoverageCalculator coverageCalc ) {
+        this( sources, defaultMode, reranker, canonicalIdOf, versionOf, maxSections, coverageCalc,
+              KneeCutoff.disabled() );
+    }
+
+    /**
+     * Canonical constructor — each {@link RetrievalMode} may have its own {@link SectionCandidateSource},
+     * and a {@link KneeCutoff} dynamically shortens the top-N output loop when relevance falls off a
+     * cliff. Requests for a mode with no wired source degrade to the default mode's source with a
+     * single warn log.
+     */
+    public DefaultBundleAssemblyService( final Map< RetrievalMode, SectionCandidateSource > sources,
+                                         final RetrievalMode defaultMode,
+                                         final SectionReranker reranker,
+                                         final Function< String, Optional< String > > canonicalIdOf,
+                                         final Function< String, Integer > versionOf,
+                                         final int maxSections,
+                                         final BundleCoverageCalculator coverageCalc,
+                                         final KneeCutoff knee ) {
         Objects.requireNonNull( sources.get( defaultMode ), "defaultMode must be present in sources" );
         this.sources = Map.copyOf( sources );
         this.defaultMode = defaultMode;
@@ -115,6 +136,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         this.versionOf = versionOf;
         this.maxSections = maxSections;
         this.coverageCalc = coverageCalc;
+        this.knee = knee;
     }
 
     @Override
@@ -131,6 +153,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         }
         final SectionCandidates cand = src.candidates( query );
         final List< CandidateSection > ranked = reranker.rerank( query, cand.sections() );
+        final int cut = knee.effectiveN( cand.sections(), cand.topSimilarity(), maxSections );
 
         final Set< SectionKey > seen = new LinkedHashSet<>();
         final List< BundleSection > out = new ArrayList<>();
@@ -141,7 +164,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
             final CitationHandle cite = new CitationHandle(
                 canonical, versionOf.apply( cs.slug() ), cs.headingPath(), cs.text(), sha256( cs.text() ) );
             out.add( new BundleSection( canonical, cs.slug(), cs.headingPath(), cs.text(), cs.denseScore(), cite ) );
-            if ( out.size() >= maxSections ) break;     // top-N
+            if ( out.size() >= cut ) break;             // top-N (dynamic when knee enabled)
         }
         return new ContextBundle( query, out, coverageCalc.compute( cand.topSimilarity(), out ) );
     }

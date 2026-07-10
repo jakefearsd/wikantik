@@ -134,7 +134,18 @@ public final class BundleServiceWiring {
             sources.keySet(), rerankerLabel, MAX_SECTIONS );
         return new DefaultBundleAssemblyService(
             sources, RetrievalMode.HYBRID, reranker, canonicalIdOf, versionOf, MAX_SECTIONS,
-            coverageCalcFrom( props ) );
+            coverageCalcFrom( props ), KneeCutoff.of( kneeEnabled( props ), kneeRetainRatio( props ) ) );
+    }
+
+    /** Knee cutoff on/off, {@code wikantik.bundle.knee.enabled}, default false (fixed top-N). */
+    static boolean kneeEnabled( final Properties props ) {
+        return props != null && Boolean.parseBoolean( props.getProperty( "wikantik.bundle.knee.enabled", "false" ) );
+    }
+
+    /** Knee retain-ratio, {@code wikantik.bundle.knee.retain_ratio}, default 0.5. */
+    static double kneeRetainRatio( final Properties props ) {
+        if ( props == null ) return 0.5;
+        return com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.knee.retain_ratio", 0.5 );
     }
 
     /** Coverage confidence thresholds from config (provisional defaults 0.55 / 0.40). */

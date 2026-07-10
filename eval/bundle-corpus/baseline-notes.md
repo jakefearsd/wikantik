@@ -411,3 +411,22 @@ confidence-differing near-neighbours. Sweep positions in {1, 1.5, 3}.
 | chain = mmr (control) |  |  | baseline |
 | chain = mmr, metadata-boost (positions 1.5, window 24) |  |  |  |
 | chain = mmr, metadata-boost (positions 3, window 24) |  |  |  |
+
+## Knee-cutoff measurement gate (2026-07-10)
+
+Knee is a PRECISION/coverage-sharpening lever, not a recall lever — cutting the tail can only lower
+recall@12 (fewer sections returned). Success = recall@12 does not regress meaningfully while the
+coverage signal sharpens (weak-coverage bundles get shorter). Manual run against a live index:
+
+1. Control: `wikantik.bundle.knee.enabled = false`. Record recall@12 + mean sections/bundle.
+2. Treatment: `= true`, sweep `retain_ratio` in {0.4, 0.5, 0.6}. Record recall@12 + mean sections/bundle
+   + coverage-confidence distribution.
+3. ACCEPT the largest retain_ratio where recall@12 stays within ~0.01 of control AND mean
+   sections/bundle drops for weak-coverage queries. REJECT if recall regresses beyond that — a
+   sharper-but-lossy cut is not worth it.
+
+| Config | recall@12 | mean sections/bundle | verdict |
+|--------|-----------|----------------------|---------|
+| knee off (control) |  |  | baseline |
+| knee on, retain 0.5 |  |  |  |
+| knee on, retain 0.4 |  |  |  |

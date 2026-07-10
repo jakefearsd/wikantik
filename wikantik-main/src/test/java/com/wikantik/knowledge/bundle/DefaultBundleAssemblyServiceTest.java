@@ -134,6 +134,28 @@ class DefaultBundleAssemblyServiceTest {
         assertEquals( BundleCoverage.STRONG, b.coverage().confidence() );
     }
 
+    @Test
+    void knee_cutsThinResultsBelowMaxSections() {
+        // 4 sections scored 0.90, 0.80, 0.20, 0.10 with a cliff after the 2nd; topSimilarity 0.90.
+        final SectionCandidateSource src = q -> SectionCandidates.of( List.of(
+                new CandidateSection( "Pa", List.of( "H1" ), "t1", 0.90 ),
+                new CandidateSection( "Pb", List.of( "H2" ), "t2", 0.80 ),
+                new CandidateSection( "Pc", List.of( "H3" ), "t3", 0.20 ),
+                new CandidateSection( "Pd", List.of( "H4" ), "t4", 0.10 ) ), 0.90 );
+        final Function< String, Optional< String > > canon = slug -> Optional.of( slug );
+        final Function< String, Integer > version = slug -> 1;
+
+        final DefaultBundleAssemblyService enabled = new DefaultBundleAssemblyService(
+            java.util.Map.of( RetrievalMode.HYBRID, src ), RetrievalMode.HYBRID, ( q, s ) -> s,
+            canon, version, 12, BundleCoverageCalculator.defaults(), KneeCutoff.of( true, 0.5 ) );
+        assertEquals( 2, enabled.assemble( "q" ).sections().size(), "knee cuts below the retain line" );
+
+        final DefaultBundleAssemblyService disabled = new DefaultBundleAssemblyService(
+            java.util.Map.of( RetrievalMode.HYBRID, src ), RetrievalMode.HYBRID, ( q, s ) -> s,
+            canon, version, 12, BundleCoverageCalculator.defaults(), KneeCutoff.disabled() );
+        assertEquals( 4, disabled.assemble( "q" ).sections().size(), "disabled knee keeps all up to maxSections" );
+    }
+
     private record StubRetrieval( RetrievalResult fixed ) implements ContextRetrievalService {
         public RetrievalResult retrieve( ContextQuery q ) { return fixed; }
         public RetrievedPage getPage( String n ) { return null; }

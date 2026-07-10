@@ -366,3 +366,24 @@ recall@5 0.456 / @12 0.706** — lands against the 0.735 ceiling; the dense-chun
 page-pre-select gap. Realized bundle @12 trajectory: 0.500 → 0.583 → 0.602 → 0.685 → 0.706 (+41%).
 Op note: the `inmemory` dense backend needs a reload after a re-index (restart) for the bundle to hydrate;
 prod `lucene-hnsw` reads from DB and is unaffected.
+
+## MMR rerank measurement gate (Phase 1, 2026-07-10)
+
+The recall@12 no-regression gate is a MANUAL run — the bundle eval real-corpus tier is
+Docker/embedding-snapshot-gated and non-blocking, so this mirrors how the 0.74 baseline was set.
+
+Procedure (against a local deployment with a live dense index):
+1. Baseline: `wikantik.bundle.rerank.chain` UNSET. Run the corpus (queries.csv) through the live
+   bundle and record overall section recall@12 → the control number (expect ~0.74).
+2. Treatment: set `wikantik.bundle.rerank.chain = mmr`, redeploy, re-run the same corpus.
+3. Record both below. ACCEPT the stage only if treatment recall@12 >= control (no regression)
+   AND the diversity metric improves (distinct-slug count among the top-12, averaged over the
+   corpus, goes up). REJECT and record in the dead-levers list otherwise.
+4. Sweep lambda in {0.5, 0.7, 0.9} and keep the best non-regressing point.
+
+| Config | recall@12 | mean distinct-slug @12 | p95 assemble latency | verdict |
+|--------|-----------|------------------------|----------------------|---------|
+| chain unset (control) |  |  |  | baseline |
+| chain=mmr, lambda=0.7 |  |  |  |  |
+| chain=mmr, lambda=0.5 |  |  |  |  |
+| chain=mmr, lambda=0.9 |  |  |  |  |

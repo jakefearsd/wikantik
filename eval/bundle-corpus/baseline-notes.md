@@ -402,20 +402,12 @@ NO recall@12 regression (a neutral corpus result is the expected, acceptable out
 tie-breaker); the verified-above-stale behavior is proven by unit test on a constructed equal-score
 set. Manual run against a live-index deployment with a populated page_verification table:
 
-**Composition caveat:** metadata-boost re-sorts the top-window by boosted denseScore, so it must be
-the SOLE ordering stage — do NOT chain it after `mmr` or `llm` (it would override their reordering).
-A rank-composable version is a planned follow-up.
-
-1. Control: `wikantik.bundle.rerank.chain` unset (or `= mmr`). Record recall@12.
-2. Treatment: `wikantik.bundle.rerank.chain = metadata-boost` (standalone), redeploy, re-run.
-3. ACCEPT only if treatment recall@12 >= control (no regression; 0.74 floor). If it regresses,
-   REJECT and record in the dead-levers list — a quality tie-breaker that costs recall is not worth it.
-4. Sweep factor in {0.03, 0.05, 0.10} and window in {12, 24}; keep the largest non-regressing factor.
-   Note: on a corpus whose gold pages have uniform confidence, expect ~zero movement — that is a
-   PASS (no regression), and the stage still reorders near-ties in production where confidence varies.
+Treatment now composes: test `chain = mmr, metadata-boost` against control `chain = mmr` — the
+rank-based boost preserves MMR's ordering among equal-confidence sections and only swaps
+confidence-differing near-neighbours. Sweep positions in {1, 1.5, 3}.
 
 | Config | recall@12 | p95 assemble latency | verdict |
 |--------|-----------|----------------------|---------|
-| chain unset (control) |  |  | baseline |
-| chain = metadata-boost (factor 0.05, window 24) |  |  |  |
-| chain = metadata-boost (factor 0.10, window 24) |  |  |  |
+| chain = mmr (control) |  |  | baseline |
+| chain = mmr, metadata-boost (positions 1.5, window 24) |  |  |  |
+| chain = mmr, metadata-boost (positions 3, window 24) |  |  |  |

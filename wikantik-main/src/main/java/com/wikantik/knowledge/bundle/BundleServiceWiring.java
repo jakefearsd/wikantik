@@ -212,7 +212,7 @@ public final class BundleServiceWiring {
                         LOG.warn( "rerank stage 'metadata-boost' requested but no confidence lookup wired; skipping" );
                     } else {
                         stages.add( new MetadataBoostSectionReranker(
-                            confidenceOf, metadataBoostFactor( props ), metadataBoostWindow( props ) ) );
+                            confidenceOf, metadataBoostPositions( props ), metadataBoostWindow( props ) ) );
                     }
                 }
                 case "llm" -> stages.add( new LlmSectionReranker( RerankerConfig.fromProperties( props ) ) );
@@ -228,10 +228,11 @@ public final class BundleServiceWiring {
         return com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.rerank.mmr.lambda", 0.7 );
     }
 
-    /** Confidence boost magnitude, {@code wikantik.bundle.rerank.metadata_boost.factor}, default 0.05. */
-    static double metadataBoostFactor( final Properties props ) {
-        if ( props == null ) return 0.05;
-        return com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.rerank.metadata_boost.factor", 0.05 );
+    /** Confidence rank-boost magnitude in positions, {@code wikantik.bundle.rerank.metadata_boost.positions},
+     *  default 1.5 (an AUTHORITATIVE section overtakes a STALE one only within 2·positions positions). */
+    static double metadataBoostPositions( final Properties props ) {
+        if ( props == null ) return 1.5;
+        return com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.rerank.metadata_boost.positions", 1.5 );
     }
 
     /** Top-N candidates the boost may reorder, {@code wikantik.bundle.rerank.metadata_boost.window}, default 24. */

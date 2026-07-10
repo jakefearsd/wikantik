@@ -329,13 +329,13 @@ class BundleServiceWiringTest {
     }
 
     @Test
-    void metadataBoostFactorAndWindow_defaultsAndParse() {
-        assertEquals( 0.05, BundleServiceWiring.metadataBoostFactor( new Properties() ), 1e-9 );
+    void metadataBoostPositionsAndWindow_defaultsAndParse() {
+        assertEquals( 1.5, BundleServiceWiring.metadataBoostPositions( new Properties() ), 1e-9 );
         assertEquals( 24, BundleServiceWiring.metadataBoostWindow( new Properties() ) );
         final Properties p = new Properties();
-        p.setProperty( "wikantik.bundle.rerank.metadata_boost.factor", "0.1" );
+        p.setProperty( "wikantik.bundle.rerank.metadata_boost.positions", "3" );
         p.setProperty( "wikantik.bundle.rerank.metadata_boost.window", "30" );
-        assertEquals( 0.1, BundleServiceWiring.metadataBoostFactor( p ), 1e-9 );
+        assertEquals( 3.0, BundleServiceWiring.metadataBoostPositions( p ), 1e-9 );
         assertEquals( 30, BundleServiceWiring.metadataBoostWindow( p ) );
     }
 }

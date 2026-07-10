@@ -58,25 +58,24 @@ final class MmrSectionReranker implements SectionReranker {
             for ( final CandidateSection c : sections ) vecs.add( LexicalSimilarity.vector( c.text() ) );
 
             final boolean[] picked = new boolean[ n ];
-            final List< Integer > selected = new ArrayList<>( n );
             final List< CandidateSection > out = new ArrayList<>( n );
+            final double[] maxSimToSelected = new double[ n ];
 
             for ( int step = 0; step < n; step++ ) {
                 int best = -1;
                 double bestScore = Double.NEGATIVE_INFINITY;
                 for ( int i = 0; i < n; i++ ) {
                     if ( picked[ i ] ) continue;
-                    double maxSim = 0.0;
-                    for ( final int s : selected ) {
-                        final double sim = similarity.apply( vecs.get( i ), vecs.get( s ) );
-                        if ( sim > maxSim ) maxSim = sim;
-                    }
-                    final double mmr = lambda * rel[ i ] - ( 1.0 - lambda ) * maxSim;
+                    final double mmr = lambda * rel[ i ] - ( 1.0 - lambda ) * maxSimToSelected[ i ];
                     if ( mmr > bestScore ) { bestScore = mmr; best = i; }
                 }
                 picked[ best ] = true;
-                selected.add( best );
                 out.add( sections.get( best ) );
+                for ( int i = 0; i < n; i++ ) {
+                    if ( picked[ i ] ) continue;
+                    maxSimToSelected[ i ] = Math.max( maxSimToSelected[ i ],
+                        similarity.apply( vecs.get( i ), vecs.get( best ) ) );
+                }
             }
             return out;
         } catch ( final RuntimeException e ) {

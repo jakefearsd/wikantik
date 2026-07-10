@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.5] - 2026-07-10
+
 ### Changed
 - **MCP `update_page` can now edit editorial default-content system pages (e.g. `About`).**
   System pages stay write-protected against MCP, but pages exempted via the new

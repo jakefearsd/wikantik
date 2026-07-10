@@ -387,3 +387,10 @@ Procedure (against a local deployment with a live dense index):
 | chain=mmr, lambda=0.7 |  |  |  |  |
 | chain=mmr, lambda=0.5 |  |  |  |  |
 | chain=mmr, lambda=0.9 |  |  |  |  |
+
+## Scheduled runs (Phase 1, 2026-07-10)
+
+A scheduled `BundleEvalScheduler` now persists recall@12 to the `bundle_eval_run` table and logs a
+regression WARN below the `thresholds.properties` floors. Off by default
+(`wikantik.bundle.eval.interval.hours = 0`); enable in a deployment with a live index. See
+`docs/agents/bundle-eval-runbook.md`.

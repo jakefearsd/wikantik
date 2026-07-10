@@ -153,7 +153,11 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         }
         final SectionCandidates cand = src.candidates( query );
         final List< CandidateSection > ranked = reranker.rerank( query, cand.sections() );
-        final int cut = knee.effectiveN( cand.sections(), cand.topSimilarity(), maxSections );
+        // knee only valid on cosine-scale dense candidates; and it counts dense-ranked N applied
+        // to the reranked output — rerank picks which/order, knee picks how many.
+        final int cut = cand.denseCosineScale()
+            ? knee.effectiveN( cand.sections(), cand.topSimilarity(), maxSections )
+            : maxSections;
 
         final Set< SectionKey > seen = new LinkedHashSet<>();
         final List< BundleSection > out = new ArrayList<>();

@@ -430,3 +430,11 @@ coverage signal sharpens (weak-coverage bundles get shorter). Manual run against
 | knee off (control) |  |  | baseline |
 | knee on, retain 0.5 |  |  |  |
 | knee on, retain 0.4 |  |  |  |
+
+**Scope:** the knee currently activates only on the pure-dense candidate path
+(`wikantik.bundle.bm25.enabled=false`), where denseScore is a cosine on the same scale as
+topSimilarity. On the DEFAULT hybrid path denseScore is a rank proxy (1/(1+pos)), so the knee
+no-ops there — making it meaningful on the default path requires carrying real dense cosines
+through HybridChunkSectionSource (a follow-up). Also: knee-N is derived from the dense order but
+applied to the reranked+deduped output, so under an active reorder chain (mmr/metadata-boost) the
+kept set is "fewer sections" but not guaranteed the densest.

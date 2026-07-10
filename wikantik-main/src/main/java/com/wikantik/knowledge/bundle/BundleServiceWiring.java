@@ -130,8 +130,9 @@ public final class BundleServiceWiring {
 
         final String rerankerLabel = reranker instanceof SectionRerankChain c ? "chain(" + c.stages().size() + ")"
             : reranker instanceof LlmSectionReranker ? "on" : "off";
-        LOG.info( "Bundle assembly service wired (modes={}, reranker={}, maxSections={})",
-            sources.keySet(), rerankerLabel, MAX_SECTIONS );
+        final String kneeLabel = kneeEnabled( props ) ? ( "on/ratio=" + kneeRetainRatio( props ) ) : "off";
+        LOG.info( "Bundle assembly service wired (modes={}, reranker={}, maxSections={}, knee={})",
+            sources.keySet(), rerankerLabel, MAX_SECTIONS, kneeLabel );
         return new DefaultBundleAssemblyService(
             sources, RetrievalMode.HYBRID, reranker, canonicalIdOf, versionOf, MAX_SECTIONS,
             coverageCalcFrom( props ), KneeCutoff.of( kneeEnabled( props ), kneeRetainRatio( props ) ) );

@@ -92,6 +92,8 @@ public final class DenseChunkSectionSource implements SectionCandidateSource {
         final List< CandidateSection > out = new ArrayList<>( best.values() );
         out.sort( Comparator.comparingDouble( CandidateSection::denseScore ).reversed() );
         final double topSim = out.isEmpty() ? -1.0 : out.get( 0 ).denseScore();
-        return SectionCandidates.of( out, topSim );
+        // denseScore here IS the dense cosine (sc.score()) — same scale as topSim — so the
+        // knee cutoff is valid on this path; opt in via the 3-arg `of`.
+        return SectionCandidates.of( out, topSim, true );
     }
 }

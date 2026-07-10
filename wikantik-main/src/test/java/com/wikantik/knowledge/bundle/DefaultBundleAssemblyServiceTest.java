@@ -137,11 +137,12 @@ class DefaultBundleAssemblyServiceTest {
     @Test
     void knee_cutsThinResultsBelowMaxSections() {
         // 4 sections scored 0.90, 0.80, 0.20, 0.10 with a cliff after the 2nd; topSimilarity 0.90.
+        // denseCosineScale=true (3-arg of) — this is the pure-dense path shape the knee is valid on.
         final SectionCandidateSource src = q -> SectionCandidates.of( List.of(
                 new CandidateSection( "Pa", List.of( "H1" ), "t1", 0.90 ),
                 new CandidateSection( "Pb", List.of( "H2" ), "t2", 0.80 ),
                 new CandidateSection( "Pc", List.of( "H3" ), "t3", 0.20 ),
-                new CandidateSection( "Pd", List.of( "H4" ), "t4", 0.10 ) ), 0.90 );
+                new CandidateSection( "Pd", List.of( "H4" ), "t4", 0.10 ) ), 0.90, true );
         final Function< String, Optional< String > > canon = slug -> Optional.of( slug );
         final Function< String, Integer > version = slug -> 1;
 
@@ -154,6 +155,27 @@ class DefaultBundleAssemblyServiceTest {
             java.util.Map.of( RetrievalMode.HYBRID, src ), RetrievalMode.HYBRID, ( q, s ) -> s,
             canon, version, 12, BundleCoverageCalculator.defaults(), KneeCutoff.disabled() );
         assertEquals( 4, disabled.assemble( "q" ).sections().size(), "disabled knee keeps all up to maxSections" );
+    }
+
+    @Test
+    void knee_noOpsWhenCandidatesNotCosineScale() {
+        // Same 4-section cliff shape as knee_cutsThinResultsBelowMaxSections, but denseCosineScale=false
+        // (the default hybrid path shape, where denseScore is a rank proxy 1/(1+pos), not a cosine).
+        // Even with the knee enabled, it must NOT fire — the scale mismatch would otherwise truncate
+        // every hybrid-path query to a fixed 2-4 sections unrelated to any real elbow.
+        final SectionCandidateSource src = q -> SectionCandidates.of( List.of(
+                new CandidateSection( "Pa", List.of( "H1" ), "t1", 0.90 ),
+                new CandidateSection( "Pb", List.of( "H2" ), "t2", 0.80 ),
+                new CandidateSection( "Pc", List.of( "H3" ), "t3", 0.20 ),
+                new CandidateSection( "Pd", List.of( "H4" ), "t4", 0.10 ) ), 0.90, false );
+        final Function< String, Optional< String > > canon = slug -> Optional.of( slug );
+        final Function< String, Integer > version = slug -> 1;
+
+        final DefaultBundleAssemblyService svc = new DefaultBundleAssemblyService(
+            java.util.Map.of( RetrievalMode.HYBRID, src ), RetrievalMode.HYBRID, ( q, s ) -> s,
+            canon, version, 12, BundleCoverageCalculator.defaults(), KneeCutoff.of( true, 0.5 ) );
+        assertEquals( 4, svc.assemble( "q" ).sections().size(),
+            "knee must no-op (keep all up to maxSections) when candidates aren't cosine-scale" );
     }
 
     private record StubRetrieval( RetrievalResult fixed ) implements ContextRetrievalService {

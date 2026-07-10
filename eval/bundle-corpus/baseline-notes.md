@@ -394,3 +394,24 @@ A scheduled `BundleEvalScheduler` now persists recall@12 to the `bundle_eval_run
 regression WARN below the `thresholds.properties` floors. Off by default
 (`wikantik.bundle.eval.interval.hours = 0`); enable in a deployment with a live index. See
 `docs/agents/bundle-eval-runbook.md`.
+
+## Metadata-boost rerank measurement gate (Stage 2, 2026-07-10)
+
+Confidence is a QUALITY signal, not relevance — this stage is a bounded tie-breaker. Success =
+NO recall@12 regression (a neutral corpus result is the expected, acceptable outcome for a
+tie-breaker); the verified-above-stale behavior is proven by unit test on a constructed equal-score
+set. Manual run against a live-index deployment with a populated page_verification table:
+
+1. Control: `wikantik.bundle.rerank.chain` unset (or `= mmr`). Record recall@12.
+2. Treatment: `wikantik.bundle.rerank.chain = metadata-boost` (or `mmr, metadata-boost`), redeploy, re-run.
+3. ACCEPT only if treatment recall@12 >= control − 0.0 (no regression, floor 0.74). If it regresses,
+   REJECT and record in the dead-levers list — a quality tie-breaker that costs recall is not worth it.
+4. Sweep factor in {0.03, 0.05, 0.10} and window in {12, 24}; keep the largest non-regressing factor.
+   Note: on a corpus whose gold pages have uniform confidence, expect ~zero movement — that is a
+   PASS (no regression), and the stage still reorders near-ties in production where confidence varies.
+
+| Config | recall@12 | p95 assemble latency | verdict |
+|--------|-----------|----------------------|---------|
+| chain = mmr (control) |  |  | baseline |
+| chain = mmr, metadata-boost (factor 0.05, window 24) |  |  |  |
+| chain = mmr, metadata-boost (factor 0.10, window 24) |  |  |  |

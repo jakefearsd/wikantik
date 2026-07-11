@@ -18,6 +18,7 @@
  */
 package com.wikantik.derived;
 
+import com.wikantik.connectors.webcrawler.FeedConfig;
 import com.wikantik.connectors.webcrawler.SitemapConfig;
 import com.wikantik.connectors.webcrawler.WebCrawlerConfig;
 import org.junit.jupiter.api.Test;
@@ -87,5 +88,31 @@ class ConnectorWiringHelperTest {
         Properties p = new Properties();
         p.setProperty( "wikantik.connectors.sitemap.nope.max_pages", "10" );  // no sitemap_urls → skipped
         assertTrue( ConnectorWiringHelper.sitemapConfigs( p ).isEmpty() );
+    }
+
+    @Test void parsesFeedConfigsById() {
+        Properties p = new Properties();
+        p.setProperty( "wikantik.connectors.feed.news.feed_urls", "https://a.com/rss, https://a.com/atom" );
+        p.setProperty( "wikantik.connectors.feed.news.max_items", "40" );
+        p.setProperty( "wikantik.connectors.feed.news.fetch_full_articles", "false" );
+        Map< String, FeedConfig > cfgs = ConnectorWiringHelper.feedConfigs( p );
+        assertEquals( 1, cfgs.size() );
+        FeedConfig c = cfgs.get( "news" );
+        assertEquals( List.of( "https://a.com/rss", "https://a.com/atom" ), c.feedUrls() );
+        assertEquals( 40, c.maxItems() );
+        assertFalse( c.fetchFullArticles() );
+        assertTrue( c.respectRobots() );   // default
+    }
+
+    @Test void feedDefaultsFetchFullArticlesTrue() {
+        Properties p = new Properties();
+        p.setProperty( "wikantik.connectors.feed.news.feed_urls", "https://a.com/rss" );
+        assertTrue( ConnectorWiringHelper.feedConfigs( p ).get( "news" ).fetchFullArticles() );  // default true
+    }
+
+    @Test void feedRequiresUrls() {
+        Properties p = new Properties();
+        p.setProperty( "wikantik.connectors.feed.nope.max_items", "10" );
+        assertTrue( ConnectorWiringHelper.feedConfigs( p ).isEmpty() );
     }
 }

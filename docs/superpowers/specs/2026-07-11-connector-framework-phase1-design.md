@@ -170,6 +170,12 @@ New module boilerplate: `wikantik-connectors/pom.xml` must declare `mockito-core
 
 OAuth/credential encryption; the sync scheduler; webhook receivers; any real-service connector; ACL *enforcement*; bidirectional (wiki→source) sync.
 
+## Known limitations (Phase 1 — from the whole-branch review, address when a real connector lands)
+
+- **`flatName` is not collision-proof beyond the tree-path case it solves.** Flattening `/`→`-` defuses the basename collision (`a/x.md` vs `b/x.md` → `A-x`/`B-x`), but the subsequent `pageNameFor` allow-list + length cap can still map two *distinct* URIs to one page (e.g. `a/x.md` vs a literal `a-x.md`; two long paths truncated at `MAX_PAGE_NAME_LENGTH`). A real connector needs a stable, injective source-URI→page-name mapping (e.g. hash-suffixing on collision, or a `page_name` uniqueness check against `connector_synced_item`).
+- **Cursor-advance guard catches only a literal repeated cursor, not an A→B→A cycle.** The Phase-1 filesystem connector can't produce an alternating cursor, but a paginating connector should ship behind a bounded-iteration cap.
+- **The e2e resume test proves re-sync hash-dedup, not a literal mid-drain crash+restart.** The crash-resume *mechanics* (cursor persisted per batch, hash-skip on restart) are covered by the `SyncOrchestrator` unit tests; a true mid-drain crash isn't exercisable with the single-batch fixture connector.
+
 ## Open questions (resolve during planning, not blocking)
 
 1. **Tombstone detection wiring for a full-scan connector — resolved to Option A.** The orchestrator, on a `complete` batch, calls `stateStore.knownUris(connectorId)`, subtracts the URIs present in `batch.items` **and** those already in `batch.tombstonedUris`, and treats the remainder as deletions. This keeps the fixture connector pure (it emits items only); `SyncBatch.tombstonedUris` stays in the contract for future *incremental* connectors that learn deletions directly from the source (webhooks/change-feeds) and can't rely on a full-scan diff. Planning pins the exact orchestrator condition (only diff when `batch.complete`, never on a partial batch — a partial batch's absent URIs are "not yet seen", not deleted).

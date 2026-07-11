@@ -103,6 +103,7 @@ public final class JdbcCredentialStore implements CredentialStore {
 
     @Override
     public void delete( final String connectorId, final String name ) {
+        if ( cipher == null ) { LOG.warn( "credential delete refused for {}/{}: no master key configured", connectorId, name ); return; }
         try ( Connection c = ds.getConnection();
               PreparedStatement ps = c.prepareStatement(
                   "DELETE FROM connector_credentials WHERE connector_id=? AND credential_name=?" ) ) {

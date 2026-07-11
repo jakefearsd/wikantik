@@ -149,12 +149,23 @@ class ConnectorCredentialsResourceTest {
     @Test
     void post_blankBody_returns400() throws Exception {
         when( req.getPathInfo() ).thenReturn( "/gh1/token" );
-        stubReader( "   " );
+        stubReader( "   \n" );
 
         servlet.doPost( req, resp );
 
         verify( resp ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
         verify( store, never() ).put( anyString(), anyString(), anyString() );
+    }
+
+    @Test
+    void post_stripsSurroundingWhitespace_storesTrimmedSecret() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/gh1/token" );
+        stubReader( "ghp_x\n" );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_CREATED );
+        verify( store ).put( eq( "gh1" ), eq( "token" ), eq( "ghp_x" ) );
     }
 
     @Test

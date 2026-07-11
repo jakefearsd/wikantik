@@ -77,5 +77,22 @@ class JdbcCredentialStoreTest {
         store.put( "gh1", "token", "x" );                 // refuses (no throw)
         assertTrue( store.get( "gh1", "token" ).isEmpty() );
         assertTrue( store.list( "gh1" ).isEmpty() );
+        assertDoesNotThrow( () -> store.delete( "gh1", "token" ) );   // refuses w/o touching the DB
+    }
+
+    @Test void putOverwritesExistingCredential_noDuplicateRow() throws Exception {
+        JdbcCredentialStore store = new JdbcCredentialStore( ds, cipher );
+        store.put( "c", "k", "v1" );
+        store.put( "c", "k", "v2" );
+
+        assertEquals( "v2", store.get( "c", "k" ).orElseThrow() );
+        try ( Connection c = ds.getConnection();
+              var ps = c.prepareStatement( "SELECT count(*) FROM connector_credentials WHERE connector_id=? AND credential_name=?" ) ) {
+            ps.setString( 1, "c" ); ps.setString( 2, "k" );
+            try ( var rs = ps.executeQuery() ) {
+                rs.next();
+                assertEquals( 1, rs.getInt( 1 ), "second put() must overwrite, not duplicate, the row" );
+            }
+        }
     }
 }

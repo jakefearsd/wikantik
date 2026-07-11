@@ -115,12 +115,17 @@ public class ConnectorCredentialsResource extends RestServletBase {
         final String connectorId = segments[ 0 ];
         final String name = segments[ 1 ];
 
-        final String secret = readSecret( request );
-        if ( secret == null ) {
+        final String rawSecret = readSecret( request );
+        if ( rawSecret == null ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST,
                 "Secret exceeds maximum length of " + MAX_SECRET_LENGTH + " characters" );
             return;
         }
+        // Strip surrounding whitespace (e.g. a trailing newline from a heredoc or editor) before
+        // the blank check and storage — API keys/PATs/OAuth tokens never legitimately contain
+        // leading/trailing whitespace, so a stray newline would otherwise be silently persisted
+        // as part of the secret and break a future connector's auth.
+        final String secret = rawSecret.strip();
         if ( secret.isBlank() ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Secret must not be blank" );
             return;

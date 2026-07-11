@@ -6,7 +6,7 @@
 
 ## Scope
 
-A `FeedSourceConnector` that reads RSS 0.9–2.0 / Atom feeds and syncs each entry into a derived page. Parsing uses **Rome**, already a managed reactor dependency (the wiki emits Atom feeds with it) — zero new dependency. Two behaviors distinguish feeds from the other connectors and are decided below: **content mode** (fetch full articles by default) and **archive semantics** (aged-out entries are kept, not deleted).
+A `FeedSourceConnector` that reads RSS 0.9–2.0 / Atom feeds and syncs each entry into a derived page. Parsing uses **Rome**, which is **already version-pinned (2.1.0) in the parent pom's `dependencyManagement`** — the feed connector is its first actual consumer, so `wikantik-connectors` just adds the dependency (no version to choose). Two behaviors distinguish feeds from the other connectors and are decided below: **content mode** (fetch full articles by default) and **archive semantics** (aged-out entries are kept, not deleted).
 
 **Non-goals:** authentication; feed-autodiscovery from a site URL; conditional-GET/ETag on the feed; per-entry `pubDate` incremental windowing; a live-network integration test.
 

@@ -61,6 +61,27 @@ class SitemapSourceConnectorTest {
         assertTrue( b.items().stream().allMatch( i -> "text/html".equals( i.contentType() ) ) );
     }
 
+    @Test void sameHostOnlyDoesNotFetchForeignSubSitemap() {
+        // A hostile index pointing at a foreign-host sub-sitemap must NOT be fetched when same_host_only
+        // (fetch-amplification / SSRF-egress defense) — the connector never issues a GET to victim.com.
+        String index = "<sitemapindex><sitemap><loc>https://ex.com/sm-ok.xml</loc></sitemap>"
+            + "<sitemap><loc>https://victim.com/sm-evil.xml</loc></sitemap></sitemapindex>";
+        Set<String> fetched = new HashSet<>();
+        PageFetcher f = url -> {
+            fetched.add( url );
+            return switch ( url ) {
+                case "https://ex.com/sitemap.xml" -> xml( url, index );
+                case "https://ex.com/sm-ok.xml" -> xml( url, urlset( "https://ex.com/a" ) );
+                case "https://ex.com/a" -> html( url, "<p>p</p>" );
+                default -> new FetchResult( 404, null, new byte[0], url );   // robots.txt etc.
+            };
+        };
+        Set<String> u = uris( new SitemapSourceConnector( "sm1", cfg( 100, true ), f, ms -> {} ).poll( null ) );
+        assertTrue( u.contains( "https://ex.com/a" ) );
+        assertFalse( fetched.contains( "https://victim.com/sm-evil.xml" ),
+            "foreign-host sub-sitemap must never be fetched under same_host_only" );
+    }
+
     @Test void recursesSitemapIndexOneLevel() {
         String index = "<sitemapindex><sitemap><loc>https://ex.com/sm-a.xml</loc></sitemap>"
             + "<sitemap><loc>https://ex.com/sm-b.xml</loc></sitemap></sitemapindex>";

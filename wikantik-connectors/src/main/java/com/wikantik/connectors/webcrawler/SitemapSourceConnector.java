@@ -54,7 +54,7 @@ public final class SitemapSourceConnector implements SourceConnector {
         for ( final String sm : config.sitemapUrls() ) hostOf( sm ).ifPresent( allowedHosts::add );
 
         final Set< String > pageUrls = new LinkedHashSet<>();
-        for ( final String sm : config.sitemapUrls() ) collectPages( sm, robots, pageUrls, 0 );
+        for ( final String sm : config.sitemapUrls() ) collectPages( sm, robots, pageUrls, allowedHosts, 0 );
 
         final List< SourceItem > items = new ArrayList<>();
         final Set< String > visited = new HashSet<>();
@@ -79,7 +79,7 @@ public final class SitemapSourceConnector implements SourceConnector {
     }
 
     private void collectPages( final String sitemapUrl, final RobotsPolicy robots,
-                               final Set< String > out, final int depth ) {
+                               final Set< String > out, final Set< String > allowedHosts, final int depth ) {
         if ( config.respectRobots() && !robots.isAllowed( sitemapUrl ) ) {
             LOG.info( "sitemap '{}': robots-disallowed sitemap {}", connectorId, sitemapUrl );
             return;
@@ -92,7 +92,15 @@ public final class SitemapSourceConnector implements SourceConnector {
         final ParsedSitemap parsed = SitemapParser.parse( new String( r.body(), StandardCharsets.UTF_8 ) );
         if ( parsed.isIndex() ) {
             if ( depth == 0 ) {
-                for ( final String sub : parsed.locs() ) collectPages( sub, robots, out, depth + 1 );
+                for ( final String sub : parsed.locs() ) {
+                    // don't fetch a foreign-host sub-sitemap when same_host_only — otherwise a hostile
+                    // sitemap-index could point us at thousands of GETs to an unrelated site.
+                    if ( config.sameHostOnly() && hostOf( sub ).map( h -> !allowedHosts.contains( h ) ).orElse( true ) ) {
+                        LOG.info( "sitemap '{}': skipping foreign-host sub-sitemap {}", connectorId, sub );
+                        continue;
+                    }
+                    collectPages( sub, robots, out, allowedHosts, depth + 1 );
+                }
             } else {
                 LOG.info( "sitemap '{}': nested index beyond one level ignored: {}", connectorId, sitemapUrl );
             }

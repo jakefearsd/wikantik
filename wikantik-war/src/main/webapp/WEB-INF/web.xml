@@ -667,6 +667,10 @@
        <servlet-class>com.wikantik.rest.AdminDerivedResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>ConnectorAdminResource</servlet-name>
+       <servlet-class>com.wikantik.rest.ConnectorAdminResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminDriftResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminDriftResource</servlet-class>
    </servlet>
@@ -961,6 +965,10 @@
    <servlet-mapping>
        <servlet-name>AdminDerivedResource</servlet-name>
        <url-pattern>/admin/derived/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>ConnectorAdminResource</servlet-name>
+       <url-pattern>/admin/connectors/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminDriftResource</servlet-name>

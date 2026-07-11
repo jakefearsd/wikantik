@@ -23,18 +23,19 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
  * Drives a {@link SourceConnector} into derived pages: hash-dedup, tombstone, cursor-resume.
  *
- * <p>Each {@link #sync} call performs exactly one {@link SourceConnector#poll} round-trip — it does
- * NOT loop internally waiting for {@code batch.complete()}. A connector that needs several round-trips
- * to drain a full scan relies on its caller to invoke {@code sync} again on its own schedule, resuming
- * from the persisted cursor. This also guards against a connector that returns an un-advanced cursor on
- * a scan error (as {@link com.wikantik.connectors.filesystem.FilesystemSourceConnector} does, by design,
- * to signal "retry next scheduled run") — polling such a connector in a tight internal loop would spin
- * forever making zero progress.
+ * <p>Each {@link #sync} call drains the connector across as many {@link SourceConnector#poll} round-trips
+ * as it takes to reach {@code batch.complete()}, honoring the {@code SyncBatch} pagination contract
+ * ({@code nextCursor} + {@code complete}) so a connector can paginate a large source within one
+ * {@code sync()} call. To guard against a connector that returns an un-advanced cursor on a scan error
+ * (as {@link com.wikantik.connectors.filesystem.FilesystemSourceConnector} does, by design, to signal
+ * "retry next scheduled run"), the loop stops as soon as an incomplete batch's {@code nextCursor} is equal
+ * to the cursor it was polled with — that would otherwise spin forever making zero progress.
  */
 public final class SyncOrchestrator {
 
@@ -50,43 +51,55 @@ public final class SyncOrchestrator {
     public SyncReport sync( final SourceConnector connector ) {
         final String id = connector.connectorId();
         int created = 0, updated = 0, unchanged = 0, deleted = 0, failed = 0;
-        final SyncCursor cursor = store.loadCursor( id ).orElse( null );
+        SyncCursor cursor = store.loadCursor( id ).orElse( null );
 
-        final SyncBatch batch = connector.poll( cursor );
-        final Set< String > seen = new HashSet<>();
+        while ( true ) {
+            final SyncBatch batch = connector.poll( cursor );
+            final Set< String > seen = new HashSet<>();
 
-        for ( final SourceItem item : batch.items() ) {
-            seen.add( item.sourceUri() );
-            if ( store.syncedHash( id, item.sourceUri() ).filter( item.contentHash()::equals ).isPresent() ) {
-                unchanged++;
-                continue;
-            }
-            final IngestOutcome out = sink.ingest( item );
-            switch ( out.status() ) {
-                case CREATED -> created++;
-                case UPDATED -> updated++;
-                case UNCHANGED -> unchanged++;
-                case FAILED -> { failed++; LOG.warn( "Sync '{}': ingest FAILED for {}", id, item.sourceUri() ); }
-            }
-            if ( out.status() != IngestOutcome.Status.FAILED ) {
-                store.recordSynced( id, item.sourceUri(), item.contentHash(), out.pageName(), item.aclRefs() );
-            }
-        }
-
-        // explicit tombstones from the connector (incremental sources)
-        for ( final String uri : batch.tombstonedUris() ) {
-            deleted += tombstone( id, uri );
-        }
-        // derived tombstones: only on a COMPLETE batch, known URIs not seen this scan
-        if ( batch.complete() ) {
-            for ( final String uri : store.knownUris( id ) ) {
-                if ( !seen.contains( uri ) && !batch.tombstonedUris().contains( uri ) ) {
-                    deleted += tombstone( id, uri );
+            for ( final SourceItem item : batch.items() ) {
+                seen.add( item.sourceUri() );
+                if ( store.syncedHash( id, item.sourceUri() ).filter( item.contentHash()::equals ).isPresent() ) {
+                    unchanged++;
+                    continue;
+                }
+                final IngestOutcome out = sink.ingest( item );
+                switch ( out.status() ) {
+                    case CREATED -> created++;
+                    case UPDATED -> updated++;
+                    case UNCHANGED -> unchanged++;
+                    case FAILED -> { failed++; LOG.warn( "Sync '{}': ingest FAILED for {}", id, item.sourceUri() ); }
+                }
+                if ( out.status() != IngestOutcome.Status.FAILED ) {
+                    store.recordSynced( id, item.sourceUri(), item.contentHash(), out.pageName(), item.aclRefs() );
                 }
             }
-        }
 
-        store.saveCursor( id, batch.nextCursor() );     // persist AFTER the batch → crash-resume point
+            // explicit tombstones from the connector (incremental sources)
+            for ( final String uri : batch.tombstonedUris() ) {
+                deleted += tombstone( id, uri );
+            }
+            // derived tombstones: only on a COMPLETE batch, known URIs not seen this scan
+            if ( batch.complete() ) {
+                for ( final String uri : store.knownUris( id ) ) {
+                    if ( !seen.contains( uri ) && !batch.tombstonedUris().contains( uri ) ) {
+                        deleted += tombstone( id, uri );
+                    }
+                }
+            }
+
+            final SyncCursor next = batch.nextCursor();
+            store.saveCursor( id, next );     // persist AFTER processing this batch → crash-resume point
+
+            if ( batch.complete() ) break;
+            if ( Objects.equals( next, cursor ) ) {
+                // incomplete batch with a non-advancing cursor (e.g. scan error) — stop here rather than
+                // spinning forever making zero progress; the caller's next scheduled sync() will retry.
+                LOG.warn( "Sync '{}': incomplete batch with non-advancing cursor — stopping to avoid infinite loop", id );
+                break;
+            }
+            cursor = next;
+        }
 
         final SyncReport report = new SyncReport( created, updated, unchanged, deleted, failed );
         LOG.info( "Sync '{}' complete: {}", id, report );

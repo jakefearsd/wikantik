@@ -89,6 +89,28 @@ class SyncOrchestratorTest {
         assertTrue( sink.deleted.isEmpty() );                                // absent != deleted on a partial batch
     }
 
+    @Test void drainsMultipleBatchesInOneSyncCall() {
+        FakeStore store = new FakeStore(); FakeSink sink = new FakeSink();
+        SourceConnector paginating = new SourceConnector() {
+            int calls = 0;
+            public String connectorId() { return "c1"; }
+            public SyncBatch poll( SyncCursor cur ) {
+                calls++;
+                if ( calls == 1 ) {
+                    assertNull( cur );
+                    return new SyncBatch( List.of( item( "file:p1.md", "h1" ) ), List.of(), new SyncCursor( "p2" ), false );
+                }
+                assertEquals( 2, calls );
+                assertEquals( new SyncCursor( "p2" ), cur );
+                return new SyncBatch( List.of( item( "file:p2.md", "h2" ) ), List.of(), new SyncCursor( "p2-done" ), true );
+            }
+        };
+        SyncReport r = new SyncOrchestrator( store, sink ).sync( paginating );
+        assertEquals( List.of( "file:p1.md", "file:p2.md" ), sink.ingested );
+        assertEquals( "p2-done", store.cursor.get( "c1" ) );
+        assertEquals( 2, r.created() );
+    }
+
     @Test void failedIngestIsNotRecordedSoItRetries() {
         FakeStore store = new FakeStore();
         DerivedPageSink failing = new DerivedPageSink() {

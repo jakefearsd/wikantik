@@ -28,12 +28,18 @@ import com.wikantik.connectors.runtime.ConnectorRegistry;
 import com.wikantik.connectors.runtime.ConnectorRuntime;
 import com.wikantik.connectors.runtime.ConnectorStatusReader;
 import com.wikantik.connectors.state.JdbcSyncStateStore;
+import com.wikantik.connectors.webcrawler.HttpPageFetcher;
+import com.wikantik.connectors.webcrawler.WebCrawlerConfig;
+import com.wikantik.connectors.webcrawler.WebCrawlerSourceConnector;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -55,8 +61,10 @@ public final class ConnectorWiringHelper {
             return Optional.empty();
         }
         final Map< String, String > roots = filesystemRoots( props );
-        if ( roots.isEmpty() ) {
-            LOG.info( "connectors enabled but no wikantik.connectors.filesystem.*.root configured — nothing to sync" );
+        final Map< String, WebCrawlerConfig > webcrawlers = webcrawlerConfigs( props );
+        if ( roots.isEmpty() && webcrawlers.isEmpty() ) {
+            LOG.info( "connectors enabled but no wikantik.connectors.filesystem.*.root or "
+                + "wikantik.connectors.webcrawler.*.seeds configured — nothing to sync" );
             return Optional.empty();
         }
         final Map< String, SourceConnector > byId = new LinkedHashMap<>();
@@ -64,6 +72,12 @@ public final class ConnectorWiringHelper {
         for ( final Map.Entry< String, String > e : roots.entrySet() ) {
             byId.put( e.getKey(), new FilesystemSourceConnector( e.getKey(), Path.of( e.getValue() ) ) );
             typeById.put( e.getKey(), "filesystem" );
+        }
+        for ( final Map.Entry< String, WebCrawlerConfig > e : webcrawlers.entrySet() ) {
+            byId.put( e.getKey(), new WebCrawlerSourceConnector( e.getKey(), e.getValue(),
+                new HttpPageFetcher( e.getValue().userAgent(), java.time.Duration.ofSeconds( 20 ) ),
+                ms -> { try { Thread.sleep( ms ); } catch ( final InterruptedException ie ) { Thread.currentThread().interrupt(); } } ) );
+            typeById.put( e.getKey(), "webcrawler" );
         }
         final DerivedPageIngestionService ingestion = DerivedIngestionServiceFactory.build( engine, pm, am );
         final DerivedPageSinkAdapter sink = new DerivedPageSinkAdapter( ingestion, pm::deletePage, "connector-sync" );
@@ -74,7 +88,7 @@ public final class ConnectorWiringHelper {
         engine.setManager( ConnectorRuntime.class, runtime );
         final long intervalHours = parseLong( props, "sync.interval.hours", 0L );
         runtime.startScheduler( intervalHours );
-        LOG.info( "connector runtime wired: {} connector(s), scheduler interval {}h", roots.size(), intervalHours );
+        LOG.info( "connector runtime wired: {} connector(s), scheduler interval {}h", byId.size(), intervalHours );
         return Optional.of( runtime );
     }
 
@@ -89,6 +103,55 @@ public final class ConnectorWiringHelper {
             }
         }
         return out;
+    }
+
+    /** id → config for every {@code wikantik.connectors.webcrawler.<id>.seeds} key (plus its sibling
+     *  per-id options). Package-visible for testing. An id with no non-blank {@code seeds} is skipped. */
+    static Map< String, WebCrawlerConfig > webcrawlerConfigs( final Properties props ) {
+        final String p = PREFIX + "webcrawler.";
+        final Map< String, WebCrawlerConfig > out = new LinkedHashMap<>();
+        for ( final String key : props.stringPropertyNames() ) {
+            if ( key.startsWith( p ) && key.endsWith( ".seeds" ) ) {
+                final String id = key.substring( p.length(), key.length() - ".seeds".length() );
+                if ( id.isBlank() || id.contains( "." ) ) continue;
+                final List< String > seeds = parseSeeds( props.getProperty( key ) );
+                if ( seeds.isEmpty() ) continue;
+                final String idPrefix = p + id + ".";
+                out.put( id, new WebCrawlerConfig(
+                    seeds,
+                    Boolean.parseBoolean( props.getProperty( idPrefix + "same_host_only", "true" ).trim() ),
+                    blankToNull( props.getProperty( idPrefix + "path_prefix" ) ),
+                    parseInt( props, idPrefix + "max_pages", 100 ),
+                    parseInt( props, idPrefix + "max_depth", 3 ),
+                    parseLongValue( props, idPrefix + "delay_ms", 1000L ),
+                    props.getProperty( idPrefix + "user_agent", "WikantikCrawler/1.0 (+https://wiki.wikantik.com)" ).trim(),
+                    Boolean.parseBoolean( props.getProperty( idPrefix + "respect_robots", "true" ).trim() ) ) );
+            }
+        }
+        return out;
+    }
+
+    private static List< String > parseSeeds( final String raw ) {
+        final List< String > seeds = new ArrayList<>();
+        for ( final String s : Arrays.asList( raw.split( "," ) ) ) {
+            final String trimmed = s.trim();
+            if ( !trimmed.isEmpty() ) seeds.add( trimmed );
+        }
+        return seeds;
+    }
+
+    private static String blankToNull( final String s ) {
+        return s == null || s.isBlank() ? null : s.trim();
+    }
+
+    private static int parseInt( final Properties props, final String key, final int def ) {
+        try { return Integer.parseInt( props.getProperty( key, String.valueOf( def ) ).trim() ); }
+        catch ( final NumberFormatException e ) { return def; }
+    }
+
+    private static long parseLongValue( final Properties props, final String key, final long def ) {
+        try { return Long.parseLong( props.getProperty( key, String.valueOf( def ) ).trim() ); }
+        catch ( final NumberFormatException e ) { return def; }
     }
 
     private static long parseLong( final Properties props, final String suffix, final long def ) {

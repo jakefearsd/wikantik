@@ -18,12 +18,35 @@
  */
 package com.wikantik.derived;
 
+import com.wikantik.connectors.webcrawler.WebCrawlerConfig;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ConnectorWiringHelperTest {
+
+    @Test void parsesWebcrawlerConfigsById() {
+        Properties p = new Properties();
+        p.setProperty( "wikantik.connectors.webcrawler.site.seeds", "https://a.com/, https://a.com/docs" );
+        p.setProperty( "wikantik.connectors.webcrawler.site.max_pages", "50" );
+        p.setProperty( "wikantik.connectors.webcrawler.site.path_prefix", "/docs" );
+        Map< String, WebCrawlerConfig > cfgs = ConnectorWiringHelper.webcrawlerConfigs( p );
+        assertEquals( 1, cfgs.size() );
+        WebCrawlerConfig c = cfgs.get( "site" );
+        assertEquals( List.of( "https://a.com/", "https://a.com/docs" ), c.seeds() );
+        assertEquals( 50, c.maxPages() );
+        assertEquals( "/docs", c.pathPrefix() );
+        assertTrue( c.sameHostOnly() );          // default
+        assertTrue( c.respectRobots() );          // default
+    }
+
+    @Test void webcrawlerRequiresSeeds() {
+        Properties p = new Properties();
+        p.setProperty( "wikantik.connectors.webcrawler.nope.max_pages", "10" );  // no seeds → skipped
+        assertTrue( ConnectorWiringHelper.webcrawlerConfigs( p ).isEmpty() );
+    }
 
     @Test void parsesFilesystemRootsById() {
         Properties p = new Properties();

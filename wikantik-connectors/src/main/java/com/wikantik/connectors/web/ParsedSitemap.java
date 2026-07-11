@@ -16,6 +16,9 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.connectors.webcrawler;
-/** One RSS/Atom feed entry: title, link (article URL), and its inline HTML content. */
-record FeedEntry( String title, String link, String contentHtml ) {}
+package com.wikantik.connectors.web;
+
+import java.util.List;
+
+/** Result of parsing a sitemap: either page URLs (urlset) or sub-sitemap URLs (sitemapindex). */
+record ParsedSitemap( List< String > locs, boolean isIndex ) {}

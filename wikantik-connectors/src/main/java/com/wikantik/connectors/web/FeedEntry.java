@@ -16,12 +16,6 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.connectors.webcrawler;
-
-/**
- * Result of a single page fetch. {@code status} is the HTTP status code, or {@code 0} if the
- * fetch failed outright (connection error, timeout, interruption). {@code finalUrl} is the
- * post-redirect URL the response actually came from.
- */
-public record FetchResult( int status, String contentType, byte[] body, String finalUrl ) {
-}
+package com.wikantik.connectors.web;
+/** One RSS/Atom feed entry: title, link (article URL), and its inline HTML content. */
+record FeedEntry( String title, String link, String contentHtml ) {}

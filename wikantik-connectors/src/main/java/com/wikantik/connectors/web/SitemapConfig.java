@@ -16,12 +16,12 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.connectors.webcrawler;
+package com.wikantik.connectors.web;
 
-/**
- * Network seam for fetching a URL's raw bytes. Implementations must never throw from
- * {@link #fetch(String)} — failures are reported as a {@link FetchResult} with status {@code 0}.
- */
-public interface PageFetcher {
-    FetchResult fetch( String url );
-}
+import java.util.List;
+
+/** Configuration for a {@link SitemapSourceConnector}: seed sitemap URLs, page cap, politeness
+ *  delay, user agent, and whether to honor robots.txt / restrict to the seed sitemaps' hosts. */
+public record SitemapConfig(
+    List< String > sitemapUrls, int maxPages, long delayMs,
+    String userAgent, boolean respectRobots, boolean sameHostOnly ) {}

@@ -16,13 +16,12 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.connectors.webcrawler;
+package com.wikantik.connectors.web;
 
-import java.util.List;
-
-/** Configuration for a {@link FeedSourceConnector}: seed feed URLs, item cap, whether to fetch the
- *  full article for each entry (default) or emit the feed's inline content, politeness delay, user
- *  agent, and whether to honor robots.txt / restrict article links to the seed feeds' hosts. */
-public record FeedConfig(
-    List< String > feedUrls, int maxItems, boolean fetchFullArticles, long delayMs,
-    String userAgent, boolean respectRobots, boolean sameHostOnly ) {}
+/**
+ * Network seam for fetching a URL's raw bytes. Implementations must never throw from
+ * {@link #fetch(String)} — failures are reported as a {@link FetchResult} with status {@code 0}.
+ */
+public interface PageFetcher {
+    FetchResult fetch( String url );
+}

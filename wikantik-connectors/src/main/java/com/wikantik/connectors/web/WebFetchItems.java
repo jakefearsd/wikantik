@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.connectors.webcrawler;
+package com.wikantik.connectors.web;
 
 import com.wikantik.api.connectors.SourceItem;
 

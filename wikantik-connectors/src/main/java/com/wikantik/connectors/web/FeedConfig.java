@@ -16,12 +16,13 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.connectors.webcrawler;
+package com.wikantik.connectors.web;
 
 import java.util.List;
 
-/** Configuration for a {@link SitemapSourceConnector}: seed sitemap URLs, page cap, politeness
- *  delay, user agent, and whether to honor robots.txt / restrict to the seed sitemaps' hosts. */
-public record SitemapConfig(
-    List< String > sitemapUrls, int maxPages, long delayMs,
+/** Configuration for a {@link FeedSourceConnector}: seed feed URLs, item cap, whether to fetch the
+ *  full article for each entry (default) or emit the feed's inline content, politeness delay, user
+ *  agent, and whether to honor robots.txt / restrict article links to the seed feeds' hosts. */
+public record FeedConfig(
+    List< String > feedUrls, int maxItems, boolean fetchFullArticles, long delayMs,
     String userAgent, boolean respectRobots, boolean sameHostOnly ) {}

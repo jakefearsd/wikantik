@@ -18,9 +18,9 @@
  */
 package com.wikantik.derived;
 
-import com.wikantik.connectors.webcrawler.FeedConfig;
-import com.wikantik.connectors.webcrawler.SitemapConfig;
-import com.wikantik.connectors.webcrawler.WebCrawlerConfig;
+import com.wikantik.connectors.web.FeedConfig;
+import com.wikantik.connectors.web.SitemapConfig;
+import com.wikantik.connectors.web.WebCrawlerConfig;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;

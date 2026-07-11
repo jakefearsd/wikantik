@@ -67,6 +67,12 @@ public final class HttpPageFetcher implements PageFetcher {
             Thread.currentThread().interrupt();
             LOG.warn( "fetch interrupted for {}: {}", url, e.getMessage() );
             return new FetchResult( 0, null, new byte[0], url );
+        } catch ( final RuntimeException e ) {
+            // e.g. a malformed/non-http seed URL: URI.create / HttpRequest.newBuilder throw
+            // IllegalArgumentException. Fail-closed — the fetcher MUST never throw (a bad seed
+            // would otherwise escape poll() → 500 on the manual admin sync trigger).
+            LOG.warn( "fetch skipped for malformed url {}: {}", url, e.getMessage() );
+            return new FetchResult( 0, null, new byte[0], url );
         }
     }
 }

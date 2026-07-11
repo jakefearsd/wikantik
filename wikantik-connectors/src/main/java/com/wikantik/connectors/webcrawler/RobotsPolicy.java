@@ -82,6 +82,7 @@ public final class RobotsPolicy {
             final int port = uri.getPort();
             return port == -1 ? scheme + "://" + host : scheme + "://" + host + ":" + port;
         } catch ( final URISyntaxException e ) {
+            LOG.warn( "robots: could not derive host key for {}: {}", url, e.getMessage() );
             return null;
         }
     }

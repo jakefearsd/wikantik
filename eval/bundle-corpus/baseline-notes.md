@@ -517,3 +517,37 @@ it's built + beats control on this same RELATIONAL set, decomposition stays off.
 **Latency (separate gate, also not met):** gemma4-assist:latest planner is ~1s
 warm but 35–49s cold; the p95 ≤ 2s envelope needs a smaller/faster planner model
 regardless of the fusion fix.
+
+### 2026-07-11 (cont.) — round-robin fusion also REJECTED; the cost is structural
+
+Added a ROUND_ROBIN fusion mode (rank-interleave, reserves per-sub-query
+position so each list's top section lands in the first #lists slots) and re-ran
+the same RELATIONAL A/B.
+
+| Arm | hop-recall@12 | full multi-hop |
+|-----|---------------|----------------|
+| Control (decomposition off) | **0.611** | 3/9 |
+| Treatment — RRF fusion | 0.500 | 2/9 |
+| Treatment — round-robin fusion | 0.556 | 2/9 |
+
+Round-robin beats RRF (recovers r07) but is **still net-negative vs control** and
+**still fails the gate**. Two structural reasons — not fixable by fusion tuning:
+
+1. **The bundle is always full (12 sections), so surfacing a minority-side
+   section MUST displace an existing one.** Whatever gets displaced is sometimes
+   a co-located gold: r05 (both hops on one page) regressed 2/2→1/2 under BOTH
+   fusion strategies because a sub-query section bumped its rank-~11 second gold
+   out of top-12. A "backfill/union" fusion that never displaces would be a
+   no-op here (it can't lift a full bundle) — so there is no free lunch.
+2. **The planner doesn't reliably retrieve the specific minority-side gold.**
+   r08 stayed 1/2 under both — the blue-green gold section ("When canary wins")
+   was not retrieved by any sub-query, so no fusion can surface it.
+
+**Conclusion: server-side query decomposition does NOT clear the acceptance gate
+on this corpus under any tried fusion strategy. Feature stays OFF (default).**
+The remaining untried levers are (a) a planner prompt that forces one sub-query
+per named comparison entity, and (b) a trigger that skips single-page conjunctive
+questions — but tuning ≥2 coupled knobs on n=9 risks overfitting. The honest
+prerequisite is the roadmap's `[AGENT]` step: extend the multi-hop set to 15–25
+questions FIRST, then tune against a set large enough to trust. Both fusion modes
+ship (behind the default-off flag) as measured, documented dead-ends.

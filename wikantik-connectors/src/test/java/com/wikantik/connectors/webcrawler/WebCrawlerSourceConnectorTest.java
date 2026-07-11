@@ -55,6 +55,21 @@ class WebCrawlerSourceConnectorTest {
         assertTrue( b.complete() );
         assertTrue( b.items().stream().allMatch( i -> "text/html".equals( i.contentType() ) && i.contentHash().length() == 64 ) );
     }
+    @Test void respectRobotsFalseCrawlsDisallowedPage() {
+        // robots disallows /a, but respect_robots=false → /a IS crawled (robots not consulted).
+        PageFetcher f = url -> {
+            if ( url.equals( "https://ex.com/robots.txt" ) )
+                return new FetchResult( 200, "text/plain", "User-agent: *\nDisallow: /a\n".getBytes( java.nio.charset.StandardCharsets.UTF_8 ), url );
+            if ( url.equals( "https://ex.com/" ) ) return html( "https://ex.com/", "<a href='/a'>a</a>" );
+            if ( url.equals( "https://ex.com/a" ) ) return html( "https://ex.com/a", "<p>a</p>" );
+            return new FetchResult( 404, null, new byte[0], url );
+        };
+        WebCrawlerConfig c = new WebCrawlerConfig( List.of( "https://ex.com/" ), true, null, 100, 5, 0, "WikantikCrawler/1.0", false );
+        Set<String> uris = new HashSet<>();
+        for ( SourceItem i : new WebCrawlerSourceConnector( "web1", c, f, ms -> {} ).poll( null ).items() ) uris.add( i.sourceUri() );
+        assertTrue( uris.contains( "https://ex.com/a" ), "respect_robots=false must crawl the robots-disallowed page" );
+    }
+
     @Test void respectsMaxPages() {
         assertTrue( crawler( cfg( 2, 5 ) ).poll( null ).items().size() <= 2 );
     }

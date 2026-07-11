@@ -72,7 +72,7 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
 
             final String finalUrl = r.finalUrl() == null ? n.url : r.finalUrl();
             final String html = new String( r.body(), java.nio.charset.StandardCharsets.UTF_8 );
-            items.add( item( finalUrl, r ) );
+            items.add( item( finalUrl, r, html ) );
 
             if ( n.depth < config.maxDepth() ) {
                 for ( final String link : LinkExtractor.links( html, finalUrl ) ) {
@@ -90,18 +90,23 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
 
     private CrawlScope scopeFor( final String url ) {
         try { return new CrawlScope( URI.create( url ).getHost(), config.sameHostOnly(), config.pathPrefix() ); }
-        catch ( final RuntimeException e ) { return null; }
+        catch ( final RuntimeException e ) {
+            LOG.warn( "crawler '{}': could not derive scope for {}: {}", connectorId, url, e.getMessage() );
+            return null;
+        }
     }
 
     private void sleepPolitely( final RobotsPolicy robots, final String url ) {
-        final long delay = Math.max( config.delayMs(), robots.crawlDelayMs( url ) );
+        // Only consult robots crawl-delay when robots are respected — otherwise robots.txt is not fetched at all.
+        final long robotsDelay = config.respectRobots() ? robots.crawlDelayMs( url ) : 0L;
+        final long delay = Math.max( config.delayMs(), robotsDelay );
         if ( delay > 0 ) sleeper.accept( delay );
     }
 
-    private SourceItem item( final String url, final FetchResult r ) {
+    private SourceItem item( final String url, final FetchResult r, final String html ) {
         final Map< String, Object > md = new LinkedHashMap<>();
         md.put( "url", url );
-        md.put( "title", LinkExtractor.title( new String( r.body(), java.nio.charset.StandardCharsets.UTF_8 ) ) );
+        md.put( "title", LinkExtractor.title( html ) );
         md.put( "fetchedAt", Instant.now().toString() );      // NB: Instant.now is fine in prod; tests don't assert it
         md.put( "httpStatus", r.status() );
         return new SourceItem( url, r.body(), "text/html", md, List.of(), sha256Hex( r.body() ) );

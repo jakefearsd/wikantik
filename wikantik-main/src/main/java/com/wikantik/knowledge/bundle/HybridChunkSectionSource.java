@@ -89,7 +89,10 @@ public final class HybridChunkSectionSource implements SectionCandidateSource {
         final Map< UUID, MentionableChunk > byId = new LinkedHashMap<>();
         for ( final MentionableChunk c : chunkRepo.findByIds( ids ) ) byId.put( c.id(), c );
 
-        return SectionCandidates.of( groupToSections( fusedIds, byId ), topSim );
+        final Map< String, Double > denseCosById = new java.util.HashMap<>();
+        for ( final ScoredChunk sc : dense ) denseCosById.put( sc.chunkId().toString(), sc.score() );
+
+        return SectionCandidates.of( groupToSections( fusedIds, byId, denseCosById ), topSim, true );
     }
 
     /** One ranked chunk for the debug/sweep endpoint: id + raw ranker score. */
@@ -130,22 +133,25 @@ public final class HybridChunkSectionSource implements SectionCandidateSource {
 
     /**
      * Group the fused chunk order to sections, keeping the first (best-fused) chunk per
-     * {@code (slug, heading-path)}. Returns sections in fused order; the section score is a
-     * monotonically-decreasing proxy of fused rank (the bundle takes them in order, the
-     * value is for display). Package-private + static so the fusion/grouping is unit-tested
+     * {@code (slug, heading-path)}. Returns sections in fused order; the section score is
+     * its best-fused chunk's dense cosine ({@code 0.0} if that chunk had no dense score, e.g.
+     * a BM25-only match) — the same cosine scale as {@code topSimilarity}, so {@link KneeCutoff}
+     * can compare the two. Package-private + static so the fusion/grouping is unit-tested
      * without a live embedder or Lucene index.
      */
     static List< CandidateSection > groupToSections( final List< String > fusedIds,
-                                                     final Map< UUID, MentionableChunk > byId ) {
+                                                     final Map< UUID, MentionableChunk > byId,
+                                                     final Map< String, Double > denseCosById ) {
         final Map< SectionKey, CandidateSection > best = new LinkedHashMap<>();
-        int pos = 0;
         for ( final String fid : fusedIds ) {
             final MentionableChunk c = byId.get( UUID.fromString( fid ) );
             if ( c == null ) continue;
             final SectionKey key = new SectionKey( c.pageName(), c.headingPath() );
             if ( best.containsKey( key ) ) continue;
-            best.put( key, new CandidateSection( c.pageName(), c.headingPath(), c.text(), 1.0 / ( 1 + pos ) ) );
-            pos++;
+            // section score = its best-fused chunk's dense cosine (0.0 if the chunk had no dense score,
+            // e.g. BM25-only). Same cosine scale as topSimilarity, so the knee can apply.
+            best.put( key, new CandidateSection( c.pageName(), c.headingPath(), c.text(),
+                denseCosById.getOrDefault( fid, 0.0 ) ) );
         }
         return new ArrayList<>( best.values() );
     }

@@ -45,27 +45,41 @@ class HybridChunkSectionSourceTest {
         byId.put( A1, chunk( A1, "PageA", List.of( "Intro" ), "first chunk of intro" ) );
         byId.put( A2, chunk( A2, "PageA", List.of( "Intro" ), "second chunk of intro" ) );
         byId.put( B1, chunk( B1, "PageB", List.of( "Details" ), "details chunk" ) );
+        final Map< String, Double > denseCosById = Map.of( A1.toString(), 0.8, B1.toString(), 0.5 );
 
         final List< CandidateSection > out = HybridChunkSectionSource.groupToSections(
-            List.of( A1.toString(), A2.toString(), B1.toString() ), byId );
+            List.of( A1.toString(), A2.toString(), B1.toString() ), byId, denseCosById );
 
         assertEquals( 2, out.size() );
         assertEquals( "PageA", out.get( 0 ).slug() );
         assertEquals( List.of( "Intro" ), out.get( 0 ).headingPath() );
         assertEquals( "first chunk of intro", out.get( 0 ).text() );   // best-fused chunk wins, not A2
         assertEquals( "PageB", out.get( 1 ).slug() );
-        // Section score decreases with fused position so the bundle preserves fused order.
-        assertTrue( out.get( 0 ).denseScore() > out.get( 1 ).denseScore() );
+        // Section score is the best-fused chunk's real dense cosine (not a fused-rank proxy).
+        assertEquals( 0.8, out.get( 0 ).denseScore(), 1e-9 );
+        assertEquals( 0.5, out.get( 1 ).denseScore(), 1e-9 );
     }
 
     @Test
     void skipsFusedIdsMissingFromHydration() {
         final Map< UUID, MentionableChunk > byId = new LinkedHashMap<>();
         byId.put( B1, chunk( B1, "PageB", List.of( "Details" ), "details" ) );
+        final Map< String, Double > denseCosById = Map.of( B1.toString(), 0.5 );
         // A1 is in the fused order but absent from byId (e.g. dropped during hydration) → skipped.
         final List< CandidateSection > out = HybridChunkSectionSource.groupToSections(
-            List.of( A1.toString(), B1.toString() ), byId );
+            List.of( A1.toString(), B1.toString() ), byId, denseCosById );
         assertEquals( 1, out.size() );
         assertEquals( "PageB", out.get( 0 ).slug() );
+    }
+
+    @Test
+    void bm25OnlyChunkAbsentFromDenseMapScoresZero() {
+        final Map< UUID, MentionableChunk > byId = new LinkedHashMap<>();
+        byId.put( B1, chunk( B1, "PageB", List.of( "Details" ), "details chunk" ) );
+        // B1 has no entry in denseCosById (a BM25-only match) → denseScore defaults to 0.0.
+        final List< CandidateSection > out = HybridChunkSectionSource.groupToSections(
+            List.of( B1.toString() ), byId, Map.of() );
+        assertEquals( 1, out.size() );
+        assertEquals( 0.0, out.get( 0 ).denseScore(), 1e-9 );
     }
 }

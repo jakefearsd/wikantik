@@ -29,9 +29,10 @@ import java.util.List;
  *  cosine, not a rank proxy. This matters because {@link KneeCutoff} compares denseScore
  *  against {@code topSimilarity * retainRatio}; that comparison is only meaningful when both
  *  sides are cosines. The pure {@link DenseChunkSectionSource} path sets this true. The default
- *  {@link HybridChunkSectionSource} path (denseScore = {@code 1/(1+pos)}, a display-only rank
- *  proxy) and {@link RetrievalSectionSource} leave it false via the 2-arg {@link #of} — the
- *  safe default so the knee no-ops rather than truncating on a scale it can't compare.</p> */
+ *  {@link HybridChunkSectionSource} path also sets this true (denseScore = the best-fused
+ *  chunk's real dense cosine, 0.0 if BM25-only). {@link RetrievalSectionSource} leaves it false
+ *  via the 2-arg {@link #of} — the safe default so the knee no-ops rather than truncating on a
+ *  scale it can't compare.</p> */
 record SectionCandidates( List< CandidateSection > sections, double topSimilarity, boolean denseCosineScale ) {
     SectionCandidates {
         sections = sections == null ? List.of() : List.copyOf( sections );

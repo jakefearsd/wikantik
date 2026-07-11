@@ -81,15 +81,19 @@ class HybridChunkSectionSourceCandidatesTest {
         when( repo.findByIds( anyList() ) ).thenReturn( List.of(
             chunk( A1, "PageA", "Intro", "a1 text" ), chunk( B1, "PageB", "Details", "b1 text" ) ) );
 
-        final List< CandidateSection > out = new HybridChunkSectionSource(
-            embedder, dense, bm25, repo, fuser(), 50 ).candidates( "query" ).sections();
+        final SectionCandidates candidates = new HybridChunkSectionSource(
+            embedder, dense, bm25, repo, fuser(), 50 ).candidates( "query" );
+        final List< CandidateSection > out = candidates.sections();
 
         // A1 ranks first in both lists → fuses ahead of B1; one section per (slug, heading).
         assertEquals( 2, out.size() );
         assertEquals( "PageA", out.get( 0 ).slug() );
         assertEquals( "a1 text", out.get( 0 ).text() );
         assertEquals( "PageB", out.get( 1 ).slug() );
-        assertTrue( out.get( 0 ).denseScore() > out.get( 1 ).denseScore(), "fused-order proxy score decreases" );
+        // Section score is each section's best-fused chunk's real dense cosine, not a rank proxy.
+        assertEquals( 0.9, out.get( 0 ).denseScore(), 1e-9 );
+        assertEquals( 0.8, out.get( 1 ).denseScore(), 1e-9 );
+        assertTrue( candidates.denseCosineScale(), "hybrid path scores are real cosines" );
     }
 
     @Test
@@ -107,6 +111,8 @@ class HybridChunkSectionSourceCandidatesTest {
 
         assertEquals( 1, out.size() );
         assertEquals( "PageB", out.get( 0 ).slug() );
+        // BM25-only match has no entry in the dense-cosine map → denseScore defaults to 0.0.
+        assertEquals( 0.0, out.get( 0 ).denseScore(), 1e-9 );
         verify( dense, org.mockito.Mockito.never() ).topKChunks( any(), anyInt() );
     }
 

@@ -476,3 +476,44 @@ off by default); it simply doesn't earn a place in the default chain.
 
 Note: `retain_ratio ≤ 0.5` is a no-op on this distribution (cut line ≤ 0.38,
 below every section), which is why the earlier 0.5 attempt read as "== control".
+
+---
+
+## 2026-07-11 — Query decomposition (structure-conditional) built + A/B — REJECTED (fusion amplifies majority topic)
+
+Built the structure-conditional query-decomposition feature (lexical heuristic →
+fail-closed `LlmQueryPlanner` gemma4-assist:latest think:false → per-sub-query
+retrieval → N-ary RRF fusion → existing rerank/cut; default-off, byte-identical
+off; 6 SDD tasks + final-review fix, all reviewed clean, `main`). Ran the
+acceptance A/B over the 9 RELATIONAL multi-hop questions (local qwen3-embedding
+dense, remote gemma4-assist planner, warm).
+
+| Arm | hop-recall@12 | full multi-hop (both hops) |
+|-----|---------------|----------------------------|
+| Control (decomposition off) | **0.611** | 3/9 |
+| Treatment (decomposition on) | **0.500** | 2/9 |
+
+**Verdict: REJECTED — decomposition stays OFF (shipped default).** It fails all of
+the acceptance gate: multi-hop lift is NEGATIVE (−0.11), and it REGRESSES
+single-well-covered questions (r05 2/2→1/2, r07 1/2→0/2). It recovered ZERO
+cross-page comparative misses (r08 still 1/2).
+
+**Root cause (the important finding):** naive **N-ary RRF fusion score-sums**
+`1/(k+rank)` across the original + all sub-queries, so a section co-mentioned by
+several sub-queries outranks a gold section appearing in only one list. For a
+comparative query the dominant topic (e.g. "canary") appears across most
+sub-queries and the minority side ("blue-green") in few — so RRF **amplifies the
+majority and pushes the minority side further down**, the exact opposite of the
+goal. It also dilutes well-ranked co-located gold out of top-12 (r05/r07). The
+planner itself works (fires correctly, emits good sub-queries: r08 → 3 subs, 43
+fused sections); the **fusion strategy is the defect**.
+
+**Next lever (specific, not built):** replace score-summing RRF with a **quota /
+round-robin interleave** that RESERVES top-k budget per sub-query — guaranteeing
+minority-side representation in the final top-12 instead of letting majority
+co-mention win. That is the hypothesis that directly targets this failure. Until
+it's built + beats control on this same RELATIONAL set, decomposition stays off.
+
+**Latency (separate gate, also not met):** gemma4-assist:latest planner is ~1s
+warm but 35–49s cold; the p95 ≤ 2s envelope needs a smaller/faster planner model
+regardless of the fusion fix.

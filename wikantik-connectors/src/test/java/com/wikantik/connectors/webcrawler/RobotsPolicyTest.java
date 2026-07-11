@@ -38,7 +38,9 @@ class RobotsPolicyTest {
     @Test void crawlDelayParsed() {
         RobotsPolicy p = new RobotsPolicy( fetcherServing( Map.of(
             "https://ex.com/robots.txt", "User-agent: *\nCrawl-delay: 2\n" ) ), "WikantikCrawler/1.0" );
-        assertTrue( p.crawlDelayMs( "https://ex.com/x" ) >= 2000 );
+        // Crawl-delay: 2 → exactly 2000 ms. Bound BOTH ends: a one-sided >=2000 would also pass a
+        // seconds-vs-ms unit bug (2s treated as 2,000,000 ms), the exact regression this locks in.
+        assertEquals( 2000L, p.crawlDelayMs( "https://ex.com/x" ) );
     }
     @Test void unreachableRobotsAllowsAll() {
         RobotsPolicy p = new RobotsPolicy( fetcherServing( Map.of() ), "WikantikCrawler/1.0" ); // 404 robots

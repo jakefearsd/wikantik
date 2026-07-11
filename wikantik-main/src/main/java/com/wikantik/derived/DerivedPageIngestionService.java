@@ -175,7 +175,7 @@ public class DerivedPageIngestionService {
             }
 
             // Step 4 — build metadata
-            final Map< String, Object > metadata = buildMetadata( existing, filename, sha, er );
+            final Map< String, Object > metadata = buildMetadata( existing, filename, sha, er, opts );
 
             // Step 5 — write page first.
             // The page must exist before an attachment can be stored against it (the
@@ -228,7 +228,8 @@ public class DerivedPageIngestionService {
             final Optional< Map< String, Object > > existing,
             final String                            filename,
             final String                            sha,
-            final ExtractionResult                  er ) {
+            final ExtractionResult                  er,
+            final IngestOptions                     opts ) {
 
         // Start from existing metadata to preserve body-independent curation (tags, etc.)
         final Map< String, Object > meta = existing
@@ -236,7 +237,8 @@ public class DerivedPageIngestionService {
             .orElseGet( HashMap::new );
 
         // Always set the provenance keys (these are machine-owned)
-        meta.put( DerivedPage.DERIVED_FROM,             filename );
+        meta.put( DerivedPage.DERIVED_FROM,
+            opts.derivedFrom() != null ? opts.derivedFrom() : filename );
         meta.put( DerivedPage.DERIVED_EXTRACTOR,        "tika" );
         meta.put( DerivedPage.DERIVED_EXTRACTOR_VERSION, CURRENT_EXTRACTOR_VERSION );
         meta.put( DerivedPage.DERIVED_SOURCE_SHA,       sha );

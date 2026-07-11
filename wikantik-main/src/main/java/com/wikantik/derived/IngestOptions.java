@@ -21,7 +21,15 @@ package com.wikantik.derived;
 /**
  * Options controlling a single {@link DerivedPageIngestionService#ingest} call.
  *
- * @param force  when {@code true} re-ingest even if the source SHA is unchanged.
- * @param author wiki login name recorded as the page author on save.
+ * @param force       when {@code true} re-ingest even if the source SHA is unchanged.
+ * @param author      wiki login name recorded as the page author on save.
+ * @param derivedFrom explicit {@code derived_from} provenance; {@code null} means use the filename
+ *                    (backward-compatible default). Connectors set this to the source URI so
+ *                    provenance is decoupled from the (basename-derived) page name.
  */
-public record IngestOptions( boolean force, String author ) {}
+public record IngestOptions( boolean force, String author, String derivedFrom ) {
+    /** Backward-compatible 2-arg form: {@code derivedFrom = null} (provenance falls back to the filename). */
+    public IngestOptions( final boolean force, final String author ) {
+        this( force, author, null );
+    }
+}

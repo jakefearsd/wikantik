@@ -24,4 +24,12 @@ public interface SourceConnector {
     String connectorId();
     /** @param cursor last persisted checkpoint, or {@code null} for a full initial sync. */
     SyncBatch poll( SyncCursor cursor );
+    /**
+     * Whether this connector's {@link #poll} reflects the <em>full current source set</em>, so a
+     * previously-synced URI that is absent from a poll means "deleted at source" (the orchestrator
+     * tombstones it). Full-corpus connectors (filesystem, crawler, sitemap) return {@code true}.
+     * Windowed sources (e.g. an RSS/Atom feed showing only the latest N entries) return {@code false}
+     * so aged-out items are <em>archived</em>, not deleted.
+     */
+    default boolean reflectsFullCorpus() { return true; }
 }

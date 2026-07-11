@@ -111,6 +111,24 @@ class SyncOrchestratorTest {
         assertEquals( 2, r.created() );
     }
 
+    // A connector that does NOT reflect the full corpus (e.g. a feed window) → orchestrator must NOT
+    // tombstone a previously-synced URI merely because it's absent from this poll.
+    @Test void archiveConnectorDoesNotTombstoneAgedOutUris() {
+        FakeStore store = new FakeStore();
+        store.hash.put( "file:gone.md", "hg" ); store.page.put( "file:gone.md", "Gone" );   // previously synced
+        FakeSink sink = new FakeSink();
+        SourceConnector windowed = new SourceConnector() {
+            public String connectorId() { return "c1"; }
+            public SyncBatch poll( SyncCursor c ) {
+                return new SyncBatch( List.of( item( "file:a.md", "h1" ) ), List.of(), new SyncCursor( "c" ), true );
+            }
+            @Override public boolean reflectsFullCorpus() { return false; }   // archive
+        };
+        new SyncOrchestrator( store, sink ).sync( windowed );
+        assertTrue( sink.deleted.isEmpty(), "windowed connector must not tombstone aged-out URIs" );
+        assertTrue( store.hash.containsKey( "file:gone.md" ), "aged-out URI stays synced (archived)" );
+    }
+
     @Test void failedIngestIsNotRecordedSoItRetries() {
         FakeStore store = new FakeStore();
         DerivedPageSink failing = new DerivedPageSink() {

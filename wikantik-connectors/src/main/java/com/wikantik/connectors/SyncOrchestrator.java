@@ -79,8 +79,8 @@ public final class SyncOrchestrator {
             for ( final String uri : batch.tombstonedUris() ) {
                 deleted += tombstone( id, uri );
             }
-            // derived tombstones: only on a COMPLETE batch, known URIs not seen this scan
-            if ( batch.complete() ) {
+            // derived tombstones: only on a COMPLETE batch from a full-corpus connector
+            if ( batch.complete() && connector.reflectsFullCorpus() ) {
                 for ( final String uri : store.knownUris( id ) ) {
                     if ( !seen.contains( uri ) && !batch.tombstonedUris().contains( uri ) ) {
                         deleted += tombstone( id, uri );

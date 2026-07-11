@@ -81,4 +81,12 @@ class KneeCutoffTest {
         final var s = List.of( sec( 0.90 ), sec( 0.80 ), sec( 0.20 ) );
         assertEquals( 2, n( KneeCutoff.of( true, 2.0 ), s, 12 ) );
     }
+
+    @Test
+    void countsAllAboveLine_notJustLeadingRun_forFusedOrderInput() {
+        // fused (non-descending) order: 0.90 (above), 0.20 (below), 0.80 (above); top 0.90, ratio 0.5 -> line 0.45.
+        // leading-run logic would stop at 0.20 -> 1; correct count-above-line -> 2.
+        final var s = List.of( sec( 0.90 ), sec( 0.20 ), sec( 0.80 ) );
+        assertEquals( 2, KneeCutoff.of( true, 0.5 ).effectiveN( s, 0.90, 12 ) );
+    }
 }

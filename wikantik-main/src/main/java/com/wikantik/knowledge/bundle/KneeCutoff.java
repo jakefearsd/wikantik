@@ -20,10 +20,10 @@ package com.wikantik.knowledge.bundle;
 
 import java.util.List;
 
-/** Dynamic-N selector: how many leading (dense-sorted) sections to keep before the score falls off a
- *  cliff. Ratio-to-top elbow — keep candidates whose {@code denseScore ≥ topSimilarity·retainRatio},
- *  clamped to {@code [1, maxSections]}. Disabled, or a non-dense path ({@code topSimilarity < 0}), or an
- *  empty list all return {@code maxSections} (the fixed cut — byte-identical to pre-knee behaviour). */
+/** Dynamic-N selector: count of candidates whose denseScore ≥ topSimilarity·retainRatio
+ *  (order-independent), clamped [1, maxSections]. Disabled, or a non-dense path
+ *  ({@code topSimilarity < 0}), or an empty list all return {@code maxSections} (the fixed cut —
+ *  byte-identical to pre-knee behaviour). */
 record KneeCutoff( boolean enabled, double retainRatio ) {
 
     static KneeCutoff disabled() {
@@ -42,9 +42,7 @@ record KneeCutoff( boolean enabled, double retainRatio ) {
         final double retainLine = topSimilarity * retainRatio;
         int kept = 0;
         for ( final CandidateSection c : denseSorted ) {
-            if ( c.denseScore() < retainLine ) break;   // descending scores → first miss ends the run
-            kept++;
-            if ( kept >= maxSections ) break;
+            if ( c.denseScore() >= retainLine ) kept++;
         }
         return Math.max( 1, Math.min( kept, maxSections ) );
     }

@@ -431,10 +431,12 @@ coverage signal sharpens (weak-coverage bundles get shorter). Manual run against
 | knee on, retain 0.5 |  |  |  |
 | knee on, retain 0.4 |  |  |  |
 
-**Scope:** the knee currently activates only on the pure-dense candidate path
-(`wikantik.bundle.bm25.enabled=false`), where denseScore is a cosine on the same scale as
-topSimilarity. On the DEFAULT hybrid path denseScore is a rank proxy (1/(1+pos)), so the knee
-no-ops there — making it meaningful on the default path requires carrying real dense cosines
-through HybridChunkSectionSource (a follow-up). Also: knee-N is derived from the dense order but
-applied to the reranked+deduped output, so under an active reorder chain (mmr/metadata-boost) the
-kept set is "fewer sections" but not guaranteed the densest.
+- **Scope (updated):** the knee now applies on BOTH the pure-dense and the default hybrid path (the hybrid
+  section score is the best-fused chunk's real dense cosine as of 2026-07-11). On the hybrid path the knee is
+  a DENSE-relevance cutoff: a section strong in BM25 but weak/absent in dense (denseScore ~0) can be cut.
+  Dense dominates the fusion (weight 1.5 vs 0.5), so this is usually benign, but a fused-relevance knee
+  (a real HybridFuser score) is the future refinement. Measure recall@12 on the DEFAULT (bm25.enabled=true)
+  config now, not only the pure-dense config.
+
+Also: knee-N is derived from the dense order but applied to the reranked+deduped output, so under an
+active reorder chain (mmr/metadata-boost) the kept set is "fewer sections" but not guaranteed the densest.

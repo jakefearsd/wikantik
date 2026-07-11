@@ -148,8 +148,10 @@ public final class HybridChunkSectionSource implements SectionCandidateSource {
             if ( c == null ) continue;
             final SectionKey key = new SectionKey( c.pageName(), c.headingPath() );
             if ( best.containsKey( key ) ) continue;
-            // section score = its best-fused chunk's dense cosine (0.0 if the chunk had no dense score,
-            // e.g. BM25-only). Same cosine scale as topSimilarity, so the knee can apply.
+            // section score = its best-FUSED chunk's dense cosine (0.0 if that chunk had no dense score,
+            // e.g. BM25-only). Same cosine scale as topSimilarity, so the knee can apply. NB: this is the
+            // fused-first chunk's cosine, NOT the section's max dense cosine (DenseChunkSectionSource takes
+            // the max), so a section with a high-cosine non-fused-first chunk can carry a lower score here.
             best.put( key, new CandidateSection( c.pageName(), c.headingPath(), c.text(),
                 denseCosById.getOrDefault( fid, 0.0 ) ) );
         }

@@ -440,3 +440,9 @@ coverage signal sharpens (weak-coverage bundles get shorter). Manual run against
 
 Also: knee-N is derived from the dense order but applied to the reranked+deduped output, so under an
 active reorder chain (mmr/metadata-boost) the kept set is "fewer sections" but not guaranteed the densest.
+
+Also (2026-07-11): the real-cosine hybrid score change affects `MmrSectionReranker` too — its relevance term
+(`normalizedRelevance` over `denseScore`) now reads real cosines on the hybrid path, so an enabled `mmr`
+chain weighs real dense relevance (ignoring the BM25 half; BM25-only sections → relevance ≈ 0) rather than
+the old fused-rank proxy. Arguably more correct, off by default; note it when measuring the chain on the
+hybrid config. `MetadataBoostSectionReranker` is unaffected (it never reads `denseScore`).

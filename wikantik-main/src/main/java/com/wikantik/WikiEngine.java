@@ -1127,6 +1127,18 @@ public class WikiEngine implements Engine {
             // kicks a startup-if-empty rebuild. setManager-only, so ArchUnit-neutral.
             final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontologyCoordinator =
                     com.wikantik.ontology.runtime.OntologyWiringHelper.wireOntology( this, props, ds, pageManager, filterManager );
+
+            // Wire the connector runtime (ConnectorWiringHelper): builds Phase-1 filesystem
+            // connectors from config + registers the ConnectorRuntime. Default-off
+            // (wikantik.connectors.enabled != true) and fail-closed — a wiring failure must
+            // not break the rest of startup (drift/citation/entity-extraction wiring below).
+            try {
+                com.wikantik.derived.ConnectorWiringHelper.wireConnectors(
+                    this, props, ds, pageManager, serviceRegistry.get( AttachmentManager.class ) );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "connector runtime wiring failed (continuing without connectors): {}", e.getMessage() );
+            }
+
             // Note: wireOntology's startup rebuildIfEmpty() has already run, so a first-boot
             // rebuild does NOT trigger a drift sweep — the first sweep comes from the nightly
             // scheduler or the admin dashboard. Intentional: keeps first deploy fast.

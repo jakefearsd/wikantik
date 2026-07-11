@@ -63,6 +63,12 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
+            <artifactId>wikantik-connectors</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>wikantik-cache</artifactId>
             <version>${project.version}</version>
         </dependency>

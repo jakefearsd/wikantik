@@ -446,3 +446,33 @@ Also (2026-07-11): the real-cosine hybrid score change affects `MmrSectionRerank
 chain weighs real dense relevance (ignoring the BM25 half; BM25-only sections → relevance ≈ 0) rather than
 the old fused-rank proxy. Arguably more correct, off by default; note it when measuring the chain on the
 hybrid config. `MetadataBoostSectionReranker` is unaffected (it never reads `denseScore`).
+
+---
+
+## 2026-07-11 — Knee-cutoff (dynamic-N) live A/B — REJECTED
+
+Ran the `KneeCutoff` dynamic-N selector live against the local instance
+(local Ollama `qwen3-embedding:0.6b`, 1024-dim, matching the 18,608-row
+`content_chunk_embeddings` index — remote `inference.jakefear.com:11434` embed
+endpoint was wedged, so stood up a no-sudo user-local Ollama at
+`~/ollama-local` to unblock the dense path). Harness:
+`measure_recall.py` over the 54-question `queries.csv`, recall@12.
+
+| Arm | recall@12 | mean sections/bundle |
+|-----|-----------|----------------------|
+| knee OFF (default, dense alive) | **0.7037** | 12.00 |
+| knee `retain_ratio=0.90` | 0.4259 | 6.93 |
+| knee `retain_ratio=0.95` | 0.2778 | 3.06 |
+
+**Verdict: REJECTED — keep `wikantik.bundle.knee.enabled=false` (the shipped
+default).** Contextual document embeddings pack the section cosines into a
+tight high band (top ~0.76, gold sections clustered 0.68–0.72), so there is
+no cosine "knee" separating relevant from irrelevant. Any biting cut line
+(`retain_ratio ≥ 0.9`) discards recallable gold — recall drops 40–60% to save
+~40–75% of sections. For a recall-first bundle consumed by an LLM (12 sections
+is cheap), that is the wrong trade. Joins the LLM listwise reranker, HyDE, and
+doc2query as a measured-and-rejected lever. The code is correct (fail-closed,
+off by default); it simply doesn't earn a place in the default chain.
+
+Note: `retain_ratio ≤ 0.5` is a no-op on this distribution (cut line ≤ 0.38,
+below every section), which is why the earlier 0.5 attempt read as "== control".

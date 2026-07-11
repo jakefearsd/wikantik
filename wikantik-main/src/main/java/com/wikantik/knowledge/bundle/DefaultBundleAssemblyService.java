@@ -53,6 +53,9 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
     private final int maxSections;
     private final BundleCoverageCalculator coverageCalc;
     private final KneeCutoff knee;
+    private final QueryPlanner planner;
+    private final SubQueryFusion fusion;
+    private final boolean decompositionEnabled;
 
     /**
      * Page-gated constructor (retained for back-compat): wraps hybrid retrieval +
@@ -128,6 +131,27 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
                                          final int maxSections,
                                          final BundleCoverageCalculator coverageCalc,
                                          final KneeCutoff knee ) {
+        this( sources, defaultMode, reranker, canonicalIdOf, versionOf, maxSections, coverageCalc, knee,
+              new PassthroughQueryPlanner(), new SubQueryFusion( 60 ), false );
+    }
+
+    /**
+     * Canonical constructor with structure-conditional query decomposition (default off).
+     * When {@code decompositionEnabled} and {@link QueryStructureHeuristic#looksMultiPart(String)}
+     * both hold, the {@code planner} splits the query into sub-queries whose per-query candidates
+     * are fused via {@code fusion} before reranking.
+     */
+    public DefaultBundleAssemblyService( final Map< RetrievalMode, SectionCandidateSource > sources,
+                                         final RetrievalMode defaultMode,
+                                         final SectionReranker reranker,
+                                         final Function< String, Optional< String > > canonicalIdOf,
+                                         final Function< String, Integer > versionOf,
+                                         final int maxSections,
+                                         final BundleCoverageCalculator coverageCalc,
+                                         final KneeCutoff knee,
+                                         final QueryPlanner planner,
+                                         final SubQueryFusion fusion,
+                                         final boolean decompositionEnabled ) {
         Objects.requireNonNull( sources.get( defaultMode ), "defaultMode must be present in sources" );
         this.sources = Map.copyOf( sources );
         this.defaultMode = defaultMode;
@@ -137,6 +161,9 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         this.maxSections = maxSections;
         this.coverageCalc = coverageCalc;
         this.knee = knee;
+        this.planner = planner;
+        this.fusion = fusion;
+        this.decompositionEnabled = decompositionEnabled;
     }
 
     @Override
@@ -151,7 +178,18 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
             LOG.warn( "Retrieval mode {} has no wired source; degrading to default {}", mode, defaultMode );
             src = sources.get( defaultMode );
         }
-        final SectionCandidates cand = src.candidates( query );
+        SectionCandidates cand = src.candidates( query );
+        if ( decompositionEnabled && QueryStructureHeuristic.looksMultiPart( query ) ) {
+            final List< String > subs = planner.plan( query );     // fail-closed -> [query]
+            if ( subs.size() > 1 ) {
+                final List< SectionCandidates > perQuery = new ArrayList<>();
+                perQuery.add( cand );                               // include the original pass
+                for ( final String sq : subs ) perQuery.add( src.candidates( sq ) );
+                cand = fusion.fuse( perQuery );
+                LOG.info( "Bundle decomposition: '{}' -> {} sub-queries, fused {} sections",
+                    query, subs.size(), cand.sections().size() );
+            }
+        }
         final List< CandidateSection > ranked = reranker.rerank( query, cand.sections() );
         // knee only valid on cosine-scale dense candidates; and it counts dense-ranked N applied
         // to the reranked output — rerank picks which/order, knee picks how many.

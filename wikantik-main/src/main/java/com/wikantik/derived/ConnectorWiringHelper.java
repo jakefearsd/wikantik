@@ -29,6 +29,8 @@ import com.wikantik.connectors.runtime.ConnectorRuntime;
 import com.wikantik.connectors.runtime.ConnectorStatusReader;
 import com.wikantik.connectors.state.JdbcSyncStateStore;
 import com.wikantik.connectors.webcrawler.HttpPageFetcher;
+import com.wikantik.connectors.webcrawler.SitemapConfig;
+import com.wikantik.connectors.webcrawler.SitemapSourceConnector;
 import com.wikantik.connectors.webcrawler.WebCrawlerConfig;
 import com.wikantik.connectors.webcrawler.WebCrawlerSourceConnector;
 import org.apache.logging.log4j.LogManager;
@@ -62,9 +64,11 @@ public final class ConnectorWiringHelper {
         }
         final Map< String, String > roots = filesystemRoots( props );
         final Map< String, WebCrawlerConfig > webcrawlers = webcrawlerConfigs( props );
-        if ( roots.isEmpty() && webcrawlers.isEmpty() ) {
+        final Map< String, SitemapConfig > sitemaps = sitemapConfigs( props );
+        if ( roots.isEmpty() && webcrawlers.isEmpty() && sitemaps.isEmpty() ) {
             LOG.info( "connectors enabled but no wikantik.connectors.filesystem.*.root or "
-                + "wikantik.connectors.webcrawler.*.seeds configured — nothing to sync" );
+                + "wikantik.connectors.webcrawler.*.seeds or wikantik.connectors.sitemap.*.sitemap_urls "
+                + "configured — nothing to sync" );
             return Optional.empty();
         }
         final Map< String, SourceConnector > byId = new LinkedHashMap<>();
@@ -78,6 +82,12 @@ public final class ConnectorWiringHelper {
                 new HttpPageFetcher( e.getValue().userAgent(), java.time.Duration.ofSeconds( 20 ) ),
                 ms -> { try { Thread.sleep( ms ); } catch ( final InterruptedException ie ) { Thread.currentThread().interrupt(); } } ) );
             typeById.put( e.getKey(), "webcrawler" );
+        }
+        for ( final Map.Entry< String, SitemapConfig > e : sitemaps.entrySet() ) {
+            byId.put( e.getKey(), new SitemapSourceConnector( e.getKey(), e.getValue(),
+                new HttpPageFetcher( e.getValue().userAgent(), java.time.Duration.ofSeconds( 20 ) ),
+                ms -> { try { Thread.sleep( ms ); } catch ( final InterruptedException ie ) { Thread.currentThread().interrupt(); } } ) );
+            typeById.put( e.getKey(), "sitemap" );
         }
         final DerivedPageIngestionService ingestion = DerivedIngestionServiceFactory.build( engine, pm, am );
         final DerivedPageSinkAdapter sink = new DerivedPageSinkAdapter( ingestion, pm::deletePage, "connector-sync" );
@@ -126,6 +136,30 @@ public final class ConnectorWiringHelper {
                     parseLongValue( props, idPrefix + "delay_ms", 1000L ),
                     props.getProperty( idPrefix + "user_agent", "WikantikCrawler/1.0 (+https://wiki.wikantik.com)" ).trim(),
                     Boolean.parseBoolean( props.getProperty( idPrefix + "respect_robots", "true" ).trim() ) ) );
+            }
+        }
+        return out;
+    }
+
+    /** id → config for every {@code wikantik.connectors.sitemap.<id>.sitemap_urls} key (plus its sibling
+     *  per-id options). Package-visible for testing. An id with no non-blank {@code sitemap_urls} is skipped. */
+    static Map< String, SitemapConfig > sitemapConfigs( final Properties props ) {
+        final String p = PREFIX + "sitemap.";
+        final Map< String, SitemapConfig > out = new LinkedHashMap<>();
+        for ( final String key : props.stringPropertyNames() ) {
+            if ( key.startsWith( p ) && key.endsWith( ".sitemap_urls" ) ) {
+                final String id = key.substring( p.length(), key.length() - ".sitemap_urls".length() );
+                if ( id.isBlank() || id.contains( "." ) ) continue;
+                final List< String > sitemapUrls = parseSeeds( props.getProperty( key ) );
+                if ( sitemapUrls.isEmpty() ) continue;
+                final String idPrefix = p + id + ".";
+                out.put( id, new SitemapConfig(
+                    sitemapUrls,
+                    parseInt( props, idPrefix + "max_pages", 500 ),
+                    parseLongValue( props, idPrefix + "delay_ms", 1000L ),
+                    props.getProperty( idPrefix + "user_agent", "WikantikCrawler/1.0 (+https://wiki.wikantik.com)" ).trim(),
+                    Boolean.parseBoolean( props.getProperty( idPrefix + "respect_robots", "true" ).trim() ),
+                    Boolean.parseBoolean( props.getProperty( idPrefix + "same_host_only", "true" ).trim() ) ) );
             }
         }
         return out;

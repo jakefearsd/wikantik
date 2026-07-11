@@ -18,6 +18,7 @@
  */
 package com.wikantik.derived;
 
+import com.wikantik.connectors.webcrawler.SitemapConfig;
 import com.wikantik.connectors.webcrawler.WebCrawlerConfig;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -66,5 +67,25 @@ class ConnectorWiringHelperTest {
 
     @Test void noFilesystemRootsMeansEmptyMap() {
         assertTrue( ConnectorWiringHelper.filesystemRoots( new Properties() ).isEmpty() );
+    }
+
+    @Test void parsesSitemapConfigsById() {
+        Properties p = new Properties();
+        p.setProperty( "wikantik.connectors.sitemap.site.sitemap_urls", "https://a.com/sitemap.xml, https://a.com/sm2.xml" );
+        p.setProperty( "wikantik.connectors.sitemap.site.max_pages", "250" );
+        p.setProperty( "wikantik.connectors.sitemap.site.same_host_only", "false" );
+        Map< String, SitemapConfig > cfgs = ConnectorWiringHelper.sitemapConfigs( p );
+        assertEquals( 1, cfgs.size() );
+        SitemapConfig c = cfgs.get( "site" );
+        assertEquals( List.of( "https://a.com/sitemap.xml", "https://a.com/sm2.xml" ), c.sitemapUrls() );
+        assertEquals( 250, c.maxPages() );
+        assertFalse( c.sameHostOnly() );
+        assertTrue( c.respectRobots() );   // default
+    }
+
+    @Test void sitemapRequiresUrls() {
+        Properties p = new Properties();
+        p.setProperty( "wikantik.connectors.sitemap.nope.max_pages", "10" );  // no sitemap_urls → skipped
+        assertTrue( ConnectorWiringHelper.sitemapConfigs( p ).isEmpty() );
     }
 }

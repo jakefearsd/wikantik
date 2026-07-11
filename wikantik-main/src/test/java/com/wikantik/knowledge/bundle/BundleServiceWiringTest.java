@@ -328,6 +328,42 @@ class BundleServiceWiringTest {
         assertSame( in, BundleServiceWiring.rerankerFor( new Properties() ).rerank( "q", in ) );
     }
 
+    /* ---------- build(): query-decomposition wiring (default off) ---------- */
+
+    @Test
+    void decompositionDisabledByDefaultWiresPassthrough() {
+        // No decomposition keys -> passthrough planner wired; a single-intent assemble
+        // must work without ever attempting an Ollama call.
+        final BundleAssemblyService svc = BundleServiceWiring.build(
+            stubRetrieval(), null, null, null, new Properties() );
+        assertNotNull( svc );
+        assertEquals( "q", svc.assemble( "q" ).query() );
+    }
+
+    @Test
+    void decompositionConfigParsedFromProperties() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.bundle.decomposition.enabled", "true" );
+        p.setProperty( "wikantik.bundle.decomposition.max_subqueries", "3" );
+        final BundleDecompositionConfig cfg = BundleDecompositionConfig.fromProperties( p );
+        assertTrue( cfg.enabled() );
+        assertEquals( 3, cfg.maxSubqueries() );
+    }
+
+    @Test
+    void decompositionEnabled_wiresLlmQueryPlanner() throws Exception {
+        // White-box check (same package): build() must actually thread cfg.enabled() into the
+        // planner choice, not just leave the constructor defaults (which are passthrough/off).
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.bundle.decomposition.enabled", "true" );
+        final BundleAssemblyService svc = BundleServiceWiring.build( stubRetrieval(), null, null, null, p );
+        assertNotNull( svc );
+        final java.lang.reflect.Field plannerField = DefaultBundleAssemblyService.class.getDeclaredField( "planner" );
+        plannerField.setAccessible( true );
+        assertInstanceOf( LlmQueryPlanner.class, plannerField.get( svc ),
+            "decomposition.enabled=true must wire the LLM planner, not the constructor default" );
+    }
+
     @Test
     void metadataBoostPositionsAndWindow_defaultsAndParse() {
         assertEquals( 1.5, BundleServiceWiring.metadataBoostPositions( new Properties() ), 1e-9 );

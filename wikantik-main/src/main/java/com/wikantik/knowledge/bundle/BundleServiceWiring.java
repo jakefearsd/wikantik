@@ -28,6 +28,7 @@ import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.net.http.HttpClient;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -131,11 +132,16 @@ public final class BundleServiceWiring {
         final String rerankerLabel = reranker instanceof SectionRerankChain c ? "chain(" + c.stages().size() + ")"
             : reranker instanceof LlmSectionReranker ? "on" : "off";
         final String kneeLabel = kneeEnabled( props ) ? ( "on/ratio=" + kneeRetainRatio( props ) ) : "off";
-        LOG.info( "Bundle assembly service wired (modes={}, reranker={}, maxSections={}, knee={})",
-            sources.keySet(), rerankerLabel, MAX_SECTIONS, kneeLabel );
+        final BundleDecompositionConfig decompositionConfig = BundleDecompositionConfig.fromProperties( props );
+        final QueryPlanner planner = decompositionConfig.enabled()
+            ? new LlmQueryPlanner( HttpClient.newHttpClient(), decompositionConfig )
+            : new PassthroughQueryPlanner();
+        LOG.info( "Bundle assembly service wired (modes={}, reranker={}, maxSections={}, knee={}, decomposition={})",
+            sources.keySet(), rerankerLabel, MAX_SECTIONS, kneeLabel, decompositionConfig.enabled() );
         return new DefaultBundleAssemblyService(
             sources, RetrievalMode.HYBRID, reranker, canonicalIdOf, versionOf, MAX_SECTIONS,
-            coverageCalcFrom( props ), KneeCutoff.of( kneeEnabled( props ), kneeRetainRatio( props ) ) );
+            coverageCalcFrom( props ), KneeCutoff.of( kneeEnabled( props ), kneeRetainRatio( props ) ),
+            planner, new SubQueryFusion( decompositionConfig.rrfK() ), decompositionConfig.enabled() );
     }
 
     /** Knee cutoff on/off, {@code wikantik.bundle.knee.enabled}, default false (fixed top-N). */

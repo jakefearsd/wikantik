@@ -79,4 +79,13 @@ class ConnectorRuntimeTest {
         rt.stop();
         assertFalse( rt.isSchedulerRunning() );
     }
+
+    @Test void doubleStartRestartsWithoutLeakingAndStopsCleanly() {
+        ConnectorRuntime rt = runtime( mock( DataSource.class ), connector( "fs1" ) );
+        rt.startScheduler( 24 );
+        rt.startScheduler( 24 );        // idempotent restart — must not orphan the first executor
+        assertTrue( rt.isSchedulerRunning() );
+        rt.stop();
+        assertFalse( rt.isSchedulerRunning() );
+    }
 }

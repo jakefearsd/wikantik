@@ -71,6 +71,12 @@ public final class ConnectorRuntime {
             LOG.info( "connector sync scheduler disabled (interval={}h)", intervalHours );
             return;
         }
+        if ( isSchedulerRunning() ) {
+            // idempotent restart — shut the prior executor down first so a second start
+            // (e.g. a startup retry) can't orphan a live scheduled task
+            LOG.warn( "connector sync scheduler already running — restarting" );
+            stop();
+        }
         executor = Executors.newSingleThreadScheduledExecutor( r -> {
             final Thread t = new Thread( r, "wikantik-connector-sync-scheduler" );
             t.setDaemon( true );

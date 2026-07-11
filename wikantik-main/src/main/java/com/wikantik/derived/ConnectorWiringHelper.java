@@ -19,10 +19,12 @@
 package com.wikantik.derived;
 
 import com.wikantik.WikiEngine;
+import com.wikantik.api.connectors.CredentialStore;
 import com.wikantik.api.connectors.SourceConnector;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.connectors.SyncOrchestrator;
+import com.wikantik.connectors.credential.JdbcCredentialStore;
 import com.wikantik.connectors.filesystem.FilesystemSourceConnector;
 import com.wikantik.connectors.runtime.ConnectorRegistry;
 import com.wikantik.connectors.runtime.ConnectorRuntime;
@@ -35,6 +37,7 @@ import com.wikantik.connectors.web.SitemapConfig;
 import com.wikantik.connectors.web.SitemapSourceConnector;
 import com.wikantik.connectors.web.WebCrawlerConfig;
 import com.wikantik.connectors.web.WebCrawlerSourceConnector;
+import com.wikantik.util.AesGcmCipher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -61,6 +64,10 @@ public final class ConnectorWiringHelper {
 
     public static Optional< ConnectorRuntime > wireConnectors( final WikiEngine engine, final Properties props,
             final DataSource ds, final PageManager pm, final AttachmentManager am ) {
+        // Registered unconditionally — an operator sets credentials before any connector is wired,
+        // so the store must exist regardless of wikantik.connectors.enabled. Fail-closed: disabled
+        // (enabled()==false) whenever no/invalid master key is configured.
+        engine.setManager( CredentialStore.class, new JdbcCredentialStore( ds, cipherFrom( props ) ) );
         if ( !Boolean.parseBoolean( props.getProperty( PREFIX + "enabled", "false" ) ) ) {
             return Optional.empty();
         }
@@ -109,6 +116,21 @@ public final class ConnectorWiringHelper {
         runtime.startScheduler( intervalHours );
         LOG.info( "connector runtime wired: {} connector(s), scheduler interval {}h", byId.size(), intervalHours );
         return Optional.of( runtime );
+    }
+
+    /** Builds the credential-encryption cipher from {@code wikantik.connectors.crypto.key} (base64,
+     *  32-byte AES-256 key). Blank/absent or invalid ⇒ {@code null} (credential storage disabled,
+     *  fail-closed); never logs the key value. Package-visible for testing. */
+    static AesGcmCipher cipherFrom( final Properties props ) {
+        final String b64 = props.getProperty( PREFIX + "crypto.key" );
+        if ( b64 == null || b64.isBlank() ) return null;
+        try {
+            return new AesGcmCipher( AesGcmCipher.keyFromBase64( b64.trim() ) );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "wikantik.connectors.crypto.key is invalid (need base64 32-byte AES-256 key) — "
+                + "credential storage disabled: {}", e.getMessage() );   // never log the key value
+            return null;
+        }
     }
 
     /** id → root for every {@code wikantik.connectors.filesystem.<id>.root} key. Package-visible for testing. */

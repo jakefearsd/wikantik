@@ -18,6 +18,7 @@
  */
 package com.wikantik.derived;
 
+import com.wikantik.WikiEngine;
 import com.wikantik.connectors.web.FeedConfig;
 import com.wikantik.connectors.web.SitemapConfig;
 import com.wikantik.connectors.web.WebCrawlerConfig;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 class ConnectorWiringHelperTest {
 
@@ -62,8 +64,28 @@ class ConnectorWiringHelperTest {
     }
 
     @Test void disabledByDefaultReturnsEmpty() {
-        // enabled flag absent → wireConnectors is a no-op. Pass nulls for collaborators it must not touch.
-        assertTrue( ConnectorWiringHelper.wireConnectors( null, new Properties(), null, null, null ).isEmpty() );
+        // enabled flag absent → wireConnectors is a no-op (no ConnectorRuntime). The CredentialStore
+        // is still registered unconditionally (see cipherFrom tests below), so engine must be real
+        // enough to accept setManager; ds may stay null (JdbcCredentialStore doesn't touch it eagerly).
+        final WikiEngine engine = mock( WikiEngine.class );
+        assertTrue( ConnectorWiringHelper.wireConnectors( engine, new Properties(), null, null, null ).isEmpty() );
+    }
+
+    @Test void cipherFromValidKeyBuildsCipher() {
+        Properties p = new Properties();
+        byte[] k = new byte[32]; new java.security.SecureRandom().nextBytes( k );
+        p.setProperty( "wikantik.connectors.crypto.key", java.util.Base64.getEncoder().encodeToString( k ) );
+        assertNotNull( ConnectorWiringHelper.cipherFrom( p ) );
+    }
+
+    @Test void cipherFromAbsentOrInvalidKeyIsNull() {
+        assertNull( ConnectorWiringHelper.cipherFrom( new Properties() ) );                       // absent
+        Properties bad = new Properties();
+        bad.setProperty( "wikantik.connectors.crypto.key", "not-base64!!" );
+        assertNull( ConnectorWiringHelper.cipherFrom( bad ) );                                    // invalid → null (no throw)
+        Properties short_ = new Properties();
+        short_.setProperty( "wikantik.connectors.crypto.key", java.util.Base64.getEncoder().encodeToString( new byte[16] ) );
+        assertNull( ConnectorWiringHelper.cipherFrom( short_ ) );                                 // 16 bytes → null
     }
 
     @Test void noFilesystemRootsMeansEmptyMap() {

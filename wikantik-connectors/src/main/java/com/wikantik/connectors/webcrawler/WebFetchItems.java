@@ -44,6 +44,14 @@ final class WebFetchItems {
         return new SourceItem( url, r.body(), "text/html", md, List.of(), sha256Hex( r.body() ) );
     }
 
+    static SourceItem toItemFromContent( final String url, final byte[] htmlBytes, final String title ) {
+        final Map< String, Object > md = new LinkedHashMap<>();
+        md.put( "url", url );
+        md.put( "title", title == null ? "" : title );
+        md.put( "fetchedAt", Instant.now().toString() );
+        return new SourceItem( url, htmlBytes, "text/html", md, List.of(), sha256Hex( htmlBytes ) );
+    }
+
     static String sha256Hex( final byte[] bytes ) {
         try {
             final byte[] d = MessageDigest.getInstance( "SHA-256" ).digest( bytes );

@@ -41,4 +41,17 @@ class WebFetchItemsTest {
         assertEquals( 200, i.sourceMetadata().get( "httpStatus" ) );
         assertNotNull( i.sourceMetadata().get( "fetchedAt" ) );
     }
+    @Test void toItemFromContentBuildsTextHtmlItem() {
+        byte[] html = "<p>inline feed content</p>".getBytes( java.nio.charset.StandardCharsets.UTF_8 );
+        com.wikantik.api.connectors.SourceItem i = WebFetchItems.toItemFromContent( "https://ex.com/post", html, "My Post" );
+        assertEquals( "https://ex.com/post", i.sourceUri() );
+        assertEquals( "text/html", i.contentType() );
+        assertArrayEquals( html, i.content() );
+        assertTrue( i.aclRefs().isEmpty() );
+        assertEquals( 64, i.contentHash().length() );
+        assertEquals( "My Post", i.sourceMetadata().get( "title" ) );
+        assertEquals( "https://ex.com/post", i.sourceMetadata().get( "url" ) );
+        assertNotNull( i.sourceMetadata().get( "fetchedAt" ) );
+        assertFalse( i.sourceMetadata().containsKey( "httpStatus" ) );   // no page fetch
+    }
 }

@@ -188,6 +188,7 @@
     <module>wikantik-cache-memcached</module>
     <module>wikantik-http</module>
     <module>wikantik-ingest</module>
+    <module>wikantik-connectors</module>
     <module>wikantik-main</module>
     <module>wikantik-mcp-core</module>
     <module>wikantik-admin-mcp</module>

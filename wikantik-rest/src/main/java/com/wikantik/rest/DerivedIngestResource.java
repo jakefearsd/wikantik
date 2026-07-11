@@ -20,20 +20,14 @@ package com.wikantik.rest;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
-import com.wikantik.api.frontmatter.FrontmatterParser;
-import com.wikantik.api.managers.AttachmentManager;
-import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.pages.PageSaveHelper;
-import com.wikantik.api.pages.SaveOptions;
-import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
+import com.wikantik.derived.DerivedIngestionServiceFactory;
 import com.wikantik.derived.DerivedPageIngestionService;
 import com.wikantik.derived.IngestOptions;
 import com.wikantik.derived.IngestResult;
-import com.wikantik.ingest.TikaSourceExtractor;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,11 +37,9 @@ import jakarta.servlet.http.Part;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * REST endpoint for ingesting documents as derived wiki pages.
@@ -194,51 +186,8 @@ public class DerivedIngestResource extends RestServletBase {
      * Protected so tests can override without multipart or engine infrastructure.
      */
     protected DerivedPageIngestionService buildService() {
-        final Engine engine = getEngine();
-        final AttachmentManager am = getSubsystems().page().attachments();
-        final PageManager       pm = getSubsystems().page().pages();
-        final PageSaveHelper    saveHelper = new PageSaveHelper( engine, pm );
-
-        final DerivedPageIngestionService.AttachmentStore attachmentStore =
-            ( pageName, filename, bytes ) -> {
-                final var att = Wiki.contents().attachment( engine, pageName, filename );
-                am.storeAttachment( att, new ByteArrayInputStream( bytes ) );
-            };
-
-        final DerivedPageIngestionService.PageReader pageReader =
-            pageName -> {
-                try {
-                    final String text = pm.getPureText( pageName, WikiProvider.LATEST_VERSION );
-                    if ( text == null || text.isBlank() ) {
-                        return Optional.empty();
-                    }
-                    return Optional.of( FrontmatterParser.parse( text ).metadata() );
-                } catch ( final Exception e ) {
-                    LOG.warn( "DerivedIngestResource: could not read page '{}': {}", pageName, e.getMessage() );
-                    return Optional.empty();
-                }
-            };
-
-        final DerivedPageIngestionService.PageWriter pageWriter =
-            ( pageName, body, metadata, author ) -> {
-                final SaveOptions opts = SaveOptions.builder()
-                        .metadata( metadata )
-                        .author( author )
-                        .replaceMetadata( true )
-                        .changeNote( "derived page — ingested from source document" )
-                        .build();
-                saveHelper.saveText( pageName, body, opts );
-            };
-
-        final DerivedPageIngestionService.PageDeleter pageDeleter =
-            pageName -> pm.deletePage( pageName );
-
-        return new DerivedPageIngestionService(
-                new TikaSourceExtractor(),
-                attachmentStore,
-                pageReader,
-                pageWriter,
-                pageDeleter );
+        return DerivedIngestionServiceFactory.build(
+            getEngine(), getSubsystems().page().pages(), getSubsystems().page().attachments() );
     }
 
     // -------------------------------------------------------------------------

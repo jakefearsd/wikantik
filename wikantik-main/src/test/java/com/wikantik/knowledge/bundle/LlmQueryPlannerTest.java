@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
 class LlmQueryPlannerTest {
 
     private static BundleDecompositionConfig cfg() {
-        return new BundleDecompositionConfig( true, "gemma4-assist:latest", "http://localhost:11434", 4000, 4, 60 );
+        return new BundleDecompositionConfig( true, "gemma4-assist:latest", "http://localhost:11434", 4000, 4, 60, "rrf" );
     }
 
     @SuppressWarnings("unchecked")

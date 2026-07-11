@@ -141,7 +141,11 @@ public final class BundleServiceWiring {
         return new DefaultBundleAssemblyService(
             sources, RetrievalMode.HYBRID, reranker, canonicalIdOf, versionOf, MAX_SECTIONS,
             coverageCalcFrom( props ), KneeCutoff.of( kneeEnabled( props ), kneeRetainRatio( props ) ),
-            planner, new SubQueryFusion( decompositionConfig.rrfK() ), decompositionConfig.enabled() );
+            planner,
+            new SubQueryFusion( decompositionConfig.rrfK(),
+                "roundrobin".equalsIgnoreCase( decompositionConfig.fusion() )
+                    ? SubQueryFusion.Mode.ROUND_ROBIN : SubQueryFusion.Mode.RRF ),
+            decompositionConfig.enabled() );
     }
 
     /** Knee cutoff on/off, {@code wikantik.bundle.knee.enabled}, default false (fixed top-N). */

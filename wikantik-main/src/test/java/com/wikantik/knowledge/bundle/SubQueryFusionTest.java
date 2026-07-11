@@ -46,6 +46,37 @@ class SubQueryFusionTest {
         assertEquals( "When canary wins", fused.sections().get( 1 ).headingPath().get( 0 ) );
     }
 
+    @Test void roundRobinInterleavesTopOfEachListFirst() {
+        // ROUND_ROBIN reserves per-list position: every list's rank-0 lands in the first
+        // (#non-empty-lists) positions, so a minority-side sub-query survives the top-N cut
+        // even when the majority topic is co-mentioned across the other lists.
+        SectionCandidates a = SectionCandidates.of(
+            List.of( sec( "A", "a1", 0.9 ), sec( "A", "a2", 0.8 ), sec( "A", "a3", 0.7 ) ), 0.9, true );
+        SectionCandidates b = SectionCandidates.of(
+            List.of( sec( "B", "b1", 0.6 ), sec( "B", "b2", 0.5 ) ), 0.6, true );
+        SectionCandidates c = SectionCandidates.of(
+            List.of( sec( "C", "c1", 0.4 ) ), 0.4, true );
+
+        SectionCandidates fused =
+            new SubQueryFusion( 60, SubQueryFusion.Mode.ROUND_ROBIN ).fuse( List.of( a, b, c ) );
+
+        List< String > heads = fused.sections().stream().map( s -> s.headingPath().get( 0 ) ).toList();
+        assertEquals( List.of( "a1", "b1", "c1", "a2", "b2", "a3" ), heads );  // interleave order
+        // the minority list C's only section is in the first 3, not buried at the tail
+        assertTrue( heads.indexOf( "c1" ) < 3 );
+    }
+
+    @Test void roundRobinDedupsKeepsMaxDenseAndTopSim() {
+        SectionCandidates a = SectionCandidates.of( List.of( sec( "P", "H", 0.40 ) ), 0.40, true );
+        SectionCandidates b = SectionCandidates.of( List.of( sec( "P", "H", 0.90 ), sec( "Q", "K", 0.5 ) ), 0.90, false );
+        SectionCandidates fused =
+            new SubQueryFusion( 60, SubQueryFusion.Mode.ROUND_ROBIN ).fuse( List.of( a, b ) );
+        assertEquals( 2, fused.sections().size() );                 // (P,H) deduped
+        assertEquals( 0.90, fused.sections().get( 0 ).denseScore(), 1e-9 );  // max dense kept
+        assertEquals( 0.90, fused.topSimilarity(), 1e-9 );
+        assertTrue( !fused.denseCosineScale() );                    // any non-cosine input → false
+    }
+
     @Test void keepsMaxDenseScoreAcrossLists() {
         SectionCandidates a = SectionCandidates.of( List.of( sec( "P", "H", 0.40 ) ), 0.40, true );
         SectionCandidates b = SectionCandidates.of( List.of( sec( "P", "H", 0.90 ) ), 0.90, true );

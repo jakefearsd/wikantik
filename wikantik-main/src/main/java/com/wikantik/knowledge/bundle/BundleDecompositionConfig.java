@@ -35,6 +35,9 @@ import java.util.Properties;
  * @param timeoutMs      per-call decomposition timeout
  * @param maxSubqueries  cap on the number of sub-queries returned
  * @param rrfK           reciprocal-rank-fusion constant used when merging sub-query result sets
+ * @param fusion         sub-query fusion strategy: {@code "rrf"} (default) or {@code "roundrobin"}
+ *                       (see {@link SubQueryFusion} — round-robin reserves per-sub-query position
+ *                       so the minority side of a comparative query is not crowded out)
  */
 public record BundleDecompositionConfig(
     boolean enabled,
@@ -42,7 +45,8 @@ public record BundleDecompositionConfig(
     String baseUrl,
     long timeoutMs,
     int maxSubqueries,
-    double rrfK
+    double rrfK,
+    String fusion
 ) {
 
     private static final Logger LOG = LogManager.getLogger( BundleDecompositionConfig.class );
@@ -56,7 +60,8 @@ public record BundleDecompositionConfig(
             getString( props, "base_url", "http://inference.jakefear.com:11434" ),
             getLong( props, "timeout_ms", 4_000L ),
             getInt( props, "max_subqueries", 4 ),
-            getDouble( props, "rrf_k", 60 )
+            getDouble( props, "rrf_k", 60 ),
+            getString( props, "fusion", "rrf" )
         );
     }
 

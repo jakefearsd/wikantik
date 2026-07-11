@@ -184,7 +184,18 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
             if ( subs.size() > 1 ) {
                 final List< SectionCandidates > perQuery = new ArrayList<>();
                 perQuery.add( cand );                               // include the original pass
-                for ( final String sq : subs ) perQuery.add( src.candidates( sq ) );
+                final SectionCandidateSource subSrc = src;          // effectively-final for the loop
+                for ( final String sq : subs ) {
+                    // Guard each sub-query retrieval: a transient embedder/index error on one
+                    // sub-query must not abort a bundle single-pass would have returned. Skip the
+                    // failed sub-query and fuse whatever succeeded (the original is already in
+                    // perQuery, so worst case degrades to single-pass — "helps-or-no-ops").
+                    try {
+                        perQuery.add( subSrc.candidates( sq ) );
+                    } catch ( final RuntimeException e ) {
+                        LOG.warn( "Sub-query retrieval failed for '{}' (skipping): {}", sq, e.getMessage() );
+                    }
+                }
                 cand = fusion.fuse( perQuery );
                 LOG.info( "Bundle decomposition: '{}' -> {} sub-queries, fused {} sections",
                     query, subs.size(), cand.sections().size() );

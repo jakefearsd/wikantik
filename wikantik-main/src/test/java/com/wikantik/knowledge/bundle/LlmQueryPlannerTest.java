@@ -23,6 +23,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -75,5 +76,13 @@ class LlmQueryPlannerTest {
         HttpClient http = mock( HttpClient.class );
         when( http.< String >send( any(), any() ) ).thenThrow( new java.io.IOException( "conn refused" ) );
         assertEquals( List.of( "q" ), new LlmQueryPlanner( http, cfg() ).plan( "q" ) );
+    }
+
+    @Test void interruptedFailsClosedAndReinterrupts() throws Exception {
+        HttpClient http = mock( HttpClient.class );
+        when( http.< String >send( any(), any() ) ).thenThrow( new InterruptedException( "interrupted" ) );
+        List< String > out = new LlmQueryPlanner( http, cfg() ).plan( "q" );
+        assertEquals( List.of( "q" ), out );                    // fail-closed to single-pass
+        assertTrue( Thread.interrupted() );                     // interrupt flag re-set (and cleared here)
     }
 }

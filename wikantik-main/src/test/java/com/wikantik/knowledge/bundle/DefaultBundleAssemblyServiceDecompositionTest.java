@@ -63,6 +63,25 @@ class DefaultBundleAssemblyServiceDecompositionTest {
         assertTrue( slugs.stream().anyMatch( s -> s.contains( "blue-green side" ) ) );
     }
 
+    @Test void onSubQueryRetrievalFailureDegradesInsteadOfAborting() {
+        // One sub-query's retrieval throws; the bundle must still return (fusing the original +
+        // the sub-queries that succeeded) rather than propagating the exception. "helps-or-no-ops".
+        SectionCandidateSource src = new SectionCandidateSource() {
+            @Override public SectionCandidates candidates( final String query ) {
+                if ( "bad side".equals( query ) ) throw new RuntimeException( "transient embedder error" );
+                return SectionCandidates.of(
+                    List.of( new CandidateSection( "P-" + query, List.of( query ), query + " body", 0.7 ) ), 0.7, true );
+            }
+        };
+        QueryPlanner planner = q -> List.of( "good side", "bad side" );
+        ContextBundle b = svc( src, planner, true ).assemble( "good vs bad" );
+        // no exception; the original + the good sub-query survive, the failed one is skipped
+        List< String > slugs = b.sections().stream().map( s -> s.slug() ).toList();
+        assertTrue( slugs.stream().anyMatch( s -> s.contains( "good side" ) ) );
+        assertTrue( slugs.stream().anyMatch( s -> s.contains( "good vs bad" ) ) );  // original still present
+        assertTrue( b.sections().size() >= 1 );
+    }
+
     @Test void onButSingleIntentPlannerPassthroughIsSinglePass() {
         RecordingSource src = new RecordingSource();
         QueryPlanner planner = q -> List.of( q );        // passthrough

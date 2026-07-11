@@ -78,6 +78,7 @@ public class TikaSourceExtractor implements SourceExtractor {
         "text/plain",
         "text/markdown",
         "text/x-markdown",
+        "text/html",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

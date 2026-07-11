@@ -193,6 +193,24 @@ class TikaSourceExtractorTest {
         assertTrue( ex.supports( "Text/Plain" ) );
     }
 
+    // ------------------------------------------------------------------ text/html support
+
+    @Test
+    void supportsTextHtml() {
+        assertTrue( ex.supports( "text/html" ) );
+    }
+
+    @Test
+    void extractsMarkdownFromHtml() throws Exception {
+        final String html = "<html><head><title>T</title></head><body><h1>Hello</h1><p>World body.</p></body></html>";
+        try ( InputStream in = new ByteArrayInputStream( html.getBytes( StandardCharsets.UTF_8 ) ) ) {
+            final ExtractionResult r = ex.extract( in, "text/html", "page.html" );
+            assertFalse( r.isEmpty(), "html extraction should not be blank" );
+            assertTrue( r.markdownBody().toLowerCase().contains( "hello" ),
+                "body should carry the heading text: " + r.markdownBody() );
+        }
+    }
+
     // ------------------------------------------------------------------ parse-failure dispatch
 
     /**

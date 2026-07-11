@@ -671,6 +671,10 @@
        <servlet-class>com.wikantik.rest.ConnectorAdminResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>ConnectorCredentialsResource</servlet-name>
+       <servlet-class>com.wikantik.rest.ConnectorCredentialsResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminDriftResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminDriftResource</servlet-class>
    </servlet>
@@ -969,6 +973,10 @@
    <servlet-mapping>
        <servlet-name>ConnectorAdminResource</servlet-name>
        <url-pattern>/admin/connectors/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>ConnectorCredentialsResource</servlet-name>
+       <url-pattern>/admin/connector-credentials/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminDriftResource</servlet-name>

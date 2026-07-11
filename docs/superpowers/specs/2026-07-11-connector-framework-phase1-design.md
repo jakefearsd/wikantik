@@ -34,7 +34,15 @@ wikantik-main       NO new package — one thin adapter in the EXISTING com.wika
                       inject the sink adapter + JdbcSyncStateStore
 ```
 
-The orchestrator reaches the wiki only through the `DerivedPageSink` **port in `wikantik-api`**, so `wikantik-connectors` never depends on `wikantik-main`. This is the provider-pattern idiom the target-architecture says to copy. `wikantik-main`'s only growth is one adapter class in the package that already owns derived pages (thin wiring at an established seam — permitted by invariant #6).
+The orchestrator reaches the wiki only through the `DerivedPageSink` **port in `wikantik-api`**, so `wikantik-connectors` never depends on `wikantik-main`. This is the provider-pattern idiom the target-architecture says to copy. `wikantik-main`'s only growth is one adapter class + one minimal field on `IngestOptions`, both in the package that already owns derived pages (in-place growth of an existing package — permitted by invariant #6; no new package).
+
+### One in-place change to the existing derived seam (page-name / provenance decoupling)
+
+`DerivedPage.pageNameFor(filename)` derives the page name from the **basename only** and `DerivedPageIngestionService.ingest` sets `derived_from = filename`. Both are correct for single-file uploads but break for a connector syncing a *tree*: two files `a/x.md` and `b/x.md` collide to page "x", and `derived_from` can't be the full connector URI independently of the page name. Fix — the single change to `wikantik-main`:
+
+- Add one optional field to `IngestOptions`: `String derivedFrom` (`null` → current behavior: `derived_from = filename`). One line in `ingest` honors it: `meta.put(DERIVED_FROM, opts.derivedFrom() != null ? opts.derivedFrom() : filename)`. Backward-compatible (every existing caller passes the 2-arg form / `null`).
+
+The `DerivedPageSinkAdapter` then maps a `SourceItem` to `ingest(content, flatName, contentType, new IngestOptions(force=false, author, derivedFrom=sourceUri))`, where `flatName` is the connector's collision-free page-name seed (the relative path with `/`→`-`, e.g. `a/x.md`→`a-x.md`) and `derivedFrom` is the true `sourceUri`. This makes `derived_from` carry the connector URI (DoD #1) while page names stay unique across a tree.
 
 ### Contracts (`wikantik-api`, `com.wikantik.api.connectors`)
 
@@ -102,10 +110,10 @@ CREATE TABLE IF NOT EXISTS connector_synced_item (
     source_uri   TEXT NOT NULL,
     content_hash TEXT NOT NULL,
     page_name    TEXT NOT NULL,
-    acl_refs     JSONB NOT NULL DEFAULT '[]',
-    first_synced TIMESTAMPTZ NOT NULL DEFAULT now(),
-    last_synced  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (connector_id, source_uri)
+    acl_refs     TEXT NOT NULL DEFAULT '[]',   -- JSON array string; TEXT (not JSONB) keeps the DAO
+    first_synced TIMESTAMPTZ NOT NULL DEFAULT now(),  -- H2-unit-testable and Phase 1 never queries into it.
+    last_synced  TIMESTAMPTZ NOT NULL DEFAULT now(),  -- The ACL-enforcement phase migrates TEXT→JSONB when it
+    PRIMARY KEY (connector_id, source_uri)            -- needs to index/query the refs.
 );
 ```
 

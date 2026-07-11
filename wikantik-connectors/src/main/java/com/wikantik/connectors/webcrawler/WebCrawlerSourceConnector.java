@@ -23,8 +23,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
-import java.security.MessageDigest;
-import java.time.Instant;
 import java.util.*;
 import java.util.function.LongConsumer;
 
@@ -72,7 +70,7 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
 
             final String finalUrl = r.finalUrl() == null ? n.url : r.finalUrl();
             final String html = new String( r.body(), java.nio.charset.StandardCharsets.UTF_8 );
-            items.add( item( finalUrl, r, html ) );
+            items.add( WebFetchItems.toItem( finalUrl, r ) );
 
             if ( n.depth < config.maxDepth() ) {
                 for ( final String link : LinkExtractor.links( html, finalUrl ) ) {
@@ -103,26 +101,8 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
         if ( delay > 0 ) sleeper.accept( delay );
     }
 
-    private SourceItem item( final String url, final FetchResult r, final String html ) {
-        final Map< String, Object > md = new LinkedHashMap<>();
-        md.put( "url", url );
-        md.put( "title", LinkExtractor.title( html ) );
-        md.put( "fetchedAt", Instant.now().toString() );      // NB: Instant.now is fine in prod; tests don't assert it
-        md.put( "httpStatus", r.status() );
-        return new SourceItem( url, r.body(), "text/html", md, List.of(), sha256Hex( r.body() ) );
-    }
-
     private static boolean isHtml( final String contentType ) {
         return contentType != null && contentType.toLowerCase( Locale.ROOT ).contains( "text/html" );
-    }
-
-    private static String sha256Hex( final byte[] bytes ) {
-        try {
-            final byte[] d = MessageDigest.getInstance( "SHA-256" ).digest( bytes );
-            final StringBuilder sb = new StringBuilder( d.length * 2 );
-            for ( final byte b : d ) sb.append( Character.forDigit( ( b >> 4 ) & 0xF, 16 ) ).append( Character.forDigit( b & 0xF, 16 ) );
-            return sb.toString();
-        } catch ( final java.security.NoSuchAlgorithmException e ) { throw new IllegalStateException( e ); }
     }
 
     private record Node( String url, int depth ) {}

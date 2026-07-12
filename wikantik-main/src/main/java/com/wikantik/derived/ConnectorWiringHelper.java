@@ -20,12 +20,18 @@ package com.wikantik.derived;
 
 import com.wikantik.WikiEngine;
 import com.wikantik.api.connectors.CredentialStore;
+import com.wikantik.api.connectors.DriveAuthCoordinator;
 import com.wikantik.api.connectors.SourceConnector;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.connectors.SyncOrchestrator;
 import com.wikantik.connectors.credential.JdbcCredentialStore;
 import com.wikantik.connectors.filesystem.FilesystemSourceConnector;
+import com.wikantik.connectors.gdrive.DefaultDriveAuthCoordinator;
+import com.wikantik.connectors.gdrive.DriveConfig;
+import com.wikantik.connectors.gdrive.DriveSourceConnector;
+import com.wikantik.connectors.gdrive.GoogleDriveApiFactory;
+import com.wikantik.connectors.gdrive.GoogleDriveOAuthService;
 import com.wikantik.connectors.runtime.ConnectorRegistry;
 import com.wikantik.connectors.runtime.ConnectorRuntime;
 import com.wikantik.connectors.runtime.ConnectorStatusReader;
@@ -67,7 +73,8 @@ public final class ConnectorWiringHelper {
         // Registered unconditionally — an operator sets credentials before any connector is wired,
         // so the store must exist regardless of wikantik.connectors.enabled. Fail-closed: disabled
         // (enabled()==false) whenever no/invalid master key is configured.
-        engine.setManager( CredentialStore.class, new JdbcCredentialStore( ds, cipherFrom( props ) ) );
+        final CredentialStore credStore = new JdbcCredentialStore( ds, cipherFrom( props ) );
+        engine.setManager( CredentialStore.class, credStore );
         if ( !Boolean.parseBoolean( props.getProperty( PREFIX + "enabled", "false" ) ) ) {
             return Optional.empty();
         }
@@ -75,10 +82,12 @@ public final class ConnectorWiringHelper {
         final Map< String, WebCrawlerConfig > webcrawlers = webcrawlerConfigs( props );
         final Map< String, SitemapConfig > sitemaps = sitemapConfigs( props );
         final Map< String, FeedConfig > feeds = feedConfigs( props );
-        if ( roots.isEmpty() && webcrawlers.isEmpty() && sitemaps.isEmpty() && feeds.isEmpty() ) {
+        final Map< String, DriveConfig > drives = driveConfigs( props );
+        if ( roots.isEmpty() && webcrawlers.isEmpty() && sitemaps.isEmpty() && feeds.isEmpty() && drives.isEmpty() ) {
             LOG.info( "connectors enabled but no wikantik.connectors.filesystem.*.root or "
                 + "wikantik.connectors.webcrawler.*.seeds or wikantik.connectors.sitemap.*.sitemap_urls or "
-                + "wikantik.connectors.feed.*.feed_urls configured — nothing to sync" );
+                + "wikantik.connectors.feed.*.feed_urls or wikantik.connectors.gdrive.*.folder_ids configured "
+                + "— nothing to sync" );
             return Optional.empty();
         }
         final Map< String, SourceConnector > byId = new LinkedHashMap<>();
@@ -104,6 +113,17 @@ public final class ConnectorWiringHelper {
                 new HttpPageFetcher( e.getValue().userAgent(), java.time.Duration.ofSeconds( 20 ) ),
                 ms -> { try { Thread.sleep( ms ); } catch ( final InterruptedException ie ) { Thread.currentThread().interrupt(); } } ) );
             typeById.put( e.getKey(), "feed" );
+        }
+        final GoogleDriveApiFactory driveApiFactory = new GoogleDriveApiFactory();
+        for ( final Map.Entry< String, DriveConfig > e : drives.entrySet() ) {
+            final String id = e.getKey();
+            byId.put( id, new DriveSourceConnector( id, e.getValue(),
+                () -> credStore.get( id, "refresh_token" ), driveApiFactory ) );
+            typeById.put( id, "gdrive" );
+        }
+        if ( !drives.isEmpty() ) {
+            engine.setManager( DriveAuthCoordinator.class,
+                new DefaultDriveAuthCoordinator( drives, new GoogleDriveOAuthService(), credStore ) );
         }
         final DerivedPageIngestionService ingestion = DerivedIngestionServiceFactory.build( engine, pm, am );
         final DerivedPageSinkAdapter sink = new DerivedPageSinkAdapter( ingestion, pm::deletePage, "connector-sync" );
@@ -216,6 +236,35 @@ public final class ConnectorWiringHelper {
                     props.getProperty( idPrefix + "user_agent", "WikantikCrawler/1.0 (+https://wiki.wikantik.com)" ).trim(),
                     Boolean.parseBoolean( props.getProperty( idPrefix + "respect_robots", "true" ).trim() ),
                     Boolean.parseBoolean( props.getProperty( idPrefix + "same_host_only", "true" ).trim() ) ) );
+            }
+        }
+        return out;
+    }
+
+    /** id → config for every {@code wikantik.connectors.gdrive.<id>.folder_ids} key (plus its sibling
+     *  per-id options). Package-visible for testing. An id with no non-blank {@code folder_ids}, or
+     *  missing client_id/client_secret/redirect_uri, is skipped. */
+    static Map< String, DriveConfig > driveConfigs( final Properties props ) {
+        final String p = PREFIX + "gdrive.";
+        final Map< String, DriveConfig > out = new LinkedHashMap<>();
+        for ( final String key : props.stringPropertyNames() ) {
+            if ( key.startsWith( p ) && key.endsWith( ".folder_ids" ) ) {
+                final String id = key.substring( p.length(), key.length() - ".folder_ids".length() );
+                if ( id.isBlank() || id.contains( "." ) ) continue;
+                final List< String > folderIds = parseSeeds( props.getProperty( key ) );
+                if ( folderIds.isEmpty() ) continue;
+                final String idPrefix = p + id + ".";
+                final String clientId = blankToNull( props.getProperty( idPrefix + "client_id" ) );
+                final String clientSecret = blankToNull( props.getProperty( idPrefix + "client_secret" ) );
+                final String redirectUri = blankToNull( props.getProperty( idPrefix + "redirect_uri" ) );
+                if ( clientId == null || clientSecret == null || redirectUri == null ) {
+                    LOG.warn( "gdrive '{}': missing client_id/client_secret/redirect_uri — skipping", id );
+                    continue;
+                }
+                out.put( id, new DriveConfig( folderIds,
+                    parseInt( props, idPrefix + "max_files", 500 ),
+                    clientId, clientSecret, redirectUri,
+                    props.getProperty( idPrefix + "export_mime", "text/markdown" ).trim() ) );
             }
         }
         return out;

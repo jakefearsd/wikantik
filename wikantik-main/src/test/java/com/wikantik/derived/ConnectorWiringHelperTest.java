@@ -137,4 +137,26 @@ class ConnectorWiringHelperTest {
         p.setProperty( "wikantik.connectors.feed.nope.max_items", "10" );
         assertTrue( ConnectorWiringHelper.feedConfigs( p ).isEmpty() );
     }
+
+    @Test void driveConfigsParsesRequiredFieldsAndDefaults() {
+        Properties p = new Properties();
+        p.setProperty( "wikantik.connectors.gdrive.gd.folder_ids", "F1, F2" );
+        p.setProperty( "wikantik.connectors.gdrive.gd.client_id", "cid" );
+        p.setProperty( "wikantik.connectors.gdrive.gd.client_secret", "csec" );
+        p.setProperty( "wikantik.connectors.gdrive.gd.redirect_uri", "https://w/cb" );
+        Map<String, com.wikantik.connectors.gdrive.DriveConfig> cfgs = ConnectorWiringHelper.driveConfigs( p );
+        assertEquals( 1, cfgs.size() );
+        var c = cfgs.get( "gd" );
+        assertEquals( java.util.List.of( "F1", "F2" ), c.folderIds() );
+        assertEquals( "cid", c.clientId() );
+        assertEquals( "https://w/cb", c.redirectUri() );
+        assertEquals( 500, c.maxFiles() );                     // default
+        assertEquals( "text/markdown", c.exportMimeType() );   // default
+    }
+    @Test void driveConfigSkippedWhenRequiredFieldMissing() {
+        Properties p = new Properties();
+        p.setProperty( "wikantik.connectors.gdrive.gd.folder_ids", "F1" );
+        // no client_id/secret/redirect_uri
+        assertTrue( ConnectorWiringHelper.driveConfigs( p ).isEmpty() );
+    }
 }

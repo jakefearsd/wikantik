@@ -675,6 +675,10 @@
        <servlet-class>com.wikantik.rest.ConnectorCredentialsResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>GoogleDriveAuthResource</servlet-name>
+       <servlet-class>com.wikantik.rest.GoogleDriveAuthResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminDriftResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminDriftResource</servlet-class>
    </servlet>
@@ -977,6 +981,10 @@
    <servlet-mapping>
        <servlet-name>ConnectorCredentialsResource</servlet-name>
        <url-pattern>/admin/connector-credentials/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>GoogleDriveAuthResource</servlet-name>
+       <url-pattern>/admin/connector-oauth/gdrive/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminDriftResource</servlet-name>

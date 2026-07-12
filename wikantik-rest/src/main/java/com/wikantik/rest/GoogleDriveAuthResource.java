@@ -44,7 +44,7 @@ public class GoogleDriveAuthResource extends RestServletBase {
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response ) throws IOException {
         final DriveAuthCoordinator coordinator = resolveCoordinator();
         if ( coordinator == null ) {
-            response.sendError( HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Drive OAuth not configured" );
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Drive OAuth not configured" );
             return;
         }
         final String path = request.getPathInfo();   // e.g. /gd/authorize  or  /callback
@@ -53,7 +53,7 @@ public class GoogleDriveAuthResource extends RestServletBase {
         } else if ( "/callback".equals( path ) ) {
             handleCallback( request, response, coordinator );
         } else {
-            response.sendError( HttpServletResponse.SC_NOT_FOUND, "Unknown OAuth route" );
+            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown OAuth route" );
         }
     }
 
@@ -61,7 +61,7 @@ public class GoogleDriveAuthResource extends RestServletBase {
             final DriveAuthCoordinator coordinator, final String path ) throws IOException {
         final String id = path.substring( 1, path.length() - "/authorize".length() );   // strip leading '/' and suffix
         if ( id.isEmpty() || id.contains( "/" ) ) {
-            response.sendError( HttpServletResponse.SC_NOT_FOUND, "Bad connector id" );
+            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Bad connector id" );
             return;
         }
         final byte[] nonce = new byte[ 32 ];
@@ -69,7 +69,7 @@ public class GoogleDriveAuthResource extends RestServletBase {
         final String state = Base64.getUrlEncoder().withoutPadding().encodeToString( nonce );
         final Optional< String > url = coordinator.authorizationUrl( id, state );
         if ( url.isEmpty() ) {
-            response.sendError( HttpServletResponse.SC_NOT_FOUND, "Unknown Drive connector: " + id );
+            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown Drive connector: " + id );
             return;
         }
         request.getSession( true ).setAttribute( STATE_ATTR, state );
@@ -87,11 +87,11 @@ public class GoogleDriveAuthResource extends RestServletBase {
         request.getSession().removeAttribute( STATE_ATTR );
         request.getSession().removeAttribute( CONN_ATTR );
         if ( expectedState == null || stateParam == null || !expectedState.equals( stateParam ) || connectorId == null ) {
-            response.sendError( HttpServletResponse.SC_BAD_REQUEST, "Invalid or expired OAuth state" );
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid or expired OAuth state" );
             return;
         }
         if ( code == null || code.isBlank() ) {
-            response.sendError( HttpServletResponse.SC_BAD_REQUEST, "Missing authorization code" );
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Missing authorization code" );
             return;
         }
         final boolean ok = coordinator.completeAuthorization( connectorId.toString(), code );   // never logs the code
@@ -99,7 +99,7 @@ public class GoogleDriveAuthResource extends RestServletBase {
             response.setStatus( HttpServletResponse.SC_OK );
             sendJson( response, Map.of( "connectorId", connectorId.toString(), "status", "authorized" ) );
         } else {
-            response.sendError( HttpServletResponse.SC_BAD_GATEWAY, "Authorization failed" );
+            sendError( response, HttpServletResponse.SC_BAD_GATEWAY, "Authorization failed" );
         }
     }
 

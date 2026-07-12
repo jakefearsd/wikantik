@@ -77,7 +77,7 @@ class GoogleDriveAuthResourceTest {
     @Test void authorizeUnknownIdIs404() throws Exception {
         when( req.getPathInfo() ).thenReturn( "/nope/authorize" );
         new TestResource( new StubCoordinator() ).doGet( req, resp );
-        verify( resp ).sendError( eq( 404 ), anyString() );
+        verify( resp ).setStatus( 404 );
         verify( resp, never() ).sendRedirect( anyString() );
     }
 
@@ -101,7 +101,7 @@ class GoogleDriveAuthResourceTest {
         when( req.getParameter( "state" ) ).thenReturn( "WRONG" );
         when( req.getParameter( "code" ) ).thenReturn( "AUTHCODE" );
         new TestResource( c ).doGet( req, resp );
-        verify( resp ).sendError( eq( 400 ), anyString() );
+        verify( resp ).setStatus( 400 );
         assertNull( c.lastCompleteId, "no exchange on state mismatch" );
     }
 
@@ -112,12 +112,12 @@ class GoogleDriveAuthResourceTest {
         when( req.getParameter( "state" ) ).thenReturn( "S1" );
         when( req.getParameter( "code" ) ).thenReturn( "AUTHCODE" );
         new TestResource( c ).doGet( req, resp );
-        verify( resp ).sendError( eq( 502 ), anyString() );
+        verify( resp ).setStatus( 502 );
     }
 
     @Test void coordinatorAbsentIs503() throws Exception {
         when( req.getPathInfo() ).thenReturn( "/gd/authorize" );
         new TestResource( null ).doGet( req, resp );
-        verify( resp ).sendError( eq( 503 ), anyString() );
+        verify( resp ).setStatus( 503 );
     }
 }

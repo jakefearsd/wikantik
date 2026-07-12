@@ -425,6 +425,18 @@
         <artifactId>google-http-client-gson</artifactId>
         <version>1.45.3</version>
       </dependency>
+      <!-- Converge the whole google-http-client family to one version (transitives otherwise
+           resolve at a mix of 1.45.0/1.45.2/1.45.3 via nearest-wins). -->
+      <dependency>
+        <groupId>com.google.http-client</groupId>
+        <artifactId>google-http-client</artifactId>
+        <version>1.45.3</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.http-client</groupId>
+        <artifactId>google-http-client-apache-v2</artifactId>
+        <version>1.45.3</version>
+      </dependency>
 
       <dependency>
           <groupId>net.thauvin.erik</groupId>

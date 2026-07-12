@@ -57,9 +57,9 @@ public final class DriveSourceConnector implements SourceConnector {
                 + "skipping sync", connectorId );
             return new SyncBatch( List.of(), List.of(), new SyncCursor( "0" ), true );
         }
-        final DriveApi api = apiFactory.create( config.clientId(), config.clientSecret(), token.get() );
         final List< SourceItem > items = new ArrayList<>();
         try {
+            final DriveApi api = apiFactory.create( config.clientId(), config.clientSecret(), token.get() );
             final Set< String > visitedFolders = new HashSet<>();
             final List< DriveFile > files = new ArrayList<>();
             for ( final String folderId : config.folderIds() ) walk( api, folderId, files, visitedFolders );
@@ -84,7 +84,10 @@ public final class DriveSourceConnector implements SourceConnector {
         if ( out.size() >= config.maxFiles() ) return;
         for ( final DriveFile f : api.listFolder( folderId ) ) {
             if ( FOLDER_MIME.equals( f.mimeType() ) ) walk( api, f.id(), out, visited );
-            else out.add( f );
+            else {
+                out.add( f );
+                if ( out.size() >= config.maxFiles() ) return;         // stop enumerating further children
+            }
         }
     }
 

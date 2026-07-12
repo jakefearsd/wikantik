@@ -98,6 +98,14 @@ class DriveSourceConnectorTest {
         assertTrue( batch.complete() );
     }
 
+    @Test void factoryThrowingDegradesToEmptyBatchNoThrow() {
+        DriveApiFactory throwing = ( a, b, r ) -> { throw new IllegalStateException( "bad creds" ); };
+        DriveSourceConnector c = new DriveSourceConnector( "gd", cfg( List.of( "root" ), 500 ), token( "rt" ), throwing );
+        SyncBatch batch = assertDoesNotThrow( () -> c.poll( null ) );
+        assertTrue( batch.items().isEmpty() );
+        assertTrue( batch.complete() );
+    }
+
     @Test void reflectsFullCorpusIsTrue() {
         DriveSourceConnector c = new DriveSourceConnector( "gd", cfg( List.of( "root" ), 500 ), token( "rt" ), ( a, b, r ) -> new FakeApi() );
         assertTrue( c.reflectsFullCorpus() );

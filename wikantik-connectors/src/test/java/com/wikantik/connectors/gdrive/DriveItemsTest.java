@@ -34,11 +34,11 @@ class DriveItemsTest {
         assertEquals( "text/markdown", it.contentType() );
         assertArrayEquals( body, it.content() );
         assertTrue( it.aclRefs().isEmpty() );
-        assertEquals( "1AbC", it.metadata().get( "id" ) );
-        assertEquals( "Guide", it.metadata().get( "name" ) );
-        assertEquals( "application/vnd.google-apps.document", it.metadata().get( "mimeType" ) );
-        assertEquals( "2026-07-01T10:00:00Z", it.metadata().get( "modifiedTime" ) );
-        assertEquals( "https://docs.google.com/d/1AbC", it.metadata().get( "webViewLink" ) );
+        assertEquals( "1AbC", it.sourceMetadata().get( "id" ) );
+        assertEquals( "Guide", it.sourceMetadata().get( "name" ) );
+        assertEquals( "application/vnd.google-apps.document", it.sourceMetadata().get( "mimeType" ) );
+        assertEquals( "2026-07-01T10:00:00Z", it.sourceMetadata().get( "modifiedTime" ) );
+        assertEquals( "https://docs.google.com/d/1AbC", it.sourceMetadata().get( "webViewLink" ) );
         assertEquals( DriveItems.sha256Hex( body ), it.contentHash() );
         assertEquals( 64, it.contentHash().length() );   // sha-256 hex
     }

@@ -34,12 +34,12 @@ class GithubItemsTest {
         assertArrayEquals( body, item.content() );
         assertTrue( item.aclRefs().isEmpty() );
         assertEquals( 64, item.contentHash().length() );
-        assertEquals( "docs/guide/intro.md", item.metadata().get( "id" ) );
-        assertEquals( "intro.md", item.metadata().get( "name" ) );
-        assertEquals( "text/markdown", item.metadata().get( "mimeType" ) );
+        assertEquals( "docs/guide/intro.md", item.sourceMetadata().get( "id" ) );
+        assertEquals( "intro.md", item.sourceMetadata().get( "name" ) );
+        assertEquals( "text/markdown", item.sourceMetadata().get( "mimeType" ) );
         assertEquals( "https://github.com/acme/handbook/blob/main/docs/guide/intro.md",
-            item.metadata().get( "webViewLink" ) );
-        assertFalse( item.metadata().containsKey( "modifiedTime" ) );   // tree listing has none
+            item.sourceMetadata().get( "webViewLink" ) );
+        assertFalse( item.sourceMetadata().containsKey( "modifiedTime" ) );   // tree listing has none
     }
 
     @Test void sameContentSameHashDifferentContentDifferentHash() {

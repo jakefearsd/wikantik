@@ -42,7 +42,7 @@ class FilesystemSourceConnectorTest {
         SourceItem a = batch.items().stream().filter( i -> i.sourceUri().equals( "file:docs/a.md" ) ).findFirst().orElseThrow();
         assertEquals( List.of( "docs" ), a.aclRefs() );               // parent-dir name
         assertEquals( 64, a.contentHash().length() );                 // sha256 hex
-        assertEquals( "docs/a.md", a.metadata().get( "path" ) );
+        assertEquals( "docs/a.md", a.sourceMetadata().get( "path" ) );
         assertEquals( "alpha", new String( a.content() ) );
     }
 

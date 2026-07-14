@@ -145,12 +145,12 @@ class GithubItemsTest {
         assertArrayEquals( body, item.content() );
         assertTrue( item.aclRefs().isEmpty() );
         assertEquals( 64, item.contentHash().length() );
-        assertEquals( "docs/guide/intro.md", item.metadata().get( "id" ) );
-        assertEquals( "intro.md", item.metadata().get( "name" ) );
-        assertEquals( "text/markdown", item.metadata().get( "mimeType" ) );
+        assertEquals( "docs/guide/intro.md", item.sourceMetadata().get( "id" ) );
+        assertEquals( "intro.md", item.sourceMetadata().get( "name" ) );
+        assertEquals( "text/markdown", item.sourceMetadata().get( "mimeType" ) );
         assertEquals( "https://github.com/acme/handbook/blob/main/docs/guide/intro.md",
-            item.metadata().get( "webViewLink" ) );
-        assertFalse( item.metadata().containsKey( "modifiedTime" ) );   // tree listing has none
+            item.sourceMetadata().get( "webViewLink" ) );
+        assertFalse( item.sourceMetadata().containsKey( "modifiedTime" ) );   // tree listing has none
     }
 
     @Test void sameContentSameHashDifferentContentDifferentHash() {
@@ -812,13 +812,13 @@ class ConfluenceItemsTest {
         assertArrayEquals( "<p>hello <strong>world</strong></p>".getBytes( StandardCharsets.UTF_8 ), item.content() );
         assertTrue( item.aclRefs().isEmpty() );
         assertEquals( 64, item.contentHash().length() );
-        assertEquals( "12345", item.metadata().get( "id" ) );
-        assertEquals( "Team Handbook", item.metadata().get( "name" ) );
-        assertEquals( "text/html", item.metadata().get( "mimeType" ) );
-        assertEquals( 7, item.metadata().get( "version" ) );
+        assertEquals( "12345", item.sourceMetadata().get( "id" ) );
+        assertEquals( "Team Handbook", item.sourceMetadata().get( "name" ) );
+        assertEquals( "text/html", item.sourceMetadata().get( "mimeType" ) );
+        assertEquals( 7, item.sourceMetadata().get( "version" ) );
         assertEquals( "https://acme.atlassian.net/wiki/spaces/ENG/pages/12345/Team+Handbook",
-            item.metadata().get( "webViewLink" ) );
-        assertFalse( item.metadata().containsKey( "modifiedTime" ) );
+            item.sourceMetadata().get( "webViewLink" ) );
+        assertFalse( item.sourceMetadata().containsKey( "modifiedTime" ) );
     }
 }
 ```

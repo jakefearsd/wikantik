@@ -24,4 +24,4 @@ import java.util.Map;
 /** One item fetched from an external source, ready to become a derived page. */
 public record SourceItem(
     String sourceUri, byte[] content, String contentType,
-    Map< String, Object > metadata, List< String > aclRefs, String contentHash ) {}
+    Map< String, Object > sourceMetadata, List< String > aclRefs, String contentHash ) {}

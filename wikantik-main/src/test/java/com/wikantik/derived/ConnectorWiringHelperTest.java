@@ -63,6 +63,13 @@ class ConnectorWiringHelperTest {
         assertEquals( "/data/wiki", roots.get( "wiki-src" ) );
     }
 
+    // An operator typo in a filesystem root must not throw out of wireConnectors (it runs during
+    // engine startup) — the bad connector is skipped, the rest of the wiring proceeds.
+    @Test void parseRootInvalidPathIsEmptyNotThrow() {
+        assertTrue( ConnectorWiringHelper.parseRoot( "docs", "/data/docs" ).isPresent() );
+        assertTrue( ConnectorWiringHelper.parseRoot( "bad", "/data/\0oops" ).isEmpty() );
+    }
+
     @Test void disabledByDefaultReturnsEmpty() {
         // enabled flag absent → wireConnectors is a no-op (no ConnectorRuntime). The CredentialStore
         // is still registered unconditionally (see cipherFrom tests below), so engine must be real

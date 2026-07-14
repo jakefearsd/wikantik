@@ -28,7 +28,8 @@ import java.util.*;
 import java.util.function.LongConsumer;
 
 /** Reads RSS/Atom feeds and emits a SourceItem per entry. Full-article (default) or inline content.
- *  A feed is a rolling window, so {@link #reflectsFullCorpus()} is false (aged-out entries are archived). */
+ *  A feed is a rolling window, so {@link #reflectsFullCorpus()} is false — aged-out entries are
+ *  retained (their derived pages and sync state are left untouched; there is no archive state). */
 public final class FeedSourceConnector implements SourceConnector {
 
     private static final Logger LOG = LogManager.getLogger( FeedSourceConnector.class );
@@ -48,7 +49,7 @@ public final class FeedSourceConnector implements SourceConnector {
 
     @Override public String connectorId() { return connectorId; }
 
-    @Override public boolean reflectsFullCorpus() { return false; }   // windowed source → archive
+    @Override public boolean reflectsFullCorpus() { return false; }   // windowed source → aged-out items retained
 
     @Override
     public SyncBatch poll( final SyncCursor cursor ) {

@@ -93,8 +93,10 @@ public final class ConnectorWiringHelper {
         final Map< String, SourceConnector > byId = new LinkedHashMap<>();
         final Map< String, String > typeById = new LinkedHashMap<>();
         for ( final Map.Entry< String, String > e : roots.entrySet() ) {
-            byId.put( e.getKey(), new FilesystemSourceConnector( e.getKey(), Path.of( e.getValue() ) ) );
-            typeById.put( e.getKey(), "filesystem" );
+            parseRoot( e.getKey(), e.getValue() ).ifPresent( root -> {
+                byId.put( e.getKey(), new FilesystemSourceConnector( e.getKey(), root ) );
+                typeById.put( e.getKey(), "filesystem" );
+            } );
         }
         for ( final Map.Entry< String, WebCrawlerConfig > e : webcrawlers.entrySet() ) {
             byId.put( e.getKey(), new WebCrawlerSourceConnector( e.getKey(), e.getValue(),
@@ -164,6 +166,18 @@ public final class ConnectorWiringHelper {
             }
         }
         return out;
+    }
+
+    /** Parses a filesystem root fail-soft: an invalid path (operator typo) is skipped with a warning
+     *  instead of throwing out of engine startup. Package-visible for testing. */
+    static Optional< Path > parseRoot( final String connectorId, final String root ) {
+        try {
+            return Optional.of( Path.of( root ) );
+        } catch ( final java.nio.file.InvalidPathException e ) {
+            LOG.warn( "connector '{}': invalid filesystem root '{}' — skipping: {}",
+                connectorId, root, e.getMessage() );
+            return Optional.empty();
+        }
     }
 
     /** id → config for every {@code wikantik.connectors.webcrawler.<id>.seeds} key (plus its sibling

@@ -116,6 +116,17 @@ class ConnectorAdminResourceTest {
     }
 
     @Test
+    void sync_alreadyRunning_returns409() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/fs1/sync" );
+        when( runtime.syncNow( "fs1" ) ).thenThrow(
+            new com.wikantik.connectors.runtime.SyncInProgressException( "fs1" ) );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_CONFLICT );
+    }
+
+    @Test
     void sync_unknownConnector_returns404() throws Exception {
         when( req.getPathInfo() ).thenReturn( "/nope/sync" );
         when( runtime.syncNow( "nope" ) ).thenThrow( new IllegalArgumentException( "unknown connector: nope" ) );

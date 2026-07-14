@@ -130,6 +130,9 @@ public class ConnectorAdminResource extends RestServletBase {
             LOG.info( "ConnectorAdminResource: sync complete for connector '{}': {}", connectorId, report );
             response.setStatus( HttpServletResponse.SC_OK );
             sendJson( response, report );
+        } catch ( final com.wikantik.connectors.runtime.SyncInProgressException e ) {
+            LOG.info( "ConnectorAdminResource: sync rejected for connector '{}': {}", connectorId, e.getMessage() );
+            sendError( response, HttpServletResponse.SC_CONFLICT, e.getMessage() );
         } catch ( final IllegalArgumentException e ) {
             LOG.warn( "ConnectorAdminResource: sync requested for unknown connector '{}': {}",
                 connectorId, e.getMessage() );

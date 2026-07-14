@@ -80,6 +80,54 @@ class ConnectorRuntimeTest {
         assertFalse( rt.isSchedulerRunning() );
     }
 
+    // A manual /admin sync must not run concurrently with a scheduled sync of the SAME connector —
+    // interleaved tombstone/re-sync passes can strand sync-state rows pointing at deleted pages.
+    @Test void concurrentSyncOfSameConnectorIsRejected() throws Exception {
+        var started = new java.util.concurrent.CountDownLatch( 1 );
+        var release = new java.util.concurrent.CountDownLatch( 1 );
+        SourceConnector blocking = new SourceConnector() {
+            public String connectorId() { return "slow"; }
+            public SyncBatch poll( SyncCursor c ) {
+                started.countDown();
+                try { release.await(); } catch ( InterruptedException e ) { Thread.currentThread().interrupt(); }
+                return new SyncBatch( List.of(), List.of(), new SyncCursor( "done" ), true );
+            }
+        };
+        ConnectorRuntime rt = runtime( mock( DataSource.class ), blocking );
+        Thread first = new Thread( () -> rt.syncNow( "slow" ) );
+        first.start();
+        assertTrue( started.await( 5, java.util.concurrent.TimeUnit.SECONDS ) );
+        // preemptive timeout: an implementation that does NOT reject would enter poll() and block on
+        // the latch — the test must fail fast (red), not deadlock the suite
+        assertTimeoutPreemptively( java.time.Duration.ofSeconds( 5 ),
+            () -> assertThrows( SyncInProgressException.class, () -> rt.syncNow( "slow" ),
+                "second sync of the same connector must be rejected while the first runs" ) );
+        release.countDown();
+        first.join( 5000 );
+        assertNotNull( rt.syncNow( "slow" ), "sync must work again once the first run finishes" );
+    }
+
+    @Test void concurrentSyncOfDifferentConnectorsIsAllowed() throws Exception {
+        var started = new java.util.concurrent.CountDownLatch( 1 );
+        var release = new java.util.concurrent.CountDownLatch( 1 );
+        SourceConnector blocking = new SourceConnector() {
+            public String connectorId() { return "slow"; }
+            public SyncBatch poll( SyncCursor c ) {
+                started.countDown();
+                try { release.await(); } catch ( InterruptedException e ) { Thread.currentThread().interrupt(); }
+                return new SyncBatch( List.of(), List.of(), new SyncCursor( "done" ), true );
+            }
+        };
+        ConnectorRuntime rt = runtime( mock( DataSource.class ), blocking, connector( "fast" ) );
+        Thread first = new Thread( () -> rt.syncNow( "slow" ) );
+        first.start();
+        assertTrue( started.await( 5, java.util.concurrent.TimeUnit.SECONDS ) );
+        assertTimeoutPreemptively( java.time.Duration.ofSeconds( 5 ),
+            () -> assertNotNull( rt.syncNow( "fast" ), "a DIFFERENT connector must sync while 'slow' runs" ) );
+        release.countDown();
+        first.join( 5000 );
+    }
+
     @Test void doubleStartRestartsWithoutLeakingAndStopsCleanly() {
         ConnectorRuntime rt = runtime( mock( DataSource.class ), connector( "fs1" ) );
         rt.startScheduler( 24 );

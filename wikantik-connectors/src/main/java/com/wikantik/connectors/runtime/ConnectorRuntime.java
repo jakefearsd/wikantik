@@ -26,9 +26,12 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 /** Operable facade over the Phase-1 sync stack: manual trigger, status, and a periodic scheduler. */
 public final class ConnectorRuntime {
@@ -38,6 +41,10 @@ public final class ConnectorRuntime {
     private final ConnectorRegistry registry;
     private final SyncOrchestrator orchestrator;
     private final ConnectorStatusReader statusReader;
+    /** Per-connector sync locks: a manual /admin sync must never run concurrently with a scheduled
+     *  sync of the SAME connector — interleaved tombstone/re-sync passes can strand sync-state rows
+     *  pointing at deleted pages. Different connectors sync freely in parallel. */
+    private final ConcurrentMap< String, ReentrantLock > syncLocks = new ConcurrentHashMap<>();
     private ScheduledExecutorService executor;
 
     public ConnectorRuntime( final ConnectorRegistry registry, final SyncOrchestrator orchestrator,
@@ -47,10 +54,19 @@ public final class ConnectorRuntime {
         this.statusReader = statusReader;
     }
 
+    /** @throws SyncInProgressException when a sync of this connector is already running. */
     public SyncReport syncNow( final String connectorId ) {
         final SourceConnector c = registry.get( connectorId ).orElseThrow(
             () -> new IllegalArgumentException( "unknown connector: " + connectorId ) );
-        return orchestrator.sync( c );
+        final ReentrantLock lock = syncLocks.computeIfAbsent( connectorId, k -> new ReentrantLock() );
+        if ( !lock.tryLock() ) {
+            throw new SyncInProgressException( connectorId );
+        }
+        try {
+            return orchestrator.sync( c );
+        } finally {
+            lock.unlock();
+        }
     }
 
     public ConnectorStatus status( final String connectorId ) {
@@ -91,6 +107,9 @@ public final class ConnectorRuntime {
             try {
                 final SyncReport r = syncNow( id );
                 LOG.info( "scheduled connector sync '{}': {}", id, r );
+            } catch ( final SyncInProgressException e ) {
+                // a manual sync holds the lock — skip this cycle rather than queue behind it
+                LOG.info( "scheduled connector sync '{}' skipped: {}", id, e.getMessage() );
             } catch ( final RuntimeException e ) {
                 LOG.warn( "scheduled connector sync '{}' failed: {}", id, e.getMessage() );
             }

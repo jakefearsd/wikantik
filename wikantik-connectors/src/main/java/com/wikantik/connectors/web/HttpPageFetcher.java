@@ -18,6 +18,7 @@
  */
 package com.wikantik.connectors.web;
 
+import com.wikantik.connectors.http.CappedBodySubscriber;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -26,12 +27,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.List;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Flow;
-import java.util.concurrent.atomic.AtomicLong;
 
 /** {@link PageFetcher} backed by {@code java.net.http.HttpClient}. Never throws from {@link #fetch(String)}.
  *  Response bodies are capped at {@code maxBodyBytes} (default {@value #DEFAULT_MAX_BODY_BYTES}) —
@@ -71,7 +67,7 @@ public final class HttpPageFetcher implements PageFetcher {
                 .GET()
                 .build();
             final HttpResponse< byte[] > response = client.send( request,
-                info -> new CappedByteArraySubscriber( maxBodyBytes ) );
+                info -> new CappedBodySubscriber( maxBodyBytes ) );
             return new FetchResult(
                 response.statusCode(),
                 response.headers().firstValue( "content-type" ).orElse( null ),
@@ -91,44 +87,5 @@ public final class HttpPageFetcher implements PageFetcher {
             LOG.warn( "fetch skipped for malformed url {}: {}", url, e.getMessage() );
             return new FetchResult( 0, null, new byte[0], url );
         }
-    }
-
-    /** Accumulating byte[] subscriber that cancels the exchange once the body exceeds the cap.
-     *  Works for chunked responses too (no Content-Length needed) — the count is enforced as
-     *  buffers arrive, so memory is bounded by the cap regardless of what the server declares.
-     *  Exceeding the cap completes the body exceptionally → {@code client.send} throws
-     *  {@link IOException} → the fetch fails closed (status 0) via the caller's catch. */
-    private static final class CappedByteArraySubscriber implements HttpResponse.BodySubscriber< byte[] > {
-        private final HttpResponse.BodySubscriber< byte[] > delegate = HttpResponse.BodySubscribers.ofByteArray();
-        private final int max;
-        private final AtomicLong received = new AtomicLong();
-        private volatile Flow.Subscription subscription;
-        private volatile boolean oversized;
-
-        CappedByteArraySubscriber( final int max ) { this.max = max; }
-
-        @Override public CompletionStage< byte[] > getBody() { return delegate.getBody(); }
-
-        @Override public void onSubscribe( final Flow.Subscription s ) {
-            this.subscription = s;
-            delegate.onSubscribe( s );
-        }
-
-        @Override public void onNext( final List< ByteBuffer > item ) {
-            if ( oversized ) return;
-            long n = 0;
-            for ( final ByteBuffer b : item ) n += b.remaining();
-            if ( received.addAndGet( n ) > max ) {
-                oversized = true;
-                subscription.cancel();
-                delegate.onError( new IOException( "response body exceeds max " + max + " bytes — dropped (fail-closed)" ) );
-            } else {
-                delegate.onNext( item );
-            }
-        }
-
-        @Override public void onError( final Throwable t ) { if ( !oversized ) delegate.onError( t ); }
-
-        @Override public void onComplete() { if ( !oversized ) delegate.onComplete(); }
     }
 }

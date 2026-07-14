@@ -21,13 +21,18 @@ package com.wikantik.connectors.gdrive;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-/** {@link DriveApi} backed by a built {@link Drive} service. Package-private — only the factory builds it. */
+/** {@link DriveApi} backed by a built {@link Drive} service. Package-private — only the factory builds it.
+ *  Downloads are capped at {@value #MAX_DOWNLOAD_BYTES} bytes — an oversized file aborts the download
+ *  with {@link IOException} (degraded by the connector to an incomplete batch) instead of buffering
+ *  it whole (OOM defense). */
 final class GoogleDriveApi implements DriveApi {
+
+    /** 20 MiB — well above any text/markdown/exported-Doc content worth mirroring into a wiki page. */
+    static final int MAX_DOWNLOAD_BYTES = 20 * 1024 * 1024;
 
     private static final String FIELDS = "nextPageToken, files(id, name, mimeType, modifiedTime, webViewLink)";
     private final Drive drive;
@@ -57,14 +62,14 @@ final class GoogleDriveApi implements DriveApi {
 
     @Override
     public byte[] export( final String fileId, final String mimeType ) throws IOException {
-        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        final BoundedByteArrayOutputStream out = new BoundedByteArrayOutputStream( MAX_DOWNLOAD_BYTES );
         drive.files().export( fileId, mimeType ).executeMediaAndDownloadTo( out );
         return out.toByteArray();
     }
 
     @Override
     public byte[] getMedia( final String fileId ) throws IOException {
-        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        final BoundedByteArrayOutputStream out = new BoundedByteArrayOutputStream( MAX_DOWNLOAD_BYTES );
         drive.files().get( fileId ).executeMediaAndDownloadTo( out );
         return out.toByteArray();
     }

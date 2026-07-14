@@ -82,6 +82,48 @@ class SitemapSourceConnectorTest {
             "foreign-host sub-sitemap must never be fetched under same_host_only" );
     }
 
+    // If the sitemap itself can't be fetched (ANY non-2xx — a missing sitemap is not proof the site
+    // is empty), the enumeration is untrustworthy → incomplete batch, no tombstone derivation.
+    @Test void sitemapFetchFailureMakesBatchIncomplete() {
+        PageFetcher f = url -> switch ( url ) {
+            case "https://ex.com/robots.txt" -> new FetchResult( 404, null, new byte[0], url );
+            case "https://ex.com/sitemap.xml" -> new FetchResult( 503, null, new byte[0], url );
+            default -> new FetchResult( 404, null, new byte[0], url );
+        };
+        SyncBatch b = new SitemapSourceConnector( "sm1", cfg( 100, true ), f, ms -> {} ).poll( null );
+        assertFalse( b.complete(), "sitemap fetch failure → untrusted enumeration" );
+        assertNull( b.nextCursor(), "untrusted batch returns the input cursor verbatim" );
+        assertTrue( b.items().isEmpty() );
+    }
+
+    // A transient failure fetching a LISTED page: the sitemap still lists it, so it is not absent —
+    // the batch must be incomplete so the missing item is not tombstoned.
+    @Test void listedPageTransientFailureMakesBatchIncomplete() {
+        PageFetcher f = url -> switch ( url ) {
+            case "https://ex.com/robots.txt" -> new FetchResult( 404, null, new byte[0], url );
+            case "https://ex.com/sitemap.xml" -> xml( url, urlset( "https://ex.com/a", "https://ex.com/b" ) );
+            case "https://ex.com/a" -> html( url, "<p>a</p>" );
+            case "https://ex.com/b" -> new FetchResult( 500, "text/html", new byte[0], url );
+            default -> new FetchResult( 404, null, new byte[0], url );
+        };
+        SyncBatch b = new SitemapSourceConnector( "sm1", cfg( 100, true ), f, ms -> {} ).poll( null );
+        assertFalse( b.complete() );
+        assertEquals( Set.of( "https://ex.com/a" ), uris( b ), "fetched pages still delivered" );
+    }
+
+    // A listed page that 404s is authoritatively gone — does not taint the batch.
+    @Test void listedPage404DoesNotTaintBatch() {
+        PageFetcher f = url -> switch ( url ) {
+            case "https://ex.com/robots.txt" -> new FetchResult( 404, null, new byte[0], url );
+            case "https://ex.com/sitemap.xml" -> xml( url, urlset( "https://ex.com/a", "https://ex.com/b" ) );
+            case "https://ex.com/a" -> html( url, "<p>a</p>" );
+            default -> new FetchResult( 404, null, new byte[0], url );   // /b → 404
+        };
+        SyncBatch b = new SitemapSourceConnector( "sm1", cfg( 100, true ), f, ms -> {} ).poll( null );
+        assertTrue( b.complete(), "404 on a listed page = authoritative absence, batch stays trusted" );
+        assertEquals( Set.of( "https://ex.com/a" ), uris( b ) );
+    }
+
     @Test void recursesSitemapIndexOneLevel() {
         String index = "<sitemapindex><sitemap><loc>https://ex.com/sm-a.xml</loc></sitemap>"
             + "<sitemap><loc>https://ex.com/sm-b.xml</loc></sitemap></sitemapindex>";

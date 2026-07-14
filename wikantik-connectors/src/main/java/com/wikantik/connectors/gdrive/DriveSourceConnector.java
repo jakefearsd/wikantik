@@ -55,7 +55,9 @@ public final class DriveSourceConnector implements SourceConnector {
         if ( token.isEmpty() || token.get().isBlank() ) {
             LOG.warn( "gdrive '{}': no refresh_token available (credential store disabled or token not set) — "
                 + "skipping sync", connectorId );
-            return new SyncBatch( List.of(), List.of(), new SyncCursor( "0" ), true );
+            // complete=false: "couldn't enumerate" must never read as "source is empty" — an empty
+            // COMPLETE batch from a full-corpus connector would tombstone every previously-synced page.
+            return new SyncBatch( List.of(), List.of(), cursor, false );
         }
         final List< SourceItem > items = new ArrayList<>();
         try {
@@ -71,9 +73,9 @@ public final class DriveSourceConnector implements SourceConnector {
             if ( items.size() >= config.maxFiles() ) {
                 LOG.info( "gdrive '{}': hit max_files={}, truncated", connectorId, config.maxFiles() );
             }
-        } catch ( final Exception e ) {   // poll() never throws; any Drive/OAuth error → empty batch
+        } catch ( final Exception e ) {   // poll() never throws; any Drive/OAuth error → empty INCOMPLETE batch
             LOG.warn( "gdrive '{}': sync failed, skipping cycle: {}", connectorId, e.getMessage() );
-            return new SyncBatch( List.of(), List.of(), new SyncCursor( "0" ), true );
+            return new SyncBatch( List.of(), List.of(), cursor, false );   // untrusted → no tombstone derivation
         }
         return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
     }

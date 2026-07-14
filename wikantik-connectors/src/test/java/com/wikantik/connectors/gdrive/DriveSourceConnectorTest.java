@@ -85,25 +85,28 @@ class DriveSourceConnectorTest {
         DriveSourceConnector c = new DriveSourceConnector( "gd", cfg( List.of( "root" ), 500 ), token( null ), f );
         SyncBatch batch = c.poll( null );
         assertTrue( batch.items().isEmpty() );
-        assertTrue( batch.complete() );
+        // complete=false: "couldn't enumerate" must never read as "source is empty" — a full-corpus
+        // connector's empty COMPLETE batch would tombstone every previously-synced page.
+        assertFalse( batch.complete() );
         assertFalse( built[0], "factory must not be called without a refresh token" );
     }
 
-    @Test void driveErrorDegradesToEmptyBatchNoThrow() {
+    @Test void driveErrorDegradesToEmptyIncompleteBatchNoThrow() {
         FakeApi api = new FakeApi();
         api.fail = true;
         DriveSourceConnector c = new DriveSourceConnector( "gd", cfg( List.of( "root" ), 500 ), token( "rt" ), ( a, b, r ) -> api );
         SyncBatch batch = assertDoesNotThrow( () -> c.poll( null ) );
         assertTrue( batch.items().isEmpty() );
-        assertTrue( batch.complete() );
+        assertFalse( batch.complete(), "API failure → untrusted enumeration → no tombstone derivation" );
+        assertNull( batch.nextCursor(), "failure returns the input cursor verbatim (null on first sync)" );
     }
 
-    @Test void factoryThrowingDegradesToEmptyBatchNoThrow() {
+    @Test void factoryThrowingDegradesToEmptyIncompleteBatchNoThrow() {
         DriveApiFactory throwing = ( a, b, r ) -> { throw new IllegalStateException( "bad creds" ); };
         DriveSourceConnector c = new DriveSourceConnector( "gd", cfg( List.of( "root" ), 500 ), token( "rt" ), throwing );
         SyncBatch batch = assertDoesNotThrow( () -> c.poll( null ) );
         assertTrue( batch.items().isEmpty() );
-        assertTrue( batch.complete() );
+        assertFalse( batch.complete() );
     }
 
     @Test void reflectsFullCorpusIsTrue() {

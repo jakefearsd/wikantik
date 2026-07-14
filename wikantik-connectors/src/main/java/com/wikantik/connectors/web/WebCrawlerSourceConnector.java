@@ -53,6 +53,7 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
         final Deque< Node > queue = new ArrayDeque<>();
         for ( final String seed : config.seeds() ) queue.add( new Node( seed, 0 ) );
         final List< SourceItem > items = new ArrayList<>();
+        boolean trusted = true;   // false once any fetch fails non-authoritatively → no tombstone derivation
 
         while ( !queue.isEmpty() && items.size() < config.maxPages() ) {
             final Node n = queue.poll();
@@ -66,7 +67,18 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
             sleepPolitely( robots, n.url );
 
             final FetchResult r = fetcher.fetch( n.url );      // fetcher is fail-closed (status 0 on error)
-            if ( r.status() / 100 != 2 || !isHtml( r.contentType() ) ) continue;
+            if ( r.status() / 100 != 2 ) {
+                // 404/410 = authoritative "gone" (safe to treat as absent); anything else (0 = network
+                // error, 5xx, 429, auth walls…) means this crawl is NOT a trustworthy full snapshot —
+                // returning complete=true would let the orchestrator tombstone every page it missed.
+                if ( r.status() != 404 && r.status() != 410 ) {
+                    trusted = false;
+                    LOG.warn( "crawler '{}': fetch of {} failed (status {}) — batch marked incomplete, "
+                        + "no tombstones this cycle", connectorId, n.url, r.status() );
+                }
+                continue;
+            }
+            if ( !isHtml( r.contentType() ) ) continue;
 
             final String finalUrl = r.finalUrl() == null ? n.url : r.finalUrl();
             final String html = new String( r.body(), java.nio.charset.StandardCharsets.UTF_8 );
@@ -82,6 +94,11 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
         }
         if ( items.size() >= config.maxPages() ) {
             LOG.info( "crawler '{}': hit max_pages={}, crawl truncated", connectorId, config.maxPages() );
+        }
+        if ( !trusted ) {
+            // deliver what was fetched, but signal an untrusted enumeration: input cursor + incomplete
+            // (the orchestrator skips tombstone derivation and retries next scheduled run)
+            return new SyncBatch( items, List.of(), cursor, false );
         }
         return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
     }

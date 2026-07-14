@@ -54,7 +54,12 @@ public final class SitemapSourceConnector implements SourceConnector {
         for ( final String sm : config.sitemapUrls() ) hostOf( sm ).ifPresent( allowedHosts::add );
 
         final Set< String > pageUrls = new LinkedHashSet<>();
-        for ( final String sm : config.sitemapUrls() ) collectPages( sm, robots, pageUrls, allowedHosts, 0 );
+        // trusted=false once enumeration can no longer be treated as a full snapshot — the orchestrator
+        // must not derive tombstones from what this poll happened to miss
+        boolean trusted = true;
+        for ( final String sm : config.sitemapUrls() ) {
+            trusted &= collectPages( sm, robots, pageUrls, allowedHosts, 0 );
+        }
 
         final List< SourceItem > items = new ArrayList<>();
         final Set< String > visited = new HashSet<>();
@@ -68,28 +73,47 @@ public final class SitemapSourceConnector implements SourceConnector {
             }
             sleepPolitely( robots, url );
             final FetchResult r = fetcher.fetch( url );
-            if ( r.status() / 100 != 2 || !isHtml( r.contentType() ) ) continue;
+            if ( r.status() / 100 != 2 ) {
+                // the sitemap still LISTS this page, so it is not absent-at-source. 404/410 = the page
+                // itself is authoritatively gone (tombstoning is correct); anything else is transient —
+                // mark the batch untrusted so the missing item is not tombstoned.
+                if ( r.status() != 404 && r.status() != 410 ) {
+                    trusted = false;
+                    LOG.warn( "sitemap '{}': fetch of listed page {} failed (status {}) — batch marked "
+                        + "incomplete, no tombstones this cycle", connectorId, url, r.status() );
+                }
+                continue;
+            }
+            if ( !isHtml( r.contentType() ) ) continue;
             final String finalUrl = r.finalUrl() == null ? url : r.finalUrl();
             items.add( WebFetchItems.toItem( finalUrl, r ) );
         }
         if ( items.size() >= config.maxPages() ) {
             LOG.info( "sitemap '{}': hit max_pages={}, truncated", connectorId, config.maxPages() );
         }
+        if ( !trusted ) {
+            return new SyncBatch( items, List.of(), cursor, false );   // untrusted enumeration: input cursor, incomplete
+        }
         return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
     }
 
-    private void collectPages( final String sitemapUrl, final RobotsPolicy robots,
-                               final Set< String > out, final Set< String > allowedHosts, final int depth ) {
+    /** @return {@code false} if any sitemap in this subtree could not be fetched (enumeration untrustworthy). */
+    private boolean collectPages( final String sitemapUrl, final RobotsPolicy robots,
+                                  final Set< String > out, final Set< String > allowedHosts, final int depth ) {
         if ( config.respectRobots() && !robots.isAllowed( sitemapUrl ) ) {
             LOG.info( "sitemap '{}': robots-disallowed sitemap {}", connectorId, sitemapUrl );
-            return;
+            return true;    // deliberate skip, not a failure
         }
         final FetchResult r = fetcher.fetch( sitemapUrl );
         if ( r.status() / 100 != 2 ) {
-            LOG.warn( "sitemap '{}': fetch of {} returned status {}", connectorId, sitemapUrl, r.status() );
-            return;
+            // ANY failure to fetch an enumeration source (even a 404) taints the batch: a missing
+            // sitemap is not proof the site is empty, and tombstoning on it would mass-delete.
+            LOG.warn( "sitemap '{}': fetch of {} returned status {} — batch marked incomplete, "
+                + "no tombstones this cycle", connectorId, sitemapUrl, r.status() );
+            return false;
         }
         final ParsedSitemap parsed = SitemapParser.parse( new String( r.body(), StandardCharsets.UTF_8 ) );
+        boolean trusted = true;
         if ( parsed.isIndex() ) {
             if ( depth == 0 ) {
                 for ( final String sub : parsed.locs() ) {
@@ -99,7 +123,7 @@ public final class SitemapSourceConnector implements SourceConnector {
                         LOG.info( "sitemap '{}': skipping foreign-host sub-sitemap {}", connectorId, sub );
                         continue;
                     }
-                    collectPages( sub, robots, out, allowedHosts, depth + 1 );
+                    trusted &= collectPages( sub, robots, out, allowedHosts, depth + 1 );
                 }
             } else {
                 LOG.info( "sitemap '{}': nested index beyond one level ignored: {}", connectorId, sitemapUrl );
@@ -107,6 +131,7 @@ public final class SitemapSourceConnector implements SourceConnector {
         } else {
             out.addAll( parsed.locs() );
         }
+        return trusted;
     }
 
     private void sleepPolitely( final RobotsPolicy robots, final String url ) {

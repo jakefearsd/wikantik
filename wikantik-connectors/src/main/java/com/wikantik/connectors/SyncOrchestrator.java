@@ -52,10 +52,14 @@ public final class SyncOrchestrator {
         final String id = connector.connectorId();
         int created = 0, updated = 0, unchanged = 0, deleted = 0, failed = 0;
         SyncCursor cursor = store.loadCursor( id ).orElse( null );
+        // accumulated across ALL batches of this drain — a paginating full-corpus connector's early
+        // batches are not "absent from the source" just because the final batch didn't repeat them
+        final Set< String > seen = new HashSet<>();
+        final Set< String > explicitTombstones = new HashSet<>();
+        boolean drainedComplete = false;
 
         while ( true ) {
             final SyncBatch batch = connector.poll( cursor );
-            final Set< String > seen = new HashSet<>();
 
             for ( final SourceItem item : batch.items() ) {
                 seen.add( item.sourceUri() );
@@ -77,21 +81,17 @@ public final class SyncOrchestrator {
 
             // explicit tombstones from the connector (incremental sources)
             for ( final String uri : batch.tombstonedUris() ) {
+                explicitTombstones.add( uri );
                 deleted += tombstone( id, uri );
-            }
-            // derived tombstones: only on a COMPLETE batch from a full-corpus connector
-            if ( batch.complete() && connector.reflectsFullCorpus() ) {
-                for ( final String uri : store.knownUris( id ) ) {
-                    if ( !seen.contains( uri ) && !batch.tombstonedUris().contains( uri ) ) {
-                        deleted += tombstone( id, uri );
-                    }
-                }
             }
 
             final SyncCursor next = batch.nextCursor();
             store.saveCursor( id, next );     // persist AFTER processing this batch → crash-resume point
 
-            if ( batch.complete() ) break;
+            if ( batch.complete() ) {
+                drainedComplete = true;
+                break;
+            }
             if ( Objects.equals( next, cursor ) ) {
                 // incomplete batch with a non-advancing cursor (e.g. scan error) — stop here rather than
                 // spinning forever making zero progress; the caller's next scheduled sync() will retry.
@@ -99,6 +99,26 @@ public final class SyncOrchestrator {
                 break;
             }
             cursor = next;
+        }
+
+        // Derived tombstones: only after a fully-drained (complete) sync of a full-corpus connector,
+        // judged against `seen` accumulated across the WHOLE drain. Guard: a full-corpus connector
+        // reporting ZERO items while the store knows items is far more likely an upstream outage
+        // (site down, API failure, missing credential) than a true total wipe — refuse to mass-delete
+        // every derived page; the next healthy sync reconciles genuine deletions.
+        if ( drainedComplete && connector.reflectsFullCorpus() ) {
+            final var known = store.knownUris( id );
+            if ( seen.isEmpty() && !known.isEmpty() ) {
+                LOG.warn( "Sync '{}': full-corpus connector returned an empty snapshot but {} URIs are known — "
+                    + "refusing derived tombstones (likely upstream outage, not a true wipe). "
+                    + "Clear the connector's sync state to force removal.", id, known.size() );
+            } else {
+                for ( final String uri : known ) {
+                    if ( !seen.contains( uri ) && !explicitTombstones.contains( uri ) ) {
+                        deleted += tombstone( id, uri );
+                    }
+                }
+            }
         }
 
         final SyncReport report = new SyncReport( created, updated, unchanged, deleted, failed );

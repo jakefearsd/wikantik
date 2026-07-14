@@ -93,6 +93,28 @@ class WebCrawlerSourceConnectorTest {
         assertFalse( uris.contains( "https://ex.com/a" ), "/a is robots-disallowed" );
         assertTrue( uris.contains( "https://ex.com/b" ) );
     }
+    // A transient fetch failure (5xx / network error) means the crawl is NOT a trustworthy full
+    // snapshot — the batch must be incomplete so the orchestrator derives no tombstones from it.
+    @Test void transientFetchFailureMakesBatchIncomplete() {
+        PageFetcher f = url -> {
+            if ( url.equals( "https://ex.com/robots.txt" ) ) return new FetchResult( 404, null, new byte[0], url );
+            if ( url.equals( "https://ex.com/" ) ) return html( url, "<a href='/a'>a</a>" );
+            if ( url.equals( "https://ex.com/a" ) ) return new FetchResult( 503, "text/html", new byte[0], url );
+            return new FetchResult( 404, null, new byte[0], url );
+        };
+        SyncBatch b = new WebCrawlerSourceConnector( "web1", cfg( 100, 5 ), f, ms -> {} ).poll( null );
+        assertFalse( b.complete(), "5xx mid-crawl → untrusted enumeration → incomplete batch" );
+        assertNull( b.nextCursor(), "untrusted batch returns the input cursor verbatim (null on first sync)" );
+        assertEquals( 1, b.items().size(), "successfully fetched pages are still delivered" );
+    }
+
+    // A 404/410 is an authoritative "this page is gone" — it must NOT taint the batch, so genuine
+    // deletions still tombstone on a healthy crawl.
+    @Test void notFound404DoesNotTaintBatch() {
+        SyncBatch b = crawler( cfg( 100, 5 ) ).poll( null );   // site() fixture 404s all unknown urls
+        assertTrue( b.complete(), "404s are authoritative absence, not a fetch failure" );
+    }
+
     @Test void skipsNon2xxAndNonHtml() {
         PageFetcher f = url -> {
             if ( url.equals( "https://ex.com/robots.txt" ) ) return new FetchResult( 404, null, new byte[0], url );

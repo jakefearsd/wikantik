@@ -129,6 +129,55 @@ class SyncOrchestratorTest {
         assertTrue( store.hash.containsKey( "file:gone.md" ), "aged-out URI stays synced (archived)" );
     }
 
+    // CRITICAL guard: a full-corpus connector returning ZERO items while the store knows items is far
+    // more likely an upstream outage (site down, API failure, missing credential) than a true total
+    // wipe — the orchestrator must refuse to mass-tombstone every derived page.
+    @Test void emptyCompleteSnapshotDoesNotMassTombstone() {
+        FakeStore store = new FakeStore();
+        store.hash.put( "u:a", "ha" ); store.page.put( "u:a", "A" );
+        store.hash.put( "u:b", "hb" ); store.page.put( "u:b", "B" );
+        FakeSink sink = new FakeSink();
+        new SyncOrchestrator( store, sink ).sync(
+            single( new SyncBatch( List.of(), List.of(), new SyncCursor( "c" ), true ) ) );
+        assertTrue( sink.deleted.isEmpty(), "empty full-corpus snapshot must not mass-delete" );
+        assertEquals( 2, store.hash.size(), "sync state must be preserved for the next healthy run" );
+    }
+
+    // Explicit (connector-asserted) tombstones are still honored even when the batch has no items —
+    // the empty-snapshot guard only suppresses DERIVED (absence-based) tombstones.
+    @Test void explicitTombstonesStillHonoredOnEmptyBatch() {
+        FakeStore store = new FakeStore();
+        store.hash.put( "u:a", "ha" ); store.page.put( "u:a", "A" );
+        store.hash.put( "u:b", "hb" ); store.page.put( "u:b", "B" );
+        FakeSink sink = new FakeSink();
+        new SyncOrchestrator( store, sink ).sync(
+            single( new SyncBatch( List.of(), List.of( "u:a" ), new SyncCursor( "c" ), true ) ) );
+        assertEquals( List.of( "A" ), sink.deleted );
+        assertTrue( store.hash.containsKey( "u:b" ), "derived tombstoning must not fire on an empty snapshot" );
+    }
+
+    // seen must accumulate across the whole drain: a paginating full-corpus connector's FINAL batch
+    // must not tombstone items that arrived in EARLIER batches of the same sync() call.
+    @Test void multiBatchDrainDoesNotTombstoneEarlierBatchItems() {
+        FakeStore store = new FakeStore();
+        store.hash.put( "file:p1.md", "old1" ); store.page.put( "file:p1.md", "P1" );
+        store.hash.put( "file:p2.md", "old2" ); store.page.put( "file:p2.md", "P2" );
+        store.hash.put( "file:gone.md", "hg" ); store.page.put( "file:gone.md", "Gone" );
+        FakeSink sink = new FakeSink();
+        SourceConnector paginating = new SourceConnector() {
+            int calls = 0;
+            public String connectorId() { return "c1"; }
+            public SyncBatch poll( SyncCursor cur ) {
+                calls++;
+                if ( calls == 1 ) return new SyncBatch( List.of( item( "file:p1.md", "h1" ) ), List.of(), new SyncCursor( "b2" ), false );
+                return new SyncBatch( List.of( item( "file:p2.md", "h2" ) ), List.of(), new SyncCursor( "done" ), true );
+            }
+        };
+        new SyncOrchestrator( store, sink ).sync( paginating );
+        assertEquals( List.of( "Gone" ), sink.deleted, "only the truly-absent URI is tombstoned" );
+        assertTrue( store.hash.containsKey( "file:p1.md" ), "batch-1 item must survive the final batch's tombstone pass" );
+    }
+
     @Test void failedIngestIsNotRecordedSoItRetries() {
         FakeStore store = new FakeStore();
         DerivedPageSink failing = new DerivedPageSink() {

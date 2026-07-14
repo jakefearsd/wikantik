@@ -51,25 +51,25 @@ public final class DefaultDriveAuthCoordinator implements DriveAuthCoordinator {
     }
 
     @Override
-    public boolean completeAuthorization( final String connectorId, final String code ) {
+    public AuthResult completeAuthorization( final String connectorId, final String code ) {
         final DriveConfig cfg = byId.get( connectorId );
         if ( cfg == null ) {
             LOG.warn( "gdrive oauth: unknown connector id '{}'", connectorId );
-            return false;
+            return AuthResult.UNKNOWN_CONNECTOR;
         }
         if ( !store.enabled() ) {
             LOG.warn( "gdrive oauth '{}': credential store disabled (no master key) — cannot store token", connectorId );
-            return false;
+            return AuthResult.STORE_DISABLED;
         }
         try {
             final String refreshToken = oauth.exchangeCodeForRefreshToken(
                 cfg.clientId(), cfg.clientSecret(), cfg.redirectUri(), code );
             store.put( connectorId, REFRESH_TOKEN, refreshToken );   // encrypted at rest by the store
             LOG.info( "gdrive oauth '{}': refresh token stored", connectorId );   // no token/code in the message
-            return true;
+            return AuthResult.SUCCESS;
         } catch ( final Exception e ) {                              // never surface the code/token
             LOG.warn( "gdrive oauth '{}': code exchange failed: {}", connectorId, e.getMessage() );
-            return false;
+            return AuthResult.EXCHANGE_FAILED;
         }
     }
 }

@@ -19,6 +19,7 @@
 package com.wikantik.rest;
 
 import com.wikantik.api.connectors.DriveAuthCoordinator;
+import com.wikantik.api.connectors.DriveAuthCoordinator.AuthResult;
 import jakarta.servlet.http.*;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
@@ -32,12 +33,12 @@ class GoogleDriveAuthResourceTest {
 
     static final class StubCoordinator implements DriveAuthCoordinator {
         String urlForGd = "https://accounts.google.com/o/oauth2/auth?state=";
-        boolean completeResult = true;
+        AuthResult completeResult = AuthResult.SUCCESS;
         String lastCompleteId, lastCompleteCode;
         public Optional<String> authorizationUrl( String id, String state ) {
             return "gd".equals( id ) ? Optional.of( urlForGd + state ) : Optional.empty();
         }
-        public boolean completeAuthorization( String id, String code ) {
+        public AuthResult completeAuthorization( String id, String code ) {
             lastCompleteId = id; lastCompleteCode = code; return completeResult;
         }
     }
@@ -106,13 +107,33 @@ class GoogleDriveAuthResourceTest {
     }
 
     @Test void callbackExchangeFailureIs502() throws Exception {
-        StubCoordinator c = new StubCoordinator(); c.completeResult = false;
+        StubCoordinator c = new StubCoordinator(); c.completeResult = AuthResult.EXCHANGE_FAILED;
         attrs.put( "gdrive.oauth.state", "S1" ); attrs.put( "gdrive.oauth.connector", "gd" );
         when( req.getPathInfo() ).thenReturn( "/callback" );
         when( req.getParameter( "state" ) ).thenReturn( "S1" );
         when( req.getParameter( "code" ) ).thenReturn( "AUTHCODE" );
         new TestResource( c ).doGet( req, resp );
         verify( resp ).setStatus( 502 );
+    }
+
+    @Test void callbackStoreDisabledIs503() throws Exception {
+        StubCoordinator c = new StubCoordinator(); c.completeResult = AuthResult.STORE_DISABLED;
+        attrs.put( "gdrive.oauth.state", "S1" ); attrs.put( "gdrive.oauth.connector", "gd" );
+        when( req.getPathInfo() ).thenReturn( "/callback" );
+        when( req.getParameter( "state" ) ).thenReturn( "S1" );
+        when( req.getParameter( "code" ) ).thenReturn( "AUTHCODE" );
+        new TestResource( c ).doGet( req, resp );
+        verify( resp ).setStatus( 503 );
+    }
+
+    @Test void callbackUnknownConnectorIs404() throws Exception {
+        StubCoordinator c = new StubCoordinator(); c.completeResult = AuthResult.UNKNOWN_CONNECTOR;
+        attrs.put( "gdrive.oauth.state", "S1" ); attrs.put( "gdrive.oauth.connector", "gone" );
+        when( req.getPathInfo() ).thenReturn( "/callback" );
+        when( req.getParameter( "state" ) ).thenReturn( "S1" );
+        when( req.getParameter( "code" ) ).thenReturn( "AUTHCODE" );
+        new TestResource( c ).doGet( req, resp );
+        verify( resp ).setStatus( 404 );
     }
 
     @Test void coordinatorAbsentIs503() throws Exception {

@@ -18,10 +18,54 @@
  */
 package com.wikantik.connectors.gdrive;
 
+import com.google.api.client.testing.http.MockHttpTransport;
+import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class GoogleDriveOAuthServiceTest {
+
+    private static MockHttpTransport respondWith( final int status, final String json ) {
+        return new MockHttpTransport.Builder()
+            .setLowLevelHttpResponse( new MockLowLevelHttpResponse()
+                .setStatusCode( status )
+                .setContentType( "application/json" )
+                .setContent( json ) )
+            .build();
+    }
+
+    // M-a: the load-bearing secret-hygiene contract — a failing exchange must throw a FIXED-string
+    // IOException with NO cause: Google's TokenResponseException can embed the request parameters
+    // (including the OAuth code) verbatim, and DefaultDriveAuthCoordinator logs e.getMessage().
+    @Test void exchangeFailureThrowsSanitizedExceptionWithoutCodeOrCause() {
+        MockHttpTransport failing = respondWith( 400,
+            "{\"error\":\"invalid_grant\",\"error_description\":\"code SECRET-AUTH-CODE rejected\"}" );
+        GoogleDriveOAuthService svc = new GoogleDriveOAuthService( failing );
+        IOException e = assertThrows( IOException.class,
+            () -> svc.exchangeCodeForRefreshToken( "cid", "csec", "https://w/cb", "SECRET-AUTH-CODE" ) );
+        assertEquals( "Google token exchange failed", e.getMessage(), "fixed sanitized message only" );
+        assertNull( e.getCause(), "no cause chained — the Google exception can embed the auth code" );
+        assertFalse( String.valueOf( e ).contains( "SECRET-AUTH-CODE" ) );
+    }
+
+    @Test void exchangeSuccessReturnsRefreshToken() throws IOException {
+        MockHttpTransport ok = respondWith( 200,
+            "{\"access_token\":\"at\",\"refresh_token\":\"rt-1\",\"expires_in\":3600,\"token_type\":\"Bearer\"}" );
+        assertEquals( "rt-1", new GoogleDriveOAuthService( ok )
+            .exchangeCodeForRefreshToken( "cid", "csec", "https://w/cb", "CODE" ) );
+    }
+
+    @Test void missingRefreshTokenThrowsReconsentHint() {
+        MockHttpTransport noRefresh = respondWith( 200,
+            "{\"access_token\":\"at\",\"expires_in\":3600,\"token_type\":\"Bearer\"}" );
+        IOException e = assertThrows( IOException.class, () -> new GoogleDriveOAuthService( noRefresh )
+            .exchangeCodeForRefreshToken( "cid", "csec", "https://w/cb", "CODE" ) );
+        assertTrue( e.getMessage().contains( "no refresh_token" ), e.getMessage() );
+    }
+
     @Test void authorizationUrlContainsClientRedirectStateScopeAndOfflineConsent() {
         String url = new GoogleDriveOAuthService()
             .authorizationUrl( "CID.apps.googleusercontent.com", "https://wiki/cb", "st8-nonce" );

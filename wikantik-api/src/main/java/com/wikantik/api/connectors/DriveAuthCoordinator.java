@@ -22,6 +22,13 @@ import java.util.Optional;
 
 /** Drives the OAuth2 consent → refresh-token-store flow for a connector, keyed by connector id. */
 public interface DriveAuthCoordinator {
+
+    /** Outcome of {@link #completeAuthorization} — distinguishes the operator-actionable failure
+     *  (credential store disabled: no master key → HTTP 503) from an upstream exchange failure
+     *  (HTTP 502) and a bad connector id (HTTP 404). */
+    enum AuthResult { SUCCESS, UNKNOWN_CONNECTOR, STORE_DISABLED, EXCHANGE_FAILED }
+
     Optional< String > authorizationUrl( String connectorId, String state );
-    boolean completeAuthorization( String connectorId, String code );
+
+    AuthResult completeAuthorization( String connectorId, String code );
 }

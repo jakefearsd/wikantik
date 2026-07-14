@@ -22,7 +22,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeReque
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,6 +38,14 @@ public final class GoogleDriveOAuthService implements DriveOAuthService {
     private static final String SCOPE = "https://www.googleapis.com/auth/drive.readonly";
     private static final GsonFactory JSON = GsonFactory.getDefaultInstance();
 
+    /** Test seam (M-a): non-null → used instead of a trusted transport, so the sanitized-exception
+     *  contract (no OAuth code in message/cause) is provable in a unit test without network. */
+    private final HttpTransport transport;
+
+    public GoogleDriveOAuthService() { this( null ); }
+
+    GoogleDriveOAuthService( final HttpTransport transport ) { this.transport = transport; }
+
     @Override
     public String authorizationUrl( final String clientId, final String redirectUri, final String state ) {
         return new GoogleAuthorizationCodeRequestUrl( clientId, redirectUri, List.of( SCOPE ) )
@@ -51,11 +59,11 @@ public final class GoogleDriveOAuthService implements DriveOAuthService {
     public String exchangeCodeForRefreshToken( final String clientId, final String clientSecret,
             final String redirectUri, final String code ) throws IOException {
         try {
-            final NetHttpTransport transport = GoogleNetHttpTransport.newTrustedTransport();
+            final HttpTransport t = transport != null ? transport : GoogleNetHttpTransport.newTrustedTransport();
             final GoogleTokenResponse resp;
             try {
                 resp = new GoogleAuthorizationCodeTokenRequest(
-                    transport, JSON, clientId, clientSecret, code, redirectUri ).execute();
+                    t, JSON, clientId, clientSecret, code, redirectUri ).execute();
             } catch ( final Exception e ) {
                 // The Google client's exception message (e.g. TokenResponseException) can embed the
                 // request parameters — including the OAuth code — verbatim. Never let that reach a

@@ -19,6 +19,7 @@
 package com.wikantik.connectors.gdrive;
 
 import com.wikantik.api.connectors.CredentialStore;
+import static com.wikantik.api.connectors.DriveAuthCoordinator.AuthResult.*;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.*;
@@ -56,24 +57,24 @@ class DefaultDriveAuthCoordinatorTest {
     @Test void completeAuthorizationExchangesAndStoresRefreshToken() {
         FakeStore store = new FakeStore();
         var c = new DefaultDriveAuthCoordinator( Map.of( "gd", cfg() ), new FakeOAuth(), store );
-        assertTrue( c.completeAuthorization( "gd", "CODE1" ) );
+        assertEquals( SUCCESS, c.completeAuthorization( "gd", "CODE1" ) );
         assertEquals( "REFRESH-for-CODE1", store.get( "gd", "refresh_token" ).orElseThrow() );
     }
-    @Test void exchangeFailureReturnsFalseAndStoresNothing() {
+    @Test void exchangeFailureReportsExchangeFailedAndStoresNothing() {
         FakeStore store = new FakeStore();
         FakeOAuth oauth = new FakeOAuth(); oauth.throwOnExchange = true;
         var c = new DefaultDriveAuthCoordinator( Map.of( "gd", cfg() ), oauth, store );
-        assertFalse( c.completeAuthorization( "gd", "CODE1" ) );
+        assertEquals( EXCHANGE_FAILED, c.completeAuthorization( "gd", "CODE1" ) );
         assertTrue( store.get( "gd", "refresh_token" ).isEmpty() );
     }
-    @Test void disabledStoreReturnsFalse() {
+    @Test void disabledStoreReportsStoreDisabled() {
         FakeStore store = new FakeStore(); store.enabled = false;
         var c = new DefaultDriveAuthCoordinator( Map.of( "gd", cfg() ), new FakeOAuth(), store );
-        assertFalse( c.completeAuthorization( "gd", "CODE1" ) );
+        assertEquals( STORE_DISABLED, c.completeAuthorization( "gd", "CODE1" ) );
         assertTrue( store.get( "gd", "refresh_token" ).isEmpty() );
     }
-    @Test void unknownIdCompleteReturnsFalse() {
+    @Test void unknownIdCompleteReportsUnknownConnector() {
         var c = new DefaultDriveAuthCoordinator( Map.of( "gd", cfg() ), new FakeOAuth(), new FakeStore() );
-        assertFalse( c.completeAuthorization( "nope", "CODE1" ) );
+        assertEquals( UNKNOWN_CONNECTOR, c.completeAuthorization( "nope", "CODE1" ) );
     }
 }

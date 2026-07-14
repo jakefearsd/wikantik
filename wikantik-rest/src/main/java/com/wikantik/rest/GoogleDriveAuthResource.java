@@ -94,12 +94,20 @@ public class GoogleDriveAuthResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Missing authorization code" );
             return;
         }
-        final boolean ok = coordinator.completeAuthorization( connectorId.toString(), code );   // never logs the code
-        if ( ok ) {
-            response.setStatus( HttpServletResponse.SC_OK );
-            sendJson( response, Map.of( "connectorId", connectorId.toString(), "status", "authorized" ) );
-        } else {
-            sendError( response, HttpServletResponse.SC_BAD_GATEWAY, "Authorization failed" );
+        // never logs the code; the result distinguishes operator-actionable failures from upstream ones
+        final DriveAuthCoordinator.AuthResult result = coordinator.completeAuthorization( connectorId.toString(), code );
+        switch ( result ) {
+            case SUCCESS -> {
+                response.setStatus( HttpServletResponse.SC_OK );
+                sendJson( response, Map.of( "connectorId", connectorId.toString(), "status", "authorized" ) );
+            }
+            case UNKNOWN_CONNECTOR ->
+                sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown Drive connector: " + connectorId );
+            case STORE_DISABLED ->
+                sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    "Credential store disabled — configure wikantik.connectors.crypto.key" );
+            case EXCHANGE_FAILED ->
+                sendError( response, HttpServletResponse.SC_BAD_GATEWAY, "Authorization failed" );
         }
     }
 

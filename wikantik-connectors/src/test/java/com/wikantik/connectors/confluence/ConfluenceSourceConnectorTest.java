@@ -32,10 +32,12 @@ class ConfluenceSourceConnectorTest {
         List< ConfluencePage > pages = new ArrayList<>();
         boolean fail = false;
         int lastMax = -1;
-        public List< ConfluencePage > listPages( int maxPages ) throws IOException {
+        int skippedMalformed = 0;
+        public PageListing listPages( int maxPages ) throws IOException {
             lastMax = maxPages;
             if ( fail ) throw new IOException( "boom" );
-            return pages.size() > maxPages ? pages.subList( 0, maxPages ) : pages;
+            List< ConfluencePage > capped = pages.size() > maxPages ? pages.subList( 0, maxPages ) : pages;
+            return new PageListing( capped, skippedMalformed );
         }
     }
     static ConfluenceConfig cfg( int maxPages ) {
@@ -92,6 +94,17 @@ class ConfluenceSourceConnectorTest {
         SyncBatch batch = assertDoesNotThrow( () -> c.poll( null ) );
         assertTrue( batch.items().isEmpty() );
         assertFalse( batch.complete() );
+    }
+
+    @Test void malformedPagesInListingTaintBatch() {
+        FakeApi api = new FakeApi();
+        api.pages.add( new ConfluencePage( "1", "A", 1, "/spaces/ENG/pages/1/A", "<p>a</p>" ) );
+        api.skippedMalformed = 1;
+        SyncCursor in = new SyncCursor( "prev" );
+        SyncBatch b = conn( cfg( 500 ), token( "t" ), api ).poll( in );
+        assertEquals( 1, b.items().size() );
+        assertFalse( b.complete() );
+        assertEquals( in, b.nextCursor(), "taint returns the input cursor verbatim, no tombstones this cycle" );
     }
 
     @Test void reflectsFullCorpusIsTrue() {

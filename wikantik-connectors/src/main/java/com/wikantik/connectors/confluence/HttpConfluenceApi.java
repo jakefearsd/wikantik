@@ -61,9 +61,10 @@ final class HttpConfluenceApi implements ConfluenceApi {
     }
 
     @Override
-    public List< ConfluencePage > listPages( final int maxPages ) throws IOException {
+    public PageListing listPages( final int maxPages ) throws IOException {
         final String spaceId = spaceId();
         final List< ConfluencePage > out = new ArrayList<>();
+        int skipped = 0;
         String next = "/wiki/api/v2/spaces/" + spaceId + "/pages?body-format=storage&limit=50";
         while ( next != null && out.size() < maxPages ) {
             final JsonObject o = getJson( baseUrl + next );
@@ -75,6 +76,7 @@ final class HttpConfluenceApi implements ConfluenceApi {
                 if ( id == null || title == null ) {
                     LOG.warn( "confluence page {} ('{}') has no storage body/version in listing — skipping",
                         id == null ? "?" : id, title == null ? "?" : title );
+                    skipped++;
                     continue;
                 }
                 final JsonObject body = page.getAsJsonObject( "body" );
@@ -84,6 +86,7 @@ final class HttpConfluenceApi implements ConfluenceApi {
                 if ( storage == null || !storage.has( "value" ) || version == null || !version.has( "number" )
                     || links == null || !links.has( "webui" ) ) {
                     LOG.warn( "confluence page {} ('{}') has no storage body/version in listing — skipping", id, title );
+                    skipped++;
                     continue;
                 }
                 out.add( new ConfluencePage(
@@ -96,7 +99,7 @@ final class HttpConfluenceApi implements ConfluenceApi {
             final JsonObject links = o.getAsJsonObject( "_links" );
             next = links != null && links.has( "next" ) ? links.get( "next" ).getAsString() : null;
         }
-        return out;
+        return new PageListing( out, skipped );
     }
 
     private String spaceId() throws IOException {

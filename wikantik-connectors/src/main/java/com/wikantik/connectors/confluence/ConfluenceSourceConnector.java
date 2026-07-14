@@ -67,19 +67,28 @@ public final class ConfluenceSourceConnector implements SourceConnector {
             return new SyncBatch( List.of(), List.of(), cursor, false );
         }
         final List< SourceItem > items = new ArrayList<>();
+        boolean trusted = true;
         try {
             final ConfluenceApi api = apiFactory.create( config.baseUrl(), config.spaceKey(),
                 config.email(), token.get() );
-            final List< ConfluencePage > pages = api.listPages( config.maxPages() );
-            if ( pages.size() >= config.maxPages() ) {
+            final PageListing listing = api.listPages( config.maxPages() );
+            if ( listing.pages().size() >= config.maxPages() ) {
                 LOG.info( "confluence '{}': hit max_pages={}, truncated", connectorId, config.maxPages() );
             }
-            for ( final ConfluencePage p : pages ) {
+            if ( listing.skippedMalformed() > 0 ) {
+                trusted = false;
+                LOG.warn( "confluence '{}': {} malformed page(s) skipped in listing — batch marked incomplete, "
+                    + "no tombstones this cycle", connectorId, listing.skippedMalformed() );
+            }
+            for ( final ConfluencePage p : listing.pages() ) {
                 items.add( ConfluenceItems.toItem( config.baseUrl(), config.spaceKey(), p ) );
             }
         } catch ( final Exception e ) {   // poll() never throws; any Confluence/HTTP error → empty INCOMPLETE batch
             LOG.warn( "confluence '{}': sync failed, skipping cycle: {}", connectorId, e.getMessage() );
             return new SyncBatch( List.of(), List.of(), cursor, false );
+        }
+        if ( !trusted ) {
+            return new SyncBatch( items, List.of(), cursor, false );
         }
         return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
     }

@@ -18,14 +18,9 @@
  */
 package com.wikantik.connectors.confluence;
 
-import java.io.IOException;
+import java.util.List;
 
-/** Injectable Confluence Cloud REST seam — faked in unit tests, HTTP-implemented by HttpConfluenceApi. */
-public interface ConfluenceApi {
-    /** All current pages of the configured space (paginated internally), capped at {@code maxPages},
-     *  bodies in storage (XHTML) format. Pages missing required fields (body.storage/version) are
-     *  skipped but counted in {@link PageListing#skippedMalformed()} — a listing anomaly, not
-     *  authoritative absence. Any HTTP/API failure anywhere → IOException — an enumeration-source
-     *  failure always taints the batch. */
-    PageListing listPages( int maxPages ) throws IOException;
-}
+/** Space-pages listing result. {@code skippedMalformed} counts listed pages missing required fields
+ *  (body.storage/version) — a listing anomaly, NOT authoritative absence: the connector must taint
+ *  the batch (complete=false) so the orchestrator derives no tombstones from their absence. */
+public record PageListing( List< ConfluencePage > pages, int skippedMalformed ) {}

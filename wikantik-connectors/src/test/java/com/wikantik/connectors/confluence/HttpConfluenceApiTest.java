@@ -89,7 +89,7 @@ class HttpConfluenceApiTest {
 
     @Test void listPagesFollowsPaginationAndParses() throws IOException {
         HttpConfluenceApi api = new HttpConfluenceApi( base, "ENG", "bot@acme.com", "TOK" );
-        List< ConfluencePage > pages = api.listPages( 500 );
+        List< ConfluencePage > pages = api.listPages( 500 ).pages();
         assertEquals( 2, pages.size() );
         assertEquals( new ConfluencePage( "1", "A", 4, "/spaces/ENG/pages/1/A", "<p>a</p>" ), pages.get( 0 ) );
         assertEquals( new ConfluencePage( "2", "B", 1, "/spaces/ENG/pages/2/B", "<p>b</p>" ), pages.get( 1 ) );
@@ -100,7 +100,7 @@ class HttpConfluenceApiTest {
 
     @Test void maxPagesStopsPagination() throws IOException {
         HttpConfluenceApi api = new HttpConfluenceApi( base, "ENG", "bot@acme.com", "TOK" );
-        assertEquals( 1, api.listPages( 1 ).size() );   // stops before following the next link
+        assertEquals( 1, api.listPages( 1 ).pages().size() );   // stops before following the next link
     }
 
     @Test void unknownSpaceThrows() {
@@ -108,10 +108,11 @@ class HttpConfluenceApiTest {
         assertThrows( IOException.class, () -> api.listPages( 500 ) );
     }
 
-    @Test void malformedPageIsSkippedNotThrown() throws IOException {
+    @Test void malformedPageIsSkippedAndCounted() throws IOException {
         HttpConfluenceApi api = new HttpConfluenceApi( base, "MIXED", "bot@acme.com", "TOK" );
-        List< ConfluencePage > pages = api.listPages( 500 );
-        assertEquals( 1, pages.size() );
-        assertEquals( new ConfluencePage( "9", "Good", 2, "/spaces/MIXED/pages/9/Good", "<p>good</p>" ), pages.get( 0 ) );
+        PageListing listing = api.listPages( 500 );
+        assertEquals( 1, listing.pages().size() );
+        assertEquals( new ConfluencePage( "9", "Good", 2, "/spaces/MIXED/pages/9/Good", "<p>good</p>" ), listing.pages().get( 0 ) );
+        assertEquals( 1, listing.skippedMalformed() );
     }
 }

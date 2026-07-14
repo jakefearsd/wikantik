@@ -36,10 +36,10 @@ class WebFetchItemsTest {
         assertEquals( "text/html", i.contentType() );
         assertTrue( i.aclRefs().isEmpty() );
         assertEquals( 64, i.contentHash().length() );
-        assertEquals( "https://ex.com/p", i.sourceMetadata().get( "url" ) );
-        assertEquals( "Hi", i.sourceMetadata().get( "title" ) );
-        assertEquals( 200, i.sourceMetadata().get( "httpStatus" ) );
-        assertNotNull( i.sourceMetadata().get( "fetchedAt" ) );
+        assertEquals( "https://ex.com/p", i.metadata().get( "url" ) );
+        assertEquals( "Hi", i.metadata().get( "title" ) );
+        assertEquals( 200, i.metadata().get( "httpStatus" ) );
+        assertNotNull( i.metadata().get( "fetchedAt" ) );
     }
     @Test void toItemFromContentBuildsTextHtmlItem() {
         byte[] html = "<p>inline feed content</p>".getBytes( java.nio.charset.StandardCharsets.UTF_8 );
@@ -49,9 +49,9 @@ class WebFetchItemsTest {
         assertArrayEquals( html, i.content() );
         assertTrue( i.aclRefs().isEmpty() );
         assertEquals( 64, i.contentHash().length() );
-        assertEquals( "My Post", i.sourceMetadata().get( "title" ) );
-        assertEquals( "https://ex.com/post", i.sourceMetadata().get( "url" ) );
-        assertNotNull( i.sourceMetadata().get( "fetchedAt" ) );
-        assertFalse( i.sourceMetadata().containsKey( "httpStatus" ) );   // no page fetch
+        assertEquals( "My Post", i.metadata().get( "title" ) );
+        assertEquals( "https://ex.com/post", i.metadata().get( "url" ) );
+        assertNotNull( i.metadata().get( "fetchedAt" ) );
+        assertFalse( i.metadata().containsKey( "httpStatus" ) );   // no page fetch
     }
 }

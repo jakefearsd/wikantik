@@ -16,12 +16,10 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.api.connectors;
+package com.wikantik.connectors.github;
 
 import java.util.List;
-import java.util.Map;
 
-/** One item fetched from an external source, ready to become a derived page. */
-public record SourceItem(
-    String sourceUri, byte[] content, String contentType,
-    Map< String, Object > metadata, List< String > aclRefs, String contentHash ) {}
+/** Recursive tree listing result. {@code truncated} mirrors the GitHub API flag — a truncated
+ *  listing is NOT a trustworthy full snapshot (the connector taints the batch). */
+public record TreeListing( List< GithubFile > files, boolean truncated ) {}

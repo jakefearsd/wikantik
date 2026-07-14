@@ -481,7 +481,14 @@ public final class GithubSourceConnector implements SourceConnector {
 
     @Override
     public SyncBatch poll( final SyncCursor cursor ) {
-        final Optional< String > token = tokenSupplier.get();
+        final Optional< String > token;
+        try {
+            token = tokenSupplier.get();
+        } catch ( final RuntimeException e ) {
+            // poll() never throws — even a failing credential-store lookup degrades to a skipped cycle
+            LOG.warn( "github '{}': token lookup failed — skipping sync: {}", connectorId, e.getMessage() );
+            return new SyncBatch( List.of(), List.of(), cursor, false );
+        }
         if ( token.isEmpty() || token.get().isBlank() ) {
             LOG.warn( "github '{}': no token available (credential store disabled or token not set) — "
                 + "skipping sync", connectorId );
@@ -527,7 +534,7 @@ public final class GithubSourceConnector implements SourceConnector {
 }
 ```
 
-- [ ] **Step 4: Run to verify pass** — `mvn test -pl wikantik-connectors -Dtest=GithubSourceConnectorTest` → 10/10 PASS.
+- [ ] **Step 4: Run to verify pass** — `mvn test -pl wikantik-connectors -Dtest=GithubSourceConnectorTest` → 11/11 PASS (incl. the token-supplier-throwing guard test).
 
 - [ ] **Step 5: Commit**
 
@@ -976,6 +983,14 @@ class ConfluenceSourceConnectorTest {
         assertFalse( batch.complete() );
     }
 
+    @Test void tokenSupplierThrowingDegradesToEmptyIncompleteBatchNoThrow() {
+        Supplier< Optional< String > > failing = () -> { throw new IllegalStateException( "store down" ); };
+        ConfluenceSourceConnector c = new ConfluenceSourceConnector( "cf", cfg( 500 ), failing, ( b, s, e, k ) -> new FakeApi() );
+        SyncBatch batch = assertDoesNotThrow( () -> c.poll( null ) );
+        assertTrue( batch.items().isEmpty() );
+        assertFalse( batch.complete() );
+    }
+
     @Test void reflectsFullCorpusIsTrue() {
         assertTrue( conn( cfg( 500 ), token( "t" ), new FakeApi() ).reflectsFullCorpus() );
     }
@@ -1052,7 +1067,14 @@ public final class ConfluenceSourceConnector implements SourceConnector {
 
     @Override
     public SyncBatch poll( final SyncCursor cursor ) {
-        final Optional< String > token = tokenSupplier.get();
+        final Optional< String > token;
+        try {
+            token = tokenSupplier.get();
+        } catch ( final RuntimeException e ) {
+            // poll() never throws — even a failing credential-store lookup degrades to a skipped cycle
+            LOG.warn( "confluence '{}': token lookup failed — skipping sync: {}", connectorId, e.getMessage() );
+            return new SyncBatch( List.of(), List.of(), cursor, false );
+        }
         if ( token.isEmpty() || token.get().isBlank() ) {
             LOG.warn( "confluence '{}': no api_token available (credential store disabled or token not set) — "
                 + "skipping sync", connectorId );
@@ -1078,7 +1100,7 @@ public final class ConfluenceSourceConnector implements SourceConnector {
 }
 ```
 
-- [ ] **Step 4: Run to verify pass** — `mvn test -pl wikantik-connectors -Dtest=ConfluenceSourceConnectorTest` → 5/5 PASS.
+- [ ] **Step 4: Run to verify pass** — `mvn test -pl wikantik-connectors -Dtest=ConfluenceSourceConnectorTest` → 6/6 PASS.
 
 - [ ] **Step 5: Commit**
 

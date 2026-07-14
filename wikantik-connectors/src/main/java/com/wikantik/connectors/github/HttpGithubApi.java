@@ -66,7 +66,7 @@ final class HttpGithubApi implements GithubApi {
     @Override
     public TreeListing listTree( final String branch ) throws IOException {
         final JsonObject o = JsonParser.parseString(
-            new String( get( apiBase + "/repos/" + repo + "/git/trees/" + branch + "?recursive=1",
+            new String( get( apiBase + "/repos/" + repo + "/git/trees/" + encodeSegments( branch ) + "?recursive=1",
                 "application/vnd.github+json" ), StandardCharsets.UTF_8 ) ).getAsJsonObject();
         final List< GithubFile > files = new ArrayList<>();
         for ( final JsonElement e : o.getAsJsonArray( "tree" ) ) {
@@ -81,8 +81,8 @@ final class HttpGithubApi implements GithubApi {
 
     @Override
     public Optional< byte[] > rawContent( final String path, final String branch ) throws IOException {
-        final HttpResponse< byte[] > r = send( apiBase + "/repos/" + repo + "/contents/" + path
-            + "?ref=" + branch, "application/vnd.github.raw+json" );
+        final HttpResponse< byte[] > r = send( apiBase + "/repos/" + repo + "/contents/" + encodeSegments( path )
+            + "?ref=" + encodeSegments( branch ), "application/vnd.github.raw+json" );
         if ( r.statusCode() == 404 ) return Optional.empty();     // deleted between listing and fetch
         if ( r.statusCode() / 100 != 2 ) {
             throw new IOException( "GitHub API returned status " + r.statusCode() + " for contents of " + path );
@@ -112,5 +112,16 @@ final class HttpGithubApi implements GithubApi {
             Thread.currentThread().interrupt();
             throw new IOException( "GitHub API request interrupted" );   // fixed string, no token
         }
+    }
+
+    /** Percent-encodes each '/'-delimited segment of a path (or a bare branch name) so that
+     *  URI-illegal characters — spaces, etc. — don't blow up {@link URI#create(String)}. */
+    private static String encodeSegments( final String path ) {
+        final StringBuilder sb = new StringBuilder();
+        for ( final String seg : path.split( "/" ) ) {
+            if ( sb.length() > 0 ) sb.append( '/' );
+            sb.append( java.net.URLEncoder.encode( seg, java.nio.charset.StandardCharsets.UTF_8 ).replace( "+", "%20" ) );
+        }
+        return sb.toString();
     }
 }

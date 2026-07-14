@@ -22,6 +22,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.wikantik.connectors.http.CappedBodySubscriber;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.URI;
@@ -39,6 +41,8 @@ import java.util.List;
  *  directly with a localhost base). Secret hygiene: the token lives only in the Authorization
  *  header — never in URLs, exception messages, or logs. */
 final class HttpConfluenceApi implements ConfluenceApi {
+
+    private static final Logger LOG = LogManager.getLogger( HttpConfluenceApi.class );
 
     static final int MAX_BODY_BYTES = 10 * 1024 * 1024;
     private static final Duration TIMEOUT = Duration.ofSeconds( 20 );
@@ -66,12 +70,28 @@ final class HttpConfluenceApi implements ConfluenceApi {
             for ( final JsonElement e : o.getAsJsonArray( "results" ) ) {
                 if ( out.size() >= maxPages ) break;
                 final JsonObject page = e.getAsJsonObject();
+                final String id = page.has( "id" ) ? page.get( "id" ).getAsString() : null;
+                final String title = page.has( "title" ) ? page.get( "title" ).getAsString() : null;
+                if ( id == null || title == null ) {
+                    LOG.warn( "confluence page {} ('{}') has no storage body/version in listing — skipping",
+                        id == null ? "?" : id, title == null ? "?" : title );
+                    continue;
+                }
+                final JsonObject body = page.getAsJsonObject( "body" );
+                final JsonObject storage = body != null ? body.getAsJsonObject( "storage" ) : null;
+                final JsonObject version = page.getAsJsonObject( "version" );
+                final JsonObject links = page.getAsJsonObject( "_links" );
+                if ( storage == null || !storage.has( "value" ) || version == null || !version.has( "number" )
+                    || links == null || !links.has( "webui" ) ) {
+                    LOG.warn( "confluence page {} ('{}') has no storage body/version in listing — skipping", id, title );
+                    continue;
+                }
                 out.add( new ConfluencePage(
-                    page.get( "id" ).getAsString(),
-                    page.get( "title" ).getAsString(),
-                    page.getAsJsonObject( "version" ).get( "number" ).getAsInt(),
-                    page.getAsJsonObject( "_links" ).get( "webui" ).getAsString(),
-                    page.getAsJsonObject( "body" ).getAsJsonObject( "storage" ).get( "value" ).getAsString() ) );
+                    id,
+                    title,
+                    version.get( "number" ).getAsInt(),
+                    links.get( "webui" ).getAsString(),
+                    storage.get( "value" ).getAsString() ) );
             }
             final JsonObject links = o.getAsJsonObject( "_links" );
             next = links != null && links.has( "next" ) ? links.get( "next" ).getAsString() : null;

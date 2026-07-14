@@ -50,6 +50,16 @@ class HttpConfluenceApiTest {
                 respond( ex, 200, "{\"results\":[{\"id\":\"777\",\"key\":\"ENG\"}]}" );
             } else if ( path.equals( "/wiki/api/v2/spaces" ) && query.contains( "keys=NOPE" ) ) {
                 respond( ex, 200, "{\"results\":[]}" );
+            } else if ( path.equals( "/wiki/api/v2/spaces" ) && query.contains( "keys=MIXED" ) ) {
+                respond( ex, 200, "{\"results\":[{\"id\":\"888\",\"key\":\"MIXED\"}]}" );
+            } else if ( path.equals( "/wiki/api/v2/spaces/888/pages" ) ) {
+                respond( ex, 200, "{\"results\":["
+                    + "{\"id\":\"9\",\"title\":\"Good\","
+                    + "\"version\":{\"number\":2},"
+                    + "\"body\":{\"storage\":{\"value\":\"<p>good</p>\"}},"
+                    + "\"_links\":{\"webui\":\"/spaces/MIXED/pages/9/Good\"}},"
+                    + "{\"id\":\"10\",\"title\":\"Malformed\",\"body\":{}}],"
+                    + "\"_links\":{}}" );
             } else if ( path.equals( "/wiki/api/v2/spaces/777/pages" ) && !query.contains( "cursor=p2" ) ) {
                 respond( ex, 200, "{\"results\":[{\"id\":\"1\",\"title\":\"A\","
                     + "\"version\":{\"number\":4},"
@@ -96,5 +106,12 @@ class HttpConfluenceApiTest {
     @Test void unknownSpaceThrows() {
         HttpConfluenceApi api = new HttpConfluenceApi( base, "NOPE", "bot@acme.com", "TOK" );
         assertThrows( IOException.class, () -> api.listPages( 500 ) );
+    }
+
+    @Test void malformedPageIsSkippedNotThrown() throws IOException {
+        HttpConfluenceApi api = new HttpConfluenceApi( base, "MIXED", "bot@acme.com", "TOK" );
+        List< ConfluencePage > pages = api.listPages( 500 );
+        assertEquals( 1, pages.size() );
+        assertEquals( new ConfluencePage( "9", "Good", 2, "/spaces/MIXED/pages/9/Good", "<p>good</p>" ), pages.get( 0 ) );
     }
 }

@@ -56,6 +56,8 @@ class HttpGithubApiTest {
                 respond( ex, 200, "# hello" );
             } else if ( path.equals( "/repos/acme/handbook/contents/gone.md" ) ) {
                 respond( ex, 404, "{\"message\":\"Not Found\"}" );
+            } else if ( path.equals( "/repos/acme/handbook/contents/docs/Getting Started.md" ) ) {
+                respond( ex, 200, "# spaced" );
             } else if ( path.equals( "/repos/acme/handbook/git/trees/boom" ) ) {
                 respond( ex, 500, "oops" );
             } else {
@@ -97,5 +99,10 @@ class HttpGithubApiTest {
 
     @Test void non2xxNon404Throws() {
         assertThrows( IOException.class, () -> api().listTree( "boom" ) );
+    }
+
+    @Test void rawContentEncodesUriIllegalPathSegments() throws IOException {
+        assertArrayEquals( "# spaced".getBytes( StandardCharsets.UTF_8 ),
+            api().rawContent( "docs/Getting Started.md", "main" ).orElseThrow() );
     }
 }

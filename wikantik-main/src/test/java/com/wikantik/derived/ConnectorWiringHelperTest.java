@@ -166,4 +166,53 @@ class ConnectorWiringHelperTest {
         // no client_id/secret/redirect_uri
         assertTrue( ConnectorWiringHelper.driveConfigs( p ).isEmpty() );
     }
+
+    @Test void githubConfigsParsesRequiredFieldsAndDefaults() {
+        Properties p = new Properties();
+        p.setProperty( "wikantik.connectors.github.handbook.repo", "acme/handbook" );
+        p.setProperty( "wikantik.connectors.github.handbook.branch", "main" );
+        p.setProperty( "wikantik.connectors.github.handbook.path_prefix", "docs/" );
+        p.setProperty( "wikantik.connectors.github.handbook.max_files", "42" );
+        p.setProperty( "wikantik.connectors.github.min.repo", "acme/min" );   // defaults only
+        var cfgs = ConnectorWiringHelper.githubConfigs( p );
+        assertEquals( 2, cfgs.size() );
+        var c = cfgs.get( "handbook" );
+        assertEquals( "acme/handbook", c.repo() );
+        assertEquals( "main", c.branch() );
+        assertEquals( "docs/", c.pathPrefix() );
+        assertEquals( 42, c.maxFiles() );
+        var m = cfgs.get( "min" );
+        assertNull( m.branch() );
+        assertNull( m.pathPrefix() );
+        assertEquals( 500, m.maxFiles() );
+    }
+
+    @Test void githubConfigSkippedWhenRepoMalformed() {
+        Properties p = new Properties();
+        p.setProperty( "wikantik.connectors.github.bad.repo", "not-owner-slash-name" );
+        p.setProperty( "wikantik.connectors.github.bad2.repo", "a/b/c" );
+        assertTrue( ConnectorWiringHelper.githubConfigs( p ).isEmpty() );
+    }
+
+    @Test void confluenceConfigsParsesRequiredFieldsAndDefaults() {
+        Properties p = new Properties();
+        p.setProperty( "wikantik.connectors.confluence.acme.space_key", "ENG" );
+        p.setProperty( "wikantik.connectors.confluence.acme.base_url", "https://acme.atlassian.net" );
+        p.setProperty( "wikantik.connectors.confluence.acme.email", "bot@acme.com" );
+        var cfgs = ConnectorWiringHelper.confluenceConfigs( p );
+        assertEquals( 1, cfgs.size() );
+        var c = cfgs.get( "acme" );
+        assertEquals( "https://acme.atlassian.net", c.baseUrl() );
+        assertEquals( "ENG", c.spaceKey() );
+        assertEquals( "bot@acme.com", c.email() );
+        assertEquals( 500, c.maxPages() );
+    }
+
+    @Test void confluenceConfigSkippedWhenBaseUrlOrEmailMissing() {
+        Properties p = new Properties();
+        p.setProperty( "wikantik.connectors.confluence.a.space_key", "ENG" );   // no base_url/email
+        p.setProperty( "wikantik.connectors.confluence.b.space_key", "OPS" );
+        p.setProperty( "wikantik.connectors.confluence.b.base_url", "https://x.atlassian.net" );  // no email
+        assertTrue( ConnectorWiringHelper.confluenceConfigs( p ).isEmpty() );
+    }
 }

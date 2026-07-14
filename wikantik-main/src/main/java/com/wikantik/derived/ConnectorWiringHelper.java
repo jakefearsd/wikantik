@@ -25,6 +25,9 @@ import com.wikantik.api.connectors.SourceConnector;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.connectors.SyncOrchestrator;
+import com.wikantik.connectors.confluence.ConfluenceConfig;
+import com.wikantik.connectors.confluence.ConfluenceSourceConnector;
+import com.wikantik.connectors.confluence.HttpConfluenceApiFactory;
 import com.wikantik.connectors.credential.JdbcCredentialStore;
 import com.wikantik.connectors.filesystem.FilesystemSourceConnector;
 import com.wikantik.connectors.gdrive.DefaultDriveAuthCoordinator;
@@ -32,6 +35,9 @@ import com.wikantik.connectors.gdrive.DriveConfig;
 import com.wikantik.connectors.gdrive.DriveSourceConnector;
 import com.wikantik.connectors.gdrive.GoogleDriveApiFactory;
 import com.wikantik.connectors.gdrive.GoogleDriveOAuthService;
+import com.wikantik.connectors.github.GithubConfig;
+import com.wikantik.connectors.github.GithubSourceConnector;
+import com.wikantik.connectors.github.HttpGithubApiFactory;
 import com.wikantik.connectors.runtime.ConnectorRegistry;
 import com.wikantik.connectors.runtime.ConnectorRuntime;
 import com.wikantik.connectors.runtime.ConnectorStatusReader;
@@ -83,11 +89,15 @@ public final class ConnectorWiringHelper {
         final Map< String, SitemapConfig > sitemaps = sitemapConfigs( props );
         final Map< String, FeedConfig > feeds = feedConfigs( props );
         final Map< String, DriveConfig > drives = driveConfigs( props );
-        if ( roots.isEmpty() && webcrawlers.isEmpty() && sitemaps.isEmpty() && feeds.isEmpty() && drives.isEmpty() ) {
+        final Map< String, GithubConfig > githubs = githubConfigs( props );
+        final Map< String, ConfluenceConfig > confluences = confluenceConfigs( props );
+        if ( roots.isEmpty() && webcrawlers.isEmpty() && sitemaps.isEmpty() && feeds.isEmpty() && drives.isEmpty()
+                && githubs.isEmpty() && confluences.isEmpty() ) {
             LOG.info( "connectors enabled but no wikantik.connectors.filesystem.*.root or "
                 + "wikantik.connectors.webcrawler.*.seeds or wikantik.connectors.sitemap.*.sitemap_urls or "
-                + "wikantik.connectors.feed.*.feed_urls or wikantik.connectors.gdrive.*.folder_ids configured "
-                + "— nothing to sync" );
+                + "wikantik.connectors.feed.*.feed_urls or wikantik.connectors.gdrive.*.folder_ids "
+                + "or wikantik.connectors.github.*.repo or wikantik.connectors.confluence.*.space_key "
+                + "configured — nothing to sync" );
             return Optional.empty();
         }
         final Map< String, SourceConnector > byId = new LinkedHashMap<>();
@@ -126,6 +136,20 @@ public final class ConnectorWiringHelper {
         if ( !drives.isEmpty() ) {
             engine.setManager( DriveAuthCoordinator.class,
                 new DefaultDriveAuthCoordinator( drives, new GoogleDriveOAuthService(), credStore ) );
+        }
+        final HttpGithubApiFactory githubApiFactory = new HttpGithubApiFactory();
+        for ( final Map.Entry< String, GithubConfig > e : githubs.entrySet() ) {
+            final String id = e.getKey();
+            byId.put( id, new GithubSourceConnector( id, e.getValue(),
+                () -> credStore.get( id, "token" ), githubApiFactory ) );
+            typeById.put( id, "github" );
+        }
+        final HttpConfluenceApiFactory confluenceApiFactory = new HttpConfluenceApiFactory();
+        for ( final Map.Entry< String, ConfluenceConfig > e : confluences.entrySet() ) {
+            final String id = e.getKey();
+            byId.put( id, new ConfluenceSourceConnector( id, e.getValue(),
+                () -> credStore.get( id, "api_token" ), confluenceApiFactory ) );
+            typeById.put( id, "confluence" );
         }
         final DerivedPageIngestionService ingestion = DerivedIngestionServiceFactory.build( engine, pm, am );
         final DerivedPageSinkAdapter sink = new DerivedPageSinkAdapter( ingestion, pm::deletePage, "connector-sync" );
@@ -279,6 +303,55 @@ public final class ConnectorWiringHelper {
                     parseInt( props, idPrefix + "max_files", 500 ),
                     clientId, clientSecret, redirectUri,
                     props.getProperty( idPrefix + "export_mime", "text/markdown" ).trim() ) );
+            }
+        }
+        return out;
+    }
+
+    /** id → config for every {@code wikantik.connectors.github.<id>.repo} key. Package-visible for
+     *  testing. An id whose repo is not "owner/name" shaped is skipped. */
+    static Map< String, GithubConfig > githubConfigs( final Properties props ) {
+        final String p = PREFIX + "github.";
+        final Map< String, GithubConfig > out = new LinkedHashMap<>();
+        for ( final String key : props.stringPropertyNames() ) {
+            if ( key.startsWith( p ) && key.endsWith( ".repo" ) ) {
+                final String id = key.substring( p.length(), key.length() - ".repo".length() );
+                if ( id.isBlank() || id.contains( "." ) ) continue;
+                final String repo = blankToNull( props.getProperty( key ) );
+                if ( repo == null || !repo.matches( "[^/\\s]+/[^/\\s]+" ) ) {
+                    LOG.warn( "github '{}': repo must be \"owner/name\" — skipping", id );
+                    continue;
+                }
+                final String idPrefix = p + id + ".";
+                out.put( id, new GithubConfig( repo,
+                    blankToNull( props.getProperty( idPrefix + "branch" ) ),
+                    blankToNull( props.getProperty( idPrefix + "path_prefix" ) ),
+                    parseInt( props, idPrefix + "max_files", 500 ) ) );
+            }
+        }
+        return out;
+    }
+
+    /** id → config for every {@code wikantik.connectors.confluence.<id>.space_key} key. Package-visible
+     *  for testing. An id missing base_url or email is skipped. */
+    static Map< String, ConfluenceConfig > confluenceConfigs( final Properties props ) {
+        final String p = PREFIX + "confluence.";
+        final Map< String, ConfluenceConfig > out = new LinkedHashMap<>();
+        for ( final String key : props.stringPropertyNames() ) {
+            if ( key.startsWith( p ) && key.endsWith( ".space_key" ) ) {
+                final String id = key.substring( p.length(), key.length() - ".space_key".length() );
+                if ( id.isBlank() || id.contains( "." ) ) continue;
+                final String spaceKey = blankToNull( props.getProperty( key ) );
+                final String idPrefix = p + id + ".";
+                final String baseUrl = blankToNull( props.getProperty( idPrefix + "base_url" ) );
+                final String email = blankToNull( props.getProperty( idPrefix + "email" ) );
+                if ( spaceKey == null ) continue;
+                if ( baseUrl == null || email == null ) {
+                    LOG.warn( "confluence '{}': missing base_url/email — skipping", id );
+                    continue;
+                }
+                out.put( id, new ConfluenceConfig( baseUrl, spaceKey, email,
+                    parseInt( props, idPrefix + "max_pages", 500 ) ) );
             }
         }
         return out;

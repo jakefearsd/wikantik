@@ -53,7 +53,14 @@ public final class GithubSourceConnector implements SourceConnector {
 
     @Override
     public SyncBatch poll( final SyncCursor cursor ) {
-        final Optional< String > token = tokenSupplier.get();
+        final Optional< String > token;
+        try {
+            token = tokenSupplier.get();
+        } catch ( final RuntimeException e ) {
+            // poll() never throws — even a failing credential-store lookup degrades to a skipped cycle
+            LOG.warn( "github '{}': token lookup failed — skipping sync: {}", connectorId, e.getMessage() );
+            return new SyncBatch( List.of(), List.of(), cursor, false );
+        }
         if ( token.isEmpty() || token.get().isBlank() ) {
             LOG.warn( "github '{}': no token available (credential store disabled or token not set) — "
                 + "skipping sync", connectorId );

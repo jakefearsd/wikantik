@@ -141,6 +141,14 @@ class GithubSourceConnectorTest {
         assertTrue( b.complete(), "cap-hit is deliberate truncation (matches Drive)" );
     }
 
+    @Test void tokenSupplierThrowingDegradesToEmptyIncompleteBatchNoThrow() {
+        Supplier< Optional< String > > failing = () -> { throw new IllegalStateException( "store down" ); };
+        GithubSourceConnector c = new GithubSourceConnector( "gh", cfg( "main", null, 500 ), failing, ( repo, tok ) -> new FakeApi() );
+        SyncBatch b = assertDoesNotThrow( () -> c.poll( null ) );
+        assertTrue( b.items().isEmpty() );
+        assertFalse( b.complete() );
+    }
+
     @Test void reflectsFullCorpusIsTrue() {
         assertTrue( conn( cfg( "main", null, 500 ), token( "t" ), new FakeApi() ).reflectsFullCorpus() );
     }

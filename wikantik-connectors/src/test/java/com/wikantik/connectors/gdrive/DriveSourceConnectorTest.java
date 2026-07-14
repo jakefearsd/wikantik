@@ -109,6 +109,14 @@ class DriveSourceConnectorTest {
         assertFalse( batch.complete() );
     }
 
+    @Test void tokenSupplierThrowingDegradesToEmptyIncompleteBatchNoThrow() {
+        Supplier< Optional< String > > failing = () -> { throw new IllegalStateException( "store down" ); };
+        DriveSourceConnector c = new DriveSourceConnector( "gd", cfg( List.of( "root" ), 500 ), failing, ( a, b, r ) -> new FakeApi() );
+        SyncBatch batch = assertDoesNotThrow( () -> c.poll( null ) );
+        assertTrue( batch.items().isEmpty() );
+        assertFalse( batch.complete() );
+    }
+
     @Test void reflectsFullCorpusIsTrue() {
         DriveSourceConnector c = new DriveSourceConnector( "gd", cfg( List.of( "root" ), 500 ), token( "rt" ), ( a, b, r ) -> new FakeApi() );
         assertTrue( c.reflectsFullCorpus() );

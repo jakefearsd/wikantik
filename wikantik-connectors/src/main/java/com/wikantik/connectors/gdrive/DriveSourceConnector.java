@@ -51,7 +51,14 @@ public final class DriveSourceConnector implements SourceConnector {
 
     @Override
     public SyncBatch poll( final SyncCursor cursor ) {
-        final Optional< String > token = refreshTokenSupplier.get();
+        final Optional< String > token;
+        try {
+            token = refreshTokenSupplier.get();
+        } catch ( final RuntimeException e ) {
+            // poll() never throws — even a failing credential-store lookup degrades to a skipped cycle
+            LOG.warn( "gdrive '{}': token lookup failed — skipping sync: {}", connectorId, e.getMessage() );
+            return new SyncBatch( List.of(), List.of(), cursor, false );
+        }
         if ( token.isEmpty() || token.get().isBlank() ) {
             LOG.warn( "gdrive '{}': no refresh_token available (credential store disabled or token not set) — "
                 + "skipping sync", connectorId );

@@ -26,6 +26,8 @@ import com.wikantik.connectors.github.GithubConfig;
 import com.wikantik.connectors.web.FeedConfig;
 import com.wikantik.connectors.web.SitemapConfig;
 import com.wikantik.connectors.web.WebCrawlerConfig;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -48,6 +50,8 @@ import java.util.regex.Pattern;
  */
 public final class ConnectorConfigCodec {
 
+    private static final Logger LOG = LogManager.getLogger( ConnectorConfigCodec.class );
+
     /** Connector types the admin UI may create. {@code filesystem} is not one of them (D9). */
     public static final Set< String > UI_TYPES = Set.of( "webcrawler", "sitemap", "feed", "gdrive", "github", "confluence" );
 
@@ -57,8 +61,12 @@ public final class ConnectorConfigCodec {
 
     private ConnectorConfigCodec() {}
 
-    /** Field-keyed validation errors; empty ⇒ {@link #ok()}. */
+    /** Field-keyed validation errors; empty ⇒ {@link #ok()}. The map is defensively immutable. */
     public record Validation( Map< String, String > errors ) {
+        public Validation {
+            errors = Map.copyOf( errors );
+        }
+
         public boolean ok() {
             return errors.isEmpty();
         }
@@ -285,11 +293,20 @@ public final class ConnectorConfigCodec {
     }
 
     // ---- JSON field helpers ------------------------------------------------------------------
+    // All helpers are shape-proof: a value of the wrong JSON shape (object where a string is
+    // expected, multi-element array where a scalar is expected, …) degrades to null / the default
+    // instead of throwing, so validate() turns it into a field-keyed error — validate() must never
+    // throw on any JsonObject input.
 
     private static String str( final JsonObject config, final String key ) {
         if ( config == null || !config.has( key ) || config.get( key ).isJsonNull() ) return null;
-        final String value = config.get( key ).getAsString().trim();
-        return value.isBlank() ? null : value;
+        try {
+            final String value = config.get( key ).getAsString().trim();
+            return value.isBlank() ? null : value;
+        } catch ( final UnsupportedOperationException | IllegalStateException | NumberFormatException | ClassCastException e ) {
+            LOG.warn( "connector config field '{}': not readable as a string ({}) — treating as absent", key, e.getMessage() );
+            return null;
+        }
     }
 
     private static String strOr( final JsonObject config, final String key, final String def ) {
@@ -301,7 +318,8 @@ public final class ConnectorConfigCodec {
         if ( config == null || !config.has( key ) || config.get( key ).isJsonNull() ) return def;
         try {
             return config.get( key ).getAsInt();
-        } catch ( final NumberFormatException | UnsupportedOperationException e ) {
+        } catch ( final NumberFormatException | UnsupportedOperationException | IllegalStateException | ClassCastException e ) {
+            LOG.warn( "connector config field '{}': not readable as an int ({}) — using default {}", key, e.getMessage(), def );
             return def;
         }
     }
@@ -310,7 +328,8 @@ public final class ConnectorConfigCodec {
         if ( config == null || !config.has( key ) || config.get( key ).isJsonNull() ) return def;
         try {
             return config.get( key ).getAsLong();
-        } catch ( final NumberFormatException | UnsupportedOperationException e ) {
+        } catch ( final NumberFormatException | UnsupportedOperationException | IllegalStateException | ClassCastException e ) {
+            LOG.warn( "connector config field '{}': not readable as a long ({}) — using default {}", key, e.getMessage(), def );
             return def;
         }
     }
@@ -319,7 +338,8 @@ public final class ConnectorConfigCodec {
         if ( config == null || !config.has( key ) || config.get( key ).isJsonNull() ) return def;
         try {
             return config.get( key ).getAsBoolean();
-        } catch ( final UnsupportedOperationException e ) {
+        } catch ( final UnsupportedOperationException | IllegalStateException | ClassCastException e ) {
+            LOG.warn( "connector config field '{}': not readable as a boolean ({}) — using default {}", key, e.getMessage(), def );
             return def;
         }
     }
@@ -331,8 +351,12 @@ public final class ConnectorConfigCodec {
         final List< String > out = new ArrayList<>();
         for ( final JsonElement item : el.getAsJsonArray() ) {
             if ( item.isJsonNull() ) continue;
-            final String value = item.getAsString().trim();
-            if ( !value.isEmpty() ) out.add( value );
+            try {
+                final String value = item.getAsString().trim();
+                if ( !value.isEmpty() ) out.add( value );
+            } catch ( final UnsupportedOperationException | IllegalStateException | NumberFormatException | ClassCastException e ) {
+                LOG.warn( "connector config field '{}': list entry not readable as a string ({}) — skipping entry", key, e.getMessage() );
+            }
         }
         return List.copyOf( out );
     }

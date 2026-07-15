@@ -186,4 +186,35 @@ class ConnectorConfigCodecTest {
         final JsonObject c = JsonParser.parseString( "{}" ).getAsJsonObject();
         assertThrows( IllegalArgumentException.class, () -> ConnectorConfigCodec.toConfig( "github", c ) );
     }
+
+    // ---- malformed JSON shapes must degrade, never throw ---------------------------------------
+
+    @Test void validateNeverThrowsOnWrongShapes() {
+        // string field given an object → field-keyed error, no exception
+        final var repoObject = ConnectorConfigCodec.validate( "github",
+            JsonParser.parseString( "{\"repo\":{}}" ).getAsJsonObject() );
+        assertTrue( repoObject.errors().containsKey( "repo" ) );
+
+        // string field given a multi-element array → field-keyed error, no exception
+        final var repoArray = ConnectorConfigCodec.validate( "github",
+            JsonParser.parseString( "{\"repo\":[\"a\",\"b\"]}" ).getAsJsonObject() );
+        assertTrue( repoArray.errors().containsKey( "repo" ) );
+
+        // list field given an object → field-keyed error, no exception
+        final var seedsObject = ConnectorConfigCodec.validate( "webcrawler",
+            JsonParser.parseString( "{\"seeds\":{\"x\":1}}" ).getAsJsonObject() );
+        assertTrue( seedsObject.errors().containsKey( "seeds" ) );
+
+        // numeric field given shape garbage → falls back to the default, validates ok
+        final JsonObject c = JsonParser.parseString(
+            "{\"max_pages\":[\"1\",\"2\"],\"seeds\":[\"https://example.com\"]}" ).getAsJsonObject();
+        assertTrue( ConnectorConfigCodec.validate( "webcrawler", c ).ok() );
+        final WebCrawlerConfig cfg = ( WebCrawlerConfig ) ConnectorConfigCodec.toConfig( "webcrawler", c );
+        assertEquals( 100, cfg.maxPages() );
+    }
+
+    @Test void validationErrorsMapIsImmutable() {
+        final var v = ConnectorConfigCodec.validate( "github", JsonParser.parseString( "{}" ).getAsJsonObject() );
+        assertThrows( UnsupportedOperationException.class, () -> v.errors().put( "x", "y" ) );
+    }
 }

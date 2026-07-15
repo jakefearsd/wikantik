@@ -18,6 +18,7 @@ import TableOfContents from './TableOfContents';
 import { extractHeadings } from '../utils/headings';
 import useScrollSpy from '../hooks/useScrollSpy';
 import MetadataPanel from './MetadataPanel';
+import DerivedProvenanceBanner from './DerivedProvenanceBanner';
 import SimilarPagesPanel from './SimilarPagesPanel';
 import BacklinksPanel from './BacklinksPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
@@ -536,6 +537,7 @@ export default function PageView() {
           </div>
         </form>
       </Modal>
+      <DerivedProvenanceBanner metadata={page.metadata} lastModified={page.lastModified} />
       <MetadataPanel metadata={page.metadata} />
       <ChangeNotesPanel pageName={name} />
 

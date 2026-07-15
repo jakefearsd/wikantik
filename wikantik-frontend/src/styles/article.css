@@ -490,3 +490,11 @@ mark.comment-highlight-pulse { animation: comment-pulse 1.2s ease-out; }
 .article-prose pre:focus-within .code-copy-btn {
   opacity: 1;
 }
+
+/* Derived-page provenance banner (distinct from the editor warning banner) */
+.derived-banner { display: flex; gap: 0.5rem; align-items: baseline; padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0 1rem; border-left: 3px solid var(--color-accent, #6b7fd7);
+  background: color-mix(in srgb, var(--color-accent, #6b7fd7) 8%, transparent);
+  border-radius: 4px; font-size: 0.85rem; }
+.derived-banner-icon { font-weight: 700; }
+.derived-banner-orphaned { font-style: italic; opacity: 0.8; }

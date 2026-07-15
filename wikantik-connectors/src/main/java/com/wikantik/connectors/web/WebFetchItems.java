@@ -38,6 +38,7 @@ final class WebFetchItems {
         final String html = new String( r.body(), StandardCharsets.UTF_8 );
         final Map< String, Object > md = new LinkedHashMap<>();
         md.put( "url", url );
+        md.put( "source_url", url );
         md.put( "title", LinkExtractor.title( html ) );
         md.put( "fetchedAt", Instant.now().toString() );   // metadata only; not asserted on exact value
         md.put( "httpStatus", r.status() );
@@ -47,6 +48,7 @@ final class WebFetchItems {
     static SourceItem toItemFromContent( final String url, final byte[] htmlBytes, final String title ) {
         final Map< String, Object > md = new LinkedHashMap<>();
         md.put( "url", url );
+        md.put( "source_url", url );
         md.put( "title", title == null ? "" : title );
         md.put( "fetchedAt", Instant.now().toString() );
         return new SourceItem( url, htmlBytes, "text/html", md, List.of(), sha256Hex( htmlBytes ) );

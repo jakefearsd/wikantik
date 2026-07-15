@@ -37,6 +37,7 @@ class WebFetchItemsTest {
         assertTrue( i.aclRefs().isEmpty() );
         assertEquals( 64, i.contentHash().length() );
         assertEquals( "https://ex.com/p", i.sourceMetadata().get( "url" ) );
+        assertEquals( "https://ex.com/p", i.sourceMetadata().get( "source_url" ) );
         assertEquals( "Hi", i.sourceMetadata().get( "title" ) );
         assertEquals( 200, i.sourceMetadata().get( "httpStatus" ) );
         assertNotNull( i.sourceMetadata().get( "fetchedAt" ) );

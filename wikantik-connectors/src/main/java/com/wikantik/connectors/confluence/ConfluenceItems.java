@@ -38,7 +38,9 @@ final class ConfluenceItems {
         md.put( "name", p.title() );
         md.put( "mimeType", "text/html" );
         md.put( "version", p.version() );
-        md.put( "webViewLink", baseUrl + "/wiki" + p.webuiPath() );
+        final String webUrl = baseUrl + "/wiki" + p.webuiPath();
+        md.put( "webViewLink", webUrl );
+        md.put( "source_url", webUrl );
         return new SourceItem( "confluence://" + spaceKey + "/" + p.id(), bytes, "text/html",
             md, List.of(), ItemDigest.sha256Hex( bytes ) );
     }

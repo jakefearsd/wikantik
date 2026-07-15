@@ -40,6 +40,8 @@ class ConfluenceItemsTest {
         assertEquals( 7, item.sourceMetadata().get( "version" ) );
         assertEquals( "https://acme.atlassian.net/wiki/spaces/ENG/pages/12345/Team+Handbook",
             item.sourceMetadata().get( "webViewLink" ) );
+        assertEquals( "https://acme.atlassian.net/wiki/spaces/ENG/pages/12345/Team+Handbook",
+            item.sourceMetadata().get( "source_url" ) );
         assertFalse( item.sourceMetadata().containsKey( "modifiedTime" ) );
     }
 }

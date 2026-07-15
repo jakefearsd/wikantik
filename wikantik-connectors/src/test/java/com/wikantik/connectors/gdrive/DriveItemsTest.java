@@ -39,6 +39,7 @@ class DriveItemsTest {
         assertEquals( "application/vnd.google-apps.document", it.sourceMetadata().get( "mimeType" ) );
         assertEquals( "2026-07-01T10:00:00Z", it.sourceMetadata().get( "modifiedTime" ) );
         assertEquals( "https://docs.google.com/d/1AbC", it.sourceMetadata().get( "webViewLink" ) );
+        assertEquals( "https://docs.google.com/d/1AbC", it.sourceMetadata().get( "source_url" ) );
         assertEquals( DriveItems.sha256Hex( body ), it.contentHash() );
         assertEquals( 64, it.contentHash().length() );   // sha-256 hex
     }

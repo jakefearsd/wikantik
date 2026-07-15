@@ -36,6 +36,7 @@ final class DriveItems {
         md.put( "mimeType", f.mimeType() );
         md.put( "modifiedTime", f.modifiedTime() );
         md.put( "webViewLink", f.webViewLink() );
+        md.put( "source_url", f.webViewLink() );
         return new SourceItem( "gdrive://" + f.id(), bytes, contentType, md, List.of(), sha256Hex( bytes ) );
     }
 

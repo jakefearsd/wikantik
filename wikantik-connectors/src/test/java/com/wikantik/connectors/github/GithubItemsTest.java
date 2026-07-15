@@ -39,6 +39,8 @@ class GithubItemsTest {
         assertEquals( "text/markdown", item.sourceMetadata().get( "mimeType" ) );
         assertEquals( "https://github.com/acme/handbook/blob/main/docs/guide/intro.md",
             item.sourceMetadata().get( "webViewLink" ) );
+        assertEquals( "https://github.com/acme/handbook/blob/main/docs/guide/intro.md",
+            item.sourceMetadata().get( "source_url" ) );
         assertFalse( item.sourceMetadata().containsKey( "modifiedTime" ) );   // tree listing has none
     }
 

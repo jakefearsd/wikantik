@@ -43,6 +43,15 @@ class DriveItemsTest {
         assertEquals( DriveItems.sha256Hex( body ), it.contentHash() );
         assertEquals( 64, it.contentHash().length() );   // sha-256 hex
     }
+    @Test void toItemOmitsSourceUrlWhenWebViewLinkAbsent() {
+        DriveFile f = new DriveFile( "1AbC", "Guide", "application/vnd.google-apps.document",
+                "2026-07-01T10:00:00Z", null );   // Drive API omits webViewLink for some types/shortcuts
+        byte[] body = "# Guide\n\ntext".getBytes( StandardCharsets.UTF_8 );
+        SourceItem it = DriveItems.toItem( f, body, "text/markdown" );
+
+        assertFalse( it.sourceMetadata().containsKey( "source_url" ),
+            "null/absent URL source must OMIT the source_url key entirely" );
+    }
     @Test void sha256IsContentAddressed() {
         assertEquals( DriveItems.sha256Hex( "x".getBytes() ), DriveItems.sha256Hex( "x".getBytes() ) );
         assertNotEquals( DriveItems.sha256Hex( "x".getBytes() ), DriveItems.sha256Hex( "y".getBytes() ) );

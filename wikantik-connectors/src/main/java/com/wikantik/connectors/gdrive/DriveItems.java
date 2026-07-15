@@ -36,7 +36,11 @@ final class DriveItems {
         md.put( "mimeType", f.mimeType() );
         md.put( "modifiedTime", f.modifiedTime() );
         md.put( "webViewLink", f.webViewLink() );
-        md.put( "source_url", f.webViewLink() );
+        // The Drive API omits webViewLink for some file types/shortcuts — a null/absent URL
+        // source must OMIT the source_url key entirely, never map it to null.
+        if ( f.webViewLink() != null && !f.webViewLink().isBlank() ) {
+            md.put( "source_url", f.webViewLink() );
+        }
         return new SourceItem( "gdrive://" + f.id(), bytes, contentType, md, List.of(), sha256Hex( bytes ) );
     }
 

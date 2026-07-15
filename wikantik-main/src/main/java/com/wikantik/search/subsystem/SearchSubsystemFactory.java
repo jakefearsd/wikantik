@@ -69,6 +69,12 @@ import java.util.Properties;
  * unconditionally {@code null} in Checkpoint 1. Checkpoint 3 decomposes
  * {@code LuceneSearchProvider}; Checkpoint 4 populates them off the live
  * provider via accessors.</p>
+ *
+ * <p>{@code create()} is a pure composition root: the private helpers
+ * below are per-concern extractions of its construction blocks, called
+ * in the same order the inline code used to run in, so wiring order
+ * (which can be load-bearing — see the {@link #resolveChunkVectorIndex}
+ * javadoc) is unchanged.</p>
  */
 public final class SearchSubsystemFactory {
 
@@ -87,30 +93,90 @@ public final class SearchSubsystemFactory {
         final SearchProvider searchProvider =
             searchManager != null ? safeGetSearchEngine( searchManager ) : null;
 
-        // Hybrid retrieval (registered by wireHybridRetrieval +
-        // wireGraphRerank when the master flags are on).
+        final HybridRetrievalRefs hybrid = resolveHybridRetrieval( engine );
+
+        final ChunkVectorIndex chunkVectorIndex = resolveChunkVectorIndex( engine, deps );
+
+        // In-memory graph neighbor index (registered by wireGraphRerank).
+        final InMemoryGraphNeighborIndex graphNeighborIndex =
+            engine.getManager( InMemoryGraphNeighborIndex.class );
+
+        final EmbeddingPipelineRefs embedding = resolveEmbeddingPipeline( engine );
+
+        // Cache.
+        final FrontmatterMetadataCache frontmatterMetadataCache =
+            engine.getManager( FrontmatterMetadataCache.class );
+
+        final LuceneHelperRefs luceneHelpers = resolveLuceneHelpers( searchProvider );
+
+        return new SearchSubsystem.Services(
+            searchManager,
+            searchProvider,
+            luceneHelpers.luceneIndexer(),
+            luceneHelpers.luceneSearcher(),
+            luceneHelpers.luceneIndexLifecycle(),
+            hybrid.hybridSearch(),
+            hybrid.queryEmbedder(),
+            hybrid.queryEntityResolver(),
+            hybrid.graphRerankStep(),
+            hybrid.graphProximityScorer(),
+            chunkVectorIndex,
+            graphNeighborIndex,
+            embedding.embeddingIndexService(),
+            embedding.embeddingClient(),
+            embedding.bootstrapEmbeddingIndexer(),
+            embedding.asyncEmbeddingIndexListener(),
+            frontmatterMetadataCache );
+    }
+
+    /**
+     * Pulls the {@link SearchProvider} off the manager defensively. Some
+     * test fixtures register a {@link SearchManager} mock without stubbing
+     * {@code getSearchEngine()}; treat that as "no provider" rather than
+     * failing the whole subsystem build.
+     */
+    private static SearchProvider safeGetSearchEngine( final SearchManager sm ) {
+        try {
+            return sm.getSearchEngine();
+        } catch ( final RuntimeException e ) {
+            return null;
+        }
+    }
+
+    /**
+     * Hybrid retrieval (registered by wireHybridRetrieval +
+     * wireGraphRerank when the master flags are on).
+     */
+    private static HybridRetrievalRefs resolveHybridRetrieval( final WikiEngine engine ) {
         final HybridSearchService  hybridSearch         = engine.getManager( HybridSearchService.class );
         final QueryEmbedder        queryEmbedder        = engine.getManager( QueryEmbedder.class );
         final QueryEntityResolver  queryEntityResolver  = engine.getManager( QueryEntityResolver.class );
         final GraphRerankStep      graphRerankStep      = engine.getManager( GraphRerankStep.class );
         final GraphProximityScorer graphProximityScorer = engine.getManager( GraphProximityScorer.class );
+        return new HybridRetrievalRefs(
+            hybridSearch, queryEmbedder, queryEntityResolver, graphRerankStep, graphProximityScorer );
+    }
 
-        // Chunk vector index: reuse the single instance SearchWiringHelper.wireHybridRetrieval
-        // already built and wired (it runs earlier — inside initKnowledgeGraph(), before
-        // buildSearchSubsystem() calls this factory — see WikiEngine.initialize()). Reusing it
-        // is what keeps this Services.chunkVectorIndex() slot (read by
-        // DefaultContextRetrievalService -> ContributingChunkAssembler, the retrieve_context
-        // MCP tool's dense fallback) in sync with the AsyncEmbeddingIndexListener upserts;
-        // constructing a second instance here from the same property would silently drop new
-        // content from that path until restart.
-        //
-        // Only fall back to constructing our own instance when nothing was wired (embeddings
-        // disabled, wireHybridRetrieval failed, or direct factory use in tests) — and even then,
-        // a null DataSource must degrade (matching SearchWiringHelper's own catch-and-warn
-        // behaviour) rather than throw and crash engine boot. "inmemory" stays the fallback
-        // default here (unchanged from before this fix) — it is the one backend that never
-        // needs a DataSource, so it is the safest thing to fall back to when properties
-        // aren't even available (e.g. a bare mocked Engine in a unit test).
+    /**
+     * Chunk vector index: reuse the single instance SearchWiringHelper.wireHybridRetrieval
+     * already built and wired (it runs earlier — inside initKnowledgeGraph(), before
+     * buildSearchSubsystem() calls this factory — see WikiEngine.initialize()). Reusing it
+     * is what keeps this Services.chunkVectorIndex() slot (read by
+     * DefaultContextRetrievalService -> ContributingChunkAssembler, the retrieve_context
+     * MCP tool's dense fallback) in sync with the AsyncEmbeddingIndexListener upserts;
+     * constructing a second instance here from the same property would silently drop new
+     * content from that path until restart.
+     *
+     * <p>Only fall back to constructing our own instance when nothing was wired (embeddings
+     * disabled, wireHybridRetrieval failed, or direct factory use in tests) — and even then,
+     * a null DataSource must degrade (matching SearchWiringHelper's own catch-and-warn
+     * behaviour) rather than throw and crash engine boot. "inmemory" stays the fallback
+     * default here (unchanged from before this fix) — it is the one backend that never
+     * needs a DataSource, so it is the safest thing to fall back to when properties
+     * aren't even available (e.g. a bare mocked Engine in a unit test).</p>
+     */
+    private static ChunkVectorIndex resolveChunkVectorIndex(
+            final WikiEngine engine, final SearchSubsystem.Deps deps ) {
         final Properties wikiProps = engine.getWikiProperties();
         final String backend = ( wikiProps != null
             ? wikiProps.getProperty( "wikantik.search.dense.backend", "inmemory" )
@@ -125,56 +191,69 @@ public final class SearchSubsystemFactory {
             LOG.info( "Dense retrieval backend: reusing ChunkVectorIndex wired by SearchWiringHelper ({})",
                 wiredChunkVectorIndex.getClass().getSimpleName() );
         } else {
-            switch ( backend ) {
-                case "pgvector" -> {
-                    final DataSource dataSource = deps.dataSource();
-                    if ( dataSource == null ) {
-                        LOG.warn( "wikantik.search.dense.backend=pgvector but no DataSource is available "
-                          + "and no ChunkVectorIndex was wired; dense retrieval disabled for this process." );
-                        chunkVectorIndex = null;
-                    } else {
-                        final String modelCode = wikiProps.getProperty(
-                            EmbeddingConfig.PROP_MODEL, EmbeddingConfig.DEFAULT_MODEL_CODE );
-                        final int efSearch = Integer.parseInt( wikiProps.getProperty(
-                            "wikantik.search.dense.pgvector.ef_search", "100" ) );
-                        chunkVectorIndex = new PgVectorChunkVectorIndex( dataSource, modelCode, efSearch );
-                        LOG.info( "Dense retrieval backend: pgvector HNSW (model={}, ef_search={})",
-                            modelCode, efSearch );
-                    }
-                }
-                case "lucene-hnsw" -> {
-                    final DataSource dataSource = deps.dataSource();
-                    if ( dataSource == null ) {
-                        LOG.warn( "wikantik.search.dense.backend=lucene-hnsw but no DataSource is available "
-                          + "and no ChunkVectorIndex was wired; dense retrieval disabled for this process." );
-                        chunkVectorIndex = null;
-                    } else {
-                        final String modelCode = wikiProps.getProperty(
-                            EmbeddingConfig.PROP_MODEL, EmbeddingConfig.DEFAULT_MODEL_CODE );
-                        final com.wikantik.search.hybrid.HnswParams params =
-                            com.wikantik.search.hybrid.HnswParams.fromProperties( wikiProps );
-                        chunkVectorIndex = new com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex(
-                            dataSource, modelCode,
-                            com.wikantik.search.hybrid.PgVectorChunkVectorIndex.EMBEDDING_DIM, params );
-                        LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, ef_search={})",
-                            modelCode, params.m(), params.efConstruction(), params.efSearch() );
-                    }
-                }
-                case "inmemory" -> {
-                    chunkVectorIndex = engine.getManager( InMemoryChunkVectorIndex.class );
-                    LOG.info( "Dense retrieval backend: in-memory brute-force" );
-                }
-                default -> throw new IllegalArgumentException(
-                    "wikantik.search.dense.backend must be 'inmemory', 'pgvector', or 'lucene-hnsw', got: '"
-                  + backend + "'" );
-            }
+            chunkVectorIndex = buildChunkVectorIndexForBackend( backend, engine, deps, wikiProps );
         }
+        return chunkVectorIndex;
+    }
 
-        // In-memory graph neighbor index (registered by wireGraphRerank).
-        final InMemoryGraphNeighborIndex graphNeighborIndex =
-            engine.getManager( InMemoryGraphNeighborIndex.class );
+    private static ChunkVectorIndex buildChunkVectorIndexForBackend(
+            final String backend, final WikiEngine engine, final SearchSubsystem.Deps deps,
+            final Properties wikiProps ) {
+        final ChunkVectorIndex chunkVectorIndex;
+        switch ( backend ) {
+            case "pgvector" -> chunkVectorIndex = buildPgVectorChunkVectorIndex( deps, wikiProps );
+            case "lucene-hnsw" -> chunkVectorIndex = buildLuceneHnswChunkVectorIndex( deps, wikiProps );
+            case "inmemory" -> {
+                chunkVectorIndex = engine.getManager( InMemoryChunkVectorIndex.class );
+                LOG.info( "Dense retrieval backend: in-memory brute-force" );
+            }
+            default -> throw new IllegalArgumentException(
+                "wikantik.search.dense.backend must be 'inmemory', 'pgvector', or 'lucene-hnsw', got: '"
+              + backend + "'" );
+        }
+        return chunkVectorIndex;
+    }
 
-        // Embedding pipeline.
+    private static ChunkVectorIndex buildPgVectorChunkVectorIndex(
+            final SearchSubsystem.Deps deps, final Properties wikiProps ) {
+        final DataSource dataSource = deps.dataSource();
+        if ( dataSource == null ) {
+            LOG.warn( "wikantik.search.dense.backend=pgvector but no DataSource is available "
+              + "and no ChunkVectorIndex was wired; dense retrieval disabled for this process." );
+            return null;
+        }
+        final String modelCode = wikiProps.getProperty(
+            EmbeddingConfig.PROP_MODEL, EmbeddingConfig.DEFAULT_MODEL_CODE );
+        final int efSearch = Integer.parseInt( wikiProps.getProperty(
+            "wikantik.search.dense.pgvector.ef_search", "100" ) );
+        final ChunkVectorIndex chunkVectorIndex = new PgVectorChunkVectorIndex( dataSource, modelCode, efSearch );
+        LOG.info( "Dense retrieval backend: pgvector HNSW (model={}, ef_search={})",
+            modelCode, efSearch );
+        return chunkVectorIndex;
+    }
+
+    private static ChunkVectorIndex buildLuceneHnswChunkVectorIndex(
+            final SearchSubsystem.Deps deps, final Properties wikiProps ) {
+        final DataSource dataSource = deps.dataSource();
+        if ( dataSource == null ) {
+            LOG.warn( "wikantik.search.dense.backend=lucene-hnsw but no DataSource is available "
+              + "and no ChunkVectorIndex was wired; dense retrieval disabled for this process." );
+            return null;
+        }
+        final String modelCode = wikiProps.getProperty(
+            EmbeddingConfig.PROP_MODEL, EmbeddingConfig.DEFAULT_MODEL_CODE );
+        final com.wikantik.search.hybrid.HnswParams params =
+            com.wikantik.search.hybrid.HnswParams.fromProperties( wikiProps );
+        final ChunkVectorIndex chunkVectorIndex = new com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex(
+            dataSource, modelCode,
+            com.wikantik.search.hybrid.PgVectorChunkVectorIndex.EMBEDDING_DIM, params );
+        LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, ef_search={})",
+            modelCode, params.m(), params.efConstruction(), params.efSearch() );
+        return chunkVectorIndex;
+    }
+
+    /** Embedding pipeline. */
+    private static EmbeddingPipelineRefs resolveEmbeddingPipeline( final WikiEngine engine ) {
         final EmbeddingIndexService       embeddingIndexService       =
             engine.getManager( EmbeddingIndexService.class );
         final OllamaEmbeddingClient       embeddingClient             =
@@ -183,17 +262,19 @@ public final class SearchSubsystemFactory {
             engine.getManager( BootstrapEmbeddingIndexer.class );
         final AsyncEmbeddingIndexListener asyncEmbeddingIndexListener =
             engine.getManager( AsyncEmbeddingIndexListener.class );
+        return new EmbeddingPipelineRefs(
+            embeddingIndexService, embeddingClient, bootstrapEmbeddingIndexer, asyncEmbeddingIndexListener );
+    }
 
-        // Cache.
-        final FrontmatterMetadataCache frontmatterMetadataCache =
-            engine.getManager( FrontmatterMetadataCache.class );
-
-        // Phase 7 Ckpt 4: pull the three Lucene helpers off the decomposed
-        // LuceneSearchProvider facade (Ckpt 3) when the configured provider
-        // is in fact Lucene. A non-Lucene SearchProvider (e.g. a future
-        // alternative impl, or a test mock) leaves the slots null — same
-        // shape as a missing legacy manager — and we LOG.warn so the gap
-        // is visible to operators reading the startup log.
+    /**
+     * Phase 7 Ckpt 4: pull the three Lucene helpers off the decomposed
+     * LuceneSearchProvider facade (Ckpt 3) when the configured provider
+     * is in fact Lucene. A non-Lucene SearchProvider (e.g. a future
+     * alternative impl, or a test mock) leaves the slots null — same
+     * shape as a missing legacy manager — and we LOG.warn so the gap
+     * is visible to operators reading the startup log.
+     */
+    private static LuceneHelperRefs resolveLuceneHelpers( final SearchProvider searchProvider ) {
         LuceneIndexer        luceneIndexer        = null;
         LuceneSearcher       luceneSearcher       = null;
         LuceneIndexLifecycle luceneIndexLifecycle = null;
@@ -212,38 +293,27 @@ public final class SearchSubsystemFactory {
                 + "leaving SearchSubsystem.Services Lucene helper slots null.",
                 searchProvider.getClass().getName() );
         }
-
-        return new SearchSubsystem.Services(
-            searchManager,
-            searchProvider,
-            luceneIndexer,
-            luceneSearcher,
-            luceneIndexLifecycle,
-            hybridSearch,
-            queryEmbedder,
-            queryEntityResolver,
-            graphRerankStep,
-            graphProximityScorer,
-            chunkVectorIndex,
-            graphNeighborIndex,
-            embeddingIndexService,
-            embeddingClient,
-            bootstrapEmbeddingIndexer,
-            asyncEmbeddingIndexListener,
-            frontmatterMetadataCache );
+        return new LuceneHelperRefs( luceneIndexer, luceneSearcher, luceneIndexLifecycle );
     }
 
-    /**
-     * Pulls the {@link SearchProvider} off the manager defensively. Some
-     * test fixtures register a {@link SearchManager} mock without stubbing
-     * {@code getSearchEngine()}; treat that as "no provider" rather than
-     * failing the whole subsystem build.
-     */
-    private static SearchProvider safeGetSearchEngine( final SearchManager sm ) {
-        try {
-            return sm.getSearchEngine();
-        } catch ( final RuntimeException e ) {
-            return null;
-        }
-    }
+    /** Bundles the five hybrid-retrieval manager slots pulled off {@code engine}. */
+    private record HybridRetrievalRefs(
+        HybridSearchService  hybridSearch,
+        QueryEmbedder        queryEmbedder,
+        QueryEntityResolver  queryEntityResolver,
+        GraphRerankStep      graphRerankStep,
+        GraphProximityScorer graphProximityScorer ) {}
+
+    /** Bundles the four embedding-pipeline manager slots pulled off {@code engine}. */
+    private record EmbeddingPipelineRefs(
+        EmbeddingIndexService       embeddingIndexService,
+        OllamaEmbeddingClient       embeddingClient,
+        BootstrapEmbeddingIndexer   bootstrapEmbeddingIndexer,
+        AsyncEmbeddingIndexListener asyncEmbeddingIndexListener ) {}
+
+    /** Bundles the three decomposed-Lucene helper slots (Ckpt 4). */
+    private record LuceneHelperRefs(
+        LuceneIndexer        luceneIndexer,
+        LuceneSearcher       luceneSearcher,
+        LuceneIndexLifecycle luceneIndexLifecycle ) {}
 }

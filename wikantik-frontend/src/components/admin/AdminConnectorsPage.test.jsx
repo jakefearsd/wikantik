@@ -1,0 +1,183 @@
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import AdminConnectorsPage from './AdminConnectorsPage';
+
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, useNavigate: () => mockNavigate };
+});
+
+vi.mock('../../api/client', () => ({
+  api: {
+    connectors: {
+      list: vi.fn(),
+      sync: vi.fn(),
+    },
+  },
+}));
+
+import { api } from '../../api/client';
+
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <AdminConnectorsPage />
+    </MemoryRouter>
+  );
+}
+
+const DB_CONNECTOR = {
+  id: 'gh-wikantik',
+  type: 'github',
+  origin: 'db',
+  enabled: true,
+  syncIntervalHours: 6,
+  lastRun: '2026-07-14T10:00:00Z',
+  lastStatus: 'success',
+  pageCount: 42,
+  secretsSet: ['token'],
+};
+
+const PROPERTIES_CONNECTOR = {
+  id: 'gdrive-legacy',
+  type: 'gdrive',
+  origin: 'properties',
+  enabled: true,
+  syncIntervalHours: 0,
+  lastRun: null,
+  lastStatus: 'never synced',
+  pageCount: 5,
+  secretsSet: [],
+};
+
+describe('AdminConnectorsPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockNavigate.mockReset();
+  });
+
+  it('renders connector rows with origin chip and sync button', async () => {
+    api.connectors.list.mockResolvedValue({
+      syncingEnabled: true,
+      credentialStoreEnabled: true,
+      connectors: [DB_CONNECTOR, PROPERTIES_CONNECTOR],
+    });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('gh-wikantik')).toBeInTheDocument());
+
+    const dbRow = screen.getByText('gh-wikantik').closest('tr');
+    expect(within(dbRow).getByText('database')).toBeInTheDocument();
+    expect(within(dbRow).getByText(/🐙/)).toBeInTheDocument();
+    expect(within(dbRow).getByTestId('sync-gh-wikantik')).toBeInTheDocument();
+
+    const propsRow = screen.getByText('gdrive-legacy').closest('tr');
+    expect(within(propsRow).getByText('config file')).toBeInTheDocument();
+    expect(within(propsRow).getByText('manual')).toBeInTheDocument();
+    expect(within(propsRow).getByText('—')).toBeInTheDocument();
+    expect(within(propsRow).getByTestId('sync-gdrive-legacy')).toBeInTheDocument();
+  });
+
+  it('shows kill-switch banner when syncingEnabled false', async () => {
+    api.connectors.list.mockResolvedValue({
+      syncingEnabled: false,
+      credentialStoreEnabled: true,
+      connectors: [DB_CONNECTOR],
+    });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId('connectors-disabled-banner')).toBeInTheDocument());
+    expect(screen.getByTestId('connectors-disabled-banner')).toHaveTextContent(/disabled by the operator/i);
+    expect(screen.queryByTestId('credstore-disabled-banner')).not.toBeInTheDocument();
+  });
+
+  it('shows credential-store banner with openssl command when store disabled', async () => {
+    api.connectors.list.mockResolvedValue({
+      syncingEnabled: true,
+      credentialStoreEnabled: false,
+      connectors: [DB_CONNECTOR],
+    });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId('credstore-disabled-banner')).toBeInTheDocument());
+    const banner = screen.getByTestId('credstore-disabled-banner');
+    expect(banner).toHaveTextContent(/GitHub \/ Confluence \/ Google Drive/i);
+    const codeEl = within(banner).getByText('openssl rand -base64 32');
+    expect(codeEl.tagName).toBe('CODE');
+  });
+
+  it('shows empty state with Add Connector', async () => {
+    api.connectors.list.mockResolvedValue({
+      syncingEnabled: true,
+      credentialStoreEnabled: true,
+      connectors: [],
+    });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId('connectors-empty-state')).toBeInTheDocument());
+    expect(screen.getByText(/Connectors sync external sources/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('add-connector-button-empty'));
+    expect(mockNavigate).toHaveBeenCalledWith('/admin/connectors/new');
+  });
+
+  it('sync button posts and reloads list', async () => {
+    api.connectors.list.mockResolvedValue({
+      syncingEnabled: true,
+      credentialStoreEnabled: true,
+      connectors: [DB_CONNECTOR],
+    });
+    api.connectors.sync.mockResolvedValue({ status: 'started' });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId('sync-gh-wikantik')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('sync-gh-wikantik'));
+
+    await waitFor(() => expect(api.connectors.sync).toHaveBeenCalledWith('gh-wikantik'));
+    await waitFor(() => expect(api.connectors.list).toHaveBeenCalledTimes(2));
+  });
+
+  it('surfaces a 409 sync conflict as an inline row message and re-enables the button', async () => {
+    api.connectors.list.mockResolvedValue({
+      syncingEnabled: true,
+      credentialStoreEnabled: true,
+      connectors: [DB_CONNECTOR],
+    });
+    api.connectors.sync.mockRejectedValue(
+      Object.assign(new Error('sync already running'), { status: 409 })
+    );
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId('sync-gh-wikantik')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('sync-gh-wikantik'));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('sync-message-gh-wikantik')).toHaveTextContent(/sync already running/i)
+    );
+    expect(screen.getByTestId('sync-gh-wikantik')).not.toBeDisabled();
+    // Only one list() call — the failed sync did not trigger a reload.
+    expect(api.connectors.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('header Add Connector button navigates to the wizard route', async () => {
+    api.connectors.list.mockResolvedValue({
+      syncingEnabled: true,
+      credentialStoreEnabled: true,
+      connectors: [DB_CONNECTOR],
+    });
+
+    renderPage();
+    await waitFor(() => expect(screen.getByText('gh-wikantik')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('add-connector-button'));
+    expect(mockNavigate).toHaveBeenCalledWith('/admin/connectors/new');
+  });
+});

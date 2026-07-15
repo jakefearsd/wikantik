@@ -905,4 +905,22 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
+
+  // Connectors — external-source sync admin surface (/admin/connectors, /admin/connector-credentials).
+  connectors: {
+    list: () => request('/admin/connectors'),
+    get: (id) => request(`/admin/connectors/${encodeURIComponent(id)}`),
+    create: (body) => request('/admin/connectors', { method: 'POST', body: JSON.stringify(body), extraErrorCodes: [422] }),
+    update: (id, body) => request(`/admin/connectors/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body), extraErrorCodes: [422] }),
+    remove: (id, deletePages) => request(`/admin/connectors/${encodeURIComponent(id)}?deletePages=${!!deletePages}`, { method: 'DELETE' }),
+    sync: (id) => request(`/admin/connectors/${encodeURIComponent(id)}/sync`, { method: 'POST' }),
+    runs: (id, limit = 20) => request(`/admin/connectors/${encodeURIComponent(id)}/runs?limit=${limit}`),
+    pages: (id) => request(`/admin/connectors/${encodeURIComponent(id)}/pages`),
+    importFromProperties: (id) => request(`/admin/connectors/${encodeURIComponent(id)}/import`, { method: 'POST' }),
+    test: (body) => request('/admin/connectors/test', { method: 'POST', body: JSON.stringify(body), extraErrorCodes: [422] }),
+    testSaved: (id) => request(`/admin/connectors/${encodeURIComponent(id)}/test`, { method: 'POST' }),
+    listCredentials: (id) => request(`/admin/connector-credentials/${encodeURIComponent(id)}`),
+    setCredential: (id, name, value) => request(`/admin/connector-credentials/${encodeURIComponent(id)}/${encodeURIComponent(name)}`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: value }),
+    deleteCredential: (id, name) => request(`/admin/connector-credentials/${encodeURIComponent(id)}/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  },
 };

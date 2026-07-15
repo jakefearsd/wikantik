@@ -19,6 +19,7 @@ const GROUPS = [
     links: [
       { to: '/admin/content', label: 'Content & Index' },
       { to: '/admin/page-ownership', label: 'Page Ownership' },
+      { to: '/admin/connectors', label: 'Connectors' },
     ],
   },
   {

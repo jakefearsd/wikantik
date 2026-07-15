@@ -221,6 +221,112 @@ describe('AddConnectorWizard', () => {
     vi.unstubAllGlobals();
   });
 
+  it('successful test shows a Continue control and hides the skip warning', async () => {
+    api.connectors.test.mockResolvedValue({
+      ok: true,
+      found: 2,
+      sample: ['PageA'],
+      complete: true,
+      message: 'ok',
+    });
+
+    renderWizard();
+    pickTypeAndFillSource('webcrawler', 'wc-ok', { seeds: 'https://a.example' });
+    fireEvent.click(screen.getByTestId('run-test-button'));
+
+    await waitFor(() => expect(screen.getByTestId('test-result-ok')).toBeInTheDocument());
+    expect(screen.getByTestId('test-continue')).toBeInTheDocument();
+    expect(screen.queryByTestId('skip-test-link')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Skipping means/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('test-continue'));
+    expect(screen.getByTestId('wizard-step-review')).toBeInTheDocument();
+  });
+
+  it('re-entering the source step invalidates a previous test result', async () => {
+    api.connectors.test.mockResolvedValue({
+      ok: true,
+      found: 1,
+      sample: ['PageA'],
+      complete: true,
+      message: 'ok',
+    });
+
+    renderWizard();
+    pickTypeAndFillSource('webcrawler', 'wc-stale', { seeds: 'https://a.example' });
+    fireEvent.click(screen.getByTestId('run-test-button'));
+    await waitFor(() => expect(screen.getByTestId('test-result-ok')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('wizard-back-button'));
+    expect(screen.getByTestId('wizard-step-source')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('settings-submit-button'));
+
+    expect(screen.getByTestId('wizard-step-test')).toBeInTheDocument();
+    expect(screen.queryByTestId('test-result-ok')).not.toBeInTheDocument();
+    expect(screen.getByTestId('run-test-button')).toBeInTheDocument();
+  });
+
+  it('changing the secret invalidates a previous test result', async () => {
+    api.connectors.test.mockResolvedValue({
+      ok: true,
+      found: 1,
+      sample: ['PageA'],
+      complete: true,
+      message: 'ok',
+    });
+
+    renderWizard();
+    pickTypeAndFillSource('github', 'gh-stale', { repo: 'jakefearsd/wikantik' });
+    fireEvent.change(screen.getByTestId('secret-input-token'), { target: { value: 'ghp_one' } });
+    fireEvent.click(screen.getByTestId('wizard-next-button'));
+    fireEvent.click(screen.getByTestId('run-test-button'));
+    await waitFor(() => expect(screen.getByTestId('test-result-ok')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('wizard-back-button'));
+    expect(screen.getByTestId('wizard-step-authorize')).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId('secret-input-token'), { target: { value: 'ghp_two' } });
+    fireEvent.click(screen.getByTestId('wizard-next-button'));
+
+    expect(screen.getByTestId('wizard-step-test')).toBeInTheDocument();
+    expect(screen.queryByTestId('test-result-ok')).not.toBeInTheDocument();
+  });
+
+  it('source field edits survive Back to the type picker', () => {
+    renderWizard();
+
+    fireEvent.click(screen.getByTestId('type-card-github'));
+    fireEvent.change(screen.getByTestId('connector-id'), { target: { value: 'gh-keep' } });
+    fireEvent.change(screen.getByTestId('field-repo'), { target: { value: 'octo/repo' } });
+    fireEvent.change(screen.getByTestId('field-cluster'), { target: { value: 'engineering' } });
+
+    fireEvent.click(screen.getByTestId('wizard-back-button'));
+    expect(screen.getByTestId('wizard-step-type')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('type-card-github'));
+    expect(screen.getByTestId('connector-id')).toHaveValue('gh-keep');
+    expect(screen.getByTestId('field-repo')).toHaveValue('octo/repo');
+    expect(screen.getByTestId('field-cluster')).toHaveValue('engineering');
+  });
+
+  it('logs a console.warn when the fire-and-forget sync fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    api.connectors.create.mockResolvedValue({ id: 'wc-sync', type: 'webcrawler' });
+    api.connectors.sync.mockRejectedValue(new Error('sync boom'));
+
+    renderWizard();
+    pickTypeAndFillSource('webcrawler', 'wc-sync', { seeds: 'https://a.example' });
+    fireEvent.click(screen.getByTestId('skip-test-link'));
+    fireEvent.click(screen.getByTestId('wizard-save-sync-button'));
+
+    await waitFor(() => expect(api.connectors.sync).toHaveBeenCalledWith('wc-sync'));
+    await waitFor(() => expect(warnSpy).toHaveBeenCalled());
+    expect(
+      warnSpy.mock.calls.some((call) => call.join(' ').includes('sync boom'))
+    ).toBe(true);
+
+    warnSpy.mockRestore();
+  });
+
   it('server 422 on create returns to source step with field error', async () => {
     api.connectors.create.mockRejectedValue(
       Object.assign(new Error('reserved id'), { status: 422, body: { errors: { connector_id: 'reserved id' } } })

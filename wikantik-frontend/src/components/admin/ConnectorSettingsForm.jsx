@@ -8,7 +8,12 @@
 // PUT is full-replace: onSubmit is always called with the COMPLETE body —
 // { config: {...all fields...}, enabled, syncIntervalHours, cluster,
 // defaultTags, pagePrefix } — never a partial patch.
-import { useState } from 'react';
+//
+// Optional `onValuesChange(body)` prop: called with that same complete body
+// on every value change (and once on mount). The Add Connector wizard uses
+// it to mirror in-progress edits into parent state so Back/Next never loses
+// them; the detail page's Settings tab simply omits it.
+import { useEffect, useState } from 'react';
 import { CONNECTOR_TYPES } from './connectorGuides';
 import '../../styles/admin.css';
 
@@ -108,6 +113,7 @@ export default function ConnectorSettingsForm({
   type,
   initialValues,
   onSubmit,
+  onValuesChange,
   submitLabel = 'Save Settings',
   errors = {},
   readOnly = false,
@@ -132,27 +138,39 @@ export default function ConnectorSettingsForm({
 
   const setFieldValue = (name, val) => setValues((prev) => ({ ...prev, [name]: val }));
 
+  const buildBody = () => ({
+    // PUT is full-replace: seed from the incoming config so backend fields
+    // the UI doesn't model (e.g. webcrawler user_agent) survive the save;
+    // rendered-field values win over the seeded ones.
+    config: {
+      ...initialConfig,
+      ...fields.reduce((acc, field) => {
+        acc[field.name] = serializeFieldValue(field, values[field.name]);
+        return acc;
+      }, {}),
+    },
+    enabled,
+    syncIntervalHours: syncIntervalHours === '' ? 0 : Number(syncIntervalHours),
+    cluster,
+    defaultTags,
+    pagePrefix,
+  });
+
+  // Mirror every edit (and the mount-time defaults) to the parent when asked.
+  // One effect over all six state slices beats threading a callback through
+  // each individual onChange handler.
+  useEffect(() => {
+    if (onValuesChange) onValuesChange(buildBody());
+    // buildBody/onValuesChange identities change per render; the state slices
+    // below are the real change signal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values, enabled, syncIntervalHours, cluster, defaultTags, pagePrefix]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (readOnly || submitting) return;
     setSubmitting(true);
-    const body = {
-      // PUT is full-replace: seed from the incoming config so backend fields
-      // the UI doesn't model (e.g. webcrawler user_agent) survive the save;
-      // rendered-field values win over the seeded ones.
-      config: {
-        ...initialConfig,
-        ...fields.reduce((acc, field) => {
-          acc[field.name] = serializeFieldValue(field, values[field.name]);
-          return acc;
-        }, {}),
-      },
-      enabled,
-      syncIntervalHours: syncIntervalHours === '' ? 0 : Number(syncIntervalHours),
-      cluster,
-      defaultTags,
-      pagePrefix,
-    };
+    const body = buildBody();
     try {
       await onSubmit(body);
     } finally {

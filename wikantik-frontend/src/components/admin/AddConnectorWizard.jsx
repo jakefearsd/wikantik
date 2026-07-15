@@ -85,6 +85,10 @@ export default function AddConnectorWizard() {
   };
 
   const handleSourceNext = (body) => {
+    // Any pass through Source invalidates a previous test run — the result
+    // may describe settings that no longer match what will be saved.
+    setTestResult(null);
+
     const trimmedId = id.trim();
     const nextIdError = ID_PATTERN.test(trimmedId) ? null : ID_HELP;
 
@@ -104,6 +108,12 @@ export default function AddConnectorWizard() {
 
     if (nextIdError || Object.keys(fieldErrors).length) return;
     goForward();
+  };
+
+  const handleSecretChange = (value) => {
+    setSecretValue(value);
+    // A different credential invalidates any previous test result.
+    setTestResult(null);
   };
 
   const handleRunTest = async () => {
@@ -151,7 +161,9 @@ export default function AddConnectorWizard() {
       if (sync) {
         // Fire-and-forget — the sync run is visible on the detail page's
         // Overview tab regardless of whether this call has landed yet.
-        api.connectors.sync(trimmedId).catch(() => {});
+        api.connectors.sync(trimmedId).catch((e) =>
+          console.warn('post-create sync for', trimmedId, 'failed:', e?.message)
+        );
       }
       navigate(`/admin/connectors/${encodeURIComponent(trimmedId)}${type === 'gdrive' ? '?next=authorize' : ''}`);
     } catch (err) {
@@ -190,6 +202,7 @@ export default function AddConnectorWizard() {
           idError={idError}
           sourceErrors={sourceErrors}
           sourceBody={sourceBody}
+          onValuesChange={setSourceBody}
           onNext={handleSourceNext}
           onBack={goBack}
         />
@@ -200,7 +213,7 @@ export default function AddConnectorWizard() {
           type={type}
           meta={meta}
           secretValue={secretValue}
-          setSecretValue={setSecretValue}
+          setSecretValue={handleSecretChange}
           onBack={goBack}
           onNext={goForward}
         />
@@ -280,7 +293,7 @@ function TypePicker({ onSelect }) {
 // Step 1: source
 // ---------------------------------------------------------------------------
 
-function SourceStep({ meta, type, id, setId, idError, sourceErrors, sourceBody, onNext, onBack }) {
+function SourceStep({ meta, type, id, setId, idError, sourceErrors, sourceBody, onValuesChange, onNext, onBack }) {
   const helpFields = (meta.fields || []).filter((f) => f.help);
 
   return (
@@ -305,9 +318,13 @@ function SourceStep({ meta, type, id, setId, idError, sourceErrors, sourceBody, 
             )}
           </div>
 
+          {/* onValuesChange mirrors in-progress edits up into wizard state so
+              Back (which bypasses the form's submit) never loses them; the
+              mirrored body then re-seeds initialValues on re-entry. */}
           <ConnectorSettingsForm
             type={type}
             initialValues={sourceBody}
+            onValuesChange={onValuesChange}
             onSubmit={onNext}
             submitLabel="Next"
             errors={sourceErrors}
@@ -349,7 +366,8 @@ function AuthorizeStep({ type, meta, secretValue, setSecretValue, onBack, onNext
       await navigator.clipboard.writeText(redirectUri);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } catch (err) {
+      console.warn('copy redirect URI to clipboard failed:', err?.message);
       setCopied(false);
     }
   };
@@ -434,13 +452,22 @@ function TestStep({ type, testing, testResult, onRunTest, onBack, onNext }) {
         <button type="button" className="btn btn-primary" data-testid="run-test-button" onClick={onRunTest} disabled={testing}>
           {testing ? 'Testing…' : 'Run test'}
         </button>
-        <button type="button" className="btn btn-ghost" data-testid="skip-test-link" onClick={onNext}>
-          Skip test
-        </button>
+        {testResult?.ok ? (
+          // The test passed — moving on is the expected path, not a skip.
+          <button type="button" className="btn btn-primary" data-testid="test-continue" onClick={onNext}>
+            Continue
+          </button>
+        ) : (
+          <button type="button" className="btn btn-ghost" data-testid="skip-test-link" onClick={onNext}>
+            Skip test
+          </button>
+        )}
       </div>
-      <p className="form-hint">
-        Skipping means you won&rsquo;t confirm your settings and credentials work before saving.
-      </p>
+      {!testResult?.ok && (
+        <p className="form-hint">
+          Skipping means you won&rsquo;t confirm your settings and credentials work before saving.
+        </p>
+      )}
 
       {testResult && testResult.ok && (
         <div className="admin-row-message" role="status" data-testid="test-result-ok">

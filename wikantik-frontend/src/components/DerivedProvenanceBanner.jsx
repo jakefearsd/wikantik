@@ -3,8 +3,10 @@
 // no fetching, so it is safe on public/anonymous views.
 export default function DerivedProvenanceBanner({ metadata, lastModified }) {
   if (!metadata || !metadata.derived_from) return null;
-  const sourceUrl = metadata.derived_source_url
-    || (/^https?:\/\//.test(String(metadata.derived_from)) ? String(metadata.derived_from) : null);
+  const rawUrl = metadata.derived_source_url != null
+    ? String(metadata.derived_source_url)
+    : String(metadata.derived_from || '');
+  const sourceUrl = /^https?:\/\//.test(rawUrl) ? rawUrl : null;
   const sourceLabel = sourceUrl ? sourceUrl.replace(/^https?:\/\//, '') : String(metadata.derived_from);
   const connector = metadata.derived_connector;
   const orphaned = metadata.derived_orphaned === true || metadata.derived_orphaned === 'true';

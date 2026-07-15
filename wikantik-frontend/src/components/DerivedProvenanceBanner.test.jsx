@@ -21,6 +21,15 @@ describe('DerivedProvenanceBanner', () => {
     expect(screen.getByText(/machine-managed/i)).toBeInTheDocument();
   });
 
+  it('refuses non-http(s) source_url schemes (no link rendered)', () => {
+    render(<DerivedProvenanceBanner metadata={{
+      derived_from: 'report.pdf',
+      derived_source_url: 'javascript:alert(1)',
+    }} />);
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByText(/report\.pdf/)).toBeInTheDocument();
+  });
+
   it('falls back to derived_from text when no source_url and shows orphaned state', () => {
     render(<DerivedProvenanceBanner metadata={{ derived_from: 'report.pdf', derived_orphaned: true }} />);
     expect(screen.queryByRole('link')).toBeNull();

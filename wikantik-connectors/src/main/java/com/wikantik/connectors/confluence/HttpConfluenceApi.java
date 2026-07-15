@@ -35,6 +35,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
 
 /** {@link ConfluenceApi} over the Confluence Cloud v2 REST API (java.net.http + gson, HTTP Basic
  *  email:apiToken). Package-private — built by {@link HttpConfluenceApiFactory} (tests construct it
@@ -67,40 +68,62 @@ final class HttpConfluenceApi implements ConfluenceApi {
         int skipped = 0;
         String next = "/wiki/api/v2/spaces/" + spaceId + "/pages?body-format=storage&limit=50";
         while ( next != null && out.size() < maxPages ) {
-            final JsonObject o = getJson( baseUrl + next );
-            for ( final JsonElement e : o.getAsJsonArray( "results" ) ) {
-                if ( out.size() >= maxPages ) break;
-                final JsonObject page = e.getAsJsonObject();
-                final String id = page.has( "id" ) ? page.get( "id" ).getAsString() : null;
-                final String title = page.has( "title" ) ? page.get( "title" ).getAsString() : null;
-                if ( id == null || title == null ) {
-                    LOG.warn( "confluence page {} ('{}') has no storage body/version in listing — skipping",
-                        id == null ? "?" : id, title == null ? "?" : title );
-                    skipped++;
-                    continue;
-                }
-                final JsonObject body = page.getAsJsonObject( "body" );
-                final JsonObject storage = body != null ? body.getAsJsonObject( "storage" ) : null;
-                final JsonObject version = page.getAsJsonObject( "version" );
-                final JsonObject links = page.getAsJsonObject( "_links" );
-                if ( storage == null || !storage.has( "value" ) || version == null || !version.has( "number" )
-                    || links == null || !links.has( "webui" ) ) {
-                    LOG.warn( "confluence page {} ('{}') has no storage body/version in listing — skipping", id, title );
-                    skipped++;
-                    continue;
-                }
-                out.add( new ConfluencePage(
-                    id,
-                    title,
-                    version.get( "number" ).getAsInt(),
-                    links.get( "webui" ).getAsString(),
-                    storage.get( "value" ).getAsString() ) );
-            }
-            final JsonObject links = o.getAsJsonObject( "_links" );
-            next = links != null && links.has( "next" ) ? links.get( "next" ).getAsString() : null;
+            final PageBatch batch = fetchPageBatch( baseUrl + next, maxPages, out.size() );
+            out.addAll( batch.pages() );
+            skipped += batch.skipped();
+            next = batch.nextUrl();
         }
         return new PageListing( out, skipped );
     }
+
+    /** Fetches and parses one results page starting at {@code url}, stopping early once {@code
+     *  alreadyCollected} plus what this page has gathered so far reaches {@code maxPages}. */
+    private PageBatch fetchPageBatch( final String url, final int maxPages, final int alreadyCollected ) throws IOException {
+        final JsonObject o = getJson( url );
+        final List< ConfluencePage > pages = new ArrayList<>();
+        int skipped = 0;
+        for ( final JsonElement e : o.getAsJsonArray( "results" ) ) {
+            if ( alreadyCollected + pages.size() >= maxPages ) break;
+            final Optional< ConfluencePage > parsed = parsePage( e.getAsJsonObject() );
+            if ( parsed.isPresent() ) {
+                pages.add( parsed.get() );
+            } else {
+                skipped++;
+            }
+        }
+        final JsonObject links = o.getAsJsonObject( "_links" );
+        final String nextUrl = links != null && links.has( "next" ) ? links.get( "next" ).getAsString() : null;
+        return new PageBatch( pages, skipped, nextUrl );
+    }
+
+    /** @return the parsed page, or empty if it is missing the id/title/storage-body/version/webui-link
+     *  fields a listing entry needs (logged and skipped, not a fatal error for the whole listing). */
+    private Optional< ConfluencePage > parsePage( final JsonObject page ) {
+        final String id = page.has( "id" ) ? page.get( "id" ).getAsString() : null;
+        final String title = page.has( "title" ) ? page.get( "title" ).getAsString() : null;
+        if ( id == null || title == null ) {
+            LOG.warn( "confluence page {} ('{}') has no storage body/version in listing — skipping",
+                id == null ? "?" : id, title == null ? "?" : title );
+            return Optional.empty();
+        }
+        final JsonObject body = page.getAsJsonObject( "body" );
+        final JsonObject storage = body != null ? body.getAsJsonObject( "storage" ) : null;
+        final JsonObject version = page.getAsJsonObject( "version" );
+        final JsonObject links = page.getAsJsonObject( "_links" );
+        if ( storage == null || !storage.has( "value" ) || version == null || !version.has( "number" )
+            || links == null || !links.has( "webui" ) ) {
+            LOG.warn( "confluence page {} ('{}') has no storage body/version in listing — skipping", id, title );
+            return Optional.empty();
+        }
+        return Optional.of( new ConfluencePage(
+            id,
+            title,
+            version.get( "number" ).getAsInt(),
+            links.get( "webui" ).getAsString(),
+            storage.get( "value" ).getAsString() ) );
+    }
+
+    private record PageBatch( List< ConfluencePage > pages, int skipped, String nextUrl ) {}
 
     private String spaceId() throws IOException {
         final JsonObject o = getJson( baseUrl + "/wiki/api/v2/spaces?keys=" + spaceKey );

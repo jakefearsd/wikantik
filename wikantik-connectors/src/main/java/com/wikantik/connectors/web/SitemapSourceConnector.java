@@ -50,43 +50,20 @@ public final class SitemapSourceConnector implements SourceConnector {
     @Override
     public SyncBatch poll( final SyncCursor cursor ) {
         final RobotsPolicy robots = new RobotsPolicy( fetcher, config.userAgent() );
-        final Set< String > allowedHosts = new HashSet<>();
-        for ( final String sm : config.sitemapUrls() ) hostOf( sm ).ifPresent( allowedHosts::add );
+        final Set< String > allowedHosts = allowedHosts();
 
-        final Set< String > pageUrls = new LinkedHashSet<>();
         // trusted=false once enumeration can no longer be treated as a full snapshot — the orchestrator
         // must not derive tombstones from what this poll happened to miss
-        boolean trusted = true;
-        for ( final String sm : config.sitemapUrls() ) {
-            trusted &= collectPages( sm, robots, pageUrls, allowedHosts, 0 );
-        }
+        final Enumeration enumeration = enumeratePages( robots, allowedHosts );
+        boolean trusted = enumeration.trusted();
 
         final List< SourceItem > items = new ArrayList<>();
         final Set< String > visited = new HashSet<>();
-        for ( final String url : pageUrls ) {
+        for ( final String url : enumeration.pageUrls() ) {
             if ( items.size() >= config.maxPages() ) break;
-            if ( config.sameHostOnly() && hostOf( url ).map( h -> !allowedHosts.contains( h ) ).orElse( true ) ) continue;
-            if ( !visited.add( url ) ) continue;
-            if ( config.respectRobots() && !robots.isAllowed( url ) ) {
-                LOG.info( "sitemap '{}': robots-disallowed, skipping {}", connectorId, url );
-                continue;
-            }
-            sleepPolitely( robots, url );
-            final FetchResult r = fetcher.fetch( url );
-            if ( r.status() / 100 != 2 ) {
-                // the sitemap still LISTS this page, so it is not absent-at-source. 404/410 = the page
-                // itself is authoritatively gone (tombstoning is correct); anything else is transient —
-                // mark the batch untrusted so the missing item is not tombstoned.
-                if ( r.status() != 404 && r.status() != 410 ) {
-                    trusted = false;
-                    LOG.warn( "sitemap '{}': fetch of listed page {} failed (status {}) — batch marked "
-                        + "incomplete, no tombstones this cycle", connectorId, url, r.status() );
-                }
-                continue;
-            }
-            if ( !isHtml( r.contentType() ) ) continue;
-            final String finalUrl = r.finalUrl() == null ? url : r.finalUrl();
-            items.add( WebFetchItems.toItem( finalUrl, r ) );
+            final UrlFetchOutcome outcome = fetchPageItem( url, robots, allowedHosts, visited );
+            trusted &= outcome.trusted();
+            outcome.item().ifPresent( items::add );
         }
         if ( items.size() >= config.maxPages() ) {
             LOG.info( "sitemap '{}': hit max_pages={}, truncated", connectorId, config.maxPages() );
@@ -95,6 +72,57 @@ public final class SitemapSourceConnector implements SourceConnector {
             return new SyncBatch( items, List.of(), cursor, false );   // untrusted enumeration: input cursor, incomplete
         }
         return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
+    }
+
+    private Set< String > allowedHosts() {
+        final Set< String > allowedHosts = new HashSet<>();
+        for ( final String sm : config.sitemapUrls() ) hostOf( sm ).ifPresent( allowedHosts::add );
+        return allowedHosts;
+    }
+
+    private Enumeration enumeratePages( final RobotsPolicy robots, final Set< String > allowedHosts ) {
+        final Set< String > pageUrls = new LinkedHashSet<>();
+        boolean trusted = true;
+        for ( final String sm : config.sitemapUrls() ) {
+            trusted &= collectPages( sm, robots, pageUrls, allowedHosts, 0 );
+        }
+        return new Enumeration( pageUrls, trusted );
+    }
+
+    /** Resolves one enumerated page URL to a fetched {@link SourceItem}, and whether the fetch taints
+     *  the batch's trust (a non-404/410 failure means enumeration can't be trusted for tombstoning). */
+    private UrlFetchOutcome fetchPageItem( final String url, final RobotsPolicy robots,
+                                           final Set< String > allowedHosts, final Set< String > visited ) {
+        if ( config.sameHostOnly() && hostOf( url ).map( h -> !allowedHosts.contains( h ) ).orElse( true ) ) {
+            return UrlFetchOutcome.skip();
+        }
+        if ( !visited.add( url ) ) return UrlFetchOutcome.skip();
+        if ( config.respectRobots() && !robots.isAllowed( url ) ) {
+            LOG.info( "sitemap '{}': robots-disallowed, skipping {}", connectorId, url );
+            return UrlFetchOutcome.skip();
+        }
+        sleepPolitely( robots, url );
+        final FetchResult r = fetcher.fetch( url );
+        if ( r.status() / 100 != 2 ) {
+            // the sitemap still LISTS this page, so it is not absent-at-source. 404/410 = the page
+            // itself is authoritatively gone (tombstoning is correct); anything else is transient —
+            // mark the batch untrusted so the missing item is not tombstoned.
+            if ( r.status() != 404 && r.status() != 410 ) {
+                LOG.warn( "sitemap '{}': fetch of listed page {} failed (status {}) — batch marked "
+                    + "incomplete, no tombstones this cycle", connectorId, url, r.status() );
+                return new UrlFetchOutcome( Optional.empty(), false );
+            }
+            return UrlFetchOutcome.skip();
+        }
+        if ( !isHtml( r.contentType() ) ) return UrlFetchOutcome.skip();
+        final String finalUrl = r.finalUrl() == null ? url : r.finalUrl();
+        return new UrlFetchOutcome( Optional.of( WebFetchItems.toItem( finalUrl, r ) ), true );
+    }
+
+    private record Enumeration( Set< String > pageUrls, boolean trusted ) {}
+
+    private record UrlFetchOutcome( Optional< SourceItem > item, boolean trusted ) {
+        private static UrlFetchOutcome skip() { return new UrlFetchOutcome( Optional.empty(), true ); }
     }
 
     /** @return {@code false} if any sitemap in this subtree could not be fetched (enumeration untrustworthy). */

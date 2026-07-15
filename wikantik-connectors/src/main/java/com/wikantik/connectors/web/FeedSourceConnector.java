@@ -54,9 +54,29 @@ public final class FeedSourceConnector implements SourceConnector {
     @Override
     public SyncBatch poll( final SyncCursor cursor ) {
         final RobotsPolicy robots = new RobotsPolicy( fetcher, config.userAgent() );
+        final Set< String > allowedHosts = allowedHosts();
+        final List< FeedEntry > entries = fetchEntries( robots );
+
+        final List< SourceItem > items = new ArrayList<>();
+        final Set< String > visited = new HashSet<>();
+        for ( final FeedEntry e : entries ) {
+            if ( items.size() >= config.maxItems() ) break;
+            if ( !visited.add( e.link() ) ) continue;
+            resolveEntryItem( e, robots, allowedHosts ).ifPresent( items::add );
+        }
+        if ( items.size() >= config.maxItems() ) {
+            LOG.info( "feed '{}': hit max_items={}, truncated", connectorId, config.maxItems() );
+        }
+        return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
+    }
+
+    private Set< String > allowedHosts() {
         final Set< String > allowedHosts = new HashSet<>();
         for ( final String feedUrl : config.feedUrls() ) hostOf( feedUrl ).ifPresent( allowedHosts::add );
+        return allowedHosts;
+    }
 
+    private List< FeedEntry > fetchEntries( final RobotsPolicy robots ) {
         final List< FeedEntry > entries = new ArrayList<>();
         for ( final String feedUrl : config.feedUrls() ) {
             if ( config.respectRobots() && !robots.isAllowed( feedUrl ) ) {
@@ -70,34 +90,29 @@ public final class FeedSourceConnector implements SourceConnector {
             }
             entries.addAll( FeedParser.parse( r.body(), feedUrl ) );
         }
+        return entries;
+    }
 
-        final List< SourceItem > items = new ArrayList<>();
-        final Set< String > visited = new HashSet<>();
-        for ( final FeedEntry e : entries ) {
-            if ( items.size() >= config.maxItems() ) break;
-            if ( !visited.add( e.link() ) ) continue;
-            if ( config.sameHostOnly() && hostOf( e.link() ).map( h -> !allowedHosts.contains( h ) ).orElse( true ) ) continue;
-
-            if ( config.fetchFullArticles() ) {
-                if ( config.respectRobots() && !robots.isAllowed( e.link() ) ) {
-                    LOG.info( "feed '{}': robots-disallowed article {}", connectorId, e.link() );
-                    continue;
-                }
-                sleepPolitely( robots, e.link() );
-                final FetchResult ar = fetcher.fetch( e.link() );
-                if ( ar.status() / 100 != 2 || !isHtml( ar.contentType() ) ) continue;
-                final String finalUrl = ar.finalUrl() == null ? e.link() : ar.finalUrl();
-                items.add( WebFetchItems.toItem( finalUrl, ar ) );
-            } else {
-                if ( e.contentHtml().isBlank() ) continue;
-                items.add( WebFetchItems.toItemFromContent( e.link(),
-                    e.contentHtml().getBytes( StandardCharsets.UTF_8 ), e.title() ) );
+    /** Resolves one feed entry to a {@link SourceItem}, applying the same-host filter and (when
+     *  {@code fetchFullArticles}) the article fetch — empty if the entry is filtered out or unfetchable. */
+    private Optional< SourceItem > resolveEntryItem( final FeedEntry e, final RobotsPolicy robots, final Set< String > allowedHosts ) {
+        if ( config.sameHostOnly() && hostOf( e.link() ).map( h -> !allowedHosts.contains( h ) ).orElse( true ) ) {
+            return Optional.empty();
+        }
+        if ( config.fetchFullArticles() ) {
+            if ( config.respectRobots() && !robots.isAllowed( e.link() ) ) {
+                LOG.info( "feed '{}': robots-disallowed article {}", connectorId, e.link() );
+                return Optional.empty();
             }
+            sleepPolitely( robots, e.link() );
+            final FetchResult ar = fetcher.fetch( e.link() );
+            if ( ar.status() / 100 != 2 || !isHtml( ar.contentType() ) ) return Optional.empty();
+            final String finalUrl = ar.finalUrl() == null ? e.link() : ar.finalUrl();
+            return Optional.of( WebFetchItems.toItem( finalUrl, ar ) );
         }
-        if ( items.size() >= config.maxItems() ) {
-            LOG.info( "feed '{}': hit max_items={}, truncated", connectorId, config.maxItems() );
-        }
-        return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
+        if ( e.contentHtml().isBlank() ) return Optional.empty();
+        return Optional.of( WebFetchItems.toItemFromContent( e.link(),
+            e.contentHtml().getBytes( StandardCharsets.UTF_8 ), e.title() ) );
     }
 
     private void sleepPolitely( final RobotsPolicy robots, final String url ) {

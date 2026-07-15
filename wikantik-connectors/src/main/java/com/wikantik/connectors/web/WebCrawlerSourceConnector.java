@@ -59,38 +59,10 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
             final Node n = queue.poll();
             if ( !visited.add( n.url ) || n.depth > config.maxDepth() ) continue;
 
-            final CrawlScope scope = scopeFor( n.url );
-            if ( config.respectRobots() && !robots.isAllowed( n.url ) ) {
-                LOG.info( "crawler '{}': robots-disallowed, skipping {}", connectorId, n.url );
-                continue;
-            }
-            sleepPolitely( robots, n.url );
-
-            final FetchResult r = fetcher.fetch( n.url );      // fetcher is fail-closed (status 0 on error)
-            if ( r.status() / 100 != 2 ) {
-                // 404/410 = authoritative "gone" (safe to treat as absent); anything else (0 = network
-                // error, 5xx, 429, auth walls…) means this crawl is NOT a trustworthy full snapshot —
-                // returning complete=true would let the orchestrator tombstone every page it missed.
-                if ( r.status() != 404 && r.status() != 410 ) {
-                    trusted = false;
-                    LOG.warn( "crawler '{}': fetch of {} failed (status {}) — batch marked incomplete, "
-                        + "no tombstones this cycle", connectorId, n.url, r.status() );
-                }
-                continue;
-            }
-            if ( !isHtml( r.contentType() ) ) continue;
-
-            final String finalUrl = r.finalUrl() == null ? n.url : r.finalUrl();
-            final String html = new String( r.body(), java.nio.charset.StandardCharsets.UTF_8 );
-            items.add( WebFetchItems.toItem( finalUrl, r ) );
-
-            if ( n.depth < config.maxDepth() ) {
-                for ( final String link : LinkExtractor.links( html, finalUrl ) ) {
-                    if ( !visited.contains( link ) && scope != null && scope.inScope( link ) ) {
-                        queue.add( new Node( link, n.depth + 1 ) );
-                    }
-                }
-            }
+            final NodeOutcome outcome = processNode( n, robots, visited );
+            trusted &= outcome.trusted();
+            outcome.item().ifPresent( items::add );
+            queue.addAll( outcome.toEnqueue() );
         }
         if ( items.size() >= config.maxPages() ) {
             LOG.info( "crawler '{}': hit max_pages={}, crawl truncated", connectorId, config.maxPages() );
@@ -101,6 +73,45 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
             return new SyncBatch( items, List.of(), cursor, false );
         }
         return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
+    }
+
+    /** Fetches one queued node, resolving it to an optional {@link SourceItem}, the frontier nodes
+     *  discovered from its links (if within depth), and whether the fetch taints the batch's trust. */
+    private NodeOutcome processNode( final Node n, final RobotsPolicy robots, final Set< String > visited ) {
+        final CrawlScope scope = scopeFor( n.url );
+        if ( config.respectRobots() && !robots.isAllowed( n.url ) ) {
+            LOG.info( "crawler '{}': robots-disallowed, skipping {}", connectorId, n.url );
+            return new NodeOutcome( Optional.empty(), List.of(), true );
+        }
+        sleepPolitely( robots, n.url );
+
+        final FetchResult r = fetcher.fetch( n.url );      // fetcher is fail-closed (status 0 on error)
+        if ( r.status() / 100 != 2 ) {
+            // 404/410 = authoritative "gone" (safe to treat as absent); anything else (0 = network
+            // error, 5xx, 429, auth walls…) means this crawl is NOT a trustworthy full snapshot —
+            // returning complete=true would let the orchestrator tombstone every page it missed.
+            if ( r.status() != 404 && r.status() != 410 ) {
+                LOG.warn( "crawler '{}': fetch of {} failed (status {}) — batch marked incomplete, "
+                    + "no tombstones this cycle", connectorId, n.url, r.status() );
+                return new NodeOutcome( Optional.empty(), List.of(), false );
+            }
+            return new NodeOutcome( Optional.empty(), List.of(), true );
+        }
+        if ( !isHtml( r.contentType() ) ) return new NodeOutcome( Optional.empty(), List.of(), true );
+
+        final String finalUrl = r.finalUrl() == null ? n.url : r.finalUrl();
+        final String html = new String( r.body(), java.nio.charset.StandardCharsets.UTF_8 );
+        final SourceItem item = WebFetchItems.toItem( finalUrl, r );
+
+        final List< Node > toEnqueue = new ArrayList<>();
+        if ( n.depth < config.maxDepth() ) {
+            for ( final String link : LinkExtractor.links( html, finalUrl ) ) {
+                if ( !visited.contains( link ) && scope != null && scope.inScope( link ) ) {
+                    toEnqueue.add( new Node( link, n.depth + 1 ) );
+                }
+            }
+        }
+        return new NodeOutcome( Optional.of( item ), toEnqueue, true );
     }
 
     private CrawlScope scopeFor( final String url ) {
@@ -123,4 +134,6 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
     }
 
     private record Node( String url, int depth ) {}
+
+    private record NodeOutcome( Optional< SourceItem > item, List< Node > toEnqueue, boolean trusted ) {}
 }

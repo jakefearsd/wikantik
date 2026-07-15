@@ -61,29 +61,13 @@ public final class SyncOrchestrator {
         while ( true ) {
             final SyncBatch batch = connector.poll( cursor );
 
-            for ( final SourceItem item : batch.items() ) {
-                seen.add( item.sourceUri() );
-                if ( store.syncedHash( id, item.sourceUri() ).filter( item.contentHash()::equals ).isPresent() ) {
-                    unchanged++;
-                    continue;
-                }
-                final IngestOutcome out = sink.ingest( id, item );
-                switch ( out.status() ) {
-                    case CREATED -> created++;
-                    case UPDATED -> updated++;
-                    case UNCHANGED -> unchanged++;
-                    case FAILED -> { failed++; LOG.warn( "Sync '{}': ingest FAILED for {}", id, item.sourceUri() ); }
-                }
-                if ( out.status() != IngestOutcome.Status.FAILED ) {
-                    store.recordSynced( id, item.sourceUri(), item.contentHash(), out.pageName(), item.aclRefs() );
-                }
-            }
+            final ItemCounts counts = processBatchItems( id, batch, seen );
+            created += counts.created();
+            updated += counts.updated();
+            unchanged += counts.unchanged();
+            failed += counts.failed();
 
-            // explicit tombstones from the connector (incremental sources)
-            for ( final String uri : batch.tombstonedUris() ) {
-                explicitTombstones.add( uri );
-                deleted += tombstone( id, uri );
-            }
+            deleted += applyExplicitTombstones( id, batch, explicitTombstones );
 
             final SyncCursor next = batch.nextCursor();
             store.saveCursor( id, next );     // persist AFTER processing this batch → crash-resume point
@@ -101,11 +85,56 @@ public final class SyncOrchestrator {
             cursor = next;
         }
 
-        // Derived tombstones: only after a fully-drained (complete) sync of a full-corpus connector,
-        // judged against `seen` accumulated across the WHOLE drain. Guard: a full-corpus connector
-        // reporting ZERO items while the store knows items is far more likely an upstream outage
-        // (site down, API failure, missing credential) than a true total wipe — refuse to mass-delete
-        // every derived page; the next healthy sync reconciles genuine deletions.
+        deleted += applyDerivedTombstones( id, connector, drainedComplete, seen, explicitTombstones );
+
+        final SyncReport report = new SyncReport( created, updated, unchanged, deleted, failed );
+        LOG.info( "Sync '{}' complete: {}", id, report );
+        return report;
+    }
+
+    /** Ingests every item in one batch, tallying outcome counts and recording the source URI as
+     *  {@code seen} so a later full-corpus reconcile knows it is still present at the source. */
+    private ItemCounts processBatchItems( final String id, final SyncBatch batch, final Set< String > seen ) {
+        int created = 0, updated = 0, unchanged = 0, failed = 0;
+        for ( final SourceItem item : batch.items() ) {
+            seen.add( item.sourceUri() );
+            if ( store.syncedHash( id, item.sourceUri() ).filter( item.contentHash()::equals ).isPresent() ) {
+                unchanged++;
+                continue;
+            }
+            final IngestOutcome out = sink.ingest( id, item );
+            switch ( out.status() ) {
+                case CREATED -> created++;
+                case UPDATED -> updated++;
+                case UNCHANGED -> unchanged++;
+                case FAILED -> { failed++; LOG.warn( "Sync '{}': ingest FAILED for {}", id, item.sourceUri() ); }
+            }
+            if ( out.status() != IngestOutcome.Status.FAILED ) {
+                store.recordSynced( id, item.sourceUri(), item.contentHash(), out.pageName(), item.aclRefs() );
+            }
+        }
+        return new ItemCounts( created, updated, unchanged, failed );
+    }
+
+    /** Applies the connector's explicit tombstones for this batch (incremental sources), recording
+     *  each into {@code explicitTombstones} so a later full-corpus reconcile does not double-delete. */
+    private int applyExplicitTombstones( final String id, final SyncBatch batch, final Set< String > explicitTombstones ) {
+        int deleted = 0;
+        for ( final String uri : batch.tombstonedUris() ) {
+            explicitTombstones.add( uri );
+            deleted += tombstone( id, uri );
+        }
+        return deleted;
+    }
+
+    /** Derived tombstones: only after a fully-drained (complete) sync of a full-corpus connector,
+     *  judged against {@code seen} accumulated across the WHOLE drain. Guard: a full-corpus connector
+     *  reporting ZERO items while the store knows items is far more likely an upstream outage
+     *  (site down, API failure, missing credential) than a true total wipe — refuse to mass-delete
+     *  every derived page; the next healthy sync reconciles genuine deletions. */
+    private int applyDerivedTombstones( final String id, final SourceConnector connector, final boolean drainedComplete,
+                                        final Set< String > seen, final Set< String > explicitTombstones ) {
+        int deleted = 0;
         if ( drainedComplete && connector.reflectsFullCorpus() ) {
             final var known = store.knownUris( id );
             if ( seen.isEmpty() && !known.isEmpty() ) {
@@ -120,10 +149,7 @@ public final class SyncOrchestrator {
                 }
             }
         }
-
-        final SyncReport report = new SyncReport( created, updated, unchanged, deleted, failed );
-        LOG.info( "Sync '{}' complete: {}", id, report );
-        return report;
+        return deleted;
     }
 
     private int tombstone( final String id, final String uri ) {
@@ -133,4 +159,6 @@ public final class SyncOrchestrator {
         store.removeSynced( id, uri );
         return 1;
     }
+
+    private record ItemCounts( int created, int updated, int unchanged, int failed ) {}
 }

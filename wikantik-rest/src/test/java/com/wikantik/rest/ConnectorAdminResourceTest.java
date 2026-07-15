@@ -38,6 +38,7 @@ import com.wikantik.connectors.runtime.ConnectorsDisabledException;
 import com.wikantik.connectors.state.JdbcSyncRunStore;
 import com.wikantik.connectors.state.SyncRunRow;
 import com.wikantik.derived.ConnectorConfigService;
+import com.wikantik.derived.ConnectorTestService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,6 +79,12 @@ class ConnectorAdminResourceTest {
     private StringWriter          body;
     private WikiEngine            wikiEngine;
     private AuditService          auditService;
+    /** Canned return value for the {@code probeUnsaved} testing seam below — set per-test. */
+    private ConnectorTestService.TestResult unsavedTestResult;
+    /** Every argument list {@code probeUnsaved} was called with, in call order — lets tests assert
+     *  the handler actually threads {@code type}/{@code config}/{@code credentials} through rather
+     *  than the seam masking a dropped or misordered argument. */
+    private final List< Object[] > probeUnsavedCalls = new java.util.ArrayList<>();
 
     /** Test servlet subclass that injects the mocked runtime/stores (or none, to simulate
      *  "disabled"/"not yet wired"). */
@@ -101,6 +108,16 @@ class ConnectorAdminResourceTest {
         @Override
         protected CredentialStore resolveCredentialStore() {
             return credStore;
+        }
+        // Bypasses ConnectorAssembler's real (network-making) connector construction — the
+        // service layer itself (ConnectorTestService) is unit tested directly against a stub
+        // connector; here we only need to prove the REST plumbing.
+        @Override
+        protected ConnectorTestService.TestResult probeUnsaved( final String id, final String type,
+                final com.google.gson.JsonObject config, final Map< String, String > transientCredentials,
+                final CredentialStore realStore ) {
+            probeUnsavedCalls.add( new Object[] { id, type, config, transientCredentials, realStore } );
+            return unsavedTestResult;
         }
     }
 
@@ -779,5 +796,119 @@ class ConnectorAdminResourceTest {
         servlet.doPost( req, resp );
 
         verify( resp ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+    }
+
+    // -----------------------------------------------------------------------
+    // POST /admin/connectors/test  (dry-run, unsaved payload)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testUnsavedEndpointReturnsResult() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/test" );
+        stubReaderBody( "{\"type\":\"webcrawler\",\"config\":{\"seeds\":[\"https://example.com\"]}}" );
+        unsavedTestResult = new ConnectorTestService.TestResult(
+            true, 2, List.of( "https://example.com/a", "https://example.com/b" ), true,
+            "reachable — found 2 item(s) in a capped probe" );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( 200 );
+        final JsonObject json = JsonParser.parseString( body.toString() ).getAsJsonObject();
+        assertTrue( json.get( "ok" ).getAsBoolean() );
+        assertEquals( 2, json.get( "found" ).getAsInt() );
+        assertEquals( "reachable — found 2 item(s) in a capped probe", json.get( "message" ).getAsString() );
+        verifyNoInteractions( auditService );
+    }
+
+    @Test
+    void testUnsavedThreadsTypeConfigAndCredentialsToProbe() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/test" );
+        stubReaderBody( "{\"type\":\"github\",\"config\":{\"repo\":\"jake/notes\"},"
+            + "\"credentials\":{\"token\":\"transient-tok\",\"ignored\":{\"nested\":true}}}" );
+        unsavedTestResult = new ConnectorTestService.TestResult( true, 0, List.of(), true, "ok" );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( 200 );
+        assertEquals( 1, probeUnsavedCalls.size() );
+        final Object[] call = probeUnsavedCalls.get( 0 );
+        assertEquals( "github", call[ 1 ] );
+        assertEquals( "jake/notes", ( ( JsonObject ) call[ 2 ] ).get( "repo" ).getAsString() );
+        @SuppressWarnings( "unchecked" )
+        final Map< String, String > credentials = ( Map< String, String > ) call[ 3 ];
+        assertEquals( Map.of( "token", "transient-tok" ), credentials );   // non-primitive "ignored" entry dropped
+        assertEquals( credStore, call[ 4 ] );
+    }
+
+    @Test
+    void testUnsavedMalformedBodyIs400() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/test" );
+        stubReaderBody( "not json" );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+    }
+
+    @Test
+    void testUnsavedInvalidConfigIs422() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/test" );
+        stubReaderBody( "{\"type\":\"webcrawler\",\"config\":{}}" );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( 422 );
+        final JsonObject json = JsonParser.parseString( body.toString() ).getAsJsonObject();
+        assertTrue( json.getAsJsonObject( "errors" ).has( "seeds" ) );
+    }
+
+    // -----------------------------------------------------------------------
+    // POST /admin/connectors/{id}/test  (dry-run, saved connector)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testSavedUnknownIdIs404() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/nope/test" );
+        when( runtime.registry() ).thenReturn( registryWith() );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+    }
+
+    @Test
+    void testSavedEndpointReturnsResult() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/gh1/test" );
+        final SourceConnector connector = mock( SourceConnector.class );
+        when( connector.poll( null ) ).thenReturn( new com.wikantik.api.connectors.SyncBatch(
+            List.of(), List.of(), null, true ) );
+        final ConnectorRegistry withGh1 = new ConnectorRegistry( Map.of( "gh1", connector ), Map.of() );
+        when( runtime.registry() ).thenReturn( withGh1 );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( 200 );
+        final JsonObject json = JsonParser.parseString( body.toString() ).getAsJsonObject();
+        assertTrue( json.get( "ok" ).getAsBoolean() );
+        assertEquals( 0, json.get( "found" ).getAsInt() );
+        verifyNoInteractions( auditService );
+    }
+
+    // -----------------------------------------------------------------------
+    // POST /admin/connectors  (create) — reserved id
+    // -----------------------------------------------------------------------
+
+    @Test
+    void createRejectsReservedTestId() throws Exception {
+        when( req.getPathInfo() ).thenReturn( null );
+        stubReaderBody( "{\"id\":\"test\",\"type\":\"github\",\"config\":{\"repo\":\"jake/notes\"}}" );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( 422 );
+        final JsonObject json = JsonParser.parseString( body.toString() ).getAsJsonObject();
+        assertEquals( "reserved id", json.getAsJsonObject( "errors" ).get( "connector_id" ).getAsString() );
+        verify( configService, never() ).create( any(), any(), any(), anyBoolean(), anyInt(), any(), any(), any() );
+        verifyNoInteractions( auditService );
     }
 }

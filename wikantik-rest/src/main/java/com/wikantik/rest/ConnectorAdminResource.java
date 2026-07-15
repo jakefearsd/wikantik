@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.wikantik.api.connectors.CredentialStore;
+import com.wikantik.api.connectors.SourceConnector;
 import com.wikantik.api.connectors.SyncStateStore;
 import com.wikantik.audit.AuditCategory;
 import com.wikantik.audit.AuditEntry;
@@ -35,6 +36,7 @@ import com.wikantik.connectors.runtime.ConnectorsDisabledException;
 import com.wikantik.connectors.state.JdbcSyncRunStore;
 import com.wikantik.connectors.state.SyncRunRow;
 import com.wikantik.derived.ConnectorConfigService;
+import com.wikantik.derived.ConnectorTestService;
 import com.wikantik.derived.ConnectorWiringHelper;
 
 import jakarta.servlet.ServletException;
@@ -53,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Admin endpoint for the source-connector sync stack ({@code wikantik-connectors}).
@@ -87,7 +90,18 @@ import java.util.Properties;
  *       DB via {@link ConnectorConfigService#importFromProperties}, reconstructing its config JSON
  *       from the startup properties. {@code 200} + detail payload; {@code 404} when {@code id} is not
  *       a live properties connector; {@code 409} when it is already imported (a DB row exists).</li>
+ *   <li>{@code POST /admin/connectors/test} — dry-run probe of an <em>unsaved</em> {@code {type,
+ *       config, credentials?}} payload via {@link ConnectorTestService#testUnsaved} (the wizard's
+ *       Test step). {@code 400} malformed body; {@code 422} field-keyed validation errors (same
+ *       shape as create). Because this path segment shadows a connector literally named {@code
+ *       "test"}, that id is reserved (see {@link #RESERVED_CONNECTOR_IDS}) so the ambiguity can
+ *       never actually arise.</li>
+ *   <li>{@code POST /admin/connectors/{id}/test} — dry-run probe of a <em>saved</em> connector's
+ *       live config via {@link ConnectorTestService#testSaved}. {@code 404} unknown id.</li>
  * </ul>
+ *
+ * <p>Neither test route audits (read-only, no state change) and neither logs or echoes credential
+ * values (see {@link ConnectorTestService}'s class javadoc for the secret-hygiene contract).
  *
  * <p>All endpoints are protected by {@code AdminAuthFilter} (the {@code /admin/*} filter mapping).
  * {@link ConnectorRuntime} is wired unconditionally at engine startup, so a {@code 503 Service
@@ -105,6 +119,17 @@ public class ConnectorAdminResource extends RestServletBase {
 
     /** 503 message for every mutation route when {@link ConnectorConfigService} isn't wired. */
     private static final String CONFIG_SERVICE_UNAVAILABLE = "Connector configuration service unavailable";
+
+    /** Connector ids a create request may never use — {@code "test"} would otherwise be shadowed
+     *  by the {@code POST /admin/connectors/test} dry-run route (a single-segment path always
+     *  routes there, never to a saved connector named "test"; see {@link #doPost}). Rejecting the
+     *  id here at creation time means that routing precedence never actually has to matter. */
+    private static final Set< String > RESERVED_CONNECTOR_IDS = Set.of( "test" );
+
+    /** Throwaway assembly id for {@code POST /admin/connectors/test} (unsaved payload) — never
+     *  persisted; see {@link ConnectorTestService#testUnsaved}'s javadoc for why the literal value
+     *  doesn't matter. */
+    private static final String TEST_PROBE_CONNECTOR_ID = "connector-test-probe";
 
     /**
      * The list/detail/runs/pages payloads promise explicit {@code null} fields (e.g. {@code
@@ -380,13 +405,18 @@ public class ConnectorAdminResource extends RestServletBase {
         }
 
         final String[] segments = path.split( "/" );
-        if ( segments.length == 2 && "sync".equals( segments[ 1 ] ) ) {
+        if ( segments.length == 1 && "test".equals( segments[ 0 ] ) ) {
+            // Path wins over id: POST /admin/connectors/test is ALWAYS the unsaved-payload dry-run
+            // route (single segment), never a saved-connector action for an id literally "test" —
+            // that id is rejected at creation time (RESERVED_CONNECTOR_IDS), so this can never bite.
+            handleTestUnsaved( request, response );
+        } else if ( segments.length == 2 && "sync".equals( segments[ 1 ] ) ) {
             handleSync( runtime, segments[ 0 ], response );
         } else if ( segments.length == 2 && "import".equals( segments[ 1 ] ) ) {
             handleImport( request, segments[ 0 ], response );
+        } else if ( segments.length == 2 && "test".equals( segments[ 1 ] ) ) {
+            handleTestSaved( runtime, segments[ 0 ], response );
         } else {
-            // [id, "test"] is reserved for Task 12 (dry-run test-connection) — falls through here
-            // to 404 until it lands.
             sendNotFound( response, "Unknown connector endpoint: " + path );
         }
     }
@@ -425,6 +455,10 @@ public class ConnectorAdminResource extends RestServletBase {
         if ( body == null ) return;   // parseJsonBody already sent 400
 
         final String id = getJsonString( body, "id" );
+        if ( id != null && RESERVED_CONNECTOR_IDS.contains( id ) ) {
+            sendValidationErrors( response, new ConnectorConfigCodec.Validation( Map.of( "connector_id", "reserved id" ) ) );
+            return;
+        }
         final String type = getJsonString( body, "type" );
         final JsonObject config = bodyConfig( body );
         final boolean enabled = getJsonBoolean( body, "enabled", true );
@@ -554,6 +588,76 @@ public class ConnectorAdminResource extends RestServletBase {
         LOG.info( "ConnectorAdminResource: imported connector '{}' (type={})", connectorId, type );
         recordAudit( "connector.import", currentLogin( request ), connectorId, null );
         respondDetail( configService, connectorId, response, HttpServletResponse.SC_OK );
+    }
+
+    /** {@code POST /admin/connectors/test} — dry-run probe of an <em>unsaved</em> {@code {type,
+     *  config, credentials?}} payload (the wizard's Test step). Validation mirrors {@link
+     *  #handleCreate}: an unrecognized/blank {@code type} (including {@code filesystem}, D9) never
+     *  reaches {@link ConnectorConfigCodec#validate} (which NPEs on a {@code null} type), and every
+     *  field-keyed error is {@code 422} before any connector is assembled. No audit — read-only, no
+     *  state change. */
+    private void handleTestUnsaved( final HttpServletRequest request, final HttpServletResponse response )
+            throws IOException {
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;   // parseJsonBody already sent 400
+
+        final String type = getJsonString( body, "type" );
+        final JsonObject config = bodyConfig( body );
+
+        final Map< String, String > errors = new LinkedHashMap<>();
+        if ( type == null || type.isBlank() || !ConnectorConfigCodec.UI_TYPES.contains( type ) ) {
+            errors.put( "connector_type", "unknown connector type: " + type );
+        } else {
+            errors.putAll( ConnectorConfigCodec.validate( type, config ).errors() );
+        }
+        if ( !errors.isEmpty() ) {
+            sendValidationErrors( response, new ConnectorConfigCodec.Validation( errors ) );
+            return;
+        }
+
+        final Map< String, String > transientCredentials = extractCredentials( body );
+        final ConnectorTestService.TestResult result = probeUnsaved(
+            TEST_PROBE_CONNECTOR_ID, type, config, transientCredentials, resolveCredentialStore() );
+        response.setStatus( HttpServletResponse.SC_OK );
+        sendJson( response, result );
+    }
+
+    /** {@code POST /admin/connectors/{id}/test} — dry-run probe of a <em>saved</em> connector at
+     *  its live (uncapped) config; {@code 404} for an id the registry doesn't know about. No audit
+     *  — read-only, no state change. */
+    private void handleTestSaved( final ConnectorRuntime runtime, final String connectorId,
+                                   final HttpServletResponse response ) throws IOException {
+        final Optional< SourceConnector > connector = runtime.registry().get( connectorId );
+        if ( connector.isEmpty() ) {
+            sendNotFound( response, "Unknown connector: " + connectorId );
+            return;
+        }
+        final ConnectorTestService.TestResult result = ConnectorTestService.testSaved( connector.get() );
+        response.setStatus( HttpServletResponse.SC_OK );
+        sendJson( response, result );
+    }
+
+    /** {@code credentials} from the request body as a flat name→value map, or an empty map when
+     *  absent/not-an-object. Values that aren't JSON primitives are skipped rather than rejecting
+     *  the whole request — mirrors {@link #bodyConfig}'s shape-proof idiom. */
+    private Map< String, String > extractCredentials( final JsonObject body ) {
+        if ( !body.has( "credentials" ) || !body.get( "credentials" ).isJsonObject() ) return Map.of();
+        final JsonObject credentials = body.getAsJsonObject( "credentials" );
+        final Map< String, String > out = new LinkedHashMap<>();
+        for ( final String name : credentials.keySet() ) {
+            final String value = getJsonString( credentials, name );
+            if ( value != null ) out.put( name, value );
+        }
+        return Map.copyOf( out );
+    }
+
+    /** Testing seam over {@link ConnectorTestService#testUnsaved} — protected so tests can inject
+     *  a canned {@link ConnectorTestService.TestResult} without exercising {@link
+     *  com.wikantik.derived.ConnectorAssembler}'s real (network-making) connector construction,
+     *  mirroring the {@code resolveXxx} pattern below. */
+    protected ConnectorTestService.TestResult probeUnsaved( final String id, final String type, final JsonObject config,
+            final Map< String, String > transientCredentials, final CredentialStore realStore ) {
+        return ConnectorTestService.testUnsaved( id, type, config, transientCredentials, realStore );
     }
 
     /** Rebuilds the typed config for {@code type}/{@code connectorId} straight from {@code props} —

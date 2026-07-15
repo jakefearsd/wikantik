@@ -37,15 +37,12 @@ final class DefaultBundleAssemblyServiceTestSupport {
                                                             final QueryPlanner planner,
                                                             final boolean decompositionEnabled ) {
         return new DefaultBundleAssemblyService(
-            Map.of( RetrievalMode.HYBRID, src ), RetrievalMode.HYBRID,
+            new RetrievalRouting( Map.of( RetrievalMode.HYBRID, src ), RetrievalMode.HYBRID ),
             ( q, sections ) -> sections,             // identity reranker
-            slug -> Optional.of( slug ),              // canonicalIdOf
-            slug -> 1,                                 // versionOf
+            new CitationResolvers( slug -> Optional.of( slug ), slug -> 1 ),
             12,                                         // maxSections
             BundleCoverageCalculator.defaults(),
             KneeCutoff.disabled(),
-            planner,
-            new SubQueryFusion( 60 ),
-            decompositionEnabled );
+            new QueryDecomposition( planner, new SubQueryFusion( 60 ), decompositionEnabled ) );
     }
 }

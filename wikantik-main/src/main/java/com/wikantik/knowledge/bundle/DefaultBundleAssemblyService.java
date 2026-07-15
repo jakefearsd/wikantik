@@ -131,39 +131,41 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
                                          final int maxSections,
                                          final BundleCoverageCalculator coverageCalc,
                                          final KneeCutoff knee ) {
-        this( sources, defaultMode, reranker, canonicalIdOf, versionOf, maxSections, coverageCalc, knee,
-              new PassthroughQueryPlanner(), new SubQueryFusion( 60 ), false );
+        this( new RetrievalRouting( sources, defaultMode ), reranker,
+              new CitationResolvers( canonicalIdOf, versionOf ), maxSections, coverageCalc, knee,
+              QueryDecomposition.disabled() );
     }
 
     /**
-     * Canonical constructor with structure-conditional query decomposition (default off).
-     * When {@code decompositionEnabled} and {@link QueryStructureHeuristic#looksMultiPart(String)}
-     * both hold, the {@code planner} splits the query into sub-queries whose per-query candidates
-     * are fused via {@code fusion} before reranking.
+     * Canonical constructor — routing to a per-{@link RetrievalMode} {@link SectionCandidateSource}
+     * ({@link RetrievalRouting}), the slug→citation-identity resolvers ({@link CitationResolvers}),
+     * and (default off) structure-conditional query decomposition ({@link QueryDecomposition}):
+     * when {@code decomposition.enabled()} and {@link QueryStructureHeuristic#looksMultiPart(String)}
+     * both hold, {@code decomposition.planner()} splits the query into sub-queries whose per-query
+     * candidates are fused via {@code decomposition.fusion()} before reranking. Grouped into these
+     * parameter objects to keep the parameter list manageable — see the convenience constructors
+     * above for the common cases.
      */
-    public DefaultBundleAssemblyService( final Map< RetrievalMode, SectionCandidateSource > sources,
-                                         final RetrievalMode defaultMode,
+    public DefaultBundleAssemblyService( final RetrievalRouting routing,
                                          final SectionReranker reranker,
-                                         final Function< String, Optional< String > > canonicalIdOf,
-                                         final Function< String, Integer > versionOf,
+                                         final CitationResolvers citations,
                                          final int maxSections,
                                          final BundleCoverageCalculator coverageCalc,
                                          final KneeCutoff knee,
-                                         final QueryPlanner planner,
-                                         final SubQueryFusion fusion,
-                                         final boolean decompositionEnabled ) {
-        Objects.requireNonNull( sources.get( defaultMode ), "defaultMode must be present in sources" );
-        this.sources = Map.copyOf( sources );
-        this.defaultMode = defaultMode;
+                                         final QueryDecomposition decomposition ) {
+        Objects.requireNonNull( routing.sources().get( routing.defaultMode() ),
+            "defaultMode must be present in sources" );
+        this.sources = Map.copyOf( routing.sources() );
+        this.defaultMode = routing.defaultMode();
         this.reranker = reranker;
-        this.canonicalIdOf = canonicalIdOf;
-        this.versionOf = versionOf;
+        this.canonicalIdOf = citations.canonicalIdOf();
+        this.versionOf = citations.versionOf();
         this.maxSections = maxSections;
         this.coverageCalc = coverageCalc;
         this.knee = knee;
-        this.planner = planner;
-        this.fusion = fusion;
-        this.decompositionEnabled = decompositionEnabled;
+        this.planner = decomposition.planner();
+        this.fusion = decomposition.fusion();
+        this.decompositionEnabled = decomposition.enabled();
     }
 
     @Override
@@ -180,26 +182,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         }
         SectionCandidates cand = src.candidates( query );
         if ( decompositionEnabled && QueryStructureHeuristic.looksMultiPart( query ) ) {
-            final List< String > subs = planner.plan( query );     // fail-closed -> [query]
-            if ( subs.size() > 1 ) {
-                final List< SectionCandidates > perQuery = new ArrayList<>();
-                perQuery.add( cand );                               // include the original pass
-                final SectionCandidateSource subSrc = src;          // effectively-final for the loop
-                for ( final String sq : subs ) {
-                    // Guard each sub-query retrieval: a transient embedder/index error on one
-                    // sub-query must not abort a bundle single-pass would have returned. Skip the
-                    // failed sub-query and fuse whatever succeeded (the original is already in
-                    // perQuery, so worst case degrades to single-pass — "helps-or-no-ops").
-                    try {
-                        perQuery.add( subSrc.candidates( sq ) );
-                    } catch ( final RuntimeException e ) {
-                        LOG.warn( "Sub-query retrieval failed for '{}' (skipping): {}", sq, e.getMessage() );
-                    }
-                }
-                cand = fusion.fuse( perQuery );
-                LOG.info( "Bundle decomposition: '{}' -> {} sub-queries, fused {} sections",
-                    query, subs.size(), cand.sections().size() );
-            }
+            cand = decompose( query, src, cand );
         }
         final List< CandidateSection > ranked = reranker.rerank( query, cand.sections() );
         // knee only valid on cosine-scale dense candidates; and it counts dense-ranked N applied
@@ -207,7 +190,40 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         final int cut = cand.denseCosineScale()
             ? knee.effectiveN( cand.sections(), cand.topSimilarity(), maxSections )
             : maxSections;
+        final List< BundleSection > out = citeAndDedup( ranked, cut );
+        return new ContextBundle( query, out, coverageCalc.compute( cand.topSimilarity(), out ) );
+    }
 
+    /**
+     * Splits {@code query} into sub-queries via {@link #planner} and fuses their per-query
+     * candidates (plus the already-retrieved {@code original} pass) via {@link #fusion}. Returns
+     * {@code original} unchanged when the planner degenerates to a single (sub-)query.
+     */
+    private SectionCandidates decompose( final String query, final SectionCandidateSource src,
+                                         final SectionCandidates original ) {
+        final List< String > subs = planner.plan( query );     // fail-closed -> [query]
+        if ( subs.size() <= 1 ) return original;
+        final List< SectionCandidates > perQuery = new ArrayList<>();
+        perQuery.add( original );                               // include the original pass
+        for ( final String sq : subs ) {
+            // Guard each sub-query retrieval: a transient embedder/index error on one sub-query
+            // must not abort a bundle single-pass would have returned. Skip the failed sub-query
+            // and fuse whatever succeeded (the original is already in perQuery, so worst case
+            // degrades to single-pass — "helps-or-no-ops").
+            try {
+                perQuery.add( src.candidates( sq ) );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Sub-query retrieval failed for '{}' (skipping): {}", sq, e.getMessage() );
+            }
+        }
+        final SectionCandidates fused = fusion.fuse( perQuery );
+        LOG.info( "Bundle decomposition: '{}' -> {} sub-queries, fused {} sections",
+            query, subs.size(), fused.sections().size() );
+        return fused;
+    }
+
+    /** Dedup by (slug, heading-path), drop un-citable sections, cite, and cap at {@code cut}. */
+    private List< BundleSection > citeAndDedup( final List< CandidateSection > ranked, final int cut ) {
         final Set< SectionKey > seen = new LinkedHashSet<>();
         final List< BundleSection > out = new ArrayList<>();
         for ( final CandidateSection cs : ranked ) {
@@ -219,7 +235,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
             out.add( new BundleSection( canonical, cs.slug(), cs.headingPath(), cs.text(), cs.denseScore(), cite ) );
             if ( out.size() >= cut ) break;             // top-N (dynamic when knee enabled)
         }
-        return new ContextBundle( query, out, coverageCalc.compute( cand.topSimilarity(), out ) );
+        return out;
     }
 
     static String sha256( final String text ) {

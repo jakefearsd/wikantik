@@ -106,7 +106,26 @@ final class SubQueryFusion {
      * section is emitted before any list's second, guaranteeing minority-side representation.
      */
     private SectionCandidates fuseRoundRobin( final List< SectionCandidates > perQuery ) {
+        final ScanResult scan = scan( perQuery );
+        if ( !scan.anyNonEmpty() ) return SectionCandidates.of( List.of(), scan.topSim(), scan.cosineScale() );
+
         final Map< SectionKey, CandidateSection > emitted = new LinkedHashMap<>();
+        for ( int rank = 0; rank < scan.maxLen(); rank++ ) {
+            for ( final SectionCandidates cand : perQuery ) {
+                if ( cand == null || rank >= cand.sections().size() ) continue;
+                final CandidateSection cs = cand.sections().get( rank );
+                final SectionKey key = new SectionKey( cs.slug(), cs.headingPath() );
+                // first placement wins position; keep the higher denseScore if seen again
+                emitted.merge( key, cs, ( a, b ) -> a.denseScore() >= b.denseScore() ? a : b );
+            }
+        }
+        return SectionCandidates.of( new ArrayList<>( emitted.values() ), scan.topSim(), scan.cosineScale() );
+    }
+
+    /** One pass over the non-null inputs: the round-robin loop's bounds and short-circuit facts. */
+    private record ScanResult( double topSim, boolean cosineScale, boolean anyNonEmpty, int maxLen ) {}
+
+    private ScanResult scan( final List< SectionCandidates > perQuery ) {
         double topSim = -1.0;
         boolean cosineScale = true;
         boolean anyNonEmpty = false;
@@ -120,17 +139,6 @@ final class SubQueryFusion {
                 maxLen = Math.max( maxLen, cand.sections().size() );
             }
         }
-        if ( !anyNonEmpty ) return SectionCandidates.of( List.of(), topSim, cosineScale );
-
-        for ( int rank = 0; rank < maxLen; rank++ ) {
-            for ( final SectionCandidates cand : perQuery ) {
-                if ( cand == null || rank >= cand.sections().size() ) continue;
-                final CandidateSection cs = cand.sections().get( rank );
-                final SectionKey key = new SectionKey( cs.slug(), cs.headingPath() );
-                // first placement wins position; keep the higher denseScore if seen again
-                emitted.merge( key, cs, ( a, b ) -> a.denseScore() >= b.denseScore() ? a : b );
-            }
-        }
-        return SectionCandidates.of( new ArrayList<>( emitted.values() ), topSim, cosineScale );
+        return new ScanResult( topSim, cosineScale, anyNonEmpty, maxLen );
     }
 }

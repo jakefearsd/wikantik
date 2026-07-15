@@ -139,13 +139,14 @@ public final class BundleServiceWiring {
         LOG.info( "Bundle assembly service wired (modes={}, reranker={}, maxSections={}, knee={}, decomposition={})",
             sources.keySet(), rerankerLabel, MAX_SECTIONS, kneeLabel, decompositionConfig.enabled() );
         return new DefaultBundleAssemblyService(
-            sources, RetrievalMode.HYBRID, reranker, canonicalIdOf, versionOf, MAX_SECTIONS,
+            new RetrievalRouting( sources, RetrievalMode.HYBRID ), reranker,
+            new CitationResolvers( canonicalIdOf, versionOf ), MAX_SECTIONS,
             coverageCalcFrom( props ), KneeCutoff.of( kneeEnabled( props ), kneeRetainRatio( props ) ),
-            planner,
-            new SubQueryFusion( decompositionConfig.rrfK(),
-                "roundrobin".equalsIgnoreCase( decompositionConfig.fusion() )
-                    ? SubQueryFusion.Mode.ROUND_ROBIN : SubQueryFusion.Mode.RRF ),
-            decompositionConfig.enabled() );
+            new QueryDecomposition( planner,
+                new SubQueryFusion( decompositionConfig.rrfK(),
+                    "roundrobin".equalsIgnoreCase( decompositionConfig.fusion() )
+                        ? SubQueryFusion.Mode.ROUND_ROBIN : SubQueryFusion.Mode.RRF ),
+                decompositionConfig.enabled() ) );
     }
 
     /** Knee cutoff on/off, {@code wikantik.bundle.knee.enabled}, default false (fixed top-N). */

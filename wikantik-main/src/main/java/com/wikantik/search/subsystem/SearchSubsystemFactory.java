@@ -70,11 +70,14 @@ import java.util.Properties;
  * {@code LuceneSearchProvider}; Checkpoint 4 populates them off the live
  * provider via accessors.</p>
  *
- * <p>{@code create()} is a pure composition root: the private helpers
- * below are per-concern extractions of its construction blocks, called
- * in the same order the inline code used to run in, so wiring order
- * (which can be load-bearing — see the {@link #resolveChunkVectorIndex}
- * javadoc) is unchanged.</p>
+ * <p>Extraction constraint: every {@code engine.getManager(...)} call must
+ * stay lexically inside {@link #create} — the frozen
+ * {@code DecompositionArchTest.no_new_get_manager_callers} store matches
+ * violations by method signature, so a getManager call moved into a new
+ * helper reads as a NEW violation. {@code create()} therefore resolves all
+ * managers into locals up front and passes the resolved collaborators into
+ * the private helpers below, which keep the construction logic
+ * (NcssCount) without ever touching the engine registry themselves.</p>
  */
 public final class SearchSubsystemFactory {
 
@@ -93,15 +96,43 @@ public final class SearchSubsystemFactory {
         final SearchProvider searchProvider =
             searchManager != null ? safeGetSearchEngine( searchManager ) : null;
 
-        final HybridRetrievalRefs hybrid = resolveHybridRetrieval( engine );
+        // Hybrid retrieval (registered by wireHybridRetrieval +
+        // wireGraphRerank when the master flags are on).
+        final HybridSearchService  hybridSearch         = engine.getManager( HybridSearchService.class );
+        final QueryEmbedder        queryEmbedder        = engine.getManager( QueryEmbedder.class );
+        final QueryEntityResolver  queryEntityResolver  = engine.getManager( QueryEntityResolver.class );
+        final GraphRerankStep      graphRerankStep      = engine.getManager( GraphRerankStep.class );
+        final GraphProximityScorer graphProximityScorer = engine.getManager( GraphProximityScorer.class );
 
-        final ChunkVectorIndex chunkVectorIndex = resolveChunkVectorIndex( engine, deps );
+        // Chunk vector index inputs — resolved here (see the extraction
+        // constraint in the class javadoc); selection + construction live
+        // in resolveChunkVectorIndex. The typed field read
+        // (engine.getChunkVectorIndex()), not the manager registry,
+        // satisfies the no-new-getManager-callers architecture rule (see
+        // WikiEngine.setChunkVectorIndex/getChunkVectorIndex). The
+        // InMemoryChunkVectorIndex registry lookup is a side-effect-free
+        // read, hoisted here unconditionally so the helper receives the
+        // resolved instance instead of the engine.
+        final Properties       wikiProps                = engine.getWikiProperties();
+        final ChunkVectorIndex wiredChunkVectorIndex    = engine.getChunkVectorIndex();
+        final ChunkVectorIndex inMemoryChunkVectorIndex =
+            engine.getManager( InMemoryChunkVectorIndex.class );
+        final ChunkVectorIndex chunkVectorIndex = resolveChunkVectorIndex(
+            deps, wikiProps, wiredChunkVectorIndex, inMemoryChunkVectorIndex );
 
         // In-memory graph neighbor index (registered by wireGraphRerank).
         final InMemoryGraphNeighborIndex graphNeighborIndex =
             engine.getManager( InMemoryGraphNeighborIndex.class );
 
-        final EmbeddingPipelineRefs embedding = resolveEmbeddingPipeline( engine );
+        // Embedding pipeline.
+        final EmbeddingIndexService       embeddingIndexService       =
+            engine.getManager( EmbeddingIndexService.class );
+        final OllamaEmbeddingClient       embeddingClient             =
+            engine.getManager( OllamaEmbeddingClient.class );
+        final BootstrapEmbeddingIndexer   bootstrapEmbeddingIndexer   =
+            engine.getManager( BootstrapEmbeddingIndexer.class );
+        final AsyncEmbeddingIndexListener asyncEmbeddingIndexListener =
+            engine.getManager( AsyncEmbeddingIndexListener.class );
 
         // Cache.
         final FrontmatterMetadataCache frontmatterMetadataCache =
@@ -115,17 +146,17 @@ public final class SearchSubsystemFactory {
             luceneHelpers.luceneIndexer(),
             luceneHelpers.luceneSearcher(),
             luceneHelpers.luceneIndexLifecycle(),
-            hybrid.hybridSearch(),
-            hybrid.queryEmbedder(),
-            hybrid.queryEntityResolver(),
-            hybrid.graphRerankStep(),
-            hybrid.graphProximityScorer(),
+            hybridSearch,
+            queryEmbedder,
+            queryEntityResolver,
+            graphRerankStep,
+            graphProximityScorer,
             chunkVectorIndex,
             graphNeighborIndex,
-            embedding.embeddingIndexService(),
-            embedding.embeddingClient(),
-            embedding.bootstrapEmbeddingIndexer(),
-            embedding.asyncEmbeddingIndexListener(),
+            embeddingIndexService,
+            embeddingClient,
+            bootstrapEmbeddingIndexer,
+            asyncEmbeddingIndexListener,
             frontmatterMetadataCache );
     }
 
@@ -141,20 +172,6 @@ public final class SearchSubsystemFactory {
         } catch ( final RuntimeException e ) {
             return null;
         }
-    }
-
-    /**
-     * Hybrid retrieval (registered by wireHybridRetrieval +
-     * wireGraphRerank when the master flags are on).
-     */
-    private static HybridRetrievalRefs resolveHybridRetrieval( final WikiEngine engine ) {
-        final HybridSearchService  hybridSearch         = engine.getManager( HybridSearchService.class );
-        final QueryEmbedder        queryEmbedder        = engine.getManager( QueryEmbedder.class );
-        final QueryEntityResolver  queryEntityResolver  = engine.getManager( QueryEntityResolver.class );
-        final GraphRerankStep      graphRerankStep      = engine.getManager( GraphRerankStep.class );
-        final GraphProximityScorer graphProximityScorer = engine.getManager( GraphProximityScorer.class );
-        return new HybridRetrievalRefs(
-            hybridSearch, queryEmbedder, queryEntityResolver, graphRerankStep, graphProximityScorer );
     }
 
     /**
@@ -176,35 +193,33 @@ public final class SearchSubsystemFactory {
      * aren't even available (e.g. a bare mocked Engine in a unit test).</p>
      */
     private static ChunkVectorIndex resolveChunkVectorIndex(
-            final WikiEngine engine, final SearchSubsystem.Deps deps ) {
-        final Properties wikiProps = engine.getWikiProperties();
+            final SearchSubsystem.Deps deps, final Properties wikiProps,
+            final ChunkVectorIndex wiredChunkVectorIndex,
+            final ChunkVectorIndex inMemoryChunkVectorIndex ) {
         final String backend = ( wikiProps != null
             ? wikiProps.getProperty( "wikantik.search.dense.backend", "inmemory" )
             : "inmemory" ).toLowerCase( Locale.ROOT );
-        // Typed field read (engine.getChunkVectorIndex()), not the manager registry —
-        // satisfies the no-new-getManager-callers architecture rule (see
-        // WikiEngine.setChunkVectorIndex/getChunkVectorIndex).
-        final ChunkVectorIndex wiredChunkVectorIndex = engine.getChunkVectorIndex();
         final ChunkVectorIndex chunkVectorIndex;
         if ( wiredChunkVectorIndex != null ) {
             chunkVectorIndex = wiredChunkVectorIndex;
             LOG.info( "Dense retrieval backend: reusing ChunkVectorIndex wired by SearchWiringHelper ({})",
                 wiredChunkVectorIndex.getClass().getSimpleName() );
         } else {
-            chunkVectorIndex = buildChunkVectorIndexForBackend( backend, engine, deps, wikiProps );
+            chunkVectorIndex = buildChunkVectorIndexForBackend(
+                backend, deps, wikiProps, inMemoryChunkVectorIndex );
         }
         return chunkVectorIndex;
     }
 
     private static ChunkVectorIndex buildChunkVectorIndexForBackend(
-            final String backend, final WikiEngine engine, final SearchSubsystem.Deps deps,
-            final Properties wikiProps ) {
+            final String backend, final SearchSubsystem.Deps deps, final Properties wikiProps,
+            final ChunkVectorIndex inMemoryChunkVectorIndex ) {
         final ChunkVectorIndex chunkVectorIndex;
         switch ( backend ) {
             case "pgvector" -> chunkVectorIndex = buildPgVectorChunkVectorIndex( deps, wikiProps );
             case "lucene-hnsw" -> chunkVectorIndex = buildLuceneHnswChunkVectorIndex( deps, wikiProps );
             case "inmemory" -> {
-                chunkVectorIndex = engine.getManager( InMemoryChunkVectorIndex.class );
+                chunkVectorIndex = inMemoryChunkVectorIndex;
                 LOG.info( "Dense retrieval backend: in-memory brute-force" );
             }
             default -> throw new IllegalArgumentException(
@@ -252,20 +267,6 @@ public final class SearchSubsystemFactory {
         return chunkVectorIndex;
     }
 
-    /** Embedding pipeline. */
-    private static EmbeddingPipelineRefs resolveEmbeddingPipeline( final WikiEngine engine ) {
-        final EmbeddingIndexService       embeddingIndexService       =
-            engine.getManager( EmbeddingIndexService.class );
-        final OllamaEmbeddingClient       embeddingClient             =
-            engine.getManager( OllamaEmbeddingClient.class );
-        final BootstrapEmbeddingIndexer   bootstrapEmbeddingIndexer   =
-            engine.getManager( BootstrapEmbeddingIndexer.class );
-        final AsyncEmbeddingIndexListener asyncEmbeddingIndexListener =
-            engine.getManager( AsyncEmbeddingIndexListener.class );
-        return new EmbeddingPipelineRefs(
-            embeddingIndexService, embeddingClient, bootstrapEmbeddingIndexer, asyncEmbeddingIndexListener );
-    }
-
     /**
      * Phase 7 Ckpt 4: pull the three Lucene helpers off the decomposed
      * LuceneSearchProvider facade (Ckpt 3) when the configured provider
@@ -295,21 +296,6 @@ public final class SearchSubsystemFactory {
         }
         return new LuceneHelperRefs( luceneIndexer, luceneSearcher, luceneIndexLifecycle );
     }
-
-    /** Bundles the five hybrid-retrieval manager slots pulled off {@code engine}. */
-    private record HybridRetrievalRefs(
-        HybridSearchService  hybridSearch,
-        QueryEmbedder        queryEmbedder,
-        QueryEntityResolver  queryEntityResolver,
-        GraphRerankStep      graphRerankStep,
-        GraphProximityScorer graphProximityScorer ) {}
-
-    /** Bundles the four embedding-pipeline manager slots pulled off {@code engine}. */
-    private record EmbeddingPipelineRefs(
-        EmbeddingIndexService       embeddingIndexService,
-        OllamaEmbeddingClient       embeddingClient,
-        BootstrapEmbeddingIndexer   bootstrapEmbeddingIndexer,
-        AsyncEmbeddingIndexListener asyncEmbeddingIndexListener ) {}
 
     /** Bundles the three decomposed-Lucene helper slots (Ckpt 4). */
     private record LuceneHelperRefs(

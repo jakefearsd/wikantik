@@ -88,47 +88,8 @@ public final class ConnectorWiringHelper {
         // fine — the runtime is always registered.
         final boolean enabled = Boolean.parseBoolean( props.getProperty( PREFIX + "enabled", "true" ) );
 
-        final Map< String, String > roots = filesystemRoots( props );
-        final Map< String, WebCrawlerConfig > webcrawlers = webcrawlerConfigs( props );
-        final Map< String, SitemapConfig > sitemaps = sitemapConfigs( props );
-        final Map< String, FeedConfig > feeds = feedConfigs( props );
-        final Map< String, DriveConfig > drives = driveConfigs( props );
-        final Map< String, GithubConfig > githubs = githubConfigs( props );
-        final Map< String, ConfluenceConfig > confluences = confluenceConfigs( props );
-        final Map< String, SourceConnector > byId = new LinkedHashMap<>();
-        final Map< String, String > typeById = new LinkedHashMap<>();
-        for ( final Map.Entry< String, String > e : roots.entrySet() ) {
-            parseRoot( e.getKey(), e.getValue() ).ifPresent( root -> {
-                byId.put( e.getKey(), new FilesystemSourceConnector( e.getKey(), root ) );
-                typeById.put( e.getKey(), "filesystem" );
-            } );
-        }
-        for ( final Map.Entry< String, WebCrawlerConfig > e : webcrawlers.entrySet() ) {
-            ConnectorAssembler.build( e.getKey(), "webcrawler", e.getValue(), credStore )
-                .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "webcrawler" ); } );
-        }
-        for ( final Map.Entry< String, SitemapConfig > e : sitemaps.entrySet() ) {
-            ConnectorAssembler.build( e.getKey(), "sitemap", e.getValue(), credStore )
-                .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "sitemap" ); } );
-        }
-        for ( final Map.Entry< String, FeedConfig > e : feeds.entrySet() ) {
-            ConnectorAssembler.build( e.getKey(), "feed", e.getValue(), credStore )
-                .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "feed" ); } );
-        }
-        for ( final Map.Entry< String, DriveConfig > e : drives.entrySet() ) {
-            ConnectorAssembler.build( e.getKey(), "gdrive", e.getValue(), credStore )
-                .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "gdrive" ); } );
-        }
-        // Note: no inline DriveAuthCoordinator setManager here — ConnectorConfigService.rebuild()
-        // (called below) owns installing it, combining gdrive configs from both origins.
-        for ( final Map.Entry< String, GithubConfig > e : githubs.entrySet() ) {
-            ConnectorAssembler.build( e.getKey(), "github", e.getValue(), credStore )
-                .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "github" ); } );
-        }
-        for ( final Map.Entry< String, ConfluenceConfig > e : confluences.entrySet() ) {
-            ConnectorAssembler.build( e.getKey(), "confluence", e.getValue(), credStore )
-                .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "confluence" ); } );
-        }
+        final InitialRegistry initial = buildInitialRegistry( props, credStore );
+
         final DerivedPageIngestionService ingestion = DerivedIngestionServiceFactory.build( engine, pm, am );
         // Cycle-breaker: the sink must be built before ConnectorConfigService exists (service needs
         // runtime needs orchestrator needs sink). Start the defaults lookup as a no-op and swap in
@@ -141,7 +102,8 @@ public final class ConnectorWiringHelper {
         final SyncOrchestrator orchestrator = new SyncOrchestrator( syncStateStore, sink );
         final JdbcSyncRunStore runStore = new JdbcSyncRunStore( ds );
         final ConnectorRuntime runtime = new ConnectorRuntime(
-            new ConnectorRegistry( byId, typeById ), orchestrator, new ConnectorStatusReader( ds ), runStore, enabled );
+            new ConnectorRegistry( initial.byId(), initial.typeById() ), orchestrator,
+            new ConnectorStatusReader( ds ), runStore, enabled );
 
         engine.setManager( ConnectorRuntime.class, runtime );
         engine.setManager( JdbcSyncRunStore.class, runStore );
@@ -161,9 +123,10 @@ public final class ConnectorWiringHelper {
 
         final ConnectorConfigService service = new ConnectorConfigService(
             new JdbcConnectorConfigStore( ds ), syncStateStore, credStore, runtime,
-            byId, typeById, drives, pageDeleter, orphanStamper, props,
-            c -> engine.setManager( DriveAuthCoordinator.class, c ),
-            runStore::purgeRuns );
+            new ConnectorConfigService.PropertiesOrigin( initial.byId(), initial.typeById(), initial.drives() ),
+            new ConnectorConfigService.Seams( pageDeleter, orphanStamper,
+                c -> engine.setManager( DriveAuthCoordinator.class, c ), runStore::purgeRuns ),
+            props );
         defaultsRef.set( service::defaultsFor );   // break the cycle: sink now resolves live content defaults
         service.rebuild();   // loads DB rows and hot-swaps them into the registry built above
         engine.setManager( ConnectorConfigService.class, service );
@@ -174,6 +137,49 @@ public final class ConnectorWiringHelper {
         LOG.info( "connector runtime wired: {} connector(s) after DB rebuild, enabled={}",
             runtime.registry().ids().size(), enabled );
         return Optional.of( runtime );
+    }
+
+    /** The properties-origin connectors assembled from every {@code wikantik.connectors.*} block,
+     *  keyed by id, plus the raw gdrive configs (needed again downstream to seed
+     *  {@link ConnectorConfigService.PropertiesOrigin}). */
+    private record InitialRegistry( Map< String, SourceConnector > byId, Map< String, String > typeById,
+            Map< String, DriveConfig > drives ) {}
+
+    /** Builds every properties-origin connector across all types. The filesystem type is assembled
+     *  directly (it has no {@link ConnectorAssembler} case); every other type shares the
+     *  {@link #registerConnectors} loop so each connector type contributes exactly one build-and-register
+     *  branch to this class's complexity instead of one per type. */
+    private static InitialRegistry buildInitialRegistry( final Properties props, final CredentialStore credStore ) {
+        final Map< String, String > roots = filesystemRoots( props );
+        final Map< String, DriveConfig > drives = driveConfigs( props );
+        final Map< String, SourceConnector > byId = new LinkedHashMap<>();
+        final Map< String, String > typeById = new LinkedHashMap<>();
+        for ( final Map.Entry< String, String > e : roots.entrySet() ) {
+            parseRoot( e.getKey(), e.getValue() ).ifPresent( root -> {
+                byId.put( e.getKey(), new FilesystemSourceConnector( e.getKey(), root ) );
+                typeById.put( e.getKey(), "filesystem" );
+            } );
+        }
+        registerConnectors( webcrawlerConfigs( props ), "webcrawler", credStore, byId, typeById );
+        registerConnectors( sitemapConfigs( props ), "sitemap", credStore, byId, typeById );
+        registerConnectors( feedConfigs( props ), "feed", credStore, byId, typeById );
+        registerConnectors( drives, "gdrive", credStore, byId, typeById );
+        // Note: no inline DriveAuthCoordinator setManager here — ConnectorConfigService.rebuild()
+        // (called below) owns installing it, combining gdrive configs from both origins.
+        registerConnectors( githubConfigs( props ), "github", credStore, byId, typeById );
+        registerConnectors( confluenceConfigs( props ), "confluence", credStore, byId, typeById );
+        return new InitialRegistry( byId, typeById, drives );
+    }
+
+    /** Shared build-and-register loop for every {@link ConnectorAssembler}-backed connector type
+     *  (everything except filesystem). */
+    private static < C > void registerConnectors( final Map< String, C > configs, final String type,
+            final CredentialStore credStore, final Map< String, SourceConnector > byId,
+            final Map< String, String > typeById ) {
+        for ( final Map.Entry< String, C > e : configs.entrySet() ) {
+            ConnectorAssembler.build( e.getKey(), type, e.getValue(), credStore )
+                .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), type ); } );
+        }
     }
 
     /** Builds the credential-encryption cipher from {@code wikantik.connectors.crypto.key} (base64,

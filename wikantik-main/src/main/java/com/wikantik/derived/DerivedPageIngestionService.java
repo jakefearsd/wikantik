@@ -236,6 +236,17 @@ public class DerivedPageIngestionService {
             .map( HashMap::new )
             .orElseGet( HashMap::new );
 
+        stampProvenance( meta, filename, sha, er, opts );
+        applyCreateOnlyDefaults( meta, existing, opts );
+
+        return meta;
+    }
+
+    /** Always sets the machine-owned provenance keys (derived-from/extractor/version/sha, plus
+     *  connector id + source URL when the caller supplied them), and defaults {@code type} /
+     *  {@code title} only when not already present so human curation on update is respected. */
+    private void stampProvenance( final Map< String, Object > meta, final String filename, final String sha,
+            final ExtractionResult er, final IngestOptions opts ) {
         // Always set the provenance keys (these are machine-owned)
         meta.put( DerivedPage.DERIVED_FROM,
             opts.derivedFrom() != null ? opts.derivedFrom() : filename );
@@ -254,12 +265,16 @@ public class DerivedPageIngestionService {
         // Connector provenance (machine-owned; always set when the caller supplied it)
         if ( opts.connectorId() != null )  meta.put( DerivedPage.DERIVED_CONNECTOR,  opts.connectorId() );
         if ( opts.sourceUrl() != null )    meta.put( DerivedPage.DERIVED_SOURCE_URL, opts.sourceUrl() );
+    }
+
+    /** Applies connector-supplied content defaults (cluster/tags) only at page creation — never
+     *  clobbers curation on update (design D10). */
+    private void applyCreateOnlyDefaults( final Map< String, Object > meta,
+            final Optional< Map< String, Object > > existing, final IngestOptions opts ) {
         // content defaults: creation only — never clobber curation on update (design D10)
         if ( !existing.isPresent() ) {
             if ( opts.cluster() != null && !meta.containsKey( "cluster" ) )  meta.put( "cluster", opts.cluster() );
             if ( opts.tags() != null && !opts.tags().isEmpty() && !meta.containsKey( "tags" ) )  meta.put( "tags", opts.tags() );
         }
-
-        return meta;
     }
 }

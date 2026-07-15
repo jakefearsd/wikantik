@@ -81,6 +81,24 @@ public final class ConnectorConfigService {
      *  connector's (misleading) runs. Backed by {@code JdbcSyncRunStore::purgeRuns} in production. */
     private final Consumer< String > runHistoryPurger;
 
+    /** The properties-origin connector wiring (built once at startup) that a DB row can shadow but
+     *  never mutates. Parameter object grouping the three properties-derived maps that would
+     *  otherwise be three separate constructor arguments. */
+    public record PropertiesOrigin( Map< String, SourceConnector > connectors, Map< String, String > types,
+            Map< String, DriveConfig > driveConfigs ) {
+        public PropertiesOrigin {
+            connectors = Map.copyOf( connectors );
+            types = Map.copyOf( types );
+            driveConfigs = Map.copyOf( driveConfigs );
+        }
+    }
+
+    /** The four callback seams {@link #delete} and {@link #rebuild} invoke against the wider engine
+     *  (page deletion/orphan-stamping, installing a rebuilt {@link DriveAuthCoordinator}, purging
+     *  run history) — grouped so the constructor doesn't carry them as four separate parameters. */
+    public record Seams( Consumer< String > pageDeleter, Consumer< String > orphanStamper,
+            Consumer< DriveAuthCoordinator > coordinatorInstaller, Consumer< String > runHistoryPurger ) {}
+
     /** Per-connector content defaults for pages the connector creates (design D10): applied only
      *  at page creation, never overwriting later curation. */
     public record ContentDefaults( String cluster, List< String > tags, String pagePrefix ) {
@@ -115,23 +133,19 @@ public final class ConnectorConfigService {
 
     public ConnectorConfigService( final JdbcConnectorConfigStore configStore, final SyncStateStore syncState,
             final CredentialStore credStore, final ConnectorRuntime runtime,
-            final Map< String, SourceConnector > propertiesConnectors, final Map< String, String > propertiesTypes,
-            final Map< String, DriveConfig > propertiesDriveConfigs,
-            final Consumer< String > pageDeleter, final Consumer< String > orphanStamper,
-            final Properties props, final Consumer< DriveAuthCoordinator > coordinatorInstaller,
-            final Consumer< String > runHistoryPurger ) {
+            final PropertiesOrigin propertiesOrigin, final Seams seams, final Properties props ) {
         this.configStore = configStore;
         this.syncState = syncState;
         this.credStore = credStore;
         this.runtime = runtime;
-        this.propertiesConnectors = Map.copyOf( propertiesConnectors );
-        this.propertiesTypes = Map.copyOf( propertiesTypes );
-        this.propertiesDriveConfigs = Map.copyOf( propertiesDriveConfigs );
-        this.pageDeleter = pageDeleter;
-        this.orphanStamper = orphanStamper;
+        this.propertiesConnectors = propertiesOrigin.connectors();
+        this.propertiesTypes = propertiesOrigin.types();
+        this.propertiesDriveConfigs = propertiesOrigin.driveConfigs();
+        this.pageDeleter = seams.pageDeleter();
+        this.orphanStamper = seams.orphanStamper();
         this.props = props;
-        this.coordinatorInstaller = coordinatorInstaller;
-        this.runHistoryPurger = runHistoryPurger;
+        this.coordinatorInstaller = seams.coordinatorInstaller();
+        this.runHistoryPurger = seams.runHistoryPurger();
     }
 
     /** Both origins; a DB row shadows a same-id properties entry. */

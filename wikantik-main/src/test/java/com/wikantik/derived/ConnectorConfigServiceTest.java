@@ -96,8 +96,9 @@ class ConnectorConfigServiceTest {
         final Consumer< DriveAuthCoordinator > coordinatorInstaller = installedCoordinators::add;
         final Consumer< String > runHistoryPurger = runHistoryPurges::add;
         return new ConnectorConfigService( configStore, syncState, credStore, runtime,
-            propertiesConnectors, propertiesTypes, propertiesDriveConfigs,
-            pageDeleter, orphanStamper, props, coordinatorInstaller, runHistoryPurger );
+            new ConnectorConfigService.PropertiesOrigin( propertiesConnectors, propertiesTypes, propertiesDriveConfigs ),
+            new ConnectorConfigService.Seams( pageDeleter, orphanStamper, coordinatorInstaller, runHistoryPurger ),
+            props );
     }
 
     private static SourceConnector stubConnector( final String id ) {

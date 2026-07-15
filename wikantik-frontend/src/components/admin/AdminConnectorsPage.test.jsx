@@ -14,6 +14,7 @@ vi.mock('../../api/client', () => ({
     connectors: {
       list: vi.fn(),
       sync: vi.fn(),
+      importFromProperties: vi.fn(),
     },
   },
 }));
@@ -164,6 +165,55 @@ describe('AdminConnectorsPage', () => {
     );
     expect(screen.getByTestId('sync-gh-wikantik')).not.toBeDisabled();
     // Only one list() call — the failed sync did not trigger a reload.
+    expect(api.connectors.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('import button shows only for properties origin and calls import', async () => {
+    api.connectors.list.mockResolvedValue({
+      syncingEnabled: true,
+      credentialStoreEnabled: true,
+      connectors: [DB_CONNECTOR, PROPERTIES_CONNECTOR],
+    });
+    api.connectors.importFromProperties.mockResolvedValue({ ok: true });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('gh-wikantik')).toBeInTheDocument());
+
+    const dbRow = screen.getByText('gh-wikantik').closest('tr');
+    expect(within(dbRow).queryByTestId('import-gh-wikantik')).not.toBeInTheDocument();
+
+    const propsRow = screen.getByText('gdrive-legacy').closest('tr');
+    expect(within(propsRow).getByTestId('import-gdrive-legacy')).toBeInTheDocument();
+    expect(within(propsRow).getByText('config file')).toHaveAttribute(
+      'title',
+      'Defined in wikantik-custom.properties'
+    );
+
+    fireEvent.click(within(propsRow).getByTestId('import-gdrive-legacy'));
+
+    await waitFor(() => expect(api.connectors.importFromProperties).toHaveBeenCalledWith('gdrive-legacy'));
+    await waitFor(() => expect(api.connectors.list).toHaveBeenCalledTimes(2));
+  });
+
+  it('surfaces a thrown import error inline and re-enables the button', async () => {
+    api.connectors.list.mockResolvedValue({
+      syncingEnabled: true,
+      credentialStoreEnabled: true,
+      connectors: [PROPERTIES_CONNECTOR],
+    });
+    api.connectors.importFromProperties.mockRejectedValue(new Error('import failed: bad config'));
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId('import-gdrive-legacy')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('import-gdrive-legacy'));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('import-message-gdrive-legacy')).toHaveTextContent(/import failed: bad config/i)
+    );
+    expect(screen.getByTestId('import-gdrive-legacy')).not.toBeDisabled();
+    // Only one list() call — the failed import did not trigger a reload.
     expect(api.connectors.list).toHaveBeenCalledTimes(1);
   });
 

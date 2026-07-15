@@ -40,6 +40,11 @@ export default function AdminConnectorsPage() {
   const [syncingIds, setSyncingIds] = useState(() => new Set());
   const [rowMessages, setRowMessages] = useState({});
 
+  // Same pattern, separate keyspace — a properties-origin row's Import
+  // button is independent of its Sync Now button.
+  const [importingIds, setImportingIds] = useState(() => new Set());
+  const [importMessages, setImportMessages] = useState({});
+
   const load = useCallback(async () => {
     try {
       const data = await api.connectors.list();
@@ -79,6 +84,28 @@ export default function AdminConnectorsPage() {
     }
   };
 
+  const handleImport = async (id) => {
+    setImportMessages((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setImportingIds((prev) => new Set(prev).add(id));
+    try {
+      await api.connectors.importFromProperties(id);
+      await load();
+    } catch (err) {
+      setImportMessages((prev) => ({ ...prev, [id]: err.message || String(err) }));
+    } finally {
+      setImportingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
   const columns = [
     {
       id: 'type',
@@ -98,7 +125,10 @@ export default function AdminConnectorsPage() {
       id: 'origin',
       label: 'Origin',
       render: (c) => (
-        <span className="admin-badge badge-default">
+        <span
+          className="admin-badge badge-default"
+          title={c.origin === 'properties' ? 'Defined in wikantik-custom.properties' : undefined}
+        >
           {c.origin === 'properties' ? 'config file' : 'database'}
         </span>
       ),
@@ -137,6 +167,7 @@ export default function AdminConnectorsPage() {
       label: 'Actions',
       render: (c) => {
         const busy = syncingIds.has(c.id);
+        const importBusy = importingIds.has(c.id);
         return (
           <div className="admin-cell-actions">
             <button
@@ -148,9 +179,25 @@ export default function AdminConnectorsPage() {
             >
               {busy ? 'Syncing…' : 'Sync Now'}
             </button>
+            {c.origin === 'properties' && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                data-testid={`import-${c.id}`}
+                disabled={importBusy}
+                onClick={() => handleImport(c.id)}
+              >
+                {importBusy ? 'Importing…' : 'Import'}
+              </button>
+            )}
             {rowMessages[c.id] && (
               <div className="admin-row-message" data-testid={`sync-message-${c.id}`} role="alert">
                 {rowMessages[c.id]}
+              </div>
+            )}
+            {importMessages[c.id] && (
+              <div className="admin-row-message" data-testid={`import-message-${c.id}`} role="alert">
+                {importMessages[c.id]}
               </div>
             )}
           </div>

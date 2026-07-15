@@ -42,8 +42,16 @@ export default function ConnectorDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const oauthParam = searchParams.get('oauth');
+  const nextParam = searchParams.get('next');
 
-  const [activeTab, setActiveTab] = useState(oauthParam ? 'authorization' : 'overview');
+  // ?next=authorize (wizard "authorize now" redirect) and ?oauth=… (Task 20's
+  // consent-callback result) can both be present at once — e.g. a return trip
+  // from Google's consent screen carries ?oauth_return=1&oauth=ok while the
+  // wizard's own deep link only ever carries ?next=authorize. Either one
+  // alone, or both together, must land on the Authorization tab.
+  const [activeTab, setActiveTab] = useState(
+    oauthParam || nextParam === 'authorize' ? 'authorization' : 'overview'
+  );
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

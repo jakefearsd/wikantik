@@ -203,6 +203,26 @@ describe('ConnectorDetailPage', () => {
     );
   });
 
+  it('opens authorization tab when ?next=authorize', async () => {
+    api.connectors.get.mockResolvedValue(DETAIL_GDRIVE_PROPERTIES);
+
+    renderPage('/admin/connectors/gdrive-legacy?next=authorize');
+
+    await waitFor(() => expect(screen.getByTestId('connector-tab-panel-authorization')).toBeInTheDocument());
+    expect(screen.getByTestId('tab-authorization')).toHaveClass('active');
+    expect(screen.getByTestId('tab-overview')).not.toHaveClass('active');
+  });
+
+  it('composes ?next=authorize with ?oauth=ok — opens tab and shows success note', async () => {
+    api.connectors.get.mockResolvedValue(DETAIL_GDRIVE_PROPERTIES);
+
+    renderPage('/admin/connectors/gdrive-legacy?next=authorize&oauth=ok');
+
+    await waitFor(() => expect(screen.getByTestId('oauth-result-ok')).toBeInTheDocument());
+    expect(screen.getByTestId('tab-authorization')).toHaveClass('active');
+    expect(screen.getByTestId('connector-tab-panel-authorization')).toBeInTheDocument();
+  });
+
   it('delete modal gates page deletion behind checkbox + typed id', async () => {
     api.connectors.get.mockResolvedValue(DETAIL_GITHUB);
     api.connectors.pages.mockResolvedValue({ pages: [{ pageName: 'GH-readme', sourceUri: 'x', lastSynced: null }] });

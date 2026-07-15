@@ -163,6 +163,19 @@ class ConnectorConfigServiceTest {
         assertTrue( v2.errors().containsKey( "connector_type" ) );
     }
 
+    @Test void createRejectsSecretKeysInConfig() {
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        final JsonObject cfg = json( "{\"repo\":\"jake/notes\",\"token\":\"ghp_x\"}" );
+
+        final ConnectorConfigCodec.Validation v = svc.create( "gh6", "github", cfg, true, 0, null, null, null );
+
+        assertFalse( v.ok() );
+        assertTrue( v.errors().containsKey( "token" ), v.errors().toString() );
+        assertEquals( "secret values must be stored via the credentials endpoint, not config", v.errors().get( "token" ) );
+        assertTrue( configStore.get( "gh6" ).isEmpty(), "nothing should be persisted" );
+        assertTrue( runtime.registry().get( "gh6" ).isEmpty() );
+    }
+
     // ---- update ------------------------------------------------------------------------------
 
     @Test void updatePropertiesOriginThrows() {
@@ -171,6 +184,20 @@ class ConnectorConfigServiceTest {
         final JsonObject cfg = json( "{\"feed_urls\":[\"https://example.com/feed.xml\"]}" );
         assertThrows( ConnectorConfigService.PropertiesOriginException.class,
             () -> svc.update( "legacy", cfg, true, 0, null, null, null ) );
+    }
+
+    @Test void updateRejectsSecretKeysInConfig() {
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        svc.create( "gh7", "github", json( "{\"repo\":\"jake/notes\"}" ), true, 0, null, null, null );
+        final String before = configStore.get( "gh7" ).orElseThrow().configJson();
+
+        final JsonObject cfg = json( "{\"repo\":\"jake/notes\",\"client_secret\":\"shh\"}" );
+        final ConnectorConfigCodec.Validation v = svc.update( "gh7", cfg, true, 0, null, null, null );
+
+        assertFalse( v.ok() );
+        assertTrue( v.errors().containsKey( "client_secret" ), v.errors().toString() );
+        assertEquals( "secret values must be stored via the credentials endpoint, not config", v.errors().get( "client_secret" ) );
+        assertEquals( before, configStore.get( "gh7" ).orElseThrow().configJson(), "row must be unchanged" );
     }
 
     // ---- enabled/disabled ------------------------------------------------------------------------

@@ -38,9 +38,11 @@ import org.apache.logging.log4j.Logger;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -64,6 +66,15 @@ public final class ConnectorConfigService {
 
     private static final String GLOBAL_INTERVAL_PROP = "wikantik.connectors.sync.interval.hours";
     private static final String GDRIVE_CALLBACK_PATH = "/admin/connector-oauth/gdrive/callback";
+
+    /** Config keys an admin must never put secret material under — those belong in the credentials
+     *  endpoint ({@link CredentialStore}), not the plaintext {@code connector_configs.config} column.
+     *  Matched case-insensitively against incoming config keys by {@link #secretKeyErrors}; see
+     *  {@link #create} and {@link #update}. */
+    private static final Set< String > SECRET_CONFIG_KEYS = Set.of(
+        "client_secret", "token", "api_token", "refresh_token", "password", "secret" );
+
+    private static final String SECRET_KEY_MESSAGE = "secret values must be stored via the credentials endpoint, not config";
 
     private final JdbcConnectorConfigStore configStore;
     private final SyncStateStore syncState;
@@ -185,6 +196,8 @@ public final class ConnectorConfigService {
             errors.put( "connector_type", "unknown connector type: " + type );
             return new ConnectorConfigCodec.Validation( errors );
         }
+        errors.putAll( secretKeyErrors( config ) );
+        if ( !errors.isEmpty() ) return new ConnectorConfigCodec.Validation( errors );
         if ( "gdrive".equals( type ) && config != null && isAbsent( config, "redirect_uri" ) ) {
             config.addProperty( "redirect_uri", props.getProperty( "wikantik.baseURL", "" ) + GDRIVE_CALLBACK_PATH );
         }
@@ -209,6 +222,8 @@ public final class ConnectorConfigService {
             if ( propertiesConnectors.containsKey( id ) ) throw new PropertiesOriginException( id );
             throw new IllegalArgumentException( "unknown connector: " + id );
         }
+        final Map< String, String > secretErrors = secretKeyErrors( config );
+        if ( !secretErrors.isEmpty() ) return new ConnectorConfigCodec.Validation( secretErrors );
         final String type = existing.get().connectorType();
         final ConnectorConfigCodec.Validation v = ConnectorConfigCodec.validate( type, config );
         if ( !v.ok() ) return v;
@@ -381,6 +396,22 @@ public final class ConnectorConfigService {
         } catch ( final NumberFormatException e ) {
             return 0L;
         }
+    }
+
+    /** Field-keyed errors for every key in {@code config} that exact-matches (case-insensitive)
+     *  {@link #SECRET_CONFIG_KEYS} — defense against an admin storing a secret in the plaintext
+     *  {@code config} column instead of the credentials endpoint. Empty when {@code config} is
+     *  {@code null} or carries no denylisted key; unmodeled non-secret keys (e.g. {@code user_agent})
+     *  pass through untouched. The error key preserves the caller's original field casing. */
+    private static Map< String, String > secretKeyErrors( final JsonObject config ) {
+        if ( config == null ) return Map.of();
+        final Map< String, String > errors = new LinkedHashMap<>();
+        for ( final String key : config.keySet() ) {
+            if ( SECRET_CONFIG_KEYS.contains( key.toLowerCase( Locale.ROOT ) ) ) {
+                errors.put( key, SECRET_KEY_MESSAGE );
+            }
+        }
+        return errors;
     }
 
     private static boolean isAbsent( final JsonObject config, final String key ) {

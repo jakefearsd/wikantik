@@ -558,6 +558,26 @@ class ConnectorAdminResourceTest {
     }
 
     @Test
+    void createRejectsSecretKeyDoesNotEchoValue() throws Exception {
+        when( req.getPathInfo() ).thenReturn( null );
+        stubReaderBody( "{\"id\":\"gh1\",\"type\":\"github\",\"config\":"
+            + "{\"repo\":\"jake/notes\",\"token\":\"ghp_supersecretvalue\"}}" );
+        when( configService.create( any(), any(), any(), anyBoolean(), anyInt(), any(), any(), any() ) )
+            .thenReturn( new ConnectorConfigCodec.Validation(
+                Map.of( "token", "secret values must be stored via the credentials endpoint, not config" ) ) );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( 422 );
+        assertFalse( body.toString().contains( "ghp_supersecretvalue" ),
+            "response must never echo the secret value: " + body );
+        final JsonObject json = JsonParser.parseString( body.toString() ).getAsJsonObject();
+        assertEquals( "secret values must be stored via the credentials endpoint, not config",
+            json.getAsJsonObject( "errors" ).get( "token" ).getAsString() );
+        verifyNoInteractions( auditService );
+    }
+
+    @Test
     void create_configServiceAbsent_returns503() throws Exception {
         configService = null;
         when( req.getPathInfo() ).thenReturn( null );

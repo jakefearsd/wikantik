@@ -64,11 +64,16 @@ CREATE TABLE IF NOT EXISTS connector_sync_run (
     started      TIMESTAMP   NOT NULL,
     finished     TIMESTAMP,
     status       VARCHAR(16) NOT NULL,      -- running | ok | failed
-    upserted     INTEGER NOT NULL DEFAULT 0,
+    created      INTEGER NOT NULL DEFAULT 0,
+    updated      INTEGER NOT NULL DEFAULT 0,
+    unchanged    INTEGER NOT NULL DEFAULT 0,
     deleted      INTEGER NOT NULL DEFAULT 0,
-    skipped      INTEGER NOT NULL DEFAULT 0,
+    failed       INTEGER NOT NULL DEFAULT 0,
     error        TEXT
 );
+-- (as shipped: full SyncReport fidelity — created/updated/unchanged/deleted/failed —
+--  instead of the draft's upserted/deleted/skipped triple; trigger column is
+--  trigger_kind, "trigger" being reserved in PostgreSQL)
 CREATE INDEX IF NOT EXISTS idx_sync_run_connector ON connector_sync_run( connector_id, started DESC );
 ```
 

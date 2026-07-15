@@ -26,29 +26,19 @@ import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.connectors.SyncOrchestrator;
 import com.wikantik.connectors.confluence.ConfluenceConfig;
-import com.wikantik.connectors.confluence.ConfluenceSourceConnector;
-import com.wikantik.connectors.confluence.HttpConfluenceApiFactory;
 import com.wikantik.connectors.credential.JdbcCredentialStore;
 import com.wikantik.connectors.filesystem.FilesystemSourceConnector;
 import com.wikantik.connectors.gdrive.DefaultDriveAuthCoordinator;
 import com.wikantik.connectors.gdrive.DriveConfig;
-import com.wikantik.connectors.gdrive.DriveSourceConnector;
-import com.wikantik.connectors.gdrive.GoogleDriveApiFactory;
 import com.wikantik.connectors.gdrive.GoogleDriveOAuthService;
 import com.wikantik.connectors.github.GithubConfig;
-import com.wikantik.connectors.github.GithubSourceConnector;
-import com.wikantik.connectors.github.HttpGithubApiFactory;
 import com.wikantik.connectors.runtime.ConnectorRegistry;
 import com.wikantik.connectors.runtime.ConnectorRuntime;
 import com.wikantik.connectors.runtime.ConnectorStatusReader;
 import com.wikantik.connectors.state.JdbcSyncStateStore;
 import com.wikantik.connectors.web.FeedConfig;
-import com.wikantik.connectors.web.FeedSourceConnector;
-import com.wikantik.connectors.web.HttpPageFetcher;
 import com.wikantik.connectors.web.SitemapConfig;
-import com.wikantik.connectors.web.SitemapSourceConnector;
 import com.wikantik.connectors.web.WebCrawlerConfig;
-import com.wikantik.connectors.web.WebCrawlerSourceConnector;
 import com.wikantik.util.AesGcmCipher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -109,47 +99,32 @@ public final class ConnectorWiringHelper {
             } );
         }
         for ( final Map.Entry< String, WebCrawlerConfig > e : webcrawlers.entrySet() ) {
-            byId.put( e.getKey(), new WebCrawlerSourceConnector( e.getKey(), e.getValue(),
-                new HttpPageFetcher( e.getValue().userAgent(), java.time.Duration.ofSeconds( 20 ) ),
-                ms -> { try { Thread.sleep( ms ); } catch ( final InterruptedException ie ) { Thread.currentThread().interrupt(); } } ) );
-            typeById.put( e.getKey(), "webcrawler" );
+            ConnectorAssembler.build( e.getKey(), "webcrawler", e.getValue(), credStore )
+                .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "webcrawler" ); } );
         }
         for ( final Map.Entry< String, SitemapConfig > e : sitemaps.entrySet() ) {
-            byId.put( e.getKey(), new SitemapSourceConnector( e.getKey(), e.getValue(),
-                new HttpPageFetcher( e.getValue().userAgent(), java.time.Duration.ofSeconds( 20 ) ),
-                ms -> { try { Thread.sleep( ms ); } catch ( final InterruptedException ie ) { Thread.currentThread().interrupt(); } } ) );
-            typeById.put( e.getKey(), "sitemap" );
+            ConnectorAssembler.build( e.getKey(), "sitemap", e.getValue(), credStore )
+                .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "sitemap" ); } );
         }
         for ( final Map.Entry< String, FeedConfig > e : feeds.entrySet() ) {
-            byId.put( e.getKey(), new FeedSourceConnector( e.getKey(), e.getValue(),
-                new HttpPageFetcher( e.getValue().userAgent(), java.time.Duration.ofSeconds( 20 ) ),
-                ms -> { try { Thread.sleep( ms ); } catch ( final InterruptedException ie ) { Thread.currentThread().interrupt(); } } ) );
-            typeById.put( e.getKey(), "feed" );
+            ConnectorAssembler.build( e.getKey(), "feed", e.getValue(), credStore )
+                .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "feed" ); } );
         }
-        final GoogleDriveApiFactory driveApiFactory = new GoogleDriveApiFactory();
         for ( final Map.Entry< String, DriveConfig > e : drives.entrySet() ) {
-            final String id = e.getKey();
-            byId.put( id, new DriveSourceConnector( id, e.getValue(),
-                () -> credStore.get( id, "refresh_token" ), driveApiFactory ) );
-            typeById.put( id, "gdrive" );
+            ConnectorAssembler.build( e.getKey(), "gdrive", e.getValue(), credStore )
+                .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "gdrive" ); } );
         }
         if ( !drives.isEmpty() ) {
             engine.setManager( DriveAuthCoordinator.class,
                 new DefaultDriveAuthCoordinator( drives, new GoogleDriveOAuthService(), credStore ) );
         }
-        final HttpGithubApiFactory githubApiFactory = new HttpGithubApiFactory();
         for ( final Map.Entry< String, GithubConfig > e : githubs.entrySet() ) {
-            final String id = e.getKey();
-            byId.put( id, new GithubSourceConnector( id, e.getValue(),
-                () -> credStore.get( id, "token" ), githubApiFactory ) );
-            typeById.put( id, "github" );
+            ConnectorAssembler.build( e.getKey(), "github", e.getValue(), credStore )
+                .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "github" ); } );
         }
-        final HttpConfluenceApiFactory confluenceApiFactory = new HttpConfluenceApiFactory();
         for ( final Map.Entry< String, ConfluenceConfig > e : confluences.entrySet() ) {
-            final String id = e.getKey();
-            byId.put( id, new ConfluenceSourceConnector( id, e.getValue(),
-                () -> credStore.get( id, "api_token" ), confluenceApiFactory ) );
-            typeById.put( id, "confluence" );
+            ConnectorAssembler.build( e.getKey(), "confluence", e.getValue(), credStore )
+                .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "confluence" ); } );
         }
         final DerivedPageIngestionService ingestion = DerivedIngestionServiceFactory.build( engine, pm, am );
         final DerivedPageSinkAdapter sink = new DerivedPageSinkAdapter( ingestion, pm::deletePage, "connector-sync" );

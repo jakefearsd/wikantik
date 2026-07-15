@@ -53,6 +53,26 @@ class ConnectorRuntimeTest {
         return new ConnectorRuntime( reg, orch, new ConnectorStatusReader( ds ) );
     }
 
+    /** Runtime with connector "c1" wired to an orchestrator stub returning {@code SyncReport(1,0,0,0,0)}. */
+    private static ConnectorRuntime runtimeWith( final RunRecorder rec, final boolean syncingEnabled ) {
+        final SyncOrchestrator orch = mock( SyncOrchestrator.class );
+        when( orch.sync( any() ) ).thenReturn( new SyncReport( 1, 0, 0, 0, 0 ) );
+        return runtimeWith( rec, syncingEnabled, orch );
+    }
+
+    private static ConnectorRuntime runtimeWith( final RunRecorder rec, final boolean syncingEnabled, final SyncOrchestrator orch ) {
+        final ConnectorRegistry reg = new ConnectorRegistry( Map.of( "c1", connector( "c1" ) ), Map.of( "c1", "filesystem" ) );
+        return new ConnectorRuntime( reg, orch, new ConnectorStatusReader( mock( DataSource.class ) ), rec, syncingEnabled );
+    }
+
+    private static RunRecorder noopRecorder() {
+        return new RunRecorder() {
+            @Override public long start( final String id, final String trigger ) { return -1L; }
+            @Override public void finish( final long runId, final SyncReport r ) { }
+            @Override public void fail( final long runId, final String error ) { }
+        };
+    }
+
     @Test void syncNowRunsRegisteredConnector() {
         // ds unused by syncNow; pass a mock
         SyncReport r = runtime( mock( DataSource.class ), connector( "fs1" ) ).syncNow( "fs1" );
@@ -135,5 +155,44 @@ class ConnectorRuntimeTest {
         assertTrue( rt.isSchedulerRunning() );
         rt.stop();
         assertFalse( rt.isSchedulerRunning() );
+    }
+
+    @Test void syncNowRecordsRunHistory() {
+        final List< String > events = new ArrayList<>();
+        final RunRecorder rec = new RunRecorder() {
+            @Override public long start( final String id, final String trigger ) { events.add( "start:" + id + ":" + trigger ); return 7L; }
+            @Override public void finish( final long runId, final SyncReport r ) { events.add( "finish:" + runId + ":" + r.created() ); }
+            @Override public void fail( final long runId, final String error ) { events.add( "fail:" + runId ); }
+        };
+        final ConnectorRuntime rt = runtimeWith( rec, true );
+        rt.syncNow( "c1", "scheduled" );
+        assertEquals( List.of( "start:c1:scheduled", "finish:7:1" ), events );
+    }
+
+    @Test void syncNowRecordsFailureWhenOrchestratorThrows() {
+        final List< String > events = new ArrayList<>();
+        final RunRecorder rec = new RunRecorder() {
+            @Override public long start( final String id, final String trigger ) { events.add( "start:" + id + ":" + trigger ); return 7L; }
+            @Override public void finish( final long runId, final SyncReport r ) { events.add( "finish:" + runId + ":" + r.created() ); }
+            @Override public void fail( final long runId, final String error ) { events.add( "fail:" + runId ); }
+        };
+        final SyncOrchestrator orch = mock( SyncOrchestrator.class );
+        when( orch.sync( any() ) ).thenThrow( new RuntimeException( "db down" ) );
+        final ConnectorRuntime rt = runtimeWith( rec, true, orch );
+        assertThrows( RuntimeException.class, () -> rt.syncNow( "c1", "manual" ) );
+        assertEquals( List.of( "start:c1:manual", "fail:7" ), events );
+    }
+
+    @Test void killSwitchRejectsSync() {
+        final ConnectorRuntime rt = runtimeWith( noopRecorder(), false );   // syncingEnabled=false
+        assertThrows( ConnectorsDisabledException.class, () -> rt.syncNow( "c1" ) );
+    }
+
+    @Test void swapRegistryChangesVisibleConnectors() {
+        final ConnectorRuntime rt = runtimeWith( noopRecorder(), true );    // registry contains c1
+        rt.swapRegistry( new ConnectorRegistry( Map.of( "c2", connector( "c2" ) ), Map.of( "c2", "feed" ), Map.of( "c2", "db" ) ) );
+        assertThrows( IllegalArgumentException.class, () -> rt.syncNow( "c1" ) );
+        assertEquals( "db", rt.registry().originOf( "c2" ) );
+        assertEquals( "properties", rt.registry().originOf( "unknown" ) );
     }
 }

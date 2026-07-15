@@ -21,15 +21,33 @@ package com.wikantik.connectors.runtime;
 import com.wikantik.api.connectors.SourceConnector;
 import java.util.*;
 
-/** Immutable id → connector registry, built once at wiring time. */
+/** Immutable id → connector registry, built once at wiring time (or rebuilt at runtime — see
+ *  {@link ConnectorRuntime#swapRegistry}). */
 public final class ConnectorRegistry {
     private final Map< String, SourceConnector > byId;
     private final Map< String, String > typeById;
+    private final Map< String, String > originById;
+
+    /** Every connector originates from {@code properties} wiring (static config, not DB-backed). */
     public ConnectorRegistry( final Map< String, SourceConnector > byId, final Map< String, String > typeById ) {
+        this( byId, typeById, defaultOrigins( byId.keySet() ) );
+    }
+
+    private static Map< String, String > defaultOrigins( final Set< String > ids ) {
+        final Map< String, String > origins = new LinkedHashMap<>();
+        for ( final String id : ids ) origins.put( id, "properties" );
+        return origins;
+    }
+
+    public ConnectorRegistry( final Map< String, SourceConnector > byId, final Map< String, String > typeById,
+                               final Map< String, String > originById ) {
         this.byId = Map.copyOf( byId );
         this.typeById = Map.copyOf( typeById );
+        this.originById = Map.copyOf( originById );
     }
+
     public Optional< SourceConnector > get( final String id ) { return Optional.ofNullable( byId.get( id ) ); }
     public Set< String > ids() { return byId.keySet(); }
     public String typeOf( final String id ) { return typeById.getOrDefault( id, "unknown" ); }
+    public String originOf( final String id ) { return originById.getOrDefault( id, "properties" ); }
 }

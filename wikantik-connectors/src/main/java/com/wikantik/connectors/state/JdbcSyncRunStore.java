@@ -19,6 +19,7 @@
 package com.wikantik.connectors.state;
 
 import com.wikantik.connectors.SyncReport;
+import com.wikantik.connectors.runtime.RunRecorder;
 import javax.sql.DataSource;
 import java.sql.*;
 import java.time.Instant;
@@ -26,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** PostgreSQL/H2 JDBC store for per-run connector sync history. */
-public final class JdbcSyncRunStore {
+public final class JdbcSyncRunStore implements RunRecorder {
 
     private final DataSource ds;
 
@@ -38,6 +39,7 @@ public final class JdbcSyncRunStore {
      * Start a new sync run, returning its runId. Inserts with status 'running'
      * and prunes all but the newest 100 rows per connector.
      */
+    @Override
     public long start( final String connectorId, final String trigger ) {
         try ( var c = ds.getConnection() ) {
             long id;
@@ -68,6 +70,7 @@ public final class JdbcSyncRunStore {
     /**
      * Mark a sync run as successfully completed with the given report.
      */
+    @Override
     public void finish( final long runId, final SyncReport report ) {
         try ( var c = ds.getConnection(); var ps = c.prepareStatement(
                 "UPDATE connector_sync_run SET finished=now(), status='ok',"
@@ -87,6 +90,7 @@ public final class JdbcSyncRunStore {
     /**
      * Mark a sync run as failed with the given error message.
      */
+    @Override
     public void fail( final long runId, final String error ) {
         try ( var c = ds.getConnection(); var ps = c.prepareStatement(
                 "UPDATE connector_sync_run SET finished=now(), status='failed', error=? WHERE run_id=?" ) ) {

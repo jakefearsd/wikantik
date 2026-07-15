@@ -43,7 +43,7 @@ class RetrieveContextToolTest {
                 List.of( new RetrievedChunk(
                     List.of( "Alpha", "Intro" ), "alpha body", 0.9, List.of() ) ),
                 List.of( new RelatedPage( "Beta", "similarity 0.75" ) ),
-                "alice", new Date() ) ), 3 ) );
+                "alice", new Date(), false ) ), 3 ) );
 
         final RetrieveContextTool t = new RetrieveContextTool( svc );
         final McpSchema.CallToolResult result = t.execute( Map.of( "query", "search query" ) );
@@ -123,7 +123,7 @@ class RetrieveContextToolTest {
             new RetrievalResult( "q", List.of( new RetrievedPage(
                 "Secret", "https://wiki.example/Secret", 0.99, "TOP SECRET SUMMARY",
                 "classified", List.of(),
-                List.of(), List.of(), "alice", new Date() ) ), 1 ) );
+                List.of(), List.of(), "alice", new Date(), false ) ), 1 ) );
 
         final PageViewGate gate = slug -> !"Secret".equals( slug );
         final RetrieveContextTool t = new RetrieveContextTool( svc, gate );

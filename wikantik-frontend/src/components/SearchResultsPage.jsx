@@ -235,6 +235,9 @@ function SearchResultCard({ result, query }) {
       >
         {highlightTerms(result.name, query)}
       </Link>
+      {result.derived && (
+        <span className="derived-badge" title="Synced from an external source" aria-label="Synced from an external source">↯</span>
+      )}
 
       {/* Summary */}
       {result.summary && (

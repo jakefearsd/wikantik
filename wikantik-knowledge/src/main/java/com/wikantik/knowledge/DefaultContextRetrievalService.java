@@ -344,7 +344,8 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             chunks,
             related,
             page.getAuthor(),
-            page.getLastModified() );
+            page.getLastModified(),
+            meta.get( "derived_from" ) != null );
     }
 
     private String buildUrl( final String pageName ) {

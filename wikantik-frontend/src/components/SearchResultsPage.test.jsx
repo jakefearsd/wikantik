@@ -144,6 +144,28 @@ describe('SearchResultsPage', () => {
     expect(screen.getAllByTestId('search-result-card')).toHaveLength(3);
   });
 
+  // ── Derived-page badge ───────────────────────────────────────────────────
+
+  it('shows the derived badge for a result synced from an external source', () => {
+    useApi.mockReturnValue({
+      data: { results: [{ name: 'X', summary: '', score: 1, derived: true }] },
+      loading: false,
+      error: null,
+    });
+    renderPage('?q=page');
+    expect(screen.getByTitle('Synced from an external source')).toBeInTheDocument();
+  });
+
+  it('does not show the derived badge for a non-derived result', () => {
+    useApi.mockReturnValue({
+      data: { results: [{ name: 'X', summary: '', score: 1 }] },
+      loading: false,
+      error: null,
+    });
+    renderPage('?q=page');
+    expect(screen.queryByTitle('Synced from an external source')).not.toBeInTheDocument();
+  });
+
   // #55 friendly empty state
   it('#55 shows EmptyState when search returns zero results', () => {
     useApi.mockReturnValue({ data: { results: [] }, loading: false, error: null });

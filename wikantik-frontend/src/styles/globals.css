@@ -2279,3 +2279,8 @@ h3:focus-within .heading-anchor {
    sections, especially the often-empty Relations list. Compact it to an inline note. */
 .kg-panel .admin-empty-state { padding: 0.1rem 0; text-align: left; }
 .kg-panel .admin-empty-message { font-size: 0.8rem; font-style: italic; margin: 0; color: var(--text-muted); }
+
+/* Derived-page badge — marks search results synced from an external source
+   (Task 17). Shared by search results, sidebar, and admin surfaces. */
+.derived-badge { display: inline-block; margin-left: 0.3rem; font-size: 0.8em;
+  opacity: 0.7; cursor: help; }

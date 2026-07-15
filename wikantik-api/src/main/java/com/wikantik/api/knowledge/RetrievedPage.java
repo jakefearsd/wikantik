@@ -37,7 +37,8 @@ public record RetrievedPage(
     List< RetrievedChunk > contributingChunks,
     List< RelatedPage > relatedPages,
     String author,
-    java.util.Date lastModified
+    java.util.Date lastModified,
+    boolean derived
 ) {
     public RetrievedPage {
         if ( name == null || name.isBlank() ) {

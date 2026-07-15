@@ -42,7 +42,7 @@ class PageListEngineTest {
             String.valueOf( meta.getOrDefault( "summary", "" ) ),
             meta.get( "cluster" ) == null ? null : meta.get( "cluster" ).toString(),
             PageListEngine.stringList( meta.get( "tags" ) ),
-            List.of(), List.of(), page.getAuthor(), page.getLastModified() );
+            List.of(), List.of(), page.getAuthor(), page.getLastModified(), false );
     }
 
     @Test

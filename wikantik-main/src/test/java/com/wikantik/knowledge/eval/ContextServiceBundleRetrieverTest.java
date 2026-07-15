@@ -32,7 +32,7 @@ class ContextServiceBundleRetrieverTest {
         final RetrievedChunk chunk = new RetrievedChunk( List.of( "Setup" ), "body", 1.0, List.of() );
         final RetrievedPage page = new RetrievedPage(
             "DeployGuide", "/wiki/DeployGuide", 1.0, "", "ops",
-            List.of(), List.of( chunk ), List.of(), "admin", null );
+            List.of(), List.of( chunk ), List.of(), "admin", null, false );
 
         final ContextRetrievalService svc = new StubService(
             new RetrievalResult( "deploy", List.of( page ), 1 ) );
@@ -51,7 +51,7 @@ class ContextServiceBundleRetrieverTest {
         final RetrievedChunk chunk = new RetrievedChunk( List.of( "Intro" ), "text", 0.9, List.of() );
         final RetrievedPage page = new RetrievedPage(
             "UnknownPage", "/wiki/UnknownPage", 0.9, "", "misc",
-            List.of(), List.of( chunk ), List.of(), "admin", null );
+            List.of(), List.of( chunk ), List.of(), "admin", null, false );
 
         final ContextRetrievalService svc = new StubService(
             new RetrievalResult( "query", List.of( page ), 1 ) );
@@ -69,7 +69,7 @@ class ContextServiceBundleRetrieverTest {
         final RetrievedChunk c2 = new RetrievedChunk( List.of( "B" ), "second", 0.8, List.of() );
         final RetrievedPage page = new RetrievedPage(
             "MultiChunkPage", "/wiki/MultiChunkPage", 1.0, "", "ops",
-            List.of(), List.of( c1, c2 ), List.of(), "admin", null );
+            List.of(), List.of( c1, c2 ), List.of(), "admin", null, false );
 
         final ContextRetrievalService svc = new StubService(
             new RetrievalResult( "multi", List.of( page ), 1 ) );

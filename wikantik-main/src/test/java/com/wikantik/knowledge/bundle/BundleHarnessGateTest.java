@@ -103,7 +103,8 @@ class BundleHarnessGateTest {
                         chunks,        // contributingChunks
                         List.of(),     // relatedPages
                         "",            // author
-                        null           // lastModified
+                        null,          // lastModified
+                        false          // derived
                     ) );
                 }
                 return new RetrievalResult( q.query(), pages, pages.size() );

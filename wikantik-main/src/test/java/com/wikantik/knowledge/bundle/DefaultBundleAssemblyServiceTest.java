@@ -38,7 +38,7 @@ class DefaultBundleAssemblyServiceTest {
     @Test
     void assembles_dedups_cites_and_caps_topN() {
         final RetrievedPage page = new RetrievedPage( "DeployGuide", "/wiki/DeployGuide", 1.0, "", "ops",
-            List.of(), List.of( ch("Setup","setup",0.9), ch("Usage","usage",0.7) ), List.of(), "a", null );
+            List.of(), List.of( ch("Setup","setup",0.9), ch("Usage","usage",0.7) ), List.of(), "a", null, false );
         final ContextRetrievalService retrieval = new StubRetrieval(
             new RetrievalResult( "deploy", List.of( page ), 1 ) );
         final SectionReranker identity = ( q, secs ) -> secs;             // keep dense order

@@ -53,9 +53,9 @@ class ListPagesToolTest {
         when( svc.listPages( any( PageListFilter.class ) ) ).thenReturn(
             new PageList( List.of(
                 new RetrievedPage( "Alpha", "u1", 0.0, "", "search", List.of(),
-                    List.of(), List.of(), null, new Date() ),
+                    List.of(), List.of(), null, new Date(), false ),
                 new RetrievedPage( "Beta", "u2", 0.0, "", "search", List.of(),
-                    List.of(), List.of(), null, new Date() ) ),
+                    List.of(), List.of(), null, new Date(), false ) ),
                 5, 50, 0 ) );
 
         final McpSchema.CallToolResult result =
@@ -128,9 +128,9 @@ class ListPagesToolTest {
         when( svc.listPages( any( PageListFilter.class ) ) ).thenReturn(
             new PageList( List.of(
                 new RetrievedPage( "Secret", "u1", 0.0, "TOP SECRET SUMMARY", "classified", List.of(),
-                    List.of(), List.of(), null, new Date() ),
+                    List.of(), List.of(), null, new Date(), false ),
                 new RetrievedPage( "Public", "u2", 0.0, "public summary", "open", List.of(),
-                    List.of(), List.of(), null, new Date() ) ),
+                    List.of(), List.of(), null, new Date(), false ) ),
                 2, 50, 0 ) );
 
         final PageViewGate gate = slug -> !"Secret".equals( slug );

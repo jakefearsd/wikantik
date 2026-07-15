@@ -140,13 +140,13 @@ class ContextRetrievalRecordsTest {
     void retrievedPage_rejectsBlankName() {
         assertThrows( IllegalArgumentException.class,
             () -> new RetrievedPage( "", "url", 0.0, "", null, List.of(),
-                List.of(), List.of(), null, null ) );
+                List.of(), List.of(), null, null, false ) );
     }
 
     @Test
     void retrievedPage_defaultsCollections() {
         final RetrievedPage p = new RetrievedPage(
-            "P", "url", 0.5, "summary", null, null, null, null, null, null );
+            "P", "url", 0.5, "summary", null, null, null, null, null, null, false );
         assertEquals( List.of(), p.tags() );
         assertEquals( List.of(), p.contributingChunks() );
         assertEquals( List.of(), p.relatedPages() );

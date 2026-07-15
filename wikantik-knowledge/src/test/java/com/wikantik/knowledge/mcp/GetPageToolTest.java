@@ -43,7 +43,7 @@ class GetPageToolTest {
         when( svc.getPage( "Alpha" ) ).thenReturn( new RetrievedPage(
             "Alpha", "https://wiki.example/Alpha", 0.0, "alpha summary",
             "search", List.of( "retrieval" ),
-            List.of(), List.of(), "alice", new Date() ) );
+            List.of(), List.of(), "alice", new Date(), false ) );
 
         final McpSchema.CallToolResult result =
             new GetPageTool( svc ).execute( Map.of( "pageName", "Alpha" ) );
@@ -91,7 +91,7 @@ class GetPageToolTest {
         final ContextRetrievalService svc = mock( ContextRetrievalService.class );
         when( svc.getPage( "Secret" ) ).thenReturn( new RetrievedPage(
             "Secret", "https://wiki.example/Secret", 0.0, "TOP SECRET SUMMARY",
-            "classified", List.of(), List.of(), List.of(), "alice", new Date() ) );
+            "classified", List.of(), List.of(), List.of(), "alice", new Date(), false ) );
 
         final PageViewGate gate = slug -> !"Secret".equals( slug );
         final McpSchema.CallToolResult result = new GetPageTool( svc, gate ).execute( Map.of( "pageName", "Secret" ) );

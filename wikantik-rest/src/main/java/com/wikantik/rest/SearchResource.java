@@ -154,6 +154,7 @@ public class SearchResource extends RestServletBase {
             if ( p.cluster() != null ) entry.put( "cluster", p.cluster() );
             if ( p.author() != null ) entry.put( "author", p.author() );
             if ( p.lastModified() != null ) entry.put( "lastModified", p.lastModified() );
+            if ( p.derived() ) entry.put( "derived", true );
             // contexts: previously Lucene highlight fragments; now chunk text.
             // Intentional change — chunks carry heading-path context and are
             // higher-signal than Lucene snippets.

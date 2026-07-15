@@ -39,7 +39,7 @@ class SectionAssemblerTest {
                 chunk( List.of( "Setup" ), "setup B (best)", 0.9 ),   // same section, higher score
                 chunk( List.of( "Usage" ), "usage", 0.7 ),
                 chunk( List.of( "Notes" ), "notes", 0.1 ) ),
-            List.of(), "admin", null );
+            List.of(), "admin", null, false );
 
         final List<CandidateSection> secs = new SectionAssembler( 2 )
             .assemble( new RetrievalResult( "q", List.of( page ), 1 ) );

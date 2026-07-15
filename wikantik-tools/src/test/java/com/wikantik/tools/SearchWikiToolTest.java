@@ -113,7 +113,8 @@ class SearchWikiToolTest {
                 List.of( new RetrievedChunk( List.of( "OnePage" ), "matching excerpt", 0.9, List.of() ) ),
                 List.of(),
                 null,
-                null
+                null,
+                false
             ) ), 1 ) );
 
         final Properties props = new Properties();
@@ -149,7 +150,8 @@ class SearchWikiToolTest {
                 List.of( new RetrievedChunk( List.of(), longText, 0.5, List.of() ) ),
                 List.of(),
                 null,
-                null
+                null,
+                false
             ) ), 1 ) );
 
         final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
@@ -170,7 +172,7 @@ class SearchWikiToolTest {
         final List< RetrievedPage > manyPages = new ArrayList<>();
         for ( int i = 0; i < 20; i++ ) {
             manyPages.add( new RetrievedPage(
-                "P" + i, "", 1.0, "", null, List.of(), List.of(), List.of(), null, null ) );
+                "P" + i, "", 1.0, "", null, List.of(), List.of(), List.of(), null, null, false ) );
         }
         when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
             new RetrievalResult( "q", manyPages, 20 ) );
@@ -193,7 +195,7 @@ class SearchWikiToolTest {
                     List.of(
                         new RetrievedChunk( List.of( "Alpha", "Intro" ), "first chunk body", 0.9, List.of() ),
                         new RetrievedChunk( List.of( "Alpha", "Details" ), "second chunk body", 0.8, List.of() ) ),
-                    List.of(), null, null ) ),
+                    List.of(), null, null, false ) ),
                 1 ) );
 
         final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
@@ -224,7 +226,7 @@ class SearchWikiToolTest {
                     List.of(
                         new RelatedPage( "Beta", "shared entities: x, y" ),
                         new RelatedPage( "Gamma", "shared entities: y" ) ),
-                    null, null ) ),
+                    null, null, false ) ),
                 1 ) );
 
         final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
@@ -249,7 +251,7 @@ class SearchWikiToolTest {
                 "q",
                 List.of( new RetrievedPage(
                     "Alpha", "", 5.0, "alpha summary", null, List.of(),
-                    List.of(), List.of(), null, null ) ),
+                    List.of(), List.of(), null, null, false ) ),
                 1 ) );
 
         final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );

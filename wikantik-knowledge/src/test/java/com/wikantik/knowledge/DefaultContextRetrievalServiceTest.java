@@ -92,6 +92,21 @@ class DefaultContextRetrievalServiceTest {
     }
 
     @Test
+    void derivedFlagSetFromFrontmatter() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Derived", "---\nderived_from: attachment:source.pdf\n---\n\nBody",
+                "alice", new java.util.Date() );
+        pm.addPage( "Native", "---\nsummary: hand-written\n---\n\nBody",
+                "alice", new java.util.Date() );
+        final DefaultContextRetrievalService svc = FakeDeps.minimal().pageManager( pm ).build();
+
+        assertTrue( svc.getPage( "Derived" ).derived(),
+            "a page whose frontmatter carries derived_from must report derived() == true" );
+        assertFalse( svc.getPage( "Native" ).derived(),
+            "a page with no derived_from frontmatter must report derived() == false" );
+    }
+
+    @Test
     void listMetadataValues_countsDistinctClusters() {
         final FakePageManager pm = new FakePageManager();
         pm.addPage( "A", "---\ncluster: search\n---\n\n", "bob", new java.util.Date() );

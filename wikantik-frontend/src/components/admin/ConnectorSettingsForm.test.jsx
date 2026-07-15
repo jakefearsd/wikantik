@@ -52,6 +52,35 @@ describe('ConnectorSettingsForm', () => {
     expect(body.config.seeds).toEqual(['https://a.example', 'https://b.example']);
   });
 
+  it('preserves unmodeled config fields on submit (full-replace PUT must not drop them)', async () => {
+    // The backend supports config keys the UI doesn't render (e.g. webcrawler
+    // user_agent). PUT is full-replace, so a save that omits them would
+    // silently reset them server-side.
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ConnectorSettingsForm
+        type="webcrawler"
+        initialValues={{
+          config: { seeds: ['https://x.com'], user_agent: 'CustomBot/2.0' },
+          enabled: true, syncIntervalHours: 0, cluster: '', defaultTags: '', pagePrefix: '',
+        }}
+        onSubmit={onSubmit}
+      />
+    );
+
+    fireEvent.change(screen.getByTestId('field-seeds'), {
+      target: { value: 'https://x.com\nhttps://y.com' },
+    });
+    fireEvent.click(screen.getByTestId('settings-submit-button'));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const body = onSubmit.mock.calls[0][0];
+    // Rendered-field edits win…
+    expect(body.config.seeds).toEqual(['https://x.com', 'https://y.com']);
+    // …and unmodeled keys survive untouched.
+    expect(body.config.user_agent).toBe('CustomBot/2.0');
+  });
+
   it('renders server error map under matching fields', () => {
     render(
       <ConnectorSettingsForm

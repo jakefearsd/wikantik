@@ -137,10 +137,16 @@ export default function ConnectorSettingsForm({
     if (readOnly || submitting) return;
     setSubmitting(true);
     const body = {
-      config: fields.reduce((acc, field) => {
-        acc[field.name] = serializeFieldValue(field, values[field.name]);
-        return acc;
-      }, {}),
+      // PUT is full-replace: seed from the incoming config so backend fields
+      // the UI doesn't model (e.g. webcrawler user_agent) survive the save;
+      // rendered-field values win over the seeded ones.
+      config: {
+        ...initialConfig,
+        ...fields.reduce((acc, field) => {
+          acc[field.name] = serializeFieldValue(field, values[field.name]);
+          return acc;
+        }, {}),
+      },
       enabled,
       syncIntervalHours: syncIntervalHours === '' ? 0 : Number(syncIntervalHours),
       cluster,

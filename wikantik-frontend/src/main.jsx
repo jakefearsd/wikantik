@@ -39,6 +39,7 @@ const AdminKgPolicyBootstrap = React.lazy(() => import('./components/admin/Admin
 const AdminPageOwnershipPage = React.lazy(() => import('./components/admin/AdminPageOwnershipPage'));
 const AdminAuditPage = React.lazy(() => import('./components/admin/AdminAuditPage'));
 const AdminConnectorsPage = React.lazy(() => import('./components/admin/AdminConnectorsPage'));
+const ConnectorDetailPage = React.lazy(() => import('./components/admin/ConnectorDetailPage'));
 
 const LoginPage = React.lazy(() => import('./components/LoginPage'));
 const ChangePasswordPage = React.lazy(() => import('./components/ChangePasswordPage'));
@@ -90,6 +91,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="page-ownership" element={<AdminPageOwnershipPage />} />
               <Route path="audit" element={<AdminAuditPage />} />
               <Route path="connectors" element={<AdminConnectorsPage />} />
+              <Route path="connectors/:id" element={<ConnectorDetailPage />} />
             </Route>
             <Route path="/blog" element={<BlogDiscovery />} />
             <Route path="/blog/create" element={<CreateBlog />} />

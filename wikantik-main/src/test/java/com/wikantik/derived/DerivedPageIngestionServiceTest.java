@@ -296,6 +296,60 @@ class DerivedPageIngestionServiceTest {
             "pageDeleter must be called with the derived page name" );
     }
 
+    // -------------------------------------------------------------------------
+    // Connector provenance stamping + create-only content defaults (Task 15)
+    // -------------------------------------------------------------------------
+
+    // opts w/ connectorId+sourceUrl → metadata has derived_connector + derived_source_url
+    @Test
+    void stampsConnectorProvenance() throws Exception {
+        IngestResult result = service.ingest( SOURCE, FILENAME, CONTENT_TYPE,
+            new IngestOptions( false, "bot", null, "conn1", "https://example.com/doc", null, null ) );
+
+        assertEquals( IngestResult.Status.CREATED, result.status() );
+        Map< String, Object > meta = writtenMetadata.get( 0 );
+        assertEquals( "conn1", meta.get( DerivedPage.DERIVED_CONNECTOR ) );
+        assertEquals( "https://example.com/doc", meta.get( DerivedPage.DERIVED_SOURCE_URL ) );
+    }
+
+    // create: cluster+tags land; re-ingest w/ different defaults + existing cluster → cluster unchanged
+    @Test
+    void clusterAndTagsOnlyOnCreate() throws Exception {
+        IngestResult created = service.ingest( SOURCE, FILENAME, CONTENT_TYPE,
+            new IngestOptions( false, "bot", null, "conn1", null, "finance", List.of( "quarterly" ) ) );
+
+        assertEquals( IngestResult.Status.CREATED, created.status() );
+        Map< String, Object > createdMeta = writtenMetadata.get( 0 );
+        assertEquals( "finance", createdMeta.get( "cluster" ) );
+        assertEquals( List.of( "quarterly" ), createdMeta.get( "tags" ) );
+
+        // Simulate the page now persisted with that cluster/tags, then re-ingest (force, since the
+        // source bytes are unchanged) with a different connector's defaults.
+        pageReaderResult = new HashMap<>( createdMeta );
+        IngestResult updated = service.ingest( SOURCE, FILENAME, CONTENT_TYPE,
+            new IngestOptions( true, "bot", null, "conn1", null, "engineering", List.of( "urgent" ) ) );
+
+        assertEquals( IngestResult.Status.UPDATED, updated.status() );
+        Map< String, Object > updatedMeta = writtenMetadata.get( 1 );
+        assertEquals( "finance", updatedMeta.get( "cluster" ),
+            "cluster must not be clobbered by defaults on update (design D10)" );
+        assertEquals( List.of( "quarterly" ), updatedMeta.get( "tags" ),
+            "tags must not be clobbered by defaults on update (design D10)" );
+    }
+
+    // null connectorId → neither key present (manual /api/ingest unaffected)
+    @Test
+    void noDefaultsNoKeys() throws Exception {
+        IngestResult result = service.ingest( SOURCE, FILENAME, CONTENT_TYPE, new IngestOptions( false, "bot" ) );
+
+        assertEquals( IngestResult.Status.CREATED, result.status() );
+        Map< String, Object > meta = writtenMetadata.get( 0 );
+        assertFalse( meta.containsKey( DerivedPage.DERIVED_CONNECTOR ) );
+        assertFalse( meta.containsKey( DerivedPage.DERIVED_SOURCE_URL ) );
+        assertFalse( meta.containsKey( "cluster" ) );
+        assertFalse( meta.containsKey( "tags" ) );
+    }
+
     /**
      * When attachment storage fails for an <em>existing</em> derived page (update path),
      * the service must return FAILED but must NOT invoke pageDeleter — the pre-existing

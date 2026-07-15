@@ -53,7 +53,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /** Startup wiring: builds the connector runtime (properties + DB-backed configs) and registers it,
  *  the {@link ConnectorConfigService}, and their supporting managers unconditionally — an empty
@@ -128,7 +130,13 @@ public final class ConnectorWiringHelper {
                 .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "confluence" ); } );
         }
         final DerivedPageIngestionService ingestion = DerivedIngestionServiceFactory.build( engine, pm, am );
-        final DerivedPageSinkAdapter sink = new DerivedPageSinkAdapter( ingestion, pm::deletePage, "connector-sync" );
+        // Cycle-breaker: the sink must be built before ConnectorConfigService exists (service needs
+        // runtime needs orchestrator needs sink). Start the defaults lookup as a no-op and swap in
+        // the real service::defaultsFor once the service is constructed below.
+        final AtomicReference< Function< String, ConnectorConfigService.ContentDefaults > > defaultsRef =
+            new AtomicReference<>( id -> ConnectorConfigService.ContentDefaults.EMPTY );
+        final DerivedPageSinkAdapter sink = new DerivedPageSinkAdapter( ingestion, pm::deletePage, "connector-sync",
+            id -> defaultsRef.get().apply( id ) );
         final JdbcSyncStateStore syncStateStore = new JdbcSyncStateStore( ds );
         final SyncOrchestrator orchestrator = new SyncOrchestrator( syncStateStore, sink );
         final JdbcSyncRunStore runStore = new JdbcSyncRunStore( ds );
@@ -155,6 +163,7 @@ public final class ConnectorWiringHelper {
             new JdbcConnectorConfigStore( ds ), syncStateStore, credStore, runtime,
             byId, typeById, drives, pageDeleter, orphanStamper, props,
             c -> engine.setManager( DriveAuthCoordinator.class, c ) );
+        defaultsRef.set( service::defaultsFor );   // break the cycle: sink now resolves live content defaults
         service.rebuild();   // loads DB rows and hot-swaps them into the registry built above
         engine.setManager( ConnectorConfigService.class, service );
 

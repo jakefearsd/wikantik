@@ -35,6 +35,10 @@ public final class DerivedPage {
     public static final String DERIVED_EXTRACTOR       = "derived_extractor";
     public static final String DERIVED_EXTRACTOR_VERSION = "derived_extractor_version";
     public static final String DERIVED_SOURCE_SHA      = "derived_source_sha";
+    public static final String DERIVED_CONNECTOR       = "derived_connector";
+    public static final String DERIVED_SOURCE_URL      = "derived_source_url";
+    /** Stamped by {@link DerivedPageOrphanStamper} when a page's connector is removed without cascading delete. */
+    public static final String DERIVED_ORPHANED        = "derived_orphaned";
 
     public static boolean isDerived( final Map< String, Object > metadata ) {
         return metadata != null && metadata.get( DERIVED_FROM ) != null

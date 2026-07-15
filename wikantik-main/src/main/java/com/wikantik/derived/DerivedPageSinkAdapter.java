@@ -24,6 +24,9 @@ import com.wikantik.api.connectors.SourceItem;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Objects;
+import java.util.function.Function;
+
 /** Bridges the connector {@link DerivedPageSink} port to the existing {@link DerivedPageIngestionService}. */
 public final class DerivedPageSinkAdapter implements DerivedPageSink {
 
@@ -31,22 +34,35 @@ public final class DerivedPageSinkAdapter implements DerivedPageSink {
     private final DerivedPageIngestionService ingestion;
     private final DerivedPageIngestionService.PageDeleter deleter;
     private final String author;
+    private final Function< String, ConnectorConfigService.ContentDefaults > defaultsFor;
 
+    /** Backward-compatible 3-arg form: no per-connector content defaults ({@link ConnectorConfigService.ContentDefaults#EMPTY}). */
     public DerivedPageSinkAdapter( final DerivedPageIngestionService ingestion,
                                    final DerivedPageIngestionService.PageDeleter deleter,
                                    final String author ) {
+        this( ingestion, deleter, author, id -> ConnectorConfigService.ContentDefaults.EMPTY );
+    }
+
+    public DerivedPageSinkAdapter( final DerivedPageIngestionService ingestion,
+                                   final DerivedPageIngestionService.PageDeleter deleter,
+                                   final String author,
+                                   final Function< String, ConnectorConfigService.ContentDefaults > defaultsFor ) {
         this.ingestion = ingestion;
         this.deleter = deleter;
         this.author = author;
+        this.defaultsFor = defaultsFor;
     }
 
     @Override
     public IngestOutcome ingest( final String connectorId, final SourceItem item ) {
-        // connectorId is accepted but not yet used — a future task threads it into per-connector
-        // content defaults (frontmatter, cluster assignment, etc.).
+        final var d = defaultsFor.apply( connectorId );
+        final String prefix = d.pagePrefix() != null ? d.pagePrefix() : "";
+        final String sourceUrl = item.sourceMetadata() != null
+            ? Objects.toString( item.sourceMetadata().get( "source_url" ), null ) : null;
         final IngestResult r = ingestion.ingest(
-            item.content(), flatName( item.sourceUri() ), item.contentType(),
-            new IngestOptions( false, author, item.sourceUri() ) );      // derived_from = the source URI
+            item.content(), prefix + flatName( item.sourceUri() ), item.contentType(),
+            new IngestOptions( false, author, item.sourceUri(), connectorId, sourceUrl,
+                d.cluster(), d.tags() ) );
         return new IngestOutcome( r.pageName(), map( r.status() ) );
     }
 

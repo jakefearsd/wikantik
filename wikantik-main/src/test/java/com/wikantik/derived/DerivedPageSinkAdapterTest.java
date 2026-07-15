@@ -75,4 +75,42 @@ class DerivedPageSinkAdapterTest {
         new DerivedPageSinkAdapter( ingestion, deleted::add, "sync-bot" ).delete( "docs-a" );
         assertEquals( List.of( "docs-a" ), deleted );
     }
+
+    // defaults pagePrefix "News" → ingestion received filename "News" + flatName(...)
+    @Test void prefixAppliedToPageName() {
+        final List< String > writtenPages = new ArrayList<>();
+        final DerivedPageIngestionService ingestion = new DerivedPageIngestionService(
+            STUB_EXTRACTOR, ( p, f, b ) -> { }, p -> Optional.empty(),
+            ( page, body, meta, author ) -> writtenPages.add( page ),
+            p -> { } );
+
+        final DerivedPageSinkAdapter adapter = new DerivedPageSinkAdapter( ingestion, p -> { }, "sync-bot",
+            connectorId -> new com.wikantik.derived.ConnectorConfigService.ContentDefaults( null, List.of(), "News" ) );
+
+        final IngestOutcome out = adapter.ingest( "c1", new SourceItem(
+            "file:docs/a.md", "raw".getBytes(), "text/markdown", Map.of(), List.of(), "hash" ) );
+
+        final String expectedPageName = DerivedPage.pageNameFor( "News" + DerivedPageSinkAdapter.flatName( "file:docs/a.md" ) );
+        assertEquals( expectedPageName, out.pageName() );
+        assertEquals( List.of( expectedPageName ), writtenPages.stream().distinct().toList() );
+    }
+
+    // sourceMetadata {"source_url": "https://x"} → opts.sourceUrl()=="https://x"
+    @Test void sourceUrlThreadedFromMetadata() {
+        final Map< String, Object > captured = new HashMap<>();
+        final DerivedPageIngestionService ingestion = new DerivedPageIngestionService(
+            STUB_EXTRACTOR, ( p, f, b ) -> { }, p -> Optional.empty(),
+            ( page, body, meta, author ) -> captured.putAll( meta ),
+            p -> { } );
+
+        final DerivedPageSinkAdapter adapter = new DerivedPageSinkAdapter( ingestion, p -> { }, "sync-bot",
+            connectorId -> com.wikantik.derived.ConnectorConfigService.ContentDefaults.EMPTY );
+
+        adapter.ingest( "c1", new SourceItem(
+            "file:docs/a.md", "raw".getBytes(), "text/markdown",
+            Map.of( "source_url", "https://x" ), List.of(), "hash" ) );
+
+        assertEquals( "https://x", captured.get( DerivedPage.DERIVED_SOURCE_URL ) );
+        assertEquals( "c1", captured.get( DerivedPage.DERIVED_CONNECTOR ) );
+    }
 }

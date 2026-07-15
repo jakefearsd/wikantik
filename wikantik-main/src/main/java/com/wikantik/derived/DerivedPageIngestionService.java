@@ -251,6 +251,15 @@ public class DerivedPageIngestionService {
             meta.put( "title", er.extractedTitle() );
         }
 
+        // Connector provenance (machine-owned; always set when the caller supplied it)
+        if ( opts.connectorId() != null )  meta.put( DerivedPage.DERIVED_CONNECTOR,  opts.connectorId() );
+        if ( opts.sourceUrl() != null )    meta.put( DerivedPage.DERIVED_SOURCE_URL, opts.sourceUrl() );
+        // content defaults: creation only — never clobber curation on update (design D10)
+        if ( !existing.isPresent() ) {
+            if ( opts.cluster() != null && !meta.containsKey( "cluster" ) )  meta.put( "cluster", opts.cluster() );
+            if ( opts.tags() != null && !opts.tags().isEmpty() && !meta.containsKey( "tags" ) )  meta.put( "tags", opts.tags() );
+        }
+
         return meta;
     }
 }

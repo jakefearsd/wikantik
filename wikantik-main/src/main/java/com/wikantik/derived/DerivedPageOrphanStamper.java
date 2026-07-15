@@ -67,7 +67,7 @@ public final class DerivedPageOrphanStamper implements Consumer< String > {
             return;
         }
         final Map< String, Object > metadata = new HashMap<>( existing.get() );
-        metadata.put( "derived_orphaned", Boolean.TRUE );
+        metadata.put( DerivedPage.DERIVED_ORPHANED, Boolean.TRUE );
         try {
             writer.write( pageName, bodyReader.apply( pageName ), metadata, author );
         } catch ( final Exception e ) {

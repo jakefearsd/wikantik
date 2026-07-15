@@ -637,6 +637,13 @@ public class ConnectorAdminIT {
      * derived_orphaned: true} instead of hard-deleted); since the sync in {@link
      * #syncFeedConnector_returnsZeroCountReportAndOneOkRun} never created any pages (unreachable
      * URL), {@code pagesKept} is 0. The connector then 404s on detail and drops out of the list.
+     *
+     * <p>Delete also purges the connector's {@code connector_sync_run} history
+     * ({@code ConnectorConfigService.delete} → {@code JdbcSyncRunStore.purgeRuns}), so recreating
+     * the <em>same id</em> starts with a clean run history instead of inheriting the deleted
+     * connector's runs — proven here by recreating {@code it-feed} and asserting {@code runs} is
+     * empty (the sync in Order 12 recorded one run that must NOT survive the delete), then
+     * deleting it again so the DB is left as this scenario found it.
      */
     @Test
     @Order( 17 )
@@ -661,6 +668,25 @@ public class ConnectorAdminIT {
                 assertFalse( FEED_CONNECTOR_ID.equals( el.getAsJsonObject().get( "id" ).getAsString() ),
                         "deleted connector must not remain listed: " + listResp.body() );
             }
+
+            // Recreate the SAME id: the delete above must have purged the Order-12 run history, so
+            // the recreated connector starts with zero runs.
+            final HttpResponse< String > recreateResp = post( "/admin/connectors", feedConnectorBody(
+                    FEED_CONNECTOR_ID, UNREACHABLE_FEED_URL, false, null ) );
+            assertEquals( 201, recreateResp.statusCode(),
+                    "recreate of the deleted id must succeed: " + recreateResp.body() );
+
+            final HttpResponse< String > runsResp = get( "/admin/connectors/" + FEED_CONNECTOR_ID + "/runs" );
+            assertEquals( 200, runsResp.statusCode(), "GET runs must return 200: " + runsResp.body() );
+            final JsonArray runs = JsonParser.parseString( runsResp.body() ).getAsJsonObject().getAsJsonArray( "runs" );
+            assertEquals( 0, runs.size(),
+                    "recreated same-id connector must not inherit the deleted connector's run history: "
+                    + runsResp.body() );
+
+            // Leave the DB as this scenario found it.
+            final HttpResponse< String > secondDelete = delete(
+                    "/admin/connectors/" + FEED_CONNECTOR_ID + "?deletePages=false" );
+            assertEquals( 200, secondDelete.statusCode(), "cleanup delete must return 200: " + secondDelete.body() );
         } finally {
             logoutAdmin();
         }

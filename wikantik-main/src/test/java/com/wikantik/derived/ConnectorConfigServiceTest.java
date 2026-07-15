@@ -61,6 +61,7 @@ class ConnectorConfigServiceTest {
     private List< String > pageDeletes;
     private List< String > orphanStamps;
     private List< DriveAuthCoordinator > installedCoordinators;
+    private List< String > runHistoryPurges;
     private Properties props;
 
     @BeforeEach void schema() throws Exception {
@@ -80,6 +81,7 @@ class ConnectorConfigServiceTest {
         pageDeletes = new ArrayList<>();
         orphanStamps = new ArrayList<>();
         installedCoordinators = new ArrayList<>();
+        runHistoryPurges = new ArrayList<>();
         props = new Properties();
 
         final SyncOrchestrator orch = mock( SyncOrchestrator.class );
@@ -92,9 +94,10 @@ class ConnectorConfigServiceTest {
         final Consumer< String > pageDeleter = pageDeletes::add;
         final Consumer< String > orphanStamper = orphanStamps::add;
         final Consumer< DriveAuthCoordinator > coordinatorInstaller = installedCoordinators::add;
+        final Consumer< String > runHistoryPurger = runHistoryPurges::add;
         return new ConnectorConfigService( configStore, syncState, credStore, runtime,
             propertiesConnectors, propertiesTypes, propertiesDriveConfigs,
-            pageDeleter, orphanStamper, props, coordinatorInstaller );
+            pageDeleter, orphanStamper, props, coordinatorInstaller, runHistoryPurger );
     }
 
     private static SourceConnector stubConnector( final String id ) {
@@ -213,6 +216,17 @@ class ConnectorConfigServiceTest {
         assertEquals( List.of( "Page1", "Page2" ), pageDeletes );
         assertEquals( List.of(), orphanStamps );
         assertTrue( configStore.get( "gh4" ).isEmpty() );
+    }
+
+    @Test void deleteAlsoPurgesRunHistory() {
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        final JsonObject cfg = json( "{\"repo\":\"jake/notes\"}" );
+        svc.create( "gh5", "github", cfg, true, 0, null, null, null );
+
+        svc.delete( "gh5", false );
+
+        assertEquals( List.of( "gh5" ), runHistoryPurges,
+            "delete must purge the connector's run history exactly once" );
     }
 
     @Test void deletePropertiesOriginThrows() {

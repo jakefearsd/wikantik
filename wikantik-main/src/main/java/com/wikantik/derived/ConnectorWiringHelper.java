@@ -162,7 +162,8 @@ public final class ConnectorWiringHelper {
         final ConnectorConfigService service = new ConnectorConfigService(
             new JdbcConnectorConfigStore( ds ), syncStateStore, credStore, runtime,
             byId, typeById, drives, pageDeleter, orphanStamper, props,
-            c -> engine.setManager( DriveAuthCoordinator.class, c ) );
+            c -> engine.setManager( DriveAuthCoordinator.class, c ),
+            runStore::purgeRuns );
         defaultsRef.set( service::defaultsFor );   // break the cycle: sink now resolves live content defaults
         service.rebuild();   // loads DB rows and hot-swaps them into the registry built above
         engine.setManager( ConnectorConfigService.class, service );

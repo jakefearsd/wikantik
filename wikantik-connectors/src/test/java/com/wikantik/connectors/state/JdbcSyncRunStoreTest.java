@@ -83,4 +83,16 @@ class JdbcSyncRunStoreTest {
         for ( int i = 0; i < 105; i++ ) store.finish( store.start( "c1", "manual" ), new SyncReport( 0, 0, 0, 0, 0 ) );
         assertEquals( 100, store.list( "c1", 1000 ).size() );
     }
+
+    @Test void purgeRunsRemovesOnlyThatConnectorsHistory() {
+        final JdbcSyncRunStore store = new JdbcSyncRunStore( ds );
+        store.finish( store.start( "c1", "manual" ), new SyncReport( 1, 0, 0, 0, 0 ) );
+        store.finish( store.start( "c1", "scheduled" ), new SyncReport( 0, 1, 0, 0, 0 ) );
+        store.finish( store.start( "c2", "manual" ), new SyncReport( 0, 0, 1, 0, 0 ) );
+
+        store.purgeRuns( "c1" );
+
+        assertTrue( store.list( "c1", 10 ).isEmpty(), "purged connector must have no run history" );
+        assertEquals( 1, store.list( "c2", 10 ).size(), "other connectors' history must be untouched" );
+    }
 }

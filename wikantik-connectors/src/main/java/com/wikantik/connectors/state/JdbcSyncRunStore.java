@@ -103,6 +103,21 @@ public final class JdbcSyncRunStore implements RunRecorder {
     }
 
     /**
+     * Delete every sync-run history row for {@code connectorId}. Called on connector delete so a
+     * later same-id recreation starts with a clean run history instead of inheriting the old
+     * connector's (misleading) runs.
+     */
+    public void purgeRuns( final String connectorId ) {
+        try ( var c = ds.getConnection(); var ps = c.prepareStatement(
+                "DELETE FROM connector_sync_run WHERE connector_id=?" ) ) {
+            ps.setString( 1, connectorId );
+            ps.executeUpdate();
+        } catch ( final SQLException e ) {
+            throw new RuntimeException( "connector_sync_run purge failed for '" + connectorId + "': " + e.getMessage(), e );
+        }
+    }
+
+    /**
      * List recent sync runs for a connector, newest first, limited to the given count.
      */
     public List< SyncRunRow > list( final String connectorId, final int limit ) {

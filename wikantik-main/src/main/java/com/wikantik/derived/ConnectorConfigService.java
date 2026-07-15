@@ -76,6 +76,10 @@ public final class ConnectorConfigService {
     private final Consumer< String > orphanStamper;
     private final Properties props;
     private final Consumer< DriveAuthCoordinator > coordinatorInstaller;
+    /** Purges the connector's {@code connector_sync_run} history rows on {@link #delete} so a later
+     *  same-id recreation starts with a clean run history instead of inheriting the deleted
+     *  connector's (misleading) runs. Backed by {@code JdbcSyncRunStore::purgeRuns} in production. */
+    private final Consumer< String > runHistoryPurger;
 
     /** Per-connector content defaults for pages the connector creates (design D10): applied only
      *  at page creation, never overwriting later curation. */
@@ -114,7 +118,8 @@ public final class ConnectorConfigService {
             final Map< String, SourceConnector > propertiesConnectors, final Map< String, String > propertiesTypes,
             final Map< String, DriveConfig > propertiesDriveConfigs,
             final Consumer< String > pageDeleter, final Consumer< String > orphanStamper,
-            final Properties props, final Consumer< DriveAuthCoordinator > coordinatorInstaller ) {
+            final Properties props, final Consumer< DriveAuthCoordinator > coordinatorInstaller,
+            final Consumer< String > runHistoryPurger ) {
         this.configStore = configStore;
         this.syncState = syncState;
         this.credStore = credStore;
@@ -126,6 +131,7 @@ public final class ConnectorConfigService {
         this.orphanStamper = orphanStamper;
         this.props = props;
         this.coordinatorInstaller = coordinatorInstaller;
+        this.runHistoryPurger = runHistoryPurger;
     }
 
     /** Both origins; a DB row shadows a same-id properties entry. */
@@ -201,8 +207,9 @@ public final class ConnectorConfigService {
 
     /** DB-origin only — a properties-origin id throws {@link PropertiesOriginException} (design D3).
      *  Every page this connector synced is either stamped {@code derived_orphaned: true} (kept, the
-     *  default) or hard-deleted, per {@code deletePages}; sync state and stored credentials are
-     *  always removed. Ends with a registry rebuild. */
+     *  default) or hard-deleted, per {@code deletePages}; sync state, run history, and stored
+     *  credentials are always removed (so a later same-id recreation starts clean). Ends with a
+     *  registry rebuild. */
     public DeleteResult delete( final String id, final boolean deletePages ) {
         final Optional< ConnectorConfigRow > existing = configStore.get( id );
         if ( existing.isEmpty() ) {
@@ -222,6 +229,14 @@ public final class ConnectorConfigService {
             }
         }
         syncState.purge( id );
+        try {
+            runHistoryPurger.accept( id );
+        } catch ( final RuntimeException e ) {
+            // Stale run-history rows are cosmetic (misleading history for a future same-id
+            // recreation) — never worth aborting the delete over.
+            LOG.warn( "connector '{}': run-history purge failed ({}) — continuing with the delete",
+                id, e.getMessage() );
+        }
 
         int credentialsDeleted = 0;
         for ( final String name : credStore.list( id ) ) {

@@ -118,6 +118,17 @@ public class GoogleDriveAuthResource extends RestServletBase {
         if ( result == DriveAuthCoordinator.AuthResult.SUCCESS ) {
             rebuildBestEffort();   // fresh refresh token reaches the live connector
         }
+        respondWithCallbackOutcome( request, response, result, connectorId, returnTo );
+    }
+
+    /** Builds the callback's response once the token exchange has run: a redirect back to the
+     *  wizard (with an {@code ?oauth=} outcome query param) when a {@code return_to} was captured
+     *  at {@code /authorize} time, otherwise a plain JSON status response keyed off {@code result}.
+     *  Extracted from {@link #handleCallback} purely to keep that method's cyclomatic complexity
+     *  under the CI gate — behavior is unchanged. */
+    private void respondWithCallbackOutcome( final HttpServletRequest request, final HttpServletResponse response,
+            final DriveAuthCoordinator.AuthResult result, final Object connectorId, final String returnTo )
+            throws IOException {
         if ( returnTo != null ) {
             final String outcome = result == DriveAuthCoordinator.AuthResult.SUCCESS
                 ? "ok" : result.name().toLowerCase( Locale.ROOT );

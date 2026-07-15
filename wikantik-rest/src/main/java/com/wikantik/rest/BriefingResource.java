@@ -92,8 +92,20 @@ public class BriefingResource extends RestServletBase {
                 .filter( s -> !s.isEmpty() ).toList();
     }
 
-    @Override
-    protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
+    /** {@link #doGet}'s query-parameter parsing/validation, plus the {@code format} value —
+     *  bundled together since {@code doGet} needs {@code format} again once it writes the final
+     *  response, well after this method's own validation is done. */
+    private record ValidatedBriefingRequest( BriefingRequest request, String format ) {}
+
+    /** Parses and validates every {@code doGet} query parameter down to a ready {@link
+     *  BriefingRequest} (plus the requested {@code format}). Returns {@code null} when validation
+     *  fails — in every failure case this method has already written the {@code 400} error
+     *  response itself (mirrors the {@code parseJsonBody}-returns-null-after-already-sending-400
+     *  idiom used elsewhere in {@code wikantik-rest}), so the caller only needs to check for {@code
+     *  null} and return. Extracted from {@link #doGet} purely to keep that method's cyclomatic
+     *  complexity under the CI gate — behavior is unchanged. */
+    private ValidatedBriefingRequest parseAndValidate( final HttpServletRequest req, final HttpServletResponse resp )
+            throws IOException {
         final List< String > pins = splitCsv( req.getParameter( "pins" ) );
         final List< String > clusters = splitCsv( req.getParameter( "clusters" ) );
         final String prompt = req.getParameter( "prompt" );
@@ -107,7 +119,7 @@ public class BriefingResource extends RestServletBase {
                 budget = Integer.parseInt( budgetRaw.trim() );
             } catch ( final NumberFormatException e ) {
                 writeError( resp, 400, "invalid budget" );
-                return;
+                return null;
             }
         }
 
@@ -116,20 +128,32 @@ public class BriefingResource extends RestServletBase {
             mode = ScopeMode.fromWire( req.getParameter( "scope_mode" ) );
         } catch ( final IllegalArgumentException e ) {
             writeError( resp, 400, e.getMessage() );
-            return;
+            return null;
         }
 
         final String format = req.getParameter( "format" );
         if ( format != null && !format.isBlank() && !"json".equals( format ) && !"md".equals( format ) ) {
             writeError( resp, 400, "format must be 'json' or 'md'" );
-            return;
+            return null;
         }
 
         final BriefingRequest request = new BriefingRequest( pins, clusters, prompt, budget, mode );
         if ( !request.hasAnySource() ) {
             writeError( resp, 400, "at least one of pins, clusters, prompt is required" );
-            return;
+            return null;
         }
+        return new ValidatedBriefingRequest( request, format );
+    }
+
+    @Override
+    protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
+        final ValidatedBriefingRequest validated = parseAndValidate( req, resp );
+        if ( validated == null ) return;   // parseAndValidate already sent the 400
+        final BriefingRequest request = validated.request();
+        final String format = validated.format();
+        final List< String > pins = request.pins();
+        final List< String > clusters = request.clusters();
+        final String prompt = request.prompt();
 
         final BriefingAssemblyService svc = briefingService();
         if ( svc == null ) {

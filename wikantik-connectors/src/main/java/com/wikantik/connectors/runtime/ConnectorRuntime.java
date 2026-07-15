@@ -24,6 +24,9 @@ import com.wikantik.connectors.SyncReport;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -135,11 +138,17 @@ public final class ConnectorRuntime {
         return out;
     }
 
-    public synchronized void startScheduler( final long intervalHours ) {
-        if ( intervalHours <= 0 ) {
-            LOG.info( "connector sync scheduler disabled (interval={}h)", intervalHours );
-            return;
-        }
+    /** Supplies the sync interval (in hours) for one connector id — {@code <= 0} means "manual only,
+     *  never due". Backed by {@code ConnectorConfigService::intervalHoursFor} in production. */
+    @FunctionalInterface
+    public interface IntervalProvider {
+        long intervalHoursFor( String connectorId );
+    }
+
+    /** Starts a 60s-period due-tick: every minute, checks every registered connector against its
+     *  own interval (via {@code intervals}) and syncs the ones that are due. Replaces the old
+     *  single fixed-rate scheduler so each connector can carry its own interval. */
+    public synchronized void startDueTickScheduler( final IntervalProvider intervals ) {
         if ( isSchedulerRunning() ) {
             // idempotent restart — shut the prior executor down first so a second start
             // (e.g. a startup retry) can't orphan a live scheduled task
@@ -151,21 +160,43 @@ public final class ConnectorRuntime {
             t.setDaemon( true );
             return t;
         } );
-        executor.scheduleAtFixedRate( this::syncAll, intervalHours, intervalHours, TimeUnit.HOURS );
-        LOG.info( "connector sync scheduler started (every {}h, {} connectors)", intervalHours, registry.ids().size() );
+        executor.scheduleAtFixedRate( () -> syncDue( intervals, Instant.now() ), 60, 60, TimeUnit.SECONDS );
+        LOG.info( "connector due-tick scheduler started (60s tick, {} connectors)", registry.ids().size() );
     }
 
-    private void syncAll() {
+    /** Syncs every registered connector whose interval has elapsed as of {@code now}. A connector
+     *  with interval {@code <= 0} is manual-only and always skipped; one that has never run
+     *  ({@code lastRun == null}, or an unparseable {@code lastRun}) is always due. Returns the
+     *  number of connectors actually synced. Package-visible for testing. */
+    int syncDue( final IntervalProvider intervals, final Instant now ) {
+        int ran = 0;
         for ( final String id : registry.ids() ) {
+            final long intervalHours = intervals.intervalHoursFor( id );
+            if ( intervalHours <= 0 ) continue;
+            if ( !isDue( id, intervalHours, now ) ) continue;
             try {
                 final SyncReport r = syncNow( id, "scheduled" );
                 LOG.info( "scheduled connector sync '{}': {}", id, r );
+                ran++;
             } catch ( final SyncInProgressException e ) {
                 // a manual sync holds the lock — skip this cycle rather than queue behind it
                 LOG.info( "scheduled connector sync '{}' skipped: {}", id, e.getMessage() );
             } catch ( final RuntimeException e ) {
                 LOG.warn( "scheduled connector sync '{}' failed: {}", id, e.getMessage() );
             }
+        }
+        return ran;
+    }
+
+    private boolean isDue( final String id, final long intervalHours, final Instant now ) {
+        final String lastRun = statusReader.read( id, registry.typeOf( id ) ).lastRun();
+        if ( lastRun == null ) return true;
+        try {
+            return !Instant.parse( lastRun ).plus( intervalHours, ChronoUnit.HOURS ).isAfter( now );
+        } catch ( final DateTimeParseException e ) {
+            LOG.warn( "connector '{}' has unparseable lastRun '{}' — treating as never-ran (due): {}",
+                id, lastRun, e.getMessage() );
+            return true;
         }
     }
 

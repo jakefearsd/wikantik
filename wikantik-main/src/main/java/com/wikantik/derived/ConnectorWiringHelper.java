@@ -134,7 +134,9 @@ public final class ConnectorWiringHelper {
 
         engine.setManager( ConnectorRuntime.class, runtime );
         final long intervalHours = parseLong( props, "sync.interval.hours", 0L );
-        runtime.startScheduler( intervalHours );
+        // TODO(Task 9): replace this constant-interval lambda with ConnectorConfigService::intervalHoursFor
+        // so each connector can carry its own DB-configured interval.
+        runtime.startDueTickScheduler( id -> intervalHours );
         LOG.info( "connector runtime wired: {} connector(s), scheduler interval {}h", byId.size(), intervalHours );
         return Optional.of( runtime );
     }

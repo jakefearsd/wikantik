@@ -23,6 +23,8 @@ import com.wikantik.connectors.SyncOrchestrator;
 import com.wikantik.connectors.SyncReport;
 import org.junit.jupiter.api.Test;
 import javax.sql.DataSource;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -33,6 +35,18 @@ class ConnectorRuntimeTest {
         return new SourceConnector() {
             public String connectorId() { return id; }
             public SyncBatch poll( SyncCursor c ) {
+                return new SyncBatch( List.of(), List.of(), new SyncCursor( "done" ), true );
+            }
+        };
+    }
+
+    /** Connector whose {@code poll()} records its id into {@code synced} — used to observe which
+     *  connectors {@link ConnectorRuntime#syncDue} actually ran. */
+    private static SourceConnector trackingConnector( String id, Set< String > synced ) {
+        return new SourceConnector() {
+            public String connectorId() { return id; }
+            public SyncBatch poll( SyncCursor c ) {
+                synced.add( id );
                 return new SyncBatch( List.of(), List.of(), new SyncCursor( "done" ), true );
             }
         };
@@ -85,16 +99,9 @@ class ConnectorRuntimeTest {
             () -> runtime( mock( DataSource.class ), connector( "fs1" ) ).syncNow( "nope" ) );
     }
 
-    @Test void schedulerDisabledWhenIntervalNonPositive() {
+    @Test void dueTickSchedulerStarts() {
         ConnectorRuntime rt = runtime( mock( DataSource.class ), connector( "fs1" ) );
-        rt.startScheduler( 0 );      // must NOT start a thread
-        assertFalse( rt.isSchedulerRunning() );
-        rt.stop();                   // safe even when never started
-    }
-
-    @Test void schedulerStartsWhenIntervalPositive() {
-        ConnectorRuntime rt = runtime( mock( DataSource.class ), connector( "fs1" ) );
-        rt.startScheduler( 24 );
+        rt.startDueTickScheduler( id -> 24L );
         assertTrue( rt.isSchedulerRunning() );
         rt.stop();
         assertFalse( rt.isSchedulerRunning() );
@@ -150,8 +157,8 @@ class ConnectorRuntimeTest {
 
     @Test void doubleStartRestartsWithoutLeakingAndStopsCleanly() {
         ConnectorRuntime rt = runtime( mock( DataSource.class ), connector( "fs1" ) );
-        rt.startScheduler( 24 );
-        rt.startScheduler( 24 );        // idempotent restart — must not orphan the first executor
+        rt.startDueTickScheduler( id -> 24L );
+        rt.startDueTickScheduler( id -> 24L );  // idempotent restart — must not orphan the first executor
         assertTrue( rt.isSchedulerRunning() );
         rt.stop();
         assertFalse( rt.isSchedulerRunning() );
@@ -225,5 +232,65 @@ class ConnectorRuntimeTest {
         assertThrows( IllegalArgumentException.class, () -> rt.syncNow( "c1" ) );
         assertEquals( "db", rt.registry().originOf( "c2" ) );
         assertEquals( "properties", rt.registry().originOf( "unknown" ) );
+    }
+
+    @Test void syncDueRunsOnlyDueConnectors() {
+        final Instant now = Instant.parse( "2026-07-15T12:00:00Z" );
+        final Set< String > syncedIds = new HashSet<>();
+        final Map< String, SourceConnector > byId = new LinkedHashMap<>();
+        final Map< String, String > typeById = new LinkedHashMap<>();
+        for ( final String id : List.of( "fresh", "stale", "never", "manualOnly" ) ) {
+            byId.put( id, trackingConnector( id, syncedIds ) );
+            typeById.put( id, "filesystem" );
+        }
+        final ConnectorRegistry reg = new ConnectorRegistry( byId, typeById );
+
+        final SyncStateStore store = mock( SyncStateStore.class );
+        when( store.loadCursor( anyString() ) ).thenReturn( Optional.empty() );
+        when( store.syncedHash( anyString(), anyString() ) ).thenReturn( Optional.empty() );
+        when( store.knownUris( anyString() ) ).thenReturn( List.of() );
+        final SyncOrchestrator orch = new SyncOrchestrator( store, mock( DerivedPageSink.class ) );
+
+        final ConnectorStatusReader statusReader = mock( ConnectorStatusReader.class );
+        when( statusReader.read( eq( "fresh" ), anyString() ) ).thenReturn(
+            new ConnectorStatus( "fresh", "filesystem", now.minus( 1, ChronoUnit.HOURS ).toString(), "ok", 0 ) );
+        when( statusReader.read( eq( "stale" ), anyString() ) ).thenReturn(
+            new ConnectorStatus( "stale", "filesystem", now.minus( 25, ChronoUnit.HOURS ).toString(), "ok", 0 ) );
+        when( statusReader.read( eq( "never" ), anyString() ) ).thenReturn(
+            new ConnectorStatus( "never", "filesystem", null, null, 0 ) );
+        when( statusReader.read( eq( "manualOnly" ), anyString() ) ).thenReturn(
+            new ConnectorStatus( "manualOnly", "filesystem", null, null, 0 ) );
+
+        final ConnectorRuntime rt = new ConnectorRuntime( reg, orch, statusReader, noopRecorder(), true );
+        final Map< String, Long > hours = Map.of( "fresh", 24L, "stale", 24L, "never", 24L, "manualOnly", 0L );
+        final int ran = rt.syncDue( hours::get, now );
+
+        assertEquals( 2, ran );                          // stale + never
+        assertEquals( Set.of( "stale", "never" ), syncedIds );
+    }
+
+    @Test void syncDueSkipsZeroInterval() {
+        final ConnectorRuntime rt = runtime( mock( DataSource.class ), connector( "fs1" ) );
+        assertEquals( 0, rt.syncDue( id -> 0L, Instant.now() ) );
+    }
+
+    @Test void syncDueSurvivesFailures() {
+        final ConnectorRegistry reg = new ConnectorRegistry(
+            Map.of( "bad", connector( "bad" ), "good", connector( "good" ) ),
+            Map.of( "bad", "filesystem", "good", "filesystem" ) );
+
+        final SyncOrchestrator orch = mock( SyncOrchestrator.class );
+        when( orch.sync( any() ) ).thenAnswer( inv -> {
+            final SourceConnector c = inv.getArgument( 0 );
+            if ( "bad".equals( c.connectorId() ) ) throw new RuntimeException( "boom" );
+            return new SyncReport( 1, 0, 0, 0, 0 );
+        } );
+
+        final ConnectorStatusReader statusReader = mock( ConnectorStatusReader.class );
+        when( statusReader.read( anyString(), anyString() ) )
+            .thenReturn( new ConnectorStatus( "x", "filesystem", null, null, 0 ) );   // never ran -> due
+
+        final ConnectorRuntime rt = new ConnectorRuntime( reg, orch, statusReader, noopRecorder(), true );
+        assertEquals( 1, rt.syncDue( id -> 1L, Instant.now() ) );   // only "good" counted, no exception escapes
     }
 }

@@ -1128,10 +1128,11 @@ public class WikiEngine implements Engine {
             final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontologyCoordinator =
                     com.wikantik.ontology.runtime.OntologyWiringHelper.wireOntology( this, props, ds, pageManager, filterManager );
 
-            // Wire the connector runtime (ConnectorWiringHelper): builds Phase-1 filesystem
-            // connectors from config + registers the ConnectorRuntime. Default-off
-            // (wikantik.connectors.enabled != true) and fail-closed — a wiring failure must
-            // not break the rest of startup (drift/citation/entity-extraction wiring below).
+            // Wire the connector runtime (ConnectorWiringHelper): builds properties- and DB-backed
+            // connectors from config, registers ConnectorRuntime + ConnectorConfigService. Syncing
+            // is enabled by default (wikantik.connectors.enabled=false opts out); wiring itself is
+            // unconditional and fail-closed — a wiring failure must not break the rest of startup
+            // (drift/citation/entity-extraction wiring below).
             try {
                 com.wikantik.derived.ConnectorWiringHelper.wireConnectors(
                     this, props, ds, pageManager, serviceRegistry.get( AttachmentManager.class ) );

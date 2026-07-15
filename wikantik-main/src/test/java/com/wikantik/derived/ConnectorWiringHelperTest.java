@@ -19,12 +19,22 @@
 package com.wikantik.derived;
 
 import com.wikantik.WikiEngine;
+import com.wikantik.api.managers.AttachmentManager;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.connectors.config.ConnectorConfigRow;
+import com.wikantik.connectors.config.JdbcConnectorConfigStore;
+import com.wikantik.connectors.runtime.ConnectorRuntime;
+import com.wikantik.connectors.runtime.ConnectorsDisabledException;
 import com.wikantik.connectors.web.FeedConfig;
 import com.wikantik.connectors.web.SitemapConfig;
 import com.wikantik.connectors.web.WebCrawlerConfig;
+import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.Test;
+import javax.sql.DataSource;
+import java.sql.Connection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
@@ -70,12 +80,81 @@ class ConnectorWiringHelperTest {
         assertTrue( ConnectorWiringHelper.parseRoot( "bad", "/data/\0oops" ).isEmpty() );
     }
 
-    @Test void disabledByDefaultReturnsEmpty() {
-        // enabled flag absent → wireConnectors is a no-op (no ConnectorRuntime). The CredentialStore
-        // is still registered unconditionally (see cipherFrom tests below), so engine must be real
-        // enough to accept setManager; ds may stay null (JdbcCredentialStore doesn't touch it eagerly).
+    // ---- full wireConnectors() wiring (Task 9: DB-backed config store, kill-switch default true) ----
+
+    /** Fresh H2 database with the {@code connector_configs} table — every wireConnectors() call now
+     *  reaches the DB (ConnectorConfigService.rebuild() runs unconditionally, even when disabled). */
+    private static DataSource h2WithConnectorConfigsSchema() throws Exception {
+        final JdbcDataSource h2 = new JdbcDataSource();
+        h2.setURL( "jdbc:h2:mem:wiring" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;MODE=PostgreSQL" );
+        try ( Connection c = h2.getConnection(); var s = c.createStatement() ) {
+            s.execute( "CREATE TABLE IF NOT EXISTS connector_configs (connector_id VARCHAR PRIMARY KEY,"
+                + " connector_type VARCHAR NOT NULL, enabled BOOLEAN NOT NULL DEFAULT TRUE,"
+                + " sync_interval_hours INT NOT NULL DEFAULT 0, config VARCHAR NOT NULL,"
+                + " cluster VARCHAR, default_tags VARCHAR, page_prefix VARCHAR,"
+                + " created TIMESTAMP WITH TIME ZONE DEFAULT now(), modified TIMESTAMP WITH TIME ZONE DEFAULT now())" );
+        }
+        return h2;
+    }
+
+    @Test void runtimeWiresWithZeroConnectorsByDefault() throws Exception {
+        // Empty properties → enabled defaults true, but no properties-origin connectors and no DB
+        // rows means the registry is legitimately empty. wireConnectors() must still return a
+        // present ConnectorRuntime (Task 9: runtime is always registered, even with zero connectors).
         final WikiEngine engine = mock( WikiEngine.class );
-        assertTrue( ConnectorWiringHelper.wireConnectors( engine, new Properties(), null, null, null ).isEmpty() );
+        final DataSource ds = h2WithConnectorConfigsSchema();
+        final PageManager pm = mock( PageManager.class );
+        final AttachmentManager am = mock( AttachmentManager.class );
+
+        final Optional< ConnectorRuntime > result =
+            ConnectorWiringHelper.wireConnectors( engine, new Properties(), ds, pm, am );
+
+        assertTrue( result.isPresent() );
+        assertTrue( result.get().registry().ids().isEmpty() );
+        assertTrue( result.get().syncingEnabled() );
+    }
+
+    @Test void enabledFalseSuppressesSyncing() throws Exception {
+        // wikantik.connectors.enabled=false → the runtime is still wired (DB-backed config CRUD
+        // keeps working), but syncing itself is refused and the due-tick scheduler never starts.
+        final WikiEngine engine = mock( WikiEngine.class );
+        final DataSource ds = h2WithConnectorConfigsSchema();
+        final PageManager pm = mock( PageManager.class );
+        final AttachmentManager am = mock( AttachmentManager.class );
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.connectors.enabled", "false" );
+
+        final Optional< ConnectorRuntime > result =
+            ConnectorWiringHelper.wireConnectors( engine, props, ds, pm, am );
+
+        assertTrue( result.isPresent() );
+        final ConnectorRuntime runtime = result.get();
+        assertFalse( runtime.syncingEnabled() );
+        assertFalse( runtime.isSchedulerRunning() );
+        assertThrows( ConnectorsDisabledException.class, () -> runtime.syncNow( "whatever" ) );
+    }
+
+    @Test void dbRowsJoinPropertiesConnectors() throws Exception {
+        // A DB-origin connector row (github) alongside a properties-origin connector (feed) — both
+        // must end up in the rebuilt registry, correctly attributed to their origin.
+        final WikiEngine engine = mock( WikiEngine.class );
+        final DataSource ds = h2WithConnectorConfigsSchema();
+        new JdbcConnectorConfigStore( ds ).upsert( new ConnectorConfigRow(
+            "gh", "github", true, 0, "{\"repo\":\"jake/notes\"}", null, null, null ) );
+        final PageManager pm = mock( PageManager.class );
+        final AttachmentManager am = mock( AttachmentManager.class );
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.connectors.feed.news.feed_urls", "https://example.com/feed.xml" );
+
+        final Optional< ConnectorRuntime > result =
+            ConnectorWiringHelper.wireConnectors( engine, props, ds, pm, am );
+
+        assertTrue( result.isPresent() );
+        final ConnectorRuntime runtime = result.get();
+        assertTrue( runtime.registry().get( "gh" ).isPresent(), "db-origin connector must be registered" );
+        assertEquals( "db", runtime.registry().originOf( "gh" ) );
+        assertTrue( runtime.registry().get( "news" ).isPresent(), "properties-origin connector must be registered" );
+        assertEquals( "properties", runtime.registry().originOf( "news" ) );
     }
 
     @Test void cipherFromValidKeyBuildsCipher() {

@@ -22,19 +22,20 @@ import com.wikantik.WikiEngine;
 import com.wikantik.api.connectors.CredentialStore;
 import com.wikantik.api.connectors.DriveAuthCoordinator;
 import com.wikantik.api.connectors.SourceConnector;
+import com.wikantik.api.connectors.SyncStateStore;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.connectors.SyncOrchestrator;
 import com.wikantik.connectors.confluence.ConfluenceConfig;
+import com.wikantik.connectors.config.JdbcConnectorConfigStore;
 import com.wikantik.connectors.credential.JdbcCredentialStore;
 import com.wikantik.connectors.filesystem.FilesystemSourceConnector;
-import com.wikantik.connectors.gdrive.DefaultDriveAuthCoordinator;
 import com.wikantik.connectors.gdrive.DriveConfig;
-import com.wikantik.connectors.gdrive.GoogleDriveOAuthService;
 import com.wikantik.connectors.github.GithubConfig;
 import com.wikantik.connectors.runtime.ConnectorRegistry;
 import com.wikantik.connectors.runtime.ConnectorRuntime;
 import com.wikantik.connectors.runtime.ConnectorStatusReader;
+import com.wikantik.connectors.state.JdbcSyncRunStore;
 import com.wikantik.connectors.state.JdbcSyncStateStore;
 import com.wikantik.connectors.web.FeedConfig;
 import com.wikantik.connectors.web.SitemapConfig;
@@ -52,11 +53,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Consumer;
 
-/** Thin startup wiring: builds the connector runtime from config and registers it. No-op unless
- *  {@code wikantik.connectors.enabled=true}. Lives in the existing derived package (invariant #6).
- *  Named {@code *WiringHelper} so the decomposition ArchUnit rule permits engine access; it calls
- *  only {@code setManager} (never {@code getManager}), mirroring {@code OntologyWiringHelper}. */
+/** Startup wiring: builds the connector runtime (properties + DB-backed configs) and registers it,
+ *  the {@link ConnectorConfigService}, and their supporting managers unconditionally — an empty
+ *  registry (no properties connectors, no DB rows) is fine. {@code wikantik.connectors.enabled}
+ *  (default {@code true}) only gates whether syncing is actually allowed to run (the due-tick
+ *  scheduler and {@code ConnectorRuntime.syncNow}); config CRUD keeps working either way. Lives in
+ *  the existing derived package (invariant #6). Named {@code *WiringHelper} so the decomposition
+ *  ArchUnit rule permits engine access; it calls only {@code setManager} (never {@code getManager}),
+ *  mirroring {@code OntologyWiringHelper}. */
 public final class ConnectorWiringHelper {
 
     private static final Logger LOG = LogManager.getLogger( ConnectorWiringHelper.class );
@@ -71,9 +77,15 @@ public final class ConnectorWiringHelper {
         // (enabled()==false) whenever no/invalid master key is configured.
         final CredentialStore credStore = new JdbcCredentialStore( ds, cipherFrom( props ) );
         engine.setManager( CredentialStore.class, credStore );
-        if ( !Boolean.parseBoolean( props.getProperty( PREFIX + "enabled", "false" ) ) ) {
-            return Optional.empty();
-        }
+
+        // Kill switch: default flipped to enabled — an operator now opts OUT
+        // (wikantik.connectors.enabled=false) instead of opting in. Disabled still wires
+        // everything below (DB-backed config CRUD keeps working from /admin) but suppresses actual
+        // syncing: ConnectorRuntime.syncNow throws ConnectorsDisabledException and the due-tick
+        // scheduler is never started. An empty registry (no properties connectors, no DB rows) is
+        // fine — the runtime is always registered.
+        final boolean enabled = Boolean.parseBoolean( props.getProperty( PREFIX + "enabled", "true" ) );
+
         final Map< String, String > roots = filesystemRoots( props );
         final Map< String, WebCrawlerConfig > webcrawlers = webcrawlerConfigs( props );
         final Map< String, SitemapConfig > sitemaps = sitemapConfigs( props );
@@ -81,15 +93,6 @@ public final class ConnectorWiringHelper {
         final Map< String, DriveConfig > drives = driveConfigs( props );
         final Map< String, GithubConfig > githubs = githubConfigs( props );
         final Map< String, ConfluenceConfig > confluences = confluenceConfigs( props );
-        if ( roots.isEmpty() && webcrawlers.isEmpty() && sitemaps.isEmpty() && feeds.isEmpty() && drives.isEmpty()
-                && githubs.isEmpty() && confluences.isEmpty() ) {
-            LOG.info( "connectors enabled but no wikantik.connectors.filesystem.*.root or "
-                + "wikantik.connectors.webcrawler.*.seeds or wikantik.connectors.sitemap.*.sitemap_urls or "
-                + "wikantik.connectors.feed.*.feed_urls or wikantik.connectors.gdrive.*.folder_ids "
-                + "or wikantik.connectors.github.*.repo or wikantik.connectors.confluence.*.space_key "
-                + "configured — nothing to sync" );
-            return Optional.empty();
-        }
         final Map< String, SourceConnector > byId = new LinkedHashMap<>();
         final Map< String, String > typeById = new LinkedHashMap<>();
         for ( final Map.Entry< String, String > e : roots.entrySet() ) {
@@ -114,10 +117,8 @@ public final class ConnectorWiringHelper {
             ConnectorAssembler.build( e.getKey(), "gdrive", e.getValue(), credStore )
                 .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "gdrive" ); } );
         }
-        if ( !drives.isEmpty() ) {
-            engine.setManager( DriveAuthCoordinator.class,
-                new DefaultDriveAuthCoordinator( drives, new GoogleDriveOAuthService(), credStore ) );
-        }
+        // Note: no inline DriveAuthCoordinator setManager here — ConnectorConfigService.rebuild()
+        // (called below) owns installing it, combining gdrive configs from both origins.
         for ( final Map.Entry< String, GithubConfig > e : githubs.entrySet() ) {
             ConnectorAssembler.build( e.getKey(), "github", e.getValue(), credStore )
                 .ifPresent( c -> { byId.put( e.getKey(), c ); typeById.put( e.getKey(), "github" ); } );
@@ -128,16 +129,40 @@ public final class ConnectorWiringHelper {
         }
         final DerivedPageIngestionService ingestion = DerivedIngestionServiceFactory.build( engine, pm, am );
         final DerivedPageSinkAdapter sink = new DerivedPageSinkAdapter( ingestion, pm::deletePage, "connector-sync" );
-        final SyncOrchestrator orchestrator = new SyncOrchestrator( new JdbcSyncStateStore( ds ), sink );
+        final JdbcSyncStateStore syncStateStore = new JdbcSyncStateStore( ds );
+        final SyncOrchestrator orchestrator = new SyncOrchestrator( syncStateStore, sink );
+        final JdbcSyncRunStore runStore = new JdbcSyncRunStore( ds );
         final ConnectorRuntime runtime = new ConnectorRuntime(
-            new ConnectorRegistry( byId, typeById ), orchestrator, new ConnectorStatusReader( ds ) );
+            new ConnectorRegistry( byId, typeById ), orchestrator, new ConnectorStatusReader( ds ), runStore, enabled );
 
         engine.setManager( ConnectorRuntime.class, runtime );
-        final long intervalHours = parseLong( props, "sync.interval.hours", 0L );
-        // TODO(Task 9): replace this constant-interval lambda with ConnectorConfigService::intervalHoursFor
-        // so each connector can carry its own DB-configured interval.
-        runtime.startDueTickScheduler( id -> intervalHours );
-        LOG.info( "connector runtime wired: {} connector(s), scheduler interval {}h", byId.size(), intervalHours );
+        engine.setManager( JdbcSyncRunStore.class, runStore );
+        engine.setManager( SyncStateStore.class, syncStateStore );
+
+        // pm.deletePage throws a checked ProviderException; ConnectorConfigService.delete() must
+        // not abort its per-page delete loop on one bad delete — wrap and log instead (mirrors
+        // DerivedPageSinkAdapter.delete's fail-soft shape).
+        final Consumer< String > pageDeleter = pageName -> {
+            try {
+                pm.deletePage( pageName );
+            } catch ( final Exception e ) {
+                LOG.warn( "connector config: delete of page '{}' failed: {}", pageName, e.getMessage() );
+            }
+        };
+        final Consumer< String > orphanStamper = DerivedIngestionServiceFactory.orphanStamper( engine, pm );
+
+        final ConnectorConfigService service = new ConnectorConfigService(
+            new JdbcConnectorConfigStore( ds ), syncStateStore, credStore, runtime,
+            byId, typeById, drives, pageDeleter, orphanStamper, props,
+            c -> engine.setManager( DriveAuthCoordinator.class, c ) );
+        service.rebuild();   // loads DB rows and hot-swaps them into the registry built above
+        engine.setManager( ConnectorConfigService.class, service );
+
+        if ( enabled ) {
+            runtime.startDueTickScheduler( service::intervalHoursFor );
+        }
+        LOG.info( "connector runtime wired: {} connector(s) after DB rebuild, enabled={}",
+            runtime.registry().ids().size(), enabled );
         return Optional.of( runtime );
     }
 
@@ -354,11 +379,6 @@ public final class ConnectorWiringHelper {
 
     private static long parseLongValue( final Properties props, final String key, final long def ) {
         try { return Long.parseLong( props.getProperty( key, String.valueOf( def ) ).trim() ); }
-        catch ( final NumberFormatException e ) { return def; }
-    }
-
-    private static long parseLong( final Properties props, final String suffix, final long def ) {
-        try { return Long.parseLong( props.getProperty( PREFIX + suffix, String.valueOf( def ) ).trim() ); }
         catch ( final NumberFormatException e ) { return def; }
     }
 }

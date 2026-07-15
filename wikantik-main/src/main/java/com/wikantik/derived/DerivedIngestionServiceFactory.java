@@ -33,6 +33,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.ByteArrayInputStream;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /** Builds a {@link DerivedPageIngestionService} wired to the real wiki managers. Shared by the
  *  derived-ingest REST resource and the connector runtime so the page-seam wiring lives in one place. */
@@ -50,7 +52,27 @@ public final class DerivedIngestionServiceFactory {
             final var att = Wiki.contents().attachment( engine, pageName, filename );
             am.storeAttachment( att, new ByteArrayInputStream( bytes ) );
         };
-        final DerivedPageIngestionService.PageReader pageReader = pageName -> {
+        final DerivedPageIngestionService.PageReader pageReader = pageReader( pm );
+        final DerivedPageIngestionService.PageWriter pageWriter =
+            pageWriter( saveHelper, "derived page — ingested from source document" );
+        final DerivedPageIngestionService.PageDeleter pageDeleter = pm::deletePage;
+
+        return new DerivedPageIngestionService( new TikaSourceExtractor(), attachmentStore, pageReader, pageWriter, pageDeleter );
+    }
+
+    /** Builds a {@link DerivedPageOrphanStamper} sharing the exact page-read/write mechanism as
+     *  {@link #build} — used by {@code ConnectorWiringHelper} so that when an admin deletes a
+     *  connector without cascading page deletion, the pages it synced get stamped
+     *  {@code derived_orphaned: true} instead of silently going stale. */
+    public static Consumer< String > orphanStamper( final Engine engine, final PageManager pm ) {
+        final PageSaveHelper saveHelper = new PageSaveHelper( engine, pm );
+        final DerivedPageIngestionService.PageWriter pageWriter =
+            pageWriter( saveHelper, "connector removed — page orphaned from its source" );
+        return new DerivedPageOrphanStamper( pageReader( pm ), bodyReader( pm ), pageWriter, "connector-sync" );
+    }
+
+    private static DerivedPageIngestionService.PageReader pageReader( final PageManager pm ) {
+        return pageName -> {
             try {
                 final String text = pm.getPureText( pageName, WikiProvider.LATEST_VERSION );
                 if ( text == null || text.isBlank() ) return Optional.empty();
@@ -60,14 +82,30 @@ public final class DerivedIngestionServiceFactory {
                 return Optional.empty();
             }
         };
-        final DerivedPageIngestionService.PageWriter pageWriter = ( pageName, body, metadata, author ) -> {
+    }
+
+    /** Reads a page's body with its frontmatter block stripped off — used only by
+     *  {@link #orphanStamper}, which rewrites metadata on an existing page without re-extracting
+     *  its content (the body must pass through untouched). */
+    private static Function< String, String > bodyReader( final PageManager pm ) {
+        return pageName -> {
+            try {
+                final String text = pm.getPureText( pageName, WikiProvider.LATEST_VERSION );
+                return text == null ? "" : FrontmatterParser.parse( text ).body();
+            } catch ( final Exception e ) {
+                LOG.warn( "DerivedIngestionServiceFactory: could not read body of page '{}': {}", pageName, e.getMessage() );
+                return "";
+            }
+        };
+    }
+
+    private static DerivedPageIngestionService.PageWriter pageWriter( final PageSaveHelper saveHelper,
+            final String changeNote ) {
+        return ( pageName, body, metadata, author ) -> {
             final SaveOptions opts = SaveOptions.builder()
                 .metadata( metadata ).author( author ).replaceMetadata( true )
-                .changeNote( "derived page — ingested from source document" ).build();
+                .changeNote( changeNote ).build();
             saveHelper.saveText( pageName, body, opts );
         };
-        final DerivedPageIngestionService.PageDeleter pageDeleter = pm::deletePage;
-
-        return new DerivedPageIngestionService( new TikaSourceExtractor(), attachmentStore, pageReader, pageWriter, pageDeleter );
     }
 }

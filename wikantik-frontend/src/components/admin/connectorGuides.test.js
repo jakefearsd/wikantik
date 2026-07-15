@@ -31,7 +31,18 @@ describe('connectorGuides', () => {
     expect(CONNECTOR_TYPES.sitemap.fields.find(f => f.name === 'sitemap_urls').required).toBe(true);
     expect(CONNECTOR_TYPES.feed.fields.find(f => f.name === 'feed_urls').required).toBe(true);
     expect(CONNECTOR_TYPES.confluence.fields.find(f => f.name === 'space_key').required).toBe(true);
+    expect(CONNECTOR_TYPES.confluence.fields.find(f => f.name === 'base_url').required).toBe(true);
+    expect(CONNECTOR_TYPES.confluence.fields.find(f => f.name === 'email').required).toBe(true);
     expect(CONNECTOR_TYPES.gdrive.fields.find(f => f.name === 'folder_ids').required).toBe(true);
+    expect(CONNECTOR_TYPES.gdrive.fields.find(f => f.name === 'client_id').required).toBe(true);
+    // redirect_uri is deliberately optional — the server fills in the wiki's own
+    // callback URL when it is blank.
+    expect(CONNECTOR_TYPES.gdrive.fields.find(f => f.name === 'redirect_uri').required).toBeUndefined();
+  });
+
+  it('github authGuide carries the public-repo optionalNote', () => {
+    expect(typeof CONNECTOR_TYPES.github.authGuide.optionalNote).toBe('string');
+    expect(CONNECTOR_TYPES.github.authGuide.optionalNote.length).toBeGreaterThan(0);
   });
 
   it('field types are exactly: text | number | bool | list', () => {

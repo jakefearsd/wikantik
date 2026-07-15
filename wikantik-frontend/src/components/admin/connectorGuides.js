@@ -52,7 +52,7 @@ export const CONNECTOR_TYPES = {
     ],
     authGuide: null,
     expectations:
-      'The first sync fetches up to your max-pages cap and creates one wiki page per crawled page, with the page name combining your configured prefix (if any) and the URL path flattened (slashes become underscores). Cluster and tags are applied according to your source settings. Page bodies are machine-managed — any edits you make to them will be overwritten on the next sync, but frontmatter curation you add is preserved across syncs. Pages appear in search after the async indexer catches up, typically within a minute.',
+      'The first sync fetches up to your max-pages cap and creates one wiki page per crawled page, named from the URL path flattened (slashes become underscores); a configured page-name prefix is glued directly onto that flattened name with no separator, so include your own — like "News-". Cluster and tags are applied according to your source settings. Page bodies are machine-managed — any edits you make to them will be overwritten on the next sync, but frontmatter curation you add is preserved across syncs. Pages appear in search after the async indexer catches up, typically within a minute.',
   },
 
   sitemap: {
@@ -96,7 +96,7 @@ export const CONNECTOR_TYPES = {
     ],
     authGuide: null,
     expectations:
-      'The first sync parses your sitemap(s) and fetches up to your max-pages cap, creating one wiki page per unique URL discovered. Each page name combines your configured prefix (if any) with the URL path flattened (slashes become underscores). Cluster and tags are applied according to your source settings. Page bodies are machine-managed — edits to them will be overwritten on the next sync, but frontmatter curation is preserved. Pages appear in search after the async indexer catches up, typically within a minute.',
+      'The first sync parses your sitemap(s) and fetches up to your max-pages cap, creating one wiki page per unique URL discovered. Each page is named from the URL path flattened (slashes become underscores), and a configured page-name prefix is glued directly onto that flattened name with no separator — include your own, like "News-". Cluster and tags are applied according to your source settings. Page bodies are machine-managed — edits to them will be overwritten on the next sync, but frontmatter curation is preserved. Pages appear in search after the async indexer catches up, typically within a minute.',
   },
 
   feed: {
@@ -147,7 +147,7 @@ export const CONNECTOR_TYPES = {
     ],
     authGuide: null,
     expectations:
-      'The first sync reads your feed(s) and creates one wiki page per item, up to your max-items cap per feed. Each page name combines your configured prefix (if any) with the feed title and item title, flattened (non-alphanumerics become underscores). If you enabled fetching full articles, the sync will download the linked page content. Cluster and tags are applied according to your source settings. Page bodies are machine-managed — edits will be overwritten on the next sync, but frontmatter curation is preserved. Pages appear in search after the async indexer catches up, typically within a minute.',
+      'The first sync reads your feed(s) and creates one wiki page per item, up to your max-items cap per feed. Each page is named from the feed and item titles flattened (non-alphanumerics become underscores), and a configured page-name prefix is glued directly onto that flattened name with no separator — include your own, like "News-". If you enabled fetching full articles, the sync will download the linked page content. Cluster and tags are applied according to your source settings. Page bodies are machine-managed — edits will be overwritten on the next sync, but frontmatter curation is preserved. Pages appear in search after the async indexer catches up, typically within a minute.',
   },
 
   github: {
@@ -185,6 +185,7 @@ export const CONNECTOR_TYPES = {
     ],
     authGuide: {
       secretName: 'token',
+      optionalNote: 'Public repositories work without a token.',
       steps: [
         'Open GitHub → Settings → Developer settings → Fine-grained personal access tokens.',
         'Generate new token; under Repository access choose Only select repositories and pick just this repo.',
@@ -194,7 +195,7 @@ export const CONNECTOR_TYPES = {
       ],
     },
     expectations:
-      'The first sync walks the repository tree and creates one wiki page per markdown file (up to your max-files cap), with the page name combining your configured prefix (if any) and the file path flattened (slashes become underscores; .md extension removed). Cluster and tags are applied according to your source settings. Page bodies are machine-managed — edits will be overwritten on the next sync, but frontmatter curation is preserved. Pages appear in search after the async indexer catches up, typically within a minute.',
+      'The first sync walks the repository tree and creates one wiki page per markdown file (up to your max-files cap), named from the file path flattened (slashes become underscores; .md extension removed); a configured page-name prefix is glued directly onto that flattened name with no separator, so include your own — like "Docs-". Cluster and tags are applied according to your source settings. Page bodies are machine-managed — edits will be overwritten on the next sync, but frontmatter curation is preserved. Pages appear in search after the async indexer catches up, typically within a minute.',
   },
 
   confluence: {
@@ -242,7 +243,7 @@ export const CONNECTOR_TYPES = {
       ],
     },
     expectations:
-      'The first sync lists every page in the space and creates one wiki page per Confluence page (up to your max-pages cap), with the page name combining your configured prefix (if any) and the Confluence page title flattened (non-alphanumerics become underscores). Cluster and tags are applied according to your source settings. Page bodies are machine-managed — edits will be overwritten on the next sync, but frontmatter curation is preserved. Pages appear in search after the async indexer catches up, typically within a minute.',
+      'The first sync lists every page in the space and creates one wiki page per Confluence page (up to your max-pages cap), named from the Confluence page title flattened (non-alphanumerics become underscores); a configured page-name prefix is glued directly onto that flattened name with no separator, so include your own — like "Wiki-". Cluster and tags are applied according to your source settings. Page bodies are machine-managed — edits will be overwritten on the next sync, but frontmatter curation is preserved. Pages appear in search after the async indexer catches up, typically within a minute.',
   },
 
   gdrive: {
@@ -276,12 +277,13 @@ export const CONNECTOR_TYPES = {
         name: 'redirect_uri',
         type: 'text',
         label: 'Redirect URI (optional)',
-        help: 'Leave blank to use this wiki\'s callback URL — you will register it in Google Cloud in the next step.',
+        help: 'Leave blank — the server fills in this wiki\'s own callback URL (shown during authorization). Only set this if your Google OAuth client must use a different registered URI.',
       },
       {
         name: 'client_id',
         type: 'text',
         label: 'Client ID',
+        required: true,
         help: 'OAuth2 Client ID from Google Cloud Console (shared with client_secret).',
       },
     ],
@@ -298,7 +300,7 @@ export const CONNECTOR_TYPES = {
       ],
     },
     expectations:
-      'After OAuth authorization, the first sync walks your Google Drive folders and exports files (up to your max-files cap) in your chosen format, creating one wiki page per file. Each page name combines your configured prefix (if any) with the folder hierarchy and filename flattened (slashes and non-alphanumerics become underscores). Cluster and tags are applied according to your source settings. Page bodies are machine-managed — edits will be overwritten on the next sync, but frontmatter curation is preserved. Pages appear in search after the async indexer catches up, typically within a minute.',
+      'After OAuth authorization, the first sync walks your Google Drive folders and exports files (up to your max-files cap) in your chosen format, creating one wiki page per file. Each page is named from the folder hierarchy and filename flattened (slashes and non-alphanumerics become underscores), and a configured page-name prefix is glued directly onto that flattened name with no separator — include your own, like "Drive-". Cluster and tags are applied according to your source settings. Page bodies are machine-managed — edits will be overwritten on the next sync, but frontmatter curation is preserved. Pages appear in search after the async indexer catches up, typically within a minute.',
   },
 };
 

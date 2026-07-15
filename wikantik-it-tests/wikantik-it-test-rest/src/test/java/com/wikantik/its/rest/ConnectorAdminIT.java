@@ -321,7 +321,9 @@ public class ConnectorAdminIT {
     }
 
     /**
-     * Step 4 — {@code GET /admin/connectors} lists every registered connector; the array must
+     * Step 4 — {@code GET /admin/connectors} lists every registered connector under the
+     * {@code connectors} array of the enriched envelope ({@code { syncingEnabled,
+     * credentialStoreEnabled, connectors: [...] }}, connector-admin-UI Task 10); the array must
      * contain the {@code itfs} filesystem connector wired for this IT.
      */
     @Test
@@ -333,11 +335,13 @@ public class ConnectorAdminIT {
             final HttpResponse< String > resp = get( "/admin/connectors" );
             assertEquals( 200, resp.statusCode(), "GET /admin/connectors must return 200: " + resp.body() );
 
-            final JsonArray json = JsonParser.parseString( resp.body() ).getAsJsonArray();
+            final JsonObject envelope = JsonParser.parseString( resp.body() ).getAsJsonObject();
+            assertTrue( envelope.has( "connectors" ), "GET /admin/connectors must have 'connectors': " + resp.body() );
+            final JsonArray json = envelope.getAsJsonArray( "connectors" );
             boolean found = false;
             for ( final var el : json ) {
                 final JsonObject o = el.getAsJsonObject();
-                if ( o.has( "connectorId" ) && CONNECTOR_ID.equals( o.get( "connectorId" ).getAsString() ) ) {
+                if ( o.has( "id" ) && CONNECTOR_ID.equals( o.get( "id" ).getAsString() ) ) {
                     found = true;
                     break;
                 }

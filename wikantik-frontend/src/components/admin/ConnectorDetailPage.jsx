@@ -67,7 +67,11 @@ export default function ConnectorDetailPage() {
     <AdminPage loading={loading} error={error} loadingLabel="Loading connector…">
       {detail && (
         <>
-          <Link to="/admin/connectors" data-testid="back-to-connectors" className="admin-back-link">
+          <Link
+            to="/admin/connectors"
+            data-testid="back-to-connectors"
+            style={{ color: 'var(--text-muted)', fontSize: '0.875rem', textDecoration: 'none', display: 'inline-block', marginBottom: 'var(--space-md)' }}
+          >
             ← Connectors
           </Link>
           <PageHeader

@@ -10,6 +10,19 @@
   margin-bottom: var(--space-lg);
 }
 
+/* Connector detail page — status strip + OAuth consent line */
+.connector-status-strip,
+.connector-consent-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
 .admin-search {
   flex: 1;
   padding: var(--space-sm) var(--space-md);

@@ -132,6 +132,38 @@ public final class JdbcSyncStateStore implements SyncStateStore {
             ps -> { ps.setString( 1, id ); ps.setString( 2, uri ); } );
     }
 
+    @Override public void purge( final String id ) {
+        try ( Connection c = ds.getConnection() ) {
+            try ( PreparedStatement ps = c.prepareStatement( "DELETE FROM connector_synced_item WHERE connector_id=?" ) ) {
+                ps.setString( 1, id );
+                ps.executeUpdate();
+            }
+            try ( PreparedStatement ps = c.prepareStatement( "DELETE FROM connector_sync_state WHERE connector_id=?" ) ) {
+                ps.setString( 1, id );
+                ps.executeUpdate();
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "purge failed for connector '{}': {}", id, e.getMessage() );
+        }
+    }
+
+    @Override public List< SyncedItem > items( final String id ) {
+        final List< SyncedItem > out = new ArrayList<>();
+        try ( Connection c = ds.getConnection();
+              PreparedStatement ps = c.prepareStatement(
+                  "SELECT source_uri, page_name, last_synced FROM connector_synced_item WHERE connector_id=? ORDER BY page_name" ) ) {
+            ps.setString( 1, id );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) {
+                    out.add( new SyncedItem( rs.getString( 1 ), rs.getString( 2 ), rs.getTimestamp( 3 ).toInstant() ) );
+                }
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "items failed for connector '{}': {}", id, e.getMessage() );
+        }
+        return out;
+    }
+
     // --- helpers ---
     private interface Row< T > { T map( ResultSet rs ) throws SQLException; }
     private interface Bind { void bind( PreparedStatement ps ) throws SQLException; }

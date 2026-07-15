@@ -19,6 +19,7 @@
 package com.wikantik.connectors.state;
 
 import com.wikantik.api.connectors.SyncCursor;
+import com.wikantik.api.connectors.SyncStateStore;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,10 @@ class JdbcSyncStateStoreTest {
 
     @BeforeEach void schema() throws Exception {
         JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:connstate;DB_CLOSE_DELAY=-1;MODE=PostgreSQL" );
+        // Unique DB name per test method (mirrors ConnectorSyncEndToEndTest): a fixed name shares one
+        // in-memory H2 instance (DB_CLOSE_DELAY=-1 keeps it alive) across every @Test in this class,
+        // so connector-id/URI reuse across tests silently pollutes later assertions.
+        h2.setURL( "jdbc:h2:mem:connstate_" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;MODE=PostgreSQL" );
         this.ds = h2;
         try ( Connection c = ds.getConnection(); var s = c.createStatement() ) {
             s.execute( "CREATE TABLE IF NOT EXISTS connector_sync_state (connector_id VARCHAR PRIMARY KEY, cursor VARCHAR, last_run TIMESTAMP WITH TIME ZONE, status VARCHAR)" );
@@ -75,5 +79,26 @@ class JdbcSyncStateStoreTest {
             rs.next();
             assertEquals( "[\"group:docs\",\"user:jo\"]", rs.getString( 1 ) );   // DoD #4: carried
         }
+    }
+
+    @Test void purgeRemovesStateAndItems() {
+        final JdbcSyncStateStore store = new JdbcSyncStateStore( ds );
+        store.saveCursor( "c1", new SyncCursor( "cur" ) );
+        store.recordSynced( "c1", "u:1", "h", "PageA", List.of() );
+        store.recordSynced( "c2", "u:2", "h", "PageB", List.of() );
+        store.purge( "c1" );
+        assertTrue( store.loadCursor( "c1" ).isEmpty() );
+        assertTrue( store.knownUris( "c1" ).isEmpty() );
+        assertEquals( List.of( "u:2" ), store.knownUris( "c2" ) );   // untouched
+    }
+
+    @Test void itemsListsPageNames() {
+        final JdbcSyncStateStore store = new JdbcSyncStateStore( ds );
+        store.recordSynced( "c1", "u:1", "h", "PageA", List.of() );
+        final List< SyncStateStore.SyncedItem > items = store.items( "c1" );
+        assertEquals( 1, items.size() );
+        assertEquals( "PageA", items.get( 0 ).pageName() );
+        assertEquals( "u:1", items.get( 0 ).sourceUri() );
+        assertNotNull( items.get( 0 ).lastSynced() );
     }
 }

@@ -20,6 +20,6 @@ package com.wikantik.api.connectors;
 
 /** Port the orchestrator uses to write/delete derived pages. Implemented in wikantik-main. */
 public interface DerivedPageSink {
-    IngestOutcome ingest( SourceItem item );
+    IngestOutcome ingest( String connectorId, SourceItem item );
     void delete( String pageName );
 }

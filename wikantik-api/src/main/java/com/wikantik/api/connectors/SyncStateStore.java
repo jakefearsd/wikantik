@@ -31,4 +31,9 @@ public interface SyncStateStore {
     Optional< String > pageNameFor( String connectorId, String sourceUri );
     List< String > knownUris( String connectorId );
     void removeSynced( String connectorId, String sourceUri );
+    void purge( String connectorId );
+    List< SyncedItem > items( String connectorId );
+
+    /** One synced item as recorded by {@link #recordSynced}, for admin "pages" listings. */
+    record SyncedItem( String sourceUri, String pageName, java.time.Instant lastSynced ) {}
 }

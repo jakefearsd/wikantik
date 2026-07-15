@@ -56,7 +56,7 @@ class DerivedPageSinkAdapterTest {
             p -> { } );
 
         final DerivedPageSinkAdapter adapter = new DerivedPageSinkAdapter( ingestion, p -> { }, "sync-bot" );
-        final IngestOutcome out = adapter.ingest( new SourceItem(
+        final IngestOutcome out = adapter.ingest( "c1", new SourceItem(
             "file:docs/a.md", "raw".getBytes(), "text/markdown", Map.of(), List.of( "group:docs" ), "hash" ) );
 
         assertEquals( IngestOutcome.Status.CREATED, out.status() );

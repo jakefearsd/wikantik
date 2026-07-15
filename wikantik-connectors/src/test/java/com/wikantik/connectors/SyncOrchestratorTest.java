@@ -37,12 +37,15 @@ class SyncOrchestratorTest {
         public Optional< String > pageNameFor( String id, String uri ) { return Optional.ofNullable( page.get( uri ) ); }
         public List< String > knownUris( String id ) { return new ArrayList<>( hash.keySet() ); }
         public void removeSynced( String id, String uri ) { hash.remove( uri ); page.remove( uri ); }
+        public void purge( String id ) { }
+        public List< SyncStateStore.SyncedItem > items( String id ) { return List.of(); }
     }
     /** Records ingest/delete calls; page name = uri. */
     static final class FakeSink implements DerivedPageSink {
         final List< String > ingested = new ArrayList<>();
         final List< String > deleted = new ArrayList<>();
-        public IngestOutcome ingest( SourceItem i ) { ingested.add( i.sourceUri() ); return new IngestOutcome( i.sourceUri(), IngestOutcome.Status.CREATED ); }
+        String lastConnectorId;
+        public IngestOutcome ingest( String connectorId, SourceItem i ) { lastConnectorId = connectorId; ingested.add( i.sourceUri() ); return new IngestOutcome( i.sourceUri(), IngestOutcome.Status.CREATED ); }
         public void delete( String pageName ) { deleted.add( pageName ); }
     }
     static SourceItem item( String uri, String hash ) { return new SourceItem( uri, new byte[0], "text/markdown", Map.of(), List.of(), hash ); }
@@ -60,6 +63,7 @@ class SyncOrchestratorTest {
         assertEquals( List.of( "file:a.md", "file:b.md" ), sink.ingested );
         assertEquals( "cur1", store.cursor.get( "c1" ) );
         assertEquals( 2, r.created() );
+        assertEquals( "c1", sink.lastConnectorId );
     }
 
     @Test void skipsUnchangedByHash() {
@@ -181,7 +185,7 @@ class SyncOrchestratorTest {
     @Test void failedIngestIsNotRecordedSoItRetries() {
         FakeStore store = new FakeStore();
         DerivedPageSink failing = new DerivedPageSink() {
-            public IngestOutcome ingest( SourceItem i ) { return new IngestOutcome( i.sourceUri(), IngestOutcome.Status.FAILED ); }
+            public IngestOutcome ingest( String connectorId, SourceItem i ) { return new IngestOutcome( i.sourceUri(), IngestOutcome.Status.FAILED ); }
             public void delete( String p ) { }
         };
         new SyncOrchestrator( store, failing ).sync(

@@ -67,7 +67,7 @@ public final class SyncOrchestrator {
                     unchanged++;
                     continue;
                 }
-                final IngestOutcome out = sink.ingest( item );
+                final IngestOutcome out = sink.ingest( id, item );
                 switch ( out.status() ) {
                     case CREATED -> created++;
                     case UPDATED -> updated++;

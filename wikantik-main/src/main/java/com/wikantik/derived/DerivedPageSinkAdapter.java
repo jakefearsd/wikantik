@@ -41,7 +41,9 @@ public final class DerivedPageSinkAdapter implements DerivedPageSink {
     }
 
     @Override
-    public IngestOutcome ingest( final SourceItem item ) {
+    public IngestOutcome ingest( final String connectorId, final SourceItem item ) {
+        // connectorId is accepted but not yet used — a future task threads it into per-connector
+        // content defaults (frontmatter, cluster assignment, etc.).
         final IngestResult r = ingestion.ingest(
             item.content(), flatName( item.sourceUri() ), item.contentType(),
             new IngestOptions( false, author, item.sourceUri() ) );      // derived_from = the source URI

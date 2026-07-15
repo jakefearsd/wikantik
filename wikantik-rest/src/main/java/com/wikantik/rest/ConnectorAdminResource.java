@@ -287,21 +287,37 @@ public class ConnectorAdminResource extends RestServletBase {
 
     /** Fills {@code lastRun}/{@code lastStatus}/{@code pageCount} from {@link ConnectorRuntime#status}
      *  when the connector is live in the registry; a disabled DB row (or one that failed to build)
-     *  isn't in the registry — {@code status()} throws {@link IllegalArgumentException} for it, and
-     *  the page count instead comes from {@link SyncStateStore#items}. */
+     *  isn't in the registry — checked explicitly via {@link ConnectorRuntime#registry()} up front
+     *  (steady-state for every disabled connector, so it must not log), falling back to
+     *  {@link SyncStateStore#items} for the page count. The {@link IllegalArgumentException} catch
+     *  below is kept only as a genuine race guard (a concurrent {@code ConnectorConfigService}
+     *  rebuild swaps the registry out between the presence check and the {@code status()} call) —
+     *  that path is real and unexpected, so it is logged. */
     private void mergeRuntimeStatus( final ConnectorRuntime runtime, final String connectorId,
                                       final Map< String, Object > out ) {
+        if ( runtime.registry().get( connectorId ).isEmpty() ) {
+            applyNoStatusFallback( connectorId, out );
+            return;
+        }
         try {
             final ConnectorStatus status = runtime.status( connectorId );
             out.put( "lastRun", status.lastRun() );
             out.put( "lastStatus", status.lastStatus() );
             out.put( "pageCount", status.syncedItemCount() );
         } catch ( final IllegalArgumentException e ) {
-            out.put( "lastRun", null );
-            out.put( "lastStatus", null );
-            final SyncStateStore syncState = resolveSyncState();
-            out.put( "pageCount", syncState != null ? syncState.items( connectorId ).size() : 0 );
+            LOG.warn( "connector '{}' vanished from the registry between the presence check and status() "
+                + "— likely a concurrent config rebuild: {}", connectorId, e.getMessage() );
+            applyNoStatusFallback( connectorId, out );
         }
+    }
+
+    /** {@code lastRun}/{@code lastStatus} are unknown for a connector that isn't live in the
+     *  registry; {@code pageCount} instead comes from {@link SyncStateStore#items}. */
+    private void applyNoStatusFallback( final String connectorId, final Map< String, Object > out ) {
+        out.put( "lastRun", null );
+        out.put( "lastStatus", null );
+        final SyncStateStore syncState = resolveSyncState();
+        out.put( "pageCount", syncState != null ? syncState.items( connectorId ).size() : 0 );
     }
 
     // -------------------------------------------------------------------------

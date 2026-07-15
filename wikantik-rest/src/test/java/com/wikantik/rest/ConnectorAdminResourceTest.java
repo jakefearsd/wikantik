@@ -22,8 +22,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.wikantik.api.connectors.CredentialStore;
+import com.wikantik.api.connectors.SourceConnector;
 import com.wikantik.api.connectors.SyncStateStore;
 import com.wikantik.connectors.SyncReport;
+import com.wikantik.connectors.runtime.ConnectorRegistry;
 import com.wikantik.connectors.runtime.ConnectorRuntime;
 import com.wikantik.connectors.runtime.ConnectorStatus;
 import com.wikantik.connectors.state.JdbcSyncRunStore;
@@ -37,7 +39,9 @@ import org.junit.jupiter.api.Test;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -100,6 +104,17 @@ class ConnectorAdminResourceTest {
         when( resp.getWriter() ).thenReturn( new PrintWriter( body ) );
     }
 
+    /** Builds a {@link ConnectorRegistry} containing exactly the given ids (each mapped to a stub
+     *  {@link SourceConnector}), mirroring {@code mergeRuntimeStatus}'s registry-presence check —
+     *  an id NOT passed here simulates a disabled/failed-to-build DB row. */
+    private static ConnectorRegistry registryWith( final String... ids ) {
+        final Map< String, SourceConnector > byId = new LinkedHashMap<>();
+        for ( final String id : ids ) {
+            byId.put( id, mock( SourceConnector.class ) );
+        }
+        return new ConnectorRegistry( byId, Map.of() );
+    }
+
     // -----------------------------------------------------------------------
     // GET /admin/connectors  (list)
     // -----------------------------------------------------------------------
@@ -111,6 +126,7 @@ class ConnectorAdminResourceTest {
         final ConnectorConfigService.ConnectorView view = new ConnectorConfigService.ConnectorView(
             "fs1", "filesystem", "properties", true, 24, new JsonObject(), null, null, null, List.of() );
         when( configService.list() ).thenReturn( List.of( view ) );
+        when( runtime.registry() ).thenReturn( registryWith( "fs1" ) );
         when( runtime.status( "fs1" ) ).thenReturn(
             new ConnectorStatus( "fs1", "filesystem", "2026-07-10T12:00:00Z", "ok", 42 ) );
 
@@ -143,6 +159,7 @@ class ConnectorAdminResourceTest {
         final ConnectorConfigService.ConnectorView view = new ConnectorConfigService.ConnectorView(
             "gd1", "gdrive", "db", true, 6, cfg, "cluster1", "tag1,tag2", "GDrive/", List.of( "client_secret" ) );
         when( configService.list() ).thenReturn( List.of( view ) );
+        when( runtime.registry() ).thenReturn( registryWith( "gd1" ) );
         when( runtime.status( "gd1" ) ).thenReturn(
             new ConnectorStatus( "gd1", "gdrive", "2026-07-10T12:00:00Z", "ok", 5 ) );
 
@@ -174,9 +191,9 @@ class ConnectorAdminResourceTest {
         final ConnectorConfigService.ConnectorView view = new ConnectorConfigService.ConnectorView(
             "conf1", "confluence", "db", false, 12, new JsonObject(), null, null, null, List.of() );
         when( configService.list() ).thenReturn( List.of( view ) );
-        // Disabled DB rows are never added to the registry — ConnectorRuntime.status()
-        // throws IllegalArgumentException exactly like it does for a truly unknown id.
-        when( runtime.status( "conf1" ) ).thenThrow( new IllegalArgumentException( "unknown connector: conf1" ) );
+        // Disabled DB rows are never added to the registry — registry().get() comes back empty,
+        // exactly like it does for a truly unknown id, and runtime.status() is never called.
+        when( runtime.registry() ).thenReturn( registryWith() );
         when( syncState.items( "conf1" ) ).thenReturn( List.of(
             new SyncStateStore.SyncedItem( "https://example/1", "Page1", Instant.parse( "2026-07-01T00:00:00Z" ) ) ) );
 
@@ -189,6 +206,32 @@ class ConnectorAdminResourceTest {
         assertTrue( entry.get( "lastRun" ).isJsonNull() );
         assertTrue( entry.get( "lastStatus" ).isJsonNull() );
         assertEquals( 1, entry.get( "pageCount" ).getAsInt() );
+        verify( runtime, never() ).status( "conf1" );
+    }
+
+    /** Race guard: the registry-presence check passes but a concurrent {@code ConnectorConfigService}
+     *  rebuild swaps the connector out before {@code status()} runs — {@code status()} throws exactly
+     *  like it does for a truly unknown id. This must still degrade to the no-status fallback (now via
+     *  the logged catch block, not silently) rather than propagating. */
+    @Test
+    void listHandlesRegistryRaceBetweenPresenceCheckAndStatus() throws Exception {
+        when( req.getPathInfo() ).thenReturn( null );
+        when( runtime.syncingEnabled() ).thenReturn( true );
+        final ConnectorConfigService.ConnectorView view = new ConnectorConfigService.ConnectorView(
+            "race1", "webcrawler", "db", true, 6, new JsonObject(), null, null, null, List.of() );
+        when( configService.list() ).thenReturn( List.of( view ) );
+        when( runtime.registry() ).thenReturn( registryWith( "race1" ) );
+        when( runtime.status( "race1" ) ).thenThrow( new IllegalArgumentException( "unknown connector: race1" ) );
+        when( syncState.items( "race1" ) ).thenReturn( List.of() );
+
+        servlet.doGet( req, resp );
+
+        verify( resp ).setStatus( 200 );
+        final JsonObject json = JsonParser.parseString( body.toString() ).getAsJsonObject();
+        final JsonObject entry = json.getAsJsonArray( "connectors" ).get( 0 ).getAsJsonObject();
+        assertTrue( entry.get( "lastRun" ).isJsonNull() );
+        assertTrue( entry.get( "lastStatus" ).isJsonNull() );
+        assertEquals( 0, entry.get( "pageCount" ).getAsInt() );
     }
 
     @Test
@@ -225,6 +268,7 @@ class ConnectorAdminResourceTest {
         final ConnectorConfigService.ConnectorView view = new ConnectorConfigService.ConnectorView(
             "gd1", "gdrive", "db", true, 6, cfg, "cluster1", "tag1,tag2", "GDrive/", List.of( "client_secret" ) );
         when( configService.get( "gd1" ) ).thenReturn( Optional.of( view ) );
+        when( runtime.registry() ).thenReturn( registryWith( "gd1" ) );
         when( runtime.status( "gd1" ) ).thenReturn(
             new ConnectorStatus( "gd1", "gdrive", "2026-07-10T12:00:00Z", "ok", 5 ) );
 

@@ -93,14 +93,19 @@ public final class ConnectorRuntime {
         if ( !lock.tryLock() ) {
             throw new SyncInProgressException( connectorId );
         }
-        final long runId = runRecorder.start( connectorId, trigger );
         try {
-            final SyncReport report = orchestrator.sync( c );
-            runRecorder.finish( runId, report );
-            return report;
-        } catch ( final RuntimeException e ) {
-            runRecorder.fail( runId, e.getMessage() );
-            throw e;
+            // start() inside the lock's try/finally: if the run store throws (e.g. a wrapped
+            // SQLException) the lock must still be released or this connector is permanently
+            // stuck returning SyncInProgressException until restart.
+            final long runId = runRecorder.start( connectorId, trigger );
+            try {
+                final SyncReport report = orchestrator.sync( c );
+                runRecorder.finish( runId, report );
+                return report;
+            } catch ( final RuntimeException e ) {
+                runRecorder.fail( runId, e.getMessage() );
+                throw e;
+            }
         } finally {
             lock.unlock();
         }

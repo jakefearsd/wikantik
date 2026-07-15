@@ -188,6 +188,37 @@ class ConnectorRuntimeTest {
         assertThrows( ConnectorsDisabledException.class, () -> rt.syncNow( "c1" ) );
     }
 
+    // Regression: runRecorder.start() runs after the lock is acquired — if it throws (e.g.
+    // JdbcSyncRunStore wrapping a SQLException), the lock MUST still be released or the
+    // connector is permanently stuck returning SyncInProgressException until restart.
+    // The first sync runs on a SEPARATE thread: ReentrantLock is reentrant, so a leaked
+    // lock is invisible to a same-thread retry — only a different thread (scheduler vs.
+    // admin request) observes the stuck connector.
+    @Test void lockReleasedWhenRunRecorderStartThrows() throws Exception {
+        final var firstCall = new java.util.concurrent.atomic.AtomicBoolean( true );
+        final RunRecorder rec = new RunRecorder() {
+            @Override public long start( final String id, final String trigger ) {
+                if ( firstCall.getAndSet( false ) ) throw new RuntimeException( "run store down" );
+                return 7L;
+            }
+            @Override public void finish( final long runId, final SyncReport r ) { }
+            @Override public void fail( final long runId, final String error ) { }
+        };
+        final ConnectorRuntime rt = runtimeWith( rec, true );
+        final var thrown = new java.util.concurrent.atomic.AtomicReference< RuntimeException >();
+        final Thread first = new Thread( () -> {
+            try {
+                rt.syncNow( "c1" );
+            } catch ( final RuntimeException e ) {
+                thrown.set( e );
+            }
+        } );
+        first.start();
+        first.join( 5000 );
+        assertNotNull( thrown.get(), "start() failure must propagate" );
+        assertNotNull( rt.syncNow( "c1" ), "lock must be released after start() throws — not SyncInProgressException" );
+    }
+
     @Test void swapRegistryChangesVisibleConnectors() {
         final ConnectorRuntime rt = runtimeWith( noopRecorder(), true );    // registry contains c1
         rt.swapRegistry( new ConnectorRegistry( Map.of( "c2", connector( "c2" ) ), Map.of( "c2", "feed" ), Map.of( "c2", "db" ) ) );

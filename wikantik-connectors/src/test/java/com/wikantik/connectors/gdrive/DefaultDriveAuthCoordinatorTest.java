@@ -29,10 +29,12 @@ class DefaultDriveAuthCoordinatorTest {
 
     static final class FakeOAuth implements DriveOAuthService {
         boolean throwOnExchange = false;
+        String lastClientSecret;
         public String authorizationUrl( String cid, String redirect, String state ) {
             return "https://accounts.google.com/o/oauth2/auth?client_id=" + cid + "&state=" + state;
         }
         public String exchangeCodeForRefreshToken( String cid, String csec, String redirect, String code ) throws IOException {
+            lastClientSecret = csec;
             if ( throwOnExchange ) throw new IOException( "bad code" );
             return "REFRESH-for-" + code;
         }
@@ -76,5 +78,14 @@ class DefaultDriveAuthCoordinatorTest {
     @Test void unknownIdCompleteReportsUnknownConnector() {
         var c = new DefaultDriveAuthCoordinator( Map.of( "gd", cfg() ), new FakeOAuth(), new FakeStore() );
         assertEquals( UNKNOWN_CONNECTOR, c.completeAuthorization( "nope", "CODE1" ) );
+    }
+    @Test void storedClientSecretWinsOverConfig() {
+        FakeStore store = new FakeStore();
+        store.put( "gd", "client_secret", "stored-secret" );
+        FakeOAuth oauth = new FakeOAuth();
+        var c = new DefaultDriveAuthCoordinator( Map.of( "gd", cfg() ), oauth, store );
+        assertEquals( SUCCESS, c.completeAuthorization( "gd", "CODE1" ) );
+        assertEquals( "stored-secret", oauth.lastClientSecret,
+            "the credential store's client_secret must win over the properties-origin config" );
     }
 }

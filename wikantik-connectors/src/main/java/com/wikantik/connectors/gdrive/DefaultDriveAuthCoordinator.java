@@ -62,8 +62,11 @@ public final class DefaultDriveAuthCoordinator implements DriveAuthCoordinator {
             return AuthResult.STORE_DISABLED;
         }
         try {
+            // The credential store wins over the properties-origin config — an operator may have
+            // rotated the client secret via the admin credentials UI without redeploying config.
+            final String clientSecret = store.get( connectorId, "client_secret" ).orElse( cfg.clientSecret() );
             final String refreshToken = oauth.exchangeCodeForRefreshToken(
-                cfg.clientId(), cfg.clientSecret(), cfg.redirectUri(), code );
+                cfg.clientId(), clientSecret, cfg.redirectUri(), code );
             store.put( connectorId, REFRESH_TOKEN, refreshToken );   // encrypted at rest by the store
             LOG.info( "gdrive oauth '{}': refresh token stored", connectorId );   // no token/code in the message
             return AuthResult.SUCCESS;

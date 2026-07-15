@@ -58,6 +58,7 @@ class GoogleDriveAuthResourceTest {
         when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
         when( req.getSession( anyBoolean() ) ).thenReturn( session );
         when( req.getSession() ).thenReturn( session );
+        when( req.getContextPath() ).thenReturn( "" );
         doAnswer( i -> attrs.put( i.getArgument( 0 ), i.getArgument( 1 ) ) ).when( session ).setAttribute( any(), any() );
         when( session.getAttribute( any() ) ).thenAnswer( i -> attrs.get( i.getArgument( 0 ) ) );
         doAnswer( i -> attrs.remove( i.getArgument( 0 ) ) ).when( session ).removeAttribute( any() );
@@ -140,5 +141,62 @@ class GoogleDriveAuthResourceTest {
         when( req.getPathInfo() ).thenReturn( "/gd/authorize" );
         new TestResource( null ).doGet( req, resp );
         verify( resp ).setStatus( 503 );
+    }
+
+    @Test void authorizeStoresValidReturnTo() throws Exception {
+        StubCoordinator c = new StubCoordinator();
+        when( req.getPathInfo() ).thenReturn( "/gd/authorize" );
+        when( req.getParameter( "return_to" ) ).thenReturn( "/admin/connectors/new" );
+        new TestResource( c ).doGet( req, resp );
+        verify( resp ).sendRedirect( anyString() );
+        assertEquals( "/admin/connectors/new", attrs.get( "gdrive.oauth.return_to" ) );
+    }
+
+    @Test void authorizeRejectsForeignReturnTo() throws Exception {
+        for ( final String bad : List.of( "https://evil.com", "/wiki/x", "//evil" ) ) {
+            attrs.clear();
+            StubCoordinator c = new StubCoordinator();
+            when( req.getPathInfo() ).thenReturn( "/gd/authorize" );
+            when( req.getParameter( "return_to" ) ).thenReturn( bad );
+            new TestResource( c ).doGet( req, resp );
+            assertNull( attrs.get( "gdrive.oauth.return_to" ), "return_to '" + bad + "' must be rejected" );
+        }
+    }
+
+    @Test void callbackRedirectsBackWithOutcome() throws Exception {
+        StubCoordinator c = new StubCoordinator();
+        attrs.put( "gdrive.oauth.state", "S1" ); attrs.put( "gdrive.oauth.connector", "gd" );
+        attrs.put( "gdrive.oauth.return_to", "/admin/connectors/new" );
+        when( req.getPathInfo() ).thenReturn( "/callback" );
+        when( req.getParameter( "state" ) ).thenReturn( "S1" );
+        when( req.getParameter( "code" ) ).thenReturn( "AUTHCODE" );
+        new TestResource( c ).doGet( req, resp );
+        ArgumentCaptor<String> loc = ArgumentCaptor.forClass( String.class );
+        verify( resp ).sendRedirect( loc.capture() );
+        assertTrue( loc.getValue().endsWith( "?oauth=ok" ), "was: " + loc.getValue() );
+        assertNull( attrs.get( "gdrive.oauth.return_to" ), "return_to must be single-use (cleared)" );
+
+        // failure case — a fresh resource/response, return_to re-seeded
+        attrs.clear();
+        attrs.put( "gdrive.oauth.state", "S1" ); attrs.put( "gdrive.oauth.connector", "gd" );
+        attrs.put( "gdrive.oauth.return_to", "/admin/connectors/new" );
+        HttpServletResponse resp2 = mock( HttpServletResponse.class );
+        when( resp2.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+        c.completeResult = AuthResult.EXCHANGE_FAILED;
+        new TestResource( c ).doGet( req, resp2 );
+        ArgumentCaptor<String> loc2 = ArgumentCaptor.forClass( String.class );
+        verify( resp2 ).sendRedirect( loc2.capture() );
+        assertTrue( loc2.getValue().endsWith( "?oauth=exchange_failed" ), "was: " + loc2.getValue() );
+    }
+
+    @Test void callbackWithoutReturnToKeepsJson() throws Exception {
+        StubCoordinator c = new StubCoordinator();
+        attrs.put( "gdrive.oauth.state", "S1" ); attrs.put( "gdrive.oauth.connector", "gd" );
+        when( req.getPathInfo() ).thenReturn( "/callback" );
+        when( req.getParameter( "state" ) ).thenReturn( "S1" );
+        when( req.getParameter( "code" ) ).thenReturn( "AUTHCODE" );
+        new TestResource( c ).doGet( req, resp );
+        verify( resp ).setStatus( 200 );
+        verify( resp, never() ).sendRedirect( anyString() );
     }
 }

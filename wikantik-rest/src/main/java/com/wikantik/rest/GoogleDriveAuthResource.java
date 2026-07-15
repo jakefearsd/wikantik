@@ -19,6 +19,7 @@
 package com.wikantik.rest;
 
 import com.wikantik.api.connectors.DriveAuthCoordinator;
+import com.wikantik.derived.ConnectorConfigService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
@@ -26,6 +27,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -36,8 +38,9 @@ public class GoogleDriveAuthResource extends RestServletBase {
 
     private static final long   serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( GoogleDriveAuthResource.class );
-    private static final String STATE_ATTR = "gdrive.oauth.state";
-    private static final String CONN_ATTR  = "gdrive.oauth.connector";
+    private static final String STATE_ATTR     = "gdrive.oauth.state";
+    private static final String CONN_ATTR      = "gdrive.oauth.connector";
+    private static final String RETURN_TO_ATTR = "gdrive.oauth.return_to";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     @Override
@@ -72,9 +75,22 @@ public class GoogleDriveAuthResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown Drive connector: " + id );
             return;
         }
+        final String returnTo = request.getParameter( "return_to" );
+        if ( isValidReturnTo( returnTo ) ) {
+            request.getSession( true ).setAttribute( RETURN_TO_ATTR, returnTo );
+        }   // invalid values are silently ignored — the flow proceeds without a wizard round-trip
         request.getSession( true ).setAttribute( STATE_ATTR, state );
         request.getSession( true ).setAttribute( CONN_ATTR, id );
         response.sendRedirect( url.get() );   // 302 to Google consent
+    }
+
+    /** Open-redirect defense for the wizard round-trip: only an admin-connectors-relative path,
+     *  never a scheme or protocol-relative ({@code //host/...}) target. */
+    private static boolean isValidReturnTo( final String returnTo ) {
+        return returnTo != null
+            && returnTo.startsWith( "/admin/connectors" )
+            && !returnTo.contains( "//" )
+            && !returnTo.contains( ":" );
     }
 
     private void handleCallback( final HttpServletRequest request, final HttpServletResponse response,
@@ -83,9 +99,12 @@ public class GoogleDriveAuthResource extends RestServletBase {
         final String code = request.getParameter( "code" );
         final Object expectedState = request.getSession().getAttribute( STATE_ATTR );
         final Object connectorId  = request.getSession().getAttribute( CONN_ATTR );
+        final Object returnToAttr = request.getSession().getAttribute( RETURN_TO_ATTR );
         // single-use: clear regardless of outcome
         request.getSession().removeAttribute( STATE_ATTR );
         request.getSession().removeAttribute( CONN_ATTR );
+        request.getSession().removeAttribute( RETURN_TO_ATTR );
+        final String returnTo = returnToAttr != null ? returnToAttr.toString() : null;
         if ( expectedState == null || stateParam == null || !expectedState.equals( stateParam ) || connectorId == null ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid or expired OAuth state" );
             return;
@@ -96,6 +115,16 @@ public class GoogleDriveAuthResource extends RestServletBase {
         }
         // never logs the code; the result distinguishes operator-actionable failures from upstream ones
         final DriveAuthCoordinator.AuthResult result = coordinator.completeAuthorization( connectorId.toString(), code );
+        if ( result == DriveAuthCoordinator.AuthResult.SUCCESS ) {
+            rebuildBestEffort();   // fresh refresh token reaches the live connector
+        }
+        if ( returnTo != null ) {
+            final String outcome = result == DriveAuthCoordinator.AuthResult.SUCCESS
+                ? "ok" : result.name().toLowerCase( Locale.ROOT );
+            final String separator = returnTo.contains( "?" ) ? "&" : "?";
+            response.sendRedirect( request.getContextPath() + returnTo + separator + "oauth=" + outcome );
+            return;
+        }
         switch ( result ) {
             case SUCCESS -> {
                 response.setStatus( HttpServletResponse.SC_OK );
@@ -114,5 +143,26 @@ public class GoogleDriveAuthResource extends RestServletBase {
     /** Resolves the coordinator via the engine; overridable for tests. */
     protected DriveAuthCoordinator resolveCoordinator() {
         return getEngine() instanceof com.wikantik.WikiEngine we ? we.getManager( DriveAuthCoordinator.class ) : null;
+    }
+
+    /** Resolves the {@link ConnectorConfigService} manager. {@code null} when the engine is not a
+     *  {@code WikiEngine} or the manager is not registered — the post-success rebuild is then a
+     *  no-op. Protected so tests can inject a stub. */
+    protected ConnectorConfigService resolveConfigService() {
+        return getEngine() instanceof com.wikantik.WikiEngine we ? we.getManager( ConnectorConfigService.class ) : null;
+    }
+
+    /** Best-effort hot-rebuild of the live connector registry after a successful token exchange
+     *  so the fresh refresh token reaches the running connector immediately. Never fails the OAuth
+     *  response — a broken rebuild is logged and swallowed here. */
+    private void rebuildBestEffort() {
+        try {
+            final ConnectorConfigService configService = resolveConfigService();
+            if ( configService != null ) {
+                configService.rebuild();
+            }
+        } catch ( final Exception e ) {
+            LOG.warn( "gdrive oauth: post-authorization connector rebuild failed: {}", e.getMessage(), e );
+        }
     }
 }

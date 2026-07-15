@@ -21,18 +21,26 @@ package com.wikantik.rest;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.connectors.CredentialStore;
+import com.wikantik.audit.AuditCategory;
+import com.wikantik.audit.AuditEntry;
+import com.wikantik.audit.AuditOutcome;
+import com.wikantik.audit.AuditService;
+import com.wikantik.derived.ConnectorConfigService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.security.Principal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,16 +54,24 @@ import static org.mockito.Mockito.*;
 class ConnectorCredentialsResourceTest {
 
     private CredentialStore              store;
+    private ConnectorConfigService       configService;
     private ConnectorCredentialsResource servlet;
     private HttpServletRequest           req;
     private HttpServletResponse          resp;
     private StringWriter                 body;
+    private WikiEngine                   wikiEngine;
+    private AuditService                 auditService;
 
-    /** Test servlet subclass that injects the mocked store (or none, to simulate "disabled"). */
+    /** Test servlet subclass that injects the mocked store (or none, to simulate "disabled")
+     *  and the mocked {@link ConnectorConfigService} used for the post-mutation rebuild. */
     private final class Stub extends ConnectorCredentialsResource {
         @Override
         protected CredentialStore resolveStore() {
             return store;
+        }
+        @Override
+        protected ConnectorConfigService resolveConfigService() {
+            return configService;
         }
     }
 
@@ -63,11 +79,24 @@ class ConnectorCredentialsResourceTest {
     void setUp() throws Exception {
         store = mock( CredentialStore.class );
         when( store.enabled() ).thenReturn( true );
+        configService = mock( ConnectorConfigService.class );
         servlet = new Stub();
         req  = mock( HttpServletRequest.class );
         resp = mock( HttpServletResponse.class );
         body = new StringWriter();
         when( resp.getWriter() ).thenReturn( new PrintWriter( body ) );
+
+        // Mutation routes (POST/DELETE) audit via getEngine() instanceof WikiEngine exactly like
+        // ConnectorAdminResource — inject a mock WikiEngine via the protected setEngine() accessor
+        // (RestServletBase, same package) so those tests can assert on the recorded entry.
+        wikiEngine = mock( WikiEngine.class );
+        auditService = mock( AuditService.class );
+        when( wikiEngine.getAuditService() ).thenReturn( auditService );
+        servlet.setEngine( wikiEngine );
+
+        final Principal principal = mock( Principal.class );
+        when( principal.getName() ).thenReturn( "admin" );
+        when( req.getUserPrincipal() ).thenReturn( principal );
     }
 
     // -----------------------------------------------------------------------
@@ -199,6 +228,28 @@ class ConnectorCredentialsResourceTest {
         verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
     }
 
+    @Test
+    void postAuditsAndRebuilds() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/gd1/client_secret" );
+        stubReader( "s3cr3t" );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_CREATED );
+        verify( configService ).rebuild();
+
+        final ArgumentCaptor< AuditEntry > captor = ArgumentCaptor.forClass( AuditEntry.class );
+        verify( auditService ).record( captor.capture() );
+        final AuditEntry entry = captor.getValue();
+        assertEquals( "connector.credential.set", entry.eventType() );
+        assertEquals( AuditCategory.ADMIN, entry.category() );
+        assertEquals( AuditOutcome.SUCCESS, entry.outcome() );
+        assertEquals( "admin", entry.actorPrincipal() );
+        assertEquals( "connector", entry.targetType() );
+        assertEquals( "gd1", entry.targetId() );
+        assertEquals( "client_secret", entry.targetLabel(), "targetLabel is the credential NAME, never its value" );
+    }
+
     // -----------------------------------------------------------------------
     // DELETE /admin/connector-credentials/{id}/{name}
     // -----------------------------------------------------------------------
@@ -231,6 +282,27 @@ class ConnectorCredentialsResourceTest {
         servlet.doDelete( req, resp );
 
         verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+    }
+
+    @Test
+    void deleteAuditsAndRebuilds() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/gd1/client_secret" );
+
+        servlet.doDelete( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_NO_CONTENT );
+        verify( configService ).rebuild();
+
+        final ArgumentCaptor< AuditEntry > captor = ArgumentCaptor.forClass( AuditEntry.class );
+        verify( auditService ).record( captor.capture() );
+        final AuditEntry entry = captor.getValue();
+        assertEquals( "connector.credential.delete", entry.eventType() );
+        assertEquals( AuditCategory.ADMIN, entry.category() );
+        assertEquals( AuditOutcome.SUCCESS, entry.outcome() );
+        assertEquals( "admin", entry.actorPrincipal() );
+        assertEquals( "connector", entry.targetType() );
+        assertEquals( "gd1", entry.targetId() );
+        assertEquals( "client_secret", entry.targetLabel(), "targetLabel is the credential NAME, never its value" );
     }
 
     // -----------------------------------------------------------------------

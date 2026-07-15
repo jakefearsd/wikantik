@@ -19,6 +19,11 @@
 package com.wikantik.rest;
 
 import com.wikantik.api.connectors.CredentialStore;
+import com.wikantik.audit.AuditCategory;
+import com.wikantik.audit.AuditEntry;
+import com.wikantik.audit.AuditOutcome;
+import com.wikantik.audit.AuditService;
+import com.wikantik.derived.ConnectorConfigService;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,6 +34,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.security.Principal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -133,6 +140,8 @@ public class ConnectorCredentialsResource extends RestServletBase {
 
         store.put( connectorId, name, secret );
         LOG.info( "ConnectorCredentialsResource: secret '{}' stored for connector '{}'", name, connectorId );
+        recordAudit( "connector.credential.set", currentLogin( request ), connectorId, name );
+        rebuildBestEffort();
         response.setStatus( HttpServletResponse.SC_CREATED );
         sendJson( response, Map.of( "connectorId", connectorId, "name", name ) );
     }
@@ -162,6 +171,8 @@ public class ConnectorCredentialsResource extends RestServletBase {
 
         store.delete( connectorId, name );
         LOG.info( "ConnectorCredentialsResource: secret '{}' deleted for connector '{}'", name, connectorId );
+        recordAudit( "connector.credential.delete", currentLogin( request ), connectorId, name );
+        rebuildBestEffort();
         response.setStatus( HttpServletResponse.SC_NO_CONTENT );
     }
 
@@ -206,8 +217,66 @@ public class ConnectorCredentialsResource extends RestServletBase {
         return getEngine() instanceof com.wikantik.WikiEngine we ? we.getManager( CredentialStore.class ) : null;
     }
 
+    /**
+     * Resolves the {@link ConnectorConfigService} manager. {@code null} when the engine is not a
+     * {@code WikiEngine} or the manager is not registered — the post-mutation rebuild is then a
+     * no-op. Protected so tests can inject a stub.
+     */
+    protected ConnectorConfigService resolveConfigService() {
+        return getEngine() instanceof com.wikantik.WikiEngine we ? we.getManager( ConnectorConfigService.class ) : null;
+    }
+
+    /** Best-effort hot-rebuild of the live connector registry after a credential change (e.g. a
+     *  rotated gdrive client_secret or github token) so the new secret reaches the running
+     *  connector immediately. Never fails the mutation response — a broken rebuild is logged and
+     *  swallowed here. */
+    private void rebuildBestEffort() {
+        try {
+            final ConnectorConfigService configService = resolveConfigService();
+            if ( configService != null ) {
+                configService.rebuild();
+            }
+        } catch ( final Exception e ) {
+            LOG.warn( "ConnectorCredentialsResource: post-mutation connector rebuild failed: {}", e.getMessage(), e );
+        }
+    }
+
     private void sendServiceUnavailable( final HttpServletResponse response ) throws IOException {
         sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
             "Credential store is not available (no master key configured or not yet wired)" );
+    }
+
+    /** Records a {@code category=ADMIN} audit entry mirroring {@link ConnectorAdminResource}'s
+     *  idiom exactly: {@code getEngine() instanceof WikiEngine} to reach {@link
+     *  com.wikantik.WikiEngine#getAuditService()}, wrapped in try/catch so a broken audit backend
+     *  never fails the mutation itself (mutation already succeeded by the time this runs).
+     *  {@code targetLabel} is the credential NAME — never its value. */
+    private void recordAudit( final String eventType, final String actorLogin, final String connectorId,
+                               final String targetLabel ) {
+        try {
+            final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
+                    ? wikiEngine.getAuditService() : null;
+            if ( audit != null ) {
+                final AuditEntry.Builder entry = AuditEntry.builder()
+                        .eventTime( Instant.now() )
+                        .category( AuditCategory.ADMIN )
+                        .eventType( eventType )
+                        .outcome( AuditOutcome.SUCCESS )
+                        .actorPrincipal( actorLogin )
+                        .actorType( "user" )
+                        .targetType( "connector" )
+                        .targetId( connectorId );
+                if ( targetLabel != null ) entry.targetLabel( targetLabel );
+                audit.record( entry.build() );
+            }
+        } catch ( final Exception auditEx ) {
+            LOG.warn( "Failed to record audit entry for connector {} '{}': {}",
+                eventType, connectorId, auditEx.getMessage(), auditEx );
+        }
+    }
+
+    private static String currentLogin( final HttpServletRequest request ) {
+        final Principal p = request.getUserPrincipal();
+        return p != null ? p.getName() : null;
     }
 }

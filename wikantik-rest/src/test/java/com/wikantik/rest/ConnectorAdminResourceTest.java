@@ -21,13 +21,20 @@ package com.wikantik.rest;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.connectors.CredentialStore;
 import com.wikantik.api.connectors.SourceConnector;
 import com.wikantik.api.connectors.SyncStateStore;
+import com.wikantik.audit.AuditCategory;
+import com.wikantik.audit.AuditEntry;
+import com.wikantik.audit.AuditOutcome;
+import com.wikantik.audit.AuditService;
 import com.wikantik.connectors.SyncReport;
+import com.wikantik.connectors.config.ConnectorConfigCodec;
 import com.wikantik.connectors.runtime.ConnectorRegistry;
 import com.wikantik.connectors.runtime.ConnectorRuntime;
 import com.wikantik.connectors.runtime.ConnectorStatus;
+import com.wikantik.connectors.runtime.ConnectorsDisabledException;
 import com.wikantik.connectors.state.JdbcSyncRunStore;
 import com.wikantik.connectors.state.SyncRunRow;
 import com.wikantik.derived.ConnectorConfigService;
@@ -35,14 +42,19 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
+import java.io.BufferedReader;
 import java.io.PrintWriter;
+import java.io.StringReader;
 import java.io.StringWriter;
+import java.security.Principal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -64,6 +76,8 @@ class ConnectorAdminResourceTest {
     private HttpServletRequest    req;
     private HttpServletResponse   resp;
     private StringWriter          body;
+    private WikiEngine            wikiEngine;
+    private AuditService          auditService;
 
     /** Test servlet subclass that injects the mocked runtime/stores (or none, to simulate
      *  "disabled"/"not yet wired"). */
@@ -102,6 +116,18 @@ class ConnectorAdminResourceTest {
         resp = mock( HttpServletResponse.class );
         body = new StringWriter();
         when( resp.getWriter() ).thenReturn( new PrintWriter( body ) );
+
+        // Mutation routes (create/update/delete/import) audit via getEngine() instanceof WikiEngine
+        // exactly like AdminApiKeysResource — inject a mock WikiEngine via the protected setEngine()
+        // accessor (RestServletBase, same package) so those tests can assert on the recorded entry.
+        wikiEngine = mock( WikiEngine.class );
+        auditService = mock( AuditService.class );
+        when( wikiEngine.getAuditService() ).thenReturn( auditService );
+        servlet.setEngine( wikiEngine );
+
+        final Principal principal = mock( Principal.class );
+        when( principal.getName() ).thenReturn( "admin" );
+        when( req.getUserPrincipal() ).thenReturn( principal );
     }
 
     /** Builds a {@link ConnectorRegistry} containing exactly the given ids (each mapped to a stub
@@ -113,6 +139,11 @@ class ConnectorAdminResourceTest {
             byId.put( id, mock( SourceConnector.class ) );
         }
         return new ConnectorRegistry( byId, Map.of() );
+    }
+
+    /** Stubs {@code req.getReader()} to serve {@code json} as the POST/PUT body. */
+    private void stubReaderBody( final String json ) throws Exception {
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( json ) ) );
     }
 
     // -----------------------------------------------------------------------
@@ -381,6 +412,18 @@ class ConnectorAdminResourceTest {
     }
 
     @Test
+    void syncDisabledIs409() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/fs1/sync" );
+        when( runtime.syncNow( "fs1" ) ).thenThrow( new ConnectorsDisabledException( "connectors are disabled" ) );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_CONFLICT );
+        final JsonObject json = JsonParser.parseString( body.toString() ).getAsJsonObject();
+        assertEquals( "connectors are disabled", json.get( "message" ).getAsString() );
+    }
+
+    @Test
     void sync_unknownConnector_returns404() throws Exception {
         when( req.getPathInfo() ).thenReturn( "/nope/sync" );
         when( runtime.syncNow( "nope" ) ).thenThrow( new IllegalArgumentException( "unknown connector: nope" ) );
@@ -445,5 +488,296 @@ class ConnectorAdminResourceTest {
         servlet.doGet( req, resp );
 
         verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+    }
+
+    // -----------------------------------------------------------------------
+    // POST /admin/connectors  (create)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void createReturns201AndAudits() throws Exception {
+        when( req.getPathInfo() ).thenReturn( null );
+        stubReaderBody( "{\"id\":\"gh1\",\"type\":\"github\",\"config\":{\"repo\":\"jake/notes\"}}" );
+        when( configService.create( eq( "gh1" ), eq( "github" ), any( JsonObject.class ),
+                eq( true ), eq( 0 ), isNull(), isNull(), isNull() ) )
+            .thenReturn( new ConnectorConfigCodec.Validation( Map.of() ) );
+        final ConnectorConfigService.ConnectorView view = new ConnectorConfigService.ConnectorView(
+            "gh1", "github", "db", true, 0, new JsonObject(), null, null, null, List.of() );
+        when( configService.get( "gh1" ) ).thenReturn( Optional.of( view ) );
+        when( runtime.registry() ).thenReturn( registryWith( "gh1" ) );
+        when( runtime.status( "gh1" ) ).thenReturn( new ConnectorStatus( "gh1", "github", null, null, 0 ) );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_CREATED );
+        final JsonObject json = JsonParser.parseString( body.toString() ).getAsJsonObject();
+        assertEquals( "gh1", json.get( "id" ).getAsString() );
+        assertEquals( "github", json.get( "type" ).getAsString() );
+
+        final ArgumentCaptor< AuditEntry > captor = ArgumentCaptor.forClass( AuditEntry.class );
+        verify( auditService ).record( captor.capture() );
+        final AuditEntry entry = captor.getValue();
+        assertEquals( "connector.create", entry.eventType() );
+        assertEquals( AuditCategory.ADMIN, entry.category() );
+        assertEquals( AuditOutcome.SUCCESS, entry.outcome() );
+        assertEquals( "admin", entry.actorPrincipal() );
+        assertEquals( "connector", entry.targetType() );
+        assertEquals( "gh1", entry.targetId() );
+    }
+
+    @Test
+    void createValidationErrorsAre422() throws Exception {
+        when( req.getPathInfo() ).thenReturn( null );
+        stubReaderBody( "{\"id\":\"gh1\",\"type\":\"github\",\"config\":{}}" );
+        when( configService.create( any(), any(), any(), anyBoolean(), anyInt(), any(), any(), any() ) )
+            .thenReturn( new ConnectorConfigCodec.Validation( Map.of( "repo", "repo is required" ) ) );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( 422 );
+        final JsonObject json = JsonParser.parseString( body.toString() ).getAsJsonObject();
+        assertEquals( "repo is required", json.getAsJsonObject( "errors" ).get( "repo" ).getAsString() );
+        verifyNoInteractions( auditService );
+    }
+
+    @Test
+    void create_configServiceAbsent_returns503() throws Exception {
+        configService = null;
+        when( req.getPathInfo() ).thenReturn( null );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+    }
+
+    @Test
+    void create_malformedJson_returns400() throws Exception {
+        when( req.getPathInfo() ).thenReturn( null );
+        stubReaderBody( "not json" );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+        verifyNoInteractions( auditService );
+    }
+
+    // -----------------------------------------------------------------------
+    // PUT /admin/connectors/{id}  (update)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void updatePropertiesOriginIs409() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/legacy1" );
+        stubReaderBody( "{\"config\":{\"seeds\":[\"https://example.com\"]}}" );
+        when( configService.update( eq( "legacy1" ), any( JsonObject.class ),
+                eq( true ), eq( 0 ), isNull(), isNull(), isNull() ) )
+            .thenThrow( new ConnectorConfigService.PropertiesOriginException( "legacy1" ) );
+
+        servlet.doPut( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_CONFLICT );
+        verifyNoInteractions( auditService );
+    }
+
+    @Test
+    void updateUnknownIs404() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/nope" );
+        stubReaderBody( "{\"config\":{}}" );
+        when( configService.update( eq( "nope" ), any( JsonObject.class ),
+                eq( true ), eq( 0 ), isNull(), isNull(), isNull() ) )
+            .thenThrow( new IllegalArgumentException( "unknown connector: nope" ) );
+
+        servlet.doPut( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+    }
+
+    @Test
+    void updateValidationErrorsAre422() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/gh1" );
+        stubReaderBody( "{\"config\":{}}" );
+        when( configService.update( any(), any(), anyBoolean(), anyInt(), any(), any(), any() ) )
+            .thenReturn( new ConnectorConfigCodec.Validation( Map.of( "repo", "repo is required" ) ) );
+
+        servlet.doPut( req, resp );
+
+        verify( resp ).setStatus( 422 );
+        verifyNoInteractions( auditService );
+    }
+
+    @Test
+    void updateSucceedsAndAudits() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/gh1" );
+        stubReaderBody( "{\"config\":{\"repo\":\"jake/notes\"},\"enabled\":false,\"syncIntervalHours\":6}" );
+        when( configService.update( eq( "gh1" ), any( JsonObject.class ),
+                eq( false ), eq( 6 ), isNull(), isNull(), isNull() ) )
+            .thenReturn( new ConnectorConfigCodec.Validation( Map.of() ) );
+        final ConnectorConfigService.ConnectorView view = new ConnectorConfigService.ConnectorView(
+            "gh1", "github", "db", false, 6, new JsonObject(), null, null, null, List.of() );
+        when( configService.get( "gh1" ) ).thenReturn( Optional.of( view ) );
+        when( runtime.registry() ).thenReturn( registryWith() );
+        when( syncState.items( "gh1" ) ).thenReturn( List.of() );
+
+        servlet.doPut( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_OK );
+        final ArgumentCaptor< AuditEntry > captor = ArgumentCaptor.forClass( AuditEntry.class );
+        verify( auditService ).record( captor.capture() );
+        assertEquals( "connector.update", captor.getValue().eventType() );
+        assertEquals( "gh1", captor.getValue().targetId() );
+    }
+
+    @Test
+    void put_runtimeAbsent_returns503() throws Exception {
+        runtime = null;
+        when( req.getPathInfo() ).thenReturn( "/gh1" );
+
+        servlet.doPut( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+    }
+
+    // -----------------------------------------------------------------------
+    // DELETE /admin/connectors/{id}
+    // -----------------------------------------------------------------------
+
+    @Test
+    void deleteReturnsCounts() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/gh1" );
+        when( req.getParameter( "deletePages" ) ).thenReturn( "true" );
+        when( configService.delete( "gh1", true ) )
+            .thenReturn( new ConnectorConfigService.DeleteResult( 2, 0, 1 ) );
+
+        servlet.doDelete( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_OK );
+        final JsonObject json = JsonParser.parseString( body.toString() ).getAsJsonObject();
+        assertEquals( 2, json.get( "pagesKept" ).getAsInt() );
+        assertEquals( 0, json.get( "pagesDeleted" ).getAsInt() );
+        assertEquals( 1, json.get( "credentialsDeleted" ).getAsInt() );
+
+        final ArgumentCaptor< AuditEntry > captor = ArgumentCaptor.forClass( AuditEntry.class );
+        verify( auditService ).record( captor.capture() );
+        assertEquals( "connector.delete", captor.getValue().eventType() );
+        assertEquals( "deletePages=true", captor.getValue().targetLabel() );
+    }
+
+    @Test
+    void deleteDefaultsDeletePagesToFalse() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/gh1" );
+        when( req.getParameter( "deletePages" ) ).thenReturn( null );
+        when( configService.delete( "gh1", false ) )
+            .thenReturn( new ConnectorConfigService.DeleteResult( 3, 0, 0 ) );
+
+        servlet.doDelete( req, resp );
+
+        verify( configService ).delete( "gh1", false );
+    }
+
+    @Test
+    void deleteUnknownIs404() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/nope" );
+        when( req.getParameter( "deletePages" ) ).thenReturn( "false" );
+        when( configService.delete( "nope", false ) )
+            .thenThrow( new IllegalArgumentException( "unknown connector: nope" ) );
+
+        servlet.doDelete( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+        verifyNoInteractions( auditService );
+    }
+
+    @Test
+    void deletePropertiesOriginIs409() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/legacy1" );
+        when( req.getParameter( "deletePages" ) ).thenReturn( "false" );
+        when( configService.delete( "legacy1", false ) )
+            .thenThrow( new ConnectorConfigService.PropertiesOriginException( "legacy1" ) );
+
+        servlet.doDelete( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_CONFLICT );
+    }
+
+    @Test
+    void delete_configServiceAbsent_returns503() throws Exception {
+        configService = null;
+        when( req.getPathInfo() ).thenReturn( "/gh1" );
+
+        servlet.doDelete( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+    }
+
+    // -----------------------------------------------------------------------
+    // POST /admin/connectors/{id}/import
+    // -----------------------------------------------------------------------
+
+    @Test
+    void importRoundTrip() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/gh-legacy/import" );
+        final ConnectorConfigService.ConnectorView propsView = new ConnectorConfigService.ConnectorView(
+            "gh-legacy", "github", "properties", true, 0, new JsonObject(), null, null, null, List.of() );
+        final ConnectorConfigService.ConnectorView dbView = new ConnectorConfigService.ConnectorView(
+            "gh-legacy", "github", "db", true, 0, new JsonObject(), null, null, null, List.of() );
+        when( configService.get( "gh-legacy" ) )
+            .thenReturn( Optional.of( propsView ) )    // origin check before import
+            .thenReturn( Optional.of( dbView ) );      // respondDetail after a successful import
+
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.connectors.github.gh-legacy.repo", "jake/notes" );
+        when( wikiEngine.getWikiProperties() ).thenReturn( props );
+
+        final ArgumentCaptor< JsonObject > configCaptor = ArgumentCaptor.forClass( JsonObject.class );
+        when( configService.importFromProperties( eq( "gh-legacy" ), configCaptor.capture() ) )
+            .thenReturn( new ConnectorConfigCodec.Validation( Map.of() ) );
+        when( runtime.registry() ).thenReturn( registryWith() );
+        when( syncState.items( "gh-legacy" ) ).thenReturn( List.of() );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_OK );
+        verify( configService ).importFromProperties( eq( "gh-legacy" ), any( JsonObject.class ) );
+        assertEquals( "jake/notes", configCaptor.getValue().get( "repo" ).getAsString() );
+
+        final ArgumentCaptor< AuditEntry > auditCaptor = ArgumentCaptor.forClass( AuditEntry.class );
+        verify( auditService ).record( auditCaptor.capture() );
+        assertEquals( "connector.import", auditCaptor.getValue().eventType() );
+        assertEquals( "gh-legacy", auditCaptor.getValue().targetId() );
+    }
+
+    @Test
+    void importNotAPropertiesConnectorIs404() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/nope/import" );
+        when( configService.get( "nope" ) ).thenReturn( Optional.empty() );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+        verifyNoInteractions( auditService );
+    }
+
+    @Test
+    void importAlreadyImportedIs409() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/gh1/import" );
+        final ConnectorConfigService.ConnectorView dbView = new ConnectorConfigService.ConnectorView(
+            "gh1", "github", "db", true, 0, new JsonObject(), null, null, null, List.of() );
+        when( configService.get( "gh1" ) ).thenReturn( Optional.of( dbView ) );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_CONFLICT );
+        verify( configService, never() ).importFromProperties( any(), any() );
+        verifyNoInteractions( auditService );
+    }
+
+    @Test
+    void import_configServiceAbsent_returns503() throws Exception {
+        configService = null;
+        when( req.getPathInfo() ).thenReturn( "/gh1/import" );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
     }
 }

@@ -20,14 +20,22 @@ package com.wikantik.rest;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import com.wikantik.api.connectors.CredentialStore;
 import com.wikantik.api.connectors.SyncStateStore;
+import com.wikantik.audit.AuditCategory;
+import com.wikantik.audit.AuditEntry;
+import com.wikantik.audit.AuditOutcome;
+import com.wikantik.audit.AuditService;
 import com.wikantik.connectors.SyncReport;
+import com.wikantik.connectors.config.ConnectorConfigCodec;
 import com.wikantik.connectors.runtime.ConnectorRuntime;
 import com.wikantik.connectors.runtime.ConnectorStatus;
+import com.wikantik.connectors.runtime.ConnectorsDisabledException;
 import com.wikantik.connectors.state.JdbcSyncRunStore;
 import com.wikantik.connectors.state.SyncRunRow;
 import com.wikantik.derived.ConnectorConfigService;
+import com.wikantik.derived.ConnectorWiringHelper;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,11 +45,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.security.Principal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 
 /**
  * Admin endpoint for the source-connector sync stack ({@code wikantik-connectors}).
@@ -61,18 +72,39 @@ import java.util.Optional;
  *       ({@link SyncStateStore.SyncedItem}).</li>
  *   <li>{@code GET  /admin/connectors/{id}/status} — returns the {@link ConnectorStatus} for connector {@code id}.</li>
  *   <li>{@code POST /admin/connectors/{id}/sync} — triggers an immediate sync for connector {@code id},
- *       returning the resulting {@link SyncReport}.</li>
+ *       returning the resulting {@link SyncReport}. {@code 409} when syncing is disabled
+ *       ({@link ConnectorsDisabledException}) or already in progress.</li>
+ *   <li>{@code POST /admin/connectors} — creates a DB-origin connector via
+ *       {@link ConnectorConfigService#create}. {@code 201} + detail payload on success, {@code 422}
+ *       {@code { "errors": {...} } } on field-keyed validation failure.</li>
+ *   <li>{@code PUT  /admin/connectors/{id}} — updates a DB-origin connector via
+ *       {@link ConnectorConfigService#update}. {@code 200} + detail payload; {@code 404} unknown id;
+ *       {@code 409} for a properties-origin id that has never been imported.</li>
+ *   <li>{@code DELETE /admin/connectors/{id}?deletePages=true|false} (default {@code false}) —
+ *       deletes a DB-origin connector via {@link ConnectorConfigService#delete}, returning
+ *       {@code { pagesKept, pagesDeleted, credentialsDeleted } }. {@code 404}/{@code 409} as above.</li>
+ *   <li>{@code POST /admin/connectors/{id}/import} — copies a properties-defined connector into the
+ *       DB via {@link ConnectorConfigService#importFromProperties}, reconstructing its config JSON
+ *       from the startup properties. {@code 200} + detail payload; {@code 404} when {@code id} is not
+ *       a live properties connector; {@code 409} when it is already imported (a DB row exists).</li>
  * </ul>
  *
  * <p>All endpoints are protected by {@code AdminAuthFilter} (the {@code /admin/*} filter mapping).
  * {@link ConnectorRuntime} is wired unconditionally at engine startup, so a {@code 503 Service
  * Unavailable} here means the engine is not yet a fully-initialized {@code WikiEngine} (very early
- * startup), not that connectors are disabled. An unknown connector id responds {@code 404}.
+ * startup), not that connectors are disabled. An unknown connector id responds {@code 404}. The
+ * mutation routes above audit their outcome (category {@code ADMIN}, event types
+ * {@code connector.create}/{@code .update}/{@code .delete}/{@code .import}) mirroring
+ * {@link AdminApiKeysResource}'s idiom — success only, wrapped in try/catch so a broken
+ * {@link AuditService} never fails the request itself.
  */
 public class ConnectorAdminResource extends RestServletBase {
 
     private static final long   serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( ConnectorAdminResource.class );
+
+    /** 503 message for every mutation route when {@link ConnectorConfigService} isn't wired. */
+    private static final String CONFIG_SERVICE_UNAVAILABLE = "Connector configuration service unavailable";
 
     /**
      * The list/detail/runs/pages payloads promise explicit {@code null} fields (e.g. {@code
@@ -162,13 +194,8 @@ public class ConnectorAdminResource extends RestServletBase {
                 sendNotFound( response, "Unknown connector: " + connectorId );
                 return;
             }
-            final Map< String, Object > payload = summarize( runtime, view.get() );
-            payload.put( "config", view.get().config() );
-            payload.put( "cluster", view.get().cluster() );
-            payload.put( "defaultTags", view.get().defaultTags() );
-            payload.put( "pagePrefix", view.get().pagePrefix() );
             response.setStatus( HttpServletResponse.SC_OK );
-            sendJsonWithNulls( response, payload );
+            sendJsonWithNulls( response, detailPayload( runtime, view.get() ) );
             return;
         }
 
@@ -268,6 +295,19 @@ public class ConnectorAdminResource extends RestServletBase {
         return out;
     }
 
+    /** {@link #summarize} plus {@code config}/{@code cluster}/{@code defaultTags}/{@code pagePrefix}
+     *  — the full single-connector detail payload shared by {@code GET .../{id}} and every
+     *  mutation route's success response. */
+    private Map< String, Object > detailPayload( final ConnectorRuntime runtime,
+                                                   final ConnectorConfigService.ConnectorView view ) {
+        final Map< String, Object > payload = summarize( runtime, view );
+        payload.put( "config", view.config() );
+        payload.put( "cluster", view.cluster() );
+        payload.put( "defaultTags", view.defaultTags() );
+        payload.put( "pagePrefix", view.pagePrefix() );
+        return payload;
+    }
+
     /** Legacy (no {@link ConnectorConfigService}) summary built straight from a
      *  {@link ConnectorStatus} — every such connector is properties-origin and enabled (it came
      *  from {@link ConnectorRuntime#list()}, which only ever iterates the live registry). */
@@ -335,14 +375,18 @@ public class ConnectorAdminResource extends RestServletBase {
 
         final String path = extractPathParam( request );
         if ( path == null || path.isEmpty() ) {
-            sendNotFound( response, "Unknown connector endpoint" );
+            handleCreate( request, response );
             return;
         }
 
         final String[] segments = path.split( "/" );
         if ( segments.length == 2 && "sync".equals( segments[ 1 ] ) ) {
             handleSync( runtime, segments[ 0 ], response );
+        } else if ( segments.length == 2 && "import".equals( segments[ 1 ] ) ) {
+            handleImport( request, segments[ 0 ], response );
         } else {
+            // [id, "test"] is reserved for Task 12 (dry-run test-connection) — falls through here
+            // to 404 until it lands.
             sendNotFound( response, "Unknown connector endpoint: " + path );
         }
     }
@@ -358,11 +402,278 @@ public class ConnectorAdminResource extends RestServletBase {
         } catch ( final com.wikantik.connectors.runtime.SyncInProgressException e ) {
             LOG.info( "ConnectorAdminResource: sync rejected for connector '{}': {}", connectorId, e.getMessage() );
             sendError( response, HttpServletResponse.SC_CONFLICT, e.getMessage() );
+        } catch ( final ConnectorsDisabledException e ) {
+            LOG.info( "ConnectorAdminResource: sync rejected for connector '{}': connectors disabled: {}",
+                connectorId, e.getMessage() );
+            sendError( response, HttpServletResponse.SC_CONFLICT, e.getMessage() );
         } catch ( final IllegalArgumentException e ) {
             LOG.warn( "ConnectorAdminResource: sync requested for unknown connector '{}': {}",
                 connectorId, e.getMessage() );
             sendNotFound( response, e.getMessage() );
         }
+    }
+
+    /** {@code POST /admin/connectors} — creates a DB-origin connector row. See the class javadoc. */
+    private void handleCreate( final HttpServletRequest request, final HttpServletResponse response )
+            throws IOException {
+        final ConnectorConfigService configService = resolveConfigService();
+        if ( configService == null ) {
+            sendServiceUnavailable( response, CONFIG_SERVICE_UNAVAILABLE );
+            return;
+        }
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;   // parseJsonBody already sent 400
+
+        final String id = getJsonString( body, "id" );
+        final String type = getJsonString( body, "type" );
+        final JsonObject config = bodyConfig( body );
+        final boolean enabled = getJsonBoolean( body, "enabled", true );
+        final int syncIntervalHours = getJsonInt( body, "syncIntervalHours", 0 );
+        final String cluster = getJsonString( body, "cluster" );
+        final String defaultTags = getJsonString( body, "defaultTags" );
+        final String pagePrefix = getJsonString( body, "pagePrefix" );
+
+        final ConnectorConfigCodec.Validation v = configService.create(
+            id, type, config, enabled, syncIntervalHours, cluster, defaultTags, pagePrefix );
+        if ( !v.ok() ) {
+            sendValidationErrors( response, v );
+            return;
+        }
+
+        LOG.info( "ConnectorAdminResource: created connector '{}' (type={})", id, type );
+        recordAudit( "connector.create", currentLogin( request ), id, null );
+        respondDetail( configService, id, response, HttpServletResponse.SC_CREATED );
+    }
+
+    /** {@code PUT /admin/connectors/{id}} — updates a DB-origin connector row. See the class javadoc. */
+    private void handleUpdate( final HttpServletRequest request, final String connectorId,
+                                final HttpServletResponse response ) throws IOException {
+        final ConnectorConfigService configService = resolveConfigService();
+        if ( configService == null ) {
+            sendServiceUnavailable( response, CONFIG_SERVICE_UNAVAILABLE );
+            return;
+        }
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;
+
+        final JsonObject config = bodyConfig( body );
+        final boolean enabled = getJsonBoolean( body, "enabled", true );
+        final int syncIntervalHours = getJsonInt( body, "syncIntervalHours", 0 );
+        final String cluster = getJsonString( body, "cluster" );
+        final String defaultTags = getJsonString( body, "defaultTags" );
+        final String pagePrefix = getJsonString( body, "pagePrefix" );
+
+        final ConnectorConfigCodec.Validation v;
+        try {
+            v = configService.update( connectorId, config, enabled, syncIntervalHours, cluster, defaultTags, pagePrefix );
+        } catch ( final ConnectorConfigService.PropertiesOriginException e ) {
+            sendError( response, HttpServletResponse.SC_CONFLICT, e.getMessage() );
+            return;
+        } catch ( final IllegalArgumentException e ) {
+            sendNotFound( response, e.getMessage() );
+            return;
+        }
+        if ( !v.ok() ) {
+            sendValidationErrors( response, v );
+            return;
+        }
+
+        LOG.info( "ConnectorAdminResource: updated connector '{}'", connectorId );
+        recordAudit( "connector.update", currentLogin( request ), connectorId, null );
+        respondDetail( configService, connectorId, response, HttpServletResponse.SC_OK );
+    }
+
+    /** {@code DELETE /admin/connectors/{id}?deletePages=true|false} (default {@code false}). See the
+     *  class javadoc. */
+    private void handleDelete( final HttpServletRequest request, final String connectorId,
+                                final HttpServletResponse response ) throws IOException {
+        final ConnectorConfigService configService = resolveConfigService();
+        if ( configService == null ) {
+            sendServiceUnavailable( response, CONFIG_SERVICE_UNAVAILABLE );
+            return;
+        }
+        final boolean deletePages = Boolean.parseBoolean( request.getParameter( "deletePages" ) );
+
+        final ConnectorConfigService.DeleteResult result;
+        try {
+            result = configService.delete( connectorId, deletePages );
+        } catch ( final ConnectorConfigService.PropertiesOriginException e ) {
+            sendError( response, HttpServletResponse.SC_CONFLICT, e.getMessage() );
+            return;
+        } catch ( final IllegalArgumentException e ) {
+            sendNotFound( response, e.getMessage() );
+            return;
+        }
+
+        LOG.info( "ConnectorAdminResource: deleted connector '{}' (deletePages={})", connectorId, deletePages );
+        recordAudit( "connector.delete", currentLogin( request ), connectorId, "deletePages=" + deletePages );
+
+        response.setStatus( HttpServletResponse.SC_OK );
+        sendJson( response, Map.of(
+            "pagesKept", result.pagesKept(),
+            "pagesDeleted", result.pagesDeleted(),
+            "credentialsDeleted", result.credentialsDeleted() ) );
+    }
+
+    /** {@code POST /admin/connectors/{id}/import} — copies a properties-defined connector into the
+     *  DB. {@code id} must resolve to a live {@code "properties"}-origin {@link
+     *  ConnectorConfigService.ConnectorView} (404 otherwise — either truly unknown or a properties
+     *  connector that failed to build) and must not already be a {@code "db"}-origin row (409). The
+     *  config JSON is reconstructed from the current startup properties via {@link
+     *  #reconstructPropertiesConfig} rather than trusting a caller-supplied body — the whole point of
+     *  import is to capture what is actually configured. */
+    private void handleImport( final HttpServletRequest request, final String connectorId,
+                                final HttpServletResponse response ) throws IOException {
+        final ConnectorConfigService configService = resolveConfigService();
+        if ( configService == null ) {
+            sendServiceUnavailable( response, CONFIG_SERVICE_UNAVAILABLE );
+            return;
+        }
+
+        final Optional< ConnectorConfigService.ConnectorView > view = configService.get( connectorId );
+        if ( view.isEmpty() ) {
+            sendNotFound( response, "not a properties-defined connector: " + connectorId );
+            return;
+        }
+        if ( "db".equals( view.get().origin() ) ) {
+            sendError( response, HttpServletResponse.SC_CONFLICT,
+                "connector '" + connectorId + "' is already imported" );
+            return;
+        }
+
+        final String type = view.get().type();
+        final Properties props = getEngine().getWikiProperties();
+        final JsonObject config = reconstructPropertiesConfig( type, connectorId, props );
+
+        final ConnectorConfigCodec.Validation v = configService.importFromProperties( connectorId, config );
+        if ( !v.ok() ) {
+            sendValidationErrors( response, v );
+            return;
+        }
+
+        LOG.info( "ConnectorAdminResource: imported connector '{}' (type={})", connectorId, type );
+        recordAudit( "connector.import", currentLogin( request ), connectorId, null );
+        respondDetail( configService, connectorId, response, HttpServletResponse.SC_OK );
+    }
+
+    /** Rebuilds the typed config for {@code type}/{@code connectorId} straight from {@code props} —
+     *  the same per-id parsers {@code ConnectorWiringHelper} uses at startup — then serializes it
+     *  back to the admin-UI config JSON via {@link ConnectorConfigCodec#toJson}. {@code type} not
+     *  one of the six admin-UI-creatable types (i.e. {@code filesystem}, D9) or the id no longer
+     *  parsing from the live properties both degrade to an empty object rather than throwing —
+     *  {@link ConnectorConfigService#importFromProperties} then rejects it with a field-keyed
+     *  validation error (422), never a 500. */
+    private JsonObject reconstructPropertiesConfig( final String type, final String connectorId, final Properties props ) {
+        final Object typed = switch ( type ) {
+            case "webcrawler" -> ConnectorWiringHelper.webcrawlerConfigs( props ).get( connectorId );
+            case "sitemap" -> ConnectorWiringHelper.sitemapConfigs( props ).get( connectorId );
+            case "feed" -> ConnectorWiringHelper.feedConfigs( props ).get( connectorId );
+            case "gdrive" -> ConnectorWiringHelper.driveConfigs( props ).get( connectorId );
+            case "github" -> ConnectorWiringHelper.githubConfigs( props ).get( connectorId );
+            case "confluence" -> ConnectorWiringHelper.confluenceConfigs( props ).get( connectorId );
+            default -> null;
+        };
+        return typed != null ? ConnectorConfigCodec.toJson( type, typed ) : new JsonObject();
+    }
+
+    /** {@code config} from the request body, or an empty object when absent/not-an-object — every
+     *  {@link ConnectorConfigCodec#validate} call is shape-proof against an empty config (it simply
+     *  reports every required field as missing), so this never needs to reject the shape itself. */
+    private JsonObject bodyConfig( final JsonObject body ) {
+        return body.has( "config" ) && body.get( "config" ).isJsonObject() ? body.getAsJsonObject( "config" ) : new JsonObject();
+    }
+
+    /** {@code 422 { "errors": { field: message } } } for a failed {@link ConnectorConfigCodec.Validation}. */
+    private void sendValidationErrors( final HttpServletResponse response, final ConnectorConfigCodec.Validation v )
+            throws IOException {
+        response.setStatus( 422 );
+        sendJson( response, Map.of( "errors", v.errors() ) );
+    }
+
+    /** Re-fetches {@code connectorId} and sends its {@link #detailPayload} at {@code status} — the
+     *  shared success response for create/update/import. */
+    private void respondDetail( final ConnectorConfigService configService, final String connectorId,
+                                 final HttpServletResponse response, final int status ) throws IOException {
+        final Optional< ConnectorConfigService.ConnectorView > view = configService.get( connectorId );
+        if ( view.isEmpty() ) {
+            // Should be unreachable right after a successful mutation — fail safe rather than NPE.
+            LOG.warn( "connector '{}': vanished immediately after a successful mutation", connectorId );
+            sendNotFound( response, "Unknown connector: " + connectorId );
+            return;
+        }
+        response.setStatus( status );
+        sendJsonWithNulls( response, detailPayload( resolveRuntime(), view.get() ) );
+    }
+
+    /** Records a {@code category=ADMIN} audit entry mirroring {@link AdminApiKeysResource}'s idiom
+     *  exactly: {@code getEngine() instanceof WikiEngine} to reach {@link
+     *  com.wikantik.WikiEngine#getAuditService()}, wrapped in try/catch so a broken audit backend
+     *  never fails the mutation itself (mutation already succeeded by the time this runs). Only
+     *  called on success paths — a validation/404/409 rejection is not an auditable connector
+     *  mutation. */
+    private void recordAudit( final String eventType, final String actorLogin, final String connectorId,
+                               final String targetLabel ) {
+        try {
+            final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
+                    ? wikiEngine.getAuditService() : null;
+            if ( audit != null ) {
+                final AuditEntry.Builder entry = AuditEntry.builder()
+                        .eventTime( Instant.now() )
+                        .category( AuditCategory.ADMIN )
+                        .eventType( eventType )
+                        .outcome( AuditOutcome.SUCCESS )
+                        .actorPrincipal( actorLogin )
+                        .actorType( "user" )
+                        .targetType( "connector" )
+                        .targetId( connectorId );
+                if ( targetLabel != null ) entry.targetLabel( targetLabel );
+                audit.record( entry.build() );
+            }
+        } catch ( final Exception auditEx ) {
+            LOG.warn( "Failed to record audit entry for connector {} '{}': {}",
+                eventType, connectorId, auditEx.getMessage(), auditEx );
+        }
+    }
+
+    private static String currentLogin( final HttpServletRequest request ) {
+        final Principal p = request.getUserPrincipal();
+        return p != null ? p.getName() : null;
+    }
+
+    // -------------------------------------------------------------------------
+    // PUT / DELETE
+    // -------------------------------------------------------------------------
+
+    @Override
+    protected void doPut( final HttpServletRequest request, final HttpServletResponse response )
+            throws ServletException, IOException {
+        final ConnectorRuntime runtime = resolveRuntime();
+        if ( runtime == null ) {
+            sendServiceUnavailable( response );
+            return;
+        }
+        final String path = extractPathParam( request );
+        if ( path == null || path.isEmpty() || path.contains( "/" ) ) {
+            sendNotFound( response, "Unknown connector endpoint: " + path );
+            return;
+        }
+        handleUpdate( request, path, response );
+    }
+
+    @Override
+    protected void doDelete( final HttpServletRequest request, final HttpServletResponse response )
+            throws ServletException, IOException {
+        final ConnectorRuntime runtime = resolveRuntime();
+        if ( runtime == null ) {
+            sendServiceUnavailable( response );
+            return;
+        }
+        final String path = extractPathParam( request );
+        if ( path == null || path.isEmpty() || path.contains( "/" ) ) {
+            sendNotFound( response, "Unknown connector endpoint: " + path );
+            return;
+        }
+        handleDelete( request, path, response );
     }
 
     // -------------------------------------------------------------------------
@@ -419,5 +730,9 @@ public class ConnectorAdminResource extends RestServletBase {
     private void sendServiceUnavailable( final HttpServletResponse response ) throws IOException {
         sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
             "Connector runtime is not available (engine not yet fully initialized)" );
+    }
+
+    private void sendServiceUnavailable( final HttpServletResponse response, final String message ) throws IOException {
+        sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, message );
     }
 }

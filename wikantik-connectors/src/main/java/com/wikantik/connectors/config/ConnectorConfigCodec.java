@@ -18,6 +18,7 @@
  */
 package com.wikantik.connectors.config;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wikantik.connectors.confluence.ConfluenceConfig;
@@ -237,6 +238,98 @@ public final class ConnectorConfigCodec {
 
     private static int clampMax( final int value, final boolean forTest ) {
         return forTest ? Math.min( value, 3 ) : value;
+    }
+
+    // ---- typed config → JSON (Task 11 — the admin-UI "import" route reconstructs the config JSON
+    // for a properties-defined connector from its typed record, one round trip through toConfig) ---
+
+    /** Serializes a typed config record for {@code type} back to the codec's JSON field names —
+     *  the inverse of {@link #toConfig}. {@code gdrive}'s {@code client_secret} is intentionally
+     *  never emitted (it is not part of the admin-UI config JSON; it lives in the
+     *  {@code CredentialStore}, mirroring {@link #validateDrive}/{@link #buildDrive}). Throws
+     *  {@link IllegalArgumentException} for an unrecognized {@code type} or a {@code config} that
+     *  is not the record {@code type} builds (a caller bug, not a data-shape issue). */
+    public static JsonObject toJson( final String type, final Object config ) {
+        return switch ( type ) {
+            case "webcrawler" -> webCrawlerToJson( ( WebCrawlerConfig ) config );
+            case "sitemap" -> sitemapToJson( ( SitemapConfig ) config );
+            case "feed" -> feedToJson( ( FeedConfig ) config );
+            case "gdrive" -> driveToJson( ( DriveConfig ) config );
+            case "github" -> githubToJson( ( GithubConfig ) config );
+            case "confluence" -> confluenceToJson( ( ConfluenceConfig ) config );
+            default -> throw new IllegalArgumentException( "unknown type: " + type );
+        };
+    }
+
+    private static JsonObject webCrawlerToJson( final WebCrawlerConfig c ) {
+        final JsonObject json = new JsonObject();
+        putStrList( json, "seeds", c.seeds() );
+        json.addProperty( "same_host_only", c.sameHostOnly() );
+        json.addProperty( "path_prefix", c.pathPrefix() );
+        json.addProperty( "max_pages", c.maxPages() );
+        json.addProperty( "max_depth", c.maxDepth() );
+        json.addProperty( "delay_ms", c.delayMs() );
+        json.addProperty( "user_agent", c.userAgent() );
+        json.addProperty( "respect_robots", c.respectRobots() );
+        return json;
+    }
+
+    private static JsonObject sitemapToJson( final SitemapConfig c ) {
+        final JsonObject json = new JsonObject();
+        putStrList( json, "sitemap_urls", c.sitemapUrls() );
+        json.addProperty( "max_pages", c.maxPages() );
+        json.addProperty( "delay_ms", c.delayMs() );
+        json.addProperty( "user_agent", c.userAgent() );
+        json.addProperty( "respect_robots", c.respectRobots() );
+        json.addProperty( "same_host_only", c.sameHostOnly() );
+        return json;
+    }
+
+    private static JsonObject feedToJson( final FeedConfig c ) {
+        final JsonObject json = new JsonObject();
+        putStrList( json, "feed_urls", c.feedUrls() );
+        json.addProperty( "max_items", c.maxItems() );
+        json.addProperty( "fetch_full_articles", c.fetchFullArticles() );
+        json.addProperty( "delay_ms", c.delayMs() );
+        json.addProperty( "user_agent", c.userAgent() );
+        json.addProperty( "respect_robots", c.respectRobots() );
+        json.addProperty( "same_host_only", c.sameHostOnly() );
+        return json;
+    }
+
+    private static JsonObject driveToJson( final DriveConfig c ) {
+        final JsonObject json = new JsonObject();
+        putStrList( json, "folder_ids", c.folderIds() );
+        json.addProperty( "max_files", c.maxFiles() );
+        json.addProperty( "client_id", c.clientId() );
+        json.addProperty( "redirect_uri", c.redirectUri() );
+        json.addProperty( "export_mime", c.exportMimeType() );
+        // client_secret intentionally omitted — lives in the CredentialStore, never round-tripped here.
+        return json;
+    }
+
+    private static JsonObject githubToJson( final GithubConfig c ) {
+        final JsonObject json = new JsonObject();
+        json.addProperty( "repo", c.repo() );
+        json.addProperty( "branch", c.branch() );
+        json.addProperty( "path_prefix", c.pathPrefix() );
+        json.addProperty( "max_files", c.maxFiles() );
+        return json;
+    }
+
+    private static JsonObject confluenceToJson( final ConfluenceConfig c ) {
+        final JsonObject json = new JsonObject();
+        json.addProperty( "base_url", c.baseUrl() );
+        json.addProperty( "space_key", c.spaceKey() );
+        json.addProperty( "email", c.email() );
+        json.addProperty( "max_pages", c.maxPages() );
+        return json;
+    }
+
+    private static void putStrList( final JsonObject json, final String key, final List< String > values ) {
+        final JsonArray arr = new JsonArray();
+        for ( final String v : values ) arr.add( v );
+        json.add( key, arr );
     }
 
     // ---- validation helpers ------------------------------------------------------------------

@@ -217,4 +217,30 @@ class ConnectorConfigCodecTest {
         final var v = ConnectorConfigCodec.validate( "github", JsonParser.parseString( "{}" ).getAsJsonObject() );
         assertThrows( UnsupportedOperationException.class, () -> v.errors().put( "x", "y" ) );
     }
+
+    // ---- toJson round-trip (Task 11 — import route reconstruction) ------------------------------
+
+    @Test void jsonRoundTripGithub() {
+        final JsonObject c = JsonParser.parseString(
+            "{\"repo\":\"jake/notes\",\"branch\":\"main\",\"path_prefix\":\"docs\",\"max_files\":42}" ).getAsJsonObject();
+        final GithubConfig cfg = ( GithubConfig ) ConnectorConfigCodec.toConfig( "github", c );
+
+        final JsonObject roundTripJson = ConnectorConfigCodec.toJson( "github", cfg );
+        final GithubConfig roundTripped = ( GithubConfig ) ConnectorConfigCodec.toConfig( "github", roundTripJson );
+
+        assertEquals( cfg, roundTripped );
+    }
+
+    @Test void jsonRoundTripWebcrawler() {
+        final JsonObject c = JsonParser.parseString(
+            "{\"seeds\":[\"https://example.com\",\"https://example.com/b\"],\"same_host_only\":false,"
+            + "\"path_prefix\":\"/docs\",\"max_pages\":250,\"max_depth\":5,\"delay_ms\":2000,"
+            + "\"user_agent\":\"MyBot/1.0\",\"respect_robots\":false}" ).getAsJsonObject();
+        final WebCrawlerConfig cfg = ( WebCrawlerConfig ) ConnectorConfigCodec.toConfig( "webcrawler", c );
+
+        final JsonObject roundTripJson = ConnectorConfigCodec.toJson( "webcrawler", cfg );
+        final WebCrawlerConfig roundTripped = ( WebCrawlerConfig ) ConnectorConfigCodec.toConfig( "webcrawler", roundTripJson );
+
+        assertEquals( cfg, roundTripped );
+    }
 }

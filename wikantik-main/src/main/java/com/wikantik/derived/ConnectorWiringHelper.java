@@ -207,8 +207,10 @@ public final class ConnectorWiringHelper {
     }
 
     /** id → config for every {@code wikantik.connectors.webcrawler.<id>.seeds} key (plus its sibling
-     *  per-id options). Package-visible for testing. An id with no non-blank {@code seeds} is skipped. */
-    static Map< String, WebCrawlerConfig > webcrawlerConfigs( final Properties props ) {
+     *  per-id options). Public — also used by {@code ConnectorAdminResource}'s import route to
+     *  reconstruct a properties-defined connector's config JSON (design {@code D1}). An id with
+     *  no non-blank {@code seeds} is skipped. */
+    public static Map< String, WebCrawlerConfig > webcrawlerConfigs( final Properties props ) {
         final String p = PREFIX + "webcrawler.";
         final Map< String, WebCrawlerConfig > out = new LinkedHashMap<>();
         for ( final String key : props.stringPropertyNames() ) {
@@ -233,8 +235,10 @@ public final class ConnectorWiringHelper {
     }
 
     /** id → config for every {@code wikantik.connectors.sitemap.<id>.sitemap_urls} key (plus its sibling
-     *  per-id options). Package-visible for testing. An id with no non-blank {@code sitemap_urls} is skipped. */
-    static Map< String, SitemapConfig > sitemapConfigs( final Properties props ) {
+     *  per-id options). Public — also used by {@code ConnectorAdminResource}'s import route to
+     *  reconstruct a properties-defined connector's config JSON (design {@code D1}). An id with
+     *  no non-blank {@code sitemap_urls} is skipped. */
+    public static Map< String, SitemapConfig > sitemapConfigs( final Properties props ) {
         final String p = PREFIX + "sitemap.";
         final Map< String, SitemapConfig > out = new LinkedHashMap<>();
         for ( final String key : props.stringPropertyNames() ) {
@@ -257,8 +261,10 @@ public final class ConnectorWiringHelper {
     }
 
     /** id → config for every {@code wikantik.connectors.feed.<id>.feed_urls} key (plus its sibling
-     *  per-id options). Package-visible for testing. An id with no non-blank {@code feed_urls} is skipped. */
-    static Map< String, FeedConfig > feedConfigs( final Properties props ) {
+     *  per-id options). Public — also used by {@code ConnectorAdminResource}'s import route to
+     *  reconstruct a properties-defined connector's config JSON (design {@code D1}). An id with
+     *  no non-blank {@code feed_urls} is skipped. */
+    public static Map< String, FeedConfig > feedConfigs( final Properties props ) {
         final String p = PREFIX + "feed.";
         final Map< String, FeedConfig > out = new LinkedHashMap<>();
         for ( final String key : props.stringPropertyNames() ) {
@@ -282,9 +288,10 @@ public final class ConnectorWiringHelper {
     }
 
     /** id → config for every {@code wikantik.connectors.gdrive.<id>.folder_ids} key (plus its sibling
-     *  per-id options). Package-visible for testing. An id with no non-blank {@code folder_ids}, or
-     *  missing client_id/client_secret/redirect_uri, is skipped. */
-    static Map< String, DriveConfig > driveConfigs( final Properties props ) {
+     *  per-id options). Public — also used by {@code ConnectorAdminResource}'s import route to
+     *  reconstruct a properties-defined connector's config JSON (design {@code D1}). An id with
+     *  no non-blank {@code folder_ids}, or missing client_id/client_secret/redirect_uri, is skipped. */
+    public static Map< String, DriveConfig > driveConfigs( final Properties props ) {
         final String p = PREFIX + "gdrive.";
         final Map< String, DriveConfig > out = new LinkedHashMap<>();
         for ( final String key : props.stringPropertyNames() ) {
@@ -310,9 +317,11 @@ public final class ConnectorWiringHelper {
         return out;
     }
 
-    /** id → config for every {@code wikantik.connectors.github.<id>.repo} key. Package-visible for
-     *  testing. An id whose repo is not "owner/name" shaped is skipped. */
-    static Map< String, GithubConfig > githubConfigs( final Properties props ) {
+    /** id → config for every {@code wikantik.connectors.github.<id>.repo} key. Public — also used
+     *  by {@code ConnectorAdminResource}'s import route to reconstruct a properties-defined
+     *  connector's config JSON (design {@code D1}). An id whose repo is not "owner/name" shaped
+     *  is skipped. */
+    public static Map< String, GithubConfig > githubConfigs( final Properties props ) {
         final String p = PREFIX + "github.";
         final Map< String, GithubConfig > out = new LinkedHashMap<>();
         for ( final String key : props.stringPropertyNames() ) {
@@ -334,9 +343,11 @@ public final class ConnectorWiringHelper {
         return out;
     }
 
-    /** id → config for every {@code wikantik.connectors.confluence.<id>.space_key} key. Package-visible
-     *  for testing. An id missing base_url or email is skipped. */
-    static Map< String, ConfluenceConfig > confluenceConfigs( final Properties props ) {
+    /** id → config for every {@code wikantik.connectors.confluence.<id>.space_key} key. Public —
+     *  also used by {@code ConnectorAdminResource}'s import route to reconstruct a
+     *  properties-defined connector's config JSON (design {@code D1}). An id missing base_url or
+     *  email is skipped. */
+    public static Map< String, ConfluenceConfig > confluenceConfigs( final Properties props ) {
         final String p = PREFIX + "confluence.";
         final Map< String, ConfluenceConfig > out = new LinkedHashMap<>();
         for ( final String key : props.stringPropertyNames() ) {

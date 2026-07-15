@@ -1,7 +1,7 @@
 # Connector Admin UI — design (P2.4)
 
 **Date:** 2026-07-15
-**Status:** Approved design (grilled 2026-07-15), not yet planned into tasks
+**Status:** Implemented 2026-07-15 (25-task SDD run, plan `docs/superpowers/plans/2026-07-15-connector-admin-ui.md`). Deployment note: `wikantik.connectors.enabled` default flipped false→true (kill switch; nothing syncs unless a connector is configured).
 **Prereqs shipped:** connector framework P2.1–P2.3c (filesystem, web crawler, sitemap, feed,
 gdrive, github, confluence), credential encryption (V047), sync state (V046),
 `ConnectorAdminResource`, `ConnectorCredentialsResource`, `GoogleDriveAuthResource`.

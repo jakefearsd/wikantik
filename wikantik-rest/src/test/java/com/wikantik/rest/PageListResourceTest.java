@@ -165,6 +165,28 @@ class PageListResourceTest {
                 "cluster is omitted (not null/blank) when the index has no entry" );
     }
 
+    /**
+     * Mirrors {@link #testListPageOmitsClusterGracefullyWhenIndexUnavailable} —
+     * the structural index (which sources the derived flag alongside cluster)
+     * is not wired in this bare TestEngine harness, so the resource must still
+     * return the page list without erroring and simply omit {@code derived}.
+     * The positive path — {@code derived} populated from frontmatter
+     * {@code derived_from} — is covered at the index layer by
+     * {@code DefaultStructuralIndexServiceTest}.
+     */
+    @Test
+    void testListPageOmitsDerivedGracefullyWhenIndexUnavailable() throws Exception {
+        final String json = doGetList( "RestListAlpha", null, null );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "missing structural index must not error the list" );
+        final JsonArray pages = obj.getAsJsonArray( "pages" );
+        assertTrue( pages.size() >= 1 );
+        final JsonObject entry = pages.get( 0 ).getAsJsonObject();
+        assertFalse( entry.has( "derived" ),
+                "derived is omitted (not false) when the index has no entry" );
+    }
+
     @Test
     void testListPagesWithInvalidLimit() throws Exception {
         final String json = doGetList( null, "not-a-number", null );

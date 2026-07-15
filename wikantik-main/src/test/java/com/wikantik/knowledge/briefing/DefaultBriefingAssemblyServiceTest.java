@@ -92,7 +92,7 @@ class DefaultBriefingAssemblyServiceTest {
 
     private static PageDescriptor desc( final String slug, final Instant updated ) {
         return new PageDescriptor( "01" + slug, slug, slug, null, "billing",
-            List.of(), null, updated, Optional.empty() );
+            List.of(), null, updated, Optional.empty(), false );
     }
 
     private static ClusterDetails cluster( final String name, final PageDescriptor hub,

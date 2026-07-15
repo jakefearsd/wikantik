@@ -61,7 +61,7 @@ class StructureResourceTest {
         when( svc.listClusters() ).thenReturn( List.of( new ClusterSummary(
                 "wikantik-development",
                 new PageDescriptor( "01A", "WikantikDevelopment", "Wikantik Development",
-                        PageType.HUB, "wikantik-development", List.of(), "hub", Instant.EPOCH, Optional.empty() ),
+                        PageType.HUB, "wikantik-development", List.of(), "hub", Instant.EPOCH, Optional.empty(), false ),
                 12,
                 Instant.parse( "2026-04-01T00:00:00Z" ) ) ) );
 
@@ -84,7 +84,7 @@ class StructureResourceTest {
     void sitemap_returns_all_pages() throws Exception {
         when( svc.sitemap() ).thenReturn( new Sitemap(
                 List.of( new PageDescriptor( "01A", "Slug", "T", PageType.ARTICLE, null, List.of(),
-                        "summary", Instant.EPOCH, Optional.empty() ) ),
+                        "summary", Instant.EPOCH, Optional.empty(), false ) ),
                 1, Instant.EPOCH ) );
         final JsonObject body = callGet( "/sitemap" );
         assertEquals( 1, body.getAsJsonObject( "data" ).get( "count" ).getAsInt() );

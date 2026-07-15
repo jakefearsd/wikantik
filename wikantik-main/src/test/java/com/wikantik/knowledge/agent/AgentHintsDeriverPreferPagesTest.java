@@ -54,7 +54,7 @@ class AgentHintsDeriverPreferPagesTest {
 
     private PageDescriptor pd( final String id, final String slug, final String cluster ) {
         return new PageDescriptor( id, slug, slug, PageType.UNKNOWN, cluster,
-                List.of(), null, Instant.parse( "2026-05-10T00:00:00Z" ), Optional.empty() );
+                List.of(), null, Instant.parse( "2026-05-10T00:00:00Z" ), Optional.empty(), false );
     }
 
     @Test

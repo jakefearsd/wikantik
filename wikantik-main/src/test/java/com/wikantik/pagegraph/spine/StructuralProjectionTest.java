@@ -34,7 +34,7 @@ class StructuralProjectionTest {
     private static PageDescriptor page( final String id, final String slug, final PageType type,
                                          final String cluster, final List< String > tags ) {
         return new PageDescriptor( id, slug, slug, type, cluster, tags,
-                                    slug + " summary", Instant.parse( "2026-04-01T00:00:00Z" ), Optional.empty() );
+                                    slug + " summary", Instant.parse( "2026-04-01T00:00:00Z" ), Optional.empty(), false );
     }
 
     @Test

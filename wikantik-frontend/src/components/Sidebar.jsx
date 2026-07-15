@@ -63,6 +63,9 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           {...(activePage === p.name ? { 'aria-current': 'page' } : {})}
         >
           {p.name}
+          {p.derived && (
+            <span className="derived-badge" title="Synced from an external source" aria-label="Synced from an external source">↯</span>
+          )}
         </Link>
       ));
 

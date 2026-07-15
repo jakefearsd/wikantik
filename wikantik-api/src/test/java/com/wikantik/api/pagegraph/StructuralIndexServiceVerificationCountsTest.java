@@ -36,7 +36,7 @@ class StructuralIndexServiceVerificationCountsTest {
 
     private static PageDescriptor desc( final String id ) {
         return new PageDescriptor( id, id, id, PageType.ARTICLE,
-                null, List.of(), "summary", Instant.EPOCH, Optional.empty() );
+                null, List.of(), "summary", Instant.EPOCH, Optional.empty(), false );
     }
 
     private static Verification at( final Confidence c ) {

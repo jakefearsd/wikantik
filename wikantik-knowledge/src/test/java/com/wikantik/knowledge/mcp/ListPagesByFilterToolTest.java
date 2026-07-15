@@ -62,7 +62,7 @@ class ListPagesByFilterToolTest {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
         when( svc.listPagesByFilter( any() ) ).thenReturn( List.of(
                 new PageDescriptor( "01A", "X", "X", PageType.ARTICLE, null, List.of(),
-                        "summary", Instant.EPOCH, Optional.empty() ) ) );
+                        "summary", Instant.EPOCH, Optional.empty(), false ) ) );
 
         final var result = new ListPagesByFilterTool( svc ).execute( Map.of() );
         assertFalse( result.isError() );
@@ -138,9 +138,9 @@ class ListPagesByFilterToolTest {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
         when( svc.listPagesByFilter( any() ) ).thenReturn( List.of(
                 new PageDescriptor( "01SEC", "Secret", "Secret Page", PageType.ARTICLE, null,
-                        List.of(), "TOP SECRET SUMMARY", Instant.EPOCH, Optional.empty() ),
+                        List.of(), "TOP SECRET SUMMARY", Instant.EPOCH, Optional.empty(), false ),
                 new PageDescriptor( "01PUB", "Public", "Public Page", PageType.ARTICLE, null,
-                        List.of(), "public summary", Instant.EPOCH, Optional.empty() ) ) );
+                        List.of(), "public summary", Instant.EPOCH, Optional.empty(), false ) ) );
 
         final PageViewGate gate = slug -> !"Secret".equals( slug );
         final var result = new ListPagesByFilterTool( svc, gate ).execute( Map.of() );

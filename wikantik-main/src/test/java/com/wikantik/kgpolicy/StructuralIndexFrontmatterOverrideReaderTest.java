@@ -35,7 +35,7 @@ class StructuralIndexFrontmatterOverrideReaderTest {
 
     private static PageDescriptor pdWithKgInclude( final Optional< Boolean > kgInclude ) {
         return new PageDescriptor( "01HAA", "Foo", "Foo", PageType.ARTICLE,
-                "java", List.of(), null, Instant.now(), kgInclude );
+                "java", List.of(), null, Instant.now(), kgInclude, false );
     }
 
     @Test

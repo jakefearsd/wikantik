@@ -205,6 +205,18 @@ describe('Sidebar', () => {
     });
   });
 
+  describe('derived-page badge (#18)', () => {
+    it('renders exactly one derived badge for the page flagged derived:true', async () => {
+      api.listPages.mockResolvedValue({ pages: [{ name: 'A', derived: true }, { name: 'B' }] });
+      renderSidebar('/wiki/A');
+      // Both pages are clusterless — expand the top-level "Clusters" wrapper
+      // (which hosts Uncategorized) to reach their links.
+      fireEvent.click(await screen.findByRole('button', { name: /Clusters/ }));
+      const badges = screen.getAllByTitle('Synced from an external source');
+      expect(badges).toHaveLength(1);
+    });
+  });
+
   describe('aria-current on active nav links (#6)', () => {
     it('active nav link has aria-current="page" when route matches', () => {
       renderSidebar('/wiki/Main');

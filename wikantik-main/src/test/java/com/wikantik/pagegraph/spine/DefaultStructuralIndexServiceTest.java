@@ -256,4 +256,40 @@ class DefaultStructuralIndexServiceTest {
                 .findFirst().orElseThrow();
         assertEquals( "NoId", missing.slug() );
     }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void rebuild_marks_descriptor_derived_when_frontmatter_has_derived_from() throws Exception {
+        final Page derivedPage = fakePage( "Ingested",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\n" +
+                "title: Ingested\ntype: article\nderived_from: source.pdf", "" );
+        final Page authoredPage = fakePage( "HandWritten",
+                "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\n" +
+                "title: HandWritten\ntype: article", "" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( derivedPage, authoredPage ) );
+
+        svc.rebuild();
+
+        assertTrue( svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow().derived() );
+        assertFalse( svc.getByCanonicalId( "01BBBBBBBBBBBBBBBBBBBBBBBB" ).orElseThrow().derived() );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void onPageSaved_marks_descriptor_derived_when_frontmatter_has_derived_from() throws Exception {
+        final Page a = fakePage( "A",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article", "" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a ) );
+        svc.rebuild();
+
+        final Page ingested = fakePage( "Ingested",
+                "canonical_id: 01CCCCCCCCCCCCCCCCCCCCCCCC\n" +
+                "title: Ingested\ntype: article\nderived_from: source.pdf", "" );
+        when( pageManager.getPage( "Ingested" ) ).thenReturn( ingested );
+
+        svc.onPageSaved( "Ingested" );
+
+        assertTrue( svc.getByCanonicalId( "01CCCCCCCCCCCCCCCCCCCCCCCC" ).orElseThrow().derived() );
+        assertFalse( svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow().derived() );
+    }
 }

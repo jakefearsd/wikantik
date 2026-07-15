@@ -96,7 +96,7 @@ class AdminKgPolicyResourceTest {
 
     private static PageDescriptor page( final String id ) {
         return new PageDescriptor( id, id, id, PageType.ARTICLE,
-                null, List.of(), null, Instant.EPOCH, Optional.empty() );
+                null, List.of(), null, Instant.EPOCH, Optional.empty(), false );
     }
 
     // -------------------------------------------------------------------------

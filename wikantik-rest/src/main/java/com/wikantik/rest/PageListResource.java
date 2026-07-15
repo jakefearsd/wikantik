@@ -127,15 +127,16 @@ public class PageListResource extends RestServletBase {
                 .limit( limit )
                 .toList();
 
-        // Cluster membership lives in the structural index (frontmatter-derived),
-        // not on the Page itself. Build a slug→cluster map so the sidebar can
-        // group pages by cluster. Restricted to the returned slice (post-pagination)
-        // so this doesn't walk the entire sitemap on every request. Degrade
-        // gracefully if the index is unavailable.
+        // Cluster membership and the derived flag both live in the structural
+        // index (frontmatter-derived), not on the Page itself. Build a slug→cluster
+        // map plus a derived-slug set so the sidebar can group pages by cluster
+        // and badge synced-from-external-source pages. Restricted to the returned
+        // slice (post-pagination) so this doesn't walk the entire sitemap on every
+        // request. Degrades gracefully if the index is unavailable.
         final java.util.Set< String > sliceNames = filtered.stream()
                 .map( Page::getName )
                 .collect( java.util.stream.Collectors.toSet() );
-        final Map< String, String > clusterBySlug = loadClusterBySlug( sliceNames );
+        final SpineMeta spineMeta = loadSpineMeta( sliceNames );
 
         final List< Map< String, Object > > pageList = filtered.stream()
                 .map( page -> {
@@ -144,9 +145,12 @@ public class PageListResource extends RestServletBase {
                     entry.put( "lastModified", page.getLastModified() );
                     entry.put( "version", Math.max( page.getVersion(), 1 ) );
                     entry.put( "author", page.getAuthor() );
-                    final String cluster = clusterBySlug.get( page.getName() );
+                    final String cluster = spineMeta.clusterBySlug().get( page.getName() );
                     if ( cluster != null ) {
                         entry.put( "cluster", cluster );
+                    }
+                    if ( spineMeta.derivedSlugs().contains( page.getName() ) ) {
+                        entry.put( "derived", true );
                     }
                     return entry;
                 } )
@@ -162,34 +166,48 @@ public class PageListResource extends RestServletBase {
     }
 
     /**
-     * Slug → cluster map sourced from the structural index, restricted to
+     * Slug → cluster map, and the set of derived-page slugs, both sourced from
+     * the structural index in a single {@code sitemap()} pass, restricted to
      * {@code wanted} (the page names actually returned in this response, i.e.
-     * the post-pagination slice). Returns an empty map (never null) when the
-     * index is unavailable or errors, so the page list still renders — just
-     * without cluster grouping in the sidebar.
+     * the post-pagination slice).
      */
-    private Map< String, String > loadClusterBySlug( final java.util.Set< String > wanted ) {
+    private record SpineMeta( Map< String, String > clusterBySlug, java.util.Set< String > derivedSlugs ) {}
+
+    /**
+     * Loads {@link SpineMeta} for {@code wanted}. Returns empty collections
+     * (never null) when the index is unavailable or errors, so the page list
+     * still renders — just without cluster grouping or derived badges in the
+     * sidebar.
+     */
+    private SpineMeta loadSpineMeta( final java.util.Set< String > wanted ) {
         final Map< String, String > clusterBySlug = new HashMap<>();
+        final java.util.Set< String > derivedSlugs = new java.util.HashSet<>();
         if ( wanted.isEmpty() ) {
-            return clusterBySlug;
+            return new SpineMeta( clusterBySlug, derivedSlugs );
         }
         try {
             final StructuralIndexService idx = getSubsystems().pageGraph().structuralIndexService();
             if ( idx == null ) {
-                return clusterBySlug;
+                return new SpineMeta( clusterBySlug, derivedSlugs );
             }
             // Use sitemap() — the full, unbounded projection. listPagesByFilter
             // (with StructuralFilter.none()) silently caps at 100 pages, which
             // would leave all but the first 100 pages clusterless in the sidebar.
             for ( final PageDescriptor d : idx.sitemap().pages() ) {
-                if ( wanted.contains( d.slug() ) && d.cluster() != null && !d.cluster().isBlank() ) {
+                if ( !wanted.contains( d.slug() ) ) {
+                    continue;
+                }
+                if ( d.cluster() != null && !d.cluster().isBlank() ) {
                     clusterBySlug.put( d.slug(), d.cluster() );
+                }
+                if ( d.derived() ) {
+                    derivedSlugs.add( d.slug() );
                 }
             }
         } catch ( final RuntimeException e ) {
-            LOG.warn( "Could not load cluster metadata for page list: {}", e.getMessage() );
+            LOG.warn( "Could not load cluster/derived metadata for page list: {}", e.getMessage() );
         }
-        return clusterBySlug;
+        return new SpineMeta( clusterBySlug, derivedSlugs );
     }
 
 }

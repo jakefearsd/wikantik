@@ -63,7 +63,7 @@ class DefaultKgInclusionPolicyTest {
     private void wireSlug( final String pageName, final String cluster ) {
         final String id = "01HAA000000000000000000000";
         final PageDescriptor pd = new PageDescriptor( id, pageName, pageName,
-                PageType.ARTICLE, cluster, List.of(), null, Instant.now(), Optional.empty() );
+                PageType.ARTICLE, cluster, List.of(), null, Instant.now(), Optional.empty(), false );
         when( structural.resolveCanonicalIdFromSlug( pageName ) ).thenReturn( Optional.of( id ) );
         when( structural.getByCanonicalId( id ) ).thenReturn( Optional.of( pd ) );
     }

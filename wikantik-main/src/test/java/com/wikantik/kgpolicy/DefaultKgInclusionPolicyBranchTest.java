@@ -78,7 +78,7 @@ class DefaultKgInclusionPolicyBranchTest {
 
     private PageDescriptor descriptor( final String id, final String slug, final String cluster ) {
         return new PageDescriptor( id, slug, slug, PageType.ARTICLE, cluster,
-                List.of(), null, Instant.now(), Optional.empty() );
+                List.of(), null, Instant.now(), Optional.empty(), false );
     }
 
     // -----------------------------------------------------------------------

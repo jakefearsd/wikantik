@@ -38,7 +38,7 @@ class GetPageByIdToolTest {
     void returns_descriptor_for_known_id() {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
         when( svc.getByCanonicalId( "01A" ) ).thenReturn( Optional.of(
-                new PageDescriptor( "01A", "X", "X", PageType.ARTICLE, null, List.of(), "s", Instant.EPOCH, Optional.empty() ) ) );
+                new PageDescriptor( "01A", "X", "X", PageType.ARTICLE, null, List.of(), "s", Instant.EPOCH, Optional.empty(), false ) ) );
         final var result = new GetPageByIdTool( svc ).execute( Map.of( "canonical_id", "01A" ) );
         assertFalse( result.isError() );
         final String text = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
@@ -89,7 +89,7 @@ class GetPageByIdToolTest {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
         when( svc.getByCanonicalId( "01A" ) ).thenReturn( Optional.of(
                 new PageDescriptor( "01A", "AnyPage", "AnyPage", PageType.ARTICLE, null, List.of(),
-                        "s", Instant.EPOCH, Optional.empty() ) ) );
+                        "s", Instant.EPOCH, Optional.empty(), false ) ) );
 
         final var result = new GetPageByIdTool( svc, null ).execute( Map.of( "id", "01A" ) );
 
@@ -116,7 +116,7 @@ class GetPageByIdToolTest {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
         when( svc.getByCanonicalId( "01SECRET" ) ).thenReturn( Optional.of(
                 new PageDescriptor( "01SECRET", "Secret", "Secret Page",
-                        PageType.ARTICLE, null, List.of(), "TOP SECRET SUMMARY", Instant.EPOCH, Optional.empty() ) ) );
+                        PageType.ARTICLE, null, List.of(), "TOP SECRET SUMMARY", Instant.EPOCH, Optional.empty(), false ) ) );
 
         final PageViewGate gate = slug -> !"Secret".equals( slug );
         final var result = new GetPageByIdTool( svc, gate ).execute( Map.of( "canonical_id", "01SECRET" ) );

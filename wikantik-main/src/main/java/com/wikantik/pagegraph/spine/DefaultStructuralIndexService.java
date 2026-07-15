@@ -145,9 +145,11 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 final List< String > tags = stringList( fm.get( "tags" ) );
                 final Instant updated = p.getLastModified() == null ? null : p.getLastModified().toInstant();
                 final Optional< Boolean > kgInclude = parseKgInclude( fm.get( "kg_include" ) );
+                final boolean derived = fm.get( "derived_from" ) != null;
 
                 builder.addPage( new PageDescriptor(
-                        canonicalId, p.getName(), title, type, cluster, tags, summary, updated, kgInclude ) );
+                        canonicalId, p.getName(), title, type, cluster, tags, summary, updated, kgInclude,
+                        derived ) );
 
                 // Only persist canonical_ids authored in frontmatter. Synthesised IDs live
                 // in memory until an author (or Phase 4's mandatory validator) writes them
@@ -291,8 +293,9 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         final Instant updated = page.getLastModified() == null
                 ? null : page.getLastModified().toInstant();
         final Optional< Boolean > kgInclude = parseKgInclude( fm.get( "kg_include" ) );
+        final boolean derived = fm.get( "derived_from" ) != null;
         final PageDescriptor next = new PageDescriptor(
-                canonicalId, slug, title, type, cluster, tags, summary, updated, kgInclude );
+                canonicalId, slug, title, type, cluster, tags, summary, updated, kgInclude, derived );
 
         if ( authored ) {
             PageCanonicalIdsDao.UpsertResult upsertResult = PageCanonicalIdsDao.UpsertResult.WRITTEN;

@@ -32,6 +32,10 @@ import java.util.Optional;
  * override ({@code true}/{@code false}). {@link Optional#empty()} means the
  * frontmatter did not specify a value and the inclusion decision falls back to
  * the cluster / global policy.</p>
+ *
+ * <p>{@code derived} marks pages ingested from an external source (i.e. the
+ * frontmatter carries a {@code derived_from} key) — see {@code DerivedPage}
+ * in wikantik-main.</p>
  */
 public record PageDescriptor(
         String canonicalId,
@@ -42,7 +46,8 @@ public record PageDescriptor(
         List< String > tags,
         String summary,
         Instant updated,
-        Optional< Boolean > kgInclude
+        Optional< Boolean > kgInclude,
+        boolean derived
 ) {
     public PageDescriptor {
         if ( canonicalId == null || canonicalId.isBlank() ) {

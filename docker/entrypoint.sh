@@ -62,6 +62,33 @@
 #   WIKANTIK_SSO_CLAIM_FULL_NAME IdP claim mapped to display name (default "name")
 #   WIKANTIK_SSO_CLAIM_EMAIL     IdP claim mapped to email (default "email")
 #                                redirect_uri = WIKANTIK_BASE_URL + /sso/callback
+#   WIKANTIK_GENAI_MODE          GenAI ceiling control: full | embeddings-only | none
+#                                (default: ini bundle default = full)
+#   WIKANTIK_KNOWLEDGE_ENABLED   "true"/"false" to toggle the Knowledge Graph subsystem
+#                                (default: ini bundle default)
+#   WIKANTIK_EMBEDDING_BASE_URL  dense-retrieval embedding service base URL override, e.g.
+#                                http://embedding-sidecar:11434 (default: ini bundle default,
+#                                the shared inference host — unreachable from some networks)
+#   WIKANTIK_EXTRACTOR_BACKEND   KG entity-extractor backend: ollama | claude | disabled
+#                                (default: ini bundle default = ollama). When "claude", also
+#                                set ANTHROPIC_API_KEY.
+#   ANTHROPIC_API_KEY            Anthropic API key, required when WIKANTIK_EXTRACTOR_BACKEND=
+#                                claude. Read directly via System.getenv("ANTHROPIC_API_KEY")
+#                                by EntityExtractorFactory — passed straight through as a
+#                                container process env var; this script does not render it
+#                                into any properties file, so no conditional block exists below.
+#   WIKANTIK_SCIM_TOKEN          SCIM bearer token (sensitive). ScimAccessFilter
+#                                (wikantik-scim) reads this exclusively via
+#                                System.getProperty("wikantik.scim.token") — never through
+#                                wikantik-custom.properties/PropertyReader — so this script
+#                                injects it as a JVM system property (-D) via CATALINA_OPTS.
+#   WIKANTIK_CONNECTORS_CRYPTO_KEY  base64-encoded 32-byte AES-256 key for the connector
+#                                credential store (github token / confluence api_token /
+#                                gdrive client_secret+refresh_token at rest). Absent ⇒ the
+#                                credential store stays disabled (current behavior).
+#   PROXY_REMOTE_IP_HEADER       reverse-proxy header carrying the real client IP (e.g.
+#                                X-Forwarded-For); wired into server.xml/CATALINA_OPTS by a
+#                                later task — documented here only, not yet consumed.
 #   CATALINA_HOME                tomcat root (default /usr/local/tomcat)
 
 set -euo pipefail
@@ -189,6 +216,73 @@ if [ -n "${WIKANTIK_VERSIONING_CACHE_SIZE:-}" ]; then
 # VersioningFileProvider property cache size (entrypoint-injected from env).
 wikantik.versioningFileProvider.cacheSize = ${WIKANTIK_VERSIONING_CACHE_SIZE}
 EOF
+fi
+
+# Optional: GenAI ceiling control (cost-control flag).
+#   WIKANTIK_GENAI_MODE — full | embeddings-only | none (default: ini bundle default = full).
+if [ -n "${WIKANTIK_GENAI_MODE:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# GenAI ceiling control (entrypoint-injected from env).
+wikantik.genai.mode = ${WIKANTIK_GENAI_MODE}
+EOF
+fi
+
+# Optional: Knowledge Graph subsystem toggle.
+#   WIKANTIK_KNOWLEDGE_ENABLED — "true"/"false" (default: ini bundle default).
+if [ -n "${WIKANTIK_KNOWLEDGE_ENABLED:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# Knowledge Graph subsystem toggle (entrypoint-injected from env).
+wikantik.knowledge.enabled = ${WIKANTIK_KNOWLEDGE_ENABLED}
+EOF
+fi
+
+# Optional: dense-retrieval embedding service base URL override.
+#   WIKANTIK_EMBEDDING_BASE_URL — e.g. http://embedding-sidecar:11434 (default: ini bundle
+#   default, the shared inference host — unreachable from some networks/cloud deploys).
+if [ -n "${WIKANTIK_EMBEDDING_BASE_URL:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# Embedding service base URL override (entrypoint-injected from env).
+wikantik.search.embedding.base-url = ${WIKANTIK_EMBEDDING_BASE_URL}
+EOF
+fi
+
+# Optional: KG entity-extractor backend override.
+#   WIKANTIK_EXTRACTOR_BACKEND — ollama | claude | disabled (default: ini bundle default =
+#   ollama). When "claude", also set ANTHROPIC_API_KEY (read directly from the process
+#   environment by EntityExtractorFactory — not rendered here).
+if [ -n "${WIKANTIK_EXTRACTOR_BACKEND:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# KG entity-extractor backend override (entrypoint-injected from env).
+wikantik.knowledge.extractor.backend = ${WIKANTIK_EXTRACTOR_BACKEND}
+EOF
+fi
+
+# Optional: connector credential-store encryption key.
+#   WIKANTIK_CONNECTORS_CRYPTO_KEY — base64 32-byte AES-256 key. Absent ⇒ the connector
+#   credential store (github token / confluence api_token / gdrive client_secret+refresh_token)
+#   stays disabled — current behavior.
+if [ -n "${WIKANTIK_CONNECTORS_CRYPTO_KEY:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# Connector credential-store encryption key (entrypoint-injected from env).
+wikantik.connectors.crypto.key = ${WIKANTIK_CONNECTORS_CRYPTO_KEY}
+EOF
+fi
+
+# Optional: SCIM bearer token (sensitive).
+#   WIKANTIK_SCIM_TOKEN — ScimAccessFilter (wikantik-scim) reads this exclusively via
+#   System.getProperty("wikantik.scim.token") (see ScimAccessFilter.init(), which checks the
+#   system property before falling back to a web.xml filter init-param) — NOT via
+#   wikantik-custom.properties/PropertyReader. So it must land as a JVM system property, not
+#   a properties-file entry; appended to CATALINA_OPTS, consumed by catalina.sh at the final
+#   exec below. Absent ⇒ all SCIM requests are denied (current behavior; ScimAccessFilter
+#   logs a warning).
+if [ -n "${WIKANTIK_SCIM_TOKEN:-}" ]; then
+  export CATALINA_OPTS="${CATALINA_OPTS:-} -Dwikantik.scim.token=${WIKANTIK_SCIM_TOKEN}"
 fi
 
 # Optional: Single Sign-On (OIDC/SAML via pac4j).

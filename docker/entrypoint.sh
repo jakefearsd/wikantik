@@ -64,8 +64,9 @@
 #                                redirect_uri = WIKANTIK_BASE_URL + /sso/callback
 #   WIKANTIK_GENAI_MODE          GenAI ceiling control: full | embeddings-only | none
 #                                (default: ini bundle default = full)
-#   WIKANTIK_KNOWLEDGE_ENABLED   "true"/"false" to toggle the Knowledge Graph subsystem
-#                                (default: ini bundle default)
+#   WIKANTIK_KNOWLEDGE_ENABLED   "true"/"false" — consumed by wikantik.knowledge.enabled
+#                                (default true when unset; the consuming property ships
+#                                with the same release)
 #   WIKANTIK_EMBEDDING_BASE_URL  dense-retrieval embedding service base URL override, e.g.
 #                                http://embedding-sidecar:11434 (default: ini bundle default,
 #                                the shared inference host — unreachable from some networks)
@@ -82,6 +83,10 @@
 #                                System.getProperty("wikantik.scim.token") — never through
 #                                wikantik-custom.properties/PropertyReader — so this script
 #                                injects it as a JVM system property (-D) via CATALINA_OPTS.
+#                                Because catalina.sh word-splits CATALINA_OPTS, the token
+#                                MUST match [A-Za-z0-9+/=_-] — hex/base64 only, no spaces
+#                                or shell metacharacters (generate with: openssl rand -hex 32);
+#                                the script refuses to boot (exit 1) on a violating token.
 #   WIKANTIK_CONNECTORS_CRYPTO_KEY  base64-encoded 32-byte AES-256 key for the connector
 #                                credential store (github token / confluence api_token /
 #                                gdrive client_secret+refresh_token at rest). Absent ⇒ the
@@ -229,7 +234,8 @@ EOF
 fi
 
 # Optional: Knowledge Graph subsystem toggle.
-#   WIKANTIK_KNOWLEDGE_ENABLED — "true"/"false" (default: ini bundle default).
+#   WIKANTIK_KNOWLEDGE_ENABLED — "true"/"false", consumed by wikantik.knowledge.enabled
+#   (default true when unset; the consuming property ships with the same release).
 if [ -n "${WIKANTIK_KNOWLEDGE_ENABLED:-}" ]; then
   cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
 
@@ -281,7 +287,20 @@ fi
 #   a properties-file entry; appended to CATALINA_OPTS, consumed by catalina.sh at the final
 #   exec below. Absent ⇒ all SCIM requests are denied (current behavior; ScimAccessFilter
 #   logs a warning).
+#   Charset guard: catalina.sh word-splits/evals CATALINA_OPTS, so a token containing
+#   spaces or shell metacharacters would silently truncate (or worse). Fail fast instead:
+#   the token must match [A-Za-z0-9+/=_-]+ (hex/base64/base64url). Generate with:
+#   openssl rand -hex 32
 if [ -n "${WIKANTIK_SCIM_TOKEN:-}" ]; then
+  case "${WIKANTIK_SCIM_TOKEN}" in
+    *[!A-Za-z0-9+/=_-]*)
+      echo "ERROR: WIKANTIK_SCIM_TOKEN contains characters outside [A-Za-z0-9+/=_-]." >&2
+      echo "       catalina.sh word-splits CATALINA_OPTS, so spaces or shell metacharacters" >&2
+      echo "       in the token would be silently truncated or misinterpreted. Use a" >&2
+      echo "       hex/base64 token only — generate one with: openssl rand -hex 32" >&2
+      exit 1
+      ;;
+  esac
   export CATALINA_OPTS="${CATALINA_OPTS:-} -Dwikantik.scim.token=${WIKANTIK_SCIM_TOKEN}"
 fi
 

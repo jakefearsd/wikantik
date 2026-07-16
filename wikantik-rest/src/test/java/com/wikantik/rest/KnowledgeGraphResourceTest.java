@@ -112,6 +112,31 @@ class KnowledgeGraphResourceTest {
     }
 
     @Test
+    void doGet_kgDisabled_returns503CitingFlag() throws Exception {
+        // Fresh engine WITHOUT a KnowledgeGraphService — the shape
+        // wikantik.knowledge.enabled=false produces (factory returns null kgService).
+        final TestEngine kgOffEngine = new TestEngine( TestEngine.getTestProperties() );
+        try {
+            final KnowledgeGraphResource kgOffServlet = new KnowledgeGraphResource();
+            kgOffServlet.setEngine( kgOffEngine );
+
+            final StringWriter sw = new StringWriter();
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/knowledge/graph" );
+            Mockito.doReturn( null ).when( request ).getPathInfo();
+            kgOffServlet.doGet( request, response );
+
+            Mockito.verify( response ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+            assertTrue( sw.toString().contains( "wikantik.knowledge.enabled" ),
+                    "503 body must cite the flag: " + sw );
+        } finally {
+            kgOffEngine.stop();
+        }
+    }
+
+    @Test
     void doGet_anonymous_returns200() throws Exception {
         // D27: knowledge graph reads are now public to match /api/structure/*. The graph
         // contains only canonical ids and relationship types — no ACL-restricted content —

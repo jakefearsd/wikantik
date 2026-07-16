@@ -68,9 +68,31 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         return false;
     }
 
+    /**
+     * Master-flag gate: when the Knowledge Graph subsystem is disabled
+     * ({@code wikantik.knowledge.enabled=false}) every hub-discovery surface refuses
+     * with a 503 naming the flag, so operators see the root cause instead of the
+     * service-specific "not available" fallbacks in the per-handler guards (which
+     * remain for the partially-wired case, e.g. a missing repository).
+     *
+     * @return {@code true} when the request was refused (503 already written)
+     */
+    private boolean refuseIfKnowledgeDisabled( final HttpServletResponse response ) throws IOException {
+        final java.util.Properties props = getSubsystems().core().properties().asProperties();
+        final boolean enabled = props == null || com.wikantik.util.TextUtil.getBooleanProperty(
+            props, CapabilitiesResource.PROP_KNOWLEDGE_ENABLED, true );
+        if ( !enabled ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "Knowledge Graph subsystem is disabled (wikantik.knowledge.enabled=false)" );
+            return true;
+        }
+        return false;
+    }
+
     @Override
     protected void doGet( final HttpServletRequest request,
                           final HttpServletResponse response ) throws IOException {
+        if ( refuseIfKnowledgeDisabled( response ) ) return;
         final String path = request.getPathInfo();
         if ( "/proposals".equals( path ) ) {
             handleListProposals( request, response );
@@ -88,6 +110,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
     @Override
     protected void doPost( final HttpServletRequest request,
                            final HttpServletResponse response ) throws IOException {
+        if ( refuseIfKnowledgeDisabled( response ) ) return;
         final String path = request.getPathInfo();
         if ( path == null ) {
             sendError( response, HttpServletResponse.SC_NOT_FOUND, "Path required" );
@@ -115,6 +138,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
     @Override
     protected void doDelete( final HttpServletRequest request,
                              final HttpServletResponse response ) throws IOException {
+        if ( refuseIfKnowledgeDisabled( response ) ) return;
         final String path = request.getPathInfo();
         if ( path != null && path.matches( "/proposals/dismissed/\\d+" ) ) {
             final int id = Integer.parseInt( path.substring( path.lastIndexOf( '/' ) + 1 ) );

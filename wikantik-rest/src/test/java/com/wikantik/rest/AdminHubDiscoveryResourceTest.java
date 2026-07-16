@@ -44,6 +44,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.time.Instant;
 import java.util.List;
+import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -98,6 +99,24 @@ class AdminHubDiscoveryResourceTest {
         resource.doPost( req, resp );
 
         verify( resp ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+    }
+
+    @Test
+    void anyVerb_returns503CitingFlagWhenKnowledgeDisabled() throws Exception {
+        // Master flag off: the top-level gate must refuse BEFORE any handler runs,
+        // and the payload must name wikantik.knowledge.enabled as the reason —
+        // even though the hub services are stubbed present on this engine.
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.knowledge.enabled", "false" );
+        when( engine.getWikiProperties() ).thenReturn( props );
+        when( req.getPathInfo() ).thenReturn( "/run" );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+        assertTrue( respBody.toString().contains( "wikantik.knowledge.enabled" ),
+            "503 payload must cite the flag: " + respBody );
+        verify( service, never() ).runDiscovery();
     }
 
     // ---- /proposals ----

@@ -615,6 +615,10 @@
        <servlet-class>com.wikantik.rest.ChangesResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>CapabilitiesResource</servlet-name>
+       <servlet-class>com.wikantik.rest.CapabilitiesResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>OutboundLinksResource</servlet-name>
        <servlet-class>com.wikantik.rest.OutboundLinksResource</servlet-class>
    </servlet>
@@ -921,6 +925,10 @@
    <servlet-mapping>
        <servlet-name>ChangesResource</servlet-name>
        <url-pattern>/api/changes</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>CapabilitiesResource</servlet-name>
+       <url-pattern>/api/capabilities</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>OutboundLinksResource</servlet-name>

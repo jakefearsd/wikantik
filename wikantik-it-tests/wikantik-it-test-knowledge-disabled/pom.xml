@@ -130,5 +130,19 @@
       <version>${mcp-sdk.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <!-- Brings Selenide/Selenium plus the shared page objects (ViewWikiPage,
+         LoginPage, WithIntegrationTestSetup, Env) used by this module's own
+         browser IT asserting the Knowledge Graph nav entries are absent when
+         wikantik.knowledge.enabled=false. dependenciesToScan above is
+         overridden to empty so failsafe does NOT also run the full shared
+         Selenide IT suite (which assumes the KG subsystem is on) against
+         this deployment — only this module's own *IT.java classes run. -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>wikantik-selenide-tests</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>

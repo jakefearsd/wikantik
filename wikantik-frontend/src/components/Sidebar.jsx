@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
+import { useCapabilities } from '../hooks/useCapabilities';
 import { useDarkMode } from '../hooks/useDarkMode';
 import PersonalZone from './PersonalZone';
 import UserBadge from './UserBadge';
@@ -25,6 +26,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [dark, toggleDark] = useDarkMode();
   const { user } = useAuth();
+  const { capabilities } = useCapabilities();
   useEffect(() => {
     api.listPages({ limit: 500 }).then(d => setPages(d.pages || [])).catch(() => {});
     api.getRecentChanges(20).then(d => setRecentChanges(d.changes || [])).catch(() => {});
@@ -141,13 +143,15 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           >
             Page Graph
           </Link>
-          <Link
-            to="/knowledge-graph"
-            className="sidebar-link"
-            onClick={onMobileClose}
-          >
-            Knowledge Graph
-          </Link>
+          {capabilities.knowledgeGraph && (
+            <Link
+              to="/knowledge-graph"
+              className="sidebar-link"
+              onClick={onMobileClose}
+            >
+              Knowledge Graph
+            </Link>
+          )}
         </div>
 
         {/* Recent Changes — live feed, capped at 5 until expanded */}
@@ -205,13 +209,15 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
             >
               Security
             </Link>
-            <Link
-              to="/admin/knowledge-graph"
-              className="sidebar-link"
-              onClick={onMobileClose}
-            >
-              Knowledge Graph
-            </Link>
+            {capabilities.knowledgeGraph && (
+              <Link
+                to="/admin/knowledge-graph"
+                className="sidebar-link"
+                onClick={onMobileClose}
+              >
+                Knowledge Graph
+              </Link>
+            )}
             {navLink('/wiki/UnusedPages', 'Unused pages')}
             {navLink('/wiki/UndefinedPages', 'Undefined pages')}
           </div>

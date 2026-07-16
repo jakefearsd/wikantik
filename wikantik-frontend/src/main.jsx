@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
+import { CapabilitiesProvider } from './hooks/useCapabilities';
 import App from './App';
 import PageView from './components/PageView';
 import './styles/globals.css';
@@ -49,6 +50,7 @@ const KnowledgeGraphView = React.lazy(() => import('./components/kgraph/Knowledg
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
+    <CapabilitiesProvider>
     <AuthProvider>
       <BrowserRouter basename={(typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '/'}>
         <Suspense fallback={<div className="route-loading" aria-busy="true" />}>
@@ -105,6 +107,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         </Suspense>
       </BrowserRouter>
     </AuthProvider>
+    </CapabilitiesProvider>
   </React.StrictMode>
 );
 

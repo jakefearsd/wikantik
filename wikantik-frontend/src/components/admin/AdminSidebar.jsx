@@ -1,5 +1,6 @@
 // AdminSidebar.jsx
 import { NavLink, Link } from 'react-router-dom';
+import { useCapabilities } from '../../hooks/useCapabilities';
 import '../../styles/admin.css';
 
 // Grouped admin navigation. Rendered by App.jsx in the rail slot in place of the
@@ -25,7 +26,7 @@ const GROUPS = [
   {
     title: 'Knowledge & Search',
     links: [
-      { to: '/admin/knowledge-graph', label: 'Knowledge Graph' },
+      { to: '/admin/knowledge-graph', label: 'Knowledge Graph', requiresKg: true },
       { to: '/admin/kg-policy', label: 'KG Policy' },
       { to: '/admin/retrieval-quality', label: 'Retrieval Quality' },
       { to: '/admin/drift', label: 'Drift' },
@@ -50,6 +51,8 @@ function navSlug(to) {
 }
 
 export default function AdminSidebar() {
+  const { capabilities } = useCapabilities();
+
   return (
     <aside className="app-sidebar admin-sidebar" data-testid="admin-sidebar">
       <Link to="/wiki/Main" className="admin-sidebar-back" data-testid="admin-back-to-wiki">← Back to wiki</Link>
@@ -60,9 +63,11 @@ export default function AdminSidebar() {
         {GROUPS.map((group) => (
           <div className="admin-sidebar-group" key={group.title}>
             <div className="admin-sidebar-group-title">{group.title}</div>
-            {group.links.map((l) => (
-              <NavLink key={l.to} to={l.to} className={linkClass} data-testid={`admin-nav-${navSlug(l.to)}`}>{l.label}</NavLink>
-            ))}
+            {group.links
+              .filter((l) => !l.requiresKg || capabilities.knowledgeGraph)
+              .map((l) => (
+                <NavLink key={l.to} to={l.to} className={linkClass} data-testid={`admin-nav-${navSlug(l.to)}`}>{l.label}</NavLink>
+              ))}
           </div>
         ))}
       </nav>

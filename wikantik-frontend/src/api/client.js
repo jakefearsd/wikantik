@@ -263,6 +263,11 @@ export const api = {
     return resp.json();
   },
 
+  // Capabilities — which optional subsystems are enabled on this deployment.
+  // Public/anonymous; the SPA needs it pre-login to gate nav before the
+  // first /api/auth/user probe even resolves.
+  getCapabilities: () => request('/api/capabilities'),
+
   // Auth
   getUser: () => request('/api/auth/user'),
 

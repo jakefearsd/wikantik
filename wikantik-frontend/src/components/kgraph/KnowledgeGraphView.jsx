@@ -14,6 +14,7 @@ import KgGraphDetailsDrawer from './KgGraphDetailsDrawer.jsx';
 import GraphErrorBoundary from '../pagegraph/GraphErrorBoundary.jsx';
 import GraphLoadingFallback from '../pagegraph/GraphLoadingFallback.jsx';
 import { setEdgeTypeHidden, setShowOrphansStubs, setEndpointClass } from '../pagegraph/filter-state.js';
+import { useCapabilities } from '../../hooks/useCapabilities';
 import KgErrorState from './KgErrorState.jsx';
 import '../pagegraph/graph.css';
 import './kg-graph.css';
@@ -22,6 +23,7 @@ export default function KnowledgeGraphView() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const focusParam = useRef(searchParams.get('focus'));
+  const { capabilities } = useCapabilities();
 
   const [fetchState, setFetchState] = useState('loading');
   const [errorVariant, setErrorVariant] = useState(null);
@@ -67,11 +69,16 @@ export default function KnowledgeGraphView() {
   }, []);
 
   useEffect(() => {
+    // Once /api/capabilities has resolved knowledgeGraph:false, don't bother
+    // hitting the (503-ing) snapshot endpoint at all — the render below shows
+    // the disabled panel instead. While capabilities is still loading (the
+    // default is fail-open true), this fetches as normal.
+    if (capabilities.knowledgeGraph === false) return;
     // On first mount, omit the tier so the existing test ("calls getGraphSnapshot
     // with no minTier on first mount") keeps passing when no tier is in the URL.
     // Subsequent updates always pass it explicitly.
     fetchSnapshot(searchParams.get('tier') || undefined);
-  }, [fetchSnapshot, searchParams]);
+  }, [fetchSnapshot, searchParams, capabilities.knowledgeGraph]);
 
   const focusNodeId = useMemo(() => {
     if (!focusParam.current || !snapshot) return null;
@@ -182,6 +189,7 @@ export default function KnowledgeGraphView() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  if (capabilities.knowledgeGraph === false) return <KgErrorState variant="disabled" />;
   if (fetchState === 'loading') return <GraphLoadingFallback />;
   if (fetchState === 'error') return <KgErrorState variant={errorVariant} onRetry={fetchSnapshot} />;
 

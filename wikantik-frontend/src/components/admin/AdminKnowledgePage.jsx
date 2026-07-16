@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { useCapabilities } from '../../hooks/useCapabilities';
 import ProposalReviewQueue from './ProposalReviewQueue';
 import GraphExplorer from './GraphExplorer';
 import EdgeExplorer from './EdgeExplorer';
@@ -33,6 +34,7 @@ const TABS = [
 export default function AdminKnowledgePage() {
   const [activeTab, setActiveTab] = useState('proposals');
   const [clearing, setClearing] = useState(false);
+  const { capabilities } = useCapabilities();
 
   const handleClearAll = async () => {
     if (!confirm('Delete ALL knowledge graph data? This removes all nodes, edges, proposals, and embeddings.')) return;
@@ -46,6 +48,21 @@ export default function AdminKnowledgePage() {
       setClearing(false);
     }
   };
+
+  if (capabilities.knowledgeGraph === false) {
+    return (
+      <div className="admin-knowledge page-enter">
+        <PageHeader
+          title="Knowledge Graph"
+          description="Curate extracted entities, proposals, and hubs."
+        />
+        <div className="admin-message warning" role="status">
+          The Knowledge Graph subsystem is disabled on this deployment
+          (<code>wikantik.knowledge.enabled=false</code>).
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-knowledge page-enter">

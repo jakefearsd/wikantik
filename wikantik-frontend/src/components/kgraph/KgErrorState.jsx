@@ -7,6 +7,7 @@ const VARIANTS = {
   forbidden:      { message: "You don't have permission to view the knowledge graph.", action: null },
   server:         { message: 'The knowledge graph service is unavailable right now.', action: 'retry' },
   malformed:      { message: 'Knowledge graph snapshot was invalid. Check server logs.', action: 'retry' },
+  disabled:       { message: 'The Knowledge Graph is disabled on this deployment.', action: null },
 };
 
 export default function KgErrorState({ variant, onRetry }) {

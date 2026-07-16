@@ -1,8 +1,19 @@
 // AdminSidebar.test.jsx
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../../hooks/useCapabilities', () => ({ useCapabilities: vi.fn() }));
+
 import AdminSidebar from './AdminSidebar';
+import { useCapabilities } from '../../hooks/useCapabilities';
+
+beforeEach(() => {
+  useCapabilities.mockReturnValue({
+    capabilities: { knowledgeGraph: true, hybridSearch: true, genaiMode: 'full', ontology: true, connectors: true, citations: true },
+    loading: false,
+  });
+});
 
 function renderAt(path) {
   return render(
@@ -57,5 +68,25 @@ describe('AdminSidebar', () => {
     expect(screen.getByTestId('admin-nav-knowledge-graph')).toHaveAttribute('href', '/admin/knowledge-graph');
     expect(screen.getByTestId('admin-nav-kg-policy')).toHaveAttribute('href', '/admin/kg-policy');
     expect(screen.getByTestId('admin-nav-retrieval-quality')).toHaveAttribute('href', '/admin/retrieval-quality');
+  });
+
+  describe('Knowledge Graph nav gating (capabilities)', () => {
+    it('omits the Knowledge Graph link when capabilities.knowledgeGraph is false', () => {
+      useCapabilities.mockReturnValue({
+        capabilities: { knowledgeGraph: false }, loading: false,
+      });
+      renderAt('/admin/users');
+      expect(screen.queryByTestId('admin-nav-knowledge-graph')).not.toBeInTheDocument();
+      // Sibling links in the same group are unaffected.
+      expect(screen.getByTestId('admin-nav-kg-policy')).toHaveAttribute('href', '/admin/kg-policy');
+    });
+
+    it('renders the Knowledge Graph link while capabilities is loading (fail-open)', () => {
+      useCapabilities.mockReturnValue({
+        capabilities: { knowledgeGraph: true }, loading: true,
+      });
+      renderAt('/admin/users');
+      expect(screen.getByTestId('admin-nav-knowledge-graph')).toHaveAttribute('href', '/admin/knowledge-graph');
+    });
   });
 });

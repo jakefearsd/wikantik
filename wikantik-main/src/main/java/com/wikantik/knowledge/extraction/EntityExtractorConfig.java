@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.extraction;
 
+import com.wikantik.api.config.GenAiMode;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -81,8 +82,20 @@ public record EntityExtractorConfig(
     }
 
     public static EntityExtractorConfig fromProperties( final Properties props ) {
+        String backend = getString( props, "backend", BACKEND_DISABLED );
+
+        // wikantik.genai.mode ceiling: entity extraction is chat inference, so it
+        // must be forced disabled whenever the mode disallows chat inference,
+        // regardless of the configured backend.
+        final GenAiMode mode = props == null ? GenAiMode.FULL : GenAiMode.fromProperties( props );
+        if( !mode.allowsChatInference() && !BACKEND_DISABLED.equalsIgnoreCase( backend ) ) {
+            LOG.warn( "{}={} disallows chat inference; forcing entity-extractor backend '{}' to '{}'",
+                GenAiMode.PROP, mode, backend, BACKEND_DISABLED );
+            backend = BACKEND_DISABLED;
+        }
+
         return new EntityExtractorConfig(
-            getString( props, "backend", BACKEND_DISABLED ),
+            backend,
             getString( props, "claude.model", "claude-haiku-4-5" ),
             getString( props, "ollama.model", "gemma4-assist:latest" ),
             getString( props, "ollama.base_url", "http://inference.jakefear.com:11434" ),

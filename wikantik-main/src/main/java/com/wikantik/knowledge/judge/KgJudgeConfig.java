@@ -20,6 +20,11 @@ package com.wikantik.knowledge.judge;
 
 import java.util.Properties;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.wikantik.api.config.GenAiMode;
+
 /** Pure-data record holding the runtime config for the judge service + runner. */
 public record KgJudgeConfig(
     boolean enabled,
@@ -33,6 +38,8 @@ public record KgJudgeConfig(
     int maxAttempts,
     String keepAlive
 ) {
+    private static final Logger LOG = LogManager.getLogger( KgJudgeConfig.class );
+
     /** Hardcoded fallback Ollama endpoint, matching EmbeddingConfig.DEFAULT_BASE_URL
      *  and EntityExtractorConfig's default. Used only when neither the judge nor
      *  the extractor properties are set. */
@@ -56,8 +63,18 @@ public record KgJudgeConfig(
             p.getProperty( "wikantik.knowledge.extractor.ollama.model" ),
             DEFAULT_MODEL );
 
+        // wikantik.genai.mode ceiling: the judge issues chat inference calls, so
+        // it must be forced disabled whenever the mode disallows chat inference,
+        // regardless of wikantik.kg.judge.enabled.
+        final boolean rawEnabled = getBool( p, "wikantik.kg.judge.enabled", true );
+        final GenAiMode mode = GenAiMode.fromProperties( p );
+        final boolean enabled = rawEnabled && mode.allowsChatInference();
+        if ( rawEnabled && !enabled ) {
+            LOG.warn( "{}={} disallows chat inference; forcing KG judge disabled", GenAiMode.PROP, mode );
+        }
+
         return new KgJudgeConfig(
-            getBool( p,   "wikantik.kg.judge.enabled",          true ),
+            enabled,
             getString( p, "wikantik.kg.judge.endpoint",         extractorEndpoint ),
             getString( p, "wikantik.kg.judge.model",            extractorModel ),
             getBool( p,   "wikantik.kg.judge.cron.enabled",     true ),

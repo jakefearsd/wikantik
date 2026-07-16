@@ -20,6 +20,7 @@ package com.wikantik.knowledge.bundle;
 
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.RetrievalMode;
+import com.wikantik.api.config.GenAiMode;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.managers.PageManager;
@@ -210,12 +211,23 @@ public final class BundleServiceWiring {
      * dense-ordered by default (identity) and opts in to the LLM reranker.
      */
     static SectionReranker rerankerFor( final Properties props, final Function< String, Confidence > confidenceOf ) {
+        // wikantik.genai.mode ceiling: the LLM reranker is chat inference, so neither
+        // activation path below (legacy enabled flag, or an 'llm' token in the chain
+        // spec) may construct one when the mode disallows chat inference.
+        final GenAiMode mode = props == null ? GenAiMode.FULL : GenAiMode.fromProperties( props );
+        final boolean chatAllowed = mode.allowsChatInference();
+
         final String chainSpec = props == null ? null : props.getProperty( "wikantik.bundle.rerank.chain" );
         if ( chainSpec != null && !chainSpec.isBlank() ) {
-            return buildChain( chainSpec, props, confidenceOf );
+            return buildChain( chainSpec, props, confidenceOf, chatAllowed, mode );
         }
         final boolean enabled = props != null && Boolean.parseBoolean(
             props.getProperty( RerankerConfig.PREFIX + "enabled", "false" ) );
+        if ( enabled && !chatAllowed ) {
+            LOG.warn( "{}={} disallows chat inference; ignoring {}enabled=true, using identity reranker",
+                GenAiMode.PROP, mode, RerankerConfig.PREFIX );
+            return IDENTITY;
+        }
         return enabled ? new LlmSectionReranker( RerankerConfig.fromProperties( props ) ) : IDENTITY;
     }
 
@@ -223,7 +235,8 @@ public final class BundleServiceWiring {
      *  warn, and an all-unknown/empty spec degrades to {@link #IDENTITY}. The {@code metadata-boost}
      *  stage is skipped (with a warn) when {@code confidenceOf} is null. */
     private static SectionReranker buildChain( final String spec, final Properties props,
-                                               final Function< String, Confidence > confidenceOf ) {
+                                               final Function< String, Confidence > confidenceOf,
+                                               final boolean chatAllowed, final GenAiMode mode ) {
         final List< SectionReranker > stages = new ArrayList<>();
         for ( final String raw : spec.split( "," ) ) {
             final String name = raw.trim().toLowerCase( Locale.ROOT );
@@ -238,7 +251,14 @@ public final class BundleServiceWiring {
                             confidenceOf, metadataBoostPositions( props ), metadataBoostWindow( props ) ) );
                     }
                 }
-                case "llm" -> stages.add( new LlmSectionReranker( RerankerConfig.fromProperties( props ) ) );
+                case "llm" -> {
+                    if ( !chatAllowed ) {
+                        LOG.warn( "{}={} disallows chat inference; skipping 'llm' rerank stage",
+                            GenAiMode.PROP, mode );
+                    } else {
+                        stages.add( new LlmSectionReranker( RerankerConfig.fromProperties( props ) ) );
+                    }
+                }
                 default -> LOG.warn( "Unknown rerank stage '{}' in wikantik.bundle.rerank.chain; skipping", name );
             }
         }

@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.bundle;
 
+import com.wikantik.api.config.GenAiMode;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -54,8 +55,19 @@ public record BundleDecompositionConfig(
     public static final String PREFIX = "wikantik.bundle.decomposition.";
 
     public static BundleDecompositionConfig fromProperties( final Properties props ) {
+        // wikantik.genai.mode ceiling: the decomposition planner issues chat
+        // inference calls, so it must be forced disabled whenever the mode
+        // disallows chat inference, regardless of the decomposition.enabled flag.
+        final boolean rawEnabled = getBoolean( props, "enabled", false );
+        final GenAiMode mode = props == null ? GenAiMode.FULL : GenAiMode.fromProperties( props );
+        final boolean enabled = rawEnabled && mode.allowsChatInference();
+        if ( rawEnabled && !enabled ) {
+            LOG.warn( "{}={} disallows chat inference; forcing bundle query-decomposition disabled",
+                GenAiMode.PROP, mode );
+        }
+
         return new BundleDecompositionConfig(
-            getBoolean( props, "enabled", false ),
+            enabled,
             getString( props, "model", "gemma4-assist:latest" ),
             getString( props, "base_url", "http://inference.jakefear.com:11434" ),
             getLong( props, "timeout_ms", 4_000L ),

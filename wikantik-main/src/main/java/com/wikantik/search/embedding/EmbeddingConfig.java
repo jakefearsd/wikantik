@@ -21,6 +21,11 @@ package com.wikantik.search.embedding;
 import java.util.Locale;
 import java.util.Properties;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.wikantik.api.config.GenAiMode;
+
 /**
  * Flag-gated configuration for the text embedding client. The master flag
  * {@link #PROP_ENABLED} defaults to {@code false} — when it is off the factory
@@ -46,6 +51,8 @@ public record EmbeddingConfig(
     int timeoutMs,
     int batchSize
 ) {
+
+    private static final Logger LOG = LogManager.getLogger( EmbeddingConfig.class );
 
     public static final String PROP_ENABLED      = "wikantik.search.hybrid.enabled";
     public static final String PROP_BACKEND      = "wikantik.search.embedding.backend";
@@ -84,7 +91,14 @@ public record EmbeddingConfig(
 
     /** Reads config from wiki properties, applying defaults for absent keys. */
     public static EmbeddingConfig fromProperties( final Properties props ) {
-        final boolean enabled = parseBoolean( props.getProperty( PROP_ENABLED ), false );
+        final boolean rawEnabled = parseBoolean( props.getProperty( PROP_ENABLED ), false );
+        // wikantik.genai.mode ceiling: embeddings are retrieval, not chat inference,
+        // so only NONE turns them off — EMBEDDINGS_ONLY (and FULL) leave them enabled.
+        final GenAiMode mode = GenAiMode.fromProperties( props );
+        final boolean enabled = rawEnabled && mode.allowsEmbeddings();
+        if ( rawEnabled && !enabled ) {
+            LOG.warn( "{}={} disallows embeddings; forcing embedding client disabled", GenAiMode.PROP, mode );
+        }
         final String  backend = trimOrDefault( props.getProperty( PROP_BACKEND ), DEFAULT_BACKEND )
                                   .toLowerCase( Locale.ROOT );
         final String  baseUrl = stripTrailingSlash(

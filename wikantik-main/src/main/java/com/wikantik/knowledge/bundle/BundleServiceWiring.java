@@ -139,15 +139,76 @@ public final class BundleServiceWiring {
             : new PassthroughQueryPlanner();
         LOG.info( "Bundle assembly service wired (modes={}, reranker={}, maxSections={}, knee={}, decomposition={})",
             sources.keySet(), rerankerLabel, MAX_SECTIONS, kneeLabel, decompositionConfig.enabled() );
+
+        // LLM-activity observability parity (Task 1.7): decorate whatever rerankerFor()/the
+        // decomposition-config branch above already decided to construct — this happens AFTER
+        // the wikantik.genai.mode ceiling logic has run, so it never influences that decision.
+        // It only makes calls that DO happen (chat inference, when the ceiling allows it)
+        // visible at /admin/llm-activity, mirroring RecordingEmbeddingClient/RecordingEntityExtractor/
+        // RecordingKgProposalJudgeService at their own wiring points.
+        final com.wikantik.llm.activity.LlmActivityLog activityLog =
+            com.wikantik.llm.activity.LlmActivityLogHolder.getOrCreate( props );
+        final SectionReranker recordedReranker =
+            recordReranker( reranker, activityLog, RerankerConfig.fromProperties( props ).model() );
+        final QueryPlanner recordedPlanner =
+            recordPlanner( planner, activityLog, decompositionConfig.model() );
+
         return new DefaultBundleAssemblyService(
-            new RetrievalRouting( sources, RetrievalMode.HYBRID ), reranker,
+            new RetrievalRouting( sources, RetrievalMode.HYBRID ), recordedReranker,
             new CitationResolvers( canonicalIdOf, versionOf ), MAX_SECTIONS,
             coverageCalcFrom( props ), KneeCutoff.of( kneeEnabled( props ), kneeRetainRatio( props ) ),
-            new QueryDecomposition( planner,
+            new QueryDecomposition( recordedPlanner,
                 new SubQueryFusion( decompositionConfig.rrfK(),
                     "roundrobin".equalsIgnoreCase( decompositionConfig.fusion() )
                         ? SubQueryFusion.Mode.ROUND_ROBIN : SubQueryFusion.Mode.RRF ),
                 decompositionConfig.enabled() ) );
+    }
+
+    /**
+     * Wraps {@code reranker} for {@code /admin/llm-activity} recording when the activity log is
+     * enabled AND the reranker actually issues chat inference — a bare {@link LlmSectionReranker},
+     * or a {@link SectionRerankChain} carrying one as its {@code llm} stage. Non-LLM rerankers
+     * (identity, {@link MmrSectionReranker}, {@link MetadataBoostSectionReranker}) are returned
+     * unchanged — there is no call to record. Never called from {@link #rerankerFor} itself, so
+     * the genai.mode ceiling logic there stays byte-for-byte unchanged and independently testable.
+     */
+    static SectionReranker recordReranker( final SectionReranker reranker, final com.wikantik.llm.activity.LlmActivityLog log,
+                                           final String model ) {
+        if ( log == null || !log.enabled() ) {
+            return reranker;
+        }
+        if ( reranker instanceof LlmSectionReranker ) {
+            return new RecordingSectionReranker( reranker, log, "ollama", model );
+        }
+        if ( reranker instanceof SectionRerankChain chain ) {
+            boolean changed = false;
+            final List< SectionReranker > stages = new ArrayList<>( chain.stages().size() );
+            for ( final SectionReranker stage : chain.stages() ) {
+                if ( stage instanceof LlmSectionReranker ) {
+                    stages.add( new RecordingSectionReranker( stage, log, "ollama", model ) );
+                    changed = true;
+                } else {
+                    stages.add( stage );
+                }
+            }
+            return changed ? new SectionRerankChain( stages ) : chain;
+        }
+        return reranker;
+    }
+
+    /**
+     * Wraps {@code planner} for {@code /admin/llm-activity} recording when the activity log is
+     * enabled AND the planner is the LLM-backed {@link LlmQueryPlanner} — the (default)
+     * {@link PassthroughQueryPlanner} is returned unchanged, since it never calls out. Never
+     * called from {@link BundleDecompositionConfig#fromProperties}, so that method's genai.mode
+     * ceiling logic stays byte-for-byte unchanged and independently testable.
+     */
+    static QueryPlanner recordPlanner( final QueryPlanner planner, final com.wikantik.llm.activity.LlmActivityLog log,
+                                       final String model ) {
+        if ( log == null || !log.enabled() ) {
+            return planner;
+        }
+        return planner instanceof LlmQueryPlanner ? new RecordingQueryPlanner( planner, log, "ollama", model ) : planner;
     }
 
     /** Knee cutoff on/off, {@code wikantik.bundle.knee.enabled}, default false (fixed top-N). */

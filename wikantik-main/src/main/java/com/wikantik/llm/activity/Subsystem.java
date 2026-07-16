@@ -22,5 +22,7 @@ package com.wikantik.llm.activity;
 public enum Subsystem {
     ENTITY_EXTRACTION,
     PROPOSAL_JUDGE,
-    EMBEDDING
+    EMBEDDING,
+    SECTION_RERANK,
+    QUERY_DECOMPOSITION
 }

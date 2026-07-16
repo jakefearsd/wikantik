@@ -7,8 +7,13 @@
 #
 # Subcommands:
 #   bootstrap                       first-time remote setup (no up -d)
-#   deploy   [--skip-build] [--health-timeout=N]
-#                                   build, push image, up -d, health-poll, auto-rollback
+#   deploy   [--skip-build] [--health-timeout=N] [--pull TAG]
+#                                   build, push image, up -d, health-poll, auto-rollback.
+#                                   --pull TAG skips the local build AND the docker
+#                                   save|ssh load transfer; the remote pulls
+#                                   ghcr.io/jakefearsd/wikantik:TAG directly instead
+#                                   (for a target with its own registry access, e.g.
+#                                   a cloud VM — see REMOTE_ENV_FILE below).
 #   rollback                        re-promote :rollback tag to :latest
 #   up | down | restart             pass-through to remote container.sh -e prod
 #   status                          health + container ps + disk free + pages size
@@ -27,6 +32,9 @@
 #   -h | --help     this help (or, after a subcommand, that subcommand's help)
 #
 # Configuration: remote.env at the repo root. Copy from remote.env.example.
+# Override the file with REMOTE_ENV_FILE=path/to/other.env to drive a second
+# target (e.g. a cloud VM) without touching the docker1 remote.env, e.g.:
+#   REMOTE_ENV_FILE=remote-aws.env bin/remote.sh deploy --pull 2.4.0
 #
 # Exit codes:
 #   0   success
@@ -46,15 +54,29 @@ print_main_help() {
 
 REQUIRED_VARS=(REMOTE_HOST REMOTE_USER REMOTE_REPO_DIR REMOTE_PAGES_DIR REMOTE_BACKUP_DIR)
 
+# ENV_FILE — which remote.env-shaped file to load. REMOTE_ENV_FILE overrides
+# the default so a second target (e.g. a cloud VM) can be driven with
+# REMOTE_ENV_FILE=remote-aws.env bin/remote.sh ... without touching docker1's
+# remote.env. Default unchanged: "remote.env".
+ENV_FILE="${REMOTE_ENV_FILE:-remote.env}"
+
 load_env() {
-    if [[ ! -f remote.env ]]; then
-        echo "remote.sh: remote.env not found in $(pwd)." >&2
-        echo "           copy remote.env.example to remote.env and edit it." >&2
+    if [[ ! -f "${ENV_FILE}" ]]; then
+        echo "remote.sh: ${ENV_FILE} not found in $(pwd)." >&2
+        echo "           copy remote.env.example to ${ENV_FILE} and edit it." >&2
         exit 2
     fi
     set -a
+    # Force cwd-relative sourcing (not a PATH search) even when ENV_FILE is a
+    # bare filename with no slash — `.`/source treats a slash-free argument as
+    # a PATH lookup, same reason the original hardcoded path used "./remote.env".
+    local source_path="${ENV_FILE}"
+    case "${source_path}" in
+        /*|*/*) ;;                       # absolute, or already has a directory component
+        *) source_path="./${source_path}" ;;
+    esac
     # shellcheck source=/dev/null
-    . ./remote.env
+    . "${source_path}"
     set +a
 
     local missing=()
@@ -64,13 +86,16 @@ load_env() {
         fi
     done
     if (( ${#missing[@]} > 0 )); then
-        echo "remote.sh: required vars unset in remote.env: ${missing[*]}" >&2
+        echo "remote.sh: required vars unset in ${ENV_FILE}: ${missing[*]}" >&2
         exit 2
     fi
 
     : "${SSH_CONTROL_DIR:=${HOME}/.ssh/cm}"
     : "${HEALTH_URL:=http://${REMOTE_HOST}:8080/api/health}"
     : "${HEALTH_TIMEOUT:=90}"
+    # Registry image prefix for `deploy --pull TAG` (remote-side docker pull).
+    # Default matches bin/deploy-release.sh's WIKANTIK_IMAGE convention.
+    : "${WIKANTIK_IMAGE:=ghcr.io/jakefearsd/wikantik}"
 }
 
 # ---------- Argument parsing (global flags) ----------
@@ -278,23 +303,40 @@ cmd_migrate() {
 cmd_deploy() {
     local skip_build=0
     local health_timeout="${HEALTH_TIMEOUT}"
+    local pull_tag=""
 
     _subcommand_help "${1:-}" <<EOF || return 0
 deploy — build locally, push image over ssh, up -d on remote, health-poll, auto-rollback on failure.
 
-Usage: bin/remote.sh [--dry-run] deploy [--skip-build] [--health-timeout=N]
+Usage: bin/remote.sh [--dry-run] deploy [--skip-build] [--health-timeout=N] [--pull TAG]
 
 Options:
   --skip-build           skip mvn + docker compose build (use existing wikantik:latest)
-  --health-timeout=N     seconds to wait for /api/health (default: ${HEALTH_TIMEOUT}, from remote.env)
+  --health-timeout=N     seconds to wait for /api/health (default: ${HEALTH_TIMEOUT}, from ${ENV_FILE})
+  --pull TAG             skip the local build AND the docker save|ssh load transfer;
+                         instead the REMOTE runs
+                         'docker pull ${WIKANTIK_IMAGE}:TAG && docker tag ... wikantik:latest'
+                         directly. For a target with its own registry access (e.g. a
+                         cloud VM reached via REMOTE_ENV_FILE=remote-aws.env). Implies
+                         --skip-build; TAG is required (validated before any remote
+                         contact).
 
-Flow:
+Flow (default / --skip-build):
   1. mvn clean install -T 1C -DskipITs   (unless --skip-build)
   2. docker compose build wikantik
   3. flock --nonblock on the remote
   4. rsync compose + .env to REMOTE_REPO_DIR
   5. tag remote wikantik:latest as wikantik:rollback   (silent on first deploy)
   6. docker save | ssh 'docker load'
+  7. container.sh -e prod up -d
+  8. poll HEALTH_URL every 3s up to --health-timeout
+  9. on failure: re-promote :rollback, print last 50 wikantik log lines, exit 1
+
+Flow (--pull TAG) — steps 1+2+6 above are replaced by a single remote pull+tag:
+  3. flock --nonblock on the remote
+  4. rsync compose + .env to REMOTE_REPO_DIR
+  5. tag remote wikantik:latest as wikantik:rollback   (silent on first deploy)
+  6. remote: docker pull ${WIKANTIK_IMAGE}:TAG && docker tag ${WIKANTIK_IMAGE}:TAG wikantik:latest
   7. container.sh -e prod up -d
   8. poll HEALTH_URL every 3s up to --health-timeout
   9. on failure: re-promote :rollback, print last 50 wikantik log lines, exit 1
@@ -305,18 +347,36 @@ EOF
             --skip-build) skip_build=1; shift ;;
             --health-timeout=*) health_timeout="${1#*=}"; shift ;;
             --health-timeout)   health_timeout="$2"; shift 2 ;;
+            --pull=*)
+                pull_tag="${1#*=}"
+                if [[ -z "${pull_tag}" ]]; then
+                    echo "deploy --pull: missing <tag> argument." >&2
+                    exit 2
+                fi
+                shift ;;
+            --pull)
+                if [[ -z "${2:-}" || "${2}" == -* ]]; then
+                    echo "deploy --pull: missing <tag> argument." >&2
+                    exit 2
+                fi
+                pull_tag="$2"
+                shift 2 ;;
             *) echo "deploy: unknown flag: $1" >&2; exit 2 ;;
         esac
     done
 
     # ---------- 1+2: local build ----------
+    if [[ -n "${pull_tag}" ]]; then
+        skip_build=1
+        echo "remote.sh: --pull ${pull_tag} set; skipping local build — ${REMOTE_HOST} will pull ${WIKANTIK_IMAGE}:${pull_tag} directly."
+    fi
     if [[ "${skip_build}" -eq 0 ]]; then
         _run mvn clean install -T 1C -DskipITs
         # Build the image through the container.sh facade so there is a
         # single source of truth for the compose invocation. The wikantik
         # build context lives in the base docker-compose.yml.
         _run bin/container.sh build wikantik
-    else
+    elif [[ -z "${pull_tag}" ]]; then
         echo "remote.sh: --skip-build set; reusing wikantik:latest from local docker daemon."
     fi
 
@@ -336,10 +396,16 @@ EOF
     # ---------- 5: tag prior image as :rollback (silent on first deploy) ----------
     _ssh "docker tag wikantik:latest wikantik:rollback 2>/dev/null || true"
 
-    # ---------- 6: stream image ----------
-    # No gzip — 1–10 Gb LAN, CPU > wire-time at compress=1. Reachable
-    # in dry-run by composing the commands and routing through _run.
-    if [[ "${DRY_RUN}" -eq 1 ]]; then
+    # ---------- 6: get the new image onto the remote ----------
+    if [[ -n "${pull_tag}" ]]; then
+        # --pull TAG: the remote already has registry access, so pull directly
+        # instead of streaming the image over ssh. Retag to wikantik:latest so
+        # every step downstream (up -d, rollback re-promote) is unchanged.
+        local remote_image="${WIKANTIK_IMAGE}:${pull_tag}"
+        _ssh "docker pull $(printf '%q' "${remote_image}") && docker tag $(printf '%q' "${remote_image}") wikantik:latest"
+    elif [[ "${DRY_RUN}" -eq 1 ]]; then
+        # No gzip — 1–10 Gb LAN, CPU > wire-time at compress=1. Reachable
+        # in dry-run by composing the commands and routing through _run.
         echo "[dry-run] docker save wikantik:latest | ssh ... 'docker load'"
         # Emit a faux load line for tests/grep:
         echo "[dry-run] (remote) docker load"

@@ -91,9 +91,19 @@
 #                                credential store (github token / confluence api_token /
 #                                gdrive client_secret+refresh_token at rest). Absent ⇒ the
 #                                credential store stays disabled (current behavior).
-#   PROXY_REMOTE_IP_HEADER       reverse-proxy header carrying the real client IP (e.g.
-#                                X-Forwarded-For); wired into server.xml/CATALINA_OPTS by a
-#                                later task — documented here only, not yet consumed.
+#   PROXY_REMOTE_IP_HEADER       reverse-proxy header carrying the real client IP, trusted by
+#                                Tomcat's RemoteIpValve (docker/config/server.xml) to populate
+#                                request.getRemoteAddr(). Default CF-Connecting-IP (docker1
+#                                production sits behind Cloudflare); set to X-Forwarded-For
+#                                for Caddy/nginx/ALB/GCLB. ALWAYS injected as
+#                                -Dwikantik.proxy.remoteIpHeader=... via CATALINA_OPTS —
+#                                unconditionally, not just when set — because Tomcat's
+#                                ${...} substitution in server.xml has no default-value
+#                                syntax; an undefined property would leave the literal
+#                                "${wikantik.proxy.remoteIpHeader}" string as the header
+#                                name, silently breaking client-IP resolution. Must match
+#                                [A-Za-z0-9-]+ (a valid HTTP header-name token); the script
+#                                refuses to boot (exit 1) on a violating value.
 #   CATALINA_HOME                tomcat root (default /usr/local/tomcat)
 
 set -euo pipefail
@@ -303,6 +313,41 @@ if [ -n "${WIKANTIK_SCIM_TOKEN:-}" ]; then
   esac
   export CATALINA_OPTS="${CATALINA_OPTS:-} -Dwikantik.scim.token=${WIKANTIK_SCIM_TOKEN}"
 fi
+
+# Reverse-proxy client-IP header (RemoteIpValve) — ALWAYS applied, unlike the
+# conditional blocks above/below.
+#   PROXY_REMOTE_IP_HEADER — header carrying the real client IP (default
+#   CF-Connecting-IP for Cloudflare; set to X-Forwarded-For for Caddy/nginx/
+#   ALB/GCLB).
+# This MUST be unconditional: docker/config/server.xml's RemoteIpValve reads
+# remoteIpHeader="${wikantik.proxy.remoteIpHeader}", and Tomcat's ${...}
+# substitution has no default-value syntax — if the system property were
+# never set, the literal string "${wikantik.proxy.remoteIpHeader}" would
+# become the header name, so RemoteIpValve would never match and
+# request.getRemoteAddr() would silently keep returning the upstream proxy's
+# IP instead of the real client's.
+# Deliberately NOT done via a catalina.properties default + conditional -D
+# override: decompiling the shipped bootstrap.jar
+# (org/apache/catalina/startup/CatalinaProperties.loadProperties()) shows it
+# unconditionally calls System.setProperty() for every catalina.properties
+# entry during Bootstrap's static init, which runs after the JVM applies -D
+# flags — so a catalina.properties default would silently clobber a
+# command-line -D override of the same key. Routing exclusively through
+# CATALINA_OPTS sidesteps that entirely.
+#   Charset guard: catalina.sh word-splits CATALINA_OPTS, and the value
+#   becomes an HTTP header name, so it must match [A-Za-z0-9-]+ (letters,
+#   digits, hyphen only) — the script refuses to boot (exit 1) otherwise.
+PROXY_REMOTE_IP_HEADER_VALUE="${PROXY_REMOTE_IP_HEADER:-CF-Connecting-IP}"
+case "${PROXY_REMOTE_IP_HEADER_VALUE}" in
+  *[!A-Za-z0-9-]*)
+    echo "ERROR: PROXY_REMOTE_IP_HEADER ('${PROXY_REMOTE_IP_HEADER_VALUE}') contains characters outside [A-Za-z0-9-]." >&2
+    echo "       This value becomes an HTTP header name (RemoteIpValve remoteIpHeader in" >&2
+    echo "       server.xml) and catalina.sh word-splits CATALINA_OPTS, so only letters," >&2
+    echo "       digits, and hyphens are valid — e.g. CF-Connecting-IP or X-Forwarded-For." >&2
+    exit 1
+    ;;
+esac
+export CATALINA_OPTS="${CATALINA_OPTS:-} -Dwikantik.proxy.remoteIpHeader=${PROXY_REMOTE_IP_HEADER_VALUE}"
 
 # Optional: Single Sign-On (OIDC/SAML via pac4j).
 #   WIKANTIK_SSO_ENABLED            "true" to turn SSO on (default off; block skipped when unset/false).

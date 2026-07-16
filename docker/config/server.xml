@@ -47,9 +47,14 @@
         <Valve className="org.apache.catalina.valves.ErrorReportValve"
                showReport="false" showServerInfo="false" />
 
-        <!-- Extract real client IP from Cloudflare header -->
+        <!-- Extract real client IP from the reverse-proxy header. Header name is
+             parameterized: entrypoint.sh always sets the
+             wikantik.proxy.remoteIpHeader system property (default
+             CF-Connecting-IP for Cloudflare; PROXY_REMOTE_IP_HEADER overrides,
+             e.g. X-Forwarded-For for Caddy/nginx/ALB/GCLB). Tomcat substitutes
+             ${...} in server.xml attributes from system properties at boot. -->
         <Valve className="org.apache.catalina.valves.RemoteIpValve"
-               remoteIpHeader="CF-Connecting-IP"
+               remoteIpHeader="${wikantik.proxy.remoteIpHeader}"
                protocolHeader="X-Forwarded-Proto" />
 
         <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"

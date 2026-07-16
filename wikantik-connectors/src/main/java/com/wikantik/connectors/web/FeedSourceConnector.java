@@ -55,11 +55,21 @@ public final class FeedSourceConnector implements SourceConnector {
     public SyncBatch poll( final SyncCursor cursor ) {
         final RobotsPolicy robots = new RobotsPolicy( fetcher, config.userAgent() );
         final Set< String > allowedHosts = allowedHosts();
-        final List< FeedEntry > entries = fetchEntries( robots );
+        final FeedFetch fetch = fetchEntries( robots );
+
+        // Every configured feed URL failed to fetch (non-2xx / network error) and nothing was
+        // parsed — the enumeration can't be trusted at all, so this is NOT "reachable but empty":
+        // return an empty, incomplete batch carrying the input cursor (untrusted-enumeration
+        // contract) rather than the hardcoded complete=true that used to mask total unreachability.
+        if ( fetch.allFailed() ) {
+            LOG.warn( "feed '{}': all {} configured feed URL(s) failed to fetch — batch marked "
+                + "incomplete, no items returned", connectorId, fetch.failedCount() );
+            return new SyncBatch( List.of(), List.of(), cursor, false );
+        }
 
         final List< SourceItem > items = new ArrayList<>();
         final Set< String > visited = new HashSet<>();
-        for ( final FeedEntry e : entries ) {
+        for ( final FeedEntry e : fetch.entries() ) {
             if ( items.size() >= config.maxItems() ) break;
             if ( !visited.add( e.link() ) ) continue;
             resolveEntryItem( e, robots, allowedHosts ).ifPresent( items::add );
@@ -76,21 +86,31 @@ public final class FeedSourceConnector implements SourceConnector {
         return allowedHosts;
     }
 
-    private List< FeedEntry > fetchEntries( final RobotsPolicy robots ) {
+    /** Parsed entries plus whether every <em>attempted</em> feed fetch failed (robots-disallowed
+     *  feeds are a deliberate skip, not a failure, and are excluded from the count). */
+    private record FeedFetch( List< FeedEntry > entries, int attempted, int failedCount ) {
+        boolean allFailed() { return attempted > 0 && failedCount == attempted; }
+    }
+
+    private FeedFetch fetchEntries( final RobotsPolicy robots ) {
         final List< FeedEntry > entries = new ArrayList<>();
+        int attempted = 0;
+        int failed = 0;
         for ( final String feedUrl : config.feedUrls() ) {
             if ( config.respectRobots() && !robots.isAllowed( feedUrl ) ) {
                 LOG.info( "feed '{}': robots-disallowed feed {}", connectorId, feedUrl );
                 continue;
             }
+            attempted++;
             final FetchResult r = fetcher.fetch( feedUrl );
             if ( r.status() / 100 != 2 ) {
                 LOG.warn( "feed '{}': fetch of {} returned status {}", connectorId, feedUrl, r.status() );
+                failed++;
                 continue;
             }
             entries.addAll( FeedParser.parse( r.body(), feedUrl ) );
         }
-        return entries;
+        return new FeedFetch( entries, attempted, failed );
     }
 
     /** Resolves one feed entry to a {@link SourceItem}, applying the same-host filter and (when

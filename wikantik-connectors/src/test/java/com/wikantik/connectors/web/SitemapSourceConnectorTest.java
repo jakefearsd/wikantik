@@ -20,6 +20,7 @@ package com.wikantik.connectors.web;
 
 import com.wikantik.api.connectors.SourceItem;
 import com.wikantik.api.connectors.SyncBatch;
+import com.wikantik.api.connectors.SyncCursor;
 import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -93,6 +94,27 @@ class SitemapSourceConnectorTest {
         SyncBatch b = new SitemapSourceConnector( "sm1", cfg( 100, true ), f, ms -> {} ).poll( null );
         assertFalse( b.complete(), "sitemap fetch failure → untrusted enumeration" );
         assertNull( b.nextCursor(), "untrusted batch returns the input cursor verbatim" );
+        assertTrue( b.items().isEmpty() );
+    }
+
+    // Every configured sitemap URL fails to fetch — not just one of several. The existing AND-reduced
+    // `trusted` flag already covers this (any failure taints; multiple failures still taint), so this
+    // pins that the "all unreachable" case the feed connector needed a dedicated fix for was already
+    // correct here, including with multiple configured sitemap URLs.
+    @Test void allSitemapUrlsUnreachableMakesBatchIncompleteWithInputCursor() {
+        SitemapConfig cfg = new SitemapConfig(
+            List.of( "https://ex.com/sitemap.xml", "https://ex.org/sitemap.xml" ), 100, 0,
+            "WikantikCrawler/1.0", true, true );
+        PageFetcher f = url -> switch ( url ) {
+            case "https://ex.com/robots.txt", "https://ex.org/robots.txt" -> new FetchResult( 404, null, new byte[0], url );
+            case "https://ex.com/sitemap.xml" -> new FetchResult( 503, null, new byte[0], url );
+            case "https://ex.org/sitemap.xml" -> new FetchResult( 0, null, new byte[0], url );   // network error
+            default -> new FetchResult( 404, null, new byte[0], url );
+        };
+        SyncCursor input = new SyncCursor( "resume-7" );
+        SyncBatch b = new SitemapSourceConnector( "sm1", cfg, f, ms -> {} ).poll( input );
+        assertFalse( b.complete() );
+        assertSame( input, b.nextCursor(), "all-failed batch must carry the input cursor verbatim" );
         assertTrue( b.items().isEmpty() );
     }
 

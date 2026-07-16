@@ -80,6 +80,25 @@ class ConnectorTestServiceTest {
         assertEquals( "source unreachable or not authorized — no items returned", result.message() );
     }
 
+    // Pins the end-to-end judgment for the fixed FeedSourceConnector shape: when every configured
+    // feed URL fails to fetch, the connector now returns an empty, incomplete batch carrying the
+    // (non-null, resumed) input cursor — this must still read as "unreachable", not "reachable,
+    // found 0" (the defect this whole fix addresses).
+    @Test void feedAllUrlsUnreachableProbeReportsUnreachable() {
+        final SyncCursor inputCursor = new SyncCursor( "resume-42" );
+        final SyncBatch batch = new SyncBatch( List.of(), List.of(), inputCursor, false );
+        final StubConnector stub = new StubConnector( "feed1", batch );
+
+        final ConnectorTestService.TestResult result = ConnectorTestService.testUnsaved(
+            "probe-id", "webcrawler", validWebCrawlerConfig(), Map.of(), NO_STORE,
+            ( cfg, store ) -> Optional.of( stub ) );
+
+        assertFalse( result.ok() );
+        assertEquals( 0, result.found() );
+        assertFalse( result.complete() );
+        assertEquals( "source unreachable or not authorized — no items returned", result.message() );
+    }
+
     @Test void reachableSourceReportsSample() {
         final List< SourceItem > items = List.of(
             item( "uri1" ), item( "uri2" ), item( "uri3" ), item( "uri4" ), item( "uri5" ) );

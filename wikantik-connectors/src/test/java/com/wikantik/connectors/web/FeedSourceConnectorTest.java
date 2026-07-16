@@ -20,6 +20,7 @@ package com.wikantik.connectors.web;
 
 import com.wikantik.api.connectors.SourceItem;
 import com.wikantik.api.connectors.SyncBatch;
+import com.wikantik.api.connectors.SyncCursor;
 import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -38,9 +39,14 @@ class FeedSourceConnectorTest {
         + "<item><title>A</title><link>https://ex.com/a</link><description>&lt;p&gt;inline a&lt;/p&gt;</description></item>"
         + "<item><title>B</title><link>https://ex.com/b</link><description>&lt;p&gt;inline b&lt;/p&gt;</description></item>"
         + "</channel></rss>";
+    private static final String EMPTY_RSS =
+        "<rss version='2.0'><channel><title>C</title></channel></rss>";
     private static FeedConfig cfg( int maxItems, boolean fetchFull ) {
         return new FeedConfig( List.of( "https://ex.com/feed.xml" ), maxItems, fetchFull, 0,
             "WikantikCrawler/1.0", true, true );
+    }
+    private static FeedConfig cfgUrls( List< String > urls, int maxItems, boolean fetchFull ) {
+        return new FeedConfig( urls, maxItems, fetchFull, 0, "WikantikCrawler/1.0", true, true );
     }
     private static Set<String> uris( SyncBatch b ) {
         Set<String> s = new HashSet<>();
@@ -95,5 +101,44 @@ class FeedSourceConnectorTest {
         };
         Set<String> u = uris( new FeedSourceConnector( "f1", cfg( 100, true ), f, ms -> {} ).poll( null ) );
         assertEquals( Set.of( "https://ex.com/b" ), u );   // /a robots-disallowed
+    }
+
+    @Test void allFeedsUnreachableYieldsIncompleteBatchWithInputCursor() {
+        List< String > urls = List.of( "https://ex.com/feed.xml", "https://ex.org/feed.xml" );
+        PageFetcher f = url -> switch ( url ) {
+            case "https://ex.com/robots.txt", "https://ex.org/robots.txt" -> new FetchResult( 404, null, new byte[0], url );
+            case "https://ex.com/feed.xml" -> new FetchResult( 503, null, new byte[0], url );
+            case "https://ex.org/feed.xml" -> new FetchResult( 0, null, new byte[0], url );   // network error
+            default -> new FetchResult( 404, null, new byte[0], url );
+        };
+        SyncCursor input = new SyncCursor( "resume-42" );
+        SyncBatch b = new FeedSourceConnector( "f1", cfgUrls( urls, 100, false ), f, ms -> {} ).poll( input );
+        assertTrue( b.items().isEmpty() );
+        assertFalse( b.complete() );
+        assertSame( input, b.nextCursor(), "all-failed batch must carry the input cursor verbatim" );
+    }
+
+    @Test void mixedFetchFailureKeepsComplete() {
+        List< String > urls = List.of( "https://ex.com/feed.xml", "https://ex.org/feed.xml" );
+        PageFetcher f = url -> switch ( url ) {
+            case "https://ex.com/robots.txt", "https://ex.org/robots.txt" -> new FetchResult( 404, null, new byte[0], url );
+            case "https://ex.com/feed.xml" -> new FetchResult( 503, null, new byte[0], url );
+            case "https://ex.org/feed.xml" -> feed( url, RSS );
+            default -> new FetchResult( 404, null, new byte[0], url );
+        };
+        SyncBatch b = new FeedSourceConnector( "f1", cfgUrls( urls, 100, false ), f, ms -> {} ).poll( null );
+        assertTrue( b.complete() );
+        assertEquals( Set.of( "https://ex.com/a", "https://ex.com/b" ), uris( b ) );
+    }
+
+    @Test void reachableButEmptyFeedStaysComplete() {
+        PageFetcher f = url -> switch ( url ) {
+            case "https://ex.com/robots.txt" -> new FetchResult( 404, null, new byte[0], url );
+            case "https://ex.com/feed.xml" -> feed( url, EMPTY_RSS );
+            default -> new FetchResult( 404, null, new byte[0], url );
+        };
+        SyncBatch b = new FeedSourceConnector( "f1", cfg( 100, false ), f, ms -> {} ).poll( null );
+        assertTrue( b.complete() );
+        assertTrue( b.items().isEmpty() );
     }
 }

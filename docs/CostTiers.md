@@ -66,14 +66,13 @@ wikantik.search.hybrid.enabled = false
 > **No env passthrough for `wikantik.search.hybrid.enabled`.** `docker/entrypoint.sh`
 > renders an env override for `WIKANTIK_GENAI_MODE` and `WIKANTIK_KNOWLEDGE_ENABLED`
 > (lines 236–255) but has no corresponding block for the hybrid-search flag — it
-> isn't in the container env-var surface at all. `mode=none` already forces the
-> embedding client disabled at the ceiling (`EmbeddingConfig` line 98:
-> `enabled = rawEnabled && mode.allowsEmbeddings()`), so dense retrieval is inert
-> either way. But `GET /api/capabilities` reports the **raw** property, not the
-> ceiling-adjusted value (see [caveat below](#capabilities-reports-raw-flags-not-ceiling-adjusted-effective-state)) —
-> so a container-only core deploy will still show `hybridSearch: true` unless you
-> also mount a bare-metal-style properties override setting
-> `wikantik.search.hybrid.enabled = false` explicitly.
+> isn't in the container env-var surface at all. That's fine for this tier:
+> `mode=none` forces the embedding client disabled at the ceiling
+> (`EmbeddingConfig`: `enabled = rawEnabled && mode.allowsEmbeddings()`), so dense
+> retrieval is inert, and `GET /api/capabilities` reports the **ceiling-adjusted
+> effective value** — a core deploy shows `hybridSearch: false` with no extra
+> properties override needed. Setting the raw flag explicitly is only necessary
+> if you want the warn logs quiet about a suppressed-but-enabled feature.
 
 Verified against: `docker/entrypoint.sh:236-255`, `wikantik-main/src/main/java/com/wikantik/search/embedding/EmbeddingConfig.java:57,94-101`, `wikantik-main/src/main/resources/ini/wikantik.properties:1216` (default `true`).
 
@@ -228,7 +227,7 @@ overhead is paid (the wrapper classes are simply never constructed — see
 `BundleServiceWiring.recordReranker`/`recordPlanner`, which return the
 undecorated reranker/planner untouched when the log is disabled).
 
-### 2. `GET /api/capabilities` — reflects the raw flags
+### 2. `GET /api/capabilities` — reflects the effective feature state
 
 Anonymous, public endpoint (`com.wikantik.rest.CapabilitiesResource`) the SPA
 uses to gate its own navigation. Returns:
@@ -249,16 +248,17 @@ uses to gate its own navigation. Returns:
 `wikantik.search.hybrid.enabled`, `wikantik.ontology.enabled`,
 `wikantik.connectors.enabled`, `wikantik.citations.enabled` — all default `true`.
 
-#### Capabilities reports raw flags, not ceiling-adjusted effective state
+#### hybridSearch is ceiling-adjusted; the other booleans are raw flags
 
-`hybridSearch` is `TextUtil.getBooleanProperty(props, PROP_HYBRID_SEARCH_ENABLED, true)`
-— a direct read of the property, **not** ANDed with `mode.allowsEmbeddings()`.
-So under `core` (`genai.mode=none`) with the property left at its default,
-`/api/capabilities` reports `hybridSearch: true` even though the embedding
-client is actually ceiling-disabled and dense retrieval is fully inert. Set
-`wikantik.search.hybrid.enabled = false` explicitly (bare-metal properties
-override; no env passthrough exists) if you want the capabilities response to
-match reality.
+`hybridSearch` is the **effective** value: the raw
+`wikantik.search.hybrid.enabled` property (default `true`) ANDed with
+`mode.allowsEmbeddings()`. Under `core` (`genai.mode=none`) the endpoint
+reports `hybridSearch: false` even with the property at its default — the
+response matches what retrieval actually does. A parity test
+(`CapabilitiesResourceTest`) locks this to `EmbeddingConfig.fromProperties`'s
+computation so the two cannot silently drift. The remaining booleans
+(`knowledgeGraph`, `ontology`, `connectors`, `citations`) are direct property
+reads, since their subsystems have no ceiling interaction.
 
 ### 3. Warn-log lines when the ceiling suppresses a feature
 

@@ -189,6 +189,17 @@ and `QUERY_DECOMPOSITION` (`wikantik-main/src/main/java/com/wikantik/llm/activit
 Filter with `?subsystem=embedding` (or `entity_extraction`, `proposal_judge`,
 `section_rerank`, `query_decomposition`) and `?status=ok|error|in_flight`.
 
+**Status caveat for `SECTION_RERANK` / `QUERY_DECOMPOSITION`:** these two
+delegates (`LlmSectionReranker.rerank`, `LlmQueryPlanner.plan`) catch every
+backend failure internally by contract and degrade to dense-order /
+single-pass — they never throw. Their activity entries therefore report
+`status=ok` even during a real Ollama outage; `?status=error` finds outages
+only for `EMBEDDING` / `ENTITY_EXTRACTION` / `PROPOSAL_JUDGE`, whose clients
+do throw. For the rerank/decomposition subsystems, treat an unusually short
+`duration` or a drop-off in call volume — not `error` status — as the outage
+signal, and check the wikantik logs for the delegates' own degradation
+warnings.
+
 Under the **search** tier, after a few real searches/bundle requests, the log
 should show **only** `EMBEDDING` entries — zero `ENTITY_EXTRACTION`,
 `PROPOSAL_JUDGE`, `SECTION_RERANK`, or `QUERY_DECOMPOSITION` calls, since the

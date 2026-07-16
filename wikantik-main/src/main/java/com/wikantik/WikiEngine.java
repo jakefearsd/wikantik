@@ -1201,7 +1201,11 @@ public class WikiEngine implements Engine {
                     structuralIndex::resolveCanonicalIdFromSlug,
                     ownershipEnforcement ),
                 -998 );
-            filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );
+            // hubSyncFilter is null when the KG subsystem is disabled
+            // (wikantik.knowledge.enabled=false) — skip its registration.
+            if ( svcs.hubSyncFilter() != null ) {
+                filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );
+            }
 
             // Assign the typed snapshot ONLY after all helpers have run.
             // See note above next to the local 'svcs' assignment.

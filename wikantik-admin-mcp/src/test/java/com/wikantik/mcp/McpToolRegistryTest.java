@@ -212,6 +212,30 @@ class McpToolRegistryTest {
         }
     }
 
+    /** The nine KG tools that must drop out when the KG subsystem is disabled
+     *  (kgService null — the shape the wikantik.knowledge.enabled=false flag produces). */
+    private static final Set< String > KG_TOOL_NAMES = Set.of(
+            "list_proposals", "inspect_proposals", "propose_knowledge",
+            "review_proposals", "curate_edges", "curate_nodes",
+            "query_nodes", "search_knowledge", "list_orphaned_kg_nodes" );
+
+    @Test
+    void noKgToolsWhenKgServiceAbsent() {
+        // Default TestEngine registers no KnowledgeGraphService, mirroring the
+        // wikantik.knowledge.enabled=false shape (factory returns null kgService).
+        final Set< String > names = new java.util.HashSet<>();
+        registry.readOnlyTools().forEach( t -> names.add( t.name() ) );
+        registry.authorConfigurableTools().forEach( t -> names.add( t.name() ) );
+
+        for ( final String kgTool : KG_TOOL_NAMES ) {
+            assertFalse( names.contains( kgTool ),
+                    "KG tool '" + kgTool + "' must be absent when kgService is null" );
+        }
+        // Non-KG admin tools stay registered.
+        assertTrue( names.contains( "get_wiki_stats" ), "non-KG tools must remain" );
+        assertTrue( names.contains( "write_pages" ),    "non-KG write tools must remain" );
+    }
+
     @Test
     void registerCurationToolsWhenKgServiceAvailable() {
         final TestEngine kgEngine = TestEngine.build();

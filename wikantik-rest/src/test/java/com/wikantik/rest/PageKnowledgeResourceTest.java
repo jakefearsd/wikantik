@@ -249,6 +249,28 @@ class PageKnowledgeResourceTest {
     }
 
     // -------------------------------------------------------------------------
+    // KG disabled (kgService null) → 503 citing wikantik.knowledge.enabled
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getSliceWhenKgDisabled_returns503CitingFlag() throws Exception {
+        // View granted, but the KG subsystem is disabled (null kgService) — the
+        // shape wikantik.knowledge.enabled=false produces.
+        final PageKnowledgeResource servlet = new GrantViewServlet( engine, null );
+
+        final HttpServletRequest req = request( "/TestPage" );
+        final StringWriter sw = new StringWriter();
+        final HttpServletResponse resp = mockResponse( sw );
+
+        servlet.doGet( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+        final JsonObject json = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( json.toString().contains( "wikantik.knowledge.enabled" ),
+                "503 body must cite the flag: " + json );
+    }
+
+    // -------------------------------------------------------------------------
     // edgeRefusalBody — static helper unit test
     // -------------------------------------------------------------------------
 

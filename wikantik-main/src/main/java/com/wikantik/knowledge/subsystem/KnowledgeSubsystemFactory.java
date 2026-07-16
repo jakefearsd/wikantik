@@ -112,6 +112,42 @@ public final class KnowledgeSubsystemFactory {
         final var luceneMlt   = deps.luceneMlt();
         final var meterReg    = core.meterRegistry();
 
+        // -----------------------------------------------------------------
+        // Load-bearing boundary (wikantik.knowledge.enabled): the chunking +
+        // embedding pipeline is built regardless of the KG master flag. Chunks
+        // feed dense retrieval independently of the Knowledge Graph, so KG-off
+        // must NOT disable them. FrontmatterDefaultsFilter is a KG-independent
+        // page-save filter and is likewise always built.
+        // -----------------------------------------------------------------
+        final ContentChunkRepository contentChunkRepo = persistence.contentChunks();
+        final ContentChunker chunker = new ContentChunker( new ContentChunker.Config(
+            TextUtil.getIntegerProperty( props, "wikantik.chunker.max_tokens", 512 ),
+            TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 150 ),
+            TextUtil.getIntegerProperty( props, "wikantik.chunker.fragment_floor_tokens", 24 ),
+            TextUtil.getIntegerProperty( props, "wikantik.chunker.overlap_tokens", 40 ) ) );
+        final ChunkProjector chunkProjector = meterReg != null
+            ? new ChunkProjector( chunker, contentChunkRepo,
+                () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ),
+                meterReg )
+            : new ChunkProjector( chunker, contentChunkRepo,
+                () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ) );
+
+        final FrontmatterDefaultsFilter fmDefaults = new FrontmatterDefaultsFilter(
+            name -> spr != null && spr.isSystemPage( name ), props );
+
+        // Master flag: when the Knowledge Graph subsystem is disabled, every
+        // KG-specific service is left null and no judge/hub/curation wiring is
+        // produced. Consumers null-guard or sit behind the flag — the MCP tool
+        // registries and REST KG surfaces already key off a null kgService
+        // (dropping the KG tools / returning 503).
+        final boolean kgEnabled = TextUtil.getBooleanProperty(
+            props, "wikantik.knowledge.enabled", true );
+        if ( !kgEnabled ) {
+            LOG.info( "Knowledge Graph subsystem DISABLED (wikantik.knowledge.enabled=false) — "
+                + "KG services null; chunking + embedding pipeline remain active" );
+            return knowledgeDisabledServices( contentChunkRepo, chunkProjector, fmDefaults );
+        }
+
         final KgNodeRepository       kgNodes      = persistence.kgNodes();
         final KgEdgeRepository       kgEdges      = persistence.kgEdges();
         final KgProposalRepository   kgProposals  = persistence.kgProposals();
@@ -159,9 +195,6 @@ public final class KnowledgeSubsystemFactory {
         final DefaultKnowledgeGraphService kgService =
             new DefaultKnowledgeGraphService( kgNodes, kgEdges, kgProposals, kgRejections,
                 dataSource, null, mentionIndex, kgMat, kgJudge );
-
-        final FrontmatterDefaultsFilter fmDefaults = new FrontmatterDefaultsFilter(
-            name -> spr != null && spr.isSystemPage( name ), props );
 
         final HubSyncFilter hubSync = new HubSyncFilter(
             name -> {
@@ -229,19 +262,6 @@ public final class KnowledgeSubsystemFactory {
             .propsFrom( props )
             .build();
 
-        final ContentChunkRepository contentChunkRepo = persistence.contentChunks();
-        final ContentChunker chunker = new ContentChunker( new ContentChunker.Config(
-            TextUtil.getIntegerProperty( props, "wikantik.chunker.max_tokens", 512 ),
-            TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 150 ),
-            TextUtil.getIntegerProperty( props, "wikantik.chunker.fragment_floor_tokens", 24 ),
-            TextUtil.getIntegerProperty( props, "wikantik.chunker.overlap_tokens", 40 ) ) );
-        final ChunkProjector chunkProjector = meterReg != null
-            ? new ChunkProjector( chunker, contentChunkRepo,
-                () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ),
-                meterReg )
-            : new ChunkProjector( chunker, contentChunkRepo,
-                () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ) );
-
         // KG curation facade — built once here, shared by both the REST admin surface and
         // the MCP write tools. PageSaveHelper is already available via saveHelper above.
         // Pass KgExcludedPagesRepository so approve can surface warnings when the source
@@ -286,6 +306,47 @@ public final class KnowledgeSubsystemFactory {
             /*bundleAssemblyService=*/       null,
             // Derived from the bundle service; built at the same post-startup seam —
             // see BriefingServiceWiring / WikiEngine.patchContextRetrievalService.
+            /*briefingAssemblyService=*/     null
+        );
+    }
+
+    /**
+     * Builds the {@link KnowledgeSubsystem.Services} record for a disabled
+     * Knowledge Graph ({@code wikantik.knowledge.enabled=false}). Every
+     * KG-specific field is {@code null}; only the chunking/embedding pieces
+     * ({@code contentChunkRepository}, {@code chunkProjector}) and the
+     * KG-independent {@code frontmatterDefaultsFilter} are populated so dense
+     * retrieval and frontmatter defaulting keep working.
+     */
+    private static KnowledgeSubsystem.Services knowledgeDisabledServices(
+            final ContentChunkRepository contentChunkRepo,
+            final ChunkProjector chunkProjector,
+            final FrontmatterDefaultsFilter fmDefaults ) {
+        return new KnowledgeSubsystem.Services(
+            /*kgService=*/                   null,
+            /*judgeService=*/                null,
+            /*judgeRunner=*/                 null,
+            /*kgMaterialization=*/           null,
+            /*judgeTimeoutRepository=*/      null,
+            /*hubProposalService=*/          null,
+            /*hubDiscoveryService=*/         null,
+            /*hubOverviewService=*/          null,
+            /*hubProposalRepository=*/       null,
+            /*hubDiscoveryRepository=*/      null,
+            contentChunkRepo,
+            chunkProjector,
+            /*mentionIndex=*/                null,
+            /*nodeMentionSimilarity=*/       null,
+            fmDefaults,
+            /*hubSyncFilter=*/               null,
+            /*contextRetrievalService=*/     null,
+            /*forAgentProjectionService=*/   null,
+            /*bootstrapEntityExtractionIndexer=*/ null,
+            /*kgInclusionPolicy=*/           null,
+            /*reconciliationJobRunner=*/     null,
+            /*retrievalQualityRunner=*/      null,
+            /*kgCurationOps=*/               null,
+            /*bundleAssemblyService=*/       null,
             /*briefingAssemblyService=*/     null
         );
     }

@@ -140,65 +140,30 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         }
 
         // Phase 3: assemble the tool list from whichever services are configured.
-        final List< McpTool > tools = new ArrayList<>();
+        final List< McpTool > tools;
         try {
-            if ( kgService != null ) {
-                final MentionIndex mentionIndex = resolveMentionIndex( engine );
-                tools.add( new DiscoverSchemaTool( kgService, mentionIndex ) );
-                tools.add( new QueryNodesTool( kgService, mentionIndex, false, viewGate::canView ) );
-                tools.add( new GetNodeTool( kgService, viewGate ) );
-                tools.add( new TraverseTool( kgService, viewGate ) );
-                tools.add( new SearchKnowledgeTool( kgService, mentionIndex, false, viewGate::canView ) );
-                final NodeMentionSimilarity similarity = kg.nodeMentionSimilarity();
-                if ( similarity != null ) {
-                    tools.add( new FindSimilarTool( similarity, kgService, viewGate ) );
-                }
-            }
-            if ( ctxService != null ) {
-                tools.add( new RetrieveContextTool( ctxService, viewGate ) );
-                tools.add( new GetPageTool( ctxService, viewGate ) );
-                tools.add( new ListPagesTool( ctxService, viewGate ) );
-                tools.add( new ListMetadataValuesTool( ctxService ) );
-                tools.add( new ReadPagesTool( pageManager, ReadPagesMetrics.resolveAndBind(), viewGate ) );
-            }
-            if ( structuralIndex != null ) {
-                tools.add( new ListClustersTool( structuralIndex, viewGate ) );
-                tools.add( new ListTagsTool( structuralIndex ) );
-                tools.add( new ListPagesByFilterTool( structuralIndex, viewGate ) );
-                tools.add( new GetPageByIdTool( structuralIndex, viewGate ) );
-            }
-            if ( forAgent != null ) {
-                tools.add( new GetPageForAgentTool( forAgent, viewGate ) );
-            }
-            final com.wikantik.api.bundle.BundleAssemblyService bundleService = kg.bundleAssemblyService();
-            if ( bundleService != null ) {
-                // Resolve the query log lazily (the service is set during engine startup; resolving
-                // at call time avoids any startup-ordering coupling). Agent-by-construction surface.
-                tools.add( new AssembleBundleTool( bundleService,
-                    () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null,
-                    viewGate ) );
-            }
-            final com.wikantik.api.briefing.BriefingAssemblyService briefingService = kg.briefingAssemblyService();
-            if ( briefingService != null ) {
-                tools.add( new GetBriefingTool( briefingService,
-                    () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null,
-                    () -> engine instanceof com.wikantik.WikiEngine we ? we.briefingLogService() : null,
-                    viewGate ) );
-            }
             // Ontology tools (read-only): present only when the ontology runtime is wired.
             final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontoCoord =
                 PageGraphSubsystemBridge.fromLegacyEngine( engine ).ontologyRebuildCoordinator();
             final com.wikantik.ontology.OntologyModelManager ontoMgr =
                 ontoCoord == null ? null : ontoCoord.modelManager();
-            if ( ontoMgr != null ) {
-                tools.add( new GetOntologyTool( ontoMgr ) );
-                tools.add( new SparqlQueryTool( ontoMgr ) );
-            }
             final com.wikantik.citation.CitationRepository citationRepo =
                 PageGraphSubsystemBridge.fromLegacyEngine( engine ).citationRepository();
-            if ( citationRepo != null ) {
-                tools.add( new ListStaleCitationsTool( citationRepo ) );
-            }
+            tools = assembleTools(
+                kgService,
+                kgService == null ? null : resolveMentionIndex( engine ),
+                kg.nodeMentionSimilarity(),
+                ctxService,
+                pageManager,
+                structuralIndex,
+                forAgent,
+                kg.bundleAssemblyService(),
+                kg.briefingAssemblyService(),
+                ontoMgr,
+                citationRepo,
+                () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null,
+                () -> engine instanceof com.wikantik.WikiEngine we ? we.briefingLogService() : null,
+                viewGate );
         } catch ( final Exception e ) {
             LOG.error( "Knowledge MCP startup failed while assembling tools — transport servlet is registered " +
                     "but the server will have no tools to dispatch: {}", e.getMessage(), e );
@@ -236,6 +201,78 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             LOG.error( "Knowledge MCP startup failed during server build — transport servlet is registered " +
                     "but will return protocol errors: {}", e.getMessage(), e );
         }
+    }
+
+    /**
+     * Assembles the read-only tool list from whichever collaborators are present.
+     * Pure function of its inputs (no engine, no servlet context) so the tool
+     * surface is unit-testable.
+     *
+     * <p>The six Knowledge-Graph tools ({@code discover_schema}, {@code query_nodes},
+     * {@code get_node}, {@code traverse}, {@code search_knowledge}, {@code find_similar})
+     * are registered <b>only</b> when {@code kgService != null}. When the KG subsystem is
+     * disabled ({@code wikantik.knowledge.enabled=false}) the factory returns a null
+     * {@code kgService}, so those tools drop out while the retrieval / page / spine /
+     * ontology / citation tools remain.</p>
+     */
+    static List< McpTool > assembleTools(
+            final KnowledgeGraphService kgService,
+            final MentionIndex mentionIndex,
+            final NodeMentionSimilarity similarity,
+            final ContextRetrievalService ctxService,
+            final PageManager pageManager,
+            final StructuralIndexService structuralIndex,
+            final ForAgentProjectionService forAgent,
+            final com.wikantik.api.bundle.BundleAssemblyService bundleService,
+            final com.wikantik.api.briefing.BriefingAssemblyService briefingService,
+            final com.wikantik.ontology.OntologyModelManager ontoMgr,
+            final com.wikantik.citation.CitationRepository citationRepo,
+            final java.util.function.Supplier< com.wikantik.api.querylog.QueryLogService > queryLog,
+            final java.util.function.Supplier< com.wikantik.api.briefing.BriefingLogService > briefingLog,
+            final PageViewGate viewGate ) {
+        final List< McpTool > tools = new ArrayList<>();
+        if ( kgService != null ) {
+            tools.add( new DiscoverSchemaTool( kgService, mentionIndex ) );
+            tools.add( new QueryNodesTool( kgService, mentionIndex, false, viewGate::canView ) );
+            tools.add( new GetNodeTool( kgService, viewGate ) );
+            tools.add( new TraverseTool( kgService, viewGate ) );
+            tools.add( new SearchKnowledgeTool( kgService, mentionIndex, false, viewGate::canView ) );
+            if ( similarity != null ) {
+                tools.add( new FindSimilarTool( similarity, kgService, viewGate ) );
+            }
+        }
+        if ( ctxService != null ) {
+            tools.add( new RetrieveContextTool( ctxService, viewGate ) );
+            tools.add( new GetPageTool( ctxService, viewGate ) );
+            tools.add( new ListPagesTool( ctxService, viewGate ) );
+            tools.add( new ListMetadataValuesTool( ctxService ) );
+            tools.add( new ReadPagesTool( pageManager, ReadPagesMetrics.resolveAndBind(), viewGate ) );
+        }
+        if ( structuralIndex != null ) {
+            tools.add( new ListClustersTool( structuralIndex, viewGate ) );
+            tools.add( new ListTagsTool( structuralIndex ) );
+            tools.add( new ListPagesByFilterTool( structuralIndex, viewGate ) );
+            tools.add( new GetPageByIdTool( structuralIndex, viewGate ) );
+        }
+        if ( forAgent != null ) {
+            tools.add( new GetPageForAgentTool( forAgent, viewGate ) );
+        }
+        if ( bundleService != null ) {
+            // Resolve the query log lazily (the service is set during engine startup; resolving
+            // at call time avoids any startup-ordering coupling). Agent-by-construction surface.
+            tools.add( new AssembleBundleTool( bundleService, queryLog, viewGate ) );
+        }
+        if ( briefingService != null ) {
+            tools.add( new GetBriefingTool( briefingService, queryLog, briefingLog, viewGate ) );
+        }
+        if ( ontoMgr != null ) {
+            tools.add( new GetOntologyTool( ontoMgr ) );
+            tools.add( new SparqlQueryTool( ontoMgr ) );
+        }
+        if ( citationRepo != null ) {
+            tools.add( new ListStaleCitationsTool( citationRepo ) );
+        }
+        return tools;
     }
 
     /**

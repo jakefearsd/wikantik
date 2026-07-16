@@ -118,8 +118,13 @@ public final class KnowledgeWiringHelper {
             final ReferenceManager referenceManager,
             final WikiEngine engine ) {
 
-        // KG inclusion policy
-        final boolean kgPolicyEnabled = TextUtil.getBooleanProperty(
+        // KG inclusion policy — gated by the KG master flag AND its own switch.
+        // ForAgentProjectionService + ContentIndexRebuildService below are
+        // KG-independent (agent projection + dense-index rebuild) and stay wired
+        // even when the KG subsystem is disabled.
+        final boolean kgEnabled = TextUtil.getBooleanProperty(
+            props, "wikantik.knowledge.enabled", true );
+        final boolean kgPolicyEnabled = kgEnabled && TextUtil.getBooleanProperty(
             props, "wikantik.kg_policy.enabled", true );
         if ( kgPolicyEnabled ) {
             final KgClusterPolicyRepository policyRepo = persistenceSubsystem.kgClusterPolicy();
@@ -146,7 +151,8 @@ public final class KnowledgeWiringHelper {
 
             new SystemPageBackfillTask( coreSubsystem.systemPageRegistry(), excludedRepo ).run();
         } else {
-            LOG.info( "KG inclusion policy DISABLED via wikantik.kg_policy.enabled=false" );
+            LOG.info( "KG inclusion policy NOT wired (knowledge.enabled={}, kg_policy.enabled default gate)",
+                kgEnabled );
         }
 
         // ForAgentProjectionService
@@ -223,6 +229,14 @@ public final class KnowledgeWiringHelper {
                                               final PersistenceSubsystem.Services persistenceSubsystem,
                                               final KgExcludedPagesRepository excludedPagesRepo,
                                               final WikiEngine engine ) {
+        // Master flag: KG off means no entity-extraction wiring at all, regardless
+        // of wikantik.knowledge.extractor.backend (the extractor feeds the KG,
+        // which does not exist when the subsystem is disabled).
+        if ( !TextUtil.getBooleanProperty( props, "wikantik.knowledge.enabled", true ) ) {
+            LOG.info( "Entity extraction NOT wired — Knowledge Graph subsystem disabled "
+                    + "(wikantik.knowledge.enabled=false)" );
+            return;
+        }
         final EntityExtractorConfig extractorCfg = EntityExtractorConfig.fromProperties( props );
         if ( !extractorCfg.enabled() ) {
             LOG.info( "Entity extraction disabled (wikantik.knowledge.extractor.backend=disabled)" );

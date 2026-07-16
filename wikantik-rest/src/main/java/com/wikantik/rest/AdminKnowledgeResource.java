@@ -80,7 +80,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         final KnowledgeGraphService service = getSubsystems().knowledge().kgService();
         if ( service == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                    "Knowledge graph is not configured" );
+                    "Knowledge Graph subsystem is disabled (wikantik.knowledge.enabled=false?)" );
         }
         return service;
     }

@@ -399,7 +399,7 @@ public class PageKnowledgeResource extends RestServletBase {
         final KnowledgeGraphService svc = getSubsystems().knowledge().kgService();
         if ( svc == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                    "Knowledge graph is not configured" );
+                    "Knowledge Graph subsystem is disabled (wikantik.knowledge.enabled=false?)" );
         }
         return svc;
     }
@@ -408,7 +408,7 @@ public class PageKnowledgeResource extends RestServletBase {
         final KgCurationOps ops = getSubsystems().knowledge().kgCurationOps();
         if ( ops == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                    "Knowledge graph curation is not configured" );
+                    "Knowledge Graph subsystem is disabled (wikantik.knowledge.enabled=false?)" );
         }
         return ops;
     }

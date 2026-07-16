@@ -35,6 +35,7 @@
     <module>wikantik-selenide-tests</module>
     <module>wikantik-it-test-custom-jdbc</module>
     <module>wikantik-it-test-rest</module>
+    <module>wikantik-it-test-knowledge-disabled</module>
     <module>wikantik-it-test-sso</module>
   </modules>
 

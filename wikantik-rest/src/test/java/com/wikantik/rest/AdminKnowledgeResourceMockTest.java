@@ -101,6 +101,32 @@ class AdminKnowledgeResourceMockTest {
     }
 
     @Test
+    void anyRequest_returns503CitingFlagWhenKgDisabled() throws Exception {
+        // Fresh engine with NO KnowledgeGraphService registered — the shape
+        // wikantik.knowledge.enabled=false produces (factory returns null kgService).
+        final TestEngine kgOffEngine = new TestEngine( TestEngine.getTestProperties() );
+        try {
+            final AdminKnowledgeResource kgOffServlet = new AdminKnowledgeResource();
+            final ServletConfig config = Mockito.mock( ServletConfig.class );
+            Mockito.doReturn( kgOffEngine.getServletContext() ).when( config ).getServletContext();
+            kgOffServlet.init( config );
+
+            final HttpServletRequest req = request( "/schema" );
+            final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+            final StringWriter sw = new StringWriter();
+            Mockito.doReturn( new PrintWriter( sw ) ).when( resp ).getWriter();
+            kgOffServlet.doGet( req, resp );
+
+            final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+            assertEquals( 503, obj.get( "status" ).getAsInt() );
+            assertTrue( obj.toString().contains( "wikantik.knowledge.enabled" ),
+                    "503 body must cite the flag: " + obj );
+        } finally {
+            kgOffEngine.stop();
+        }
+    }
+
+    @Test
     void doDelete_requiresIdInPath() throws Exception {
         final JsonObject obj = call( request( "/nodes" ), "DELETE" );
         assertEquals( 400, obj.get( "status" ).getAsInt() );

@@ -63,9 +63,13 @@ public class KnowledgeGraphResource extends RestServletBase {
                 minTier.wireName(), principalName( session ) );
         }
 
+        final KnowledgeGraphService svc = getSubsystems().knowledge().kgService();
+        if ( svc == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    "Knowledge Graph subsystem is disabled (wikantik.knowledge.enabled=false?)" );
+            return;
+        }
         try {
-            final KnowledgeGraphService svc =
-                    getSubsystems().knowledge().kgService();
             final GraphSnapshot snapshot = svc.snapshotGraph( session, minTier );
             sendJson( response, snapshot );
         } catch ( final Exception e ) {

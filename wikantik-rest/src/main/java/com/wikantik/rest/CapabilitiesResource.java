@@ -48,6 +48,13 @@ import java.util.Properties;
  * on each request&mdash;this is a config read, not a subsystem probe, so
  * there is no caching to invalidate and no risk of the response drifting
  * from a property that was just changed.
+ *
+ * <p>Unlike the other flags (raw property pass-throughs), {@code hybridSearch}
+ * is a <em>derived</em> value: the raw flag ANDed with the
+ * {@link GenAiMode} ceiling, mirroring
+ * {@code com.wikantik.search.embedding.EmbeddingConfig#fromProperties}'s
+ * effective-enablement formula (a parity test in
+ * {@code CapabilitiesResourceTest} guards against the two drifting apart).
  */
 public class CapabilitiesResource extends RestServletBase {
 
@@ -57,7 +64,11 @@ public class CapabilitiesResource extends RestServletBase {
     /** Config property: {@code wikantik.knowledge.enabled} (default {@code true}). */
     public static final String PROP_KNOWLEDGE_ENABLED = "wikantik.knowledge.enabled";
 
-    /** Config property: {@code wikantik.search.hybrid.enabled} (default {@code true}). */
+    /**
+     * Config property: {@code wikantik.search.hybrid.enabled} (default {@code true}).
+     * The {@code hybridSearch} response field also reflects the
+     * {@code wikantik.genai.mode} ceiling, not just this flag — see {@code doGet}.
+     */
     public static final String PROP_HYBRID_SEARCH_ENABLED = "wikantik.search.hybrid.enabled";
 
     /** Config property: {@code wikantik.ontology.enabled} (default {@code true}). */

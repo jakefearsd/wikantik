@@ -154,6 +154,35 @@ class CapabilitiesResourceTest {
         assertFalse( doGetAsJson().get( "hybridSearch" ).getAsBoolean() );
     }
 
+    /**
+     * Parity guard: for every EXPLICIT flag×mode combination, the endpoint's
+     * {@code hybridSearch} must equal what {@code EmbeddingConfig.fromProperties}
+     * computes as the effective enablement — if EmbeddingConfig's formula ever
+     * gains a term, this test fails instead of the endpoint silently drifting.
+     *
+     * <p>The absent-property case is deliberately excluded: the two defaults
+     * differ by design (EmbeddingConfig's code default for the raw flag is
+     * {@code false} — kill-switch semantics for the embedding client — while
+     * this endpoint's contract is defaults-all-true on bare properties, matching
+     * the shipped ini). See the sourcing-choice comment above.
+     */
+    @Test
+    void testHybridSearchParityWithEmbeddingConfigForExplicitProperties() throws Exception {
+        final String[] flags = { "true", "false" };
+        final String[] modes = { "full", "embeddings-only", "none" };
+        for ( final String flag : flags ) {
+            for ( final String mode : modes ) {
+                engine.getWikiProperties().setProperty( "wikantik.search.hybrid.enabled", flag );
+                engine.getWikiProperties().setProperty( "wikantik.genai.mode", mode );
+                final boolean expected = com.wikantik.search.embedding.EmbeddingConfig
+                        .fromProperties( engine.getWikiProperties() ).enabled();
+                assertEquals( expected, doGetAsJson().get( "hybridSearch" ).getAsBoolean(),
+                        "hybridSearch drifted from EmbeddingConfig.enabled() for flag="
+                        + flag + ", mode=" + mode );
+            }
+        }
+    }
+
     @Test
     void testGenaiModeEmbeddingsOnly() throws Exception {
         engine.getWikiProperties().setProperty( "wikantik.genai.mode", "embeddings-only" );

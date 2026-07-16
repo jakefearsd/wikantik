@@ -28,12 +28,19 @@ vi.mock('../pagegraph/GraphCanvas.jsx', () => ({
   default: ({ elements }) => <div data-testid="graph-canvas">Canvas: {elements.nodes.length} nodes</div>,
 }));
 
+vi.mock('../../hooks/useCapabilities', () => ({ useCapabilities: vi.fn() }));
+
 import { api } from '../../api/client';
+import { useCapabilities } from '../../hooks/useCapabilities';
 import KnowledgeGraphView from './KnowledgeGraphView.jsx';
 
 describe('KnowledgeGraphView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Fail-open default: capabilities resolved, KG enabled.
+    useCapabilities.mockReturnValue({
+      capabilities: { knowledgeGraph: true }, loading: false,
+    });
   });
 
   it('shows loading then canvas on success', async () => {
@@ -104,5 +111,29 @@ describe('KnowledgeGraphView', () => {
     render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText(/1 machine/i)).toBeTruthy());
     expect(screen.getByText(/1 human/i)).toBeTruthy();
+  });
+
+  describe('capabilities gating (knowledgeGraph flag)', () => {
+    it('renders the disabled panel and never fetches the snapshot when knowledgeGraph is false', () => {
+      useCapabilities.mockReturnValue({
+        capabilities: { knowledgeGraph: false }, loading: false,
+      });
+      render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
+      // Disabled-feature panel (KgErrorState variant="disabled"), no retry action.
+      expect(screen.getByTestId('graph-error-state')).toBeInTheDocument();
+      expect(screen.getByText(/Knowledge Graph is disabled on this deployment/i)).toBeInTheDocument();
+      // The (503-ing) snapshot endpoint is not even attempted.
+      expect(api.knowledge.getGraphSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('fetches and renders as normal while capabilities is still loading (fail-open)', async () => {
+      useCapabilities.mockReturnValue({
+        capabilities: { knowledgeGraph: true }, loading: true,
+      });
+      api.knowledge.getGraphSnapshot.mockResolvedValue(MOCK_SNAPSHOT);
+      render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
+      await waitFor(() => expect(screen.getByTestId('graph-canvas')).toBeTruthy());
+      expect(api.knowledge.getGraphSnapshot).toHaveBeenCalled();
+    });
   });
 });

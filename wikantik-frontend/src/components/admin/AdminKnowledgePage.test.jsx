@@ -1,6 +1,10 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+vi.mock('../../hooks/useCapabilities', () => ({ useCapabilities: vi.fn() }));
+
 import AdminKnowledgePage from './AdminKnowledgePage';
+import { useCapabilities } from '../../hooks/useCapabilities';
 
 // Every tab mounts a child component that fires API calls on mount. The mock
 // below stubs every api.knowledge.* method any of the eight tabs touches so the
@@ -61,6 +65,34 @@ const TAB_PROBES = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Fail-open default: capabilities resolved, KG enabled.
+  useCapabilities.mockReturnValue({
+    capabilities: { knowledgeGraph: true }, loading: false,
+  });
+});
+
+describe('AdminKnowledgePage capabilities gating (knowledgeGraph flag)', () => {
+  it('shows the disabled panel instead of the tabbed UI when knowledgeGraph is false', () => {
+    useCapabilities.mockReturnValue({
+      capabilities: { knowledgeGraph: false }, loading: false,
+    });
+    render(<AdminKnowledgePage />);
+    // Disabled message cites the flag, ExtractionTab admin-message idiom.
+    const message = screen.getByRole('status');
+    expect(message).toHaveTextContent(/disabled on this deployment/i);
+    expect(message).toHaveTextContent('wikantik.knowledge.enabled=false');
+    // None of the tabs (nor the destructive clear-all button) render.
+    expect(screen.queryByRole('button', { name: 'Proposals' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Clear all KG data/i })).toBeNull();
+  });
+
+  it('renders the tabbed UI while capabilities is still loading (fail-open)', () => {
+    useCapabilities.mockReturnValue({
+      capabilities: { knowledgeGraph: true }, loading: true,
+    });
+    render(<AdminKnowledgePage />);
+    expect(screen.getByRole('button', { name: 'Proposals' })).toBeInTheDocument();
+  });
 });
 
 describe('AdminKnowledgePage clarity', () => {

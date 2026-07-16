@@ -41,6 +41,7 @@ import com.wikantik.knowledge.chunking.ContentChunker;
 import com.wikantik.knowledge.extraction.AsyncEntityExtractionListener;
 import com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer;
 import com.wikantik.knowledge.extraction.ChunkEntityMentionRepository;
+import com.wikantik.knowledge.extraction.ClaudePageExtractor;
 import com.wikantik.knowledge.extraction.EntityExtractorConfig;
 import com.wikantik.knowledge.extraction.EntityExtractorFactory;
 import com.wikantik.knowledge.extraction.EvidenceGroundingVerifier;
@@ -273,12 +274,13 @@ public final class KnowledgeWiringHelper {
         engine.setManager( ChunkEntityMentionRepository.class, mentionRepo );
         engine.setManager( AsyncEntityExtractionListener.class, listener );
 
-        if ( "ollama".equalsIgnoreCase( extractorCfg.backend() ) ) {
+        if ( EntityExtractorConfig.BACKEND_OLLAMA.equalsIgnoreCase( extractorCfg.backend() )
+                || EntityExtractorConfig.BACKEND_CLAUDE.equalsIgnoreCase( extractorCfg.backend() ) ) {
             wireBootstrapIndexer( props, ds, contentChunkRepo, mentionRepo, kgNodes,
                 excludedPagesRepo, extractorCfg, persistenceSubsystem, engine );
         } else {
             LOG.info( "Bootstrap indexer not wired (backend={}); /admin/knowledge-graph/extract-mentions "
-                    + "will return 503 until an Ollama-backed extractor is configured",
+                    + "will return 503 until an Ollama- or Claude-backed extractor is configured",
                 extractorCfg.backend() );
         }
 
@@ -307,20 +309,18 @@ public final class KnowledgeWiringHelper {
     }
 
     // -----------------------------------------------------------------------
-    // Bootstrap indexer (Ollama-backend only)
+    // Bootstrap indexer (Ollama or Claude backend)
     // -----------------------------------------------------------------------
 
-    private static void wireBootstrapIndexer( final Properties props,
-                                               final javax.sql.DataSource ds,
-                                               final ContentChunkRepository chunkRepo,
-                                               final ChunkEntityMentionRepository mentionRepo,
-                                               final KgNodeRepository kgNodes,
-                                               final KgExcludedPagesRepository excludedPagesRepo,
-                                               final EntityExtractorConfig extractorCfg,
-                                               final PersistenceSubsystem.Services persistenceSubsystem,
-                                               final WikiEngine engine ) {
-        @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to OllamaPageExtractor
-        final HttpClient http = HttpClient.newHttpClient();
+    static void wireBootstrapIndexer( final Properties props,
+                                       final javax.sql.DataSource ds,
+                                       final ContentChunkRepository chunkRepo,
+                                       final ChunkEntityMentionRepository mentionRepo,
+                                       final KgNodeRepository kgNodes,
+                                       final KgExcludedPagesRepository excludedPagesRepo,
+                                       final EntityExtractorConfig extractorCfg,
+                                       final PersistenceSubsystem.Services persistenceSubsystem,
+                                       final WikiEngine engine ) {
         final int maxEntitiesPerPage = 12;
         final int maxRelationsPerPage = 8;
         final int dictionaryTopK = 0; // No PageEmbeddingProvider wired — top-K skipped.
@@ -328,10 +328,7 @@ public final class KnowledgeWiringHelper {
         final PageExtractionResponseParser parser =
             new PageExtractionResponseParser(
                 new EvidenceGroundingVerifier(), maxEntitiesPerPage, maxRelationsPerPage );
-        final OllamaPageExtractor extractor =
-            new OllamaPageExtractor(
-                http, extractorCfg.ollamaBaseUrl(), extractorCfg.ollamaModel(),
-                extractorCfg.timeoutMs(), parser );
+        final com.wikantik.api.knowledge.PageExtractor extractor = buildPageExtractor( extractorCfg, parser );
 
         @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to engine.setManager(BootstrapEntityExtractionIndexer.class, ...)
         final BootstrapEntityExtractionIndexer indexer =
@@ -349,9 +346,38 @@ public final class KnowledgeWiringHelper {
                 extractorCfg.concurrency(), dictionaryTopK,
                 maxEntitiesPerPage, maxRelationsPerPage );
         engine.setManager( BootstrapEntityExtractionIndexer.class, indexer );
-        LOG.info( "Bootstrap indexer wired (model={}, concurrency={}, judge=none, "
+        LOG.info( "Bootstrap indexer wired (backend={}, extractor={}, concurrency={}, judge=none, "
                 + "maxEntitiesPerPage={}, maxRelationsPerPage={})",
-            extractorCfg.ollamaModel(), extractorCfg.concurrency(),
+            extractorCfg.backend(), extractor.code(), extractorCfg.concurrency(),
             maxEntitiesPerPage, maxRelationsPerPage );
+    }
+
+    /**
+     * Selects the {@link com.wikantik.api.knowledge.PageExtractor} used by the admin
+     * batch job ({@link BootstrapEntityExtractionIndexer} /
+     * {@code /admin/knowledge-graph/extract-mentions}) for {@code extractorCfg.backend()}
+     * — {@code claude} or {@code ollama} (the only two backends
+     * {@link EntityExtractorConfig#enabled()} lets through this call site).
+     *
+     * <p>Package-private so it is directly unit-testable without routing through
+     * {@link EntityExtractorFactory}'s {@code ANTHROPIC_API_KEY} network gate, which
+     * guards construction of the chunk-level {@code EntityExtractor} — a separate
+     * object built over the Anthropic SDK client. {@link ClaudePageExtractor} takes
+     * the API key as a plain constructor argument and validates it lazily at
+     * {@code extract()} time (fail-open, matching {@link OllamaPageExtractor}'s
+     * never-throws convention), so no eager key check belongs here.</p>
+     */
+    static com.wikantik.api.knowledge.PageExtractor buildPageExtractor(
+            final EntityExtractorConfig extractorCfg, final PageExtractionResponseParser parser ) {
+        if ( EntityExtractorConfig.BACKEND_CLAUDE.equalsIgnoreCase( extractorCfg.backend() ) ) {
+            return new ClaudePageExtractor(
+                System.getenv( "ANTHROPIC_API_KEY" ), extractorCfg.claudeModel(),
+                extractorCfg.timeoutMs(), parser );
+        }
+        @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to OllamaPageExtractor
+        final HttpClient http = HttpClient.newHttpClient();
+        return new OllamaPageExtractor(
+            http, extractorCfg.ollamaBaseUrl(), extractorCfg.ollamaModel(),
+            extractorCfg.timeoutMs(), parser );
     }
 }

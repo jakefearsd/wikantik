@@ -75,11 +75,23 @@ public class CapabilitiesResource extends RestServletBase {
 
         try {
             final Properties props = getEngine().getWikiProperties();
+            final GenAiMode mode = GenAiMode.fromProperties( props );
+
+            // hybridSearch is the EFFECTIVE value: the raw flag ANDed with the
+            // genai.mode ceiling, mirroring EmbeddingConfig.fromProperties (which
+            // forces the embedding client off when the mode disallows embeddings).
+            // We keep the explicit default-true read of the raw property here
+            // instead of delegating to EmbeddingConfig: its code-level default
+            // for the flag is false (the shipped ini overrides it to true), and
+            // this endpoint's contract is defaults-all-true on bare properties.
+            final boolean hybridSearch =
+                    TextUtil.getBooleanProperty( props, PROP_HYBRID_SEARCH_ENABLED, true )
+                    && mode.allowsEmbeddings();
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "knowledgeGraph", TextUtil.getBooleanProperty( props, PROP_KNOWLEDGE_ENABLED, true ) );
-            result.put( "hybridSearch", TextUtil.getBooleanProperty( props, PROP_HYBRID_SEARCH_ENABLED, true ) );
-            result.put( "genaiMode", toToken( GenAiMode.fromProperties( props ) ) );
+            result.put( "hybridSearch", hybridSearch );
+            result.put( "genaiMode", toToken( mode ) );
             result.put( "ontology", TextUtil.getBooleanProperty( props, PROP_ONTOLOGY_ENABLED, true ) );
             result.put( "connectors", TextUtil.getBooleanProperty( props, PROP_CONNECTORS_ENABLED, true ) );
             result.put( "citations", TextUtil.getBooleanProperty( props, PROP_CITATIONS_ENABLED, true ) );

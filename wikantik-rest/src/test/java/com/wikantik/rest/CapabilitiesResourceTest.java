@@ -111,6 +111,49 @@ class CapabilitiesResourceTest {
         assertTrue( doGetAsJson().get( "hybridSearch" ).getAsBoolean() );
     }
 
+    // ----- genai.mode ceiling interaction (mirrors EmbeddingConfig.fromProperties,
+    //       which ANDs the raw flag with GenAiMode.allowsEmbeddings()) -----
+    //
+    // Sourcing choice, documented per the task brief: the endpoint reads the raw
+    // wikantik.search.hybrid.enabled property with an explicit default of TRUE and
+    // ANDs in GenAiMode.allowsEmbeddings(), rather than delegating to
+    // EmbeddingConfig.fromProperties(props).enabled(). EmbeddingConfig's CODE
+    // default for the raw flag is false (master kill-switch semantics for the
+    // embedding client), but the SHIPPED ini sets it true — at runtime the engine
+    // properties include the ini value so both approaches agree, but this
+    // endpoint must also stay truthful for a bare/empty Properties object
+    // (defaults-all-true contract above), which delegation would silently flip.
+
+    @Test
+    void testHybridSearchFalseWhenGenaiModeNone() throws Exception {
+        // Hybrid flag left at its default (true) — the mode ceiling alone forces false.
+        engine.getWikiProperties().remove( "wikantik.search.hybrid.enabled" );
+        engine.getWikiProperties().setProperty( "wikantik.genai.mode", "none" );
+        assertFalse( doGetAsJson().get( "hybridSearch" ).getAsBoolean() );
+    }
+
+    @Test
+    void testHybridSearchFalseWhenGenaiModeNoneEvenIfFlagExplicitlyOn() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.search.hybrid.enabled", "true" );
+        engine.getWikiProperties().setProperty( "wikantik.genai.mode", "none" );
+        assertFalse( doGetAsJson().get( "hybridSearch" ).getAsBoolean() );
+    }
+
+    @Test
+    void testHybridSearchTrueWhenGenaiModeEmbeddingsOnly() throws Exception {
+        // EMBEDDINGS_ONLY allows embeddings (retrieval) — only NONE turns them off.
+        engine.getWikiProperties().setProperty( "wikantik.search.hybrid.enabled", "true" );
+        engine.getWikiProperties().setProperty( "wikantik.genai.mode", "embeddings-only" );
+        assertTrue( doGetAsJson().get( "hybridSearch" ).getAsBoolean() );
+    }
+
+    @Test
+    void testHybridSearchFalseWhenFlagOffRegardlessOfMode() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.search.hybrid.enabled", "false" );
+        engine.getWikiProperties().setProperty( "wikantik.genai.mode", "full" );
+        assertFalse( doGetAsJson().get( "hybridSearch" ).getAsBoolean() );
+    }
+
     @Test
     void testGenaiModeEmbeddingsOnly() throws Exception {
         engine.getWikiProperties().setProperty( "wikantik.genai.mode", "embeddings-only" );

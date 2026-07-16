@@ -786,6 +786,16 @@
   color: #356B40;
 }
 
+.llm-badge-rerank {
+  background: #F2ECD9;
+  color: #77602C;
+}
+
+.llm-badge-decomposition {
+  background: #DFEEF0;
+  color: #2C6770;
+}
+
 [data-theme="dark"] .llm-badge-extraction {
   background: #1F3140;
   color: #9CC4DF;
@@ -799,6 +809,16 @@
 [data-theme="dark"] .llm-badge-embedding {
   background: #1F3324;
   color: #93C79E;
+}
+
+[data-theme="dark"] .llm-badge-rerank {
+  background: #40361F;
+  color: #DFC48F;
+}
+
+[data-theme="dark"] .llm-badge-decomposition {
+  background: #1F3A40;
+  color: #8FCBD6;
 }
 
 /* ── Admin sidebar (context-swap rail) ───────────────────────────── */

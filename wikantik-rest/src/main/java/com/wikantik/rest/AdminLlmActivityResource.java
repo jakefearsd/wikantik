@@ -35,12 +35,13 @@ import java.io.IOException;
 
 /**
  * {@code GET /admin/llm-activity} — read-only snapshot of recent and in-flight LLM
- * calls (entity extraction, proposal judging, embeddings). Backed by the in-memory
- * {@link LlmActivityLog}; nothing is persisted. Auth is via the shared
- * {@code AdminAuthFilter}.
+ * calls (entity extraction, proposal judging, embeddings, section reranking, query
+ * decomposition). Backed by the in-memory {@link LlmActivityLog}; nothing is
+ * persisted. Auth is via the shared {@code AdminAuthFilter}.
  *
  * <p>Query parameters: {@code limit} (default 200), {@code subsystem}
- * (entity_extraction|proposal_judge|embedding), {@code status} (in_flight|ok|error).</p>
+ * (entity_extraction|proposal_judge|embedding|section_rerank|query_decomposition),
+ * {@code status} (in_flight|ok|error).</p>
  */
 public class AdminLlmActivityResource extends RestServletBase {
 

@@ -81,6 +81,28 @@ describe('LlmActivityTab', () => {
     expect(screen.getByText('nomic')).toBeInTheDocument();
   });
 
+  it('renders chips + labeled rows for the SECTION_RERANK and QUERY_DECOMPOSITION subsystems and filters by them', async () => {
+    api.knowledge.getLlmActivity.mockResolvedValue(
+      payload([
+        call({ seq: 1, subsystem: 'SECTION_RERANK', model: 'rerank-model' }),
+        call({ seq: 2, subsystem: 'QUERY_DECOMPOSITION', model: 'decomp-model' }),
+      ]),
+    );
+    render(<LlmActivityTab />);
+    await waitFor(() => expect(screen.getByText('rerank-model')).toBeInTheDocument());
+    // Rows carry the short subsystem labels, not the raw enum names.
+    expect(screen.getByText('rerank')).toBeInTheDocument();
+    expect(screen.getByText('decomposition')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rerank' }));
+    await waitFor(() => expect(screen.queryByText('decomp-model')).not.toBeInTheDocument());
+    expect(screen.getByText('rerank-model')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Decomposition' }));
+    await waitFor(() => expect(screen.queryByText('rerank-model')).not.toBeInTheDocument());
+    expect(screen.getByText('decomp-model')).toBeInTheDocument();
+  });
+
   it('filters table rows by status when a chip is clicked', async () => {
     api.knowledge.getLlmActivity.mockResolvedValue(
       payload([

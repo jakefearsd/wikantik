@@ -8,12 +8,16 @@ const SUBSYSTEM_LABELS = {
   ENTITY_EXTRACTION: 'extraction',
   PROPOSAL_JUDGE: 'judge',
   EMBEDDING: 'embedding',
+  SECTION_RERANK: 'rerank',
+  QUERY_DECOMPOSITION: 'decomposition',
 };
 
 const SUBSYSTEM_BADGE_CLASS = {
   ENTITY_EXTRACTION: 'llm-badge-extraction',
   PROPOSAL_JUDGE: 'llm-badge-judge',
   EMBEDDING: 'llm-badge-embedding',
+  SECTION_RERANK: 'llm-badge-rerank',
+  QUERY_DECOMPOSITION: 'llm-badge-decomposition',
 };
 
 // Filter chip options: { value, label }. 'all' matches everything.
@@ -22,6 +26,8 @@ const SUBSYSTEM_FILTERS = [
   { value: 'ENTITY_EXTRACTION', label: 'Extraction' },
   { value: 'PROPOSAL_JUDGE', label: 'Judge' },
   { value: 'EMBEDDING', label: 'Embedding' },
+  { value: 'SECTION_RERANK', label: 'Rerank' },
+  { value: 'QUERY_DECOMPOSITION', label: 'Decomposition' },
 ];
 
 const STATUS_FILTERS = [

@@ -19,19 +19,33 @@
 # ============================================================================
 #
 #   GenAI tier   (set via .env; no compose profile controls this axis)
-#   ----------   wikantik.genai.mode / knowledge.enabled / hybrid.enabled
-#   core         WIKANTIK_GENAI_MODE=none            knowledge=false  hybrid=false
+#   ----------   exact .env preset per tier:
+#   core         WIKANTIK_GENAI_MODE=none
+#                WIKANTIK_KNOWLEDGE_ENABLED=false
 #                BM25-only search, BM25-chunk bundle, zero inference infra.
-#   search       WIKANTIK_GENAI_MODE=embeddings-only  knowledge=false* hybrid=true
+#                (mode=none disables embeddings at the ceiling, so dense
+#                retrieval degrades to the fail-closed BM25 fallback; the
+#                explicit wikantik.search.hybrid.enabled=false property has
+#                no dedicated env passthrough yet — set it directly in
+#                wikantik-custom.properties if you want it spelled out.)
+#   search       WIKANTIK_GENAI_MODE=embeddings-only
+#                WIKANTIK_KNOWLEDGE_ENABLED=false
+#                WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434
 #                dense+BM25 hybrid retrieval; needs an embedding endpoint —
-#                either --profile embeddings (CPU ollama-embed sidecar) or a
-#                reachable WIKANTIK_EMBEDDING_BASE_URL. (*set knowledge=true
-#                if you still want manual KG curation without extraction.)
-#   knowledge    WIKANTIK_GENAI_MODE=full             knowledge=true   hybrid=true
-#                Full KG extraction. WIKANTIK_EXTRACTOR_BACKEND=claude (+
-#                ANTHROPIC_API_KEY) is the documented cloud path; BYO-Ollama
-#                (point WIKANTIK_EMBEDDING_BASE_URL / an extractor endpoint at
-#                your own host) also works.
+#                either --profile embeddings (CPU ollama-embed sidecar, the
+#                base-url above) or point WIKANTIK_EMBEDDING_BASE_URL at
+#                your own reachable host. (Set WIKANTIK_KNOWLEDGE_ENABLED=
+#                true instead if you still want manual KG curation without
+#                extraction.)
+#   knowledge    WIKANTIK_GENAI_MODE=full
+#                WIKANTIK_KNOWLEDGE_ENABLED=true
+#                WIKANTIK_EXTRACTOR_BACKEND=claude
+#                ANTHROPIC_API_KEY=<key>
+#                WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434
+#                Full KG extraction. backend=claude (+ key) is the
+#                documented cloud path; BYO-Ollama also works
+#                (WIKANTIK_EXTRACTOR_BACKEND=ollama + point the embedding /
+#                extractor endpoints at your own host).
 #
 #   Ingress profile        Compose flag           Sidecar        Notes
 #   ---------------        -----------------       -------        -----
@@ -61,9 +75,16 @@
 #   --------                -----------------        -----
 #   Bundled (compose-managed) --profile bundled-db    pgvector/pgvector:pg18 container,
 #                                                      named volume, no host port.
-#   Managed (RDS/Cloud SQL/…) (omit the flag)          Set POSTGRES_HOST / POSTGRES_PORT
-#                                                      in .env to the managed endpoint.
-#                                                      See the depends_on note below.
+#   Managed (RDS/Cloud SQL/…) (omit the flag)          Set WIKANTIK_CLOUD_DB_HOST /
+#                                                      WIKANTIK_CLOUD_DB_PORT in .env to
+#                                                      the managed endpoint (dedicated
+#                                                      cloud vars — NOT the shared
+#                                                      POSTGRES_HOST, which .env.example
+#                                                      sets to localhost for the
+#                                                      bare-metal path and would shadow
+#                                                      the bundled default). See the
+#                                                      depends_on note below; full
+#                                                      managed-DB support is Task 2.5.
 #
 #   Embeddings sidecar       --profile embeddings     ollama-embed: CPU-only Ollama,
 #                                                      pulls WIKANTIK_EMBEDDING_MODEL_TAG
@@ -91,11 +112,17 @@
 # to set unrelated ingress secrets just to run `up -d wikantik`. So those two
 # vars use a plain `${VAR:-}` (empty-string) default below instead; if you DO
 # activate `--profile caddy`/`--profile cloudflared` without setting the
-# matching var, the affected container starts and fails at its own runtime
-# (Caddy logs a bind-domain error; cloudflared exits on an empty token) —
-# less clean than a compose-level refusal, but scoped to only the profile
-# you actually asked for. `WIKANTIK_IMAGE` keeps its `:?` guard: `wikantik`
-# is never profile-gated, so that guard's blast radius really is "always".
+# matching var, the affected container starts and fails at its own runtime.
+# For caddy the observed failure (verified with `caddy validate` against
+# this Caddyfile, WIKANTIK_DOMAIN empty and unset both) is a config parse
+# error at startup — the empty site label collapses the site block into a
+# Caddyfile global-options block:
+#   Error: adapting config using caddyfile: /etc/caddy/Caddyfile:23:
+#   unrecognized global option: reverse_proxy
+# For cloudflared, the daemon exits on an empty tunnel token. Less clean
+# than a compose-level refusal, but scoped to only the profile you actually
+# asked for. `WIKANTIK_IMAGE` keeps its `:?` guard: `wikantik` is never
+# profile-gated, so that guard's blast radius really is "always".
 # ============================================================================
 #
 # Design note — depends_on vs. `profiles: ["bundled-db"]` on `db`:
@@ -123,9 +150,16 @@
 # `--profile bundled-db` (both confirmed via `docker compose config`) and
 # preserves the healthy-wait behavior whenever `db` is actually running.
 # One nuance: with `required: false`, an *unhealthy* db no longer hard-blocks
-# wikantik from starting (compose logs a warning and proceeds) — acceptable
-# for v1, since wikantik's own DB connection attempts / health endpoint
-# surface the same failure immediately after.
+# wikantik from starting (compose logs a warning and proceeds). What that
+# looks like in practice (observed during validation): wikantik's entrypoint
+# runs DB migrations before Tomcat, fails to connect, and the container
+# exits; `restart: always` immediately restarts it, so a slow-to-become-
+# healthy db produces a CRASH LOOP — repeated "Running database migrations
+# ... Could not connect" cycles in the logs — until the db comes up, at
+# which point a restart iteration succeeds and boots normally. Self-healing,
+# but noisy; don't mistake those early restart cycles for a broken deploy.
+# Accepted for v1 as the only native compose mechanism that renders in both
+# profile directions.
 # ============================================================================
 
 services:
@@ -150,12 +184,18 @@ services:
         limits:
           memory: ${WIKANTIK_MEM_LIMIT:-2G}
     environment:
-      # Overridable so `--profile bundled-db` can be omitted in favor of a
-      # managed database (RDS/Cloud SQL/etc) — point POSTGRES_HOST/PORT at
-      # the managed endpoint in .env. Defaults match the base compose
-      # exactly (db / 5432) when bundled-db is used.
-      POSTGRES_HOST: ${POSTGRES_HOST:-db}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      # Deliberately NOT `${POSTGRES_HOST:-db}`: .env.example ships
+      # POSTGRES_HOST=localhost live (for the bare-metal install path), so
+      # host-side interpolation of the shared var would bake `localhost`
+      # into this container for anyone who copies the template — breaking
+      # the default bundled-db workflow. This mirrors the base compose's own
+      # mechanism (a static `environment:` entry, which always beats
+      # env_file/.env values for the same key). The dedicated
+      # WIKANTIK_CLOUD_DB_HOST/PORT vars — never set live in .env.example —
+      # are the managed-DB seam (RDS/Cloud SQL, Task 2.5): set them to the
+      # managed endpoint and omit `--profile bundled-db`.
+      POSTGRES_HOST: ${WIKANTIK_CLOUD_DB_HOST:-db}
+      POSTGRES_PORT: ${WIKANTIK_CLOUD_DB_PORT:-5432}
       # PROXY_REMOTE_IP_HEADER and WIKANTIK_EMBEDDING_BASE_URL are NOT set
       # here on purpose: both flow through automatically via the base
       # compose's `env_file: .env` (any var present in .env that isn't
@@ -183,9 +223,8 @@ services:
 
   # Included by default (matches docker-compose.prod.yml's posture — a cloud
   # VM deployment should back itself up same as docker1). Textfile metrics
-  # default to a named volume (no jakemon-specific host path dependency);
-  # override BACKUP_TEXTFILE_DIR to a host path if you run your own
-  # Prometheus node_exporter textfile collector on the VM.
+  # land in a named volume unconditionally (no jakemon-specific host path
+  # dependency — see the volume comment below).
   backup:
     image: postgres:18-alpine
     restart: unless-stopped
@@ -194,21 +233,26 @@ services:
         condition: service_healthy
         required: false
     environment:
-      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      # Same shadowing rationale as wikantik's POSTGRES_HOST above — the
+      # shared var is live in .env.example, so the dedicated cloud seam var
+      # (default `db`) is used instead.
+      POSTGRES_HOST: ${WIKANTIK_CLOUD_DB_HOST:-db}
       POSTGRES_DB: ${POSTGRES_DB:-wikantik}
       POSTGRES_USER: ${POSTGRES_USER:-wikantik}
       PGPASSWORD: ${POSTGRES_PASSWORD:-CHANGEME}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
-      BACKUP_METRICS_DIR: ${BACKUP_METRICS_DIR:-/textfile}
+      BACKUP_METRICS_DIR: /textfile
     volumes:
       - wikantik-pages:/var/wikantik/pages:ro
       - ${BACKUP_DIR:-./backups}:/backups
-      # Named volume by default — see header note. Falls back to a host bind
-      # only if BACKUP_TEXTFILE_DIR is overridden to a path (leading `/` or
-      # `.`), same disambiguation rule Compose already uses elsewhere in
-      # this repo (source is a named volume iff it matches a top-level
-      # `volumes:` key; otherwise it's a host path).
-      - ${BACKUP_TEXTFILE_DIR:-backup-textfile}:/textfile
+      # UNCONDITIONALLY a named volume — deliberately not the prod overlay's
+      # `${BACKUP_TEXTFILE_DIR:-...}` pattern. That var is live in
+      # .env.example pointing at /var/lib/jakemon/textfile (docker1's
+      # host-path collector), so honoring it here would silently re-couple
+      # cloud deployments to a jakemon path that doesn't exist on a cloud
+      # VM. jakemon isn't part of cloud v1; a textfile-export variant can be
+      # added later if a cloud VM ever runs its own node_exporter collector.
+      - backup-textfile:/textfile
       - ./docker/backup/backup.sh:/usr/local/bin/backup.sh:ro
       - ./docker/backup/restore.sh:/usr/local/bin/restore.sh:ro
       - ./docker/backup/crontab:/opt/wikantik/crontab:ro

@@ -74,6 +74,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Wiring helpers for Knowledge-graph-owned services that are built after
@@ -222,7 +223,6 @@ public final class KnowledgeWiringHelper {
      * {@code wikantik.knowledge.extractor.backend=claude|ollama|disabled}
      * (default {@code disabled}).
      */
-    @SuppressWarnings( "PMD.CloseResource" ) // Listener stored on engine; lifecycle follows engine shutdown.
     public static void wireEntityExtraction( final Properties props,
                                               final javax.sql.DataSource ds,
                                               final ChunkProjector chunkProjector,
@@ -230,6 +230,26 @@ public final class KnowledgeWiringHelper {
                                               final PersistenceSubsystem.Services persistenceSubsystem,
                                               final KgExcludedPagesRepository excludedPagesRepo,
                                               final WikiEngine engine ) {
+        wireEntityExtraction( props, ds, chunkProjector, contentChunkRepo, persistenceSubsystem,
+            excludedPagesRepo, engine, System::getenv );
+    }
+
+    /**
+     * Test seam: the real {@link #wireEntityExtraction} logic with an injectable
+     * environment lookup, threaded into {@link EntityExtractorFactory} (which gates
+     * the {@code claude} backend on {@code ANTHROPIC_API_KEY}) and
+     * {@link #buildPageExtractor}. Package-private by design — production callers
+     * use the public overload, which binds {@code System::getenv}.
+     */
+    @SuppressWarnings( "PMD.CloseResource" ) // Listener stored on engine; lifecycle follows engine shutdown.
+    static void wireEntityExtraction( final Properties props,
+                                      final javax.sql.DataSource ds,
+                                      final ChunkProjector chunkProjector,
+                                      final ContentChunkRepository contentChunkRepo,
+                                      final PersistenceSubsystem.Services persistenceSubsystem,
+                                      final KgExcludedPagesRepository excludedPagesRepo,
+                                      final WikiEngine engine,
+                                      final Function< String, String > getenv ) {
         // Master flag: KG off means no entity-extraction wiring at all, regardless
         // of wikantik.knowledge.extractor.backend (the extractor feeds the KG,
         // which does not exist when the subsystem is disabled).
@@ -244,7 +264,7 @@ public final class KnowledgeWiringHelper {
             return;
         }
         Optional< com.wikantik.api.knowledge.EntityExtractor > extractorOpt =
-            EntityExtractorFactory.create( extractorCfg );
+            EntityExtractorFactory.create( extractorCfg, getenv );
         if ( extractorOpt.isEmpty() ) {
             LOG.warn( "Entity extraction configured ({}), but no usable backend; skipping wiring",
                       extractorCfg.backend() );
@@ -277,8 +297,13 @@ public final class KnowledgeWiringHelper {
         if ( EntityExtractorConfig.BACKEND_OLLAMA.equalsIgnoreCase( extractorCfg.backend() )
                 || EntityExtractorConfig.BACKEND_CLAUDE.equalsIgnoreCase( extractorCfg.backend() ) ) {
             wireBootstrapIndexer( props, ds, contentChunkRepo, mentionRepo, kgNodes,
-                excludedPagesRepo, extractorCfg, persistenceSubsystem, engine );
+                excludedPagesRepo, extractorCfg, persistenceSubsystem, engine, getenv );
         } else {
+            // Defensive/vestigial: unreachable today. EntityExtractorFactory.create only
+            // returns a non-empty extractor for the ollama and claude backends (anything
+            // else warns + returns empty, and this method has already returned above).
+            // Kept so a future backend added to the factory without a page-extractor
+            // mapping degrades to a logged 503 instead of a mis-wired indexer.
             LOG.info( "Bootstrap indexer not wired (backend={}); /admin/knowledge-graph/extract-mentions "
                     + "will return 503 until an Ollama- or Claude-backed extractor is configured",
                 extractorCfg.backend() );
@@ -300,7 +325,7 @@ public final class KnowledgeWiringHelper {
             safePrior == null ? listener : safePrior.andThen( listener );
         chunkProjector.setPostChunkSink( composite );
 
-        final String modelLabel = "claude".equalsIgnoreCase( extractorCfg.backend() )
+        final String modelLabel = EntityExtractorConfig.BACKEND_CLAUDE.equalsIgnoreCase( extractorCfg.backend() )
             ? extractorCfg.claudeModel()
             : extractorCfg.ollamaModel();
         LOG.info( "Entity extraction wired (backend={}, model={}, threshold={}, timeoutMs={}, batchConcurrency={})",
@@ -320,7 +345,8 @@ public final class KnowledgeWiringHelper {
                                        final KgExcludedPagesRepository excludedPagesRepo,
                                        final EntityExtractorConfig extractorCfg,
                                        final PersistenceSubsystem.Services persistenceSubsystem,
-                                       final WikiEngine engine ) {
+                                       final WikiEngine engine,
+                                       final Function< String, String > getenv ) {
         final int maxEntitiesPerPage = 12;
         final int maxRelationsPerPage = 8;
         final int dictionaryTopK = 0; // No PageEmbeddingProvider wired — top-K skipped.
@@ -328,7 +354,8 @@ public final class KnowledgeWiringHelper {
         final PageExtractionResponseParser parser =
             new PageExtractionResponseParser(
                 new EvidenceGroundingVerifier(), maxEntitiesPerPage, maxRelationsPerPage );
-        final com.wikantik.api.knowledge.PageExtractor extractor = buildPageExtractor( extractorCfg, parser );
+        final com.wikantik.api.knowledge.PageExtractor extractor =
+            buildPageExtractor( extractorCfg, parser, getenv );
 
         @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to engine.setManager(BootstrapEntityExtractionIndexer.class, ...)
         final BootstrapEntityExtractionIndexer indexer =
@@ -359,19 +386,19 @@ public final class KnowledgeWiringHelper {
      * — {@code claude} or {@code ollama} (the only two backends
      * {@link EntityExtractorConfig#enabled()} lets through this call site).
      *
-     * <p>Package-private so it is directly unit-testable without routing through
-     * {@link EntityExtractorFactory}'s {@code ANTHROPIC_API_KEY} network gate, which
-     * guards construction of the chunk-level {@code EntityExtractor} — a separate
-     * object built over the Anthropic SDK client. {@link ClaudePageExtractor} takes
-     * the API key as a plain constructor argument and validates it lazily at
-     * {@code extract()} time (fail-open, matching {@link OllamaPageExtractor}'s
-     * never-throws convention), so no eager key check belongs here.</p>
+     * <p>Package-private and getenv-injected so it is directly unit-testable.
+     * {@link ClaudePageExtractor} takes the API key as a plain constructor argument
+     * and validates it lazily at {@code extract()} time (fail-open, matching
+     * {@link OllamaPageExtractor}'s never-throws convention), so no eager key check
+     * belongs here — the factory gate upstream already refused to wire anything when
+     * the key was absent.</p>
      */
     static com.wikantik.api.knowledge.PageExtractor buildPageExtractor(
-            final EntityExtractorConfig extractorCfg, final PageExtractionResponseParser parser ) {
+            final EntityExtractorConfig extractorCfg, final PageExtractionResponseParser parser,
+            final Function< String, String > getenv ) {
         if ( EntityExtractorConfig.BACKEND_CLAUDE.equalsIgnoreCase( extractorCfg.backend() ) ) {
             return new ClaudePageExtractor(
-                System.getenv( "ANTHROPIC_API_KEY" ), extractorCfg.claudeModel(),
+                getenv.apply( "ANTHROPIC_API_KEY" ), extractorCfg.claudeModel(),
                 extractorCfg.timeoutMs(), parser );
         }
         @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to OllamaPageExtractor

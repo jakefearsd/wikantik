@@ -27,6 +27,7 @@ import org.apache.logging.log4j.Logger;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * Selects a concrete {@link EntityExtractor} from configuration. Returns empty
@@ -41,12 +42,26 @@ public final class EntityExtractorFactory {
     private EntityExtractorFactory() {}
 
     public static Optional< EntityExtractor > create( final EntityExtractorConfig config ) {
+        return create( config, System::getenv );
+    }
+
+    /**
+     * Seam overload: identical to {@link #create(EntityExtractorConfig)} but with an
+     * injectable environment lookup, so tests can drive the {@code claude} branch
+     * deterministically without a real {@code ANTHROPIC_API_KEY} in the process
+     * environment. Public only because the wiring caller
+     * ({@code com.wikantik.knowledge.subsystem.KnowledgeWiringHelper}) lives in a
+     * sibling package — treat it as a test/wiring seam, not general API; production
+     * entry points bind {@code System::getenv} via the single-argument overload.
+     */
+    public static Optional< EntityExtractor > create( final EntityExtractorConfig config,
+                                                      final Function< String, String > getenv ) {
         if( !config.enabled() ) {
             return Optional.empty();
         }
         switch( config.backend().toLowerCase( java.util.Locale.ROOT ) ) {
             case EntityExtractorConfig.BACKEND_CLAUDE:
-                return createClaude( config );
+                return createClaude( config, getenv );
             case EntityExtractorConfig.BACKEND_OLLAMA:
                 return createOllama( config );
             default:
@@ -55,8 +70,9 @@ public final class EntityExtractorFactory {
         }
     }
 
-    private static Optional< EntityExtractor > createClaude( final EntityExtractorConfig config ) {
-        final String key = System.getenv( "ANTHROPIC_API_KEY" );
+    private static Optional< EntityExtractor > createClaude( final EntityExtractorConfig config,
+                                                             final Function< String, String > getenv ) {
+        final String key = getenv.apply( "ANTHROPIC_API_KEY" );
         if( key == null || key.isBlank() ) {
             LOG.warn( "ANTHROPIC_API_KEY not set; Claude extractor disabled" );
             return Optional.empty();

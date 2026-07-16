@@ -39,6 +39,7 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 import javax.sql.DataSource;
 import java.util.Properties;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -55,17 +56,22 @@ import static org.mockito.Mockito.verify;
  * {@code /admin/knowledge-graph/extract-mentions} permanently 503 even with a working
  * chunk-level Claude extractor. These tests pin the fixed dispatch.
  *
- * <p>{@link KnowledgeWiringHelper#buildPageExtractor} is the extracted, deterministic
- * seam under test — it is package-private specifically so these assertions don't have
- * to route through {@link com.wikantik.knowledge.extraction.EntityExtractorFactory}'s
- * {@code ANTHROPIC_API_KEY} network gate, which this repository has no established
- * pattern for stubbing (the only prior Claude-backend env-var test,
- * {@code ClaudeProposalJudgeTest}, only ever exercises the deterministic
- * key-missing path). {@link ClaudePageExtractor} itself validates the key lazily at
- * {@code extract()} time, not at construction, so building one with a possibly-absent
- * key is safe and matches {@link OllamaPageExtractor}'s fail-open convention.</p>
+ * <p>The {@code ANTHROPIC_API_KEY} gate is made deterministic via an injectable
+ * env-lookup seam: package-private overloads of {@code wireEntityExtraction} /
+ * {@code wireBootstrapIndexer} / {@code buildPageExtractor} (and of
+ * {@link com.wikantik.knowledge.extraction.EntityExtractorFactory#create}) accept a
+ * {@code Function&lt;String,String&gt; getenv}; the public methods bind
+ * {@code System::getenv}. Tests here drive the REAL wiring logic end-to-end with a
+ * fake key — no environment mutation, no dormant CI-secret dependency.</p>
  */
 class KnowledgeWiringHelperTest {
+
+    /** Fake process environment carrying a syntactically-plausible API key. */
+    private static final Function< String, String > FAKE_KEY_ENV =
+        name -> "ANTHROPIC_API_KEY".equals( name ) ? "sk-ant-test-not-a-real-key" : null;
+
+    /** Fake process environment with no API key at all. */
+    private static final Function< String, String > EMPTY_ENV = name -> null;
 
     private static EntityExtractorConfig claudeConfig() {
         final Properties p = new Properties();
@@ -89,7 +95,8 @@ class KnowledgeWiringHelperTest {
 
     @Test
     void buildPageExtractorClaudeBackendReturnsClaudePageExtractor() {
-        final PageExtractor extractor = KnowledgeWiringHelper.buildPageExtractor( claudeConfig(), parser() );
+        final PageExtractor extractor =
+            KnowledgeWiringHelper.buildPageExtractor( claudeConfig(), parser(), FAKE_KEY_ENV );
         assertInstanceOf( ClaudePageExtractor.class, extractor );
         assertTrue( extractor.code().startsWith( "claude:" ), "code() was: " + extractor.code() );
     }
@@ -97,7 +104,8 @@ class KnowledgeWiringHelperTest {
     @Test
     void buildPageExtractorOllamaBackendReturnsOllamaPageExtractor() {
         // Regression pin — must keep working exactly as before the claude branch was added.
-        final PageExtractor extractor = KnowledgeWiringHelper.buildPageExtractor( ollamaConfig(), parser() );
+        final PageExtractor extractor =
+            KnowledgeWiringHelper.buildPageExtractor( ollamaConfig(), parser(), EMPTY_ENV );
         assertInstanceOf( OllamaPageExtractor.class, extractor );
         assertTrue( extractor.code().startsWith( "ollama:" ), "code() was: " + extractor.code() );
     }
@@ -117,7 +125,7 @@ class KnowledgeWiringHelperTest {
 
         KnowledgeWiringHelper.wireBootstrapIndexer(
             new Properties(), ds, chunkRepo, mentionRepo, kgNodes, excludedPagesRepo,
-            claudeConfig(), persistence, engine );
+            claudeConfig(), persistence, engine, FAKE_KEY_ENV );
 
         verify( engine ).setManager( eq( BootstrapEntityExtractionIndexer.class ), any() );
     }
@@ -149,12 +157,63 @@ class KnowledgeWiringHelperTest {
     }
 
     @Test
+    void wireEntityExtractionClaudeBackendWithInjectedKeyWiresBootstrapIndexerEndToEnd() {
+        // THE deterministic proof of the Task 1.5 fix: the REAL wireEntityExtraction
+        // path — including EntityExtractorFactory's ANTHROPIC_API_KEY gate for the
+        // chunk-level extractor — with backend=claude and an injected fake key must
+        // wire the admin-batch bootstrap indexer (it wired nothing before the fix).
+        final WikiEngine engine = mock( WikiEngine.class );
+        final DataSource ds = mock( DataSource.class );
+        final ChunkProjector chunkProjector = mock( ChunkProjector.class );
+        final ContentChunkRepository chunkRepo = mock( ContentChunkRepository.class );
+        final KgExcludedPagesRepository excludedPagesRepo = mock( KgExcludedPagesRepository.class );
+        final PersistenceSubsystem.Services persistence =
+            WikiSubsystemsTestFactory.mockRecord( PersistenceSubsystem.Services.class );
+
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.knowledge.extractor.backend", "claude" );
+
+        KnowledgeWiringHelper.wireEntityExtraction(
+            props, ds, chunkProjector, chunkRepo, persistence, excludedPagesRepo, engine,
+            FAKE_KEY_ENV );
+
+        verify( engine ).setManager( eq( ChunkEntityMentionRepository.class ), any() );
+        verify( engine ).setManager( eq( AsyncEntityExtractionListener.class ), any() );
+        verify( engine ).setManager( eq( BootstrapEntityExtractionIndexer.class ), any() );
+        verify( chunkProjector ).setPostChunkSink( any() );
+    }
+
+    @Test
+    void wireEntityExtractionClaudeBackendWithoutKeyWiresNothing() {
+        // Factory gate pin: backend=claude but no ANTHROPIC_API_KEY → the factory
+        // refuses the chunk extractor and wireEntityExtraction wires nothing at all,
+        // including the batch indexer (mis-configured deploy is a no-op, not a crash).
+        final WikiEngine engine = mock( WikiEngine.class );
+        final DataSource ds = mock( DataSource.class );
+        final ChunkProjector chunkProjector = mock( ChunkProjector.class );
+        final ContentChunkRepository chunkRepo = mock( ContentChunkRepository.class );
+        final KgExcludedPagesRepository excludedPagesRepo = mock( KgExcludedPagesRepository.class );
+        final PersistenceSubsystem.Services persistence =
+            WikiSubsystemsTestFactory.mockRecord( PersistenceSubsystem.Services.class );
+
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.knowledge.extractor.backend", "claude" );
+
+        KnowledgeWiringHelper.wireEntityExtraction(
+            props, ds, chunkProjector, chunkRepo, persistence, excludedPagesRepo, engine,
+            EMPTY_ENV );
+
+        verify( engine, never() ).setManager( eq( BootstrapEntityExtractionIndexer.class ), any() );
+        verify( engine, never() ).setManager( eq( ChunkEntityMentionRepository.class ), any() );
+        verify( chunkProjector, never() ).setPostChunkSink( any() );
+    }
+
+    @Test
     @EnabledIfEnvironmentVariable( named = "ANTHROPIC_API_KEY", matches = ".+" )
     void wireEntityExtractionClaudeBackendWithRealApiKeyWiresBootstrapIndexerEndToEnd() {
-        // Belt-and-suspenders: when a real key is present (developer machine / CI secret),
-        // prove the full method — including EntityExtractorFactory's own key check for the
-        // chunk-level extractor — wires the batch indexer too. Skipped otherwise, same as
-        // this repo's other Claude-backend tests that need real credentials.
+        // Optional extra (not the primary proof — that is the injected-key test above):
+        // when a real key is present in the process env, the PUBLIC overload composes
+        // identically. Skipped when no key is configured.
         final WikiEngine engine = mock( WikiEngine.class );
         final DataSource ds = mock( DataSource.class );
         final ChunkProjector chunkProjector = mock( ChunkProjector.class );

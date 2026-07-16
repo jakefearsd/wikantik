@@ -65,6 +65,11 @@ variable "admin_cidr" {
     condition     = can(cidrhost(var.admin_cidr, 0))
     error_message = "admin_cidr must be a valid CIDR block, e.g. 203.0.113.4/32."
   }
+
+  validation {
+    condition     = !contains(["0.0.0.0/0", "::/0"], var.admin_cidr)
+    error_message = "admin_cidr must not be 0.0.0.0/0 (or ::/0) — SSH open to the whole internet defeats the point of this rule; use your own address, e.g. 203.0.113.4/32."
+  }
 }
 
 variable "ssh_key_name" {
@@ -103,8 +108,19 @@ variable "wikantik_image" {
     tag rather than ":latest" so `terraform apply` is reproducible; use
     deploy/bin/wikantik-update.sh (installed on the VM) for routine
     tag-to-tag upgrades instead of re-applying Terraform each time.
+    Tag-style references only (repo:tag) — @sha256 digest pins are not
+    supported by the repo/tag split this module performs for
+    /etc/wikantik-update.conf.
   EOT
   type        = string
+
+  validation {
+    # A trailing ":tag" (no '/' after the colon) must be present — this is
+    # what makes main.tf's repo/tag split (regex "^(.*):[^:/]+$")
+    # well-defined, including for registry:port/repo:tag references.
+    condition     = can(regex("^(.*):[^:/]+$", var.wikantik_image))
+    error_message = "wikantik_image must include an explicit tag, e.g. ghcr.io/jakefearsd/wikantik:1.4.2 (\":latest\" is legal but discouraged)."
+  }
 }
 
 variable "tier" {
@@ -179,6 +195,14 @@ variable "secrets" {
   validation {
     condition     = contains(nonsensitive(keys(var.secrets)), "POSTGRES_PASSWORD")
     error_message = "var.secrets must include a POSTGRES_PASSWORD entry (the bundled pgvector container's app password)."
+  }
+
+  # Keys become .env entries AND shell variable names inside the
+  # cloud-init secret-fetch loop — enforce env-var-legal names so the
+  # generated script can never be syntactically broken by a key.
+  validation {
+    condition     = alltrue([for k in nonsensitive(keys(var.secrets)) : can(regex("^[A-Za-z_][A-Za-z0-9_]*$", k))])
+    error_message = "every var.secrets key must be a valid environment-variable name ([A-Za-z_][A-Za-z0-9_]*)."
   }
 
   # Cross-variable validation (var.ingress) requires Terraform >= 1.9 —

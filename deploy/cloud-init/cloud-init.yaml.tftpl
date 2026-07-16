@@ -207,7 +207,26 @@ write_files:
       #!/bin/bash
       # Fetch secrets into the compose .env, docker login to GHCR, install
       # the wikantik-update config, and bring the stack up.
+      #
+      # Secret-handling rules (hardened after review — do not relax):
+      #   - Every fetch is checked explicitly and FATALs the whole boot on
+      #     failure. An `echo "K=$(cmd)" >> file` line does NOT trip
+      #     set -e when cmd fails (echo's own exit status wins), so the
+      #     naive pattern silently writes `POSTGRES_PASSWORD=` on a
+      #     throttled/denied SSM call — and compose's
+      #     `$${POSTGRES_PASSWORD:-CHANGEME}` default then takes over
+      #     while the stack boots "healthy" with a known password.
+      #     Fail closed instead.
+      #   - Fetched values are NEVER sourced/eval'd. This script keeps the
+      #     two values it itself needs (GHCR_USER/GHCR_TOKEN) in the shell
+      #     variables the fetch loop assigned; .env is write-only here. A
+      #     malicious `$(...)` in a stored secret stays inert text — an
+      #     actor with only write access to the secret store must not get
+      #     code execution on this host.
       set -euo pipefail
+      umask 077   # every file this script creates is root-only from birth
+
+      fatal() { echo "FATAL: $*" >&2; exit 1; }
 
       # --- cloud-specific: install whatever CLI fetch_secret needs -------
       ${indent(6, secret_fetch_prereqs)}
@@ -223,24 +242,45 @@ write_files:
       }
 
       ENV_FILE="${wikantik_repo_dir}/.env"
-      cp "${wikantik_repo_dir}/.env.static" "$ENV_FILE"
+      # 0600 from the very first byte — no world-readable window between
+      # "first secret appended" and a later chmod.
+      install -m 600 "${wikantik_repo_dir}/.env.static" "$ENV_FILE"
 
-      # One append line per secret — built by the calling module from its
-      # own secrets map, so this template stays agnostic about *which*
-      # secrets exist.
+      # append_env KEY VALUE — appends one line to $ENV_FILE via printf
+      # (no echo escape processing), refusing values with embedded
+      # newlines (a newline in one value could smuggle extra KEY=value
+      # lines into .env).
+      append_env() {
+        case "$2" in
+          *$'\n'*) fatal "secret $1 contains a newline; refusing to write .env" ;;
+        esac
+        printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"
+      }
+
+      # One fetch (exit-status-checked) + one append per secret — built by
+      # the calling module from its own secrets map, so this template
+      # stays agnostic about *which* secrets exist. Each fetch aborts the
+      # boot on failure instead of writing an empty value.
       ${indent(6, fetch_secrets_block)}
 
-      chmod 600 "$ENV_FILE"
-
-      set -a
-      . "$ENV_FILE"
-      set +a
-
-      if [ -n "$${GHCR_USER:-}" ] && [ -n "$${GHCR_TOKEN:-}" ]; then
-        printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+      if [ -n "$${secret_GHCR_USER:-}" ] && [ -n "$${secret_GHCR_TOKEN:-}" ]; then
+        printf '%s' "$secret_GHCR_TOKEN" | docker login ghcr.io -u "$secret_GHCR_USER" --password-stdin
       else
         echo "GHCR_USER/GHCR_TOKEN not both present; skipping docker login (assuming ambient login)" >&2
       fi
+
+      # conf_secret KEY VALUE — wikantik-update.sh SOURCES its conf file
+      # (plain shell assignments, per its documented contract), so secret
+      # values are written single-quoted — inert under `.`-sourcing — and
+      # a value containing a single quote is refused outright rather than
+      # risk a quoting bug. (Newlines were already rejected by append_env
+      # above; both values passed through it.)
+      conf_secret() {
+        case "$2" in
+          *"'"*) fatal "$1 contains a single quote; cannot safely write /etc/wikantik-update.conf" ;;
+        esac
+        printf "%s='%s'\n" "$1" "$2"
+      }
 
       {
         echo "WIKANTIK_REPO_DIR=${wikantik_repo_dir}"
@@ -251,10 +291,9 @@ write_files:
         echo "WIKANTIK_IMAGE_REPO=${wikantik_image_repo}"
         echo "HEALTH_URL=${health_url}"
         echo "HEALTH_TIMEOUT=180"
-        echo "GHCR_USER=$${GHCR_USER:-}"
-        echo "GHCR_TOKEN=$${GHCR_TOKEN:-}"
-      } > /etc/wikantik-update.conf
-      chmod 600 /etc/wikantik-update.conf
+        conf_secret GHCR_USER "$${secret_GHCR_USER:-}"
+        conf_secret GHCR_TOKEN "$${secret_GHCR_TOKEN:-}"
+      } > /etc/wikantik-update.conf   # 0600 via the umask above
 
       cd "${wikantik_repo_dir}"
       docker compose -f docker-compose.yml -f docker-compose.cloud.yml --env-file .env ${compose_profile_args} up -d

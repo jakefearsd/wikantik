@@ -316,13 +316,24 @@ locals {
   # $1 = SSM parameter name; must print the decrypted value to stdout.
   secret_fetch_cmd = "aws ssm get-parameter --with-decryption --name \"$1\" --query 'Parameter.Value' --output text"
 
-  # One `echo KEY=$(fetch_secret 'ssm-name') >> $ENV_FILE` line per secret,
-  # sorted for a deterministic rendered script (and thus a stable
-  # `terraform plan` diff when secrets don't actually change).
-  fetch_secrets_block = join("\n", [
-    for k in sort(keys(local.all_secrets)) :
-    "echo \"${k}=$(fetch_secret '${aws_ssm_parameter.secret[k].name}')\" >> \"$ENV_FILE\""
-  ])
+  # Two lines per secret, sorted for a deterministic rendered script (and
+  # thus a stable `terraform plan` diff when secrets don't change): fetch
+  # into a shell variable with an EXPLICIT exit-status check, then append
+  # via the template's append_env helper. Deliberately NOT the naive
+  # `echo "KEY=$(fetch_secret ...)" >> $ENV_FILE`: a failed command
+  # substitution inside an echo argument does NOT trip `set -e` (echo's
+  # own exit status wins — verified empirically), so a throttled/denied
+  # SSM call would silently write an empty value, and compose's
+  # POSTGRES_PASSWORD:-CHANGEME fallback would boot the stack
+  # "healthy" on a known default password. Fail closed instead. The
+  # secret KEY doubles as part of a shell variable name, which
+  # var.secrets' key-shape validation guarantees is legal.
+  fetch_secrets_block = join("\n", flatten([
+    for k in sort(keys(local.all_secrets)) : [
+      "secret_${k}=\"$(fetch_secret '${aws_ssm_parameter.secret[k].name}')\" || fatal \"failed to fetch ${aws_ssm_parameter.secret[k].name}\"",
+      "append_env '${k}' \"$secret_${k}\"",
+    ]
+  ]))
 
   compose_profiles = compact(concat(
     ["bundled-db", var.ingress],
@@ -331,8 +342,13 @@ locals {
   compose_profile_args  = join(" ", [for p in local.compose_profiles : "--profile ${p}"])
   compose_profile_names = join(" ", local.compose_profiles)
 
-  wikantik_repo_dir   = "/opt/wikantik"
-  wikantik_image_repo = split(":", var.wikantik_image)[0]
+  wikantik_repo_dir = "/opt/wikantik"
+  # Registry+repo without the tag, for /etc/wikantik-update.conf's
+  # WIKANTIK_IMAGE_REPO. Strips only a trailing ":tag" (colon + chars with
+  # no '/' at end-of-string) — a naive split(":")[0] would truncate a
+  # registry:port/repo:tag reference at the port. var.wikantik_image's
+  # validation guarantees such a tag suffix exists, so regex() can't fail.
+  wikantik_image_repo = regex("^(.*):[^:/]+$", var.wikantik_image)[0]
   health_url          = "http://localhost:8080/api/health"
 
   # Non-secret .env content — GenAI tier preset (matching
@@ -424,6 +440,17 @@ resource "aws_instance" "wikantik" {
   # cloud-init auto-detects and decompresses gzip-magic user-data on boot.
   user_data_base64            = base64gzip(local.cloud_init_rendered)
   user_data_replace_on_change = true
+
+  lifecycle {
+    # data.aws_ami.ubuntu is most_recent — Canonical publishes fresh 24.04
+    # images frequently, and without this pin every `terraform apply`
+    # after a new AMI release would propose replacing the instance as a
+    # surprise side effect of an unrelated change. Keep the running
+    # instance on the AMI it booted from; opt into an AMI refresh
+    # deliberately with `terraform apply -replace=aws_instance.wikantik`
+    # (safe — see README's persistence model).
+    ignore_changes = [ami]
+  }
 
   tags = {
     Name = var.name_prefix

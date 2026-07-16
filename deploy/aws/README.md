@@ -83,6 +83,48 @@ restorable copy on the same volume.
 override (mirroring what `docker-compose.prod.yml` already does for
 docker1), matching the brief's original phrasing. That file was out of
 this task's scope to edit; flagging it for whoever picks up Task 2.5/2.6.
+**But beware:** the data-root relocation is currently what makes
+**`pgdata` (the bundled PostgreSQL database)** survive instance
+replacement too. Any future change that narrows persistence to a
+pages-only bind mount MUST also give `pgdata` (and any other named volume
+whose loss matters — `caddy_data` certs, `ollama-models`) a durable home
+on `/srv/wikantik`, or it silently reintroduces total DB loss on instance
+replacement.
+
+### Disk usage & image pruning
+
+The relocated Docker data-root shares the single
+`var.data_volume_size_gb` (default 50 GiB) volume with the live page
+tree, `pgdata`, the embedding model cache, and the backup sidecar's
+output — and `wikantik-update` deliberately retags the previous image as
+`wikantik:rollback` on every update, so old image layers accumulate
+(each Wikantik image is roughly 1.5–2.5 GiB). 50 GiB is comfortable for
+a typical corpus **with routine pruning**, not without it:
+
+- **Monitor:** `df -h /srv/wikantik` (or wire a disk-usage alert — this
+  minimal module ships none). A full data volume takes down PostgreSQL,
+  page saves, and backups simultaneously.
+- **Prune:** after an update has proven itself, reclaim old layers with
+  `docker image prune -a --filter "until=168h"`. Note `prune -a` removes
+  any image not used by a container — including the `wikantik:rollback`
+  tag — so run it only once you're confident you won't roll back (the
+  filter keeps anything younger than a week, which normally protects the
+  most recent rollback point).
+- **Size up front if in doubt:** bump `data_volume_size_gb` at apply time
+  if you expect a large corpus/attachment volume; growing an EBS volume
+  later is possible (modify-volume + `resize2fs`) but is a manual step
+  this module doesn't automate.
+
+### AMI updates are pinned on purpose
+
+The Ubuntu AMI is looked up with `most_recent = true`, but the instance
+carries `lifecycle { ignore_changes = [ami] }`: without it, every
+`terraform apply` after Canonical publishes a new 24.04 image (which is
+frequent) would propose replacing the instance as a surprise side effect
+of an unrelated change. To deliberately move to the newest AMI, run
+`terraform apply -replace=aws_instance.wikantik` — safe, because of the
+persistence model above (the data volume is reattached and cloud-init's
+mkfs guard leaves it untouched).
 
 ### Instance replacement runbook (sketch)
 
@@ -109,11 +151,11 @@ this task's scope to edit; flagging it for whoever picks up Task 2.5/2.6.
 | `name_prefix` | string | `wikantik` | Prefix for every named resource — lets you run more than one instance of this module per account |
 | `instance_type` | string | `t3.large` | Pass `t3.medium` for the `core` tier (see cost table) |
 | `domain` | string | `""` | Required (validated) when `ingress = "caddy"` |
-| `admin_cidr` | string | *(none — required)* | SSH source CIDR, e.g. `203.0.113.4/32`. Never `0.0.0.0/0` |
+| `admin_cidr` | string | *(none — required)* | SSH source CIDR, e.g. `203.0.113.4/32`. `0.0.0.0/0`/`::/0` are **rejected by validation** |
 | `ssh_key_name` | string | `null` | Existing EC2 key pair name; omit to boot with no SSH key |
 | `ghcr_user` | string | *(none — required)* | GHCR username |
 | `ghcr_token` | string, sensitive | *(none — required)* | GHCR read token |
-| `wikantik_image` | string | *(none — required)* | Full ref **incl. tag**, e.g. `ghcr.io/jakefearsd/wikantik:1.4.2` |
+| `wikantik_image` | string | *(none — required)* | Full ref **incl. tag** (validated), e.g. `ghcr.io/jakefearsd/wikantik:1.4.2`. Tag-style refs only — no `@sha256` digest pins |
 | `tier` | string | `core` | `core` \| `search` \| `knowledge` — see tier table below |
 | `ingress` | string | `caddy` | `caddy` \| `cloudflared` |
 | `secrets` | map(string), sensitive | *(none — required)* | Must include `POSTGRES_PASSWORD`; `CLOUDFLARE_TUNNEL_TOKEN` iff `ingress = "cloudflared"`; `ANTHROPIC_API_KEY` iff `tier = "knowledge"` (all three enforced by `validation` blocks) |
@@ -182,6 +224,13 @@ SSM, `docker login`, `docker compose ... up -d`, which itself cold-pulls
 the image and — for `search`/`knowledge` — the embedding sidecar's model).
 Watch progress with `cloud-init status --wait` over SSH, or
 `/var/log/cloud-init-output.log`.
+
+Secret fetching is **fail-closed**: if any SSM `get-parameter` call
+fails (throttled, denied, misnamed), the boot script aborts with a
+`FATAL: failed to fetch ...` line in `/var/log/cloud-init-output.log`
+and the stack is never started — it will *not* silently fall back to
+compose's built-in `CHANGEME` defaults. Fix the cause and re-run
+`/opt/wikantik/cloud-init.d/03-fetch-secrets-and-launch.sh` (idempotent).
 
 Once healthy: `terraform output wikantik_url`.
 

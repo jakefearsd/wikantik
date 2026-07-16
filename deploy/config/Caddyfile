@@ -1,0 +1,24 @@
+# Caddyfile — reverse proxy for the `caddy` compose profile
+# (docker-compose.cloud.yml, profiles: ["caddy"]).
+#
+# {$WIKANTIK_DOMAIN} is substituted by Caddy itself from the container's
+# environment at startup (Caddyfile syntax, not docker-compose interpolation
+# — no `${WIKANTIK_DOMAIN}` here, that would be substituted by docker compose
+# instead, before Caddy ever saw the file). Two cases:
+#   - a real public DNS name (e.g. wiki.example.com): Caddy requests a
+#     Let's Encrypt certificate automatically (HTTP-01 on :80, TLS-ALPN-01
+#     on :443 — both must be reachable from the internet).
+#   - "localhost" or any other name Caddy recognizes as non-public: Caddy
+#     falls back to its local CA and issues an internally-trusted
+#     certificate instead (no ACME, no internet requirement) — this is the
+#     "Caddy internal cert mode" used for local validation of this overlay.
+#
+# reverse_proxy sets X-Forwarded-For / X-Forwarded-Proto / X-Forwarded-Host
+# on the upstream request BY DEFAULT (verified against Caddy 2.x docs — no
+# extra header_up directives needed here). That is what makes
+# PROXY_REMOTE_IP_HEADER=X-Forwarded-For (set in .env when this profile is
+# used — see docker-compose.cloud.yml header) actually carry the real
+# client IP into Tomcat's RemoteIpValve.
+{$WIKANTIK_DOMAIN} {
+	reverse_proxy wikantik:8080
+}

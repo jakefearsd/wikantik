@@ -1,0 +1,281 @@
+# Cloud overlay: registry image (no in-place build), Caddy/cloudflared
+# ingress profiles, an optional CPU embeddings sidecar, and an
+# optionally-disable-able bundled database — for AWS/GCP/other cloud VM
+# reference deployments (see
+# docs/superpowers/plans/2026-07-16-aws-gcp-deployment-readiness.md, Phase 2).
+#
+# This file is independent of docker-compose.prod.yml (docker1-specific:
+# host bind mounts, jakemon textfile mount, DB port on the docker0 bridge)
+# and does NOT change it or docker-compose.yml — docker1 is untouched.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.cloud.yml \
+#                  --profile caddy --profile embeddings --profile bundled-db \
+#                  up -d
+#
+# ============================================================================
+# Profile matrix — pick a GenAI tier (env-only, see .env) and an ingress +
+# database profile combination (compose --profile flags):
+# ============================================================================
+#
+#   GenAI tier   (set via .env; no compose profile controls this axis)
+#   ----------   wikantik.genai.mode / knowledge.enabled / hybrid.enabled
+#   core         WIKANTIK_GENAI_MODE=none            knowledge=false  hybrid=false
+#                BM25-only search, BM25-chunk bundle, zero inference infra.
+#   search       WIKANTIK_GENAI_MODE=embeddings-only  knowledge=false* hybrid=true
+#                dense+BM25 hybrid retrieval; needs an embedding endpoint —
+#                either --profile embeddings (CPU ollama-embed sidecar) or a
+#                reachable WIKANTIK_EMBEDDING_BASE_URL. (*set knowledge=true
+#                if you still want manual KG curation without extraction.)
+#   knowledge    WIKANTIK_GENAI_MODE=full             knowledge=true   hybrid=true
+#                Full KG extraction. WIKANTIK_EXTRACTOR_BACKEND=claude (+
+#                ANTHROPIC_API_KEY) is the documented cloud path; BYO-Ollama
+#                (point WIKANTIK_EMBEDDING_BASE_URL / an extractor endpoint at
+#                your own host) also works.
+#
+#   Ingress profile        Compose flag           Sidecar        Notes
+#   ---------------        -----------------       -------        -----
+#   Caddy (default)         --profile caddy         caddy          Let's Encrypt on a
+#                                                                   real WIKANTIK_DOMAIN,
+#                                                                   or an internal cert
+#                                                                   when WIKANTIK_DOMAIN=
+#                                                                   localhost. REQUIRES
+#                                                                   PROXY_REMOTE_IP_HEADER=
+#                                                                   X-Forwarded-For in .env
+#                                                                   (Caddy forwards the
+#                                                                   client IP in that header
+#                                                                   by default — see
+#                                                                   deploy/config/Caddyfile).
+#   Cloudflare Tunnel        --profile cloudflared   cloudflared    No public ports needed;
+#                                                                   header default stays
+#                                                                   CF-Connecting-IP (leave
+#                                                                   PROXY_REMOTE_IP_HEADER
+#                                                                   unset in .env).
+#   Neither (BYO ingress)    (omit both)             —              wikantik's own
+#                                                                   ${WIKANTIK_HOST_PORT:-8080}
+#                                                                   publish (from the base
+#                                                                   compose) is your only
+#                                                                   entry point.
+#
+#   Database                Compose flag            Notes
+#   --------                -----------------        -----
+#   Bundled (compose-managed) --profile bundled-db    pgvector/pgvector:pg18 container,
+#                                                      named volume, no host port.
+#   Managed (RDS/Cloud SQL/…) (omit the flag)          Set POSTGRES_HOST / POSTGRES_PORT
+#                                                      in .env to the managed endpoint.
+#                                                      See the depends_on note below.
+#
+#   Embeddings sidecar       --profile embeddings     ollama-embed: CPU-only Ollama,
+#                                                      pulls WIKANTIK_EMBEDDING_MODEL_TAG
+#                                                      on start. When used, set
+#                                                      WIKANTIK_EMBEDDING_BASE_URL=
+#                                                      http://ollama-embed:11434 in .env
+#                                                      (compose cannot inject env
+#                                                      conditionally by profile — the
+#                                                      documented .env preset per tier is
+#                                                      the mechanism, matching the
+#                                                      GenAI-tier table above).
+#
+# ============================================================================
+# Gotcha (verified empirically) — profile-gated required vars must NOT use
+# the `${VAR:?message}` mandatory-variable syntax:
+# ============================================================================
+# Compose interpolates `${...}` across the ENTIRE merged file before it
+# applies `--profile` filtering, regardless of which services that
+# interpolation touches. A `:?` guard on e.g. `caddy`'s WIKANTIK_DOMAIN or
+# `cloudflared`'s CLOUDFLARE_TUNNEL_TOKEN therefore fails `docker compose
+# config`/`up` even when `--profile caddy`/`--profile cloudflared` is never
+# passed — confirmed: omitting both profiles and leaving those vars unset
+# still errors with "required variable ... is missing a value" before any
+# profile filtering happens. That would force every cloud-overlay operator
+# to set unrelated ingress secrets just to run `up -d wikantik`. So those two
+# vars use a plain `${VAR:-}` (empty-string) default below instead; if you DO
+# activate `--profile caddy`/`--profile cloudflared` without setting the
+# matching var, the affected container starts and fails at its own runtime
+# (Caddy logs a bind-domain error; cloudflared exits on an empty token) —
+# less clean than a compose-level refusal, but scoped to only the profile
+# you actually asked for. `WIKANTIK_IMAGE` keeps its `:?` guard: `wikantik`
+# is never profile-gated, so that guard's blast radius really is "always".
+# ============================================================================
+#
+# Design note — depends_on vs. `profiles: ["bundled-db"]` on `db`:
+# ============================================================================
+# The base docker-compose.yml has `wikantik.depends_on.db.condition:
+# service_healthy`. Naively gating `db` behind a profile breaks that: when
+# `bundled-db` is NOT activated, `db` is excluded from the project, and
+# compose refuses to render at all — "service wikantik depends on undefined
+# service db: invalid compose project" (verified: `docker compose config`
+# errors before anything even starts).
+#
+# Fix (verified empirically, both directions): override the dependency here
+# with `required: false`:
+#
+#   depends_on:
+#     db:
+#       condition: service_healthy
+#       required: false
+#
+# Per the Compose spec, `required: false` means: if the dependency service
+# IS part of the project (bundled-db profile active), compose still starts
+# it first and waits for its healthcheck as normal; if the dependency is NOT
+# part of the project (profile inactive / managed DB), compose silently
+# skips the wait instead of erroring. This renders cleanly with and without
+# `--profile bundled-db` (both confirmed via `docker compose config`) and
+# preserves the healthy-wait behavior whenever `db` is actually running.
+# One nuance: with `required: false`, an *unhealthy* db no longer hard-blocks
+# wikantik from starting (compose logs a warning and proceeds) — acceptable
+# for v1, since wikantik's own DB connection attempts / health endpoint
+# surface the same failure immediately after.
+# ============================================================================
+
+services:
+  db:
+    # Same pgvector image as the base compose. No host-port publish here
+    # (unlike docker-compose.prod.yml's DB_HOST_BIND, which exists only for
+    # docker1's jakemon Postgres exporter) — the DB is reachable from other
+    # containers on the compose network only.
+    restart: always
+    profiles: ["bundled-db"]
+
+  wikantik:
+    image: ${WIKANTIK_IMAGE:?set WIKANTIK_IMAGE to ghcr.io/jakefearsd/wikantik:<tag>}
+    # Base compose sets `build:`; a registry image and a build context are
+    # mutually exclusive here (this overlay never builds — no host Maven,
+    # no Docker build step, just `docker pull` + `up`), so remove it rather
+    # than merge it (a merged build+image config still runs the build).
+    build: !reset null
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: ${WIKANTIK_MEM_LIMIT:-2G}
+    environment:
+      # Overridable so `--profile bundled-db` can be omitted in favor of a
+      # managed database (RDS/Cloud SQL/etc) — point POSTGRES_HOST/PORT at
+      # the managed endpoint in .env. Defaults match the base compose
+      # exactly (db / 5432) when bundled-db is used.
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      # PROXY_REMOTE_IP_HEADER and WIKANTIK_EMBEDDING_BASE_URL are NOT set
+      # here on purpose: both flow through automatically via the base
+      # compose's `env_file: .env` (any var present in .env that isn't
+      # consumed for `${...}` interpolation in these YAML files still reaches
+      # the container's process environment via env_file). Set them in .env
+      # per the profile matrix above:
+      #   caddy profile      -> PROXY_REMOTE_IP_HEADER=X-Forwarded-For
+      #   embeddings profile -> WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434
+    depends_on:
+      db:
+        condition: service_healthy
+        # See "Design note" above — makes the base compose's mandatory
+        # dependency optional so this overlay renders whether or not
+        # `--profile bundled-db` is active.
+        required: false
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      # Cloud VMs cold-pulling a fresh image and cold-starting Tomcat can be
+      # slower than a warm docker1 redeploy; match docker-compose.prod.yml's
+      # more generous start_period/retries rather than the base compose's.
+      start_period: 90s
+      retries: 5
+
+  # Included by default (matches docker-compose.prod.yml's posture — a cloud
+  # VM deployment should back itself up same as docker1). Textfile metrics
+  # default to a named volume (no jakemon-specific host path dependency);
+  # override BACKUP_TEXTFILE_DIR to a host path if you run your own
+  # Prometheus node_exporter textfile collector on the VM.
+  backup:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_DB: ${POSTGRES_DB:-wikantik}
+      POSTGRES_USER: ${POSTGRES_USER:-wikantik}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-CHANGEME}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_METRICS_DIR: ${BACKUP_METRICS_DIR:-/textfile}
+    volumes:
+      - wikantik-pages:/var/wikantik/pages:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+      # Named volume by default — see header note. Falls back to a host bind
+      # only if BACKUP_TEXTFILE_DIR is overridden to a path (leading `/` or
+      # `.`), same disambiguation rule Compose already uses elsewhere in
+      # this repo (source is a named volume iff it matches a top-level
+      # `volumes:` key; otherwise it's a host path).
+      - ${BACKUP_TEXTFILE_DIR:-backup-textfile}:/textfile
+      - ./docker/backup/backup.sh:/usr/local/bin/backup.sh:ro
+      - ./docker/backup/restore.sh:/usr/local/bin/restore.sh:ro
+      - ./docker/backup/crontab:/opt/wikantik/crontab:ro
+    entrypoint: ["sh", "-c", "cp /opt/wikantik/crontab /etc/crontabs/root && chown root:root /etc/crontabs/root && chmod 600 /etc/crontabs/root && exec crond -f -d 8"]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    profiles: ["caddy"]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Not `:?` (mandatory) — see the "Gotcha" note above. Required in
+      # practice whenever this profile is active: your public domain, or
+      # "localhost" for a local internal-cert test.
+      WIKANTIK_DOMAIN: ${WIKANTIK_DOMAIN:-}
+    volumes:
+      - ./deploy/config/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      wikantik:
+        condition: service_healthy
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["cloudflared"]
+    # Not `:?` (mandatory) — see the "Gotcha" note above. Required in
+    # practice whenever this profile is active.
+    command: tunnel run --token ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      wikantik:
+        condition: service_healthy
+
+  ollama-embed:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    profiles: ["embeddings"]
+    # No GPU reservation — CPU-only, matches the plan's "CPU-only Ollama
+    # sidecar" decision (qwen3-embedding:0.6b is small enough to embed on
+    # CPU at acceptable latency for a single-VM deployment).
+    volumes:
+      - ollama-models:/root/.ollama
+    # `ollama pull` is itself idempotent (checks the local blob store before
+    # downloading), so re-running it on every container start/restart is
+    # safe and cheap once the model is already cached in the named volume —
+    # this is what makes the wrapper below survive restarts without a
+    # separate one-shot init container.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        SERVE_PID=$$!
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        ollama pull "${WIKANTIK_EMBEDDING_MODEL_TAG:-qwen3-embedding:0.6b}"
+        wait "$$SERVE_PID"
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+
+volumes:
+  caddy_data:
+  caddy_config:
+  ollama-models:
+  backup-textfile:

@@ -1,0 +1,11 @@
+# Local provider plugin cache — large (hundreds of MB), always
+# reproducible from .terraform.lock.hcl (which IS tracked) via
+# `terraform init`. Never commit this.
+.terraform/
+
+# Local plan files / state, if anyone runs this module directly out of
+# a repo checkout instead of a separate working copy.
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log

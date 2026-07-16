@@ -1,0 +1,266 @@
+#cloud-config
+#
+# deploy/cloud-init/cloud-init.yaml.tftpl — shared single-VM bootstrap for
+# Wikantik cloud reference deployments. Authored for deploy/aws/main.tf
+# (Task 2.3); deploy/gcp/main.tf (Task 3.1) is expected to render this same
+# template with its own values for the cloud-specific vars below — the
+# orchestration logic here (mount/format the data volume, relocate Docker's
+# data-root onto it, install Docker, fetch secrets, docker login, install
+# wikantik-update, bring the compose stack up) is intentionally identical
+# across clouds.
+#
+# Template variables (supplied via templatefile(...) from the calling
+# module):
+#
+#   Cloud-specific:
+#     data_device            Block device — or a stable by-id symlink — for
+#                             the persistent data volume, BEFORE mkfs. AWS:
+#                             /dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_<volid>
+#                             (Nitro instances expose EBS as NVMe and don't
+#                             reliably honor the attachment device_name
+#                             hint, so the by-id symlink is the only stable
+#                             reference). GCP: typically
+#                             /dev/disk/by-id/google-<disk-name>.
+#     secret_fetch_prereqs   Shell snippet installing whatever CLI
+#                             secret_fetch_cmd needs. AWS: `apt-get install
+#                             awscli`. GCP: normally empty — gcloud ships
+#                             preinstalled on GCE images.
+#     secret_fetch_setup     Shell snippet run ONCE before any fetch calls,
+#                             establishing cloud auth/region/project
+#                             context. AWS: IMDSv2 token + region export.
+#                             GCP: normally empty — ADC + project come from
+#                             the metadata server automatically.
+#     secret_fetch_cmd       Shell FUNCTION BODY; $1 is the secret's
+#                             cloud-specific identifier (AWS: SSM parameter
+#                             name; GCP: Secret Manager secret id) and the
+#                             plaintext value must be printed to stdout.
+#
+#   Cloud-agnostic (built by the calling module from its own secrets map /
+#   tier+ingress choice, but not themselves cloud-specific data):
+#     fetch_secrets_block    Pre-rendered shell lines, one per secret,
+#                             calling fetch_secret and appending
+#                             KEY=value to $ENV_FILE.
+#     compose_profile_args   "--profile x --profile y ..." for `docker
+#                             compose ... up -d`.
+#     compose_profile_names  "x y ..." (bare names) for
+#                             /etc/wikantik-update.conf's
+#                             WIKANTIK_COMPOSE_PROFILES.
+#     wikantik_repo_dir       Directory the compose project + wikantik-
+#                             update.sh operate from (matches wikantik-
+#                             update.sh's own default, /opt/wikantik).
+#     wikantik_image_repo     Registry+repo WITHOUT a tag, for
+#                             /etc/wikantik-update.conf's
+#                             WIKANTIK_IMAGE_REPO.
+#     health_url              Health-check URL, both to confirm boot and
+#                             for /etc/wikantik-update.conf's HEALTH_URL.
+#     *_b64                   Base64-encoded file payloads (the two
+#                             compose files, the Caddyfile, the backup
+#                             sidecar's three files, wikantik-update.sh,
+#                             and the rendered non-secret .env content).
+#                             Base64 sidesteps YAML block-scalar
+#                             indentation hazards entirely for content this
+#                             template does not need to inspect or modify.
+#
+# Design decisions NOT parameterized (identical on every cloud):
+#
+#   - Docker's ENTIRE data-root is relocated to /srv/wikantik/docker
+#     (/etc/docker/daemon.json) rather than bind-mounting individual named
+#     volumes. docker-compose.cloud.yml (an input this template embeds,
+#     not a file this module may edit) declares wikantik-pages / pgdata /
+#     caddy_data / ollama-models etc. as plain Docker-managed named
+#     volumes, not host bind mounts — relocating the whole data-root is
+#     the only lever available, short of editing that file, that makes
+#     the LIVE working tree (not just the nightly backup tarball) survive
+#     instance replacement. This must happen BEFORE Docker's first-ever
+#     start on a given host, which is why write_files (always applied
+#     before runcmd) stages daemon.json first and the mount step runs
+#     before the install-docker step.
+#   - The nightly backup sidecar (docker-compose.cloud.yml's `backup`
+#     service, unmodified) independently tars up /var/wikantik/pages and
+#     pg_dumps the DB into $BACKUP_DIR — pointed at /srv/wikantik/backups
+#     via the rendered .env — giving a second, human-inspectable
+#     persistence path on the same volume.
+#   - Each runcmd step is its own script file (under
+#     /opt/wikantik/cloud-init.d/), not an inline multi-line runcmd
+#     string: cloud-init executes string-form runcmd entries via `sh`
+#     (dash on Ubuntu), which does not support `set -o pipefail`; writing
+#     real files with a `#!/bin/bash` shebang and executing them by path
+#     gets bash semantics back.
+
+package_update: true
+
+write_files:
+  - path: /etc/docker/daemon.json
+    permissions: '0644'
+    content: |
+      {
+        "data-root": "/srv/wikantik/docker"
+      }
+
+  - path: ${wikantik_repo_dir}/docker-compose.yml
+    encoding: b64
+    permissions: '0644'
+    content: "${docker_compose_yml_b64}"
+
+  - path: ${wikantik_repo_dir}/docker-compose.cloud.yml
+    encoding: b64
+    permissions: '0644'
+    content: "${docker_compose_cloud_yml_b64}"
+
+  - path: ${wikantik_repo_dir}/deploy/config/Caddyfile
+    encoding: b64
+    permissions: '0644'
+    content: "${caddyfile_b64}"
+
+  - path: ${wikantik_repo_dir}/docker/backup/backup.sh
+    encoding: b64
+    permissions: '0755'
+    content: "${backup_sh_b64}"
+
+  - path: ${wikantik_repo_dir}/docker/backup/restore.sh
+    encoding: b64
+    permissions: '0755'
+    content: "${restore_sh_b64}"
+
+  - path: ${wikantik_repo_dir}/docker/backup/crontab
+    encoding: b64
+    permissions: '0644'
+    content: "${backup_crontab_b64}"
+
+  - path: ${wikantik_repo_dir}/.env.static
+    encoding: b64
+    permissions: '0644'
+    content: "${env_static_b64}"
+
+  - path: /usr/local/bin/wikantik-update
+    encoding: b64
+    permissions: '0755'
+    content: "${wikantik_update_script_b64}"
+
+  - path: /opt/wikantik/cloud-init.d/01-mount-data.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      # Mount the persistent data volume at /srv/wikantik. Guards against
+      # formatting a non-empty disk: instance replacement re-attaches an
+      # already-formatted, already-populated volume, and this must be a
+      # no-op (mkfs) / idempotent (fstab, mkdir -p) in that case.
+      set -euo pipefail
+
+      DATA_DEVICE="${data_device}"
+      echo "Waiting for data device $DATA_DEVICE ..."
+      for _i in $(seq 1 60); do
+        [ -e "$DATA_DEVICE" ] && break
+        sleep 1
+      done
+      if [ ! -e "$DATA_DEVICE" ]; then
+        echo "ERROR: data device $DATA_DEVICE never appeared" >&2
+        exit 1
+      fi
+
+      if ! blkid "$DATA_DEVICE" >/dev/null 2>&1; then
+        echo "Formatting blank data device $DATA_DEVICE"
+        mkfs.ext4 "$DATA_DEVICE"
+      else
+        echo "$DATA_DEVICE already has a filesystem; skipping mkfs"
+      fi
+
+      mkdir -p /srv/wikantik
+      DATA_UUID=$(blkid -s UUID -o value "$DATA_DEVICE")
+      grep -q "UUID=$DATA_UUID" /etc/fstab || echo "UUID=$DATA_UUID /srv/wikantik ext4 defaults,nofail 0 2" >> /etc/fstab
+      mount -a
+
+      # docker/  -> relocated Docker data-root (see /etc/docker/daemon.json)
+      # backups/ -> BACKUP_DIR bind mount for the backup sidecar
+      # pages/   -> reserved for a future direct bind mount (see the
+      #             design-decisions note at the top of this template);
+      #             created now so the layout is stable either way.
+      mkdir -p /srv/wikantik/docker /srv/wikantik/backups /srv/wikantik/pages
+
+  - path: /opt/wikantik/cloud-init.d/02-install-docker.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      # Install Docker Engine + Compose plugin from Docker's official apt
+      # repo. /etc/docker/daemon.json (staged by write_files, which always
+      # completes before any runcmd step) already points data-root at
+      # /srv/wikantik/docker, mounted by 01-mount-data.sh above — so
+      # dockerd initializes its state there from its very first start.
+      set -euo pipefail
+
+      apt-get update -y
+      apt-get install -y --no-install-recommends ca-certificates curl gnupg
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+      chmod a+r /etc/apt/keyrings/docker.asc
+      . /etc/os-release
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" \
+        > /etc/apt/sources.list.d/docker.list
+      apt-get update -y
+      apt-get install -y --no-install-recommends \
+        docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      systemctl enable --now docker
+
+  - path: /opt/wikantik/cloud-init.d/03-fetch-secrets-and-launch.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      # Fetch secrets into the compose .env, docker login to GHCR, install
+      # the wikantik-update config, and bring the stack up.
+      set -euo pipefail
+
+      # --- cloud-specific: install whatever CLI fetch_secret needs -------
+      ${indent(6, secret_fetch_prereqs)}
+
+      # --- cloud-specific: one-time auth/region/project context ----------
+      ${indent(6, secret_fetch_setup)}
+
+      # fetch_secret NAME -> prints the decrypted secret value to stdout.
+      # Body is cloud-specific; $1 is the secret's cloud-specific
+      # identifier (SSM parameter name / Secret Manager id).
+      fetch_secret() {
+        ${indent(8, secret_fetch_cmd)}
+      }
+
+      ENV_FILE="${wikantik_repo_dir}/.env"
+      cp "${wikantik_repo_dir}/.env.static" "$ENV_FILE"
+
+      # One append line per secret — built by the calling module from its
+      # own secrets map, so this template stays agnostic about *which*
+      # secrets exist.
+      ${indent(6, fetch_secrets_block)}
+
+      chmod 600 "$ENV_FILE"
+
+      set -a
+      . "$ENV_FILE"
+      set +a
+
+      if [ -n "$${GHCR_USER:-}" ] && [ -n "$${GHCR_TOKEN:-}" ]; then
+        printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+      else
+        echo "GHCR_USER/GHCR_TOKEN not both present; skipping docker login (assuming ambient login)" >&2
+      fi
+
+      {
+        echo "WIKANTIK_REPO_DIR=${wikantik_repo_dir}"
+        echo "WIKANTIK_ENV_FILE=$ENV_FILE"
+        echo "WIKANTIK_COMPOSE_FILES=\"docker-compose.yml docker-compose.cloud.yml\""
+        echo "WIKANTIK_COMPOSE_PROFILES=\"${compose_profile_names}\""
+        echo "WIKANTIK_SERVICE=wikantik"
+        echo "WIKANTIK_IMAGE_REPO=${wikantik_image_repo}"
+        echo "HEALTH_URL=${health_url}"
+        echo "HEALTH_TIMEOUT=180"
+        echo "GHCR_USER=$${GHCR_USER:-}"
+        echo "GHCR_TOKEN=$${GHCR_TOKEN:-}"
+      } > /etc/wikantik-update.conf
+      chmod 600 /etc/wikantik-update.conf
+
+      cd "${wikantik_repo_dir}"
+      docker compose -f docker-compose.yml -f docker-compose.cloud.yml --env-file .env ${compose_profile_args} up -d
+      echo "Wikantik cloud-init: stack launched. Check 'docker compose ps' and ${health_url}"
+
+runcmd:
+  - /opt/wikantik/cloud-init.d/01-mount-data.sh
+  - /opt/wikantik/cloud-init.d/02-install-docker.sh
+  - /opt/wikantik/cloud-init.d/03-fetch-secrets-and-launch.sh

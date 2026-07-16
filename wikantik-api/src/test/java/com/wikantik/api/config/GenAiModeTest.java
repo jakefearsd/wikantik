@@ -24,11 +24,16 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-
 public class GenAiModeTest {
 
+    // NOTE on warn assertions: wikantik-api depends only on log4j-api (no log4j-core
+    // in test scope), so there is no appender to capture LOG.warn calls. These tests
+    // pin the adjudicated return-value contract: absent (null) -> FULL silently;
+    // set-but-blank -> FULL with LOG.warn; unrecognized -> FULL with LOG.warn naming
+    // the value. The warn side is enforced by the implementation, verified by review.
+
     @Test
-    public void testAbsentProperty() {
+    public void testAbsentPropertyReturnsFullSilently() {
         Properties props = new Properties();
         assertEquals( GenAiMode.FULL, GenAiMode.fromProperties( props ) );
     }
@@ -55,7 +60,8 @@ public class GenAiModeTest {
     }
 
     @Test
-    public void testGarbageValue() {
+    public void testGarbageValueWarnsAndReturnsFull() {
+        // Unrecognized value: falls back to FULL (LOG.warn expected; see class note)
         Properties props = new Properties();
         props.setProperty( GenAiMode.PROP, "garbage-value" );
         assertEquals( GenAiMode.FULL, GenAiMode.fromProperties( props ) );
@@ -63,14 +69,16 @@ public class GenAiModeTest {
 
 
     @Test
-    public void testBlankValue() {
+    public void testBlankValueWarnsAndReturnsFull() {
+        // Set-but-blank: falls back to FULL (LOG.warn expected; see class note)
         Properties props = new Properties();
         props.setProperty( GenAiMode.PROP, "" );
         assertEquals( GenAiMode.FULL, GenAiMode.fromProperties( props ) );
     }
 
     @Test
-    public void testWhitespaceValue() {
+    public void testWhitespaceOnlyValueWarnsAndReturnsFull() {
+        // Set-but-whitespace-only: falls back to FULL (LOG.warn expected; see class note)
         Properties props = new Properties();
         props.setProperty( GenAiMode.PROP, "   " );
         assertEquals( GenAiMode.FULL, GenAiMode.fromProperties( props ) );

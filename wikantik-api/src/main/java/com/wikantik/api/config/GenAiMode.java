@@ -18,11 +18,11 @@
  */
 package com.wikantik.api.config;
 
+import java.util.Locale;
 import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 
 /**
  * Ceiling control for LLM operations. Models allowed inference modes:
@@ -50,22 +50,29 @@ public enum GenAiMode {
 
     /**
      * Parses a {@code Properties} object for the {@link #PROP} key and returns
-     * the corresponding {@link GenAiMode}. If the property is absent, blank,
-     * or unrecognized, logs a warning and returns {@link #FULL} (fail-open
-     * behavior; an operator wanting enforcement can inspect the warning log).
+     * the corresponding {@link GenAiMode}. An entirely absent property returns
+     * {@link #FULL} silently — that is the normal state of existing deployments.
+     * A property that is set but blank or unrecognized also returns {@link #FULL}
+     * (fail-open; never fail closed on a typo), but logs a warning naming the bad
+     * value so an operator who wanted enforcement can see it.
      *
      * @param props configuration properties
-     * @return the parsed mode, or {@link #FULL} if unrecognized/absent
+     * @return the parsed mode, or {@link #FULL} if absent/blank/unrecognized
      */
     public static GenAiMode fromProperties( Properties props ) {
         String value = props.getProperty( PROP );
 
-        if ( value == null || value.isBlank() ) {
-            // Property absent or blank; default to FULL
+        if ( value == null ) {
+            // Property absent: the normal state of existing deployments — stay silent
             return FULL;
         }
 
-        String normalized = value.trim().toLowerCase();
+        if ( value.isBlank() ) {
+            LOG.warn( "Property {} is set but blank; defaulting to FULL", PROP );
+            return FULL;
+        }
+
+        String normalized = value.trim().toLowerCase( Locale.ROOT );
 
         switch ( normalized ) {
             case "full":

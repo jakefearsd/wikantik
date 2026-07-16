@@ -12,15 +12,24 @@
 # transfer, unlike bin/remote.sh.
 #
 # Flow (remote.sh's 9 steps, minus the 2 that don't apply here — local build
-# and the save/load transfer):
+# and the save/load transfer — plus a local single-instance lock):
+#   0. flock -n on WIKANTIK_REPO_DIR/.update.lock, held for the life of the
+#      process — a concurrent invocation (e.g. a cron-driven update racing a
+#      human one) fails fast with exit 2 instead of interleaving compose/.env
+#      mutations. Mirrors bin/remote.sh's non-blocking deploy-lock discipline.
 #   1. docker login ghcr.io   (only if GHCR_USER + GHCR_TOKEN are both set;
 #      otherwise assume the daemon already has a working ghcr.io login, e.g.
 #      a one-time `docker login` at VM provisioning, or a public image)
 #   2. docker pull <image ref>          (the exact tag/ref being deployed)
 #   3. tag the currently-running wikantik image as wikantik:rollback
-#      (silent no-op on first deploy, matching bin/remote.sh's own
+#      (skipped with a stderr note when no container is running — first
+#      deploy — or when the current image can't be read; the deploy still
+#      proceeds, matching bin/remote.sh's own tolerant
 #      "docker tag wikantik:latest wikantik:rollback 2>/dev/null || true")
-#   4. back up + update WIKANTIK_IMAGE= in the VM's .env
+#   4. back up .env to .env.bak + update WIKANTIK_IMAGE= in the VM's .env.
+#      NOTE: .env.bak is a MANUAL-recovery convenience only — the automatic
+#      rollback in step 8 restores the previous WIKANTIK_IMAGE value captured
+#      in memory at this step, never the .bak file.
 #   5. docker compose <files> <profiles> --env-file ENV_FILE up -d
 #   6. poll HEALTH_URL every 3s up to HEALTH_TIMEOUT
 #   7. on success: exit 0
@@ -41,6 +50,11 @@
 #   <tag> is either a bare tag — combined with WIKANTIK_IMAGE_REPO below into
 #   "<repo>:<tag>" — or a full image reference containing a '/' (used as-is,
 #   so you can point at an entirely different registry/repo for one run).
+#   Validated at parse time, before any docker/file activity: a bare tag must
+#   match the Docker tag grammar [A-Za-z0-9_][A-Za-z0-9._-]{0,127}; a full
+#   reference must match [registry[:port]/]path[/path...][:tag][@sha256:hex].
+#   Anything containing whitespace, newlines, or shell metacharacters is
+#   rejected with exit 2.
 #
 # Configuration — every value below has a built-in default and can be set
 # either in a config file (default /etc/wikantik-update.conf; override the
@@ -76,8 +90,13 @@
 #
 # Exit codes:
 #   0   success (healthy within HEALTH_TIMEOUT, or --dry-run)
-#   1   deploy failure — health check never passed; auto-rollback attempted
-#   2   usage error (missing tag, bad flag, missing .env, missing repo dir)
+#   1   deploy failure — health check never passed (auto-rollback attempted),
+#       or any earlier docker login/pull/compose command failed (the script
+#       runs under `set -e`, so e.g. a bad registry credential or an
+#       unpullable ref aborts with the failing command's own error, before
+#       .env is ever touched)
+#   2   usage error (missing/invalid tag, bad flag, missing .env, missing
+#       repo dir, or the update lock is held by another invocation)
 
 set -euo pipefail
 
@@ -135,6 +154,33 @@ if [[ -z "${TAG}" ]]; then
     _err "missing tag — pass it as an argument or set WIKANTIK_TAG."
     _usage_line
     exit 2
+fi
+
+# Front-loaded shape validation — before the config file is read and long
+# before any docker/file mutation. A bare tag must match the Docker tag
+# grammar; a full image reference (contains '/') must match a pragmatic
+# subset of the docker/distribution reference grammar:
+# [domain[:port]/]path[/path...][:tag][@sha256:<64 hex>], lowercase path
+# components. Both are anchored full-string matches, so embedded
+# whitespace/newlines/shell metacharacters are rejected outright — the value
+# is written into .env and interpolated into docker CLI calls (and an
+# embedded newline would corrupt the .env line format). Same precedent as
+# bin/deploy-release.sh's VERSION regex check.
+TAG_GRAMMAR='^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$'
+_ref_path='[a-z0-9]+((\.|_{1,2}|-+)[a-z0-9]+)*'
+_ref_domain='[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]+)?'
+REF_GRAMMAR="^(${_ref_domain}/)?${_ref_path}(/${_ref_path})*(:[A-Za-z0-9_][A-Za-z0-9._-]{0,127})?(@sha256:[a-f0-9]{64})?$"
+
+if [[ "${TAG}" == *"/"* ]]; then
+    if [[ ! "${TAG}" =~ ${REF_GRAMMAR} ]]; then
+        _err "invalid image reference ${TAG@Q} — must match [registry[:port]/]path[/path...][:tag][@sha256:<64 hex>] (lowercase path components; no whitespace, newlines, or shell metacharacters)."
+        exit 2
+    fi
+else
+    if [[ ! "${TAG}" =~ ${TAG_GRAMMAR} ]]; then
+        _err "invalid tag ${TAG@Q} — must match the Docker tag grammar [A-Za-z0-9_][A-Za-z0-9._-]{0,127} (no whitespace, newlines, or shell metacharacters)."
+        exit 2
+    fi
 fi
 
 # ---------- Configuration ----------
@@ -240,6 +286,23 @@ else
     fi
 fi
 
+# ---------- 0.5: single-instance lock ----------
+# flock -n on a lockfile in the repo dir, held on fd 9 for the life of the
+# process (released automatically on any exit path), so concurrent
+# invocations — e.g. a cron-driven update racing a human one — fail fast
+# instead of interleaving compose/.env mutations. Mirrors bin/remote.sh's
+# non-blocking deploy-lock discipline (_acquire_deploy_lock).
+LOCK_FILE="${WIKANTIK_REPO_DIR}/.update.lock"
+if [[ "${DRY_RUN}" -eq 1 ]]; then
+    echo "[dry-run] flock -n ${LOCK_FILE}   (fail fast if another update is in progress)"
+else
+    exec 9>"${LOCK_FILE}"
+    if ! flock -n 9; then
+        _err "another update is in progress (flock held on ${LOCK_FILE}) — aborting."
+        exit 2
+    fi
+fi
+
 _compose_args
 
 # ---------- 1: docker login (conditional) ----------
@@ -257,21 +320,33 @@ fi
 _run docker pull "${NEW_IMAGE}"
 
 # ---------- 3: tag the currently-running image as wikantik:rollback ----------
-# Silent no-op on first deploy (no running container yet), same discipline as
-# bin/remote.sh's "docker tag wikantik:latest wikantik:rollback 2>/dev/null || true".
+# Tolerant like bin/remote.sh's "docker tag ... 2>/dev/null || true", but each
+# skip reason gets its own stderr note so a genuine query/inspect failure is
+# distinguishable from the expected first-deploy (no container) case.
 if [[ "${DRY_RUN}" -eq 1 ]]; then
-    echo "[dry-run] (identify currently-running ${WIKANTIK_SERVICE} image, then) docker tag <that image> wikantik:rollback   (silent no-op on first deploy)"
+    echo "[dry-run] (identify currently-running ${WIKANTIK_SERVICE} image, then) docker tag <that image> wikantik:rollback   (skipped with a stderr note if none running / unreadable)"
 else
-    CURRENT_CID="$(docker compose "${COMPOSE_ARGS[@]}" ps -q "${WIKANTIK_SERVICE}" 2>/dev/null || true)"
-    if [[ -n "${CURRENT_CID}" ]]; then
-        CURRENT_IMAGE_ID="$(docker inspect --format '{{.Image}}' "${CURRENT_CID}" 2>/dev/null || true)"
-        if [[ -n "${CURRENT_IMAGE_ID}" ]]; then
-            docker tag "${CURRENT_IMAGE_ID}" wikantik:rollback 2>/dev/null || true
+    QUERY_OK=1
+    CURRENT_CID="$(docker compose "${COMPOSE_ARGS[@]}" ps -q "${WIKANTIK_SERVICE}" 2>/dev/null)" || QUERY_OK=0
+    if [[ "${QUERY_OK}" -eq 0 ]]; then
+        echo "wikantik-update.sh: could not query the running ${WIKANTIK_SERVICE} container — proceeding without a wikantik:rollback tag." >&2
+    elif [[ -z "${CURRENT_CID}" ]]; then
+        echo "wikantik-update.sh: no running ${WIKANTIK_SERVICE} container (first deploy?) — skipping the wikantik:rollback tag." >&2
+    else
+        CURRENT_IMAGE_ID="$(docker inspect --format '{{.Image}}' "${CURRENT_CID}" 2>/dev/null)" || CURRENT_IMAGE_ID=""
+        if [[ -z "${CURRENT_IMAGE_ID}" ]]; then
+            echo "wikantik-update.sh: could not read the current ${WIKANTIK_SERVICE} image — proceeding without a wikantik:rollback tag." >&2
+        elif ! docker tag "${CURRENT_IMAGE_ID}" wikantik:rollback 2>/dev/null; then
+            echo "wikantik-update.sh: could not tag the current image as wikantik:rollback — proceeding without it." >&2
         fi
     fi
 fi
 
 # ---------- 4: back up + update WIKANTIK_IMAGE in .env ----------
+# .env.bak is a MANUAL-recovery convenience only: the automatic rollback in
+# step 7 restores OLD_IMAGE_VALUE (captured in memory right here), never the
+# .bak file — restoring just the one line avoids clobbering any unrelated
+# .env edit that lands mid-deploy.
 OLD_IMAGE_VALUE=""
 if [[ -f "${WIKANTIK_ENV_FILE}" ]]; then
     OLD_IMAGE_VALUE="$(grep -m1 '^WIKANTIK_IMAGE=' "${WIKANTIK_ENV_FILE}" 2>/dev/null | cut -d= -f2- || true)"

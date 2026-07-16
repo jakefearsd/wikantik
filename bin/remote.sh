@@ -300,6 +300,21 @@ cmd_migrate() {
     _remote_container migrate "$@"
 }
 
+# _validate_pull_tag TAG — enforce the Docker tag grammar before TAG is
+# interpolated into the remote ssh command string. Anchored full-string
+# match, so whitespace/newlines and shell metacharacters are rejected
+# outright (an embedded newline would make printf %q emit $'...' bashisms
+# that a non-bash remote login shell mishandles). Same precedent as
+# bin/deploy-release.sh's VERSION regex check.
+_validate_pull_tag() {
+    if [[ ! "$1" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$ ]]; then
+        echo "deploy --pull: invalid tag ${1@Q} — must match the Docker tag grammar" >&2
+        echo "               [A-Za-z0-9_][A-Za-z0-9._-]{0,127} (no whitespace, newlines," >&2
+        echo "               or shell metacharacters)." >&2
+        exit 2
+    fi
+}
+
 cmd_deploy() {
     local skip_build=0
     local health_timeout="${HEALTH_TIMEOUT}"
@@ -318,8 +333,9 @@ Options:
                          'docker pull ${WIKANTIK_IMAGE}:TAG && docker tag ... wikantik:latest'
                          directly. For a target with its own registry access (e.g. a
                          cloud VM reached via REMOTE_ENV_FILE=remote-aws.env). Implies
-                         --skip-build; TAG is required (validated before any remote
-                         contact).
+                         --skip-build; TAG is required and must match the Docker tag
+                         grammar [A-Za-z0-9_][A-Za-z0-9._-]{0,127} (both validated
+                         before any remote contact).
 
 Flow (default / --skip-build):
   1. mvn clean install -T 1C -DskipITs   (unless --skip-build)
@@ -353,6 +369,7 @@ EOF
                     echo "deploy --pull: missing <tag> argument." >&2
                     exit 2
                 fi
+                _validate_pull_tag "${pull_tag}"
                 shift ;;
             --pull)
                 if [[ -z "${2:-}" || "${2}" == -* ]]; then
@@ -360,6 +377,7 @@ EOF
                     exit 2
                 fi
                 pull_tag="$2"
+                _validate_pull_tag "${pull_tag}"
                 shift 2 ;;
             *) echo "deploy: unknown flag: $1" >&2; exit 2 ;;
         esac

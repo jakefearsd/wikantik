@@ -171,6 +171,20 @@ Ordered by expected impact / effort ratio. The next spec should pick from the to
 
 These six items should become a single follow-up spec (working title `2026-05-DD-search-path-optimization-design.md`), with item 1 (profile) as Task 0 — its output reshapes everything downstream.
 
+> **Note — distributed caching is opt-in, and this study didn't touch it.** Every
+> cache discussed above (EhCache page/attachment caches, any future Caffeine
+> hot-query cache) is in-process — invisible to this single-node study, but the
+> first thing to revisit before running more than one wikantik node behind a load
+> balancer, since each node would otherwise warm its cache independently and
+> page/attachment entries would diverge across nodes on writes. `wikantik-cache-memcached`
+> is a drop-in `CachingManager` swap for a shared cache: point the `CachingManager`
+> `mappedClass` in `classmappings.xml` at `com.wikantik.cache.memcached.MemcachedCachingManager`
+> instead of the default `EhcacheCachingManager`, put the JAR on the classpath, and
+> configure `wikantik.cache.memcached.servers` (default `localhost:11211`),
+> `wikantik.cache.memcached.ttl` (seconds, default `86400`), and
+> `wikantik.cache.memcached.max-entries` (reporting only — it does not enforce a
+> cap, default `1000`). None of the sweeps in this document were re-run against it.
+
 ---
 
 ## 9. Sweep #3 — code-surgery + JFR findings (2026-05-20)

@@ -6,9 +6,136 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **`bin/container.sh smoke-test` / `-e test` now run the compose overlay on its base file.**
+  `docker-compose.test.yml` is deltas-only; standalone use was invalid, collided with a
+  bare-metal Tomcat instance on port 8080, and `down -v` shared the `dev` project's Docker
+  namespace (risking cross-environment volume deletion). It now runs base + overlay under a
+  dedicated `-p wikantik-test` project with `WIKANTIK_HOST_PORT=18080`.
+
 ## [2.3.7] - 2026-07-16
 
+### Added
+- **`wikantik.genai.mode` cost ceiling.** A new `GenAiMode` enum (`full` | `embeddings-only` |
+  `none`) caps which LLM operations a deployment is allowed to perform. Each config resolves the
+  ceiling once inside its own `fromProperties` (extractor, judge, reranker, decomposition,
+  embedding) and ANDs it into the effective enabled/backend value, rather than checking it at
+  scattered call sites. An absent, blank, or unrecognized value falls back to `full` with a logged
+  warning — existing deployments and operator typos degrade gracefully instead of failing closed.
+- **`wikantik.knowledge.enabled` subsystem flag.** Turning the Knowledge Graph off skips KG
+  service construction entirely — no KG tools registered on either MCP server,
+  `/admin/knowledge-graph/*` and `/api/page-knowledge/*` return 503 naming the flag — while
+  chunking and the embedding/dense-retrieval pipeline stay fully active; entity extraction is
+  skipped regardless of the configured extractor backend.
+- **`GET /api/capabilities`.** A public, pre-login endpoint reporting `knowledgeGraph`,
+  `hybridSearch`, `genaiMode`, `ontology`, `connectors`, and `citations` flags computed fresh from
+  wiki properties on every request. The frontend fetches it once via a fail-open
+  `CapabilitiesProvider` and hides Knowledge Graph navigation (reader + admin sidebar) up front
+  instead of flashing it and then hiding it.
+- **Cloud deployment reference infrastructure.** `deploy/aws/` and `deploy/gcp/` are minimal
+  single-VM Terraform modules (EC2 + EBS/DLM snapshots or Compute Engine + a persistent disk with
+  snapshots, one security group / two firewall rules, a static IP, secrets in SSM Parameter Store
+  / Secret Manager, an optional DNS record) sharing one cloud-init template that installs Docker,
+  relocates its data root onto the persistent volume, fetches secrets, and brings up the Compose
+  stack for a chosen GenAI tier and ingress mode. A new `docker-compose.cloud.yml` overlay adds the
+  registry image reference (no local build), `caddy` (Let's Encrypt) / `cloudflared` (tunnel) /
+  `ollama-embed` (CPU embeddings) profiles, and a named-volume backup sidecar.
+- **Pull-based VM updates.** `deploy/bin/wikantik-update.sh` (GHCR pull, retag-to-rollback, `.env`
+  image swap, health-poll, auto-rollback) and a new `bin/remote.sh deploy --pull TAG` mode
+  (remote-side pull + tag instead of a local build/save/ssh-load) let a cloud-init-provisioned VM
+  upgrade without a local build.
+- **Reranker and decomposition rows in the llm-activity log**, plus GenAI cost-tier documentation
+  (`docs/CostTiers.md`) covering which LLM seams `wikantik.genai.mode` gates and how to verify
+  enforcement.
+- **Claude page extractor wired for admin batch KG extraction.** `POST
+  /admin/knowledge-graph/extract-mentions` previously returned 503 under `backend=claude` because
+  the bootstrap-indexer dispatch only ever built an `OllamaPageExtractor`; it now selects the
+  extractor by the configured backend, so a cloud (Anthropic-only) tier can backfill Knowledge
+  Graph mentions across an existing corpus.
+
+### Changed
+- **`RemoteIpValve` header is now configurable.** `wikantik.proxy.remoteIpHeader` (default
+  `CF-Connecting-IP`, unchanged for docker1) lets a cloud deployment behind a different trusted
+  proxy (an AWS/GCP load balancer, etc.) supply its own header via `PROXY_REMOTE_IP_HEADER`.
+- **`capabilities.hybridSearch` is now ceiling-adjusted.** It ANDs the raw flag with
+  `GenAiMode.allowsEmbeddings()` — mirroring `EmbeddingConfig`'s effective-enablement formula —
+  instead of a raw property pass-through, closing a drift where `/api/capabilities` could report
+  hybrid search as available under `genai.mode=embeddings-only`/`none` when the embedding config
+  itself had disabled it. A parity test (`CapabilitiesResourceTest`) guards the two from drifting
+  apart again.
+
+### Fixed
+- **Cloud compose overlay review fixes.** A dedicated DB host/port seam avoids `POSTGRES_HOST`
+  shadowing between the app and bundled-db containers, the textfile-collector volume is
+  unconditionally named (was silently anonymous with the backup profile off), and the Caddy
+  empty-domain failure mode is verified rather than assumed.
+- **AWS cloud-init secret handling hardened.** Secrets are fetched fail-closed and are never
+  sourced as shell variables, closing an injection surface in the boot script.
+- **`bin/remote.sh deploy --pull TAG` validates the tag/image ref before interpolation**, and
+  `wikantik-update.sh` gained a self-lock plus documented notes on when a rollback is skipped.
+- **RSS/Atom feed connector: an all-feeds-unreachable sync now returns an incomplete batch**
+  instead of an empty-but-successful one, so the sync-status probe correctly reports "unreachable"
+  rather than silently looking healthy.
+- **Hub-discovery 503s now cite `wikantik.knowledge.enabled` by name** instead of a generic error
+  when the Knowledge Graph subsystem is off.
+
 ## [2.3.6] - 2026-07-15
+
+### Added
+- **Connector framework — six external-source connector types syncing into derived pages.** A new
+  `wikantik-connectors` module adds a `SourceConnector` SPI (`com.wikantik.api.connectors`) and a
+  hash-dedup, cursor-resume, tombstone-deriving `SyncOrchestrator` shared by filesystem, auth-free
+  web-crawler (jsoup + crawler-commons; BFS with scope/depth/robots.txt/politeness), sitemap
+  (urlset + sitemapindex), RSS/Atom feed (Rome-backed; full-article or inline; archive-window
+  semantics), Google Drive (OAuth2 refresh-token consent flow; Google Docs → markdown), and
+  GitHub + Confluence (static-token REST clients) connectors. Every connector rides the existing
+  derived-page ingestion pipeline (`derived_from` provenance, machine-owned body per ADR-0004) via
+  a new `DerivedPageSinkAdapter`; `poll()` is contractually never-throws, so one connector's
+  failure never blocks the sync scheduler or mass-deletes pages from a stale/failed listing.
+- **Admin UI for connector management** at `/admin/connectors` — a list + detail view
+  (overview/settings/authorization/runs/pages tabs, gated delete) and a guided **Add Connector
+  wizard** (type picker → source config → authorize → dry-run test → review) that also supports
+  one-click import of legacy properties-defined connectors and an OAuth deep-link flow for Google
+  Drive consent.
+- **DB-backed connector configuration with hot-apply.** Connector definitions now live in
+  `connector_configs` (migration V048; `ConnectorConfigCodec` validates all 6 typed shapes) and are
+  CRUD'd through `/admin/connectors/*` REST; `ConnectorConfigService` rebuilds and hot-swaps the
+  connector registry on every change — no restart required. Per-connector sync intervals are driven
+  by a due-tick scheduler (replacing one fixed-rate loop shared by every connector), and per-run
+  history is recorded in `connector_sync_run` (migration V049, purged on connector delete so a
+  recreated connector id starts clean).
+- **Encrypted connector credentials store.** Secrets (GitHub token, Confluence API token, Google
+  Drive client secret + refresh token) are AES-256-GCM encrypted (`AesGcmCipher`) in a new
+  `connector_credentials` table (migration V047) keyed by `wikantik.connectors.crypto.key`,
+  injected/listed/deleted via `/admin/connector-credentials/*`; the config-body validator
+  independently rejects secret-named keys submitted in plaintext as a defense-in-depth backstop.
+- **Reader-facing provenance for derived pages.** A provenance banner on the page view and ↯
+  badges in search results and the sidebar mark pages that originated from a connector sync;
+  per-connector content defaults (cluster/tags/name-prefix) apply only at page creation, never
+  overwriting curation.
+- **Kill switch.** `wikantik.connectors.enabled` (default **true** — it's a kill switch, not an
+  opt-in) is a hard stop for syncing; config CRUD keeps working even when disabled, so a read
+  replica or a maintenance window can pause syncing without losing configuration.
+- **Experimental query decomposition for the context bundle** (default off). A fail-closed LLM
+  query planner (`wikantik.bundle.decomposition.*`) can split a multi-part query into sub-queries
+  fused via N-ary RRF. Measured on a relational eval set it scored *worse* than the undecomposed
+  control (hop-recall 0.611 → 0.500 with RRF score-sum letting the majority co-mention topic drown
+  out the minority side); a round-robin fusion variant closed part of the gap but still trailed
+  control. Ships disabled pending a larger multi-hop eval corpus — verdicts banked in
+  `eval/bundle-corpus/baseline-notes.md`.
+
+### Fixed
+- **GitHub / Confluence connector hardening (final review).** GitHub URL path segments are now
+  percent-encoded before use, and a malformed Confluence listing page no longer silently tombstones
+  the rest of the sync batch (`PageListing.skippedMalformed` surfaces the fault instead).
+- **Tombstones never derive from an untrusted snapshot.** A connector-side listing failure could
+  previously be misread as "everything was deleted"; tombstone derivation now requires a trusted,
+  complete snapshot, closing a mass-delete-on-outage risk.
+- **Per-connector sync lock.** A manual `/admin` sync trigger could previously race the scheduler's
+  own due-tick for the same connector; both paths now share one lock.
+- **Response and download sizes are capped** across the HTTP-based connectors (GitHub, Confluence,
+  Google Drive, web crawler) via a shared `CappedBodySubscriber`, as an OOM defense against a
+  malicious or misconfigured upstream.
 
 ## [2.3.5] - 2026-07-10
 

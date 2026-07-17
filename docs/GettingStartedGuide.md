@@ -280,6 +280,10 @@ user's password, and when the "forgot password" email issues a temporary one.
 Now that you're running:
 
 - **Add users and groups** — admin panel at `/admin` (Users, Security).
+- **Pull in external content** — the connector framework at `/admin/connectors`
+  syncs websites, RSS/Atom feeds, sitemaps, Google Drive, GitHub, and
+  Confluence spaces into machine-managed derived pages, on a per-connector
+  schedule, with reader-facing provenance. See [Connectors.md](Connectors.md).
 - **Single Sign-On (Google/OIDC/SAML)** — [SingleSignOn.md](SingleSignOn.md).
 - **Backups & disaster recovery** — [BackupAndRecovery.md](BackupAndRecovery.md).
 - **Production database workflow & migrations** — [DatabaseUpdates.md](DatabaseUpdates.md),

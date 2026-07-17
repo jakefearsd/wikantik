@@ -9,8 +9,14 @@ so a fancier topology would just add cost and failure modes without
 buying you anything.
 
 This module (`deploy/aws/`) pairs with the shared cloud-init template at
-`deploy/cloud-init/cloud-init.yaml.tftpl`, which GCP's future module
-(Task 3.1) is expected to reuse unmodified.
+`deploy/cloud-init/cloud-init.yaml.tftpl`, also reused unmodified by
+`deploy/gcp/` — see that module's README for the GCP twin.
+
+> See [docs/CloudDeployment.md](../../docs/CloudDeployment.md) for the
+> operator-facing overview tying this module together with the
+> `docker-compose.cloud.yml` overlay, the GenAI cost tiers, and the
+> pull-based update flow. This README is the canonical step-by-step
+> procedure for the AWS module specifically.
 
 > **Validation status:** this module has been format-checked
 > (`terraform fmt -check`), initialized against the real `hashicorp/aws`
@@ -318,13 +324,18 @@ Route53's per-hosted-zone/query charges.
 
 ## GCP parity note
 
-`deploy/cloud-init/cloud-init.yaml.tftpl` is written to be cloud-agnostic:
-every AWS-specific behavior (SSM fetch command, IMDSv2 region lookup, the
+`deploy/cloud-init/cloud-init.yaml.tftpl` is cloud-agnostic: every
+AWS-specific behavior (SSM fetch command, IMDSv2 region lookup, the
 NVMe-by-id data device path) is confined to template variables assembled
-in this module's `main.tf`. GCP's future module (Task 3.1) is expected to
-render the same template with `gcloud secrets versions access` in place
-of `aws ssm get-parameter`, no region-lookup setup step (ADI/project come
-from the GCE metadata server automatically), and a `/dev/disk/by-id/
-google-<disk-name>` data device — everything else (mount/format
-sequencing, the Docker data-root relocation, the write_files list, the
-runcmd script split) carries over unchanged.
+in this module's `main.tf`. `deploy/gcp/` reuses the same template
+**unmodified**, supplying its own values for those same variables: a
+metadata-token curl → Secret Manager REST `:access` → `jq` → `base64 -d`
+fetch function in place of `aws ssm get-parameter` (deliberately not the
+full `google-cloud-cli`/`gcloud`, which is heavier than this reference
+deployment needs), a one-time project-ID lookup from the GCE metadata
+server instead of an IMDSv2 region lookup, and a `/dev/disk/by-id/
+google-<disk-name>` data device. Everything else (mount/format sequencing,
+the Docker data-root relocation, the `write_files` list, the runcmd script
+split) carries over unchanged. See
+[deploy/gcp/README.md](../gcp/README.md)'s own "AWS parity note" for the
+full variable-by-variable mapping.

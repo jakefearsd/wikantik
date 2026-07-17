@@ -20,12 +20,13 @@ see the wiki pages:
 3. [Retrieval modes](#retrieval-modes)
 4. [Metrics and Prometheus gauges](#metrics-and-prometheus-gauges)
 5. [Database persistence](#database-persistence)
-6. [Admin UI walkthrough](#admin-ui-walkthrough)
-7. [REST endpoint reference](#rest-endpoint-reference)
-8. [Auth model](#auth-model)
-9. [Reading a regression](#reading-a-regression)
-10. [Troubleshooting](#troubleshooting)
-11. [Cross-links](#cross-links)
+6. [Query log — grounding the eval corpus in real traffic](#query-log--grounding-the-eval-corpus-in-real-traffic)
+7. [Admin UI walkthrough](#admin-ui-walkthrough)
+8. [REST endpoint reference](#rest-endpoint-reference)
+9. [Auth model](#auth-model)
+10. [Reading a regression](#reading-a-regression)
+11. [Troubleshooting](#troubleshooting)
+12. [Cross-links](#cross-links)
 
 ---
 
@@ -50,9 +51,14 @@ Queries where the retriever throws are also skipped, and the run is marked
 
 ## Nightly schedule
 
-The runner schedules itself on a single daemon thread at startup. The default run
-hour is **03:00 UTC** (hardcoded in `DefaultRetrievalQualityRunner`; not currently
-configurable via `wikantik.properties`).
+The runner schedules itself on a single daemon thread at startup. The run hour is
+configurable via `wikantik.retrieval.cron.hour_utc` (default `3`, i.e. 03:00 UTC);
+the nightly schedule itself can be turned off entirely with
+`wikantik.retrieval.cron.enabled` (default `true`). Both are read in
+`SearchWiringHelper.wireRetrievalQualityRunner()` and passed into
+`DefaultRetrievalQualityRunner` at construction — set `wikantik.retrieval.cron.enabled=false`
+to register the runner (so on-demand runs and the dashboard still work) without the
+nightly job.
 
 The nightly job runs every (query_set_id, mode) pair sequentially. The currently
 scheduled query set is `core-agent-queries` (V017 seed). Additional sets must be
@@ -160,6 +166,30 @@ PGPASSWORD=<password> psql -h localhost -U wikantik -d wikantik \
       WHERE query_set_id = 'core-agent-queries' \
       ORDER BY started_at DESC LIMIT 10;"
 ```
+
+## Query log — grounding the eval corpus in real traffic
+
+The curated `retrieval_queries` set above is hand-built and only grows when someone
+edits it. To keep the eval corpus honest — and give future gold-set work something
+real to draw from — Wikantik also captures an append-only log of actual retrieval
+queries as they happen, across every surface that does retrieval:
+
+- `GET /api/bundle`
+- `GET /api/search`
+- the `assemble_bundle` MCP tool
+- the `search_wiki` tool (`/tools/*`)
+
+Gated by `wikantik.querylog.enabled` (default `true`). Writes go through a single
+bounded-queue daemon thread that discards the oldest pending record under
+back-pressure, so a traffic spike can never slow down the retrieval path itself
+(`QueryLogWiring`, `wikantik-main` `com.wikantik.knowledge.querylog`). **Only the
+query text is logged — never the results** — so a restricted page can never leak
+into the log by way of having been retrieved for it.
+
+**Read surface:** the `list_retrieval_queries` tool on `/wikantik-admin-mcp` exposes
+the captured log for curation. Pulling real, high-value queries into a named
+`retrieval_query_sets` bundle with ground-truth `expected_ids` is a manual curation
+step, not automatic promotion.
 
 ## Admin UI walkthrough
 
@@ -328,7 +358,7 @@ The retriever is failing for every query. Check:
 - Is the dense backend (Lucene HNSW / pgvector / in-memory) initialised? Look for
   `DenseSearchService` startup messages in `catalina.out`.
 - Is Ollama reachable and the configured embedding model loaded?
-  (`wikantik.search.dense.backend`, `wikantik.search.dense.model`)
+  (`wikantik.search.dense.backend`, `wikantik.search.embedding.model`)
 - Run a manual search: `curl http://localhost:8080/api/search?q=test`
 
 **Prometheus gauges are `NaN`**

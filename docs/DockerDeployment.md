@@ -1,20 +1,33 @@
 # Wikantik Deployment with Docker
 
 How to deploy Wikantik as a Docker Compose stack — locally and on a remote
-host — and how to upgrade it for each release.
+host (docker1-style: build locally, push over ssh, host bind mounts) — and
+how to upgrade it for each release.
 
 > For the **bare-metal** path (local PostgreSQL + Tomcat 11, used for
 > development and single-host installs), see
 > [PostgreSQLLocalDeployment.md](PostgreSQLLocalDeployment.md) instead.
+> For a **cloud VM** (AWS/GCP, GHCR image pull, Terraform, pull-based
+> updates, cost-bounded GenAI tiers), see
+> [CloudDeployment.md](CloudDeployment.md) instead — it reuses this same
+> compose stack and container image, layered with
+> `docker-compose.cloud.yml`.
 
 The repository ships the real deployment artifacts; this guide explains how
 to drive them. Do not hand-write compose files.
 
 - `docker-compose.yml` + `docker-compose.{dev,prod,test}.yml` — the stack
+  (`docker-compose.cloud.yml` is the cloud overlay — see CloudDeployment.md)
 - `docker/entrypoint.sh` — renders container config from env vars at start
 - `bin/container.sh` — local `docker compose` wrapper
 - `bin/remote.sh` — ssh-driven remote deploy/admin
 - `bin/cut-release.sh`, `bin/deploy-release.sh` — release/upgrade wrappers
+
+**Base images:** the runtime is `tomcat:11.0.22-jdk25-temurin` (Tomcat 11 /
+Java 25); the build stage is `maven:3.9-eclipse-temurin-25`. Both are pinned
+in the top-level `Dockerfile`; the Tomcat tag must stay in lockstep with
+`bin/deploy-local.sh`'s `TOMCAT_VERSION` so the bare-metal and container
+install paths run the identical Tomcat patch.
 
 ## Application Endpoints
 
@@ -87,6 +100,14 @@ flip in `.env`, then `bin/remote.sh deploy --skip-build` for a ~30 s restart.
 | `WIKANTIK_SSO_CLAIM_LOGIN_NAME` | `preferred_username` | `wikantik.sso.claimMapping.loginName` | IdP claim mapped to the wiki login name. Google sends no `preferred_username` — set to `email` for Google OIDC. |
 | `WIKANTIK_SSO_CLAIM_FULL_NAME` | `name` | `wikantik.sso.claimMapping.fullName` | IdP claim mapped to the display name. |
 | `WIKANTIK_SSO_CLAIM_EMAIL` | `email` | `wikantik.sso.claimMapping.email` | IdP claim mapped to email. |
+| `WIKANTIK_GENAI_MODE` | *(ini default `full`)* | `wikantik.genai.mode` | GenAI ceiling: `full` \| `embeddings-only` \| `none`. Never turns a feature on — only forces an already-enabled feature off. See [CostTiers.md](CostTiers.md) and [CloudDeployment.md](CloudDeployment.md). |
+| `WIKANTIK_KNOWLEDGE_ENABLED` | `true` when unset | `wikantik.knowledge.enabled` | `false` skips constructing the Knowledge Graph subsystem entirely (no KG services, no KG MCP tools; `/admin/knowledge-graph/*` and `/api/page-knowledge/*` 503). Chunking and the embedding/dense-retrieval pipeline stay independent of it. |
+| `WIKANTIK_EMBEDDING_BASE_URL` | *(ini default, the shared inference host)* | `wikantik.search.embedding.base-url` | Dense-retrieval embedding service base URL override, e.g. `http://ollama-embed:11434` for the cloud overlay's sidecar. |
+| `WIKANTIK_EXTRACTOR_BACKEND` | `ollama` | `wikantik.knowledge.extractor.backend` | KG entity-extractor backend: `ollama` \| `claude` \| `disabled`. `claude` also requires `ANTHROPIC_API_KEY` (read directly from the process environment by `EntityExtractorFactory` — never rendered into a properties file). |
+| `WIKANTIK_SCIM_TOKEN` | *(none — SCIM denies all requests)* | JVM system property `wikantik.scim.token` (not `wikantik-custom.properties`) | SCIM bearer token, sensitive. Injected via `CATALINA_OPTS -D`, not the properties file, because `ScimAccessFilter` reads it exclusively as a system property. Must match `[A-Za-z0-9+/=_-]+` (hex/base64 only) — the entrypoint refuses to boot on a violating value (`catalina.sh` word-splits `CATALINA_OPTS`, so spaces/shell metacharacters would silently corrupt it). Generate with `openssl rand -hex 32`. |
+| `WIKANTIK_CONNECTORS_CRYPTO_KEY` | *(none — credential store stays disabled)* | `wikantik.connectors.crypto.key` | Base64-encoded 32-byte AES-256 key for the connector credential store (GitHub token / Confluence API token / Google Drive client secret+refresh token at rest). |
+| `PROXY_REMOTE_IP_HEADER` | `CF-Connecting-IP` | JVM system property `wikantik.proxy.remoteIpHeader`, consumed by `RemoteIpValve` in `docker/config/server.xml` | Reverse-proxy header carrying the real client IP. **Always injected**, unconditionally — Tomcat's `${...}` substitution has no default-value syntax, so an unset property would leave the literal `${wikantik.proxy.remoteIpHeader}` string as the header name and silently break client-IP resolution. Set to `X-Forwarded-For` for Caddy/nginx/ALB/GCLB (e.g. the cloud overlay's `caddy` ingress profile); leave at the default for Cloudflare-fronted deployments (docker1, or the cloud overlay's `cloudflared` profile). Must match `[A-Za-z0-9-]+` — the entrypoint refuses to boot on a violating value. |
+| `WIKANTIK_INDEXNOW_API_KEY` | *(empty — IndexNow disabled)* | `wikantik.indexnow.apiKey` | IndexNow verification key for `ping_search_engines` (Bing/Yandex). The same value must be served publicly at `<baseURL>/<key>.txt`. |
 | `MCP_ACCESS_KEYS` | *(none)* | `mcp.access.keys` in `wikantik-mcp.properties` | Comma-separated MCP bearer keys. DB-backed `api_keys` also work. |
 | `MCP_USERS` | `curator` | *(env only — for compose healthcheck context)* | Informational; records which user accounts are expected MCP callers. |
 | `MCP_RATE_LIMIT_GLOBAL` | `100` | `mcp.ratelimit.global` | Global request-per-minute cap across all MCP clients. |
@@ -94,6 +115,39 @@ flip in `.env`, then `bin/remote.sh deploy --skip-build` for a ~30 s restart.
 | `DB_HOST_BIND` | `172.17.0.1` | `docker-compose.prod.yml` port binding | Host interface PostgreSQL is published on (prod overlay only) — the docker0 bridge gateway by default, keeping the DB off the LAN. Set to `0.0.0.0` only to expose LAN-wide. |
 | `DB_EXPORTER_PASSWORD` | *(none)* | passed to V031 via `migrate.sh` as `:exporter_password` | Password for the `wikantik_exporter` monitoring role created by migration V031. Required in prod to let the jakemon postgres-exporter authenticate. |
 | `WIKANTIK_SEED_DEV_USERS` | `false` | entrypoint only | Set `true` to ensure the default admin (admin/admin123, must-change-on-first-login) exists on start (via `bin/db/seed-users.sql`). Fresh databases get the same flagged admin from migrations V002+V039 regardless. **Never set in production.** |
+
+#### Base URL — four properties, one env var
+
+`WIKANTIK_BASE_URL` (→ `wikantik.baseURL`) is the only base-URL property the
+entrypoint sets from the environment (`docker/entrypoint.sh`). Three sibling
+properties feed *different* subsystems and have **no** env var — a
+reverse-proxy deploy that sets only `WIKANTIK_BASE_URL` can still advertise
+the wrong origin from the Atom feed and the `/tools/*` OpenAPI spec.
+
+| Property | Feeds | Env var |
+|---|---|---|
+| `wikantik.baseURL` | SSO callback URL, connector OAuth `redirect_uri`, admin-mcp | `WIKANTIK_BASE_URL` |
+| `wikantik.sitemap.baseURL` | `/sitemap.xml` entry URLs | *(none)* |
+| `wikantik.feed.baseURL` | `/feed.xml` Atom entry links | *(none)* |
+| `wikantik.public.baseURL` | `/tools/*` OpenAPI server URL + tool-response citation links | *(none)* |
+
+Left unset, the last three each fall back to deriving the origin from the
+current request — fine for a single simple public hostname, but silently
+wrong behind SSL-terminating or path-rewriting proxies (the documented
+symptom for the sitemap: URLs come out `http://` instead of `https://`). Set
+all four explicitly, via a `wikantik-custom.properties` override (§1), for
+any deployment more complex than "one public hostname, no path rewriting."
+
+#### Cross-origin requests (CORS)
+
+`wikantik.cors.allowedOrigins` — comma-separated allow-list of browser
+`Origin` values permitted to make cross-origin state-changing/API requests
+(`CsrfProtectionFilter`, `RestServletBase.setCorsHeaders`). A request whose
+`Origin` matches the list gets the CORS headers echoed back;
+`Access-Control-Allow-Credentials` is **never** set, so the session cookie
+stays same-origin regardless of this setting. Not wired to an env var — set
+it via a `wikantik-custom.properties` override. Empty (the default) allows no
+cross-origin callers.
 
 #### Fail-fast backpressure
 
@@ -303,7 +357,7 @@ The compose stack bundles PostgreSQL + pgvector; everything else is external:
 | **PostgreSQL + pgvector** | Bundled (`db` service) | `db:5432` (internal) |
 | **Ollama** (embeddings, extraction, judge) | External, optional | `ini/wikantik.properties` default `http://inference.jakefear.com:11434` |
 | **Anthropic API** (alternative extractor backend) | External, optional | `ANTHROPIC_API_KEY` env var |
-| **TLS terminator / reverse proxy** | External, optional | `server.xml` reads `X-Forwarded-*` |
+| **TLS terminator / reverse proxy** | External, optional | `RemoteIpValve` reads the client IP from `PROXY_REMOTE_IP_HEADER` (default `CF-Connecting-IP`; set to `X-Forwarded-For` for Caddy/nginx/ALB/GCLB — see the env-var table in §1) |
 
 The baked-in default for `wikantik.search.embedding.backend` and
 `wikantik.knowledge.extractor.backend` is `ollama` — the container must reach

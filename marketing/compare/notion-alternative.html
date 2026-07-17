@@ -45,7 +45,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "A Notion alternative for engineering teams",
     "description": "Wikantik is a Notion alternative built for engineering knowledge: plain markdown you own, git-friendly, with hybrid AI search and native MCP so your agents can use it too.",
-    "datePublished": "2026-06-07", "dateModified": "2026-07-05",
+    "datePublished": "2026-06-07", "dateModified": "2026-07-17",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/compare/notion-alternative.html" }
@@ -122,6 +122,9 @@
           <h3>A knowledge graph derived from your content</h3>
           <p>Wikantik extracts entities and relationships from your pages using an LLM pipeline and stores them in a pgvector-backed knowledge graph. Agents querying your wiki can traverse this graph — finding related concepts, following typed relationships, and surfacing connections that a flat keyword search would miss. Notion does not build a knowledge graph of your content. More detail on the <a href="/platform/knowledge-graph.html">knowledge graph</a> page.</p>
 
+          <h3>Sync in the content you already have elsewhere</h3>
+          <p>Teams migrating off Notion rarely have <em>all</em> their documentation in Notion — Google Drive folders and GitHub repos usually hold a chunk of it too. Wikantik ships native <a href="/platform/connectors.html">connectors</a> for both: point one at a Drive folder or a GitHub repo and it syncs continuously, landing provenance-marked pages that are searchable and citable alongside everything else. There is no direct Notion connector today, so Notion content itself still needs an export-and-convert pass, but it does not have to be a single all-or-nothing migration — Drive and GitHub sources can start flowing in immediately while you work through the Notion export separately.</p>
+
           <h3>Enterprise-grade access control</h3>
           <p>For teams with real security requirements: Wikantik has SSO (SAML/OIDC via pac4j, Google live in production), SCIM 2.0 provisioning for automated onboarding and offboarding, a tamper-evident audit log, and RBAC with fine-grained page-level ACLs. Notion's permission model is less granular, and enterprise SSO/SCIM is a higher-tier feature. The full picture is on the <a href="/enterprise/">enterprise</a> page.</p>
 
@@ -196,6 +199,7 @@
           <a href="/platform/page-graph.html">Page graph</a>
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
+          <a href="/platform/connectors.html">Connectors</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

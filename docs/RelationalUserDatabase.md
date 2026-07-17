@@ -284,6 +284,16 @@ See `CLAUDE.md` → **Security Model** for the full description of:
 - JAAS-based authentication and authorization
 - Fine-grained page and wiki permissions
 - Page-level ACLs via inline `[{ALLOW view Admin}]` syntax
-- Bootstrap admin override (`wikantik.admin.bootstrap`)
+- Bootstrap admin override (`wikantik.admin.bootstrap`) — the value is a login
+  name that bypasses **all** policy checks (`DefaultAuthorizationManager`)
+  while it is set. It is also **time-boxed**: `wikantik.admin.bootstrap.maxAgeSeconds`
+  (default `86400`, i.e. 24 hours) caps how long the override is honored after
+  the engine starts, so a bootstrap admin left configured on a long-running
+  instance doesn't stay a standing privilege-escalation hole — after the
+  window elapses, the named user is subject to normal policy grants like
+  everyone else, even if the property is still set.
 - SSO identity binding and session fixation defense
-- NIST 800-63B password validation
+- NIST 800-63B password validation (`PasswordValidator`) — length + a bundled
+  common-password blocklist only, no arbitrary complexity rules. Knobs:
+  `wikantik.password.minLength` (default `8`), `wikantik.password.maxLength`
+  (default `128`), `wikantik.password.blocklist.enabled` (default `true`).

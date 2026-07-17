@@ -106,6 +106,26 @@ Prod content lives at `${WIKANTIK_PAGES_DIR}` on the remote host as a
 bind mount — so `rsync` is the source of truth for the page tree,
 independent of container lifecycle.
 
+## Cloud deployment (AWS/GCP)
+
+Single-VM Terraform reference deployment per cloud (`deploy/aws/`,
+`deploy/gcp/`), sharing one cloud-init template
+(`deploy/cloud-init/cloud-init.yaml.tftpl`) and the `docker-compose.cloud.yml`
+overlay (GHCR image pull, Caddy/cloudflared ingress profiles, optional CPU
+embedding sidecar, cost-bounded `wikantik.genai.mode` ceiling +
+`wikantik.knowledge.enabled` tiers). Pull-based updates via
+`deploy/bin/wikantik-update.sh` (installed on the VM by cloud-init) or
+`bin/remote.sh deploy --pull TAG` (`REMOTE_ENV_FILE` override for a second
+target). docker1 is untouched by any of this — every new property/env var
+defaults to docker1's current behavior. Operator guide:
+[CloudDeployment.md](CloudDeployment.md); module READMEs:
+[deploy/aws/README.md](../deploy/aws/README.md),
+[deploy/gcp/README.md](../deploy/gcp/README.md); decision record + phased
+plan: [superpowers/plans/2026-07-16-aws-gcp-deployment-readiness.md](superpowers/plans/2026-07-16-aws-gcp-deployment-readiness.md).
+Shipped 2026-07-16 (2.3.7); a real `terraform apply` against a live
+AWS/GCP account had not been run as of that release — see the module
+READMEs' "Validation status" notes.
+
 ## `bin/` script conventions
 
 - Every script under `bin/` and `docker/` responds to `-h` / `--help`
@@ -211,3 +231,4 @@ from Prometheus — high latency + moderate CPU means blocking, not compute.
 - **[IndexingSupport.md](../IndexingSupport.md)** — Implemented. Raw content + change feed + sitemap for RAG ingestion and SEO.
 - **KG inclusion policy** — Cluster-primary KG inclusion/exclusion policy with admin dashboard, CLI, and frontmatter override. Implemented 2026-04-27. New `kg_cluster_policy` / `kg_policy_audit` / `kg_excluded_pages` tables; admin surface at `/admin/kg-policy/*`; `bin/kg-policy.sh` CLI. Default-exclude. System pages now also filtered out of the KG extraction pipeline (latent bug fix bundled in). Page-level override via `kg_include: true|false` frontmatter, validated at save time. See [KgInclusionPolicy](wikantik-pages/KgInclusionPolicy.md) for the operator guide.
 - **Derived agent hints** — Derived `agent_hints` projection field (no author burden), hub summary overlay, `read_pages` batch MCP tool, `/admin/agent-grade-audit` weak-signal report. Implemented 2026-05-10.
+- **Connector framework + admin UI** — External-source connectors (filesystem, web crawler, sitemap, RSS/Atom, Google Drive OAuth2, GitHub, Confluence) syncing into derived pages, with admin-managed configs (`connector_configs`, hot-applied registry rebuild — no restart), per-connector sync scheduling, encrypted credential storage, and a full `/admin/connectors` UI (list/detail, guided add wizard, dry-run test, provenance marking on reader surfaces). `wikantik.connectors.enabled` is a kill switch defaulting **true**. Shipped 2026-07-15; **not yet deployed to prod** (docker1). Design docs: `docs/superpowers/specs/2026-07-11-connector-framework-phase{1,2-runtime}-design.md`, `2026-07-11-{rss-atom-feed,sitemap,web-crawler}-connector-design.md`, `2026-07-11-connector-credential-encryption-design.md`, `2026-07-12-google-drive-connector-design.md`, `2026-07-14-github-confluence-connectors-design.md`, `2026-07-15-connector-admin-ui-design.md`. Operator/user-facing guide: [Connectors.md](Connectors.md).

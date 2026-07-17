@@ -172,12 +172,12 @@ injection. Defaults shown.
 | `wikantik.bundle.dense.top_k` | `300` | Chunk candidate pool size pulled before fusion/selection. |
 | `wikantik.bundle.sections_per_page` | `20` | Max sections contributed per source page. |
 | `wikantik.bundle.bm25.enabled` | `true` | Enable the chunk-level BM25 arm of the bundle's own hybrid fusion. |
-| `wikantik.bundle.bm25.bm25_weight` / `.dense_weight` | `0.5` / — | Fusion weights for the bundle's BM25 ↔ dense RRF (independent of main search). |
-| `wikantik.bundle.bm25.rrf_k` | — | RRF constant for the bundle fusion. |
+| `wikantik.bundle.bm25.bm25_weight` / `.dense_weight` | `0.5` / `1.5` | Fusion weights for the bundle's BM25 ↔ dense RRF (independent of main search). Deliberately dense-tilted 3:1 — tuned 2026-06-18 as half the page-level BM25 weight, which kept the similarity gain without the boundary@5 dip the reused page weights (bm25=1.0) caused. |
+| `wikantik.bundle.bm25.rrf_k` | `20` | RRF constant for the bundle fusion. |
 | `wikantik.bundle.coverage.strong_similarity` | `0.55` | `topSimilarity` at/above which coverage is `strong`. |
 | `wikantik.bundle.coverage.partial_similarity` | `0.40` | `topSimilarity` at/above which coverage is `partial` (else `weak`). |
 | `wikantik.bundle.reranker.enabled` | `false` | LLM listwise reranker. **Default off** — measured to reorder without improving recall (a bad relevance judge under shuffled input). |
-| `wikantik.citations.enabled` | — | Gate the `cite://` citation-edge subsystem (unrelated to document ingestion). |
+| `wikantik.citations.enabled` | `true` | Gate the `cite://` citation-edge subsystem (unrelated to document ingestion). |
 
 The public-surface rate-limit knobs (`WIKANTIK_RATELIMIT_*`) that guard
 `/api/bundle` are documented in

@@ -106,6 +106,27 @@ index rebuilds itself on first start.
   the DB-backed `api_keys` table).
 - Secrets live only in `.env` / `.env.prod` (gitignored) — never committed.
   Back the env file up separately from the repo.
+- **Client IP resolution is parameterized.** `RemoteIpValve`
+  (`docker/config/server.xml`) trusts a configurable header —
+  `PROXY_REMOTE_IP_HEADER`, injected unconditionally via `CATALINA_OPTS` by
+  `docker/entrypoint.sh` — to populate `request.getRemoteAddr()` (consumed
+  by `RateLimitFilter`, audit logging, etc.). Defaults to `CF-Connecting-IP`
+  for this host's Cloudflare-fronted topology; a Caddy- or ALB/GCLB-fronted
+  deployment (see the cloud overlay note below) needs it set to
+  `X-Forwarded-For` instead. Must match `[A-Za-z0-9-]+` — the entrypoint
+  refuses to boot on a violating value.
+
+## Cloud overlay (AWS/GCP)
+
+This document describes docker1's topology specifically —
+`docker-compose.prod.yml`, host bind mounts, jakemon textfile mounts, the
+docker0-bridge DB port binding. A separate, Terraform-driven single-VM
+topology exists for AWS/GCP: `docker-compose.cloud.yml` swaps the local
+`build:` for a GHCR `image:` pull, adds Caddy/cloudflared ingress and an
+optional CPU embedding sidecar as compose profiles, and is updated via a
+pull-based `wikantik-update` script rather than an ssh image transfer.
+docker1 itself is untouched by any of this. See
+[CloudDeployment.md](CloudDeployment.md) for the full topology.
 
 ## Health & verification
 

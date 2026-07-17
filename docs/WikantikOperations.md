@@ -30,6 +30,49 @@ The production Docker environment runs three critical services defined in `docke
 **Rollback:**
 Deployments are driven from the developer box via `bin/remote.sh deploy`. Before swapping the image, the script tags the running image as `wikantik:rollback`. If the post-deploy `/api/health` poll (`GET http://<host>:8080/api/health`) does not return 200 within the health timeout, `bin/remote.sh deploy` automatically re-promotes the `:rollback` image and force-recreates the service. Manual rollback at any time: `bin/remote.sh rollback`. There is no CI deploy pipeline — the developer box drives all production changes.
 
+### 1.2.1 Pull-based updates (cloud VM targets)
+
+docker1's `bin/remote.sh deploy` streams the image over ssh
+(`docker save | ssh docker load`) — a LAN-bandwidth assumption. A cloud VM
+(AWS/GCP — see [CloudDeployment.md](CloudDeployment.md)) has its own GHCR
+registry access instead, so two pull-based paths exist:
+
+- **From the dev box, over ssh** — `bin/remote.sh deploy --pull TAG`
+  rsyncs the compose files + `.env` to the remote as usual, then has the
+  remote run `docker pull ghcr.io/jakefearsd/wikantik:TAG` + retag to
+  `wikantik:latest` instead of the save/load transfer. Everything else
+  (deploy lock, health-poll, auto-rollback on failure) is identical to a
+  normal `deploy`. Point it at a second target without touching docker1's
+  `remote.env` via the `REMOTE_ENV_FILE` override:
+  ```bash
+  REMOTE_ENV_FILE=remote-aws.env bin/remote.sh deploy --pull 2.3.8
+  ```
+- **On the VM itself, no ssh round-trip** — `wikantik-update` (installed by
+  cloud-init at `/usr/local/bin/wikantik-update`, source
+  `deploy/bin/wikantik-update.sh`, config at `/etc/wikantik-update.conf`):
+  ```bash
+  ssh ubuntu@<vm-ip>
+  sudo wikantik-update 2.3.8
+  ```
+  Flow: a non-blocking `flock` on `${WIKANTIK_REPO_DIR}/.update.lock` (a
+  concurrent invocation — e.g. a cron-driven update racing a human one —
+  fails fast with exit 2) → `docker login` if `GHCR_USER`/`GHCR_TOKEN` are
+  configured → `docker pull` the target image → tag the currently-running
+  image `wikantik:rollback` → back up `.env` to `.env.bak` (manual-recovery
+  convenience only) and rewrite `WIKANTIK_IMAGE` → `docker compose up -d` →
+  poll `HEALTH_URL` (default `http://localhost:8080/api/health`) every 3s up
+  to `HEALTH_TIMEOUT` (default 180s). On failure, it restores the previous
+  `WIKANTIK_IMAGE` value (captured in memory, not from `.env.bak`),
+  force-recreates just the `wikantik` service, and prints the last 50
+  `wikantik` log lines before exiting 1. `--dry-run` prints every step
+  without touching Docker or the filesystem.
+
+Both paths implement the same retag-then-swap-then-health-poll-then-
+auto-rollback discipline as a normal `deploy`; pick `remote.sh --pull` to
+drive a cloud VM from your existing docker1 workflow, or `wikantik-update`
+to run the upgrade directly on the box (e.g. from a cron job or a CI
+runner with only registry access, no ssh key to the dev box).
+
 ### 1.3 Bare-Metal Deployment
 Deploying to a bare-metal server runs Wikantik as the ROOT context of a local
 Tomcat 11 instance against a local PostgreSQL. It is the path for development,
@@ -161,6 +204,34 @@ The full diagnostic chain and methodology live in
 [ScalingCharacterization.md](ScalingCharacterization.md) and
 [LoadTesting.md](LoadTesting.md).
 
+### 1.6 API write-path limits
+
+`PageResource` (`PUT`/`POST /api/pages`) enforces two operator-tunable limits,
+both set via a `wikantik-custom.properties` override — neither has a
+container env var:
+
+| Property | Default | Behavior |
+|---|---|---|
+| `wikantik.api.maxPageBytes` | `262144` (256 KiB) | Maximum UTF-8 byte size of a page body. A larger body is rejected before it reaches the storage layer with **413 Payload Too Large**, naming the actual size, the limit, and the property to raise it. |
+| `wikantik.api.write.requireExpectedVersion` | `false` | Opt-in optimistic-concurrency guard. When `true`, a `PUT` that omits `expectedVersion` in its JSON body is rejected with **400 Bad Request** instead of silently overwriting a concurrent edit. Off by default for backward compatibility with clients that don't send it. |
+
+### 1.7 System-page registry
+
+`SystemPageRegistry` decides which page names count as system/template pages
+(menu fragments, help pages, CSS theme pages) — write-protected from the MCP
+`update_page` tool by default, and excluded from KG extraction. Two
+properties extend the defaults without a code change:
+
+| Property | Default | Behavior |
+|---|---|---|
+| `wikantik.systemPages.extraPatterns` | *(empty)* | Comma-separated regexes; page names matching any of them are additionally treated as system pages, on top of the built-in set. |
+| `wikantik.systemPages.mcpEditable` | `About` | Comma-separated **exact** page names that stay editable via the MCP `update_page` tool despite being system pages. An explicit empty value locks every system page against MCP writes, including `About`. Destructive operations (delete, rename) stay blocked for all system pages regardless of this setting. |
+
+This is the mechanism behind letting MCP edit `About` (CHANGELOG 2.3.5): to
+open a second page to MCP curation, add its exact name to
+`wikantik.systemPages.mcpEditable`, e.g.
+`wikantik.systemPages.mcpEditable = About,Welcome`.
+
 ---
 
 ## 2. Backup & Disaster Recovery
@@ -232,7 +303,7 @@ The full table of subcommands (run `bin/remote.sh --help` or `bin/remote.sh <cmd
 | Subcommand | Purpose |
 |------------|---------|
 | `bootstrap` | First-time remote setup: verify Docker, create remote dirs, rsync compose + scripts + `.env`. |
-| `deploy [--skip-build] [--health-timeout=N]` | Build locally, push image over ssh, `up -d` on remote, health-poll `/api/health`, auto-rollback on failure. |
+| `deploy [--skip-build] [--health-timeout=N] [--pull TAG]` | Build locally, push image over ssh, `up -d` on remote, health-poll `/api/health`, auto-rollback on failure. `--pull TAG` skips the local build **and** the `docker save \| ssh docker load` transfer — the remote runs `docker pull` + retag directly instead, for a target with its own registry access (e.g. a cloud VM). Implies `--skip-build`. |
 | `rollback` | Re-promote `wikantik:rollback` → `wikantik:latest`, force-recreate the service. |
 | `up` / `down` / `restart` | Pass-through to `container.sh -e prod` on the remote. |
 | `status` | One-screen summary: `ps`, `/api/health` status, disk free, pages + backup size, last 10 log lines. |
@@ -282,11 +353,11 @@ The `bin/` directory contains a number of operational tools beyond the main depl
 
 ---
 
-## 4. Knowledge Graph Administration
+## 5. Knowledge Graph Administration
 
 The Knowledge Graph captures structured entities (nodes) and their relationships (edges). Administered primarily via `/admin/knowledge/` in the UI and supported by Model Context Protocol (MCP) integrations.
 
-### 4.1 Provenance & Graph Projector
+### 5.1 Provenance & Graph Projector
 Nodes and edges carry a `provenance` label:
 - `human-authored`: Extracted from YAML frontmatter (e.g., `related: [PageName]`) and body links.
 - `ai-inferred`: Suggested by AI but pending admin approval.
@@ -294,16 +365,16 @@ Nodes and edges carry a `provenance` label:
 
 The **Graph Projector** runs on every page save. It parses frontmatter to insert relationship edges and removes stale data. Missing target pages are created as "stub nodes".
 
-### 4.2 Proposals & AI Integration
+### 5.2 Proposals & AI Integration
 AI agents connected via MCP submit `new-node`, `new-edge`, or `modify-property` proposals through the `propose_knowledge` tool. 
 - **Approval:** A newly accepted `new-edge` relation is written back to the source page's YAML frontmatter.
 - **Rejection:** Rejections include reasons and prevent agents from submitting the exact same proposal again.
 
-### 4.3 Node & Edge Curation
+### 5.3 Node & Edge Curation
 - **Stub Nodes:** Frequent review of stub nodes is encouraged. They represent missing pages or potential typos in YAML blocks.
 - **Edge Types:** Standard conventions (e.g., `related`, `depends_on`, `implements`, `supersedes`) should be maintained across the wiki for querying clarity.
 
-### 4.4 Embeddings & Advanced Quality Tools
+### 5.4 Embeddings & Advanced Quality Tools
 Wikantik leverages a unified embedding model for hybrid search and structural similarity.
 - **Merge Candidates:** Finds structurally and semantically similar nodes. Merging updates all corresponding edges and frontmatter references.
 - **Missing Edges:** The system predicts missing relationships based on topology.

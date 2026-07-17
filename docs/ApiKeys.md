@@ -5,8 +5,14 @@ OpenAPI tool surfaces. Keys are SHA-256 hashed at generation time; only the hash
 is persisted. The plaintext token is displayed exactly once in the admin UI and
 never stored.
 
+There are two issuance surfaces over the same `api_keys` table and `ApiKeyService`:
+an **admin** surface (any key, any principal — this document's main focus) and a
+**self-service** surface (a logged-in user managing only their own keys — see
+[Self-service keys](#self-service-keys) below).
+
 The implementation lives in:
 - `AdminApiKeysResource` — REST resource at `/admin/apikeys`
+- `SelfApiKeysResource` — REST resource at `/api/self/apikeys`
 - `ApiKeyService` — generation, verification, and revocation logic
 - `V010__api_keys.sql` — the `api_keys` table migration
 - `McpAccessFilter` / `ToolsAccessFilter` — enforce key auth on the respective endpoints
@@ -227,6 +233,78 @@ curl -s https://wiki.example.com/tools/search_wiki \
   -H "Authorization: Bearer $TOKEN" \
   -G --data-urlencode "q=example"
 ```
+
+## Self-service keys
+
+Alongside the admin-issued surface above, any logged-in user can manage API keys
+bound to their **own** principal — no `Admin` role required. This is the surface
+for a user who wants a personal key for `search_wiki` / an MCP client without
+asking an admin to generate one on their behalf.
+
+### SPA: API Keys panel in user preferences
+
+Navigate to **Preferences** (`/preferences` in the React SPA) and scroll to the
+**API Keys** section (`MyApiKeys.jsx`). It lists the caller's own active keys
+(label, scope, created, last used), with **+ New key** to generate one and
+per-row **Rotate** / **Revoke** actions. Revoked keys drop out of the list
+entirely rather than being shown with a "revoked" badge — there is no
+"show revoked" toggle on this surface (unlike the admin table).
+
+Generating or rotating opens the same one-time reveal modal as the admin flow:
+copy the plaintext token now, because it is never shown again.
+
+### `SelfApiKeysResource` — REST endpoint reference
+
+Rides the `/api/*` filter chain (standard session/JAAS auth, not API-key auth —
+you need to already be logged in to mint a key for yourself). Every operation is
+scoped to the caller's own login; ownership is enforced server-side, and a
+key id that exists but belongs to someone else resolves to `404` (not `403`) so
+the endpoint gives no oracle for enumerating other users' key ids.
+
+**`GET /api/self/apikeys`** — the caller's own active keys, metadata only:
+
+```json
+{
+  "keys": [
+    { "id": 7, "label": "laptop", "scope": "tools",
+      "createdAt": "2026-06-05T10:00:00Z", "lastUsedAt": "2026-06-06T08:30:00Z" }
+  ]
+}
+```
+
+Note the shape is intentionally thinner than the admin listing — no
+`principalLogin` (always the caller), no `fingerprint`, and no revoked rows (only
+active keys are returned, so there is no `revokedAt`/`revokedBy`/`active` field
+to show).
+
+**`POST /api/self/apikeys`** — generate a key. Body: `{"label": "...", "scope":
+"tools"}` (`scope` is one of `mcp`, `tools`, `all`; omitted defaults to `all`).
+Response (`201`) includes the transient `token` field, shown exactly once:
+
+```json
+{ "id": 7, "label": "laptop", "scope": "tools",
+  "createdAt": "2026-06-05T10:00:00Z", "lastUsedAt": null,
+  "token": "wkntk_<plaintext-secret>" }
+```
+
+**`POST /api/self/apikeys/{id}/rotate`** — revoke-and-reissue: the old key is
+revoked and a new key with the same `label`/`scope` is generated in one call.
+Response shape matches the generate response (new `id`, fresh `token`). `404` if
+`{id}` does not exist, is not owned by the caller, or is already revoked.
+
+**`DELETE /api/self/apikeys/{id}`** — revoke. Response:
+`{"success": true, "id": 7}`. Same `404`-for-unknown/not-owned/already-revoked
+ownership gate as rotate.
+
+Every self-service issue/rotate/revoke is recorded in the audit log (see
+[AuditLog.md](AuditLog.md)) under category `ADMIN`, event types `apikey.issue` /
+`apikey.rotate` / `apikey.revoke` — same event types as the admin surface, actor
+is the caller's own login rather than an admin's.
+
+Error responses:
+- `401` — not authenticated.
+- `503` — `"API key service unavailable — no datasource configured"`.
+- `400` — invalid `scope` on generate.
 
 ## Troubleshooting
 

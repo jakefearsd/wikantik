@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>Connectors — sync Confluence, Drive, GitHub &amp; more into your wiki | Wikantik</title>
+  <meta name="description" content="Six connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/platform/connectors.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/platform/connectors.html">
+  <meta property="og:title" content="Connectors — sync Confluence, Drive, GitHub &amp; more into your wiki | Wikantik">
+  <meta property="og:description" content="Six connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Connectors — sync Confluence, Drive, GitHub &amp; more into your wiki | Wikantik">
+  <meta name="twitter:description" content="Six connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "Connectors: sync external content into your wiki, with provenance",
+    "description": "Six connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.",
+    "datePublished": "2026-07-17", "dateModified": "2026-07-17",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/platform/connectors.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Platform", "item": "https://www.wikantik.com/platform/" },
+      { "@type": "ListItem", "position": 3, "name": "Connectors", "item": "https://www.wikantik.com/platform/connectors.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "What sources can a Wikantik connector sync from?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Six connector types today: a local filesystem, a web crawler, an XML sitemap, RSS/Atom feeds, Google Drive (OAuth2), GitHub, and Confluence. Each is a continuous sync, not a one-time import — content is re-pulled on a schedule and kept current." } },
+      { "@type": "Question", "name": "Will readers know a page came from an external source?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Every synced page carries a provenance banner naming the source and connector, plus a small badge in search results, page lists, and the cluster tree. Nothing is silently absorbed into the wiki as if a human wrote it." } },
+      { "@type": "Question", "name": "Are connector credentials stored securely?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. GitHub tokens, Confluence API tokens, and Google Drive OAuth secrets are encrypted at rest (AES-256-GCM) in a dedicated credential store. The admin UI only ever shows whether a secret is set, never its value, and a dry-run connection test can use a credential without persisting or logging it." } },
+      { "@type": "Question", "name": "Does synced content get indexed for search and the knowledge graph?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. A derived page is a normal wiki page — it is indexed for hybrid search, eligible for context bundles, and, if its cluster is included under the knowledge graph's inclusion policy, extracted into the knowledge graph like any other page. There is no separate second-class content tier." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/platform/">Platform</a> ›
+        <span aria-current="page">Connectors</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Platform</p>
+          <h1>Connectors: sync external content into your wiki, with provenance</h1>
+          <p class="doc-lede">Most of what a team "knows" doesn't live in the wiki — it's scattered across Confluence spaces, GitHub repos, Google Drive folders, RSS feeds, and internal sites nobody remembers to copy over. Wikantik connectors close that gap: six source types sync continuously into ordinary wiki pages, clearly marked with where they came from, so that content is searchable, citable, and part of the knowledge graph — without turning the wiki into an opaque mirror of somewhere else.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>Six sources, one sync model</h2>
+          <p>A connector is a continuous sync, not a one-time import. Once configured, it runs on its own schedule and keeps the corresponding wiki pages current as the source changes:</p>
+          <ul>
+            <li><strong>Filesystem</strong> — a local or mounted directory of documents.</li>
+            <li><strong>Web crawler</strong> — a seeded crawl with depth limits, robots.txt respect, and a path-prefix scope.</li>
+            <li><strong>Sitemap</strong> — an XML sitemap URL list, fetched and walked directly.</li>
+            <li><strong>RSS / Atom feeds</strong> — feed entries synced as pages, with optional full-content fetch.</li>
+            <li><strong>Google Drive</strong> — OAuth2-authorized folders, synced by ID.</li>
+            <li><strong>GitHub</strong> — a repository path, synced by branch and path prefix.</li>
+            <li><strong>Confluence</strong> — a space, synced page by page via the Confluence API.</li>
+          </ul>
+          <p>Every connector shares the same sync engine underneath: content is fetched, hashed, and compared against what is already there. Unchanged items are skipped, changed items update the existing page, and items removed from the source are tombstoned rather than silently vanishing. A sync that fails partway never leaves the wiki in a worse state than before it started.</p>
+
+          <h2>Derived pages: real wiki pages, honestly labeled</h2>
+          <p>A page created by a connector is not a special second-class object — it is a normal Markdown page with YAML frontmatter, stored the same way as anything a human wrote. What makes it a <em>derived</em> page is a <code>derived_from</code> field recording the retained source, plus <code>derived_connector</code> and <code>derived_source_url</code> naming which connector produced it and where the content originated.</p>
+          <p>Readers are never left guessing. Every derived page carries a provenance banner — "Synced from <em>[source]</em> · last synced [date] · via connector <em>[name]</em>" — and a compact badge appears next to derived pages in search results, page lists, and the cluster tree. If a connector is later deleted but its pages are kept, the banner says so plainly: the source is no longer syncing.</p>
+          <div class="callout">
+            <p><strong>The body is machine-owned, the metadata is yours.</strong> A derived page's body is regenerated on every sync — editing it by hand will be overwritten on the next run, and the editor says so. Curation you add in frontmatter (cluster, tags, summary, related pages) survives reflow; only the machine-managed body gets replaced.</p>
+          </div>
+
+          <h2>Synced content is first-class in retrieval and the knowledge graph</h2>
+          <p>A derived page is indexed exactly like any other page: it participates in <a href="/platform/hybrid-retrieval.html">hybrid retrieval</a>, is eligible to appear in a <a href="/platform/rag-context-bundles.html">context bundle</a> with the same version-pinned citations as hand-written content, and — if its assigned cluster is included under the <a href="/platform/knowledge-graph.html">knowledge graph's</a> inclusion policy — gets entities and relationships extracted from it the same as any other page. Connecting an external source is a way to widen what your agents and search can actually find, not a side channel that content has to "graduate" out of.</p>
+
+          <h2>A guided admin experience</h2>
+          <p>Setting up a connector is a stepped wizard in the admin panel, not a properties file and a restart: pick a source type, fill in its settings with inline guidance (down to the exact GitHub token scopes or the Confluence API-token walkthrough), authorize where needed (Google Drive is a real OAuth consent redirect), and run a <strong>dry-run connection test</strong> before saving anything. The test reuses the connector's own fetch path — so "success" means the real sync will work too — and reports what it found in plain language, not a raw API response.</p>
+          <p>Once saved, the connector's detail page shows its last runs, sync status, and the pages it has produced, with a one-click "Sync Now" alongside its schedule. A <code>wikantik.connectors.enabled</code> kill switch lets an operator pause all syncing instantly if something looks wrong.</p>
+
+          <h2>Credentials stay encrypted, never echoed</h2>
+          <p>GitHub personal access tokens, Confluence API tokens, and Google Drive OAuth client secrets and refresh tokens are encrypted at rest (AES-256-GCM) in a dedicated credential store — connector configuration rows themselves hold no secret fields. The admin UI shows only whether a credential is set, never its value, and the dry-run test endpoint can use a freshly entered credential without ever persisting or logging it. Filesystem connectors — the one type that reads arbitrary server paths — are deliberately not creatable from the web UI at all.</p>
+
+          <h2>Sync scheduling, per connector</h2>
+          <p>Each connector has its own sync interval, in hours, editable from its settings — zero or blank means manual-only. A due-tick scheduler checks every connector against its own interval rather than running everything on one fixed clock, so a fast-moving GitHub repo and a slow-changing sitemap can each be scheduled sensibly. Every run — scheduled or manually triggered — is recorded with its timing, counts of created/updated/unchanged/deleted items, and any error text, so a connector's recent history is always visible on its detail page.</p>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>What sources can a Wikantik connector sync from?</summary>
+              <p>Six connector types today: a local filesystem, a web crawler, an XML sitemap, RSS/Atom feeds, Google Drive (OAuth2), GitHub, and Confluence. Each is a continuous sync, not a one-time import — content is re-pulled on a schedule and kept current.</p>
+            </details>
+            <details>
+              <summary>Will readers know a page came from an external source?</summary>
+              <p>Yes. Every synced page carries a provenance banner naming the source and connector, plus a small badge in search results, page lists, and the cluster tree. Nothing is silently absorbed into the wiki as if a human wrote it.</p>
+            </details>
+            <details>
+              <summary>Are connector credentials stored securely?</summary>
+              <p>Yes. GitHub tokens, Confluence API tokens, and Google Drive OAuth secrets are encrypted at rest (AES-256-GCM) in a dedicated credential store. The admin UI only ever shows whether a secret is set, never its value, and a dry-run connection test can use a credential without persisting or logging it.</p>
+            </details>
+            <details>
+              <summary>Does synced content get indexed for search and the knowledge graph?</summary>
+              <p>Yes. A derived page is a normal wiki page — it is indexed for hybrid search, eligible for context bundles, and, if its cluster is included under the knowledge graph's inclusion policy, extracted into the knowledge graph like any other page. There is no separate second-class content tier.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/platform/hybrid-retrieval.html">
+              <strong>Hybrid retrieval</strong>
+              <span>Derived pages are indexed like any other page for BM25 + dense search.</span>
+            </a>
+            <a class="related-card" href="/platform/rag-context-bundles.html">
+              <strong>RAG context bundles</strong>
+              <span>Synced content shows up in cited context bundles with the same version pinning.</span>
+            </a>
+            <a class="related-card" href="/platform/knowledge-graph.html">
+              <strong>Knowledge graph</strong>
+              <span>Entities and relationships extract from included derived pages the same as authored ones.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/rag-context-bundles.html">RAG context bundles</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/ontology.html">Ontology &amp; SPARQL</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+          <a href="/platform/connectors.html">Connectors</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

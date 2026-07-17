@@ -167,6 +167,17 @@ Math is enabled by default. The relevant Flexmark options are set in
 
 No wiki properties currently override these — the behaviour is fixed by code.
 
+### Enforcing the save-time check
+
+The save-time validator described in [Validation on save](#validation-on-save) is
+itself gated:
+
+| Property | Default | Effect |
+|----------|---------|--------|
+| `wikantik.math.enforcement.enabled` | `true` | Master switch for `MathValidationPageFilter`. Set `false` to disable both the blocking ERROR on un-isolated `$$…$$` and the advisory currency-`$` WARNING — pages save without a math structure check at all. |
+
+Properties go in `wikantik-custom.properties` (in `tomcat/tomcat-11/lib/`).
+
 ## Implementation
 
 | Concern | File |

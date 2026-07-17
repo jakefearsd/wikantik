@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Hybrid retrieval: BM25 + dense, RRF-fused",
     "description": "How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion — with a fail-closed BM25 fallback and pluggable dense backend.",
-    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "datePublished": "2026-06-07", "dateModified": "2026-07-17",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/hybrid-retrieval.html" }
@@ -128,6 +128,7 @@
 
           <div class="callout">
             <p><strong>Production note:</strong> the dense backend on docker1 (the live Wikantik deployment) is <code>lucene-hnsw</code> — an in-process Lucene HNSW approximate nearest-neighbour index held in JVM RAM. It is faster than the brute-force <code>inmemory</code> backend on large corpora and avoids the extra database load of the <code>pgvector</code> backend. Switch backends with a single property: <code>wikantik.search.dense.backend = inmemory | pgvector | lucene-hnsw</code>.</p>
+            <p>Dense retrieval sits under the same cost ceiling as the rest of the platform: an operator running the <code>core</code> <code>wikantik.genai.mode</code> tier gets BM25 only, with zero embedding infrastructure to run or pay for, while <code>search</code> or <code>full</code> enable dense fusion through a CPU-only or hosted embedding backend. See <a href="/enterprise/self-hosting-and-backup.html">self-hosting &amp; backup</a> for the tier breakdown.</p>
           </div>
 
           <h2>Why it matters for RAG and agents</h2>
@@ -202,6 +203,7 @@
           <a href="/platform/page-graph.html">Page graph</a>
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
+          <a href="/platform/connectors.html">Connectors</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

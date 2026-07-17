@@ -120,6 +120,24 @@ structural spine.
 [ties into other features](#how-frontmatter-ties-into-the-rest-of-the-platform))
 — you don't author the structured-data output directly.
 
+### Derived-page provenance
+
+| Key | Type | What it is |
+|---|---|---|
+| `derived_from` | read-only | Presence marks the page as **derived** — its body is machine-owned and regenerated (extraction/reflow or connector sync), not hand-authored. Value is the retained source attachment filename. |
+| `derived_connector` | read-only | The id of the [connector](Connectors.md) that owns this page, when the page came from an external-source sync rather than a manual document upload. |
+| `derived_source_url` | read-only | A human-clickable URL back to the external origin, when the source URI isn't already one. |
+| `derived_orphaned` | read-only | Stamped `true` when the owning connector is deleted without cascading page delete — the page is kept but its source is "no longer syncing". |
+
+These four fields are **machine-stamped, never hand-edited**. They're written
+by the ingestion/sync pipeline (`DerivedPageSinkAdapter`,
+`DerivedPageIngestionService`) on create/reflow/sync and read by the reader UI
+to render the provenance banner and the ↯ derived badge in lists and search
+results. Editing them by hand has no lasting effect — the next reflow or sync
+overwrites them from the actual source. See
+[Connectors.md](Connectors.md#reader-facing-provenance) for the full
+provenance model and the six connector types that produce derived pages.
+
 ---
 
 ## The structured editor
@@ -174,7 +192,44 @@ field-value checks warn rather than break existing pages. When a warning's
 corpus-wide count reaches zero (tracked on the
 [drift dashboard](OntologyManagement.md#measuring-drift-the-burn-down-dashboard)),
 it can be ratcheted to a hard error via
-`wikantik.frontmatter.enum.nonCanonical.severity`.
+`wikantik.frontmatter.enum.nonCanonical.severity` (default `warning`; see
+below).
+
+---
+
+## Save-time enforcement
+
+The validate/save model above is implemented by `SchemaValidationPageFilter`,
+a preSave page filter that runs on every save path. A small property family
+controls it:
+
+| Property | Default | What it controls |
+|---|---|---|
+| `wikantik.frontmatter.enforcement.enabled` | `true` | Master gate. When `true`, ERROR-severity violations (malformed YAML, runbook block violations) reject the save with **422**. Set `false` only while migrating a dirty corpus onto the validator for the first time — every save skips schema enforcement entirely while it's off. |
+| `wikantik.frontmatter.enum.nonCanonical.severity` | `warning` | Severity for the `type.noncanonical` / `status.noncanonical` checks above. Set to `error` once the [drift dashboard](OntologyManagement.md#measuring-drift-the-burn-down-dashboard) shows zero remaining occurrences, to make the canonical `type`/`status` sets mandatory. |
+| `wikantik.frontmatter.trustedAuthors` | *(empty)* | Comma-separated login names exempt from the `verified_by` advisory check. Empty — the default — trusts every author; set it to restrict the exemption to a specific list of logins. |
+
+Separately, pages saved with **no frontmatter block at all** can be
+auto-scaffolded rather than left bare, via `FrontmatterDefaultsFilter`:
+
+| Property | Default | What it controls |
+|---|---|---|
+| `wikantik.frontmatter.autoDefaults` | `false` | When `true`, a page saved without any frontmatter gets one generated (`title`, `type`, `tags`, `summary`, `auto-generated: true`). System pages are left untouched regardless of this flag. |
+| `wikantik.frontmatter.defaultTags` | `3` | Number of tags the auto-generated block extracts. Only meaningful when `autoDefaults` is enabled. |
+
+### Auditing a corpus before ratcheting severity to `error`
+
+Turning on enforcement (or ratcheting `nonCanonical.severity` to `error`) on a
+wiki that predates the validator can turn existing dirty pages into save
+failures. `GET /admin/frontmatter-issues` is the migration tool for exactly
+this: an admin-only scan that finds pages whose YAML fails **strict parsing**
+(not the field-value warnings above — those live on the drift dashboard) and
+reports each with the SnakeYAML message and a best-effort line/column. Fix
+each page (editor, or MCP `update_page` — which also auto-normalizes, so a
+fix can be as simple as re-saving with quoted values), re-run the audit, and
+once the list is empty the validator is fully consistent with the corpus.
+It's a synchronous O(N) page-read scan — a migration tool, not something to
+poll from a dashboard.
 
 ---
 
@@ -289,6 +344,7 @@ evidence for ratcheting a warning to an error once its count hits zero. See
 | Save (422 errors / 200 + warnings) | `PUT /api/pages/{name}` |
 | Corpus-wide drift burn-down | `/admin/drift/*` |
 | Agent writes (same validator) | admin MCP `update_page`, `write_pages` |
+| Migration audit (strict-YAML parse failures) | `GET /admin/frontmatter-issues` |
 
 **Where the code lives**
 
@@ -297,6 +353,9 @@ evidence for ratcheting a warning to an error once its count hits zero. See
 - Validators: `wikantik-main`
   (`com.wikantik.frontmatter.schema.SchemaDrivenFrontmatterValidator`,
   `com.wikantik.knowledge.agent.FrontmatterRunbookValidator`)
+- Save-time enforcement: `wikantik-main`
+  (`com.wikantik.frontmatter.schema.SchemaValidationPageFilter`,
+  `com.wikantik.knowledge.FrontmatterDefaultsFilter`)
 - Editor: `wikantik-frontend`
   (`src/components/frontmatter/`, `src/hooks/useFrontmatterValidation.js`)
 - REST: `wikantik-rest` (`FrontmatterSchemaResource`, `FrontmatterValidateResource`,
@@ -306,6 +365,7 @@ evidence for ratcheting a warning to an error once its count hits zero. See
 
 - [OntologyManagement.md](OntologyManagement.md) — the RDF/SKOS model frontmatter projects into, and curation
 - [KgInclusionPolicy.md](KgInclusionPolicy.md) — `kg_include` and the cluster-primary policy
+- [Connectors.md](Connectors.md) — the `derived_*` fields and the six connector types that stamp them
 - [AgentGradeContentDesign.md](wikantik-pages/AgentGradeContentDesign.md) — runbooks, verification, the for-agent projection
 - [StructuralSpineDesign.md](wikantik-pages/StructuralSpineDesign.md) — `cluster`/`hubs`/`canonical_id` and the structural index
 - [SeoAndCrawling.md](SeoAndCrawling.md) — how `type`/`summary`/`image` become structured data

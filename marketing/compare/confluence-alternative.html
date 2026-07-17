@@ -45,7 +45,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "A self-hosted Confluence alternative you actually own",
     "description": "Looking for a Confluence alternative? Wikantik is a self-hosted, plain-markdown wiki with hybrid AI search and native MCP for agents — your data, your infra, no per-seat pricing.",
-    "datePublished": "2026-06-07", "dateModified": "2026-07-05",
+    "datePublished": "2026-06-07", "dateModified": "2026-07-17",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/compare/confluence-alternative.html" }
@@ -64,7 +64,7 @@
       { "@type": "Question", "name": "Does Wikantik support the same rich-text editing as Confluence?",
         "acceptedAnswer": { "@type": "Answer", "text": "Wikantik is a Markdown-first wiki. It does not replicate Confluence's rich-text macro ecosystem, but it renders Markdown cleanly and is edited in any text editor or the built-in editor. Teams already comfortable with Markdown, git, and plain-text workflows find the transition straightforward." } },
       { "@type": "Question", "name": "How hard is it to migrate content from Confluence?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Confluence can export spaces as HTML or XML. From there, standard tools can convert content to Markdown files that Wikantik can ingest directly. The migration path is manual but well-understood; how much effort it takes depends on how heavily your team used Confluence macros." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Wikantik ships a native Confluence connector that syncs a space on a recurring schedule via the Confluence API, so content can be live in Wikantik with no export step while you evaluate. For a full one-time cutover, Confluence can also export spaces as HTML or XML, which standard tools convert to Markdown. Either way, Confluence macros need manual attention — neither path preserves macro behavior, only page content." } },
       { "@type": "Question", "name": "Is Wikantik cheaper than Confluence?",
         "acceptedAnswer": { "@type": "Answer", "text": "Wikantik's self-managed option is free software — you pay for your own infrastructure. The fully-managed option is priced on compute, not per seat. Whether it is cheaper depends on your team size, infrastructure costs, and how you value operational ownership." } }
     ] }
@@ -123,14 +123,17 @@
           <p>Wikantik extracts a knowledge graph from your pages — LLM-derived entities with co-mention and typed-relation edges, stored in a pgvector-backed graph. This is separate from the plain wikilink graph; it captures semantic relationships agents can reason over. Neither Confluence nor its ecosystem ships this natively. Read more about the <a href="/platform/knowledge-graph.html">knowledge graph</a>.</p>
 
           <h3>Self-hosting without the Data Center price tag</h3>
-          <p>Wikantik runs on Docker and PostgreSQL. The self-managed option is free software — you pay for your own infrastructure. For enterprise features (SSO, SCIM, audit log, RBAC), see the <a href="/enterprise/">enterprise</a> overview. There is no per-seat charge either way.</p>
+          <p>Wikantik runs on Docker and PostgreSQL — either Docker Compose on any Linux host, or a one-command Terraform reference deployment to your own AWS or GCP account. The self-managed option is free software — you pay for your own infrastructure. For enterprise features (SSO, SCIM, audit log, RBAC), see the <a href="/enterprise/">enterprise</a> overview. There is no per-seat charge either way.</p>
+
+          <h3>A live Confluence connector, not just a one-time export</h3>
+          <p>Wikantik ships a native <a href="/platform/connectors.html">Confluence connector</a> that syncs a space, page by page, on a recurring schedule through the Confluence API — set up through a guided admin wizard with a dry-run connection test, with your API token encrypted at rest. Synced pages are clearly marked with where they came from and stay current as the source changes, so you can run Wikantik and Confluence side by side during an evaluation instead of committing to a big-bang cutover up front. It is a sync connector, not a pixel-perfect migration tool: it carries over page content, not Confluence's macro ecosystem, so heavily macro-laden pages still want a human pass.</p>
 
           <h2>Honest trade-offs: where Confluence is genuinely stronger</h2>
           <p>Confluence has a large, mature ecosystem of third-party plugins and integrations. If your team depends on specific Confluence macros, deep Jira integration, or any of the hundreds of Marketplace add-ons, those do not exist in Wikantik. The rich-text editor and inline comments are polished in ways that a Markdown editor simply is not for non-technical contributors. And Confluence's install base means most enterprise tools have Confluence connectors already — Wikantik is newer and has a smaller ecosystem by definition.</p>
           <p>If your team is already all-in on the Atlassian suite and non-technical contributors are the primary writers, Confluence may remain the better fit. Wikantik is strongest when the primary authors are engineers, the content is technical, and AI-assisted retrieval and data ownership are first-class concerns.</p>
 
           <h2>Migration thoughts</h2>
-          <p>Confluence can export spaces as HTML or XML. Tools like Pandoc can convert HTML to Markdown, which Wikantik ingests natively. The main friction is Confluence macros: anything rendered by a macro needs manual attention during migration. Most teams find that structured technical documentation migrates cleanly; design notes and heavily formatted pages take more work. A phased migration — start with one team's space, validate the workflow, then expand — tends to go more smoothly than a big-bang cutover.</p>
+          <p>Two paths, and they are not mutually exclusive. If you want Wikantik to start mirroring a Confluence space today with no export step, point the <a href="/platform/connectors.html">Confluence connector</a> at it — it syncs pages on a schedule, so content is live in Wikantik (searchable, citable, provenance-marked as synced from Confluence) while you evaluate, without committing to a cutover date. If you are doing a full, one-time migration away from Confluence entirely, Confluence can still export spaces as HTML or XML, and tools like Pandoc convert that to Markdown for a final import. Either way, the main friction is Confluence macros: anything rendered by a macro needs manual attention, since neither the connector nor an HTML export preserves macro behavior. Most teams find that structured technical documentation migrates cleanly; design notes and heavily formatted pages take more work.</p>
 
           <section class="faq">
             <h2>Frequently asked questions</h2>
@@ -140,7 +143,7 @@
             </details>
             <details>
               <summary>How hard is it to migrate content from Confluence?</summary>
-              <p>Confluence can export spaces as HTML or XML. From there, standard tools can convert content to Markdown files that Wikantik can ingest directly. The migration path is manual but well-understood; how much effort it takes depends on how heavily your team used Confluence macros.</p>
+              <p>Wikantik ships a native Confluence connector that syncs a space on a recurring schedule via the Confluence API, so content can be live in Wikantik with no export step while you evaluate. For a full one-time cutover, Confluence can also export spaces as HTML or XML, which standard tools convert to Markdown. Either way, Confluence macros need manual attention — neither path preserves macro behavior, only page content.</p>
             </details>
             <details>
               <summary>Is Wikantik cheaper than Confluence?</summary>
@@ -199,6 +202,7 @@
           <a href="/platform/page-graph.html">Page graph</a>
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
+          <a href="/platform/connectors.html">Connectors</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

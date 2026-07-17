@@ -42,6 +42,8 @@ Key capabilities:
 - **OpenAPI tool server** at `/tools/*` — OpenWebUI-compatible OpenAPI 3.1 endpoint exposing `search_wiki` and `get_page` for non-MCP LLM clients
 - **Raw content and change feed** — `GET /wiki/{slug}?format=md|json` and `GET /api/changes?since=…` for search-engine crawlers and RAG ingestion pipelines (see [IndexingSupport.md](IndexingSupport.md))
 - **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60); fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
+- **External-source connectors** — six connector types (filesystem, web crawler, sitemap, RSS/Atom feed, Google Drive, GitHub, Confluence) sync external content into first-class **derived pages** riding every existing rail (search, embeddings, Knowledge Graph, citations); DB-backed configs with hot-apply, an encrypted credentials store, a guided Add Connector wizard, dry-run test-connection, and reader-facing provenance badges, managed at `/admin/connectors` (see [Connectors.md](docs/Connectors.md))
+- **Cost-governed LLM usage** — a single `wikantik.genai.mode` ceiling (`full` / `embeddings-only` / `none`) caps embedding and chat-inference spend per deployment; the wiki, hybrid search, and MCP surfaces all run with LLM inference fully off, and `GET /api/capabilities` reports the effective tier so clients — human and agent — can adapt (see [CostTiers.md](docs/CostTiers.md))
 - **Admin panel** at `/admin/` — user management, content management (orphaned pages, broken links, version purging, chunk inspector, index status), security management (groups and policy grants), API keys, page ownership, Knowledge-Graph curation, KG inclusion policy, ontology rebuild, a metadata-drift burn-down dashboard, retrieval-quality dashboard, and a tamper-evident audit log
 - **Database-backed authorisation** — policy grants and groups stored in PostgreSQL, manageable through the admin UI, with bootstrap admin override for recovery
 - **SCIM 2.0 provisioning** at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD and discovery for IdP-driven onboarding/offboarding (see [ScimProvisioning.md](docs/ScimProvisioning.md))
@@ -89,11 +91,13 @@ Wikantik makes sense for you if:
 - You're using AI assistants (Claude Code, Cursor, OpenWebUI, Open Interpreter) and want them to read and write a real institutional knowledge base without a custom integration per tool.
 - You want to keep your knowledge base on infrastructure you control, with a permissive (Apache 2.0) license that lets you fork or relicense your derivatives.
 - You're comfortable on a JVM stack and want PostgreSQL + pgvector as your single data store rather than running a separate vector database.
+- You need to pull outside content — a shared drive, a GitHub repo, a Confluence space, an RSS feed, a plain web crawl — into the same searchable, agent-queryable page store instead of standing up a separate ingestion pipeline (see [Connectors.md](docs/Connectors.md)).
+- You want LLM spend to be a dial, not an all-or-nothing bet: `wikantik.genai.mode` (`full` / `embeddings-only` / `none`) lets you run the wiki, keyword search, and page CRUD with zero inference cost, then turn on embeddings and chat features per deployment tier (see [CostTiers.md](docs/CostTiers.md)).
 
 Wikantik may **not** be for you if:
 
-- You want a SaaS / no-ops setup — there isn't a hosted version yet.
-- You don't have ~512 MB of RAM for Tomcat and ~2 GB for the embedding service (Ollama).
+- You want a SaaS / no-ops setup — there isn't a hosted version yet, though [deploy/aws](deploy/aws/README.md) and [deploy/gcp](deploy/gcp/README.md) give you a one-command reference deployment on your own cloud account.
+- You don't have ~512 MB of RAM for Tomcat and ~2 GB for the embedding service (Ollama) — unless you run `wikantik.genai.mode=none`, which drops the inference-host requirement entirely at the cost of hybrid search and the Knowledge Graph.
 - You need real-time multi-user collaborative editing à la Notion. The reader is real-time; the editor is single-author per page.
 
 ## Architecture at a glance
@@ -168,7 +172,7 @@ and `/sparql` at a tighter "expensive" tier with a single-host global cap),
 with `/api/health` and loopback exempt so monitoring and internal traffic are
 never throttled.
 
-The reader hot path stays in Lucene + the page filesystem; the agent hot path goes through `/knowledge-mcp` to PostgreSQL + pgvector for hybrid retrieval. The two graph viewers (`/page-graph`, `/knowledge-graph`) hang off the SPA but query different services. Container deploys bundle Tomcat + PostgreSQL + pgvector + an optional backup sidecar — driven by `bin/container.sh` locally and `bin/remote.sh` for an ssh remote host; bare-metal deploys (`bin/deploy-local.sh`) reuse the host's PostgreSQL.
+The reader hot path stays in Lucene + the page filesystem; the agent hot path goes through `/knowledge-mcp` to PostgreSQL + pgvector for hybrid retrieval. The two graph viewers (`/page-graph`, `/knowledge-graph`) hang off the SPA but query different services. External sources — filesystem trees, crawled web pages, sitemaps, RSS/Atom feeds, Google Drive, GitHub, Confluence — sync into the same page store as derived pages via the `wikantik-connectors` runtime, managed at `/admin/connectors` (see [Connectors.md](docs/Connectors.md)); no separate ingestion pipeline to run. Container deploys bundle Tomcat + PostgreSQL + pgvector + an optional backup sidecar — driven by `bin/container.sh` locally and `bin/remote.sh` for an ssh remote host; bare-metal deploys (`bin/deploy-local.sh`) reuse the host's PostgreSQL; cloud VM deploys (`deploy/aws`, `deploy/gcp`) provision the same stack via Terraform (see [CloudDeployment.md](docs/CloudDeployment.md)).
 
 ## Prerequisites
 
@@ -377,6 +381,19 @@ A routine upgrade is an image swap — the Postgres volume and the host-bind
 page tree persist, and the container entrypoint applies any new schema
 migrations on start.
 
+**Cloud deployment (AWS / GCP)** — [`deploy/aws/`](deploy/aws/README.md) and
+[`deploy/gcp/`](deploy/gcp/README.md) are minimal single-VM Terraform reference
+modules (EC2 + EBS, or Compute Engine + a persistent disk, each with daily
+snapshots, one security group / firewall, a static IP, and secrets in SSM
+Parameter Store / Secret Manager) that provision a VM, install Docker via
+cloud-init, and bring up the same Compose stack under a `docker-compose.cloud.yml`
+overlay (registry image, `caddy`/`cloudflared`/`ollama-embed` profiles) at a
+chosen GenAI cost tier. Once running, `deploy/bin/wikantik-update.sh` (or
+`bin/remote.sh deploy --pull TAG`) pulls a new image and auto-rolls-back on a
+failed health check — no local build required. See
+[CloudDeployment.md](docs/CloudDeployment.md) for the operator-facing overview
+and [CostTiers.md](docs/CostTiers.md) for the `wikantik.genai.mode` cost tiers.
+
 Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agent on each host pushing metrics and logs to a central Prometheus + Loki + Grafana on host `inference`. The wikantik container exposes `/metrics`, which jakemon scrapes. There is no in-repo observability stack.
 
 Every subcommand supports `--help`. The compose files and
@@ -406,6 +423,7 @@ monitoring, and the bare-metal ↔ container migration.
 | `wikantik-scim` | SCIM 2.0 provisioning server at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD and discovery for IdP onboarding/offboarding |
 | `wikantik-extract-cli` | Standalone entity-extractor CLI for offline batch extraction; also hosts the derived-page batch ingester |
 | `wikantik-ingest` | Document-extraction layer for derived pages (Apache Tika + flexmark) — isolates the heavy PDF/Office parsers from the engine |
+| `wikantik-connectors` | External-source connector runtime — filesystem, web crawler, sitemap, RSS/Atom feed, Google Drive, GitHub, and Confluence connectors syncing into derived pages via a shared `SyncOrchestrator` (hash-dedup, cursor-resume, tombstones); DB-backed configs with hot-apply and an encrypted credentials store, managed at `/admin/connectors` |
 | `wikantik-observability` | Health checks, Prometheus metrics, request correlation, and the two-tier per-IP `RateLimitFilter` |
 | `wikantik-frontend` | React SPA (Vite 8 / Rolldown build) — reader, editor, admin panel, Knowledge Graph viewer, Page Graph viewer |
 | `wikantik-war` | WAR packaging and deployment config; bundles the frontend build output |
@@ -528,6 +546,8 @@ Migrating from a previous Wikantik install? See
 
 - [LoadTesting.md](docs/LoadTesting.md) — methodology for the k6 + JFR + Prometheus load-test workflow: when to run, how to isolate variables, how to read results, how to pair k6 with JFR to find contention. (Tactical harness reference lives at [`loadtest/README.md`](loadtest/README.md).)
 - [DockerDeployment.md](docs/DockerDeployment.md) — the container deployment guide: local & remote, first-deploy procedure, the release/upgrade wrappers, DB initialisation, backups, monitoring
+- [CloudDeployment.md](docs/CloudDeployment.md) — **cloud VM deployment** (AWS/GCP): the `deploy/aws` / `deploy/gcp` Terraform reference modules, the `docker-compose.cloud.yml` overlay, and pull-based updates via `wikantik-update.sh`
+- [CostTiers.md](docs/CostTiers.md) — **GenAI cost-tier reference**: the `wikantik.genai.mode` ceiling (`full` / `embeddings-only` / `none`), three named tiers with exact `.env` / properties presets, and how to verify a tier is actually enforced
 - [WikantikOperations.md](docs/WikantikOperations.md) — the **operations handbook**: container topology, admin/maintenance scripts (`bin/kg-*.sh`, `remote.sh` subcommands), index/KG rebuilds, performance & concurrency tuning
 - [production-container-architecture.md](docs/production-container-architecture.md) — production deployment topology: the single-host container stack and the tag-triggered release pipeline
 - [BackupAndRecovery.md](docs/BackupAndRecovery.md) — backup sidecar, off-box NAS pull, audit-archive retention, and the disaster-recovery restore drill
@@ -562,9 +582,11 @@ configuration, the relevant admin UI route, REST endpoints, auth model, and trou
 
 - [ScimProvisioning.md](docs/ScimProvisioning.md) — **SCIM 2.0 provisioning** (`/scim/v2/*`): IdP-driven user/group onboarding and offboarding, bearer token, discovery endpoints
 - [ApiKeys.md](docs/ApiKeys.md) — **programmatic API keys** (`/admin/apikeys`): issuing, scoping, and revoking bearer tokens for the MCP / OpenAPI / REST surfaces
+- [Connectors.md](docs/Connectors.md) — **external-source connectors** (`/admin/connectors`): the six connector types, the guided Add Connector wizard, DB-backed configs with hot-apply, encrypted credentials, and derived-page provenance marking
 - [AuditLog.md](docs/AuditLog.md) — **tamper-evident audit log** (`/admin/audit`): the hash-chained action record, query/verify/export, and retention
 - [PageOwnership.md](docs/PageOwnership.md) — **page ownership** (`/admin/page-ownership`): the owner model, the seeded `agents` account, and reassignment
 - [KgInclusionPolicy.md](docs/KgInclusionPolicy.md) — **Knowledge-Graph inclusion policy** (`/admin/kg-policy`): the cluster-primary default-exclude policy, `kg_include:` overrides, and `bin/kg-policy.sh`
+- [HubDiscovery.md](docs/HubDiscovery.md) — **hub discovery** (`/admin/knowledge-graph` → Hub Discovery tab): HDBSCAN cluster-based hub proposals, clustering-parameter tuning, the accept/dismiss workflow, and existing-hub health stats
 - [RetrievalQuality.md](docs/RetrievalQuality.md) — **retrieval-quality dashboard** (`/admin/retrieval-quality`): nightly nDCG/Recall/MRR CI and the Prometheus gauges
 - [CommentsAndMentions.md](docs/CommentsAndMentions.md) — **comments & @-mentions**: threaded page discussion, mention notifications, and the `/me/mentions` inbox
 - [Blog.md](docs/Blog.md) — **per-user blogs** (`/blog/*`): blog spaces, entries, discovery, and the editor

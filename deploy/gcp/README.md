@@ -18,6 +18,12 @@ variables assembled in this module's `main.tf`, exactly mirroring how
 `deploy/aws/main.tf` assembles its own AWS-specific values for the same
 template.
 
+> See [docs/CloudDeployment.md](../../docs/CloudDeployment.md) for the
+> operator-facing overview tying this module together with the
+> `docker-compose.cloud.yml` overlay, the GenAI cost tiers, and the
+> pull-based update flow. This README is the canonical step-by-step
+> procedure for the GCP module specifically.
+
 > **Validation status:** this module has been format-checked
 > (`terraform fmt -check`), initialized against the real `hashicorp/google`
 > provider (`terraform init -backend=false`, resolved to v7.40.0), and

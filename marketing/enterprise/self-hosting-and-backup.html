@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="google-adsense-account" content="ca-pub-5083997587716933">
-  <title>Self-hosted wiki on Docker, with backup &amp; disaster recovery | Wikantik</title>
-  <meta name="description" content="Run Wikantik on your own infrastructure with Docker and PostgreSQL — plain-markdown data you own — backed by a 3-2-1 backup strategy and tested disaster recovery.">
+  <title>Self-hosted wiki: Docker, one-command AWS/GCP, backup &amp; DR | Wikantik</title>
+  <meta name="description" content="Run Wikantik on your own infrastructure — Docker Compose, or a one-command AWS/GCP Terraform reference deployment — with a 3-2-1 backup strategy, tested disaster recovery, and cost-governed LLM spend.">
   <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://www.wikantik.com/enterprise/self-hosting-and-backup.html">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -13,14 +13,14 @@
   <!-- Open Graph -->
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://www.wikantik.com/enterprise/self-hosting-and-backup.html">
-  <meta property="og:title" content="Self-hosted wiki on Docker, with backup &amp; disaster recovery | Wikantik">
-  <meta property="og:description" content="Run Wikantik on your own infrastructure with Docker and PostgreSQL — plain-markdown data you own — backed by a 3-2-1 backup strategy and tested disaster recovery.">
+  <meta property="og:title" content="Self-hosted wiki: Docker, one-command AWS/GCP, backup &amp; DR | Wikantik">
+  <meta property="og:description" content="Run Wikantik on your own infrastructure — Docker Compose, or a one-command AWS/GCP Terraform reference deployment — with a 3-2-1 backup strategy, tested disaster recovery, and cost-governed LLM spend.">
   <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Self-hosted wiki on Docker, with backup &amp; disaster recovery | Wikantik">
-  <meta name="twitter:description" content="Run Wikantik on your own infrastructure with Docker and PostgreSQL — plain-markdown data you own — backed by a 3-2-1 backup strategy and tested disaster recovery.">
+  <meta name="twitter:title" content="Self-hosted wiki: Docker, one-command AWS/GCP, backup &amp; DR | Wikantik">
+  <meta name="twitter:description" content="Run Wikantik on your own infrastructure — Docker Compose, or a one-command AWS/GCP Terraform reference deployment — with a 3-2-1 backup strategy, tested disaster recovery, and cost-governed LLM spend.">
   <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <link rel="stylesheet" href="/styles.css">
@@ -42,9 +42,9 @@
 
   <script type="application/ld+json">
   { "@context": "https://schema.org", "@type": "TechArticle",
-    "headline": "Self-hosted wiki on Docker, with backup &amp; disaster recovery",
-    "description": "Run Wikantik on your own infrastructure with Docker and PostgreSQL — plain-markdown data you own — backed by a 3-2-1 backup strategy and tested disaster recovery.",
-    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "headline": "Self-hosted wiki: Docker, one-command AWS/GCP, backup and disaster recovery",
+    "description": "Run Wikantik on your own infrastructure — Docker Compose, or a one-command AWS/GCP Terraform reference deployment — with a 3-2-1 backup strategy, tested disaster recovery, and cost-governed LLM spend.",
+    "datePublished": "2026-06-07", "dateModified": "2026-07-17",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/enterprise/self-hosting-and-backup.html" }
@@ -64,6 +64,10 @@
         "acceptedAnswer": { "@type": "Answer", "text": "Three independent copies of your data exist at all times: the live production database and page tree on your server; tiered local snapshots (daily, weekly, monthly) on the same host; and an off-site archive pulled by a NAS on a daily schedule. The NAS always initiates the pull over a read-only SSH key — your production server cannot write to or delete from the off-site archive, which is the primary ransomware control." } },
       { "@type": "Question", "name": "How do I restore from a backup?",
         "acceptedAnswer": { "@type": "Answer", "text": "For disaster recovery to a fresh host, bin/dr-restore.sh automates the full stand-up: it stages the compose files, pulls or transfers the Docker image, copies and verifies a backup snapshot, restores the database, and runs a smoke test. For a manual in-place restore, stop the app, pick a snapshot, run the restore.sh script in the backup sidecar (which verifies checksums before proceeding), and start the app. The search index rebuilds automatically on startup." } },
+      { "@type": "Question", "name": "Can I deploy Wikantik to AWS or GCP without hand-configuring servers?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Wikantik ships single-VM Terraform reference deployments for AWS and GCP: one terraform apply stands up a VM, a persistent data volume with daily snapshots, a static IP, and secrets storage in your own account, and pulls the application as a prebuilt image from GitHub Container Registry. It is still self-hosting — the infrastructure runs in your cloud account under your control, not as a service Wikantik operates for you." } },
+      { "@type": "Question", "name": "Can I control how much I spend on AI/LLM inference?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. A single wikantik.genai.mode property acts as a spending ceiling with three tiers: core runs BM25 search only with zero inference infrastructure, search adds dense embeddings via a CPU-only sidecar with no chat inference, and knowledge enables full entity extraction. The public /api/capabilities endpoint reports exactly which features are active so you can verify the ceiling is enforced." } },
       { "@type": "Question", "name": "Is there a per-seat pricing difference between self-hosted and fully-managed?",
         "acceptedAnswer": { "@type": "Answer", "text": "No. Wikantik is not priced per seat. Self-managed is free software — run it yourself at no licensing cost. Fully-managed is priced on compute, not headcount, so your cost scales with usage, not with how many people you onboard." } }
     ] }
@@ -99,7 +103,7 @@
         <header class="doc-head">
           <p class="eyebrow">Enterprise</p>
           <h1>Self-hosted wiki on Docker, with backup &amp; disaster recovery</h1>
-          <p class="doc-lede">Wikantik runs on Docker and PostgreSQL on your own infrastructure — no vendor lock-in, no per-seat licensing, no third party holding your knowledge base. Your pages are plain Markdown files in a git-trackable directory. A 3-2-1 backup strategy with off-site pull and automated disaster recovery testing means you can prove you can recover, not just hope you can.</p>
+          <p class="doc-lede">Wikantik runs on Docker and PostgreSQL on your own infrastructure — no vendor lock-in, no per-seat licensing, no third party holding your knowledge base. Your pages are plain Markdown files in a git-trackable directory. Stand it up with Docker Compose on any Linux host, or with a one-command Terraform reference deployment to your own AWS or GCP account. A 3-2-1 backup strategy with off-site pull, automated disaster recovery testing, and a spending ceiling for LLM inference mean you can prove you can recover — and prove what you're spending — not just hope.</p>
         </header>
         <div class="doc-body">
 
@@ -111,6 +115,16 @@
           <p>The production deployment is a Docker Compose stack: the Wikantik application container, a PostgreSQL + pgvector database, and a backup sidecar. The application is released as a Docker image to GitHub Container Registry. Deploying a new version is a pull-and-restart, and rolling back is the same operation in the other direction.</p>
           <p>The stack requires no special hardware or managed cloud services. A single Linux host with Docker installed is sufficient for a production deployment. Wikantik runs in production at <a href="https://wiki.wikantik.com/wiki/DockerDeployment">wiki.wikantik.com</a> on this exact stack.</p>
           <p>Configuration is injected via environment variables from a <code>.env.prod</code> file (never checked into git). SSO credentials, database passwords, MCP access keys, and SCIM tokens all live there. The <code>docker/entrypoint.sh</code> script maps them to the properties the application reads at startup.</p>
+
+          <h2>Cloud reference deployments: one command to AWS or GCP</h2>
+          <p>If you'd rather not hand-provision a Linux box, Wikantik ships Terraform reference deployments for both AWS and GCP. Each is a single <code>terraform apply</code> that stands up one VM (EC2 or Compute Engine), a persistent data volume with automated daily snapshots, a security group or firewall, a static IP, and secrets stored in your own account (SSM Parameter Store on AWS, Secret Manager on GCP) — all inside your existing cloud project, under your billing, under your control. This is still self-hosting: it is a reference deployment you run yourself, not a service Wikantik operates on your behalf.</p>
+          <p>Both modules are deliberately minimal — one VM, no load balancer, no managed Kubernetes, no multi-AZ — because Wikantik is a single-instance app by design (filesystem page storage, in-JVM locks, an in-RAM search index). A fancier topology would add cost and failure modes without buying you anything. The application itself ships as a prebuilt Docker image on GitHub Container Registry (GHCR); the Terraform module pulls it directly, so there is no local image build step.</p>
+          <p>Two ingress options ship with the cloud overlay: <strong>Caddy</strong>, which terminates TLS automatically via Let's Encrypt on a domain you point at the deployment, or a <strong>Cloudflare Tunnel</strong>, which needs no public inbound ports and no domain of your own — outbound-only, behind Cloudflare's edge. Pick whichever matches how your network is already set up.</p>
+          <p>Routine version upgrades use a pull-based, in-place update script (<code>wikantik-update</code>, installed on the VM by the cloud-init bootstrap) rather than re-running Terraform: it pulls the new image tag, retags the currently running image as a rollback point, brings the stack up, health-polls the result, and automatically rolls back if the health check fails. A bad update self-heals instead of leaving the wiki down.</p>
+
+          <h2>Cost governance: a ceiling on LLM spend</h2>
+          <p>Self-hosting your data is only half the ownership story if an AI feature can run up an unbounded inference bill. A single property, <code>wikantik.genai.mode</code>, acts as a hard ceiling on LLM spend across three tiers: <strong>core</strong> runs BM25 keyword search only, with no embedding client and no chat inference running anywhere — zero inference infrastructure to pay for. <strong>search</strong> adds dense-embedding hybrid search through a CPU-only embedding sidecar, still with no chat inference. <strong>knowledge</strong> enables the full pipeline — knowledge-graph entity extraction and proposal judging — against either a hosted API key or your own self-run model.</p>
+          <p>The mode is a ceiling, not a switch: it never turns a feature on by itself, it only caps what an already-enabled feature is allowed to do, and every gated call site logs a warning when the ceiling suppresses something that was explicitly enabled. The wiki runs fully — search included — with AI extraction off. The public <code>GET /api/capabilities</code> endpoint reports the ceiling-adjusted effective state (not just the raw configuration flags), so you can verify from the outside exactly what's active before you trust a spend estimate.</p>
 
           <h2>No lock-in: plain Markdown, exportable anytime</h2>
           <p>Your pages live in a bind-mounted directory on the host. The format is standard CommonMark Markdown with YAML frontmatter — readable in any text editor, importable into any other system that accepts Markdown. If you ever decide to move to a different wiki, your content goes with you in a format that doesn't require a decoder ring.</p>
@@ -157,6 +171,14 @@
             <details>
               <summary>How do I restore from a backup?</summary>
               <p>For disaster recovery to a fresh host, <code>bin/dr-restore.sh</code> automates the full stand-up: it stages the compose files, pulls or transfers the Docker image, copies and verifies a backup snapshot, restores the database, and runs a smoke test. For a manual in-place restore, stop the app, pick a snapshot, run the restore script in the backup sidecar (which verifies checksums before proceeding), and start the app. The search index rebuilds automatically on startup.</p>
+            </details>
+            <details>
+              <summary>Can I deploy Wikantik to AWS or GCP without hand-configuring servers?</summary>
+              <p>Yes. Wikantik ships single-VM Terraform reference deployments for AWS and GCP: one <code>terraform apply</code> stands up a VM, a persistent data volume with daily snapshots, a static IP, and secrets storage in your own account, and pulls the application as a prebuilt image from GitHub Container Registry. It is still self-hosting — the infrastructure runs in your cloud account under your control, not as a service Wikantik operates for you.</p>
+            </details>
+            <details>
+              <summary>Can I control how much I spend on AI/LLM inference?</summary>
+              <p>Yes. A single <code>wikantik.genai.mode</code> property acts as a spending ceiling with three tiers: <strong>core</strong> runs BM25 search only with zero inference infrastructure, <strong>search</strong> adds dense embeddings via a CPU-only sidecar with no chat inference, and <strong>knowledge</strong> enables full entity extraction. The public <code>/api/capabilities</code> endpoint reports exactly which features are active so you can verify the ceiling is enforced.</p>
             </details>
             <details>
               <summary>Is there a per-seat pricing difference between self-hosted and fully-managed?</summary>
@@ -215,6 +237,7 @@
           <a href="/platform/page-graph.html">Page graph</a>
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
+          <a href="/platform/connectors.html">Connectors</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

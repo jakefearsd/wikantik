@@ -188,7 +188,7 @@ Environments (passed via `-e`):
 |-----|--------------|--------------|
 | `dev` (default) | base + `docker-compose.dev.yml` | DB on host port 15432; JDWP debug port 5005; uses `Dockerfile.dev` for hot-swap (bind-mounts `wikantik-war/target/Wikantik.war` into the container); pages mounted from `docs/wikantik-pages/` |
 | `prod` | base + `docker-compose.prod.yml` | Backup sidecar; host bind-mount for pages (`WIKANTIK_PAGES_DIR`); resource limits (2G); `wikantik-profiling` volume; DB published on `${DB_HOST_BIND:-172.17.0.1}:5432` for jakemon; `start_period 90s` healthcheck |
-| `test` | `docker-compose.test.yml` only | Ephemeral DB + alt ports (wikantik on 18080, DB on 15432); used by `smoke-test` subcommand |
+| `test` | base + `docker-compose.test.yml`, project `wikantik-test` | Alt ports (wikantik on 18080 via `WIKANTIK_HOST_PORT`, DB on 15432); own namespaced containers + volumes so `down -v` never touches dev/prod state; used by `smoke-test` subcommand |
 | `base` | base only | No overlays — useful for debugging compose variable substitution in isolation |
 
 The base compose healthcheck `start_period` is **60 s**; the prod overlay raises it to **90 s** to accommodate migration time on a cold start.
@@ -324,6 +324,10 @@ WIKANTIK_HOST_PORT=18080 docker compose \
 
 `-p wikantik-test` namespaces all volumes (`wikantik-test_pgdata`, …) so
 prod / dev state is untouched. Tear down with `… -p wikantik-test down -v`.
+
+`bin/container.sh -e test up -d` and `bin/container.sh smoke-test` are
+equivalent shorthand — both run base + test overlay under `-p wikantik-test`
+with `WIKANTIK_HOST_PORT` defaulting to `18080`.
 
 ## 6. Initialising the database from an existing dump
 

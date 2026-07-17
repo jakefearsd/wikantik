@@ -182,7 +182,7 @@ The primary wrapper around `docker compose` for the container stack.
 - `backup [TIER]`: Triggers an ad-hoc backup inside the prod sidecar.
 - `restore PATH`: Restores DB and content from a snapshot path.
 - `psql`: Opens an interactive PostgreSQL shell in the DB container.
-- `smoke-test`: Spins up `docker-compose.test.yml` to verify health checks before tear down.
+- `smoke-test`: Spins up the test stack (base + `docker-compose.test.yml` overlay, project `wikantik-test`, port 18080) to verify health checks before tear down.
 
 ### `bin/deploy-local.sh`
 Handles bare-metal Tomcat deployments.
@@ -274,6 +274,7 @@ The `bin/` directory contains a number of operational tools beyond the main depl
 | `bin/tests/test-audit-retention.sh` | Pure-filesystem unit tests for `audit-retention.sh` using stubbed `psql`/`pg_dump`/`pg_restore`. No real PostgreSQL required. | Read-only test harness. |
 | `bin/tests/test-backup.sh` | Tests for `backup.sh` and `nas-pull.sh` manifest + metrics emission. Stubbed `pg_dump`/`psql`/`rsync`/`curl` — no real PG or ssh. | Read-only test harness. |
 | `bin/tests/test-remote.sh` | Smoke tests for `bin/remote.sh` in `--dry-run` mode with a fake `remote.env`. No real ssh or docker. | Read-only test harness. |
+| `bin/tests/test-container.sh` | Tests for `bin/container.sh`'s test-env / smoke-test compose invocation (base + overlay, `-p wikantik-test`, port 18080) using stubbed `docker`/`curl`; two real `docker compose config` checks, nothing started. | Read-only test harness. |
 
 **`WIKANTIK_SEED_DEV_USERS` and `-e base`**
 - Setting `WIKANTIK_SEED_DEV_USERS=true` in `.env` causes the entrypoint to ensure the default admin (admin/admin123, must-change-on-first-login) exists via `bin/db/seed-users.sql`. Fresh databases get the same flagged admin from migrations V002+V039 regardless. **Never set in production.**

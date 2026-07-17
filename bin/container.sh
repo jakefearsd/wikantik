@@ -18,13 +18,15 @@
 #   backup [TIER]                 trigger a backup via the prod backup sidecar
 #                                 (TIER ∈ daily|weekly|monthly, default daily)
 #   restore PATH                  restore from /backups/<tier>/<date>/ via sidecar
-#   smoke-test                    bring up docker-compose.test.yml, hit /api/health,
-#                                 tear down. Verifies the build before a release.
+#   smoke-test                    bring up the test stack (base + test overlay,
+#                                 project wikantik-test), hit /api/health, tear
+#                                 down. Verifies the build before a release.
 #
 # Environments (-e / --env):
 #   dev    (default) base + docker-compose.dev.yml — local dev overlays
 #   prod   base + docker-compose.prod.yml          — backup sidecar enabled
-#   test   docker-compose.test.yml                 — alt ports, ephemeral DB
+#   test   base + docker-compose.test.yml          — alt ports (18080/15432),
+#          project wikantik-test (own containers + volumes, dev/prod untouched)
 #   base   base only                               — no overlays
 #
 # Usage:
@@ -174,14 +176,17 @@ smoke-test — bring up the test stack, hit /api/health, tear down.
 
 Usage: bin/container.sh smoke-test [--keep]
 
-Procedure:
-  1. docker compose -f docker-compose.test.yml up -d --build
+Procedure (docker-compose.test.yml is an overlay, so the base compose is
+always included; -p wikantik-test namespaces containers and volumes):
+  1. docker compose -p wikantik-test -f docker-compose.yml \
+       -f docker-compose.test.yml up -d --build   (WIKANTIK_HOST_PORT=18080)
   2. Poll http://localhost:18080/api/health until UP (or 60s timeout)
-  3. docker compose -f docker-compose.test.yml down -v   (unless --keep)
+  3. Tear down with `down -v` (unless --keep; the -v only removes the
+     wikantik-test_* volumes, never dev/prod state)
 
 Returns 0 if the wikantik container reports healthy; 1 if anything in
 build / start / health-check fails. Pure verification — does not affect
-the dev or prod stacks (test uses port 18080, db on 15432).
+the dev or prod stacks (wikantik on 18080, db on 15432, own project name).
 EOF
             ;;
         *)
@@ -196,6 +201,11 @@ EOF
 # Default environment is "dev" — matches the operator's most-common case.
 ENV=dev
 COMPOSE_BASE=(-f docker-compose.yml)
+# docker-compose.test.yml is an OVERLAY (deltas only) — it always rides on the
+# base compose. -p wikantik-test namespaces containers AND volumes away from
+# the dev/prod stacks, so the smoke-test's `down -v` can never destroy their
+# state. Used by `-e test` and the smoke-test subcommand.
+COMPOSE_TEST=(-p wikantik-test "${COMPOSE_BASE[@]}" -f docker-compose.test.yml)
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -227,7 +237,11 @@ case "${ENV}" in
         COMPOSE_FILES=("${COMPOSE_BASE[@]}" -f docker-compose.prod.yml)
         ;;
     test)
-        COMPOSE_FILES=(-f docker-compose.test.yml)
+        COMPOSE_FILES=("${COMPOSE_TEST[@]}")
+        # The base compose defaults the host port to 8080 — move the test
+        # stack to 18080 so it can run alongside a bare-metal Tomcat. An
+        # operator-supplied WIKANTIK_HOST_PORT still wins.
+        export WIKANTIK_HOST_PORT="${WIKANTIK_HOST_PORT:-18080}"
         ;;
     base)
         COMPOSE_FILES=("${COMPOSE_BASE[@]}")
@@ -317,27 +331,30 @@ case "${SUBCOMMAND}" in
     smoke-test)
         keep=0
         if [[ "${1:-}" == "--keep" ]]; then keep=1; fi
-        echo "Bringing up test stack (docker-compose.test.yml)..."
-        docker compose -f docker-compose.test.yml up -d --build
-        echo "Waiting for /api/health (port 18080)..."
+        # Alt host port so the stack stays clear of a bare-metal Tomcat on
+        # 8080 (the base compose default); an explicit override still wins.
+        export WIKANTIK_HOST_PORT="${WIKANTIK_HOST_PORT:-18080}"
+        echo "Bringing up test stack (base + docker-compose.test.yml, project wikantik-test)..."
+        docker compose "${COMPOSE_TEST[@]}" up -d --build
+        echo "Waiting for /api/health (port ${WIKANTIK_HOST_PORT})..."
         for _ in $(seq 1 30); do
-            if curl -sfo /dev/null http://localhost:18080/api/health; then
+            if curl -sfo /dev/null "http://localhost:${WIKANTIK_HOST_PORT}/api/health"; then
                 echo "  health UP"
                 if [[ "${keep}" -eq 0 ]]; then
                     echo "Tearing down test stack..."
-                    docker compose -f docker-compose.test.yml down -v
+                    docker compose "${COMPOSE_TEST[@]}" down -v
                 else
                     echo "Test stack left running (--keep). Tear down with:"
-                    echo "  docker compose -f docker-compose.test.yml down -v"
+                    echo "  bin/container.sh -e test down --volumes"
                 fi
                 exit 0
             fi
             sleep 2
         done
         echo "  health did NOT come up within 60s — see logs:" >&2
-        docker compose -f docker-compose.test.yml logs --tail=80 wikantik >&2
+        docker compose "${COMPOSE_TEST[@]}" logs --tail=80 wikantik >&2
         if [[ "${keep}" -eq 0 ]]; then
-            docker compose -f docker-compose.test.yml down -v >/dev/null 2>&1 || true
+            docker compose "${COMPOSE_TEST[@]}" down -v >/dev/null 2>&1 || true
         fi
         exit 1
         ;;

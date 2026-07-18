@@ -247,7 +247,7 @@ describe('PageView comment integration', () => {
     expect(payload.exact).toBe('fox');
     expect(payload.text).toBe('a new comment');
     // createThread opens the drawer after reload.
-    await waitFor(() => expect(screen.getByText(/first comment/)).toBeInTheDocument());
+    expect(await screen.findByText(/first comment/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
   it('selection over math renders the math hint instead of the Comment button', async () => {
@@ -298,7 +298,7 @@ describe('PageView comment integration', () => {
     // awaitStableLoaded gates on the toggle being present, which never happens
     // in this scenario — wait for the page-view marker + the double-fetch instead.
     await waitFor(() => expect(api.getPage.mock.calls.length).toBeGreaterThanOrEqual(2));
-    await waitFor(() => expect(screen.getByTestId('page-view')).toBeInTheDocument());
+    expect(await screen.findByTestId('page-view')).toBeInTheDocument();
     // No threads → don't render the toggle, period.
     expect(screen.queryByTestId('comments-toggle-button')).toBeNull();
   }, TEST_TIMEOUT);
@@ -389,7 +389,7 @@ describe('PageView comment integration', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Comment$/ })); });
     await waitFor(() => expect(warn).toHaveBeenCalledWith('Failed to create comment thread', expect.any(Error)));
     // createThread still reloads + opens the drawer despite the failure.
-    await waitFor(() => expect(screen.getByText(/first comment/)).toBeInTheDocument());
+    expect(await screen.findByText(/first comment/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
   it('drawer Reply and Resolve api failures are swallowed (warn logged)', async () => {
@@ -475,11 +475,11 @@ describe('PageView comment integration', () => {
     const { container } = renderPageView('/wiki/Foo?thread=T1&comment=C1');
     // Wait for the double-fetch + page-view marker (sibling of awaitStableLoaded).
     await waitFor(() => expect(api.getPage.mock.calls.length).toBeGreaterThanOrEqual(2));
-    await waitFor(() => expect(screen.getByTestId('page-view')).toBeInTheDocument());
+    expect(await screen.findByTestId('page-view')).toBeInTheDocument();
 
     // Drawer opened with both threads visible (filter=all → resolved body shows).
-    await waitFor(() => expect(screen.getByText(/first comment/)).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText(/resolved body/)).toBeInTheDocument());
+    expect(await screen.findByText(/first comment/)).toBeInTheDocument();
+    expect(await screen.findByText(/resolved body/)).toBeInTheDocument();
     // The open thread's <mark> exists (anchorThreads picked it up).
     await waitFor(() =>
       expect(container.querySelector('mark[data-thread-id="T1"]')).toBeTruthy());
@@ -540,8 +540,7 @@ describe('PageView comment integration', () => {
     const textarea = await screen.findByPlaceholderText('Add a comment');
     await act(async () => { fireEvent.change(textarea, { target: { value: 'hi' } }); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Comment$/ })); });
-    await waitFor(() =>
-      expect(screen.getByText(/Couldn't post comment.*server exploded/)).toBeInTheDocument());
+    expect(await screen.findByText(/Couldn't post comment.*server exploded/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
   it('[#1] addCommentReply failure shows an error toast with the reason', async () => {
@@ -551,8 +550,7 @@ describe('PageView comment integration', () => {
     await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
     await act(async () => { fireEvent.change(screen.getByPlaceholderText('Reply…'), { target: { value: 'r' } }); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Reply' })); });
-    await waitFor(() =>
-      expect(screen.getByText(/Couldn't post reply.*network down/)).toBeInTheDocument());
+    expect(await screen.findByText(/Couldn't post reply.*network down/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
   it('[#1] resolve failure shows error toast and revert shows original status', async () => {
@@ -561,8 +559,7 @@ describe('PageView comment integration', () => {
     await mountAndSettle();
     await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resolve' })); });
-    await waitFor(() =>
-      expect(screen.getByText(/Couldn't update thread.*forbidden/)).toBeInTheDocument());
+    expect(await screen.findByText(/Couldn't update thread.*forbidden/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
   it('[#1] resolve success shows a success toast', async () => {
@@ -575,8 +572,7 @@ describe('PageView comment integration', () => {
     await mountAndSettle();
     await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resolve' })); });
-    await waitFor(() =>
-      expect(screen.getByText('Thread resolved')).toBeInTheDocument());
+    expect(await screen.findByText('Thread resolved')).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
   it('[#1] delete failure shows error toast', async () => {
@@ -588,8 +584,7 @@ describe('PageView comment integration', () => {
     await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
     await act(async () => { fireEvent.click(screen.getByTitle('Delete thread')); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
-    await waitFor(() =>
-      expect(screen.getByText(/Couldn't delete thread.*gone/)).toBeInTheDocument());
+    expect(await screen.findByText(/Couldn't delete thread.*gone/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
   it('[#1] delete success shows a success toast', async () => {
@@ -600,8 +595,7 @@ describe('PageView comment integration', () => {
     await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
     await act(async () => { fireEvent.click(screen.getByTitle('Delete thread')); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
-    await waitFor(() =>
-      expect(screen.getByText('Thread deleted')).toBeInTheDocument());
+    expect(await screen.findByText('Thread deleted')).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
   // --- optimistic resolve/reopen: #54 ----------------------------------------
@@ -638,10 +632,9 @@ describe('PageView comment integration', () => {
     await act(async () => { fireEvent.click(resolveBtn); });
 
     // After rejection, thread reverts to open → Resolve button is back.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Resolve' })).toBeInTheDocument());
+    expect(await screen.findByRole('button', { name: 'Resolve' })).toBeInTheDocument();
     // Error toast with reason.
-    await waitFor(() =>
-      expect(screen.getByText(/Couldn't update thread.*forbidden/)).toBeInTheDocument());
+    expect(await screen.findByText(/Couldn't update thread.*forbidden/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
   it('[#54] reopen flips thread status optimistically before API responds', async () => {
@@ -681,7 +674,7 @@ describe('PageView comment integration', () => {
     const { container } = renderPageView();
     // Wait for page to load fully.
     await waitFor(() => expect(api.getPage.mock.calls.length).toBeGreaterThanOrEqual(2));
-    await waitFor(() => expect(screen.getByTestId('page-view')).toBeInTheDocument());
+    expect(await screen.findByTestId('page-view')).toBeInTheDocument();
 
     // addCopyButtons effect will have run; find the injected button inside the <pre>.
     const copyBtn = await waitFor(() => {
@@ -696,8 +689,7 @@ describe('PageView comment integration', () => {
     await new Promise((r) => setTimeout(r, 0));
 
     // Error toast must appear.
-    await waitFor(() =>
-      expect(screen.getByText(/Couldn't copy to clipboard/i)).toBeInTheDocument());
+    expect(await screen.findByText(/Couldn't copy to clipboard/i)).toBeInTheDocument();
     // console.warn is still called for diagnostics.
     expect(console.warn).toHaveBeenCalledWith(
       '[codeCopy] clipboard write failed',

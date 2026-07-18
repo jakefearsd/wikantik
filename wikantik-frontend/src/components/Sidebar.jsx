@@ -18,7 +18,7 @@ const KNOWN_NAV_PAGES = new Set([
   'UnusedPages', 'UndefinedPages',
 ]);
 
-export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose = () => {}, onMobileOpen = () => {}, onOpenSearch = () => {} }) {
+export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose = () => {}, onMobileOpen = () => {}, onOpenSearch = () => {} }) {
   const { name: activePage } = useParams();
   const [pages, setPages] = useState([]);
   const [recentChanges, setRecentChanges] = useState([]);

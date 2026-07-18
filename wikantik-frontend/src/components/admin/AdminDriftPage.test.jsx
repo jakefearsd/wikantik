@@ -47,7 +47,7 @@ beforeEach(() => {
 describe('AdminDriftPage', () => {
   it('renders the latest sweep summary with counts and deltas', async () => {
     render(<AdminDriftPage />);
-    await waitFor(() => expect(screen.getByText('status.noncanonical')).toBeInTheDocument());
+    expect(await screen.findByText('status.noncanonical')).toBeInTheDocument();
     expect(screen.getByText('wk:implements')).toBeInTheDocument();
     expect(screen.getByTestId('drift-pages-scanned')).toHaveTextContent('120');
     expect(screen.getByTestId('delta-status.noncanonical')).toHaveTextContent('-3');
@@ -57,7 +57,7 @@ describe('AdminDriftPage', () => {
     api.admin.getDriftSummary.mockResolvedValue({ sweptAt: null, counts: [] });
     api.admin.getDriftTrend.mockResolvedValue({ sweeps: [] });
     render(<AdminDriftPage />);
-    await waitFor(() => expect(screen.getByTestId('drift-empty-state')).toBeInTheDocument());
+    expect(await screen.findByTestId('drift-empty-state')).toBeInTheDocument();
   });
 
   it('expanding a row fetches the live page list', async () => {
@@ -66,10 +66,10 @@ describe('AdminDriftPage', () => {
                 code: 'status.noncanonical', message: 'Non-canonical status', suggestion: 'active' }],
     });
     render(<AdminDriftPage />);
-    await waitFor(() => expect(screen.getByText('status.noncanonical')).toBeInTheDocument());
+    expect(await screen.findByText('status.noncanonical')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('expand-frontmatter|status.noncanonical'));
-    await waitFor(() => expect(screen.getByText('Drifty')).toBeInTheDocument());
+    expect(await screen.findByText('Drifty')).toBeInTheDocument();
     expect(api.admin.getDriftPages).toHaveBeenCalledWith('frontmatter', 'status.noncanonical');
     expect(screen.getByText(/active/)).toBeInTheDocument();
   });
@@ -108,7 +108,7 @@ describe('AdminDriftPage', () => {
     api.admin.getDriftStatus.mockResolvedValue(
       { running: true, phase: 'frontmatter', pagesScanned: 10, totalPages: 50 });
     render(<AdminDriftPage />);
-    await waitFor(() => expect(screen.getByTestId('drift-progress')).toBeInTheDocument());
+    expect(await screen.findByTestId('drift-progress')).toBeInTheDocument();
     expect(screen.getByTestId('drift-run-now')).toBeDisabled();
     expect(screen.getByTestId('drift-progress-label'))
       .toHaveTextContent('10 / 50 pages — validating frontmatter');
@@ -125,7 +125,7 @@ describe('AdminDriftPage', () => {
   it('shows the page-level error when the initial load fails', async () => {
     api.admin.getDriftSummary.mockRejectedValue(new Error('boom'));
     render(<AdminDriftPage />);
-    await waitFor(() => expect(screen.getByText('boom')).toBeInTheDocument());
+    expect(await screen.findByText('boom')).toBeInTheDocument();
   });
 
   it('run-now surfaces a 409 as "already running" and re-enables the button', async () => {
@@ -136,15 +136,14 @@ describe('AdminDriftPage', () => {
     await waitFor(() => expect(screen.getByTestId('drift-run-now')).toBeEnabled());
 
     fireEvent.click(screen.getByTestId('drift-run-now'));
-    await waitFor(() =>
-      expect(screen.getByText('A sweep is already running.')).toBeInTheDocument());
+    expect(await screen.findByText('A sweep is already running.')).toBeInTheDocument();
     expect(screen.getByTestId('drift-run-now')).toBeEnabled();
   });
 
   it('shows a badge when SHACL was not checked', async () => {
     api.admin.getDriftSummary.mockResolvedValue({ ...SUMMARY, shaclChecked: false });
     render(<AdminDriftPage />);
-    await waitFor(() => expect(screen.getByTestId('drift-shacl-unchecked')).toBeInTheDocument());
+    expect(await screen.findByTestId('drift-shacl-unchecked')).toBeInTheDocument();
   });
 
   it('surfaces a failed sweep instead of hanging the progress bar', async () => {
@@ -160,8 +159,7 @@ describe('AdminDriftPage', () => {
     await waitFor(() => expect(screen.getByTestId('drift-run-now')).toBeEnabled());
 
     fireEvent.click(screen.getByTestId('drift-run-now'));
-    await waitFor(() =>
-      expect(screen.getByText(/Sweep failed: drift sweep persistence failed/)).toBeInTheDocument());
+    expect(await screen.findByText(/Sweep failed: drift sweep persistence failed/)).toBeInTheDocument();
     expect(screen.getByTestId('drift-run-now')).toBeEnabled();
     expect(screen.queryByTestId('drift-progress')).not.toBeInTheDocument();
   });

@@ -29,7 +29,7 @@ describe('AdminKgPolicyPending', () => {
   it('renders unset clusters, stale reviews, and recent count changes sections', async () => {
     render(<AdminKgPolicyPending />);
 
-    await waitFor(() => expect(screen.getByText('travel')).toBeInTheDocument());
+    expect(await screen.findByText('travel')).toBeInTheDocument();
 
     // Unset clusters section
     expect(screen.getByText('gaming')).toBeInTheDocument();
@@ -50,7 +50,7 @@ describe('AdminKgPolicyPending', () => {
   it('"Mark reviewed" calls markReviewed with cluster name and reloads the list', async () => {
     render(<AdminKgPolicyPending />);
 
-    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(await screen.findByText('personal-finance')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Mark reviewed/i }));
 

@@ -9,8 +9,8 @@
  * CodeEditor handle logic (offset mapping, clamping), not mock behavior. Real
  * CodeMirror integration is verified by `npm run build` + manual testing.
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render } from '@testing-library/react';
 import { createRef } from 'react';
 
 vi.mock('@uiw/react-codemirror', async () => {
@@ -45,7 +45,6 @@ vi.mock('@uiw/react-codemirror', async () => {
 
 import CodeEditor from './CodeEditor';
 
-afterEach(() => cleanup());
 
 function mount(value = 'hello world') {
   const ref = createRef();

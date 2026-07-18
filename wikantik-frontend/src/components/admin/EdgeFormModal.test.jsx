@@ -115,7 +115,7 @@ describe('EdgeFormModal', () => {
     );
     fireEvent.change(screen.getByLabelText(/relationship/i), { target: { value: 'related' } });
     fireEvent.click(screen.getByRole('button', { name: /save/i }));
-    await waitFor(() => expect(screen.getByText(/already exists/i)).toBeInTheDocument());
+    expect(await screen.findByText(/already exists/i)).toBeInTheDocument();
   });
 
   it('calls onClose when Cancel is clicked', () => {

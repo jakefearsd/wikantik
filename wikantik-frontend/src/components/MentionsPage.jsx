@@ -38,7 +38,7 @@ export default function MentionsPage() {
     try {
       await api.markMentionRead(id);
       await load();
-    } catch (e) {
+    } catch {
       // Revert on failure
       setItems(prev);
       toast.error('Failed to mark mention as read');
@@ -53,7 +53,7 @@ export default function MentionsPage() {
     try {
       await api.markAllMentionsRead();
       await load();
-    } catch (e) {
+    } catch {
       // Revert on failure
       setItems(prev);
       toast.error('Failed to mark all mentions as read');

@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -34,10 +35,15 @@
     "remark-math": "^6.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^6.0.3",
     "@vitest/coverage-v8": "^4.1.9",
+    "eslint": "^10.7.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-testing-library": "^7.16.2",
+    "globals": "^17.7.0",
     "happy-dom": "^20.10.6",
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5",

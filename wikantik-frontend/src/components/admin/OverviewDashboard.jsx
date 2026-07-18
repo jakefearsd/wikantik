@@ -8,7 +8,7 @@ import '../../styles/admin.css';
 const POLL_MS = 20000; // live cards (load, llmActivity) refresh on this cadence
 
 // Each entry: how to render one card from the payload. `dim` marks the diagnostic band.
-function statusCards(d) {
+function statusCards(_d) {
   return [
     { key: 'health',      label: 'Health',        render: (c) => <MetricCard label="Health" value={c?.status ?? '—'} meta={c?.version} degraded={!c} /> },
     { key: 'load',        label: 'Load',           render: (c) => <MetricCard label="Load" value={c ? `${c.inflight}/${c.permitsMax}` : null} meta={c ? `${c.rejected} shed` : null} degraded={!c} /> },
@@ -21,7 +21,7 @@ function statusCards(d) {
   ];
 }
 
-function metricCards(d) {
+function metricCards(_d) {
   return [
     { key: 'kgSize',          label: 'Knowledge Graph size', render: (c) => <MetricCard dim label="Knowledge Graph size" value={c?.nodes} meta={c ? `${c.edges} edges · ${c.stubs} stubs · ${c.orphans} orphans` : null} degraded={!c} /> },
     { key: 'extractor',       label: 'Extractor pipeline',   render: (c) => <MetricCard dim label="Extractor pipeline" value={c?.requests} meta={c ? `${c.triples} triples · ${c.failures} fail` : null} degraded={!c} /> },

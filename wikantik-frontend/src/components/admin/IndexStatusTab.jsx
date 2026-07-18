@@ -45,7 +45,7 @@ export default function IndexStatusTab() {
       cancelled = true;
       if (pollRef.current) clearInterval(pollRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const doRebuild = async () => {

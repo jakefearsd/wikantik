@@ -29,7 +29,7 @@ describe('useFocusTrap', () => {
 
   it('does not attach any behavior when inactive', () => {
     const addSpy = vi.spyOn(container, 'addEventListener');
-    const { result } = renderHook(() => {
+    renderHook(() => {
       const ref = useRef(container);
       useFocusTrap(ref, false);
       return ref;

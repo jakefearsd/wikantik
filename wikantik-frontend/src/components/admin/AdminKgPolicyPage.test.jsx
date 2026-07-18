@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import AdminKgPolicyPage from './AdminKgPolicyPage';
 import { api } from '../../api/client';
@@ -37,8 +37,6 @@ const clusterUnset = {
 
 const defaultClusters = [clusterInclude, clusterExclude, clusterUnset];
 
-const noReconciliation = { reconciliation: [] };
-
 // ---- helpers ----
 
 function mockApi(clusters = defaultClusters, reconciliation = []) {
@@ -66,7 +64,7 @@ describe('AdminKgPolicyPage', () => {
   it('renders a row for each cluster returned by listClusters', async () => {
     render(<AdminKgPolicyPage />);
 
-    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(await screen.findByText('personal-finance')).toBeInTheDocument();
     expect(screen.getByText('lifestyle')).toBeInTheDocument();
     expect(screen.getByText('travel')).toBeInTheDocument();
 
@@ -82,7 +80,7 @@ describe('AdminKgPolicyPage', () => {
 
   it('filter by action narrows visible rows', async () => {
     render(<AdminKgPolicyPage />);
-    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(await screen.findByText('personal-finance')).toBeInTheDocument();
 
     const select = screen.getByRole('combobox');
 
@@ -115,7 +113,7 @@ describe('AdminKgPolicyPage', () => {
 
   it('search by name narrows visible rows (client-side substring match)', async () => {
     render(<AdminKgPolicyPage />);
-    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(await screen.findByText('personal-finance')).toBeInTheDocument();
 
     const searchInput = screen.getByPlaceholderText(/Search cluster name/i);
     fireEvent.change(searchInput, { target: { value: 'finance' } });
@@ -148,14 +146,14 @@ describe('AdminKgPolicyPage', () => {
     const setCluster = vi.spyOn(api.admin.kgPolicy, 'setCluster').mockResolvedValue({ ok: true });
 
     render(<AdminKgPolicyPage />);
-    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(await screen.findByText('personal-finance')).toBeInTheDocument();
 
     // Click Edit on personal-finance row
     const row = screen.getByText('personal-finance').closest('tr');
     fireEvent.click(within(row).getByRole('button', { name: /Edit/i }));
 
     // Edit modal should appear with cluster name in heading
-    await waitFor(() => expect(screen.getByText(/Edit policy: personal-finance/i)).toBeInTheDocument());
+    expect(await screen.findByText(/Edit policy: personal-finance/i)).toBeInTheDocument();
 
     // Switch action to exclude
     fireEvent.click(screen.getByLabelText(/Exclude from KG/i));
@@ -176,7 +174,7 @@ describe('AdminKgPolicyPage', () => {
     // Estimate confirm modal should show page count and cluster name. Scope
     // queries to the dialog because the underlying table also has a "25" cell
     // (the personal-finance row's page_count) that would collide.
-    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
     const confirmDialog = screen.getAllByRole('dialog').find(
       (d) => /will affect/i.test(d.textContent),
     );
@@ -208,15 +206,15 @@ describe('AdminKgPolicyPage', () => {
     const setCluster = vi.spyOn(api.admin.kgPolicy, 'setCluster').mockResolvedValue({ ok: true });
 
     render(<AdminKgPolicyPage />);
-    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(await screen.findByText('personal-finance')).toBeInTheDocument();
 
     const row = screen.getByText('personal-finance').closest('tr');
     fireEvent.click(within(row).getByRole('button', { name: /Edit/i }));
 
-    await waitFor(() => expect(screen.getByText(/Edit policy: personal-finance/i)).toBeInTheDocument());
+    expect(await screen.findByText(/Edit policy: personal-finance/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Preview/i }));
 
-    await waitFor(() => expect(screen.getByText(/will affect/i)).toBeInTheDocument());
+    expect(await screen.findByText(/will affect/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
 
@@ -231,7 +229,7 @@ describe('AdminKgPolicyPage', () => {
     const clearCluster = vi.spyOn(api.admin.kgPolicy, 'clearCluster').mockResolvedValue({ ok: true });
 
     render(<AdminKgPolicyPage />);
-    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(await screen.findByText('personal-finance')).toBeInTheDocument();
 
     const row = screen.getByText('personal-finance').closest('tr');
     fireEvent.click(within(row).getByRole('button', { name: /Clear/i }));
@@ -247,7 +245,7 @@ describe('AdminKgPolicyPage', () => {
     const clearCluster = vi.spyOn(api.admin.kgPolicy, 'clearCluster').mockResolvedValue({ ok: true });
 
     render(<AdminKgPolicyPage />);
-    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(await screen.findByText('personal-finance')).toBeInTheDocument();
 
     const row = screen.getByText('personal-finance').closest('tr');
     fireEvent.click(within(row).getByRole('button', { name: /Clear/i }));
@@ -257,7 +255,7 @@ describe('AdminKgPolicyPage', () => {
 
   it('Clear button is absent for unset clusters', async () => {
     render(<AdminKgPolicyPage />);
-    await waitFor(() => expect(screen.getByText('travel')).toBeInTheDocument());
+    expect(await screen.findByText('travel')).toBeInTheDocument();
 
     const row = screen.getByText('travel').closest('tr');
     expect(within(row).queryByRole('button', { name: /Clear/i })).not.toBeInTheDocument();
@@ -271,15 +269,13 @@ describe('AdminKgPolicyPage', () => {
     });
 
     render(<AdminKgPolicyPage />);
-    await waitFor(() =>
-      expect(screen.getByText(/No clusters configured yet/i)).toBeInTheDocument(),
-    );
+    expect(await screen.findByText(/No clusters configured yet/i)).toBeInTheDocument();
     expect(screen.getByText(/Bootstrap wizard — Task 25/i)).toBeInTheDocument();
   });
 
   it('does not show bootstrap callout when any cluster has a policy', async () => {
     render(<AdminKgPolicyPage />);
-    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(await screen.findByText('personal-finance')).toBeInTheDocument();
     expect(screen.queryByText(/No clusters configured yet/i)).not.toBeInTheDocument();
   });
 
@@ -293,9 +289,7 @@ describe('AdminKgPolicyPage', () => {
     });
 
     render(<AdminKgPolicyPage />);
-    await waitFor(() =>
-      expect(screen.getByText(/Reconciliation in progress/i)).toBeInTheDocument(),
-    );
+    expect(await screen.findByText(/Reconciliation in progress/i)).toBeInTheDocument();
     expect(screen.getByText(/RUNNING/)).toBeInTheDocument();
   });
 
@@ -311,7 +305,7 @@ describe('AdminKgPolicyPage', () => {
     });
 
     render(<AdminKgPolicyPage />);
-    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(await screen.findByText('personal-finance')).toBeInTheDocument();
     expect(screen.queryByText(/Reconciliation in progress/i)).not.toBeInTheDocument();
   });
 
@@ -324,9 +318,7 @@ describe('AdminKgPolicyPage', () => {
     });
 
     render(<AdminKgPolicyPage />);
-    await waitFor(() =>
-      expect(screen.getByText(/Reconciliation in progress/i)).toBeInTheDocument(),
-    );
+    expect(await screen.findByText(/Reconciliation in progress/i)).toBeInTheDocument();
     // RUNNING row is in the panel; DONE row must not appear inside the callout.
     const callout = screen.getByText(/Reconciliation in progress/i).closest('.admin-callout');
     expect(within(callout).getByText(/personal-finance/)).toBeInTheDocument();
@@ -338,6 +330,6 @@ describe('AdminKgPolicyPage', () => {
   it('surfaces a list error via AdminPage error prop', async () => {
     vi.spyOn(api.admin.kgPolicy, 'listClusters').mockRejectedValueOnce(new Error('network timeout'));
     render(<AdminKgPolicyPage />);
-    await waitFor(() => expect(screen.getByText('network timeout')).toBeInTheDocument());
+    expect(await screen.findByText('network timeout')).toBeInTheDocument();
   });
 });

@@ -4,6 +4,7 @@
  *   2. PageEditor — machine-owned-body banner shown when metadata.derived_from is set
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// eslint-disable-next-line testing-library/no-manual-cleanup -- see the afterEach rationale below
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
@@ -110,7 +111,7 @@ function renderEditor(pageName = 'TestPage') {
 }
 
 async function waitForEditor() {
-  await waitFor(() => expect(screen.getByTestId('cm-stub-textarea')).toBeInTheDocument());
+  expect(await screen.findByTestId('cm-stub-textarea')).toBeInTheDocument();
 }
 
 beforeEach(() => {
@@ -150,6 +151,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  // eslint-disable-next-line testing-library/no-manual-cleanup -- ordering vs the promise flush below is deliberate (see comment above)
   cleanup();
   await act(async () => { await Promise.resolve(); });
 });
@@ -160,8 +162,6 @@ describe('AttachmentPanel — ingest as derived page', () => {
     renderPanel();
     // The ingest section heading should be visible
     expect(screen.getByText(/ingest as derived page/i)).toBeInTheDocument();
-    // There should be a file input for the ingest form (distinct from the upload form)
-    const fileInputs = screen.getAllByRole('button', { hidden: true });
     // At minimum the panel has a close button; ingest button should also be present
     expect(screen.getByRole('button', { name: /ingest/i })).toBeInTheDocument();
   });
@@ -200,9 +200,9 @@ describe('AttachmentPanel — ingest as derived page', () => {
     expect(calledFile.name).toBe('report.pdf');
 
     // Result should be surfaced: page name visible
-    await waitFor(() => expect(screen.getByText(/report/i)).toBeInTheDocument());
+    expect(await screen.findByText(/report/i)).toBeInTheDocument();
     // Status badge/text (created) should show
-    await waitFor(() => expect(screen.getByText(/created/i)).toBeInTheDocument());
+    expect(await screen.findByText(/created/i)).toBeInTheDocument();
   });
 
   it('surfaces an error message when ingestDocument rejects', async () => {
@@ -215,7 +215,7 @@ describe('AttachmentPanel — ingest as derived page', () => {
     fireEvent.change(ingestFileInput, { target: { files: [file] } });
     fireEvent.click(screen.getByRole('button', { name: /ingest/i }));
 
-    await waitFor(() => expect(screen.getByText(/server error/i)).toBeInTheDocument());
+    expect(await screen.findByText(/server error/i)).toBeInTheDocument();
   });
 
   it('result contains a link to /wiki/<page> when status is created', async () => {

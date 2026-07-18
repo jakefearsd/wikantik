@@ -117,7 +117,7 @@ describe('App #23-finish — Cmd+K search on all routes', () => {
   it('search overlay can be closed', async () => {
     renderApp('/admin/content');
     fireEvent.keyDown(window, { key: 'k', metaKey: true });
-    await waitFor(() => expect(screen.getByTestId('search-overlay')).toBeInTheDocument());
+    expect(await screen.findByTestId('search-overlay')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Close'));
     await waitFor(() => expect(screen.queryByTestId('search-overlay')).not.toBeInTheDocument());

@@ -18,7 +18,7 @@ export default function LoginForm({ onClose }) {
     try {
       await login(username, password);
       onClose();
-    } catch (err) {
+    } catch {
       setError('Invalid credentials');
     } finally {
       setLoading(false);

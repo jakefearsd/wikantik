@@ -68,7 +68,7 @@ describe('AdminConnectorsPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('gh-wikantik')).toBeInTheDocument());
+    expect(await screen.findByText('gh-wikantik')).toBeInTheDocument();
 
     const dbRow = screen.getByText('gh-wikantik').closest('tr');
     expect(within(dbRow).getByText('database')).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe('AdminConnectorsPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByTestId('connectors-disabled-banner')).toBeInTheDocument());
+    expect(await screen.findByTestId('connectors-disabled-banner')).toBeInTheDocument();
     expect(screen.getByTestId('connectors-disabled-banner')).toHaveTextContent(/disabled by the operator/i);
     expect(screen.queryByTestId('credstore-disabled-banner')).not.toBeInTheDocument();
   });
@@ -105,7 +105,7 @@ describe('AdminConnectorsPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByTestId('credstore-disabled-banner')).toBeInTheDocument());
+    expect(await screen.findByTestId('credstore-disabled-banner')).toBeInTheDocument();
     const banner = screen.getByTestId('credstore-disabled-banner');
     expect(banner).toHaveTextContent(/GitHub \/ Confluence \/ Google Drive/i);
     const codeEl = within(banner).getByText('openssl rand -base64 32');
@@ -121,7 +121,7 @@ describe('AdminConnectorsPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByTestId('connectors-empty-state')).toBeInTheDocument());
+    expect(await screen.findByTestId('connectors-empty-state')).toBeInTheDocument();
     expect(screen.getByText(/Connectors sync external sources/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('add-connector-button-empty'));
@@ -138,7 +138,7 @@ describe('AdminConnectorsPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByTestId('sync-gh-wikantik')).toBeInTheDocument());
+    expect(await screen.findByTestId('sync-gh-wikantik')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('sync-gh-wikantik'));
 
     await waitFor(() => expect(api.connectors.sync).toHaveBeenCalledWith('gh-wikantik'));
@@ -157,7 +157,7 @@ describe('AdminConnectorsPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByTestId('sync-gh-wikantik')).toBeInTheDocument());
+    expect(await screen.findByTestId('sync-gh-wikantik')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('sync-gh-wikantik'));
 
     await waitFor(() =>
@@ -178,7 +178,7 @@ describe('AdminConnectorsPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('gh-wikantik')).toBeInTheDocument());
+    expect(await screen.findByText('gh-wikantik')).toBeInTheDocument();
 
     const dbRow = screen.getByText('gh-wikantik').closest('tr');
     expect(within(dbRow).queryByTestId('import-gh-wikantik')).not.toBeInTheDocument();
@@ -206,7 +206,7 @@ describe('AdminConnectorsPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByTestId('import-gdrive-legacy')).toBeInTheDocument());
+    expect(await screen.findByTestId('import-gdrive-legacy')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('import-gdrive-legacy'));
 
     await waitFor(() =>
@@ -225,7 +225,7 @@ describe('AdminConnectorsPage', () => {
     });
 
     renderPage();
-    await waitFor(() => expect(screen.getByText('gh-wikantik')).toBeInTheDocument());
+    expect(await screen.findByText('gh-wikantik')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('add-connector-button'));
     expect(mockNavigate).toHaveBeenCalledWith('/admin/connectors/new');

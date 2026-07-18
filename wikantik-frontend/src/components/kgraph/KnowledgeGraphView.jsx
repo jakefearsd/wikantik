@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { toKgCytoscapeElements } from './kg-graph-data.js';
 import { applyFilters } from '../pagegraph/filter-engine.js';
@@ -21,7 +21,6 @@ import './kg-graph.css';
 
 export default function KnowledgeGraphView() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const focusParam = useRef(searchParams.get('focus'));
   const { capabilities } = useCapabilities();
 
@@ -149,7 +148,6 @@ export default function KnowledgeGraphView() {
   const handleNodeClick = useCallback((nodeId) => setSelectedId(nodeId), []);
   const handleBackgroundClick = useCallback(() => setSelectedId(null), []);
   const handleReady = useCallback(() => setLayoutDone(true), []);
-  const handleOpenPage = useCallback((pageName) => navigate(`/wiki/${encodeURIComponent(pageName)}`), [navigate]);
 
   const handleToggleEdgeType = useCallback((type) => {
     setFilterState(prev => setEdgeTypeHidden(prev, type, !prev.hiddenEdgeTypes.has(type)));

@@ -47,7 +47,7 @@ describe('KnowledgeGraphView', () => {
     api.knowledge.getGraphSnapshot.mockResolvedValue(MOCK_SNAPSHOT);
     render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
     expect(screen.getByText(/loading/i)).toBeTruthy();
-    await waitFor(() => expect(screen.getByTestId('graph-canvas')).toBeTruthy());
+    expect(await screen.findByTestId('graph-canvas')).toBeTruthy();
   });
 
   it('calls getGraphSnapshot with no minTier on first mount', async () => {
@@ -61,19 +61,19 @@ describe('KnowledgeGraphView', () => {
   it('shows 401 error variant for unauthorized', async () => {
     api.knowledge.getGraphSnapshot.mockRejectedValue(Object.assign(new Error('Unauthorized'), { status: 401 }));
     render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('Sign in to view the knowledge graph.')).toBeTruthy());
+    expect(await screen.findByText('Sign in to view the knowledge graph.')).toBeTruthy();
   });
 
   it('shows server error for 5xx', async () => {
     api.knowledge.getGraphSnapshot.mockRejectedValue(Object.assign(new Error('Server error'), { status: 500 }));
     render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText(/unavailable/i)).toBeTruthy());
+    expect(await screen.findByText(/unavailable/i)).toBeTruthy();
   });
 
   it('shows empty state when nodeCount is 0', async () => {
     api.knowledge.getGraphSnapshot.mockResolvedValue({ ...MOCK_SNAPSHOT, nodeCount: 0, nodes: [], edges: [] });
     render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText(/empty/i)).toBeTruthy());
+    expect(await screen.findByText(/empty/i)).toBeTruthy();
   });
 
   it('reads tier from URL on mount and fetches with that minTier', async () => {
@@ -88,7 +88,7 @@ describe('KnowledgeGraphView', () => {
     const { fireEvent } = await import('@testing-library/react');
     api.knowledge.getGraphSnapshot.mockResolvedValue(MOCK_SNAPSHOT);
     render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByTestId('graph-canvas')).toBeTruthy());
+    expect(await screen.findByTestId('graph-canvas')).toBeTruthy();
 
     const select = screen.getByLabelText(/tier/i);
     fireEvent.change(select, { target: { value: 'human' } });
@@ -109,7 +109,7 @@ describe('KnowledgeGraphView', () => {
     };
     api.knowledge.getGraphSnapshot.mockResolvedValue(snap);
     render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText(/1 machine/i)).toBeTruthy());
+    expect(await screen.findByText(/1 machine/i)).toBeTruthy();
     expect(screen.getByText(/1 human/i)).toBeTruthy();
   });
 
@@ -132,7 +132,7 @@ describe('KnowledgeGraphView', () => {
       });
       api.knowledge.getGraphSnapshot.mockResolvedValue(MOCK_SNAPSHOT);
       render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
-      await waitFor(() => expect(screen.getByTestId('graph-canvas')).toBeTruthy());
+      expect(await screen.findByTestId('graph-canvas')).toBeTruthy();
       expect(api.knowledge.getGraphSnapshot).toHaveBeenCalled();
     });
   });

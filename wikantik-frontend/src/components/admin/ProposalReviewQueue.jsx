@@ -284,7 +284,7 @@ export default function ProposalReviewQueue() {
       } catch (err) {
         // Surface failure inline so the user knows the disclosure didn't load.
         setReviewsCache(prev => ({ ...prev, [proposalId]: [] }));
-        // eslint-disable-next-line no-console
+         
         console.warn(`Failed to load reviews for ${proposalId}:`, err.message);
       }
     }
@@ -354,7 +354,7 @@ export default function ProposalReviewQueue() {
       const s = await api.knowledge.judgeStatus();
       setJudgeStatus(s);
       return s;
-    } catch (_) { return null; }
+    } catch { return null; }
   }, []);
 
   useEffect(() => { loadProposals(); fetchJudgeStatus(); }, [loadProposals, fetchJudgeStatus]);

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import NodeDetail from './NodeDetail';
 
@@ -52,9 +52,7 @@ describe('NodeDetail mentions panel', () => {
     expect(screen.queryByText(/No mention chunks recorded/i)).toBeNull();
 
     resolve({ mentions: [] });
-    await waitFor(() =>
-      expect(screen.getByText(/No mention chunks recorded/i)).toBeInTheDocument(),
-    );
+    expect(await screen.findByText(/No mention chunks recorded/i)).toBeInTheDocument();
     expect(screen.queryByText(/Loading mentions/i)).toBeNull();
   });
 
@@ -78,9 +76,7 @@ describe('NodeDetail mentions panel', () => {
         3,
       ),
     );
-    await waitFor(() =>
-      expect(screen.getByText(/founded by Confucius/i)).toBeInTheDocument(),
-    );
+    expect(await screen.findByText(/founded by Confucius/i)).toBeInTheDocument();
   });
 
   it('renders the fallback badge when the only mentions come from the proposal page', async () => {
@@ -97,18 +93,14 @@ describe('NodeDetail mentions panel', () => {
       ],
     });
     render(<NodeDetail node={baseNode} />);
-    await waitFor(() =>
-      expect(screen.getByTestId('mention-fallback')).toBeInTheDocument(),
-    );
+    expect(await screen.findByTestId('mention-fallback')).toBeInTheDocument();
   });
 
   it('shows the empty-mentions hint when nothing is returned', async () => {
     render(<NodeDetail node={baseNode} />);
-    await waitFor(() =>
-      expect(
-        screen.getByText(/No mention chunks recorded/i),
-      ).toBeInTheDocument(),
-    );
+    expect(
+        await screen.findByText(/No mention chunks recorded/i),
+      ).toBeInTheDocument();
   });
 });
 

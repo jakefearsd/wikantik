@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, renderHook, screen, render, fireEvent } from '@testing-library/react';
+import { act, renderHook, screen, fireEvent } from '@testing-library/react';
 import { ToastProvider } from './ToastProvider';
 import { useToast } from '../../hooks/useToast';
 

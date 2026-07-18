@@ -31,7 +31,7 @@ describe('ChunkInspectorTab', () => {
 
   it('rendersOutliersOnMount', async () => {
     renderWithRouter(<ChunkInspectorTab />);
-    await waitFor(() => expect(screen.getByText('BigPage')).toBeInTheDocument());
+    expect(await screen.findByText('BigPage')).toBeInTheDocument();
     expect(screen.getByText('LonelyGiant')).toBeInTheDocument();
     expect(screen.getByText('OverTok')).toBeInTheDocument();
   });
@@ -68,7 +68,7 @@ describe('ChunkInspectorTab', () => {
     fireEvent.change(screen.getByLabelText(/Page Name/i), { target: { value: 'PageA' } });
     fireEvent.click(screen.getByRole('button', { name: /Load/i }));
 
-    await waitFor(() => expect(screen.getByText(/first chunk body text/)).toBeInTheDocument());
+    expect(await screen.findByText(/first chunk body text/)).toBeInTheDocument();
     expect(screen.getByText(/second chunk body text/)).toBeInTheDocument();
     expect(screen.getByText(/Top > Section/)).toBeInTheDocument();
     expect(screen.getByText(/7 tokens/)).toBeInTheDocument();
@@ -84,8 +84,8 @@ describe('ChunkInspectorTab', () => {
     fireEvent.change(screen.getByLabelText(/Page Name/i), { target: { value: 'Ghost' } });
     fireEvent.click(screen.getByRole('button', { name: /Load/i }));
 
-    await waitFor(() => expect(
-      screen.getByText(/No chunks found for page Ghost/i)).toBeInTheDocument());
+    expect(
+      await screen.findByText(/No chunks found for page Ghost/i)).toBeInTheDocument();
   });
 
   it('togglesFullTextDisclosure', async () => {
@@ -115,7 +115,7 @@ describe('ChunkInspectorTab', () => {
     expect(screen.queryByTestId('chunk-full-text-0')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /Show full/i }));
-    await waitFor(() => expect(screen.getByTestId('chunk-full-text-0')).toBeInTheDocument());
+    expect(await screen.findByTestId('chunk-full-text-0')).toBeInTheDocument();
     expect(screen.getByTestId('chunk-full-text-0').textContent).toBe(fullText);
   });
 });

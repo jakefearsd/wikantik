@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import AdminTable from './AdminTable';
 
 // ---------------------------------------------------------------------------
@@ -491,7 +491,7 @@ describe('AdminTable — bulk actions', () => {
     fireEvent.click(screen.getByLabelText('Select bob'));
     fireEvent.click(screen.getByText('Approve'));
 
-    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
+    expect(await screen.findByRole('status')).toBeInTheDocument();
     // Selection cleared
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
     // Toast visible
@@ -510,7 +510,7 @@ describe('AdminTable — bulk actions', () => {
     fireEvent.click(screen.getByLabelText('Select bob'));
     fireEvent.click(screen.getByText('Approve'));
 
-    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
+    expect(await screen.findByRole('status')).toBeInTheDocument();
 
     // bob (failed) stays selected; alice (succeeded) cleared
     expect(screen.getByLabelText('Select bob').checked).toBe(true);
@@ -536,9 +536,7 @@ describe('AdminTable — bulk actions', () => {
     fireEvent.click(screen.getByLabelText('Select bob'));
     fireEvent.click(screen.getByText('Approve'));
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Retry failed/i })).toBeInTheDocument()
-    );
+    expect(await screen.findByRole('button', { name: /Retry failed/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Retry failed/i }));
 
@@ -559,7 +557,7 @@ describe('AdminTable — bulk actions', () => {
     fireEvent.click(screen.getByLabelText('Select alice'));
     fireEvent.click(screen.getByText('Approve'));
 
-    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
+    expect(await screen.findByRole('status')).toBeInTheDocument();
     expect(screen.getByRole('status').textContent).toMatch(/Server exploded/);
     // Selection still intact
     expect(screen.getByLabelText('Select alice').checked).toBe(true);
@@ -599,7 +597,7 @@ describe('AdminTable — bulk actions', () => {
     fireEvent.click(screen.getByLabelText('Select alice'));
     fireEvent.click(screen.getByText('Approve'));
 
-    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
+    expect(await screen.findByRole('status')).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Dismiss'));
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });

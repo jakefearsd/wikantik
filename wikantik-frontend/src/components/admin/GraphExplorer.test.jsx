@@ -170,8 +170,8 @@ describe('GraphExplorer', () => {
 
     await waitFor(() => {
       expect(api.knowledge.deleteNode).toHaveBeenCalledWith('n1');
-      expect(api.knowledge.deleteNode).toHaveBeenCalledWith('n2');
-    });
+    })
+    expect(api.knowledge.deleteNode).toHaveBeenCalledWith('n2');;
   });
 
   it('detail-pane single delete refreshes without window.location.reload', async () => {

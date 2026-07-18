@@ -61,7 +61,7 @@ describe('AttachmentPanel — inline delete confirm (#2)', () => {
 
   it('window.confirm is never invoked', () => {
     const confirmSpy = vi.spyOn(window, 'confirm');
-    const { props } = renderPanel();
+    renderPanel();
     const deleteBtn = screen.getAllByTitle('Delete')[0];
     fireEvent.click(deleteBtn);
 
@@ -73,7 +73,7 @@ describe('AttachmentPanel — inline delete confirm (#2)', () => {
   });
 
   it('shows usage-count warning when file is referenced in editor content', () => {
-    const { props } = renderPanel({
+    renderPanel({
       editorContent: '![photo](photo.png) and some text',
     });
     const deleteBtn = screen.getAllByTitle('Delete')[0];

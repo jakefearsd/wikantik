@@ -121,10 +121,10 @@ describe('ConnectorDetailPage', () => {
     api.connectors.importFromProperties.mockResolvedValue({ ok: true });
 
     renderPage('/admin/connectors/gdrive-legacy');
-    await waitFor(() => expect(screen.getByTestId('tab-settings')).toBeInTheDocument());
+    expect(await screen.findByTestId('tab-settings')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('tab-settings'));
 
-    await waitFor(() => expect(screen.getByTestId('properties-origin-note')).toBeInTheDocument());
+    expect(await screen.findByTestId('properties-origin-note')).toBeInTheDocument();
     expect(screen.getByTestId('properties-origin-note')).toHaveTextContent(/wikantik-custom.properties/i);
     expect(screen.getByTestId('properties-origin-note')).toHaveTextContent(/re-enter the client secret/i);
     expect(screen.getByTestId('field-folder_ids')).toBeDisabled();
@@ -146,10 +146,10 @@ describe('ConnectorDetailPage', () => {
     );
 
     renderPage();
-    await waitFor(() => expect(screen.getByTestId('tab-settings')).toBeInTheDocument());
+    expect(await screen.findByTestId('tab-settings')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('tab-settings'));
 
-    await waitFor(() => expect(screen.getByTestId('settings-submit-button')).toBeInTheDocument());
+    expect(await screen.findByTestId('settings-submit-button')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('settings-submit-button'));
 
     await waitFor(() => expect(screen.getByTestId('field-error-repo')).toHaveTextContent('repo is required'));
@@ -160,7 +160,7 @@ describe('ConnectorDetailPage', () => {
     api.connectors.setCredential.mockResolvedValue({ ok: true });
 
     renderPage();
-    await waitFor(() => expect(screen.getByTestId('tab-authorization')).toBeInTheDocument());
+    expect(await screen.findByTestId('tab-authorization')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('tab-authorization'));
 
     await waitFor(() => expect(screen.getByTestId('secret-state-token')).toHaveTextContent(/not set/i));
@@ -178,10 +178,10 @@ describe('ConnectorDetailPage', () => {
     api.connectors.get.mockResolvedValue(DETAIL_GDRIVE_PROPERTIES);
 
     renderPage('/admin/connectors/gdrive-legacy');
-    await waitFor(() => expect(screen.getByTestId('tab-authorization')).toBeInTheDocument());
+    expect(await screen.findByTestId('tab-authorization')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('tab-authorization'));
 
-    await waitFor(() => expect(screen.getByTestId('gdrive-authorize-link')).toBeInTheDocument());
+    expect(await screen.findByTestId('gdrive-authorize-link')).toBeInTheDocument();
     const link = screen.getByTestId('gdrive-authorize-link');
     expect(link.tagName.toLowerCase()).toBe('a');
     expect(link.getAttribute('href')).toBe(
@@ -208,7 +208,7 @@ describe('ConnectorDetailPage', () => {
 
     renderPage('/admin/connectors/gdrive-legacy?next=authorize');
 
-    await waitFor(() => expect(screen.getByTestId('connector-tab-panel-authorization')).toBeInTheDocument());
+    expect(await screen.findByTestId('connector-tab-panel-authorization')).toBeInTheDocument();
     expect(screen.getByTestId('tab-authorization')).toHaveClass('active');
     expect(screen.getByTestId('tab-overview')).not.toHaveClass('active');
   });
@@ -218,7 +218,7 @@ describe('ConnectorDetailPage', () => {
 
     renderPage('/admin/connectors/gdrive-legacy?next=authorize&oauth=ok');
 
-    await waitFor(() => expect(screen.getByTestId('oauth-result-ok')).toBeInTheDocument());
+    expect(await screen.findByTestId('oauth-result-ok')).toBeInTheDocument();
     expect(screen.getByTestId('tab-authorization')).toHaveClass('active');
     expect(screen.getByTestId('connector-tab-panel-authorization')).toBeInTheDocument();
   });
@@ -229,10 +229,10 @@ describe('ConnectorDetailPage', () => {
     api.connectors.remove.mockResolvedValue({ deleted: true });
 
     renderPage();
-    await waitFor(() => expect(screen.getByTestId('delete-connector-button')).toBeInTheDocument());
+    expect(await screen.findByTestId('delete-connector-button')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('delete-connector-button'));
 
-    await waitFor(() => expect(screen.getByTestId('delete-pages-checkbox')).toBeInTheDocument());
+    expect(await screen.findByTestId('delete-pages-checkbox')).toBeInTheDocument();
     const confirmButton = screen.getByTestId('delete-confirm-button');
     // Unchecked: deleting the connector alone requires no typed confirmation.
     expect(confirmButton).not.toBeDisabled();

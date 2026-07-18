@@ -138,8 +138,8 @@ describe('EdgeExplorer', () => {
 
     await waitFor(() => {
       expect(api.knowledge.deleteEdge).toHaveBeenCalledWith('e1');
-      expect(api.knowledge.deleteEdge).toHaveBeenCalledWith('e2');
-    });
+    })
+    expect(api.knowledge.deleteEdge).toHaveBeenCalledWith('e2');;
   });
 
   it('AdminTable bulk reject passes the typed reason per-row', async () => {
@@ -447,6 +447,6 @@ describe('EdgeExplorer', () => {
     fireEvent.click(screen.getByText('A'));
     await waitFor(() => screen.getByRole('button', { name: /history/i }));
     fireEvent.click(screen.getByRole('button', { name: /history/i }));
-    await waitFor(() => expect(screen.getByText(/alice/)).toBeInTheDocument());
+    expect(await screen.findByText(/alice/)).toBeInTheDocument();
   });
 });

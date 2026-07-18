@@ -58,7 +58,7 @@ describe('LoginForm (#30)', () => {
     fireEvent.change(screen.getByTestId('login-username'), { target: { value: 'user' } });
     fireEvent.change(screen.getByTestId('login-password'), { target: { value: 'wrong' } });
     fireEvent.click(screen.getByTestId('login-submit'));
-    await waitFor(() => expect(screen.getByTestId('login-error')).toBeInTheDocument());
+    expect(await screen.findByTestId('login-error')).toBeInTheDocument();
     expect(screen.getByTestId('login-error')).toHaveTextContent('Invalid credentials');
   });
 

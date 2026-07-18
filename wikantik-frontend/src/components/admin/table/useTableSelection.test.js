@@ -6,6 +6,7 @@ describe('useTableSelection', () => {
   let result;
 
   beforeEach(() => {
+    // eslint-disable-next-line testing-library/no-render-in-lifecycle -- fresh hook instance per test; cleanup handled globally
     ({ result } = renderHook(() => useTableSelection()));
   });
 

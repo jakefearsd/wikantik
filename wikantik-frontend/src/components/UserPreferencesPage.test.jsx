@@ -61,9 +61,7 @@ function renderPage() {
 describe('UserPreferencesPage — delete account section', () => {
   it('renders the delete-account button after profile loads', async () => {
     renderPage();
-    await waitFor(() =>
-      expect(screen.getByTestId('delete-account-button')).toBeInTheDocument(),
-    );
+    expect(await screen.findByTestId('delete-account-button')).toBeInTheDocument();
   });
 
   it('clicking delete-account-button reveals the confirm input and confirm button', async () => {

@@ -143,7 +143,7 @@ describe('AddConnectorWizard', () => {
     expect(screen.getByTestId('wizard-step-test')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('run-test-button'));
 
-    await waitFor(() => expect(screen.getByTestId('test-result-error')).toBeInTheDocument());
+    expect(await screen.findByTestId('test-result-error')).toBeInTheDocument();
     expect(screen.getByTestId('test-result-error')).toHaveTextContent('Connection refused');
     expect(screen.getByTestId('test-result-error')).toHaveTextContent(/check your settings in step 1/i);
 
@@ -234,7 +234,7 @@ describe('AddConnectorWizard', () => {
     pickTypeAndFillSource('webcrawler', 'wc-ok', { seeds: 'https://a.example' });
     fireEvent.click(screen.getByTestId('run-test-button'));
 
-    await waitFor(() => expect(screen.getByTestId('test-result-ok')).toBeInTheDocument());
+    expect(await screen.findByTestId('test-result-ok')).toBeInTheDocument();
     expect(screen.getByTestId('test-continue')).toBeInTheDocument();
     expect(screen.queryByTestId('skip-test-link')).not.toBeInTheDocument();
     expect(screen.queryByText(/Skipping means/i)).not.toBeInTheDocument();
@@ -255,7 +255,7 @@ describe('AddConnectorWizard', () => {
     renderWizard();
     pickTypeAndFillSource('webcrawler', 'wc-stale', { seeds: 'https://a.example' });
     fireEvent.click(screen.getByTestId('run-test-button'));
-    await waitFor(() => expect(screen.getByTestId('test-result-ok')).toBeInTheDocument());
+    expect(await screen.findByTestId('test-result-ok')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('wizard-back-button'));
     expect(screen.getByTestId('wizard-step-source')).toBeInTheDocument();
@@ -280,7 +280,7 @@ describe('AddConnectorWizard', () => {
     fireEvent.change(screen.getByTestId('secret-input-token'), { target: { value: 'ghp_one' } });
     fireEvent.click(screen.getByTestId('wizard-next-button'));
     fireEvent.click(screen.getByTestId('run-test-button'));
-    await waitFor(() => expect(screen.getByTestId('test-result-ok')).toBeInTheDocument());
+    expect(await screen.findByTestId('test-result-ok')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('wizard-back-button'));
     expect(screen.getByTestId('wizard-step-authorize')).toBeInTheDocument();
@@ -339,7 +339,7 @@ describe('AddConnectorWizard', () => {
 
     fireEvent.click(screen.getByTestId('wizard-save-button'));
 
-    await waitFor(() => expect(screen.getByTestId('wizard-step-source')).toBeInTheDocument());
+    expect(await screen.findByTestId('wizard-step-source')).toBeInTheDocument();
     expect(screen.getByTestId('connector-id-error')).toHaveTextContent('reserved id');
     expect(screen.getByTestId('connector-id')).toHaveValue('test');
   });

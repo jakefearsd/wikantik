@@ -180,6 +180,6 @@ describe('AdminPageOwnershipPage', () => {
       new Error('boom'),
     );
     render(<AdminPageOwnershipPage />);
-    await waitFor(() => expect(screen.getByText('boom')).toBeInTheDocument());
+    expect(await screen.findByText('boom')).toBeInTheDocument();
   });
 });

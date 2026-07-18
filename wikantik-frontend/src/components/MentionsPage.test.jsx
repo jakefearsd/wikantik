@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../hooks/useToast', () => ({
@@ -74,7 +74,7 @@ describe('MentionsPage', () => {
 
   it('dismiss (X) on a row calls markMentionRead and reloads', async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByText(/hi @alice please/)).toBeTruthy());
+    expect(await screen.findByText(/hi @alice please/)).toBeTruthy();
     const dismissButtons = screen.getAllByTitle('Mark read');
     fireEvent.click(dismissButtons[0]);
     await waitFor(() => expect(api.markMentionRead).toHaveBeenCalledWith('m1'));
@@ -92,7 +92,7 @@ describe('MentionsPage', () => {
   it('empty state shown when no mentions', async () => {
     api.listMyMentions.mockResolvedValue({ mentions: [] });
     renderPage();
-    await waitFor(() => expect(screen.getByText(/No mentions yet/)).toBeTruthy());
+    expect(await screen.findByText(/No mentions yet/)).toBeTruthy();
   });
 
   it('#55 empty state uses EmptyState component', async () => {
@@ -106,7 +106,7 @@ describe('MentionsPage', () => {
 
   it('view-in-context link goes to /wiki/<page>?thread=...&comment=...', async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByText(/hi @alice please/)).toBeTruthy());
+    expect(await screen.findByText(/hi @alice please/)).toBeTruthy();
     const links = screen.getAllByRole('link');
     const fooLink = links.find((l) => l.textContent === 'Foo');
     expect(fooLink.getAttribute('href')).toContain('/wiki/Foo?thread=t1&comment=c1');
@@ -119,7 +119,7 @@ describe('MentionsPage', () => {
       api.markMentionRead.mockReturnValue(new Promise(res => { resolveMarkOne = res; }));
 
       renderPage();
-      await waitFor(() => expect(screen.getByText(/hi @alice please/)).toBeTruthy());
+      expect(await screen.findByText(/hi @alice please/)).toBeTruthy();
 
       // Item m1 is unread — dismiss button visible
       const dismissButtons = screen.getAllByTitle('Mark read');
@@ -148,7 +148,7 @@ describe('MentionsPage', () => {
       api.markMentionRead.mockRejectedValue(new Error('network error'));
 
       renderPage();
-      await waitFor(() => expect(screen.getByText(/hi @alice please/)).toBeTruthy());
+      expect(await screen.findByText(/hi @alice please/)).toBeTruthy();
 
       const dismissButtons = screen.getAllByTitle('Mark read');
       const initialCount = dismissButtons.length;

@@ -46,8 +46,7 @@ describe('ExtractionTab', () => {
   it('RUNNING: shows progress, counter row, disabled trigger, visible Cancel', async () => {
     vi.spyOn(api.knowledge, 'getExtractionStatus').mockResolvedValue(running);
     render(<ExtractionTab />);
-    await waitFor(() =>
-      expect(screen.getByTestId('extraction-progress')).toBeInTheDocument());
+    expect(await screen.findByTestId('extraction-progress')).toBeInTheDocument();
     expect(screen.getByText(/25\/100/)).toBeInTheDocument();
     expect(screen.getByText(/200\/800/)).toBeInTheDocument();
     expect(screen.getByText(/^42$/)).toBeInTheDocument();
@@ -58,16 +57,14 @@ describe('ExtractionTab', () => {
   it('ERROR: surfaces lastError in the details panel', async () => {
     vi.spyOn(api.knowledge, 'getExtractionStatus').mockResolvedValue(errored);
     render(<ExtractionTab />);
-    await waitFor(() =>
-      expect(screen.getByText(/Anthropic API timed out/i)).toBeInTheDocument());
+    expect(await screen.findByText(/Anthropic API timed out/i)).toBeInTheDocument();
   });
 
   it('503 from API renders the disabled fallback', async () => {
     const err = Object.assign(new Error('disabled'), { status: 503, body: {} });
     vi.spyOn(api.knowledge, 'getExtractionStatus').mockRejectedValue(err);
     render(<ExtractionTab />);
-    await waitFor(() =>
-      expect(screen.getByText(/extraction is not configured/i)).toBeInTheDocument());
+    expect(await screen.findByText(/extraction is not configured/i)).toBeInTheDocument();
   });
 
   it('clicking Extract Mentions opens confirm and POSTs without force by default', async () => {
@@ -107,8 +104,7 @@ describe('ExtractionTab', () => {
     const dialog = screen.getByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: /Continue/i }));
     await waitFor(() => expect(cancel).toHaveBeenCalled());
-    await waitFor(() =>
-      expect(screen.getByText(/Cancellation requested/i)).toBeInTheDocument());
+    expect(await screen.findByText(/Cancellation requested/i)).toBeInTheDocument();
   });
 
   it('409 on POST surfaces "already in progress" error', async () => {
@@ -121,8 +117,7 @@ describe('ExtractionTab', () => {
     await waitFor(() => screen.getByRole('button', { name: /Extract Mentions/i }));
     fireEvent.click(screen.getByRole('button', { name: /Extract Mentions/i }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Continue/i }));
-    await waitFor(() =>
-      expect(screen.getByText(/already in progress/i)).toBeInTheDocument());
+    expect(await screen.findByText(/already in progress/i)).toBeInTheDocument();
   });
 
   it('COMPLETED with processedPages < totalPages (post-cancel shape) renders cleanly', async () => {
@@ -131,7 +126,7 @@ describe('ExtractionTab', () => {
       finishedAt: '2026-04-28T10:30:00Z',
     });
     render(<ExtractionTab />);
-    await waitFor(() => expect(screen.getByText(/30\/100/)).toBeInTheDocument());
+    expect(await screen.findByText(/30\/100/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Extract Mentions/i })).toBeEnabled();
     expect(screen.queryByRole('button', { name: /^Cancel$/ })).toBeNull();
   });

@@ -401,7 +401,7 @@ export default function PageView() {
     //   /edit/PageName
     //   /diff/PageName
     //   /search?q=...
-    let internalPath = null;
+    let internalPath;
 
     if (href.startsWith('/wiki/')) {
       internalPath = href;

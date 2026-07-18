@@ -167,7 +167,7 @@ function AttachmentRow({ attachment, pageName, onRename, onDelete, editorContent
     try {
       await onRename(attachment.fileName, newName);
       setRenaming(false);
-    } catch (err) {
+    } catch {
       // Error handled by parent
     }
   };

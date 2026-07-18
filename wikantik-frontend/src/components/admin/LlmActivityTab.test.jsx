@@ -38,7 +38,7 @@ describe('LlmActivityTab', () => {
   it('renders a row per recorded call', async () => {
     api.knowledge.getLlmActivity.mockResolvedValue(payload([call(), call({ seq: 2, model: 'nomic' })]));
     render(<LlmActivityTab />);
-    await waitFor(() => expect(screen.getByText('gemma4-assist')).toBeInTheDocument());
+    expect(await screen.findByText('gemma4-assist')).toBeInTheDocument();
     expect(screen.getByText('nomic')).toBeInTheDocument();
   });
 
@@ -47,21 +47,19 @@ describe('LlmActivityTab', () => {
       payload([call({ status: 'ERROR', errorMessage: 'timeout after 30s', responsePreview: null })]),
     );
     render(<LlmActivityTab />);
-    await waitFor(() => expect(screen.getByText(/timeout after 30s/)).toBeInTheDocument());
+    expect(await screen.findByText(/timeout after 30s/)).toBeInTheDocument();
   });
 
   it('shows a disabled notice when the log is disabled', async () => {
     api.knowledge.getLlmActivity.mockResolvedValue(payload([], { enabled: false }));
     render(<LlmActivityTab />);
-    await waitFor(() =>
-      expect(screen.getByText(/wikantik\.llm_activity\.enabled/)).toBeInTheDocument(),
-    );
+    expect(await screen.findByText(/wikantik\.llm_activity\.enabled/)).toBeInTheDocument();
   });
 
   it('shows an empty state when there are no calls', async () => {
     api.knowledge.getLlmActivity.mockResolvedValue(payload([]));
     render(<LlmActivityTab />);
-    await waitFor(() => expect(screen.getByText(/No LLM calls/i)).toBeInTheDocument());
+    expect(await screen.findByText(/No LLM calls/i)).toBeInTheDocument();
   });
 
   it('filters table rows by subsystem when a chip is clicked', async () => {
@@ -72,7 +70,7 @@ describe('LlmActivityTab', () => {
       ]),
     );
     render(<LlmActivityTab />);
-    await waitFor(() => expect(screen.getByText('gemma4-assist')).toBeInTheDocument());
+    expect(await screen.findByText('gemma4-assist')).toBeInTheDocument();
     expect(screen.getByText('nomic')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Embedding' }));
@@ -89,7 +87,7 @@ describe('LlmActivityTab', () => {
       ]),
     );
     render(<LlmActivityTab />);
-    await waitFor(() => expect(screen.getByText('rerank-model')).toBeInTheDocument());
+    expect(await screen.findByText('rerank-model')).toBeInTheDocument();
     // Rows carry the short subsystem labels, not the raw enum names.
     expect(screen.getByText('rerank')).toBeInTheDocument();
     expect(screen.getByText('decomposition')).toBeInTheDocument();
@@ -111,7 +109,7 @@ describe('LlmActivityTab', () => {
       ]),
     );
     render(<LlmActivityTab />);
-    await waitFor(() => expect(screen.getByText('gemma4-assist')).toBeInTheDocument());
+    expect(await screen.findByText('gemma4-assist')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Error' }));
 
@@ -127,7 +125,7 @@ describe('LlmActivityTab', () => {
       ]),
     );
     render(<LlmActivityTab />);
-    await waitFor(() => expect(screen.getByText('gemma4-assist')).toBeInTheDocument());
+    expect(await screen.findByText('gemma4-assist')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Embedding' }));
 
@@ -140,7 +138,7 @@ describe('LlmActivityTab', () => {
       payload([call(), call({ seq: 2, status: 'ERROR', errorMessage: 'x' })], { inFlight: 3 }),
     );
     render(<LlmActivityTab />);
-    await waitFor(() => expect(screen.getByText(/3 in-flight/)).toBeInTheDocument());
+    expect(await screen.findByText(/3 in-flight/)).toBeInTheDocument();
     expect(screen.getByText(/1 error/)).toBeInTheDocument();
   });
 });

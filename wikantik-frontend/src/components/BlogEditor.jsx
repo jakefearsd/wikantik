@@ -17,9 +17,9 @@ export default function BlogEditor() {
   const { username, pageName } = useParams();
   const navigate = useNavigate();
   const [content, setContent] = useState('');
-  const [originalVersion, setOriginalVersion] = useState(null);
   const [changeNote, setChangeNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [, setOriginalVersion] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [panelOpen, setPanelOpen] = useState(false);

@@ -4,6 +4,7 @@
  * api.getPage is mocked to return a simple page; api.savePage defaults to resolving.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// eslint-disable-next-line testing-library/no-manual-cleanup -- see the afterEach rationale below
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
@@ -108,7 +109,7 @@ function renderEditor(pageName = 'TestPage') {
 async function waitForEditor() {
   // #19 — wait for the inner editable (the stubbed CodeMirror textarea), which
   // mounts after the wrapper div and after the page's async load resolves.
-  await waitFor(() => expect(screen.getByTestId('cm-stub-textarea')).toBeInTheDocument());
+  expect(await screen.findByTestId('cm-stub-textarea')).toBeInTheDocument();
 }
 
 // #19 — the editable surface under the stub is the inner textarea.
@@ -176,6 +177,7 @@ beforeEach(() => {
 // next test's render. Keeps every assertion meaningful by guaranteeing a clean
 // DOM per test rather than weakening expectations.
 afterEach(async () => {
+  // eslint-disable-next-line testing-library/no-manual-cleanup -- ordering vs the promise flush below is deliberate (see comment above)
   cleanup();
   await act(async () => { await Promise.resolve(); });
 });
@@ -263,7 +265,7 @@ describe('#20 unsaved-changes guard', () => {
 
     fireEvent.click(screen.getByTestId('editor-cancel'));
 
-    await waitFor(() => expect(screen.getByText(/discard unsaved changes/i)).toBeInTheDocument());
+    expect(await screen.findByText(/discard unsaved changes/i)).toBeInTheDocument();
     expect(screen.queryByTestId('wiki-view')).toBeNull();
   });
 
@@ -318,7 +320,7 @@ describe('#21 draft banner relative time and dismiss', () => {
     renderEditor();
     await waitForEditor();
 
-    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
+    expect(await screen.findByRole('status')).toBeInTheDocument();
     expect(screen.getByRole('status').textContent).toContain('2h ago');
   });
 
@@ -442,9 +444,7 @@ describe('Task 13: Frontmatter / Knowledge tabs', () => {
     // The panel section headings should appear
     await screen.findByText('Entities');
     // Use getByRole to find the heading specifically (avoids matching empty-state text)
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /relations/i })).toBeInTheDocument(),
-    );
+    expect(await screen.findByRole('heading', { name: /relations/i })).toBeInTheDocument();
   });
 
   it('switching back to Frontmatter tab shows the frontmatter form', async () => {
@@ -528,7 +528,7 @@ describe('live frontmatter validation', () => {
     });
     renderEditor('Sample');
     const save = await screen.findByTestId('editor-save');
-    await waitFor(() => expect(screen.getByText('1 warning')).toBeTruthy());
+    expect(await screen.findByText('1 warning')).toBeTruthy();
     expect(save.disabled).toBe(false);
   });
 });
@@ -580,9 +580,7 @@ describe('math validation', () => {
 
     fireEvent.click(screen.getByTestId('editor-save'));
 
-    await waitFor(() =>
-      expect(screen.getByTestId('math-validation-summary')).toBeInTheDocument(),
-    );
+    expect(await screen.findByTestId('math-validation-summary')).toBeInTheDocument();
     expect(screen.getByText('Unclosed brace in LaTeX expression')).toBeInTheDocument();
     // Frontmatter valid strip should still show (no frontmatter errors set)
     expect(screen.getByText(/frontmatter valid/i)).toBeInTheDocument();
@@ -614,9 +612,7 @@ describe('math validation', () => {
     const save = screen.getByTestId('editor-save');
     fireEvent.click(save);
 
-    await waitFor(() =>
-      expect(screen.getByTestId('math-validation-summary')).toBeInTheDocument(),
-    );
+    expect(await screen.findByTestId('math-validation-summary')).toBeInTheDocument();
     expect(save.disabled).toBe(true);
   });
 
@@ -630,9 +626,7 @@ describe('math validation', () => {
     await waitForEditor();
 
     fireEvent.click(screen.getByTestId('editor-save'));
-    await waitFor(() =>
-      expect(screen.getByTestId('math-validation-summary')).toBeInTheDocument(),
-    );
+    expect(await screen.findByTestId('math-validation-summary')).toBeInTheDocument();
 
     // Editing the body should clear the math panel
     typeInEditor('some new body text');
@@ -673,9 +667,7 @@ describe('math validation', () => {
     await waitForEditor();
 
     fireEvent.click(screen.getByTestId('editor-save'));
-    await waitFor(() =>
-      expect(screen.getByTestId('math-validation-summary')).toBeInTheDocument(),
-    );
+    expect(await screen.findByTestId('math-validation-summary')).toBeInTheDocument();
 
     // Jump button is rendered and wired up — clicking it calls the real CodeEditor imperative
     // handle (setSelection + scrollToLine). The textarea stub's doc lacks .line(), so we just

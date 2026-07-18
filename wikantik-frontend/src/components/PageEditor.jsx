@@ -391,7 +391,7 @@ export default function PageEditor() {
             serverBody: serverPage.content || '',
             serverVersion: serverPage.version,
           });
-        } catch (fetchErr) {
+        } catch {
           setError('Version conflict, and failed to fetch the current server version.');
         }
       } else if (err.status === 422) {

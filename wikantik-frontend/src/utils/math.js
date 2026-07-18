@@ -15,7 +15,7 @@ export function renderMath(container) {
     try {
       katex.render(el.textContent, el, { displayMode: false, throwOnError: false });
       el.classList.add('math-rendered');
-    } catch (e) {
+    } catch {
       el.classList.add('math-error');
     }
   });
@@ -25,7 +25,7 @@ export function renderMath(container) {
     try {
       katex.render(el.textContent, el, { displayMode: true, throwOnError: false });
       el.classList.add('math-rendered');
-    } catch (e) {
+    } catch {
       el.classList.add('math-error');
     }
   });

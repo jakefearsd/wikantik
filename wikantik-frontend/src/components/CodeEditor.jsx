@@ -83,7 +83,7 @@ const CodeEditor = forwardRef(function CodeEditor(
     getViewport() {
       const view = viewRef.current;
       if (!view) return null;
-      let topLine = 1;
+      let topLine;
       try {
         const block = view.lineBlockAtHeight(view.scrollDOM.scrollTop);
         topLine = view.state.doc.lineAt(block.from).number;

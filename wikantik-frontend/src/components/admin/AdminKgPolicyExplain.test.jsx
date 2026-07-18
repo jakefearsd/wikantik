@@ -48,7 +48,7 @@ describe('AdminKgPolicyExplain', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /Explain/i }));
 
-    await waitFor(() => expect(screen.getByText('BudgetBasics')).toBeInTheDocument());
+    expect(await screen.findByText('BudgetBasics')).toBeInTheDocument();
 
     // Cluster row
     expect(screen.getByText('personal-finance')).toBeInTheDocument();
@@ -84,8 +84,6 @@ describe('AdminKgPolicyExplain', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /Explain/i }));
 
-    await waitFor(() =>
-      expect(screen.getByText('page not found')).toBeInTheDocument(),
-    );
+    expect(await screen.findByText('page not found')).toBeInTheDocument();
   });
 });

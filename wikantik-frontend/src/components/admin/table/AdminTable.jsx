@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { useTableSelection } from './useTableSelection';
 import SelectionBar from './SelectionBar';
 import ConfirmBulkModal from './ConfirmBulkModal';

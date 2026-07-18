@@ -28,7 +28,7 @@ describe('AdminKgPolicyBootstrap', () => {
   it('pre-checks default include / exclude rows correctly', async () => {
     render(<AdminKgPolicyBootstrap />);
 
-    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(await screen.findByText('personal-finance')).toBeInTheDocument();
 
     // personal-finance is a DEFAULT_INCLUDE cluster → Include radio selected
     const rows = document.querySelectorAll('tbody tr');
@@ -59,7 +59,7 @@ describe('AdminKgPolicyBootstrap', () => {
   it('Commit bootstrap calls api.admin.kgPolicy.bootstrap with correct include/exclude/reason', async () => {
     render(<AdminKgPolicyBootstrap />);
 
-    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(await screen.findByText('personal-finance')).toBeInTheDocument();
 
     // Default reason is pre-populated; leave as-is
     fireEvent.click(screen.getByRole('button', { name: /Commit bootstrap/i }));
@@ -80,13 +80,11 @@ describe('AdminKgPolicyBootstrap', () => {
   it('shows confirmation banner after successful bootstrap', async () => {
     render(<AdminKgPolicyBootstrap />);
 
-    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(await screen.findByText('personal-finance')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Commit bootstrap/i }));
 
-    await waitFor(() =>
-      expect(screen.getByText(/Bootstrap applied/i)).toBeInTheDocument(),
-    );
+    expect(await screen.findByText(/Bootstrap applied/i)).toBeInTheDocument();
 
     expect(screen.getByRole('link', { name: /Open dashboard/i })).toBeInTheDocument();
   });

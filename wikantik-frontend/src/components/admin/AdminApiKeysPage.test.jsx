@@ -59,7 +59,7 @@ describe('AdminApiKeysPage', () => {
     it('hides revoked keys by default and reveals them when the toggle flips', async () => {
         render(<AdminApiKeysPage />);
 
-        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+        expect(await screen.findByText('alice')).toBeInTheDocument();
         expect(screen.queryByText('bob')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByLabelText(/Show revoked/i));
@@ -68,14 +68,14 @@ describe('AdminApiKeysPage', () => {
 
     it('renders fingerprint but never the full hash', async () => {
         render(<AdminApiKeysPage />);
-        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+        expect(await screen.findByText('alice')).toBeInTheDocument();
         expect(screen.getByText(/abcdef012345/)).toBeInTheDocument();
         expect(screen.queryByText(/abcdef0123456789/)).not.toBeInTheDocument();
     });
 
     it('shows Active/Revoked badges and hides Revoke button for revoked keys', async () => {
         render(<AdminApiKeysPage />);
-        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+        expect(await screen.findByText('alice')).toBeInTheDocument();
 
         const activeRow = screen.getByText('alice').closest('tr');
         expect(within(activeRow).getByText('Active')).toBeInTheDocument();
@@ -90,13 +90,13 @@ describe('AdminApiKeysPage', () => {
     it('shows the empty-state message when no keys are returned', async () => {
         api.admin.listApiKeys.mockResolvedValueOnce({ keys: [] });
         render(<AdminApiKeysPage />);
-        await waitFor(() => expect(screen.getByText(/No API keys found/i)).toBeInTheDocument());
+        expect(await screen.findByText(/No API keys found/i)).toBeInTheDocument();
     });
 
     it('surfaces a list error in the banner', async () => {
         api.admin.listApiKeys.mockRejectedValueOnce(new Error('boom'));
         render(<AdminApiKeysPage />);
-        await waitFor(() => expect(screen.getByText('boom')).toBeInTheDocument());
+        expect(await screen.findByText('boom')).toBeInTheDocument();
     });
 
     it('generate flow reveals plaintext token exactly once and refreshes the list', async () => {
@@ -112,7 +112,7 @@ describe('AdminApiKeysPage', () => {
         });
 
         render(<AdminApiKeysPage />);
-        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+        expect(await screen.findByText('alice')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /\+ Generate Key/i }));
 
@@ -144,13 +144,13 @@ describe('AdminApiKeysPage', () => {
         );
 
         render(<AdminApiKeysPage />);
-        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+        expect(await screen.findByText('alice')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /\+ Generate Key/i }));
         fireEvent.change(screen.getByPlaceholderText(/testbot/i), { target: { value: 'x' } });
         fireEvent.click(screen.getByRole('button', { name: /^Generate$/i }));
 
-        await waitFor(() => expect(screen.getByText(/principalLogin is required/i)).toBeInTheDocument());
+        expect(await screen.findByText(/principalLogin is required/i)).toBeInTheDocument();
         // Modal stays open after failure so the operator can retry.
         expect(screen.getByRole('button', { name: /^Generate$/i })).toBeInTheDocument();
     });
@@ -159,7 +159,7 @@ describe('AdminApiKeysPage', () => {
         const revoke = vi.spyOn(api.admin, 'revokeApiKey').mockResolvedValue({ success: true, id: 1 });
 
         render(<AdminApiKeysPage />);
-        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+        expect(await screen.findByText('alice')).toBeInTheDocument();
 
         const row = screen.getByText('alice').closest('tr');
         fireEvent.click(within(row).getByRole('button', { name: /Revoke/i }));
@@ -178,7 +178,7 @@ describe('AdminApiKeysPage', () => {
         const revoke = vi.spyOn(api.admin, 'revokeApiKey').mockResolvedValue({ success: true });
 
         render(<AdminApiKeysPage />);
-        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+        expect(await screen.findByText('alice')).toBeInTheDocument();
 
         const row = screen.getByText('alice').closest('tr');
         fireEvent.click(within(row).getByRole('button', { name: /Revoke/i }));
@@ -202,14 +202,14 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
 
     it('selecting rows surfaces the bulk-action bar', async () => {
         render(<AdminApiKeysPage />);
-        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+        expect(await screen.findByText('alice')).toBeInTheDocument();
 
         // Select alice's row checkbox
         const row = screen.getByText('alice').closest('tr');
         fireEvent.click(within(row).getByRole('checkbox'));
 
         // Selection bar should appear with count and Revoke bulk action
-        await waitFor(() => expect(screen.getByText(/1 selected/i)).toBeInTheDocument());
+        expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
         const toolbar = screen.getByRole('toolbar', { name: /Bulk actions/i });
         expect(within(toolbar).getByRole('button', { name: /^Revoke$/i })).toBeInTheDocument();
     });
@@ -223,23 +223,23 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
         });
 
         render(<AdminApiKeysPage />);
-        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+        expect(await screen.findByText('alice')).toBeInTheDocument();
 
         // Select alice
         const aliceRow = screen.getByText('alice').closest('tr');
         fireEvent.click(within(aliceRow).getByRole('checkbox'));
 
-        await waitFor(() => expect(screen.getByText(/1 selected/i)).toBeInTheDocument());
+        expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
         const toolbar = screen.getByRole('toolbar', { name: /Bulk actions/i });
         fireEvent.click(within(toolbar).getByRole('button', { name: /^Revoke$/i }));
 
         // Confirm modal should show
-        await waitFor(() => expect(screen.getByText(/Revoke API Keys/i)).toBeInTheDocument());
+        expect(await screen.findByText(/Revoke API Keys/i)).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Revoke Keys/i }));
 
         await waitFor(() => expect(bulkRevoke).toHaveBeenCalledWith('revoke', ['1']));
         // AdminTable's success toast prefers `result.message` from the server when present.
-        await waitFor(() => expect(screen.getByText(/1 of 1 keys revoked/i)).toBeInTheDocument());
+        expect(await screen.findByText(/1 of 1 keys revoked/i)).toBeInTheDocument();
     });
 
     it('bulk-revoke partial failure: shows failed count in result banner', async () => {
@@ -251,7 +251,7 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
         });
 
         render(<AdminApiKeysPage />);
-        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+        expect(await screen.findByText('alice')).toBeInTheDocument();
 
         // Select alice and charlie
         const aliceRow = screen.getByText('alice').closest('tr');
@@ -259,15 +259,15 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
         fireEvent.click(within(aliceRow).getByRole('checkbox'));
         fireEvent.click(within(charlieRow).getByRole('checkbox'));
 
-        await waitFor(() => expect(screen.getByText(/2 selected/i)).toBeInTheDocument());
+        expect(await screen.findByText(/2 selected/i)).toBeInTheDocument();
         const toolbar = screen.getByRole('toolbar', { name: /Bulk actions/i });
         fireEvent.click(within(toolbar).getByRole('button', { name: /^Revoke$/i }));
 
-        await waitFor(() => expect(screen.getByText(/Revoke API Keys/i)).toBeInTheDocument());
+        expect(await screen.findByText(/Revoke API Keys/i)).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Revoke Keys/i }));
 
         await waitFor(() => expect(bulkRevoke).toHaveBeenCalledWith('revoke', expect.arrayContaining(['1', '3'])));
-        await waitFor(() => expect(screen.getByText(/1 failed/i)).toBeInTheDocument());
+        expect(await screen.findByText(/1 failed/i)).toBeInTheDocument();
     });
 
     it('cancel on the bulk confirm dialog does not call the API', async () => {
@@ -279,16 +279,16 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
         });
 
         render(<AdminApiKeysPage />);
-        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+        expect(await screen.findByText('alice')).toBeInTheDocument();
 
         const aliceRow = screen.getByText('alice').closest('tr');
         fireEvent.click(within(aliceRow).getByRole('checkbox'));
 
-        await waitFor(() => expect(screen.getByText(/1 selected/i)).toBeInTheDocument());
+        expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
         const toolbar = screen.getByRole('toolbar', { name: /Bulk actions/i });
         fireEvent.click(within(toolbar).getByRole('button', { name: /^Revoke$/i }));
 
-        await waitFor(() => expect(screen.getByText(/Revoke API Keys/i)).toBeInTheDocument());
+        expect(await screen.findByText(/Revoke API Keys/i)).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
 
         expect(bulkRevoke).not.toHaveBeenCalled();
@@ -298,7 +298,7 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
         const revoke = vi.spyOn(api.admin, 'revokeApiKey').mockResolvedValue({ success: true, id: 1 });
 
         render(<AdminApiKeysPage />);
-        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+        expect(await screen.findByText('alice')).toBeInTheDocument();
 
         const aliceRow = screen.getByText('alice').closest('tr');
         fireEvent.click(within(aliceRow).getByRole('button', { name: /Revoke/i }));

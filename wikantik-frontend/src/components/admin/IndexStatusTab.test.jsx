@@ -56,7 +56,7 @@ describe('IndexStatusTab', () => {
 
     it('renders stat cards from the status response', async () => {
         render(<IndexStatusTab />);
-        await waitFor(() => expect(screen.getByText('95')).toBeInTheDocument());
+        expect(await screen.findByText('95')).toBeInTheDocument();
         expect(screen.getByText(/287/)).toBeInTheDocument(); // avg tokens
         expect(screen.getByText(/800/)).toBeInTheDocument(); // total chunks
     });
@@ -104,8 +104,7 @@ describe('IndexStatusTab', () => {
                 embeddings_indexed: 200 }
         });
         render(<IndexStatusTab />);
-        await waitFor(() =>
-            expect(screen.getByText(/Generating embeddings/i)).toBeInTheDocument());
+        expect(await screen.findByText(/Generating embeddings/i)).toBeInTheDocument();
         expect(screen.getByText(/200\/800 chunks embedded \(25%\)/)).toBeInTheDocument();
         expect(screen.getByText(/longest phase/i)).toBeInTheDocument();
     });
@@ -119,7 +118,7 @@ describe('IndexStatusTab', () => {
             ]}
         });
         render(<IndexStatusTab />);
-        await waitFor(() => expect(screen.getByText(/BadPage/)).toBeInTheDocument());
+        expect(await screen.findByText(/BadPage/)).toBeInTheDocument();
         expect(screen.getByText(/NullPointerException/)).toBeInTheDocument();
     });
 
@@ -131,8 +130,8 @@ describe('IndexStatusTab', () => {
         await waitFor(() => screen.getByRole('button', { name: /Rebuild Indexes/i }));
         fireEvent.click(screen.getByRole('button', { name: /Rebuild Indexes/i }));
         fireEvent.click(screen.getByRole('button', { name: /Continue/i }));
-        await waitFor(() => expect(
-            screen.getByText(/already in flight|conflict/i)).toBeInTheDocument());
+        expect(
+            await screen.findByText(/already in flight|conflict/i)).toBeInTheDocument();
     });
 
     // ----- Embeddings UI section (hidden when embeddings disabled) -----
@@ -215,9 +214,8 @@ describe('IndexStatusTab', () => {
         await waitFor(() => screen.getByRole('button', { name: /Reindex Embeddings/i }));
         fireEvent.click(screen.getByRole('button', { name: /Reindex Embeddings/i }));
         await waitFor(() => expect(reindex).toHaveBeenCalled());
-        await waitFor(() =>
-            expect(screen.getByText(/Embedding reindex dispatched.*RUNNING/i))
-                .toBeInTheDocument());
+        expect(await screen.findByText(/Embedding reindex dispatched.*RUNNING/i))
+                .toBeInTheDocument();
     });
 
     it('reindex-search (Lucene-only) button calls reindex and surfaces the queued message', async () => {
@@ -229,9 +227,8 @@ describe('IndexStatusTab', () => {
         await waitFor(() => screen.getByRole('button', { name: /Reindex Search \(Lucene\)/i }));
         fireEvent.click(screen.getByRole('button', { name: /Reindex Search \(Lucene\)/i }));
         await waitFor(() => expect(reindex).toHaveBeenCalled());
-        await waitFor(() =>
-            expect(screen.getByText(/Lucene reindex queued \(1237 pages\)/i))
-                .toBeInTheDocument());
+        expect(await screen.findByText(/Lucene reindex queued \(1237 pages\)/i))
+                .toBeInTheDocument();
     });
 
     it('reindex 409 surfaces "already running" error', async () => {
@@ -242,9 +239,8 @@ describe('IndexStatusTab', () => {
         render(<IndexStatusTab />);
         await waitFor(() => screen.getByRole('button', { name: /Reindex Embeddings/i }));
         fireEvent.click(screen.getByRole('button', { name: /Reindex Embeddings/i }));
-        await waitFor(() =>
-            expect(screen.getByText(/embedding bootstrap is already running/i))
-                .toBeInTheDocument());
+        expect(await screen.findByText(/embedding bootstrap is already running/i))
+                .toBeInTheDocument();
     });
 
     it('reindex 503 surfaces hybrid-disabled error', async () => {
@@ -255,7 +251,6 @@ describe('IndexStatusTab', () => {
         render(<IndexStatusTab />);
         await waitFor(() => screen.getByRole('button', { name: /Reindex Embeddings/i }));
         fireEvent.click(screen.getByRole('button', { name: /Reindex Embeddings/i }));
-        await waitFor(() =>
-            expect(screen.getByText(/Hybrid search disabled/i)).toBeInTheDocument());
+        expect(await screen.findByText(/Hybrid search disabled/i)).toBeInTheDocument();
     });
 });

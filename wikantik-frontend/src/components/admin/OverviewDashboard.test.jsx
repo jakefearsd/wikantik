@@ -1,7 +1,7 @@
 // OverviewDashboard.test.jsx
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { api } from '../../api/client';
 import OverviewDashboard from './OverviewDashboard';
 
@@ -26,7 +26,7 @@ beforeEach(() => { api.admin.getOverview.mockResolvedValue(payload); });
 describe('OverviewDashboard', () => {
   it('renders the status band cards from the payload', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('17')).toBeInTheDocument());
+    expect(await screen.findByText('17')).toBeInTheDocument();
     expect(screen.getByText('Status & action')).toBeInTheDocument();
     expect(screen.getByText('System metrics')).toBeInTheDocument();
   });
@@ -38,53 +38,53 @@ describe('OverviewDashboard', () => {
 
   it('enriched users card shows api keys and locked count', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('3 keys · 1 locked')).toBeInTheDocument());
+    expect(await screen.findByText('3 keys · 1 locked')).toBeInTheDocument();
   });
 
   it('enriched kgSize card shows edges, stubs, and orphans', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('450 edges · 12 stubs · 4 orphans')).toBeInTheDocument());
+    expect(await screen.findByText('450 edges · 12 stubs · 4 orphans')).toBeInTheDocument();
   });
 
   it('enriched judge card shows pending as value and timeout/sc in meta', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('2 timeout · 1 sc')).toBeInTheDocument());
+    expect(await screen.findByText('2 timeout · 1 sc')).toBeInTheDocument();
   });
 
   it('enriched auth card shows failed count in meta', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('3 failed')).toBeInTheDocument());
+    expect(await screen.findByText('3 failed')).toBeInTheDocument();
   });
 
   it('enriched agentSurface card shows forAgentBytes and hintFailures in meta', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('1024B avg · 0 hint fails')).toBeInTheDocument());
+    expect(await screen.findByText('1024B avg · 0 hint fails')).toBeInTheDocument();
   });
 
   it('new contentQuality card renders authoritative value and breakdown meta', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('15 prov · 5 stale · 10 none')).toBeInTheDocument());
+    expect(await screen.findByText('15 prov · 5 stale · 10 none')).toBeInTheDocument();
   });
 
   it('new retrievalModes card renders hybrid value and bm25/hybrid/graph meta', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('bm25 100 · hybrid 250 · graph 30')).toBeInTheDocument());
+    expect(await screen.findByText('bm25 100 · hybrid 250 · graph 30')).toBeInTheDocument();
   });
 
   it('new attachments card renders provider value and maxSize/allowedCount meta', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('10MB · 200 allowed')).toBeInTheDocument());
+    expect(await screen.findByText('10MB · 200 allowed')).toBeInTheDocument();
   });
 
   it('testid: admin-overview root and metric-card-users wrapper exist', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByTestId('admin-overview')).toBeInTheDocument());
+    expect(await screen.findByTestId('admin-overview')).toBeInTheDocument();
     expect(screen.getByTestId('metric-card-users')).toBeInTheDocument();
   });
 
   it('testid: metric-card-contentQuality, metric-card-retrievalModes, metric-card-attachments exist', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByTestId('admin-overview')).toBeInTheDocument());
+    expect(await screen.findByTestId('admin-overview')).toBeInTheDocument();
     expect(screen.getByTestId('metric-card-contentQuality')).toBeInTheDocument();
     expect(screen.getByTestId('metric-card-retrievalModes')).toBeInTheDocument();
     expect(screen.getByTestId('metric-card-attachments')).toBeInTheDocument();
@@ -92,14 +92,14 @@ describe('OverviewDashboard', () => {
 
   it('link card: kgProposals renders an anchor to /admin/knowledge-graph', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('17')).toBeInTheDocument());
+    expect(await screen.findByText('17')).toBeInTheDocument();
     const link = screen.getByRole('link', { name: /kg proposals/i });
     expect(link).toHaveAttribute('href', '/admin/knowledge-graph');
   });
 
   it('link card: users renders an anchor to /admin/users', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('5')).toBeInTheDocument());
+    expect(await screen.findByText('5')).toBeInTheDocument();
     const link = screen.getByRole('link', { name: /users/i });
     expect(link).toHaveAttribute('href', '/admin/users');
   });
@@ -107,7 +107,7 @@ describe('OverviewDashboard', () => {
   it('error state: renders error banner when API rejects', async () => {
     api.admin.getOverview.mockRejectedValueOnce(new Error('boom'));
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('boom')).toBeInTheDocument());
+    expect(await screen.findByText('boom')).toBeInTheDocument();
     expect(document.querySelector('.error-banner')).not.toBeNull();
   });
 

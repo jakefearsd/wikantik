@@ -1,5 +1,5 @@
 import { describe, it, vi, beforeEach, expect } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { api } from '../api/client';
 import DiffViewer from './DiffViewer';
@@ -47,29 +47,29 @@ describe('DiffViewer', () => {
     api.getDiff.mockReturnValue(new Promise(() => {}));
     renderDiffViewer();
     // Wait for history to resolve (spinner for history disappears).
-    await waitFor(() => expect(screen.getByText('Compare versions: TestPage')).toBeInTheDocument());
-    // Now the diff spinner should be visible.
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(await screen.findByText('Compare versions: TestPage')).toBeInTheDocument();
+    // Now the diff spinner should be visible. findByRole (async) — the
+    // diffLoading effect flushes a tick after the heading renders.
+    expect(await screen.findByRole('status')).toBeInTheDocument();
   });
 
   it('shows an error message when history fails to load', async () => {
     api.getHistory.mockRejectedValue(new Error('network error'));
     renderDiffViewer();
-    await waitFor(() => expect(screen.getByText(/network error/)).toBeInTheDocument());
+    expect(await screen.findByText(/network error/)).toBeInTheDocument();
   });
 
   it('renders version selectors and diff when history loads successfully', async () => {
     api.getHistory.mockResolvedValue({ versions: VERSIONS });
     api.getDiff.mockResolvedValue({ diffHtml: '<p>diff content</p>' });
     renderDiffViewer();
-    await waitFor(() => expect(screen.getByText('Compare versions: TestPage')).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText(/diff content/)).toBeInTheDocument());
+    expect(await screen.findByText('Compare versions: TestPage')).toBeInTheDocument();
+    expect(await screen.findByText(/diff content/)).toBeInTheDocument();
   });
 
   it('shows the single-version message when there is only one version', async () => {
     api.getHistory.mockResolvedValue({ versions: [VERSIONS[0]] });
     renderDiffViewer();
-    await waitFor(() =>
-      expect(screen.getByText(/fewer than two versions/i)).toBeInTheDocument());
+    expect(await screen.findByText(/fewer than two versions/i)).toBeInTheDocument();
   });
 });

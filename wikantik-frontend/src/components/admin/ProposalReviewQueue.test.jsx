@@ -180,9 +180,7 @@ describe('ProposalReviewQueue — bulk approve', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Approve Proposals' });
     fireEvent.click(within(dialog).getByRole('button', { name: /^Approve$/i }));
 
-    await waitFor(() =>
-      expect(screen.getByText(/2 of 2 proposals approved/i)).toBeInTheDocument()
-    );
+    expect(await screen.findByText(/2 of 2 proposals approved/i)).toBeInTheDocument();
   });
 });
 
@@ -239,9 +237,7 @@ describe('ProposalReviewQueue — bulk reject', () => {
     fireEvent.click(confirmBtn);
 
     // Should show a required-reason error without dispatching
-    await waitFor(() =>
-      expect(screen.getByRole('alert')).toBeInTheDocument()
-    );
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(api.knowledge.bulkProposalAction).not.toHaveBeenCalled();
   });
 
@@ -334,9 +330,7 @@ describe('ProposalReviewQueue — partial failure', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Approve Proposals' });
     fireEvent.click(within(dialog).getByRole('button', { name: /^Approve$/i }));
 
-    await waitFor(() =>
-      expect(screen.getByText(/1 failed/i)).toBeInTheDocument()
-    );
+    expect(await screen.findByText(/1 failed/i)).toBeInTheDocument();
   });
 });
 

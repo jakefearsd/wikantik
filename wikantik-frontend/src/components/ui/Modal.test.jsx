@@ -56,7 +56,7 @@ describe('Modal', () => {
 
   it('calls onClose when overlay/backdrop is clicked', () => {
     const onClose = vi.fn();
-    const { container } = render(
+    render(
       <Modal isOpen={true} onClose={onClose} labelledBy="dlg-title">
         <span>Content</span>
       </Modal>,

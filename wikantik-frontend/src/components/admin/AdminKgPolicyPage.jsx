@@ -37,7 +37,7 @@ export default function AdminKgPolicyPage() {
     try {
       const data = await api.admin.kgPolicy.reconciliation();
       setReconciliation(data.reconciliation || []);
-    } catch (_) {
+    } catch {
       // reconciliation refresh is best-effort; swallow silently
     }
   }, []);

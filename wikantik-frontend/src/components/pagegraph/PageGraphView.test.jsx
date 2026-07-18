@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, describe as d2, it as i2, expect as e2, vi as v2, beforeEach as b2 } from 'vitest';
+import { describe, it, expect, vi, beforeEach, describe as d2, it as i2, vi as v2, beforeEach as b2 } from 'vitest';
 import { fireEvent as f2 } from '@testing-library/react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -41,25 +41,25 @@ describe('PageGraphView', () => {
     api.pageGraph.getSnapshot.mockResolvedValue(MOCK_SNAPSHOT);
     render(<MemoryRouter initialEntries={['/page-graph']}><PageGraphView /></MemoryRouter>);
     expect(screen.getByText(/loading/i)).toBeTruthy();
-    await waitFor(() => expect(screen.getByTestId('graph-canvas')).toBeTruthy());
+    expect(await screen.findByTestId('graph-canvas')).toBeTruthy();
   });
 
   it('shows 401 error for unauthorized', async () => {
     api.pageGraph.getSnapshot.mockRejectedValue(Object.assign(new Error('Unauthorized'), { status: 401 }));
     render(<MemoryRouter initialEntries={['/page-graph']}><PageGraphView /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('Sign in to view the page graph.')).toBeTruthy());
+    expect(await screen.findByText('Sign in to view the page graph.')).toBeTruthy();
   });
 
   it('shows server error for 5xx', async () => {
     api.pageGraph.getSnapshot.mockRejectedValue(Object.assign(new Error('Server error'), { status: 500 }));
     render(<MemoryRouter initialEntries={['/page-graph']}><PageGraphView /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText(/unavailable/i)).toBeTruthy());
+    expect(await screen.findByText(/unavailable/i)).toBeTruthy();
   });
 
   it('shows empty state for zero nodes', async () => {
     api.pageGraph.getSnapshot.mockResolvedValue({ ...MOCK_SNAPSHOT, nodeCount: 0, nodes: [], edges: [] });
     render(<MemoryRouter initialEntries={['/page-graph']}><PageGraphView /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText(/empty/i)).toBeTruthy());
+    expect(await screen.findByText(/empty/i)).toBeTruthy();
   });
 
   it('shows empty-for-you when all nodes restricted', async () => {
@@ -68,7 +68,7 @@ describe('PageGraphView', () => {
       nodes: [{ id: 'x', name: null, role: 'restricted', restricted: true, degreeIn: 0, degreeOut: 0 }],
     });
     render(<MemoryRouter initialEntries={['/page-graph']}><PageGraphView /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText(/don't have permission/i)).toBeTruthy());
+    expect(await screen.findByText(/don't have permission/i)).toBeTruthy();
   });
 });
 
@@ -89,7 +89,7 @@ d2('PageGraphView with FilterPanel', () => {
     api.pageGraph.getSnapshot.mockResolvedValue(snap);
     const replace = v2.spyOn(window.history, 'replaceState');
     render(<MemoryRouter initialEntries={['/page-graph']}><PageGraphView /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByRole('button', { name: /backbone/i })).toBeInTheDocument());
+    expect(await screen.findByRole('button', { name: /backbone/i })).toBeInTheDocument();
     f2.click(screen.getByRole('button', { name: /backbone/i }));
     await waitFor(() => {
       const calls = replace.mock.calls.map(c => c[2] || '');

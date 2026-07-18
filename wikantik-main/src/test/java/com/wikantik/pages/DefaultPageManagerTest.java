@@ -195,7 +195,7 @@ public class DefaultPageManagerTest {
         final Page p = engine.getManager( PageManager.class ).getPage( "test", -1 );
         final VerySimpleProvider vsp = (VerySimpleProvider) engine.getManager( PageManager.class ).getProvider();
 
-        Assertions.assertEquals( "test", vsp.m_latestReq, "wrong page" );
+        Assertions.assertEquals( "test", vsp.m_latestReq, () -> "wrong page — last requested by: " + vsp.m_latestReqBy );
         Assertions.assertEquals( -1, vsp.m_latestVers, "wrong version" );
         Assertions.assertNotNull( p, "null" );
     }
@@ -209,7 +209,7 @@ public class DefaultPageManagerTest {
         final String p = engine.getManager( PageManager.class ).getText( "test", -1 );
         final VerySimpleProvider vsp = (VerySimpleProvider) engine.getManager( PageManager.class ).getProvider();
 
-        Assertions.assertEquals( "test", vsp.m_latestReq, "wrong page" );
+        Assertions.assertEquals( "test", vsp.m_latestReq, () -> "wrong page — last requested by: " + vsp.m_latestReqBy );
         Assertions.assertEquals( -1, vsp.m_latestVers, "wrong version" );
         Assertions.assertNotNull( p, "null" );
     }
@@ -223,7 +223,7 @@ public class DefaultPageManagerTest {
         final String p = engine.getManager( RenderingManager.class ).getHTML( "test", -1 );
         final VerySimpleProvider vsp = (VerySimpleProvider) engine.getManager( PageManager.class ).getProvider();
 
-        Assertions.assertEquals( "test", vsp.m_latestReq, "wrong page" );
+        Assertions.assertEquals( "test", vsp.m_latestReq, () -> "wrong page — last requested by: " + vsp.m_latestReqBy );
         Assertions.assertEquals( 5, vsp.m_latestVers, "wrong version" );
         Assertions.assertNotNull( p, "null" );
     }
@@ -238,7 +238,7 @@ public class DefaultPageManagerTest {
         final CachingProvider cp = (CachingProvider)engine.getManager( PageManager.class ).getProvider();
         final VerySimpleProvider vsp = (VerySimpleProvider) cp.getRealProvider();
 
-        Assertions.assertEquals( VerySimpleProvider.PAGENAME, vsp.m_latestReq, "wrong page" );
+        Assertions.assertEquals( VerySimpleProvider.PAGENAME, vsp.m_latestReq, () -> "wrong page — last requested by: " + vsp.m_latestReqBy );
         // With caching enabled, the CachingProvider may resolve the version before
         // delegating, so the underlying provider may see the resolved version (5)
         // instead of LATEST_VERSION (-1).  Both are correct behavior.

@@ -94,6 +94,19 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
     public void shutdown() {
         killMe = true;
     }
+
+    /**
+     * Whether this thread has been asked to die (engine shutdown detected or
+     * {@link #shutdown()} called). Long-running {@link #startupTask()} implementations
+     * must poll this instead of sleeping monolithically, or a stopped engine leaks the
+     * thread for the remainder of the sleep and then runs the startup work against a
+     * dead engine.
+     *
+     * @return {@code true} once shutdown has been requested
+     */
+    protected final boolean isShuttingDown() {
+        return killMe;
+    }
     
     /**
      * Runs the background thread's {@link #backgroundTask()} method at the interval specified at construction.

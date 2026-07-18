@@ -712,10 +712,24 @@ public class LuceneSearchProvider implements SearchProvider {
         public void startupTask() throws Exception {
             watchdog = WatchDog.getCurrentWatchDog( getEngine() );
 
+            // Sleep in one-second slices, checking for engine shutdown between them.
+            // A monolithic sleep here leaked this (non-daemon) thread for the full
+            // initial delay after engine.stop(), after which it ran a full reindex
+            // against the dead engine.
             try {
-                Thread.sleep( initialDelay * 1000L );
+                for ( int i = 0; i < initialDelay; i++ ) {
+                    if ( isShuttingDown() ) {
+                        LOG.info( "Engine shut down during Lucene indexer initial delay — skipping full reindex." );
+                        return;
+                    }
+                    Thread.sleep( 1000L );
+                }
             } catch ( final InterruptedException e ) {
                 throw new InternalWikiException( "Interrupted while waiting to start.", e );
+            }
+            if ( isShuttingDown() ) {
+                LOG.info( "Engine shut down during Lucene indexer initial delay — skipping full reindex." );
+                return;
             }
 
             watchdog.enterState( "Full reindex" );

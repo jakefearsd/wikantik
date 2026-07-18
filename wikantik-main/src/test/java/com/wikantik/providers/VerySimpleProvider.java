@@ -40,6 +40,11 @@ public class VerySimpleProvider implements PageProvider {
 
     /** The last request is stored here. */
     public String m_latestReq;
+
+    /** Thread + call-site of the most recent page request — diagnostic breadcrumb for
+        cross-test pollution flakes (a foreign page name here means some background
+        thread reached this provider; the stack identifies it). */
+    public volatile String m_latestReqBy;
     /** The version number of the last request is stored here. */
     public int    m_latestVers = -123989;
 
@@ -95,6 +100,7 @@ public class VerySimpleProvider implements PageProvider {
     public Page getPageInfo( final String page, final int version ) {
         m_latestReq  = page;
         m_latestVers = version;
+        m_latestReqBy = captureRequester();
 
         final Page p = Wiki.contents().page( m_engine, page );
         p.setVersion( 5 );
@@ -157,6 +163,7 @@ public class VerySimpleProvider implements PageProvider {
     public String getPageText( final String page, final int version ) {
         m_latestReq  = page;
         m_latestVers = version;
+        m_latestReqBy = captureRequester();
 
         return "";
     }
@@ -173,4 +180,13 @@ public class VerySimpleProvider implements PageProvider {
     public void movePage( final String from, final String to ) throws ProviderException {
     }
     
+
+    private static String captureRequester() {
+        final StringBuilder sb = new StringBuilder( Thread.currentThread().getName() );
+        final StackTraceElement[] st = new Throwable().getStackTrace();
+        for ( int i = 2; i < Math.min( 8, st.length ); i++ ) {
+            sb.append( " <- " ).append( st[ i ] );
+        }
+        return sb.toString();
+    }
 }

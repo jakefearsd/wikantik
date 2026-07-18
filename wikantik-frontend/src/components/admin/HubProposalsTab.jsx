@@ -11,7 +11,6 @@ export default function HubProposalsTab() {
   const [hubFilter, setHubFilter] = useState('');
   const [selected, setSelected] = useState(new Set());
   const [thresholdValue, setThresholdValue] = useState(95);
-  const [thresholdCount, setThresholdCount] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -33,10 +32,9 @@ export default function HubProposalsTab() {
 
   useEffect(() => { loadData(); }, [offset, hubFilter]);
 
-  useEffect(() => {
-    const count = proposals.filter(p => p.percentile_score >= thresholdValue).length;
-    setThresholdCount(count);
-  }, [thresholdValue, proposals]);
+  // Derived during render (not effect-set state): keeps the count in the same
+  // render pass as the proposals table, so there is no one-render lag.
+  const thresholdCount = proposals.filter(p => p.percentile_score >= thresholdValue).length;
 
   const handleGenerate = async () => {
     setGenerating(true);

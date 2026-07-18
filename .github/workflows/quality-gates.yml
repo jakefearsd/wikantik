@@ -1,0 +1,86 @@
+name: Quality Gates
+
+# Restores gate enforcement after the self-hosted runner went dark (~2026-05-16):
+# the fast static gates run on GitHub-hosted runners for every push to main, so
+# a red complexity ratchet or broken build can no longer land silently.
+# The full unit suite is heavier (~5k tests) and runs weekly + on demand to
+# conserve Actions minutes; the full IT reactor stays a local pre-commit gate
+# (Cargo/Postgres/pgvector — not runnable on hosted runners).
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 1'   # Mondays 04:00 UTC — weekly full unit suite
+
+jobs:
+  static-gates:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: wikantik-frontend/package-lock.json
+
+      # Full reactor build without running tests (still compiles test sources
+      # via the test-jar modules and runs the Apache RAT license check).
+      - name: Build (skip tests) + RAT
+        run: mvn -B -T 1C clean install -DskipTests
+
+      # CI complexity ratchet: fails on any NEW complexity violation (PMD
+      # design rules) not already carved out in
+      # build-support/pmd-complexity-baseline.properties. Burn down debt by
+      # shrinking/decomposing a class until it clears its rule(s), then delete
+      # that rule (or the whole line) from the baseline. Adding a NEW baseline
+      # line requires justification in the commit message.
+      - name: Complexity ratchet
+        run: mvn -B pmd:check -Pcomplexity-gate
+
+      - name: Frontend lint (ESLint)
+        working-directory: wikantik-frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm run lint
+
+      - name: Frontend unit tests (vitest)
+        working-directory: wikantik-frontend
+        run: npm test
+
+  unit-tests:
+    # Weekly + manual only — the ~5k-test suite is too heavy for per-push
+    # hosted minutes. Sequential on purpose: parallel surefire is flaky here.
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: wikantik-frontend/package-lock.json
+
+      - name: Full unit suite
+        run: mvn -B clean install -DskipITs

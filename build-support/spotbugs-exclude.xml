@@ -125,4 +125,90 @@
         <Bug pattern="THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION"/>
     </Match>
 
+    <!-- ================================================================
+         find-sec-bugs first-pass triage (2026-07-18). The blocks below keep
+         the security scan readable by removing informational markers and
+         verified false positives; the remaining findsecbugs findings
+         (PATH_TRAVERSAL_IN, XSS_SERVLET, SQL_INJECTION_JDBC,
+         POTENTIAL_XML_INJECTION, UNVALIDATED_REDIRECT, REDOS, ...) are the
+         standing review backlog and stay VISIBLE on purpose.
+    ================================================================ -->
+
+    <!-- Taint-SOURCE markers, not vulnerabilities: findsecbugs flags every
+         read of a request parameter/header/cookie as "this is user input".
+         A servlet-based wiki reads request input everywhere by definition;
+         the taint SINKS (XSS/SQL/path-traversal detectors) are what we
+         review, and those stay unsuppressed. -->
+    <Match>
+        <Class name="~com\.wikantik\..*"/>
+        <Bug pattern="SERVLET_PARAMETER,SERVLET_HEADER,SERVLET_QUERY_STRING,SERVLET_SERVER_NAME,SERVLET_CONTENT_TYPE,SERVLET_HEADER_USER_AGENT,SERVLET_HEADER_REFERER,COOKIE_USAGE"/>
+    </Match>
+
+    <!-- Heuristic too noisy to be signal here (144 hits): flags any
+         case-normalisation near a comparison. Wiki page-name handling
+         case-normalises pervasively and intentionally. -->
+    <Match>
+        <Class name="~com\.wikantik\..*"/>
+        <Bug pattern="IMPROPER_UNICODE"/>
+    </Match>
+
+    <!-- Verified false positives (all 11 sites reviewed 2026-07-18): every
+         flagged call is InitialContext/Context.lookup() of a JNDI name that
+         comes from configuration properties or code constants
+         (jdbc/mail DataSource resolution) — no request-derived data reaches
+         a JNDI lookup anywhere in the codebase. -->
+    <Match>
+        <Class name="~com\.wikantik\..*"/>
+        <Bug pattern="LDAP_INJECTION"/>
+    </Match>
+
+    <!-- Accepted-low (48 hits): CRLF in log4j2 application logs enables log
+         forging only for an attacker who can already submit requests; the
+         tamper-evident audit trail lives in the audit DB table, not these
+         logs. Revisit if file logs ever become a security-audit source. -->
+    <Match>
+        <Class name="~com\.wikantik\..*"/>
+        <Bug pattern="CRLF_INJECTION_LOGS"/>
+    </Match>
+
+    <!-- Both deserialization sites install ObjectInputFilter whitelists
+         (DefaultReferenceManager.SAFE_DESERIALIZE_FILTER,
+         Serializer.SAFE_FILTER) — verified 2026-07-18; findsecbugs does not
+         model setObjectInputFilter. -->
+    <Match>
+        <Or>
+            <Class name="com.wikantik.pagegraph.references.DefaultReferenceManager"/>
+            <Class name="com.wikantik.util.Serializer"/>
+        </Or>
+        <Bug pattern="OBJECT_DESERIALIZATION"/>
+    </Match>
+
+    <!-- Deliberately permissive CORS on PUBLIC read-only surfaces: the RDF/
+         SPARQL endpoints are public-by-design (see PublicRdfServletBase
+         docs / ontology design), and the recent-articles feed serves public
+         content. Restricted content never reaches either surface. -->
+    <Match>
+        <Or>
+            <Class name="com.wikantik.rest.PublicRdfServletBase"/>
+            <Class name="com.wikantik.content.RecentArticlesServlet"/>
+        </Or>
+        <Bug pattern="PERMISSIVE_CORS"/>
+    </Match>
+
+    <!-- MD5 here buckets reference-attribute cache FILENAMES (non-crypto,
+         collision cost = a cache filename clash); not used for integrity or
+         authentication. -->
+    <Match>
+        <Class name="com.wikantik.pagegraph.references.DefaultReferenceManager"/>
+        <Bug pattern="WEAK_MESSAGE_DIGEST_MD5"/>
+    </Match>
+
+    <!-- The admin SecurityVerifier diagnostic creates-and-removes a probe
+         user ("password") to verify the user DB accepts writes — the
+         literal is the point of the self-test, not a credential. -->
+    <Match>
+        <Class name="com.wikantik.auth.subsystem.verify.PolicyVerifier"/>
+        <Bug pattern="HARD_CODE_PASSWORD"/>
+    </Match>
+
 </FindBugsFilter>

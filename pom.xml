@@ -117,6 +117,7 @@
     <sec.bouncycastle.version>1.84</sec.bouncycastle.version>             <!-- via pac4j-saml/oidc + tika-crypto; CVE-2026-5598/-0636/-5588 -->
     <sec.commons-beanutils.version>1.11.0</sec.commons-beanutils.version> <!-- via tribuo->opencsv;          CVE-2025-48734 -->
     <sec.jackson3.version>3.2.0</sec.jackson3.version>                    <!-- via mcp-sdk (Jackson 3 family); CVE-2026-29062 +2 -->
+    <sec.jackson2.version>2.22.1</sec.jackson2.version>                   <!-- via pac4j-core (2.22.0) + tika-parser-cad-module (2.21.3); GHSA-5jmj-h7xm-6q6v + 2.21.x GHSAs, all fixed by 2.22.1 -->
     <sec.libthrift.version>0.23.0</sec.libthrift.version>                 <!-- via jena-arq;                  CVE-2026-43869 -->
     <sec.junrar.version>7.6.0</sec.junrar.version>                       <!-- via tika-parsers;              CVE-2026-41245 -->
     <sec.guava.version>33.6.0-jre</sec.guava.version>                    <!-- via pac4j-oidc/pac4j-saml (opensaml); CVE-2023-2976, CVE-2020-8908 -->
@@ -147,7 +148,6 @@
     <plugin.site.version>3.22.0</plugin.site.version>
     <plugin.spotbugs.version>4.10.2.0</plugin.spotbugs.version>
     <spotbugs-annotations.version>4.10.2</spotbugs-annotations.version>
-    <plugin.checkstyle.version>3.6.0</plugin.checkstyle.version>
     <plugin.clirr.version>2.8</plugin.clirr.version>
     <plugin.wro4j.version>2.1.1</plugin.wro4j.version>
     <plugin.cobertura.version>2.7</plugin.cobertura.version>
@@ -770,6 +770,12 @@
       </dependency>
 
       <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${sec.jackson2.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.thrift</groupId>
         <artifactId>libthrift</artifactId>
         <version>${sec.libthrift.version}</version>
@@ -1308,20 +1314,6 @@
                 <excludeFilterFile>${spotbugs.excludeFilterFile}</excludeFilterFile>
             </configuration>
         </plugin>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-checkstyle-plugin</artifactId>
-            <version>${plugin.checkstyle.version}</version>
-            <configuration>
-                <configLocation>google_checks.xml</configLocation>
-                <failsOnError>false</failsOnError>
-                <linkXRef>true</linkXRef>
-                <!-- do not check resource files; google_checks.xml is Java-only
-                     and linkXRef on .properties files creates broken xref links -->
-                <includeResources>false</includeResources>
-                <includeTestResources>false</includeTestResources>
-            </configuration>
-        </plugin>
       </plugins>
     </pluginManagement>
   </build>
@@ -1457,30 +1449,6 @@
         </configuration>
       </plugin>
 
-      <!-- Code style -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>${plugin.checkstyle.version}</version>
-        <configuration>
-          <configLocation>google_checks.xml</configLocation>
-          <failsOnError>false</failsOnError>
-          <linkXRef>true</linkXRef>
-          <!-- do not check resource files; google_checks.xml is Java-only
-               and linkXRef on .properties files creates broken xref links -->
-          <includeResources>false</includeResources>
-          <includeTestResources>false</includeTestResources>
-        </configuration>
-        <reportSets>
-          <reportSet>
-            <id>aggregate</id>
-            <inherited>false</inherited>
-            <reports>
-              <report>checkstyle-aggregate</report>
-            </reports>
-          </reportSet>
-        </reportSets>
-      </plugin>
 
     </plugins>
   </reporting>

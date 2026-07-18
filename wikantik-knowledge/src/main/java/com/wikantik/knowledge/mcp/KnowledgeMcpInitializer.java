@@ -149,21 +149,22 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 ontoCoord == null ? null : ontoCoord.modelManager();
             final com.wikantik.citation.CitationRepository citationRepo =
                 PageGraphSubsystemBridge.fromLegacyEngine( engine ).citationRepository();
-            tools = assembleTools(
-                kgService,
-                kgService == null ? null : resolveMentionIndex( engine ),
-                kg.nodeMentionSimilarity(),
-                ctxService,
-                pageManager,
-                structuralIndex,
-                forAgent,
-                kg.bundleAssemblyService(),
-                kg.briefingAssemblyService(),
-                ontoMgr,
-                citationRepo,
-                () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null,
-                () -> engine instanceof com.wikantik.WikiEngine we ? we.briefingLogService() : null,
-                viewGate );
+            tools = assembleTools( KnowledgeToolDeps.builder()
+                .kgService( kgService )
+                .mentionIndex( kgService == null ? null : resolveMentionIndex( engine ) )
+                .similarity( kg.nodeMentionSimilarity() )
+                .ctxService( ctxService )
+                .pageManager( pageManager )
+                .structuralIndex( structuralIndex )
+                .forAgent( forAgent )
+                .bundleService( kg.bundleAssemblyService() )
+                .briefingService( kg.briefingAssemblyService() )
+                .ontoMgr( ontoMgr )
+                .citationRepo( citationRepo )
+                .queryLog( () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null )
+                .briefingLog( () -> engine instanceof com.wikantik.WikiEngine we ? we.briefingLogService() : null )
+                .viewGate( viewGate )
+                .build() );
         } catch ( final Exception e ) {
             LOG.error( "Knowledge MCP startup failed while assembling tools — transport servlet is registered " +
                     "but the server will have no tools to dispatch: {}", e.getMessage(), e );
@@ -215,64 +216,81 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
      * {@code kgService}, so those tools drop out while the retrieval / page / spine /
      * ontology / citation tools remain.</p>
      */
-    static List< McpTool > assembleTools(
-            final KnowledgeGraphService kgService,
-            final MentionIndex mentionIndex,
-            final NodeMentionSimilarity similarity,
-            final ContextRetrievalService ctxService,
-            final PageManager pageManager,
-            final StructuralIndexService structuralIndex,
-            final ForAgentProjectionService forAgent,
-            final com.wikantik.api.bundle.BundleAssemblyService bundleService,
-            final com.wikantik.api.briefing.BriefingAssemblyService briefingService,
-            final com.wikantik.ontology.OntologyModelManager ontoMgr,
-            final com.wikantik.citation.CitationRepository citationRepo,
-            final java.util.function.Supplier< com.wikantik.api.querylog.QueryLogService > queryLog,
-            final java.util.function.Supplier< com.wikantik.api.briefing.BriefingLogService > briefingLog,
-            final PageViewGate viewGate ) {
+    static List< McpTool > assembleTools( final KnowledgeToolDeps deps ) {
         final List< McpTool > tools = new ArrayList<>();
-        if ( kgService != null ) {
-            tools.add( new DiscoverSchemaTool( kgService, mentionIndex ) );
-            tools.add( new QueryNodesTool( kgService, mentionIndex, false, viewGate::canView ) );
-            tools.add( new GetNodeTool( kgService, viewGate ) );
-            tools.add( new TraverseTool( kgService, viewGate ) );
-            tools.add( new SearchKnowledgeTool( kgService, mentionIndex, false, viewGate::canView ) );
-            if ( similarity != null ) {
-                tools.add( new FindSimilarTool( similarity, kgService, viewGate ) );
-            }
+        addKnowledgeGraphTools( tools, deps );
+        addRetrievalTools( tools, deps );
+        addStructuralSpineTools( tools, deps );
+        addProjectionAndBundleTools( tools, deps );
+        addOntologyAndCitationTools( tools, deps );
+        return tools;
+    }
+
+    private static void addKnowledgeGraphTools( final List< McpTool > tools, final KnowledgeToolDeps deps ) {
+        final KnowledgeGraphService kgService = deps.kgService();
+        if ( kgService == null ) {
+            return;
         }
-        if ( ctxService != null ) {
-            tools.add( new RetrieveContextTool( ctxService, viewGate ) );
-            tools.add( new GetPageTool( ctxService, viewGate ) );
-            tools.add( new ListPagesTool( ctxService, viewGate ) );
-            tools.add( new ListMetadataValuesTool( ctxService ) );
-            tools.add( new ReadPagesTool( pageManager, ReadPagesMetrics.resolveAndBind(), viewGate ) );
+        final MentionIndex mentionIndex = deps.mentionIndex();
+        final PageViewGate viewGate = deps.viewGate();
+        tools.add( new DiscoverSchemaTool( kgService, mentionIndex ) );
+        tools.add( new QueryNodesTool( kgService, mentionIndex, false, viewGate::canView ) );
+        tools.add( new GetNodeTool( kgService, viewGate ) );
+        tools.add( new TraverseTool( kgService, viewGate ) );
+        tools.add( new SearchKnowledgeTool( kgService, mentionIndex, false, viewGate::canView ) );
+        if ( deps.similarity() != null ) {
+            tools.add( new FindSimilarTool( deps.similarity(), kgService, viewGate ) );
         }
-        if ( structuralIndex != null ) {
-            tools.add( new ListClustersTool( structuralIndex, viewGate ) );
-            tools.add( new ListTagsTool( structuralIndex ) );
-            tools.add( new ListPagesByFilterTool( structuralIndex, viewGate ) );
-            tools.add( new GetPageByIdTool( structuralIndex, viewGate ) );
+    }
+
+    private static void addRetrievalTools( final List< McpTool > tools, final KnowledgeToolDeps deps ) {
+        final ContextRetrievalService ctxService = deps.ctxService();
+        if ( ctxService == null ) {
+            return;
         }
-        if ( forAgent != null ) {
-            tools.add( new GetPageForAgentTool( forAgent, viewGate ) );
+        final PageViewGate viewGate = deps.viewGate();
+        tools.add( new RetrieveContextTool( ctxService, viewGate ) );
+        tools.add( new GetPageTool( ctxService, viewGate ) );
+        tools.add( new ListPagesTool( ctxService, viewGate ) );
+        tools.add( new ListMetadataValuesTool( ctxService ) );
+        tools.add( new ReadPagesTool( deps.pageManager(), ReadPagesMetrics.resolveAndBind(), viewGate ) );
+    }
+
+    private static void addStructuralSpineTools( final List< McpTool > tools, final KnowledgeToolDeps deps ) {
+        final StructuralIndexService structuralIndex = deps.structuralIndex();
+        if ( structuralIndex == null ) {
+            return;
         }
-        if ( bundleService != null ) {
+        final PageViewGate viewGate = deps.viewGate();
+        tools.add( new ListClustersTool( structuralIndex, viewGate ) );
+        tools.add( new ListTagsTool( structuralIndex ) );
+        tools.add( new ListPagesByFilterTool( structuralIndex, viewGate ) );
+        tools.add( new GetPageByIdTool( structuralIndex, viewGate ) );
+    }
+
+    private static void addProjectionAndBundleTools( final List< McpTool > tools, final KnowledgeToolDeps deps ) {
+        final PageViewGate viewGate = deps.viewGate();
+        if ( deps.forAgent() != null ) {
+            tools.add( new GetPageForAgentTool( deps.forAgent(), viewGate ) );
+        }
+        if ( deps.bundleService() != null ) {
             // Resolve the query log lazily (the service is set during engine startup; resolving
             // at call time avoids any startup-ordering coupling). Agent-by-construction surface.
-            tools.add( new AssembleBundleTool( bundleService, queryLog, viewGate ) );
+            tools.add( new AssembleBundleTool( deps.bundleService(), deps.queryLog(), viewGate ) );
         }
-        if ( briefingService != null ) {
-            tools.add( new GetBriefingTool( briefingService, queryLog, briefingLog, viewGate ) );
+        if ( deps.briefingService() != null ) {
+            tools.add( new GetBriefingTool( deps.briefingService(), deps.queryLog(), deps.briefingLog(), viewGate ) );
         }
-        if ( ontoMgr != null ) {
-            tools.add( new GetOntologyTool( ontoMgr ) );
-            tools.add( new SparqlQueryTool( ontoMgr ) );
+    }
+
+    private static void addOntologyAndCitationTools( final List< McpTool > tools, final KnowledgeToolDeps deps ) {
+        if ( deps.ontoMgr() != null ) {
+            tools.add( new GetOntologyTool( deps.ontoMgr() ) );
+            tools.add( new SparqlQueryTool( deps.ontoMgr() ) );
         }
-        if ( citationRepo != null ) {
-            tools.add( new ListStaleCitationsTool( citationRepo ) );
+        if ( deps.citationRepo() != null ) {
+            tools.add( new ListStaleCitationsTool( deps.citationRepo() ) );
         }
-        return tools;
     }
 
     /**

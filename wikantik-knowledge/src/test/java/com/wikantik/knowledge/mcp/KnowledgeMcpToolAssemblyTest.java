@@ -56,18 +56,12 @@ class KnowledgeMcpToolAssemblyTest {
         final StructuralIndexService spine = mock( StructuralIndexService.class );
         final PageManager pages = mock( PageManager.class );
 
-        final Set< String > names = names( KnowledgeMcpInitializer.assembleTools(
-                /*kgService=*/        null,
-                /*mentionIndex=*/     null,
-                /*similarity=*/       null,
-                ctx, pages, spine,
-                /*forAgent=*/         null,
-                /*bundleService=*/    null,
-                /*briefingService=*/  null,
-                /*ontoMgr=*/          null,
-                /*citationRepo=*/     null,
-                () -> null, () -> null,
-                PageViewGate.ALLOW_ALL ) );
+        final Set< String > names = names( KnowledgeMcpInitializer.assembleTools( KnowledgeToolDeps.builder()
+                .ctxService( ctx )
+                .pageManager( pages )
+                .structuralIndex( spine )
+                .viewGate( PageViewGate.ALLOW_ALL )
+                .build() ) );
 
         for ( final String kg : KG_TOOLS ) {
             assertFalse( names.contains( kg ), "KG tool '" + kg + "' must be absent when kgService is null" );
@@ -88,17 +82,15 @@ class KnowledgeMcpToolAssemblyTest {
         final ForAgentProjectionService forAgent = mock( ForAgentProjectionService.class );
         final PageManager pages = mock( PageManager.class );
 
-        final Set< String > names = names( KnowledgeMcpInitializer.assembleTools(
-                kg,
-                /*mentionIndex=*/ null,
-                similarity,
-                ctx, pages, spine, forAgent,
-                /*bundleService=*/   null,
-                /*briefingService=*/ null,
-                /*ontoMgr=*/         null,
-                /*citationRepo=*/    null,
-                () -> null, () -> null,
-                PageViewGate.ALLOW_ALL ) );
+        final Set< String > names = names( KnowledgeMcpInitializer.assembleTools( KnowledgeToolDeps.builder()
+                .kgService( kg )
+                .similarity( similarity )
+                .ctxService( ctx )
+                .pageManager( pages )
+                .structuralIndex( spine )
+                .forAgent( forAgent )
+                .viewGate( PageViewGate.ALLOW_ALL )
+                .build() ) );
 
         for ( final String kgTool : KG_TOOLS ) {
             assertTrue( names.contains( kgTool ), "KG tool '" + kgTool + "' must be present when kgService is wired" );

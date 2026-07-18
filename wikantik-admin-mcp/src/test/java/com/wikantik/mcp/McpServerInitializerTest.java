@@ -79,9 +79,17 @@ class McpServerInitializerTest {
     }
 
     private static ApiKeyService apiKeyServiceField( final Filter filter ) throws Exception {
-        final Field f = filter.getClass().getDeclaredField( "apiKeyService" );
-        f.setAccessible( true );
-        return ( ApiKeyService ) f.get( filter );
+        // The field lives on AbstractApiAccessFilter; walk up from the concrete class.
+        for ( Class< ? > c = filter.getClass(); c != null; c = c.getSuperclass() ) {
+            try {
+                final Field f = c.getDeclaredField( "apiKeyService" );
+                f.setAccessible( true );
+                return ( ApiKeyService ) f.get( filter );
+            } catch ( final NoSuchFieldException ignored ) {
+                // keep walking up the hierarchy
+            }
+        }
+        throw new NoSuchFieldException( "apiKeyService not found in hierarchy of " + filter.getClass() );
     }
 
     @Test

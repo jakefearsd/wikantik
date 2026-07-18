@@ -18,26 +18,10 @@
  */
 package com.wikantik.tools;
 
-import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
+import com.wikantik.auth.apikeys.AbstractApiAccessFilter;
 import com.wikantik.auth.apikeys.ApiKeyService;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Servlet filter that restricts access to the OpenAPI tool endpoints.
@@ -50,24 +34,20 @@ import java.util.Optional;
  *
  * <p>If none of DB keys, CIDR allowlist, or {@code tools.access.allowUnrestricted=true} is configured,
  * all traffic is <strong>rejected (fail-closed)</strong> with HTTP 503.
- * After authentication, requests are subject to rate limiting. Failed access
- * attempts and rate limit violations are logged to the {@code SecurityLog} logger.
+ *
+ * <p>All authorization mechanics (bearer verification, CIDR matching, rate limiting,
+ * fail-closed handling) live in {@link AbstractApiAccessFilter}; this class only binds
+ * the tool-server scope, property names, and denial payloads.</p>
  */
-@SuppressWarnings( "PMD.MoreThanOneLogger" ) // SecurityLog and LOG route to different log destinations by design.
-public class ToolsAccessFilter implements Filter {
+public class ToolsAccessFilter extends AbstractApiAccessFilter {
 
-    private static final Logger LOG = LogManager.getLogger( ToolsAccessFilter.class );
-    private static final Logger SECURITY = LogManager.getLogger( "SecurityLog" );
-    private static final String BEARER_PREFIX = "Bearer ";
-    private static final int SC_TOO_MANY_REQUESTS = 429;
-
-    private final List< CidrEntry > cidrEntries;
-    private final boolean unrestricted;
-    private final boolean failClosed;
-    private final ToolsRateLimiter rateLimiter;
-    private final ApiKeyService apiKeyService;
-
-    record CidrEntry( byte[] network, int prefixLen ) { }
+    private static final Surface SURFACE = new Surface(
+            "Tools",
+            "tools.access",
+            ApiKeyService.Scope.TOOLS,
+            Outcome.Denied.of( HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    "{\"error\":\"Tool server not configured\"}" ),
+            "{\"error\":\"Key not authorized for tools\"}" );
 
     public ToolsAccessFilter( final ToolsConfig config, final ToolsRateLimiter rateLimiter ) {
         this( config, rateLimiter, null );
@@ -75,168 +55,7 @@ public class ToolsAccessFilter implements Filter {
 
     public ToolsAccessFilter( final ToolsConfig config, final ToolsRateLimiter rateLimiter,
                               final ApiKeyService apiKeyService ) {
-        this.cidrEntries = parseCidrs( config.allowedCidrs() );
-        final boolean hasDbKeys = apiKeyService != null;
-        final boolean hasCidr = !cidrEntries.isEmpty();
-        this.unrestricted = !hasCidr && config.allowUnrestricted();
-        this.failClosed = !hasCidr && !hasDbKeys && !config.allowUnrestricted();
-        this.rateLimiter = rateLimiter;
-        this.apiKeyService = apiKeyService;
-
-        if ( failClosed ) {
-            // Justified LOG.error: operator misconfiguration must be immediately visible at startup.
-            LOG.error( "CRITICAL: Tools access filter has no DB-minted API keys, no CIDR allowlist, and "
-                    + "tools.access.allowUnrestricted is not set — all tool-server requests will be rejected "
-                    + "with 503. Mint a key at /admin/apikeys, configure tools.access.allowedCidrs, or "
-                    + "set tools.access.allowUnrestricted=true to acknowledge." );
-        } else if ( unrestricted ) {
-            LOG.warn( "Tools access filter: unrestricted mode active (tools.access.allowUnrestricted=true). "
-                    + "Every tool-server request is treated as a superuser call. Only use this in trusted environments." );
-        } else {
-            LOG.info( "Tools access filter: dbKeys={}, CIDRs={}", hasDbKeys, cidrEntries.size() );
-        }
-    }
-
-    @Override
-    public void doFilter( final ServletRequest request, final ServletResponse response,
-                          final FilterChain chain ) throws IOException, ServletException {
-        final HttpServletRequest httpReq = ( HttpServletRequest ) request;
-        final HttpServletResponse httpResp = ( HttpServletResponse ) response;
-        final String remoteAddr = httpReq.getRemoteAddr();
-
-        if ( failClosed ) {
-            SECURITY.warn( "Tools request rejected: filter fail-closed (no auth configured), ip={}", remoteAddr );
-            httpResp.setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
-            httpResp.setContentType( "application/json" );
-            httpResp.getWriter().write( "{\"error\":\"Tool server not configured\"}" );
-            return;
-        }
-
-        final String clientId;
-        HttpServletRequest effectiveReq = httpReq;
-
-        if ( unrestricted ) {
-            clientId = "ip:" + remoteAddr;
-        } else {
-            final Optional< ApiKeyService.Record > dbKey = checkDbKey( httpReq );
-            if ( dbKey.isPresent() ) {
-                final ApiKeyService.Record record = dbKey.get();
-                if ( !record.scope().matches( ApiKeyService.Scope.TOOLS ) ) {
-                    SECURITY.warn( "Tools access denied: key id={} scope={} does not cover tools, ip={}",
-                            record.id(), record.scope().wire(), remoteAddr );
-                    httpResp.setStatus( HttpServletResponse.SC_FORBIDDEN );
-                    httpResp.setContentType( "application/json" );
-                    httpResp.getWriter().write( "{\"error\":\"Key not authorized for tools\"}" );
-                    return;
-                }
-                final ApiKeyPrincipalRequest wrapper = new ApiKeyPrincipalRequest( httpReq, record.principalLogin() );
-                wrapper.setAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD, record );
-                effectiveReq = wrapper;
-                clientId = "key:" + record.id();
-            } else if ( checkIp( httpReq ) ) {
-                clientId = "ip:" + remoteAddr;
-            } else {
-                final boolean authHeaderPresent = httpReq.getHeader( "Authorization" ) != null;
-                SECURITY.warn( "Tools access denied: ip={}, auth={}",
-                        remoteAddr, authHeaderPresent ? "invalid-key" : "none" );
-                httpResp.setStatus( HttpServletResponse.SC_FORBIDDEN );
-                httpResp.setContentType( "application/json" );
-                httpResp.getWriter().write( "{\"error\":\"Access denied\"}" );
-                return;
-            }
-        }
-
-        if ( !rateLimiter.tryAcquire( clientId ) ) {
-            SECURITY.warn( "Tools rate limit exceeded: client={}, ip={}", clientId, remoteAddr );
-            httpResp.setStatus( SC_TOO_MANY_REQUESTS );
-            httpResp.setHeader( "Retry-After", "1" );
-            httpResp.setContentType( "application/json" );
-            httpResp.getWriter().write( "{\"error\":\"Rate limit exceeded\"}" );
-            return;
-        }
-
-        chain.doFilter( effectiveReq, response );
-    }
-
-    private Optional< ApiKeyService.Record > checkDbKey( final HttpServletRequest request ) {
-        if ( apiKeyService == null ) {
-            return Optional.empty();
-        }
-        final String authHeader = request.getHeader( "Authorization" );
-        if ( authHeader == null || !authHeader.startsWith( BEARER_PREFIX ) ) {
-            return Optional.empty();
-        }
-        return apiKeyService.verify( authHeader.substring( BEARER_PREFIX.length() ) );
-    }
-
-    private boolean checkIp( final HttpServletRequest request ) {
-        if ( cidrEntries.isEmpty() ) {
-            return false;
-        }
-        final String remoteAddr = request.getRemoteAddr();
-        final byte[] addr;
-        try {
-            addr = InetAddress.getByName( remoteAddr ).getAddress();
-        } catch ( final UnknownHostException e ) {
-            LOG.warn( "Could not resolve remote address '{}': {}", remoteAddr, e.getMessage() );
-            return false;
-        }
-        for ( final CidrEntry cidr : cidrEntries ) {
-            if ( matches( addr, cidr ) ) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    static boolean matches( final byte[] addr, final CidrEntry cidr ) {
-        if ( addr.length != cidr.network().length ) {
-            return false;
-        }
-        final int fullBytes = cidr.prefixLen() / 8;
-        final int remainingBits = cidr.prefixLen() % 8;
-        for ( int i = 0; i < fullBytes; i++ ) {
-            if ( addr[ i ] != cidr.network()[ i ] ) {
-                return false;
-            }
-        }
-        if ( remainingBits > 0 ) {
-            final int mask = 0xFF << ( 8 - remainingBits );
-            if ( ( addr[ fullBytes ] & mask ) != ( cidr.network()[ fullBytes ] & mask ) ) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    static List< CidrEntry > parseCidrs( final String cidrsProperty ) {
-        if ( cidrsProperty == null || cidrsProperty.isBlank() ) {
-            return Collections.emptyList();
-        }
-        final List< CidrEntry > result = new ArrayList<>();
-        for ( final String entry : cidrsProperty.split( "," ) ) {
-            final String trimmed = entry.strip();
-            if ( trimmed.isEmpty() ) {
-                continue;
-            }
-            try {
-                final String[] parts = trimmed.split( "/" );
-                if ( parts.length != 2 ) {
-                    LOG.warn( "Malformed CIDR entry (missing prefix length): '{}'", trimmed );
-                    continue;
-                }
-                final byte[] network = InetAddress.getByName( parts[ 0 ].strip() ).getAddress();
-                final int prefixLen = Integer.parseInt( parts[ 1 ].strip() );
-                final int maxPrefix = network.length * 8;
-                if ( prefixLen < 0 || prefixLen > maxPrefix ) {
-                    LOG.warn( "Malformed CIDR entry (prefix out of range): '{}'", trimmed );
-                    continue;
-                }
-                result.add( new CidrEntry( network, prefixLen ) );
-            } catch ( final UnknownHostException | NumberFormatException e ) {
-                LOG.warn( "Malformed CIDR entry '{}': {}", trimmed, e.getMessage() );
-            }
-        }
-        return Collections.unmodifiableList( result );
+        super( SURFACE, config.allowedCidrs(), config.allowUnrestricted(),
+                rateLimiter::tryAcquire, apiKeyService );
     }
 }

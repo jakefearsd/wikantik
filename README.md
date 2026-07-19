@@ -393,6 +393,9 @@ chosen GenAI cost tier. Once running, `deploy/bin/wikantik-update.sh` (or
 failed health check — no local build required. See
 [CloudDeployment.md](docs/CloudDeployment.md) for the operator-facing overview
 and [CostTiers.md](docs/CostTiers.md) for the `wikantik.genai.mode` cost tiers.
+Starting from a brand-new AWS account? [AwsAccountSetup.md](docs/AwsAccountSetup.md)
+covers account creation and hardening, an admin identity for the CLI, billing
+guardrails, and installing the AWS CLI + Terraform on macOS and Ubuntu.
 
 Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agent on each host pushing metrics and logs to a central Prometheus + Loki + Grafana on host `inference`. The wikantik container exposes `/metrics`, which jakemon scrapes. There is no in-repo observability stack.
 

@@ -32,6 +32,11 @@ This module (`deploy/aws/`) pairs with the shared cloud-init template at
 
 ## Prerequisites
 
+Starting from a **brand-new AWS account**? Work through
+[docs/AwsAccountSetup.md](../../docs/AwsAccountSetup.md) first — it covers
+account creation and hardening, an admin identity for the CLI, billing
+guardrails, and installing the AWS CLI + Terraform on macOS and Ubuntu.
+
 - An AWS account with a default VPC in your target region (every region
   has one unless you've deliberately deleted it).
 - [Terraform](https://developer.hashicorp.com/terraform/downloads) >= 1.9

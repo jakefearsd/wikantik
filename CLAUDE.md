@@ -62,6 +62,27 @@ mvn clean install -DskipTests
 mvn clean install -T 1C -DskipITs
 ```
 
+### Long builds — subagent protocol
+
+Any Maven invocation that can exceed ~5 minutes (full unit build, IT reactor) MUST be
+run through `bin/agent-build.sh` — never as a bare foreground call (agent Bash calls
+are killed at ~10 minutes) and never via bare `nohup mvn -q … &` (with `-q` a finished
+build's log is indistinguishable from a crashed one):
+
+```bash
+bin/agent-build.sh start unit -- mvn clean install -DskipITs
+bin/agent-build.sh status unit     # instant, one line: RUNNING | SUCCESS exit=0 | FAILED exit=N (+ log tail) | KILLED
+bin/agent-build.sh wait unit 540   # bounded block ≤540s; exit 0=success 1=failed 2=still running
+bin/agent-build.sh tail unit 30    # inspect the log
+```
+
+The script detaches the build into its own session (survives harness process-group
+kills), unsets `WIKANTIK_*` env vars in the child, and appends an `EXIT=<code>`
+sentinel to the log so completion is never ambiguous. Poll by calling `status` (or
+bounded `wait`) repeatedly until the build terminates. **Never end your turn to "wait
+for a notification"** — detached builds are not harness-tracked; nothing resumes an
+idle agent. Keep polling until you can report SUCCESS or FAILED.
+
 ### Manual Testing Credentials
 
 A dedicated admin account exists for manual and automated testing against the local deployment.

@@ -98,7 +98,15 @@ public final class OntologyWiringHelper {
         // Event-incremental sync: re-project a page's graph on save/rename, remove on true delete.
         // Same ACL gate — a restricted page's save removes it from the public dataset.
         final OntologyPageSync pageSync = new OntologyPageSync( mgr, pageDao, pageManager, isPublic );
-        new OntologyEventListener( pageSync ).register( pageManager, filterManager );
+        final OntologyEventListener pageListener = new OntologyEventListener( pageSync );
+        pageListener.register( pageManager, filterManager );
+        // Strong references, mirroring WikiEngine's auditEventListener/lastLoginEventListener
+        // pattern: WikiEventManager's delegate keys listeners by identity in a WeakHashMap, so
+        // an inline listener with no other strong reference is eligible for GC at any time —
+        // silently dropping incremental page-graph sync with no error (isListening() just goes
+        // false). setManager()-only keeps OntologyWiringHelper ArchUnit-neutral (never getManager).
+        engine.setManager( OntologyPageSync.class, pageSync );
+        engine.setManager( OntologyEventListener.class, pageListener );
 
         // Event-incremental ENTITY sync: KgChangeEvent from the two KG write funnels →
         // coalesced re-projection of affected entity graphs. Same ACL gate as rebuilds

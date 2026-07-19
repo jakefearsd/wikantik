@@ -191,6 +191,20 @@ class DefaultKnowledgeGraphServiceEventTest {
     }
 
     @Test
+    void bulkDeleteEdgesFiresTouchedSourceIdsForBothSources() {
+        final KgNode a = service.upsertNode( "EvBulkA", "concept", null, Provenance.HUMAN_CURATED, Map.of() );
+        final KgNode b = service.upsertNode( "EvBulkB", "concept", null, Provenance.HUMAN_CURATED, Map.of() );
+        final KgNode c = service.upsertNode( "EvBulkC", "concept", null, Provenance.HUMAN_CURATED, Map.of() );
+        final KgNode d = service.upsertNode( "EvBulkD", "concept", null, Provenance.HUMAN_CURATED, Map.of() );
+        service.upsertEdge( a.id(), b.id(), "bulk_test_rel", Provenance.HUMAN_CURATED, Map.of() );
+        service.upsertEdge( c.id(), d.id(), "bulk_test_rel", Provenance.HUMAN_CURATED, Map.of() );
+        listener.events.clear();
+        service.bulkDeleteEdges( "bulk_test_rel", null, 2 );
+        assertEquals( Set.of( a.id(), c.id() ), only().touchedEntityIds() );
+        assertTrue( only().removedEntityIds().isEmpty() );
+    }
+
+    @Test
     void findByProvenanceReadsReturnPendingRows() {
         // Exercises the two NEW repository read methods Task 3 depends on.
         final UUID proposalId = UUID.randomUUID();

@@ -59,8 +59,8 @@ public final class KgEdgeRepository extends KgJdbcSupport {
      * Appends the {@code AND ...} filter clauses for {@code kg_edges} to {@code sql}
      * (relationship_type, name LIKE, endpointKind) and binds the corresponding params
      * to {@code params}. Shared between {@link #queryEdgesWithNames},
-     * {@link #countEdgesWithFilter}, and {@link #bulkDeleteByFilter} so the three SQL
-     * shapes cannot drift.
+     * {@link #countEdgesWithFilter}, {@link #bulkDeleteByFilter}, and
+     * {@link #findDistinctSourceIdsByFilter} so the four SQL shapes cannot drift.
      */
     private static void appendEdgeFilter( final StringBuilder sql,
                                            final List< Object > params,
@@ -594,6 +594,41 @@ public final class KgEdgeRepository extends KgJdbcSupport {
         } catch ( final SQLException e ) {
             LOG.warn( "bulkDeleteByFilter failed: {}", e.getMessage(), e );
             throw new RuntimeException( "bulkDeleteByFilter failed: " + e.getMessage(), e );
+        }
+    }
+
+    /**
+     * Distinct source-node ids for edges matching the same filter {@link #bulkDeleteByFilter}
+     * deletes. Read BEFORE the delete so the caller (see
+     * {@code DefaultKnowledgeGraphService#bulkDeleteEdges}) can fire a {@code KgChangeEvent}
+     * for the affected sources — otherwise the deleted edges' stale triples would sit in the
+     * ontology until the nightly rebuild reconciles them.
+     */
+    public List< UUID > findDistinctSourceIdsByFilter( final String relationshipType,
+                                                        final String searchName,
+                                                        final String endpointKind ) {
+        final StringBuilder sql = new StringBuilder(
+                "SELECT DISTINCT e.source_id FROM kg_edges e "
+              + "JOIN kg_nodes sn ON e.source_id = sn.id "
+              + "JOIN kg_nodes tn ON e.target_id = tn.id"
+              + KgInclusionFilter.EDGE_FILTER_JOIN
+              + "WHERE" + KgInclusionFilter.EDGE_FILTER_WHERE );
+        final List< Object > params = new ArrayList<>();
+        appendEdgeFilter( sql, params, relationshipType, searchName, endpointKind );
+
+        final List< UUID > ids = new ArrayList<>();
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) {
+                    ids.add( rs.getObject( "source_id", UUID.class ) );
+                }
+            }
+            return ids;
+        } catch ( final SQLException e ) {
+            LOG.warn( "findDistinctSourceIdsByFilter failed: {}", e.getMessage(), e );
+            throw new RuntimeException( "findDistinctSourceIdsByFilter failed: " + e.getMessage(), e );
         }
     }
 

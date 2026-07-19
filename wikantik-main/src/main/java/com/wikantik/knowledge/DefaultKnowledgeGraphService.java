@@ -582,8 +582,14 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
             throw new IllegalStateException( "expected " + expectedCount
                     + " rows, found " + actual + " — re-confirm before retrying" );
         }
+        // Read the affected source ids BEFORE the delete — once the rows are gone the filter
+        // can no longer identify them, and without this the deleted edges' stale triples would
+        // sit in the ontology until the nightly rebuild reconciles them.
+        final Set< UUID > sourceIds = Set.copyOf(
+                edges.findDistinctSourceIdsByFilter( relationshipType, searchName, endpointKind ) );
         final int deleted = edges.bulkDeleteByFilter( relationshipType, searchName, endpointKind );
         snapshotBuilder.invalidateCache();
+        fireKgChange( sourceIds, Set.of() );
         return deleted;
     }
 

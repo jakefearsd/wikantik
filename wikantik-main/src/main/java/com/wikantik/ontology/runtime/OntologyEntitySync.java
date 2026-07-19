@@ -164,6 +164,10 @@ public final class OntologyEntitySync implements AutoCloseable {
                 publicEdges.add( edge );
             }
         }
+        // The resolver below is only ever invoked for slugs already filtered to ACL-public
+        // nodes/targets by the isPublic checks above — there is no separate public-only
+        // restriction on pageDao itself (unlike the rebuild's resolver map, which is built
+        // from a public-only page set); this method relies on that upstream gate instead.
         final Model graph = EntityProjector.project( node, publicEdges,
             slug -> pageDao.findBySlug( slug )
                 .map( PageCanonicalIdsDao.Row::canonicalId )

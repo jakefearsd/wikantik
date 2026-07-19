@@ -10,7 +10,9 @@ and installation of the required command-line tools on **macOS** and
 > begins — that README is the canonical step-by-step for the Terraform
 > module itself. For the operator-facing overview (compose overlay, GenAI
 > cost tiers, pull-based updates), see
-> [CloudDeployment.md](CloudDeployment.md).
+> [CloudDeployment.md](CloudDeployment.md). Different cloud? See
+> [GcpAccountSetup.md](GcpAccountSetup.md) or
+> [AzureAccountSetup.md](AzureAccountSetup.md).
 
 ## 1. Create the account
 

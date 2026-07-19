@@ -50,6 +50,11 @@ template.
 
 ## Prerequisites
 
+Starting from a **brand-new GCP account**? Work through
+[docs/GcpAccountSetup.md](../../docs/GcpAccountSetup.md) first — it covers
+account/project creation, billing guardrails, Terraform credentials (ADC),
+and installing the gcloud CLI + Terraform on macOS and Ubuntu.
+
 - A GCP project (`var.project_id`) with billing enabled. This module
   enables the required APIs itself (`compute`, `secretmanager`, `dns`,
   `iam` — see "What gets created" below) so a fresh project works, but

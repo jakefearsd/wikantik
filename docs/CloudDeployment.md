@@ -264,6 +264,13 @@ env-var reference.
 
 ## See also
 
+- [docs/AwsAccountSetup.md](AwsAccountSetup.md) /
+  [docs/GcpAccountSetup.md](GcpAccountSetup.md) /
+  [docs/AzureAccountSetup.md](AzureAccountSetup.md) — preparing a
+  brand-new cloud account (hardening, billing guardrails, CLI + Terraform
+  installation on macOS/Ubuntu) before touching the Terraform modules;
+  the Azure article also maps the reference topology onto hand-provisioned
+  resources, since no `deploy/azure/` module exists yet.
 - [docs/CostTiers.md](CostTiers.md) — the GenAI ceiling in full detail.
 - [docs/DockerDeployment.md](DockerDeployment.md) — the docker1-style
   container path and the full entrypoint env-var table.

@@ -407,6 +407,23 @@ public final class KgNodeRepository extends KgJdbcSupport {
         return executeDelete( "DELETE FROM kg_nodes WHERE provenance_proposal_id = ?", proposalId );
     }
 
+    /** Ids of all nodes materialized from the given proposal — read side of {@link #deleteNodesByProvenance}. */
+    public List< UUID > findNodeIdsByProvenance( final UUID proposalId ) {
+        final String sql = "SELECT id FROM kg_nodes WHERE provenance_proposal_id = ?";
+        final List< UUID > results = new ArrayList<>();
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setObject( 1, proposalId );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) results.add( rs.getObject( "id", UUID.class ) );
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "findNodeIdsByProvenance({}) failed: {}", proposalId, e.getMessage(), e );
+            throw new RuntimeException( "findNodeIdsByProvenance failed: " + e.getMessage(), e );
+        }
+        return results;
+    }
+
     public List< String > getDistinctNodeTypes() {
         return queryDistinct( "SELECT DISTINCT node_type FROM kg_nodes WHERE node_type IS NOT NULL ORDER BY node_type" );
     }

@@ -1126,7 +1126,7 @@ public class WikiEngine implements Engine {
             // OntologyModelManager + rebuild coordinator, registers the coordinator, and
             // kicks a startup-if-empty rebuild. setManager-only, so ArchUnit-neutral.
             final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontologyCoordinator =
-                    com.wikantik.ontology.runtime.OntologyWiringHelper.wireOntology( this, props, ds, pageManager, filterManager );
+                    com.wikantik.ontology.runtime.OntologyWiringHelper.wireOntology( this, props, ds, pageManager, filterManager, svcs );
 
             // Wire the connector runtime (ConnectorWiringHelper): builds properties- and DB-backed
             // connectors from config, registers ConnectorRuntime + ConnectorConfigService. Syncing

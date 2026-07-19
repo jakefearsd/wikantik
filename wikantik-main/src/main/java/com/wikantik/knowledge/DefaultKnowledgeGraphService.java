@@ -20,6 +20,8 @@ package com.wikantik.knowledge;
 
 import com.wikantik.api.knowledge.*;
 import com.wikantik.api.core.Engine;
+import com.wikantik.event.KgChangeEvent;
+import com.wikantik.event.WikiEventManager;
 import com.wikantik.kgpolicy.KgInclusionFilter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -222,13 +224,25 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         }
         final KgNode result = nodes.upsertNode( name, nodeType, sourcePage, provenance, properties );
         snapshotBuilder.invalidateCache();
+        // KgNodeRepository.upsertNode's read-back can come back null when the KG inclusion policy
+        // excludes the node's source-page cluster (row IS written, just not visible); callers such
+        // as DefaultKgCurationOps.tryUpsertNode rely on that clean null to report the exclusion
+        // instead of an NPE.
+        if ( result != null ) {
+            fireKgChange( Set.of( result.id() ), Set.of() );
+        }
         return result;
     }
 
     @Override
     public void deleteNode( final UUID id ) {
+        final Set< UUID > inboundSources = new HashSet<>();
+        for ( final KgEdge edge : edges.getEdgesForNode( id, "inbound" ) ) {
+            inboundSources.add( edge.sourceId() );
+        }
         nodes.deleteNode( id );
         snapshotBuilder.invalidateCache();
+        fireKgChange( inboundSources, Set.of( id ) );
     }
 
     @Override
@@ -245,12 +259,16 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                     edge.provenance(), edge.properties() );
         }
         final List< KgEdge > inbound = edges.getEdgesForNode( sourceId, "inbound" );
+        final Set< UUID > touched = new HashSet<>();
+        touched.add( targetId );
         for ( final KgEdge edge : inbound ) {
             edges.upsertEdge( edge.sourceId(), targetId, edge.relationshipType(),
                     edge.provenance(), edge.properties() );
+            touched.add( edge.sourceId() );
         }
         nodes.deleteNode( sourceId );
         snapshotBuilder.invalidateCache();
+        fireKgChange( touched, Set.of( sourceId ) );
     }
 
     @Override
@@ -425,13 +443,23 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                               final Provenance provenance, final Map< String, Object > properties ) {
         final KgEdge result = edges.upsertEdge( sourceId, targetId, relationshipType, provenance, properties );
         snapshotBuilder.invalidateCache();
+        // KgEdgeRepository.upsertEdge returns null when the mixed page/entity boundary guard (or a
+        // similar fail-closed policy) refuses the write; DefaultKgCurationOps.tryUpsertEdge relies on
+        // that clean null to build its policy-citing refusal message, so this must not NPE on it.
+        if ( result != null ) {
+            fireKgChange( Set.of( result.sourceId() ), Set.of() );
+        }
         return result;
     }
 
     @Override
     public void deleteEdge( final UUID id ) {
+        final KgEdge edge = edges.findById( id );
         edges.deleteEdge( id );
         snapshotBuilder.invalidateCache();
+        if ( edge != null ) {
+            fireKgChange( Set.of( edge.sourceId() ), Set.of() );
+        }
     }
 
     @Override
@@ -514,8 +542,12 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     @Override
     public void deleteEdgeAndRecordRejection( final UUID edgeId, final String actor, final String reason ) {
+        final KgEdge edge = edges.findById( edgeId );
         edges.deleteEdgeAndRecordRejection( edgeId, actor, reason );
         snapshotBuilder.invalidateCache();
+        if ( edge != null ) {
+            fireKgChange( Set.of( edge.sourceId() ), Set.of() );
+        }
     }
 
     @Override
@@ -532,6 +564,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                     "provenance", after.provenance().value() ),
             actor, null );
         snapshotBuilder.invalidateCache();
+        fireKgChange( Set.of( after.sourceId() ), Set.of() );
         return after;
     }
 
@@ -800,5 +833,13 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     @Override
     public long countPendingUnjudgedProposals() {
         return proposals.countPendingUnjudgedProposals();
+    }
+
+    /** Fires a KgChangeEvent with this service as the event-bus client; no-ops on empty payloads. */
+    private void fireKgChange( final Set< UUID > touched, final Set< UUID > removed ) {
+        if ( ( touched == null || touched.isEmpty() ) && ( removed == null || removed.isEmpty() ) ) {
+            return;
+        }
+        WikiEventManager.fireEvent( this, new KgChangeEvent( this, touched, removed ) );
     }
 }

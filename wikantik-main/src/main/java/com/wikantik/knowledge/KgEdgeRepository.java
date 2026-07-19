@@ -324,6 +324,23 @@ public final class KgEdgeRepository extends KgJdbcSupport {
         return executeDelete( "DELETE FROM kg_edges WHERE provenance_proposal_id = ?", proposalId );
     }
 
+    /** All edges materialized from the given proposal — read side of {@link #deleteEdgesByProvenance}. */
+    public List< KgEdge > findEdgesByProvenance( final UUID proposalId ) {
+        final String sql = "SELECT * FROM kg_edges WHERE provenance_proposal_id = ?";
+        final List< KgEdge > results = new ArrayList<>();
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setObject( 1, proposalId );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) results.add( mapEdge( rs ) );
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "findEdgesByProvenance({}) failed: {}", proposalId, e.getMessage(), e );
+            throw new RuntimeException( "findEdgesByProvenance failed: " + e.getMessage(), e );
+        }
+        return results;
+    }
+
     public List< KgEdge > getAllEdges() {
         final String sql = "SELECT e.* FROM kg_edges e"
                 + KgInclusionFilter.EDGE_FILTER_JOIN

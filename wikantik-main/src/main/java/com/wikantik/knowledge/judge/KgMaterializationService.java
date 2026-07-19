@@ -18,9 +18,12 @@
  */
 package com.wikantik.knowledge.judge;
 
+import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.Provenance;
+import com.wikantik.event.KgChangeEvent;
+import com.wikantik.event.WikiEventManager;
 import com.wikantik.knowledge.KgEdgeRepository;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
@@ -28,8 +31,12 @@ import com.wikantik.knowledge.KgRejectionRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Single owner of proposal-driven writes to kg_nodes and kg_edges. Closes the
@@ -104,8 +111,26 @@ public class KgMaterializationService {
 
     /** Delete materialised rows for this proposal. Used when a human rejects a machine-approved edge. */
     public void retract( final KgProposal proposal ) {
+        final List< KgEdge > doomedEdges = edges.findEdgesByProvenance( proposal.id() );
+        final List< UUID > doomedNodeIds = nodes.findNodeIdsByProvenance( proposal.id() );
         edges.deleteEdgesByProvenance( proposal.id() );
         nodes.deleteNodesByProvenance( proposal.id() );
+        final Set< UUID > removed = new HashSet<>( doomedNodeIds );
+        final Set< UUID > touched = new HashSet<>();
+        for ( final KgEdge edge : doomedEdges ) {
+            if ( !removed.contains( edge.sourceId() ) ) {
+                touched.add( edge.sourceId() );
+            }
+        }
+        fireKgChange( touched, removed );
+    }
+
+    /** Fires a KgChangeEvent with this service as the event-bus client; no-ops on empty payloads. */
+    private void fireKgChange( final Set< UUID > touched, final Set< UUID > removed ) {
+        if ( ( touched == null || touched.isEmpty() ) && ( removed == null || removed.isEmpty() ) ) {
+            return;
+        }
+        WikiEventManager.fireEvent( this, new KgChangeEvent( this, touched, removed ) );
     }
 
     void materialize( final KgProposal proposal, final String tier ) {
@@ -135,6 +160,11 @@ public class KgMaterializationService {
             LOG.warn( "materialize: skipping edge for proposal {} — node excluded by KG inclusion policy "
                 + "(source='{}' present={}; target='{}' present={})",
                 proposal.id(), source, src != null, target, tgt != null );
+            // Whichever node WAS written is a durable change — fire for it.
+            final Set< UUID > written = new HashSet<>();
+            if ( src != null ) { written.add( src.id() ); }
+            if ( tgt != null ) { written.add( tgt.id() ); }
+            fireKgChange( written, Set.of() );
             return;
         }
         if ( ontologyValidator != null && src.nodeType() != null && tgt.nodeType() != null ) {
@@ -145,10 +175,13 @@ public class KgMaterializationService {
                     + "({} --{}--> {}): {} [skipped by SHACL gate, count={}]",
                     proposal.id(), src.nodeType(), rel, tgt.nodeType(),
                     violations.get( 0 ).message(), skippedNonConformant.get() );
+                // Both node upserts already happened — the SHACL gate only skipped the edge.
+                fireKgChange( Set.of( src.id(), tgt.id() ), Set.of() );
                 return;
             }
         }
         edges.upsertEdgeWithProvenance( src.id(), tgt.id(), rel,
             Provenance.AI_INFERRED, Map.of(), tier, proposal.id() );
+        fireKgChange( Set.of( src.id(), tgt.id() ), Set.of() );
     }
 }

@@ -52,7 +52,8 @@ public final class OntologyWiringHelper {
                                      final Properties props,
                                      final DataSource dataSource,
                                      final PageManager pageManager,
-                                     final com.wikantik.filters.FilterManager filterManager ) {
+                                     final com.wikantik.filters.FilterManager filterManager,
+                                     final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services knowledgeServices ) {
         final boolean enabled = Boolean.parseBoolean(
                 props.getProperty( "wikantik.ontology.enabled", "true" ) );
         if ( !enabled ) {
@@ -98,6 +99,33 @@ public final class OntologyWiringHelper {
         // Same ACL gate — a restricted page's save removes it from the public dataset.
         final OntologyPageSync pageSync = new OntologyPageSync( mgr, pageDao, pageManager, isPublic );
         new OntologyEventListener( pageSync ).register( pageManager, filterManager );
+
+        // Event-incremental ENTITY sync: KgChangeEvent from the two KG write funnels →
+        // coalesced re-projection of affected entity graphs. Same ACL gate as rebuilds
+        // and page sync; the nightly rebuild below reconciles anything missed.
+        final boolean incrementalEnabled = Boolean.parseBoolean(
+                props.getProperty( "wikantik.ontology.incremental.enabled", "true" ) );
+        if ( incrementalEnabled && knowledgeServices != null
+                && knowledgeServices.kgService() != null
+                && knowledgeServices.kgMaterialization() != null ) {
+            final long coalesceMs = Long.parseLong(
+                    props.getProperty( "wikantik.ontology.incremental.coalesce.ms", "500" ) );
+            final OntologyEntitySync entitySync = new OntologyEntitySync(
+                    mgr, nodeRepo, edgeRepo, pageDao, isPublic, coalesceMs );
+            final KgChangeEventListener changeListener = new KgChangeEventListener( entitySync );
+            changeListener.register(
+                    knowledgeServices.kgService(), knowledgeServices.kgMaterialization() );
+            // Strong references, mirroring WikiEngine's auditEventListener/lastLoginEventListener
+            // pattern: WikiEventManager's delegate keys listeners by identity in a WeakHashMap, so
+            // an inline listener with no other strong reference is eligible for GC at any time —
+            // silently dropping incremental sync with no error (isListening() just goes false).
+            // setManager()-only keeps OntologyWiringHelper ArchUnit-neutral (never getManager).
+            engine.setManager( OntologyEntitySync.class, entitySync );
+            engine.setManager( KgChangeEventListener.class, changeListener );
+            LOG.info( "ontology incremental entity sync wired (coalesce={}ms)", coalesceMs );
+        } else if ( !incrementalEnabled ) {
+            LOG.info( "ontology incremental entity sync disabled (wikantik.ontology.incremental.enabled=false)" );
+        }
 
         // Nightly full-rebuild backstop (catches KG drift + missed events).
         final long intervalHours = Long.parseLong(

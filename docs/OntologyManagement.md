@@ -223,16 +223,20 @@ The RDF model is **projected from PostgreSQL into a Jena TDB2 store** with RDFS
   (KG entities/relations).
 - **Event-incremental sync.** `OntologyEventListener` re-projects a page's graph
   (and its concept graphs) on save/rename and removes it on a true delete
-  (rename vs delete is disambiguated via `canonical_id` liveness). A nightly
-  `OntologyRebuildScheduler` reconciles **entity** graphs (no KG-change events
-  exist).
+  (rename vs delete is disambiguated via `canonical_id` liveness). `KgChangeEvent`
+  now fires from both KG write funnels, and `OntologyEntitySync` re-projects
+  **entity** graphs incrementally too (coalesced, async); the nightly
+  `OntologyRebuildScheduler` is demoted to a reconciliation backstop.
 - **Manual rebuild & status:** `/admin/ontology/rebuild`, `/admin/ontology/*`
   (status + SHACL-conformance violations); the store also rebuilds on startup if
   empty.
 
 Config: `wikantik.ontology.enabled` (default `true`),
 `wikantik.ontology.tdb2.dir` (default `${wikantik.workDir}/ontology-tdb2`),
-`wikantik.ontology.rebuild.interval.hours` (default `24`, `0` = disabled). Full
+`wikantik.ontology.rebuild.interval.hours` (default `24`, `0` = disabled),
+`wikantik.ontology.incremental.enabled` (default `true` — event-incremental
+entity sync; `false` restores nightly-only behavior), and
+`wikantik.ontology.incremental.coalesce.ms` (default `500`). Full
 design: [`docs/superpowers/specs/2026-06-08-wiki-ontology-design.md`](superpowers/specs/2026-06-08-wiki-ontology-design.md).
 
 ---

@@ -46,6 +46,7 @@ import com.wikantik.knowledge.judge.KgMaterializationService;
 import com.wikantik.kgpolicy.ReconciliationJobRunner;
 import com.wikantik.page.subsystem.PageSubsystem;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
 
 /**
@@ -123,9 +124,6 @@ public final class KnowledgeSubsystem {
      *
      * <p>Phase 8 Checkpoint 1.5 additions (all nullable):</p>
      * <ul>
-     *   <li>{@code contextRetrievalService} — null until the
-     *       {@code ContextRetrievalServiceInitializer} servlet listener fires after
-     *       engine startup (it wires this service post-construction).</li>
      *   <li>{@code forAgentProjectionService} — null when the Knowledge Graph
      *       datasource is unavailable.</li>
      *   <li>{@code bootstrapEntityExtractionIndexer} — null when extraction is
@@ -135,11 +133,17 @@ public final class KnowledgeSubsystem {
      *   <li>{@code retrievalQualityRunner} — null when wiring fails (e.g. no
      *       search stack available); failures are logged at WARN and the admin
      *       surface returns 503.</li>
-     *   <li>{@code bundleAssemblyService} — DERIVED from
-     *       {@code contextRetrievalService} (RAG-as-a-Service). Null until that
-     *       service is wired post-startup; built at the same seam via
-     *       {@code BundleServiceWiring.build}.</li>
      * </ul>
+     *
+     * <p>{@code retrieval} — the set-once holder for the three retrieval-derived
+     * services that cannot exist at engine-boot time. It is installed exactly once
+     * by {@code WikiEngine.patchContextRetrievalService} via {@link #installRetrieval};
+     * every construction path passes {@code null} (normalized to an empty reference)
+     * except the rebuild paths, which carry the <em>same</em> reference forward so a
+     * patch installed before or after a hot-swap rebuild is visible everywhere.
+     * Read it through {@link #contextRetrievalService()}, {@link #bundleAssemblyService()}
+     * and {@link #briefingAssemblyService()} — never dereference the raw
+     * {@code AtomicReference} at call sites.</p>
      */
     public record Services(
         KnowledgeGraphService kgService,
@@ -158,13 +162,59 @@ public final class KnowledgeSubsystem {
         NodeMentionSimilarity nodeMentionSimilarity,
         FrontmatterDefaultsFilter frontmatterDefaultsFilter,
         HubSyncFilter hubSyncFilter,
-        ContextRetrievalService contextRetrievalService,
         ForAgentProjectionService forAgentProjectionService,
         BootstrapEntityExtractionIndexer bootstrapEntityExtractionIndexer,
         KgInclusionPolicy kgInclusionPolicy,
         ReconciliationJobRunner reconciliationJobRunner,
         RetrievalQualityRunner retrievalQualityRunner,
         KgCurationOps kgCurationOps,
+        AtomicReference< RetrievalServices > retrieval
+    ) {
+
+        /** Normalizes a null retrieval holder so accessors and installs are always safe. */
+        public Services {
+            retrieval = retrieval != null ? retrieval : new AtomicReference<>();
+        }
+
+        /** The live retrieval service, or {@code null} until the patch seam installs it. */
+        public ContextRetrievalService contextRetrievalService() {
+            final RetrievalServices rs = retrieval.get();
+            return rs == null ? null : rs.contextRetrievalService();
+        }
+
+        /** The live bundle assembler, or {@code null} until the patch seam installs it. */
+        public BundleAssemblyService bundleAssemblyService() {
+            final RetrievalServices rs = retrieval.get();
+            return rs == null ? null : rs.bundleAssemblyService();
+        }
+
+        /** The live briefing assembler, or {@code null} until the patch seam installs it. */
+        public BriefingAssemblyService briefingAssemblyService() {
+            final RetrievalServices rs = retrieval.get();
+            return rs == null ? null : rs.briefingAssemblyService();
+        }
+
+        /**
+         * Installs the retrieval trio exactly once (compare-and-set against an empty
+         * holder). Returns {@code false} — changing nothing — if a trio was already
+         * installed; the caller must not start any side-effecting collaborator (e.g.
+         * the bundle-eval scheduler) when this returns {@code false}.
+         */
+        public boolean installRetrieval( final RetrievalServices services ) {
+            return retrieval.compareAndSet( null, services );
+        }
+    }
+
+    /**
+     * The three retrieval-derived services that cannot exist at engine-boot time:
+     * {@code contextRetrievalService} is wired by {@code ContextRetrievalServiceInitializer}
+     * (a {@code ServletContextListener} that fires after {@code Engine#initialize} returns),
+     * and the bundle + briefing assemblers are derived from it at that same seam
+     * ({@code WikiEngine.patchContextRetrievalService}). Grouped so the whole trio is
+     * installed atomically, exactly once, via {@link Services#installRetrieval}.
+     */
+    public record RetrievalServices(
+        ContextRetrievalService contextRetrievalService,
         BundleAssemblyService bundleAssemblyService,
         BriefingAssemblyService briefingAssemblyService
     ) {}

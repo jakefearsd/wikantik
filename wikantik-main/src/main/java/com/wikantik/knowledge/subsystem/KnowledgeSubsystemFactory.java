@@ -63,6 +63,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Builds the Knowledge subsystem's complete service graph from a
@@ -270,13 +271,15 @@ public final class KnowledgeSubsystemFactory {
         final KgCurationOps curation = new DefaultKgCurationOps(
             kgService, pageMgr, saveHelper, kgExcludedPages, ONTOLOGY_VALIDATOR );
 
-        // Phase 8 Ckpt 1.5: the six post-construction services (ContextRetrievalService,
-        // ForAgentProjectionService, BootstrapEntityExtractionIndexer, KgInclusionPolicy,
-        // ReconciliationJobRunner, RetrievalQualityRunner) are wired into the engine's
-        // manager registry AFTER this factory returns — either by WikiEngine.initKnowledgeGraph
-        // continuations or by a servlet listener (ContextRetrievalServiceInitializer).
-        // They start null here; WikiEngine rebuilds the Services record with the live
-        // instances before stashing WikiSubsystems on the ServletContext.
+        // Phase 8 Ckpt 1.5: the five post-construction services (ForAgentProjectionService,
+        // BootstrapEntityExtractionIndexer, KgInclusionPolicy, ReconciliationJobRunner,
+        // RetrievalQualityRunner) are wired into the engine's manager registry AFTER this
+        // factory returns — either by WikiEngine.initKnowledgeGraph continuations or by a
+        // servlet listener (ContextRetrievalServiceInitializer). They start null here;
+        // WikiEngine rebuilds the Services record with the live instances before stashing
+        // WikiSubsystems on the ServletContext, while the retrieval trio (context retrieval
+        // + bundle + briefing) is installed later into the shared `retrieval` holder by
+        // WikiEngine.patchContextRetrievalService.
         return new KnowledgeSubsystem.Services(
             kgService,
             kgJudge,
@@ -294,19 +297,15 @@ public final class KnowledgeSubsystemFactory {
             similarity,
             fmDefaults,
             hubSync,
-            /*contextRetrievalService=*/     null,
             /*forAgentProjectionService=*/   null,
             /*bootstrapEntityExtractionIndexer=*/ null,
             /*kgInclusionPolicy=*/           null,
             /*reconciliationJobRunner=*/     null,
             /*retrievalQualityRunner=*/      null,
             /*kgCurationOps=*/               curation,
-            // Derived from contextRetrievalService (null here); built post-startup at the
-            // same seam — see BundleServiceWiring / WikiEngine.patchContextRetrievalService.
-            /*bundleAssemblyService=*/       null,
-            // Derived from the bundle service; built at the same post-startup seam —
-            // see BriefingServiceWiring / WikiEngine.patchContextRetrievalService.
-            /*briefingAssemblyService=*/     null
+            // Empty set-once holder; the retrieval trio (context retrieval + bundle +
+            // briefing) is installed post-startup by WikiEngine.patchContextRetrievalService.
+            /*retrieval=*/                   new AtomicReference<>()
         );
     }
 
@@ -339,15 +338,13 @@ public final class KnowledgeSubsystemFactory {
             /*nodeMentionSimilarity=*/       null,
             fmDefaults,
             /*hubSyncFilter=*/               null,
-            /*contextRetrievalService=*/     null,
             /*forAgentProjectionService=*/   null,
             /*bootstrapEntityExtractionIndexer=*/ null,
             /*kgInclusionPolicy=*/           null,
             /*reconciliationJobRunner=*/     null,
             /*retrievalQualityRunner=*/      null,
             /*kgCurationOps=*/               null,
-            /*bundleAssemblyService=*/       null,
-            /*briefingAssemblyService=*/     null
+            /*retrieval=*/                   new AtomicReference<>()
         );
     }
 
@@ -423,11 +420,6 @@ public final class KnowledgeSubsystemFactory {
             preferRegistry( engine, FrontmatterDefaultsFilter.class,        existing.frontmatterDefaultsFilter() ),
             // 16. hubSyncFilter — hot-swappable, no side-effects
             preferRegistry( engine, HubSyncFilter.class,                    existing.hubSyncFilter() ),
-            // 17. contextRetrievalService — intentionally excluded from setManager rebuilds
-            //     (audit row 17; WikiEngine.SNAPSHOT_REBUILDERS comment at line 463).
-            //     Always reuse the existing instance; the ContextRetrievalServiceInitializer
-            //     servlet listener owns its lifecycle and re-wires it directly.
-            existing.contextRetrievalService(),
             // 18. forAgentProjectionService — hot-swappable; side-effect risk: memoized cache —
             //     preferRegistry reads the singleton, preserving cache state.
             preferRegistry( engine, ForAgentProjectionService.class,        existing.forAgentProjectionService() ),
@@ -444,14 +436,12 @@ public final class KnowledgeSubsystemFactory {
             preferRegistry( engine, RetrievalQualityRunner.class,           existing.retrievalQualityRunner() ),
             // 23. kgCurationOps — DERIVED; reconstructed when upstreams changed.
             rebuildKgCurationOps( engine, existing ),
-            // 24. bundleAssemblyService — DERIVED from contextRetrievalService and built once
-            //     at the retrieval-patch seam (WikiEngine.patchContextRetrievalService). Reuse
-            //     the existing instance; this side-effect-free rebuild never reconstructs it.
-            existing.bundleAssemblyService(),
-            // 25. briefingAssemblyService — DERIVED from the bundle service and built once at
-            //     the same retrieval-patch seam. Reuse the existing instance; this
-            //     side-effect-free rebuild never reconstructs it.
-            existing.briefingAssemblyService()
+            // retrieval — carry the SAME set-once holder forward (not a copy of its value):
+            // the retrieval trio is excluded from setManager rebuilds by invariant
+            // (audit row 17; WikiEngine.SNAPSHOT_REBUILDERS), and sharing the reference
+            // means a patch installed before OR after this rebuild is visible in both
+            // snapshots with no field-copying to forget.
+            existing.retrieval()
         );
     }
 
@@ -523,6 +513,10 @@ public final class KnowledgeSubsystemFactory {
     static KnowledgeSubsystem.Services readFromManagerRegistry( final WikiEngine engine ) {
         final KnowledgeGraphService kgSvc = engine.getManager( KnowledgeGraphService.class );
         final PageManager pm = engine.getManager( PageManager.class );
+        // Registry fallback for the retrieval service (test fixtures that setManager it);
+        // bundle/briefing are never synthesized on this cold path — patch-seam only.
+        final ContextRetrievalService ctxFromRegistry =
+            engine.getManager( ContextRetrievalService.class );
         // Synthesise a DefaultKgCurationOps when both the KG service and page manager are
         // available (the normal test-fixture case after setManager hot-swaps). Falls back
         // to null when the engine is a minimal stub that only registers some managers.
@@ -554,20 +548,18 @@ public final class KnowledgeSubsystemFactory {
             engine.getManager( NodeMentionSimilarity.class ),
             engine.getManager( FrontmatterDefaultsFilter.class ),
             engine.getManager( HubSyncFilter.class ),
-            engine.getManager( ContextRetrievalService.class ),
             engine.getManager( ForAgentProjectionService.class ),
             engine.getManager( BootstrapEntityExtractionIndexer.class ),
             engine.getManager( KgInclusionPolicy.class ),
             engine.getManager( ReconciliationJobRunner.class ),
             engine.getManager( RetrievalQualityRunner.class ),
             kgCurationOps,
-            // bundleAssemblyService — built at the retrieval-patch seam, not on this cold
-            // no-snapshot path (the stashed snapshot, patched with the bundle, is what
-            // production reads). Null here is correct: surfaces degrade until the patch fires.
-            null,
-            // briefingAssemblyService — likewise built at the retrieval-patch seam, not on
-            // this cold no-snapshot path. Null here is correct.
-            null
+            // retrieval — seeded with the registry's ContextRetrievalService when present
+            // (mirrors the old field-17 fallback); bundle/briefing stay null until the
+            // patch seam builds them. Null seed collapses to an empty holder.
+            new AtomicReference<>( ctxFromRegistry == null
+                ? null
+                : new KnowledgeSubsystem.RetrievalServices( ctxFromRegistry, null, null ) )
         );
     }
 

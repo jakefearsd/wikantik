@@ -517,15 +517,13 @@ class PageKnowledgeResourceTest {
             null,        // nodeMentionSimilarity
             null,        // frontmatterDefaultsFilter
             null,        // hubSyncFilter
-            null,        // contextRetrievalService
             null,        // forAgentProjectionService
             null,        // bootstrapEntityExtractionIndexer
             null,        // kgInclusionPolicy
             null,        // reconciliationJobRunner
             null,        // retrievalQualityRunner
             ops,         // kgCurationOps
-            null,        // bundleAssemblyService
-            null         // briefingAssemblyService
+            null         // retrieval (normalized to an empty set-once holder)
         );
         return new com.wikantik.WikiSubsystems( null, null, null, null, null, null, kg, null );
     }

@@ -215,7 +215,7 @@ class AdminOverviewResourceFullTest {
                 null, null, null,
                 new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services(
                         kg, null, null, null, null, null, null, null, null, null, null, null, null,
-                        null, null, null, null, null, null, null, null, runner, null, null, null ),
+                        null, null, null, null, null, null, null, runner, null, null ),
                 new com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services(
                         structural, null, null, indexSvc, null, null, null, null ) );
 

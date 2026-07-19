@@ -1543,16 +1543,15 @@ public class WikiEngine implements Engine {
 
     /**
      * Rebuilds the {@link com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services}
-     * record by copying the original 16 core fields and filling in the six
+     * record by copying the original 16 core fields and filling in the five
      * post-construction services that were registered into the manager map
      * after {@code KnowledgeSubsystemFactory.create()} returned.
      *
      * <p>Phase 8 Ckpt 1.5 of the wikantik-main decomposition. Called once
      * from {@code initialize()} just before the {@code WikiSubsystems} bundle
-     * is stashed on the {@code ServletContext}. {@code ContextRetrievalService}
-     * is intentionally left null here — it is wired by
-     * {@code ContextRetrievalServiceInitializer} (a {@code ServletContextListener})
-     * after the engine starts and cannot be present at this point.</p>
+     * is stashed on the {@code ServletContext}. The retrieval trio is
+     * installed later into the shared set-once holder by
+     * {@code patchContextRetrievalService}.</p>
      */
     private com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services
     rebuildKnowledgeSubsystemWithPostConstructionServices(
@@ -1574,17 +1573,14 @@ public class WikiEngine implements Engine {
             base.nodeMentionSimilarity(),
             base.frontmatterDefaultsFilter(),
             base.hubSyncFilter(),
-            /* contextRetrievalService — set by servlet listener post-boot */      null,
             getManager( com.wikantik.api.agent.ForAgentProjectionService.class ),
             getManager( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class ),
             getManager( com.wikantik.api.kgpolicy.KgInclusionPolicy.class ),
             getManager( com.wikantik.kgpolicy.ReconciliationJobRunner.class ),
             getManager( com.wikantik.api.eval.RetrievalQualityRunner.class ),
             base.kgCurationOps(),
-            /* bundleAssemblyService — derived from contextRetrievalService, which is null
-               here (wired post-boot); built later at patchContextRetrievalService */ null,
-            /* briefingAssemblyService — derived from the bundle service, likewise null
-               here; built later at patchContextRetrievalService */ null
+            /* retrieval — carry the factory's empty set-once holder; the trio is
+               installed into it later by patchContextRetrievalService */ base.retrieval()
         );
     }
 
@@ -1602,20 +1598,21 @@ public class WikiEngine implements Engine {
     }
 
     /**
-     * Patches the live {@link WikiSubsystems} stash and the local
-     * {@code knowledgeSubsystem} field with the supplied
-     * {@link com.wikantik.api.knowledge.ContextRetrievalService} instance.
+     * Installs the retrieval trio ({@code ContextRetrievalService} plus the bundle and
+     * briefing assemblers derived from it) into the live Knowledge subsystem's set-once
+     * holder.
      *
-     * <p>{@code ContextRetrievalService} cannot be placed in the stash at
-     * engine-boot time because it is wired by
-     * {@code ContextRetrievalServiceInitializer} (a {@code ServletContextListener})
-     * that fires after {@code initialize()} returns. Call this method from that
-     * listener once the service is available so that servlet callers reading
-     * {@code getSubsystems().knowledge().contextRetrievalService()} get the
-     * live service rather than {@code null}.</p>
+     * <p>{@code ContextRetrievalService} cannot be present at engine-boot time because it
+     * is wired by {@code ContextRetrievalServiceInitializer} (a {@code ServletContextListener})
+     * that fires after {@code initialize()} returns. Call this method from that listener
+     * once the service is available. Because the {@code Services} record and the
+     * {@code WikiSubsystems} stash hold the same {@code AtomicReference}, no record rebuild
+     * or stash refresh is needed — servlet callers see the trio the moment it is installed.</p>
      *
-     * <p>If the knowledge subsystem is not present (no datasource) this is a
-     * no-op.</p>
+     * <p>Idempotent: a duplicate call is refused by the set-once install (logged at WARN)
+     * and, in particular, can no longer start a second {@code BundleEvalScheduler}.</p>
+     *
+     * <p>If the knowledge subsystem is not present (no datasource) this is a no-op.</p>
      */
     public synchronized void patchContextRetrievalService(
             final com.wikantik.api.knowledge.ContextRetrievalService svc ) {
@@ -1647,9 +1644,26 @@ public class WikiEngine implements Engine {
                 properties,
                 confidenceOf );
 
+        final com.wikantik.api.briefing.BriefingAssemblyService briefingSvc =
+            com.wikantik.knowledge.briefing.BriefingServiceWiring.build(
+                bundleSvc,
+                structuralIndexOrNull(),
+                pageSubsystem != null ? pageSubsystem.pages() : null,
+                properties );
+
+        // Set-once install: the trio lands atomically in the live Services record (and the
+        // WikiSubsystems stash, which holds the same instance — no rebuild, no re-stash).
+        if ( !knowledgeSubsystem.installRetrieval(
+                new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.RetrievalServices(
+                    svc, bundleSvc, briefingSvc ) ) ) {
+            LOG.warn( "patchContextRetrievalService called more than once; keeping the originally installed retrieval services" );
+            return;
+        }
+
         // Scheduled retrieval-quality eval (disabled unless wikantik.bundle.eval.interval.hours > 0).
         // Same JNDI datasource lookup as initKnowledgeGraph()/initAuditSubsystem() — fail-soft to
         // null (the scheduler is still built, just persists nowhere until a run tries to write).
+        // Built only after a successful FIRST install, so a duplicate call cannot leak a scheduler.
         javax.sql.DataSource evalDs = null;
         try {
             final String datasource = properties.getProperty(
@@ -1660,62 +1674,10 @@ public class WikiEngine implements Engine {
         } catch ( final javax.naming.NamingException e ) {
             LOG.warn( "bundle-eval scheduler: no JNDI DataSource ({}); eval persistence disabled", e.getMessage() );
         }
-        // Assumes patchContextRetrievalService is called once at startup; a re-entrant call
-        // would build a second scheduler here without stopping the first (matches the
-        // BundleServiceWiring build() above, which makes the same single-call assumption).
         final com.wikantik.knowledge.eval.BundleEvalScheduler bundleEvalScheduler =
             com.wikantik.knowledge.eval.BundleEvalWiring.build( bundleSvc, evalDs, properties );
         if ( bundleEvalScheduler != null ) {
             bundleEvalScheduler.start();
-        }
-
-        knowledgeSubsystem = new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services(
-            knowledgeSubsystem.kgService(),
-            knowledgeSubsystem.judgeService(),
-            knowledgeSubsystem.judgeRunner(),
-            knowledgeSubsystem.kgMaterialization(),
-            knowledgeSubsystem.judgeTimeoutRepository(),
-            knowledgeSubsystem.hubProposalService(),
-            knowledgeSubsystem.hubDiscoveryService(),
-            knowledgeSubsystem.hubOverviewService(),
-            knowledgeSubsystem.hubProposalRepository(),
-            knowledgeSubsystem.hubDiscoveryRepository(),
-            knowledgeSubsystem.contentChunkRepository(),
-            knowledgeSubsystem.chunkProjector(),
-            knowledgeSubsystem.mentionIndex(),
-            knowledgeSubsystem.nodeMentionSimilarity(),
-            knowledgeSubsystem.frontmatterDefaultsFilter(),
-            knowledgeSubsystem.hubSyncFilter(),
-            svc,
-            knowledgeSubsystem.forAgentProjectionService(),
-            knowledgeSubsystem.bootstrapEntityExtractionIndexer(),
-            knowledgeSubsystem.kgInclusionPolicy(),
-            knowledgeSubsystem.reconciliationJobRunner(),
-            knowledgeSubsystem.retrievalQualityRunner(),
-            knowledgeSubsystem.kgCurationOps(),
-            // bundleAssemblyService — DERIVED from the now-live retrieval service (svc).
-            // Collaborators are passed from typed accessors (no getManager) so the wiring
-            // helper stays a plain assembler. Null-safe: build returns null if svc is null.
-            bundleSvc,
-            // briefingAssemblyService — DERIVED from the just-built bundle service plus the
-            // structural index. Both collaborators are nullable (degraded briefing still
-            // answers explicit pins); requires only a live PageManager. Null-safe build.
-            com.wikantik.knowledge.briefing.BriefingServiceWiring.build(
-                bundleSvc,
-                structuralIndexOrNull(),
-                pageSubsystem != null ? pageSubsystem.pages() : null,
-                properties )
-        );
-        // Rebuild the full WikiSubsystems stash so servlet callers see the updated record.
-        final WikiSubsystems current =
-            (WikiSubsystems) servletContext.getAttribute( WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE );
-        if ( current != null ) {
-            servletContext.setAttribute(
-                WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE,
-                new WikiSubsystems(
-                    current.core(), current.persistence(), current.auth(),
-                    current.page(), current.rendering(), current.search(),
-                    knowledgeSubsystem, current.pageGraph() ) );
         }
     }
 

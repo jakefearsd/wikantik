@@ -161,6 +161,10 @@
           <includes>
             <include>**/*Test.java</include>
           </includes>
+          <!-- Fork-safe: tests use TestEngine (unique dirs per instance) and bind
+               no fixed ports. See wikantik.surefire.forkCount in the root POM. -->
+          <forkCount>${wikantik.surefire.forkCount}</forkCount>
+          <reuseForks>true</reuseForks>
         </configuration>
       </plugin>
     </plugins>

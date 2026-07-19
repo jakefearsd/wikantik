@@ -163,6 +163,12 @@
          The `coverage` profile leaves this empty too — JaCoCo's prepare-agent
          goal repopulates it at runtime. -->
     <argLine></argLine>
+    <!-- Fork-level unit-test parallelism (surefire partitions test classes across
+         this many JVMs; reuseForks keeps each JVM alive for its whole partition).
+         Modules whose tests are fork-safe (unique TestEngine dirs, no fixed ports)
+         opt in by referencing this in their surefire <forkCount>. Override with
+         -Dwikantik.surefire.forkCount=1 to force fully sequential runs. -->
+    <wikantik.surefire.forkCount>0.5C</wikantik.surefire.forkCount>
     <spotbugs.excludeFilterFile>build-support/spotbugs-exclude.xml</spotbugs.excludeFilterFile>
   </properties>
 

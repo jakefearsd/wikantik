@@ -440,8 +440,14 @@
                         <include>**/*Test.java</include>
                     </includes>
                     <runOrder>random</runOrder>
-                    <parallel>all</parallel> <!-- or classes, both, suites, etc. -->
-                    <perCoreThreadCount>1</perCoreThreadCount > <!-- Number of threads to use -->
+                    <!-- Fork-level parallelism: partitions test classes across JVMs.
+                         (The old <parallel>all</parallel> was a silent no-op — that
+                         parameter only applies to the JUnit 4 provider, not JUnit 5.)
+                         TestEngine uniquifies pageDir/workDir/storageDir per instance,
+                         so forks don't collide on the filesystem; no test binds a
+                         fixed port. -->
+                    <forkCount>${wikantik.surefire.forkCount}</forkCount>
+                    <reuseForks>true</reuseForks>
                 </configuration>
             </plugin>
         </plugins>

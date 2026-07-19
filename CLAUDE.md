@@ -62,6 +62,11 @@ mvn clean install -DskipTests
 mvn clean install -T 1C -DskipITs
 ```
 
+Unit tests in wikantik-main and wikantik-rest run partitioned across forked JVMs
+(`wikantik.surefire.forkCount`, default `0.5C` — cut the full build from ~10:30 to
+~4:00). Pass `-Dwikantik.surefire.forkCount=1` to force a fully sequential run when
+debugging a suspected cross-test interaction.
+
 ### Long builds — subagent protocol
 
 Any Maven invocation that can exceed ~5 minutes (full unit build, IT reactor) MUST be

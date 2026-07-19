@@ -1617,6 +1617,13 @@ public class WikiEngine implements Engine {
     public synchronized void patchContextRetrievalService(
             final com.wikantik.api.knowledge.ContextRetrievalService svc ) {
         if ( knowledgeSubsystem == null || servletContext == null ) return;
+        // Duplicate-call guard: the method is synchronized (sole writer), so checking the
+        // holder up front lets us skip building the assemblers — BundleServiceWiring can
+        // allocate an HttpClient that would otherwise be orphaned when the CAS refuses.
+        if ( knowledgeSubsystem.retrieval().get() != null ) {
+            LOG.warn( "patchContextRetrievalService called more than once; keeping the originally installed retrieval services" );
+            return;
+        }
         // slug -> Confidence lookup for the 'metadata-boost' rerank stage: resolve slug -> canonical_id
         // via the persistence subsystem's dao, then canonical_id -> Verification.confidence() via the
         // structural index. Null (stage skipped) when the page-graph subsystem isn't wired.

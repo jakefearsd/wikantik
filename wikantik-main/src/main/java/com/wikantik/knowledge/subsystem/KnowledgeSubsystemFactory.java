@@ -372,11 +372,14 @@ public final class KnowledgeSubsystemFactory {
      * in Ckpt 2, once the bridge is wired to delegate here instead of doing
      * manual synthesis itself.</p>
      *
-     * <p><b>ContextRetrievalService invariant:</b> this field is intentionally
-     * excluded from {@code setManager} rebuilds (see
-     * {@code WikiEngine.SNAPSHOT_REBUILDERS}). It is always taken from
-     * {@code existing} when a prior snapshot exists; when existing is null the
-     * registry is consulted as a fallback (consistent with
+     * <p><b>ContextRetrievalService invariant:</b> the retrieval trio (context
+     * retrieval plus the bundle and briefing assemblers derived from it) is
+     * intentionally excluded from {@code setManager} rebuilds (see
+     * {@code WikiEngine.SNAPSHOT_REBUILDERS}). The rebuild carries the existing
+     * record's shared set-once {@code retrieval} holder forward by reference, so
+     * an install performed before or after the rebuild is visible in both
+     * snapshots. When {@code existing} is {@code null}, {@link #readFromManagerRegistry}
+     * seeds the holder from the registry as a fallback (consistent with
      * {@code KnowledgeSubsystemBridge.rebuildFromManagers}).</p>
      */
     public static KnowledgeSubsystem.Services rebuildFromExisting(

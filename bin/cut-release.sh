@@ -7,8 +7,11 @@
 # publishes ghcr.io/jakefearsd/wikantik:X.Y.Z (+ :latest), and creates the
 # GitHub Release. Afterwards, deploy with: bin/deploy-release.sh X.Y.Z
 #
-# Run a full green build first (mvn clean install -Pintegration-tests -fae):
-# this script does not build — it only versions, tags, and pushes.
+# Run a full green build first (mvn clean install -Pintegration-tests -fae)
+# AND the opt-in SCIM full-loop suite (bin/run-tests.sh --fullloop) — the
+# Authentik interop test is not part of the per-commit gate, so a release is
+# the checkpoint that keeps it from rotting. This script does not build —
+# it only versions, tags, and pushes.
 #
 # Usage:
 #   bin/cut-release.sh X.Y.Z

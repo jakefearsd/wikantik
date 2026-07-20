@@ -52,10 +52,11 @@ public class SearchFacetIT extends WithIntegrationTestSetup {
         RestSeedHelper.writePageWithFrontmatter( pageB,
             "---\ncluster: " + clusterB + "\ntype: article\n---\n# " + pageB + "\n\n" + term + " content\n" );
         try {
-            // Allow per-change search indexing to settle before querying.
-            Thread.sleep( Env.TESTS_CONFIG_SEARCH_INDEX_WAIT );
-
-            ViewWikiPage.open( "Main" ).searchFor( term );
+            // Retry the search until BOTH freshly-saved pages are indexed
+            // (per-change indexing runs async with indexdelay=1s; a fixed
+            // sleep here was a latent flake under machine load).
+            ViewWikiPage.open( "Main" ).searchForUntilFound( term, pageA );
+            ViewWikiPage.open( "Main" ).searchForUntilFound( term, pageB );
 
             // Both pages are returned.
             $$( "[data-testid=search-result-card]" )

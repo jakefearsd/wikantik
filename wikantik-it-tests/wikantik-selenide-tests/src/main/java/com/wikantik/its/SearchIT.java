@@ -32,16 +32,16 @@ public class SearchIT extends WithIntegrationTestSetup {
     void performSearches() throws Exception {
         final String text = "Congratulations - with cuchuflus! :: " + System.currentTimeMillis();
 
-        // first, search for a term indexed on startup (wait a bit to allow the initial search indexing to complete first)
-        Thread.sleep( Env.TESTS_CONFIG_SEARCH_INDEX_WAIT );
+        // first, search for a term indexed on startup — retry until the initial
+        // search indexing has caught up (condition-based, no fixed sleep).
         final ViewWikiPage main = ViewWikiPage.open( "Main" )
-                                              .searchFor( "Congratulations" ).shouldContain( "Main" )
+                                              .searchForUntilFound( "Congratulations", "Main" )
                                               .navigateTo( "Main" );
 
-        // second, edit a page and search for that newly indexed page (wait a bit to allow the per change search indexing to complete first)
+        // second, edit a page and search for that newly indexed page — retry until
+        // the per-change indexing (indexdelay=1s) has caught up.
         main.editPage().saveText( text );
-        Thread.sleep( Env.TESTS_CONFIG_SEARCH_INDEX_WAIT );
-        main.searchFor( "cuchuflus" ).shouldContain( "Main" )
+        main.searchForUntilFound( "cuchuflus", "Main" )
             .navigateTo( "Main" );
 
         Assertions.assertEquals( text, main.wikiPageContent() );

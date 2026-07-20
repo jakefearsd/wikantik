@@ -134,6 +134,36 @@ public class ViewWikiPage implements SpaPage {
     }
 
     /**
+     * Searches for {@code text}, retrying the whole query until {@code expectedPage}
+     * appears among the results. The search index updates asynchronously after a save
+     * (indexdelay=1s in the IT profile) and a rendered result list never re-queries,
+     * so re-running the search is the only way to observe a newly-indexed page.
+     * Replaces the previous fixed pre-search sleeps, which were latent flakes under
+     * machine load. Fails with the standard {@link SearchResultsPage#shouldContain}
+     * output if the page never appears within the budget.
+     *
+     * @param text search query.
+     * @param expectedPage page name that must appear in the results.
+     * @return {@link SearchResultsPage} for further assertions/navigation.
+     */
+    public SearchResultsPage searchForUntilFound( final String text, final String expectedPage ) {
+        final long deadline = System.currentTimeMillis() + 15_000;
+        while ( System.currentTimeMillis() < deadline ) {
+            final SearchResultsPage results = searchFor( text );
+            // Cheap immediate probe — the rendered result list is static, so
+            // waiting on the DOM (shouldContain's 5s waits) can never help; a
+            // miss means "re-run the query", not "wait longer on this page".
+            if ( $( "[data-testid=search-result-card][data-page-name=\"" + expectedPage + "\"]" )
+                    .is( Condition.exist ) ) {
+                return results;
+            }
+            Selenide.sleep( 250 );
+        }
+        // Budget exhausted: one final asserting attempt for the standard failure output.
+        return searchFor( text ).shouldContain( expectedPage );
+    }
+
+    /**
      * Logs the current user out by clicking the logout button in the UserBadge.
      *
      * @return {@link ViewWikiPage} instance, to allow chaining of actions.

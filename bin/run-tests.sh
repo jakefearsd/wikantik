@@ -20,7 +20,7 @@
 #
 # Usage:
 #   bin/run-tests.sh                 # DEFAULT GATE: unit phase + deterministic IT modules
-#                                    #   (rest, sso, custom-jdbc) — the pre-commit run
+#                                    #   (rest, sso, knowledge-disabled, custom-jdbc) — the pre-commit run
 #   bin/run-tests.sh --all           # EVERYTHING: default gate + the opt-in, heavy
 #                                    #   Authentik SCIM full-loop (scim-fullloop)
 #   bin/run-tests.sh --unit          # unit phase only (Phase 1)
@@ -45,7 +45,7 @@ Usage: bin/run-tests.sh [MODE] [OPTIONS]
 
 There are two "everything" levels:
   * the no-arg run is the DEFAULT GATE  — unit + the deterministic IT modules
-    (rest, sso, custom-jdbc). This is what you run before committing.
+    (rest, sso, knowledge-disabled, custom-jdbc). This is what you run before committing.
   * --all is EVERYTHING               — the default gate PLUS the opt-in, heavy
     Authentik SCIM full-loop (scim-fullloop). Use it for a complete run.
 
@@ -53,7 +53,7 @@ MODES (default, no args: the default gate = unit, then default-gate IT modules)
   --all                  EVERYTHING: unit + default-gate IT modules + scim-fullloop
   --unit                 Unit reactor only (Phase 1)
   --it                   Default-gate IT modules only (assumes --unit ran)
-  --module <name>        One IT module: rest|sso|custom-jdbc|scim-fullloop
+  --module <name>        One IT module: rest|sso|knowledge-disabled|custom-jdbc|scim-fullloop
   --fullloop             ONLY the opt-in Authentik SCIM full-loop (-Pscim-fullloop)
   --list                 Show modules and their gate, then exit
 
@@ -67,7 +67,7 @@ ENVIRONMENT
   IT_PARALLELISM=1       Fallback for --parallel (flag wins)
 
 EXAMPLES
-  bin/run-tests.sh                      # default gate (unit + rest,sso,custom-jdbc) — pre-commit
+  bin/run-tests.sh                      # default gate (unit + rest,sso,knowledge-disabled,custom-jdbc) — pre-commit
   bin/run-tests.sh --all                # EVERYTHING incl. the heavy Authentik full-loop
   bin/run-tests.sh --all -o both        # everything, streaming build output to console + log
   bin/run-tests.sh --unit               # fast unit-only pass
@@ -84,9 +84,10 @@ list_modules() {
   echo "Run EVERYTHING with: bin/run-tests.sh --all   (default gate + opt-in below)"
   echo
   echo "Default gate (run by --it / no args):"
-  echo "  rest         wikantik-it-tests/wikantik-it-test-rest        (REST API + SCIM)"
-  echo "  sso          wikantik-it-tests/wikantik-it-test-sso         (Keycloak OIDC + SAML, type=both)"
-  echo "  custom-jdbc  wikantik-it-tests/wikantik-it-test-custom-jdbc (Selenide browser suite)"
+  echo "  rest                wikantik-it-tests/wikantik-it-test-rest               (REST API + SCIM)"
+  echo "  sso                 wikantik-it-tests/wikantik-it-test-sso                (Keycloak OIDC + SAML, type=both)"
+  echo "  knowledge-disabled  wikantik-it-tests/wikantik-it-test-knowledge-disabled (knowledge-subsystem-off degradation)"
+  echo "  custom-jdbc         wikantik-it-tests/wikantik-it-test-custom-jdbc        (Selenide browser suite)"
   echo
   echo "Opt-in (run only via --fullloop / --module scim-fullloop):"
   echo "  scim-fullloop  wikantik-it-tests/wikantik-it-test-scim-fullloop (Authentik SCIM full-loop)"
@@ -114,6 +115,7 @@ fi
 IT_MODULES=(
   "wikantik-it-tests/wikantik-it-test-rest"
   "wikantik-it-tests/wikantik-it-test-sso"
+  "wikantik-it-tests/wikantik-it-test-knowledge-disabled"
   "wikantik-it-tests/wikantik-it-test-custom-jdbc"
 )
 
@@ -156,7 +158,7 @@ while [ $# -gt 0 ]; do
     --unit)    RUN_IT=0 ;;
     --it)      RUN_UNIT=0 ;;
     --module)  RUN_UNIT=0; RUN_IT=0; ONE_MODULE="${2:-}"; shift
-               [ -n "$ONE_MODULE" ] || { echo "--module needs a name (rest|sso|custom-jdbc|scim-fullloop)" >&2; exit 2; } ;;
+               [ -n "$ONE_MODULE" ] || { echo "--module needs a name (rest|sso|knowledge-disabled|custom-jdbc|scim-fullloop)" >&2; exit 2; } ;;
     --parallel|-p)
                IT_PARALLELISM="${2:-}"; shift
                case "$IT_PARALLELISM" in

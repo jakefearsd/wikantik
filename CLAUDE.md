@@ -136,10 +136,18 @@ mvn test -Dtest=MarkdownRendererTest#testMarkupSimpleMarkdown
 # Debug a test
 mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug
 
-# Run integration tests (MUST run without parallelism - see critical note below)
-# Always use -fae (fail at end) so all IT submodules run even if one has failures.
+# CANONICAL pre-commit gate (unit + all default IT modules, ~5:45 total).
+# Phase 1 runs every unit test once (-T 1C -DskipITs, installs artifacts incl.
+# the WAR + selenide-tests test-jar); Phase 2 runs the four IT modules in one
+# -T 4 reactor with per-module reserved ports + uniquely-named pgvector
+# containers. Identical coverage to the old full reactor (8809 unit + 371 IT
+# tests) without re-running the units inside the IT phase.
+bin/run-tests.sh --parallel 4
+
+# Equivalent but slower fallbacks: bin/run-tests.sh (sequential IT phase), or the
+# single full reactor (re-runs all unit tests inside the IT phase — ~9 min):
+#   mvn clean install -Pintegration-tests -fae
 # The integration tests all live under wikantik-it-tests (Selenide browser + REST + custom provider suites).
-mvn clean install -Pintegration-tests -fae
 
 # Run memory profiling test (from wikantik-main module)
 mvn test -Dtest=MemoryProfiling
@@ -411,20 +419,22 @@ each is recorded in [docs/ProjectReference.md](docs/ProjectReference.md#active-d
 
 ### Critical: Integration Test Parallelism
 
-**NEVER run integration tests with Maven parallel builds (`-T 1C` or `-T` flags).**
-
-The integration tests use Maven Cargo to start embedded Tomcat instances that share fixed
-port numbers (8080, 8205, etc.). Running multiple IT modules in parallel causes port
-conflicts and unreliable test failures like:
-
-```
-Port number 8205 (defined with the property cargo.rmi.port) is in use
-```
+Parallel IT execution is supported ONLY through `bin/run-tests.sh --parallel N`:
+its single reactor gives every IT module a build-helper-reserved free port set
+and a uniquely-named pgvector container, so they cannot collide. Do NOT bolt
+`-T` onto a raw `mvn clean install -Pintegration-tests` invocation yourself —
+run-tests.sh is the sanctioned path (it also serializes runs per checkout via a
+lock; concurrent Maven builds on one working tree corrupt each other's surefire
+state). The opt-in Authentik scim-fullloop suite always runs sequentially and is
+never folded into `--parallel`.
 
 **Correct usage:**
 ```bash
-# Integration tests - MUST be sequential (no -T flag), always use -fae
-mvn clean install -Pintegration-tests -fae
+# Canonical gate — unit phase + 4-wide parallel IT phase
+bin/run-tests.sh --parallel 4
+
+# Sequential IT fallback (e.g. when diagnosing a suspected cross-module issue)
+bin/run-tests.sh
 
 # Unit tests only - can use parallel builds
 mvn clean install -T 1C -DskipITs

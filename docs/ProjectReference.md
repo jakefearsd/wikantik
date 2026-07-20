@@ -90,10 +90,10 @@ bin/deploy-release.sh X.Y.Z    # pull the published image → bin/remote.sh depl
 ```
 
 `cut-release.sh` cuts the release (run a green build first — it does not
-build). Pre-release checklist: a green `mvn clean install -Pintegration-tests
--fae` **and** a green `bin/run-tests.sh --fullloop` (the opt-in Authentik SCIM
-interop test lives outside the per-commit gate; the release is its scheduled
-checkpoint — ~80s warm, first run per machine pulls the 1.1GB Authentik image).
+build). Pre-release checklist: a green `bin/run-tests.sh --all` (the full gate —
+unit + all default IT modules — plus the opt-in Authentik SCIM full-loop, which
+lives outside the per-commit gate; the release is its scheduled checkpoint —
+~80s warm, first run per machine pulls the 1.1GB Authentik image).
 Once `release.yml` is green, `deploy-release.sh` swaps the image on
 the remote. The DB (named volume `repo_pgdata`) and pages (host bind mount)
 persist across the swap, and the container entrypoint applies any pending

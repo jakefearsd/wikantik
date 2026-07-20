@@ -108,8 +108,13 @@ public class KnowledgeTabIT extends WithIntegrationTestSetup {
                 .shouldBe( visible, ASYNC_WAIT )
                 .click();
 
-        // Ensure the panel is rendered before interacting.
-        $( "[class*=kg-panel-], .kg-panel-empty, .kg-panel-loading" )
+        // Ensure the panel finished its async entity-load before interacting.
+        // Accepting .kg-panel-loading here was a race: text typed into the
+        // add-entity row while loading is wiped when the load resolves and the
+        // row re-renders — leaving the Add button correctly disabled and the
+        // click timing out.
+        $( ".kg-panel-loading" ).shouldNot( Condition.exist, ASYNC_WAIT );
+        $( "[class*=kg-panel-], .kg-panel-empty" )
                 .shouldBe( visible, ASYNC_WAIT );
 
         // Add the technology entity.
@@ -211,9 +216,12 @@ public class KnowledgeTabIT extends WithIntegrationTestSetup {
         // Select the entity type.
         $( "[data-testid=kg-add-entity-type]" ).selectOptionContainingText( type );
 
-        // Click the Add button.
+        // Click the Add button — waiting for enabled first proves React has
+        // processed the injected input event (the button is disabled while
+        // newEntityName is empty).
         $( "[data-testid=kg-add-entity-btn]" )
                 .shouldBe( visible, Duration.ofSeconds( 5 ) )
+                .shouldBe( Condition.enabled, Duration.ofSeconds( 5 ) )
                 .click();
 
         // Wait for the entity to appear in the list.

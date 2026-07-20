@@ -67,20 +67,25 @@ class SearchResourceTest {
     @BeforeEach
     void setUp() throws Exception {
         final Properties props = TestEngine.getTestProperties();
+        // Without these the LuceneUpdater background thread waits INITIAL_DELAY
+        // (60 s) before its first cycle — reindexPage() queues were never
+        // processed inside the tests' retry budgets, so the searches returned
+        // empty and the guarded assertions silently never ran (vacuous pass).
+        // Same settings as LuceneSearchProviderTest/SearchManagerTest.
+        props.setProperty( "wikantik.lucene.indexdelay", "0" );
+        props.setProperty( "wikantik.lucene.initialdelay", "0" );
         engine = new TestEngine( props );
 
         // Create test pages for searching
         engine.saveText( "RestSearchAlpha", "Alpha page content for search testing." );
         engine.saveText( "RestSearchBeta", "Beta page content for search testing." );
 
-        // Force reindex and wait for the Lucene background thread to process
+        // Force reindex; the polling loops in the tests below wait for the
+        // background indexer to catch up.
         final SearchManager sm = engine.getManager( SearchManager.class );
         final PageManager pmSetup = engine.getManager( PageManager.class );
         sm.reindexPage( pmSetup.getPage( "RestSearchAlpha" ) );
         sm.reindexPage( pmSetup.getPage( "RestSearchBeta" ) );
-
-        // Wait for Lucene indexer — it runs on a background thread
-        Thread.sleep( 500 );
 
         // Register a ContextRetrievalService that delegates to the real SearchManager
         // so tests exercise the full HTTP layer without requiring pgvector or embeddings.
@@ -200,29 +205,23 @@ class SearchResourceTest {
         // Create a page with frontmatter that the search will find
         engine.saveText( "RestSearchFrontmatter",
                 "---\nsummary: A test summary\ntags: [search, test]\ncluster: TestCluster\n---\nFrontmatter search content." );
-        // Allow Lucene time to index
-        Thread.sleep( 500 );
-
         try {
-            final String json = doSearch( "Frontmatter", null );
-            final JsonObject obj = gson.fromJson( json, JsonObject.class );
-            final JsonArray results = obj.getAsJsonArray( "results" );
+            final JsonArray results = awaitSearchResults( "Frontmatter" );
 
-            if ( results.size() > 0 ) {
-                // Find our specific page
-                for ( int i = 0; i < results.size(); i++ ) {
-                    final JsonObject entry = results.get( i ).getAsJsonObject();
-                    if ( "RestSearchFrontmatter".equals( entry.get( "name" ).getAsString() ) ) {
-                        assertTrue( entry.has( "score" ), "Result should have score" );
-                        assertTrue( entry.get( "score" ).getAsDouble() > 0,
-                                "Score should be positive" );
-                        // Frontmatter fields should be extracted
-                        if ( entry.has( "summary" ) ) {
-                            assertEquals( "A test summary", entry.get( "summary" ).getAsString() );
-                        }
-                        break;
-                    }
+            // Find our specific page — it MUST be among the results.
+            JsonObject entry = null;
+            for ( int i = 0; i < results.size(); i++ ) {
+                final JsonObject e = results.get( i ).getAsJsonObject();
+                if ( "RestSearchFrontmatter".equals( e.get( "name" ).getAsString() ) ) {
+                    entry = e;
+                    break;
                 }
+            }
+            assertNotNull( entry, "RestSearchFrontmatter should be indexed and found" );
+            assertTrue( entry.has( "score" ), "Result should have score" );
+            assertTrue( entry.get( "score" ).getAsDouble() > 0, "Score should be positive" );
+            if ( entry.has( "summary" ) ) {
+                assertEquals( "A test summary", entry.get( "summary" ).getAsString() );
             }
         } finally {
             try { engine.getManager( PageManager.class ).deletePage( "RestSearchFrontmatter" ); }
@@ -232,18 +231,13 @@ class SearchResourceTest {
 
     @Test
     void testSearchResultHasCorrectFields() throws Exception {
-        final String json = doSearch( "Alpha", null );
-        final JsonObject obj = gson.fromJson( json, JsonObject.class );
-
-        final JsonArray results = obj.getAsJsonArray( "results" );
-        // We expect at least one result for "Alpha" since we created RestSearchAlpha
-        if ( results.size() > 0 ) {
-            final JsonObject entry = results.get( 0 ).getAsJsonObject();
-            assertTrue( entry.has( "name" ), "Result should have 'name'" );
-            assertTrue( entry.has( "score" ), "Result should have 'score'" );
-            assertFalse( entry.get( "name" ).getAsString().isEmpty(),
-                    "Name should not be empty" );
-        }
+        // We expect at least one result for "Alpha" since we created RestSearchAlpha.
+        final JsonArray results = awaitSearchResults( "Alpha" );
+        final JsonObject entry = results.get( 0 ).getAsJsonObject();
+        assertTrue( entry.has( "name" ), "Result should have 'name'" );
+        assertTrue( entry.has( "score" ), "Result should have 'score'" );
+        assertFalse( entry.get( "name" ).getAsString().isEmpty(),
+                "Name should not be empty" );
     }
 
     @Test
@@ -257,27 +251,17 @@ class SearchResourceTest {
 
     @Test
     void testSearchResultsContainExpectedPageFields() throws Exception {
-        // Lucene indexing is asynchronous; search for content with retries
-        JsonArray results = null;
-        for ( int attempt = 0; attempt < 10; attempt++ ) {
-            Thread.sleep( 500 );
-            final String json = doSearch( "Alpha", null );
-            final JsonObject obj = gson.fromJson( json, JsonObject.class );
-            results = obj.getAsJsonArray( "results" );
-            if ( results.size() > 0 ) break;
-        }
+        // Lucene indexing is asynchronous; poll until the indexer catches up.
+        final JsonArray results = awaitSearchResults( "Alpha" );
 
-        // If Lucene indexed, verify the full result structure
-        if ( results != null && results.size() > 0 ) {
-            final JsonObject entry = results.get( 0 ).getAsJsonObject();
-            // Core fields that SearchResource always sets
-            assertTrue( entry.has( "name" ), "Result entry should have 'name'" );
-            assertTrue( entry.has( "score" ), "Result entry should have 'score'" );
-            // lastModified comes from the page — present when BridgingContextRetrievalService populates it
-            assertTrue( entry.has( "lastModified" ), "Result entry should have 'lastModified'" );
-            assertFalse( entry.get( "name" ).getAsString().isEmpty(), "Name should not be empty" );
-            assertTrue( entry.get( "score" ).getAsDouble() > 0, "Score should be positive" );
-        }
+        final JsonObject entry = results.get( 0 ).getAsJsonObject();
+        // Core fields that SearchResource always sets
+        assertTrue( entry.has( "name" ), "Result entry should have 'name'" );
+        assertTrue( entry.has( "score" ), "Result entry should have 'score'" );
+        // lastModified comes from the page — present when BridgingContextRetrievalService populates it
+        assertTrue( entry.has( "lastModified" ), "Result entry should have 'lastModified'" );
+        assertFalse( entry.get( "name" ).getAsString().isEmpty(), "Name should not be empty" );
+        assertTrue( entry.get( "score" ).getAsDouble() > 0, "Score should be positive" );
     }
 
     @Test
@@ -289,31 +273,24 @@ class SearchResourceTest {
         sm.reindexPage( engine.getManager( PageManager.class ).getPage( "RestSearchFmFields" ) );
 
         try {
-            // Wait for indexing and search with retries
+            // Poll until the indexer catches up and our page appears.
+            final JsonArray res = awaitSearchResults( "UniqueFmFieldContent" );
             JsonObject foundEntry = null;
-            for ( int attempt = 0; attempt < 10; attempt++ ) {
-                Thread.sleep( 500 );
-                final String json = doSearch( "UniqueFmFieldContent", null );
-                final JsonObject obj = gson.fromJson( json, JsonObject.class );
-                final JsonArray res = obj.getAsJsonArray( "results" );
-                for ( int i = 0; i < res.size(); i++ ) {
-                    final JsonObject e = res.get( i ).getAsJsonObject();
-                    if ( "RestSearchFmFields".equals( e.get( "name" ).getAsString() ) ) {
-                        foundEntry = e;
-                        break;
-                    }
+            for ( int i = 0; i < res.size(); i++ ) {
+                final JsonObject e = res.get( i ).getAsJsonObject();
+                if ( "RestSearchFmFields".equals( e.get( "name" ).getAsString() ) ) {
+                    foundEntry = e;
+                    break;
                 }
-                if ( foundEntry != null ) break;
             }
+            assertNotNull( foundEntry, "RestSearchFmFields should be indexed and found" );
 
-            if ( foundEntry != null ) {
-                // Verify frontmatter fields are extracted into the result
-                assertEquals( "Unique findable summary", foundEntry.get( "summary" ).getAsString(),
-                        "Summary should be extracted from frontmatter" );
-                assertTrue( foundEntry.has( "tags" ), "Tags should be extracted from frontmatter" );
-                assertEquals( "test-cluster", foundEntry.get( "cluster" ).getAsString(),
-                        "Cluster should be extracted from frontmatter" );
-            }
+            // Verify frontmatter fields are extracted into the result
+            assertEquals( "Unique findable summary", foundEntry.get( "summary" ).getAsString(),
+                    "Summary should be extracted from frontmatter" );
+            assertTrue( foundEntry.has( "tags" ), "Tags should be extracted from frontmatter" );
+            assertEquals( "test-cluster", foundEntry.get( "cluster" ).getAsString(),
+                    "Cluster should be extracted from frontmatter" );
         } finally {
             try { engine.getManager( PageManager.class ).deletePage( "RestSearchFmFields" ); }
             catch ( final Exception e ) { /* ignore */ }
@@ -592,6 +569,28 @@ class SearchResourceTest {
     }
 
     // ----- Helper methods -----
+
+    /**
+     * Polls the search endpoint until {@code query} yields at least one result
+     * (the Lucene updater indexes on a background thread even with zero
+     * delays), failing the test if nothing lands within the budget. A miss is
+     * a real defect, never a silent skip — the previous if-guarded pattern let
+     * these tests pass vacuously for as long as the indexer never ran at all.
+     */
+    private JsonArray awaitSearchResults( final String query ) throws Exception {
+        final long deadline = System.currentTimeMillis() + 10_000;
+        while ( true ) {
+            final JsonObject obj = gson.fromJson( doSearch( query, null ), JsonObject.class );
+            final JsonArray results = obj.getAsJsonArray( "results" );
+            if ( results != null && results.size() > 0 ) {
+                return results;
+            }
+            if ( System.currentTimeMillis() >= deadline ) {
+                fail( "Search for '" + query + "' returned no results within 10s — Lucene indexer never caught up" );
+            }
+            Thread.sleep( 100 );
+        }
+    }
 
     private String doSearch( final String query, final String limit ) throws Exception {
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/search" );

@@ -186,19 +186,18 @@ public class StructuredFrontmatterEditorIT extends WithIntegrationTestSetup {
                 .shouldBe( visible, ASYNC_WAIT )
                 .click();
 
-        // Step 5b: click Save — the metadata now includes audience:robots so the server
-        // returns 422 with a field-level violation.
-        $( "[data-testid=editor-save]" )
-                .shouldBe( visible, ASYNC_WAIT )
-                .click();
-
-        // A .fm-violation-error element must appear for the Audience field.
+        // Step 5b: the live debounced validation flags audience:robots as an ERROR —
+        // the inline violation renders and Save disables ("Fix the highlighted errors
+        // before saving"). Clicking Save here was inherently racy: whenever live
+        // validation won the race the button was already disabled and the click threw.
+        // The server-side 422-on-save contract is covered by PageResourceSaveContractTest.
         $( ".fm-violation-error" )
                 .shouldBe( visible, ASYNC_WAIT );
 
-        // The editor must still be visible — the invalid audience blocked the save.
+        // The invalid audience blocks the save: the button stays present but disabled.
         $( "[data-testid=editor-save]" )
-                .shouldBe( visible, ASYNC_WAIT );
+                .shouldBe( visible, ASYNC_WAIT )
+                .shouldBe( Condition.disabled, ASYNC_WAIT );
 
         // Cancel so the fixture is left unmodified.  Because we typed content (making
         // the editor dirty), Cancel shows a "Discard unsaved changes?" confirmation

@@ -50,6 +50,13 @@ public class JDBCPluginIT extends WithIntegrationTestSetup {
         // Parent @BeforeAll already called closeWebDriver(); the next Selenide.open()
         // spins up a fresh, anonymous browser for us to authenticate in.
         ViewWikiPage.open( "Main" ).clickOnLogin().performLogin();
+        // The plugin's context.hasAdminPermissions() goes through the same
+        // DB-backed session-principal binding that can lag performLogin by a
+        // few ms (see RestSeedHelper.awaitAdminReady). If the FIRST render of
+        // JDBCPluginTest races that binding, the "requires administrator
+        // privileges" failure output is rendered into the page and served from
+        // the render cache to every subsequent test in the class.
+        RestSeedHelper.awaitAdminReady();
     }
 
     /**

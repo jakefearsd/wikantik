@@ -1033,7 +1033,10 @@
           <version>${plugin.surefire.version}</version>
           <configuration>
             <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
-            <argLine>@{argLine} -XX:+EnableDynamicAgentLoading -javaagent:${org.mockito:mockito-core:jar} --add-modules=jdk.incubator.vector</argLine>
+            <!-- com.wikantik.util.bcrypt.cost=4: unit tests perform thousands of logins; at the
+                 production cost (12) every bcrypt hash/verify is ~150-250 ms of pure key
+                 stretching. Test-only — the IT Cargo Tomcat keeps the production cost. -->
+            <argLine>@{argLine} -XX:+EnableDynamicAgentLoading -javaagent:${org.mockito:mockito-core:jar} --add-modules=jdk.incubator.vector -Dcom.wikantik.util.bcrypt.cost=4</argLine>
             <reportFormat>plain</reportFormat>
             <systemPropertyVariables>
               <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
@@ -1651,7 +1654,7 @@
           <plugin>
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
-              <argLine>@{argLine} -XX:+EnableDynamicAgentLoading -javaagent:${com.github.jbellis:jamm:jar} -javaagent:${org.mockito:mockito-core:jar} --add-modules=jdk.incubator.vector</argLine>
+              <argLine>@{argLine} -XX:+EnableDynamicAgentLoading -javaagent:${com.github.jbellis:jamm:jar} -javaagent:${org.mockito:mockito-core:jar} --add-modules=jdk.incubator.vector -Dcom.wikantik.util.bcrypt.cost=4</argLine>
               <consoleOutputReporter>
                 <disable>false</disable>
               </consoleOutputReporter>

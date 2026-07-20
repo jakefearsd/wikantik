@@ -52,8 +52,27 @@ public final class CryptoUtil {
     /**
      * bcrypt work factor (~250 ms/hash on current hardware). Raise as hardware improves; existing
      * hashes carry their own cost in the encoded value, so a bump only affects newly-written hashes.
+     * Overridable via the {@code com.wikantik.util.bcrypt.cost} system property (clamped to [4,31]) — a
+     * TEST-ONLY knob: the unit suite performs thousands of logins against per-engine user stores,
+     * and at cost 12 each hash/verify costs ~150-250 ms of pure key-stretching. Production must
+     * never set it; any value below the default is warn-logged at class load.
      */
-    private static final int BCRYPT_COST = 12;
+    private static final int DEFAULT_BCRYPT_COST = 12;
+
+    private static final int BCRYPT_COST = resolveBcryptCost();
+
+    private static int resolveBcryptCost() {
+        final Integer override = Integer.getInteger( "com.wikantik.util.bcrypt.cost" );
+        if( override == null ) {
+            return DEFAULT_BCRYPT_COST;
+        }
+        final int cost = Math.max( 4, Math.min( 31, override ) );
+        if( cost < DEFAULT_BCRYPT_COST ) {
+            System.getLogger( CryptoUtil.class.getName() ).log( System.Logger.Level.WARNING,
+                    "bcrypt cost lowered to {0} via com.wikantik.util.bcrypt.cost — acceptable ONLY in tests, never in production", cost );
+        }
+        return cost;
+    }
 
     /** Long passwords (&gt; 72 bytes) are truncated — standard bcrypt behaviour — rather than rejected. */
     private static final BCrypt.Hasher BCRYPT_HASHER =

@@ -142,7 +142,7 @@ class PageDirectoryWatcherTest {
         // The watcher should detect the new file and invalidate caches
         Awaitility.await( "ExternalTxtPage should be accessible" )
                 .atMost( 30, TimeUnit.SECONDS )
-                .pollInterval( 500, TimeUnit.MILLISECONDS )
+                .pollInterval( 50, TimeUnit.MILLISECONDS )
                 .until( () -> {
                     final Page p = engine.getManager( PageManager.class ).getPage( "ExternalTxtPage" );
                     return p != null;
@@ -170,7 +170,7 @@ class PageDirectoryWatcherTest {
         // The watcher should detect the new file
         Awaitility.await( "ExternalMdPage should be accessible" )
                 .atMost( 30, TimeUnit.SECONDS )
-                .pollInterval( 500, TimeUnit.MILLISECONDS )
+                .pollInterval( 50, TimeUnit.MILLISECONDS )
                 .until( () -> {
                     final Page p = engine.getManager( PageManager.class ).getPage( "ExternalMdPage" );
                     return p != null;
@@ -211,7 +211,7 @@ class PageDirectoryWatcherTest {
         // The watcher should detect the modification and invalidate the text cache
         Awaitility.await( "Modified content should be visible" )
                 .atMost( 30, TimeUnit.SECONDS )
-                .pollInterval( 500, TimeUnit.MILLISECONDS )
+                .pollInterval( 50, TimeUnit.MILLISECONDS )
                 .until( () -> "Modified externally".equals(
                         engine.getManager( PageManager.class ).getText( "ModTestPage" ) ) );
     }
@@ -243,7 +243,7 @@ class PageDirectoryWatcherTest {
         // The watcher should detect the deletion and invalidate caches
         Awaitility.await( "Deleted page should no longer be in cache" )
                 .atMost( 30, TimeUnit.SECONDS )
-                .pollInterval( 500, TimeUnit.MILLISECONDS )
+                .pollInterval( 50, TimeUnit.MILLISECONDS )
                 .until( () -> {
                     // After cache invalidation, the page should no longer exist
                     final Page p = engine.getManager( PageManager.class ).getPage( "DeleteTestPage" );
@@ -280,7 +280,7 @@ class PageDirectoryWatcherTest {
         // After invalidation, .md should take precedence over .txt
         Awaitility.await( "Markdown content should take precedence" )
                 .atMost( 30, TimeUnit.SECONDS )
-                .pollInterval( 500, TimeUnit.MILLISECONDS )
+                .pollInterval( 50, TimeUnit.MILLISECONDS )
                 .until( () -> {
                     final String text = engine.getManager( PageManager.class ).getText( "PrecedencePage" );
                     return text != null && text.contains( "# Markdown takes over" );
@@ -462,7 +462,7 @@ class PageDirectoryWatcherTest {
         // The watcher should process this and the final content should be accessible
         Awaitility.await( "Final content should be visible after rapid writes" )
                 .atMost( 30, TimeUnit.SECONDS )
-                .pollInterval( 500, TimeUnit.MILLISECONDS )
+                .pollInterval( 50, TimeUnit.MILLISECONDS )
                 .until( () -> {
                     final String text = engine.getManager( PageManager.class ).getText( "RapidPage" );
                     return "Content version 4".equals( text );

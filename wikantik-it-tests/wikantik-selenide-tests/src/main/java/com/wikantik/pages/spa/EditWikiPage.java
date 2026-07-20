@@ -94,8 +94,17 @@ public class EditWikiPage implements SpaPage {
         final SelenideElement cmContent = $( "[data-testid=editor-textarea] .cm-content" )
             .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
         cmContent.click();
+        // CodeMirror routes keyboard events through its focused editor only, and
+        // the click's focus can lag under machine load. Without this wait the
+        // Ctrl+A lands unfocused and silently no-ops, the DELETE deletes
+        // nothing, and the new text APPENDS to the old content — which the
+        // preview check below cannot catch (it is a contains-, not equals-check).
+        $( "[data-testid=editor-textarea] .cm-editor" )
+            .shouldHave( Condition.cssClass( "cm-focused" ), Duration.ofSeconds( 5 ) );
         cmContent.sendKeys( Keys.chord( Keys.CONTROL, "a" ) );
         cmContent.sendKeys( Keys.DELETE );
+        // Prove the buffer is empty before typing the replacement.
+        cmContent.shouldHave( Condition.exactText( "" ), Duration.ofSeconds( 5 ) );
         cmContent.sendKeys( text );
 
         // The preview pane is a live-updated ReactMarkdown render; give it

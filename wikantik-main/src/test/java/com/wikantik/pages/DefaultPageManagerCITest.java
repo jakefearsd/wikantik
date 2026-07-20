@@ -190,7 +190,10 @@ class DefaultPageManagerCITest {
     void lockPageFiresLockEvent() {
         final Page page = mockPage( "EventTest" );
         final AtomicReference< WikiEvent > captured = new AtomicReference<>();
-        WikiEventManager.addWikiEventListener( mgr, captured::set );
+        // WikiEventManager holds listeners weakly — a bare captured::set has no
+        // strong referent and can be GC'd before the event fires.
+        final WikiEventListener listener = captured::set;
+        WikiEventManager.addWikiEventListener( mgr, listener );
 
         mgr.lockPage( page, "alice" );
 
@@ -198,7 +201,7 @@ class DefaultPageManagerCITest {
         assertInstanceOf( WikiPageEvent.class, captured.get() );
         assertEquals( WikiPageEvent.PAGE_LOCK, captured.get().getType() );
 
-        WikiEventManager.removeWikiEventListener( mgr, captured::set );
+        WikiEventManager.removeWikiEventListener( mgr, listener );
     }
 
     @Test
@@ -207,7 +210,9 @@ class DefaultPageManagerCITest {
         final var lock = mgr.lockPage( page, "alice" );
 
         final AtomicReference< WikiEvent > captured = new AtomicReference<>();
-        WikiEventManager.addWikiEventListener( mgr, captured::set );
+        // Same weak-listener anchoring as lockPageFiresLockEvent.
+        final WikiEventListener listener = captured::set;
+        WikiEventManager.addWikiEventListener( mgr, listener );
 
         mgr.unlockPage( lock );
 
@@ -215,7 +220,7 @@ class DefaultPageManagerCITest {
         assertInstanceOf( WikiPageEvent.class, captured.get() );
         assertEquals( WikiPageEvent.PAGE_UNLOCK, captured.get().getType() );
 
-        WikiEventManager.removeWikiEventListener( mgr, captured::set );
+        WikiEventManager.removeWikiEventListener( mgr, listener );
     }
 
     @Test

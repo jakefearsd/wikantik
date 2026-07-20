@@ -355,7 +355,16 @@ public class DefaultRenderingManager implements RenderingManager {
     public String getHTML( final Context context, final WikiDocument doc ) throws IOException {
         final String mode = Boolean.TRUE.equals( context.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE ) )
                 ? MODE_WYSIWYG : MODE_STANDARD;
-        return createRenderer( mode, context, doc ).getString();
+        // The WikiDocument may come from CACHE_DOCUMENTS and be shared by concurrent
+        // requests. Flexmark's HtmlRenderer mutates document-scoped state during a
+        // render (e.g. FootnoteRepository ordinal re-sorting), and the renderer also
+        // sets the caller's context on the document — so concurrent renders of one
+        // cached instance throw ConcurrentModificationException (or bleed contexts).
+        // Serialize per document instance: distinct documents never contend, and
+        // repeat renders of a hot page are absorbed by CACHE_HTML before this point.
+        synchronized( doc ) {
+            return createRenderer( mode, context, doc ).getString();
+        }
     }
 
     /**

@@ -181,8 +181,12 @@ public class PageResource extends RestServletBase {
                 LOG.info( "Rendered page={} bytes={} durationMs={}",
                         pageName, html != null ? html.length() : 0, ( System.nanoTime() - t0 ) / 1_000_000L );
             } catch ( final Exception e ) {
-                LOG.warn( "Failed to render page {} (durationMs={}): {}",
-                        pageName, ( System.nanoTime() - t0 ) / 1_000_000L, e.getMessage() );
+                // Full throwable, not just getMessage(): an NPE/CME here logs "null"
+                // and the stack is the only clue (this exact line hid the shared-
+                // WikiDocument concurrent-render bug for months). The SPA degrades
+                // to raw markdown when contentHtml is null, so this must be loud.
+                LOG.warn( "Failed to render page {} (durationMs={})",
+                        pageName, ( System.nanoTime() - t0 ) / 1_000_000L, e );
                 result.put( "contentHtml", null );
             }
         }

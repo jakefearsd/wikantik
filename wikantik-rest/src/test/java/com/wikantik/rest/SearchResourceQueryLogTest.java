@@ -47,6 +47,14 @@ class SearchResourceQueryLogTest {
             @Override protected ContextRetrievalService retrievalService() { return ctx; }
             @Override protected QueryLogService queryLogService() { return qlog; }
             @Override protected ActorType actorType( final HttpServletRequest r ) { return ActorType.AGENT; }
+            // Pass-through: view filtering is not this test's subject and there is no
+            // engine wired. Without this the base implementation resolves a null engine
+            // and only survived when a stale ThreadLocal guest session from an earlier
+            // test on the same fork thread leaked in (order-dependent flake).
+            @Override protected java.util.Set< String > filterViewable( final HttpServletRequest r,
+                    final java.util.Collection< String > pageNames ) {
+                return new java.util.LinkedHashSet<>( pageNames );
+            }
         };
         final HttpServletRequest req = mock( HttpServletRequest.class );
         when( req.getParameter( "q" ) ).thenReturn( "deploy" );

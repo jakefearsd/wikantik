@@ -123,7 +123,15 @@ public final class SearchWiringHelper {
         }
         final Optional< TextEmbeddingClient > clientOpt = EmbeddingClientFactory.create( cfg );
         if ( clientOpt.isEmpty() ) {
-            // Master flag off — nothing to wire.
+            // No embedding client (master flag off, or the wikantik.genai.mode
+            // ceiling). The BM25 chunk index needs no LLM — wire the bundle's
+            // HYBRID/LEXICAL sources with a disabled embedder so /api/bundle
+            // keeps serving (BM25-only ranking) with the inference host gone.
+            // DENSE remains present but returns empty candidates (logged per
+            // query) — an honest answer to an explicitly-dense request.
+            engine.setBundleSectionSources( buildBundleSourceMap(
+                props, QueryEmbedder.disabled(), null, chunkRepo, ds ) );
+            LOG.info( "Embedding client absent — bundle sources wired BM25-only (LEXICAL/HYBRID)" );
             return;
         }
         final String modelCode = cfg.model().code();
@@ -341,7 +349,7 @@ public final class SearchWiringHelper {
         map.put( com.wikantik.api.bundle.RetrievalMode.HYBRID, dense );   // overwritten below if BM25 builds
 
         // Chunk-level hybrid: wikantik.bundle.bm25.enabled wraps HYBRID/LEXICAL with a RAM BM25 chunk
-        // index + RRF fusion. Default OFF; LEXICAL = dense-weight-0 fuser (BM25-only ranking).
+        // index + RRF fusion. Shipped ini default is ON; LEXICAL = dense-weight-0 fuser (BM25-only ranking).
         // The 2026-06-18 sweep (eval/bm25-chunk-spike/) found bm25=0.5/dense=1.5/rrfK=20/truncate=20.
         if ( Boolean.parseBoolean( props.getProperty( "wikantik.bundle.bm25.enabled", "false" ) ) ) {
             try {

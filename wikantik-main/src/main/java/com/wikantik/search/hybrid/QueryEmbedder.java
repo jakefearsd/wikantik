@@ -92,7 +92,14 @@ public final class QueryEmbedder {
     public QueryEmbedder( final TextEmbeddingClient client,
                           final QueryEmbedderConfig config,
                           final Clock clock ) {
-        this.client = Objects.requireNonNull( client, "client" );
+        this( Objects.requireNonNull( client, "client" ), config, clock, true );
+    }
+
+    private QueryEmbedder( final TextEmbeddingClient client,
+                           final QueryEmbedderConfig config,
+                           final Clock clock,
+                           final boolean marker ) {
+        this.client = client;
         this.config = Objects.requireNonNull( config, "config" );
         Objects.requireNonNull( clock, "clock" );
         this.cache = Caffeine.newBuilder()
@@ -103,11 +110,25 @@ public final class QueryEmbedder {
     }
 
     /**
+     * An embedder with no client: {@link #embed} always returns
+     * {@link Optional#empty()}, which every consumer already treats as the
+     * BM25-only fallback signal. Lets LLM-free wiring (no embedding client —
+     * hybrid disabled or the {@code wikantik.genai.mode} ceiling) reuse the
+     * chunk-source classes unchanged.
+     */
+    public static QueryEmbedder disabled() {
+        return new QueryEmbedder( null, QueryEmbedderConfig.defaults(), Clock.systemUTC(), true );
+    }
+
+    /**
      * Embed a single query and return {@code Optional.of(vector)} on success,
      * {@code Optional.empty()} on any failure. Never throws.
      */
     @SuppressWarnings( "PMD.AvoidCatchingThrowable" ) // Callers must fall back to BM25-only on any embedding failure, including JVM-level Errors.
     public Optional< float[] > embed( final String query ) {
+        if( client == null ) {   // disabled() instance — permanent BM25-only signal
+            return Optional.empty();
+        }
         if( query == null ) {
             return Optional.empty();
         }

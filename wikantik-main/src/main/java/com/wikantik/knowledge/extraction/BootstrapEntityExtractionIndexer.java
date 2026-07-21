@@ -143,55 +143,82 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
     private final AtomicBoolean forceOverwrite = new AtomicBoolean();
     private final AtomicInteger maxPages = new AtomicInteger( 0 );
 
-    public BootstrapEntityExtractionIndexer( final PageExtractor pageExtractor,
-                                             final ProposalJudge judge,
-                                             final ProposalConsolidator consolidator,
-                                             final ProposalUpserter upserter,
-                                             final KgNodeEmbeddingService embeddingService,
-                                             final KgNodeEmbeddingRepository embeddingRepo,
-                                             final ContentChunkRepository chunkRepo,
-                                             final ChunkEntityMentionRepository mentionRepo,
-                                             final KgNodeRepository kgNodes,
-                                             final MentionAttributor mentionAttributor,
-                                             final PageEmbeddingProvider pageEmbeddings,
-                                             final KgExcludedPagesRepository excludedPages,
-                                             final int concurrency,
-                                             final int dictionaryTopK,
-                                             final int maxEntitiesPerPage,
-                                             final int maxRelationsPerPage ) {
-        this( pageExtractor, judge, consolidator, upserter, embeddingService, embeddingRepo,
-              chunkRepo, mentionRepo, kgNodes, mentionAttributor, pageEmbeddings, excludedPages,
-              defaultExecutor(), /*ownsExecutor*/ true,
-              defaultWorkerPool( concurrency ), /*ownsWorkerPool*/ true,
-              EntityExtractorConfig.clampConcurrency( concurrency ),
-              dictionaryTopK, maxEntitiesPerPage, maxRelationsPerPage );
+    /**
+     * GoF Builder — the only way to construct an indexer. Replaces two public
+     * telescoping constructors (16 and 18 positional params) whose call sites
+     * had to fake named arguments with {@code /*param*&#47; null} comments.
+     * Required collaborators are validated in {@link Builder#build()}; the
+     * executor-ownership pairing (pool + owns-flag) is atomic by construction:
+     * {@link Builder#sharedExecutors} hands in caller-owned pools, otherwise
+     * {@code build()} creates defaults the indexer owns and shuts down.
+     */
+    public static Builder builder() {
+        return new Builder();
     }
 
-    /** Test-friendly variant: caller supplies an in-process executor and worker pool. */
-    public BootstrapEntityExtractionIndexer( final PageExtractor pageExtractor,
-                                             final ProposalJudge judge,
-                                             final ProposalConsolidator consolidator,
-                                             final ProposalUpserter upserter,
-                                             final KgNodeEmbeddingService embeddingService,
-                                             final KgNodeEmbeddingRepository embeddingRepo,
-                                             final ContentChunkRepository chunkRepo,
-                                             final ChunkEntityMentionRepository mentionRepo,
-                                             final KgNodeRepository kgNodes,
-                                             final MentionAttributor mentionAttributor,
-                                             final PageEmbeddingProvider pageEmbeddings,
-                                             final KgExcludedPagesRepository excludedPages,
-                                             final ExecutorService executor,
-                                             final ExecutorService workerPool,
-                                             final int concurrency,
-                                             final int dictionaryTopK,
-                                             final int maxEntitiesPerPage,
-                                             final int maxRelationsPerPage ) {
-        this( pageExtractor, judge, consolidator, upserter, embeddingService, embeddingRepo,
-              chunkRepo, mentionRepo, kgNodes, mentionAttributor, pageEmbeddings, excludedPages,
-              executor, /*ownsExecutor*/ false,
-              workerPool, /*ownsWorkerPool*/ false,
-              EntityExtractorConfig.clampConcurrency( concurrency ),
-              dictionaryTopK, maxEntitiesPerPage, maxRelationsPerPage );
+    public static final class Builder {
+        private PageExtractor pageExtractor;
+        private ProposalUpserter upserter;
+        private ContentChunkRepository chunkRepo;
+        private ChunkEntityMentionRepository mentionRepo;
+        private KgNodeRepository kgNodes;
+        private ProposalJudge judge = new NoOpProposalJudge();
+        private ProposalConsolidator consolidator = new ProposalConsolidator();
+        private MentionAttributor mentionAttributor = new MentionAttributor();
+        private KgNodeEmbeddingService embeddingService;
+        private KgNodeEmbeddingRepository embeddingRepo;
+        private PageEmbeddingProvider pageEmbeddings = PageEmbeddingProvider.EMPTY;
+        private KgExcludedPagesRepository excludedPages;
+        private ExecutorService executor;
+        private ExecutorService workerPool;
+        private int concurrency = 1;
+        private int dictionaryTopK;
+        private int maxEntitiesPerPage = 12;
+        private int maxRelationsPerPage = 8;
+
+        private Builder() {}
+
+        public Builder pageExtractor( final PageExtractor v )                { this.pageExtractor = v; return this; }
+        public Builder upserter( final ProposalUpserter v )                  { this.upserter = v; return this; }
+        public Builder chunkRepo( final ContentChunkRepository v )           { this.chunkRepo = v; return this; }
+        public Builder mentionRepo( final ChunkEntityMentionRepository v )   { this.mentionRepo = v; return this; }
+        public Builder kgNodes( final KgNodeRepository v )                   { this.kgNodes = v; return this; }
+        public Builder judge( final ProposalJudge v )                        { this.judge = v; return this; }
+        public Builder consolidator( final ProposalConsolidator v )          { this.consolidator = v; return this; }
+        public Builder mentionAttributor( final MentionAttributor v )        { this.mentionAttributor = v; return this; }
+        public Builder embeddingService( final KgNodeEmbeddingService v )    { this.embeddingService = v; return this; }
+        public Builder embeddingRepo( final KgNodeEmbeddingRepository v )    { this.embeddingRepo = v; return this; }
+        public Builder pageEmbeddings( final PageEmbeddingProvider v )       { this.pageEmbeddings = v; return this; }
+        public Builder excludedPages( final KgExcludedPagesRepository v )    { this.excludedPages = v; return this; }
+        public Builder concurrency( final int v )                            { this.concurrency = v; return this; }
+        public Builder dictionaryTopK( final int v )                         { this.dictionaryTopK = v; return this; }
+        public Builder maxEntitiesPerPage( final int v )                     { this.maxEntitiesPerPage = v; return this; }
+        public Builder maxRelationsPerPage( final int v )                    { this.maxRelationsPerPage = v; return this; }
+
+        /**
+         * Supplies caller-owned executor + worker pool (tests, embedded use). The
+         * indexer will NOT shut these down. Omit to let {@code build()} create
+         * defaults the indexer owns and disposes.
+         */
+        public Builder sharedExecutors( final ExecutorService executor, final ExecutorService workerPool ) {
+            this.executor = executor;
+            this.workerPool = workerPool;
+            return this;
+        }
+
+        public BootstrapEntityExtractionIndexer build() {
+            final boolean ownsPools = executor == null && workerPool == null;
+            if ( !ownsPools && ( executor == null || workerPool == null ) ) {
+                throw new IllegalStateException( "sharedExecutors requires both executor and workerPool" );
+            }
+            final int clamped = EntityExtractorConfig.clampConcurrency( concurrency );
+            return new BootstrapEntityExtractionIndexer(
+                pageExtractor, judge, consolidator, upserter, embeddingService, embeddingRepo,
+                chunkRepo, mentionRepo, kgNodes, mentionAttributor, pageEmbeddings, excludedPages,
+                ownsPools ? defaultExecutor() : executor, ownsPools,
+                ownsPools ? defaultWorkerPool( concurrency ) : workerPool, ownsPools,
+                clamped, dictionaryTopK, maxEntitiesPerPage, maxRelationsPerPage );
+        }
     }
 
     private BootstrapEntityExtractionIndexer( final PageExtractor pageExtractor,

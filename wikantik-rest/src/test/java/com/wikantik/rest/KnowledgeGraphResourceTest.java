@@ -57,12 +57,12 @@ class KnowledgeGraphResourceTest {
         final Properties props = TestEngine.getTestProperties();
         engine = new TestEngine( props );
 
-        final DefaultKnowledgeGraphService service = new DefaultKnowledgeGraphService(
+        final DefaultKnowledgeGraphService service = DefaultKnowledgeGraphService.builder(
             new KgNodeRepository( dataSource ),
             new KgEdgeRepository( dataSource ),
             new KgProposalRepository( dataSource ),
             new KgRejectionRepository( dataSource ),
-            dataSource, engine );
+            dataSource ).engine( engine ).build();
         engine.setManager( KnowledgeGraphService.class, service );
 
         servlet = new KnowledgeGraphResource();

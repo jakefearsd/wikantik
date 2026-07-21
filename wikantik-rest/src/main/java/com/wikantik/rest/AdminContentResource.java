@@ -86,50 +86,69 @@ public class AdminContentResource extends RestServletBase {
         CachingManager.CACHE_HTML,
     };
 
+    /** One action for one HTTP verb on one endpoint. Same idiom as {@code AdminKnowledgeResource}. */
+    @FunctionalInterface
+    private interface RouteAction {
+        void invoke( HttpServletRequest request, HttpServletResponse response )
+                throws ServletException, IOException;
+    }
+
+    /** Per-verb slots; a {@code null} slot 404s ("Unknown content endpoint"), matching pre-refactor behavior. */
+    private record Route( RouteAction get, RouteAction post ) {
+        static Route get( final RouteAction a )  { return new Route( a, null ); }
+        static Route post( final RouteAction a ) { return new Route( null, a ); }
+    }
+
+    /**
+     * Dispatch table — the single source of truth for this servlet's endpoints
+     * (GoF Command registry, aligned to the {@code AdminKnowledgeResource} house
+     * pattern). Adding an endpoint is one line here plus one handler method.
+     */
+    private transient Map< String, Route > routes = buildRoutes();
+
+    private Map< String, Route > buildRoutes() {
+        final Map< String, Route > r = new java.util.LinkedHashMap<>();
+        r.put( "stats",              Route.get( ( req, resp ) -> handleStats( resp ) ) );
+        r.put( "orphaned-pages",     Route.get( ( req, resp ) -> handleOrphanedPages( resp ) ) );
+        r.put( "broken-links",       Route.get( ( req, resp ) -> handleBrokenLinks( resp ) ) );
+        r.put( "index-status",       Route.get( ( req, resp ) -> handleIndexStatus( resp ) ) );
+        r.put( "chunks",             Route.get( this::handleChunksByPage ) );
+        r.put( "chunks/outliers",    Route.get( ( req, resp ) -> handleChunkOutliers( resp ) ) );
+        r.put( "bulk-delete",        Route.post( this::handleBulkDelete ) );
+        r.put( "purge-versions",     Route.post( this::handlePurgeVersions ) );
+        r.put( "reindex",            Route.post( ( req, resp ) -> handleReindex( resp ) ) );
+        r.put( "rebuild-indexes",    Route.post( ( req, resp ) -> handleRebuildIndexes( resp ) ) );
+        r.put( "reindex-embeddings", Route.post( ( req, resp ) -> handleReindexEmbeddings( resp ) ) );
+        r.put( "cache/flush",        Route.post( this::handleCacheFlush ) );
+        return r;
+    }
+
+    private void dispatch( final HttpServletRequest request, final HttpServletResponse response,
+            final java.util.function.Function< Route, RouteAction > verb )
+            throws ServletException, IOException {
+        if ( routes == null ) {
+            routes = buildRoutes();   // rebuilt after servlet deserialization
+        }
+        final String action = extractPathParam( request );
+        final Route route = routes.get( action );
+        final RouteAction handler = route == null ? null : verb.apply( route );
+        if ( handler == null ) {
+            sendNotFound( response, "Unknown content endpoint: " + action );
+            return;
+        }
+        handler.invoke( request, response );
+    }
+
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-
-        final String action = extractPathParam( request );
-
-        if ( "stats".equals( action ) ) {
-            handleStats( response );
-        } else if ( "orphaned-pages".equals( action ) ) {
-            handleOrphanedPages( response );
-        } else if ( "broken-links".equals( action ) ) {
-            handleBrokenLinks( response );
-        } else if ( "index-status".equals( action ) ) {
-            handleIndexStatus( response );
-        } else if ( "chunks".equals( action ) ) {
-            handleChunksByPage( request, response );
-        } else if ( "chunks/outliers".equals( action ) ) {
-            handleChunkOutliers( response );
-        } else {
-            sendNotFound( response, "Unknown content endpoint: " + action );
-        }
+        dispatch( request, response, Route::get );
     }
 
     @Override
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-
-        final String action = extractPathParam( request );
-
-        if ( "bulk-delete".equals( action ) ) {
-            handleBulkDelete( request, response );
-        } else if ( "purge-versions".equals( action ) ) {
-            handlePurgeVersions( request, response );
-        } else if ( "reindex".equals( action ) ) {
-            handleReindex( response );
-        } else if ( "rebuild-indexes".equals( action ) ) {
-            handleRebuildIndexes( response );
-        } else if ( "reindex-embeddings".equals( action ) ) {
-            handleReindexEmbeddings( response );
-        } else if ( "cache/flush".equals( action ) ) {
-            handleCacheFlush( request, response );
-        } else {
-            sendNotFound( response, "Unknown content endpoint: " + action );
-        }
+        dispatch( request, response, Route::post );
     }
 
     // ---- GET handlers ----

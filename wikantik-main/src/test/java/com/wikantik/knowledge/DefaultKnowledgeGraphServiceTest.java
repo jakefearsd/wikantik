@@ -56,12 +56,12 @@ class DefaultKnowledgeGraphServiceTest {
             conn.createStatement().execute( "DELETE FROM kg_rejections" );
             conn.createStatement().execute( "DELETE FROM kg_nodes" );
         }
-        service = new DefaultKnowledgeGraphService(
+        service = DefaultKnowledgeGraphService.builder(
             new KgNodeRepository( dataSource ),
             new KgEdgeRepository( dataSource ),
             new KgProposalRepository( dataSource ),
             new KgRejectionRepository( dataSource ),
-            dataSource, engine );
+            dataSource ).engine( engine ).build();
     }
 
     private Session adminSession() throws Exception {

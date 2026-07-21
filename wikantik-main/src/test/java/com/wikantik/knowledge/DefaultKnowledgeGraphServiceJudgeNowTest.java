@@ -81,7 +81,7 @@ class DefaultKnowledgeGraphServiceJudgeNowTest {
         final KgProposalJudgeService judge = mock( KgProposalJudgeService.class );
         when( judge.judge( any() ) ).thenReturn(
             new JudgeVerdict( "approved", 0.9, "ok", "gemma4-assist:latest" ) );
-        final var svc = new DefaultKnowledgeGraphService( kgNodes, kgEdges, kgProposals, kgRejections, ds, null, null, mat, judge );
+        final var svc = DefaultKnowledgeGraphService.builder( kgNodes, kgEdges, kgProposals, kgRejections, ds ).materialization( mat ).judgeService( judge ).build();
 
         final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "S", "target", "T", "relationship", "now" ),
@@ -102,7 +102,7 @@ class DefaultKnowledgeGraphServiceJudgeNowTest {
         final KgProposalJudgeService judge = mock( KgProposalJudgeService.class );
         when( judge.judge( any() ) ).thenReturn(
             new JudgeVerdict( "rejected", 0.95, "no support", "gemma4-assist:latest" ) );
-        final var svc = new DefaultKnowledgeGraphService( kgNodes, kgEdges, kgProposals, kgRejections, ds, null, null, mat, judge );
+        final var svc = DefaultKnowledgeGraphService.builder( kgNodes, kgEdges, kgProposals, kgRejections, ds ).materialization( mat ).judgeService( judge ).build();
 
         final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "Q", "target", "R", "relationship", "bad" ), 0.7, "" );
@@ -114,7 +114,7 @@ class DefaultKnowledgeGraphServiceJudgeNowTest {
 
     @Test
     void judgeNow_throws_when_judge_service_not_configured() {
-        final var svc = new DefaultKnowledgeGraphService( kgNodes, kgEdges, kgProposals, kgRejections, ds, null, null, mat, null );
+        final var svc = DefaultKnowledgeGraphService.builder( kgNodes, kgEdges, kgProposals, kgRejections, ds ).materialization( mat ).build();
         assertThrows( IllegalStateException.class,
             () -> svc.judgeNow( UUID.randomUUID(), "alice" ) );
     }
@@ -122,7 +122,7 @@ class DefaultKnowledgeGraphServiceJudgeNowTest {
     @Test
     void judgeNow_throws_when_proposal_not_found() {
         final KgProposalJudgeService judge = mock( KgProposalJudgeService.class );
-        final var svc = new DefaultKnowledgeGraphService( kgNodes, kgEdges, kgProposals, kgRejections, ds, null, null, mat, judge );
+        final var svc = DefaultKnowledgeGraphService.builder( kgNodes, kgEdges, kgProposals, kgRejections, ds ).materialization( mat ).judgeService( judge ).build();
         assertThrows( IllegalArgumentException.class,
             () -> svc.judgeNow( UUID.randomUUID(), "alice" ) );
     }

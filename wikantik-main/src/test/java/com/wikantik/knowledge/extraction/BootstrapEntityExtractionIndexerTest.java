@@ -101,13 +101,11 @@ class BootstrapEntityExtractionIndexerTest {
         when( kgNodes.getAllNodes() ).thenReturn( List.of() );
         when( kgNodes.getNodeByName( any() ) ).thenReturn( null );
 
-        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-            extractor, new NoOpProposalJudge(), new ProposalConsolidator(), upserter,
-            /*embeddingService*/ null, /*embeddingRepo*/ null,
-            chunkRepo, mentionRepo, kgNodes, new MentionAttributor(),
-            PageEmbeddingProvider.EMPTY, /*excludedPages*/ null,
-            directExecutor(), directExecutor(), /*concurrency*/ 1,
-            /*dictionaryTopK*/ 0, /*maxEntitiesPerPage*/ 12, /*maxRelationsPerPage*/ 8 );
+        final BootstrapEntityExtractionIndexer indexer = BootstrapEntityExtractionIndexer.builder()
+            .pageExtractor( extractor ).upserter( upserter )
+            .chunkRepo( chunkRepo ).mentionRepo( mentionRepo ).kgNodes( kgNodes )
+            .sharedExecutors( directExecutor(), directExecutor() )
+            .build();
 
         assertTrue( indexer.start( /*forceOverwrite*/ false ) );
 
@@ -153,11 +151,12 @@ class BootstrapEntityExtractionIndexerTest {
         final KgNodeRepository kgNodes = Mockito.mock( KgNodeRepository.class );
         when( kgNodes.getAllNodes() ).thenReturn( List.of() );
 
-        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-            extractor, rejector, new ProposalConsolidator(), upserter,
-            null, null, chunkRepo, Mockito.mock( ChunkEntityMentionRepository.class ),
-            kgNodes, new MentionAttributor(), PageEmbeddingProvider.EMPTY, null,
-            directExecutor(), directExecutor(), 1, 0, 12, 8 );
+        final BootstrapEntityExtractionIndexer indexer = BootstrapEntityExtractionIndexer.builder()
+            .pageExtractor( extractor ).judge( rejector ).upserter( upserter )
+            .chunkRepo( chunkRepo ).mentionRepo( Mockito.mock( ChunkEntityMentionRepository.class ) )
+            .kgNodes( kgNodes )
+            .sharedExecutors( directExecutor(), directExecutor() )
+            .build();
         assertTrue( indexer.start( false ) );
 
         final BootstrapEntityExtractionIndexer.Status s = indexer.status();
@@ -191,11 +190,12 @@ class BootstrapEntityExtractionIndexerTest {
         final KgNodeRepository kgNodes = Mockito.mock( KgNodeRepository.class );
         when( kgNodes.getAllNodes() ).thenReturn( List.of() );
 
-        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-            extractor, new NoOpProposalJudge(), new ProposalConsolidator(), upserter,
-            null, null, chunkRepo, Mockito.mock( ChunkEntityMentionRepository.class ),
-            kgNodes, new MentionAttributor(), PageEmbeddingProvider.EMPTY, null,
-            directExecutor(), directExecutor(), 1, 0, 12, 8 );
+        final BootstrapEntityExtractionIndexer indexer = BootstrapEntityExtractionIndexer.builder()
+            .pageExtractor( extractor ).upserter( upserter )
+            .chunkRepo( chunkRepo ).mentionRepo( Mockito.mock( ChunkEntityMentionRepository.class ) )
+            .kgNodes( kgNodes )
+            .sharedExecutors( directExecutor(), directExecutor() )
+            .build();
         indexer.setDryRun( true );
         assertTrue( indexer.start( false ) );
 
@@ -231,11 +231,12 @@ class BootstrapEntityExtractionIndexerTest {
         final KgNodeRepository kgNodes = Mockito.mock( KgNodeRepository.class );
         when( kgNodes.getAllNodes() ).thenReturn( List.of() );
 
-        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-            extractor, new NoOpProposalJudge(), new ProposalConsolidator(), upserter,
-            null, null, chunkRepo, Mockito.mock( ChunkEntityMentionRepository.class ),
-            kgNodes, new MentionAttributor(), PageEmbeddingProvider.EMPTY, excluded,
-            directExecutor(), directExecutor(), 1, 0, 12, 8 );
+        final BootstrapEntityExtractionIndexer indexer = BootstrapEntityExtractionIndexer.builder()
+            .pageExtractor( extractor ).upserter( upserter )
+            .chunkRepo( chunkRepo ).mentionRepo( Mockito.mock( ChunkEntityMentionRepository.class ) )
+            .kgNodes( kgNodes ).excludedPages( excluded )
+            .sharedExecutors( directExecutor(), directExecutor() )
+            .build();
         assertTrue( indexer.start( false ) );
 
         final BootstrapEntityExtractionIndexer.Status s = indexer.status();
@@ -272,11 +273,12 @@ class BootstrapEntityExtractionIndexerTest {
         final KgNodeRepository kgNodes = Mockito.mock( KgNodeRepository.class );
         when( kgNodes.getAllNodes() ).thenReturn( List.of() );
 
-        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-            extractor, new NoOpProposalJudge(), new ProposalConsolidator(), upserter,
-            null, null, chunkRepo, Mockito.mock( ChunkEntityMentionRepository.class ),
-            kgNodes, new MentionAttributor(), PageEmbeddingProvider.EMPTY, null,
-            directExecutor(), directExecutor(), 1, 0, 12, 8 );
+        final BootstrapEntityExtractionIndexer indexer = BootstrapEntityExtractionIndexer.builder()
+            .pageExtractor( extractor ).upserter( upserter )
+            .chunkRepo( chunkRepo ).mentionRepo( Mockito.mock( ChunkEntityMentionRepository.class ) )
+            .kgNodes( kgNodes )
+            .sharedExecutors( directExecutor(), directExecutor() )
+            .build();
         indexer.start( false );
 
         final BootstrapEntityExtractionIndexer.Status s = indexer.status();
@@ -299,12 +301,12 @@ class BootstrapEntityExtractionIndexerTest {
         final KgNodeRepository kgNodes = Mockito.mock( KgNodeRepository.class );
         when( kgNodes.getAllNodes() ).thenReturn( List.of() );
 
-        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-            extractor, new NoOpProposalJudge(), new ProposalConsolidator(),
-            Mockito.mock( ProposalUpserter.class ), null, null, chunkRepo,
-            Mockito.mock( ChunkEntityMentionRepository.class ), kgNodes,
-            new MentionAttributor(), PageEmbeddingProvider.EMPTY, null,
-            blocking, directExecutor(), 1, 0, 12, 8 );
+        final BootstrapEntityExtractionIndexer indexer = BootstrapEntityExtractionIndexer.builder()
+            .pageExtractor( extractor ).upserter( Mockito.mock( ProposalUpserter.class ) )
+            .chunkRepo( chunkRepo ).mentionRepo( Mockito.mock( ChunkEntityMentionRepository.class ) )
+            .kgNodes( kgNodes )
+            .sharedExecutors( blocking, directExecutor() )
+            .build();
 
         assertTrue( indexer.start( false ) );
         assertEquals( BootstrapEntityExtractionIndexer.State.RUNNING, indexer.status().state() );

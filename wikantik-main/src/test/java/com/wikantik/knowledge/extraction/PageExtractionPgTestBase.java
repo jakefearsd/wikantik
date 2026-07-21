@@ -128,14 +128,12 @@ abstract class PageExtractionPgTestBase {
         };
         final ChunkEntityMentionRepository mentionRepo = new ChunkEntityMentionRepository( ds );
         final KgNodeEmbeddingRepository embRepo = new KgNodeEmbeddingRepository( ds );
-        return new BootstrapEntityExtractionIndexer(
-            extractor, new NoOpProposalJudge(), new ProposalConsolidator(),
-            new ProposalUpserter( kgProposals ),
-            /*embeddingService*/ null, embRepo,
-            chunkRepo, mentionRepo, kgNodes, new MentionAttributor(),
-            PageEmbeddingProvider.EMPTY, /*excludedPages*/ null,
-            /*concurrency*/ 1, /*dictionaryTopK*/ 0,
-            /*maxEntitiesPerPage*/ 12, /*maxRelationsPerPage*/ 8 );
+        return BootstrapEntityExtractionIndexer.builder()
+            .pageExtractor( extractor )
+            .upserter( new ProposalUpserter( kgProposals ) )
+            .embeddingRepo( embRepo )
+            .chunkRepo( chunkRepo ).mentionRepo( mentionRepo ).kgNodes( kgNodes )
+            .build();
     }
 
     protected void runUntilDone( final BootstrapEntityExtractionIndexer indexer ) throws InterruptedException {

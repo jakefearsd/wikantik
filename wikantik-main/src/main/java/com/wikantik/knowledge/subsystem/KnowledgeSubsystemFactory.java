@@ -194,8 +194,9 @@ public final class KnowledgeSubsystemFactory {
         }
 
         final DefaultKnowledgeGraphService kgService =
-            new DefaultKnowledgeGraphService( kgNodes, kgEdges, kgProposals, kgRejections,
-                dataSource, null, mentionIndex, kgMat, kgJudge );
+            DefaultKnowledgeGraphService.builder( kgNodes, kgEdges, kgProposals, kgRejections, dataSource )
+                .mentionIndex( mentionIndex ).materialization( kgMat ).judgeService( kgJudge )
+                .build();
 
         final HubSyncFilter hubSync = new HubSyncFilter(
             name -> {

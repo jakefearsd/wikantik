@@ -169,12 +169,21 @@ public final class BootstrapExtractionCli {
         final ProposalConsolidator consolidator = new ProposalConsolidator();
         final ProposalUpserter upserter = new ProposalUpserter( kgProposals );
 
-        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-            extractor, judge, consolidator, upserter,
-            embService, embRepo,
-            chunkRepo, mentionRepo, kgNodes, new MentionAttributor(),
-            PageEmbeddingProvider.EMPTY, /*excludedPages*/ null,
-            a.concurrency, a.dictionaryTopK, a.maxEntitiesPerPage, a.maxRelationsPerPage );
+        final BootstrapEntityExtractionIndexer indexer = BootstrapEntityExtractionIndexer.builder()
+            .pageExtractor( extractor )
+            .judge( judge )
+            .consolidator( consolidator )
+            .upserter( upserter )
+            .embeddingService( embService )
+            .embeddingRepo( embRepo )
+            .chunkRepo( chunkRepo )
+            .mentionRepo( mentionRepo )
+            .kgNodes( kgNodes )
+            .concurrency( a.concurrency )
+            .dictionaryTopK( a.dictionaryTopK )
+            .maxEntitiesPerPage( a.maxEntitiesPerPage )
+            .maxRelationsPerPage( a.maxRelationsPerPage )
+            .build();
 
         if( a.dryRun ) {
             indexer.setDryRun( true );

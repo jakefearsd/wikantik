@@ -359,19 +359,18 @@ public final class KnowledgeWiringHelper {
 
         @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to engine.setManager(BootstrapEntityExtractionIndexer.class, ...)
         final BootstrapEntityExtractionIndexer indexer =
-            new BootstrapEntityExtractionIndexer(
-                extractor,
-                new NoOpProposalJudge(),
-                new ProposalConsolidator(),
-                new ProposalUpserter( persistenceSubsystem.kgProposals() ),
-                /*embeddingService*/ null,
-                /*embeddingRepo*/ null,
-                chunkRepo, mentionRepo, kgNodes,
-                new MentionAttributor(),
-                PageEmbeddingProvider.EMPTY,
-                excludedPagesRepo,
-                extractorCfg.concurrency(), dictionaryTopK,
-                maxEntitiesPerPage, maxRelationsPerPage );
+            BootstrapEntityExtractionIndexer.builder()
+                .pageExtractor( extractor )
+                .upserter( new ProposalUpserter( persistenceSubsystem.kgProposals() ) )
+                .chunkRepo( chunkRepo )
+                .mentionRepo( mentionRepo )
+                .kgNodes( kgNodes )
+                .excludedPages( excludedPagesRepo )
+                .concurrency( extractorCfg.concurrency() )
+                .dictionaryTopK( dictionaryTopK )
+                .maxEntitiesPerPage( maxEntitiesPerPage )
+                .maxRelationsPerPage( maxRelationsPerPage )
+                .build();
         engine.setManager( BootstrapEntityExtractionIndexer.class, indexer );
         LOG.info( "Bootstrap indexer wired (backend={}, extractor={}, concurrency={}, judge=none, "
                 + "maxEntitiesPerPage={}, maxRelationsPerPage={})",

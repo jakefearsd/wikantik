@@ -82,12 +82,12 @@ class DefaultKnowledgeGraphServiceEventTest {
             conn.createStatement().execute( "DELETE FROM kg_rejections" );
             conn.createStatement().execute( "DELETE FROM kg_nodes" );
         }
-        service = new DefaultKnowledgeGraphService(
+        service = DefaultKnowledgeGraphService.builder(
             new KgNodeRepository( dataSource ),
             new KgEdgeRepository( dataSource ),
             new KgProposalRepository( dataSource ),
             new KgRejectionRepository( dataSource ),
-            dataSource, engine );
+            dataSource ).engine( engine ).build();
         // Attached here (not a second @BeforeEach) — JUnit 5 does not guarantee
         // ordering across multiple @BeforeEach methods in the same class, and
         // this listener attach depends on `service` already being constructed.

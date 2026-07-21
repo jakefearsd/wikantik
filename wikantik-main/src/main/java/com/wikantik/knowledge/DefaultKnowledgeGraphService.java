@@ -67,6 +67,11 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     private final KgGraphTraversal       traversal;
     private final KgGraphSnapshotBuilder snapshotBuilder;
 
+    /**
+     * Repos-and-datasource core; optional collaborators default to absent. For
+     * anything beyond the core, use {@link #builder} — the former 6/7/9-arg
+     * telescoping constructors forced call sites to thread positional nulls.
+     */
     public DefaultKnowledgeGraphService( final KgNodeRepository nodes,
                                           final KgEdgeRepository edges,
                                           final KgProposalRepository proposals,
@@ -75,26 +80,48 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         this( nodes, edges, proposals, rejections, dataSource, null, null, null, null );
     }
 
-    public DefaultKnowledgeGraphService( final KgNodeRepository nodes,
-                                          final KgEdgeRepository edges,
-                                          final KgProposalRepository proposals,
-                                          final KgRejectionRepository rejections,
-                                          final javax.sql.DataSource dataSource,
-                                          final Engine engine ) {
-        this( nodes, edges, proposals, rejections, dataSource, engine, null, null, null );
+    /** GoF Builder over the optional collaborators (engine, mentionIndex, materialization, judgeService). */
+    public static Builder builder( final KgNodeRepository nodes,
+                                   final KgEdgeRepository edges,
+                                   final KgProposalRepository proposals,
+                                   final KgRejectionRepository rejections,
+                                   final javax.sql.DataSource dataSource ) {
+        return new Builder( nodes, edges, proposals, rejections, dataSource );
     }
 
-    public DefaultKnowledgeGraphService( final KgNodeRepository nodes,
-                                          final KgEdgeRepository edges,
-                                          final KgProposalRepository proposals,
-                                          final KgRejectionRepository rejections,
-                                          final javax.sql.DataSource dataSource,
-                                          final Engine engine,
-                                          final MentionIndex mentionIndex ) {
-        this( nodes, edges, proposals, rejections, dataSource, engine, mentionIndex, null, null );
+    public static final class Builder {
+        private final KgNodeRepository nodes;
+        private final KgEdgeRepository edges;
+        private final KgProposalRepository proposals;
+        private final KgRejectionRepository rejections;
+        private final javax.sql.DataSource dataSource;
+        private Engine engine;
+        private MentionIndex mentionIndex;
+        private com.wikantik.knowledge.judge.KgMaterializationService materialization;
+        private com.wikantik.api.knowledge.KgProposalJudgeService judgeService;
+
+        private Builder( final KgNodeRepository nodes, final KgEdgeRepository edges,
+                         final KgProposalRepository proposals, final KgRejectionRepository rejections,
+                         final javax.sql.DataSource dataSource ) {
+            this.nodes = nodes;
+            this.edges = edges;
+            this.proposals = proposals;
+            this.rejections = rejections;
+            this.dataSource = dataSource;
+        }
+
+        public Builder engine( final Engine v )                                                        { this.engine = v; return this; }
+        public Builder mentionIndex( final MentionIndex v )                                            { this.mentionIndex = v; return this; }
+        public Builder materialization( final com.wikantik.knowledge.judge.KgMaterializationService v ) { this.materialization = v; return this; }
+        public Builder judgeService( final com.wikantik.api.knowledge.KgProposalJudgeService v )        { this.judgeService = v; return this; }
+
+        public DefaultKnowledgeGraphService build() {
+            return new DefaultKnowledgeGraphService( nodes, edges, proposals, rejections, dataSource,
+                                                     engine, mentionIndex, materialization, judgeService );
+        }
     }
 
-    public DefaultKnowledgeGraphService( final KgNodeRepository nodes,
+    private DefaultKnowledgeGraphService( final KgNodeRepository nodes,
                                           final KgEdgeRepository edges,
                                           final KgProposalRepository proposals,
                                           final KgRejectionRepository rejections,

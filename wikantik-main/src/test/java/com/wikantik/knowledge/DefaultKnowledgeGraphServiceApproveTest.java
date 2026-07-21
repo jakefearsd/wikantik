@@ -52,8 +52,8 @@ class DefaultKnowledgeGraphServiceApproveTest {
         kgProposals  = new KgProposalRepository( ds );
         kgRejections = new KgRejectionRepository( ds );
         mat = new KgMaterializationService( kgNodes, kgEdges, kgProposals, kgRejections );
-        svc = new DefaultKnowledgeGraphService( kgNodes, kgEdges, kgProposals, kgRejections,
-                                                ds, null, null, mat, null );
+        svc = DefaultKnowledgeGraphService.builder( kgNodes, kgEdges, kgProposals, kgRejections, ds )
+                                           .materialization( mat ).build();
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute( "DELETE FROM kg_proposal_reviews" );
             c.createStatement().execute( "DELETE FROM kg_edges" );

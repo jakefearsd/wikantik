@@ -19,6 +19,7 @@
 package com.wikantik.connectors.confluence;
 
 import com.wikantik.api.connectors.*;
+import com.wikantik.connectors.TokenAuthenticatedSourceConnector;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -31,65 +32,41 @@ import java.util.function.Supplier;
  *  consumer (credential name "api_token" + config email, HTTP Basic), resolved lazily per-poll.
  *  Fail-closed per the untrusted-enumeration contract: missing token / API failure →
  *  complete=false with the input cursor. */
-public final class ConfluenceSourceConnector implements SourceConnector {
+public final class ConfluenceSourceConnector extends TokenAuthenticatedSourceConnector {
 
     private static final Logger LOG = LogManager.getLogger( ConfluenceSourceConnector.class );
 
-    private final String connectorId;
     private final ConfluenceConfig config;
-    private final Supplier< Optional< String > > tokenSupplier;
     private final ConfluenceApiFactory apiFactory;
 
     public ConfluenceSourceConnector( final String connectorId, final ConfluenceConfig config,
             final Supplier< Optional< String > > tokenSupplier, final ConfluenceApiFactory apiFactory ) {
-        this.connectorId = connectorId;
+        super( connectorId, tokenSupplier );
         this.config = config;
-        this.tokenSupplier = tokenSupplier;
         this.apiFactory = apiFactory;
     }
 
-    @Override public String connectorId() { return connectorId; }
-    @Override public boolean reflectsFullCorpus() { return true; }
+    @Override protected String providerLabel()   { return "confluence"; }
+    @Override protected String credentialLabel() { return "api_token"; }
 
     @Override
-    public SyncBatch poll( final SyncCursor cursor ) {
-        final Optional< String > token;
-        try {
-            token = tokenSupplier.get();
-        } catch ( final RuntimeException e ) {
-            // poll() never throws — even a failing credential-store lookup degrades to a skipped cycle
-            LOG.warn( "confluence '{}': token lookup failed — skipping sync: {}", connectorId, e.getMessage() );
-            return new SyncBatch( List.of(), List.of(), cursor, false );
+    protected FetchOutcome fetchItems( final String token ) throws Exception {
+        final ConfluenceApi api = apiFactory.create( config.baseUrl(), config.spaceKey(),
+            config.email(), token );
+        final PageListing listing = api.listPages( config.maxPages() );
+        if ( listing.pages().size() >= config.maxPages() ) {
+            LOG.info( "confluence '{}': hit max_pages={}, truncated", connectorId(), config.maxPages() );
         }
-        if ( token.isEmpty() || token.get().isBlank() ) {
-            LOG.warn( "confluence '{}': no api_token available (credential store disabled or token not set) — "
-                + "skipping sync", connectorId );
-            return new SyncBatch( List.of(), List.of(), cursor, false );
+        boolean trusted = true;
+        if ( listing.skippedMalformed() > 0 ) {
+            trusted = false;
+            LOG.warn( "confluence '{}': {} malformed page(s) skipped in listing — batch marked incomplete, "
+                + "no tombstones this cycle", connectorId(), listing.skippedMalformed() );
         }
         final List< SourceItem > items = new ArrayList<>();
-        boolean trusted = true;
-        try {
-            final ConfluenceApi api = apiFactory.create( config.baseUrl(), config.spaceKey(),
-                config.email(), token.get() );
-            final PageListing listing = api.listPages( config.maxPages() );
-            if ( listing.pages().size() >= config.maxPages() ) {
-                LOG.info( "confluence '{}': hit max_pages={}, truncated", connectorId, config.maxPages() );
-            }
-            if ( listing.skippedMalformed() > 0 ) {
-                trusted = false;
-                LOG.warn( "confluence '{}': {} malformed page(s) skipped in listing — batch marked incomplete, "
-                    + "no tombstones this cycle", connectorId, listing.skippedMalformed() );
-            }
-            for ( final ConfluencePage p : listing.pages() ) {
-                items.add( ConfluenceItems.toItem( config.baseUrl(), config.spaceKey(), p ) );
-            }
-        } catch ( final Exception e ) {   // poll() never throws; any Confluence/HTTP error → empty INCOMPLETE batch
-            LOG.warn( "confluence '{}': sync failed, skipping cycle: {}", connectorId, e.getMessage() );
-            return new SyncBatch( List.of(), List.of(), cursor, false );
+        for ( final ConfluencePage p : listing.pages() ) {
+            items.add( ConfluenceItems.toItem( config.baseUrl(), config.spaceKey(), p ) );
         }
-        if ( !trusted ) {
-            return new SyncBatch( items, List.of(), cursor, false );
-        }
-        return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
+        return new FetchOutcome( items, trusted );
     }
 }

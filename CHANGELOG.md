@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-07-21
+
 ### Fixed
 - **Concurrent renders of one page could throw and silently serve raw markdown.** The parsed-
   document cache shares a single flexmark AST across requests, and flexmark mutates document

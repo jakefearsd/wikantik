@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Context bundle now works without an LLM.** With no embedding client (hybrid search
+  disabled, or the `wikantik.genai.mode` ceiling forcing embeddings off) the search wiring
+  bailed out before registering the bundle's chunk sources — so `/api/bundle`, `/api/briefing`,
+  and the `assemble_bundle`/`get_briefing` MCP tools returned zero sections even though the
+  BM25 lexical index needs no LLM at all. The LEXICAL/HYBRID sources are now wired BM25-only
+  in that configuration; an explicitly-dense request honestly returns empty. Found while
+  validating an inference-host-offline deployment.
+- **Per-thread guest sessions no longer leak across engines.** The static guest-session cache
+  handed the first engine's guest (with that engine's manager references) to any engine on the
+  same thread — in embedded multi-engine hosts this could silently drop permission-filtered
+  results or fail session lookups. The cache now rebinds when the engine changes.
+
+### Changed
+- **Gang-of-Four refactoring pass.** Builders for the entity-extraction indexer,
+  `DefaultKnowledgeGraphService`, and `RetrievedPage`; a Template Method base enforcing the
+  fail-closed `poll()` contract once for the Confluence/GitHub/Drive connectors and the shared
+  error envelope for all 19 knowledge MCP tools; admin content/hub-discovery resources aligned
+  to the house Command dispatch-table idiom; shared bulk-action result envelope. No wire-format
+  changes; PMD complexity ratchet unchanged.
+
 ## [2.3.8] - 2026-07-21
 
 ### Fixed

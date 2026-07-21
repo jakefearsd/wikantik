@@ -52,6 +52,28 @@ services:
       start_period: 90s
       retries: 5
 
+  # CPU embedding sidecar (2026-07-21): serves qwen3-embedding:0.6b while the
+  # GPU inference host is packed for the move. Reached only on the compose
+  # network (http://ollama:11434 via WIKANTIK_EMBEDDING_BASE_URL); no host
+  # port. First-time setup pulls the model into the named volume:
+  #   docker exec repo-ollama-1 ollama pull qwen3-embedding:0.6b
+  # The cpus limit keeps a bulk backfill from starving the wiki; per-query
+  # embeds (~30-80 tokens) cost 100-300 ms on this CPU. wikantik does NOT
+  # depend_on this service — the QueryEmbedder fails closed to BM25.
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    environment:
+      # Keep the 0.6B model resident (~1 GiB) so queries never pay reload.
+      OLLAMA_KEEP_ALIVE: "-1"
+    volumes:
+      - ollama-models:/root/.ollama
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "6"
+
   backup:
     image: postgres:18-alpine
     restart: unless-stopped
@@ -88,3 +110,4 @@ services:
 # the base compose; only wikantik-profiling is added here.)
 volumes:
   wikantik-profiling:
+  ollama-models:

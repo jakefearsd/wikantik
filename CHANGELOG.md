@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **CPU embedding sidecar for prod (docker-compose.prod.yml).** An `ollama` service
+  (no host port, compose-network only, `cpus: 6` / 4G limits, model kept resident)
+  serves `qwen3-embedding:0.6b` so docker1 runs `genai.mode=embeddings-only` while
+  the GPU inference host is packed: hybrid search and the dense bundle source stay
+  live (~150 ms warm query embeds on the Ryzen 5825U); chat inference (extractor,
+  judge, reranker) remains force-disabled.
+
 ## [2.3.9] - 2026-07-21
 
 ### Fixed

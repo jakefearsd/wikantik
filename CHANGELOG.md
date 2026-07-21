@@ -7,6 +7,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- **Concurrent renders of one page could throw and silently serve raw markdown.** The parsed-
+  document cache shares a single flexmark AST across requests, and flexmark mutates document
+  state during render (footnote ordinal resolution) — concurrent first-renders of the same page
+  intermittently threw `ConcurrentModificationException`, and the SPA then degraded to showing
+  the page's raw markdown instead of HTML. Renders are now serialized per document instance
+  (repeat renders of a hot page are absorbed by the HTML cache before that point), a regression
+  test hammers the path from 16 threads, and the render-failure log now includes the stack trace
+  instead of just the exception message.
+
+### Changed
+- **Test-suite overhaul: full pre-commit gate 23:44 → ~4:30 with more coverage.** Canonical gate
+  is now `bin/run-tests.sh --parallel 4` (unit tests once + all four IT modules 4-wide on
+  reserved ports; the previously-omitted `knowledge-disabled` IT module is back in the default
+  gate). Unit-test JVMs run with a reduced bcrypt work factor via the new clamped, warn-logged
+  `com.wikantik.util.bcrypt.cost` system property — production and the IT Tomcat keep cost 12
+  and runtime behavior is unchanged. Ten flaky or order-dependent tests were root-caused and
+  fixed, and five previously-vacuous search assertions now assert for real.
+
 - **`bin/container.sh smoke-test` / `-e test` now run the compose overlay on its base file.**
   `docker-compose.test.yml` is deltas-only; standalone use was invalid, collided with a
   bare-metal Tomcat instance on port 8080, and `down -v` shared the `dev` project's Docker

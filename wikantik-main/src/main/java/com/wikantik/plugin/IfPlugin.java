@@ -31,6 +31,7 @@ import com.wikantik.util.TextUtil;
 
 import java.security.Principal;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -196,52 +197,45 @@ public class IfPlugin implements Plugin {
         return exists != null && varContent == null ^ TextUtil.isPositive( exists );
     }
 
+    /**
+     * GoF Strategy (lambda form): the one implementation of the pipe-separated,
+     * {@code !}-negatable OR-match shared by the group/user/IP conditions. Each
+     * token may start with {@code !} to invert its test; the result is the OR
+     * over all tokens. Replaces three hand-copied loops — one of which had
+     * drifted into checking the whole list's length instead of the token's when
+     * stripping the {@code !} prefix.
+     */
+    private static boolean matchesAny( final String pipeList, final Predicate< String > test ) {
+        boolean include = false;
+        for( final String token : StringUtils.split( pipeList, '|' ) ) {
+            String value = token;
+            boolean invert = false;
+            if( token.startsWith( "!" ) ) {
+                invert = true;
+                if( token.length() > 1 ) {
+                    value = token.substring( 1 );
+                }
+            }
+            include |= test.test( value ) ^ invert;
+        }
+        return include;
+    }
+
     private static boolean checkGroup( final Context context, final String group ) {
         if( group == null ) {
             return false;
         }
-        final String[] groupList = StringUtils.split(group,'|');
-        boolean include = false;
-
-        for( final String grp : groupList ) {
-            String gname = grp;
-            boolean invert = false;
-            if( grp.startsWith( "!" ) ) {
-                if( grp.length() > 1 ) {
-                    gname = grp.substring( 1 );
-                }
-                invert = true;
-            }
-
+        return matchesAny( group, gname -> {
             final Principal groupPrincipal = AuthSubsystemBridge.fromLegacyEngine( context.getEngine() ).authorization().resolvePrincipal( gname );
-
-            include |= AuthSubsystemBridge.fromLegacyEngine( context.getEngine() ).authorization().isUserInRole( context.getWikiSession(), groupPrincipal ) ^ invert;
-        }
-        return include;
+            return AuthSubsystemBridge.fromLegacyEngine( context.getEngine() ).authorization().isUserInRole( context.getWikiSession(), groupPrincipal );
+        } );
     }
 
     private static boolean checkUser( final Context context, final String user ) {
         if( user == null || context.getCurrentUser() == null ) {
             return false;
         }
-
-        final String[] list = StringUtils.split(user,'|');
-        boolean include = false;
-
-        for( final String usr : list ) {
-            String userToCheck = usr;
-            boolean invert = false;
-            if( usr.startsWith( "!" ) ) {
-                invert = true;
-                // strip !
-                if( user.length() > 1 ) {
-                    userToCheck = usr.substring( 1 );
-                }
-            }
-
-            include |= userToCheck.equals( context.getCurrentUser().getName() ) ^ invert;
-        }
-        return include;
+        return matchesAny( user, usr -> usr.equals( context.getCurrentUser().getName() ) );
     }
 
     // TODO: Add subnetwork matching, e.g. 10.0.0.0/8
@@ -249,24 +243,7 @@ public class IfPlugin implements Plugin {
         if( ipaddr == null || context.getHttpRequest() == null ) {
             return false;
         }
-
-        final String[] list = StringUtils.split(ipaddr,'|');
-        boolean include = false;
-
-        for( final String ip : list ) {
-            String ipaddrToCheck = ip;
-            boolean invert = false;
-            if( ip.startsWith( "!" ) ) {
-                invert = true;
-                // strip !
-                if( ip.length() > 1 ) {
-                    ipaddrToCheck = ip.substring( 1 );
-                }
-            }
-
-            include |= HttpUtil.ipIsInRange( context.getHttpRequest(), ipaddrToCheck ) ^ invert;
-        }
-        return include;
+        return matchesAny( ipaddr, ip -> HttpUtil.ipIsInRange( context.getHttpRequest(), ip ) );
     }
 
     private static boolean doMatch( final String content, final String pattern ) throws PluginException {

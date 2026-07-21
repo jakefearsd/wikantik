@@ -21,11 +21,8 @@ package com.wikantik.knowledge.mcp;
 import com.wikantik.api.citation.CitationStatus;
 import com.wikantik.citation.CitationRepository;
 import com.wikantik.citation.CitationRow;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -41,9 +38,8 @@ import java.util.Map;
  * is omitted, returns all stale + target_missing citations across the corpus, capped
  * at {@code limit}.</p>
  */
-public class ListStaleCitationsTool implements McpTool {
+public class ListStaleCitationsTool extends AbstractKnowledgeMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( ListStaleCitationsTool.class );
     public static final String TOOL_NAME = "list_stale_citations";
 
     private final CitationRepository repo;
@@ -104,31 +100,26 @@ public class ListStaleCitationsTool implements McpTool {
                         + "Useful for finding drift in the wiki's citation graph." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
                 .outputSchema( outputSchema )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            final int limit = arguments.get( "limit" ) instanceof Number n ? n.intValue() : 50;
-            final String page = arguments.get( "page" ) instanceof String s ? s : null;
-            final String direction = arguments.get( "direction" ) instanceof String d ? d : "both";
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final int limit = arguments.get( "limit" ) instanceof Number n ? n.intValue() : 50;
+        final String page = arguments.get( "page" ) instanceof String s ? s : null;
+        final String direction = arguments.get( "direction" ) instanceof String d ? d : "both";
 
-            final List< Map< String, Object > > refs;
-            if ( page != null ) {
-                refs = collectForPage( page, direction );
-            } else {
-                refs = collectCorpusWide( limit );
-            }
-
-            final List< Map< String, Object > > result = refs.size() > limit ? refs.subList( 0, limit ) : refs;
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
-                    Map.of( "citations", result, "count", result.size() ) );
-        } catch ( final Exception e ) {
-            LOG.warn( "list_stale_citations failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
+        final List< Map< String, Object > > refs;
+        if ( page != null ) {
+            refs = collectForPage( page, direction );
+        } else {
+            refs = collectCorpusWide( limit );
         }
+
+        final List< Map< String, Object > > result = refs.size() > limit ? refs.subList( 0, limit ) : refs;
+        return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
+                Map.of( "citations", result, "count", result.size() ) );
     }
 
     // -------------------------------------------------------------------------

@@ -275,39 +275,29 @@ public final class KgProposalAdminHandlers {
 
         final String actor = request.getRemoteUser() != null ? request.getRemoteUser() : "admin";
         final KgCurationOps ops = curationOps.get();
-        final List< String > succeeded = new ArrayList<>();
-        final List< Map< String, Object > > failed = new ArrayList<>();
+        final com.wikantik.rest.BulkActionResult result = new com.wikantik.rest.BulkActionResult();
         final Map< String, List< String > > warningsByProposal = new LinkedHashMap<>();
 
         for ( final JsonElement idEl : idsArr ) {
             final String idStr = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
             if ( idStr == null || idStr.isBlank() ) {
-                final Map< String, Object > f = new LinkedHashMap<>();
-                f.put( "id", idEl.toString() );
-                f.put( "error", "id must be a non-blank string" );
-                failed.add( f );
+                result.fail( idEl.toString(), "id must be a non-blank string" );
                 continue;
             }
             final UUID proposalId;
             try {
                 proposalId = UUID.fromString( idStr );
             } catch ( final IllegalArgumentException e ) {
-                final Map< String, Object > f = new LinkedHashMap<>();
-                f.put( "id", idStr );
-                f.put( "error", "Invalid UUID: " + idStr );
-                failed.add( f );
+                result.fail( idStr, "Invalid UUID: " + idStr );
                 continue;
             }
 
             if ( "approve".equals( action ) ) {
                 final KgCurationOps.ApproveOutcome outcome = ops.tryApprove( proposalId, actor );
                 if ( outcome.error().isPresent() ) {
-                    final Map< String, Object > f = new LinkedHashMap<>();
-                    f.put( "id", idStr );
-                    f.put( "error", outcome.error().get() );
-                    failed.add( f );
+                    result.fail( idStr, outcome.error().get() );
                 } else {
-                    succeeded.add( idStr );
+                    result.succeed( idStr );
                     if ( !outcome.warnings().isEmpty() ) {
                         warningsByProposal.put( idStr, outcome.warnings() );
                     }
@@ -319,28 +309,21 @@ public final class KgProposalAdminHandlers {
                     default        -> err = ops.tryJudgeProposal( proposalId, actor );
                 }
                 if ( err.isEmpty() ) {
-                    succeeded.add( idStr );
+                    result.succeed( idStr );
                 } else {
-                    final Map< String, Object > f = new LinkedHashMap<>();
-                    f.put( "id", idStr );
-                    f.put( "error", err.get() );
-                    failed.add( f );
+                    result.fail( idStr, err.get() );
                 }
             }
         }
 
         LOG.info( "bulk action={} resource=kg-proposals actor={} attempted={} succeeded={} failed={}",
-                action, actor, idsArr.size(), succeeded.size(), failed.size() );
+                action, actor, idsArr.size(), result.succeededCount(), result.failedCount() );
 
-        final Map< String, Object > result = new LinkedHashMap<>();
-        result.put( "succeeded", succeeded );
-        result.put( "failed", failed );
-        result.put( "status", "completed" );
-        result.put( "message", succeeded.size() + " of " + idsArr.size() + " proposals " + action + "d" );
+        final Map< String, Object > body2 = result.toResponseBody( idsArr.size(), "proposals " + action + "d" );
         if ( !warningsByProposal.isEmpty() ) {
-            result.put( "warnings_by_proposal", warningsByProposal );
+            body2.put( "warnings_by_proposal", warningsByProposal );
         }
-        AdminKnowledgeIo.sendJson( response, result );
+        AdminKnowledgeIo.sendJson( response, body2 );
     }
 
     /**

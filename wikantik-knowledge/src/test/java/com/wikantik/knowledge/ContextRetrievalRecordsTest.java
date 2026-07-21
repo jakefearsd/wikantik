@@ -139,14 +139,21 @@ class ContextRetrievalRecordsTest {
     @Test
     void retrievedPage_rejectsBlankName() {
         assertThrows( IllegalArgumentException.class,
-            () -> new RetrievedPage( "", "url", 0.0, "", null, List.of(),
-                List.of(), List.of(), null, null, false ) );
+            () -> RetrievedPage.builder( "", 0.0 )
+                .url( "url" )
+                .summary( "" )
+                .tags( List.of() )
+                .contributingChunks( List.of() )
+                .relatedPages( List.of() )
+                .build() );
     }
 
     @Test
     void retrievedPage_defaultsCollections() {
-        final RetrievedPage p = new RetrievedPage(
-            "P", "url", 0.5, "summary", null, null, null, null, null, null, false );
+        final RetrievedPage p = RetrievedPage.builder( "P", 0.5 )
+            .url( "url" )
+            .summary( "summary" )
+            .build();
         assertEquals( List.of(), p.tags() );
         assertEquals( List.of(), p.contributingChunks() );
         assertEquals( List.of(), p.relatedPages() );

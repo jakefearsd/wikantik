@@ -23,7 +23,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import com.wikantik.ontology.OntologyModelManager;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -34,8 +33,6 @@ import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 /**
  * MCP tool returning the FORMAL ontology T-Box — the class hierarchy (with subClassOf),
@@ -43,9 +40,8 @@ import org.apache.logging.log4j.Logger;
  * schemes. Complements {@code discover_schema}, which reports the EMPIRICAL ABox shape
  * (the types/properties actually present in the data) rather than the formal declarations.
  */
-public class GetOntologyTool implements McpTool {
+public class GetOntologyTool extends AbstractKnowledgeMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( GetOntologyTool.class );
     public static final String TOOL_NAME = "get_ontology";
     private static final String SKOS_CONCEPT_SCHEME = "http://www.w3.org/2004/02/skos/core#ConceptScheme";
 
@@ -71,56 +67,51 @@ public class GetOntologyTool implements McpTool {
                         + "discover_schema (which reports the empirical data shape). "
                         + "Use this for authoritative counts/lists of classes and predicates rather than free-text search." )
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            final Model t = manager.tboxSnapshot();
-            final Map< String, Object > payload = new LinkedHashMap<>();
-            payload.put( "namespace", "https://wiki.wikantik.com/ns/wikantik#" );
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final Model t = manager.tboxSnapshot();
+        final Map< String, Object > payload = new LinkedHashMap<>();
+        payload.put( "namespace", "https://wiki.wikantik.com/ns/wikantik#" );
 
-            final List< Map< String, Object > > classes = new ArrayList<>();
-            for ( final StmtIterator it = t.listStatements( null, RDF.type, OWL.Class ); it.hasNext(); ) {
-                final Resource c = it.next().getSubject();
-                if ( c.getURI() == null ) { continue; }
-                final Map< String, Object > entry = new LinkedHashMap<>();
-                entry.put( "iri", c.getURI() );
-                entry.put( "label", firstLabel( t, c ) );
-                entry.put( "subClassOf", objectsOf( t, c, RDFS.subClassOf ) );
-                classes.add( entry );
-            }
-            payload.put( "classes", classes );
-
-            final List< Map< String, Object > > props = new ArrayList<>();
-            for ( final StmtIterator it = t.listStatements( null, RDF.type, OWL.ObjectProperty ); it.hasNext(); ) {
-                final Resource p = it.next().getSubject();
-                if ( p.getURI() == null ) { continue; }
-                final Map< String, Object > entry = new LinkedHashMap<>();
-                entry.put( "iri", p.getURI() );
-                entry.put( "label", firstLabel( t, p ) );
-                entry.put( "domain", first( objectsOf( t, p, RDFS.domain ) ) );
-                entry.put( "range", first( objectsOf( t, p, RDFS.range ) ) );
-                entry.put( "subPropertyOf", objectsOf( t, p, RDFS.subPropertyOf ) );
-                props.add( entry );
-            }
-            payload.put( "objectProperties", props );
-
-            final List< String > schemes = new ArrayList<>();
-            for ( final StmtIterator it = t.listStatements( null, RDF.type,
-                    t.createResource( SKOS_CONCEPT_SCHEME ) ); it.hasNext(); ) {
-                final Resource s = it.next().getSubject();
-                if ( s.getURI() != null ) { schemes.add( s.getURI() ); }
-            }
-            payload.put( "conceptSchemes", schemes );
-
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, payload );
-        } catch ( final RuntimeException e ) {
-            LOG.error( "get_ontology failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
+        final List< Map< String, Object > > classes = new ArrayList<>();
+        for ( final StmtIterator it = t.listStatements( null, RDF.type, OWL.Class ); it.hasNext(); ) {
+            final Resource c = it.next().getSubject();
+            if ( c.getURI() == null ) { continue; }
+            final Map< String, Object > entry = new LinkedHashMap<>();
+            entry.put( "iri", c.getURI() );
+            entry.put( "label", firstLabel( t, c ) );
+            entry.put( "subClassOf", objectsOf( t, c, RDFS.subClassOf ) );
+            classes.add( entry );
         }
+        payload.put( "classes", classes );
+
+        final List< Map< String, Object > > props = new ArrayList<>();
+        for ( final StmtIterator it = t.listStatements( null, RDF.type, OWL.ObjectProperty ); it.hasNext(); ) {
+            final Resource p = it.next().getSubject();
+            if ( p.getURI() == null ) { continue; }
+            final Map< String, Object > entry = new LinkedHashMap<>();
+            entry.put( "iri", p.getURI() );
+            entry.put( "label", firstLabel( t, p ) );
+            entry.put( "domain", first( objectsOf( t, p, RDFS.domain ) ) );
+            entry.put( "range", first( objectsOf( t, p, RDFS.range ) ) );
+            entry.put( "subPropertyOf", objectsOf( t, p, RDFS.subPropertyOf ) );
+            props.add( entry );
+        }
+        payload.put( "objectProperties", props );
+
+        final List< String > schemes = new ArrayList<>();
+        for ( final StmtIterator it = t.listStatements( null, RDF.type,
+                t.createResource( SKOS_CONCEPT_SCHEME ) ); it.hasNext(); ) {
+            final Resource s = it.next().getSubject();
+            if ( s.getURI() != null ) { schemes.add( s.getURI() ); }
+        }
+        payload.put( "conceptSchemes", schemes );
+
+        return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, payload );
     }
 
     private static String firstLabel( final Model t, final Resource r ) {

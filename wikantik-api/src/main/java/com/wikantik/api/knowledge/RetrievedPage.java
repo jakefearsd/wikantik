@@ -56,4 +56,49 @@ public record RetrievedPage(
     public java.util.Date lastModified() {
         return lastModified == null ? null : new java.util.Date( lastModified.getTime() );
     }
+
+    /**
+     * GoF Builder companion for the 11-component canonical constructor. The
+     * record stays the single source of truth (the compact constructor does all
+     * validation/defaulting; {@link Builder#build()} just delegates) — the
+     * builder exists so call sites that only care about a couple of components
+     * don't have to thread six positional {@code null}s to reach the last one.
+     */
+    public static Builder builder( final String name, final double score ) {
+        return new Builder( name, score );
+    }
+
+    public static final class Builder {
+        private final String name;
+        private final double score;
+        private String url;
+        private String summary;
+        private String cluster;
+        private List< String > tags;
+        private List< RetrievedChunk > contributingChunks;
+        private List< RelatedPage > relatedPages;
+        private String author;
+        private java.util.Date lastModified;
+        private boolean derived;
+
+        private Builder( final String name, final double score ) {
+            this.name = name;
+            this.score = score;
+        }
+
+        public Builder url( final String v )                                  { this.url = v; return this; }
+        public Builder summary( final String v )                              { this.summary = v; return this; }
+        public Builder cluster( final String v )                              { this.cluster = v; return this; }
+        public Builder tags( final List< String > v )                         { this.tags = v; return this; }
+        public Builder contributingChunks( final List< RetrievedChunk > v )   { this.contributingChunks = v; return this; }
+        public Builder relatedPages( final List< RelatedPage > v )            { this.relatedPages = v; return this; }
+        public Builder author( final String v )                               { this.author = v; return this; }
+        public Builder lastModified( final java.util.Date v )                 { this.lastModified = v; return this; }
+        public Builder derived( final boolean v )                             { this.derived = v; return this; }
+
+        public RetrievedPage build() {
+            return new RetrievedPage( name, url, score, summary, cluster, tags,
+                contributingChunks, relatedPages, author, lastModified, derived );
+        }
+    }
 }

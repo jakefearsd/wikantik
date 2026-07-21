@@ -24,11 +24,8 @@ import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,9 +38,8 @@ import java.util.stream.Collectors;
  * Returns a ranked, de-duplicated, version-pinned, citation-bearing set of wiki sections
  * for grounding — it does NOT synthesize an answer (ADR-0001).
  */
-public class AssembleBundleTool implements McpTool {
+public class AssembleBundleTool extends AbstractKnowledgeMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( AssembleBundleTool.class );
     public static final String TOOL_NAME = "assemble_bundle";
 
     private final BundleAssemblyService service;
@@ -88,38 +84,33 @@ public class AssembleBundleTool implements McpTool {
                         + " when confidence is weak or partial, refine your query or escalate to sparql_query /"
                         + " get_ontology for exact counts and enumerations." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of( "query" ), null, null, null ) )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final String query = McpToolUtils.getString( arguments, "query" );
+        if ( query == null || query.isBlank() ) {
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "query argument is required" );
+        }
+        final RetrievalMode mode;
         try {
-            final String query = McpToolUtils.getString( arguments, "query" );
-            if ( query == null || query.isBlank() ) {
-                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "query argument is required" );
-            }
-            final RetrievalMode mode;
-            try {
-                mode = RetrievalMode.fromWire( McpToolUtils.getString( arguments, "mode" ) );
-            } catch ( final IllegalArgumentException e ) {
-                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
-            }
-            final ContextBundle bundle = service.assemble( query, mode );
-            // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
-            final List< com.wikantik.api.bundle.BundleSection > filteredSections = bundle.sections().stream()
-                    .filter( s -> viewGate.canView( s.slug() ) )
-                    .collect( Collectors.toList() );
-            final ContextBundle gated = new ContextBundle( bundle.query(), filteredSections,
-                    com.wikantik.api.bundle.BundleCoverage.recount( bundle.coverage(), filteredSections ) );
-            final QueryLogService qlog = queryLog == null ? null : queryLog.get();
-            if ( qlog != null ) {
-                qlog.log( query, ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, filteredSections.size() );
-            }
-            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, gated );
-        } catch ( final Exception e ) {
-            LOG.error( "assemble_bundle failed: {}", e.getMessage(), e );
+            mode = RetrievalMode.fromWire( McpToolUtils.getString( arguments, "mode" ) );
+        } catch ( final IllegalArgumentException e ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
+        final ContextBundle bundle = service.assemble( query, mode );
+        // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
+        final List< com.wikantik.api.bundle.BundleSection > filteredSections = bundle.sections().stream()
+                .filter( s -> viewGate.canView( s.slug() ) )
+                .collect( Collectors.toList() );
+        final ContextBundle gated = new ContextBundle( bundle.query(), filteredSections,
+                com.wikantik.api.bundle.BundleCoverage.recount( bundle.coverage(), filteredSections ) );
+        final QueryLogService qlog = queryLog == null ? null : queryLog.get();
+        if ( qlog != null ) {
+            qlog.log( query, ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, filteredSections.size() );
+        }
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, gated );
     }
 }

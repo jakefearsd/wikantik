@@ -22,11 +22,8 @@ import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.api.pagegraph.StructuralFilter;
 import com.wikantik.api.pagegraph.StructuralIndexService;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -37,9 +34,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** MCP tool — filtered page listing by type, cluster, tag(s), and freshness. */
-public class ListPagesByFilterTool implements McpTool {
+public class ListPagesByFilterTool extends AbstractKnowledgeMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( ListPagesByFilterTool.class );
     public static final String TOOL_NAME = "list_pages_by_filter";
 
     private final StructuralIndexService service;
@@ -98,31 +94,26 @@ public class ListPagesByFilterTool implements McpTool {
                         "on the retrieval pipeline." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
                 .outputSchema( outputSchema )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            final StructuralFilter filter = new StructuralFilter(
-                    Optional.ofNullable( (String) arguments.get( "type" ) ).map( PageType::fromFrontmatter ),
-                    Optional.ofNullable( (String) arguments.get( "cluster" ) ),
-                    coerceStringList( arguments.get( "tag" ) ),
-                    Optional.ofNullable( (String) arguments.get( "updated_since" ) ).map( Instant::parse ),
-                    arguments.get( "limit" ) instanceof Number n ? n.intValue() : 100,
-                    Optional.ofNullable( (String) arguments.get( "cursor" ) ) );
-            final List< PageDescriptor > pages = service.listPagesByFilter( filter );
-            // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
-            final List< PageDescriptor > filtered = pages.stream()
-                    .filter( d -> viewGate.canView( d.slug() ) )
-                    .collect( Collectors.toList() );
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
-                    Map.of( "pages", filtered, "count", filtered.size() ) );
-        } catch ( final Exception e ) {
-            LOG.error( "list_pages_by_filter failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
-        }
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final StructuralFilter filter = new StructuralFilter(
+                Optional.ofNullable( (String) arguments.get( "type" ) ).map( PageType::fromFrontmatter ),
+                Optional.ofNullable( (String) arguments.get( "cluster" ) ),
+                coerceStringList( arguments.get( "tag" ) ),
+                Optional.ofNullable( (String) arguments.get( "updated_since" ) ).map( Instant::parse ),
+                arguments.get( "limit" ) instanceof Number n ? n.intValue() : 100,
+                Optional.ofNullable( (String) arguments.get( "cursor" ) ) );
+        final List< PageDescriptor > pages = service.listPagesByFilter( filter );
+        // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
+        final List< PageDescriptor > filtered = pages.stream()
+                .filter( d -> viewGate.canView( d.slug() ) )
+                .collect( Collectors.toList() );
+        return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
+                Map.of( "pages", filtered, "count", filtered.size() ) );
     }
 
     private static List< String > coerceStringList( final Object o ) {

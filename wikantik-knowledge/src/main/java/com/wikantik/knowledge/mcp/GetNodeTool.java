@@ -21,7 +21,6 @@ package com.wikantik.knowledge.mcp;
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -33,7 +32,7 @@ import java.util.*;
  * MCP tool that returns full details for a single node: all properties,
  * all edges (inbound and outbound), source page, and provenance.
  */
-public class GetNodeTool implements McpTool {
+public class GetNodeTool extends AbstractKnowledgeMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( GetNodeTool.class );
     public static final String TOOL_NAME = "get_node";
@@ -95,52 +94,47 @@ public class GetNodeTool implements McpTool {
                         "(inbound and outbound), source page, and provenance." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "node" ), null, null, null ) )
                 .outputSchema( outputSchema )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            final String nodeRef = McpToolUtils.getString( arguments, "node" );
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final String nodeRef = McpToolUtils.getString( arguments, "node" );
 
-            // Try by name first, then by UUID
-            KgNode node = service.getNodeByName( nodeRef );
-            if ( node == null ) {
-                try {
-                    final UUID id = UUID.fromString( nodeRef );
-                    node = service.getNode( id );
-                } catch ( final IllegalArgumentException e ) {
-                    LOG.info( "get_node ref '{}' did not resolve by name and is not a UUID — "
-                        + "returning not-found: {}", nodeRef, e.getMessage() );
-                }
+        // Try by name first, then by UUID
+        KgNode node = service.getNodeByName( nodeRef );
+        if ( node == null ) {
+            try {
+                final UUID id = UUID.fromString( nodeRef );
+                node = service.getNode( id );
+            } catch ( final IllegalArgumentException e ) {
+                LOG.info( "get_node ref '{}' did not resolve by name and is not a UUID — "
+                    + "returning not-found: {}", nodeRef, e.getMessage() );
             }
-
-            if ( node == null ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
-                        "Node not found: " + nodeRef );
-            }
-
-            // Guest view-gate: treat restricted-page nodes as not-found so callers cannot
-            // enumerate restricted content by probing node names. Edges are opaque UUIDs and
-            // the node ACL already prevents dereferencing a restricted neighbour.
-            if ( node.sourcePage() != null && !viewGate.canView( node.sourcePage() ) ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
-                        "Node not found: " + nodeRef );
-            }
-
-            final List< KgEdge > outbound = service.getEdgesForNode( node.id(), "outbound" );
-            final List< KgEdge > inbound = service.getEdgesForNode( node.id(), "inbound" );
-
-            final Map< String, Object > result = new LinkedHashMap<>();
-            result.put( "node", node );
-            result.put( "outbound_edges", outbound );
-            result.put( "inbound_edges", inbound );
-
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, result );
-        } catch ( final Exception e ) {
-            LOG.error( "Get node failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
         }
+
+        if ( node == null ) {
+            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                    "Node not found: " + nodeRef );
+        }
+
+        // Guest view-gate: treat restricted-page nodes as not-found so callers cannot
+        // enumerate restricted content by probing node names. Edges are opaque UUIDs and
+        // the node ACL already prevents dereferencing a restricted neighbour.
+        if ( node.sourcePage() != null && !viewGate.canView( node.sourcePage() ) ) {
+            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                    "Node not found: " + nodeRef );
+        }
+
+        final List< KgEdge > outbound = service.getEdgesForNode( node.id(), "outbound" );
+        final List< KgEdge > inbound = service.getEdgesForNode( node.id(), "inbound" );
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "node", node );
+        result.put( "outbound_edges", outbound );
+        result.put( "inbound_edges", inbound );
+
+        return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, result );
     }
 }

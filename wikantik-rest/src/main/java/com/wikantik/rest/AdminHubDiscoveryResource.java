@@ -89,63 +89,107 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         return false;
     }
 
+    /** One action for one matched path. Same Command-table idiom as {@code AdminKnowledgeResource}. */
+    @FunctionalInterface
+    private interface RouteAction {
+        void invoke( String path, HttpServletRequest request, HttpServletResponse response )
+                throws IOException;
+    }
+
+    /**
+     * First-match-wins route: a predicate over the raw path plus its action. A
+     * predicate (rather than forcing everything into one regex dialect) keeps the
+     * pre-refactor matching semantics byte-identical — the original chain mixed
+     * exact matches, {@code String.matches} regexes, and prefix/suffix checks.
+     */
+    private record HubRoute( java.util.function.Predicate< String > matches, RouteAction action ) {
+        static HubRoute exact( final String literal, final RouteAction a ) {
+            return new HubRoute( literal::equals, a );
+        }
+        static HubRoute regex( final String pattern, final RouteAction a ) {
+            final java.util.regex.Pattern p = java.util.regex.Pattern.compile( pattern );
+            return new HubRoute( s -> p.matcher( s ).matches(), a );
+        }
+    }
+
+    /** Dispatch tables per verb — the single source of truth for this servlet's endpoints. */
+    private transient List< HubRoute > getRoutes;
+    private transient List< HubRoute > postRoutes;
+    private transient List< HubRoute > deleteRoutes;
+
+    private List< HubRoute > getRoutes() {
+        if ( getRoutes == null ) {
+            getRoutes = List.of(
+                HubRoute.exact( "/proposals",           ( p, req, resp ) -> handleListProposals( req, resp ) ),
+                HubRoute.exact( "/proposals/dismissed", ( p, req, resp ) -> handleListDismissed( req, resp ) ),
+                HubRoute.exact( "/hubs",                ( p, req, resp ) -> handleListHubs( req, resp ) ),
+                new HubRoute( p -> p.startsWith( "/hubs/" ),
+                                                        ( p, req, resp ) -> handleHubDrilldown( p, resp ) ) );
+        }
+        return getRoutes;
+    }
+
+    private List< HubRoute > postRoutes() {
+        if ( postRoutes == null ) {
+            postRoutes = List.of(
+                HubRoute.exact( "/run",            ( p, req, resp ) -> handleRun( req, resp ) ),
+                HubRoute.exact( "/proposals/seed", ( p, req, resp ) -> handleSeedProposal( req, resp ) ),
+                HubRoute.regex( "/proposals/\\d+/accept",
+                                                   ( p, req, resp ) -> handleAccept( extractId( p ), req, resp ) ),
+                HubRoute.regex( "/proposals/\\d+/dismiss",
+                                                   ( p, req, resp ) -> handleDismiss( extractId( p ), req, resp ) ),
+                HubRoute.exact( "/proposals/dismissed/bulk-delete",
+                                                   ( p, req, resp ) -> handleBulkDeleteDismissed( req, resp ) ),
+                new HubRoute( p -> p.startsWith( "/hubs/" ) && p.endsWith( "/remove-member" ),
+                                                   ( p, req, resp ) -> handleRemoveMember( p, req, resp ) ) );
+        }
+        return postRoutes;
+    }
+
+    private List< HubRoute > deleteRoutes() {
+        if ( deleteRoutes == null ) {
+            deleteRoutes = List.of(
+                HubRoute.regex( "/proposals/dismissed/\\d+", ( p, req, resp ) ->
+                    handleDeleteDismissed( Integer.parseInt( p.substring( p.lastIndexOf( '/' ) + 1 ) ), resp ) ) );
+        }
+        return deleteRoutes;
+    }
+
+    private void dispatch( final List< HubRoute > routes, final HttpServletRequest request,
+            final HttpServletResponse response ) throws IOException {
+        if ( refuseIfKnowledgeDisabled( response ) ) return;
+        final String path = request.getPathInfo();
+        if ( path == null ) {
+            // Wording matches the AdminKnowledgeResource house idiom (pre-refactor
+            // this differed per verb; nothing pins the message).
+            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Path required" );
+            return;
+        }
+        for ( final HubRoute route : routes ) {
+            if ( route.matches().test( path ) ) {
+                route.action().invoke( path, request, response );
+                return;
+            }
+        }
+        sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
+    }
+
     @Override
     protected void doGet( final HttpServletRequest request,
                           final HttpServletResponse response ) throws IOException {
-        if ( refuseIfKnowledgeDisabled( response ) ) return;
-        final String path = request.getPathInfo();
-        if ( "/proposals".equals( path ) ) {
-            handleListProposals( request, response );
-        } else if ( "/proposals/dismissed".equals( path ) ) {
-            handleListDismissed( request, response );
-        } else if ( "/hubs".equals( path ) ) {
-            handleListHubs( request, response );
-        } else if ( path != null && path.startsWith( "/hubs/" ) ) {
-            handleHubDrilldown( path, response );
-        } else {
-            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
-        }
+        dispatch( getRoutes(), request, response );
     }
 
     @Override
     protected void doPost( final HttpServletRequest request,
                            final HttpServletResponse response ) throws IOException {
-        if ( refuseIfKnowledgeDisabled( response ) ) return;
-        final String path = request.getPathInfo();
-        if ( path == null ) {
-            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Path required" );
-            return;
-        }
-        if ( "/run".equals( path ) ) {
-            handleRun( request, response );
-        } else if ( "/proposals/seed".equals( path ) ) {
-            handleSeedProposal( request, response );
-        } else if ( path.matches( "/proposals/\\d+/accept" ) ) {
-            final int id = extractId( path );
-            handleAccept( id, request, response );
-        } else if ( path.matches( "/proposals/\\d+/dismiss" ) ) {
-            final int id = extractId( path );
-            handleDismiss( id, request, response );
-        } else if ( "/proposals/dismissed/bulk-delete".equals( path ) ) {
-            handleBulkDeleteDismissed( request, response );
-        } else if ( path.startsWith( "/hubs/" ) && path.endsWith( "/remove-member" ) ) {
-            handleRemoveMember( path, request, response );
-        } else {
-            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
-        }
+        dispatch( postRoutes(), request, response );
     }
 
     @Override
     protected void doDelete( final HttpServletRequest request,
                              final HttpServletResponse response ) throws IOException {
-        if ( refuseIfKnowledgeDisabled( response ) ) return;
-        final String path = request.getPathInfo();
-        if ( path != null && path.matches( "/proposals/dismissed/\\d+" ) ) {
-            final int id = Integer.parseInt( path.substring( path.lastIndexOf( '/' ) + 1 ) );
-            handleDeleteDismissed( id, response );
-        } else {
-            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
-        }
+        dispatch( deleteRoutes(), request, response );
     }
 
     // ---- handlers ----

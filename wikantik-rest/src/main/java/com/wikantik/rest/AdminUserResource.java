@@ -221,16 +221,12 @@ public class AdminUserResource extends RestServletBase {
         }
 
         final String actor = currentLogin( request );
-        final List< String > succeeded = new ArrayList<>();
-        final List< Map< String, Object > > failed = new ArrayList<>();
+        final BulkActionResult result = new BulkActionResult();
 
         for ( final JsonElement idEl : idsArr ) {
             final String loginName = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
             if ( loginName == null || loginName.isBlank() ) {
-                final Map< String, Object > f = new LinkedHashMap<>();
-                f.put( "id", idEl.toString() );
-                f.put( "error", "id must be a non-blank string" );
-                failed.add( f );
+                result.fail( idEl.toString(), "id must be a non-blank string" );
                 continue;
             }
 
@@ -244,12 +240,9 @@ public class AdminUserResource extends RestServletBase {
             }
 
             if ( err.isEmpty() ) {
-                succeeded.add( loginName );
+                result.succeed( loginName );
             } else {
-                final Map< String, Object > f = new LinkedHashMap<>();
-                f.put( "id", loginName );
-                f.put( "error", err.get() );
-                failed.add( f );
+                result.fail( loginName, err.get() );
             }
         }
 
@@ -257,15 +250,9 @@ public class AdminUserResource extends RestServletBase {
                 ? " group=" + getJsonString( body, "group" )
                 : "";
         LOG.info( "bulk action={} resource=users actor={} attempted={} succeeded={} failed={}{}",
-                action, actor, idsArr.size(), succeeded.size(), failed.size(), suffix );
+                action, actor, idsArr.size(), result.succeededCount(), result.failedCount(), suffix );
 
-        final Map< String, Object > result = new LinkedHashMap<>();
-        result.put( "succeeded", succeeded );
-        result.put( "failed", failed );
-        result.put( "status", "completed" );
-        result.put( "message",
-                succeeded.size() + " of " + idsArr.size() + " users " + actionPastTense( action ) );
-        sendJson( response, result );
+        sendJson( response, result.toResponseBody( idsArr.size(), "users " + actionPastTense( action ) ) );
     }
 
     private static String actionPastTense( final String action ) {

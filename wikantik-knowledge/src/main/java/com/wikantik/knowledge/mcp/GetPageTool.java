@@ -20,11 +20,8 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.RetrievedPage;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,9 +32,8 @@ import java.util.Map;
  * {name, url, score=0, summary, cluster, tags, author, lastModified} or
  * {exists:false, pageName} if the page does not exist.
  */
-public class GetPageTool implements McpTool {
+public class GetPageTool extends AbstractKnowledgeMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( GetPageTool.class );
     public static final String TOOL_NAME = "get_page";
 
     private final ContextRetrievalService service;
@@ -89,38 +85,33 @@ public class GetPageTool implements McpTool {
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties, List.of(), null, null, null ) )
             .outputSchema( outputSchema )
-            .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+            .annotations( READ_ONLY_ANNOTATIONS )
             .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            // Canonical key is `slug`; accept common synonyms an agent may guess so a reasonable
-            // call doesn't hard-fail (the cross-surface naming-consistency ask).
-            final String pageName = McpToolUtils.pageSlug( arguments );
-            if ( pageName == null || pageName.isBlank() ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
-                        "a page identifier is required (one of: slug, pageName, name)" );
-            }
-            final RetrievedPage page = service.getPage( pageName );
-            if ( page == null ) {
-                final Map< String, Object > missing = new LinkedHashMap<>();
-                missing.put( "exists", false );
-                missing.put( "pageName", pageName );
-                return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, missing );
-            }
-            // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
-            if ( !viewGate.canView( pageName ) ) {
-                final Map< String, Object > missing = new LinkedHashMap<>();
-                missing.put( "exists", false );
-                missing.put( "pageName", pageName );
-                return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, missing );
-            }
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, page );
-        } catch ( final RuntimeException e ) {
-            LOG.error( "get_page failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        // Canonical key is `slug`; accept common synonyms an agent may guess so a reasonable
+        // call doesn't hard-fail (the cross-surface naming-consistency ask).
+        final String pageName = McpToolUtils.pageSlug( arguments );
+        if ( pageName == null || pageName.isBlank() ) {
+            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                    "a page identifier is required (one of: slug, pageName, name)" );
         }
+        final RetrievedPage page = service.getPage( pageName );
+        if ( page == null ) {
+            final Map< String, Object > missing = new LinkedHashMap<>();
+            missing.put( "exists", false );
+            missing.put( "pageName", pageName );
+            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, missing );
+        }
+        // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
+        if ( !viewGate.canView( pageName ) ) {
+            final Map< String, Object > missing = new LinkedHashMap<>();
+            missing.put( "exists", false );
+            missing.put( "pageName", pageName );
+            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, missing );
+        }
+        return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, page );
     }
 }

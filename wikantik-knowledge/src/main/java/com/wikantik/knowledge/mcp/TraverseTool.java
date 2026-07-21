@@ -23,11 +23,8 @@ import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Tier;
 import com.wikantik.api.knowledge.TraversalResult;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 
@@ -36,9 +33,8 @@ import java.util.*;
  * Nodes are connected when they appear together in the same content chunk
  * as recorded by the entity extractor.
  */
-public class TraverseTool implements McpTool {
+public class TraverseTool extends AbstractKnowledgeMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( TraverseTool.class );
     public static final String TOOL_NAME = "traverse";
 
     private final KnowledgeGraphService service;
@@ -103,50 +99,45 @@ public class TraverseTool implements McpTool {
                 .inputSchema( new McpSchema.JsonSchema(
                     "object", properties, List.of( "start_node" ), null, null, null ) )
                 .outputSchema( outputSchema )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final String startNode = McpToolUtils.getString( arguments, "start_node" );
+        final int maxDepth = McpToolUtils.getInt( arguments, "max_depth", 2 );
+        final int minSharedChunks = McpToolUtils.getInt( arguments, "min_shared_chunks", 1 );
+
+        final String tierRaw = McpToolUtils.getString( arguments, "min_tier", "machine" );
+        final Tier minTier;
         try {
-            final String startNode = McpToolUtils.getString( arguments, "start_node" );
-            final int maxDepth = McpToolUtils.getInt( arguments, "max_depth", 2 );
-            final int minSharedChunks = McpToolUtils.getInt( arguments, "min_shared_chunks", 1 );
-
-            final String tierRaw = McpToolUtils.getString( arguments, "min_tier", "machine" );
-            final Tier minTier;
-            try {
-                minTier = Tier.fromWire( tierRaw );
-            } catch ( final IllegalArgumentException e ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
-                    "min_tier must be 'human' or 'machine'" );
-            }
-
-            final TraversalResult result = service.traverseByCoMention(
-                startNode, maxDepth, minSharedChunks, minTier );
-
-            // Guest view-gate: filter out nodes whose source page is restricted, then prune
-            // any edges that reference a dropped node (both endpoints must remain visible).
-            final List< KgNode > visibleNodes = new ArrayList<>();
-            final Set< UUID > visibleIds = new HashSet<>();
-            for ( final KgNode n : result.nodes() ) {
-                if ( n.sourcePage() == null || viewGate.canView( n.sourcePage() ) ) {
-                    visibleNodes.add( n );
-                    visibleIds.add( n.id() );
-                }
-            }
-            final List< KgEdge > visibleEdges = new ArrayList<>();
-            for ( final KgEdge e : result.edges() ) {
-                if ( visibleIds.contains( e.sourceId() ) && visibleIds.contains( e.targetId() ) ) {
-                    visibleEdges.add( e );
-                }
-            }
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
-                new TraversalResult( visibleNodes, visibleEdges ) );
-        } catch ( final Exception e ) {
-            LOG.error( "Traverse failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
+            minTier = Tier.fromWire( tierRaw );
+        } catch ( final IllegalArgumentException e ) {
+            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                "min_tier must be 'human' or 'machine'" );
         }
+
+        final TraversalResult result = service.traverseByCoMention(
+            startNode, maxDepth, minSharedChunks, minTier );
+
+        // Guest view-gate: filter out nodes whose source page is restricted, then prune
+        // any edges that reference a dropped node (both endpoints must remain visible).
+        final List< KgNode > visibleNodes = new ArrayList<>();
+        final Set< UUID > visibleIds = new HashSet<>();
+        for ( final KgNode n : result.nodes() ) {
+            if ( n.sourcePage() == null || viewGate.canView( n.sourcePage() ) ) {
+                visibleNodes.add( n );
+                visibleIds.add( n.id() );
+            }
+        }
+        final List< KgEdge > visibleEdges = new ArrayList<>();
+        for ( final KgEdge e : result.edges() ) {
+            if ( visibleIds.contains( e.sourceId() ) && visibleIds.contains( e.targetId() ) ) {
+                visibleEdges.add( e );
+            }
+        }
+        return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
+            new TraversalResult( visibleNodes, visibleEdges ) );
     }
 }

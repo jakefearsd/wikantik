@@ -20,20 +20,16 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.pagegraph.TagSummary;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /** MCP tool — returns the tag dictionary with counts and top pages per tag. */
-public class ListTagsTool implements McpTool {
+public class ListTagsTool extends AbstractKnowledgeMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( ListTagsTool.class );
     public static final String TOOL_NAME = "list_tags";
 
     private final StructuralIndexService service;
@@ -75,22 +71,17 @@ public class ListTagsTool implements McpTool {
                         "wants to discover what topics the wiki covers." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
                 .outputSchema( outputSchema )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            final int minPages = arguments.get( "min_pages" ) instanceof Number n
-                    ? Math.max( 1, n.intValue() )
-                    : 1;
-            final List< TagSummary > tags = service.listTags( minPages );
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
-                    McpToolUtils.paginate( "tags", tags, arguments, 50 ) );
-        } catch ( final Exception e ) {
-            LOG.error( "list_tags failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
-        }
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final int minPages = arguments.get( "min_pages" ) instanceof Number n
+                ? Math.max( 1, n.intValue() )
+                : 1;
+        final List< TagSummary > tags = service.listTags( minPages );
+        return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
+                McpToolUtils.paginate( "tags", tags, arguments, 50 ) );
     }
 }

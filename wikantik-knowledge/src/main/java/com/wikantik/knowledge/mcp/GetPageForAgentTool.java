@@ -27,11 +27,8 @@ import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -46,9 +43,8 @@ import java.util.Optional;
  * graceful-degradation contract, served over Streamable HTTP MCP instead of
  * REST.
  */
-public class GetPageForAgentTool implements McpTool {
+public class GetPageForAgentTool extends AbstractKnowledgeMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( GetPageForAgentTool.class );
     public static final String TOOL_NAME = "get_page_for_agent";
 
     /**
@@ -147,32 +143,27 @@ public class GetPageForAgentTool implements McpTool {
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of( "canonical_id" ),
                         null, null, null ) )
                 .outputSchema( outputSchema )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            final Object raw = arguments.get( "canonical_id" );
-            if ( !( raw instanceof String s ) || s.isBlank() ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
-                        "canonical_id argument is required" );
-            }
-            final Optional< ForAgentProjection > maybe = service.project( s );
-            if ( maybe.isEmpty() ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
-                        "no page for canonical_id " + s );
-            }
-            // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
-            if ( !viewGate.canView( maybe.get().slug() ) ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
-                        "no page for canonical_id " + s );
-            }
-            return McpToolUtils.jsonResult( PROJECTION_GSON, maybe.get() );
-        } catch ( final Exception e ) {
-            LOG.error( "get_page_for_agent failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final Object raw = arguments.get( "canonical_id" );
+        if ( !( raw instanceof String s ) || s.isBlank() ) {
+            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                    "canonical_id argument is required" );
         }
+        final Optional< ForAgentProjection > maybe = service.project( s );
+        if ( maybe.isEmpty() ) {
+            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                    "no page for canonical_id " + s );
+        }
+        // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
+        if ( !viewGate.canView( maybe.get().slug() ) ) {
+            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                    "no page for canonical_id " + s );
+        }
+        return McpToolUtils.jsonResult( PROJECTION_GSON, maybe.get() );
     }
 }

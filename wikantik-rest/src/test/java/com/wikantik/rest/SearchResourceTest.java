@@ -303,12 +303,14 @@ class SearchResourceTest {
     void crsReturnsOrderedResultsAsJsonArray() throws Exception {
         // Mock CRS returning a controlled ordered list.
         final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );
-        final RetrievedPage beta = new RetrievedPage(
-            "RestSearchBeta", null, 2.0, "", null, null, null, null, null,
-            engine.getManager( PageManager.class ).getPage( "RestSearchBeta" ).getLastModified(), false );
-        final RetrievedPage alpha = new RetrievedPage(
-            "RestSearchAlpha", null, 1.0, "", null, null, null, null, null,
-            engine.getManager( PageManager.class ).getPage( "RestSearchAlpha" ).getLastModified(), false );
+        final RetrievedPage beta = RetrievedPage.builder( "RestSearchBeta", 2.0 )
+            .summary( "" )
+            .lastModified( engine.getManager( PageManager.class ).getPage( "RestSearchBeta" ).getLastModified() )
+            .build();
+        final RetrievedPage alpha = RetrievedPage.builder( "RestSearchAlpha", 1.0 )
+            .summary( "" )
+            .lastModified( engine.getManager( PageManager.class ).getPage( "RestSearchAlpha" ).getLastModified() )
+            .build();
         Mockito.doReturn( new RetrievalResult( "search", List.of( beta, alpha ), 2 ) )
                .when( mockCrs ).retrieve( Mockito.any() );
         engine.setManager( ContextRetrievalService.class, mockCrs );
@@ -326,8 +328,10 @@ class SearchResourceTest {
         // Verify that contributingChunks are serialized as the 'contexts' field.
         final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );
         final RetrievedChunk chunk = new RetrievedChunk( List.of( "Intro" ), "Alpha chunk body.", 1.5, List.of() );
-        final RetrievedPage alpha = new RetrievedPage(
-            "RestSearchAlpha", null, 3.0, "", null, null, List.of( chunk ), null, null, null, false );
+        final RetrievedPage alpha = RetrievedPage.builder( "RestSearchAlpha", 3.0 )
+            .summary( "" )
+            .contributingChunks( List.of( chunk ) )
+            .build();
         Mockito.doReturn( new RetrievalResult( "Alpha", List.of( alpha ), 1 ) )
                .when( mockCrs ).retrieve( Mockito.any() );
         engine.setManager( ContextRetrievalService.class, mockCrs );
@@ -346,8 +350,9 @@ class SearchResourceTest {
     void crsZeroScorePageIncludedInResults() throws Exception {
         // Dense-only page: exists in results with score 0, no chunks — mirrors old DenseOnlySearchResult.
         final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );
-        final RetrievedPage denseOnly = new RetrievedPage(
-            "RestSearchAlpha", null, 0.0, "", null, null, null, null, null, null, false );
+        final RetrievedPage denseOnly = RetrievedPage.builder( "RestSearchAlpha", 0.0 )
+            .summary( "" )
+            .build();
         Mockito.doReturn( new RetrievalResult( "search", List.of( denseOnly ), 1 ) )
                .when( mockCrs ).retrieve( Mockito.any() );
         engine.setManager( ContextRetrievalService.class, mockCrs );
@@ -366,10 +371,13 @@ class SearchResourceTest {
         // a "derived": true marker so the frontend can badge it; non-derived pages must
         // omit the field entirely rather than serialize a redundant "derived": false.
         final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );
-        final RetrievedPage derivedPage = new RetrievedPage(
-            "RestSearchAlpha", null, 1.0, "", null, null, null, null, null, null, true );
-        final RetrievedPage nativePage = new RetrievedPage(
-            "RestSearchBeta", null, 2.0, "", null, null, null, null, null, null, false );
+        final RetrievedPage derivedPage = RetrievedPage.builder( "RestSearchAlpha", 1.0 )
+            .summary( "" )
+            .derived( true )
+            .build();
+        final RetrievedPage nativePage = RetrievedPage.builder( "RestSearchBeta", 2.0 )
+            .summary( "" )
+            .build();
         Mockito.doReturn( new RetrievalResult( "search", List.of( nativePage, derivedPage ), 2 ) )
                .when( mockCrs ).retrieve( Mockito.any() );
         engine.setManager( ContextRetrievalService.class, mockCrs );
@@ -393,9 +401,9 @@ class SearchResourceTest {
         // CRS returns 3 pages; limit=1 → only 1 in the response.
         final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );
         final List< RetrievedPage > pages = List.of(
-            new RetrievedPage( "RestSearchAlpha", null, 3.0, "", null, null, null, null, null, null, false ),
-            new RetrievedPage( "RestSearchBeta", null, 2.0, "", null, null, null, null, null, null, false ),
-            new RetrievedPage( "ExtraPage", null, 1.0, "", null, null, null, null, null, null, false )
+            RetrievedPage.builder( "RestSearchAlpha", 3.0 ).summary( "" ).build(),
+            RetrievedPage.builder( "RestSearchBeta", 2.0 ).summary( "" ).build(),
+            RetrievedPage.builder( "ExtraPage", 1.0 ).summary( "" ).build()
         );
         Mockito.doReturn( new RetrievalResult( "search", pages, 3 ) )
                .when( mockCrs ).retrieve( Mockito.any() );
@@ -530,10 +538,13 @@ class SearchResourceTest {
 
         final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );
         final RetrievedChunk chunk = new RetrievedChunk( List.of( "Intro" ), "Secret zzqq chunk body.", 2.0, List.of() );
-        final RetrievedPage restricted = new RetrievedPage(
-            "SecSearchRestricted", null, 2.0, "", null, null, List.of( chunk ), null, null, null, false );
-        final RetrievedPage publicPage = new RetrievedPage(
-            "RestSearchAlpha", null, 1.0, "", null, null, null, null, null, null, false );
+        final RetrievedPage restricted = RetrievedPage.builder( "SecSearchRestricted", 2.0 )
+            .summary( "" )
+            .contributingChunks( List.of( chunk ) )
+            .build();
+        final RetrievedPage publicPage = RetrievedPage.builder( "RestSearchAlpha", 1.0 )
+            .summary( "" )
+            .build();
         Mockito.doReturn( new RetrievalResult( "zzqq", List.of( restricted, publicPage ), 2 ) )
                .when( mockCrs ).retrieve( Mockito.any() );
         engine.setManager( ContextRetrievalService.class, mockCrs );

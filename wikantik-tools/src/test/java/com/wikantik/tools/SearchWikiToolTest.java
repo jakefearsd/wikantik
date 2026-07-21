@@ -103,19 +103,14 @@ class SearchWikiToolTest {
     void shapesResultsWithCitationAndSnippet() {
         when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
         when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
-            new RetrievalResult( "hello", List.of( new RetrievedPage(
-                "OnePage",
-                "",
-                42.0,
-                "A great page",
-                null,
-                List.of(),
-                List.of( new RetrievedChunk( List.of( "OnePage" ), "matching excerpt", 0.9, List.of() ) ),
-                List.of(),
-                null,
-                null,
-                false
-            ) ), 1 ) );
+            new RetrievalResult( "hello", List.of( RetrievedPage.builder( "OnePage", 42.0 )
+                .url( "" )
+                .summary( "A great page" )
+                .tags( List.of() )
+                .contributingChunks( List.of( new RetrievedChunk( List.of( "OnePage" ), "matching excerpt", 0.9, List.of() ) ) )
+                .relatedPages( List.of() )
+                .build()
+            ), 1 ) );
 
         final Properties props = new Properties();
         props.setProperty( "wikantik.public.baseURL", "https://wiki.example.com" );
@@ -140,19 +135,14 @@ class SearchWikiToolTest {
         when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
         final String longText = "x".repeat( 400 );
         when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
-            new RetrievalResult( "q", List.of( new RetrievedPage(
-                "LongPage",
-                "",
-                1.0,
-                "",
-                null,
-                List.of(),
-                List.of( new RetrievedChunk( List.of(), longText, 0.5, List.of() ) ),
-                List.of(),
-                null,
-                null,
-                false
-            ) ), 1 ) );
+            new RetrievalResult( "q", List.of( RetrievedPage.builder( "LongPage", 1.0 )
+                .url( "" )
+                .summary( "" )
+                .tags( List.of() )
+                .contributingChunks( List.of( new RetrievedChunk( List.of(), longText, 0.5, List.of() ) ) )
+                .relatedPages( List.of() )
+                .build()
+            ), 1 ) );
 
         final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
         final Map< String, Object > out = tool.execute( "q", 5, request );
@@ -171,8 +161,13 @@ class SearchWikiToolTest {
         // Build 20 pages (service hard cap) — tool clamps to 25 but service returns max 20
         final List< RetrievedPage > manyPages = new ArrayList<>();
         for ( int i = 0; i < 20; i++ ) {
-            manyPages.add( new RetrievedPage(
-                "P" + i, "", 1.0, "", null, List.of(), List.of(), List.of(), null, null, false ) );
+            manyPages.add( RetrievedPage.builder( "P" + i, 1.0 )
+                .url( "" )
+                .summary( "" )
+                .tags( List.of() )
+                .contributingChunks( List.of() )
+                .relatedPages( List.of() )
+                .build() );
         }
         when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
             new RetrievalResult( "q", manyPages, 20 ) );
@@ -190,12 +185,15 @@ class SearchWikiToolTest {
         when( ctxService.retrieve( any( ContextQuery.class ) ) )
             .thenReturn( new RetrievalResult(
                 "q",
-                List.of( new RetrievedPage(
-                    "Alpha", "", 5.0, "alpha summary", null, List.of(),
-                    List.of(
+                List.of( RetrievedPage.builder( "Alpha", 5.0 )
+                    .url( "" )
+                    .summary( "alpha summary" )
+                    .tags( List.of() )
+                    .contributingChunks( List.of(
                         new RetrievedChunk( List.of( "Alpha", "Intro" ), "first chunk body", 0.9, List.of() ),
-                        new RetrievedChunk( List.of( "Alpha", "Details" ), "second chunk body", 0.8, List.of() ) ),
-                    List.of(), null, null, false ) ),
+                        new RetrievedChunk( List.of( "Alpha", "Details" ), "second chunk body", 0.8, List.of() ) ) )
+                    .relatedPages( List.of() )
+                    .build() ),
                 1 ) );
 
         final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
@@ -220,13 +218,15 @@ class SearchWikiToolTest {
         when( ctxService.retrieve( any( ContextQuery.class ) ) )
             .thenReturn( new RetrievalResult(
                 "q",
-                List.of( new RetrievedPage(
-                    "Alpha", "", 5.0, "alpha summary", null, List.of(),
-                    List.of(),
-                    List.of(
+                List.of( RetrievedPage.builder( "Alpha", 5.0 )
+                    .url( "" )
+                    .summary( "alpha summary" )
+                    .tags( List.of() )
+                    .contributingChunks( List.of() )
+                    .relatedPages( List.of(
                         new RelatedPage( "Beta", "shared entities: x, y" ),
-                        new RelatedPage( "Gamma", "shared entities: y" ) ),
-                    null, null, false ) ),
+                        new RelatedPage( "Gamma", "shared entities: y" ) ) )
+                    .build() ),
                 1 ) );
 
         final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
@@ -249,9 +249,13 @@ class SearchWikiToolTest {
         when( ctxService.retrieve( any( ContextQuery.class ) ) )
             .thenReturn( new RetrievalResult(
                 "q",
-                List.of( new RetrievedPage(
-                    "Alpha", "", 5.0, "alpha summary", null, List.of(),
-                    List.of(), List.of(), null, null, false ) ),
+                List.of( RetrievedPage.builder( "Alpha", 5.0 )
+                    .url( "" )
+                    .summary( "alpha summary" )
+                    .tags( List.of() )
+                    .contributingChunks( List.of() )
+                    .relatedPages( List.of() )
+                    .build() ),
                 1 ) );
 
         final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );

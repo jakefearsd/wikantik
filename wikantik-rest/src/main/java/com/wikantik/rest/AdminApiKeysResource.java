@@ -254,57 +254,39 @@ public class AdminApiKeysResource extends RestServletBase {
         }
 
         final String actor = currentLogin( request );
-        final List< String > succeeded = new ArrayList<>();
-        final List< Map< String, Object > > failed = new ArrayList<>();
+        final BulkActionResult result = new BulkActionResult();
 
         for ( final JsonElement idEl : idsArr ) {
             final String idStr = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
             if ( idStr == null || idStr.isBlank() ) {
-                final Map< String, Object > f = new LinkedHashMap<>();
-                f.put( "id", idEl.toString() );
-                f.put( "error", "id must be a non-blank string or integer" );
-                failed.add( f );
+                result.fail( idEl.toString(), "id must be a non-blank string or integer" );
                 continue;
             }
             final int id;
             try {
                 id = Integer.parseInt( idStr );
             } catch ( final NumberFormatException e ) {
-                final Map< String, Object > f = new LinkedHashMap<>();
-                f.put( "id", idStr );
-                f.put( "error", "id must be numeric; got '" + idStr + "'" );
-                failed.add( f );
+                result.fail( idStr, "id must be numeric; got '" + idStr + "'" );
                 continue;
             }
             try {
                 final boolean revoked = svc.revoke( id, actor );
                 if ( revoked ) {
-                    succeeded.add( idStr );
+                    result.succeed( idStr );
                 } else {
-                    final Map< String, Object > f = new LinkedHashMap<>();
-                    f.put( "id", idStr );
-                    f.put( "error", "Key not found or already revoked" );
-                    failed.add( f );
+                    result.fail( idStr, "Key not found or already revoked" );
                 }
             } catch ( final Exception e ) {
                 LOG.warn( "bulk-revoke: error revoking key id={} actor={}: {}",
                         id, actor, e.getMessage(), e );
-                final Map< String, Object > f = new LinkedHashMap<>();
-                f.put( "id", idStr );
-                f.put( "error", e.getMessage() != null ? e.getMessage() : "Internal error" );
-                failed.add( f );
+                result.fail( idStr, e.getMessage() != null ? e.getMessage() : "Internal error" );
             }
         }
 
         LOG.info( "bulk action=revoke resource=apikeys actor={} attempted={} succeeded={} failed={}",
-                actor, idsArr.size(), succeeded.size(), failed.size() );
+                actor, idsArr.size(), result.succeededCount(), result.failedCount() );
 
-        final Map< String, Object > result = new LinkedHashMap<>();
-        result.put( "succeeded", succeeded );
-        result.put( "failed", failed );
-        result.put( "status", "completed" );
-        result.put( "message", succeeded.size() + " of " + idsArr.size() + " keys revoked" );
-        sendJson( response, result );
+        sendJson( response, result.toResponseBody( idsArr.size(), "keys revoked" ) );
     }
 
     private static String currentLogin( final HttpServletRequest request ) {

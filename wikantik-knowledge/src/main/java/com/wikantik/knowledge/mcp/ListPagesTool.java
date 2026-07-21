@@ -22,7 +22,6 @@ import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.PageList;
 import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievedPage;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -37,7 +36,7 @@ import java.util.stream.Collectors;
  * MCP tool: filter-driven browse over wiki pages. No ranking, no chunks —
  * use retrieve_context for query-driven retrieval.
  */
-public class ListPagesTool implements McpTool {
+public class ListPagesTool extends AbstractKnowledgeMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( ListPagesTool.class );
     public static final String TOOL_NAME = "list_pages";
@@ -109,12 +108,12 @@ public class ListPagesTool implements McpTool {
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties, List.of(), null, null, null ) )
             .outputSchema( outputSchema )
-            .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+            .annotations( READ_ONLY_ANNOTATIONS )
             .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         try {
             final PageListFilter filter = buildFilter( arguments );
             final PageList result = service.listPages( filter );
@@ -130,9 +129,6 @@ public class ListPagesTool implements McpTool {
             return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, gated );
         } catch ( final IllegalArgumentException e ) {
             LOG.info( "list_pages rejected invalid argument: {}", e.getMessage() );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
-        } catch ( final RuntimeException e ) {
-            LOG.error( "list_pages failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
         }
     }

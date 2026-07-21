@@ -21,11 +21,8 @@ package com.wikantik.knowledge.mcp;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.SchemaDescription;
 import com.wikantik.knowledge.MentionIndex;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,9 +33,8 @@ import java.util.Map;
  * relationship types, property keys with cardinalities and sample values,
  * and aggregate statistics.
  */
-public class DiscoverSchemaTool implements McpTool {
+public class DiscoverSchemaTool extends AbstractKnowledgeMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( DiscoverSchemaTool.class );
     public static final String TOOL_NAME = "discover_schema";
 
     private final KnowledgeGraphService service;
@@ -85,24 +81,19 @@ public class DiscoverSchemaTool implements McpTool {
                         "Use this to enumerate node types and counts in the knowledge base." )
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
                 .outputSchema( outputSchema )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            final SchemaDescription schema = service.discoverSchema();
-            if ( mentionIndex == null ) {
-                return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, schema );
-            }
-            final Map< String, Object > payload = new LinkedHashMap<>();
-            payload.put( "schema", schema );
-            payload.put( "mentionedNodeCount", mentionIndex.getMentionedIds().size() );
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, payload );
-        } catch ( final Exception e ) {
-            LOG.error( "Discover schema failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final SchemaDescription schema = service.discoverSchema();
+        if ( mentionIndex == null ) {
+            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, schema );
         }
+        final Map< String, Object > payload = new LinkedHashMap<>();
+        payload.put( "schema", schema );
+        payload.put( "mentionedNodeCount", mentionIndex.getMentionedIds().size() );
+        return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, payload );
     }
 }

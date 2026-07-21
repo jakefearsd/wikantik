@@ -29,11 +29,8 @@ import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
 import com.wikantik.knowledge.briefing.BriefingAclGate;
 import com.wikantik.knowledge.briefing.MarkdownBriefingRenderer;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -48,9 +45,8 @@ import java.util.function.Supplier;
  * returns injection-ready <b>markdown</b> and is meant to be called once at session start
  * (ADR-0001 — never synthesizes an answer).
  */
-public class GetBriefingTool implements McpTool {
+public class GetBriefingTool extends AbstractKnowledgeMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( GetBriefingTool.class );
     public static final String TOOL_NAME = "get_briefing";
 
     private final BriefingAssemblyService service;
@@ -106,64 +102,59 @@ public class GetBriefingTool implements McpTool {
                         + "request as `prompt`. For follow-up questions use assemble_bundle instead. Does NOT "
                         + "synthesize an answer." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final List< String > pins = stringList( McpToolUtils.firstListArg( arguments, "pins" ) );
+        final List< String > clusters = stringList( McpToolUtils.firstListArg( arguments, "clusters" ) );
+        final String prompt = McpToolUtils.getString( arguments, "prompt" );
+        final Integer budget = arguments.get( "budget" ) instanceof Number n ? n.intValue() : null;
+
+        final ScopeMode scopeMode;
         try {
-            final List< String > pins = stringList( McpToolUtils.firstListArg( arguments, "pins" ) );
-            final List< String > clusters = stringList( McpToolUtils.firstListArg( arguments, "clusters" ) );
-            final String prompt = McpToolUtils.getString( arguments, "prompt" );
-            final Integer budget = arguments.get( "budget" ) instanceof Number n ? n.intValue() : null;
-
-            final ScopeMode scopeMode;
-            try {
-                scopeMode = ScopeMode.fromWire( McpToolUtils.getString( arguments, "scope_mode" ) );
-            } catch ( final IllegalArgumentException e ) {
-                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
-            }
-
-            final BriefingRequest request = new BriefingRequest( pins, clusters, prompt, budget, scopeMode );
-            if ( !request.hasAnySource() ) {
-                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                        "at least one of pins, clusters, prompt is required" );
-            }
-
-            final ContextBriefing briefing = service.assemble( request );
-
-            // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages
-            // are returned. Pointers are gated too — dropping a restricted page's title, not just its
-            // body (404-hiding semantics, see PageViewGate). A dropped-restricted pin gets the same
-            // "unknown pin" warning a nonexistent pin would, so the two are indistinguishable
-            // (see BriefingAclGate).
-            final ContextBriefing gated = BriefingAclGate.gate( briefing, pins, viewGate::canView );
-
-            final boolean promptPresent = prompt != null && !prompt.isBlank();
-            final QueryLogService qlog = queryLog == null ? null : queryLog.get();
-            if ( qlog != null && promptPresent ) {
-                qlog.log( prompt, ActorType.AGENT, SourceSurface.MCP_GET_BRIEFING, gated.sections().size() );
-            }
-
-            final BriefingLogService blog = briefingLog == null ? null : briefingLog.get();
-            if ( blog != null ) {
-                final int pinCount = (int) gated.items().stream()
-                        .filter( i -> i.included() && "pin".equals( i.origin() ) ).count();
-                final int pointerCount = (int) gated.items().stream().filter( i -> !i.included() ).count();
-                blog.log( new BriefingLogEntry( String.join( ",", pins ), String.join( ",", clusters ),
-                        promptPresent, gated.budgetTokens(), gated.usedTokens(), gated.sections().size(),
-                        pinCount, pointerCount, SourceSurface.MCP_GET_BRIEFING.wire() ) );
-            }
-
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( MarkdownBriefingRenderer.render( gated ) ) ) )
-                    .isError( false )
-                    .build();
-        } catch ( final Exception e ) {
-            LOG.error( "get_briefing failed: {}", e.getMessage(), e );
+            scopeMode = ScopeMode.fromWire( McpToolUtils.getString( arguments, "scope_mode" ) );
+        } catch ( final IllegalArgumentException e ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
+
+        final BriefingRequest request = new BriefingRequest( pins, clusters, prompt, budget, scopeMode );
+        if ( !request.hasAnySource() ) {
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
+                    "at least one of pins, clusters, prompt is required" );
+        }
+
+        final ContextBriefing briefing = service.assemble( request );
+
+        // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages
+        // are returned. Pointers are gated too — dropping a restricted page's title, not just its
+        // body (404-hiding semantics, see PageViewGate). A dropped-restricted pin gets the same
+        // "unknown pin" warning a nonexistent pin would, so the two are indistinguishable
+        // (see BriefingAclGate).
+        final ContextBriefing gated = BriefingAclGate.gate( briefing, pins, viewGate::canView );
+
+        final boolean promptPresent = prompt != null && !prompt.isBlank();
+        final QueryLogService qlog = queryLog == null ? null : queryLog.get();
+        if ( qlog != null && promptPresent ) {
+            qlog.log( prompt, ActorType.AGENT, SourceSurface.MCP_GET_BRIEFING, gated.sections().size() );
+        }
+
+        final BriefingLogService blog = briefingLog == null ? null : briefingLog.get();
+        if ( blog != null ) {
+            final int pinCount = (int) gated.items().stream()
+                    .filter( i -> i.included() && "pin".equals( i.origin() ) ).count();
+            final int pointerCount = (int) gated.items().stream().filter( i -> !i.included() ).count();
+            blog.log( new BriefingLogEntry( String.join( ",", pins ), String.join( ",", clusters ),
+                    promptPresent, gated.budgetTokens(), gated.usedTokens(), gated.sections().size(),
+                    pinCount, pointerCount, SourceSurface.MCP_GET_BRIEFING.wire() ) );
+        }
+
+        return McpSchema.CallToolResult.builder()
+                .content( List.of( new McpSchema.TextContent( MarkdownBriefingRenderer.render( gated ) ) ) )
+                .isError( false )
+                .build();
     }
 
     private static List< String > stringList( final List< ? > raw ) {

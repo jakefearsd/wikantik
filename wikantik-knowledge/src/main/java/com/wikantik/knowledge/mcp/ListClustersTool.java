@@ -20,20 +20,16 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.pagegraph.ClusterSummary;
 import com.wikantik.api.pagegraph.StructuralIndexService;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /** MCP tool — returns every cluster with its hub page, article count, and freshness. */
-public class ListClustersTool implements McpTool {
+public class ListClustersTool extends AbstractKnowledgeMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( ListClustersTool.class );
     public static final String TOOL_NAME = "list_clusters";
 
     private final StructuralIndexService service;
@@ -82,29 +78,24 @@ public class ListClustersTool implements McpTool {
                         "topic areas before drilling into a specific cluster." )
                 .inputSchema( new McpSchema.JsonSchema( "object", PaginationSchema.props(), List.of(), null, null, null ) )
                 .outputSchema( outputSchema )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            final List< ClusterSummary > clusters = service.listClusters();
-            // Guest view-ACL (partial): redact the hub-page descriptor when its page is not
-            // guest-viewable, so a restricted hub page's slug/title cannot leak. The cluster name +
-            // article count remain — the aggregate visibility of restricted member pages (and the
-            // count over only-visible pages) is a separate, deferred concern.
-            final List< ClusterSummary > visible = clusters.stream()
-                    .map( c -> ( c.hubPage() != null && c.hubPage().slug() != null
-                                 && !viewGate.canView( c.hubPage().slug() ) )
-                               ? new ClusterSummary( c.name(), null, c.articleCount(), c.updatedAt() )
-                               : c )
-                    .toList();
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
-                    McpToolUtils.paginate( "clusters", visible, arguments, 50 ) );
-        } catch ( final Exception e ) {
-            LOG.error( "list_clusters failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
-        }
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final List< ClusterSummary > clusters = service.listClusters();
+        // Guest view-ACL (partial): redact the hub-page descriptor when its page is not
+        // guest-viewable, so a restricted hub page's slug/title cannot leak. The cluster name +
+        // article count remain — the aggregate visibility of restricted member pages (and the
+        // count over only-visible pages) is a separate, deferred concern.
+        final List< ClusterSummary > visible = clusters.stream()
+                .map( c -> ( c.hubPage() != null && c.hubPage().slug() != null
+                             && !viewGate.canView( c.hubPage().slug() ) )
+                           ? new ClusterSummary( c.name(), null, c.articleCount(), c.updatedAt() )
+                           : c )
+                .toList();
+        return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
+                McpToolUtils.paginate( "clusters", visible, arguments, 50 ) );
     }
 }

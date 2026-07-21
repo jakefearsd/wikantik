@@ -629,7 +629,12 @@ public final class WikiSession implements Session {
     // FIXME: Should really use WeakReferences to clean away unused sessions.
     private static Session staticGuestSession( final Engine engine ) {
         Session session = guestSession.get();
-        if( session == null ) {
+        // The cached guest must belong to the CALLER's engine: a thread that has
+        // served engine A must not hand A's guest (with A's manager references,
+        // possibly from a stopped engine) to engine B. Cross-engine leakage made
+        // permission filters silently drop rows and session lookups fail on the
+        // wrong engine in multi-engine hosts and forked test JVMs.
+        if( session == null || !( session instanceof WikiSession ws ) || ws.engine != engine ) {
             session = guestSession( engine );
             guestSession.set( session );
         }

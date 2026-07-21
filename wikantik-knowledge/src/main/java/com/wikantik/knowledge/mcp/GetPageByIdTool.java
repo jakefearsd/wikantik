@@ -20,7 +20,6 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -32,7 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /** MCP tool — resolves a canonical_id to the current page descriptor. */
-public class GetPageByIdTool implements McpTool {
+public class GetPageByIdTool extends AbstractKnowledgeMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( GetPageByIdTool.class );
     public static final String TOOL_NAME = "get_page_by_id";
@@ -86,33 +85,28 @@ public class GetPageByIdTool implements McpTool {
                         "get_page when citing sources — the canonical id is stable across renames." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
                 .outputSchema( outputSchema )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            // D13: accept both `id` (canonical) and `canonical_id` (deprecated).
-            final String canonicalId = McpToolUtils.getStringAny( arguments, "id", "canonical_id" );
-            if ( arguments.containsKey( "canonical_id" ) && !arguments.containsKey( "id" ) ) {
-                LOG.warn( "get_page_by_id called with deprecated argument 'canonical_id'; prefer 'id'" );
-            }
-            if ( canonicalId == null || canonicalId.isBlank() ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "id (or canonical_id) argument is required" );
-            }
-            final Optional< PageDescriptor > found = service.getByCanonicalId( canonicalId );
-            if ( found.isEmpty() ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "no page for canonical_id " + canonicalId );
-            }
-            // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
-            if ( !viewGate.canView( found.get().slug() ) ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "no page for canonical_id " + canonicalId );
-            }
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, found.get() );
-        } catch ( final Exception e ) {
-            LOG.error( "get_page_by_id failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        // D13: accept both `id` (canonical) and `canonical_id` (deprecated).
+        final String canonicalId = McpToolUtils.getStringAny( arguments, "id", "canonical_id" );
+        if ( arguments.containsKey( "canonical_id" ) && !arguments.containsKey( "id" ) ) {
+            LOG.warn( "get_page_by_id called with deprecated argument 'canonical_id'; prefer 'id'" );
         }
+        if ( canonicalId == null || canonicalId.isBlank() ) {
+            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "id (or canonical_id) argument is required" );
+        }
+        final Optional< PageDescriptor > found = service.getByCanonicalId( canonicalId );
+        if ( found.isEmpty() ) {
+            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "no page for canonical_id " + canonicalId );
+        }
+        // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
+        if ( !viewGate.canView( found.get().slug() ) ) {
+            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "no page for canonical_id " + canonicalId );
+        }
+        return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, found.get() );
     }
 }

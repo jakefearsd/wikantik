@@ -20,7 +20,6 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.MetadataValue;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -34,7 +33,7 @@ import java.util.Map;
  * MCP tool: distinct frontmatter field values across all pages, with
  * per-value page counts. Useful for "what clusters exist?" discovery queries.
  */
-public class ListMetadataValuesTool implements McpTool {
+public class ListMetadataValuesTool extends AbstractKnowledgeMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( ListMetadataValuesTool.class );
     public static final String TOOL_NAME = "list_metadata_values";
@@ -83,29 +82,24 @@ public class ListMetadataValuesTool implements McpTool {
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties, List.of(), null, null, null ) )
             .outputSchema( outputSchema )
-            .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+            .annotations( READ_ONLY_ANNOTATIONS )
             .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            // D13: accept `field` or the deprecated `key`.
-            final String field = McpToolUtils.getStringAny( arguments, "field", "key" );
-            if ( arguments.containsKey( "key" ) && !arguments.containsKey( "field" ) ) {
-                LOG.warn( "list_metadata_values called with deprecated argument 'key'; prefer 'field'" );
-            }
-            if ( field == null || field.isBlank() ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "field must not be blank" );
-            }
-            final List< MetadataValue > values = service.listMetadataValues( field );
-            final Map< String, Object > payload = new LinkedHashMap<>();
-            payload.put( "field", field );
-            payload.put( "values", values );
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, payload );
-        } catch ( final RuntimeException e ) {
-            LOG.error( "list_metadata_values failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        // D13: accept `field` or the deprecated `key`.
+        final String field = McpToolUtils.getStringAny( arguments, "field", "key" );
+        if ( arguments.containsKey( "key" ) && !arguments.containsKey( "field" ) ) {
+            LOG.warn( "list_metadata_values called with deprecated argument 'key'; prefer 'field'" );
         }
+        if ( field == null || field.isBlank() ) {
+            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "field must not be blank" );
+        }
+        final List< MetadataValue > values = service.listMetadataValues( field );
+        final Map< String, Object > payload = new LinkedHashMap<>();
+        payload.put( "field", field );
+        payload.put( "values", values );
+        return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, payload );
     }
 }

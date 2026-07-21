@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import com.wikantik.ontology.OntologyModelManager;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -49,7 +48,7 @@ import org.apache.logging.log4j.Logger;
  * {@code /sparql} endpoint serves, with RDFS subClassOf entailment). SELECT/ASK return
  * SPARQL-results-JSON; CONSTRUCT/DESCRIBE return Turtle. SPARQL UPDATE is rejected.
  */
-public class SparqlQueryTool implements McpTool {
+public class SparqlQueryTool extends AbstractKnowledgeMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( SparqlQueryTool.class );
     public static final String TOOL_NAME = "sparql_query";
@@ -87,12 +86,12 @@ public class SparqlQueryTool implements McpTool {
                         + "Use this for EXACT counts and enumerations (e.g. how many predicates/classes, list all of a type)"
                         + " rather than free-text retrieval." )
                 .inputSchema( input )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final String queryString = McpToolUtils.getString( arguments, "query" );
         if ( queryString == null || queryString.isBlank() ) {
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "missing 'query'" );

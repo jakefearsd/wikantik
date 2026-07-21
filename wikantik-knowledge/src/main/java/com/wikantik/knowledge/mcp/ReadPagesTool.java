@@ -21,7 +21,6 @@ package com.wikantik.knowledge.mcp;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
-import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -41,7 +40,7 @@ import java.util.Map;
  * <p>Mirrors the single-page {@code read_page} tool on /wikantik-admin-mcp,
  * but lives on /knowledge-mcp as part of the agent-grade content surface.</p>
  */
-public class ReadPagesTool implements McpTool {
+public class ReadPagesTool extends AbstractKnowledgeMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( ReadPagesTool.class );
     public static final String TOOL_NAME = "read_pages";
@@ -102,12 +101,12 @@ public class ReadPagesTool implements McpTool {
                 .inputSchema( new McpSchema.JsonSchema( "object", properties,
                         List.of( "slugs" ), null, null, null ) )
                 .outputSchema( outputSchema )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         // Input validation. Canonical key is `slugs`; accept synonyms an agent may carry over from
         // other tools (e.g. admin MCP `pageNames`) so a reasonable call doesn't hard-fail.
         final Object raw = McpToolUtils.pageSlugs( arguments );

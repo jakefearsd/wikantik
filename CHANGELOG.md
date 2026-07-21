@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.10] - 2026-07-21
+
 ### Added
 - **CPU embedding sidecar for prod (docker-compose.prod.yml).** An `ollama` service
   (no host port, compose-network only, `cpus: 6` / 4G limits, model kept resident)

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.9] - 2026-07-21
+
 ### Fixed
 - **Context bundle now works without an LLM.** With no embedding client (hybrid search
   disabled, or the `wikantik.genai.mode` ceiling forcing embeddings off) the search wiring

@@ -172,6 +172,20 @@ PGPASSWORD=… psql -h localhost -U jspwiki -d jspwiki -c \
 Per the no-data-in-migrations rule, wipes are never landed in `Vxxx`
 migrations — they are documented one-shots run by the operator.
 
+### Code-health site
+
+A published Maven site aggregating coverage (unit+IT), module coupling, PMD/CPD,
+SpotBugs, tests, tech-debt, and dependency health, with per-module drill-down.
+
+- Generate: `bin/site.sh` (full unit+IT) or `bin/site.sh --unit-only` (fast).
+  Two phases (coverage build → `mvn site site:stage`), run via `bin/agent-build.sh`.
+  Output: `target/staging/index.html`.
+- Publish: `! bin/deploy-site.sh` (interactive sudo on host `cloudflare`) →
+  https://wikantik.com/site/ . Excluded from indexing via `marketing/robots.txt`.
+- Requires graphviz (`dot`) on the generating box for the coupling SVG (optional;
+  falls back to a linked `.dot`).
+- Design: `docs/superpowers/specs/2026-07-23-code-health-site-design.md`.
+
 ## Active Design Documents — detailed status
 
 Slim "read before touching" pointers live in `CLAUDE.md`. The detailed "what shipped" status for

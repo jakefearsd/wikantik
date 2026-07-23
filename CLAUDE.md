@@ -244,6 +244,13 @@ mvn javadoc:javadoc
 # (entries only ever come out)
 mvn pmd:check -Pcomplexity-gate
 ```
+
+```bash
+# Full code-health site (coverage/coupling/PMD/CPD/SpotBugs/tests/tech-debt/deps)
+bin/site.sh                 # -> target/staging/index.html
+! bin/deploy-site.sh        # publish to https://wikantik.com/site (interactive sudo)
+```
+
 High test coverage at the line level, above 90% is a goal for this development team,
 and while we recognize it is not a perfect measurement, it is one we choose to pursue.
 

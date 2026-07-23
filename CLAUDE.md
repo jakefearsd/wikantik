@@ -40,6 +40,7 @@ uncovers a bug), escalate to the matching skill the moment it stops being mechan
 | Maven | 3.9+ | `mvn -version` |
 | Node.js + npm | 20.19+ (or 22.12+) | Required by Vite 8 (Rolldown). WAR build runs `npm install` + `vite build` automatically |
 | PostgreSQL | 15+ | For local deployment; unit tests use in-memory H2 |
+| Graphviz (`dot`) | any recent | **Only** for the code-health **site** build (`bin/site.sh`) module-coupling SVG. `apt-get install graphviz`. Optional — without it the site links the raw `.dot` instead. |
 
 The `tomcat/` directory is **gitignored** and created on first run of `deploy-local.sh`.
 

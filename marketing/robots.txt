@@ -24,4 +24,7 @@ Allow: /
 User-agent: CCBot
 Allow: /
 
+# Generated code-health site (Javadoc/reports) — not for indexing
+Disallow: /site/
+
 Sitemap: https://www.wikantik.com/sitemap.xml

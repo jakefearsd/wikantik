@@ -1475,38 +1475,37 @@
         </configuration>
       </plugin>
 
-      <!-- Tech-debt markers: TODO / FIXME / @deprecated -->
+      <!-- Tech-debt markers: TODO / FIXME / @deprecated.
+           aggregate=true emits a single reactor-root rollup (target/site/taglist.html)
+           scanning every module's sources — this is the deliverable the Code Health
+           landing page links. In aggregate mode the per-module (leaf) taglist report
+           is intentionally skipped; the root rollup is verified in Task 8's full
+           reactor site run, like the PMD/CPD/surefire aggregates. -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>taglist-maven-plugin</artifactId>
         <version>3.2.1</version>
-        <reportSets>
-          <reportSet>
-            <reports>
-              <report>taglist</report>
-            </reports>
-            <configuration>
-              <tagListOptions>
-                <tagClasses>
-                  <tagClass>
-                    <displayName>Action items</displayName>
-                    <tags>
-                      <tag><matchString>TODO</matchString><matchType>ignoreCase</matchType></tag>
-                      <tag><matchString>FIXME</matchString><matchType>ignoreCase</matchType></tag>
-                      <tag><matchString>XXX</matchString><matchType>exact</matchType></tag>
-                    </tags>
-                  </tagClass>
-                  <tagClass>
-                    <displayName>Deprecations</displayName>
-                    <tags>
-                      <tag><matchString>@deprecated</matchString><matchType>ignoreCase</matchType></tag>
-                    </tags>
-                  </tagClass>
-                </tagClasses>
-              </tagListOptions>
-            </configuration>
-          </reportSet>
-        </reportSets>
+        <configuration>
+          <aggregate>true</aggregate>
+          <tagListOptions>
+            <tagClasses>
+              <tagClass>
+                <displayName>Action items</displayName>
+                <tags>
+                  <tag><matchString>TODO</matchString><matchType>ignoreCase</matchType></tag>
+                  <tag><matchString>FIXME</matchString><matchType>ignoreCase</matchType></tag>
+                  <tag><matchString>XXX</matchString><matchType>exact</matchType></tag>
+                </tags>
+              </tagClass>
+              <tagClass>
+                <displayName>Deprecations</displayName>
+                <tags>
+                  <tag><matchString>@deprecated</matchString><matchType>ignoreCase</matchType></tag>
+                </tags>
+              </tagClass>
+            </tagClasses>
+          </tagListOptions>
+        </configuration>
       </plugin>
 
       <!-- Dependency health: which declared deps/plugins have newer releases -->

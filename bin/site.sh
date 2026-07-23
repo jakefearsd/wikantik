@@ -31,10 +31,27 @@ done
 
 AB="bin/agent-build.sh"
 
+# Block until a detached build actually finishes. bin/agent-build.sh's bounded
+# `wait` returns 0=success, 1=failed, 2=still-running (budget elapsed). A full
+# code-health site build can run far longer than any single budget, so on code 2
+# we keep waiting and only abort on a real failure (code 1). $1=build name,
+# $2=human label for the failure message.
+wait_done() {
+  local name="$1" label="$2" rc
+  while :; do
+    "${AB}" wait "${name}" 600; rc=$?
+    case "${rc}" in
+      0) return 0 ;;
+      2) echo "    (${label} still running — continuing to wait…)" ;;
+      *) "${AB}" status "${name}"; echo "site: ${label} failed" >&2; exit 1 ;;
+    esac
+  done
+}
+
 if [[ "${SKIP_BUILD}" -eq 0 ]]; then
   echo "==> Phase 1: coverage build (unit)"
   "${AB}" start sitecov -- mvn clean install -Pcoverage -T 1C -DskipITs
-  "${AB}" wait sitecov 1200 || { "${AB}" status sitecov; echo "site: coverage build failed" >&2; exit 1; }
+  wait_done sitecov "coverage build"
 
   if [[ "${UNIT_ONLY}" -eq 0 ]]; then
     echo "==> Phase 1b: IT reactor under coverage (aggregate unit+IT)"
@@ -44,14 +61,14 @@ if [[ "${SKIP_BUILD}" -eq 0 ]]; then
     # does NOT — concurrent modules would collide on ports/containers (see the
     # "Critical: Integration Test Parallelism" rule in CLAUDE.md). run-tests.sh's
     # arg parser rejects a trailing -Pcoverage, so the coverage profile is folded
-    # in via Maven's MAVEN_ARGS env var (Maven 3.9+ appends it to every `mvn`
+    # in via Maven's MAVEN_ARGS env var (Maven 3.9+ folds it into every `mvn`
     # invocation run-tests.sh makes), matching the "run the IT modules with
     # -Pcoverage" path documented in wikantik-coverage-report/pom.xml.
     # --it (not bare --parallel): Phase 1 already ran + installed the unit
     # reactor, so run ONLY the default-gate IT modules here; bare --parallel
     # would re-run the whole unit suite.
     "${AB}" start siteit -- env MAVEN_ARGS=-Pcoverage bin/run-tests.sh --it --parallel 4
-    "${AB}" wait siteit 1800 || { "${AB}" status siteit; echo "site: IT coverage run failed" >&2; exit 1; }
+    wait_done siteit "IT coverage run"
     echo "==> Aggregate coverage exec"
     mvn -q -Pcoverage -pl wikantik-coverage-report \
         org.jacoco:jacoco-maven-plugin:report-aggregate
@@ -76,6 +93,6 @@ fi
 
 echo "==> Phase 2: site + stage"
 "${AB}" start sitegen -- mvn site site:stage -Pcoverage
-"${AB}" wait sitegen 1800 || { "${AB}" status sitegen; echo "site: site generation failed" >&2; exit 1; }
+wait_done sitegen "site generation"
 
 echo "==> Site staged at: ${REPO_ROOT}/target/staging/index.html"

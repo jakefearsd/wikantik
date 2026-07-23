@@ -1,26 +1,25 @@
-# Wikantik
+# Wikantik Code Health
 
-Wikantik is a modular Java 21 wiki engine built on JEE technologies, providing a
-full-featured wiki with Markdown rendering, pluggable storage providers, search,
-attachments, JAAS-based security, and an MCP server for AI agent integration.
-
-## Modules
-
-| Module | Description |
-|--------|-------------|
-| wikantik-api | Core interfaces and contracts |
-| wikantik-main | Main wiki implementation |
-| wikantik-event | Event subsystem for decoupled communication |
-| wikantik-util | Utility classes |
-| wikantik-bootstrap | Startup and SPI initialization |
-| wikantik-cache | EhCache-based caching layer |
-| wikantik-cache-memcached | Distributed Memcached adapter |
-| wikantik-http | Servlet filters and HTTP utilities |
-| wikantik-markdown | Markdown syntax support via Flexmark |
-| wikantik-mcp | MCP server for AI agent integration |
-| wikantik-war | WAR assembly for deployment |
+Generated code-health dashboard for the Wikantik reactor. Regenerate with
+`bin/site.sh`; publish with `bin/deploy-site.sh`.
 
 ## Reports
 
-Use the **Reports** menu to navigate code quality metrics, test results,
-coverage, Javadoc, and dependency analysis.
+| Area | Report |
+|------|--------|
+| **Coverage (unit + IT, aggregate)** | [JaCoCo aggregate](wikantik-coverage-report/jacoco-aggregate/index.html) |
+| **Module coupling** | [Coupling graph](coupling.html) |
+| **Static analysis (PMD)** | [PMD aggregate](pmd.html) |
+| **Duplication (CPD)** | [Copy/paste report](cpd.html) |
+| **Bugs / security (SpotBugs + find-sec-bugs)** | per module — see each module's *SpotBugs* report |
+| **Tests (aggregate)** | [Surefire results](surefire-report.html) |
+| **Tech debt (TODO/FIXME/@deprecated)** | [Tag list](taglist.html) |
+| **Dependency health** | [Dependency updates](dependency-updates-report.html) |
+| **Source cross-reference** | [JXR](xref/index.html) |
+| **API docs (with UML)** | [Javadoc](apidocs/index.html) |
+
+## How this is generated
+
+Two-phase build: a `-Pcoverage` install produces coverage/test data, then
+`mvn site site:stage` assembles the aggregate dashboard plus every module's
+own site (linked under **Modules**). See `docs/superpowers/specs/2026-07-23-code-health-site-design.md`.

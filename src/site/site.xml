@@ -14,11 +14,18 @@
     <body>
         <links>
             <item name="GitHub" href="https://github.com/jakefearsd/wikantik"/>
-            <item name="Issue Tracker" href="http://issues.apache.org/jira/browse/JSPWIKI"/>
+            <item name="Issue Tracker" href="https://github.com/jakefearsd/wikantik/issues"/>
         </links>
 
-        <menu name="Wikantik">
+        <menu name="Code Health">
             <item name="Overview" href="index.html"/>
+            <item name="Coverage" href="wikantik-coverage-report/jacoco-aggregate/index.html"/>
+            <item name="Module Coupling" href="coupling.html"/>
+            <item name="PMD" href="pmd.html"/>
+            <item name="Duplication (CPD)" href="cpd.html"/>
+            <item name="Tests" href="surefire-report.html"/>
+            <item name="Tech Debt" href="taglist.html"/>
+            <item name="Dependency Updates" href="dependency-updates-report.html"/>
         </menu>
         <menu ref="parent"/>
         <menu ref="modules"/>

@@ -1,6 +1,8 @@
 # www.wikantik.com — marketing site
 User-agent: *
 Allow: /
+# Generated code-health site (Javadoc/reports) — not for indexing
+Disallow: /site/
 
 # AI / answer engines — explicitly welcome (we want to be cited)
 User-agent: GPTBot
@@ -23,8 +25,5 @@ User-agent: Applebot-Extended
 Allow: /
 User-agent: CCBot
 Allow: /
-
-# Generated code-health site (Javadoc/reports) — not for indexing
-Disallow: /site/
 
 Sitemap: https://www.wikantik.com/sitemap.xml

@@ -1475,6 +1475,55 @@
         </configuration>
       </plugin>
 
+      <!-- Tech-debt markers: TODO / FIXME / @deprecated -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>taglist-maven-plugin</artifactId>
+        <version>3.2.1</version>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>taglist</report>
+            </reports>
+            <configuration>
+              <tagListOptions>
+                <tagClasses>
+                  <tagClass>
+                    <displayName>Action items</displayName>
+                    <tags>
+                      <tag><matchString>TODO</matchString><matchType>ignoreCase</matchType></tag>
+                      <tag><matchString>FIXME</matchString><matchType>ignoreCase</matchType></tag>
+                      <tag><matchString>XXX</matchString><matchType>exact</matchType></tag>
+                    </tags>
+                  </tagClass>
+                  <tagClass>
+                    <displayName>Deprecations</displayName>
+                    <tags>
+                      <tag><matchString>@deprecated</matchString><matchType>ignoreCase</matchType></tag>
+                    </tags>
+                  </tagClass>
+                </tagClasses>
+              </tagListOptions>
+            </configuration>
+          </reportSet>
+        </reportSets>
+      </plugin>
+
+      <!-- Dependency health: which declared deps/plugins have newer releases -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>versions-maven-plugin</artifactId>
+        <version>2.18.0</version>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>dependency-updates-report</report>
+              <report>plugin-updates-report</report>
+              <report>property-updates-report</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
 
     </plugins>
   </reporting>

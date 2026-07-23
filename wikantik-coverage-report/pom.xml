@@ -89,4 +89,28 @@
       </plugin>
     </plugins>
   </build>
+
+  <reporting>
+    <plugins>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${jacoco-version}</version>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>report-aggregate</report>
+            </reports>
+            <configuration>
+              <!-- Same data sources as the build-phase aggregate: unit + Cargo IT exec. -->
+              <dataFileIncludes>
+                <dataFileInclude>**/jacoco.exec</dataFileInclude>
+                <dataFileInclude>**/jacoco-it.exec</dataFileInclude>
+              </dataFileIncludes>
+            </configuration>
+          </reportSet>
+        </reportSets>
+      </plugin>
+    </plugins>
+  </reporting>
 </project>

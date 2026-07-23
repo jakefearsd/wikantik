@@ -38,14 +38,19 @@ if [[ "${SKIP_BUILD}" -eq 0 ]]; then
 
   if [[ "${UNIT_ONLY}" -eq 0 ]]; then
     echo "==> Phase 1b: IT reactor under coverage (aggregate unit+IT)"
-    # bin/run-tests.sh's arg parser rejects any argument it doesn't recognize
-    # (its case statement's `*)` branch exits 2 on an unknown flag) — it does
-    # NOT forward a trailing profile arg like -Pcoverage. So this runs the
-    # same parallel IT reactor bin/run-tests.sh --parallel 4 uses, invoked
-    # directly via mvn with the coverage profile folded in: the module-by-
-    # module IT-coverage invocation wikantik-coverage-report/pom.xml documents.
-    IT_MODULES="wikantik-it-tests/wikantik-it-test-rest,wikantik-it-tests/wikantik-it-test-sso,wikantik-it-tests/wikantik-it-test-knowledge-disabled,wikantik-it-tests/wikantik-it-test-custom-jdbc"
-    "${AB}" start siteit -- mvn install -Pintegration-tests,coverage -fae -T 4 -pl "${IT_MODULES}"
+    # Use the sanctioned parallel IT path (bin/run-tests.sh --parallel): it gives
+    # each IT module build-helper-reserved ports + a uniquely-named pgvector
+    # container. A raw `mvn -Pintegration-tests -T N` reactor over the IT modules
+    # does NOT — concurrent modules would collide on ports/containers (see the
+    # "Critical: Integration Test Parallelism" rule in CLAUDE.md). run-tests.sh's
+    # arg parser rejects a trailing -Pcoverage, so the coverage profile is folded
+    # in via Maven's MAVEN_ARGS env var (Maven 3.9+ appends it to every `mvn`
+    # invocation run-tests.sh makes), matching the "run the IT modules with
+    # -Pcoverage" path documented in wikantik-coverage-report/pom.xml.
+    # --it (not bare --parallel): Phase 1 already ran + installed the unit
+    # reactor, so run ONLY the default-gate IT modules here; bare --parallel
+    # would re-run the whole unit suite.
+    "${AB}" start siteit -- env MAVEN_ARGS=-Pcoverage bin/run-tests.sh --it --parallel 4
     "${AB}" wait siteit 1800 || { "${AB}" status siteit; echo "site: IT coverage run failed" >&2; exit 1; }
     echo "==> Aggregate coverage exec"
     mvn -q -Pcoverage -pl wikantik-coverage-report \

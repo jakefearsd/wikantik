@@ -12,7 +12,7 @@ Generated code-health dashboard for the Wikantik reactor. Regenerate with
 | **Static analysis (PMD)** | [PMD aggregate](pmd.html) |
 | **Duplication (CPD)** | [Copy/paste report](cpd.html) |
 | **Bugs / security (SpotBugs + find-sec-bugs)** | per module — see each module's *SpotBugs* report |
-| **Tests (aggregate)** | [Surefire results](surefire-report.html) |
+| **Tests (aggregate)** | [Surefire results](surefire.html) |
 | **Tech debt (TODO/FIXME/@deprecated)** | [Tag list](taglist.html) |
 | **Dependency health** | [Dependency updates](dependency-updates-report.html) |
 | **Source cross-reference** | [JXR](xref/index.html) |

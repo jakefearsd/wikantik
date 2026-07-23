@@ -23,7 +23,7 @@
             <item name="Module Coupling" href="coupling.html"/>
             <item name="PMD" href="pmd.html"/>
             <item name="Duplication (CPD)" href="cpd.html"/>
-            <item name="Tests" href="surefire-report.html"/>
+            <item name="Tests" href="surefire.html"/>
             <item name="Tech Debt" href="taglist.html"/>
             <item name="Dependency Updates" href="dependency-updates-report.html"/>
         </menu>

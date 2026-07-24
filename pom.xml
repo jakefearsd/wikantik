@@ -83,7 +83,7 @@
          shadowing the reservation — so the property stays undefined until the
          reserve goal sets it at process-test-resources. -->
     <junit.version>6.1.0</junit.version>
-    <log4j2.version>2.26.0</log4j2.version>
+    <log4j2.version>2.26.1</log4j2.version>
     <lucene.version>10.5.0</lucene.version>
     <mockito.version>5.23.0</mockito.version>
     <nekohtml.version>3.0.3</nekohtml.version>

@@ -227,39 +227,21 @@ public class EmbeddingIndexService {
     public int indexAll( final String modelCode, final IntConsumer onBatchFlushed ) {
         requireModelCode( modelCode );
         int upserted = 0;
-        int progress = 200;
         try( Connection conn = dataSource.getConnection() ) {
             conn.setAutoCommit( false );
             try( PreparedStatement sel = conn.prepareStatement( SELECT_ALL_SQL );
                  PreparedStatement ins = conn.prepareStatement( UPSERT_SQL ) ) {
                 sel.setFetchSize( 500 );
                 try( ResultSet rs = sel.executeQuery() ) {
-                    final List< UUID > batchIds = new ArrayList<>( batchSize );
-                    final List< String > batchTexts = new ArrayList<>( batchSize );
-                    final java.util.Map< String, EmbeddingTextBuilder.PageContext > ctxMemo =
-                        new java.util.HashMap<>();
-                    while( rs.next() ) {
-                        batchIds.add( rs.getObject( 1, UUID.class ) );
-                        final EmbeddingTextBuilder.PageContext ctx =
-                            ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
-                        batchTexts.add( EmbeddingTextBuilder.forDocument(
-                            ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
-                        if ( batchIds.size() >= batchSize ) {
-                            upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
-                            batchIds.clear();
-                            batchTexts.clear();
-                            fireProgress( onBatchFlushed, upserted );
-                            if ( upserted >= progress ) {
-                                LOG.info( "  embedding indexer: {} rows upserted so far (model={})",
-                                    upserted, modelCode );
-                                progress += 200;
-                            }
+                    final int[] progressThreshold = { 200 };
+                    upserted += drainToUpserts( rs, ins, modelCode, up -> {
+                        fireProgress( onBatchFlushed, up );
+                        if ( up >= progressThreshold[0] ) {
+                            LOG.info( "  embedding indexer: {} rows upserted so far (model={})",
+                                up, modelCode );
+                            progressThreshold[0] += 200;
                         }
-                    }
-                    if ( !batchIds.isEmpty() ) {
-                        upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
-                        fireProgress( onBatchFlushed, upserted );
-                    }
+                    } );
                 }
                 conn.commit();
             } catch( final SQLException e ) {
@@ -300,25 +282,7 @@ public class EmbeddingIndexService {
                 sel.setString( 1, modelCode );
                 sel.setFetchSize( 500 );
                 try( ResultSet rs = sel.executeQuery() ) {
-                    final List< UUID > batchIds = new ArrayList<>( batchSize );
-                    final List< String > batchTexts = new ArrayList<>( batchSize );
-                    final java.util.Map< String, EmbeddingTextBuilder.PageContext > ctxMemo =
-                        new java.util.HashMap<>();
-                    while( rs.next() ) {
-                        batchIds.add( rs.getObject( 1, UUID.class ) );
-                        final EmbeddingTextBuilder.PageContext ctx =
-                            ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
-                        batchTexts.add( EmbeddingTextBuilder.forDocument(
-                            ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
-                        if ( batchIds.size() >= batchSize ) {
-                            upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
-                            batchIds.clear();
-                            batchTexts.clear();
-                        }
-                    }
-                    if ( !batchIds.isEmpty() ) {
-                        upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
-                    }
+                    upserted += drainToUpserts( rs, ins, modelCode, null );
                 }
                 conn.commit();
             } catch( final SQLException e ) {
@@ -350,6 +314,46 @@ public class EmbeddingIndexService {
     }
 
     /**
+     * Drains {@code rs} into {@code batchSize}-sized upsert batches against {@code ins},
+     * returning the number of rows upserted. Shared by {@link #indexAll}, {@link #indexStale}
+     * and {@link #indexChunks} — the SELECT/binding differs per caller, the batch-drain does not.
+     *
+     * <p>{@code afterFlush} (nullable) is invoked with the running upserted total after every
+     * flush (each full mid-drain batch and the final partial batch). {@code indexAll} uses it
+     * for progress reporting + periodic logging; the reconcile/incremental paths pass {@code null}.
+     */
+    private int drainToUpserts( final ResultSet rs, final PreparedStatement ins, final String modelCode,
+                                final IntConsumer afterFlush ) throws SQLException {
+        int upserted = 0;
+        final List< UUID > batchIds = new ArrayList<>( batchSize );
+        final List< String > batchTexts = new ArrayList<>( batchSize );
+        final java.util.Map< String, EmbeddingTextBuilder.PageContext > ctxMemo =
+            new java.util.HashMap<>();
+        while( rs.next() ) {
+            batchIds.add( rs.getObject( 1, UUID.class ) );
+            final EmbeddingTextBuilder.PageContext ctx =
+                ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
+            batchTexts.add( EmbeddingTextBuilder.forDocument(
+                ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
+            if ( batchIds.size() >= batchSize ) {
+                upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
+                batchIds.clear();
+                batchTexts.clear();
+                if ( afterFlush != null ) {
+                    afterFlush.accept( upserted );
+                }
+            }
+        }
+        if ( !batchIds.isEmpty() ) {
+            upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
+            if ( afterFlush != null ) {
+                afterFlush.accept( upserted );
+            }
+        }
+        return upserted;
+    }
+
+    /**
      * Incremental re-index of a specific chunk ID set. Used by the page-save
      * listener after {@code ChunkProjector} rewrites a page's chunks.
      *
@@ -370,25 +374,7 @@ public class EmbeddingIndexService {
                 final UUID[] idArray = chunkIds.toArray( UUID[]::new );
                 sel.setArray( 1, conn.createArrayOf( "uuid", idArray ) );
                 try( ResultSet rs = sel.executeQuery() ) {
-                    final List< UUID > batchIds = new ArrayList<>( batchSize );
-                    final List< String > batchTexts = new ArrayList<>( batchSize );
-                    final java.util.Map< String, EmbeddingTextBuilder.PageContext > ctxMemo =
-                        new java.util.HashMap<>();
-                    while( rs.next() ) {
-                        batchIds.add( rs.getObject( 1, UUID.class ) );
-                        final EmbeddingTextBuilder.PageContext ctx =
-                            ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
-                        batchTexts.add( EmbeddingTextBuilder.forDocument(
-                            ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
-                        if ( batchIds.size() >= batchSize ) {
-                            upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
-                            batchIds.clear();
-                            batchTexts.clear();
-                        }
-                    }
-                    if ( !batchIds.isEmpty() ) {
-                        upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
-                    }
+                    upserted += drainToUpserts( rs, ins, modelCode, null );
                 }
                 conn.commit();
             } catch( final SQLException e ) {

@@ -125,7 +125,10 @@ public class OllamaEmbeddingClient implements TextEmbeddingClient {
         return config.model().code();
     }
 
-    private List< float[] > embedBatch( final List< String > batch, final String prefix ) {
+    /** Prefix each input, rejecting nulls. Shared by the sync and async paths;
+     *  the async path catches the thrown {@link IllegalArgumentException} and turns
+     *  it into a failed future. */
+    private List< String > prefixInputs( final List< String > batch, final String prefix ) {
         final List< String > prefixed = new ArrayList<>( batch.size() );
         for( final String t : batch ) {
             if( t == null ) {
@@ -133,7 +136,12 @@ public class OllamaEmbeddingClient implements TextEmbeddingClient {
             }
             prefixed.add( prefix.isEmpty() ? t : prefix + t );
         }
+        return prefixed;
+    }
 
+    /** Build the Ollama {@code /api/embed} POST request for an already-prefixed batch.
+     *  Identical for the sync and async paths. */
+    private HttpRequest buildEmbedRequest( final List< String > prefixed ) {
         final Map< String, Object > body = new LinkedHashMap<>();
         body.put( "model", config.resolvedOllamaTag() );
         body.put( "input", prefixed );
@@ -146,10 +154,15 @@ public class OllamaEmbeddingClient implements TextEmbeddingClient {
         if( config.apiKey() != null ) {
             req.header( "Authorization", "Bearer " + config.apiKey() );
         }
+        return req.build();
+    }
+
+    private List< float[] > embedBatch( final List< String > batch, final String prefix ) {
+        final HttpRequest request = buildEmbedRequest( prefixInputs( batch, prefix ) );
 
         final HttpResponse< String > resp;
         try {
-            resp = httpClient.send( req.build(), HttpResponse.BodyHandlers.ofString( StandardCharsets.UTF_8 ) );
+            resp = httpClient.send( request, HttpResponse.BodyHandlers.ofString( StandardCharsets.UTF_8 ) );
         } catch( final IOException e ) {
             throw new EmbeddingException( "Ollama embed request failed: " + e.getMessage(), e, true );
         } catch( final InterruptedException e ) {
@@ -170,29 +183,14 @@ public class OllamaEmbeddingClient implements TextEmbeddingClient {
 
     private CompletableFuture< List< float[] > > embedBatchAsync( final List< String > batch,
                                                                     final String prefix ) {
-        final List< String > prefixed = new ArrayList<>( batch.size() );
-        for( final String t : batch ) {
-            if( t == null ) {
-                return CompletableFuture.failedFuture(
-                    new IllegalArgumentException( "embedding input must not contain null strings" ) );
-            }
-            prefixed.add( prefix.isEmpty() ? t : prefix + t );
+        final List< String > prefixed;
+        try {
+            prefixed = prefixInputs( batch, prefix );
+        } catch( final IllegalArgumentException e ) {
+            return CompletableFuture.failedFuture( e );
         }
 
-        final Map< String, Object > body = new LinkedHashMap<>();
-        body.put( "model", config.resolvedOllamaTag() );
-        body.put( "input", prefixed );
-
-        final HttpRequest.Builder req = HttpRequest.newBuilder()
-            .uri( URI.create( config.baseUrl() + EMBED_PATH ) )
-            .timeout( Duration.ofMillis( config.timeoutMs() ) )
-            .header( "Content-Type", "application/json" )
-            .POST( HttpRequest.BodyPublishers.ofString( gson.toJson( body ), StandardCharsets.UTF_8 ) );
-        if( config.apiKey() != null ) {
-            req.header( "Authorization", "Bearer " + config.apiKey() );
-        }
-
-        return httpClient.sendAsync( req.build(), HttpResponse.BodyHandlers.ofString( StandardCharsets.UTF_8 ) )
+        return httpClient.sendAsync( buildEmbedRequest( prefixed ), HttpResponse.BodyHandlers.ofString( StandardCharsets.UTF_8 ) )
             .handle( ( resp, err ) -> {
                 if( err != null ) {
                     final Throwable cause = err instanceof CompletionException ce && ce.getCause() != null

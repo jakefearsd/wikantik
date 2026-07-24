@@ -20,10 +20,6 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 import com.wikantik.api.connectors.SourceConnector;
-import com.wikantik.audit.AuditCategory;
-import com.wikantik.audit.AuditEntry;
-import com.wikantik.audit.AuditOutcome;
-import com.wikantik.audit.AuditService;
 import com.wikantik.connectors.SyncReport;
 import com.wikantik.connectors.config.ConnectorConfigCodec;
 import com.wikantik.connectors.runtime.ConnectorRuntime;
@@ -39,8 +35,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.security.Principal;
-import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -408,30 +402,10 @@ final class ConnectorAdminWriteHandlers {
      *  mutation. */
     private void recordAudit( final String eventType, final String actorLogin, final String connectorId,
                                final String targetLabel ) {
-        try {
-            final AuditService audit = resource.getEngine() instanceof com.wikantik.WikiEngine wikiEngine
-                    ? wikiEngine.getAuditService() : null;
-            if ( audit != null ) {
-                final AuditEntry.Builder entry = AuditEntry.builder()
-                        .eventTime( Instant.now() )
-                        .category( AuditCategory.ADMIN )
-                        .eventType( eventType )
-                        .outcome( AuditOutcome.SUCCESS )
-                        .actorPrincipal( actorLogin )
-                        .actorType( "user" )
-                        .targetType( "connector" )
-                        .targetId( connectorId );
-                if ( targetLabel != null ) entry.targetLabel( targetLabel );
-                audit.record( entry.build() );
-            }
-        } catch ( final Exception auditEx ) {
-            LOG.warn( "Failed to record audit entry for connector {} '{}': {}",
-                eventType, connectorId, auditEx.getMessage(), auditEx );
-        }
+        RestAuditSupport.recordConnectorAudit( resource.getEngine(), eventType, actorLogin, connectorId, targetLabel );
     }
 
     private static String currentLogin( final HttpServletRequest request ) {
-        final Principal p = request.getUserPrincipal();
-        return p != null ? p.getName() : null;
+        return RestAuditSupport.currentLogin( request );
     }
 }

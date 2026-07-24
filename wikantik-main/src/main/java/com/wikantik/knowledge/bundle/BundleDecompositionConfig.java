@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.bundle;
 
 import com.wikantik.api.config.GenAiMode;
+import com.wikantik.util.PrefixedProperties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -55,10 +56,11 @@ public record BundleDecompositionConfig(
     public static final String PREFIX = "wikantik.bundle.decomposition.";
 
     public static BundleDecompositionConfig fromProperties( final Properties props ) {
+        final PrefixedProperties r = new PrefixedProperties( props, PREFIX );
         // wikantik.genai.mode ceiling: the decomposition planner issues chat
         // inference calls, so it must be forced disabled whenever the mode
         // disallows chat inference, regardless of the decomposition.enabled flag.
-        final boolean rawEnabled = getBoolean( props, "enabled", false );
+        final boolean rawEnabled = r.getBoolean( "enabled", false );
         final GenAiMode mode = props == null ? GenAiMode.FULL : GenAiMode.fromProperties( props );
         final boolean enabled = rawEnabled && mode.allowsChatInference();
         if ( rawEnabled && !enabled ) {
@@ -68,66 +70,12 @@ public record BundleDecompositionConfig(
 
         return new BundleDecompositionConfig(
             enabled,
-            getString( props, "model", "gemma4-assist:latest" ),
-            getString( props, "base_url", "http://inference.jakefear.com:11434" ),
-            getLong( props, "timeout_ms", 4_000L ),
-            getInt( props, "max_subqueries", 4 ),
-            getDouble( props, "rrf_k", 60 ),
-            getString( props, "fusion", "rrf" )
+            r.getString( "model", "gemma4-assist:latest" ),
+            r.getString( "base_url", "http://inference.jakefear.com:11434" ),
+            r.getLong( "timeout_ms", 4_000L ),
+            r.getInt( "max_subqueries", 4 ),
+            r.getDouble( "rrf_k", 60 ),
+            r.getString( "fusion", "rrf" )
         );
-    }
-
-    private static String getString( final Properties p, final String suffix, final String def ) {
-        final String v = p == null ? null : p.getProperty( PREFIX + suffix );
-        return v == null || v.isBlank() ? def : v.trim();
-    }
-
-    private static long getLong( final Properties p, final String suffix, final long def ) {
-        final String v = p == null ? null : p.getProperty( PREFIX + suffix );
-        if( v == null || v.isBlank() ) {
-            return def;
-        }
-        try {
-            return Long.parseLong( v.trim() );
-        } catch( final NumberFormatException e ) {
-            LOG.info( "Ignoring non-numeric value '{}' for property {}{} — using default {}: {}",
-                v, PREFIX, suffix, def, e.getMessage() );
-            return def;
-        }
-    }
-
-    private static int getInt( final Properties p, final String suffix, final int def ) {
-        return (int) getLong( p, suffix, def );
-    }
-
-    private static double getDouble( final Properties p, final String suffix, final double def ) {
-        final String v = p == null ? null : p.getProperty( PREFIX + suffix );
-        if( v == null || v.isBlank() ) {
-            return def;
-        }
-        try {
-            return Double.parseDouble( v.trim() );
-        } catch( final NumberFormatException e ) {
-            LOG.info( "Ignoring non-numeric value '{}' for property {}{} — using default {}: {}",
-                v, PREFIX, suffix, def, e.getMessage() );
-            return def;
-        }
-    }
-
-    private static boolean getBoolean( final Properties p, final String suffix, final boolean def ) {
-        final String v = p == null ? null : p.getProperty( PREFIX + suffix );
-        if( v == null || v.isBlank() ) {
-            return def;
-        }
-        final String trimmed = v.trim();
-        if( "true".equalsIgnoreCase( trimmed ) || "1".equals( trimmed ) || "yes".equalsIgnoreCase( trimmed ) ) {
-            return true;
-        }
-        if( "false".equalsIgnoreCase( trimmed ) || "0".equals( trimmed ) || "no".equalsIgnoreCase( trimmed ) ) {
-            return false;
-        }
-        LOG.info( "Ignoring non-boolean value '{}' for property {}{} — using default {}",
-            v, PREFIX, suffix, def );
-        return def;
     }
 }

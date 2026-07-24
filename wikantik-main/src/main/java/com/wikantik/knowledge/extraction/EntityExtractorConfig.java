@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.extraction;
 
 import com.wikantik.api.config.GenAiMode;
+import com.wikantik.util.PrefixedProperties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -82,7 +83,8 @@ public record EntityExtractorConfig(
     }
 
     public static EntityExtractorConfig fromProperties( final Properties props ) {
-        String backend = getString( props, "backend", BACKEND_DISABLED );
+        final PrefixedProperties r = new PrefixedProperties( props, PREFIX );
+        String backend = r.getString( "backend", BACKEND_DISABLED );
 
         // wikantik.genai.mode ceiling: entity extraction is chat inference, so it
         // must be forced disabled whenever the mode disallows chat inference,
@@ -96,20 +98,20 @@ public record EntityExtractorConfig(
 
         return new EntityExtractorConfig(
             backend,
-            getString( props, "claude.model", "claude-haiku-4-5" ),
-            getString( props, "ollama.model", "gemma4-assist:latest" ),
-            getString( props, "ollama.base_url", "http://inference.jakefear.com:11434" ),
-            getLong( props, "timeout_ms", 120_000L ),
-            getDouble( props, "confidence_threshold", 0.6 ),
-            getInt( props, "max_existing_nodes", 200 ),
-            getLong( props, "per_page_min_interval_ms", 5_000L ),
-            clampConcurrency( getInt( props, "concurrency", 2 ) ),
-            getBoolean( props, "prefilter.enabled", false ),
-            getBoolean( props, "prefilter.dry_run", false ),
-            getBoolean( props, "prefilter.skip_pure_code", true ),
-            getBoolean( props, "prefilter.skip_no_proper_noun", true ),
-            getBoolean( props, "prefilter.skip_too_short", true ),
-            getInt( props, "prefilter.min_tokens", 20 )
+            r.getString( "claude.model", "claude-haiku-4-5" ),
+            r.getString( "ollama.model", "gemma4-assist:latest" ),
+            r.getString( "ollama.base_url", "http://inference.jakefear.com:11434" ),
+            r.getLong( "timeout_ms", 120_000L ),
+            r.getDouble( "confidence_threshold", 0.6 ),
+            r.getInt( "max_existing_nodes", 200 ),
+            r.getLong( "per_page_min_interval_ms", 5_000L ),
+            clampConcurrency( r.getInt( "concurrency", 2 ) ),
+            r.getBoolean( "prefilter.enabled", false ),
+            r.getBoolean( "prefilter.dry_run", false ),
+            r.getBoolean( "prefilter.skip_pure_code", true ),
+            r.getBoolean( "prefilter.skip_no_proper_noun", true ),
+            r.getBoolean( "prefilter.skip_too_short", true ),
+            r.getInt( "prefilter.min_tokens", 20 )
         );
     }
 
@@ -120,59 +122,5 @@ public record EntityExtractorConfig(
         if( raw < 1 ) return 1;
         if( raw > CONCURRENCY_MAX ) return CONCURRENCY_MAX;
         return raw;
-    }
-
-    private static String getString( final Properties p, final String suffix, final String def ) {
-        final String v = p == null ? null : p.getProperty( PREFIX + suffix );
-        return v == null || v.isBlank() ? def : v.trim();
-    }
-
-    private static long getLong( final Properties p, final String suffix, final long def ) {
-        final String v = p == null ? null : p.getProperty( PREFIX + suffix );
-        if( v == null || v.isBlank() ) {
-            return def;
-        }
-        try {
-            return Long.parseLong( v.trim() );
-        } catch( final NumberFormatException e ) {
-            LOG.info( "Ignoring non-numeric value '{}' for property {}{} — using default {}: {}",
-                v, PREFIX, suffix, def, e.getMessage() );
-            return def;
-        }
-    }
-
-    private static int getInt( final Properties p, final String suffix, final int def ) {
-        return (int) getLong( p, suffix, def );
-    }
-
-    private static double getDouble( final Properties p, final String suffix, final double def ) {
-        final String v = p == null ? null : p.getProperty( PREFIX + suffix );
-        if( v == null || v.isBlank() ) {
-            return def;
-        }
-        try {
-            return Double.parseDouble( v.trim() );
-        } catch( final NumberFormatException e ) {
-            LOG.info( "Ignoring non-numeric value '{}' for property {}{} — using default {}: {}",
-                v, PREFIX, suffix, def, e.getMessage() );
-            return def;
-        }
-    }
-
-    private static boolean getBoolean( final Properties p, final String suffix, final boolean def ) {
-        final String v = p == null ? null : p.getProperty( PREFIX + suffix );
-        if( v == null || v.isBlank() ) {
-            return def;
-        }
-        final String trimmed = v.trim();
-        if( "true".equalsIgnoreCase( trimmed ) || "1".equals( trimmed ) || "yes".equalsIgnoreCase( trimmed ) ) {
-            return true;
-        }
-        if( "false".equalsIgnoreCase( trimmed ) || "0".equals( trimmed ) || "no".equalsIgnoreCase( trimmed ) ) {
-            return false;
-        }
-        LOG.info( "Ignoring non-boolean value '{}' for property {}{} — using default {}",
-            v, PREFIX, suffix, def );
-        return def;
     }
 }

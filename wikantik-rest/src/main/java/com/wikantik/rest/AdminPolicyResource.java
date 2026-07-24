@@ -250,27 +250,9 @@ public class AdminPolicyResource extends RestServletBase {
             LOG.info( "Created policy grant: {} {} {} {} {}", gf.principalType, gf.principalName,
                     gf.permissionType, gf.target, gf.actions );
 
-            try {
-                final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
-                        ? wikiEngine.getAuditService() : null;
-                if ( audit != null ) {
-                    final java.security.Principal p = request.getUserPrincipal();
-                    final String actor = p != null ? p.getName() : null;
-                    audit.record( AuditEntry.builder()
-                            .eventTime( java.time.Instant.now() )
-                            .category( AuditCategory.ADMIN )
-                            .eventType( "policy.grant.update" )
-                            .outcome( AuditOutcome.SUCCESS )
-                            .actorPrincipal( actor )
-                            .actorType( "user" )
-                            .targetType( "policy" )
-                            .targetId( gf.principalType + ":" + gf.principalName + ":" + gf.permissionType + ":" + gf.target )
-                            .targetLabel( gf.actions )
-                            .build() );
-                }
-            } catch ( final Exception auditEx ) {
-                LOG.warn( "Failed to record audit entry for policy grant create: {}", auditEx.getMessage(), auditEx );
-            }
+            recordGrantAudit( request,
+                    gf.principalType + ":" + gf.principalName + ":" + gf.permissionType + ":" + gf.target,
+                    gf.actions, "create" );
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );
@@ -287,6 +269,36 @@ public class AdminPolicyResource extends RestServletBase {
             LOG.error( "Failed to create policy grant", e );
             sendError( response, HttpServletResponse.SC_CONFLICT,
                     "Failed to create policy grant" );
+        }
+    }
+
+    /** Record a successful policy-grant mutation to the audit log, guarded so a broken
+     *  audit backend never fails the mutation (which already succeeded). Shared by the
+     *  create and update paths; {@code op} ("create"/"update") only tunes the failure log.
+     *  NOTE: the eventType is intentionally left as {@code "policy.grant.update"} for both
+     *  paths to preserve the pre-existing behavior — not changed as part of this dedup. */
+    private void recordGrantAudit( final HttpServletRequest request, final String targetId,
+                                    final String targetLabel, final String op ) {
+        try {
+            final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
+                    ? wikiEngine.getAuditService() : null;
+            if ( audit != null ) {
+                final java.security.Principal p = request.getUserPrincipal();
+                final String actor = p != null ? p.getName() : null;
+                audit.record( AuditEntry.builder()
+                        .eventTime( java.time.Instant.now() )
+                        .category( AuditCategory.ADMIN )
+                        .eventType( "policy.grant.update" )
+                        .outcome( AuditOutcome.SUCCESS )
+                        .actorPrincipal( actor )
+                        .actorType( "user" )
+                        .targetType( "policy" )
+                        .targetId( targetId )
+                        .targetLabel( targetLabel )
+                        .build() );
+            }
+        } catch ( final Exception auditEx ) {
+            LOG.warn( "Failed to record audit entry for policy grant {}: {}", op, auditEx.getMessage(), auditEx );
         }
     }
 
@@ -333,27 +345,9 @@ public class AdminPolicyResource extends RestServletBase {
             LOG.info( "Updated policy grant {}: {} {} {} {} {}", id, gf.principalType, gf.principalName,
                     gf.permissionType, gf.target, gf.actions );
 
-            try {
-                final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
-                        ? wikiEngine.getAuditService() : null;
-                if ( audit != null ) {
-                    final java.security.Principal p = request.getUserPrincipal();
-                    final String actor = p != null ? p.getName() : null;
-                    audit.record( AuditEntry.builder()
-                            .eventTime( java.time.Instant.now() )
-                            .category( AuditCategory.ADMIN )
-                            .eventType( "policy.grant.update" )
-                            .outcome( AuditOutcome.SUCCESS )
-                            .actorPrincipal( actor )
-                            .actorType( "user" )
-                            .targetType( "policy" )
-                            .targetId( String.valueOf( id ) )
-                            .targetLabel( gf.principalType + ":" + gf.principalName + ":" + gf.permissionType + ":" + gf.target )
-                            .build() );
-                }
-            } catch ( final Exception auditEx ) {
-                LOG.warn( "Failed to record audit entry for policy grant update: {}", auditEx.getMessage(), auditEx );
-            }
+            recordGrantAudit( request, String.valueOf( id ),
+                    gf.principalType + ":" + gf.principalName + ":" + gf.permissionType + ":" + gf.target,
+                    "update" );
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );

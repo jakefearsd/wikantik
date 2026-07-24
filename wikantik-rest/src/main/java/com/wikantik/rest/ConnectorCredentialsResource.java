@@ -19,10 +19,6 @@
 package com.wikantik.rest;
 
 import com.wikantik.api.connectors.CredentialStore;
-import com.wikantik.audit.AuditCategory;
-import com.wikantik.audit.AuditEntry;
-import com.wikantik.audit.AuditOutcome;
-import com.wikantik.audit.AuditService;
 import com.wikantik.derived.ConnectorConfigService;
 
 import jakarta.servlet.ServletException;
@@ -34,8 +30,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.security.Principal;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -253,30 +247,10 @@ public class ConnectorCredentialsResource extends RestServletBase {
      *  {@code targetLabel} is the credential NAME — never its value. */
     private void recordAudit( final String eventType, final String actorLogin, final String connectorId,
                                final String targetLabel ) {
-        try {
-            final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
-                    ? wikiEngine.getAuditService() : null;
-            if ( audit != null ) {
-                final AuditEntry.Builder entry = AuditEntry.builder()
-                        .eventTime( Instant.now() )
-                        .category( AuditCategory.ADMIN )
-                        .eventType( eventType )
-                        .outcome( AuditOutcome.SUCCESS )
-                        .actorPrincipal( actorLogin )
-                        .actorType( "user" )
-                        .targetType( "connector" )
-                        .targetId( connectorId );
-                if ( targetLabel != null ) entry.targetLabel( targetLabel );
-                audit.record( entry.build() );
-            }
-        } catch ( final Exception auditEx ) {
-            LOG.warn( "Failed to record audit entry for connector {} '{}': {}",
-                eventType, connectorId, auditEx.getMessage(), auditEx );
-        }
+        RestAuditSupport.recordConnectorAudit( getEngine(), eventType, actorLogin, connectorId, targetLabel );
     }
 
     private static String currentLogin( final HttpServletRequest request ) {
-        final Principal p = request.getUserPrincipal();
-        return p != null ? p.getName() : null;
+        return RestAuditSupport.currentLogin( request );
     }
 }

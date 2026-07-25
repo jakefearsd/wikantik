@@ -213,6 +213,7 @@ run_step() {
       rc=${PIPESTATUS[0]}
       ;;
   esac
+  last_step_rc="$rc"
   if [ "$rc" -eq 0 ]; then
     dur="$(fmt_dur $(( $(date +%s) - t0 )) )"
     local summary
@@ -232,10 +233,33 @@ run_step() {
 start_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "Wikantik test suite — started ${start_ts}" | tee -a "$REPORT"
 
+# 0 when the unit phase was skipped (--it): that flag's contract is "assumes --unit
+# ran", so the caller is asserting the artifacts are already installed.
+unit_phase_rc=0
+
 if [ "$RUN_UNIT" = 1 ]; then
   # Parallel unit reactor: compile all, run unit tests, install artifacts (incl. WAR).
   run_step "Phase 1: unit reactor (-T ${UNIT_PARALLELISM} -DskipITs)" "${LOG_DIR}/phase1-unit.log" \
     clean install -T "${UNIT_PARALLELISM}" -DskipITs
+  unit_phase_rc="$last_step_rc"
+fi
+
+# Phase 1 starts with `clean` and ends with `install`. If it fails, THIS tree's
+# artifacts were never installed — but the previous build's still sit in ~/.m2, so
+# the IT modules (which resolve deps from there, deliberately without -am) happily
+# run against stale jars and report PASS/FAIL for code that is not what you just
+# changed. That is worse than no result at all: it sends you chasing IT failures
+# that are really Phase-1 fallout, or hands you a green IT phase for code that
+# never compiled. Skip instead.
+if [ "$RUN_IT" = 1 ] && [ "$unit_phase_rc" -ne 0 ]; then
+  {
+    echo "SKIP  IT phase — Phase 1 failed, so this tree's artifacts were never installed."
+    echo "        The IT modules resolve from ~/.m2 and would silently test the PREVIOUS"
+    echo "        build's jars. Fix the unit failures and re-run."
+    echo "        To run the ITs against artifacts you have installed yourself:"
+    echo "            mvn clean install -DskipTests -T 1C && bin/run-tests.sh --it --parallel ${IT_PARALLELISM}"
+  } | tee -a "$REPORT"
+  RUN_IT=0
 fi
 
 if [ "$RUN_IT" = 1 ]; then

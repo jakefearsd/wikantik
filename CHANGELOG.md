@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.11] - 2026-07-25
+
 ### Added
 - **Code-health site.** `bin/site.sh` generates an aggregated Maven site — unit+IT
   coverage, module coupling (graphviz SVG), PMD/CPD, SpotBugs, surefire, tech-debt

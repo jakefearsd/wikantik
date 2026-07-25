@@ -186,6 +186,25 @@ SpotBugs, tests, tech-debt, and dependency health, with per-module drill-down.
   falls back to a linked `.dot`).
 - Design: `docs/superpowers/specs/2026-07-23-code-health-site-design.md`.
 
+#### Ad-hoc PMD/SpotBugs runs: go through Maven
+
+Run `mvn pmd:pmd` / `mvn spotbugs:spotbugs` (after a build, so `target/classes`
+exists). Do **not** drive the PMD CLI directly unless you also pass
+`--aux-classpath` — several rules need type resolution, and without it the report
+is wrong in *both* directions:
+
+- **False positives.** `InvalidLogMessageFormat` flags all ~84 uses of the standard
+  `LOG.error("x: {}", e.getMessage(), e)` idiom, because it cannot see that the
+  trailing argument is a `Throwable` (which binds to the stack trace, not to a
+  `{}`). Through Maven this rule reports **zero**. `CloseResource` likewise
+  mistakes `org.apache.jena.rdf.model.Statement` for `java.sql.Statement`.
+- **False negatives.** `CheckResultSet`, `UnusedAssignment` and several
+  `CompareObjectsWithEquals` cases do not fire at all without type resolution.
+
+A 2026-07-25 sweep hit both: a bare CLI run reported 84 phantom log-format
+violations while missing findings the Maven run surfaces. Reach for the CLI only
+when you need a ruleset the poms do not configure, and give it `--aux-classpath`.
+
 ## Active Design Documents — detailed status
 
 Slim "read before touching" pointers live in `CLAUDE.md`. The detailed "what shipped" status for

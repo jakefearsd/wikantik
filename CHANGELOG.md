@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Code-health site.** `bin/site.sh` generates an aggregated Maven site — unit+IT
+  coverage, module coupling (graphviz SVG), PMD/CPD, SpotBugs, surefire, tech-debt
+  (TODO/FIXME) and dependency-update reports, with per-module drill-down — and
+  `bin/deploy-site.sh` publishes it to https://wikantik.com/site (excluded from
+  indexing). Reporting only: no build gate and no change to `mvn install`.
+
+### Removed
+- **The legacy `pageName` / `pageNames` / `name` aliases for `slug` / `slugs`** on the
+  admin and knowledge MCP tools. Every affected tool already declared `slug` required
+  and advertised it in its description; the aliases only worked because mcp-sdk 1.x did
+  not validate tool inputs. Under 2.0.0 the SDK rejects an alias-only call before the
+  tool runs, so the aliases are gone rather than left half-working. **Callers must send
+  `slug`/`slugs`.** MCP *prompt* arguments (e.g. `audit-links`) are a separate surface
+  and still use `pageName`; response payloads still carry a `pageName` field.
+
 ### Security
 - **Server-side rendering of `/wiki/*` now enforces the view ACL.** `SpaRoutingFilter`
   rendered the full page body into the SSR `#root` and the JSON data island for every
@@ -43,6 +59,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   incompatible with jena-arq 6.1.0 and breaks TDB2 write transactions (which in turn made the
   Knowledge Graph subsystem report itself disabled and 503 every admin KG endpoint), and
   0.23.0 already carries the CVE-2026-43869 fix.
+- **Code-quality pass** from a full SpotBugs + PMD + CPD sweep. Three swallowed auth
+  exceptions now log (notably `JDBCGroupDatabase`, where a `SQLException` made a database
+  failure look like an empty group, silently suppressing every permission its members
+  derive from it); the five worst CPD duplications were factored out; dead loggers, fields
+  and imports removed; `QueryStructureHeuristic` pinned to `Locale.ROOT` (its ASCII markers
+  stopped matching under a Turkish default locale). `LuceneSearchProvider` lost two
+  vestigial ACL fields and a stale comment that together implied it filtered results by
+  permission — it does not; that happens at the REST layer.
+
+### Fixed
+- **`bin/run-tests.sh` no longer reports IT results from a stale build.** Phase 1 ends with
+  `install`; when it failed, the IT modules (which resolve from `~/.m2` without `-am`) ran
+  against the *previous* build's jars and reported pass/fail for code that was not in the
+  working tree. The IT phase is now skipped with an explicit reason when the unit phase
+  fails. `--it` still runs unconditionally — that flag already means "assumes `--unit` ran".
 
 ## [2.3.10] - 2026-07-21
 

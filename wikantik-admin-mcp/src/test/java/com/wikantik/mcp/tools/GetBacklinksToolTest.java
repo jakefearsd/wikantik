@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.ToolSchemas;
+
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.test.StubReferenceManager;
@@ -49,7 +51,7 @@ class GetBacklinksToolTest {
         refMgr.addReferences( "PageC", Set.of( "TargetPage" ) );
         refMgr.addReferences( "PageA", Set.of( "TargetPage" ) );
 
-        final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "TargetPage" ) );
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slug", "TargetPage" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         final Map< String, Object > data = gson.fromJson( json, Map.class );
 
@@ -67,7 +69,7 @@ class GetBacklinksToolTest {
         // Page exists in references but nothing links to it
         refMgr.addReferences( "LonelyPage", Set.of( "SomeOtherPage" ) );
 
-        final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "NonexistentTarget" ) );
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slug", "NonexistentTarget" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         final Map< String, Object > data = gson.fromJson( json, Map.class );
 
@@ -82,7 +84,7 @@ class GetBacklinksToolTest {
     void testSingleBacklink() {
         refMgr.addReferences( "SourcePage", Set.of( "MyPage" ) );
 
-        final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "MyPage" ) );
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slug", "MyPage" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         final Map< String, Object > data = gson.fromJson( json, Map.class );
 
@@ -99,9 +101,9 @@ class GetBacklinksToolTest {
         assertNotNull( def.description() );
         assertTrue( def.description().contains( "backlinks" ) );
         assertNotNull( def.inputSchema() );
-        assertTrue( def.inputSchema().required().contains( "slug" ) );
+        assertTrue( ToolSchemas.required( def.inputSchema() ).contains( "slug" ) );
         // Phase 6: per-property examples present on input schema.
-        final Map< String, Object > props = def.inputSchema().properties();
+        final Map< String, Object > props = ToolSchemas.properties( def.inputSchema() );
         final Map< String, Object > pageNameProp = ( Map< String, Object > ) props.get( "slug" );
         assertTrue( pageNameProp.containsKey( "examples" ),
                 "input schema property 'pageName' should advertise examples for agent first-call success" );
@@ -120,7 +122,7 @@ class GetBacklinksToolTest {
     @Test
     void testResultIsNotError() {
         refMgr.addReferences( "A", Set.of( "B" ) );
-        final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "B" ) );
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slug", "B" ) );
         assertNotEquals( Boolean.TRUE, result.isError() );
     }
 }

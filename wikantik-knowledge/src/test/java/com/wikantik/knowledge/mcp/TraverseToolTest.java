@@ -45,8 +45,8 @@ class TraverseToolTest {
 
     @Test
     void definition_requiresStartNode() {
-        assertTrue( new TraverseTool( mock( KnowledgeGraphService.class ) )
-            .definition().inputSchema().required().contains( "start_node" ) );
+        assertTrue( ToolSchemas.required( new TraverseTool( mock( KnowledgeGraphService.class ) )
+            .definition().inputSchema() ).contains( "start_node" ) );
     }
 
     @Test

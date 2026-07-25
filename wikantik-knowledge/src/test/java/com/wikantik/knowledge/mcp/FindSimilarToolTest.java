@@ -45,8 +45,8 @@ class FindSimilarToolTest {
 
     @Test
     void definition_requiresNode() {
-        assertTrue( new FindSimilarTool( mock( NodeMentionSimilarity.class ) )
-            .definition().inputSchema().required().contains( "node" ) );
+        assertTrue( ToolSchemas.required( new FindSimilarTool( mock( NodeMentionSimilarity.class ) )
+            .definition().inputSchema() ).contains( "node" ) );
     }
 
     @Test

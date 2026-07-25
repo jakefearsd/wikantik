@@ -53,7 +53,7 @@ class GetPageForAgentToolTest {
         assertEquals( "get_page_for_agent", def.name() );
         assertNotNull( def.description() );
         assertTrue( def.description().toLowerCase().contains( "agent" ) );
-        assertTrue( def.inputSchema().required().contains( "canonical_id" ) );
+        assertTrue( ToolSchemas.required( def.inputSchema() ).contains( "canonical_id" ) );
     }
 
     @Test

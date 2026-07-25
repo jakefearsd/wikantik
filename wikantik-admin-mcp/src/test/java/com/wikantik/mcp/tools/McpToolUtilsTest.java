@@ -32,18 +32,28 @@ class McpToolUtilsTest {
 
     private final Gson gson = new Gson();
 
+    /**
+     * The declared tool schemas mark {@code slug}/{@code slugs} as required, and since
+     * mcp-sdk 2.0.0 the SDK enforces that before {@code execute()} ever runs — so an
+     * alias-only call can no longer reach these helpers over the wire. Accepting the
+     * aliases here would leave the two layers disagreeing about the contract; the
+     * canonical key is now the only key.
+     */
     @Test
-    void pageSlug_resolvesCanonicalAndAliases() {
+    void pageSlug_resolvesOnlyTheCanonicalSlugKey() {
         assertEquals( "X", McpToolUtils.pageSlug( java.util.Map.of( "slug", "X" ) ) );
-        assertEquals( "X", McpToolUtils.pageSlug( java.util.Map.of( "pageName", "X" ) ) );
-        assertEquals( "X", McpToolUtils.pageSlug( java.util.Map.of( "name", "X" ) ) );
+        assertNull( McpToolUtils.pageSlug( java.util.Map.of( "pageName", "X" ) ),
+                "the legacy pageName alias is retired" );
+        assertNull( McpToolUtils.pageSlug( java.util.Map.of( "name", "X" ) ),
+                "the legacy name alias is retired" );
         assertNull( McpToolUtils.pageSlug( java.util.Map.of() ) );
     }
 
     @Test
-    void pageSlugs_resolvesCanonicalAndAliases() {
+    void pageSlugs_resolvesOnlyTheCanonicalSlugsKey() {
         assertEquals( java.util.List.of( "A" ), McpToolUtils.pageSlugs( java.util.Map.of( "slugs", java.util.List.of( "A" ) ) ) );
-        assertEquals( java.util.List.of( "A" ), McpToolUtils.pageSlugs( java.util.Map.of( "pageNames", java.util.List.of( "A" ) ) ) );
+        assertNull( McpToolUtils.pageSlugs( java.util.Map.of( "pageNames", java.util.List.of( "A" ) ) ),
+                "the legacy pageNames alias is retired" );
         assertNull( McpToolUtils.pageSlugs( java.util.Map.of() ) );
     }
 

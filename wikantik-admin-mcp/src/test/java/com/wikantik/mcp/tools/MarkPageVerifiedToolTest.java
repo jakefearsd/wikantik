@@ -62,7 +62,7 @@ class MarkPageVerifiedToolTest {
         tool.setDefaultAuthor( "bot" );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageNames", List.of( "CSSRibbon", "Main" ) ) );
+            "slugs", List.of( "CSSRibbon", "Main" ) ) );
 
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "system page" ),

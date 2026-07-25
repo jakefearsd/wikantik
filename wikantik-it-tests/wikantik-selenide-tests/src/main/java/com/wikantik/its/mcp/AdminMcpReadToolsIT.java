@@ -109,7 +109,7 @@ public class AdminMcpReadToolsIT extends WithMcpTestSetup {
         mcp.importPage( src,    "Points to [" + target + "](" + target + ") and nowhere else." );
 
         final Map< String, Object > result = mcp.callTool( "get_outbound_links",
-                Map.of( "pageName", src ) );
+                Map.of( "slug", src ) );
 
         final String body = result.toString();
         Assertions.assertTrue( body.contains( target ),
@@ -127,7 +127,7 @@ public class AdminMcpReadToolsIT extends WithMcpTestSetup {
         mcp.importPage( name, "Second revision — substantially different text." );
 
         final Map< String, Object > history = mcp.callTool( "get_page_history",
-                Map.of( "pageName", name ) );
+                Map.of( "slug", name ) );
         Assertions.assertNotNull( history, "history envelope must not be null" );
         final String historyBody = history.toString();
         Assertions.assertTrue(
@@ -135,7 +135,7 @@ public class AdminMcpReadToolsIT extends WithMcpTestSetup {
                 "history payload must mention version/revisions: " + historyBody );
 
         final Map< String, Object > diff = mcp.callTool( "diff_page",
-                Map.of( "pageName", name, "version1", 1, "version2", 2 ) );
+                Map.of( "slug", name, "version1", 1, "version2", 2 ) );
         Assertions.assertNotNull( diff.get( "diff" ),
                 "diff_page must return a 'diff' field: " + diff );
         Assertions.assertEquals( name, diff.get( "pageName" ),
@@ -154,7 +154,7 @@ public class AdminMcpReadToolsIT extends WithMcpTestSetup {
         mcp.importPage( real, "Verified page body." );
 
         final Map< String, Object > result = mcp.callTool( "verify_pages",
-                Map.of( "pageNames", List.of( real, missing ) ) );
+                Map.of( "slugs", List.of( real, missing ) ) );
 
         final List< Map< String, Object > > pages =
                 ( List< Map< String, Object > > ) result.get( "pages" );
@@ -193,7 +193,7 @@ public class AdminMcpReadToolsIT extends WithMcpTestSetup {
         // return at least an envelope describing the JSON-LD that would be
         // injected when the page renders.
         final Map< String, Object > result = mcp.callTool( "preview_structured_data",
-                Map.of( "pageName", "Main" ) );
+                Map.of( "slug", "Main" ) );
         Assertions.assertNotNull( result, "preview_structured_data envelope must not be null" );
         final String body = result.toString();
         Assertions.assertTrue( body.contains( "Main" ),
@@ -242,7 +242,7 @@ public class AdminMcpReadToolsIT extends WithMcpTestSetup {
         mcp.importPage( name, "Page body, no frontmatter yet." );
 
         final Map< String, Object > result = mcp.callTool( "mark_page_verified",
-                Map.of( "pageNames", List.of( name ),
+                Map.of( "slugs", List.of( name ),
                         "verifier", "janne",
                         "changeNote", "IT verification stamp" ) );
 
@@ -263,7 +263,7 @@ public class AdminMcpReadToolsIT extends WithMcpTestSetup {
 
         // Round-trip via read_page to confirm the frontmatter was persisted.
         final Map< String, Object > read = mcp.callTool( "read_page",
-                Map.of( "pageName", name ) );
+                Map.of( "slug", name ) );
         Assertions.assertNotNull( read, "read_page envelope must not be null" );
         Assertions.assertTrue( read.toString().contains( "verified_at" ),
                 "Persisted page must contain verified_at frontmatter: " + read );

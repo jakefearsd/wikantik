@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools.kg;
 
+import com.wikantik.mcp.ToolSchemas;
+
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
@@ -53,8 +55,8 @@ class QueryNodesToolTest {
 
     @Test
     void definition_hasNoRequiredArgs() {
-        assertTrue( new QueryNodesTool( mock( KnowledgeGraphService.class ) )
-            .definition().inputSchema().required().isEmpty() );
+        assertTrue( ToolSchemas.required( new QueryNodesTool( mock( KnowledgeGraphService.class ) )
+            .definition().inputSchema() ).isEmpty() );
     }
 
     @Test

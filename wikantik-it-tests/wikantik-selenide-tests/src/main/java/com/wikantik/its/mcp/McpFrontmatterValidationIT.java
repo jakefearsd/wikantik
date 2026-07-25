@@ -64,7 +64,7 @@ public class McpFrontmatterValidationIT extends WithMcpTestSetup {
 
         final Map< String, Object > response = mcp.callTool( "write_pages", Map.of(
                 "pages", List.of( Map.of(
-                        "pageName", pageName,
+                        "slug", pageName,
                         "content", "Body of the invalid audience test page.",
                         "metadata", Map.of(
                                 "type", "article",
@@ -102,7 +102,7 @@ public class McpFrontmatterValidationIT extends WithMcpTestSetup {
         // If write_pages silently wrote the page despite created=false, the delete
         // guard below would succeed and mask the regression; we verify separately.
         final Map< String, Object > readResult = mcp.callTool( "read_page",
-                Map.of( "pageName", pageName ) );
+                Map.of( "slug", pageName ) );
         Assertions.assertNotEquals( Boolean.TRUE, readResult.get( "exists" ),
                 "Page must NOT exist after a refused write: " + readResult );
     }
@@ -121,7 +121,7 @@ public class McpFrontmatterValidationIT extends WithMcpTestSetup {
         try {
             final Map< String, Object > response = mcp.callTool( "write_pages", Map.of(
                     "pages", List.of( Map.of(
-                            "pageName", pageName,
+                            "slug", pageName,
                             "content", "Body of the noncanonical status test page.",
                             "metadata", Map.of(
                                     "type", "article",
@@ -155,7 +155,7 @@ public class McpFrontmatterValidationIT extends WithMcpTestSetup {
             // (the assertion above would have already failed for that case).
             try {
                 mcp.callTool( "delete_pages", Map.of(
-                        "pageNames", List.of( pageName ),
+                        "slugs", List.of( pageName ),
                         "confirm", true ) );
             } catch ( final Exception e ) {
                 // Cleanup failure must not mask test results.

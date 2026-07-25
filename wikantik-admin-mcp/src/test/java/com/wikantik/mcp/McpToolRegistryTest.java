@@ -63,7 +63,7 @@ class McpToolRegistryTest {
         all.addAll( registry.authorConfigurableTools() );
         final List< String > offenders = new java.util.ArrayList<>();
         for ( final McpTool t : all ) {
-            final var props = t.definition().inputSchema().properties();
+            final var props = ToolSchemas.properties( t.definition().inputSchema() );
             if ( props != null && ( props.containsKey( "pageName" ) || props.containsKey( "pageNames" ) ) ) {
                 offenders.add( t.name() );
             }

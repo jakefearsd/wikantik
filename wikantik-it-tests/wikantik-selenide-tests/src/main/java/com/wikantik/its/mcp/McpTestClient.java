@@ -133,7 +133,7 @@ public class McpTestClient implements AutoCloseable {
     public Map< String, Object > importPage( final String pageName, final String content,
                                                final Map< String, Object > metadata, final String changeNote ) {
         final Map< String, Object > pageEntry = new LinkedHashMap<>();
-        pageEntry.put( "pageName", pageName );
+        pageEntry.put( "slug", pageName );
         pageEntry.put( "content", content );
         if ( metadata != null && !metadata.isEmpty() ) {
             pageEntry.put( "metadata", metadata );
@@ -188,7 +188,7 @@ public class McpTestClient implements AutoCloseable {
     }
 
     public Map< String, Object > getBacklinks( final String pageName ) {
-        return callTool( "get_backlinks", Map.of( "pageName", pageName ) );
+        return callTool( "get_backlinks", Map.of( "slug", pageName ) );
     }
 
     @Override

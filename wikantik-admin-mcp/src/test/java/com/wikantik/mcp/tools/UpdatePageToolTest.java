@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.ToolSchemas;
+
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.frontmatter.schema.FieldViolation;
@@ -50,7 +52,7 @@ class UpdatePageToolTest {
     void definition_requiresOnlySlugAndHash_contentOptional() {
         final UpdatePageTool t = new UpdatePageTool(
             mock( PageSaveHelper.class ), mock( PageManager.class ), null );
-        final var req = t.definition().inputSchema().required();
+        final var req = ToolSchemas.required( t.definition().inputSchema() );
         assertTrue( req.contains( "slug" ) );
         assertTrue( req.contains( "expectedContentHash" ) );
         // content is now OPTIONAL — a metadata-only edit must not require re-sending the body.
@@ -71,7 +73,7 @@ class UpdatePageToolTest {
         final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
         tool.setDefaultAuthor( "bot" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageName", "P",
+            "slug", "P",
             "content", "new body",
             "expectedContentHash", currentHash ) );
 
@@ -99,7 +101,7 @@ class UpdatePageToolTest {
 
         final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageName", "P", "content", "new body", "expectedContentHash", currentHash ) );
+            "slug", "P", "content", "new body", "expectedContentHash", currentHash ) );
 
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "\"updated\":false" ) );
@@ -126,7 +128,7 @@ class UpdatePageToolTest {
 
         final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageName", "P", "content", "new body", "expectedContentHash", currentHash ) );
+            "slug", "P", "content", "new body", "expectedContentHash", currentHash ) );
 
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "\"updated\":true" ) );
@@ -158,7 +160,7 @@ class UpdatePageToolTest {
 
         final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageName", "P", "content", "new body", "expectedContentHash", currentHash ) );
+            "slug", "P", "content", "new body", "expectedContentHash", currentHash ) );
 
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "\"updated\":true" ) );
@@ -182,7 +184,7 @@ class UpdatePageToolTest {
         final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
         tool.setDefaultAuthor( "bot" );
         // Body-only content + a single-field metadata edit must NOT drop the other fields.
-        tool.execute( Map.of( "pageName", "P", "content", "# Body\n\nnew text",
+        tool.execute( Map.of( "slug", "P", "content", "# Body\n\nnew text",
             "metadata", Map.of( "summary", "a brand new summary that is over fifty characters long" ),
             "expectedContentHash", hash ) );
 
@@ -213,7 +215,7 @@ class UpdatePageToolTest {
         final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
         tool.setDefaultAuthor( "bot" );
         // No "content" key at all — a metadata-only edit.
-        tool.execute( Map.of( "pageName", "P",
+        tool.execute( Map.of( "slug", "P",
             "metadata", Map.of( "summary", "added summary that comfortably exceeds fifty chars here" ),
             "expectedContentHash", hash ) );
 
@@ -236,7 +238,7 @@ class UpdatePageToolTest {
 
         final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageName", "P", "expectedContentHash", hash ) );
+            "slug", "P", "expectedContentHash", hash ) );
 
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "nothing to update" ) );
@@ -267,7 +269,7 @@ class UpdatePageToolTest {
         final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
         tool.setDefaultAuthor( "bot" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageName", "P",
+            "slug", "P",
             "content", "new body",
             "expectedContentHash", currentHash ) );
 
@@ -288,7 +290,7 @@ class UpdatePageToolTest {
         final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
         tool.setDefaultAuthor( "bot" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageName", "P",
+            "slug", "P",
             "content", "new body",
             "expectedContentHash", "staleHashValue" ) );
 
@@ -313,7 +315,7 @@ class UpdatePageToolTest {
 
         final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageName", "Missing",
+            "slug", "Missing",
             "content", "body",
             "expectedContentHash", "doesNotMatter" ) );
 
@@ -327,7 +329,7 @@ class UpdatePageToolTest {
         final UpdatePageTool tool = new UpdatePageTool(
             mock( PageSaveHelper.class ), mock( PageManager.class ), null );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageName", "",
+            "slug", "",
             "content", "body",
             "expectedContentHash", "h" ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
@@ -339,7 +341,7 @@ class UpdatePageToolTest {
         final UpdatePageTool tool = new UpdatePageTool(
             mock( PageSaveHelper.class ), mock( PageManager.class ), null );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageName", "P",
+            "slug", "P",
             "content", "body",
             "expectedContentHash", "" ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
@@ -358,7 +360,7 @@ class UpdatePageToolTest {
         final UpdatePageTool tool = new UpdatePageTool( helper, pm, sys );
         tool.setDefaultAuthor( "bot" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageName", "CSSRibbon",
+            "slug", "CSSRibbon",
             "content", ".malicious { display: none }",
             "expectedContentHash", "anything" ) );
 
@@ -386,7 +388,7 @@ class UpdatePageToolTest {
         final UpdatePageTool tool = new UpdatePageTool( helper, pm, sys );
         tool.setDefaultAuthor( "bot" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageName", "About",
+            "slug", "About",
             "content", "# About\n\nupdated",
             "expectedContentHash", "anything" ) );
 
@@ -405,7 +407,7 @@ class UpdatePageToolTest {
         final UpdatePageTool tool = new UpdatePageTool(
             mock( PageSaveHelper.class ), pm, null );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
-            "pageName", "P",
+            "slug", "P",
             "content", "body",
             "expectedContentHash", "h" ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();

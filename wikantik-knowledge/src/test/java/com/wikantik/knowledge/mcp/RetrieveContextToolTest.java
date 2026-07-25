@@ -30,7 +30,7 @@ class RetrieveContextToolTest {
         final RetrieveContextTool t = new RetrieveContextTool( mock( ContextRetrievalService.class ) );
         final McpSchema.Tool def = t.definition();
         assertEquals( "retrieve_context", def.name() );
-        assertTrue( def.inputSchema().required().contains( "query" ) );
+        assertTrue( ToolSchemas.required( def.inputSchema() ).contains( "query" ) );
     }
 
     @Test

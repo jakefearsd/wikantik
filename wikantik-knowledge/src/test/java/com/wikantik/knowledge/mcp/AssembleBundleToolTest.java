@@ -87,7 +87,7 @@ class AssembleBundleToolTest {
         assertEquals( "assemble_bundle", tool.name() );
         final McpSchema.Tool def = tool.definition();
         assertEquals( "assemble_bundle", def.name() );
-        assertTrue( def.inputSchema().required().contains( "query" ) );
+        assertTrue( ToolSchemas.required( def.inputSchema() ).contains( "query" ) );
     }
 
     @Test

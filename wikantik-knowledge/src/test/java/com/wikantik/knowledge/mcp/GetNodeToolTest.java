@@ -46,8 +46,8 @@ class GetNodeToolTest {
 
     @Test
     void definition_requiresNode() {
-        assertTrue( new GetNodeTool( mock( KnowledgeGraphService.class ) )
-            .definition().inputSchema().required().contains( "node" ) );
+        assertTrue( ToolSchemas.required( new GetNodeTool( mock( KnowledgeGraphService.class ) )
+            .definition().inputSchema() ).contains( "node" ) );
     }
 
     @Test

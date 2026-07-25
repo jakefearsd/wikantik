@@ -6,6 +6,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- **Server-side rendering of `/wiki/*` now enforces the view ACL.** `SpaRoutingFilter`
+  rendered the full page body into the SSR `#root` and the JSON data island for every
+  HTML request, with no permission check at all — so an anonymous `GET /wiki/RestrictedPage`
+  returned the entire body even though `GET /wiki/RestrictedPage?format=md` correctly 404'd
+  (`WikiPageFormatFilter`, mapped to the same URL pattern, has always gated on `view`).
+  The SSR path now resolves the caller's session and applies the same check, serving the
+  bare SPA shell with a 404 when denied — hiding the body, title, summary and the page's
+  existence. The permission decision is also folded into the ETag, so a browser cannot be
+  handed a 304 for a body it is no longer allowed to see after logging out.
+- **Inline page ACLs now grant to the principal they name.** The page-text fast path handed
+  `parseAcl` the whole `[{ALLOW view Admin}]` match, whose `StringTokenizer` folded the
+  trailing `}]` into the *last* principal name — so `[{ALLOW view Admin}]` produced an entry
+  for a principal literally called `Admin}]`. The ACL was non-empty (so the page was
+  restricted) but matched nobody, denying every non-admin caller including the intended
+  grantee; with a comma-separated list only the final principal was affected. The braces are
+  now stripped before parsing, exactly as the render path has always done.
+
+### Changed
+- **mcp-sdk 1.1.2 → 2.0.0.** The SDK now validates tool inputs against the declared JSON
+  schema before `execute()` runs, and returns the input schema as a plain `Map` rather than
+  a typed `JsonSchema`. Consequently the **legacy `pageName`/`pageNames`/`name` aliases for
+  `slug`/`slugs` are retired** on the admin and knowledge MCP tools: every one of those tools
+  already declared `slug` required and advertised it in its description, and the aliases only
+  worked because 1.x validated nothing. Callers must send `slug`/`slugs`. The MCP *prompt*
+  arguments (e.g. `audit-links`) are a separate surface and still use `pageName`.
+- **Dependency refresh to latest stable.** apache parent 35 → 39 (which also required pinning
+  `maven.compiler.release`/`javaVersion` — the new parent derives all three compiler
+  coordinates from its own `javaVersion`, default 8, and `release` wins over `source`/`target`,
+  which silently compiled the reactor to Java 8), anthropic-java 2.44.0 → 2.52.0, junit
+  6.1.0 → 6.1.2, log4j2 2.26.0 → 2.26.1, pac4j 6.5.4 → 6.5.5, postgresql 42.7.11 → 42.7.13,
+  tika 3.3.1 → 3.3.2, selenide 7.16.2 → 7.17.0, selenium 4.45.0 → 4.46.0, bouncycastle
+  1.84 → 1.85, jackson3 3.2.0 → 3.2.1, okio 3.17.0 → 3.18.0, plus cargo/jar/spotbugs/taglist/
+  versions plugin bumps. `libthrift` is deliberately held at 0.23.0: 0.24.0 is binary-
+  incompatible with jena-arq 6.1.0 and breaks TDB2 write transactions (which in turn made the
+  Knowledge Graph subsystem report itself disabled and 503 every admin KG endpoint), and
+  0.23.0 already carries the CVE-2026-43869 fix.
+
 ## [2.3.10] - 2026-07-21
 
 ### Added

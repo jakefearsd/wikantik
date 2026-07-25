@@ -62,7 +62,7 @@ class GetPageByIdToolTest {
         assertEquals( "get_page_by_id", definition.name() );
         assertTrue( definition.description().contains( "canonical id" ) );
 
-        final Map< String, Object > props = definition.inputSchema().properties();
+        final Map< String, Object > props = ToolSchemas.properties( definition.inputSchema() );
         assertTrue( props.containsKey( "id" ) );
         assertTrue( props.containsKey( "canonical_id" ) );
         final Map< String, Object > canonicalIdProp = ( Map< String, Object > ) props.get( "canonical_id" );

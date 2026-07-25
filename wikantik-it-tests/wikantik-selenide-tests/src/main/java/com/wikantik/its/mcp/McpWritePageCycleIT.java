@@ -57,7 +57,7 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
         mcp.importPage( name, "Body of the read shape page." );
 
         final Map< String, Object > result = mcp.callTool( "read_page",
-                Map.of( "pageName", name ) );
+                Map.of( "slug", name ) );
         Assertions.assertEquals( Boolean.TRUE, result.get( "exists" ),
                 "read_page must set exists=true: " + result );
         Assertions.assertNotNull( result.get( "content" ),
@@ -72,7 +72,7 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
     public void readPage_missingPageMarksExistsFalse() {
         final String name = "DefinitelyMissing-" + System.nanoTime();
         final Map< String, Object > result = mcp.callTool( "read_page",
-                Map.of( "pageName", name ) );
+                Map.of( "slug", name ) );
         Assertions.assertEquals( Boolean.FALSE, result.get( "exists" ),
                 "read_page must set exists=false for missing pages: " + result );
     }
@@ -86,12 +86,12 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
         final String name = uniquePageName( "UpdateHappy" );
         mcp.importPage( name, "Original body." );
         final Map< String, Object > read = mcp.callTool( "read_page",
-                Map.of( "pageName", name ) );
+                Map.of( "slug", name ) );
         final String hash = ( String ) read.get( "contentHash" );
         Assertions.assertNotNull( hash, "read_page must provide a contentHash for the update path" );
 
         final Map< String, Object > updated = mcp.callTool( "update_page",
-                Map.of( "pageName", name,
+                Map.of( "slug", name,
                         "content", "Updated body.",
                         "expectedContentHash", hash ) );
         Assertions.assertEquals( Boolean.TRUE, updated.get( "updated" ),
@@ -99,7 +99,7 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
 
         // Round-trip: a fresh read must now show the new content.
         final Map< String, Object > postRead = mcp.callTool( "read_page",
-                Map.of( "pageName", name ) );
+                Map.of( "slug", name ) );
         Assertions.assertTrue( postRead.get( "content" ).toString().contains( "Updated body." ),
                 "read_page after update must reflect new content: " + postRead );
     }
@@ -115,13 +115,13 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
         mcp.importPage( name, "Original body for the hash round-trip check." );
 
         final Map< String, Object > read0 = mcp.callTool( "read_page",
-                Map.of( "pageName", name ) );
+                Map.of( "slug", name ) );
         final String hash0 = ( String ) read0.get( "contentHash" );
 
         // Update with frontmatter so the save pipeline exercises canonical_id
         // enforcement + frontmatter re-serialization on the persisted text.
         final Map< String, Object > first = mcp.callTool( "update_page",
-                Map.of( "pageName", name,
+                Map.of( "slug", name,
                         "content", "---\ntitle: " + name + "\ndate: 2026-05-08\n"
                                 + "tags: [round-trip, hashing]\nsummary: Hash round-trip check.\n---\n\nFirst body.",
                         "expectedContentHash", hash0 ) );
@@ -133,7 +133,7 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
 
         // The returned hash must equal the hash a fresh read_page reports.
         final Map< String, Object > read1 = mcp.callTool( "read_page",
-                Map.of( "pageName", name ) );
+                Map.of( "slug", name ) );
         Assertions.assertEquals( read1.get( "contentHash" ), returnedHash,
                 "update_page newContentHash must equal the subsequent read_page contentHash "
                 + "— it must hash the persisted text, not a reconstruction. returned="
@@ -143,7 +143,7 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
         // hash, with no intervening read. With the bug this rejected as a false
         // "hash mismatch".
         final Map< String, Object > second = mcp.callTool( "update_page",
-                Map.of( "pageName", name,
+                Map.of( "slug", name,
                         "content", "---\ntitle: " + name + "\ndate: 2026-05-08\n"
                                 + "tags: [round-trip, hashing]\nsummary: Hash round-trip check.\n---\n\nSecond body.",
                         "expectedContentHash", returnedHash ) );
@@ -159,11 +159,11 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
 
         // First update — succeeds; second update with the OLD hash must fail.
         final Map< String, Object > read1 = mcp.callTool( "read_page",
-                Map.of( "pageName", name ) );
+                Map.of( "slug", name ) );
         final String hash1 = ( String ) read1.get( "contentHash" );
 
         final Map< String, Object > first = mcp.callTool( "update_page",
-                Map.of( "pageName", name,
+                Map.of( "slug", name,
                         "content", "First update.",
                         "expectedContentHash", hash1 ) );
         Assertions.assertEquals( Boolean.TRUE, first.get( "updated" ),
@@ -171,7 +171,7 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
 
         // Now reuse hash1 — it is stale.
         final Map< String, Object > stale = mcp.callTool( "update_page",
-                Map.of( "pageName", name,
+                Map.of( "slug", name,
                         "content", "Second update — should reject.",
                         "expectedContentHash", hash1 ) );
         Assertions.assertEquals( Boolean.FALSE, stale.get( "updated" ),
@@ -195,7 +195,7 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
         final McpTestClient.McpToolError thrown = Assertions.assertThrows(
                 McpTestClient.McpToolError.class,
                 () -> mcp.callTool( "update_page",
-                        Map.of( "pageName", name, "content", "Doomed update." ) ),
+                        Map.of( "slug", name, "content", "Doomed update." ) ),
                 "update_page without expectedContentHash must raise an MCP error" );
         Assertions.assertTrue( thrown.getResponseText() != null
                         && thrown.getResponseText().toLowerCase().contains( "hash" ),
@@ -228,14 +228,14 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
                 "rename_page must signal success: " + renameBody );
 
         final Map< String, Object > newRead = mcp.callTool( "read_page",
-                Map.of( "pageName", newName ) );
+                Map.of( "slug", newName ) );
         Assertions.assertEquals( Boolean.TRUE, newRead.get( "exists" ),
                 "renamed slug must exist: " + newRead );
         Assertions.assertTrue( newRead.get( "content" ).toString().contains( "Content to be moved" ),
                 "renamed slug must carry the original content: " + newRead );
 
         final Map< String, Object > oldRead = mcp.callTool( "read_page",
-                Map.of( "pageName", oldName ) );
+                Map.of( "slug", oldName ) );
         Assertions.assertEquals( Boolean.FALSE, oldRead.get( "exists" ),
                 "old slug must no longer exist after rename: " + oldRead );
     }
@@ -252,7 +252,7 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
 
         final McpTestClient.McpToolError thrown = Assertions.assertThrows(
                 McpTestClient.McpToolError.class,
-                () -> mcp.callTool( "delete_pages", Map.of( "pageNames", List.of( name ) ) ),
+                () -> mcp.callTool( "delete_pages", Map.of( "slugs", List.of( name ) ) ),
                 "delete_pages without confirm=true must raise an MCP error" );
         Assertions.assertTrue( thrown.getResponseText() != null
                         && thrown.getResponseText().contains( "confirm" ),
@@ -260,7 +260,7 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
 
         // The page must still exist — the safety check fired before any delete ran.
         final Map< String, Object > postRead = mcp.callTool( "read_page",
-                Map.of( "pageName", name ) );
+                Map.of( "slug", name ) );
         Assertions.assertEquals( Boolean.TRUE, postRead.get( "exists" ),
                 "unconfirmed delete must leave the page intact: " + postRead );
     }
@@ -271,7 +271,7 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
         mcp.importPage( name, "Body to be deleted." );
 
         final Map< String, Object > delete = mcp.callTool( "delete_pages",
-                Map.of( "pageNames", List.of( name ), "confirm", true ) );
+                Map.of( "slugs", List.of( name ), "confirm", true ) );
         Assertions.assertNotNull( delete, "delete_pages envelope must not be null" );
         // The tool returns a per-page results array or a flat success message —
         // assert that the page name appears in the response so we know the
@@ -281,7 +281,7 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
 
         // Confirm via read_page that the slug is gone.
         final Map< String, Object > postRead = mcp.callTool( "read_page",
-                Map.of( "pageName", name ) );
+                Map.of( "slug", name ) );
         Assertions.assertEquals( Boolean.FALSE, postRead.get( "exists" ),
                 "deleted slug must read as missing: " + postRead );
     }

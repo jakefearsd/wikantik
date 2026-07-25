@@ -55,7 +55,7 @@ public class McpSystemPageProtectionIT extends WithMcpTestSetup {
     @Test
     public void updatePageRefusesSystemPage() {
         final Map< String, Object > result = mcp.callTool( "update_page", Map.of(
-                "pageName", SYSTEM_PAGE,
+                "slug", SYSTEM_PAGE,
                 "content", "/* malicious style injection */",
                 "expectedContentHash", "sha256:any" ) );
 
@@ -77,13 +77,13 @@ public class McpSystemPageProtectionIT extends WithMcpTestSetup {
     @Test
     public void updatePageAllowsEditorialAboutSystemPage() {
         final Map< String, Object > current = mcp.callTool( "read_page", Map.of(
-                "pageName", "About" ) );
+                "slug", "About" ) );
         Assertions.assertEquals( Boolean.TRUE, current.get( "exists" ),
                 "About must be seeded into the IT test-repo" );
         final String hash = String.valueOf( current.get( "contentHash" ) );
 
         final Map< String, Object > result = mcp.callTool( "update_page", Map.of(
-                "pageName", "About",
+                "slug", "About",
                 "content", current.get( "content" ) + "\n\nEdited via MCP.\n",
                 "expectedContentHash", hash ) );
 
@@ -95,7 +95,7 @@ public class McpSystemPageProtectionIT extends WithMcpTestSetup {
     public void writePagesRefusesSystemPage() {
         final Map< String, Object > response = mcp.callTool( "write_pages", Map.of(
                 "pages", List.of(
-                        Map.of( "pageName", SYSTEM_PAGE,
+                        Map.of( "slug", SYSTEM_PAGE,
                                 "content", "/* shadow CSS */" ) ) ) );
 
         @SuppressWarnings( "unchecked" )
@@ -122,7 +122,7 @@ public class McpSystemPageProtectionIT extends WithMcpTestSetup {
         // the system-page check fires before the existence check.
         final Map< String, Object > response = mcp.callTool( "write_pages", Map.of(
                 "pages", List.of(
-                        Map.of( "pageName", SYSTEM_PAGE,
+                        Map.of( "slug", SYSTEM_PAGE,
                                 "content", "/* would be a fresh write if the page were missing */" ) ) ) );
 
         @SuppressWarnings( "unchecked" )
@@ -136,7 +136,7 @@ public class McpSystemPageProtectionIT extends WithMcpTestSetup {
     @Test
     public void deletePagesRefusesSystemPage() {
         final Map< String, Object > response = mcp.callTool( "delete_pages", Map.of(
-                "pageNames", List.of( SYSTEM_PAGE ),
+                "slugs", List.of( SYSTEM_PAGE ),
                 "confirm", true ) );
 
         @SuppressWarnings( "unchecked" )
@@ -189,7 +189,7 @@ public class McpSystemPageProtectionIT extends WithMcpTestSetup {
         // trusted author has verified within the stale window. Letting agents stamp
         // shipped help / CSS / menu pages would be a soft attack on those signals.
         final Map< String, Object > response = mcp.callTool( "mark_page_verified", Map.of(
-                "pageNames", List.of( SYSTEM_PAGE ) ) );
+                "slugs", List.of( SYSTEM_PAGE ) ) );
 
         @SuppressWarnings( "unchecked" )
         final List< Map< String, Object > > results = ( List< Map< String, Object > > ) response.get( "results" );
@@ -211,7 +211,7 @@ public class McpSystemPageProtectionIT extends WithMcpTestSetup {
         // The protection must be write-only. Reads of system pages remain allowed —
         // agents need to be able to inspect CSS / menu / help text for context.
         final Map< String, Object > result = mcp.callTool( "read_page", Map.of(
-                "pageName", SYSTEM_PAGE ) );
+                "slug", SYSTEM_PAGE ) );
         Assertions.assertEquals( Boolean.TRUE, result.get( "exists" ),
                 "read_page must still expose the system page — protection is write-only" );
         Assertions.assertNotNull( result.get( "content" ),

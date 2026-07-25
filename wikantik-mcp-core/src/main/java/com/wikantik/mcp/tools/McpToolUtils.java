@@ -199,14 +199,23 @@ public final class McpToolUtils {
         return null;
     }
 
-    /** Canonical singular page identifier: advertises {@code slug}; accepts legacy/guessable aliases. */
+    /**
+     * The singular page identifier: {@code slug}, and only {@code slug}.
+     *
+     * <p>These helpers used to accept the legacy aliases {@code pageName}/{@code name}/
+     * {@code page}, which worked because mcp-sdk 1.x never validated tool inputs. Since
+     * 2.0.0 the SDK validates the call against the declared schema first, and every one
+     * of these tools declares {@code slug} required — so an alias-only call is rejected
+     * before {@code execute()} runs. Keeping the aliases here would only leave the two
+     * layers disagreeing about the contract.
+     */
     public static String pageSlug( final Map< String, Object > args ) {
-        return getStringAny( args, "slug", "pageName", "name", "page" );
+        return getStringAny( args, "slug" );
     }
 
-    /** Canonical plural page identifiers: first list-valued arg among the accepted keys, else null. */
+    /** The plural page identifiers: {@code slugs}, and only {@code slugs}. See {@link #pageSlug}. */
     public static List< ? > pageSlugs( final Map< String, Object > args ) {
-        return firstListArg( args, "slugs", "pageNames", "names", "pages" );
+        return firstListArg( args, "slugs" );
     }
 
     /**

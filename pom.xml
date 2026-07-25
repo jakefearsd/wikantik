@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>35</version>
+    <version>39</version>
   </parent>
 
   <groupId>com.wikantik</groupId>
@@ -44,7 +44,7 @@
     <maven.version>3.5</maven.version>
 
     <akismet-java.version>1.0.0</akismet-java.version>
-    <anthropic-java.version>2.44.0</anthropic-java.version>
+    <anthropic-java.version>2.52.0</anthropic-java.version>
     <awaitility.version>4.3.0</awaitility.version>
     <bcrypt.version>0.10.2</bcrypt.version>
     <commons-collections.version>4.5.0</commons-collections.version>
@@ -59,7 +59,7 @@
     <freshcookies-security.version>0.60</freshcookies-security.version>
     <gson.version>2.14.0</gson.version>
     <pgvector.image>pgvector/pgvector:pg17</pgvector.image>
-    <postgresql-jdbc.version>42.7.11</postgresql-jdbc.version>
+    <postgresql-jdbc.version>42.7.13</postgresql-jdbc.version>
     <jakarta-activation.version>2.0.1</jakarta-activation.version>
     <jakarta-activation-api.version>2.1.4</jakarta-activation-api.version>
     <jakarta-mail.version>2.0.2</jakarta-mail.version>
@@ -82,21 +82,21 @@
          pre-interpolated into the cargo/failsafe config in the effective POM,
          shadowing the reservation — so the property stays undefined until the
          reserve goal sets it at process-test-resources. -->
-    <junit.version>6.1.0</junit.version>
-    <log4j2.version>2.26.0</log4j2.version>
+    <junit.version>6.1.2</junit.version>
+    <log4j2.version>2.26.1</log4j2.version>
     <lucene.version>10.5.0</lucene.version>
     <mockito.version>5.23.0</mockito.version>
     <nekohtml.version>3.0.3</nekohtml.version>
     <owasp-html-sanitizer.version>20260313.1</owasp-html-sanitizer.version>
-    <pac4j.version>6.5.4</pac4j.version>
+    <pac4j.version>6.5.5</pac4j.version>
     <rome.version>2.1.0</rome.version>
-    <selenide.version>7.16.2</selenide.version>
-    <selenium.version>4.45.0</selenium.version>
+    <selenide.version>7.17.0</selenide.version>
+    <selenium.version>4.46.0</selenium.version>
     <slf4j.version>2.0.18</slf4j.version>
-    <tika.version>3.3.1</tika.version>
+    <tika.version>3.3.2</tika.version>
     <tomcat.version>11.0.18</tomcat.version>
     <xstream.version>1.4.21</xstream.version>
-    <mcp-sdk.version>1.1.2</mcp-sdk.version>
+    <mcp-sdk.version>2.0.0</mcp-sdk.version>
     <snakeyaml.version>2.6</snakeyaml.version>
     <tribuo.version>4.3.2</tribuo.version>
     <xmemcached.version>2.4.9</xmemcached.version>
@@ -114,14 +114,20 @@
          OSV.dev scan of the resolved tree on 2026-06-21. Remove a
          pin once the declaring dependency ships the fix itself.
          ============================================================ -->
-    <sec.bouncycastle.version>1.84</sec.bouncycastle.version>             <!-- via pac4j-saml/oidc + tika-crypto; CVE-2026-5598/-0636/-5588 -->
+    <sec.bouncycastle.version>1.85</sec.bouncycastle.version>             <!-- via pac4j-saml/oidc + tika-crypto; CVE-2026-5598/-0636/-5588 -->
     <sec.commons-beanutils.version>1.11.0</sec.commons-beanutils.version> <!-- via tribuo->opencsv;          CVE-2025-48734 -->
-    <sec.jackson3.version>3.2.0</sec.jackson3.version>                    <!-- via mcp-sdk (Jackson 3 family); CVE-2026-29062 +2 -->
+    <sec.jackson3.version>3.2.1</sec.jackson3.version>                    <!-- via mcp-sdk (Jackson 3 family); CVE-2026-29062 +2 -->
     <sec.jackson2.version>2.22.1</sec.jackson2.version>                   <!-- via pac4j-core (2.22.0) + tika-parser-cad-module (2.21.3); GHSA-5jmj-h7xm-6q6v + 2.21.x GHSAs, all fixed by 2.22.1 -->
+    <!-- PINNED AT 0.23.0 — do NOT bump to 0.24.0: it is binary-incompatible with
+         jena-arq 6.1.0 and breaks TDB2 write transactions (Tdb2SmokeTest fails with a
+         masked "forced abort", and the KG/ontology subsystem then reports itself
+         disabled, 503-ing every admin KG endpoint). 0.23.0 already carries the
+         CVE-2026-43869 fix, so there is no security reason to move. Revisit only when
+         Jena itself upgrades. -->
     <sec.libthrift.version>0.23.0</sec.libthrift.version>                 <!-- via jena-arq;                  CVE-2026-43869 -->
     <sec.junrar.version>7.6.0</sec.junrar.version>                       <!-- via tika-parsers;              CVE-2026-41245 -->
     <sec.guava.version>33.6.0-jre</sec.guava.version>                    <!-- via pac4j-oidc/pac4j-saml (opensaml); CVE-2023-2976, CVE-2020-8908 -->
-    <sec.okio.version>3.17.0</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
+    <sec.okio.version>3.18.0</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
 
     <plugin.antrun.version>3.2.0</plugin.antrun.version>
     <plugin.assembly.version>3.8.0</plugin.assembly.version>
@@ -130,7 +136,7 @@
     <plugin.dependency.version>3.11.0</plugin.dependency.version>
     <plugin.enforcer.version>3.6.3</plugin.enforcer.version>
     <plugin.install.version>3.1.4</plugin.install.version>
-    <plugin.jar.version>3.5.0</plugin.jar.version>
+    <plugin.jar.version>3.5.1</plugin.jar.version>
     <plugin.javadoc.version>3.12.0</plugin.javadoc.version>
     <plugin.jxr.version>3.6.0</plugin.jxr.version>
     <plugin.project-info-reports.version>3.9.0</plugin.project-info-reports.version>
@@ -142,12 +148,12 @@
     <plugin.war.version>3.5.1</plugin.war.version>
     <plugin.build-helper.version>3.6.1</plugin.build-helper.version>
     <plugin.checksum.version>1.11</plugin.checksum.version>
-    <plugin.cargo.version>1.10.27</plugin.cargo.version>
+    <plugin.cargo.version>1.10.28</plugin.cargo.version>
     <plugin.docker.version>0.48.1</plugin.docker.version>
     <plugin.pmd.version>3.28.0</plugin.pmd.version>
     <plugin.site.version>3.22.0</plugin.site.version>
-    <plugin.spotbugs.version>4.10.2.0</plugin.spotbugs.version>
-    <spotbugs-annotations.version>4.10.2</spotbugs-annotations.version>
+    <plugin.spotbugs.version>4.10.3.0</plugin.spotbugs.version>
+    <spotbugs-annotations.version>4.10.3</spotbugs-annotations.version>
     <findsecbugs.version>1.14.0</findsecbugs.version>
     <plugin.clirr.version>2.8</plugin.clirr.version>
     <plugin.wro4j.version>2.1.1</plugin.wro4j.version>
@@ -156,8 +162,16 @@
     <plugin.sonar.version>5.7.0.6970</plugin.sonar.version>
     <plugin.sonar-report.version>0.1</plugin.sonar-report.version>
     <plugin.eclipse-lifecycle-mapping.version>1.0.0</plugin.eclipse-lifecycle-mapping.version>
-    <maven.compiler.source>${jdk.version}</maven.compiler.source> <!-- override values from parent pom -->
+    <!-- Override the parent pom's compiler defaults. Since org.apache:apache 39 the
+         parent derives ALL THREE of source/target/release from its own ${javaVersion}
+         (default 8), and maven-compiler-plugin lets `release` win over source/target —
+         so overriding only source/target silently compiled to 8 and broke the
+         incubator-vector add-modules flag. Set javaVersion (which also feeds the
+         parent's minimalJavaBuildVersion enforcer) AND release explicitly. -->
+    <javaVersion>${jdk.version}</javaVersion>
+    <maven.compiler.source>${jdk.version}</maven.compiler.source>
     <maven.compiler.target>${jdk.version}</maven.compiler.target>
+    <maven.compiler.release>${jdk.version}</maven.compiler.release>
     <!-- Default `argLine` to empty so the late-binding `@{argLine}` placeholder
          in surefire resolves cleanly when the JaCoCo agent isn't attached.
          The `coverage` profile leaves this empty too — JaCoCo's prepare-agent
@@ -1494,7 +1508,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>taglist-maven-plugin</artifactId>
-        <version>3.2.1</version>
+        <version>3.2.2</version>
         <configuration>
           <aggregate>true</aggregate>
           <tagListOptions>
@@ -1522,7 +1536,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>versions-maven-plugin</artifactId>
-        <version>2.18.0</version>
+        <version>2.21.0</version>
         <reportSets>
           <reportSet>
             <reports>

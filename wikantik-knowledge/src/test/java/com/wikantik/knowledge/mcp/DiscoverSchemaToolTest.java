@@ -42,8 +42,8 @@ class DiscoverSchemaToolTest {
 
     @Test
     void definition_requiresNothing() {
-        assertTrue( new DiscoverSchemaTool( mock( KnowledgeGraphService.class ) )
-            .definition().inputSchema().required().isEmpty() );
+        assertTrue( ToolSchemas.required( new DiscoverSchemaTool( mock( KnowledgeGraphService.class ) )
+            .definition().inputSchema() ).isEmpty() );
     }
 
     @Test

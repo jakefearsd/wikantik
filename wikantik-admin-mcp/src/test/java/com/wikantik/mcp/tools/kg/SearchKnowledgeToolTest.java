@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools.kg;
 
+import com.wikantik.mcp.ToolSchemas;
+
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
@@ -54,8 +56,8 @@ class SearchKnowledgeToolTest {
 
     @Test
     void definition_requiresQuery() {
-        assertTrue( new SearchKnowledgeTool( mock( KnowledgeGraphService.class ) )
-            .definition().inputSchema().required().contains( "query" ) );
+        assertTrue( ToolSchemas.required( new SearchKnowledgeTool( mock( KnowledgeGraphService.class ) )
+            .definition().inputSchema() ).contains( "query" ) );
     }
 
     @Test
@@ -66,7 +68,7 @@ class SearchKnowledgeToolTest {
         // shape needs to land in the wire JSON or agents read a typed-only schema.
         final McpSchema.Tool def = new SearchKnowledgeTool( mock( KnowledgeGraphService.class ) ).definition();
 
-        final Map< String, Object > queryProp = (Map< String, Object >) def.inputSchema().properties().get( "query" );
+        final Map< String, Object > queryProp = (Map< String, Object >) ToolSchemas.properties( def.inputSchema() ).get( "query" );
         assertTrue( queryProp.containsKey( "examples" ),
                 "input property 'query' must advertise examples" );
         final List< ? > queryExamples = (List< ? >) queryProp.get( "examples" );
@@ -83,7 +85,7 @@ class SearchKnowledgeToolTest {
         // adding a Jackson ObjectMapper here would drag a non-test dependency into the
         // module's test classpath. The Tool record itself is serialised by the MCP SDK
         // upstream — the agent-facing payload is the schema maps below.
-        final String inputJson  = McpToolUtils.KG_GSON.toJson( def.inputSchema().properties() );
+        final String inputJson  = McpToolUtils.KG_GSON.toJson( ToolSchemas.properties( def.inputSchema() ) );
         final String outputJson = McpToolUtils.KG_GSON.toJson( def.outputSchema() );
         assertTrue( inputJson.contains( "\"examples\"" ),
                 "input schema JSON must carry the 'examples' keyword for agents — got: " + inputJson );

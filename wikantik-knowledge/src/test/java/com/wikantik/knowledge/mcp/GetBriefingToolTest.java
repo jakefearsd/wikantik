@@ -140,13 +140,13 @@ class GetBriefingToolTest {
         assertEquals( "get_briefing", tool.name() );
         final McpSchema.Tool def = tool.definition();
         assertEquals( "get_briefing", def.name() );
-        final Map< String, Object > props = def.inputSchema().properties();
+        final Map< String, Object > props = ToolSchemas.properties( def.inputSchema() );
         assertTrue( props.containsKey( "pins" ) );
         assertTrue( props.containsKey( "clusters" ) );
         assertTrue( props.containsKey( "prompt" ) );
         assertTrue( props.containsKey( "budget" ) );
         assertTrue( props.containsKey( "scope_mode" ) );
-        assertTrue( def.inputSchema().required().isEmpty(), "no required fields — validated via hasAnySource" );
+        assertTrue( ToolSchemas.required( def.inputSchema() ).isEmpty(), "no required fields — validated via hasAnySource" );
     }
 
     /* ---------- (e) briefing-log surface ---------- */

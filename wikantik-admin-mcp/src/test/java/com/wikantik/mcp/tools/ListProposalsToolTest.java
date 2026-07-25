@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.ToolSchemas;
+
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -46,7 +48,7 @@ class ListProposalsToolTest {
     void definition_hasNoRequiredArgs() {
         final McpSchema.Tool def = new ListProposalsTool(
             mock( KnowledgeGraphService.class ) ).definition();
-        assertTrue( def.inputSchema().required().isEmpty(),
+        assertTrue( ToolSchemas.required( def.inputSchema() ).isEmpty(),
             "all arguments are optional filters" );
     }
 

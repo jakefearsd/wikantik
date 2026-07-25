@@ -55,7 +55,7 @@ class GetOutboundLinksToolTest {
         refMgr.addReferences( "TargetB", Set.of() );
         refMgr.addReferences( "SourcePage", Set.of( "TargetA", "TargetB" ) );
 
-        final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "SourcePage" ) );
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slug", "SourcePage" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         final Map< String, Object > data = gson.fromJson( json, Map.class );
 
@@ -71,7 +71,7 @@ class GetOutboundLinksToolTest {
         pm.savePage( "Isolated", "No links here." );
         refMgr.addReferences( "Isolated", Set.of() );
 
-        final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "Isolated" ) );
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slug", "Isolated" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         final Map< String, Object > data = gson.fromJson( json, Map.class );
 

@@ -57,7 +57,7 @@ class PreviewStructuredDataToolTest {
                 "cluster: ai-fundamentals\nrelated:\n- AiOverview\n---\nBody content." );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageName", "PreviewFull" );
+        args.put( "slug", "PreviewFull" );
 
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "exists" ) );
@@ -109,7 +109,7 @@ class PreviewStructuredDataToolTest {
                 "cluster: ai-fundamentals\nrelated:\n- SubArticle1\n- SubArticle2\n---\nHub body." );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageName", "PreviewHub" );
+        args.put( "slug", "PreviewHub" );
 
         final Map< String, Object > data = executeAndParse( args );
 
@@ -128,7 +128,7 @@ class PreviewStructuredDataToolTest {
         pm.savePage( "PreviewPlain", "Just plain body text without any frontmatter." );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageName", "PreviewPlain" );
+        args.put( "slug", "PreviewPlain" );
 
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "exists" ) );
@@ -155,7 +155,7 @@ class PreviewStructuredDataToolTest {
                 "summary: Breaking news about AI developments\n---\nNews body." );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageName", "PreviewNews" );
+        args.put( "slug", "PreviewNews" );
 
         final Map< String, Object > data = executeAndParse( args );
         final Map< String, Object > news = ( Map< String, Object > ) data.get( "newsSitemap" );
@@ -170,7 +170,7 @@ class PreviewStructuredDataToolTest {
                 "summary: An article without tags\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageName", "PreviewNoTagNews" );
+        args.put( "slug", "PreviewNoTagNews" );
 
         final Map< String, Object > data = executeAndParse( args );
         final Map< String, Object > news = ( Map< String, Object > ) data.get( "newsSitemap" );
@@ -184,7 +184,7 @@ class PreviewStructuredDataToolTest {
         // Short summary
         pm.savePage( "PreviewWarnShort", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\nsummary: Short\n---\nBody." );
         Map< String, Object > args = new HashMap<>();
-        args.put( "pageName", "PreviewWarnShort" );
+        args.put( "slug", "PreviewWarnShort" );
         Map< String, Object > data = executeAndParse( args );
         List< String > warnings = ( List< String > ) data.get( "warnings" );
         assertTrue( warnings.stream().anyMatch( w -> w.contains( "short" ) || w.contains( "50" ) ) );
@@ -193,7 +193,7 @@ class PreviewStructuredDataToolTest {
         pm.savePage( "PreviewWarnLong", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\nsummary: " +
                 "A".repeat( 200 ) + "\n---\nBody." );
         args = new HashMap<>();
-        args.put( "pageName", "PreviewWarnLong" );
+        args.put( "slug", "PreviewWarnLong" );
         data = executeAndParse( args );
         warnings = ( List< String > ) data.get( "warnings" );
         assertTrue( warnings.stream().anyMatch( w -> w.contains( "long" ) || w.contains( "truncate" ) ) );
@@ -202,7 +202,7 @@ class PreviewStructuredDataToolTest {
         pm.savePage( "PreviewWarnGood", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\n" +
                 "summary: A well-sized summary that describes the page content effectively for search\n---\nBody." );
         args = new HashMap<>();
-        args.put( "pageName", "PreviewWarnGood" );
+        args.put( "slug", "PreviewWarnGood" );
         data = executeAndParse( args );
         warnings = ( List< String > ) data.get( "warnings" );
         assertTrue( warnings.stream().anyMatch( w -> w.contains( "good" ) ) );
@@ -211,7 +211,7 @@ class PreviewStructuredDataToolTest {
     @Test
     void testNonExistentPage() {
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageName", "PreviewNonExistent" );
+        args.put( "slug", "PreviewNonExistent" );
 
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( false, data.get( "exists" ) );

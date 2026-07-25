@@ -128,8 +128,9 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
         int createdCount = 0;
         int failedCount = 0;
         for ( final Map< String, Object > p : pages ) {
-            String pageName = asString( p.get( "slug" ) );
-            if ( pageName == null || pageName.isBlank() ) { pageName = asString( p.get( "pageName" ) ); }
+            // 'slug' only — the legacy 'pageName' alias is retired; the declared schema
+            // marks slug required and mcp-sdk 2.0.0 enforces that before execute() runs.
+            final String pageName = asString( p.get( "slug" ) );
             final String content = asString( p.get( "content" ) );
             final Map< String, Object > metadata = asMap( p.get( "metadata" ) );
 

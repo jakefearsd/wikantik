@@ -183,7 +183,10 @@ public class SelfApiKeyLifecycleIT {
                 HttpClientStreamableHttpTransport.builder( prefix )
                         .endpoint( "knowledge-mcp" )
                         .connectTimeout( Duration.ofSeconds( 15 ) )
-                        .customizeRequest( rb -> rb.header( "Authorization", "Bearer " + token ) )
+                        // mcp-sdk 2.0.0 replaced customizeRequest(Consumer<HttpRequest.Builder>)
+                        // with the richer httpRequestCustomizer contract.
+                        .httpRequestCustomizer( ( rb, method, uri, body, context ) ->
+                                rb.header( "Authorization", "Bearer " + token ) )
                         .build();
         return McpClient.sync( transport )
                 .clientInfo( new McpSchema.Implementation( "wikantik-it-self-apikey", "1.0.0" ) )

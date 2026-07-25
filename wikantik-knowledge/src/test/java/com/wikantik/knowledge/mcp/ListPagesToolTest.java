@@ -44,7 +44,7 @@ class ListPagesToolTest {
     @Test
     void definition_hasNoRequiredFields() {
         final McpSchema.Tool def = new ListPagesTool( mock( ContextRetrievalService.class ) ).definition();
-        assertTrue( def.inputSchema().required() == null || def.inputSchema().required().isEmpty() );
+        assertTrue( ToolSchemas.required( def.inputSchema() ).isEmpty() );
     }
 
     @Test

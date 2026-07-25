@@ -32,6 +32,17 @@ import java.util.stream.Collectors;
  */
 public class McpProtocolIT extends WithMcpTestSetup {
 
+    /**
+     * The tool's {@code required} parameter names, or an empty list when the schema
+     * omits them. mcp-sdk 2.0.0 returns the input schema as a plain
+     * {@code Map<String, Object>} rather than the former typed {@code JsonSchema}.
+     */
+    @SuppressWarnings( "unchecked" )
+    private static List< String > requiredOf( final McpSchema.Tool tool ) {
+        final Object required = tool.inputSchema() == null ? null : tool.inputSchema().get( "required" );
+        return required instanceof List ? ( List< String > ) required : List.of();
+    }
+
     private static final Set< String > EXPECTED_TOOLS = Set.of(
             // Admin read/query (still on /wikantik-admin-mcp)
             "get_backlinks", "get_page_history", "diff_page",
@@ -78,13 +89,13 @@ public class McpProtocolIT extends WithMcpTestSetup {
             Assertions.assertNotNull( tool.description(), tool.name() + " should have a description" );
             Assertions.assertNotNull( tool.inputSchema(), tool.name() + " should have an input schema" );
 
-            final McpSchema.JsonSchema schema = tool.inputSchema();
-            Assertions.assertEquals( "object", schema.type(), tool.name() + " schema type should be 'object'" );
+            final Map< String, Object > schema = tool.inputSchema();
+            Assertions.assertEquals( "object", schema.get( "type" ), tool.name() + " schema type should be 'object'" );
         }
 
         // Verify required params for key tools
         final Map< String, List< String > > toolRequiredParams = result.tools().stream()
-                .collect( Collectors.toMap( McpSchema.Tool::name, t -> t.inputSchema().required() != null ? t.inputSchema().required() : List.of() ) );
+                .collect( Collectors.toMap( McpSchema.Tool::name, McpProtocolIT::requiredOf ) );
 
         // Page-identifier params converged on slug/slugs (legacy pageName kept only as an
         // accepted alias at execute() time, no longer advertised as required).

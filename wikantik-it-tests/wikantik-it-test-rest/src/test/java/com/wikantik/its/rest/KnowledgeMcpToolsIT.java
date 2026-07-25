@@ -105,6 +105,22 @@ public class KnowledgeMcpToolsIT {
         return parseFirstText( result );
     }
 
+    /**
+     * Asserts the call fails and returns its raw text body.
+     *
+     * <p>Since mcp-sdk 2.0.0 a call omitting a schema-required property is rejected by
+     * the SDK's own input validator, before the tool's {@code execute()} runs. That
+     * rejection is plain text ("… input validation failed: … required property 'x' not
+     * found"), not one of our JSON error envelopes, so a test that only needs to see the
+     * offending field named must not try to parse it as JSON.
+     */
+    private static String callExpectErrorText( final String tool, final Map< String, Object > args ) {
+        final McpSchema.CallToolResult result = mcp.callTool( new McpSchema.CallToolRequest( tool, args ) );
+        assertTrue( Boolean.TRUE.equals( result.isError() ),
+                tool + " must surface isError=true: " + textBody( result ) );
+        return textBody( result );
+    }
+
     private static String textBody( final McpSchema.CallToolResult result ) {
         if ( result == null || result.content() == null || result.content().isEmpty() ) {
             return "<no content>";
@@ -233,13 +249,9 @@ public class KnowledgeMcpToolsIT {
 
     @Test
     void searchKnowledge_missingQueryReturnsError() {
-        final JsonObject body = callExpectError( "search_knowledge", Map.of() );
-        assertNotNull( body, "error payload must not be null" );
-        // Error envelope should carry an error/message field naming the issue.
-        final boolean hasMessage = body.has( "error" ) || body.has( "message" )
-                || body.toString().contains( "query" );
-        assertTrue( hasMessage,
-                "missing-query error must surface an explanatory message: " + body );
+        final String body = callExpectErrorText( "search_knowledge", Map.of() );
+        assertTrue( body.contains( "query" ),
+                "missing-query error must name the offending field: " + body );
     }
 
     // ---- query_nodes ----
@@ -266,7 +278,7 @@ public class KnowledgeMcpToolsIT {
     void getPage_happyPathForMainIncludesName() {
         // Main is always present in the seed corpus.
         final JsonObject body = callSuccess( "get_page",
-                Map.of( "pageName", "Main" ) );
+                Map.of( "slug", "Main" ) );
         assertNotNull( body, "envelope must not be null" );
         // Tool returns either a flat record or wraps it; just confirm Main
         // appears somewhere.
@@ -277,7 +289,7 @@ public class KnowledgeMcpToolsIT {
     @Test
     void getPage_missingPageMarksExistsFalse() {
         final JsonObject body = callSuccess( "get_page",
-                Map.of( "pageName", "PageThatDefinitelyDoesNotExist123" ) );
+                Map.of( "slug", "PageThatDefinitelyDoesNotExist123" ) );
         assertNotNull( body, "envelope must not be null" );
         // Expected shape per GetPageTool javadoc: {exists:false, pageName}
         if ( body.has( "exists" ) ) {
@@ -296,10 +308,8 @@ public class KnowledgeMcpToolsIT {
     void getPageForAgent_missingCanonicalIdIsAnError() {
         // canonical_id is required per the schema. Calling without it must
         // produce a wire-level error result, not a 200 with malformed body.
-        final JsonObject body = callExpectError( "get_page_for_agent", Map.of() );
-        assertNotNull( body, "error payload must not be null" );
-        assertTrue( body.toString().toLowerCase().contains( "canonical_id" )
-                        || body.has( "error" ) || body.has( "message" ),
+        final String body = callExpectErrorText( "get_page_for_agent", Map.of() );
+        assertTrue( body.toLowerCase().contains( "canonical_id" ),
                 "missing canonical_id error must cite the field: " + body );
     }
 

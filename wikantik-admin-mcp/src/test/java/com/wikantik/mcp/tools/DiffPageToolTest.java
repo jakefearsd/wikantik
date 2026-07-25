@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.ToolSchemas;
+
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.TestEngine;
@@ -54,7 +56,7 @@ class DiffPageToolTest {
     @SuppressWarnings( "unchecked" )
     void testDiffNonexistentPage() {
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageName", "NoSuchPageXyz" );
+        args.put( "slug", "NoSuchPageXyz" );
         args.put( "version1", 1 );
         args.put( "version2", 2 );
 
@@ -107,9 +109,9 @@ class DiffPageToolTest {
         assertEquals( "diff_page", def.name() );
         assertNotNull( def.annotations() );
         assertTrue( def.annotations().readOnlyHint() );
-        assertTrue( def.inputSchema().required().contains( "slug" ) );
-        assertTrue( def.inputSchema().required().contains( "version1" ) );
-        assertTrue( def.inputSchema().required().contains( "version2" ) );
+        assertTrue( ToolSchemas.required( def.inputSchema() ).contains( "slug" ) );
+        assertTrue( ToolSchemas.required( def.inputSchema() ).contains( "version1" ) );
+        assertTrue( ToolSchemas.required( def.inputSchema() ).contains( "version2" ) );
     }
 
     @Test

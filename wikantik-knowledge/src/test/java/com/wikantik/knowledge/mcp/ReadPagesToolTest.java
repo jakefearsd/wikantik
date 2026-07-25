@@ -59,17 +59,16 @@ class ReadPagesToolTest {
 
     @Test
     void schema_advertisesSlugsNotPageNames() {
-        final var props = tool.definition().inputSchema().properties();
+        final var props = ToolSchemas.properties( tool.definition().inputSchema() );
         assertTrue( props.containsKey( "slugs" ) );
         assertFalse( props.containsKey( "pageNames" ) );
     }
 
     @Test
-    void acceptsPageNamesAlias() {
-        // An agent that learned `pageNames` from the admin MCP should not hard-fail here.
+    void rejectsRetiredPageNamesAlias() {
+        // `slugs` is the only accepted key — see GetPageToolTest#execute_rejectsRetiredNameAlias.
         final var result = tool.execute( Map.of( "pageNames", List.of( "Alpha" ) ) );
-        assertFalse( Boolean.TRUE.equals( result.isError() ), "the 'pageNames' alias should resolve" );
-        assertTrue( ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text().contains( "Alpha" ) );
+        assertTrue( Boolean.TRUE.equals( result.isError() ), "the retired 'pageNames' alias must not resolve" );
     }
 
     @Test

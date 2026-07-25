@@ -67,7 +67,7 @@ class ListTagsToolTest {
         assertEquals( "list_tags", definition.name() );
         assertTrue( definition.description().contains( "tag dictionary" ) );
 
-        final Map< String, Object > props = definition.inputSchema().properties();
+        final Map< String, Object > props = ToolSchemas.properties( definition.inputSchema() );
         assertTrue( props.containsKey( "min_pages" ), "input schema must declare min_pages" );
         final Map< String, Object > minPages = ( Map< String, Object > ) props.get( "min_pages" );
         assertEquals( "integer", minPages.get( "type" ) );

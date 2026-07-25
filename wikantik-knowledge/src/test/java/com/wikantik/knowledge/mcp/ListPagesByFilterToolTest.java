@@ -86,7 +86,7 @@ class ListPagesByFilterToolTest {
         assertEquals( "list_pages_by_filter", definition.name() );
         assertTrue( definition.description().contains( "structural filter" ) );
 
-        final Map< String, Object > props = definition.inputSchema().properties();
+        final Map< String, Object > props = ToolSchemas.properties( definition.inputSchema() );
         assertTrue( props.keySet().containsAll(
                 List.of( "type", "cluster", "tag", "updated_since", "limit" ) ) );
         final Map< String, Object > tagProp = ( Map< String, Object > ) props.get( "tag" );

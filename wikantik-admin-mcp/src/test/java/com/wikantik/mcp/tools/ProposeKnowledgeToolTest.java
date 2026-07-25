@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.ToolSchemas;
+
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgRejection;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
@@ -44,8 +46,8 @@ class ProposeKnowledgeToolTest {
 
     @Test
     void definition_requiresAllFiveInputs() {
-        final var req = new ProposeKnowledgeTool( mock( KnowledgeGraphService.class ) )
-            .definition().inputSchema().required();
+        final var req = ToolSchemas.required( new ProposeKnowledgeTool( mock( KnowledgeGraphService.class ) )
+            .definition().inputSchema() );
         assertTrue( req.containsAll( List.of(
             "proposal_type", "proposed_data", "source_page", "confidence", "reasoning" ) ) );
     }

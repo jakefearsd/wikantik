@@ -46,7 +46,7 @@ class GetPageHistoryToolTest {
     void testHistoryForExistingPage() {
         pm.savePage( "McpHistPage", "Version 1." );
 
-        final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "McpHistPage" ) );
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slug", "McpHistPage" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         final Map< String, Object > data = gson.fromJson( json, Map.class );
 
@@ -61,7 +61,7 @@ class GetPageHistoryToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testHistoryForNonexistentPage() {
-        final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "NoSuchPageXyz" ) );
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slug", "NoSuchPageXyz" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         final Map< String, Object > data = gson.fromJson( json, Map.class );
 

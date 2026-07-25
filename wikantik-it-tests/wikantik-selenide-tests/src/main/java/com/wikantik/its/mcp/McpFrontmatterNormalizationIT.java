@@ -67,7 +67,7 @@ public class McpFrontmatterNormalizationIT extends WithMcpTestSetup {
                 + "How to cut a mortise and tenon joint.\n";
 
         final Map< String, Object > response = mcp.callTool( "write_pages", Map.of(
-                "pages", List.of( Map.of( "pageName", pageName, "content", content ) ) ) );
+                "pages", List.of( Map.of( "slug", pageName, "content", content ) ) ) );
 
         @SuppressWarnings( "unchecked" )
         final List< Map< String, Object > > results =
@@ -77,7 +77,7 @@ public class McpFrontmatterNormalizationIT extends WithMcpTestSetup {
 
         // Read back and assert the title round-tripped (this is the invariant the
         // server-side normalization must preserve).
-        final Map< String, Object > read = mcp.callTool( "read_page", Map.of( "pageName", pageName ) );
+        final Map< String, Object > read = mcp.callTool( "read_page", Map.of( "slug", pageName ) );
         Assertions.assertEquals( Boolean.TRUE, read.get( "exists" ) );
         final String body = ( String ) read.get( "content" );
         Assertions.assertNotNull( body );
@@ -86,7 +86,7 @@ public class McpFrontmatterNormalizationIT extends WithMcpTestSetup {
 
         // Cleanup.
         mcp.callTool( "delete_pages", Map.of(
-                "pageNames", List.of( pageName ),
+                "slugs", List.of( pageName ),
                 "confirm", true ) );
     }
 
@@ -103,7 +103,7 @@ public class McpFrontmatterNormalizationIT extends WithMcpTestSetup {
                 + "body\n";
 
         final Map< String, Object > response = mcp.callTool( "write_pages", Map.of(
-                "pages", List.of( Map.of( "pageName", pageName, "content", content ) ) ) );
+                "pages", List.of( Map.of( "slug", pageName, "content", content ) ) ) );
 
         @SuppressWarnings( "unchecked" )
         final List< Map< String, Object > > results =
@@ -135,7 +135,7 @@ public class McpFrontmatterNormalizationIT extends WithMcpTestSetup {
 
         final Map< String, Object > response = mcp.callTool( "write_pages", Map.of(
                 "pages", List.of( Map.of(
-                        "pageName", pageName,
+                        "slug", pageName,
                         "content", "How to cut a mortise and tenon joint.\n",
                         "metadata", metadata ) ) ) );
 
@@ -145,13 +145,13 @@ public class McpFrontmatterNormalizationIT extends WithMcpTestSetup {
         Assertions.assertEquals( Boolean.TRUE, results.get( 0 ).get( "created" ),
                 "structured metadata path must always work — got: " + results.get( 0 ) );
 
-        final Map< String, Object > read = mcp.callTool( "read_page", Map.of( "pageName", pageName ) );
+        final Map< String, Object > read = mcp.callTool( "read_page", Map.of( "slug", pageName ) );
         final String body = ( String ) read.get( "content" );
         Assertions.assertTrue( body.contains( "Woodworking Joinery: Structural Mechanics" ),
                 "title must round-trip via structured metadata path — got body:\n" + body );
 
         mcp.callTool( "delete_pages", Map.of(
-                "pageNames", List.of( pageName ),
+                "slugs", List.of( pageName ),
                 "confirm", true ) );
     }
 }

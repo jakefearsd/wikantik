@@ -21,19 +21,20 @@ class GetPageToolTest {
 
     @Test
     void schema_advertisesSlugNotPageName() {
-        final var props = new GetPageTool( mock( ContextRetrievalService.class ) )
-                .definition().inputSchema().properties();
+        final var props = ToolSchemas.properties( new GetPageTool( mock( ContextRetrievalService.class ) )
+                .definition().inputSchema() );
         assertTrue( props.containsKey( "slug" ) );
         assertFalse( props.containsKey( "pageName" ) );
     }
 
     @Test
-    void execute_acceptsNameAlias() {
-        // An agent that guesses `name` (not slug/pageName) should resolve, not hard-fail.
+    void execute_rejectsRetiredNameAlias() {
+        // `slug` is the only accepted key. The declared schema marks it required and
+        // mcp-sdk 2.0.0 rejects an alias-only call before execute() is even reached, so
+        // resolving the alias here would just make the two layers disagree.
         final var result = new GetPageTool( mock( ContextRetrievalService.class ) )
                 .execute( Map.of( "name", "Alpha" ) );
-        assertFalse( result.isError(), "the 'name' alias should resolve, not error" );
-        assertTrue( ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text().contains( "Alpha" ) );
+        assertTrue( result.isError(), "the retired 'name' alias must not resolve" );
     }
 
 
@@ -46,7 +47,7 @@ class GetPageToolTest {
             List.of(), List.of(), "alice", new Date(), false ) );
 
         final McpSchema.CallToolResult result =
-            new GetPageTool( svc ).execute( Map.of( "pageName", "Alpha" ) );
+            new GetPageTool( svc ).execute( Map.of( "slug", "Alpha" ) );
 
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "\"name\":\"Alpha\"" ) );
@@ -61,7 +62,7 @@ class GetPageToolTest {
         when( svc.getPage( "Nope" ) ).thenReturn( null );
 
         final McpSchema.CallToolResult result =
-            new GetPageTool( svc ).execute( Map.of( "pageName", "Nope" ) );
+            new GetPageTool( svc ).execute( Map.of( "slug", "Nope" ) );
 
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "\"exists\":false" ) );
@@ -71,7 +72,7 @@ class GetPageToolTest {
     @Test
     void execute_returnsErrorOnBlankPageName() {
         final GetPageTool t = new GetPageTool( mock( ContextRetrievalService.class ) );
-        final McpSchema.CallToolResult result = t.execute( Map.of( "pageName", "" ) );
+        final McpSchema.CallToolResult result = t.execute( Map.of( "slug", "" ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "error" ) );
     }
@@ -81,7 +82,7 @@ class GetPageToolTest {
         final ContextRetrievalService svc = mock( ContextRetrievalService.class );
         when( svc.getPage( anyString() ) )
             .thenThrow( new RuntimeException( "DB offline" ) );
-        final McpSchema.CallToolResult result = new GetPageTool( svc ).execute( Map.of( "pageName", "Alpha" ) );
+        final McpSchema.CallToolResult result = new GetPageTool( svc ).execute( Map.of( "slug", "Alpha" ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "DB offline" ) );
     }
@@ -94,7 +95,7 @@ class GetPageToolTest {
             "classified", List.of(), List.of(), List.of(), "alice", new Date(), false ) );
 
         final PageViewGate gate = slug -> !"Secret".equals( slug );
-        final McpSchema.CallToolResult result = new GetPageTool( svc, gate ).execute( Map.of( "pageName", "Secret" ) );
+        final McpSchema.CallToolResult result = new GetPageTool( svc, gate ).execute( Map.of( "slug", "Secret" ) );
 
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertFalse( text.contains( "TOP SECRET SUMMARY" ),

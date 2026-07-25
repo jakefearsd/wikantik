@@ -62,7 +62,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "VerifyExist", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "VerifyExist" ) );
+        args.put( "slugs", List.of( "VerifyExist" ) );
 
         final Map< String, Object > data = executeAndParse( args );
         final List< Map< String, Object > > pages = ( List< Map< String, Object > > ) data.get( "pages" );
@@ -78,7 +78,7 @@ class VerifyPagesToolTest {
     @SuppressWarnings( "unchecked" )
     void testNonExistentPage() {
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "VerifyMissing" ) );
+        args.put( "slugs", List.of( "VerifyMissing" ) );
 
         final Map< String, Object > data = executeAndParse( args );
         final List< Map< String, Object > > pages = ( List< Map< String, Object > > ) data.get( "pages" );
@@ -95,7 +95,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "VerifyNoMeta", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "VerifyNoMeta" ) );
+        args.put( "slugs", List.of( "VerifyNoMeta" ) );
         args.put( "checks", List.of( "existence", "metadata_completeness" ) );
 
         final Map< String, Object > data = executeAndParse( args );
@@ -117,7 +117,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "VerifyLinks", Set.of( "NonExistentTarget" ) );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "VerifyLinks" ) );
+        args.put( "slugs", List.of( "VerifyLinks" ) );
         args.put( "checks", List.of( "existence", "broken_links", "outbound_links" ) );
 
         final Map< String, Object > data = executeAndParse( args );
@@ -136,7 +136,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "VerifySelective", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "VerifySelective" ) );
+        args.put( "slugs", List.of( "VerifySelective" ) );
         args.put( "checks", List.of( "existence" ) );
 
         final Map< String, Object > data = executeAndParse( args );
@@ -153,7 +153,7 @@ class VerifyPagesToolTest {
     @Test
     void testEmptyPageNamesFails() {
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of() );
+        args.put( "slugs", List.of() );
 
         final McpSchema.CallToolResult result = tool.execute( args );
         assertTrue( result.isError() );
@@ -176,7 +176,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "VerifyMulti2", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "VerifyMulti1", "VerifyMulti2", "VerifyMultiMissing" ) );
+        args.put( "slugs", List.of( "VerifyMulti1", "VerifyMulti2", "VerifyMultiMissing" ) );
 
         final Map< String, Object > data = executeAndParse( args );
         final List< Map< String, Object > > pages = ( List< Map< String, Object > > ) data.get( "pages" );
@@ -200,7 +200,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "SeoGood", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "SeoGood" ) );
+        args.put( "slugs", List.of( "SeoGood" ) );
         args.put( "checks", List.of( "seo_readiness" ) );
 
         final Map< String, Object > data = executeAndParse( args );
@@ -217,7 +217,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "SeoShort", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "SeoShort" ) );
+        args.put( "slugs", List.of( "SeoShort" ) );
         args.put( "checks", List.of( "seo_readiness" ) );
 
         final Map< String, Object > data = executeAndParse( args );
@@ -235,7 +235,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "SeoLong", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "SeoLong" ) );
+        args.put( "slugs", List.of( "SeoLong" ) );
         args.put( "checks", List.of( "seo_readiness" ) );
 
         final Map< String, Object > data = executeAndParse( args );
@@ -252,7 +252,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "SeoNoSummary", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "SeoNoSummary" ) );
+        args.put( "slugs", List.of( "SeoNoSummary" ) );
         args.put( "checks", List.of( "seo_readiness" ) );
 
         final Map< String, Object > data = executeAndParse( args );
@@ -270,7 +270,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "SeoNoTags", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "SeoNoTags" ) );
+        args.put( "slugs", List.of( "SeoNoTags" ) );
         args.put( "checks", List.of( "seo_readiness" ) );
 
         final Map< String, Object > data = executeAndParse( args );
@@ -288,7 +288,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "SeoHubNoRel", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "SeoHubNoRel" ) );
+        args.put( "slugs", List.of( "SeoHubNoRel" ) );
         args.put( "checks", List.of( "seo_readiness" ) );
 
         final Map< String, Object > data = executeAndParse( args );
@@ -307,7 +307,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "SeoHubBroken", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "SeoHubBroken" ) );
+        args.put( "slugs", List.of( "SeoHubBroken" ) );
         args.put( "checks", List.of( "seo_readiness" ) );
 
         final Map< String, Object > data = executeAndParse( args );
@@ -325,7 +325,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "SeoNoDate", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "SeoNoDate" ) );
+        args.put( "slugs", List.of( "SeoNoDate" ) );
         args.put( "checks", List.of( "seo_readiness" ) );
 
         final Map< String, Object > data = executeAndParse( args );
@@ -343,7 +343,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "SeoClusterNoType", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "SeoClusterNoType" ) );
+        args.put( "slugs", List.of( "SeoClusterNoType" ) );
         args.put( "checks", List.of( "seo_readiness" ) );
 
         final Map< String, Object > data = executeAndParse( args );
@@ -360,7 +360,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "SeoDefault", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "SeoDefault" ) );
+        args.put( "slugs", List.of( "SeoDefault" ) );
         // No checks parameter -- uses defaults
 
         final Map< String, Object > data = executeAndParse( args );
@@ -378,7 +378,7 @@ class VerifyPagesToolTest {
         refMgr.addReferences( "SeoSummary1", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageNames", List.of( "SeoSummary1" ) );
+        args.put( "slugs", List.of( "SeoSummary1" ) );
         args.put( "checks", List.of( "seo_readiness" ) );
 
         final Map< String, Object > data = executeAndParse( args );

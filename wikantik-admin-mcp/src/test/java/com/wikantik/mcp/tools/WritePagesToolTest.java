@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.ToolSchemas;
+
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
@@ -44,7 +46,7 @@ class WritePagesToolTest {
     @Test
     void definition_requiresPagesArray() {
         final WritePagesTool t = new WritePagesTool( mock( PageSaveHelper.class ), mock( PageManager.class ), null );
-        assertTrue( t.definition().inputSchema().required().contains( "pages" ) );
+        assertTrue( ToolSchemas.required( t.definition().inputSchema() ).contains( "pages" ) );
     }
 
     @Test
@@ -57,8 +59,8 @@ class WritePagesToolTest {
         tool.setDefaultAuthor( "test-agent" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pages", List.of(
-                Map.of( "pageName", "NewPageA", "content", "body A", "metadata", Map.of( "cluster", "x" ) ),
-                Map.of( "pageName", "NewPageB", "content", "body B" ) ) ) );
+                Map.of( "slug", "NewPageA", "content", "body A", "metadata", Map.of( "cluster", "x" ) ),
+                Map.of( "slug", "NewPageB", "content", "body B" ) ) ) );
 
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "NewPageA" ) );
@@ -81,8 +83,8 @@ class WritePagesToolTest {
         tool.setDefaultAuthor( "bot" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pages", List.of(
-                Map.of( "pageName", "Exists", "content", "body" ),
-                Map.of( "pageName", "Fresh", "content", "body" ) ) ) );
+                Map.of( "slug", "Exists", "content", "body" ),
+                Map.of( "slug", "Fresh", "content", "body" ) ) ) );
 
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "already exists" ) );
@@ -120,7 +122,7 @@ class WritePagesToolTest {
 
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pages", List.of(
-                Map.of( "pageName", "", "content", "body" ) ) ) );
+                Map.of( "slug", "", "content", "body" ) ) ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "pageName must not be blank" ) );
         assertTrue( text.contains( "\"failedCount\":1" ) );
@@ -135,7 +137,7 @@ class WritePagesToolTest {
         tool.setDefaultAuthor( "bot" );
 
         final Map< String, Object > badPage = new java.util.HashMap<>();
-        badPage.put( "pageName", "NoBody" );
+        badPage.put( "slug", "NoBody" );
         // content intentionally absent (null)
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pages", List.of( badPage ) ) );
@@ -160,8 +162,8 @@ class WritePagesToolTest {
         tool.setDefaultAuthor( "bot" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pages", List.of(
-                Map.of( "pageName", "CSSRibbon",   "content", "/* steal */" ),
-                Map.of( "pageName", "RegularPage", "content", "fine" ) ) ) );
+                Map.of( "slug", "CSSRibbon",   "content", "/* steal */" ),
+                Map.of( "slug", "RegularPage", "content", "fine" ) ) ) );
 
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "system page" ),
@@ -185,7 +187,7 @@ class WritePagesToolTest {
         tool.setDefaultAuthor( "bot" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pages", List.of(
-                Map.of( "pageName", "P", "content", "body" ) ) ) );
+                Map.of( "slug", "P", "content", "body" ) ) ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "disk full" ),
             "per-page save exception should land in the entry's error field" );

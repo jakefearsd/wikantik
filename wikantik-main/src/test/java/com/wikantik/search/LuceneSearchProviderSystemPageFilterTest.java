@@ -57,8 +57,7 @@ class LuceneSearchProviderSystemPageFilterTest {
         for ( final String name : systemPages ) {
             spr.addSystemPage( name );
         }
-        return new LuceneSearchProvider( pm, Mockito.mock( AttachmentManager.class ),
-                null, null, spr );
+        return new LuceneSearchProvider( pm, Mockito.mock( AttachmentManager.class ), spr );
     }
 
     private static void setField( final Object target, final String fieldName, final Object value ) {
@@ -158,7 +157,7 @@ class LuceneSearchProviderSystemPageFilterTest {
         final AttachmentManager am = Mockito.mock( AttachmentManager.class );
         final StubSystemPageRegistry spr = new StubSystemPageRegistry();
         spr.addSystemPage( "LeftMenu" );
-        final LuceneSearchProvider provider = new LuceneSearchProvider( pm, am, null, null, spr );
+        final LuceneSearchProvider provider = new LuceneSearchProvider( pm, am, spr );
         setField( provider, "luceneDirectory", luceneDir.getAbsolutePath() );
         setField( provider, "analyzer", new ClassicAnalyzer() );
         setField( provider, "searchExecutor", Executors.newCachedThreadPool() );
@@ -231,8 +230,7 @@ class LuceneSearchProviderSystemPageFilterTest {
         // 4-arg test constructor), the filter must be a no-op rather than blowing up.
         final LuceneSearchProvider provider = new LuceneSearchProvider(
                 Mockito.mock( PageManager.class ),
-                Mockito.mock( AttachmentManager.class ),
-                null, null );
+                Mockito.mock( AttachmentManager.class ));
 
         Assertions.assertFalse( provider.isSystemPageExcluded( "AnyPage" ),
                 "With no registry wired, nothing should be treated as a system page" );

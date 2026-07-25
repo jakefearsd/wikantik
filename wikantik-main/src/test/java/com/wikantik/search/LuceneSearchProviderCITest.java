@@ -103,7 +103,7 @@ class LuceneSearchProviderCITest {
 
     @BeforeEach
     void setUp() throws Exception {
-        provider = new LuceneSearchProvider( pageManager, attachmentManager, authorizationManager, aclManager );
+        provider = new LuceneSearchProvider( pageManager, attachmentManager);
 
         luceneDir = new File( tempDir, "lucene" );
         luceneDir.mkdirs();

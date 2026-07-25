@@ -26,6 +26,8 @@ import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.subsystem.verify.ContainerRoleVerifier;
 import com.wikantik.auth.subsystem.verify.JaasVerifier;
 import com.wikantik.auth.subsystem.verify.PolicyVerifier;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -55,6 +57,8 @@ import java.security.Principal;
  * @since 2.4
  */
 public final class SecurityVerifier {
+
+    private static final Logger LOG = LogManager.getLogger( SecurityVerifier.class );
 
     /** Message prefix for errors. */
     public static final String ERROR          = "Error.";
@@ -265,7 +269,10 @@ public final class SecurityVerifier {
                     return file;
                 }
             } catch( final MalformedURLException e ) {
-                // Swallow exception because we can't find it anyway
+                // The admin UI is told below that the file "doesn't seem to exist"; that message
+                // cannot say WHY, so keep the actual parse failure here — a malformed value and a
+                // genuinely missing file look identical on screen.
+                LOG.warn( "Property {} has a malformed file URL '{}': {}", property, propertyValue, e.getMessage(), e );
             }
             session.addMessage( "Error." + property, "File '" + propertyValue
                     + "' doesn't seem to exist. This might be a problem." );

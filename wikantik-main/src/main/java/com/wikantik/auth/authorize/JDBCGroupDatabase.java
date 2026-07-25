@@ -426,7 +426,13 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         }
         catch( final SQLException e )
         {
-            // I guess that means there aren't any principals...
+            // A DB failure here is indistinguishable from "group has no members" to the caller,
+            // which silently drops every membership-derived permission. Fail-closed, but it must
+            // not be invisible: this is the log line that tells you an authorization anomaly was
+            // a database problem and not a real membership change.
+            LOG.error( "Could not read members of group '{}' from the database; returning it as EMPTY, "
+                    + "which will suppress every permission its members derive from it: {}",
+                    group.getName(), e.getMessage(), e );
         }
         return group;
     }

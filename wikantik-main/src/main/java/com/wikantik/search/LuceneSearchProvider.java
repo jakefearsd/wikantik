@@ -36,8 +36,6 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.SystemPageRegistry;
-import com.wikantik.auth.AuthorizationManager;
-import com.wikantik.auth.acl.AclManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
@@ -147,10 +145,6 @@ public class LuceneSearchProvider implements SearchProvider {
      * (default) keeps {@link org.apache.lucene.store.NIOFSDirectory}.
      */
     private boolean useMMap;
-    @SuppressWarnings("PMD.UnusedPrivateField") // Kept for constructor signature compatibility
-    private AuthorizationManager authorizationManager;
-    @SuppressWarnings("PMD.UnusedPrivateField") // Kept for constructor signature compatibility
-    private AclManager aclManager;
     private SystemPageRegistry systemPageRegistry;
     private Executor searchExecutor;
 
@@ -202,10 +196,8 @@ public class LuceneSearchProvider implements SearchProvider {
      * bypassing the {@link #initialize(Engine, Properties)} lifecycle.
      */
     LuceneSearchProvider( final PageManager pageManager,
-                          final AttachmentManager attachmentManager,
-                          final AuthorizationManager authorizationManager,
-                          final AclManager aclManager ) {
-        this( pageManager, attachmentManager, authorizationManager, aclManager, null );
+                          final AttachmentManager attachmentManager ) {
+        this( pageManager, attachmentManager, null );
     }
 
     /**
@@ -215,13 +207,9 @@ public class LuceneSearchProvider implements SearchProvider {
      */
     LuceneSearchProvider( final PageManager pageManager,
                           final AttachmentManager attachmentManager,
-                          final AuthorizationManager authorizationManager,
-                          final AclManager aclManager,
                           final SystemPageRegistry systemPageRegistry ) {
         this.pageManager = pageManager;
         this.attachmentManager = attachmentManager;
-        this.authorizationManager = authorizationManager;
-        this.aclManager = aclManager;
         this.systemPageRegistry = systemPageRegistry;
         // NOTE: helpers are NOT built here — they are constructed lazily so that
         // test fixtures can inject luceneDirectory / analyzer / searchExecutor /
@@ -324,8 +312,11 @@ public class LuceneSearchProvider implements SearchProvider {
         this.pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         this.attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
         this.systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
-        // AuthorizationManager and AclManager are initialized after SearchManager
-        // in the engine startup sequence, so we resolve them lazily on first use.
+        // NOTE: this provider does NOT permission-filter results. View-ACL filtering of
+        // search hits happens at the REST layer (SearchResource -> RestServletBase.filterViewable
+        // -> PermissionFilter.filterViewableQuietly). It previously held AuthorizationManager and
+        // AclManager fields for an internal filter that was never implemented; they were removed
+        // rather than left to imply a control that does not live here.
         searchExecutor = Executors.newCachedThreadPool();
 
         luceneDirectory = engine.getWorkDir() + File.separator + LUCENE_DIR;

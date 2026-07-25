@@ -36,8 +36,7 @@ class LuceneSearchProviderQueueTest {
     void testQueueDepthStartsAtZero() {
         final LuceneSearchProvider provider = new LuceneSearchProvider(
                 Mockito.mock( PageManager.class ),
-                Mockito.mock( AttachmentManager.class ),
-                null, null );
+                Mockito.mock( AttachmentManager.class ));
         Assertions.assertEquals( 0, provider.getReindexQueueDepth() );
     }
 
@@ -45,7 +44,7 @@ class LuceneSearchProviderQueueTest {
     void testReindexPageIncrementsQueueDepth() {
         final PageManager pm = Mockito.mock( PageManager.class );
         final LuceneSearchProvider provider = new LuceneSearchProvider(
-                pm, Mockito.mock( AttachmentManager.class ), null, null );
+                pm, Mockito.mock( AttachmentManager.class ));
 
         final Page p1 = Mockito.mock( Page.class );
         Mockito.when( p1.getName() ).thenReturn( "Page1" );
@@ -61,7 +60,7 @@ class LuceneSearchProviderQueueTest {
     void testMultipleReindexPageCallsAccumulate() {
         final PageManager pm = Mockito.mock( PageManager.class );
         final LuceneSearchProvider provider = new LuceneSearchProvider(
-                pm, Mockito.mock( AttachmentManager.class ), null, null );
+                pm, Mockito.mock( AttachmentManager.class ));
 
         for ( int i = 0; i < 5; i++ ) {
             final Page p = Mockito.mock( Page.class );
@@ -79,7 +78,7 @@ class LuceneSearchProviderQueueTest {
     void testReindexPageWithNullTextDoesNotEnqueue() {
         final PageManager pm = Mockito.mock( PageManager.class );
         final LuceneSearchProvider provider = new LuceneSearchProvider(
-                pm, Mockito.mock( AttachmentManager.class ), null, null );
+                pm, Mockito.mock( AttachmentManager.class ));
 
         final Page p = Mockito.mock( Page.class );
         Mockito.when( p.getName() ).thenReturn( "GhostPage" );

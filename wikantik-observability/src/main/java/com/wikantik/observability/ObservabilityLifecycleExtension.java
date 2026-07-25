@@ -74,6 +74,17 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
 
     private PrometheusMeterRegistry registry;
     private JvmGcMetrics jvmGcMetrics;
+
+    /**
+     * Never read — and it must stay that way. {@link WikiMetrics} is a
+     * {@code WikiEventListener} that registers itself with three managers, and
+     * {@code WikiEventManager} keeps listeners in a {@code WeakHashMap}. This field is
+     * the only strong reference to it, so dropping it as "dead" would let GC silently
+     * stop all wiki metrics. Static analysis flags it as an unread field (SpotBugs
+     * URF_UNREAD_FIELD); that report is expected. See commit 7673cd3ec4 for the same
+     * bug hitting the KG change listener for real.
+     */
+    @SuppressWarnings( "unused" )
     private WikiMetrics wikiMetrics;
 
     /**

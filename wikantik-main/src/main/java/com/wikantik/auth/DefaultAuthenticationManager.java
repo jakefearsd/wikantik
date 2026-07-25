@@ -166,7 +166,10 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                  return wca.isContainerAuthorized();
             }
         } catch ( final WikiException e ) {
-            // It's probably ok to fail silently...
+            // Not fatal — the caller treats "false" as "not container-authenticated" — but a
+            // missing/broken Authorizer is a configuration problem worth seeing in the log.
+            LOG.warn( "Could not resolve the Authorizer while checking container authentication; "
+                    + "treating the request as not container-authenticated: {}", e.getMessage(), e );
         }
         return false;
     }
@@ -450,7 +453,12 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                 commitSucceeded = loginModule.commit();
             }
         } catch( final LoginException e ) {
-            // Login or commit failed! No principal for you!
+            // Login or commit failed => NO_PRINCIPALS below, which the caller reports as an
+            // auth failure. Logged at DEBUG, not WARN: a rejected credential is the normal,
+            // high-frequency path here, and warning on every wrong password would flood the
+            // log (and hand an anonymous caller a cheap way to grow it). Turning on debug for
+            // this class is what distinguishes "bad password" from "login module misconfigured".
+            LOG.debug( "JAAS login module {} refused the login: {}", clazz.getName(), e.getMessage(), e );
         }
 
         // If we successfully logged in & committed, return all the principals

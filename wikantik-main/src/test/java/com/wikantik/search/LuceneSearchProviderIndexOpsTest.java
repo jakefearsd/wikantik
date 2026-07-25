@@ -62,8 +62,7 @@ class LuceneSearchProviderIndexOpsTest {
     private static LuceneSearchProvider newProvider( final Path dir ) throws Exception {
         final LuceneSearchProvider provider = new LuceneSearchProvider(
                 Mockito.mock( PageManager.class ),
-                Mockito.mock( AttachmentManager.class ),
-                null, null );
+                Mockito.mock( AttachmentManager.class ));
         wireDirectory( provider, dir );
         return provider;
     }
@@ -130,7 +129,7 @@ class LuceneSearchProviderIndexOpsTest {
     void lastUpdateInstantAdvancesAfterReindexDrain( @TempDir final Path tmp ) throws Exception {
         final PageManager pm = Mockito.mock( PageManager.class );
         final LuceneSearchProvider provider = new LuceneSearchProvider(
-                pm, Mockito.mock( AttachmentManager.class ), null, null );
+                pm, Mockito.mock( AttachmentManager.class ));
         wireDirectory( provider, tmp );
         // Install the ClassicAnalyzer directly — normally initialize() does this,
         // but we're skipping the full lifecycle for the unit test.

@@ -164,7 +164,7 @@ public class KgCurationIT extends WithMcpTestSetup {
                                 "source_id", src, "target_id", tgt,
                                 "relationship_type", "related_to" ) ) ) );
         final String body = result.toString();
-        final String lower = body.toLowerCase();
+        final String lower = body.toLowerCase( java.util.Locale.ROOT );
         Assertions.assertTrue( body.contains( "failed" ) && body.contains( "shaclbad" ),
                 "non-conformant 'implements' op must appear under failed[]: " + body );
         Assertions.assertTrue(
@@ -395,7 +395,7 @@ public class KgCurationIT extends WithMcpTestSetup {
                 "failed entry must echo the request tag: " + entry );
         final String error = String.valueOf( entry.get( "error" ) );
         Assertions.assertTrue( error.contains( "page/entity boundary" )
-                        || error.toLowerCase().contains( "mixed page" ),
+                        || error.toLowerCase( java.util.Locale.ROOT ).contains( "mixed page" ),
                 "failed entry must cite the page/entity boundary policy so the "
                         + "agent learns the topology was wrong (not the predicate); got: " + error );
     }

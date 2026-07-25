@@ -93,7 +93,7 @@ public class McpFrontmatterValidationIT extends WithMcpTestSetup {
         if ( hasViolationsList ) {
             @SuppressWarnings( "unchecked" )
             final List< Object > violations = ( List< Object > ) entry.get( "violations" );
-            final String violationsStr = violations.toString().toLowerCase();
+            final String violationsStr = violations.toString().toLowerCase( java.util.Locale.ROOT );
             Assertions.assertTrue( violationsStr.contains( "audience" ),
                     "violations must include 'audience' field: " + violations );
         }
@@ -148,7 +148,7 @@ public class McpFrontmatterValidationIT extends WithMcpTestSetup {
                     ( List< Object > ) entry.get( "frontmatterWarnings" );
             Assertions.assertFalse( warnings.isEmpty(),
                     "frontmatterWarnings must not be empty for status=published: " + entry );
-            Assertions.assertTrue( warnings.toString().toLowerCase().contains( "status" ),
+            Assertions.assertTrue( warnings.toString().toLowerCase( java.util.Locale.ROOT ).contains( "status" ),
                     "frontmatterWarnings must mention 'status': " + warnings );
         } finally {
             // Best-effort cleanup: don't fail the test if the page was not created

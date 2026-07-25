@@ -22,7 +22,6 @@ import com.wikantik.connectors.SyncReport;
 import com.wikantik.connectors.runtime.RunRecorder;
 import javax.sql.DataSource;
 import java.sql.*;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 

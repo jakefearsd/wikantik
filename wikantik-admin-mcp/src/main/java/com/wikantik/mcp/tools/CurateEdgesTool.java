@@ -20,14 +20,11 @@ package com.wikantik.mcp.tools;
 
 import com.wikantik.api.knowledge.KgCurationOps;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 
 public class CurateEdgesTool implements McpTool, AuthorConfigurable {
 
-    private static final Logger LOG = LogManager.getLogger( CurateEdgesTool.class );
     public static final String TOOL_NAME = "curate_edges";
 
     private final KgCurationOps ops;

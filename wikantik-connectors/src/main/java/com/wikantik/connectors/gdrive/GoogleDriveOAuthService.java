@@ -34,7 +34,6 @@ import java.util.List;
 public final class GoogleDriveOAuthService implements DriveOAuthService {
 
     private static final Logger LOG = LogManager.getLogger( GoogleDriveOAuthService.class );
-    private static final String AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/auth";
     private static final String SCOPE = "https://www.googleapis.com/auth/drive.readonly";
     private static final GsonFactory JSON = GsonFactory.getDefaultInstance();
 

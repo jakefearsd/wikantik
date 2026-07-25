@@ -72,12 +72,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
     private final SearchManager searchManager;
     private final HybridSearchService hybridSearch;
     private final GraphRerankStep graphRerank;
-    private final ChunkVectorIndex chunkIndex;
-    private final ContentChunkRepository chunkRepo;
-    private final NodeMentionSimilarity similarity;
-    private final MentionIndex mentionIndex;
     private final PageManager pageManager;
-    private final FrontmatterMetadataCache fmCache;
     private final String publicBaseUrl;
     private final com.wikantik.api.ontology.OntologyQueryService ontologyQuery;
     private final RelatedPagesFinder relatedPagesFinder;
@@ -106,12 +101,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         this.searchManager = searchManager;
         this.hybridSearch = hybridSearch;
         this.graphRerank = graphRerank;
-        this.chunkIndex = chunkIndex;
-        this.chunkRepo = chunkRepo;
-        this.similarity = similarity;
-        this.mentionIndex = mentionIndex;
         this.pageManager = pageManager;
-        this.fmCache = fmCache;
         this.publicBaseUrl = publicBaseUrl == null ? "" : publicBaseUrl;
         // Optional: when present (and the flag enabled at the wiring site), the query is
         // expanded with ontology-derived terms before search. Null = no expansion.

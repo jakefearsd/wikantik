@@ -20,7 +20,6 @@ package com.wikantik.its;
 
 import com.codeborne.selenide.CollectionCondition;
 import com.codeborne.selenide.Condition;
-import com.wikantik.its.environment.Env;
 import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.Test;
 

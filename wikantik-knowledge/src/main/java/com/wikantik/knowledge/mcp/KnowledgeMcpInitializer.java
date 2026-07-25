@@ -41,7 +41,6 @@ import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.knowledge.MentionIndex;
-import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.mcp.McpEndpointBootstrapper;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.kg.QueryNodesTool;

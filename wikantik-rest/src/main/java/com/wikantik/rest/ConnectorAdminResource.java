@@ -31,8 +31,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.Map;
@@ -106,7 +104,6 @@ import java.util.Set;
 public class ConnectorAdminResource extends RestServletBase {
 
     private static final long   serialVersionUID = 1L;
-    private static final Logger LOG = LogManager.getLogger( ConnectorAdminResource.class );
 
     /** 503 message for every mutation route when {@link ConnectorConfigService} isn't wired.
      *  Package-private — read by {@link ConnectorAdminWriteHandlers}. */

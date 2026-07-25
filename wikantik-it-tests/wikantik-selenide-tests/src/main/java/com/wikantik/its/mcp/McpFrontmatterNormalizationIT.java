@@ -112,9 +112,9 @@ public class McpFrontmatterNormalizationIT extends WithMcpTestSetup {
                 "malformed YAML must NOT save — got: " + results.get( 0 ) );
         final String error = String.valueOf( results.get( 0 ).get( "error" ) );
         Assertions.assertTrue(
-                error.toLowerCase().contains( "frontmatter" )
-                        || error.toLowerCase().contains( "yaml" )
-                        || error.toLowerCase().contains( "mapping" ),
+                error.toLowerCase( java.util.Locale.ROOT ).contains( "frontmatter" )
+                        || error.toLowerCase( java.util.Locale.ROOT ).contains( "yaml" )
+                        || error.toLowerCase( java.util.Locale.ROOT ).contains( "mapping" ),
                 "error must surface the YAML problem — got: " + error );
 
         // The hint should also explain the fix so an agent can self-correct.

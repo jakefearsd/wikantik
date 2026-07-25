@@ -24,8 +24,6 @@ import com.wikantik.api.knowledge.KgProposalReview;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.ProposalConflictFlags;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -40,7 +38,6 @@ import java.util.UUID;
  */
 public class InspectProposalsTool implements McpTool {
 
-    private static final Logger LOG = LogManager.getLogger( InspectProposalsTool.class );
     public static final String TOOL_NAME = "inspect_proposals";
 
     private final KnowledgeGraphService service;

@@ -34,7 +34,6 @@ import com.wikantik.search.hybrid.ChunkVectorIndex;
 import com.wikantik.search.hybrid.GraphProximityScorer;
 import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridSearchService;
-import com.wikantik.search.hybrid.InMemoryChunkVectorIndex;
 import com.wikantik.search.hybrid.InMemoryGraphNeighborIndex;
 import com.wikantik.search.hybrid.QueryEmbedder;
 import com.wikantik.search.hybrid.QueryEntityResolver;

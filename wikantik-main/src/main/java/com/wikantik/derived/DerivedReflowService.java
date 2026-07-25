@@ -24,7 +24,6 @@ import org.apache.logging.log4j.Logger;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 /**
  * Re-extracts derived wiki pages from their retained source attachments, clobbering the

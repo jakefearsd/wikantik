@@ -25,7 +25,9 @@ final class QueryStructureHeuristic {
 
     static boolean looksMultiPart( final String query ) {
         if ( query == null ) return false;
-        final String q = " " + query.trim().toLowerCase() + " ";
+        // Locale.ROOT: the MARKERS are ASCII English; a Turkish default locale would
+        // lowercase "I" to a dotless "\u0131" and silently stop matching them.
+        final String q = " " + query.trim().toLowerCase( java.util.Locale.ROOT ) + " ";
         if ( q.isBlank() ) return false;
         for ( final String m : MARKERS ) {
             if ( q.contains( m ) ) return true;

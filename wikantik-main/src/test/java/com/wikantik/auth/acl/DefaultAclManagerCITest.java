@@ -203,10 +203,10 @@ class DefaultAclManagerCITest {
         when( pageMgr.getPureText( any( Page.class ) ) )
                 .thenReturn( "[{ALLOW view Alice}] some text [{ALLOW edit Bob}]" );
 
-        // extractAclFromPageText passes the full [{...}] match to parseAcl; StringTokenizer
-        // skips the "[{ALLOW" first token and parses the principal as "Alice}]" / "Bob}]"
-        when( authMgr.resolvePrincipal( eq( "Alice}]" ) ) ).thenReturn( new WikiPrincipal( "Alice" ) );
-        when( authMgr.resolvePrincipal( eq( "Bob}]" ) ) ).thenReturn( new WikiPrincipal( "Bob" ) );
+        // extractAclFromPageText strips the [{ }] braces before handing the rule line to
+        // parseAcl, so the principals arrive clean — see ruleLineOf().
+        when( authMgr.resolvePrincipal( eq( "Alice" ) ) ).thenReturn( new WikiPrincipal( "Alice" ) );
+        when( authMgr.resolvePrincipal( eq( "Bob" ) ) ).thenReturn( new WikiPrincipal( "Bob" ) );
 
         final Acl result = aclMgr.getPermissions( page );
         assertNotNull( result );
@@ -222,6 +222,70 @@ class DefaultAclManagerCITest {
                 "Alice should have view permission" );
         assertTrue( Arrays.asList( editPrincipals ).contains( new WikiPrincipal( "Bob" ) ),
                 "Bob should have edit permission" );
+    }
+
+    // -------------------------------------------------------------------------
+    //  getPermissions — principal names must not absorb the rule's closing "}]"
+    // -------------------------------------------------------------------------
+
+    /**
+     * The page-text fast path used to hand {@code parseAcl} the whole regex match
+     * ({@code [{ALLOW view Alice}]}), so its {@code StringTokenizer} folded the
+     * trailing {@code "}]"} into the last principal name. The resulting entry
+     * ("Alice}]") can never match a real principal, so the ACL is non-empty but
+     * grants nobody — a live enforcement defect.
+     *
+     * <p>These two tests use an <em>echoing</em> resolver (whatever name the
+     * manager asks for comes back as that principal) instead of stubbing the
+     * mangled name, so the assertion sees the name production code actually
+     * resolved.
+     */
+    @Test
+    void getPermissionsResolvesSolePrincipalWithoutTheRuleTerminator() {
+        final Page page = aclPage( "SoleAclPage", "[{ALLOW view Alice}]" );
+
+        final Acl result = aclMgr.getPermissions( page );
+
+        final Principal[] viewers = result.findPrincipals(
+                PermissionFactory.getPagePermission( "main:SoleAclPage", "view" ) );
+        assertEquals( 1, viewers.length, "exactly one principal should hold view" );
+        assertEquals( "Alice", viewers[ 0 ].getName(),
+                "the principal name must not absorb the rule's closing \"}]\"" );
+    }
+
+    @Test
+    void getPermissionsResolvesLastOfSeveralCommaSeparatedPrincipals() {
+        final Page page = aclPage( "MultiPrincipalPage", "[{ALLOW view Alice,Bob}]" );
+
+        final Acl result = aclMgr.getPermissions( page );
+
+        final Principal[] viewers = result.findPrincipals(
+                PermissionFactory.getPagePermission( "main:MultiPrincipalPage", "view" ) );
+        final java.util.List< String > names = Arrays.stream( viewers ).map( Principal::getName ).sorted().toList();
+        assertEquals( java.util.List.of( "Alice", "Bob" ), names,
+                "the LAST principal in a comma-separated rule must not keep the \"}]\"" );
+    }
+
+    /**
+     * Builds a mock page whose {@code setAcl}/{@code getAcl} round-trip (so parseAcl
+     * accumulates entries) and whose text is {@code pageText}, with an echoing
+     * principal resolver installed on the shared {@link #authMgr} mock.
+     */
+    private Page aclPage( final String name, final String pageText ) {
+        final Page page = mock( Page.class );
+        when( page.getWiki() ).thenReturn( "main" );
+        when( page.getName() ).thenReturn( name );
+
+        final Acl[] holder = { null };
+        doAnswer( inv -> { holder[ 0 ] = inv.getArgument( 0 ); return null; } )
+                .when( page ).setAcl( any( Acl.class ) );
+        when( page.getAcl() ).thenAnswer( inv -> holder[ 0 ] );
+
+        when( pageMgr.getPureText( eq( name ), anyInt() ) ).thenReturn( pageText );
+        when( pageMgr.getPureText( any( Page.class ) ) ).thenReturn( pageText );
+        when( authMgr.resolvePrincipal( anyString() ) )
+                .thenAnswer( inv -> new WikiPrincipal( inv.getArgument( 0, String.class ) ) );
+        return page;
     }
 
     // -------------------------------------------------------------------------

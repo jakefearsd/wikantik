@@ -21,6 +21,8 @@ package com.wikantik.rest;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.core.Session;
+import com.wikantik.auth.permissions.PermissionFilter;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
@@ -261,16 +263,20 @@ public class SpaRoutingFilter implements Filter {
                                   final String contextPath, final String pageName ) throws IOException {
         final Page cacheablePage = pageName != null && !pageName.isEmpty()
                 ? resolvePageForCaching( pageName ) : null;
+        // View permission is resolved ONCE per request and threaded into both the ETag
+        // and the injection step: a denied caller must neither be server-rendered nor
+        // share a validator with a permitted one.
+        final boolean viewAllowed = cacheablePage == null || mayView( req, pageName );
         if ( cacheablePage != null ) {
             // The SSR output for a page is a pure function of (shell build, page
-            // version, mtime) — the underlying render cache is already shared
-            // across users by content hash. private+no-cache forces revalidation
+            // version, mtime, viewer-allowed) — the underlying render cache is already
+            // shared across users by content hash. private+no-cache forces revalidation
             // on every navigation; matching validators short-circuit to a 304
             // before any body read, render, or injection work.
             final long lm = cacheablePage.getLastModified() == null
                     ? 0L : cacheablePage.getLastModified().getTime();
             final String etag = etagFor( shellFingerprint( req.getServletContext() ),
-                    Math.max( cacheablePage.getVersion(), 1 ), lm );
+                    Math.max( cacheablePage.getVersion(), 1 ), lm, viewAllowed );
             resp.setHeader( "ETag", etag );
             resp.setHeader( "Cache-Control", "private, no-cache" );
             if ( etag.equals( req.getHeader( "If-None-Match" ) ) ) {
@@ -289,7 +295,16 @@ public class SpaRoutingFilter implements Filter {
             final String html = new String( in.readAllBytes(), StandardCharsets.UTF_8 );
             String rewritten = rewriteIndexHtml( html, contextPath );
             if ( pageName != null && !pageName.isEmpty() ) {
-                rewritten = injectSemantic( rewritten, req, resp, pageName );
+                if ( viewAllowed ) {
+                    rewritten = injectSemantic( rewritten, req, resp, pageName );
+                } else {
+                    // Denied: serve the bare SPA shell with a 404, exactly as for a page
+                    // that does not exist, so the restricted page's existence — and its
+                    // body, title, summary and JSON data island — stay hidden. The SPA
+                    // then renders its own not-found/permission view client-side.
+                    LOG.info( "SpaRoutingFilter: denying unauthorized server-side render of '{}'", pageName );
+                    resp.setStatus( HttpServletResponse.SC_NOT_FOUND );
+                }
             }
             final byte[] bytes = rewritten.getBytes( StandardCharsets.UTF_8 );
             resp.setContentType( "text/html;charset=UTF-8" );
@@ -325,8 +340,18 @@ public class SpaRoutingFilter implements Filter {
     }
 
     /** Weak ETag for a served /wiki/{page} document: shell build + page version + mtime. */
-    static String etagFor( final String shellFp, final int version, final long lastModifiedMillis ) {
-        return "W/\"" + shellFp + '-' + version + '-' + lastModifiedMillis + '"';
+    /**
+     * A denied caller gets a different response body (the bare SPA shell with a 404)
+     * than a permitted one, so the validator MUST distinguish them: otherwise a browser
+     * that cached the permitted body would be handed a 304 for it after the user logs
+     * out, re-serving restricted content from its own cache.
+     *
+     * @param viewAllowed whether the caller holds {@code view} on the page
+     */
+    static String etagFor( final String shellFp, final int version, final long lastModifiedMillis,
+                            final boolean viewAllowed ) {
+        return "W/\"" + shellFp + '-' + version + '-' + lastModifiedMillis
+                + ( viewAllowed ? "-v" : "-d" ) + '"';
     }
 
     /** Null-safe page lookup mirroring injectSemantic's ladder; null = engine/pm/page unavailable. */
@@ -357,6 +382,38 @@ public class SpaRoutingFilter implements Filter {
      * unchanged — the React app will still handle the route client-side and
      * show a 404 for missing pages.
      */
+    /**
+     * Whether the caller may {@code view} {@code pageName}. The server-rendered body,
+     * head metadata and JSON data island are all page content, so this path must apply
+     * the same view ACL that {@link WikiPageFormatFilter} applies to the raw-content
+     * representation of the very same URL.
+     *
+     * <p>Fails <em>closed</em>: if the permission subsystem throws, the page is not
+     * server-rendered. A denied answer costs SEO on that page; a wrong "allowed"
+     * answer discloses restricted content.
+     *
+     * @param req      the current request, used to resolve the caller's session
+     *                 (a transient guest when unauthenticated)
+     * @param pageName the wiki page being navigated to
+     * @return {@code true} if the caller holds {@code view} on the page
+     */
+    private boolean mayView( final HttpServletRequest req, final String pageName ) {
+        final Engine eng = resolveEngine();
+        if ( eng == null ) {
+            // Without an engine nothing is server-rendered anyway (injectSemantic bails
+            // on the same condition), so there is no content to protect here.
+            return true;
+        }
+        try {
+            final Session session = Wiki.session().find( eng, req );
+            return new PermissionFilter( eng ).canAccess( session, pageName, "view" );
+        } catch ( final RuntimeException ex ) {
+            LOG.warn( "SpaRoutingFilter: view-permission check failed for '{}' ({}) — refusing to server-render",
+                    pageName, ex.toString() );
+            return false;
+        }
+    }
+
     private String injectSemantic( final String indexHtml, final HttpServletRequest req,
                                      final HttpServletResponse resp, final String pageName ) {
         final Engine eng = resolveEngine();

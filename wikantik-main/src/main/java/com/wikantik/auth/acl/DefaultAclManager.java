@@ -88,6 +88,9 @@ public class DefaultAclManager implements AclManager {
      */
     public static final Pattern ACL_PATTERN = Pattern.compile( ACL_REGEX );
 
+    /** The {@code [{ } ]} wrapper around a directive — see {@link #ruleLineOf}. */
+    private static final Pattern DIRECTIVE_BRACES = Pattern.compile( "^\\[\\{|\\}\\]$" );
+
     /**
      * Vanilla CommonMark parser used solely to locate Markdown code spans and
      * code blocks when scanning for ACL directives. A bare parse (no rendering,
@@ -204,7 +207,8 @@ public class DefaultAclManager implements AclManager {
                 return acl;
             }
 
-            for( final String ruleLine : aclDirectives( pageText ) ) {
+            for( final String directive : aclDirectives( pageText ) ) {
+                final String ruleLine = ruleLineOf( directive );
                 try {
                     acl = parseAcl( page, ruleLine );
                 } catch( final WikiSecurityException e ) {
@@ -216,6 +220,24 @@ public class DefaultAclManager implements AclManager {
         }
 
         return acl;
+    }
+
+    /**
+     * Converts a matched ACL directive ({@code [{ALLOW view Alice,Bob}]}) into the
+     * brace-free rule line {@link #parseAcl} expects ({@code ALLOW view Alice,Bob}).
+     *
+     * <p>This mirrors what the render path
+     * ({@code AccessRuleLinkNodePostProcessorState}) already does before calling
+     * {@code parseAcl}. Without it, {@code parseAcl}'s {@link StringTokenizer} folds
+     * the trailing {@code "}]"} into the <em>last</em> principal name, yielding an
+     * entry ({@code "Alice}]"}) that can never match a real principal — a non-empty
+     * ACL that grants nobody.
+     *
+     * @param directive a full {@code [{ALLOW …}]} match
+     * @return the rule line without the surrounding braces
+     */
+    static String ruleLineOf( final String directive ) {
+        return DIRECTIVE_BRACES.matcher( directive.trim() ).replaceAll( "" ).trim();
     }
 
     /**

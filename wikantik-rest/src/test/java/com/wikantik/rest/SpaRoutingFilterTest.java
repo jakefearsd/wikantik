@@ -672,12 +672,25 @@ class SpaRoutingFilterTest {
 
     @Test
     void etagIsStableAndVersionSensitive() {
-        final String a = SpaRoutingFilter.etagFor( "abc123", 4, 1_700_000_000_000L );
-        assertEquals( a, SpaRoutingFilter.etagFor( "abc123", 4, 1_700_000_000_000L ) );
-        assertNotEquals( a, SpaRoutingFilter.etagFor( "abc123", 5, 1_700_000_000_000L ) );
-        assertNotEquals( a, SpaRoutingFilter.etagFor( "abc123", 4, 1_700_000_000_001L ) );
-        assertNotEquals( a, SpaRoutingFilter.etagFor( "zzz999", 4, 1_700_000_000_000L ) );
+        final String a = SpaRoutingFilter.etagFor( "abc123", 4, 1_700_000_000_000L, true );
+        assertEquals( a, SpaRoutingFilter.etagFor( "abc123", 4, 1_700_000_000_000L, true ) );
+        assertNotEquals( a, SpaRoutingFilter.etagFor( "abc123", 5, 1_700_000_000_000L, true ) );
+        assertNotEquals( a, SpaRoutingFilter.etagFor( "abc123", 4, 1_700_000_000_001L, true ) );
+        assertNotEquals( a, SpaRoutingFilter.etagFor( "zzz999", 4, 1_700_000_000_000L, true ) );
         assertTrue( a.startsWith( "W/\"" ) && a.endsWith( "\"" ) );
+    }
+
+    /**
+     * A denied caller receives the bare shell + 404 where a permitted caller receives
+     * the server-rendered body. Sharing one validator between those two responses lets
+     * a browser re-serve the cached restricted body from its own cache after logout.
+     */
+    @Test
+    void etagDistinguishesPermittedFromDeniedViewers() {
+        assertNotEquals(
+                SpaRoutingFilter.etagFor( "abc123", 4, 1_700_000_000_000L, true ),
+                SpaRoutingFilter.etagFor( "abc123", 4, 1_700_000_000_000L, false ),
+                "permitted and denied viewers must not share an ETag" );
     }
 
     /**
@@ -737,6 +750,56 @@ class SpaRoutingFilterTest {
             verify( response2 ).setStatus( HttpServletResponse.SC_NOT_MODIFIED );
             assertEquals( "", capturedOutput2.asString(),
                     "a 304 response must short-circuit before any body is written" );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    // ---- view-ACL enforcement on the server-rendered body ----
+
+    /**
+     * {@code injectSemantic} server-renders the page body into {@code #root} and a JSON
+     * data island. {@code WikiPageFormatFilter} — mapped to the very same {@code /wiki/*}
+     * pattern — gates its raw-content output on {@code view} permission, so without the
+     * matching gate here the HTML representation of a restricted page leaked the whole
+     * body to anonymous callers while {@code ?format=md} correctly 404'd.
+     */
+    @Test
+    void ssrDoesNotRenderTheBodyOfAViewRestrictedPageForAnonymousCallers() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        final TestEngine engine = new TestEngine( props );
+        try {
+            engine.saveText( "SpaRestrictedPage",
+                    "[{ALLOW view Admin}]\nTOP_SECRET_SSR_MARKER lives in the restricted body." );
+            filter.setEngineForTest( engine );
+
+            final HttpServletRequest request = mockRequest( "/wiki/SpaRestrictedPage" );
+            filter.doFilter( request, response, chain );
+
+            assertFalse( capturedOutput.asString().contains( "TOP_SECRET_SSR_MARKER" ),
+                    "anonymous SSR must not leak the body of a view-restricted page" );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    /**
+     * Guards the fix from over-correcting into "never server-render": an unrestricted
+     * page must still get its body injected, which is the whole point of the SSR path.
+     */
+    @Test
+    void ssrStillRendersTheBodyOfAnUnrestrictedPage() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        final TestEngine engine = new TestEngine( props );
+        try {
+            engine.saveText( "SpaPublicPage", "PUBLIC_SSR_MARKER is freely readable." );
+            filter.setEngineForTest( engine );
+
+            final HttpServletRequest request = mockRequest( "/wiki/SpaPublicPage" );
+            filter.doFilter( request, response, chain );
+
+            assertTrue( capturedOutput.asString().contains( "PUBLIC_SSR_MARKER" ),
+                    "an unrestricted page must still be server-rendered" );
         } finally {
             engine.stop();
         }

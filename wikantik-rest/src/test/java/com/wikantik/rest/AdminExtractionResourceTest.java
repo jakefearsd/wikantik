@@ -233,18 +233,23 @@ class AdminExtractionResourceTest {
     @Test
     void doGet_includesExtractorBackendFromConfig() throws Exception {
         engine.getWikiProperties().setProperty( "wikantik.knowledge.extractor.backend", "claude" );
-        final BootstrapEntityExtractionIndexer indexer = Mockito.mock( BootstrapEntityExtractionIndexer.class );
-        Mockito.when( indexer.status() ).thenReturn( idleStatus() );
-        installIndexer( indexer );
+        try {
+            final BootstrapEntityExtractionIndexer indexer = Mockito.mock( BootstrapEntityExtractionIndexer.class );
+            Mockito.when( indexer.status() ).thenReturn( idleStatus() );
+            installIndexer( indexer );
 
-        final StringWriter sw = new StringWriter();
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph/extract-mentions" );
-        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
-        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
-        servlet.doGet( request, response );
+            final StringWriter sw = new StringWriter();
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph/extract-mentions" );
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+            servlet.doGet( request, response );
 
-        final JsonObject body = gson.fromJson( sw.toString(), JsonObject.class );
-        assertEquals( "claude", body.get( "extractorBackend" ).getAsString() );
+            final JsonObject body = gson.fromJson( sw.toString(), JsonObject.class );
+            assertEquals( "claude", body.get( "extractorBackend" ).getAsString() );
+        } finally {
+            // Shared per-class engine: restore the property so no later test inherits it.
+            engine.getWikiProperties().remove( "wikantik.knowledge.extractor.backend" );
+        }
     }
 
     @Test

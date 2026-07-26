@@ -323,6 +323,10 @@ class AdminProfilingServletTest {
         servlet.doGet( request, response );
 
         assertJsonError( response, 404, "recording file not on disk: no-such-profiling-file.jfr" );
+        // The download headers must not leak onto the JSON error — a browser would
+        // honor Content-Disposition: attachment and download the error blob.
+        Mockito.verify( response, Mockito.never() )
+                .setHeader( Mockito.eq( "Content-Disposition" ), Mockito.anyString() );
     }
 
     @Test

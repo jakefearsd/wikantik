@@ -122,13 +122,15 @@ public class AdminProfilingServlet extends RestServletBase {
                     return;
                 }
                 final Path file = r.filePathFor( id );
-                resp.setContentType( "application/octet-stream" );
-                resp.setHeader( "Content-Disposition",
-                    "attachment; filename=\"" + file.getFileName() + "\"" );
                 if ( !file.toFile().exists() ) {
                     sendError( resp, 404, "recording file not on disk: " + file.getFileName() );
                     return;
                 }
+                // Download headers only once the file is known to exist — they must not
+                // leak onto the JSON 404 (Content-Disposition has no un-set API).
+                resp.setContentType( "application/octet-stream" );
+                resp.setHeader( "Content-Disposition",
+                    "attachment; filename=\"" + file.getFileName() + "\"" );
                 resp.setContentLengthLong( file.toFile().length() );
                 Files.copy( file, resp.getOutputStream() );
                 return;

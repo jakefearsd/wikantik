@@ -22,7 +22,8 @@ import com.wikantik.TestEngine;
 import com.wikantik.WikiPage;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.spi.Wiki;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -42,19 +43,31 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class MarkupParserAdditionalTest {
 
-    private TestEngine engine;
+    // Per-class engine (see RestTestSupport javadoc pattern). A real engine is required —
+    // MarkdownParser's constructor resolves the AuthSubsystem (AuthSubsystemBridge ->
+    // UserManager/AuthorizationManager) to decide whether to disableAccessRules(), so a bare
+    // MockEngineBuilder mock would need to fake that whole chain just to keep the default
+    // isParseAccessRules()==true precondition several tests rely on. No test here saves a
+    // page (WikiPage objects are constructed but never persisted) or mutates engine-global
+    // state (enableImageInlining/disableAccessRules are per-parser-instance), so one shared
+    // engine boot is safe for all 18 tests.
+    private static TestEngine engine;
     private Context context;
+
+    @BeforeAll
+    static void startEngine() {
+        engine = TestEngine.build();
+    }
+
+    @AfterAll
+    static void stopEngine() {
+        engine.stop();
+    }
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
         final WikiPage page = new WikiPage( engine, "TestPage" );
         context = Wiki.context().create( engine, page );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
     }
 
     // -----------------------------------------------------------------------

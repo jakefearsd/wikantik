@@ -31,8 +31,10 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.auth.GroupPrincipal;
 import com.wikantik.api.managers.PageManager;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -41,15 +43,31 @@ import java.util.Properties;
 
 
 class CommandResolverTest {
-    TestEngine m_engine;
-    CommandResolver resolver;
+    // Per-class engine (see RestTestSupport javadoc pattern): resolver is stable for the
+    // engine's lifetime, so it's fetched once too. The SinglePage/PluralPages fixtures are
+    // still (re)created per test in @BeforeEach and torn down in @AfterEach, so no state
+    // accumulates across tests sharing this engine. NOTE: the original @AfterEach deleted
+    // "PluralPage" (singular) instead of "PluralPages" (the page actually saved) — harmless
+    // under the old per-test-engine lifecycle (each test got a fresh engine regardless) but a
+    // real leak under a shared engine, so it's fixed here.
+    static TestEngine m_engine;
+    static CommandResolver resolver;
 
-    @BeforeEach
-    void setUp() throws Exception {
+    @BeforeAll
+    static void startEngine() throws Exception {
         final Properties props = TestEngine.getTestProperties();
         props.setProperty( Engine.PROP_MATCHPLURALS, "yes" );
         m_engine = new TestEngine( props );
         resolver = m_engine.getManager( CommandResolver.class );
+    }
+
+    @AfterAll
+    static void stopEngine() {
+        m_engine.stop();
+    }
+
+    @BeforeEach
+    void setUp() throws Exception {
         m_engine.saveText( "SinglePage", "This is a test." );
         m_engine.saveText( "PluralPages", "This is a test." );
     }
@@ -57,7 +75,7 @@ class CommandResolverTest {
     @AfterEach
     void tearDown() throws Exception {
         m_engine.getManager( PageManager.class ).deletePage( "SinglePage" );
-        m_engine.getManager( PageManager.class ).deletePage( "PluralPage" );
+        m_engine.getManager( PageManager.class ).deletePage( "PluralPages" );
     }
 
     @Test

@@ -29,8 +29,10 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
@@ -40,11 +42,38 @@ import static com.wikantik.TestEngine.with;
 
 public class PageRenamerTest {
 
-    TestEngine m_engine = TestEngine.build( with( Engine.PROP_MATCHPLURALS, "true" ) );
+    // Per-class engine (see RestTestSupport javadoc pattern). Many tests share the same
+    // literal fixture names (TestPage, TestPage2, FooTest, BarTest, Test, ...) and several
+    // rename different source pages to the same target ("FooTest") — under a shared engine
+    // those would collide/accumulate referrers across tests. ALL_TEST_PAGES is the superset of
+    // every page name any test in this class creates or renames to; deleting them in @AfterEach
+    // resets PageManager + ReferenceManager state before the next test regardless of run order.
+    // "Main" is intentionally excluded: testBug85_case3/case4 round-trip rename it back to
+    // "Main" (Main -> Main8887 -> Main), and no test in this class asserts on Main's content or
+    // referrer count, so it's safe to leave in place rather than deleting the engine's default
+    // front page out from under a shared instance.
+    private static final String[] ALL_TEST_PAGES = {
+        "TestPage", "TestPage2", "FooTest", "BarTest", "Test",
+        "Cdauth", "CdauthNew", "TestPage123", "TestPage1234", "Main8887",
+        "TestPageReferred", "TestPageReferring", "TestPageReferredNew",
+        "RenameTest", "LinkOne", "LinkTwo", "LinkUno"
+    };
+
+    static TestEngine m_engine;
+
+    @BeforeAll
+    static void startEngine() {
+        m_engine = TestEngine.build( with( Engine.PROP_MATCHPLURALS, "true" ) );
+    }
+
+    @AfterAll
+    static void stopEngine() {
+        m_engine.stop();
+    }
 
     @AfterEach
     public void tearDown() {
-        m_engine.stop();
+        m_engine.deleteQuietly( ALL_TEST_PAGES );
     }
 
     @Test

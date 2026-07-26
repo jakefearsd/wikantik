@@ -54,6 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -227,27 +228,19 @@ public final class ConnectorWiringHelper {
      *  reconstruct a properties-defined connector's config JSON (design {@code D1}). An id with
      *  no non-blank {@code seeds} is skipped. */
     public static Map< String, WebCrawlerConfig > webcrawlerConfigs( final Properties props ) {
-        final String p = PREFIX + "webcrawler.";
-        final Map< String, WebCrawlerConfig > out = new LinkedHashMap<>();
-        for ( final String key : props.stringPropertyNames() ) {
-            if ( key.startsWith( p ) && key.endsWith( ".seeds" ) ) {
-                final String id = key.substring( p.length(), key.length() - ".seeds".length() );
-                if ( id.isBlank() || id.contains( "." ) ) continue;
-                final List< String > seeds = parseSeeds( props.getProperty( key ) );
-                if ( seeds.isEmpty() ) continue;
-                final String idPrefix = p + id + ".";
-                out.put( id, new WebCrawlerConfig(
-                    seeds,
-                    Boolean.parseBoolean( props.getProperty( idPrefix + "same_host_only", "true" ).trim() ),
-                    blankToNull( props.getProperty( idPrefix + "path_prefix" ) ),
-                    parseInt( props, idPrefix + "max_pages", 100 ),
-                    parseInt( props, idPrefix + "max_depth", 3 ),
-                    parseLongValue( props, idPrefix + "delay_ms", 1000L ),
-                    props.getProperty( idPrefix + "user_agent", "WikantikCrawler/1.0 (+https://wiki.wikantik.com)" ).trim(),
-                    Boolean.parseBoolean( props.getProperty( idPrefix + "respect_robots", "true" ).trim() ) ) );
-            }
-        }
-        return out;
+        return scanIdBlocks( props, PREFIX + "webcrawler.", ".seeds", ( id, idPrefix ) -> {
+            final List< String > seeds = parseSeeds( props.getProperty( idPrefix + "seeds" ) );
+            if ( seeds.isEmpty() ) return Optional.empty();
+            return Optional.of( new WebCrawlerConfig(
+                seeds,
+                Boolean.parseBoolean( props.getProperty( idPrefix + "same_host_only", "true" ).trim() ),
+                blankToNull( props.getProperty( idPrefix + "path_prefix" ) ),
+                parseInt( props, idPrefix + "max_pages", 100 ),
+                parseInt( props, idPrefix + "max_depth", 3 ),
+                parseLongValue( props, idPrefix + "delay_ms", 1000L ),
+                props.getProperty( idPrefix + "user_agent", "WikantikCrawler/1.0 (+https://wiki.wikantik.com)" ).trim(),
+                Boolean.parseBoolean( props.getProperty( idPrefix + "respect_robots", "true" ).trim() ) ) );
+        } );
     }
 
     /** id → config for every {@code wikantik.connectors.sitemap.<id>.sitemap_urls} key (plus its sibling
@@ -255,25 +248,17 @@ public final class ConnectorWiringHelper {
      *  reconstruct a properties-defined connector's config JSON (design {@code D1}). An id with
      *  no non-blank {@code sitemap_urls} is skipped. */
     public static Map< String, SitemapConfig > sitemapConfigs( final Properties props ) {
-        final String p = PREFIX + "sitemap.";
-        final Map< String, SitemapConfig > out = new LinkedHashMap<>();
-        for ( final String key : props.stringPropertyNames() ) {
-            if ( key.startsWith( p ) && key.endsWith( ".sitemap_urls" ) ) {
-                final String id = key.substring( p.length(), key.length() - ".sitemap_urls".length() );
-                if ( id.isBlank() || id.contains( "." ) ) continue;
-                final List< String > sitemapUrls = parseSeeds( props.getProperty( key ) );
-                if ( sitemapUrls.isEmpty() ) continue;
-                final String idPrefix = p + id + ".";
-                out.put( id, new SitemapConfig(
-                    sitemapUrls,
-                    parseInt( props, idPrefix + "max_pages", 500 ),
-                    parseLongValue( props, idPrefix + "delay_ms", 1000L ),
-                    props.getProperty( idPrefix + "user_agent", "WikantikCrawler/1.0 (+https://wiki.wikantik.com)" ).trim(),
-                    Boolean.parseBoolean( props.getProperty( idPrefix + "respect_robots", "true" ).trim() ),
-                    Boolean.parseBoolean( props.getProperty( idPrefix + "same_host_only", "true" ).trim() ) ) );
-            }
-        }
-        return out;
+        return scanIdBlocks( props, PREFIX + "sitemap.", ".sitemap_urls", ( id, idPrefix ) -> {
+            final List< String > sitemapUrls = parseSeeds( props.getProperty( idPrefix + "sitemap_urls" ) );
+            if ( sitemapUrls.isEmpty() ) return Optional.empty();
+            return Optional.of( new SitemapConfig(
+                sitemapUrls,
+                parseInt( props, idPrefix + "max_pages", 500 ),
+                parseLongValue( props, idPrefix + "delay_ms", 1000L ),
+                props.getProperty( idPrefix + "user_agent", "WikantikCrawler/1.0 (+https://wiki.wikantik.com)" ).trim(),
+                Boolean.parseBoolean( props.getProperty( idPrefix + "respect_robots", "true" ).trim() ),
+                Boolean.parseBoolean( props.getProperty( idPrefix + "same_host_only", "true" ).trim() ) ) );
+        } );
     }
 
     /** id → config for every {@code wikantik.connectors.feed.<id>.feed_urls} key (plus its sibling
@@ -281,26 +266,18 @@ public final class ConnectorWiringHelper {
      *  reconstruct a properties-defined connector's config JSON (design {@code D1}). An id with
      *  no non-blank {@code feed_urls} is skipped. */
     public static Map< String, FeedConfig > feedConfigs( final Properties props ) {
-        final String p = PREFIX + "feed.";
-        final Map< String, FeedConfig > out = new LinkedHashMap<>();
-        for ( final String key : props.stringPropertyNames() ) {
-            if ( key.startsWith( p ) && key.endsWith( ".feed_urls" ) ) {
-                final String id = key.substring( p.length(), key.length() - ".feed_urls".length() );
-                if ( id.isBlank() || id.contains( "." ) ) continue;
-                final List< String > feedUrls = parseSeeds( props.getProperty( key ) );
-                if ( feedUrls.isEmpty() ) continue;
-                final String idPrefix = p + id + ".";
-                out.put( id, new FeedConfig(
-                    feedUrls,
-                    parseInt( props, idPrefix + "max_items", 100 ),
-                    Boolean.parseBoolean( props.getProperty( idPrefix + "fetch_full_articles", "true" ).trim() ),
-                    parseLongValue( props, idPrefix + "delay_ms", 1000L ),
-                    props.getProperty( idPrefix + "user_agent", "WikantikCrawler/1.0 (+https://wiki.wikantik.com)" ).trim(),
-                    Boolean.parseBoolean( props.getProperty( idPrefix + "respect_robots", "true" ).trim() ),
-                    Boolean.parseBoolean( props.getProperty( idPrefix + "same_host_only", "true" ).trim() ) ) );
-            }
-        }
-        return out;
+        return scanIdBlocks( props, PREFIX + "feed.", ".feed_urls", ( id, idPrefix ) -> {
+            final List< String > feedUrls = parseSeeds( props.getProperty( idPrefix + "feed_urls" ) );
+            if ( feedUrls.isEmpty() ) return Optional.empty();
+            return Optional.of( new FeedConfig(
+                feedUrls,
+                parseInt( props, idPrefix + "max_items", 100 ),
+                Boolean.parseBoolean( props.getProperty( idPrefix + "fetch_full_articles", "true" ).trim() ),
+                parseLongValue( props, idPrefix + "delay_ms", 1000L ),
+                props.getProperty( idPrefix + "user_agent", "WikantikCrawler/1.0 (+https://wiki.wikantik.com)" ).trim(),
+                Boolean.parseBoolean( props.getProperty( idPrefix + "respect_robots", "true" ).trim() ),
+                Boolean.parseBoolean( props.getProperty( idPrefix + "same_host_only", "true" ).trim() ) ) );
+        } );
     }
 
     /** id → config for every {@code wikantik.connectors.gdrive.<id>.folder_ids} key (plus its sibling
@@ -308,29 +285,21 @@ public final class ConnectorWiringHelper {
      *  reconstruct a properties-defined connector's config JSON (design {@code D1}). An id with
      *  no non-blank {@code folder_ids}, or missing client_id/client_secret/redirect_uri, is skipped. */
     public static Map< String, DriveConfig > driveConfigs( final Properties props ) {
-        final String p = PREFIX + "gdrive.";
-        final Map< String, DriveConfig > out = new LinkedHashMap<>();
-        for ( final String key : props.stringPropertyNames() ) {
-            if ( key.startsWith( p ) && key.endsWith( ".folder_ids" ) ) {
-                final String id = key.substring( p.length(), key.length() - ".folder_ids".length() );
-                if ( id.isBlank() || id.contains( "." ) ) continue;
-                final List< String > folderIds = parseSeeds( props.getProperty( key ) );
-                if ( folderIds.isEmpty() ) continue;
-                final String idPrefix = p + id + ".";
-                final String clientId = blankToNull( props.getProperty( idPrefix + "client_id" ) );
-                final String clientSecret = blankToNull( props.getProperty( idPrefix + "client_secret" ) );
-                final String redirectUri = blankToNull( props.getProperty( idPrefix + "redirect_uri" ) );
-                if ( clientId == null || clientSecret == null || redirectUri == null ) {
-                    LOG.warn( "gdrive '{}': missing client_id/client_secret/redirect_uri — skipping", id );
-                    continue;
-                }
-                out.put( id, new DriveConfig( folderIds,
-                    parseInt( props, idPrefix + "max_files", 500 ),
-                    clientId, clientSecret, redirectUri,
-                    props.getProperty( idPrefix + "export_mime", "text/markdown" ).trim() ) );
+        return scanIdBlocks( props, PREFIX + "gdrive.", ".folder_ids", ( id, idPrefix ) -> {
+            final List< String > folderIds = parseSeeds( props.getProperty( idPrefix + "folder_ids" ) );
+            if ( folderIds.isEmpty() ) return Optional.empty();
+            final String clientId = blankToNull( props.getProperty( idPrefix + "client_id" ) );
+            final String clientSecret = blankToNull( props.getProperty( idPrefix + "client_secret" ) );
+            final String redirectUri = blankToNull( props.getProperty( idPrefix + "redirect_uri" ) );
+            if ( clientId == null || clientSecret == null || redirectUri == null ) {
+                LOG.warn( "gdrive '{}': missing client_id/client_secret/redirect_uri — skipping", id );
+                return Optional.empty();
             }
-        }
-        return out;
+            return Optional.of( new DriveConfig( folderIds,
+                parseInt( props, idPrefix + "max_files", 500 ),
+                clientId, clientSecret, redirectUri,
+                props.getProperty( idPrefix + "export_mime", "text/markdown" ).trim() ) );
+        } );
     }
 
     /** id → config for every {@code wikantik.connectors.github.<id>.repo} key. Public — also used
@@ -338,25 +307,17 @@ public final class ConnectorWiringHelper {
      *  connector's config JSON (design {@code D1}). An id whose repo is not "owner/name" shaped
      *  is skipped. */
     public static Map< String, GithubConfig > githubConfigs( final Properties props ) {
-        final String p = PREFIX + "github.";
-        final Map< String, GithubConfig > out = new LinkedHashMap<>();
-        for ( final String key : props.stringPropertyNames() ) {
-            if ( key.startsWith( p ) && key.endsWith( ".repo" ) ) {
-                final String id = key.substring( p.length(), key.length() - ".repo".length() );
-                if ( id.isBlank() || id.contains( "." ) ) continue;
-                final String repo = blankToNull( props.getProperty( key ) );
-                if ( repo == null || !repo.matches( "[^/\\s]+/[^/\\s]+" ) ) {
-                    LOG.warn( "github '{}': repo must be \"owner/name\" — skipping", id );
-                    continue;
-                }
-                final String idPrefix = p + id + ".";
-                out.put( id, new GithubConfig( repo,
-                    blankToNull( props.getProperty( idPrefix + "branch" ) ),
-                    blankToNull( props.getProperty( idPrefix + "path_prefix" ) ),
-                    parseInt( props, idPrefix + "max_files", 500 ) ) );
+        return scanIdBlocks( props, PREFIX + "github.", ".repo", ( id, idPrefix ) -> {
+            final String repo = blankToNull( props.getProperty( idPrefix + "repo" ) );
+            if ( repo == null || !repo.matches( "[^/\\s]+/[^/\\s]+" ) ) {
+                LOG.warn( "github '{}': repo must be \"owner/name\" — skipping", id );
+                return Optional.empty();
             }
-        }
-        return out;
+            return Optional.of( new GithubConfig( repo,
+                blankToNull( props.getProperty( idPrefix + "branch" ) ),
+                blankToNull( props.getProperty( idPrefix + "path_prefix" ) ),
+                parseInt( props, idPrefix + "max_files", 500 ) ) );
+        } );
     }
 
     /** id → config for every {@code wikantik.connectors.confluence.<id>.space_key} key. Public —
@@ -364,23 +325,32 @@ public final class ConnectorWiringHelper {
      *  properties-defined connector's config JSON (design {@code D1}). An id missing base_url or
      *  email is skipped. */
     public static Map< String, ConfluenceConfig > confluenceConfigs( final Properties props ) {
-        final String p = PREFIX + "confluence.";
-        final Map< String, ConfluenceConfig > out = new LinkedHashMap<>();
+        return scanIdBlocks( props, PREFIX + "confluence.", ".space_key", ( id, idPrefix ) -> {
+            final String spaceKey = blankToNull( props.getProperty( idPrefix + "space_key" ) );
+            final String baseUrl = blankToNull( props.getProperty( idPrefix + "base_url" ) );
+            final String email = blankToNull( props.getProperty( idPrefix + "email" ) );
+            if ( spaceKey == null ) return Optional.empty();
+            if ( baseUrl == null || email == null ) {
+                LOG.warn( "confluence '{}': missing base_url/email — skipping", id );
+                return Optional.empty();
+            }
+            return Optional.of( new ConfluenceConfig( baseUrl, spaceKey, email,
+                parseInt( props, idPrefix + "max_pages", 500 ) ) );
+        } );
+    }
+
+    /** Shared scanner for the {@code prefix.<id><markerSuffix>} key convention every connector
+     *  type block uses: finds each id whose marker key is present, validates the id shape, and
+     *  hands (id, idPrefix = {@code prefix + id + "."}) to {@code builder} to construct (or skip)
+     *  that id's config. Package-visible for testing. */
+    static < T > Map< String, T > scanIdBlocks( final Properties props, final String prefix,
+            final String markerSuffix, final BiFunction< String, String, Optional< T > > builder ) {
+        final Map< String, T > out = new LinkedHashMap<>();
         for ( final String key : props.stringPropertyNames() ) {
-            if ( key.startsWith( p ) && key.endsWith( ".space_key" ) ) {
-                final String id = key.substring( p.length(), key.length() - ".space_key".length() );
+            if ( key.startsWith( prefix ) && key.endsWith( markerSuffix ) ) {
+                final String id = key.substring( prefix.length(), key.length() - markerSuffix.length() );
                 if ( id.isBlank() || id.contains( "." ) ) continue;
-                final String spaceKey = blankToNull( props.getProperty( key ) );
-                final String idPrefix = p + id + ".";
-                final String baseUrl = blankToNull( props.getProperty( idPrefix + "base_url" ) );
-                final String email = blankToNull( props.getProperty( idPrefix + "email" ) );
-                if ( spaceKey == null ) continue;
-                if ( baseUrl == null || email == null ) {
-                    LOG.warn( "confluence '{}': missing base_url/email — skipping", id );
-                    continue;
-                }
-                out.put( id, new ConfluenceConfig( baseUrl, spaceKey, email,
-                    parseInt( props, idPrefix + "max_pages", 500 ) ) );
+                builder.apply( id, prefix + id + "." ).ifPresent( cfg -> out.put( id, cfg ) );
             }
         }
         return out;

@@ -18,7 +18,6 @@
  */
 package com.wikantik.knowledge.extraction;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -30,11 +29,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;import java.util.Map;
+import java.time.Duration;
 
 /**
  * Extractor backed by a local Ollama model. Uses the {@code /api/chat}
@@ -50,7 +46,6 @@ import java.time.Duration;import java.util.Map;
 public class OllamaEntityExtractor implements EntityExtractor {
 
     private static final Logger LOG = LogManager.getLogger( OllamaEntityExtractor.class );
-    private static final Gson GSON = new Gson();
 
     public static final String CODE = EntityExtractorConfig.BACKEND_OLLAMA;
 
@@ -116,26 +111,15 @@ public class OllamaEntityExtractor implements EntityExtractor {
         // keep_alive ("30m") holds the model resident on the Ollama side longer than the
         // default 5m so successive chunks of a page don't pay the cold-load cost. think:false
         // is enforced by the shared builder — see OllamaChatRequest.
-        final Map< String, Object > body = OllamaChatRequest.body(
-            config.ollamaModel(),
-            ExtractionPromptBuilder.SYSTEM_PROMPT,
-            ExtractionPromptBuilder.buildUserPrompt( chunk, context, config.maxExistingNodes() ),
-            "30m" );
-
-        final String url = stripTrailingSlash( config.ollamaBaseUrl() ) + "/api/chat";
-        final HttpRequest req = HttpRequest.newBuilder( URI.create( url ) )
-            .timeout( Duration.ofMillis( config.timeoutMs() ) )
-            .header( "Content-Type", "application/json" )
-            .POST( HttpRequest.BodyPublishers.ofString( GSON.toJson( body ) ) )
-            .build();
-
-        final HttpResponse< String > res = httpClient.send( req, HttpResponse.BodyHandlers.ofString() );
-        if( res.statusCode() / 100 != 2 ) {
-            LOG.warn( "Ollama extract HTTP {} for chunk {}", res.statusCode(), chunk.id() );
+        final String raw = OllamaHttpCaller.call( httpClient, config.ollamaBaseUrl(), config.timeoutMs(),
+            config.ollamaModel(), ExtractionPromptBuilder.SYSTEM_PROMPT,
+            ExtractionPromptBuilder.buildUserPrompt( chunk, context, config.maxExistingNodes() ), "30m",
+            statusCode -> LOG.warn( "Ollama extract HTTP {} for chunk {}", statusCode, chunk.id() ) );
+        if( raw == null ) {
             return null;
         }
 
-        final JsonElement root = JsonParser.parseString( res.body() );
+        final JsonElement root = JsonParser.parseString( raw );
         if( !root.isJsonObject() ) {
             return null;
         }
@@ -146,12 +130,5 @@ public class OllamaEntityExtractor implements EntityExtractor {
         }
         final JsonElement content = message.getAsJsonObject().get( "content" );
         return content == null || content.isJsonNull() ? null : content.getAsString();
-    }
-
-    private static String stripTrailingSlash( final String s ) {
-        if( s == null || s.isEmpty() ) {
-            return "";
-        }
-        return s.endsWith( "/" ) ? s.substring( 0, s.length() - 1 ) : s;
     }
 }

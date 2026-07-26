@@ -26,33 +26,38 @@ import com.wikantik.TestEngine;
 import com.wikantik.WikiContext;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class FrontmatterPreloaderTest {
 
-    private TestEngine engine;
+    // Per-class engine (see RestTestSupport javadoc pattern): the 3 fixture pages already had
+    // per-test @AfterEach cleanup via deletePage, so nothing accumulates across tests sharing
+    // this engine — only the engine construction/stop moves to @BeforeAll/@AfterAll.
+    private static TestEngine engine;
 
-    @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        engine = new TestEngine( props );
+    @BeforeAll
+    static void startEngine() throws Exception {
+        engine = new TestEngine( TestEngine.getTestProperties() );
+    }
+
+    @AfterAll
+    static void stopEngine() {
+        if ( engine != null ) {
+            engine.stop();
+        }
     }
 
     @AfterEach
     void tearDown() throws Exception {
-        if ( engine != null ) {
-            final PageManager pm = engine.getManager( PageManager.class );
-            pm.deletePage( "PreloaderTest" );
-            pm.deletePage( "PreloaderNoFrontmatter" );
-            pm.deletePage( "PreloaderListFields" );
-            engine.stop();
-        }
+        final PageManager pm = engine.getManager( PageManager.class );
+        pm.deletePage( "PreloaderTest" );
+        pm.deletePage( "PreloaderNoFrontmatter" );
+        pm.deletePage( "PreloaderListFields" );
     }
 
     @Test

@@ -25,8 +25,10 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.util.FileUtil;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -45,8 +47,24 @@ public class FileSystemProviderTest {
     FileSystemProvider m_providerUTF8;
     Properties props = TestEngine.getTestProperties();
 
-    Engine m_engine = TestEngine.build( with( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" ),
-                                        with( FileSystemProvider.PROP_PAGEDIR, "./target/wikantik.test.pages" ) );
+    // Per-class engine (see RestTestSupport javadoc pattern). m_engine is only ever passed as
+    // a constructor arg to raw FileSystemProvider/WikiPage instances built fresh per test (via
+    // setUp() below) — no test reaches through m_engine's own PageManager, so the engine's own
+    // internal page-provider state is irrelevant. @AfterEach wipes PROP_PAGEDIR after every
+    // test, so no fixture files accumulate across tests sharing this engine (including the one
+    // test asserting an absolute page count, testGetAllPagesWithMixedExtensions).
+    static Engine m_engine;
+
+    @BeforeAll
+    static void startEngine() {
+        m_engine = TestEngine.build( with( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" ),
+                                      with( FileSystemProvider.PROP_PAGEDIR, "./target/wikantik.test.pages" ) );
+    }
+
+    @AfterAll
+    static void stopEngine() {
+        m_engine.stop();
+    }
 
     @BeforeEach
     public void setUp() throws Exception {

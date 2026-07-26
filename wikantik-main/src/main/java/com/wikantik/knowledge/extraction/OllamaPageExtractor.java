@@ -18,7 +18,6 @@
  */
 package com.wikantik.knowledge.extraction;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.wikantik.api.knowledge.ExtractionContext;
@@ -29,11 +28,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;import java.util.Map;
+import java.time.Duration;
 
 /**
  * Per-page extractor backed by an Ollama /api/chat endpoint with
@@ -44,7 +40,6 @@ import java.time.Duration;import java.util.Map;
 public final class OllamaPageExtractor implements PageExtractor {
 
     private static final Logger LOG = LogManager.getLogger(OllamaPageExtractor.class);
-    private static final Gson GSON = new Gson();
 
     private final HttpClient httpClient;
     private final String baseUrl;
@@ -91,23 +86,14 @@ public final class OllamaPageExtractor implements PageExtractor {
     }
 
     private String callOllama(final Page page, final ExtractionContext ctx) throws IOException, InterruptedException {
-        final Map<String, Object> body = OllamaChatRequest.body(
-            model, PageExtractionPromptBuilder.SYSTEM_PROMPT,
-            PageExtractionPromptBuilder.buildUserPrompt(page, ctx), null );
-        final String url = stripTrailingSlash(baseUrl) + "/api/chat";
-        final HttpRequest req = HttpRequest.newBuilder(URI.create(url))
-            .timeout(Duration.ofMillis(timeoutMs))
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(body)))
-            .build();
-        final HttpResponse<String> res = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-        if (res.statusCode() / 100 != 2) {
-            LOG.warn("Ollama page extract HTTP {} for page '{}'", res.statusCode(), page.name());
-            return null;
-        }
+        final String raw = OllamaHttpCaller.call( httpClient, baseUrl, timeoutMs, model,
+            PageExtractionPromptBuilder.SYSTEM_PROMPT, PageExtractionPromptBuilder.buildUserPrompt(page, ctx), null,
+            statusCode -> LOG.warn("Ollama page extract HTTP {} for page '{}'", statusCode, page.name()) );
+        if (raw == null) return null;
+
         final JsonElement root;
         try {
-            root = JsonParser.parseString(res.body());
+            root = JsonParser.parseString(raw);
         } catch (final RuntimeException e) {
             LOG.warn("Ollama page extract returned non-JSON body for '{}': {}", page.name(), e.getMessage());
             return null;
@@ -117,10 +103,5 @@ public final class OllamaPageExtractor implements PageExtractor {
         if (message == null || !message.isJsonObject()) return null;
         final JsonElement content = message.getAsJsonObject().get("content");
         return content == null || content.isJsonNull() ? null : content.getAsString();
-    }
-
-    private static String stripTrailingSlash(final String s) {
-        if (s == null || s.isEmpty()) return "";
-        return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
     }
 }

@@ -18,9 +18,6 @@
  */
 package com.wikantik.knowledge.extraction;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
 import com.wikantik.api.knowledge.ExtractionContext;
 import com.wikantik.api.knowledge.Page;
 import com.wikantik.api.knowledge.PageExtractionResult;
@@ -29,13 +26,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Per-page extractor backed by the Anthropic Messages API. Deliberately mirrors
@@ -52,9 +44,6 @@ import java.util.Map;
 public final class ClaudePageExtractor implements PageExtractor {
 
     private static final Logger LOG = LogManager.getLogger( ClaudePageExtractor.class );
-    private static final Gson GSON = new Gson();
-    private static final String ANTHROPIC_BASE = "https://api.anthropic.com/v1/messages";
-    private static final String ANTHROPIC_VERSION = "2023-06-01";
     // Page-level extraction can emit a larger JSON than the chunk path (whole page →
     // up to maxEntities + maxRelations). 8192 leaves headroom so a full result never
     // truncates into unparseable JSON (which would silently empty the result).
@@ -113,41 +102,12 @@ public final class ClaudePageExtractor implements PageExtractor {
     private String callAnthropic( final Page page, final ExtractionContext ctx )
             throws IOException, InterruptedException {
         final String userPrompt = PageExtractionPromptBuilder.buildUserPrompt( page, ctx );
-        final Map< String, Object > body = Map.of(
-            "model", model,
-            "max_tokens", MAX_OUTPUT_TOKENS,
-            "system", PageExtractionPromptBuilder.SYSTEM_PROMPT,
-            "messages", List.of( Map.of( "role", "user", "content", userPrompt ) )
-        );
-        final HttpRequest req = HttpRequest.newBuilder( URI.create( ANTHROPIC_BASE ) )
-            .timeout( Duration.ofMillis( timeoutMs ) )
-            .header( "Content-Type", "application/json" )
-            .header( "x-api-key", apiKey )
-            .header( "anthropic-version", ANTHROPIC_VERSION )
-            .POST( HttpRequest.BodyPublishers.ofString( GSON.toJson( body ) ) )
-            .build();
-        final HttpResponse< String > res = httpClient.send( req, HttpResponse.BodyHandlers.ofString() );
-        if( res.statusCode() / 100 != 2 ) {
-            LOG.warn( "Claude page extract HTTP {} for page '{}': {}", res.statusCode(), page.name(), res.body() );
-            return null;
-        }
-        // Anthropic shape: { "content": [ { "type":"text", "text":"..." } ], ... }
-        final JsonElement root;
-        try {
-            root = JsonParser.parseString( res.body() );
-        } catch( final RuntimeException e ) {
-            LOG.warn( "Claude page extract non-JSON body for '{}': {}", page.name(), e.getMessage() );
-            return null;
-        }
-        if( !root.isJsonObject() ) return null;
-        final JsonElement contentArr = root.getAsJsonObject().get( "content" );
-        if( contentArr == null || !contentArr.isJsonArray() || contentArr.getAsJsonArray().isEmpty() ) {
-            return null;
-        }
-        final JsonElement first = contentArr.getAsJsonArray().get( 0 );
-        if( !first.isJsonObject() ) return null;
-        final JsonElement text = first.getAsJsonObject().get( "text" );
-        return text == null || text.isJsonNull() ? null : extractJsonObject( text.getAsString() );
+        final String text = AnthropicHttpCaller.call( httpClient, apiKey, model, timeoutMs, MAX_OUTPUT_TOKENS,
+            PageExtractionPromptBuilder.SYSTEM_PROMPT, userPrompt,
+            ( statusCode, respBody ) ->
+                LOG.warn( "Claude page extract HTTP {} for page '{}': {}", statusCode, page.name(), respBody ),
+            message -> LOG.warn( "Claude page extract non-JSON body for '{}': {}", page.name(), message ) );
+        return text == null ? null : extractJsonObject( text );
     }
 
     /**

@@ -18,9 +18,6 @@
  */
 package com.wikantik.knowledge.extraction;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
 import com.wikantik.api.knowledge.ConsolidatedProposal;
 import com.wikantik.api.knowledge.JudgeContext;
 import com.wikantik.api.knowledge.ProposalJudge;
@@ -29,13 +26,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Mirror of {@link OllamaProposalJudge} that talks to the Anthropic Messages
@@ -51,9 +42,6 @@ import java.util.Map;
 public final class ClaudeProposalJudge implements ProposalJudge {
 
     private static final Logger LOG = LogManager.getLogger( ClaudeProposalJudge.class );
-    private static final Gson GSON = new Gson();
-    private static final String ANTHROPIC_BASE = "https://api.anthropic.com/v1/messages";
-    private static final String ANTHROPIC_VERSION = "2023-06-01";
 
     private final String apiKey;
     private final String model;
@@ -99,42 +87,11 @@ public final class ClaudeProposalJudge implements ProposalJudge {
     private String callAnthropic( final ConsolidatedProposal p, final JudgeContext c )
             throws IOException, InterruptedException {
         final String userPrompt = OllamaProposalJudge.buildUserPrompt( p, c );
-        final Map< String, Object > body = Map.of(
-            "model", model,
-            "max_tokens", 1024,
-            "system", OllamaProposalJudge.SYSTEM_PROMPT,
-            "messages", List.of( Map.of( "role", "user", "content", userPrompt ) )
-        );
-        final HttpRequest req = HttpRequest.newBuilder( URI.create( ANTHROPIC_BASE ) )
-            .timeout( Duration.ofMillis( timeoutMs ) )
-            .header( "Content-Type", "application/json" )
-            .header( "x-api-key", apiKey )
-            .header( "anthropic-version", ANTHROPIC_VERSION )
-            .POST( HttpRequest.BodyPublishers.ofString( GSON.toJson( body ) ) )
-            .build();
-        final HttpResponse< String > res = httpClient.send( req, HttpResponse.BodyHandlers.ofString() );
-        if( res.statusCode() / 100 != 2 ) {
-            LOG.warn( "ClaudeProposalJudge HTTP {} for sig {}: {}",
-                res.statusCode(), p.signature(), res.body() );
-            return null;
-        }
-        // Anthropic shape: { "content": [ { "type":"text", "text":"..." } ], ... }
-        final JsonElement root;
-        try {
-            root = JsonParser.parseString( res.body() );
-        } catch( final RuntimeException e ) {
-            LOG.warn( "ClaudeProposalJudge non-JSON body for sig {}: {}", p.signature(), e.getMessage() );
-            return null;
-        }
-        if( !root.isJsonObject() ) return null;
-        final JsonElement contentArr = root.getAsJsonObject().get( "content" );
-        if( contentArr == null || !contentArr.isJsonArray() || contentArr.getAsJsonArray().size() == 0 ) {
-            return null;
-        }
-        final JsonElement first = contentArr.getAsJsonArray().get( 0 );
-        if( !first.isJsonObject() ) return null;
-        final JsonElement text = first.getAsJsonObject().get( "text" );
-        return text == null || text.isJsonNull() ? null : text.getAsString();
+        return AnthropicHttpCaller.call( httpClient, apiKey, model, timeoutMs, 1024,
+            OllamaProposalJudge.SYSTEM_PROMPT, userPrompt,
+            ( statusCode, respBody ) ->
+                LOG.warn( "ClaudeProposalJudge HTTP {} for sig {}: {}", statusCode, p.signature(), respBody ),
+            message -> LOG.warn( "ClaudeProposalJudge non-JSON body for sig {}: {}", p.signature(), message ) );
     }
 
 }

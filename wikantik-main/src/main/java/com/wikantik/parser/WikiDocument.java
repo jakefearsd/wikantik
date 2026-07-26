@@ -20,6 +20,8 @@ package com.wikantik.parser;
 
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jdom2.Document;
 
 import java.lang.ref.WeakReference;
@@ -37,6 +39,7 @@ import java.security.MessageDigest;
 public class WikiDocument extends Document {
 
     private static final long serialVersionUID = 1L;
+    private static final Logger LOG = LogManager.getLogger( WikiDocument.class );
 
     private final transient Page page;
     private String wikiText;
@@ -112,6 +115,7 @@ public class WikiDocument extends Document {
             return hexString.toString();
         } catch( final Exception e ) {
             // Fall back to null - will cause full string comparison
+            LOG.warn( "SHA-256 unavailable for page-data hash, falling back to full string comparison: {}", e.getMessage() );
             return null;
         }
     }

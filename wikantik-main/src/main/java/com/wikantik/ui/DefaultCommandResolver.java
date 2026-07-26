@@ -272,7 +272,8 @@ public class DefaultCommandResolver implements CommandResolver {
                         page = finalPage;
                     }
                 } catch( final ProviderException e ) {
-                    // FIXME: Should not ignore!
+                    LOG.warn( "getFinalPageName( {} ) failed while resolving page from request parameter, keeping the supplied name: {}",
+                              page, e.getMessage() );
                 }
                 return page;
             }

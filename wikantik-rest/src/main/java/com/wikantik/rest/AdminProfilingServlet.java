@@ -73,12 +73,12 @@ public class AdminProfilingServlet extends RestServletBase {
                 case "/start" -> {
                     final JsonObject body = JsonParser.parseReader( req.getReader() ).getAsJsonObject();
                     if ( !body.has( "duration_s" ) ) {
-                        resp.sendError( 400, "missing required field: duration_s" );
+                        sendError( resp, 400, "missing required field: duration_s" );
                         return;
                     }
                     final int dur = getJsonInt( body, "duration_s", Integer.MIN_VALUE );
                     if ( dur == Integer.MIN_VALUE ) {
-                        resp.sendError( 400, "duration_s must be an integer" );
+                        sendError( resp, 400, "duration_s must be an integer" );
                         return;
                     }
                     final String label = getJsonString( body, "label" );
@@ -88,20 +88,20 @@ public class AdminProfilingServlet extends RestServletBase {
                     final JsonObject body = JsonParser.parseReader( req.getReader() ).getAsJsonObject();
                     final String recordingId = getJsonString( body, "recording_id" );
                     if ( recordingId == null ) {
-                        resp.sendError( 400, "missing required field: recording_id" );
+                        sendError( resp, 400, "missing required field: recording_id" );
                         return;
                     }
                     writeJson( resp, 200, r.stop( recordingId ) );
                 }
-                default -> resp.sendError( HttpServletResponse.SC_NOT_FOUND, "unknown profiling route: " + path );
+                default -> sendError( resp, HttpServletResponse.SC_NOT_FOUND, "unknown profiling route: " + path );
             }
         } catch ( final ProfilingResource.RestError e ) {
             LOG.info( "POST /admin/profiling/jfr{}: {} {}", path, e.status(), e.getMessage() );
-            resp.sendError( e.status(), e.getMessage() );
+            sendError( resp, e.status(), e.getMessage() );
         } catch ( final com.google.gson.JsonParseException | IllegalStateException e ) {
             // Malformed JSON body or a non-object top-level value — a client error, not a 500.
             LOG.info( "POST /admin/profiling/jfr{}: rejecting malformed body: {}", path, e.getMessage() );
-            resp.sendError( HttpServletResponse.SC_BAD_REQUEST, "invalid JSON body" );
+            sendError( resp, HttpServletResponse.SC_BAD_REQUEST, "invalid JSON body" );
         }
     }
 
@@ -118,7 +118,7 @@ public class AdminProfilingServlet extends RestServletBase {
             if ( path.startsWith( "/recordings/" ) ) {
                 final String id = path.substring( "/recordings/".length() );
                 if ( id.isBlank() || id.contains( "/" ) ) {
-                    resp.sendError( 400, "bad recording_id segment" );
+                    sendError( resp, 400, "bad recording_id segment" );
                     return;
                 }
                 final Path file = r.filePathFor( id );
@@ -126,17 +126,17 @@ public class AdminProfilingServlet extends RestServletBase {
                 resp.setHeader( "Content-Disposition",
                     "attachment; filename=\"" + file.getFileName() + "\"" );
                 if ( !file.toFile().exists() ) {
-                    resp.sendError( 404, "recording file not on disk: " + file.getFileName() );
+                    sendError( resp, 404, "recording file not on disk: " + file.getFileName() );
                     return;
                 }
                 resp.setContentLengthLong( file.toFile().length() );
                 Files.copy( file, resp.getOutputStream() );
                 return;
             }
-            resp.sendError( HttpServletResponse.SC_NOT_FOUND, "unknown profiling route: " + path );
+            sendError( resp, HttpServletResponse.SC_NOT_FOUND, "unknown profiling route: " + path );
         } catch ( final ProfilingResource.RestError e ) {
             LOG.info( "GET /admin/profiling/jfr{}: {} {}", path, e.status(), e.getMessage() );
-            resp.sendError( e.status(), e.getMessage() );
+            sendError( resp, e.status(), e.getMessage() );
         }
     }
 

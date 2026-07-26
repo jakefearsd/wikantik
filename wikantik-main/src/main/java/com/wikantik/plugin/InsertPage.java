@@ -26,6 +26,8 @@ import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.auth.AuthorizationManager;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
@@ -56,6 +58,8 @@ import java.util.ResourceBundle;
  *  @since 2.1.37
  */
 public class InsertPage implements Plugin {
+
+    private static final Logger LOG = LogManager.getLogger( InsertPage.class );
 
     /** Parameter name for setting the page.  Value is <tt>{@value}</tt>. */
     public static final String PARAM_PAGENAME  = "page";
@@ -94,6 +98,7 @@ public class InsertPage implements Plugin {
         try {
             page = resolvePage( engine, includedPage );
         } catch ( final ProviderException e ) {
+            LOG.warn( "InsertPage could not resolve '{}': {}", includedPage, e.getMessage() );
             return errorSpan( "Page could not be found by the page provider." );
         }
 

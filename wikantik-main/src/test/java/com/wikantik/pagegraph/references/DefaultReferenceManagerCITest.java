@@ -408,6 +408,17 @@ class DefaultReferenceManagerCITest {
         }
     }
 
+    @Test
+    void clearPageEntriesToleratesMissingReferredByEntry() {
+        // A refers to B; clearing B first removes B's referredBy entry while
+        // A's refersTo set still names it — clearing A afterwards must not NPE.
+        mgr.updateReferences( "PageA", List.of( "PageB" ) );
+        mgr.clearPageEntries( "PageB" );
+
+        assertDoesNotThrow( () -> mgr.clearPageEntries( "PageA" ) );
+        assertTrue( mgr.findRefersTo( "PageA" ).isEmpty(), "refersTo should be cleared" );
+    }
+
     // ========================================================================
     // findCreated
     // ========================================================================

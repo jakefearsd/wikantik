@@ -87,6 +87,7 @@ public class Search implements Plugin {
                 results = doBasicQuery( context, queryString );
                 context.setVariable( set, results );
             } catch( final Exception e ) {
+                LOG.warn( "Search plugin query '{}' failed: {}", queryString, e.getMessage() );
                 return "<div class='error'>" + TextUtil.replaceEntities(e.getMessage()) + "</div>\n";
             }
         }

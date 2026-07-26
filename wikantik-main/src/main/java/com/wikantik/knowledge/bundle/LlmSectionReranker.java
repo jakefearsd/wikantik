@@ -97,8 +97,9 @@ public final class LlmSectionReranker implements SectionReranker {
                 final int v = el.getAsInt();
                 if ( v >= 1 && v <= n && !out.contains( v ) ) out.add( v );
             } );
-        } catch ( final RuntimeException ignored ) {
+        } catch ( final RuntimeException e ) {
             // malformed -> empty -> caller keeps dense order
+            LOG.warn( "Discarding malformed reranker response, keeping dense order: {}", e.getMessage() );
         }
         return out;
     }

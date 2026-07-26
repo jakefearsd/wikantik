@@ -53,6 +53,7 @@ import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.StringTokenizer;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -159,7 +160,9 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
     private boolean pluginsEnabled = true;
 
     /** Keeps a list of all known plugin classes. */
-    private final Map< String, WikiPluginInfo > pluginClassMap = new HashMap<>();
+    // ConcurrentHashMap: newWikiPlugin() lazily registers plugins from concurrent
+    // page-render threads while modules() iterates the same map.
+    private final Map< String, WikiPluginInfo > pluginClassMap = new ConcurrentHashMap<>();
 
     /**
      *  Create a new PluginManager.

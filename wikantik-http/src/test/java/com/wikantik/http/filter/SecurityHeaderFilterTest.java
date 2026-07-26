@@ -66,7 +66,7 @@ class SecurityHeaderFilterTest {
                 Arguments.of( COEPFilter.class,
                         "Cross-Origin-Embedder-Policy",
                         "require-corp",
-                        "CORPValue" ),
+                        "COEPValue" ),
                 Arguments.of( CrossDomainFilter.class,
                         "X-Permitted-Cross-Domain-Policies",
                         "none",

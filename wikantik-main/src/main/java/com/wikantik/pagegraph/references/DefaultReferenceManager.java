@@ -788,7 +788,14 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         if( c != null ) {
             for( final String key : c ) {
                 final Collection< ? > dref = referredBy.get( key );
-                dref.remove( pagename );
+                if( dref != null ) {
+                    dref.remove( pagename );
+                } else {
+                    // Same invariant pageRemoved() defends: every page named in a refersTo
+                    // value set should have a referredBy key. Tolerate the gap here — it
+                    // occurs legitimately when the referred-to page was cleared first.
+                    LOG.warn( "clearPageEntries: no referredBy entry for '{}' while clearing '{}'", key, pagename );
+                }
             }
         }
 

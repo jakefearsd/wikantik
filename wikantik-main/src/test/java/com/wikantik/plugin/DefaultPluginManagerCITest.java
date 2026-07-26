@@ -69,6 +69,22 @@ class DefaultPluginManagerCITest {
         engine.getManager( PageManager.class ).deletePage( "Testpage" );
     }
 
+    // ============== registry thread-safety ==============
+
+    /**
+     * {@code newWikiPlugin()} lazily registers plugins from concurrent page-render threads
+     * while {@code modules()} iterates the same map. That interleaving cannot be provoked
+     * deterministically in a unit test, so pin the contract structurally: the registry
+     * must be a {@link java.util.concurrent.ConcurrentMap}.
+     */
+    @Test
+    void pluginRegistryIsSafeForConcurrentRenderThreads() throws Exception {
+        final java.lang.reflect.Field f = DefaultPluginManager.class.getDeclaredField( "pluginClassMap" );
+        f.setAccessible( true );
+        assertInstanceOf( java.util.concurrent.ConcurrentMap.class, f.get( defaultManager ),
+                "pluginClassMap is mutated by lazy registration on render threads and iterated by modules()" );
+    }
+
     // ============== plugins-disabled ==============
 
     /**

@@ -262,7 +262,7 @@ public final class GenericCommand implements Command {
                "[context=" + requestContext + "," +
                "urlPattern=" + urlPattern + "," +
                "routePath=" + routePath +
-               ( target == null ? "" : ",target=" + target + target ) +
+               ( target == null ? "" : ",target=" + target ) +
                "]";
     }
 

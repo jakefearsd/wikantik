@@ -35,7 +35,7 @@ public class COEPFilter implements Filter {
 
     @Override
     public void init(FilterConfig filterConfig) {
-        String configMode = filterConfig.getInitParameter("CORPValue");
+        String configMode = filterConfig.getInitParameter("COEPValue");
         if (configMode != null) {
             mode = configMode;
         }

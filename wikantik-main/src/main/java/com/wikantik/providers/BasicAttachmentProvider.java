@@ -513,7 +513,29 @@ public class BasicAttachmentProvider implements AttachmentProvider {
      */
     @Override
     public void deleteVersion( final Attachment att ) throws ProviderException {
-        // FIXME: Does nothing yet.
+        final File dir = findAttachmentDir( att );
+        int version = att.getVersion();
+        if( version == WikiProvider.LATEST_VERSION ) {
+            version = findLatestVersion( att );
+        }
+
+        try {
+            final File versionFile = findFile( dir, att );
+            if( !versionFile.delete() ) {
+                throw new ProviderException( "Failed to delete attachment version file " + versionFile.getAbsolutePath() );
+            }
+            final Properties props = getPageProperties( att );
+            props.remove( version + ".author" );
+            props.remove( version + ".changenote" );
+            putPageProperties( att, props );
+        } catch( final FileNotFoundException e ) {
+            // Version already absent — treat as a no-op, consistent with deleteAttachment's
+            // tolerance of missing files.
+            LOG.warn( "deleteVersion: no stored file for {} version {}: {}", att.getName(), version, e.getMessage() );
+        } catch( final IOException e ) {
+            throw new ProviderException( "Could not update attachment properties after deleting version "
+                    + version + " of " + att.getName() + ": " + e.getMessage() );
+        }
     }
 
     /**

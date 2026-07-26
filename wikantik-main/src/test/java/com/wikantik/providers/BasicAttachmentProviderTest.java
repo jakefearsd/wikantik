@@ -244,6 +244,23 @@ public class BasicAttachmentProviderTest {
         Assertions.assertEquals( att2.getName(), a2.getName(), "a2 name :: " + res );
     }
 
+    @Test
+    public void testDeleteVersion() throws Exception {
+        final File in = makeAttachmentFile();
+
+        final Attachment att = Wiki.contents().attachment( m_engine, NAME1, "test1.txt" );
+        m_provider.putAttachmentData( att, Files.newInputStream( in.toPath() ) );
+        m_provider.putAttachmentData( att, Files.newInputStream( in.toPath() ) );
+
+        final Attachment toDelete = Wiki.contents().attachment( m_engine, NAME1, "test1.txt" );
+        toDelete.setVersion( 1 );
+        m_provider.deleteVersion( toDelete );
+
+        final List< Attachment > history = m_provider.getVersionHistory( att );
+        Assertions.assertEquals( 1, history.size(), "version 1 should be gone from history: " + history );
+        Assertions.assertEquals( 2, history.get( 0 ).getVersion(), "remaining version should be 2" );
+    }
+
     /**
      *  Check that the system does not Assertions.fail if there are extra dirs in the attachment directory.
      */

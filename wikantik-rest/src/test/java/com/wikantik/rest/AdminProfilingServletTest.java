@@ -42,7 +42,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for {@link AdminProfilingServlet} — the thin HTTP adapter in front of
@@ -54,6 +58,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class AdminProfilingServletTest {
 
     private final AdminProfilingServlet servlet = new AdminProfilingServlet();
+
+    /** Body written by the most recent doPost/doGet helper call. */
+    private StringWriter lastBody;
 
     @AfterEach
     void tearDown() {
@@ -71,6 +78,29 @@ class AdminProfilingServletTest {
         return new RecordingInfo( id, Instant.parse( "2026-05-20T10:00:00Z" ), 60, "lbl", path, 42L, status );
     }
 
+    // ----- error envelope contract -----
+
+    /**
+     * Raw {@code response.sendError()} emits Tomcat's HTML error page for statuses outside
+     * the web.xml error-page net; every error from this admin API must instead use the
+     * {@code RestServletBase.sendError} JSON envelope like its sibling resources.
+     */
+    @Test
+    void errorResponsesUseJsonEnvelopeNotContainerSendError() throws Exception {
+        final ProfilingResource mockDelegate = Mockito.mock( ProfilingResource.class );
+        injectDelegate( mockDelegate );
+
+        final StringWriter sw = new StringWriter();
+        final HttpServletResponse response = doPostCapturing( "/start", "{}", sw );
+
+        Mockito.verify( response, Mockito.never() ).sendError( Mockito.anyInt(), Mockito.anyString() );
+        Mockito.verify( response ).setStatus( 400 );
+        final JsonObject err = JsonParser.parseString( sw.toString() ).getAsJsonObject();
+        assertTrue( err.get( "error" ).getAsBoolean(), "envelope should flag error=true" );
+        assertEquals( 400, err.get( "status" ).getAsInt() );
+        assertEquals( "missing required field: duration_s", err.get( "message" ).getAsString() );
+    }
+
     // ----- POST /start -----
 
     @Test
@@ -80,7 +110,7 @@ class AdminProfilingServletTest {
 
         final HttpServletResponse response = doPost( "/start", "{}" );
 
-        Mockito.verify( response ).sendError( 400, "missing required field: duration_s" );
+        assertJsonError( response, 400, "missing required field: duration_s" );
         Mockito.verifyNoInteractions( mockDelegate );
     }
 
@@ -91,7 +121,7 @@ class AdminProfilingServletTest {
 
         final HttpServletResponse response = doPost( "/start", "{\"duration_s\":\"abc\"}" );
 
-        Mockito.verify( response ).sendError( 400, "duration_s must be an integer" );
+        assertJsonError( response, 400, "duration_s must be an integer" );
         Mockito.verifyNoInteractions( mockDelegate );
     }
 
@@ -131,7 +161,7 @@ class AdminProfilingServletTest {
 
         final HttpServletResponse response = doPost( "/start", "{\"duration_s\":10}" );
 
-        Mockito.verify( response ).sendError( 409, "already recording" );
+        assertJsonError( response, 409, "already recording" );
     }
 
     @Test
@@ -141,7 +171,7 @@ class AdminProfilingServletTest {
 
         final HttpServletResponse response = doPost( "/start", "not json{{{" );
 
-        Mockito.verify( response ).sendError( HttpServletResponse.SC_BAD_REQUEST, "invalid JSON body" );
+        assertJsonError( response, HttpServletResponse.SC_BAD_REQUEST, "invalid JSON body" );
     }
 
     // ----- POST /stop -----
@@ -153,7 +183,7 @@ class AdminProfilingServletTest {
 
         final HttpServletResponse response = doPost( "/stop", "{}" );
 
-        Mockito.verify( response ).sendError( 400, "missing required field: recording_id" );
+        assertJsonError( response, 400, "missing required field: recording_id" );
         Mockito.verifyNoInteractions( mockDelegate );
     }
 
@@ -178,7 +208,7 @@ class AdminProfilingServletTest {
 
         final HttpServletResponse response = doPost( "/stop", "{\"recording_id\":\"ghost\"}" );
 
-        Mockito.verify( response ).sendError( 404, "Unknown recording_id: ghost" );
+        assertJsonError( response, 404, "Unknown recording_id: ghost" );
     }
 
     // ----- POST unknown route -----
@@ -190,7 +220,7 @@ class AdminProfilingServletTest {
 
         final HttpServletResponse response = doPost( "/bogus", "{}" );
 
-        Mockito.verify( response ).sendError( HttpServletResponse.SC_NOT_FOUND, "unknown profiling route: /bogus" );
+        assertJsonError( response, HttpServletResponse.SC_NOT_FOUND, "unknown profiling route: /bogus" );
     }
 
     // ----- GET /recordings -----
@@ -229,7 +259,7 @@ class AdminProfilingServletTest {
 
         final HttpServletResponse response = doGet( "/recordings/   " );
 
-        Mockito.verify( response ).sendError( 400, "bad recording_id segment" );
+        assertJsonError( response, 400, "bad recording_id segment" );
     }
 
     @Test
@@ -239,7 +269,7 @@ class AdminProfilingServletTest {
 
         final HttpServletResponse response = doGet( "/recordings/abc/def" );
 
-        Mockito.verify( response ).sendError( 400, "bad recording_id segment" );
+        assertJsonError( response, 400, "bad recording_id segment" );
     }
 
     @Test
@@ -286,10 +316,13 @@ class AdminProfilingServletTest {
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/profiling/jfr/recordings/rec-gone" );
         Mockito.doReturn( "/recordings/rec-gone" ).when( request ).getPathInfo();
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw, true ) ).when( response ).getWriter();
+        lastBody = sw;
 
         servlet.doGet( request, response );
 
-        Mockito.verify( response ).sendError( 404, "recording file not on disk: no-such-profiling-file.jfr" );
+        assertJsonError( response, 404, "recording file not on disk: no-such-profiling-file.jfr" );
     }
 
     @Test
@@ -301,7 +334,7 @@ class AdminProfilingServletTest {
 
         final HttpServletResponse response = doGet( "/recordings/ghost" );
 
-        Mockito.verify( response ).sendError( 404, "Unknown recording_id: ghost" );
+        assertJsonError( response, 404, "Unknown recording_id: ghost" );
     }
 
     // ----- GET unknown route -----
@@ -313,7 +346,7 @@ class AdminProfilingServletTest {
 
         final HttpServletResponse response = doGet( "/bogus" );
 
-        Mockito.verify( response ).sendError( HttpServletResponse.SC_NOT_FOUND, "unknown profiling route: /bogus" );
+        assertJsonError( response, HttpServletResponse.SC_NOT_FOUND, "unknown profiling route: /bogus" );
     }
 
     // ----- resolveDelegate() real construction (no reflection injection) -----
@@ -344,10 +377,21 @@ class AdminProfilingServletTest {
         Mockito.doReturn( new BufferedReader( new StringReader( body ) ) ).when( request ).getReader();
 
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
-        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        Mockito.doReturn( new PrintWriter( sw, true ) ).when( response ).getWriter();
+        lastBody = sw;
 
         servlet.doPost( request, response );
         return response;
+    }
+
+    /** Asserts the RestServletBase JSON error envelope was written with the given status + message. */
+    private void assertJsonError( final HttpServletResponse response, final int status, final String message ) throws Exception {
+        Mockito.verify( response, Mockito.never() ).sendError( Mockito.anyInt(), Mockito.anyString() );
+        Mockito.verify( response ).setStatus( status );
+        final JsonObject err = JsonParser.parseString( lastBody.toString() ).getAsJsonObject();
+        assertTrue( err.get( "error" ).getAsBoolean(), "envelope should flag error=true" );
+        assertEquals( status, err.get( "status" ).getAsInt() );
+        assertEquals( message, err.get( "message" ).getAsString() );
     }
 
     private HttpServletResponse doGet( final String pathInfo ) throws Exception {
@@ -359,7 +403,8 @@ class AdminProfilingServletTest {
         Mockito.doReturn( pathInfo ).when( request ).getPathInfo();
 
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
-        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        Mockito.doReturn( new PrintWriter( sw, true ) ).when( response ).getWriter();
+        lastBody = sw;
 
         servlet.doGet( request, response );
         return response;

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.12] - 2026-07-26
+
 ### Fixed
 - **Six latent defects from the 2026-07-25 quality audit.** `COEPFilter` read its mode from
   an init-param named `CORPValue`, so a configured `COEPValue` was silently ignored and the

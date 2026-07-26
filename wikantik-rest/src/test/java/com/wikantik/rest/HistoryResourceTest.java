@@ -25,44 +25,38 @@ import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 
-import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class HistoryResourceTest {
 
-    private TestEngine engine;
-    private HistoryResource servlet;
+    private static TestEngine engine;
+    private static HistoryResource servlet;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        engine = new TestEngine( props );
-
+    // Per-class engine (see RestTestSupport javadoc): "RestHistoryPage" is seeded
+    // once with identical content — no test mutates, renames, or deletes it, and no
+    // test asserts an absolute version count (all checks are ">= 1").
+    @BeforeAll
+    static void startEngine() throws Exception {
+        engine = TestEngine.build();
         engine.saveText( "RestHistoryPage", "Version 1 content." );
-
-        servlet = new HistoryResource();
-        final ServletConfig config = Mockito.mock( ServletConfig.class );
-        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
-        servlet.init( config );
+        servlet = RestTestSupport.initServlet( HistoryResource::new, engine );
     }
 
-    @AfterEach
-    void tearDown() throws Exception {
+    @AfterAll
+    static void stopEngine() {
         if ( engine != null ) {
-            engine.deleteQuietly( "RestHistoryPage" );
             engine.stop();
         }
     }

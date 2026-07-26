@@ -25,12 +25,11 @@ import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 
-import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
@@ -41,29 +40,26 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.Date;
 import java.util.List;
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class AdminUserResourceTest {
 
-    private TestEngine engine;
-    private AdminUserResource servlet;
+    private static TestEngine engine;
+    private static AdminUserResource servlet;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        engine = new TestEngine( props );
-
-        servlet = new AdminUserResource();
-        final ServletConfig config = Mockito.mock( ServletConfig.class );
-        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
-        servlet.init( config );
+    // Per-class engine (see RestTestSupport javadoc): every test creates users with
+    // per-test-unique login names, none mutates engine-global state, and no test
+    // asserts absolute user counts — so one engine boot serves all 49 tests.
+    @BeforeAll
+    static void startEngine() throws Exception {
+        engine = TestEngine.build();
+        servlet = RestTestSupport.initServlet( AdminUserResource::new, engine );
     }
 
-    @AfterEach
-    void tearDown() throws Exception {
+    @AfterAll
+    static void stopEngine() {
         if ( engine != null ) {
             engine.stop();
         }

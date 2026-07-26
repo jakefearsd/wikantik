@@ -25,48 +25,47 @@ import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 
-import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class BacklinksResourceTest {
 
-    private TestEngine engine;
-    private BacklinksResource servlet;
+    private static TestEngine engine;
+    private static BacklinksResource servlet;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        engine = new TestEngine( props );
-
-        // Create a target page and a page that links to it
+    // Per-class engine (see RestTestSupport javadoc): the target/source fixture pages
+    // are identical every run and no test mutates or deletes them, so they're seeded
+    // once here. Only "RestBacklinkOrphan" is test-specific — cleaned per test below.
+    @BeforeAll
+    static void startEngine() throws Exception {
+        engine = TestEngine.build();
         engine.saveText( "RestBacklinkTarget", "Target page content." );
         engine.saveText( "RestBacklinkSource", "This page links to [RestBacklinkTarget]." );
+        servlet = RestTestSupport.initServlet( BacklinksResource::new, engine );
+    }
 
-        servlet = new BacklinksResource();
-        final ServletConfig config = Mockito.mock( ServletConfig.class );
-        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
-        servlet.init( config );
+    @AfterAll
+    static void stopEngine() {
+        if ( engine != null ) {
+            engine.stop();
+        }
     }
 
     @AfterEach
-    void tearDown() throws Exception {
-        if ( engine != null ) {
-            engine.deleteQuietly( "RestBacklinkTarget", "RestBacklinkSource", "RestBacklinkOrphan" );
-            engine.stop();
-        }
+    void tearDown() {
+        engine.deleteQuietly( "RestBacklinkOrphan" );
     }
 
     @Test

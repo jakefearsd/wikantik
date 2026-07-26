@@ -34,8 +34,8 @@ import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -62,12 +62,23 @@ import static org.mockito.Mockito.when;
 
 class WikiPageFormatFilterTest {
 
-    private TestEngine engine;
-    private WikiPageFormatFilter filter;
+    private static TestEngine engine;
+    private static WikiPageFormatFilter filter;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
+    // Per-class engine (see RestTestSupport javadoc): FormatPage is a static,
+    // read-only fixture that no test mutates, and no test touches SessionMonitor
+    // state or swaps a manager — one engine boot serves all tests.
+    //
+    // Identity note: engine.saveText() below authenticates the shared mock
+    // session (HttpMockFactory.SHARED_SESSION_ID) as admin, and every request in
+    // this class (via the default HttpMockFactory.createHttpRequest()) resolves
+    // against that same id — so every test here already ran authenticated as
+    // admin even in the old per-method version (setUp() called saveText() first,
+    // every time). FormatPage carries no ACL, so admin-vs-anonymous identity
+    // never affects an assertion; this migration does not change that.
+    @BeforeAll
+    static void startEngine() throws Exception {
         final Properties props = TestEngine.getTestProperties();
         engine = new TestEngine( props );
 
@@ -89,10 +100,9 @@ class WikiPageFormatFilterTest {
         filter.init( config );
     }
 
-    @AfterEach
-    void tearDown() throws Exception {
+    @AfterAll
+    static void stopEngine() {
         if ( engine != null ) {
-            engine.deleteQuietly( "FormatPage" );
             engine.stop();
         }
     }

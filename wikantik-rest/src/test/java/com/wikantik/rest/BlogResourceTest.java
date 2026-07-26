@@ -28,12 +28,12 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.blog.BlogManager;
 
-import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -42,7 +42,6 @@ import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.security.Principal;
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -60,22 +59,25 @@ class BlogResourceTest {
 
     private static final String TEST_USER = "testblogger";
 
-    private TestEngine engine;
-    private BlogResource servlet;
-    private Session mockSession;
+    private static TestEngine engine;
+    private static BlogResource servlet;
+    private static Session mockSession;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        engine = new TestEngine( props );
+    // Per-class engine (see RestTestSupport javadoc): mockSession is a stateless
+    // Mockito mock unrelated to engine state, safe to build once. Every test creates
+    // the SAME blog for TEST_USER, but the pre-existing tearDown already deletes it
+    // (BlogManager.deleteBlog removes the entry pages, Blog.md, and the blog
+    // directory recursively — confirmed no trace survives) after every test, so it
+    // doubles as the required per-test fixture cleanup; only engine.stop() moved to
+    // @AfterAll. No test uses engine.adminSession() / a shared authenticated
+    // request — auth is bypassed per-call via a Mockito spy (createAuthenticatedSpy),
+    // so there is no shared-session pollution risk here.
+    @BeforeAll
+    static void startEngine() throws Exception {
+        engine = TestEngine.build();
+        servlet = RestTestSupport.initServlet( BlogResource::new, engine );
 
-        servlet = new BlogResource();
-        final ServletConfig config = Mockito.mock( ServletConfig.class );
-        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
-        servlet.init( config );
-
-        // Create a mock authenticated session with a known principal.
         // JAAS is not available in the wikantik-rest test context, so we cannot
         // call engine.adminSession(). Instead we build a mock that satisfies
         // both the BlogResource auth check (isAuthenticated) and the
@@ -83,19 +85,23 @@ class BlogResourceTest {
         mockSession = createMockSession( TEST_USER, true );
     }
 
-    @AfterEach
-    void tearDown() throws Exception {
+    @AfterAll
+    static void stopEngine() {
         if ( engine != null ) {
-            // Clean up any blogs created during tests
-            final BlogManager blogManager = engine.getManager( BlogManager.class );
-            try {
-                if ( blogManager.blogExists( TEST_USER ) ) {
-                    blogManager.deleteBlog( mockSession, TEST_USER );
-                }
-            } catch ( final Exception e ) {
-                /* ignore cleanup errors */
-            }
             engine.stop();
+        }
+    }
+
+    @AfterEach
+    void tearDown() {
+        // Clean up any blog created during the test
+        final BlogManager blogManager = engine.getManager( BlogManager.class );
+        try {
+            if ( blogManager.blogExists( TEST_USER ) ) {
+                blogManager.deleteBlog( mockSession, TEST_USER );
+            }
+        } catch ( final Exception e ) {
+            /* ignore cleanup errors */
         }
     }
 

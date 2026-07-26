@@ -31,10 +31,10 @@ import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgProposalReview;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
-import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -46,7 +46,6 @@ import java.io.StringWriter;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -66,27 +65,33 @@ import static org.mockito.ArgumentMatchers.*;
  */
 class AdminKnowledgeResourceHandlerCoverageTest {
 
-    private TestEngine engine;
-    private AdminKnowledgeResource servlet;
+    private static TestEngine engine;
+    private static AdminKnowledgeResource servlet;
     private KnowledgeGraphService service;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        engine = new TestEngine( props );
-        service = Mockito.mock( KnowledgeGraphService.class );
-        ( (WikiEngine) engine ).setManager( KnowledgeGraphService.class, service );
-
-        servlet = new AdminKnowledgeResource();
-        final ServletConfig config = Mockito.mock( ServletConfig.class );
-        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
-        servlet.init( config );
+    // Per-class engine (see RestTestSupport javadoc): the only engine-global
+    // mutation is re-installing a fresh KnowledgeGraphService mock every test (no
+    // test relies on another test's stubbing surviving), and no test creates
+    // fixture pages, needs request anonymity, or asserts absolute engine-wide
+    // counts.
+    @BeforeAll
+    static void startEngine() throws Exception {
+        engine = TestEngine.build();
+        servlet = RestTestSupport.initServlet( AdminKnowledgeResource::new, engine );
     }
 
-    @AfterEach
-    void tearDown() {
-        if ( engine != null ) engine.stop();
+    @AfterAll
+    static void stopEngine() {
+        if ( engine != null ) {
+            engine.stop();
+        }
+    }
+
+    @BeforeEach
+    void setUp() {
+        service = Mockito.mock( KnowledgeGraphService.class );
+        ( (WikiEngine) engine ).setManager( KnowledgeGraphService.class, service );
     }
 
     // ---- proposals/{id}/approve — success with warnings array ----

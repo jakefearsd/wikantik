@@ -35,7 +35,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.Part;
 
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -60,12 +61,20 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class DerivedIngestResourceTest {
 
-    private TestEngine engine;
-    private DerivedIngestResource servlet;
+    private static TestEngine engine;
+    private static DerivedIngestResource servlet;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
+    // Per-class engine (see RestTestSupport javadoc). No fixture pages are needed
+    // at startup — most tests exercise the servlet against a mocked
+    // DerivedPageIngestionService. Identity: TestEngine/servlet setup registers an
+    // admin WikiSession under the shared mock session id, and one test below
+    // (doPost_callerSuppliedAuthorIgnored_sessionPrincipalUsed) explicitly
+    // re-authenticates admin on that id mid-test — @BeforeEach evicts it before
+    // every test (not just once at class start) so permission-gated tests always
+    // start from a genuine anonymous session regardless of what an earlier test did.
+    @BeforeAll
+    static void startEngine() throws Exception {
         final Properties props = TestEngine.getTestProperties();
         engine = new TestEngine( props );
 
@@ -73,22 +82,23 @@ class DerivedIngestResourceTest {
         final ServletConfig config = Mockito.mock( ServletConfig.class );
         Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
         servlet.init( config );
+    }
 
-        // Evict the admin WikiSession created by TestEngine setup so subsequent
-        // requests resolve as anonymous (same pattern as AttachmentResourceTest).
+    @AfterAll
+    static void stopEngine() {
+        if ( engine != null ) {
+            engine.stop();
+        }
+    }
+
+    @BeforeEach
+    void setUp() {
         anonymizeMockSession();
     }
 
     /** Clears the shared mock WikiSession so the next request resolves as anonymous. */
     private void anonymizeMockSession() {
         SessionMonitor.getInstance( engine ).remove( HttpMockFactory.SHARED_SESSION_ID );
-    }
-
-    @AfterEach
-    void tearDown() throws Exception {
-        if ( engine != null ) {
-            engine.stop();
-        }
     }
 
     // -------------------------------------------------------------------------
@@ -410,11 +420,20 @@ class DerivedIngestResourceTest {
         final String body = sw.toString();
         assertFalse( body.isBlank(), "Response body must not be blank" );
         final JsonObject obj = gson.fromJson( body, JsonObject.class );
-        // The ingestion uses real managers (TestEngine). Either a successful ingest
-        // (status = created/updated) or a service-level failure (status = failed)
-        // is acceptable — what matters is the endpoint returns well-formed JSON.
-        assertTrue( obj.has( "page" ), "Response must have 'page' field: " + body );
-        assertTrue( obj.has( "status" ), "Response must have 'status' field: " + body );
-        assertFalse( obj.has( "error" ), "Response must not be an error response: " + body );
+        try {
+            // The ingestion uses real managers (TestEngine). Either a successful ingest
+            // (status = created/updated) or a service-level failure (status = failed)
+            // is acceptable — what matters is the endpoint returns well-formed JSON.
+            assertTrue( obj.has( "page" ), "Response must have 'page' field: " + body );
+            assertTrue( obj.has( "status" ), "Response must have 'status' field: " + body );
+            assertFalse( obj.has( "error" ), "Response must not be an error response: " + body );
+        } finally {
+            // This is the one test in the class that drives the real (non-mocked)
+            // DerivedPageIngestionService, which may have created a page on the
+            // shared per-class engine — remove it so it doesn't linger for later tests.
+            if ( obj.has( "page" ) ) {
+                engine.deleteQuietly( obj.get( "page" ).getAsString() );
+            }
+        }
     }
 }

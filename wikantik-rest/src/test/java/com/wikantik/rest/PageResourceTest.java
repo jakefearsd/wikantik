@@ -28,12 +28,12 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 
-import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -42,37 +42,48 @@ import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class PageResourceTest {
 
-    private TestEngine engine;
-    private PageResource servlet;
+    private static TestEngine engine;
+    private static PageResource servlet;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        engine = new TestEngine( props );
+    // Per-class engine (see RestTestSupport javadoc): fixture pages are reused by
+    // name across tests but fully cleaned in @AfterEach via deleteQuietly (unchanged
+    // from the old per-test tearDown, minus engine.stop()); "RestBadVersionPage"
+    // added below — it was an untracked leak even under the old per-test engine,
+    // harmless there only because the whole engine was discarded every test. Only
+    // testPutPage_authenticatedSession_bodyAuthorIgnored calls engine.adminSession(),
+    // which authenticates the shared HttpMockFactory session id for the rest of the
+    // class — audited: no other test here asserts on identity-dependent response
+    // content (permission checks assert key presence, not values; rename/delete
+    // tests bypass auth via spies or PageManager directly), so this doesn't change
+    // any assertion's outcome. The CORS tests mutate wikantik.cors.allowedOrigins
+    // without restoring it — reset in @AfterEach too, for the same reason.
+    @BeforeAll
+    static void startEngine() throws Exception {
+        engine = TestEngine.build();
+        servlet = RestTestSupport.initServlet( PageResource::new, engine );
+    }
 
-        servlet = new PageResource();
-        final ServletConfig config = Mockito.mock( ServletConfig.class );
-        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
-        servlet.init( config );
+    @AfterAll
+    static void stopEngine() {
+        if ( engine != null ) {
+            engine.stop();
+        }
     }
 
     @AfterEach
-    void tearDown() throws Exception {
-        if ( engine != null ) {
-            engine.deleteQuietly( "RestTestPage", "RestEventPage", "RestTestFrontmatter", "RestPutPage",
-                    "RestDeletePage", "RestRenderPage", "RestPluginPage", "RestPluginLinkPage", "RestEditLinkPage",
-                    "RestVersionPage", "RestPatchMergePage", "RestPatchReplacePage", "RestRenameSource",
-                    "RestRenameTarget", "RestRenameExisting" );
-            engine.stop();
-        }
+    void tearDown() {
+        engine.deleteQuietly( "RestTestPage", "RestEventPage", "RestTestFrontmatter", "RestPutPage",
+                "RestDeletePage", "RestRenderPage", "RestPluginPage", "RestPluginLinkPage", "RestEditLinkPage",
+                "RestVersionPage", "RestPatchMergePage", "RestPatchReplacePage", "RestRenameSource",
+                "RestRenameTarget", "RestRenameExisting", "RestBadVersionPage" );
+        engine.getWikiProperties().remove( "wikantik.cors.allowedOrigins" );
     }
 
     @Test

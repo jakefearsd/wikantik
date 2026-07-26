@@ -24,12 +24,11 @@ import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 
-import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -39,7 +38,6 @@ import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -58,23 +56,22 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class AdminPolicyResourceTest {
 
-    private TestEngine engine;
-    private AdminPolicyResource servlet;
+    private static TestEngine engine;
+    private static AdminPolicyResource servlet;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        engine = new TestEngine( props );
-
-        servlet = new AdminPolicyResource();
-        final ServletConfig config = Mockito.mock( ServletConfig.class );
-        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
-        servlet.init( config );
+    // Per-class engine (see RestTestSupport javadoc): no JNDI DataSource is ever
+    // registered in TestEngine, so DatabasePolicy stays null for every test in
+    // this class; no test creates fixture pages, mutates engine-global state, or
+    // depends on request anonymity — safe for a single shared engine.
+    @BeforeAll
+    static void startEngine() throws Exception {
+        engine = TestEngine.build();
+        servlet = RestTestSupport.initServlet( AdminPolicyResource::new, engine );
     }
 
-    @AfterEach
-    void tearDown() throws Exception {
+    @AfterAll
+    static void stopEngine() {
         if ( engine != null ) {
             engine.stop();
         }

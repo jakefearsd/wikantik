@@ -24,18 +24,16 @@ import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.config.GenAiMode;
 
-import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -48,24 +46,25 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class CapabilitiesResourceTest {
 
-    private TestEngine engine;
-    private CapabilitiesResource servlet;
+    private static TestEngine engine;
+    private static CapabilitiesResource servlet;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        engine = new TestEngine( props );
-
-        servlet = new CapabilitiesResource();
-        final ServletConfig config = Mockito.mock( ServletConfig.class );
-        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
-        servlet.init( config );
+    // Per-class engine (see RestTestSupport javadoc): every test explicitly sets (or
+    // removes) the exact property/properties it reads before asserting on them, so
+    // none depends on ambient state left by an earlier test — no @AfterEach reset
+    // of engine.getWikiProperties() is needed.
+    @BeforeAll
+    static void startEngine() throws Exception {
+        engine = TestEngine.build();
+        servlet = RestTestSupport.initServlet( CapabilitiesResource::new, engine );
     }
 
-    @AfterEach
-    void tearDown() {
-        if ( engine != null ) engine.stop();
+    @AfterAll
+    static void stopEngine() {
+        if ( engine != null ) {
+            engine.stop();
+        }
     }
 
     @Test

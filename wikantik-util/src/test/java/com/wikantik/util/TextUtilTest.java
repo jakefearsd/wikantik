@@ -20,6 +20,11 @@ package com.wikantik.util;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.stream.Stream;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -31,6 +36,19 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TextUtilTest {
 
+    /** Builds a Properties from alternating key/value pairs — test-fixture helper
+     *  (formerly the production-dead {@code createProperties}). */
+    private static Properties createProperties( final String[] values ) {
+        if( values.length % 2 != 0 ) {
+            throw new IllegalArgumentException( "One value is missing." );
+        }
+        final Properties props = new Properties();
+        for( int i = 0; i < values.length; i += 2 ) {
+            props.setProperty( values[ i ], values[ i + 1 ] );
+        }
+        return props;
+    }
+
     @Test
     public void testGenerateRandomPassword() {
         for( int i = 0; i < 1000; i++ ) {
@@ -38,22 +56,17 @@ public class TextUtilTest {
         }
     }
 
-    @Test
-    public void testEncodeName_1() {
-        final String name = "Hello/World";
-        Assertions.assertEquals( "Hello/World", TextUtil.urlEncode(name, StandardCharsets.ISO_8859_1.name()) );
+    @ParameterizedTest( name = "urlEncode ISO-8859-1: {0} -> {1}" )
+    @MethodSource( "urlEncodeIso88591Cases" )
+    public void testEncodeName( final String plain, final String encoded ) {
+        Assertions.assertEquals( encoded, TextUtil.urlEncode( plain, StandardCharsets.ISO_8859_1.name() ) );
     }
 
-    @Test
-    public void testEncodeName_2() {
-        final String name = "Hello~World";
-        Assertions.assertEquals( "Hello%7EWorld", TextUtil.urlEncode(name,StandardCharsets.ISO_8859_1.name()) );
-    }
-
-    @Test
-    public void testEncodeName_3() {
-        final String name = "Hello/World ~";
-        Assertions.assertEquals( "Hello/World+%7E", TextUtil.urlEncode(name,StandardCharsets.ISO_8859_1.name()) );
+    static Stream< Arguments > urlEncodeIso88591Cases() {
+        return Stream.of(
+                Arguments.of( "Hello/World", "Hello/World" ),
+                Arguments.of( "Hello~World", "Hello%7EWorld" ),
+                Arguments.of( "Hello/World ~", "Hello/World+%7E" ) );
     }
 
     @Test
@@ -62,156 +75,75 @@ public class TextUtilTest {
         Assertions.assertEquals( "Hello/World ~ /", TextUtil.urlDecode(name,StandardCharsets.ISO_8859_1.name()) );
     }
 
-    @Test
-    public void testEncodeNameUTF8_1() {
-        final String name = "\u0041\u2262\u0391\u002E";
-        Assertions.assertEquals( "A%E2%89%A2%CE%91.", TextUtil.urlEncodeUTF8(name) );
+    @ParameterizedTest( name = "urlEncodeUTF8: {1}" )
+    @MethodSource( "utf8Cases" )
+    public void testEncodeNameUTF8( final String plain, final String encoded ) {
+        Assertions.assertEquals( encoded, TextUtil.urlEncodeUTF8( plain ) );
     }
 
-    @Test
-    public void testEncodeNameUTF8_2() {
-        final String name = "\uD55C\uAD6D\uC5B4";
-        Assertions.assertEquals( "%ED%95%9C%EA%B5%AD%EC%96%B4", TextUtil.urlEncodeUTF8(name) );
+    @ParameterizedTest( name = "urlDecodeUTF8: {1}" )
+    @MethodSource( "utf8RoundTrippableCases" )
+    public void testDecodeNameUTF8( final String plain, final String encoded ) {
+        Assertions.assertEquals( plain, TextUtil.urlDecodeUTF8( encoded ) );
     }
 
-    @Test
-    public void testEncodeNameUTF8_3() {
-        final String name = "\u65E5\u672C\u8A9E";
-        Assertions.assertEquals( "%E6%97%A5%E6%9C%AC%E8%AA%9E", TextUtil.urlEncodeUTF8(name) );
+    static Stream< Arguments > utf8Cases() {
+        return Stream.concat( utf8RoundTrippableCases(),
+                Stream.of( Arguments.of( "Hello World", "Hello+World" ) ) );
     }
 
-    @Test
-    public void testEncodeNameUTF8_4() {
-        final String name = "Hello World";
-        Assertions.assertEquals( "Hello+World", TextUtil.urlEncodeUTF8(name) );
+    static Stream< Arguments > utf8RoundTrippableCases() {
+        return Stream.of(
+                Arguments.of( "\u0041\u2262\u0391\u002E", "A%E2%89%A2%CE%91." ),
+                Arguments.of( "\uD55C\uAD6D\uC5B4", "%ED%95%9C%EA%B5%AD%EC%96%B4" ),
+                Arguments.of( "\u65E5\u672C\u8A9E", "%E6%97%A5%E6%9C%AC%E8%AA%9E" ) );
     }
 
-    @Test
-    public void testDecodeNameUTF8_1() {
-        final String name = "A%E2%89%A2%CE%91.";
-        Assertions.assertEquals( "\u0041\u2262\u0391\u002E", TextUtil.urlDecodeUTF8(name) );
+    @ParameterizedTest( name = "replaceString({0}, {1}, {2}) -> {3}" )
+    @MethodSource( "replaceStringCases" )
+    public void testReplaceString( final String text, final String from, final String to, final String expected ) {
+        Assertions.assertEquals( expected, TextUtil.replaceString( text, from, to ) );
     }
 
-    @Test
-    public void testDecodeNameUTF8_2() {
-        final String name = "%ED%95%9C%EA%B5%AD%EC%96%B4";
-        Assertions.assertEquals( "\uD55C\uAD6D\uC5B4", TextUtil.urlDecodeUTF8(name) );
+    static Stream< Arguments > replaceStringCases() {
+        return Stream.of(
+                Arguments.of( "aabacaa", "aa", "dd", "ddbacdd" ),
+                Arguments.of( "abcde", "a", "f", "fbcde" ),
+                Arguments.of( "ababab", "b", "f", "afafaf" ),
+                Arguments.of( "aabacaafaa", "aa", "dd", "ddbacddfdd" ),
+                Arguments.of( "aaabacaaafaa", "aaa", "d", "dbacdfaa" ) );
     }
 
-    @Test
-    public void testDecodeNameUTF8_3() {
-        final String name = "%E6%97%A5%E6%9C%AC%E8%AA%9E";
-        Assertions.assertEquals( "\u65E5\u672C\u8A9E", TextUtil.urlDecodeUTF8(name) );
+    @ParameterizedTest( name = "replaceStringCaseUnsensitive({0}, {1}, {2}) -> {3}" )
+    @MethodSource( "replaceStringCaseUnsensitiveCases" )
+    public void testReplaceStringCaseUnsensitive( final String text, final String from, final String to, final String expected ) {
+        Assertions.assertEquals( expected, TextUtil.replaceStringCaseUnsensitive( text, from, to ) );
     }
 
-    @Test
-    public void testReplaceString1() {
-        final String text = "aabacaa";
-        Assertions.assertEquals( "ddbacdd", TextUtil.replaceString( text, "aa", "dd" ) );
+    static Stream< Arguments > replaceStringCaseUnsensitiveCases() {
+        return Stream.of(
+                Arguments.of( "aABcAa", "aa", "dd", "ddBcdd" ),
+                Arguments.of( "Abcde", "a", "f", "fbcde" ),
+                Arguments.of( "aBAbab", "b", "f", "afAfaf" ),
+                Arguments.of( "AaBAcAAfaa", "aa", "dd", "ddBAcddfdd" ),
+                Arguments.of( "aAaBaCAAafaa", "aaa", "d", "dBaCdfaa" ) );
     }
 
-    @Test
-    public void testReplaceString4() {
-        final String text = "aabacaafaa";
-        Assertions.assertEquals( "ddbacddfdd", TextUtil.replaceString( text, "aa", "dd" ) );
+    @ParameterizedTest( name = "normalizePostData case {index}: {2}" )
+    @MethodSource( "normalizePostDataCases" )
+    public void testNormalizePostdata( final String text, final String expected, final String label ) {
+        Assertions.assertEquals( expected, TextUtil.normalizePostData( text ), label );
     }
 
-    @Test
-    public void testReplaceString5() {
-        final String text = "aaabacaaafaa";
-        Assertions.assertEquals( "dbacdfaa", TextUtil.replaceString( text, "aaa", "d" ) );
-    }
-
-    @Test
-    public void testReplaceString2() {
-        final String text = "abcde";
-        Assertions.assertEquals( "fbcde", TextUtil.replaceString( text, "a", "f" ) );
-    }
-
-    @Test
-    public void testReplaceString3() {
-        final String text = "ababab";
-        Assertions.assertEquals( "afafaf", TextUtil.replaceString( text, "b", "f" ) );
-    }
-
-    @Test
-    public void testReplaceStringCaseUnsensitive1() {
-        final String text = "aABcAa";
-        Assertions.assertEquals( "ddBcdd", TextUtil.replaceStringCaseUnsensitive( text, "aa", "dd" ) );
-    }
-
-    @Test
-    public void testReplaceStringCaseUnsensitive2() {
-        final String text = "Abcde";
-        Assertions.assertEquals( "fbcde", TextUtil.replaceStringCaseUnsensitive( text, "a", "f" ) );
-    }
-
-    @Test
-    public void testReplaceStringCaseUnsensitive3() {
-        final String text = "aBAbab";
-        Assertions.assertEquals( "afAfaf", TextUtil.replaceStringCaseUnsensitive( text, "b", "f" ) );
-    }
-
-    @Test
-    public void testReplaceStringCaseUnsensitive4() {
-        final String text = "AaBAcAAfaa";
-        Assertions.assertEquals( "ddBAcddfdd", TextUtil.replaceStringCaseUnsensitive( text, "aa", "dd" ) );
-    }
-
-    @Test
-    public void testReplaceStringCaseUnsensitive5() {
-        final String text = "aAaBaCAAafaa";
-        Assertions.assertEquals( "dBaCdfaa", TextUtil.replaceStringCaseUnsensitive( text, "aaa", "d" ) );
-    }
-
-    // Pure UNIX.
-    @Test
-    public void testNormalizePostdata1() {
-        final String text = "ab\ncd";
-        Assertions.assertEquals( "ab\r\ncd\r\n", TextUtil.normalizePostData( text ) );
-    }
-
-    // Pure MSDOS.
-    @Test
-    public void testNormalizePostdata2() {
-        final String text = "ab\r\ncd";
-        Assertions.assertEquals( "ab\r\ncd\r\n", TextUtil.normalizePostData( text ) );
-    }
-
-    // Pure Mac
-    @Test
-    public void testNormalizePostdata3() {
-        final String text = "ab\rcd";
-        Assertions.assertEquals( "ab\r\ncd\r\n", TextUtil.normalizePostData( text ) );
-    }
-
-    // Mixed, ending correct.
-    @Test
-    public void testNormalizePostdata4()
-    {
-        final String text = "ab\ncd\r\n\r\n\r";
-        Assertions.assertEquals( "ab\r\ncd\r\n\r\n\r\n", TextUtil.normalizePostData( text ) );
-    }
-
-    // Multiple newlines
-    @Test
-    public void testNormalizePostdata5() {
-        final String text = "ab\ncd\n\n\n\n";
-        Assertions.assertEquals( "ab\r\ncd\r\n\r\n\r\n\r\n", TextUtil.normalizePostData( text ) );
-    }
-
-    // Empty.
-    @Test
-    public void testNormalizePostdata6() {
-        final String text = "";
-        Assertions.assertEquals( "\r\n", TextUtil.normalizePostData( text ) );
-    }
-
-    // Just a newline.
-    @Test
-    public void testNormalizePostdata7() {
-        final String text = "\n";
-        Assertions.assertEquals( "\r\n", TextUtil.normalizePostData( text ) );
+    static Stream< Arguments > normalizePostDataCases() {
+        return Stream.of(
+                Arguments.of( "ab\ncd", "ab\r\ncd\r\n", "pure UNIX" ),
+                Arguments.of( "ab\r\ncd", "ab\r\ncd\r\n", "pure MSDOS" ),
+                Arguments.of( "ab\rcd", "ab\r\ncd\r\n", "pure Mac" ),
+                Arguments.of( "ab\ncd\r\n\r\n\r", "ab\r\ncd\r\n\r\n\r\n", "mixed, ending correct" ),
+                Arguments.of( "ab\ncd\n\n\n\n", "ab\r\ncd\r\n\r\n\r\n\r\n", "multiple newlines" ),
+                Arguments.of( "", "\r\n", "empty" ),
+                Arguments.of( "\n", "\r\n", "just a newline" ) );
     }
 
     @Test
@@ -280,7 +212,7 @@ public class TextUtilTest {
     @Test
     public void testTrimmedProperty() {
         final String[] vals = { "foo", " this is a property ", "bar", "60" };
-        final Properties props = TextUtil.createProperties(vals);
+        final Properties props = createProperties(vals);
 
         Assertions.assertEquals( "this is a property", TextUtil.getStringProperty(props,"foo",""), "foo" );
         Assertions.assertEquals( 60, TextUtil.getIntegerProperty(props,"bar",0), "bar" );
@@ -289,7 +221,7 @@ public class TextUtilTest {
     @Test
     public void testGetStringProperty() {
         final String[] vals = { "foo", " this is a property " };
-        final Properties props = TextUtil.createProperties(vals);
+        final Properties props = createProperties(vals);
         Assertions.assertEquals( "this is a property", TextUtil.getStringProperty( props, "foo", "err" ) );
     }
 
@@ -297,14 +229,14 @@ public class TextUtilTest {
     public void testGetStringPropertyDefaultValue() {
         final String defaultValue = System.getProperty( "user.home" ) + File.separator + "wikantik-files";
         final String[] vals = { "foo", " this is a property " };
-        final Properties props = TextUtil.createProperties(vals);
+        final Properties props = createProperties(vals);
         Assertions.assertEquals( defaultValue, TextUtil.getStringProperty( props, "bar", defaultValue ) );
     }
 
     @Test
     public void testGetCanonicalFilePathProperty() {
         final String[] values = { "wikantik.fileSystemProvider.pageDir", " ." + File.separator + "data" + File.separator + "private " };
-        final Properties props = TextUtil.createProperties(values);
+        final Properties props = createProperties(values);
         final String path = TextUtil.getCanonicalFilePathProperty(props, "wikantik.fileSystemProvider.pageDir", "NA");
         Assertions.assertTrue( path.endsWith( File.separator + "data" + File.separator + "private" ) );
         Assertions.assertFalse( path.endsWith( "." + File.separator + "data" + File.separator + "private" ) );
@@ -314,7 +246,7 @@ public class TextUtilTest {
     public void testGetCanonicalFilePathPropertyDefaultValue() {
         final String defaultValue = System.getProperty( "user.home" ) + File.separator + "wikantik-files";
         final String[] values = {};
-        final Properties props = TextUtil.createProperties(values);
+        final Properties props = createProperties(values);
         final String path = TextUtil.getCanonicalFilePathProperty(props, "wikantik.fileSystemProvider.pageDir", defaultValue);
         Assertions.assertTrue(path.endsWith("wikantik-files"));
     }
@@ -322,21 +254,21 @@ public class TextUtilTest {
     @Test
     public void testGetRequiredProperty() {
         final String[] vals = { "foo", " this is a property ", "bar", "60" };
-        final Properties props = TextUtil.createProperties( vals );
+        final Properties props = createProperties( vals );
         Assertions.assertEquals( "60", TextUtil.getRequiredProperty( props, "bar" ) );
     }
 
     @Test
     public void testGetRequiredPropertyNSEE() {
         final String[] vals = { "foo", " this is a property ", "bar", "60" };
-        final Properties props = TextUtil.createProperties(vals);
+        final Properties props = createProperties(vals);
         Assertions.assertThrows( NoSuchElementException.class, () -> TextUtil.getRequiredProperty( props, "ber" ) );
     }
 
     @Test
     public void testGetRequiredPropertyDeprecated() {
         final String[] vals = { "foo", " this is a property ", "foo-dep", "deprecated" };
-        final Properties props = TextUtil.createProperties( vals );
+        final Properties props = createProperties( vals );
         Assertions.assertEquals( "deprecated", TextUtil.getRequiredProperty( props, "foo", "foo-dep" ) );
         Assertions.assertEquals( "this is a property", TextUtil.getRequiredProperty( props, "foo", "bar-dep" ) );
         Assertions.assertThrows( NoSuchElementException.class, () -> TextUtil.getRequiredProperty( props, "fooo", "bar-dep" ) );
@@ -754,45 +686,12 @@ public class TextUtilTest {
         assertEquals( 3, TextUtil.countSections( "A----B----C" ) );
     }
 
-    // --- repeatString tests ---
-
-    @Test
-    public void testRepeatString() {
-        assertEquals( "abcabcabc", TextUtil.repeatString( "abc", 3 ) );
-    }
-
-    @Test
-    public void testRepeatStringZeroTimes() {
-        assertEquals( "", TextUtil.repeatString( "abc", 0 ) );
-    }
-
     // --- normalizePostData additional test ---
 
     @Test
     public void testNormalizePostDataAlreadyNormalized() {
         // If text already ends with \r\n, no extra \r\n should be appended
         assertEquals( "hello\r\n", TextUtil.normalizePostData( "hello\r\n" ) );
-    }
-
-    // --- createProperties tests ---
-
-    @Test
-    public void testCreateProperties() {
-        String[] vals = { "a", "1", "b", "2" };
-        Properties p = TextUtil.createProperties( vals );
-        assertEquals( "1", p.getProperty( "a" ) );
-        assertEquals( "2", p.getProperty( "b" ) );
-    }
-
-    @Test
-    public void testCreatePropertiesOddArrayThrows() {
-        assertThrows( IllegalArgumentException.class, () -> TextUtil.createProperties( new String[] { "a" } ) );
-    }
-
-    @Test
-    public void testCreatePropertiesEmpty() {
-        Properties p = TextUtil.createProperties( new String[0] );
-        assertTrue( p.isEmpty() );
     }
 
     // --- getIntegerProperty tests ---

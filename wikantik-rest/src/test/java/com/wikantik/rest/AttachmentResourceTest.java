@@ -28,13 +28,16 @@ import com.wikantik.auth.SessionMonitor;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
+import com.wikantik.api.managers.PageManager;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.Part;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -49,27 +52,46 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AttachmentResourceTest {
 
-    private TestEngine engine;
-    private AttachmentResource servlet;
+    private static TestEngine engine;
+    private static AttachmentResource servlet;
+    private static AttachmentManager realAttachmentManager;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
+    // Per-class engine (see RestTestSupport javadoc). RestAttachPage is a shared
+    // fixture that many tests attach files to (and a few tests swap
+    // AttachmentManager for a throwing mock) — restoreEngineState() below undoes
+    // both after every test so the page is pristine again (testListAttachmentsEmptyPage
+    // asserts a zero attachment count and must not see a previous test's leftovers).
+    @BeforeAll
+    static void startEngine() throws Exception {
         final Properties props = TestEngine.getTestProperties();
         engine = new TestEngine( props );
 
         // Create a test page
         engine.saveText( "RestAttachPage", "Page with attachments." );
+        realAttachmentManager = engine.getManager( AttachmentManager.class );
 
         servlet = new AttachmentResource();
         final ServletConfig config = Mockito.mock( ServletConfig.class );
         Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
         servlet.init( config );
+    }
 
-        // saveText() above logged in as admin on the shared mock HttpSession (all
-        // HttpMockFactory requests share the fixed id "mock-session"). Evict that cached
-        // WikiSession so each test starts from a genuine anonymous session — otherwise the
-        // permission-enforcement tests would inherit admin's AllPermission and never see 403.
+    @AfterAll
+    static void stopEngine() {
+        if ( engine != null ) {
+            engine.stop();
+        }
+    }
+
+    @BeforeEach
+    void setUp() {
+        // saveText() above (and any earlier test) may have logged the shared mock
+        // HttpSession (id "mock-session") in as admin. Evict that cached WikiSession
+        // before every test — not just once — so each test starts from a genuine
+        // anonymous session regardless of what an earlier test in the class did;
+        // otherwise the permission-enforcement tests would inherit admin's
+        // AllPermission and never see 403.
         anonymizeMockSession();
     }
 
@@ -80,10 +102,17 @@ class AttachmentResourceTest {
 
     @AfterEach
     void tearDown() throws Exception {
-        if ( engine != null ) {
-            engine.deleteQuietly( "RestAttachPage" );
-            engine.stop();
-        }
+        // Undo any AttachmentManager swap from a throwing-mock test so later
+        // tests hit the real manager again.
+        engine.setManager( AttachmentManager.class, realAttachmentManager );
+        // RestAttachPage is shared by the whole class; strip whatever attachments
+        // the test just added so the next test sees a pristine page again.
+        try {
+            final PageManager pm = engine.getManager( PageManager.class );
+            for ( final Attachment att : realAttachmentManager.listAttachments( pm.getPage( "RestAttachPage" ) ) ) {
+                realAttachmentManager.deleteAttachment( att );
+            }
+        } catch ( final Exception e ) { /* ignore — best-effort cleanup */ }
     }
 
     @Test

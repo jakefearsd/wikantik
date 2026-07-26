@@ -43,8 +43,9 @@ import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -60,12 +61,27 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SearchResourceTest {
 
-    private TestEngine engine;
-    private SearchResource servlet;
+    private static TestEngine engine;
+    private static SearchResource servlet;
+    private static ContextRetrievalService bridgingCrs;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
+    // Per-class engine (see RestTestSupport javadoc). RestSearchAlpha/Beta are
+    // static, read-only fixtures shared by every test; RestSearchFrontmatter /
+    // RestSearchFmFields / SecSearchRestricted are created + cleaned up by their
+    // own tests (see the try/finally blocks below and restoreCrs()).
+    //
+    // Identity: no test in this class needs an anonymous shared-session id via
+    // the default HttpMockFactory helpers — every doSearch()-based test already
+    // ran authenticated as admin even before this migration (engine.saveText()
+    // below authenticates HttpMockFactory.SHARED_SESSION_ID, and setUp() used to
+    // call saveText() before every test too, so the "doSearch" tests never
+    // exercised anonymous behavior). The one test that requires genuine
+    // anonymity, crsResultsFilteredByViewPermissionForAnonymous, builds its own
+    // isolated mock HttpSession with a unique id rather than relying on
+    // SHARED_SESSION_ID, so it is unaffected by shared-session state either way.
+    @BeforeAll
+    static void startEngine() throws Exception {
         final Properties props = TestEngine.getTestProperties();
         // Without these the LuceneUpdater background thread waits INITIAL_DELAY
         // (60 s) before its first cycle — reindexPage() queues were never
@@ -89,7 +105,8 @@ class SearchResourceTest {
 
         // Register a ContextRetrievalService that delegates to the real SearchManager
         // so tests exercise the full HTTP layer without requiring pgvector or embeddings.
-        engine.setManager( ContextRetrievalService.class, new BridgingContextRetrievalService( engine ) );
+        bridgingCrs = new BridgingContextRetrievalService( engine );
+        engine.setManager( ContextRetrievalService.class, bridgingCrs );
 
         servlet = new SearchResource();
         final ServletConfig config = Mockito.mock( ServletConfig.class );
@@ -97,12 +114,24 @@ class SearchResourceTest {
         servlet.init( config );
     }
 
-    @AfterEach
-    void tearDown() throws Exception {
+    @AfterAll
+    static void stopEngine() {
         if ( engine != null ) {
-            engine.deleteQuietly( "RestSearchAlpha", "RestSearchBeta", "SecSearchRestricted" );
             engine.stop();
         }
+    }
+
+    // Several tests below swap the ContextRetrievalService manager for a mock or
+    // throwing stub. Restore the real bridging one after every test so later
+    // tests — which rely on the live, per-class Lucene index — see it again.
+    // Also clean up SecSearchRestricted, the one ad hoc page whose creator test
+    // (crsResultsFilteredByViewPermissionForAnonymous) doesn't already wrap it in
+    // a try/finally; deleteQuietly is a harmless no-op for every other test, the
+    // same way the old per-method tearDown() called it unconditionally every time.
+    @AfterEach
+    void restoreEngineState() {
+        engine.setManager( ContextRetrievalService.class, bridgingCrs );
+        engine.deleteQuietly( "SecSearchRestricted" );
     }
 
     @Test

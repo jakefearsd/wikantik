@@ -32,7 +32,8 @@ import com.wikantik.api.knowledge.SchemaDescription;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -44,7 +45,6 @@ import java.io.StringWriter;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -61,27 +61,39 @@ import static org.mockito.ArgumentMatchers.anyString;
  */
 class AdminKnowledgeResourceMockTest {
 
-    private TestEngine engine;
-    private AdminKnowledgeResource servlet;
+    private static TestEngine engine;
+    private static AdminKnowledgeResource servlet;
     private KnowledgeGraphService service;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        engine = new TestEngine( props );
-        service = Mockito.mock( KnowledgeGraphService.class );
-        ( (WikiEngine) engine ).setManager( KnowledgeGraphService.class, service );
-
-        servlet = new AdminKnowledgeResource();
-        final ServletConfig config = Mockito.mock( ServletConfig.class );
-        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
-        servlet.init( config );
+    // Per-class engine (see RestTestSupport javadoc): anyRequest_returns503CitingFlagWhenKgDisabled
+    // spins up its own throwaway TestEngine for the "KG disabled entirely" case, so it
+    // doesn't depend on the shared engine's state at all. On the shared engine, the
+    // KnowledgeGraphService mock is recreated and re-installed fresh every test (so
+    // per-test stubbing never leaks); NodeMentionSimilarity and HubProposalRepository
+    // are hot-swappable managers a handful of tests install to exercise the
+    // "available" branch, so they're reset to null before every test too, keeping the
+    // "unavailable" tests order-independent regardless of what ran before them.
+    @BeforeAll
+    static void startEngine() throws Exception {
+        engine = TestEngine.build();
+        servlet = RestTestSupport.initServlet( AdminKnowledgeResource::new, engine );
     }
 
-    @AfterEach
-    void tearDown() {
-        if ( engine != null ) engine.stop();
+    @AfterAll
+    static void stopEngine() {
+        if ( engine != null ) {
+            engine.stop();
+        }
+    }
+
+    @BeforeEach
+    void setUp() {
+        service = Mockito.mock( KnowledgeGraphService.class );
+        final WikiEngine wikiEngine = (WikiEngine) engine;
+        wikiEngine.setManager( KnowledgeGraphService.class, service );
+        wikiEngine.setManager( com.wikantik.knowledge.embedding.NodeMentionSimilarity.class, null );
+        wikiEngine.setManager( com.wikantik.knowledge.HubProposalRepository.class, null );
     }
 
     // ---- dispatch + service-availability ----

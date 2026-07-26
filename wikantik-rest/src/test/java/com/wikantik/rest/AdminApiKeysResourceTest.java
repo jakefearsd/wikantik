@@ -36,7 +36,9 @@ import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -49,7 +51,6 @@ import java.security.Principal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -67,40 +68,44 @@ import static org.mockito.Mockito.when;
  */
 class AdminApiKeysResourceTest {
 
-    private TestEngine engine;
-    private AdminApiKeysResource servlet;
+    private static TestEngine engine;
+    private static AdminApiKeysResource servlet;
     private ApiKeyService mockService;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        engine = new TestEngine( props );
-
-        // Override principalExists so tests can freely use "janne" as a body principal
-        // without requiring the XML user database resource to be on the REST test
-        // classpath. The phantom-principal test below re-injects a false-returning
-        // override to exercise the rejection path explicitly.
-        servlet = new AdminApiKeysResource() {
+    // Per-class engine (see RestTestSupport javadoc): the servlet's principalExists
+    // override is stateless ("janne" always resolves, everything else doesn't), so
+    // constructing it once is safe. ApiKeyServiceHolder is a static holder external
+    // to the engine, not per-engine state — mockService is recreated and
+    // re-installed fresh in @BeforeEach so per-test stubbing/verifyNoInteractions
+    // never leaks across tests, and cleared in @AfterEach as before.
+    @BeforeAll
+    static void startEngine() throws Exception {
+        engine = TestEngine.build();
+        servlet = RestTestSupport.initServlet( () -> new AdminApiKeysResource() {
             @Override
             boolean principalExists( final String login ) {
                 return "janne".equals( login );
             }
-        };
-        final ServletConfig config = Mockito.mock( ServletConfig.class );
-        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
-        servlet.init( config );
+        }, engine );
+    }
 
+    @AfterAll
+    static void stopEngine() {
+        if ( engine != null ) {
+            engine.stop();
+        }
+    }
+
+    @BeforeEach
+    void setUp() {
         mockService = mock( ApiKeyService.class );
         ApiKeyServiceHolder.setForTesting( mockService );
     }
 
     @AfterEach
-    void tearDown() throws Exception {
+    void tearDown() {
         ApiKeyServiceHolder.setForTesting( null );
-        if ( engine != null ) {
-            engine.stop();
-        }
     }
 
     // ----- GET -----

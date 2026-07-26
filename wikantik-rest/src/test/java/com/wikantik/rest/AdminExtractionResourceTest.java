@@ -24,10 +24,10 @@ import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.WikiEngine;
 import com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer;
-import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -35,29 +35,37 @@ import org.mockito.Mockito;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Instant;
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class AdminExtractionResourceTest {
 
-    private TestEngine engine;
-    private AdminExtractionResource servlet;
+    private static TestEngine engine;
+    private static AdminExtractionResource servlet;
     private final Gson gson = new Gson();
 
-    @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        engine = new TestEngine( props );
-        servlet = new AdminExtractionResource();
-        final ServletConfig config = Mockito.mock( ServletConfig.class );
-        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
-        servlet.init( config );
+    // Per-class engine (see RestTestSupport javadoc): no fixture pages, no absolute
+    // count assertions, no anonymity dependence. The one engine-global mutation is
+    // the hot-swappable BootstrapEntityExtractionIndexer manager that several tests
+    // install via installIndexer() — resetting it to null before every test keeps
+    // the "indexer absent" (503) tests order-independent regardless of what ran
+    // before them in the class.
+    @BeforeAll
+    static void startEngine() throws Exception {
+        engine = TestEngine.build();
+        servlet = RestTestSupport.initServlet( AdminExtractionResource::new, engine );
     }
 
-    @AfterEach
-    void tearDown() {
-        if ( engine != null ) engine.stop();
+    @AfterAll
+    static void stopEngine() {
+        if ( engine != null ) {
+            engine.stop();
+        }
+    }
+
+    @BeforeEach
+    void resetIndexer() {
+        ( (WikiEngine) engine ).setManager( BootstrapEntityExtractionIndexer.class, null );
     }
 
     private void installIndexer( final BootstrapEntityExtractionIndexer indexer ) {

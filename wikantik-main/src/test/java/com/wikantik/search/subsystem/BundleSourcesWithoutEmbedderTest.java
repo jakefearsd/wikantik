@@ -53,8 +53,13 @@ class BundleSourcesWithoutEmbedderTest {
 
         final TestEngine engine = new TestEngine( props );
         try {
+            // Startup may or may not have wired sources already: the test-JVM's JNDI context
+            // is a fork-wide static, so an earlier test in the same fork can leave a bound
+            // DataSource behind. Clear explicitly so the assertions below can only be
+            // satisfied by the wireHybridRetrieval call under test.
+            engine.setBundleSectionSources( null );
             Assertions.assertNull( engine.bundleSectionSources(),
-                    "precondition: plain unit TestEngine has no JNDI datasource, so nothing wired yet" );
+                    "precondition: sources cleared, so anything below comes from the call under test" );
 
             SearchWiringHelper.wireHybridRetrieval( props, h2,
                     /* chunkProjector */ null,

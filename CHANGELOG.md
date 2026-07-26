@@ -6,6 +6,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Six latent defects from the 2026-07-25 quality audit.** `COEPFilter` read its mode from
+  an init-param named `CORPValue`, so a configured `COEPValue` was silently ignored and the
+  filter always emitted its default policy. `BasicAttachmentProvider.deleteVersion` was a
+  `// FIXME: Does nothing yet` stub that returned normally without deleting the version file
+  or its author/changenote properties. The plugin registry used a plain
+  `HashMap` mutated after publication (unsafe under concurrent plugin lookup). `ReferenceManager.clearPageEntries`
+  NPE'd on a page with no recorded references. `GenericCommand.toString` doubled the target
+  in its output. `AdminProfilingServlet` swallowed exceptions in unlogged catch blocks and
+  returned Tomcat's HTML error page instead of the JSON error envelope; it also set
+  `Content-Disposition` download headers before the 404 check, attaching them to JSON error
+  responses.
+
+### Changed
+- **Design-pattern consolidation pass** across the header filters, MCP tool surface, JDBC
+  repositories and request context — behaviour-preserving except where noted. Ten
+  single-header security filters now share `SingleValueHeaderFilter`; `AbstractMcpTool` moved
+  to mcp-core and covers all 43 tools, which means **ten admin MCP tools that previously
+  returned bare error strings now return the standard JSON error envelope**. Also: a
+  `RouteTable` dispatcher, `KgJdbcSupport`/`SpineJdbcSupport` JDBC Template Method (68 methods
+  across 7 repositories), `WikiContext` scope objects, `isNodePublic` as the single ACL
+  authority for ontology projection, and extracted `OllamaHttpCaller`/`AnthropicHttpCaller`
+  helpers shared by the four extractor/judge implementations.
+
+### Internal
+- **Test-suite performance and reliability pass.** Per-class `TestEngine` instances for 15
+  wikantik-rest and 5 wikantik-main classes (~85s of class setup saved), a shared
+  `RestTestSupport` fixture, a `deleteQuietly` helper replacing ad-hoc cleanup in 17 files,
+  a session-id isolation seam, a sub-second CLI poll seam, parameterized `TextUtilTest`, and
+  vacuous asserts (post-polling `if (size > 0)` guards that passed on zero results) repaired.
+
 ## [2.3.11] - 2026-07-25
 
 ### Added

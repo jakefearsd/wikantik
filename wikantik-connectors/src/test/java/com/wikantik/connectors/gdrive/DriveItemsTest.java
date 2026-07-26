@@ -18,6 +18,8 @@
  */
 package com.wikantik.connectors.gdrive;
 
+import com.wikantik.connectors.ItemDigest;
+
 import com.wikantik.api.connectors.SourceItem;
 import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
@@ -40,7 +42,7 @@ class DriveItemsTest {
         assertEquals( "2026-07-01T10:00:00Z", it.sourceMetadata().get( "modifiedTime" ) );
         assertEquals( "https://docs.google.com/d/1AbC", it.sourceMetadata().get( "webViewLink" ) );
         assertEquals( "https://docs.google.com/d/1AbC", it.sourceMetadata().get( "source_url" ) );
-        assertEquals( DriveItems.sha256Hex( body ), it.contentHash() );
+        assertEquals( ItemDigest.sha256Hex( body ), it.contentHash() );
         assertEquals( 64, it.contentHash().length() );   // sha-256 hex
     }
     @Test void toItemOmitsSourceUrlWhenWebViewLinkAbsent() {
@@ -53,7 +55,7 @@ class DriveItemsTest {
             "null/absent URL source must OMIT the source_url key entirely" );
     }
     @Test void sha256IsContentAddressed() {
-        assertEquals( DriveItems.sha256Hex( "x".getBytes() ), DriveItems.sha256Hex( "x".getBytes() ) );
-        assertNotEquals( DriveItems.sha256Hex( "x".getBytes() ), DriveItems.sha256Hex( "y".getBytes() ) );
+        assertEquals( ItemDigest.sha256Hex( "x".getBytes() ), ItemDigest.sha256Hex( "x".getBytes() ) );
+        assertNotEquals( ItemDigest.sha256Hex( "x".getBytes() ), ItemDigest.sha256Hex( "y".getBytes() ) );
     }
 }

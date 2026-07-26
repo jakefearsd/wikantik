@@ -150,14 +150,14 @@ public final class KgNodeRepository extends KgJdbcSupport {
                 + "ON CONFLICT ( name ) DO UPDATE SET node_type = EXCLUDED.node_type, "
                 + "source_page = COALESCE(EXCLUDED.source_page, kg_nodes.source_page), provenance = EXCLUDED.provenance, "
                 + "properties = EXCLUDED.properties, modified = CURRENT_TIMESTAMP";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, name );
-            ps.setString( 2, nodeType );
-            ps.setString( 3, sourcePage );
-            ps.setString( 4, provenance.value() );
-            ps.setString( 5, propsJson );
-            ps.executeUpdate();
+        try {
+            update( sql, ps -> {
+                ps.setString( 1, name );
+                ps.setString( 2, nodeType );
+                ps.setString( 3, sourcePage );
+                ps.setString( 4, provenance.value() );
+                ps.setString( 5, propsJson );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to upsert node '{}': {}", name, e.getMessage(), e );
             throw new RuntimeException( "Failed to upsert node: " + e.getMessage(), e );
@@ -174,12 +174,8 @@ public final class KgNodeRepository extends KgJdbcSupport {
                 + KgInclusionFilter.nodeFilterJoin( adminBypass )
                 + " WHERE" + KgInclusionFilter.nodeFilterWhere( adminBypass )
                 + " AND n.id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, id );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? mapNode( rs ) : null;
-            }
+        try {
+            return queryOne( sql, ps -> ps.setObject( 1, id ), this::mapNode ).orElse( null );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to get node by id '{}': {}", id, e.getMessage(), e );
             throw new RuntimeException( e );
@@ -195,12 +191,8 @@ public final class KgNodeRepository extends KgJdbcSupport {
                 + KgInclusionFilter.nodeFilterJoin( adminBypass )
                 + " WHERE" + KgInclusionFilter.nodeFilterWhere( adminBypass )
                 + " AND n.name = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, name );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? mapNode( rs ) : null;
-            }
+        try {
+            return queryOne( sql, ps -> ps.setString( 1, name ), this::mapNode ).orElse( null );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to get node by name '{}': {}", name, e.getMessage(), e );
             throw new RuntimeException( e );
@@ -209,10 +201,8 @@ public final class KgNodeRepository extends KgJdbcSupport {
 
     public void deleteNode( final UUID id ) {
         final String sql = "DELETE FROM kg_nodes WHERE id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, id );
-            ps.executeUpdate();
+        try {
+            update( sql, ps -> ps.setObject( 1, id ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to delete node '{}': {}", id, e.getMessage(), e );
             throw new RuntimeException( "Failed to delete node: " + e.getMessage(), e );
@@ -237,20 +227,12 @@ public final class KgNodeRepository extends KgJdbcSupport {
         params.add( limit );
         params.add( offset );
 
-        final List< KgNode > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            for ( int i = 0; i < params.size(); i++ ) {
-                ps.setObject( i + 1, params.get( i ) );
-            }
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) results.add( mapNode( rs ) );
-            }
+        try {
+            return query( sql, SqlBinder.positional( params ), this::mapNode );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to query nodes: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
-        return results;
     }
 
     public List< KgNode > searchNodes( final String query, final Set< Provenance > provenanceFilter,
@@ -274,20 +256,12 @@ public final class KgNodeRepository extends KgJdbcSupport {
 
         params.add( limit );
 
-        final List< KgNode > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            for ( int i = 0; i < params.size(); i++ ) {
-                ps.setObject( i + 1, params.get( i ) );
-            }
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) results.add( mapNode( rs ) );
-            }
+        try {
+            return query( sql, SqlBinder.positional( params ), this::mapNode );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to search nodes: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
-        return results;
     }
 
     @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
@@ -319,25 +293,21 @@ public final class KgNodeRepository extends KgJdbcSupport {
         sql.append( " ORDER BY n.name LIMIT ?" );
         params.add( limit );
 
-        final List< KgNode > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) {
-                final Object v = params.get( i );
-                if ( v instanceof Tier t ) {
-                    ps.setArray( i + 1, conn.createArrayOf( "varchar", t.includedTiers().toArray() ) );
-                } else {
-                    ps.setObject( i + 1, v );
+        try {
+            return query( sql.toString(), ps -> {
+                for ( int i = 0; i < params.size(); i++ ) {
+                    final Object v = params.get( i );
+                    if ( v instanceof Tier t ) {
+                        ps.setArray( i + 1, ps.getConnection().createArrayOf( "varchar", t.includedTiers().toArray() ) );
+                    } else {
+                        ps.setObject( i + 1, v );
+                    }
                 }
-            }
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) results.add( mapNode( rs ) );
-            }
+            }, this::mapNode );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to search nodes (tier={}): {}", minTier.wireName(), e.getMessage(), e );
             throw new RuntimeException( e );
         }
-        return results;
     }
 
     public List< KgNode > getAllNodes() {
@@ -345,28 +315,20 @@ public final class KgNodeRepository extends KgJdbcSupport {
                 + KgInclusionFilter.NODE_FILTER_JOIN
                 + "WHERE" + KgInclusionFilter.NODE_FILTER_WHERE
                 + "ORDER BY n.id";
-        final List< KgNode > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql );
-              ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) results.add( mapNode( rs ) );
+        try {
+            return query( sql, SqlBinder.NONE, this::mapNode );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to get all nodes: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
-        return results;
     }
 
     public List< KgNode > getAllNodes( final Tier minTier ) {
         final String sql = "SELECT * FROM kg_nodes WHERE tier = ANY( ? )";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setArray( 1, conn.createArrayOf( "varchar", minTier.includedTiers().toArray() ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                final List< KgNode > out = new ArrayList<>();
-                while ( rs.next() ) out.add( mapNode( rs ) );
-                return out;
-            }
+        try {
+            return query( sql,
+                ps -> ps.setArray( 1, ps.getConnection().createArrayOf( "varchar", minTier.includedTiers().toArray() ) ),
+                this::mapNode );
         } catch ( final SQLException e ) {
             LOG.warn( "getAllNodes({}) failed: {}", minTier.wireName(), e.getMessage(), e );
             throw new RuntimeException( "getAllNodes failed: " + e.getMessage(), e );
@@ -385,17 +347,17 @@ public final class KgNodeRepository extends KgJdbcSupport {
             "source_page = COALESCE(EXCLUDED.source_page, kg_nodes.source_page), " +
             "provenance = EXCLUDED.provenance, properties = EXCLUDED.properties, " +
             "modified = CURRENT_TIMESTAMP";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, name );
-            ps.setString( 2, nodeType );
-            ps.setString( 3, sourcePage );
-            ps.setString( 4, provenance.value() );
-            ps.setString( 5, propsJson );
-            ps.setString( 6, tier );
-            if ( provenanceProposalId == null ) ps.setNull( 7, java.sql.Types.OTHER );
-            else ps.setObject( 7, provenanceProposalId );
-            ps.executeUpdate();
+        try {
+            update( sql, ps -> {
+                ps.setString( 1, name );
+                ps.setString( 2, nodeType );
+                ps.setString( 3, sourcePage );
+                ps.setString( 4, provenance.value() );
+                ps.setString( 5, propsJson );
+                ps.setString( 6, tier );
+                if ( provenanceProposalId == null ) ps.setNull( 7, java.sql.Types.OTHER );
+                else ps.setObject( 7, provenanceProposalId );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to upsertNodeWithProvenance '{}': {}", name, e.getMessage(), e );
             throw new RuntimeException( "Failed to upsertNodeWithProvenance: " + e.getMessage(), e );
@@ -410,18 +372,12 @@ public final class KgNodeRepository extends KgJdbcSupport {
     /** Ids of all nodes materialized from the given proposal — read side of {@link #deleteNodesByProvenance}. */
     public List< UUID > findNodeIdsByProvenance( final UUID proposalId ) {
         final String sql = "SELECT id FROM kg_nodes WHERE provenance_proposal_id = ?";
-        final List< UUID > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, proposalId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) results.add( rs.getObject( "id", UUID.class ) );
-            }
+        try {
+            return query( sql, ps -> ps.setObject( 1, proposalId ), rs -> rs.getObject( "id", UUID.class ) );
         } catch ( final SQLException e ) {
             LOG.warn( "findNodeIdsByProvenance({}) failed: {}", proposalId, e.getMessage(), e );
             throw new RuntimeException( "findNodeIdsByProvenance failed: " + e.getMessage(), e );
         }
-        return results;
     }
 
     public List< String > getDistinctNodeTypes() {
@@ -455,12 +411,8 @@ public final class KgNodeRepository extends KgJdbcSupport {
         final List< Object > params = new ArrayList<>();
         appendNodeFilterParams( params, filters, provenanceFilter );
 
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? rs.getLong( 1 ) : 0L;
-            }
+        try {
+            return queryOne( sql.toString(), SqlBinder.positional( params ), rs -> rs.getLong( 1 ) ).orElse( 0L );
         } catch ( final SQLException e ) {
             LOG.warn( "countNodesWithFilter failed: {}", e.getMessage(), e );
             throw new RuntimeException( e );
@@ -489,18 +441,12 @@ public final class KgNodeRepository extends KgJdbcSupport {
         params.add( limit );
         params.add( offset );
 
-        final List< KgNode > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) results.add( mapNode( rs ) );
-            }
+        try {
+            return query( sql, SqlBinder.positional( params ), this::mapNode );
         } catch ( final SQLException e ) {
             LOG.warn( "listOrphanedNodes failed: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
-        return results;
     }
 
     /** Counts orphaned nodes matching the same filters as {@link #listOrphanedNodes}. */
@@ -509,12 +455,8 @@ public final class KgNodeRepository extends KgJdbcSupport {
     public long countOrphanedNodes( final Map< String, Object > filters ) {
         final List< Object > params = new ArrayList<>();
         final String sql = buildOrphanedNodesSql( filters, true, params );
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? rs.getLong( 1 ) : 0L;
-            }
+        try {
+            return queryOne( sql, SqlBinder.positional( params ), rs -> rs.getLong( 1 ) ).orElse( 0L );
         } catch ( final SQLException e ) {
             LOG.warn( "countOrphanedNodes failed: {}", e.getMessage(), e );
             throw new RuntimeException( e );
@@ -555,6 +497,15 @@ public final class KgNodeRepository extends KgJdbcSupport {
         return sql.toString();
     }
 
+    /**
+     * Not migrated to the {@code query}/{@code queryOne} template primitives: this method
+     * maps rows into a {@code Map} (not a {@code List}/{@code Optional}) and, uniquely among
+     * the node-lookup methods, swallows {@link SQLException} — logging a WARN (with stack
+     * trace) and returning whatever partial {@code result} map had already been populated,
+     * rather than rethrowing. The generic primitives discard their in-progress accumulator on
+     * failure (the exception propagates before the caller ever sees a partial list), so
+     * reusing them here would silently change this method's external contract.
+     */
     public Map< UUID, String > getNodeNames( final Collection< UUID > ids ) {
         if ( ids == null || ids.isEmpty() ) return Map.of();
         final String placeholders = String.join( ", ", Collections.nCopies( ids.size(), "?" ) );

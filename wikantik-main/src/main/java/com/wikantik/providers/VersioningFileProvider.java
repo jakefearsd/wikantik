@@ -229,44 +229,6 @@ public class VersioningFileProvider extends AbstractFileProvider {
      *  @return Latest version number in the repository, or -1, if there is no page in the repository.
      */
 
-    // FIXME: This is relatively slow.
-    /*
-    private int findLatestVersion( String page )
-    {
-        File pageDir = findOldPageDir( page );
-
-        String[] pages = pageDir.list( new WikiFileFilter() );
-
-        if( pages == null )
-        {
-            return -1; // No such thing found.
-        }
-
-        int version = -1;
-
-        for( int i = 0; i < pages.length; i++ )
-        {
-            int cutpoint = pages[i].indexOf( '.' );
-            if( cutpoint > 0 )
-            {
-                String pageNum = pages[i].substring( 0, cutpoint );
-
-                try
-                {
-                    int res = Integer.parseInt( pageNum );
-
-                    if( res > version )
-                    {
-                        version = res;
-                    }
-                }
-                catch( NumberFormatException e ) {} // It's okay to skip these.
-            }
-        }
-
-        return version;
-    }
-*/
     private int findLatestVersion( final String page ) {
         int version = -1;
 

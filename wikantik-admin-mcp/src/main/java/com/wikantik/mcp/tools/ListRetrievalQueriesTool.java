@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.AggregatedQuery;
 import com.wikantik.api.querylog.QueryLogQuery;
@@ -40,7 +42,7 @@ import java.util.Map;
  * surfaces under-served queries (low/zero result counts). The agent judges true "misses" by
  * running candidates through the assemble_bundle MCP tool — this tool intentionally bakes in no relevance judgment.
  */
-public class ListRetrievalQueriesTool implements McpTool {
+public class ListRetrievalQueriesTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "list_retrieval_queries";
     private static final Logger LOG = LogManager.getLogger( ListRetrievalQueriesTool.class );
@@ -90,7 +92,7 @@ public class ListRetrievalQueriesTool implements McpTool {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final int sinceDays = intArg( arguments, "since_days", 30 );
         final int minOccurrences = intArg( arguments, "min_occurrences", 1 );
         final int limit = intArg( arguments, "limit", 50 );

@@ -15,36 +15,14 @@
  */
 package com.wikantik.http.filter;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-
 /**
  * Content-Security-Policy (CSP): Mitigates XSS and other injection attacks by
  * defining approved sources of content that the browser can load.
  */
-public class CSPFilter implements Filter {
+public class CSPFilter extends SingleValueHeaderFilter {
 
-    private String mode = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self';";
-
-    @Override
-    public void init(FilterConfig filterConfig) {
-        String configMode = filterConfig.getInitParameter("CSPValue");
-        if (configMode != null) {
-            mode = configMode;
-        }
+    public CSPFilter() {
+        super( "Content-Security-Policy", "CSPValue",
+               "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self';" );
     }
-
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        HttpServletResponse res = (HttpServletResponse) response;
-        res.addHeader("Content-Security-Policy", mode);
-        chain.doFilter(request, response);
-    }
-
 }

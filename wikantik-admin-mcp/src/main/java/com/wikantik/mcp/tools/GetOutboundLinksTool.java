@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.managers.ReferenceManager;
@@ -28,7 +30,7 @@ import java.util.*;
  * MCP tool that finds all pages a given page links to (outbound links).
  * Complement of {@link GetBacklinksTool} which finds inbound links.
  */
-public class GetOutboundLinksTool implements McpTool {
+public class GetOutboundLinksTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "get_outbound_links";
 
@@ -71,7 +73,7 @@ public class GetOutboundLinksTool implements McpTool {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final String pageName = McpToolUtils.pageSlug( arguments );
 
         final Collection< String > refersTo = referenceManager.findRefersTo( pageName );

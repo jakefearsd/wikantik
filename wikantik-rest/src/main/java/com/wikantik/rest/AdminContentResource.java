@@ -102,35 +102,41 @@ public class AdminContentResource extends RestServletBase {
     /**
      * Dispatch table — the single source of truth for this servlet's endpoints
      * (GoF Command registry, aligned to the {@code AdminKnowledgeResource} house
-     * pattern). Adding an endpoint is one line here plus one handler method.
+     * pattern). Adding an endpoint is one line here plus one handler method. See
+     * {@link RouteTable} for the shared matching engine and the
+     * transient-field-plus-lazy-rebuild convention every route table here follows.
      */
-    private transient Map< String, Route > routes = buildRoutes();
+    private transient RouteTable< Route > routes;
 
-    private Map< String, Route > buildRoutes() {
-        final Map< String, Route > r = new java.util.LinkedHashMap<>();
-        r.put( "stats",              Route.get( ( req, resp ) -> handleStats( resp ) ) );
-        r.put( "orphaned-pages",     Route.get( ( req, resp ) -> handleOrphanedPages( resp ) ) );
-        r.put( "broken-links",       Route.get( ( req, resp ) -> handleBrokenLinks( resp ) ) );
-        r.put( "index-status",       Route.get( ( req, resp ) -> handleIndexStatus( resp ) ) );
-        r.put( "chunks",             Route.get( this::handleChunksByPage ) );
-        r.put( "chunks/outliers",    Route.get( ( req, resp ) -> handleChunkOutliers( resp ) ) );
-        r.put( "bulk-delete",        Route.post( this::handleBulkDelete ) );
-        r.put( "purge-versions",     Route.post( this::handlePurgeVersions ) );
-        r.put( "reindex",            Route.post( ( req, resp ) -> handleReindex( resp ) ) );
-        r.put( "rebuild-indexes",    Route.post( ( req, resp ) -> handleRebuildIndexes( resp ) ) );
-        r.put( "reindex-embeddings", Route.post( ( req, resp ) -> handleReindexEmbeddings( resp ) ) );
-        r.put( "cache/flush",        Route.post( this::handleCacheFlush ) );
-        return r;
+    private RouteTable< Route > routes() {
+        if ( routes == null ) {
+            routes = buildRoutes();
+        }
+        return routes;
+    }
+
+    private RouteTable< Route > buildRoutes() {
+        return RouteTable.< Route >builder()
+            .exact( "stats",              Route.get( ( req, resp ) -> handleStats( resp ) ) )
+            .exact( "orphaned-pages",     Route.get( ( req, resp ) -> handleOrphanedPages( resp ) ) )
+            .exact( "broken-links",       Route.get( ( req, resp ) -> handleBrokenLinks( resp ) ) )
+            .exact( "index-status",       Route.get( ( req, resp ) -> handleIndexStatus( resp ) ) )
+            .exact( "chunks",             Route.get( this::handleChunksByPage ) )
+            .exact( "chunks/outliers",    Route.get( ( req, resp ) -> handleChunkOutliers( resp ) ) )
+            .exact( "bulk-delete",        Route.post( this::handleBulkDelete ) )
+            .exact( "purge-versions",     Route.post( this::handlePurgeVersions ) )
+            .exact( "reindex",            Route.post( ( req, resp ) -> handleReindex( resp ) ) )
+            .exact( "rebuild-indexes",    Route.post( ( req, resp ) -> handleRebuildIndexes( resp ) ) )
+            .exact( "reindex-embeddings", Route.post( ( req, resp ) -> handleReindexEmbeddings( resp ) ) )
+            .exact( "cache/flush",        Route.post( this::handleCacheFlush ) )
+            .build();
     }
 
     private void dispatch( final HttpServletRequest request, final HttpServletResponse response,
             final java.util.function.Function< Route, RouteAction > verb )
             throws ServletException, IOException {
-        if ( routes == null ) {
-            routes = buildRoutes();   // rebuilt after servlet deserialization
-        }
         final String action = extractPathParam( request );
-        final Route route = routes.get( action );
+        final Route route = routes().match( action ).orElse( null );
         final RouteAction handler = route == null ? null : verb.apply( route );
         if ( handler == null ) {
             sendNotFound( response, "Unknown content endpoint: " + action );

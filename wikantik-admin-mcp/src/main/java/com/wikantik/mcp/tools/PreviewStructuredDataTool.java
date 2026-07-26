@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
@@ -34,7 +36,7 @@ import java.util.*;
  * breadcrumbs, Atom feed, and News Sitemap eligibility — the feedback loop
  * so agents can see the SEO impact of their metadata before moving on.
  */
-public class PreviewStructuredDataTool implements McpTool {
+public class PreviewStructuredDataTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "preview_structured_data";
 
@@ -94,7 +96,7 @@ public class PreviewStructuredDataTool implements McpTool {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final String pageName = McpToolUtils.pageSlug( arguments );
         if ( pageName == null || pageName.isBlank() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,

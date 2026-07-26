@@ -15,35 +15,12 @@
  */
 package com.wikantik.http.filter;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-
 /**
  * Cross-Origin-Resource-Policy
  */
-public class CORPFilter implements Filter {
+public class CORPFilter extends SingleValueHeaderFilter {
 
-    private String mode = "same-origin";
-
-    @Override
-    public void init(FilterConfig filterConfig) {
-        String configMode = filterConfig.getInitParameter("CORPValue");
-        if (configMode != null) {
-            mode = configMode;
-        }
+    public CORPFilter() {
+        super( "Cross-Origin-Resource-Policy", "CORPValue", "same-origin" );
     }
-
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        HttpServletResponse res = (HttpServletResponse) response;
-        res.addHeader("Cross-Origin-Resource-Policy", mode);
-        chain.doFilter(request, response);
-    }
-
 }

@@ -65,7 +65,7 @@ import java.util.concurrent.atomic.LongAdder;
  * <p>All state is thread-safe: counters use {@link LongAdder}, breaker mutations
  * are guarded inside {@link Breaker}, and the Caffeine cache is lock-free.</p>
  */
-public final class QueryEmbedder {
+public final class QueryEmbedder implements AutoCloseable {
 
     private static final Logger LOG = LogManager.getLogger( QueryEmbedder.class );
 

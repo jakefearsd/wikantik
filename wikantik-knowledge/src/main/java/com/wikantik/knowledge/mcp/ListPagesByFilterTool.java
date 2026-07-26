@@ -22,6 +22,8 @@ import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.api.pagegraph.StructuralFilter;
 import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 
@@ -34,7 +36,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** MCP tool — filtered page listing by type, cluster, tag(s), and freshness. */
-public class ListPagesByFilterTool extends AbstractKnowledgeMcpTool {
+public class ListPagesByFilterTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "list_pages_by_filter";
 
@@ -96,6 +98,11 @@ public class ListPagesByFilterTool extends AbstractKnowledgeMcpTool {
                 .outputSchema( outputSchema )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

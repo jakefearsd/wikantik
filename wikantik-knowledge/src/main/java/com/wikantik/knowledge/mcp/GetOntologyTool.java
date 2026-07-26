@@ -23,6 +23,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import com.wikantik.ontology.OntologyModelManager;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -40,7 +42,7 @@ import org.apache.jena.vocabulary.RDFS;
  * schemes. Complements {@code discover_schema}, which reports the EMPIRICAL ABox shape
  * (the types/properties actually present in the data) rather than the formal declarations.
  */
-public class GetOntologyTool extends AbstractKnowledgeMcpTool {
+public class GetOntologyTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "get_ontology";
     private static final String SKOS_CONCEPT_SCHEME = "http://www.w3.org/2004/02/skos/core#ConceptScheme";
@@ -69,6 +71,11 @@ public class GetOntologyTool extends AbstractKnowledgeMcpTool {
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 import com.wikantik.api.knowledge.KgCurationOps;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -38,7 +40,7 @@ import java.util.UUID;
  * Per-id failures are collected rather than aborting the batch. Top-level errors (missing verdict,
  * missing reject reason, bulk-limit exceeded) use {@code isError=true}.</p>
  */
-public class ReviewProposalsTool implements McpTool, AuthorConfigurable {
+public class ReviewProposalsTool extends AbstractMcpTool implements AuthorConfigurable {
 
     private static final Logger LOG = LogManager.getLogger( ReviewProposalsTool.class );
     public static final String TOOL_NAME = "review_proposals";
@@ -100,7 +102,7 @@ public class ReviewProposalsTool implements McpTool, AuthorConfigurable {
                 .build();
     }
 
-    @Override public McpSchema.CallToolResult execute( final Map< String, Object > args ) {
+    @Override protected McpSchema.CallToolResult doExecute( final Map< String, Object > args ) throws Exception {
         final String verdict = McpToolUtils.getString( args, "verdict" );
         if ( verdict == null || verdict.isBlank() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,

@@ -15,37 +15,13 @@
  */
 package com.wikantik.http.filter;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-
 /**
- *
  * Clear-Site-Data: Allows websites to request that browsers clear specific
- * browsing data (e.g., cookies, storage, cache) associated with the site.  *
+ * browsing data (e.g., cookies, storage, cache) associated with the site.
  */
-public class ClearSiteDataFilter implements Filter {
+public class ClearSiteDataFilter extends SingleValueHeaderFilter {
 
-    private String mode = "\"cookies\", \"storage\"";
-
-    @Override
-    public void init(FilterConfig filterConfig) {
-        String configMode = filterConfig.getInitParameter("CSDValue");
-        if (configMode != null) {
-            mode = configMode;
-        }
+    public ClearSiteDataFilter() {
+        super( "Clear-Site-Data", "CSDValue", "\"cookies\", \"storage\"" );
     }
-
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        HttpServletResponse res = (HttpServletResponse) response;
-        res.addHeader("Clear-Site-Data", mode);
-        chain.doFilter(request, response);
-    }
-
 }

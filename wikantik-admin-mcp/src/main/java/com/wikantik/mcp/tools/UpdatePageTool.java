@@ -47,7 +47,7 @@ import java.util.Map;
  * error:"hash mismatch", currentHash, latestContent, currentVersion} —
  * everything the agent needs to rebase its edit without an extra round trip.
  */
-public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
+public class UpdatePageTool extends DefaultAuthorTool {
 
     private static final Logger LOG = LogManager.getLogger( UpdatePageTool.class );
     public static final String TOOL_NAME = "update_page";
@@ -146,7 +146,7 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         try {
             final String pageName = McpToolUtils.pageSlug( arguments );
             final String content = McpToolUtils.getString( arguments, "content" );
@@ -324,12 +324,6 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             refused.put( "error", "frontmatter validation failed" );
             refused.put( "violations", e.violations() );
             return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, refused );
-        } catch ( final RuntimeException e ) {
-            LOG.error( "update_page failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
-        } catch ( final Exception e ) {
-            LOG.error( "update_page failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 

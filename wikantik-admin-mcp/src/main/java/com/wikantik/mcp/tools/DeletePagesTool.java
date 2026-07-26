@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 import com.wikantik.util.WikiPageNameValidator;
 
 import com.wikantik.api.core.Page;
@@ -42,7 +44,7 @@ import java.util.Map;
  * references, that page is skipped with a reason — the caller can re-invoke with
  * the flag set once they've reviewed the referrers.</p>
  */
-public class DeletePagesTool implements McpTool {
+public class DeletePagesTool extends AbstractMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( DeletePagesTool.class );
     public static final String TOOL_NAME = "delete_pages";
@@ -124,7 +126,7 @@ public class DeletePagesTool implements McpTool {
 
     @Override
     @SuppressWarnings( "unchecked" )
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final Object raw = McpToolUtils.pageSlugs( arguments );
         if ( !( raw instanceof List< ? > ) || ( (List< ? >) raw ).isEmpty() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,

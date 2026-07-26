@@ -978,9 +978,7 @@ public class WikiEngine implements Engine {
         final String datasource = props.getProperty( AbstractJDBCDatabase.PROP_DATASOURCE,
                 AbstractJDBCDatabase.DEFAULT_DATASOURCE );
         try {
-            final javax.naming.Context initCtx = new javax.naming.InitialContext();
-            final javax.naming.Context ctx = ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
-            final javax.sql.DataSource ds = ( javax.sql.DataSource ) ctx.lookup( datasource );
+            final javax.sql.DataSource ds = resolveConfiguredDataSource( datasource );
 
             // Phase 3: Persistence subsystem.
             //
@@ -1224,6 +1222,17 @@ public class WikiEngine implements Engine {
     }
 
     /**
+     * Resolves the configured JNDI DataSource — the single lookup path shared by
+     * {@link #initKnowledgeGraph} and {@link #initAuditSubsystem}.
+     */
+    private javax.sql.DataSource resolveConfiguredDataSource( final String datasource )
+            throws javax.naming.NamingException {
+        final javax.naming.Context initCtx = new javax.naming.InitialContext();
+        final javax.naming.Context ctx = ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
+        return ( javax.sql.DataSource ) ctx.lookup( datasource );
+    }
+
+    /**
      * Construct the audit subsystem (JDBC repo + async writer), register the
      * {@link com.wikantik.audit.AuditEventListener} against the auth + page
      * managers, and build the {@link com.wikantik.audit.AuditReadPolicy}.
@@ -1237,9 +1246,7 @@ public class WikiEngine implements Engine {
         try {
             final String datasource = props.getProperty(
                     AbstractJDBCDatabase.PROP_DATASOURCE, AbstractJDBCDatabase.DEFAULT_DATASOURCE );
-            final javax.naming.Context initCtx = new javax.naming.InitialContext();
-            final javax.naming.Context ctx = ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
-            ds = ( javax.sql.DataSource ) ctx.lookup( datasource );
+            ds = resolveConfiguredDataSource( datasource );
         } catch ( final javax.naming.NamingException e ) {
             LOG.warn( "Audit subsystem: no JNDI DataSource resolved ({}); audit log disabled.",
                     e.getMessage() );
@@ -1893,34 +1900,29 @@ public class WikiEngine implements Engine {
         fireEvent( WikiEngineEvent.SHUTDOWN );
         getManager( CachingManager.class ).shutdown();
         getManager( FilterManager.class ).destroy();
-        final com.wikantik.search.embedding.AsyncEmbeddingIndexListener hybridIndexListener =
-            serviceRegistry.get( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class );
-        if ( hybridIndexListener != null ) {
-            try { hybridIndexListener.close(); }
-            catch( final RuntimeException e ) { LOG.warn( "hybridIndexListener close failed: {}", e.getMessage(), e ); }
-        }
-        final com.wikantik.knowledge.extraction.AsyncEntityExtractionListener entityExtractionListener =
-            serviceRegistry.get( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class );
-        if ( entityExtractionListener != null ) {
-            try { entityExtractionListener.close(); }
-            catch( final RuntimeException e ) { LOG.warn( "entityExtractionListener close failed: {}", e.getMessage(), e ); }
-        }
-        final com.wikantik.search.hybrid.QueryEmbedder hybridQueryEmbedder =
-            serviceRegistry.get( com.wikantik.search.hybrid.QueryEmbedder.class );
-        if ( hybridQueryEmbedder != null ) {
-            try { hybridQueryEmbedder.close(); }
-            catch( final RuntimeException e ) { LOG.warn( "hybridQueryEmbedder close failed: {}", e.getMessage(), e ); }
-        }
-        final com.wikantik.search.embedding.BootstrapEmbeddingIndexer hybridBootstrapIndexer =
-            serviceRegistry.get( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
-        if ( hybridBootstrapIndexer != null ) {
-            try { hybridBootstrapIndexer.close(); }
-            catch( final RuntimeException e ) { LOG.warn( "hybridBootstrapIndexer close failed: {}", e.getMessage(), e ); }
-        }
+        closeQuietly( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class );
+        closeQuietly( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class );
+        closeQuietly( com.wikantik.search.hybrid.QueryEmbedder.class );
+        closeQuietly( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
         if ( auditWriter != null ) {
             auditWriter.shutdownWriter();
         }
         WikiEventManager.unregisterListenersFor( this );
+    }
+
+    /**
+     * Fetches a closeable service from the registry (if wired) and closes it, logging
+     * rather than propagating any failure — shutdown must always run to completion.
+     */
+    private < T extends AutoCloseable > void closeQuietly( final Class< T > type ) {
+        final T closeable = serviceRegistry.get( type );
+        if ( closeable != null ) {
+            try {
+                closeable.close();
+            } catch( final Exception e ) {
+                LOG.warn( "{} close failed during shutdown: {}", type.getSimpleName(), e.getMessage(), e );
+            }
+        }
     }
 
     /** {@inheritDoc} */

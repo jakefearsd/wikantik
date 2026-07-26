@@ -15,37 +15,13 @@
  */
 package com.wikantik.http.filter;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-
 /**
- *
  * X-Content-Type-Options: Prevents MIME type sniffing, which can lead to XSS
  * attacks if browsers misinterpret content types.
  */
-public class ContentTypeOptionsFilter implements Filter {
+public class ContentTypeOptionsFilter extends SingleValueHeaderFilter {
 
-    private String mode = "nosniff";
-
-    @Override
-    public void init(FilterConfig filterConfig) {
-        String configMode = filterConfig.getInitParameter("ContentTypeOptionsValue");
-        if (configMode != null) {
-            mode = configMode;
-        }
+    public ContentTypeOptionsFilter() {
+        super( "X-Content-Type-Options", "ContentTypeOptionsValue", "nosniff" );
     }
-
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        HttpServletResponse res = (HttpServletResponse) response;
-        res.addHeader("X-Content-Type-Options", mode);
-        chain.doFilter(request, response);
-    }
-
 }

@@ -38,9 +38,19 @@ public final class PublicProjectionFilter {
 
     private PublicProjectionFilter() {}
 
+    /**
+     * The single authority for the node-level ACL rule: a node is public iff it is a stub
+     * (no source page) or its source page is anonymously viewable. Both the full-rebuild
+     * path ({@link #publicNodes}) and the incremental path ({@code OntologyEntitySync})
+     * must route through this predicate.
+     */
+    public static boolean isNodePublic( final KgNode node, final Predicate< String > isPublic ) {
+        return node.sourcePage() == null || isPublic.test( node.sourcePage() );
+    }
+
     public static List< KgNode > publicNodes( final List< KgNode > nodes, final Predicate< String > isPublic ) {
         return nodes.stream()
-                .filter( n -> n.sourcePage() == null || isPublic.test( n.sourcePage() ) )
+                .filter( n -> isNodePublic( n, isPublic ) )
                 .collect( Collectors.toList() );
     }
 

@@ -20,6 +20,8 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.MetadataValue;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -33,7 +35,7 @@ import java.util.Map;
  * MCP tool: distinct frontmatter field values across all pages, with
  * per-value page counts. Useful for "what clusters exist?" discovery queries.
  */
-public class ListMetadataValuesTool extends AbstractKnowledgeMcpTool {
+public class ListMetadataValuesTool extends AbstractMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( ListMetadataValuesTool.class );
     public static final String TOOL_NAME = "list_metadata_values";
@@ -84,6 +86,11 @@ public class ListMetadataValuesTool extends AbstractKnowledgeMcpTool {
             .outputSchema( outputSchema )
             .annotations( READ_ONLY_ANNOTATIONS )
             .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

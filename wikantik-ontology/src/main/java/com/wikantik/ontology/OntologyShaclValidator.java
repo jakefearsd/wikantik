@@ -66,19 +66,10 @@ public final class OntologyShaclValidator {
                 m.createResource( Iris.term( NodeTypeMapping.classLocalName( sourceNodeType ) ) ) );
         tgt.addProperty( org.apache.jena.vocabulary.RDF.type,
                 m.createResource( Iris.term( NodeTypeMapping.classLocalName( targetNodeType ) ) ) );
-        src.addProperty( m.createProperty( Iris.term( propertyLocalName( relationshipType ) ) ), tgt );
+        src.addProperty( m.createProperty( Iris.term( NodeTypeMapping.propertyLocalName( relationshipType ) ) ), tgt );
         return validate( m );
     }
 
-    /** snake_case relationship_type -> wk: lowerCamel property local name. */
-    private static String propertyLocalName( final String relationshipType ) {
-        final String[] parts = relationshipType.split( "_" );
-        final StringBuilder sb = new StringBuilder( parts[ 0 ] );
-        for ( int i = 1; i < parts.length; i++ ) {
-            sb.append( Character.toUpperCase( parts[ i ].charAt( 0 ) ) ).append( parts[ i ].substring( 1 ) );
-        }
-        return sb.toString();
-    }
 
     /** Returns the SHACL violations in {@code data}; empty when it conforms. */
     public List< Violation > validate( final Model data ) {

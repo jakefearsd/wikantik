@@ -18,12 +18,14 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 import com.wikantik.api.knowledge.KgCurationOps;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.util.*;
 
-public class CurateEdgesTool implements McpTool, AuthorConfigurable {
+public class CurateEdgesTool extends AbstractMcpTool implements AuthorConfigurable {
 
     public static final String TOOL_NAME = "curate_edges";
 
@@ -79,7 +81,7 @@ public class CurateEdgesTool implements McpTool, AuthorConfigurable {
                 .build();
     }
 
-    @Override public McpSchema.CallToolResult execute( final Map< String, Object > args ) {
+    @Override protected McpSchema.CallToolResult doExecute( final Map< String, Object > args ) throws Exception {
         return McpToolUtils.runBulk( TOOL_NAME, "edge", args.get( "operations" ),
                 bulkLimit, defaultAuthor, this::dispatch );
     }

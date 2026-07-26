@@ -22,6 +22,8 @@ import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.PageList;
 import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievedPage;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -36,7 +38,7 @@ import java.util.stream.Collectors;
  * MCP tool: filter-driven browse over wiki pages. No ranking, no chunks —
  * use retrieve_context for query-driven retrieval.
  */
-public class ListPagesTool extends AbstractKnowledgeMcpTool {
+public class ListPagesTool extends AbstractMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( ListPagesTool.class );
     public static final String TOOL_NAME = "list_pages";
@@ -110,6 +112,11 @@ public class ListPagesTool extends AbstractKnowledgeMcpTool {
             .outputSchema( outputSchema )
             .annotations( READ_ONLY_ANNOTATIONS )
             .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

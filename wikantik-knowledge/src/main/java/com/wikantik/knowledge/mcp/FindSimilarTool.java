@@ -22,6 +22,8 @@ import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity.ScoredName;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 
@@ -36,7 +38,7 @@ import java.util.Map;
  * vector is the centroid of the chunks that mention it, drawn from the same
  * Ollama-backed content_chunk_embeddings table as hybrid search.
  */
-public class FindSimilarTool extends AbstractKnowledgeMcpTool {
+public class FindSimilarTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "find_similar";
 
@@ -95,6 +97,11 @@ public class FindSimilarTool extends AbstractKnowledgeMcpTool {
             .outputSchema( outputSchema )
             .annotations( READ_ONLY_ANNOTATIONS )
             .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

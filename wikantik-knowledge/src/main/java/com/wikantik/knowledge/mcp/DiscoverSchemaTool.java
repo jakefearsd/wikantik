@@ -21,6 +21,8 @@ package com.wikantik.knowledge.mcp;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.SchemaDescription;
 import com.wikantik.knowledge.MentionIndex;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 
@@ -33,7 +35,7 @@ import java.util.Map;
  * relationship types, property keys with cardinalities and sample values,
  * and aggregate statistics.
  */
-public class DiscoverSchemaTool extends AbstractKnowledgeMcpTool {
+public class DiscoverSchemaTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "discover_schema";
 
@@ -83,6 +85,11 @@ public class DiscoverSchemaTool extends AbstractKnowledgeMcpTool {
                 .outputSchema( outputSchema )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

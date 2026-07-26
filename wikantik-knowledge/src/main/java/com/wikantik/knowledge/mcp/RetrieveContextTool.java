@@ -23,6 +23,8 @@ import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievalResult;
 import com.wikantik.api.knowledge.RetrievedPage;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -38,7 +40,7 @@ import java.util.stream.Collectors;
  * for a natural-language query. Returns pages with their top contributing
  * chunks and a small list of KG-mention neighbors.
  */
-public class RetrieveContextTool extends AbstractKnowledgeMcpTool {
+public class RetrieveContextTool extends AbstractMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( RetrieveContextTool.class );
     public static final String TOOL_NAME = "retrieve_context";
@@ -126,6 +128,11 @@ public class RetrieveContextTool extends AbstractKnowledgeMcpTool {
             .outputSchema( outputSchema )
             .annotations( READ_ONLY_ANNOTATIONS )
             .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

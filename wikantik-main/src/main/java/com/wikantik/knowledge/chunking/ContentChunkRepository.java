@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.wikantik.knowledge.KgJdbcSupport;
 
 import javax.sql.DataSource;
 import java.sql.Array;
@@ -30,7 +31,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -43,16 +43,21 @@ import java.util.UUID;
  * JDBC-based data access layer for the {@code kg_content_chunks} table.
  *
  * <p>Applies {@link ChunkDiff.Diff} operations for a single page atomically
- * (deletes, updates, inserts all run inside one transaction with
- * {@code autoCommit = false}).</p>
+ * (deletes, updates, inserts all run inside one transaction).</p>
  *
- * <p>Matches the conventions of the narrow KG repositories (e.g. {@link com.wikantik.knowledge.KgNodeRepository}):
+ * <p>Extends {@link KgJdbcSupport} — the shared JDBC Template Method base also
+ * used by the narrow KG repositories (e.g. {@link com.wikantik.knowledge.KgNodeRepository}):
  * plain JDBC via {@link DataSource}, {@link PreparedStatement}, error logging
- * at {@code warn} level followed by a wrapping {@link RuntimeException}.</p>
+ * at {@code warn} level followed by a wrapping {@link RuntimeException}. This class
+ * previously reimplemented that skeleton independently (the base class was
+ * package-private to {@code com.wikantik.knowledge}); the GoF Template Method
+ * consolidation widened {@link KgJdbcSupport} to {@code public} so this
+ * subpackage of the same Knowledge Graph domain can extend it directly instead
+ * of duplicating the connect/prepare/bind/execute/map ceremony.</p>
  *
  * @since 1.0
  */
-public class ContentChunkRepository {
+public class ContentChunkRepository extends KgJdbcSupport {
 
     private static final Logger LOG = LogManager.getLogger( ContentChunkRepository.class );
 
@@ -98,8 +103,6 @@ public class ContentChunkRepository {
         int totalTokens,
         int charCount ) {}
 
-    private final DataSource dataSource;
-
     /**
      * In-process LRU cache for {@link #findByIds}. Keyed by chunk_id (UUID),
      * value is the {@link MentionableChunk} as returned from the DB. Bounded
@@ -120,13 +123,16 @@ public class ContentChunkRepository {
     private final Cache< UUID, MentionableChunk > chunkCache;
 
     public ContentChunkRepository( final DataSource dataSource ) {
-        this.dataSource = dataSource;
+        super( dataSource );
         this.chunkCache = Caffeine.newBuilder()
             .maximumSize( 50_000 )
             .expireAfterWrite( Duration.ofMinutes( 10 ) )
             .recordStats()
             .build();
     }
+
+    @Override
+    protected Logger log() { return LOG; }
 
     /**
      * Enumerates every distinct page name that currently has at least one
@@ -138,14 +144,8 @@ public class ContentChunkRepository {
     public List< String > listDistinctPageNames() {
         final String sql = "SELECT DISTINCT page_name FROM kg_content_chunks "
                          + "WHERE page_name IS NOT NULL ORDER BY page_name";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql );
-             ResultSet rs = ps.executeQuery() ) {
-            final List< String > names = new ArrayList<>();
-            while( rs.next() ) {
-                names.add( rs.getString( 1 ) );
-            }
-            return names;
+        try {
+            return query( sql, SqlBinder.NONE, rs -> rs.getString( 1 ) );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to list distinct page names: {}", e.getMessage(), e );
             throw new RuntimeException( "listDistinctPageNames failed", e );
@@ -160,14 +160,8 @@ public class ContentChunkRepository {
     public List< UUID > listChunkIdsForPage( final String pageName ) {
         final String sql = "SELECT id FROM kg_content_chunks "
                          + "WHERE page_name = ? ORDER BY chunk_index";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, pageName );
-            try( ResultSet rs = ps.executeQuery() ) {
-                final List< UUID > out = new ArrayList<>();
-                while( rs.next() ) out.add( rs.getObject( 1, UUID.class ) );
-                return out;
-            }
+        try {
+            return query( sql, ps -> ps.setString( 1, pageName ), rs -> rs.getObject( 1, UUID.class ) );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to list chunk ids for '{}': {}", pageName, e.getMessage(), e );
             throw new RuntimeException( "listChunkIdsForPage failed for " + pageName, e );
@@ -183,19 +177,11 @@ public class ContentChunkRepository {
     public List< ChunkDiff.Stored > findByPage( final String pageName ) {
         final String sql = "SELECT id, chunk_index, content_hash FROM kg_content_chunks "
                          + "WHERE page_name = ? ORDER BY chunk_index";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, pageName );
-            try( ResultSet rs = ps.executeQuery() ) {
-                final List< ChunkDiff.Stored > out = new ArrayList<>();
-                while( rs.next() ) {
-                    out.add( new ChunkDiff.Stored(
-                        rs.getObject( 1, UUID.class ),
-                        rs.getInt( 2 ),
-                        rs.getString( 3 ) ) );
-                }
-                return out;
-            }
+        try {
+            return query( sql, ps -> ps.setString( 1, pageName ), rs -> new ChunkDiff.Stored(
+                rs.getObject( 1, UUID.class ),
+                rs.getInt( 2 ),
+                rs.getString( 3 ) ) );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to find chunks for page '{}': {}", pageName, e.getMessage(), e );
             throw new RuntimeException( "findByPage failed for " + pageName, e );
@@ -249,30 +235,26 @@ public class ContentChunkRepository {
     List< MentionableChunk > fetchByIdsFromDb( final List< UUID > ids ) {
         final String sql = "SELECT id, page_name, chunk_index, heading_path, text "
                          + "FROM kg_content_chunks WHERE id = ANY( ? )";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            final UUID[] arr = ids.toArray( new UUID[ 0 ] );
-            ps.setArray( 1, conn.createArrayOf( "uuid", arr ) );
-            try( ResultSet rs = ps.executeQuery() ) {
-                final List< MentionableChunk > out = new ArrayList<>();
-                while( rs.next() ) {
-                    final Array hp = rs.getArray( 4 );
-                    final List< String > headingPath;
-                    if( hp == null ) {
-                        headingPath = List.of();
-                    } else {
-                        final String[] parts = (String[]) hp.getArray();
-                        headingPath = parts == null ? List.of() : List.of( parts );
-                    }
-                    out.add( new MentionableChunk(
-                        rs.getObject( 1, UUID.class ),
-                        rs.getString( 2 ),
-                        rs.getInt( 3 ),
-                        headingPath,
-                        rs.getString( 5 ) ) );
+        try {
+            return query( sql, ps -> {
+                final UUID[] arr = ids.toArray( new UUID[ 0 ] );
+                ps.setArray( 1, ps.getConnection().createArrayOf( "uuid", arr ) );
+            }, rs -> {
+                final Array hp = rs.getArray( 4 );
+                final List< String > headingPath;
+                if( hp == null ) {
+                    headingPath = List.of();
+                } else {
+                    final String[] parts = (String[]) hp.getArray();
+                    headingPath = parts == null ? List.of() : List.of( parts );
                 }
-                return out;
-            }
+                return new MentionableChunk(
+                    rs.getObject( 1, UUID.class ),
+                    rs.getString( 2 ),
+                    rs.getInt( 3 ),
+                    headingPath,
+                    rs.getString( 5 ) );
+            } );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to find chunks by ids (count={}): {}", ids.size(), e.getMessage(), e );
             throw new RuntimeException( "findByIds failed", e );
@@ -339,35 +321,29 @@ public class ContentChunkRepository {
         final String sql = "SELECT id, chunk_index, heading_path, text, char_count, "
                          + "token_count_estimate, content_hash, created, modified "
                          + "FROM kg_content_chunks WHERE page_name = ? ORDER BY chunk_index";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, pageName );
-            try( ResultSet rs = ps.executeQuery() ) {
-                final List< FullChunk > out = new ArrayList<>();
-                while( rs.next() ) {
-                    final Array hp = rs.getArray( 3 );
-                    final List< String > headingPath;
-                    if( hp == null ) {
-                        headingPath = List.of();
-                    } else {
-                        final String[] arr = (String[]) hp.getArray();
-                        headingPath = arr == null ? List.of() : List.of( arr );
-                    }
-                    final Timestamp createdTs = rs.getTimestamp( 8 );
-                    final Timestamp modifiedTs = rs.getTimestamp( 9 );
-                    out.add( new FullChunk(
-                        rs.getObject( 1, UUID.class ),
-                        rs.getInt( 2 ),
-                        headingPath,
-                        rs.getString( 4 ),
-                        rs.getInt( 5 ),
-                        rs.getInt( 6 ),
-                        rs.getString( 7 ),
-                        createdTs == null ? null : createdTs.toInstant(),
-                        modifiedTs == null ? null : modifiedTs.toInstant() ) );
+        try {
+            return query( sql, ps -> ps.setString( 1, pageName ), rs -> {
+                final Array hp = rs.getArray( 3 );
+                final List< String > headingPath;
+                if( hp == null ) {
+                    headingPath = List.of();
+                } else {
+                    final String[] arr = (String[]) hp.getArray();
+                    headingPath = arr == null ? List.of() : List.of( arr );
                 }
-                return out;
-            }
+                final Timestamp createdTs = rs.getTimestamp( 8 );
+                final Timestamp modifiedTs = rs.getTimestamp( 9 );
+                return new FullChunk(
+                    rs.getObject( 1, UUID.class ),
+                    rs.getInt( 2 ),
+                    headingPath,
+                    rs.getString( 4 ),
+                    rs.getInt( 5 ),
+                    rs.getInt( 6 ),
+                    rs.getString( 7 ),
+                    createdTs == null ? null : createdTs.toInstant(),
+                    modifiedTs == null ? null : modifiedTs.toInstant() );
+            } );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to find full chunks for page '{}': {}", pageName, e.getMessage(), e );
             throw new RuntimeException( "findFullByPage failed for " + pageName, e );
@@ -397,32 +373,28 @@ public class ContentChunkRepository {
             + " WHERE m.node_id = ? "
             + " ORDER BY m.confidence DESC, c.chunk_index ASC "
             + " LIMIT ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, nodeId );
-            ps.setInt( 2, clamped );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                final List< NodeMentionRow > out = new ArrayList<>();
-                while ( rs.next() ) {
-                    final Array hp = rs.getArray( 4 );
-                    final List< String > headingPath;
-                    if ( hp == null ) {
-                        headingPath = List.of();
-                    } else {
-                        final String[] arr = (String[]) hp.getArray();
-                        headingPath = arr == null ? List.of() : List.of( arr );
-                    }
-                    out.add( new NodeMentionRow(
-                        rs.getObject( 1, UUID.class ),
-                        rs.getString( 2 ),
-                        rs.getInt( 3 ),
-                        headingPath,
-                        rs.getString( 5 ),
-                        rs.getDouble( 6 ),
-                        rs.getString( 7 ) ) );
+        try {
+            return query( sql, ps -> {
+                ps.setObject( 1, nodeId );
+                ps.setInt( 2, clamped );
+            }, rs -> {
+                final Array hp = rs.getArray( 4 );
+                final List< String > headingPath;
+                if ( hp == null ) {
+                    headingPath = List.of();
+                } else {
+                    final String[] arr = (String[]) hp.getArray();
+                    headingPath = arr == null ? List.of() : List.of( arr );
                 }
-                return out;
-            }
+                return new NodeMentionRow(
+                    rs.getObject( 1, UUID.class ),
+                    rs.getString( 2 ),
+                    rs.getInt( 3 ),
+                    headingPath,
+                    rs.getString( 5 ),
+                    rs.getDouble( 6 ),
+                    rs.getString( 7 ) );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "findMentionsForNode failed for node {}: {}", nodeId, e.getMessage(), e );
             throw new RuntimeException( "findMentionsForNode failed", e );
@@ -471,31 +443,27 @@ public class ContentChunkRepository {
             + "   AND POSITION( LOWER( ? ) IN LOWER( text ) ) > 0 "
             + " ORDER BY chunk_index ASC "
             + " LIMIT ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, pageName );
-            ps.setString( 2, needle );
-            ps.setInt( 3, clamped );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                final List< ChunkOnPage > out = new ArrayList<>();
-                while ( rs.next() ) {
-                    final Array hp = rs.getArray( 4 );
-                    final List< String > headingPath;
-                    if ( hp == null ) {
-                        headingPath = List.of();
-                    } else {
-                        final String[] arr = (String[]) hp.getArray();
-                        headingPath = arr == null ? List.of() : List.of( arr );
-                    }
-                    out.add( new ChunkOnPage(
-                        rs.getObject( 1, UUID.class ),
-                        rs.getString( 2 ),
-                        rs.getInt( 3 ),
-                        headingPath,
-                        rs.getString( 5 ) ) );
+        try {
+            return query( sql, ps -> {
+                ps.setString( 1, pageName );
+                ps.setString( 2, needle );
+                ps.setInt( 3, clamped );
+            }, rs -> {
+                final Array hp = rs.getArray( 4 );
+                final List< String > headingPath;
+                if ( hp == null ) {
+                    headingPath = List.of();
+                } else {
+                    final String[] arr = (String[]) hp.getArray();
+                    headingPath = arr == null ? List.of() : List.of( arr );
                 }
-                return out;
-            }
+                return new ChunkOnPage(
+                    rs.getObject( 1, UUID.class ),
+                    rs.getString( 2 ),
+                    rs.getInt( 3 ),
+                    headingPath,
+                    rs.getString( 5 ) );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "findChunksOnPageContaining failed for page '{}' / needle '{}': {}",
                 pageName, needle, e.getMessage(), e );
@@ -522,10 +490,6 @@ public class ContentChunkRepository {
      * @return populated outlier report (empty lists if nothing matches)
      */
     public OutlierReport outliers() {
-        final List< OutlierEntry > most = new ArrayList<>();
-        final List< OutlierEntry > largeSingles = new ArrayList<>();
-        final List< OutlierEntry > oversized = new ArrayList<>();
-
         final String mostSql =
             "SELECT page_name, COUNT(*), MAX(token_count_estimate), "
           + "SUM(token_count_estimate), MAX(char_count) "
@@ -547,29 +511,23 @@ public class ContentChunkRepository {
           + "ORDER BY token_count_estimate DESC LIMIT 10";
 
         try( Connection conn = dataSource.getConnection() ) {
-            readOutlierRows( conn, mostSql, most );
-            readOutlierRows( conn, largeSql, largeSingles );
-            readOutlierRows( conn, oversizedSql, oversized );
+            final List< OutlierEntry > most = query( conn, mostSql, SqlBinder.NONE, ContentChunkRepository::mapOutlierEntry );
+            final List< OutlierEntry > largeSingles = query( conn, largeSql, SqlBinder.NONE, ContentChunkRepository::mapOutlierEntry );
+            final List< OutlierEntry > oversized = query( conn, oversizedSql, SqlBinder.NONE, ContentChunkRepository::mapOutlierEntry );
+            return new OutlierReport( most, largeSingles, oversized );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to compute chunk outliers: {}", e.getMessage(), e );
             throw new RuntimeException( "outliers failed", e );
         }
-        return new OutlierReport( most, largeSingles, oversized );
     }
 
-    private static void readOutlierRows( final Connection conn, final String sql,
-                                         final List< OutlierEntry > sink ) throws SQLException {
-        try( PreparedStatement ps = conn.prepareStatement( sql );
-             ResultSet rs = ps.executeQuery() ) {
-            while( rs.next() ) {
-                sink.add( new OutlierEntry(
-                    rs.getString( 1 ),
-                    rs.getInt( 2 ),
-                    rs.getInt( 3 ),
-                    rs.getInt( 4 ),
-                    rs.getInt( 5 ) ) );
-            }
-        }
+    private static OutlierEntry mapOutlierEntry( final ResultSet rs ) throws SQLException {
+        return new OutlierEntry(
+            rs.getString( 1 ),
+            rs.getInt( 2 ),
+            rs.getInt( 3 ),
+            rs.getInt( 4 ),
+            rs.getInt( 5 ) );
     }
 
     /**
@@ -580,24 +538,23 @@ public class ContentChunkRepository {
      * @param diff     the computed diff to apply
      */
     public void apply( final String pageName, final ChunkDiff.Diff diff ) {
-        try( Connection conn = dataSource.getConnection() ) {
-            conn.setAutoCommit( false );
-            try {
+        // Both the original inner (per-statement failure, post-rollback) and outer
+        // (connection-acquisition failure) catch blocks logged the identical message
+        // and wrapped the identical exception, so a single try/catch around the whole
+        // inTransaction() call is a faithful merge — not a behavior collapse.
+        try {
+            inTransaction( conn -> {
                 for( final UUID id : diff.deletes() ) {
                     deleteById( conn, id );
                 }
                 for( final ChunkDiff.Update u : diff.updates() ) {
-                    update( conn, u );
+                    applyUpdate( conn, u );
                 }
                 for( final Chunk ins : diff.inserts() ) {
                     insert( conn, ins );
                 }
-                conn.commit();
-            } catch( final SQLException e ) {
-                conn.rollback();
-                LOG.warn( "Failed to apply chunk diff for page '{}': {}", pageName, e.getMessage(), e );
-                throw new RuntimeException( "apply failed for " + pageName, e );
-            }
+                return null;
+            } );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to apply chunk diff for page '{}': {}", pageName, e.getMessage(), e );
             throw new RuntimeException( "apply failed for " + pageName, e );
@@ -613,9 +570,8 @@ public class ContentChunkRepository {
      * service to wipe the table before a full re-index.
      */
     public void deleteAll() {
-        try( Connection conn = dataSource.getConnection();
-             Statement st = conn.createStatement() ) {
-            st.executeUpdate( "DELETE FROM kg_content_chunks" );
+        try {
+            update( "DELETE FROM kg_content_chunks", SqlBinder.NONE );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to delete all chunks: {}", e.getMessage(), e );
             throw new RuntimeException( "deleteAll failed", e );
@@ -638,16 +594,12 @@ public class ContentChunkRepository {
                          + "COALESCE( MIN( token_count_estimate ), 0 ), "
                          + "COALESCE( MAX( token_count_estimate ), 0 ) "
                          + "FROM kg_content_chunks";
-        try( Connection conn = dataSource.getConnection();
-             Statement st = conn.createStatement();
-             ResultSet rs = st.executeQuery( sql ) ) {
-            if( !rs.next() ) {
-                return new AggregateStats( 0, 0, 0, 0, 0, 0 );
-            }
-            return new AggregateStats(
-                rs.getInt( 1 ), 0, rs.getInt( 2 ),
-                (int) Math.round( rs.getDouble( 3 ) ),
-                rs.getInt( 4 ), rs.getInt( 5 ) );
+        try {
+            return queryOne( sql, SqlBinder.NONE, rs -> new AggregateStats(
+                    rs.getInt( 1 ), 0, rs.getInt( 2 ),
+                    (int) Math.round( rs.getDouble( 3 ) ),
+                    rs.getInt( 4 ), rs.getInt( 5 ) ) )
+                .orElse( new AggregateStats( 0, 0, 0, 0, 0, 0 ) );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to compute chunk stats: {}", e.getMessage(), e );
             throw new RuntimeException( "stats failed", e );
@@ -674,7 +626,7 @@ public class ContentChunkRepository {
             + "  token_count_estimate = EXCLUDED.token_count_estimate, "
             + "  content_hash = EXCLUDED.content_hash, "
             + "  modified = CURRENT_TIMESTAMP";
-        try( PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        update( conn, sql, ps -> {
             final Array headingArray = conn.createArrayOf( "text", ch.headingPath().toArray() );
             ps.setString( 1, ch.pageName() );
             ps.setInt( 2, ch.chunkIndex() );
@@ -683,16 +635,15 @@ public class ContentChunkRepository {
             ps.setInt( 5, ch.charCount() );
             ps.setInt( 6, ch.tokenCountEstimate() );
             ps.setString( 7, ch.contentHash() );
-            ps.executeUpdate();
-        }
+        } );
     }
 
-    private void update( final Connection conn, final ChunkDiff.Update u ) throws SQLException {
+    private void applyUpdate( final Connection conn, final ChunkDiff.Update u ) throws SQLException {
         final String sql = "UPDATE kg_content_chunks SET "
             + "heading_path = ?, text = ?, char_count = ?, "
             + "token_count_estimate = ?, content_hash = ?, modified = CURRENT_TIMESTAMP "
             + "WHERE id = ?";
-        try( PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        update( conn, sql, ps -> {
             final Chunk r = u.replacement();
             final Array headingArray = conn.createArrayOf( "text", r.headingPath().toArray() );
             ps.setArray( 1, headingArray );
@@ -701,15 +652,10 @@ public class ContentChunkRepository {
             ps.setInt( 4, r.tokenCountEstimate() );
             ps.setString( 5, r.contentHash() );
             ps.setObject( 6, u.existingId() );
-            ps.executeUpdate();
-        }
+        } );
     }
 
     private void deleteById( final Connection conn, final UUID id ) throws SQLException {
-        try( PreparedStatement ps = conn.prepareStatement(
-                "DELETE FROM kg_content_chunks WHERE id = ?" ) ) {
-            ps.setObject( 1, id );
-            ps.executeUpdate();
-        }
+        update( conn, "DELETE FROM kg_content_chunks WHERE id = ?", ps -> ps.setObject( 1, id ) );
     }
 }

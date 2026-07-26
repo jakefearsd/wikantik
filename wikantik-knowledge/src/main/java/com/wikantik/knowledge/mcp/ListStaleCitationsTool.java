@@ -21,6 +21,8 @@ package com.wikantik.knowledge.mcp;
 import com.wikantik.api.citation.CitationStatus;
 import com.wikantik.citation.CitationRepository;
 import com.wikantik.citation.CitationRow;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 
@@ -38,7 +40,7 @@ import java.util.Map;
  * is omitted, returns all stale + target_missing citations across the corpus, capped
  * at {@code limit}.</p>
  */
-public class ListStaleCitationsTool extends AbstractKnowledgeMcpTool {
+public class ListStaleCitationsTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "list_stale_citations";
 
@@ -102,6 +104,11 @@ public class ListStaleCitationsTool extends AbstractKnowledgeMcpTool {
                 .outputSchema( outputSchema )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

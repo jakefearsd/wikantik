@@ -20,6 +20,8 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -31,7 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /** MCP tool — resolves a canonical_id to the current page descriptor. */
-public class GetPageByIdTool extends AbstractKnowledgeMcpTool {
+public class GetPageByIdTool extends AbstractMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( GetPageByIdTool.class );
     public static final String TOOL_NAME = "get_page_by_id";
@@ -87,6 +89,11 @@ public class GetPageByIdTool extends AbstractKnowledgeMcpTool {
                 .outputSchema( outputSchema )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

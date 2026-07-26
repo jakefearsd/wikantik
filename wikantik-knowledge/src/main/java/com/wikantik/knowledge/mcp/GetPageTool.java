@@ -20,6 +20,8 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.RetrievedPage;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 
@@ -32,7 +34,7 @@ import java.util.Map;
  * {name, url, score=0, summary, cluster, tags, author, lastModified} or
  * {exists:false, pageName} if the page does not exist.
  */
-public class GetPageTool extends AbstractKnowledgeMcpTool {
+public class GetPageTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "get_page";
 
@@ -87,6 +89,11 @@ public class GetPageTool extends AbstractKnowledgeMcpTool {
             .outputSchema( outputSchema )
             .annotations( READ_ONLY_ANNOTATIONS )
             .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

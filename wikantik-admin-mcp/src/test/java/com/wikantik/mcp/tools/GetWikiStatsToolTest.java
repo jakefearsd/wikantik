@@ -20,15 +20,19 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.test.StubPageManager;
 import com.wikantik.test.StubReferenceManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.when;
 
 class GetWikiStatsToolTest {
 
@@ -66,5 +70,24 @@ class GetWikiStatsToolTest {
         final McpSchema.Tool def = tool.definition();
         assertEquals( "get_wiki_stats", def.name() );
         assertTrue( def.annotations().readOnlyHint() );
+    }
+
+    /**
+     * execute() had NO outer try/catch: an unexpected RuntimeException from a manager
+     * call used to propagate straight out of the tool instead of coming back as the
+     * structured {error, suggestion} envelope every other admin-mcp tool produces.
+     */
+    @Test
+    void executeReturnsErrorEnvelopeOnUnexpectedException() {
+        final PageManager mockPm = Mockito.mock( PageManager.class );
+        final ReferenceManager mockRefMgr = Mockito.mock( ReferenceManager.class );
+        when( mockRefMgr.findUncreated() ).thenThrow( new RuntimeException( "DB offline" ) );
+        final GetWikiStatsTool failingTool = new GetWikiStatsTool( mockPm, mockRefMgr );
+
+        final McpSchema.CallToolResult result = failingTool.execute( Map.of() );
+
+        assertEquals( Boolean.TRUE, result.isError() );
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( json.contains( "DB offline" ), "expected error envelope to surface the failure message: " + json );
     }
 }

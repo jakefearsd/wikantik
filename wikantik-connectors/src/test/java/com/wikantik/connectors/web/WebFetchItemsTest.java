@@ -18,6 +18,8 @@
  */
 package com.wikantik.connectors.web;
 
+import com.wikantik.connectors.ItemDigest;
+
 import com.wikantik.api.connectors.SourceItem;
 import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
@@ -25,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class WebFetchItemsTest {
     @Test void sha256HexIs64LowercaseHex() {
-        String h = WebFetchItems.sha256Hex( "abc".getBytes( StandardCharsets.UTF_8 ) );
+        String h = ItemDigest.sha256Hex( "abc".getBytes( StandardCharsets.UTF_8 ) );
         assertEquals( 64, h.length() );
         assertTrue( h.matches( "[0-9a-f]{64}" ) );
     }

@@ -671,15 +671,11 @@ public class WikiContext implements Context, Command {
             copy.engine  = engine;
             copy.command = command;
 
-            // Re-create scope objects so mutations on the clone do not affect the original.
-            // Shallow: variable map and page references are shared (same behaviour as before decomposition).
-            copy.requestScope   = new RequestScope(
-                    requestScope.getHttpRequest(),
-                    requestScope.getSession(),
-                    requestScope.getCommandResolver(),
-                    requestScope.getVariableMap() );
-            copy.pageScope      = new PageScope( pageScope.getPage(), pageScope.getRealPage() );
-            copy.renderingScope = new RenderingScope( renderingScope.getTemplate() );
+            // Each scope owns its own copy semantics (Prototype) — mutations on the
+            // clone's scopes do not affect the original's scope objects.
+            copy.requestScope   = requestScope.shallowCopy();
+            copy.pageScope      = pageScope.shallowCopy();
+            copy.renderingScope = renderingScope.copy();
 
             return copy;
         } catch( final CloneNotSupportedException e ) {
@@ -697,7 +693,6 @@ public class WikiContext implements Context, Command {
      *  @return A deep clone of the WikiContext.
      */
     @Override
-    @SuppressWarnings("unchecked")
     public WikiContext deepClone() {
         try {
             // super.clone() must always be called to make sure that inherited objects
@@ -708,14 +703,10 @@ public class WikiContext implements Context, Command {
             copy.engine  = engine;
             copy.command = command; // Static structure
 
-            // Deep: clone the variable map and page objects; session + request + resolver are shared
-            copy.requestScope   = new RequestScope(
-                    requestScope.getHttpRequest(),
-                    requestScope.getSession(),
-                    requestScope.getCommandResolver(),
-                    (HashMap<String, Object>) requestScope.getVariableMap().clone() );
-            copy.pageScope      = new PageScope( pageScope.getPage().clone(), pageScope.getRealPage().clone() );
-            copy.renderingScope = new RenderingScope( renderingScope.getTemplate() );
+            // Deep: scopes clone the variable map and page objects; session + request + resolver are shared
+            copy.requestScope   = requestScope.deepCopy();
+            copy.pageScope      = pageScope.deepCopy();
+            copy.renderingScope = renderingScope.copy();
 
             return copy;
         }

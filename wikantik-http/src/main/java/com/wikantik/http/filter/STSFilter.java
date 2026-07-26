@@ -15,36 +15,13 @@
  */
 package com.wikantik.http.filter;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-
 /**
- *
- * @Strict-Transport-Security (HSTS): Enforces HTTPS-only communication,
+ * Strict-Transport-Security (HSTS): Enforces HTTPS-only communication,
  * preventing downgrade attacks and cookie hijacking.
  */
-public class STSFilter implements Filter {
+public class STSFilter extends SingleValueHeaderFilter {
 
-    private String mode = "max-age=63072000; includeSubDomains; preload";
-
-    @Override
-    public void init(FilterConfig filterConfig) {
-        String configMode = filterConfig.getInitParameter("STSValue");
-        if (configMode != null) {
-            mode = configMode;
-        }
-    }
-
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        HttpServletResponse res = (HttpServletResponse) response;
-        res.addHeader("Strict-Transport-Security", mode);
-        chain.doFilter(request, response);
+    public STSFilter() {
+        super( "Strict-Transport-Security", "STSValue", "max-age=63072000; includeSubDomains; preload" );
     }
 }

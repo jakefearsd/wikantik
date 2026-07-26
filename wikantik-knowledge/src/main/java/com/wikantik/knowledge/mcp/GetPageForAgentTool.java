@@ -27,6 +27,7 @@ import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 
@@ -43,7 +44,7 @@ import java.util.Optional;
  * graceful-degradation contract, served over Streamable HTTP MCP instead of
  * REST.
  */
-public class GetPageForAgentTool extends AbstractKnowledgeMcpTool {
+public class GetPageForAgentTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "get_page_for_agent";
 
@@ -145,6 +146,11 @@ public class GetPageForAgentTool extends AbstractKnowledgeMcpTool {
                 .outputSchema( outputSchema )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

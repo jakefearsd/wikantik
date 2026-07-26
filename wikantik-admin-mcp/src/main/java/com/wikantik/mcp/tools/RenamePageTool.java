@@ -32,6 +32,7 @@ import com.wikantik.content.PageRenamer;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.mcp.AbstractMcpTool;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,7 +43,7 @@ import java.util.Map;
  * Delegates to the JSPWiki {@link PageRenamer} which handles page moves, attachment
  * migration, and referrer updates atomically.
  */
-public class RenamePageTool implements McpTool, AuthorConfigurable {
+public class RenamePageTool extends AbstractMcpTool implements AuthorConfigurable {
 
     private static final Logger LOG = LogManager.getLogger( RenamePageTool.class );
     public static final String TOOL_NAME = "rename_page";
@@ -117,7 +118,7 @@ public class RenamePageTool implements McpTool, AuthorConfigurable {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final String oldName = McpToolUtils.getString( arguments, "oldName" );
         final String newName = McpToolUtils.getString( arguments, "newName" );
         final boolean updateLinks = arguments.containsKey( "updateLinks" )
@@ -176,9 +177,6 @@ public class RenamePageTool implements McpTool, AuthorConfigurable {
             // already exists", "Cannot rename to itself", etc. These are 4xx-class
             // — return the message to the caller and log a single WARN line.
             LOG.warn( "rename_page rejected {} -> {}: {}", oldName, newName, e.getMessage() );
-            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
-        } catch ( final Exception e ) {
-            LOG.error( "Failed to rename page {} to {}: {}", oldName, newName, e.getMessage(), e );
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }

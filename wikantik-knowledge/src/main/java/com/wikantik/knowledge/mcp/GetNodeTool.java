@@ -21,6 +21,8 @@ package com.wikantik.knowledge.mcp;
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -32,7 +34,7 @@ import java.util.*;
  * MCP tool that returns full details for a single node: all properties,
  * all edges (inbound and outbound), source page, and provenance.
  */
-public class GetNodeTool extends AbstractKnowledgeMcpTool {
+public class GetNodeTool extends AbstractMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( GetNodeTool.class );
     public static final String TOOL_NAME = "get_node";
@@ -96,6 +98,11 @@ public class GetNodeTool extends AbstractKnowledgeMcpTool {
                 .outputSchema( outputSchema )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -37,7 +39,7 @@ import java.util.*;
  * Google Sitemap Ping and IndexNow. Agents decide when to notify, typically
  * after a cluster publish.
  */
-public class PingSearchEnginesTool implements McpTool {
+public class PingSearchEnginesTool extends AbstractMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( PingSearchEnginesTool.class );
     public static final String TOOL_NAME = "ping_search_engines";
@@ -113,7 +115,7 @@ public class PingSearchEnginesTool implements McpTool {
 
     @SuppressWarnings( "unchecked" )
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final String service = McpToolUtils.getString( arguments, "service" );
         if ( service == null || service.isBlank() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "Missing required parameter: service" );

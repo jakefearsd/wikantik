@@ -21,9 +21,8 @@ package com.wikantik.mcp.tools;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgRejection;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.wikantik.mcp.AbstractMcpTool;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,9 +33,8 @@ import java.util.Map;
  * Checks the rejection history before accepting; if the proposed relationship
  * was previously rejected, the proposal is declined with an explanation.
  */
-public class ProposeKnowledgeTool implements McpTool, AuthorConfigurable {
+public class ProposeKnowledgeTool extends AbstractMcpTool implements AuthorConfigurable {
 
-    private static final Logger LOG = LogManager.getLogger( ProposeKnowledgeTool.class );
     public static final String TOOL_NAME = "propose_knowledge";
 
     private static final java.util.regex.Pattern NODE_TYPE_REGEX =
@@ -122,7 +120,7 @@ public class ProposeKnowledgeTool implements McpTool, AuthorConfigurable {
 
     @SuppressWarnings( "unchecked" )
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final String proposalType = McpToolUtils.getString( arguments, "proposal_type" );
         final String sourcePage = McpToolUtils.getString( arguments, "source_page" );
         final String reasoning = McpToolUtils.getString( arguments, "reasoning" );
@@ -135,50 +133,45 @@ public class ProposeKnowledgeTool implements McpTool, AuthorConfigurable {
                     "Missing required parameters: proposal_type, proposed_data, source_page, reasoning" );
         }
 
-        try {
-            // Validate node_type for new-node proposals
-            if ( "new-node".equals( proposalType ) ) {
-                final String nodeType = McpToolUtils.getString( proposedData, "node_type" );
-                if ( nodeType != null && !NODE_TYPE_REGEX.matcher( nodeType ).matches() ) {
-                    return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                            "invalid node_type: must match /^[a-z][a-z0-9_-]{0,30}$/ (got: '" + nodeType + "')" );
-                }
+        // Validate node_type for new-node proposals
+        if ( "new-node".equals( proposalType ) ) {
+            final String nodeType = McpToolUtils.getString( proposedData, "node_type" );
+            if ( nodeType != null && !NODE_TYPE_REGEX.matcher( nodeType ).matches() ) {
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
+                        "invalid node_type: must match /^[a-z][a-z0-9_-]{0,30}$/ (got: '" + nodeType + "')" );
             }
-
-            // Check rejection history for edge proposals
-            if ( "new-edge".equals( proposalType ) ) {
-                final String source = ( String ) proposedData.get( "source" );
-                final String target = ( String ) proposedData.get( "target" );
-                final String relationship = ( String ) proposedData.get( "relationship" );
-                if ( source != null && target != null && relationship != null
-                        && service.isRejected( source, target, relationship ) ) {
-                    final List< KgRejection > rejections =
-                            service.listRejections( source, target, relationship );
-                    final String reason = rejections.isEmpty() ? "no reason recorded"
-                            : rejections.get( 0 ).reason();
-                    return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                            "This relationship was previously rejected: " + source + " --[" +
-                            relationship + "]--> " + target + ". Reason: " + reason,
-                            "Propose a different relationship, or adjust your reasoning." );
-                }
-            }
-
-            final KgProposal proposal = service.submitProposal(
-                    proposalType, sourcePage, proposedData, confidence, reasoning );
-
-            McpAudit.logWrite( TOOL_NAME, "proposed-" + proposalType, sourcePage, defaultAuthor );
-
-            final Map< String, Object > result = new LinkedHashMap<>();
-            result.put( "id", proposal.id().toString() );
-            result.put( "proposal_type", proposal.proposalType() );
-            result.put( "source_page", proposal.sourcePage() );
-            result.put( "status", proposal.status() );
-            result.put( "confidence", proposal.confidence() );
-            result.put( "created", proposal.created() != null ? proposal.created().toString() : null );
-            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
-        } catch ( final Exception e ) {
-            LOG.error( "Failed to submit proposal: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
+
+        // Check rejection history for edge proposals
+        if ( "new-edge".equals( proposalType ) ) {
+            final String source = ( String ) proposedData.get( "source" );
+            final String target = ( String ) proposedData.get( "target" );
+            final String relationship = ( String ) proposedData.get( "relationship" );
+            if ( source != null && target != null && relationship != null
+                    && service.isRejected( source, target, relationship ) ) {
+                final List< KgRejection > rejections =
+                        service.listRejections( source, target, relationship );
+                final String reason = rejections.isEmpty() ? "no reason recorded"
+                        : rejections.get( 0 ).reason();
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
+                        "This relationship was previously rejected: " + source + " --[" +
+                        relationship + "]--> " + target + ". Reason: " + reason,
+                        "Propose a different relationship, or adjust your reasoning." );
+            }
+        }
+
+        final KgProposal proposal = service.submitProposal(
+                proposalType, sourcePage, proposedData, confidence, reasoning );
+
+        McpAudit.logWrite( TOOL_NAME, "proposed-" + proposalType, sourcePage, defaultAuthor );
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "id", proposal.id().toString() );
+        result.put( "proposal_type", proposal.proposalType() );
+        result.put( "source_page", proposal.sourcePage() );
+        result.put( "status", proposal.status() );
+        result.put( "confidence", proposal.confidence() );
+        result.put( "created", proposal.created() != null ? proposal.created().toString() : null );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 }

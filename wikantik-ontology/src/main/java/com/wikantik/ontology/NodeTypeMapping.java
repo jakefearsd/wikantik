@@ -59,6 +59,16 @@ public final class NodeTypeMapping {
         return MAP.getOrDefault( key, DEFAULT_CLASS );
     }
 
+    /** snake_case relationship_type -> wk: lowerCamel property local name. */
+    public static String propertyLocalName( final String relationshipType ) {
+        final String[] parts = relationshipType.split( "_" );
+        final StringBuilder sb = new StringBuilder( parts[ 0 ] );
+        for ( int i = 1; i < parts.length; i++ ) {
+            sb.append( Character.toUpperCase( parts[ i ].charAt( 0 ) ) ).append( parts[ i ].substring( 1 ) );
+        }
+        return sb.toString();
+    }
+
     /** Default schema.org type for pages with no more-specific mapping. */
     public static final String SCHEMA_DEFAULT = "Article";
 

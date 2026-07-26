@@ -44,7 +44,7 @@ import java.util.Map;
  * exist (callers should use {@code update_page} for those). Best-effort —
  * one page's failure doesn't stop the rest.
  */
-public class WritePagesTool extends DefaultAuthorTool implements McpTool {
+public class WritePagesTool extends DefaultAuthorTool {
 
     private static final Logger LOG = LogManager.getLogger( WritePagesTool.class );
     public static final String TOOL_NAME = "write_pages";
@@ -116,7 +116,7 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
 
     @Override
     @SuppressWarnings( "unchecked" )
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final Object rawPages = arguments.get( "pages" );
         if ( !( rawPages instanceof List< ? > ) || ( (List< ? >) rawPages ).isEmpty() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,

@@ -47,6 +47,27 @@ public final class PageScope {
     }
 
     /**
+     * Prototype: a copy sharing this scope's page references, matching
+     * {@link com.wikantik.WikiContext#clone()} semantics.
+     *
+     * @return a shallow copy of this scope
+     */
+    public PageScope shallowCopy() {
+        return new PageScope( page, realPage );
+    }
+
+    /**
+     * Prototype: a copy with cloned page objects, matching
+     * {@link com.wikantik.WikiContext#deepClone()} semantics.
+     *
+     * @return a deep copy of this scope
+     */
+    public PageScope deepCopy() {
+        return new PageScope( page == null ? null : page.clone(),
+                              realPage == null ? null : realPage.clone() );
+    }
+
+    /**
      * Returns the page that is being handled.
      *
      * @return the current page; may be {@code null} in edge cases during construction

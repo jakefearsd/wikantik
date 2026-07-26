@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgProposalReview;
@@ -36,7 +38,7 @@ import java.util.UUID;
  * Returns full proposal details, conflict flags, prior review history,
  * and any linked entity snapshot. Unknown or invalid ids land in missing[].
  */
-public class InspectProposalsTool implements McpTool {
+public class InspectProposalsTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "inspect_proposals";
 
@@ -88,7 +90,7 @@ public class InspectProposalsTool implements McpTool {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final Object raw = arguments.get( "ids" );
         if ( !( raw instanceof List< ? > rawList ) || rawList.isEmpty() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,

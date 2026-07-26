@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 /**
  * Base class for write-side MCP tools that attribute saves to the calling
  * agent. Centralises the {@link AuthorConfigurable#setDefaultAuthor} contract
@@ -27,8 +29,13 @@ package com.wikantik.mcp.tools;
  * {@code initialize} handshake supplies its {@code clientInfo.name}, which
  * {@code McpServerInitializer} then forwards to every
  * {@link AuthorConfigurable} tool.
+ *
+ * <p>Also extends {@link AbstractMcpTool} so the three write-side tools that need
+ * this author mixin ({@code mark_page_verified}, {@code update_page}, {@code write_pages})
+ * get the shared outer error-envelope template too — Java single inheritance means a
+ * subclass can't extend both independently, so the mixin carries it.</p>
  */
-public abstract class DefaultAuthorTool implements AuthorConfigurable {
+public abstract class DefaultAuthorTool extends AbstractMcpTool implements AuthorConfigurable {
 
     protected String defaultAuthor = "mcp-agent";
 

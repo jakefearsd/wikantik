@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.managers.PageManager;
@@ -31,7 +33,7 @@ import java.util.Map;
  * MCP tool that returns a quick dashboard overview of wiki health:
  * total pages, broken links, orphaned pages, and recent changes count.
  */
-public class GetWikiStatsTool implements McpTool {
+public class GetWikiStatsTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "get_wiki_stats";
 
@@ -72,7 +74,7 @@ public class GetWikiStatsTool implements McpTool {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "totalPages", pageManager.getTotalPageCount() );
         result.put( "brokenLinkCount", referenceManager.findUncreated().size() );

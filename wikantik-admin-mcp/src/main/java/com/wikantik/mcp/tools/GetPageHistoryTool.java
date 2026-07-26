@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
@@ -31,7 +33,7 @@ import java.util.Map;
 /**
  * MCP tool that returns the version history of a wiki page.
  */
-public class GetPageHistoryTool implements McpTool {
+public class GetPageHistoryTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "get_page_history";
 
@@ -88,7 +90,7 @@ public class GetPageHistoryTool implements McpTool {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final String pageName = McpToolUtils.pageSlug( arguments );
 
         final Page page = pageManager.getPage( pageName );

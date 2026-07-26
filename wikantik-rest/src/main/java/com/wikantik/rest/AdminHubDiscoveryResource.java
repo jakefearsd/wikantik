@@ -97,65 +97,58 @@ public class AdminHubDiscoveryResource extends RestServletBase {
     }
 
     /**
-     * First-match-wins route: a predicate over the raw path plus its action. A
-     * predicate (rather than forcing everything into one regex dialect) keeps the
-     * pre-refactor matching semantics byte-identical — the original chain mixed
-     * exact matches, {@code String.matches} regexes, and prefix/suffix checks.
+     * Dispatch tables per verb — the single source of truth for this servlet's endpoints.
+     * Matching (exact / regex / arbitrary predicate, first-match-wins) is delegated to the
+     * shared {@link RouteTable}; a predicate (rather than forcing everything into one regex
+     * dialect) keeps the pre-refactor matching semantics byte-identical — the original chain
+     * mixed exact matches, {@code String.matches} regexes, and prefix/suffix checks.
      */
-    private record HubRoute( java.util.function.Predicate< String > matches, RouteAction action ) {
-        static HubRoute exact( final String literal, final RouteAction a ) {
-            return new HubRoute( literal::equals, a );
-        }
-        static HubRoute regex( final String pattern, final RouteAction a ) {
-            final java.util.regex.Pattern p = java.util.regex.Pattern.compile( pattern );
-            return new HubRoute( s -> p.matcher( s ).matches(), a );
-        }
-    }
+    private transient RouteTable< RouteAction > getRoutes;
+    private transient RouteTable< RouteAction > postRoutes;
+    private transient RouteTable< RouteAction > deleteRoutes;
 
-    /** Dispatch tables per verb — the single source of truth for this servlet's endpoints. */
-    private transient List< HubRoute > getRoutes;
-    private transient List< HubRoute > postRoutes;
-    private transient List< HubRoute > deleteRoutes;
-
-    private List< HubRoute > getRoutes() {
+    private RouteTable< RouteAction > getRoutes() {
         if ( getRoutes == null ) {
-            getRoutes = List.of(
-                HubRoute.exact( "/proposals",           ( p, req, resp ) -> handleListProposals( req, resp ) ),
-                HubRoute.exact( "/proposals/dismissed", ( p, req, resp ) -> handleListDismissed( req, resp ) ),
-                HubRoute.exact( "/hubs",                ( p, req, resp ) -> handleListHubs( req, resp ) ),
-                new HubRoute( p -> p.startsWith( "/hubs/" ),
-                                                        ( p, req, resp ) -> handleHubDrilldown( p, resp ) ) );
+            getRoutes = RouteTable.< RouteAction >builder()
+                .exact( "/proposals",           ( p, req, resp ) -> handleListProposals( req, resp ) )
+                .exact( "/proposals/dismissed", ( p, req, resp ) -> handleListDismissed( req, resp ) )
+                .exact( "/hubs",                ( p, req, resp ) -> handleListHubs( req, resp ) )
+                .when( p -> p.startsWith( "/hubs/" ),
+                                                 ( p, req, resp ) -> handleHubDrilldown( p, resp ) )
+                .build();
         }
         return getRoutes;
     }
 
-    private List< HubRoute > postRoutes() {
+    private RouteTable< RouteAction > postRoutes() {
         if ( postRoutes == null ) {
-            postRoutes = List.of(
-                HubRoute.exact( "/run",            ( p, req, resp ) -> handleRun( req, resp ) ),
-                HubRoute.exact( "/proposals/seed", ( p, req, resp ) -> handleSeedProposal( req, resp ) ),
-                HubRoute.regex( "/proposals/\\d+/accept",
-                                                   ( p, req, resp ) -> handleAccept( extractId( p ), req, resp ) ),
-                HubRoute.regex( "/proposals/\\d+/dismiss",
-                                                   ( p, req, resp ) -> handleDismiss( extractId( p ), req, resp ) ),
-                HubRoute.exact( "/proposals/dismissed/bulk-delete",
-                                                   ( p, req, resp ) -> handleBulkDeleteDismissed( req, resp ) ),
-                new HubRoute( p -> p.startsWith( "/hubs/" ) && p.endsWith( "/remove-member" ),
-                                                   ( p, req, resp ) -> handleRemoveMember( p, req, resp ) ) );
+            postRoutes = RouteTable.< RouteAction >builder()
+                .exact( "/run",            ( p, req, resp ) -> handleRun( req, resp ) )
+                .exact( "/proposals/seed", ( p, req, resp ) -> handleSeedProposal( req, resp ) )
+                .regex( "/proposals/\\d+/accept",
+                                           ( p, req, resp ) -> handleAccept( extractId( p ), req, resp ) )
+                .regex( "/proposals/\\d+/dismiss",
+                                           ( p, req, resp ) -> handleDismiss( extractId( p ), req, resp ) )
+                .exact( "/proposals/dismissed/bulk-delete",
+                                           ( p, req, resp ) -> handleBulkDeleteDismissed( req, resp ) )
+                .when( p -> p.startsWith( "/hubs/" ) && p.endsWith( "/remove-member" ),
+                                           ( p, req, resp ) -> handleRemoveMember( p, req, resp ) )
+                .build();
         }
         return postRoutes;
     }
 
-    private List< HubRoute > deleteRoutes() {
+    private RouteTable< RouteAction > deleteRoutes() {
         if ( deleteRoutes == null ) {
-            deleteRoutes = List.of(
-                HubRoute.regex( "/proposals/dismissed/\\d+", ( p, req, resp ) ->
-                    handleDeleteDismissed( Integer.parseInt( p.substring( p.lastIndexOf( '/' ) + 1 ) ), resp ) ) );
+            deleteRoutes = RouteTable.< RouteAction >builder()
+                .regex( "/proposals/dismissed/\\d+", ( p, req, resp ) ->
+                    handleDeleteDismissed( Integer.parseInt( p.substring( p.lastIndexOf( '/' ) + 1 ) ), resp ) )
+                .build();
         }
         return deleteRoutes;
     }
 
-    private void dispatch( final List< HubRoute > routes, final HttpServletRequest request,
+    private void dispatch( final RouteTable< RouteAction > routes, final HttpServletRequest request,
             final HttpServletResponse response ) throws IOException {
         if ( refuseIfKnowledgeDisabled( response ) ) return;
         final String path = request.getPathInfo();
@@ -165,13 +158,12 @@ public class AdminHubDiscoveryResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_NOT_FOUND, "Path required" );
             return;
         }
-        for ( final HubRoute route : routes ) {
-            if ( route.matches().test( path ) ) {
-                route.action().invoke( path, request, response );
-                return;
-            }
+        final RouteAction action = routes.match( path ).orElse( null );
+        if ( action == null ) {
+            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
+            return;
         }
-        sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
+        action.invoke( path, request, response );
     }
 
     @Override

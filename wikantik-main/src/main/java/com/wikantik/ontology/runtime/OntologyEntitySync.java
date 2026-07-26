@@ -24,6 +24,7 @@ import com.wikantik.knowledge.KgEdgeRepository;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.ontology.Iris;
 import com.wikantik.ontology.OntologyModelManager;
+import com.wikantik.ontology.PublicProjectionFilter;
 import com.wikantik.ontology.projection.EntityProjector;
 import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
 import java.util.ArrayList;
@@ -151,7 +152,7 @@ public final class OntologyEntitySync implements AutoCloseable {
     /** Projects one entity from current DB state, or removes its graph if gone/restricted. */
     private void projectOne( final UUID id ) {
         final KgNode node = nodes.getNode( id );
-        if ( node == null || ( node.sourcePage() != null && !isPublic.test( node.sourcePage() ) ) ) {
+        if ( node == null || !PublicProjectionFilter.isNodePublic( node, isPublic ) ) {
             manager.removeNamedGraph( Iris.entity( id ) );
             return;
         }
@@ -159,8 +160,7 @@ public final class OntologyEntitySync implements AutoCloseable {
         final List< KgEdge > publicEdges = new ArrayList<>( outgoing.size() );
         for ( final KgEdge edge : outgoing ) {
             final KgNode target = nodes.getNode( edge.targetId() );
-            if ( target != null
-                    && ( target.sourcePage() == null || isPublic.test( target.sourcePage() ) ) ) {
+            if ( target != null && PublicProjectionFilter.isNodePublic( target, isPublic ) ) {
                 publicEdges.add( edge );
             }
         }

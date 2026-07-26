@@ -21,6 +21,8 @@ package com.wikantik.knowledge.mcp;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -40,7 +42,7 @@ import java.util.Map;
  * <p>Mirrors the single-page {@code read_page} tool on /wikantik-admin-mcp,
  * but lives on /knowledge-mcp as part of the agent-grade content surface.</p>
  */
-public class ReadPagesTool extends AbstractKnowledgeMcpTool {
+public class ReadPagesTool extends AbstractMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( ReadPagesTool.class );
     public static final String TOOL_NAME = "read_pages";
@@ -103,6 +105,11 @@ public class ReadPagesTool extends AbstractKnowledgeMcpTool {
                 .outputSchema( outputSchema )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

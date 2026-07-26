@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.managers.ReferenceManager;
@@ -27,7 +29,7 @@ import java.util.*;
 /**
  * MCP tool that finds pages linking to a given page (backlinks).
  */
-public class GetBacklinksTool implements McpTool {
+public class GetBacklinksTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "get_backlinks";
 
@@ -73,7 +75,7 @@ public class GetBacklinksTool implements McpTool {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final String pageName = McpToolUtils.pageSlug( arguments );
 
         final Set< String > referrers = referenceManager.findReferrers( pageName );

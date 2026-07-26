@@ -96,6 +96,11 @@ public final class KgProposalRepository extends KgJdbcSupport {
 
     // ---- Proposal operations ----
 
+    /**
+     * Not migrated to {@code update()}: needs {@code Statement.RETURN_GENERATED_KEYS}
+     * plus a {@code getGeneratedKeys()} read on the same statement — a different
+     * shape than the plain {@code executeUpdate()} the {@code update()} primitive wraps.
+     */
     public KgProposal insertProposal( final String proposalType, final String sourcePage,
                                       final Map< String, Object > proposedData,
                                       final double confidence, final String reasoning ) {
@@ -124,12 +129,8 @@ public final class KgProposalRepository extends KgJdbcSupport {
 
     public KgProposal getProposal( final UUID id ) {
         final String sql = "SELECT * FROM kg_proposals WHERE id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, id );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? mapProposal( rs ) : null;
-            }
+        try {
+            return queryOne( sql, ps -> ps.setObject( 1, id ), this::mapProposal ).orElse( null );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to get proposal '{}': {}", id, e.getMessage(), e );
             throw new RuntimeException( e );
@@ -154,18 +155,12 @@ public final class KgProposalRepository extends KgJdbcSupport {
         params.add( limit );
         params.add( offset );
 
-        final List< KgProposal > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) results.add( mapProposal( rs ) );
-            }
+        try {
+            return query( sql.toString(), SqlBinder.positional( params ), this::mapProposal );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to list proposals: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
-        return results;
     }
 
     public List< KgProposal > listProposalsFiltered( final String status, final String tier,
@@ -184,18 +179,12 @@ public final class KgProposalRepository extends KgJdbcSupport {
         params.add( limit );
         params.add( offset );
 
-        final List< KgProposal > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) results.add( mapProposal( rs ) );
-            }
+        try {
+            return query( sql.toString(), SqlBinder.positional( params ), this::mapProposal );
         } catch ( final SQLException e ) {
             LOG.warn( "listProposalsFiltered failed: {}", e.getMessage(), e );
             throw new RuntimeException( "listProposalsFiltered failed: " + e.getMessage(), e );
         }
-        return results;
     }
 
     /**
@@ -215,12 +204,8 @@ public final class KgProposalRepository extends KgJdbcSupport {
         final StringBuilder sql = new StringBuilder( "SELECT COUNT(*) FROM kg_proposals WHERE 1=1" );
         final List< Object > params = new ArrayList<>();
         appendProposalFilters( sql, params, status, tier, machineStatus, includeMachineRejected, sourcePage );
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? rs.getLong( 1 ) : 0L;
-            }
+        try {
+            return queryOne( sql.toString(), SqlBinder.positional( params ), rs -> rs.getLong( 1 ) ).orElse( 0L );
         } catch ( final SQLException e ) {
             LOG.warn( "countProposalsFiltered failed: {}", e.getMessage(), e );
             throw new RuntimeException( "countProposalsFiltered failed: " + e.getMessage(), e );
@@ -258,12 +243,12 @@ public final class KgProposalRepository extends KgJdbcSupport {
 
     public void updateProposalStatus( final UUID id, final String status, final String reviewedBy ) {
         final String sql = "UPDATE kg_proposals SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, status );
-            ps.setString( 2, reviewedBy );
-            ps.setObject( 3, id );
-            ps.executeUpdate();
+        try {
+            update( sql, ps -> {
+                ps.setString( 1, status );
+                ps.setString( 2, reviewedBy );
+                ps.setObject( 3, id );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to update proposal status '{}': {}", id, e.getMessage(), e );
             throw new RuntimeException( "Failed to update proposal status: " + e.getMessage(), e );
@@ -296,16 +281,16 @@ public final class KgProposalRepository extends KgJdbcSupport {
             "machine_status = ?, machine_confidence = ?, machine_judged_at = NOW(), " +
             "machine_model = ?, tier = ? WHERE id = ?";
         final String sql = newStatus != null ? sqlWithStatus : sqlNoStatus;
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            int idx = 1;
-            ps.setString( idx++, verdict );
-            ps.setDouble( idx++, confidence );
-            ps.setString( idx++, model );
-            ps.setString( idx++, newTier );
-            if ( newStatus != null ) ps.setString( idx++, newStatus );
-            ps.setObject( idx, proposalId );
-            ps.executeUpdate();
+        try {
+            update( sql, ps -> {
+                int idx = 1;
+                ps.setString( idx++, verdict );
+                ps.setDouble( idx++, confidence );
+                ps.setString( idx++, model );
+                ps.setString( idx++, newTier );
+                if ( newStatus != null ) ps.setString( idx++, newStatus );
+                ps.setObject( idx, proposalId );
+            } );
         } catch ( final SQLException e ) {
             if ( isPoolClosed( e ) ) {
                 LOG.debug( "applyMachineVerdict({}, {}) skipped — data source closed during shutdown", proposalId, verdict );
@@ -325,13 +310,13 @@ public final class KgProposalRepository extends KgJdbcSupport {
         final String newTier = "approved".equals( verdict ) ? "human" : "none";
         final String sql = "UPDATE kg_proposals SET " +
             "status = ?, reviewed_by = ?, reviewed_at = NOW(), tier = ? WHERE id = ?";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setString( 1, verdict );
-            ps.setString( 2, reviewedBy );
-            ps.setString( 3, newTier );
-            ps.setObject( 4, proposalId );
-            ps.executeUpdate();
+        try {
+            update( sql, ps -> {
+                ps.setString( 1, verdict );
+                ps.setString( 2, reviewedBy );
+                ps.setString( 3, newTier );
+                ps.setObject( 4, proposalId );
+            } );
         } catch ( final SQLException e ) {
             if ( isPoolClosed( e ) ) {
                 LOG.debug( "applyHumanVerdict({}, {}) skipped — data source closed during shutdown", proposalId, verdict );
@@ -349,16 +334,16 @@ public final class KgProposalRepository extends KgJdbcSupport {
         final String sql = "INSERT INTO kg_proposal_reviews " +
             "(proposal_id, reviewer_kind, reviewer_id, verdict, confidence, rationale) " +
             "VALUES (?, ?, ?, ?, ?, ?)";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setObject( 1, proposalId );
-            ps.setString( 2, reviewerKind );
-            ps.setString( 3, reviewerId );
-            ps.setString( 4, verdict );
-            if ( confidence == null ) ps.setNull( 5, java.sql.Types.DOUBLE );
-            else ps.setDouble( 5, confidence );
-            ps.setString( 6, rationale );
-            ps.executeUpdate();
+        try {
+            update( sql, ps -> {
+                ps.setObject( 1, proposalId );
+                ps.setString( 2, reviewerKind );
+                ps.setString( 3, reviewerId );
+                ps.setString( 4, verdict );
+                if ( confidence == null ) ps.setNull( 5, java.sql.Types.DOUBLE );
+                else ps.setDouble( 5, confidence );
+                ps.setString( 6, rationale );
+            } );
         } catch ( final SQLException e ) {
             if ( isPoolClosed( e ) ) {
                 LOG.debug( "recordReview({}, {}) skipped — data source closed during shutdown", proposalId, reviewerKind );
@@ -373,26 +358,20 @@ public final class KgProposalRepository extends KgJdbcSupport {
     public List< KgProposalReview > listReviews( final UUID proposalId ) {
         final String sql = "SELECT * FROM kg_proposal_reviews WHERE proposal_id = ? " +
             "ORDER BY created DESC, id DESC";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setObject( 1, proposalId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                final List< KgProposalReview > out = new ArrayList<>();
-                while ( rs.next() ) {
-                    final Double conf = rs.getObject( "confidence", Double.class );
-                    out.add( new KgProposalReview(
-                        rs.getObject( "id", UUID.class ),
-                        rs.getObject( "proposal_id", UUID.class ),
-                        rs.getString( "reviewer_kind" ),
-                        rs.getString( "reviewer_id" ),
-                        rs.getString( "verdict" ),
-                        conf,
-                        rs.getString( "rationale" ),
-                        rs.getTimestamp( "created" ).toInstant()
-                    ) );
-                }
-                return out;
-            }
+        try {
+            return query( sql, ps -> ps.setObject( 1, proposalId ), rs -> {
+                final Double conf = rs.getObject( "confidence", Double.class );
+                return new KgProposalReview(
+                    rs.getObject( "id", UUID.class ),
+                    rs.getObject( "proposal_id", UUID.class ),
+                    rs.getString( "reviewer_kind" ),
+                    rs.getString( "reviewer_id" ),
+                    rs.getString( "verdict" ),
+                    conf,
+                    rs.getString( "rationale" ),
+                    rs.getTimestamp( "created" ).toInstant()
+                );
+            } );
         } catch ( final SQLException e ) {
             if ( isPoolClosed( e ) ) {
                 LOG.debug( "listReviews({}) skipped — data source closed during shutdown", proposalId );
@@ -403,6 +382,18 @@ public final class KgProposalRepository extends KgJdbcSupport {
         }
     }
 
+    /**
+     * Not migrated to {@link #inTransaction}: this method's cleanup is more
+     * defensive than the generic primitive — it restores the connection's
+     * captured {@code prevAutoCommit} value (not a hardcoded {@code true}) and
+     * treats both the rollback and the autocommit-restore as best-effort,
+     * swallowing any {@link SQLException} they throw so a cleanup failure never
+     * masks the original error. That extra defensiveness looks deliberate given
+     * this class's pool-shutdown-race handling elsewhere ({@link #isPoolClosed}
+     * / {@link PoolClosedException}), so it is left as hand-rolled rather than
+     * routed through {@code inTransaction} (which lets rollback/restore
+     * exceptions propagate normally).
+     */
     public List< KgProposal > getProposalsForJudging( final int batch ) {
         final String sql = "SELECT * FROM kg_proposals " +
             "WHERE status = 'pending' AND machine_status IS NULL " +
@@ -445,26 +436,22 @@ public final class KgProposalRepository extends KgJdbcSupport {
      * @return the total count of updated rows (nodes + edges)
      */
     public int updateTierByProvenance( final UUID proposalId, final String newTier ) {
-        int rows = 0;
         try ( Connection c = dataSource.getConnection() ) {
-            try ( PreparedStatement ps = c.prepareStatement(
-                    "UPDATE kg_nodes SET tier = ? WHERE provenance_proposal_id = ?" ) ) {
+            int rows = 0;
+            rows += update( c, "UPDATE kg_nodes SET tier = ? WHERE provenance_proposal_id = ?", ps -> {
                 ps.setString( 1, newTier );
                 ps.setObject( 2, proposalId );
-                rows += ps.executeUpdate();
-            }
-            try ( PreparedStatement ps = c.prepareStatement(
-                    "UPDATE kg_edges SET tier = ? WHERE provenance_proposal_id = ?" ) ) {
+            } );
+            rows += update( c, "UPDATE kg_edges SET tier = ? WHERE provenance_proposal_id = ?", ps -> {
                 ps.setString( 1, newTier );
                 ps.setObject( 2, proposalId );
-                rows += ps.executeUpdate();
-            }
+            } );
+            return rows;
         } catch ( final SQLException e ) {
             LOG.warn( "updateTierByProvenance({}, {}) failed: {}", proposalId, newTier,
                 e.getMessage(), e );
             throw new RuntimeException( "updateTierByProvenance failed: " + e.getMessage(), e );
         }
-        return rows;
     }
 
     public long countPendingProposals() {
@@ -496,20 +483,15 @@ public final class KgProposalRepository extends KgJdbcSupport {
             FROM kg_proposals
             WHERE status = 'pending'
             """;
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql );
-              final ResultSet rs = ps.executeQuery() ) {
-            if ( rs.next() ) {
-                return new SchemaDescription.PendingBreakdown(
+        try {
+            return queryOne( sql, SqlBinder.NONE, rs -> new SchemaDescription.PendingBreakdown(
                     rs.getLong( "total" ),
                     rs.getLong( "new_nodes" ),
                     rs.getLong( "new_edges" ),
                     rs.getLong( "judge_approved" ),
                     rs.getLong( "judge_abstained" ),
                     rs.getLong( "unjudged" )
-                );
-            }
-            return SchemaDescription.PendingBreakdown.EMPTY;
+                ) ).orElse( SchemaDescription.PendingBreakdown.EMPTY );
         } catch ( final SQLException e ) {
             LOG.warn( "countPendingBreakdown failed, returning empty: {}", e.getMessage(), e );
             return SchemaDescription.PendingBreakdown.EMPTY;
@@ -546,24 +528,20 @@ public final class KgProposalRepository extends KgJdbcSupport {
                 last_seen_at  = NOW()
             RETURNING (xmax = 0) AS inserted, support_count
             """;
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, supportJson );
-            ps.setString( 2, cp.signature() );
-            ps.setString( 3, cp.kind() == ConsolidatedProposal.Kind.NEW_NODE ? "new-node" : "new-edge" );
-            ps.setString( 4, cp.support().isEmpty() ? null : cp.support().get( 0 ).sourcePage() );
-            ps.setString( 5, proposedJson );
-            ps.setDouble( 6, cp.aggregateConfidence() );
-            ps.setString( 7, "consolidated by " + cp.support().size() + " support(s)" );
-            ps.setString( 8, cp.signature() );
-            ps.setString( 9, supportJson );
-            ps.setString( 10, supportJson );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                if ( rs.next() ) {
-                    return new ProposalUpserter.Result( rs.getBoolean( 1 ), rs.getInt( 2 ) );
-                }
-                throw new IllegalStateException( "upsert returned no rows for signature " + cp.signature() );
-            }
+        try {
+            return queryOne( sql, ps -> {
+                ps.setString( 1, supportJson );
+                ps.setString( 2, cp.signature() );
+                ps.setString( 3, cp.kind() == ConsolidatedProposal.Kind.NEW_NODE ? "new-node" : "new-edge" );
+                ps.setString( 4, cp.support().isEmpty() ? null : cp.support().get( 0 ).sourcePage() );
+                ps.setString( 5, proposedJson );
+                ps.setDouble( 6, cp.aggregateConfidence() );
+                ps.setString( 7, "consolidated by " + cp.support().size() + " support(s)" );
+                ps.setString( 8, cp.signature() );
+                ps.setString( 9, supportJson );
+                ps.setString( 10, supportJson );
+            }, rs -> new ProposalUpserter.Result( rs.getBoolean( 1 ), rs.getInt( 2 ) ) )
+                .orElseThrow( () -> new IllegalStateException( "upsert returned no rows for signature " + cp.signature() ) );
         } catch ( final SQLException e ) {
             LOG.warn( "upsertConsolidatedProposal failed for signature {}: {}", cp.signature(), e.getMessage() );
             throw new RuntimeException( "upsert failed: " + e.getMessage(), e );

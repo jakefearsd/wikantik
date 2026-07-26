@@ -21,9 +21,8 @@ package com.wikantik.mcp.tools;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.mcp.AbstractMcpTool;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,9 +34,8 @@ import java.util.Map;
  * check. The existing {@code get_page} on the knowledge endpoint returns a
  * retrieval-shaped summary; this tool exists for edit workflows.
  */
-public class ReadPageTool implements McpTool {
+public class ReadPageTool extends AbstractMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( ReadPageTool.class );
     public static final String TOOL_NAME = "read_page";
 
     private final PageManager pageManager;
@@ -89,34 +87,29 @@ public class ReadPageTool implements McpTool {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            final String pageName = McpToolUtils.pageSlug( arguments );
-            if ( pageName == null || pageName.isBlank() ) {
-                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                        "pageName must not be blank" );
-            }
-            final int version = McpToolUtils.getInt( arguments, "version", PageProvider.LATEST_VERSION );
-
-            final Page page = pageManager.getPage( pageName, version );
-            final Map< String, Object > result = new LinkedHashMap<>();
-            result.put( "pageName", pageName );
-            if ( page == null ) {
-                result.put( "exists", false );
-                return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
-            }
-
-            final String text = pageManager.getPureText( pageName, version );
-            final String body = text == null ? "" : text;
-            result.put( "exists", true );
-            result.put( "content", body );
-            result.put( "contentHash", McpToolUtils.computeContentHash( body ) );
-            result.put( "version", McpToolUtils.normalizeVersion( page.getVersion() ) );
-            result.put( "lastModified", McpToolUtils.formatTimestamp( page.getLastModified() ) );
-            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
-        } catch ( final Exception e ) {
-            LOG.error( "read_page failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final String pageName = McpToolUtils.pageSlug( arguments );
+        if ( pageName == null || pageName.isBlank() ) {
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
+                    "pageName must not be blank" );
         }
+        final int version = McpToolUtils.getInt( arguments, "version", PageProvider.LATEST_VERSION );
+
+        final Page page = pageManager.getPage( pageName, version );
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "pageName", pageName );
+        if ( page == null ) {
+            result.put( "exists", false );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
+        }
+
+        final String text = pageManager.getPureText( pageName, version );
+        final String body = text == null ? "" : text;
+        result.put( "exists", true );
+        result.put( "content", body );
+        result.put( "contentHash", McpToolUtils.computeContentHash( body ) );
+        result.put( "version", McpToolUtils.normalizeVersion( page.getVersion() ) );
+        result.put( "lastModified", McpToolUtils.formatTimestamp( page.getLastModified() ) );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 }

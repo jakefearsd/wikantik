@@ -20,14 +20,13 @@ package com.wikantik.mcp.tools;
 
 
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.diff.DifferenceManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.mcp.AbstractMcpTool;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,9 +35,8 @@ import java.util.Map;
 /**
  * MCP tool that returns a diff between two versions of a wiki page.
  */
-public class DiffPageTool implements McpTool {
+public class DiffPageTool extends AbstractMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( DiffPageTool.class );
     public static final String TOOL_NAME = "diff_page";
 
     @Override
@@ -98,39 +96,34 @@ public class DiffPageTool implements McpTool {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final String pageName = McpToolUtils.pageSlug( arguments );
         final int version1 = McpToolUtils.getInt( arguments, "version1", 1 );
         final int version2 = McpToolUtils.getInt( arguments, "version2", 1 );
 
-        try {
-            final Page page = pageManager.getPage( pageName );
-            if ( page == null ) {
-                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                        "Page not found: " + pageName,
-                        "Use list_pages to find existing pages." );
-            }
-
-            final String text1 = pageManager.getPureText( pageName, version1 );
-            final String text2 = pageManager.getPureText( pageName, version2 );
-
-            final Page contextPage = Wiki.contents().page( engine, pageName );
-            final Context context = Wiki.context().create( engine, contextPage );
-            final String htmlDiff = differenceManager.makeDiff( context, text1, text2 );
-
-            // Strip HTML tags to return a plain-text diff suitable for AI consumption
-            final String plainDiff = stripHtml( htmlDiff );
-
-            final Map< String, Object > result = new LinkedHashMap<>();
-            result.put( "pageName", pageName );
-            result.put( "version1", version1 );
-            result.put( "version2", version2 );
-            result.put( "diff", plainDiff );
-            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
-        } catch ( final Exception e ) {
-            LOG.error( "Failed to diff page {}: {}", pageName, e.getMessage(), e );
-            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
+        final Page page = pageManager.getPage( pageName );
+        if ( page == null ) {
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
+                    "Page not found: " + pageName,
+                    "Use list_pages to find existing pages." );
         }
+
+        final String text1 = pageManager.getPureText( pageName, version1 );
+        final String text2 = pageManager.getPureText( pageName, version2 );
+
+        final Page contextPage = Wiki.contents().page( engine, pageName );
+        final Context context = Wiki.context().create( engine, contextPage );
+        final String htmlDiff = differenceManager.makeDiff( context, text1, text2 );
+
+        // Strip HTML tags to return a plain-text diff suitable for AI consumption
+        final String plainDiff = stripHtml( htmlDiff );
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "pageName", pageName );
+        result.put( "version1", version1 );
+        result.put( "version2", version2 );
+        result.put( "diff", plainDiff );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 
     static String stripHtml( final String html ) {

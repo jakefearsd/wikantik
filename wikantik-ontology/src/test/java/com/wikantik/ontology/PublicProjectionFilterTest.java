@@ -47,6 +47,16 @@ class PublicProjectionFilterTest {
     }
 
     @Test
+    void isNodePublicIsTheSingleAuthorityForTheNodeAclRule() {
+        // The rebuild path (publicNodes) and the incremental path (OntologyEntitySync)
+        // must share this predicate — the rule being expressed twice is how a future
+        // refinement could silently apply to only one path.
+        assertTrue( PublicProjectionFilter.isNodePublic( node( PUB, "PublicPage" ), isPublic ) );
+        assertTrue( PublicProjectionFilter.isNodePublic( node( STUB, null ), isPublic ), "stub nodes are public" );
+        assertFalse( PublicProjectionFilter.isNodePublic( node( RES, "SecretPage" ), isPublic ) );
+    }
+
+    @Test
     void publicNodesKeepStubsAndPublicSourcedDropRestricted() {
         final List< KgNode > nodes = List.of(
                 node( PUB, "PublicPage" ), node( RES, "SecretPage" ), node( STUB, null ) );

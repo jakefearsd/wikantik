@@ -619,43 +619,10 @@ public class LuceneSearchProvider implements SearchProvider {
      * @return stats describing what the drain did
      */
     DrainStats drainUpdateQueue() {
-        synchronized ( updates ) {
-            final int totalQueued = updates.size();
-            if ( totalQueued >= DefaultLuceneIndexer.QUEUE_DEPTH_WARN_THRESHOLD ) {
-                LOG.warn( "Lucene reindex queue depth {} has reached threshold {} — sustained backpressure; search results may lag",
-                          totalQueued, DefaultLuceneIndexer.QUEUE_DEPTH_WARN_THRESHOLD );
-            }
-            if ( totalQueued == 0 ) {
-                return new DrainStats( 0, 0, 0, 0 );
-            }
-
-            int processed = 0;
-            int failed = 0;
-            int skipped = 0;
-            while ( !updates.isEmpty() ) {
-                final Object[] pair = updates.remove( 0 );
-                final Page page = ( Page ) pair[ 0 ];
-                final String text = ( String ) pair[ 1 ];
-                if ( indexer().isSystemPageExcluded( page.getName() ) ) {
-                    LOG.debug( "Drain loop skipping system page '{}'", page.getName() );
-                    skipped++;
-                } else if ( !indexer().updateLuceneIndex( page, text ) ) {
-                    failed++;
-                }
-                processed++;
-                if ( processed % 100 == 0 ) {
-                    LOG.info( "Reindex progress: {}/{} pages indexed ({} failed, {} skipped so far)",
-                              processed, totalQueued, failed, skipped );
-                }
-            }
-            final int indexed = processed - failed - skipped;
-            LOG.info( "Reindex complete: {} pages indexed, {} failed, {} skipped out of {} total",
-                      indexed, failed, skipped, totalQueued );
-            if ( indexed > 0 ) {
-                lifecycle().touchLastUpdateInstant();
-            }
-            return new DrainStats( totalQueued, indexed, skipped, failed );
-        }
+        // Same shared queue instance the indexer was constructed with — delegate and
+        // convert to the facade's record type (kept for existing callers/tests).
+        final LuceneIndexer.DrainStats stats = indexer().drainUpdateQueue();
+        return new DrainStats( stats.totalQueued(), stats.indexed(), stats.skipped(), stats.failed() );
     }
 
     /**

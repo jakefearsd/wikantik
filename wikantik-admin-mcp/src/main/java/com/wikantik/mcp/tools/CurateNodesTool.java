@@ -18,12 +18,14 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 import com.wikantik.api.knowledge.KgCurationOps;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.util.*;
 
-public class CurateNodesTool implements McpTool, AuthorConfigurable {
+public class CurateNodesTool extends AbstractMcpTool implements AuthorConfigurable {
 
     public static final String TOOL_NAME = "curate_nodes";
 
@@ -104,7 +106,7 @@ public class CurateNodesTool implements McpTool, AuthorConfigurable {
                 .build();
     }
 
-    @Override public McpSchema.CallToolResult execute( final Map< String, Object > args ) {
+    @Override protected McpSchema.CallToolResult doExecute( final Map< String, Object > args ) throws Exception {
         // Historically curate_nodes returns a non-error envelope even when every op
         // fails — per-op errors live in failed[].error and IT tests rely on this.
         // curate_edges has the opposite behaviour (hard isError on all-failed).

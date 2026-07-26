@@ -24,6 +24,8 @@ import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 
@@ -38,7 +40,7 @@ import java.util.stream.Collectors;
  * Returns a ranked, de-duplicated, version-pinned, citation-bearing set of wiki sections
  * for grounding — it does NOT synthesize an answer (ADR-0001).
  */
-public class AssembleBundleTool extends AbstractKnowledgeMcpTool {
+public class AssembleBundleTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "assemble_bundle";
 
@@ -86,6 +88,11 @@ public class AssembleBundleTool extends AbstractKnowledgeMcpTool {
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of( "query" ), null, null, null ) )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

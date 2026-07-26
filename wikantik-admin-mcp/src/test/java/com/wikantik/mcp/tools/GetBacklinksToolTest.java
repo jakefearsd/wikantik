@@ -22,15 +22,18 @@ import com.wikantik.mcp.ToolSchemas;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.test.StubReferenceManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.when;
 
 class GetBacklinksToolTest {
 
@@ -124,5 +127,24 @@ class GetBacklinksToolTest {
         refMgr.addReferences( "A", Set.of( "B" ) );
         final McpSchema.CallToolResult result = tool.execute( Map.of( "slug", "B" ) );
         assertNotEquals( Boolean.TRUE, result.isError() );
+    }
+
+    /**
+     * execute() had NO outer try/catch: an unexpected RuntimeException from
+     * ReferenceManager used to propagate straight out of the tool instead of coming
+     * back as the structured {error, suggestion} envelope every other admin-mcp tool
+     * produces.
+     */
+    @Test
+    void executeReturnsErrorEnvelopeOnUnexpectedException() {
+        final ReferenceManager mockRefMgr = Mockito.mock( ReferenceManager.class );
+        when( mockRefMgr.findReferrers( "Boom" ) ).thenThrow( new RuntimeException( "DB offline" ) );
+        final GetBacklinksTool failingTool = new GetBacklinksTool( mockRefMgr );
+
+        final McpSchema.CallToolResult result = failingTool.execute( Map.of( "slug", "Boom" ) );
+
+        assertEquals( Boolean.TRUE, result.isError() );
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( json.contains( "DB offline" ), "expected error envelope to surface the failure message: " + json );
     }
 }

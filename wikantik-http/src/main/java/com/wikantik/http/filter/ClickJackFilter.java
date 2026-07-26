@@ -15,36 +15,19 @@
  */
 package com.wikantik.http.filter;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-
 /**
  * X-Frame-Options: Prevents clickjacking attacks by controlling whether a page
- * can be rendered within an <frame>, <iframe>, <embed>, or <object>.
+ * can be rendered within an &lt;frame&gt;, &lt;iframe&gt;, &lt;embed&gt;, or &lt;object&gt;.
  */
-public class ClickJackFilter implements Filter {
+public class ClickJackFilter extends SingleValueHeaderFilter {
 
-    private String mode = "DENY";
-
-    @Override
-    public void init(FilterConfig filterConfig) {
-        String configMode = filterConfig.getInitParameter("mode");
-        if (configMode != null && ("DENY".equals(configMode) || "SAMEORIGIN".equals(configMode))) {
-            mode = configMode;
-        }
+    public ClickJackFilter() {
+        super( "X-FRAME-OPTIONS", "mode", "DENY" );
     }
 
+    /** X-Frame-Options has a closed value set; anything else keeps the DENY default. */
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        HttpServletResponse res = (HttpServletResponse) response;
-        res.addHeader("X-FRAME-OPTIONS", mode);
-        chain.doFilter(request, response);
+    protected boolean isAcceptable( final String configured ) {
+        return "DENY".equals( configured ) || "SAMEORIGIN".equals( configured );
     }
-
 }

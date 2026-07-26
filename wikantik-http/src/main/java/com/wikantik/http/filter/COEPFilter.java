@@ -15,37 +15,13 @@
  */
 package com.wikantik.http.filter;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-
 /**
- *
  * Cross-Origin-Embedder-Policy (COEP): Prevents a document from loading any
- * cross-origin resources that do not explicitly grant permission.  *
+ * cross-origin resources that do not explicitly grant permission.
  */
-public class COEPFilter implements Filter {
+public class COEPFilter extends SingleValueHeaderFilter {
 
-    private String mode = "require-corp";
-
-    @Override
-    public void init(FilterConfig filterConfig) {
-        String configMode = filterConfig.getInitParameter("COEPValue");
-        if (configMode != null) {
-            mode = configMode;
-        }
+    public COEPFilter() {
+        super( "Cross-Origin-Embedder-Policy", "COEPValue", "require-corp" );
     }
-
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        HttpServletResponse res = (HttpServletResponse) response;
-        res.addHeader("Cross-Origin-Embedder-Policy", mode);
-        chain.doFilter(request, response);
-    }
-
 }

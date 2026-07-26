@@ -1,0 +1,163 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.pagegraph.spine;
+
+import org.apache.logging.log4j.Logger;
+
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Shared JDBC scaffolding for the Page Graph structural-spine DAOs
+ * ({@link PageCanonicalIdsDao}, {@link PageVerificationDao}, {@link TrustedAuthorsDao}),
+ * factored out during the GoF Template Method boilerplate consolidation.
+ *
+ * <p>This is a package-local twin of {@code com.wikantik.knowledge.KgJdbcSupport}
+ * (same connect&rarr;prepare&rarr;bind&rarr;execute&rarr;map primitives) rather than a
+ * reuse of that class. The Knowledge Graph and Page Graph are deliberately
+ * separate subsystems in this codebase (see {@code PageGraphVsKnowledgeGraph.md})
+ * and, before this pass, neither {@code com.wikantik.pagegraph.spine} nor
+ * {@code com.wikantik.knowledge} depended on the other. Reusing {@code KgJdbcSupport}
+ * here would introduce a brand-new knowledge&rarr;pagegraph coupling for the sake
+ * of ~90 lines of generic JDBC ceremony, so a small local helper was kept instead.</p>
+ *
+ * <p>Like {@code KgJdbcSupport}, these primitives only handle the JDBC mechanics —
+ * connection/statement/result-set lifecycle — and declare {@code throws SQLException}.
+ * They never decide the exception policy (log level, wrap-vs-swallow, message text);
+ * that stays at each call site so every DAO method's original external contract is
+ * preserved exactly.</p>
+ */
+abstract class SpineJdbcSupport {
+
+    protected final DataSource dataSource;
+
+    protected SpineJdbcSupport( final DataSource dataSource ) {
+        this.dataSource = dataSource;
+    }
+
+    protected abstract Logger log();
+
+    /** Binds parameters onto a freshly-prepared statement. Stateless — no SQL, no mapping. */
+    @FunctionalInterface
+    protected interface SqlBinder {
+        void bind( PreparedStatement ps ) throws SQLException;
+
+        /** Shared no-op binder for parameterless statements. */
+        SqlBinder NONE = ps -> { };
+    }
+
+    /** Maps the current row of a positioned {@link ResultSet} to a {@code T}. */
+    @FunctionalInterface
+    protected interface RowMapper< T > {
+        T map( ResultSet rs ) throws SQLException;
+    }
+
+    /** A unit of work run inside {@link #inTransaction}, given the transaction's connection. */
+    @FunctionalInterface
+    protected interface TransactionBody< T > {
+        T run( Connection conn ) throws SQLException;
+    }
+
+    /** Runs {@code sql}, binds params via {@code binder}, and maps every row with {@code mapper}. */
+    protected < T > List< T > query( final String sql, final SqlBinder binder, final RowMapper< T > mapper )
+            throws SQLException {
+        try ( Connection conn = dataSource.getConnection() ) {
+            return query( conn, sql, binder, mapper );
+        }
+    }
+
+    /** {@link #query(String, SqlBinder, RowMapper)} on an already-open connection (e.g. inside a transaction). */
+    protected < T > List< T > query( final Connection conn, final String sql, final SqlBinder binder,
+                                      final RowMapper< T > mapper ) throws SQLException {
+        try ( PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            binder.bind( ps );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                final List< T > out = new ArrayList<>();
+                while ( rs.next() ) out.add( mapper.map( rs ) );
+                return out;
+            }
+        }
+    }
+
+    /** Runs {@code sql} expecting at most one row; empty {@link Optional} if none matched. */
+    protected < T > Optional< T > queryOne( final String sql, final SqlBinder binder, final RowMapper< T > mapper )
+            throws SQLException {
+        try ( Connection conn = dataSource.getConnection() ) {
+            return queryOne( conn, sql, binder, mapper );
+        }
+    }
+
+    /** {@link #queryOne(String, SqlBinder, RowMapper)} on an already-open connection. */
+    protected < T > Optional< T > queryOne( final Connection conn, final String sql, final SqlBinder binder,
+                                             final RowMapper< T > mapper ) throws SQLException {
+        try ( PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            binder.bind( ps );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() ? Optional.of( mapper.map( rs ) ) : Optional.empty();
+            }
+        }
+    }
+
+    /** Runs an INSERT/UPDATE/DELETE, returning the affected-row count. */
+    protected int update( final String sql, final SqlBinder binder ) throws SQLException {
+        try ( Connection conn = dataSource.getConnection() ) {
+            return update( conn, sql, binder );
+        }
+    }
+
+    /** {@link #update(String, SqlBinder)} on an already-open connection. */
+    protected int update( final Connection conn, final String sql, final SqlBinder binder ) throws SQLException {
+        try ( PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            binder.bind( ps );
+            return ps.executeUpdate();
+        }
+    }
+
+    /**
+     * Runs {@code body} inside a single transaction: autocommit off, commit on
+     * normal return, rollback on any failure, autocommit always restored before
+     * the connection is released back to the pool. Mirrors the hand-rolled
+     * {@code setAutoCommit(false)/commit/rollback/restore} wrapper every spine
+     * DAO's {@code upsert} previously repeated verbatim.
+     */
+    protected < T > T inTransaction( final TransactionBody< T > body ) throws SQLException {
+        try ( Connection conn = dataSource.getConnection() ) {
+            conn.setAutoCommit( false );
+            try {
+                final T result = body.run( conn );
+                conn.commit();
+                return result;
+            } catch ( final SQLException e ) {
+                conn.rollback();
+                throw e;
+            } catch ( final RuntimeException e ) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit( true );
+            }
+        }
+    }
+}

@@ -18,11 +18,11 @@
  */
 package com.wikantik.connectors.web;
 
+import com.wikantik.connectors.ItemDigest;
+
 import com.wikantik.api.connectors.SourceItem;
 
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,7 +42,7 @@ final class WebFetchItems {
         md.put( "title", LinkExtractor.title( html ) );
         md.put( "fetchedAt", Instant.now().toString() );   // metadata only; not asserted on exact value
         md.put( "httpStatus", r.status() );
-        return new SourceItem( url, r.body(), "text/html", md, List.of(), sha256Hex( r.body() ) );
+        return new SourceItem( url, r.body(), "text/html", md, List.of(), ItemDigest.sha256Hex( r.body() ) );
     }
 
     static SourceItem toItemFromContent( final String url, final byte[] htmlBytes, final String title ) {
@@ -51,17 +51,7 @@ final class WebFetchItems {
         md.put( "source_url", url );
         md.put( "title", title == null ? "" : title );
         md.put( "fetchedAt", Instant.now().toString() );
-        return new SourceItem( url, htmlBytes, "text/html", md, List.of(), sha256Hex( htmlBytes ) );
+        return new SourceItem( url, htmlBytes, "text/html", md, List.of(), ItemDigest.sha256Hex( htmlBytes ) );
     }
 
-    static String sha256Hex( final byte[] bytes ) {
-        try {
-            final byte[] d = MessageDigest.getInstance( "SHA-256" ).digest( bytes );
-            final StringBuilder sb = new StringBuilder( d.length * 2 );
-            for ( final byte b : d ) sb.append( Character.forDigit( ( b >> 4 ) & 0xF, 16 ) ).append( Character.forDigit( b & 0xF, 16 ) );
-            return sb.toString();
-        } catch ( final NoSuchAlgorithmException e ) {
-            throw new IllegalStateException( "SHA-256 unavailable", e );   // JVM-guaranteed; never happens
-        }
-    }
 }

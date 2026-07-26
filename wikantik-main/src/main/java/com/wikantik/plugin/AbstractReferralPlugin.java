@@ -425,6 +425,26 @@ public abstract class AbstractReferralPlugin implements Plugin {
         return result;
     }
 
+    /**
+     *  Template Method tail shared by the simple referral plugins: renders either the item
+     *  count (with the last-modified suffix when requested and available) or the full
+     *  wikitized, column-styled list.
+     *
+     *  @param context The WikiContext
+     *  @param links the filtered, sorted link collection
+     *  @return HTML
+     */
+    protected String renderCountOrList( final Context context, final Collection< String > links ) {
+        if( PARAM_SHOW_VALUE_COUNT.equals( show ) ) {
+            String wikitext = String.valueOf( links.size() );
+            if( lastModified && !links.isEmpty() ) {
+                wikitext = links.size() + " (" + dateFormat.format( dateLastModified ) + ")";
+            }
+            return makeHTML( context, wikitext );
+        }
+        return applyColumnsStyle( makeHTML( context, wikitizeCollection( links, separator, ALL_ITEMS ) ) );
+    }
+
     protected String applyColumnsStyle( final String result ) {
         if( items > 1 ) {
             return "<div style=\"columns:" + items + ";" +

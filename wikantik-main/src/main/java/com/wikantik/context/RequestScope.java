@@ -98,6 +98,28 @@ public final class RequestScope {
     }
 
     /**
+     * Prototype: a copy sharing the request, session, resolver AND the variable map with
+     * this scope — mutations of the copy's variables affect the original, matching
+     * {@link com.wikantik.WikiContext#clone()} semantics.
+     *
+     * @return a shallow copy of this scope
+     */
+    public RequestScope shallowCopy() {
+        return new RequestScope( request, session, commandResolver, variableMap );
+    }
+
+    /**
+     * Prototype: a copy sharing the request, session and resolver but with its own clone of
+     * the variable map, matching {@link com.wikantik.WikiContext#deepClone()} semantics.
+     *
+     * @return a deep copy of this scope
+     */
+    @SuppressWarnings( "unchecked" )
+    public RequestScope deepCopy() {
+        return new RequestScope( request, session, commandResolver, (HashMap<String, Object>) variableMap.clone() );
+    }
+
+    /**
      * Safely returns an HTTP request parameter.  Returns {@code null} when no request is
      * associated with this scope.
      *

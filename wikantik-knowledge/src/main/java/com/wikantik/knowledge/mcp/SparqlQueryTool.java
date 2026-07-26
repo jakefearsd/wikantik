@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import com.wikantik.ontology.OntologyModelManager;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -48,7 +50,7 @@ import org.apache.logging.log4j.Logger;
  * {@code /sparql} endpoint serves, with RDFS subClassOf entailment). SELECT/ASK return
  * SPARQL-results-JSON; CONSTRUCT/DESCRIBE return Turtle. SPARQL UPDATE is rejected.
  */
-public class SparqlQueryTool extends AbstractKnowledgeMcpTool {
+public class SparqlQueryTool extends AbstractMcpTool {
 
     private static final Logger LOG = LogManager.getLogger( SparqlQueryTool.class );
     public static final String TOOL_NAME = "sparql_query";
@@ -88,6 +90,11 @@ public class SparqlQueryTool extends AbstractKnowledgeMcpTool {
                 .inputSchema( input )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

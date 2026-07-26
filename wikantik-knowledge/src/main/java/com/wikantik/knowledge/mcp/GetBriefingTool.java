@@ -29,6 +29,8 @@ import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
 import com.wikantik.knowledge.briefing.BriefingAclGate;
 import com.wikantik.knowledge.briefing.MarkdownBriefingRenderer;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 
@@ -45,7 +47,7 @@ import java.util.function.Supplier;
  * returns injection-ready <b>markdown</b> and is meant to be called once at session start
  * (ADR-0001 — never synthesizes an answer).
  */
-public class GetBriefingTool extends AbstractKnowledgeMcpTool {
+public class GetBriefingTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "get_briefing";
 
@@ -104,6 +106,11 @@ public class GetBriefingTool extends AbstractKnowledgeMcpTool {
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

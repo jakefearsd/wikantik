@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
@@ -37,7 +39,7 @@ import java.util.*;
  * <p>SEO readiness checks use the Strategy pattern — composed {@link PageCheck}
  * instances from {@link PageChecks} — so validation rules are reusable.
  */
-public class VerifyPagesTool implements McpTool {
+public class VerifyPagesTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "verify_pages";
 
@@ -133,7 +135,7 @@ public class VerifyPagesTool implements McpTool {
 
     @SuppressWarnings( "unchecked" )
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final List< String > pageNames = ( List< String > ) McpToolUtils.pageSlugs( arguments );
         final List< String > checks = ( List< String > ) arguments.get( "checks" );
 

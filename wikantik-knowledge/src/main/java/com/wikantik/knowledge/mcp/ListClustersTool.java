@@ -20,6 +20,8 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.pagegraph.ClusterSummary;
 import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 
@@ -28,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 /** MCP tool — returns every cluster with its hub page, article count, and freshness. */
-public class ListClustersTool extends AbstractKnowledgeMcpTool {
+public class ListClustersTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "list_clusters";
 
@@ -80,6 +82,11 @@ public class ListClustersTool extends AbstractKnowledgeMcpTool {
                 .outputSchema( outputSchema )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.managers.SystemPageRegistry;
@@ -30,7 +32,7 @@ import java.util.stream.Collectors;
  * MCP tool that finds orphaned pages — pages that exist but have no
  * incoming links from other pages. System pages are excluded.
  */
-public class GetOrphanedPagesTool implements McpTool {
+public class GetOrphanedPagesTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "get_orphaned_pages";
 
@@ -70,7 +72,7 @@ public class GetOrphanedPagesTool implements McpTool {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final Collection< String > unreferenced = referenceManager.findUnreferenced();
         final List< String > orphans = unreferenced.stream()
                 .filter( name -> systemPageRegistry == null || !systemPageRegistry.isSystemPage( name ) )

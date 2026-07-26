@@ -138,21 +138,22 @@ public final class KgEdgeRepository extends KgJdbcSupport {
     private boolean isMixedEdgeEndpoints( final UUID sourceId, final UUID targetId ) {
         final String sql = "SELECT sn.node_type AS s_type, tn.node_type AS t_type "
                          + "FROM kg_nodes sn, kg_nodes tn WHERE sn.id = ? AND tn.id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, sourceId );
-            ps.setObject( 2, targetId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                if ( !rs.next() ) return false; // one node missing — FK will fail downstream
+        try {
+            // Mixed iff exactly one side is a known entity type. NULL counts as page-like.
+            // Empty Optional (one node missing) — FK will fail downstream — maps to false,
+            // same as the original "!rs.next() -> return false" short-circuit.
+            return queryOne( sql, ps -> {
+                ps.setObject( 1, sourceId );
+                ps.setObject( 2, targetId );
+            }, rs -> {
                 final String sType = rs.getString( "s_type" );
                 final String tType = rs.getString( "t_type" );
-                // Mixed iff exactly one side is a known entity type.  NULL counts as page-like.
                 final boolean sIsEntity = sType != null
                         && EntityTypeVocabulary.ENTITY_CLASS_SET.contains( sType );
                 final boolean tIsEntity = tType != null
                         && EntityTypeVocabulary.ENTITY_CLASS_SET.contains( tType );
                 return sIsEntity != tIsEntity;
-            }
+            } ).orElse( false );
         } catch ( final SQLException e ) {
             LOG.warn( "isMixedEdgeEndpoints lookup failed for {}->{}: {}",
                 sourceId, targetId, e.getMessage(), e );
@@ -205,14 +206,14 @@ public final class KgEdgeRepository extends KgJdbcSupport {
                 + "ON CONFLICT ( source_id, target_id, relationship_type ) DO UPDATE SET "
                 + "provenance = EXCLUDED.provenance, properties = EXCLUDED.properties, "
                 + "modified = CURRENT_TIMESTAMP";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, sourceId );
-            ps.setObject( 2, targetId );
-            ps.setString( 3, relationshipType );
-            ps.setString( 4, provenance.value() );
-            ps.setString( 5, propsJson );
-            ps.executeUpdate();
+        try {
+            update( sql, ps -> {
+                ps.setObject( 1, sourceId );
+                ps.setObject( 2, targetId );
+                ps.setString( 3, relationshipType );
+                ps.setString( 4, provenance.value() );
+                ps.setString( 5, propsJson );
+            } );
         } catch ( final SQLException e ) {
             // PG SQLState 23503 == foreign_key_violation. When an agent (typically MCP
             // bulk curation) passes a non-existent source_id or target_id, the JDBC
@@ -251,14 +252,12 @@ public final class KgEdgeRepository extends KgJdbcSupport {
 
         // Re-query to return the upserted edge
         final String selectSql = "SELECT * FROM kg_edges WHERE source_id = ? AND target_id = ? AND relationship_type = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( selectSql ) ) {
-            ps.setObject( 1, sourceId );
-            ps.setObject( 2, targetId );
-            ps.setString( 3, relationshipType );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? mapEdge( rs ) : null;
-            }
+        try {
+            return queryOne( selectSql, ps -> {
+                ps.setObject( 1, sourceId );
+                ps.setObject( 2, targetId );
+                ps.setString( 3, relationshipType );
+            }, this::mapEdge ).orElse( null );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read back upserted edge: {}", e.getMessage(), e );
             throw new RuntimeException( e );
@@ -280,17 +279,17 @@ public final class KgEdgeRepository extends KgJdbcSupport {
             "ON CONFLICT ( source_id, target_id, relationship_type ) DO UPDATE SET " +
             "provenance = EXCLUDED.provenance, properties = EXCLUDED.properties, " +
             "modified = CURRENT_TIMESTAMP";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, sourceId );
-            ps.setObject( 2, targetId );
-            ps.setString( 3, relationshipType );
-            ps.setString( 4, provenance.value() );
-            ps.setString( 5, propsJson );
-            ps.setString( 6, tier );
-            if ( provenanceProposalId == null ) ps.setNull( 7, java.sql.Types.OTHER );
-            else ps.setObject( 7, provenanceProposalId );
-            ps.executeUpdate();
+        try {
+            update( sql, ps -> {
+                ps.setObject( 1, sourceId );
+                ps.setObject( 2, targetId );
+                ps.setString( 3, relationshipType );
+                ps.setString( 4, provenance.value() );
+                ps.setString( 5, propsJson );
+                ps.setString( 6, tier );
+                if ( provenanceProposalId == null ) ps.setNull( 7, java.sql.Types.OTHER );
+                else ps.setObject( 7, provenanceProposalId );
+            } );
         } catch ( final SQLException e ) {
             // SQLState 23514 == check_violation. Mirror upsertEdge: translate the
             // kg_edges_relationship_type_check CHECK violation into the agent-friendly
@@ -310,10 +309,8 @@ public final class KgEdgeRepository extends KgJdbcSupport {
 
     public void deleteEdge( final UUID id ) {
         final String sql = "DELETE FROM kg_edges WHERE id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, id );
-            ps.executeUpdate();
+        try {
+            update( sql, ps -> ps.setObject( 1, id ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to delete edge '{}': {}", id, e.getMessage(), e );
             throw new RuntimeException( "Failed to delete edge: " + e.getMessage(), e );
@@ -327,18 +324,12 @@ public final class KgEdgeRepository extends KgJdbcSupport {
     /** All edges materialized from the given proposal — read side of {@link #deleteEdgesByProvenance}. */
     public List< KgEdge > findEdgesByProvenance( final UUID proposalId ) {
         final String sql = "SELECT * FROM kg_edges WHERE provenance_proposal_id = ?";
-        final List< KgEdge > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, proposalId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) results.add( mapEdge( rs ) );
-            }
+        try {
+            return query( sql, ps -> ps.setObject( 1, proposalId ), this::mapEdge );
         } catch ( final SQLException e ) {
             LOG.warn( "findEdgesByProvenance({}) failed: {}", proposalId, e.getMessage(), e );
             throw new RuntimeException( "findEdgesByProvenance failed: " + e.getMessage(), e );
         }
-        return results;
     }
 
     public List< KgEdge > getAllEdges() {
@@ -346,28 +337,20 @@ public final class KgEdgeRepository extends KgJdbcSupport {
                 + KgInclusionFilter.EDGE_FILTER_JOIN
                 + "WHERE" + KgInclusionFilter.EDGE_FILTER_WHERE
                 + "ORDER BY e.id";
-        final List< KgEdge > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql );
-              ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) results.add( mapEdge( rs ) );
+        try {
+            return query( sql, SqlBinder.NONE, this::mapEdge );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to get all edges: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
-        return results;
     }
 
     public List< KgEdge > getAllEdges( final Tier minTier ) {
         final String sql = "SELECT * FROM kg_edges WHERE tier = ANY( ? )";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setArray( 1, conn.createArrayOf( "varchar", minTier.includedTiers().toArray() ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                final List< KgEdge > out = new ArrayList<>();
-                while ( rs.next() ) out.add( mapEdge( rs ) );
-                return out;
-            }
+        try {
+            return query( sql,
+                ps -> ps.setArray( 1, ps.getConnection().createArrayOf( "varchar", minTier.includedTiers().toArray() ) ),
+                this::mapEdge );
         } catch ( final SQLException e ) {
             LOG.warn( "getAllEdges({}) failed: {}", minTier.wireName(), e.getMessage(), e );
             throw new RuntimeException( "getAllEdges failed: " + e.getMessage(), e );
@@ -390,19 +373,15 @@ public final class KgEdgeRepository extends KgJdbcSupport {
             default -> throw new IllegalArgumentException( "Invalid direction: " + direction );
         };
 
-        final List< KgEdge > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, nodeId );
-            if ( "both".equals( direction ) ) ps.setObject( 2, nodeId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) results.add( mapEdge( rs ) );
-            }
+        try {
+            return query( sql, ps -> {
+                ps.setObject( 1, nodeId );
+                if ( "both".equals( direction ) ) ps.setObject( 2, nodeId );
+            }, this::mapEdge );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to get edges for node '{}': {}", nodeId, e.getMessage(), e );
             throw new RuntimeException( e );
         }
-        return results;
     }
 
     public void diffAndRemoveStaleEdges( final UUID sourceId,
@@ -410,27 +389,24 @@ public final class KgEdgeRepository extends KgJdbcSupport {
         final String sql = "SELECT e.*, n.name AS target_name "
                          + "FROM kg_edges e JOIN kg_nodes n ON e.target_id = n.id "
                          + "WHERE e.source_id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, sourceId );
-            final List< UUID > toDelete = new ArrayList<>();
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final String provValue = rs.getString( "provenance" );
-                    final Provenance prov = Provenance.fromValue( provValue );
-                    if ( prov != Provenance.HUMAN_AUTHORED ) continue;
-                    final String targetName = rs.getString( "target_name" );
-                    final String relType = rs.getString( "relationship_type" );
-                    if ( !currentEdges.contains( Map.entry( targetName, relType ) ) ) {
-                        toDelete.add( rs.getObject( "id", UUID.class ) );
-                    }
+        final List< UUID > toDelete;
+        try {
+            final List< Optional< UUID > > rows = query( sql, ps -> ps.setObject( 1, sourceId ), rs -> {
+                final Provenance prov = Provenance.fromValue( rs.getString( "provenance" ) );
+                if ( prov != Provenance.HUMAN_AUTHORED ) return Optional.empty();
+                final String targetName = rs.getString( "target_name" );
+                final String relType = rs.getString( "relationship_type" );
+                if ( !currentEdges.contains( Map.entry( targetName, relType ) ) ) {
+                    return Optional.of( rs.getObject( "id", UUID.class ) );
                 }
-            }
-            for ( final UUID edgeId : toDelete ) deleteEdge( edgeId );
+                return Optional.empty();
+            } );
+            toDelete = rows.stream().flatMap( Optional::stream ).toList();
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to diff and remove stale edges for node '{}': {}", sourceId, e.getMessage(), e );
             throw new RuntimeException( e );
         }
+        for ( final UUID edgeId : toDelete ) deleteEdge( edgeId );
     }
 
     public List< Map< String, Object > > queryEdgesWithNames( final String relationshipType,
@@ -456,33 +432,27 @@ public final class KgEdgeRepository extends KgJdbcSupport {
         params.add( limit );
         params.add( offset );
 
-        final List< Map< String, Object > > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final Map< String, Object > map = new LinkedHashMap<>();
-                    map.put( "id", rs.getObject( "id", UUID.class ).toString() );
-                    map.put( "source_id", rs.getObject( "source_id", UUID.class ).toString() );
-                    map.put( "target_id", rs.getObject( "target_id", UUID.class ).toString() );
-                    map.put( "source_name", rs.getString( "source_name" ) );
-                    map.put( "target_name", rs.getString( "target_name" ) );
-                    map.put( "relationship_type", rs.getString( "relationship_type" ) );
-                    map.put( "provenance", rs.getString( "provenance" ) );
-                    map.put( "properties", parseJson( rs.getString( "properties" ) ) );
-                    final Timestamp created = rs.getTimestamp( "created" );
-                    map.put( "created", created != null ? created.toInstant().toString() : null );
-                    final Timestamp modified = rs.getTimestamp( "modified" );
-                    map.put( "modified", modified != null ? modified.toInstant().toString() : null );
-                    results.add( map );
-                }
-            }
+        try {
+            return query( sql.toString(), SqlBinder.positional( params ), rs -> {
+                final Map< String, Object > map = new LinkedHashMap<>();
+                map.put( "id", rs.getObject( "id", UUID.class ).toString() );
+                map.put( "source_id", rs.getObject( "source_id", UUID.class ).toString() );
+                map.put( "target_id", rs.getObject( "target_id", UUID.class ).toString() );
+                map.put( "source_name", rs.getString( "source_name" ) );
+                map.put( "target_name", rs.getString( "target_name" ) );
+                map.put( "relationship_type", rs.getString( "relationship_type" ) );
+                map.put( "provenance", rs.getString( "provenance" ) );
+                map.put( "properties", parseJson( rs.getString( "properties" ) ) );
+                final Timestamp created = rs.getTimestamp( "created" );
+                map.put( "created", created != null ? created.toInstant().toString() : null );
+                final Timestamp modified = rs.getTimestamp( "modified" );
+                map.put( "modified", modified != null ? modified.toInstant().toString() : null );
+                return map;
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to query edges with names: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
-        return results;
     }
 
     public List< String > getDistinctRelationshipTypes() {
@@ -508,11 +478,11 @@ public final class KgEdgeRepository extends KgJdbcSupport {
         if ( id == null ) return null;
         final String sql = "UPDATE kg_edges SET tier = 'human', provenance = ?, modified = NOW() "
                          + "WHERE id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, Provenance.HUMAN_CURATED.value() );
-            ps.setObject( 2, id );
-            final int rows = ps.executeUpdate();
+        try {
+            final int rows = update( sql, ps -> {
+                ps.setString( 1, Provenance.HUMAN_CURATED.value() );
+                ps.setObject( 2, id );
+            } );
             if ( rows == 0 ) return null;
             return findById( id );
         } catch ( final SQLException e ) {
@@ -523,12 +493,8 @@ public final class KgEdgeRepository extends KgJdbcSupport {
 
     public KgEdge findById( final UUID id ) {
         final String sql = "SELECT * FROM kg_edges WHERE id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, id );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? mapEdge( rs ) : null;
-            }
+        try {
+            return queryOne( sql, ps -> ps.setObject( 1, id ), this::mapEdge ).orElse( null );
         } catch ( final SQLException e ) {
             LOG.warn( "findById({}) failed: {}", id, e.getMessage(), e );
             throw new RuntimeException( "findById failed", e );
@@ -550,12 +516,8 @@ public final class KgEdgeRepository extends KgJdbcSupport {
         final List< Object > params = new ArrayList<>();
         appendEdgeFilter( sql, params, relationshipType, searchName, endpointKind );
 
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? rs.getLong( 1 ) : 0L;
-            }
+        try {
+            return queryOne( sql.toString(), SqlBinder.positional( params ), rs -> rs.getLong( 1 ) ).orElse( 0L );
         } catch ( final SQLException e ) {
             LOG.warn( "countEdgesWithFilter failed: {}", e.getMessage(), e );
             throw new RuntimeException( e );
@@ -587,10 +549,8 @@ public final class KgEdgeRepository extends KgJdbcSupport {
         appendEdgeFilter( sql, params, relationshipType, searchName, endpointKind );
         sql.append( " )" );
 
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
-            return ps.executeUpdate();
+        try {
+            return update( sql.toString(), SqlBinder.positional( params ) );
         } catch ( final SQLException e ) {
             LOG.warn( "bulkDeleteByFilter failed: {}", e.getMessage(), e );
             throw new RuntimeException( "bulkDeleteByFilter failed: " + e.getMessage(), e );
@@ -616,16 +576,8 @@ public final class KgEdgeRepository extends KgJdbcSupport {
         final List< Object > params = new ArrayList<>();
         appendEdgeFilter( sql, params, relationshipType, searchName, endpointKind );
 
-        final List< UUID > ids = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    ids.add( rs.getObject( "source_id", UUID.class ) );
-                }
-            }
-            return ids;
+        try {
+            return query( sql.toString(), SqlBinder.positional( params ), rs -> rs.getObject( "source_id", UUID.class ) );
         } catch ( final SQLException e ) {
             LOG.warn( "findDistinctSourceIdsByFilter failed: {}", e.getMessage(), e );
             throw new RuntimeException( "findDistinctSourceIdsByFilter failed: " + e.getMessage(), e );
@@ -649,45 +601,32 @@ public final class KgEdgeRepository extends KgJdbcSupport {
                                + "VALUES ( ?, ?, ?, ?, ? ) "
                                + "ON CONFLICT ( proposed_source, proposed_target, proposed_relationship ) DO NOTHING";
 
-        try ( Connection conn = dataSource.getConnection() ) {
-            conn.setAutoCommit( false );
-            try {
-                final String sourceName, targetName, relType;
-                try ( PreparedStatement ps = conn.prepareStatement( lookupSql ) ) {
-                    ps.setObject( 1, edgeId );
-                    try ( ResultSet rs = ps.executeQuery() ) {
-                        if ( !rs.next() ) {
-                            conn.rollback();
-                            throw new IllegalArgumentException( "Edge not found: " + edgeId );
-                        }
-                        sourceName = rs.getString( "s_name" );
-                        targetName = rs.getString( "t_name" );
-                        relType    = rs.getString( "relationship_type" );
-                    }
+        // IllegalArgumentException("Edge not found") thrown from inside the transaction body
+        // propagates unwrapped — inTransaction() rolls back on RuntimeException same as
+        // SQLException, matching the original's explicit "rollback then throw IAE" branch.
+        try {
+            inTransaction( conn -> {
+                final Optional< Object[] > row = queryOne( conn, lookupSql, ps -> ps.setObject( 1, edgeId ),
+                        rs -> new Object[] { rs.getString( "s_name" ), rs.getString( "t_name" ), rs.getString( "relationship_type" ) } );
+                if ( row.isEmpty() ) {
+                    throw new IllegalArgumentException( "Edge not found: " + edgeId );
                 }
-                try ( PreparedStatement ps = conn.prepareStatement( deleteSql ) ) {
-                    ps.setObject( 1, edgeId );
-                    ps.executeUpdate();
-                }
-                try ( PreparedStatement ps = conn.prepareStatement( rejectSql ) ) {
+                final String sourceName = ( String ) row.get()[ 0 ];
+                final String targetName = ( String ) row.get()[ 1 ];
+                final String relType    = ( String ) row.get()[ 2 ];
+
+                update( conn, deleteSql, ps -> ps.setObject( 1, edgeId ) );
+                update( conn, rejectSql, ps -> {
                     ps.setString( 1, sourceName );
                     ps.setString( 2, targetName );
                     ps.setString( 3, relType );
                     ps.setString( 4, actor );
                     ps.setString( 5, reason );
-                    ps.executeUpdate();
-                }
-                conn.commit();
-            } catch ( final SQLException inner ) {
-                conn.rollback();
-                LOG.warn( "deleteEdgeAndRecordRejection({}) rolled back: {}",
-                        edgeId, inner.getMessage(), inner );
-                throw new RuntimeException( "deleteEdgeAndRecordRejection failed", inner );
-            } finally {
-                conn.setAutoCommit( true );
-            }
+                } );
+                return null;
+            } );
         } catch ( final SQLException e ) {
-            LOG.warn( "deleteEdgeAndRecordRejection({}) failed: {}", edgeId, e.getMessage(), e );
+            LOG.warn( "deleteEdgeAndRecordRejection({}) rolled back: {}", edgeId, e.getMessage(), e );
             throw new RuntimeException( "deleteEdgeAndRecordRejection failed", e );
         }
     }

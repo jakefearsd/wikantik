@@ -18,9 +18,9 @@
  */
 package com.wikantik.connectors.gdrive;
 
+import com.wikantik.connectors.ItemDigest;
+
 import com.wikantik.api.connectors.SourceItem;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,18 +41,7 @@ final class DriveItems {
         if ( f.webViewLink() != null && !f.webViewLink().isBlank() ) {
             md.put( "source_url", f.webViewLink() );
         }
-        return new SourceItem( "gdrive://" + f.id(), bytes, contentType, md, List.of(), sha256Hex( bytes ) );
+        return new SourceItem( "gdrive://" + f.id(), bytes, contentType, md, List.of(), ItemDigest.sha256Hex( bytes ) );
     }
 
-    static String sha256Hex( final byte[] bytes ) {
-        try {
-            final byte[] d = MessageDigest.getInstance( "SHA-256" ).digest( bytes );
-            final StringBuilder sb = new StringBuilder( d.length * 2 );
-            for ( final byte b : d ) sb.append( Character.forDigit( ( b >> 4 ) & 0xF, 16 ) )
-                                       .append( Character.forDigit( b & 0xF, 16 ) );
-            return sb.toString();
-        } catch ( final NoSuchAlgorithmException e ) {
-            throw new IllegalStateException( "SHA-256 unavailable", e );   // JDK guarantees SHA-256
-        }
-    }
 }

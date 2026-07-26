@@ -15,36 +15,16 @@
  */
 package com.wikantik.http.filter;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-
 /**
  * Referrer-Policy: Controls the amount of referrer information sent with
  * requests, enhancing privacy and security.
+ *
+ * <p>The init-param name {@code ReferrerPolicyPValue} (double P) is a historical
+ * typo, preserved for web.xml compatibility.</p>
  */
-public class ReferrerPolicyFilter implements Filter {
+public class ReferrerPolicyFilter extends SingleValueHeaderFilter {
 
-    private String mode = "no-referrer-when-downgrade";
-
-    @Override
-    public void init(FilterConfig filterConfig) {
-        String configMode = filterConfig.getInitParameter("ReferrerPolicyPValue");
-        if (configMode != null) {
-            mode = configMode;
-        }
+    public ReferrerPolicyFilter() {
+        super( "Referrer-Policy", "ReferrerPolicyPValue", "no-referrer-when-downgrade" );
     }
-
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        HttpServletResponse res = (HttpServletResponse) response;
-        res.addHeader("Referrer-Policy", mode);
-        chain.doFilter(request, response);
-    }
-
 }

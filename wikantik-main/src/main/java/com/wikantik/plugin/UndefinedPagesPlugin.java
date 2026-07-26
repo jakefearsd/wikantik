@@ -53,14 +53,8 @@ public class UndefinedPagesPlugin extends AbstractReferralPlugin {
             throw new PluginException( "parameter " + PARAM_LASTMODIFIED + " is not valid for the UndefinedPagesPlugin" );
         }
 
-        final String wikitext;
-        if( PARAM_SHOW_VALUE_COUNT.equals( show ) ) {
-            wikitext = "" + links.size();
-            return makeHTML( context, wikitext );
-        } else {
-            wikitext = wikitizeCollection( links, separator, ALL_ITEMS );
-            return applyColumnsStyle( makeHTML( context, wikitext ) );
-        }
+        // lastModified was rejected above, so the shared tail's count branch renders a bare count.
+        return renderCountOrList( context, links );
     }
 
 }

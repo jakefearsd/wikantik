@@ -824,35 +824,6 @@ public final class TextUtil {
     }
 
     /**
-     *  Creates a Properties object based on an array which contains alternatively a key and a value.  It is useful
-     *  for generating default mappings. For example:
-     *  <pre>
-     *     String[] properties = { "wikantik.property1", "value1", "wikantik.property2", "value2 };
-     *     Properties props = TextUtil.createPropertes( values );
-     *     System.out.println( props.getProperty("wikantik.property1") );
-     *  </pre>
-     *  would output "value1".
-     *
-     *  @param values Alternating key and value pairs.
-     *  @return Property object
-     *  @see java.util.Properties
-     *  @throws IllegalArgumentException if the property array is missing a value for a key.
-     *  @since 2.2.
-     */
-    public static Properties createProperties( final String[] values ) throws IllegalArgumentException {
-        if( values.length % 2 != 0 ) {
-        	throw new IllegalArgumentException( "One value is missing.");
-        }
-
-        final Properties props = new Properties();
-        for( int i = 0; i < values.length; i += 2 ) {
-            props.setProperty( values[i], values[i + 1] );
-        }
-
-        return props;
-    }
-
-    /**
      *  Counts the number of sections (separated with "----") from the page.
      *
      *  @param pagedata The WikiText to parse.
@@ -906,18 +877,6 @@ public final class TextUtil {
         }
 
         throw new IllegalArgumentException( "There is no section no. " + section + " on the page." );
-    }
-
-    /**
-     *  A simple routine which just repeates the arguments.  This is useful for creating something like a line or something.
-     *
-     *  @param what String to repeat
-     *  @param times How many times to repeat the string.
-     *  @return Guess what?
-     *  @since 2.1.98.
-     */
-    public static String repeatString( final String what, final int times ) {
-        return IntStream.range(0, times).mapToObj(i -> what).collect(Collectors.joining());
     }
 
     /**

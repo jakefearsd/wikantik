@@ -40,15 +40,16 @@ import java.util.Optional;
  * {@link com.wikantik.api.pagegraph.PageDescriptor} and the {@code /for-agent}
  * projection.
  */
-public class PageVerificationDao {
+public class PageVerificationDao extends SpineJdbcSupport {
 
     private static final Logger LOG = LogManager.getLogger( PageVerificationDao.class );
 
-    private final DataSource ds;
-
     public PageVerificationDao( final DataSource ds ) {
-        this.ds = ds;
+        super( ds );
     }
+
+    @Override
+    protected Logger log() { return LOG; }
 
     public void upsert( final String canonicalId, final Verification v ) {
         if ( canonicalId == null || canonicalId.isBlank() ) {
@@ -57,49 +58,33 @@ public class PageVerificationDao {
         if ( v == null ) {
             throw new IllegalArgumentException( "verification required" );
         }
-        try ( Connection c = ds.getConnection() ) {
-            c.setAutoCommit( false );
-            try {
-                final boolean exists;
-                try ( PreparedStatement ps = c.prepareStatement(
-                        "SELECT 1 FROM page_verification WHERE canonical_id = ?" ) ) {
-                    ps.setString( 1, canonicalId );
-                    try ( ResultSet rs = ps.executeQuery() ) {
-                        exists = rs.next(); // NOPMD: CheckResultSet - return value IS checked via the 'exists' variable
-                    }
-                }
+        try {
+            inTransaction( conn -> {
+                final boolean exists = queryOne( conn, "SELECT 1 FROM page_verification WHERE canonical_id = ?",
+                        ps -> ps.setString( 1, canonicalId ), rs -> Boolean.TRUE ).isPresent();
                 if ( exists ) {
-                    try ( PreparedStatement ps = c.prepareStatement(
-                            "UPDATE page_verification SET verified_at = ?, verified_by = ?, " +
+                    update( conn, "UPDATE page_verification SET verified_at = ?, verified_by = ?, " +
                             "confidence = ?, audience = ?, updated_at = CURRENT_TIMESTAMP " +
-                            "WHERE canonical_id = ?" ) ) {
+                            "WHERE canonical_id = ?", ps -> {
                         bindTimestamp( ps, 1, v.verifiedAt() );
                         ps.setString( 2, v.verifiedBy() );
                         ps.setString( 3, v.confidence().wireName() );
                         ps.setString( 4, v.audience().wireName() );
                         ps.setString( 5, canonicalId );
-                        ps.executeUpdate();
-                    }
+                    } );
                 } else {
-                    try ( PreparedStatement ps = c.prepareStatement(
-                            "INSERT INTO page_verification " +
+                    update( conn, "INSERT INTO page_verification " +
                             "(canonical_id, verified_at, verified_by, confidence, audience) " +
-                            "VALUES (?, ?, ?, ?, ?)" ) ) {
+                            "VALUES (?, ?, ?, ?, ?)", ps -> {
                         ps.setString( 1, canonicalId );
                         bindTimestamp( ps, 2, v.verifiedAt() );
                         ps.setString( 3, v.verifiedBy() );
                         ps.setString( 4, v.confidence().wireName() );
                         ps.setString( 5, v.audience().wireName() );
-                        ps.executeUpdate();
-                    }
+                    } );
                 }
-                c.commit();
-            } catch ( final SQLException e ) {
-                c.rollback();
-                throw e;
-            } finally {
-                c.setAutoCommit( true );
-            }
+                return null;
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "PageVerificationDao.upsert({}) failed: {}", canonicalId, e.getMessage(), e );
             throw new RuntimeException( "verification upsert failed", e );
@@ -107,26 +92,25 @@ public class PageVerificationDao {
     }
 
     public Optional< Verification > findByCanonicalId( final String canonicalId ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "SELECT verified_at, verified_by, confidence, audience " +
-                      "FROM page_verification WHERE canonical_id = ?" ) ) {
-            ps.setString( 1, canonicalId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                if ( !rs.next() ) {
-                    return Optional.empty();
-                }
-                return Optional.of( readRow( rs ) );
-            }
+        try {
+            return queryOne( "SELECT verified_at, verified_by, confidence, audience " +
+                    "FROM page_verification WHERE canonical_id = ?",
+                    ps -> ps.setString( 1, canonicalId ), PageVerificationDao::readRow );
         } catch ( final SQLException e ) {
             LOG.warn( "findByCanonicalId({}) failed: {}", canonicalId, e.getMessage() );
             return Optional.empty();
         }
     }
 
+    /**
+     * Not migrated to {@code query()}: on {@link SQLException} mid-iteration this
+     * returns whatever partial {@code out} list had already been accumulated
+     * (logged, not thrown) — the generic primitive discards its in-progress list on
+     * failure instead, which would silently change this method's contract.
+     */
     public List< String > listCanonicalIdsByConfidence( final Confidence confidence ) {
         final List< String > out = new ArrayList<>();
-        try ( Connection c = ds.getConnection();
+        try ( Connection c = dataSource.getConnection();
               PreparedStatement ps = c.prepareStatement(
                       "SELECT canonical_id FROM page_verification WHERE confidence = ? " +
                       "ORDER BY verified_at NULLS FIRST" ) ) {
@@ -141,11 +125,8 @@ public class PageVerificationDao {
     }
 
     public void deleteByCanonicalId( final String canonicalId ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "DELETE FROM page_verification WHERE canonical_id = ?" ) ) {
-            ps.setString( 1, canonicalId );
-            ps.executeUpdate();
+        try {
+            update( "DELETE FROM page_verification WHERE canonical_id = ?", ps -> ps.setString( 1, canonicalId ) );
         } catch ( final SQLException e ) {
             LOG.warn( "deleteByCanonicalId({}) failed: {}", canonicalId, e.getMessage() );
             throw new RuntimeException( "verification delete failed", e );

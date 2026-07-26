@@ -15,14 +15,7 @@
  */
 package com.wikantik.http.filter;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
 
 /**
  * Emits {@code X-Robots-Tag: noindex} on API responses.
@@ -35,23 +28,15 @@ import java.io.IOException;
  * applies to the page that is *served* the header, not to pages that fetch it as
  * a subresource, so the canonical {@code /wiki/...} HTML pages stay indexable.
  */
-public class XRobotsTagFilter implements Filter {
+public class XRobotsTagFilter extends SingleValueHeaderFilter {
 
-    private String value = "noindex";
-
-    @Override
-    public void init( final FilterConfig filterConfig ) {
-        final String configured = filterConfig.getInitParameter( "XRobotsTagValue" );
-        if ( configured != null ) {
-            value = configured;
-        }
+    public XRobotsTagFilter() {
+        super( "X-Robots-Tag", "XRobotsTagValue", "noindex" );
     }
 
+    /** Replace rather than accumulate: exactly one X-Robots-Tag must reach the crawler. */
     @Override
-    public void doFilter( final ServletRequest request, final ServletResponse response,
-                          final FilterChain chain ) throws IOException, ServletException {
-        ( (HttpServletResponse) response ).setHeader( "X-Robots-Tag", value );
-        chain.doFilter( request, response );
+    protected void applyHeader( final HttpServletResponse response, final String name, final String headerValue ) {
+        response.setHeader( name, headerValue );
     }
-
 }

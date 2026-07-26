@@ -34,7 +34,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.util.*;
 
 /**
@@ -90,7 +89,7 @@ public class AdminKnowledgeResource extends RestServletBase {
     }
 
     /**
-     * One action for one HTTP verb on one resource. See {@link #resources}.
+     * One action for one HTTP verb on one resource. See {@link #routes}.
      */
     @FunctionalInterface
     private interface ResourceAction {
@@ -113,15 +112,23 @@ public class AdminKnowledgeResource extends RestServletBase {
      * Dispatch table: the single source of truth for which URL resources and verbs this
      * servlet supports. Adding a new endpoint is a one-line change here plus one handler
      * method. Lambdas adapt each handler's specific signature to the common
-     * {@link ResourceAction} contract.
+     * {@link ResourceAction} contract. See {@link RouteTable} for the shared matching engine
+     * and the transient-field-plus-lazy-rebuild convention every route table here follows.
      */
-    private transient Map< String, Resource > resources = buildResources();
+    private transient RouteTable< Resource > routes;
 
-    private Map< String, Resource > buildResources() {
-        // Constructed fresh on every call (including after deserialization — see #readObject)
-        // so the injected suppliers always resolve subsystems from the *current* engine/servlet
-        // context, exactly like the inline getSubsystems() calls these handlers used to make
-        // directly before they were extracted to com.wikantik.rest.knowledge.
+    private RouteTable< Resource > routes() {
+        if ( routes == null ) {
+            routes = buildRoutes();
+        }
+        return routes;
+    }
+
+    private RouteTable< Resource > buildRoutes() {
+        // Constructed fresh on every call (including lazily after deserialization — see
+        // #routes()) so the injected suppliers always resolve subsystems from the *current*
+        // engine/servlet context, exactly like the inline getSubsystems() calls these handlers
+        // used to make directly before they were extracted to com.wikantik.rest.knowledge.
         final KgProposalAdminHandlers proposalHandlers = new KgProposalAdminHandlers(
                 this::getKgCurationOps );
         final KgJudgeAdminHandlers judgeHandlers = new KgJudgeAdminHandlers(
@@ -145,54 +152,48 @@ public class AdminKnowledgeResource extends RestServletBase {
                 () -> getSubsystems().knowledge().nodeMentionSimilarity(),
                 this::getEngine );
 
-        final Map< String, Resource > m = new LinkedHashMap<>();
-        m.put( "schema", Resource.get(
-                ( svc, req, resp, seg ) -> handleGetSchema( svc, resp ) ) );
-        m.put( "nodes", new Resource(
-                nodeHandlers::handleGetNodes,
-                nodeHandlers::handlePostNode,
-                ( svc, req, resp, seg ) -> nodeHandlers.handleDeleteNode( svc, resp, seg[ 1 ] ) ) );
-        m.put( "edges", new Resource(
-                edgeHandlers::handleGetEdges,
-                edgeHandlers::handlePostEdgeDispatch,
-                ( svc, req, resp, seg ) -> edgeHandlers.handleDeleteEdge( svc, req, resp, seg[ 1 ] ) ) );
-        m.put( "proposals", new Resource(
-                proposalHandlers::handleGetProposals,
-                proposalHandlers::handlePostProposal,
-                null ) );
-        m.put( "embeddings", new Resource(
-                ( svc, req, resp, seg ) -> maintenanceHandlers.handleGetEmbeddings( req, resp, seg ),
-                ( svc, req, resp, seg ) -> maintenanceHandlers.handlePostEmbeddings( resp, seg ),
-                null ) );
-        m.put( "pages-without-frontmatter", Resource.get(
-                ( svc, req, resp, seg ) -> maintenanceHandlers.handleGetPagesWithoutFrontmatter( req, resp ) ) );
-        m.put( "hub-proposals", new Resource(
-                ( svc, req, resp, seg ) -> hubProposalHandlers.handleGetHubProposals( req, resp ),
-                ( svc, req, resp, seg ) -> hubProposalHandlers.handlePostHubProposals( req, resp, seg ),
-                null ) );
-        m.put( "backfill-frontmatter", new Resource(
-                ( svc, req, resp, seg ) -> maintenanceHandlers.handleGetBackfillStatus( resp ),
-                ( svc, req, resp, seg ) -> maintenanceHandlers.handlePostBackfillFrontmatter( resp ),
-                null ) );
-        m.put( "judge", new Resource(
-                ( svc, req, resp, seg ) -> judgeHandlers.handleGetJudge( req, resp, seg ),
-                ( svc, req, resp, seg ) -> judgeHandlers.handlePostJudge( req, resp, seg ),
-                null ) );
-        m.put( "judge-timeouts", new Resource(
-                ( svc, req, resp, seg ) -> judgeHandlers.handleGetJudgeTimeouts( svc, req, resp ),
-                null,
-                ( svc, req, resp, seg ) -> judgeHandlers.handleDeleteJudgeTimeout( resp, seg ) ) );
-        m.put( "clear-all", Resource.post(
-                ( svc, req, resp, seg ) -> handleClearAll( svc, resp ) ) );
-        m.put( "sync-hub-memberships", Resource.post(
-                ( svc, req, resp, seg ) -> maintenanceHandlers.handlePostSyncHubMemberships( resp ) ) );
-        return Map.copyOf( m );
-    }
-
-    private void readObject( final ObjectInputStream in ) throws IOException, ClassNotFoundException {
-        in.defaultReadObject();
-        // Dispatch table holds non-serializable method references; rebuild after deserialization.
-        resources = buildResources();
+        return RouteTable.< Resource >builder()
+            .exact( "schema", Resource.get(
+                    ( svc, req, resp, seg ) -> handleGetSchema( svc, resp ) ) )
+            .exact( "nodes", new Resource(
+                    nodeHandlers::handleGetNodes,
+                    nodeHandlers::handlePostNode,
+                    ( svc, req, resp, seg ) -> nodeHandlers.handleDeleteNode( svc, resp, seg[ 1 ] ) ) )
+            .exact( "edges", new Resource(
+                    edgeHandlers::handleGetEdges,
+                    edgeHandlers::handlePostEdgeDispatch,
+                    ( svc, req, resp, seg ) -> edgeHandlers.handleDeleteEdge( svc, req, resp, seg[ 1 ] ) ) )
+            .exact( "proposals", new Resource(
+                    proposalHandlers::handleGetProposals,
+                    proposalHandlers::handlePostProposal,
+                    null ) )
+            .exact( "embeddings", new Resource(
+                    ( svc, req, resp, seg ) -> maintenanceHandlers.handleGetEmbeddings( req, resp, seg ),
+                    ( svc, req, resp, seg ) -> maintenanceHandlers.handlePostEmbeddings( resp, seg ),
+                    null ) )
+            .exact( "pages-without-frontmatter", Resource.get(
+                    ( svc, req, resp, seg ) -> maintenanceHandlers.handleGetPagesWithoutFrontmatter( req, resp ) ) )
+            .exact( "hub-proposals", new Resource(
+                    ( svc, req, resp, seg ) -> hubProposalHandlers.handleGetHubProposals( req, resp ),
+                    ( svc, req, resp, seg ) -> hubProposalHandlers.handlePostHubProposals( req, resp, seg ),
+                    null ) )
+            .exact( "backfill-frontmatter", new Resource(
+                    ( svc, req, resp, seg ) -> maintenanceHandlers.handleGetBackfillStatus( resp ),
+                    ( svc, req, resp, seg ) -> maintenanceHandlers.handlePostBackfillFrontmatter( resp ),
+                    null ) )
+            .exact( "judge", new Resource(
+                    ( svc, req, resp, seg ) -> judgeHandlers.handleGetJudge( req, resp, seg ),
+                    ( svc, req, resp, seg ) -> judgeHandlers.handlePostJudge( req, resp, seg ),
+                    null ) )
+            .exact( "judge-timeouts", new Resource(
+                    ( svc, req, resp, seg ) -> judgeHandlers.handleGetJudgeTimeouts( svc, req, resp ),
+                    null,
+                    ( svc, req, resp, seg ) -> judgeHandlers.handleDeleteJudgeTimeout( resp, seg ) ) )
+            .exact( "clear-all", Resource.post(
+                    ( svc, req, resp, seg ) -> handleClearAll( svc, resp ) ) )
+            .exact( "sync-hub-memberships", Resource.post(
+                    ( svc, req, resp, seg ) -> maintenanceHandlers.handlePostSyncHubMemberships( resp ) ) )
+            .build();
     }
 
     @Override
@@ -245,7 +246,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         if ( !precondition.check( segments ) ) return;
 
         final String resourceName = segments[ 0 ];
-        final Resource resource = resources.get( resourceName );
+        final Resource resource = routes().match( resourceName ).orElse( null );
         final ResourceAction action = resource == null ? null : verbPicker.apply( resource );
         if ( action == null ) {
             sendNotFound( response, "Unknown resource: " + resourceName );

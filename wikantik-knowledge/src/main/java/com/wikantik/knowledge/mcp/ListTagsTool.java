@@ -20,6 +20,8 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.pagegraph.TagSummary;
+import com.google.gson.Gson;
+import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 
@@ -28,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 /** MCP tool — returns the tag dictionary with counts and top pages per tag. */
-public class ListTagsTool extends AbstractKnowledgeMcpTool {
+public class ListTagsTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "list_tags";
 
@@ -73,6 +75,11 @@ public class ListTagsTool extends AbstractKnowledgeMcpTool {
                 .outputSchema( outputSchema )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();
+    }
+
+    @Override
+    protected Gson gson() {
+        return KnowledgeMcpUtils.GSON;
     }
 
     @Override

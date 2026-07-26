@@ -36,15 +36,16 @@ import java.util.Optional;
  * All methods are idempotent: {@link #upsert} inserts on miss and updates
  * on hit, emitting a history row whenever the slug actually changes.
  */
-public class PageCanonicalIdsDao {
+public class PageCanonicalIdsDao extends SpineJdbcSupport {
 
     private static final Logger LOG = LogManager.getLogger( PageCanonicalIdsDao.class );
 
-    private final DataSource ds;
-
     public PageCanonicalIdsDao( final DataSource ds ) {
-        this.ds = ds;
+        super( ds );
     }
+
+    @Override
+    protected Logger log() { return LOG; }
 
     /**
      * Outcome of an {@link #upsert} call. {@link #WRITTEN} means the row is now
@@ -61,10 +62,9 @@ public class PageCanonicalIdsDao {
                                 final String title,
                                 final String type,
                                 final String cluster ) {
-        try ( Connection c = ds.getConnection() ) {
-            c.setAutoCommit( false );
-            try {
-                final Optional< Row > existing = findByCanonicalId( c, canonicalId );
+        try {
+            return inTransaction( conn -> {
+                final Optional< Row > existing = findByCanonicalId( conn, canonicalId );
                 if ( existing.isEmpty() ) {
                     // Before inserting, check whether the slug is already claimed by a
                     // different canonical_id.  This happens when the frontmatter canonical_id
@@ -72,7 +72,7 @@ public class PageCanonicalIdsDao {
                     // stale row), or when two pages share the same slug.  Attempting the
                     // INSERT would throw a unique-constraint violation with a noisy stacktrace;
                     // instead we detect the conflict pre-emptively and warn cleanly.
-                    final Optional< Row > slugOwner = findBySlug( c, currentSlug );
+                    final Optional< Row > slugOwner = findBySlug( conn, currentSlug );
                     if ( slugOwner.isPresent() ) {
                         final String ownerId = slugOwner.get().canonicalId();
                         if ( ownerId.equals( canonicalId ) ) {
@@ -80,7 +80,6 @@ public class PageCanonicalIdsDao {
                             // findByCanonicalId returned empty, but guard defensively).
                             LOG.debug( "upsert({}, {}): slug already owned by same canonical_id — no-op",
                                        canonicalId, currentSlug );
-                            c.commit();
                             return UpsertResult.WRITTEN;
                         }
                         LOG.warn( "upsert({}, {}): slug '{}' is already claimed by canonical_id '{}'. "
@@ -91,20 +90,17 @@ public class PageCanonicalIdsDao {
                                 + "WHERE canonical_id='{}' AND current_slug='{}').",
                                   canonicalId, currentSlug, currentSlug,
                                   ownerId, ownerId, currentSlug );
-                        c.commit();
                         return UpsertResult.SKIPPED_STALE_SLUG_OWNER;
                     }
-                    try ( PreparedStatement ps = c.prepareStatement(
-                            "INSERT INTO page_canonical_ids " +
+                    update( conn, "INSERT INTO page_canonical_ids " +
                             "(canonical_id, current_slug, title, type, cluster) " +
-                            "VALUES (?, ?, ?, ?, ?)" ) ) {
+                            "VALUES (?, ?, ?, ?, ?)", ps -> {
                         ps.setString( 1, canonicalId );
                         ps.setString( 2, currentSlug );
                         ps.setString( 3, title );
                         ps.setString( 4, type );
                         ps.setString( 5, cluster );
-                        ps.executeUpdate();
-                    }
+                    } );
                 } else {
                     final Row prev = existing.get();
                     if ( prev.currentSlug().equals( currentSlug ) ) {
@@ -118,7 +114,7 @@ public class PageCanonicalIdsDao {
                         // a verbose PSQLException stacktrace into catalina.out (seen 2026-05-15
                         // boot — PaxosAndRaft).  Detect pre-emptively, WARN with the same
                         // recovery hint as the INSERT branch, and skip the write.
-                        final Optional< Row > slugOwner = findBySlug( c, currentSlug );
+                        final Optional< Row > slugOwner = findBySlug( conn, currentSlug );
                         if ( slugOwner.isPresent()
                                 && !slugOwner.get().canonicalId().equals( canonicalId ) ) {
                             final String ownerId = slugOwner.get().canonicalId();
@@ -130,58 +126,42 @@ public class PageCanonicalIdsDao {
                                     + "WHERE canonical_id='{}' AND current_slug='{}').",
                                       canonicalId, currentSlug, currentSlug,
                                       ownerId, ownerId, currentSlug );
-                            c.commit();
                             return UpsertResult.SKIPPED_STALE_SLUG_OWNER;
                         }
-                        if ( !slugHistoryRowExists( c, canonicalId, prev.currentSlug() ) ) {
-                            try ( PreparedStatement ps = c.prepareStatement(
-                                    "INSERT INTO page_slug_history (canonical_id, previous_slug) " +
-                                    "VALUES (?, ?)" ) ) {
+                        if ( !slugHistoryRowExists( conn, canonicalId, prev.currentSlug() ) ) {
+                            update( conn, "INSERT INTO page_slug_history (canonical_id, previous_slug) " +
+                                    "VALUES (?, ?)", ps -> {
                                 ps.setString( 1, canonicalId );
                                 ps.setString( 2, prev.currentSlug() );
-                                ps.executeUpdate();
-                            }
+                            } );
                         }
                     }
-                    try ( PreparedStatement ps = c.prepareStatement(
-                            "UPDATE page_canonical_ids SET " +
+                    update( conn, "UPDATE page_canonical_ids SET " +
                             "current_slug = ?, title = ?, type = ?, cluster = ?, updated_at = CURRENT_TIMESTAMP " +
-                            "WHERE canonical_id = ?" ) ) {
+                            "WHERE canonical_id = ?", ps -> {
                         ps.setString( 1, currentSlug );
                         ps.setString( 2, title );
                         ps.setString( 3, type );
                         ps.setString( 4, cluster );
                         ps.setString( 5, canonicalId );
-                        ps.executeUpdate();
-                    }
+                    } );
                 }
-                c.commit();
-            } catch ( final SQLException e ) {
-                c.rollback();
-                throw e;
-            } finally {
-                c.setAutoCommit( true );
-            }
+                return UpsertResult.WRITTEN;
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "PageCanonicalIdsDao.upsert({}) failed: {}", canonicalId, e.getMessage(), e );
             throw new RuntimeException( "upsert failed", e );
         }
-        return UpsertResult.WRITTEN;
     }
 
     private Optional< Row > findBySlug( final Connection c, final String slug ) throws SQLException {
-        try ( PreparedStatement ps = c.prepareStatement(
-                "SELECT canonical_id, current_slug, title, type, cluster, created_at, updated_at " +
-                "FROM page_canonical_ids WHERE current_slug = ?" ) ) {
-            ps.setString( 1, slug );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? Optional.of( readRow( rs ) ) : Optional.empty();
-            }
-        }
+        return queryOne( c, "SELECT canonical_id, current_slug, title, type, cluster, created_at, updated_at " +
+                "FROM page_canonical_ids WHERE current_slug = ?",
+                ps -> ps.setString( 1, slug ), PageCanonicalIdsDao::readRow );
     }
 
     public Optional< Row > findByCanonicalId( final String canonicalId ) {
-        try ( Connection c = ds.getConnection() ) {
+        try ( Connection c = dataSource.getConnection() ) {
             return findByCanonicalId( c, canonicalId );
         } catch ( final SQLException e ) {
             LOG.warn( "findByCanonicalId({}) failed: {}", canonicalId, e.getMessage() );
@@ -191,45 +171,39 @@ public class PageCanonicalIdsDao {
 
     private boolean slugHistoryRowExists( final Connection c, final String canonicalId,
                                            final String previousSlug ) throws SQLException {
-        try ( PreparedStatement ps = c.prepareStatement(
-                "SELECT 1 FROM page_slug_history WHERE canonical_id = ? AND previous_slug = ?" ) ) {
-            ps.setString( 1, canonicalId );
-            ps.setString( 2, previousSlug );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next();
-            }
-        }
+        return queryOne( c, "SELECT 1 FROM page_slug_history WHERE canonical_id = ? AND previous_slug = ?",
+                ps -> {
+                    ps.setString( 1, canonicalId );
+                    ps.setString( 2, previousSlug );
+                }, rs -> Boolean.TRUE ).isPresent();
     }
 
     private Optional< Row > findByCanonicalId( final Connection c, final String id ) throws SQLException {
-        try ( PreparedStatement ps = c.prepareStatement(
-                "SELECT canonical_id, current_slug, title, type, cluster, created_at, updated_at " +
-                "FROM page_canonical_ids WHERE canonical_id = ?" ) ) {
-            ps.setString( 1, id );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? Optional.of( readRow( rs ) ) : Optional.empty();
-            }
-        }
+        return queryOne( c, "SELECT canonical_id, current_slug, title, type, cluster, created_at, updated_at " +
+                "FROM page_canonical_ids WHERE canonical_id = ?",
+                ps -> ps.setString( 1, id ), PageCanonicalIdsDao::readRow );
     }
 
     public Optional< Row > findBySlug( final String slug ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "SELECT canonical_id, current_slug, title, type, cluster, created_at, updated_at " +
-                      "FROM page_canonical_ids WHERE current_slug = ?" ) ) {
-            ps.setString( 1, slug );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? Optional.of( readRow( rs ) ) : Optional.empty();
-            }
+        try {
+            return queryOne( "SELECT canonical_id, current_slug, title, type, cluster, created_at, updated_at " +
+                    "FROM page_canonical_ids WHERE current_slug = ?",
+                    ps -> ps.setString( 1, slug ), PageCanonicalIdsDao::readRow );
         } catch ( final SQLException e ) {
             LOG.warn( "findBySlug({}) failed: {}", slug, e.getMessage() );
             return Optional.empty();
         }
     }
 
+    /**
+     * Not migrated to {@code query()}: on {@link SQLException} mid-iteration this
+     * returns whatever partial {@code rows} list had already been accumulated
+     * (logged, not thrown) — the generic primitive discards its in-progress list on
+     * failure instead, which would silently change this method's contract.
+     */
     public List< Row > findAll() {
         final List< Row > rows = new ArrayList<>();
-        try ( Connection c = ds.getConnection();
+        try ( Connection c = dataSource.getConnection();
               PreparedStatement ps = c.prepareStatement(
                       "SELECT canonical_id, current_slug, title, type, cluster, created_at, updated_at " +
                       "FROM page_canonical_ids ORDER BY canonical_id" );
@@ -243,9 +217,10 @@ public class PageCanonicalIdsDao {
         return rows;
     }
 
+    /** Not migrated to {@code query()}: same partial-result-on-failure contract as {@link #findAll}. */
     public List< String > slugHistory( final String canonicalId ) {
         final List< String > history = new ArrayList<>();
-        try ( Connection c = ds.getConnection();
+        try ( Connection c = dataSource.getConnection();
               PreparedStatement ps = c.prepareStatement(
                       "SELECT previous_slug FROM page_slug_history " +
                       "WHERE canonical_id = ? ORDER BY renamed_at DESC" ) ) {
@@ -262,11 +237,8 @@ public class PageCanonicalIdsDao {
     }
 
     public void delete( final String canonicalId ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "DELETE FROM page_canonical_ids WHERE canonical_id = ?" ) ) {
-            ps.setString( 1, canonicalId );
-            ps.executeUpdate();
+        try {
+            update( "DELETE FROM page_canonical_ids WHERE canonical_id = ?", ps -> ps.setString( 1, canonicalId ) );
         } catch ( final SQLException e ) {
             LOG.warn( "delete({}) failed: {}", canonicalId, e.getMessage() );
             throw new RuntimeException( "delete failed", e );

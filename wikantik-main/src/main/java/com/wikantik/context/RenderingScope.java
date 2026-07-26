@@ -45,6 +45,16 @@ public final class RenderingScope {
     }
 
     /**
+     * Prototype: an independent copy of this scope (its only state is an immutable String,
+     * so shallow and deep copies coincide).
+     *
+     * @return a copy of this scope
+     */
+    public RenderingScope copy() {
+        return new RenderingScope( template );
+    }
+
+    /**
      * Returns the name of the template directory used to render the page.
      *
      * @return the template name; never {@code null}

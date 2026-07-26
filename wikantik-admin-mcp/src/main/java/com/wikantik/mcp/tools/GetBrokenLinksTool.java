@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.mcp.AbstractMcpTool;
+
 
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.managers.ReferenceManager;
@@ -29,7 +31,7 @@ import java.util.*;
  * referenced but do not exist. For each broken link, reports which
  * existing pages reference it.
  */
-public class GetBrokenLinksTool implements McpTool {
+public class GetBrokenLinksTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "get_broken_links";
 
@@ -75,7 +77,7 @@ public class GetBrokenLinksTool implements McpTool {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final Collection< String > uncreated = referenceManager.findUncreated();
         final List< String > sorted = new ArrayList<>( uncreated );
         Collections.sort( sorted );

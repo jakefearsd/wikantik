@@ -18,11 +18,11 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.google.gson.Gson;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.wikantik.mcp.AbstractMcpTool;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,9 +46,7 @@ import java.util.Map;
  * (nodes with no {@code source_page}) are returned regardless of the filter
  * direction, since they cannot be classified either way.</p>
  */
-public class ListOrphanedKgNodesTool implements McpTool {
-
-    private static final Logger LOG = LogManager.getLogger( ListOrphanedKgNodesTool.class );
+public class ListOrphanedKgNodesTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "list_orphaned_kg_nodes";
 
@@ -120,24 +118,24 @@ public class ListOrphanedKgNodesTool implements McpTool {
     }
 
     @Override
+    protected Gson gson() {
+        return McpToolUtils.KG_GSON;
+    }
+
+    @Override
     @SuppressWarnings( "unchecked" )
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            final Map< String, Object > filters = ( Map< String, Object > ) arguments.get( "filters" );
-            final int limit = McpToolUtils.getInt( arguments, "limit", DEFAULT_LIMIT );
-            final int offset = McpToolUtils.getInt( arguments, "offset", DEFAULT_OFFSET );
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final Map< String, Object > filters = ( Map< String, Object > ) arguments.get( "filters" );
+        final int limit = McpToolUtils.getInt( arguments, "limit", DEFAULT_LIMIT );
+        final int offset = McpToolUtils.getInt( arguments, "offset", DEFAULT_OFFSET );
 
-            final List< KgNode > orphans = service.listOrphanedNodes( filters, limit, offset );
-            final long total = service.countOrphanedNodes( filters );
+        final List< KgNode > orphans = service.listOrphanedNodes( filters, limit, offset );
+        final long total = service.countOrphanedNodes( filters );
 
-            final Map< String, Object > payload = new LinkedHashMap<>();
-            payload.put( "results", orphans );
-            payload.put( "count", total );
-            payload.put( "admin_bypass", true );
-            return McpToolUtils.jsonResult( McpToolUtils.KG_GSON, payload );
-        } catch ( final Exception e ) {
-            LOG.error( "list_orphaned_kg_nodes failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( McpToolUtils.KG_GSON, e.getMessage() );
-        }
+        final Map< String, Object > payload = new LinkedHashMap<>();
+        payload.put( "results", orphans );
+        payload.put( "count", total );
+        payload.put( "admin_bypass", true );
+        return McpToolUtils.jsonResult( McpToolUtils.KG_GSON, payload );
     }
 }

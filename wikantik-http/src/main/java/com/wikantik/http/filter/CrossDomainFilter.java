@@ -15,36 +15,13 @@
  */
 package com.wikantik.http.filter;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-
 /**
  * X-Permitted-Cross-Domain-Policies: Restricts cross-domain data loading by
  * specific plugins, such as Flash.
  */
-public class CrossDomainFilter implements Filter {
+public class CrossDomainFilter extends SingleValueHeaderFilter {
 
-    private String mode = "none";
-
-    @Override
-    public void init(FilterConfig filterConfig) {
-        String configMode = filterConfig.getInitParameter("XDomainValue");
-        if (configMode != null) {
-            mode = configMode;
-        }
+    public CrossDomainFilter() {
+        super( "X-Permitted-Cross-Domain-Policies", "XDomainValue", "none" );
     }
-
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        HttpServletResponse res = (HttpServletResponse) response;
-        res.addHeader("X-Permitted-Cross-Domain-Policies", mode);
-        chain.doFilter(request, response);
-    }
-
 }

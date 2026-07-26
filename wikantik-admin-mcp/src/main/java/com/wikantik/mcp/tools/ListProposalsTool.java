@@ -21,9 +21,8 @@ package com.wikantik.mcp.tools;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.ProposalConflictFlags;
+import com.wikantik.mcp.AbstractMcpTool;
 import io.modelcontextprotocol.spec.McpSchema;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -33,9 +32,8 @@ import java.util.Map;
  * MCP tool that queries pending or historical knowledge proposals to help
  * agents avoid submitting duplicates.
  */
-public class ListProposalsTool implements McpTool {
+public class ListProposalsTool extends AbstractMcpTool {
 
-    private static final Logger LOG = LogManager.getLogger( ListProposalsTool.class );
     public static final String TOOL_NAME = "list_proposals";
 
     private final KnowledgeGraphService service;
@@ -108,34 +106,29 @@ public class ListProposalsTool implements McpTool {
     }
 
     @Override
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final String status = McpToolUtils.getString( arguments, "status" );
         final String sourcePage = McpToolUtils.getString( arguments, "source_page" );
         final int limit = McpToolUtils.getInt( arguments, "limit", 50 );
         final int offset = McpToolUtils.getInt( arguments, "offset", 0 );
 
-        try {
-            final List< KgProposal > proposals = service.listProposals( status, sourcePage, limit, offset );
-            final List< Map< String, Object > > results = proposals.stream().map( p -> {
-                final Map< String, Object > map = new LinkedHashMap<>();
-                map.put( "id", p.id().toString() );
-                map.put( "proposal_type", p.proposalType() );
-                map.put( "source_page", p.sourcePage() );
-                map.put( "proposed_data", p.proposedData() );
-                map.put( "confidence", p.confidence() );
-                map.put( "reasoning", p.reasoning() );
-                map.put( "status", p.status() );
-                map.put( "reviewed_by", p.reviewedBy() );
-                map.put( "created", p.created() != null ? p.created().toString() : null );
-                map.put( "reviewed_at", p.reviewedAt() != null ? p.reviewedAt().toString() : null );
-                map.putAll( ProposalConflictFlags.forProposal( service, p, true ) );
-                return map;
-            } ).toList();
+        final List< KgProposal > proposals = service.listProposals( status, sourcePage, limit, offset );
+        final List< Map< String, Object > > results = proposals.stream().map( p -> {
+            final Map< String, Object > map = new LinkedHashMap<>();
+            map.put( "id", p.id().toString() );
+            map.put( "proposal_type", p.proposalType() );
+            map.put( "source_page", p.sourcePage() );
+            map.put( "proposed_data", p.proposedData() );
+            map.put( "confidence", p.confidence() );
+            map.put( "reasoning", p.reasoning() );
+            map.put( "status", p.status() );
+            map.put( "reviewed_by", p.reviewedBy() );
+            map.put( "created", p.created() != null ? p.created().toString() : null );
+            map.put( "reviewed_at", p.reviewedAt() != null ? p.reviewedAt().toString() : null );
+            map.putAll( ProposalConflictFlags.forProposal( service, p, true ) );
+            return map;
+        } ).toList();
 
-            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of( "proposals", results ) );
-        } catch ( final Exception e ) {
-            LOG.error( "Failed to list proposals: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
-        }
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of( "proposals", results ) );
     }
 }

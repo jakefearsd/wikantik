@@ -18,13 +18,14 @@
  */
 package com.wikantik.connectors.filesystem;
 
+import com.wikantik.connectors.ItemDigest;
+
 import com.wikantik.api.connectors.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -71,7 +72,7 @@ public final class FilesystemSourceConnector implements SourceConnector {
             md.put( "modified", Files.getLastModifiedTime( file ).toString() );
             final List< String > acl = rel.getParent() == null
                 ? List.of() : List.of( rel.getParent().getFileName().toString() );
-            items.add( new SourceItem( "file:" + relStr, content, contentType( relStr ), md, acl, sha256Hex( content ) ) );
+            items.add( new SourceItem( "file:" + relStr, content, contentType( relStr ), md, acl, ItemDigest.sha256Hex( content ) ) );
         } catch ( final IOException e ) {
             LOG.warn( "Filesystem connector '{}' could not read {}: {}", connectorId, file, e.getMessage() );
         }
@@ -98,14 +99,4 @@ public final class FilesystemSourceConnector implements SourceConnector {
         }
     }
 
-    private static String sha256Hex( final byte[] bytes ) {
-        try {
-            final byte[] d = MessageDigest.getInstance( "SHA-256" ).digest( bytes );
-            final StringBuilder sb = new StringBuilder( d.length * 2 );
-            for ( final byte b : d ) sb.append( Character.forDigit( ( b >> 4 ) & 0xF, 16 ) ).append( Character.forDigit( b & 0xF, 16 ) );
-            return sb.toString();
-        } catch ( final java.security.NoSuchAlgorithmException e ) {
-            throw new IllegalStateException( "SHA-256 unavailable", e );   // JVM guarantees it; never happens
-        }
-    }
 }

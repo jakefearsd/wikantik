@@ -23,6 +23,7 @@ import java.util.Optional;
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.RelationshipTypeVocabulary;
 import com.wikantik.ontology.Iris;
+import com.wikantik.ontology.NodeTypeMapping;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.logging.log4j.LogManager;
@@ -35,15 +36,6 @@ public final class EdgeProjector {
 
     private EdgeProjector() {}
 
-    /** snake_case relationship_type -> wk: lowerCamel property local name. */
-    static String propertyLocalName( final String relationshipType ) {
-        final String[] parts = relationshipType.split( "_" );
-        final StringBuilder sb = new StringBuilder( parts[ 0 ] );
-        for ( int i = 1; i < parts.length; i++ ) {
-            sb.append( Character.toUpperCase( parts[ i ].charAt( 0 ) ) ).append( parts[ i ].substring( 1 ) );
-        }
-        return sb.toString();
-    }
 
     /**
      * Returns the triple {@code entity(source) wk:<prop> entity(target)}, or empty if the
@@ -57,7 +49,7 @@ public final class EdgeProjector {
         }
         return Optional.of( ResourceFactory.createStatement(
                 ResourceFactory.createResource( Iris.entity( edge.sourceId() ) ),
-                ResourceFactory.createProperty( Iris.term( propertyLocalName( edge.relationshipType() ) ) ),
+                ResourceFactory.createProperty( Iris.term( NodeTypeMapping.propertyLocalName( edge.relationshipType() ) ) ),
                 ResourceFactory.createResource( Iris.entity( edge.targetId() ) ) ) );
     }
 }

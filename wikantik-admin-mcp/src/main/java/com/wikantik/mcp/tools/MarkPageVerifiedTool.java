@@ -49,7 +49,7 @@ import java.util.Map;
  * <p>Optional {@code confidence} argument lets the verifier pin an explicit
  * value (typically {@code stale} to flag a known-stale page).</p>
  */
-public class MarkPageVerifiedTool extends DefaultAuthorTool implements McpTool {
+public class MarkPageVerifiedTool extends DefaultAuthorTool {
 
     private static final Logger LOG = LogManager.getLogger( MarkPageVerifiedTool.class );
     public static final String TOOL_NAME = "mark_page_verified";
@@ -136,97 +136,92 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool implements McpTool {
 
     @Override
     @SuppressWarnings( "unchecked" )
-    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        try {
-            final Object rawNames = McpToolUtils.pageSlugs( arguments );
-            if ( !( rawNames instanceof List< ? > nameList ) || nameList.isEmpty() ) {
-                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                    "pageNames must be a non-empty array" );
-            }
-            final String verifierArg = McpToolUtils.getString( arguments, "verifier" );
-            final String verifier = verifierArg != null && !verifierArg.isBlank()
-                    ? verifierArg : getDefaultAuthor();
-            if ( verifier == null || verifier.isBlank() ) {
-                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                    "verifier could not be resolved — pass {verifier: <login_name>} or configure default_author" );
-            }
-            final String confidenceOverride = McpToolUtils.getString( arguments, "confidence" );
-            final Confidence pinned = confidenceOverride == null || confidenceOverride.isBlank()
-                    ? null
-                    : Confidence.fromWire( confidenceOverride )
-                          .orElseThrow( () -> new IllegalArgumentException(
-                              "unknown confidence: " + confidenceOverride ) );
-            final String changeNote = McpToolUtils.getString( arguments, "changeNote" );
-
-            final Instant now = Instant.now();
-            final List< Map< String, Object > > results = new ArrayList<>( nameList.size() );
-            int succeeded = 0;
-            for ( final Object n : nameList ) {
-                final String pageName = n == null ? null : n.toString().trim();
-                final Map< String, Object > result = new LinkedHashMap<>();
-                result.put( "pageName", pageName );
-                if ( pageName == null || pageName.isEmpty() ) {
-                    result.put( "ok", false );
-                    result.put( "error", "blank page name" );
-                    results.add( result );
-                    continue;
-                }
-                if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
-                    result.put( "ok", false );
-                    result.put( "error", "system page — refusing to stamp via MCP" );
-                    McpAudit.logWrite( TOOL_NAME, "refused-system-page", pageName, verifier );
-                    results.add( result );
-                    continue;
-                }
-                try {
-                    final Page page = pageManager.getPage( pageName );
-                    if ( page == null ) {
-                        result.put( "ok", false );
-                        result.put( "error", "page not found" );
-                        results.add( result );
-                        continue;
-                    }
-                    final String original = pageManager.getPureText( page );
-                    final ParsedPage parsed = FrontmatterParser.parse( original );
-                    final Map< String, Object > metadata = new LinkedHashMap<>( parsed.metadata() );
-                    metadata.put( "verified_at", now.toString() );
-                    metadata.put( "verified_by", verifier );
-                    if ( pinned != null ) {
-                        metadata.put( "confidence", pinned.wireName() );
-                    }
-                    final String rewritten = FrontmatterWriter.write( metadata, parsed.body() );
-
-                    saveHelper.saveText( pageName, rewritten,
-                        SaveOptions.builder()
-                            .author( verifier )
-                            .changeNote( changeNote != null && !changeNote.isBlank()
-                                ? changeNote
-                                : "verified by " + verifier )
-                            .build() );
-
-                    result.put( "ok", true );
-                    result.put( "verifiedAt", now.toString() );
-                    result.put( "verifiedBy", verifier );
-                    if ( pinned != null ) {
-                        result.put( "confidence", pinned.wireName() );
-                    }
-                    succeeded++;
-                } catch ( final Exception perPage ) {
-                    LOG.warn( "mark_page_verified failed for {}: {}", pageName, perPage.getMessage() );
-                    result.put( "ok", false );
-                    result.put( "error", perPage.getMessage() );
-                }
-                results.add( result );
-            }
-
-            final Map< String, Object > envelope = new LinkedHashMap<>();
-            envelope.put( "results", results );
-            envelope.put( "succeeded", succeeded );
-            envelope.put( "total", results.size() );
-            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, envelope );
-        } catch ( final Exception e ) {
-            LOG.error( "mark_page_verified failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
+    protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
+        final Object rawNames = McpToolUtils.pageSlugs( arguments );
+        if ( !( rawNames instanceof List< ? > nameList ) || nameList.isEmpty() ) {
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
+                "pageNames must be a non-empty array" );
         }
+        final String verifierArg = McpToolUtils.getString( arguments, "verifier" );
+        final String verifier = verifierArg != null && !verifierArg.isBlank()
+                ? verifierArg : getDefaultAuthor();
+        if ( verifier == null || verifier.isBlank() ) {
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
+                "verifier could not be resolved — pass {verifier: <login_name>} or configure default_author" );
+        }
+        final String confidenceOverride = McpToolUtils.getString( arguments, "confidence" );
+        final Confidence pinned = confidenceOverride == null || confidenceOverride.isBlank()
+                ? null
+                : Confidence.fromWire( confidenceOverride )
+                      .orElseThrow( () -> new IllegalArgumentException(
+                          "unknown confidence: " + confidenceOverride ) );
+        final String changeNote = McpToolUtils.getString( arguments, "changeNote" );
+
+        final Instant now = Instant.now();
+        final List< Map< String, Object > > results = new ArrayList<>( nameList.size() );
+        int succeeded = 0;
+        for ( final Object n : nameList ) {
+            final String pageName = n == null ? null : n.toString().trim();
+            final Map< String, Object > result = new LinkedHashMap<>();
+            result.put( "pageName", pageName );
+            if ( pageName == null || pageName.isEmpty() ) {
+                result.put( "ok", false );
+                result.put( "error", "blank page name" );
+                results.add( result );
+                continue;
+            }
+            if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
+                result.put( "ok", false );
+                result.put( "error", "system page — refusing to stamp via MCP" );
+                McpAudit.logWrite( TOOL_NAME, "refused-system-page", pageName, verifier );
+                results.add( result );
+                continue;
+            }
+            try {
+                final Page page = pageManager.getPage( pageName );
+                if ( page == null ) {
+                    result.put( "ok", false );
+                    result.put( "error", "page not found" );
+                    results.add( result );
+                    continue;
+                }
+                final String original = pageManager.getPureText( page );
+                final ParsedPage parsed = FrontmatterParser.parse( original );
+                final Map< String, Object > metadata = new LinkedHashMap<>( parsed.metadata() );
+                metadata.put( "verified_at", now.toString() );
+                metadata.put( "verified_by", verifier );
+                if ( pinned != null ) {
+                    metadata.put( "confidence", pinned.wireName() );
+                }
+                final String rewritten = FrontmatterWriter.write( metadata, parsed.body() );
+
+                saveHelper.saveText( pageName, rewritten,
+                    SaveOptions.builder()
+                        .author( verifier )
+                        .changeNote( changeNote != null && !changeNote.isBlank()
+                            ? changeNote
+                            : "verified by " + verifier )
+                        .build() );
+
+                result.put( "ok", true );
+                result.put( "verifiedAt", now.toString() );
+                result.put( "verifiedBy", verifier );
+                if ( pinned != null ) {
+                    result.put( "confidence", pinned.wireName() );
+                }
+                succeeded++;
+            } catch ( final Exception perPage ) {
+                LOG.warn( "mark_page_verified failed for {}: {}", pageName, perPage.getMessage() );
+                result.put( "ok", false );
+                result.put( "error", perPage.getMessage() );
+            }
+            results.add( result );
+        }
+
+        final Map< String, Object > envelope = new LinkedHashMap<>();
+        envelope.put( "results", results );
+        envelope.put( "succeeded", succeeded );
+        envelope.put( "total", results.size() );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, envelope );
     }
 }

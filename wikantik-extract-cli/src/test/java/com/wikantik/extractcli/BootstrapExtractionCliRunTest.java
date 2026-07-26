@@ -97,6 +97,7 @@ class BootstrapExtractionCliRunTest {
         final BootstrapExtractionCli.Args a = new BootstrapExtractionCli.Args();
         a.jdbcUrl = "jdbc:postgresql://127.0.0.1:1/nonexistent";
         a.pollSeconds = 1;
+        a.pollMillis = 25;
         return a;
     }
 
@@ -112,6 +113,24 @@ class BootstrapExtractionCliRunTest {
     }
 
     // ---- unreachable-DB branches: no Testcontainers needed, just fast-fail behavior ----
+
+    /**
+     * The wait loop must honor a sub-second poll override: with the seconds-granularity
+     * floor, every one of this class's nine runs paid a full pollSeconds sleep even
+     * though the indexer had already left RUNNING.
+     */
+    @Test
+    void subSecondPollOverrideAvoidsTheFullSecondFloor() throws Exception {
+        final BootstrapExtractionCli.Args a = baseArgs();
+        a.pollMillis = 25;
+
+        final long start = System.nanoTime();
+        assertEquals( 1, invokeRun( a ) );
+        final long elapsedMs = ( System.nanoTime() - start ) / 1_000_000;
+
+        assertTrue( elapsedMs < 900,
+                "fast-fail run should finish well under the old 1s poll floor, took " + elapsedMs + "ms" );
+    }
 
     @Test
     void runReturnsOneWhenIndexerFailsAgainstAnUnreachableDatabase() throws Exception {

@@ -196,7 +196,7 @@ public final class BootstrapExtractionCli {
             return 1;
         }
 
-        final int exit = waitAndReport( indexer, a.pollSeconds );
+        final int exit = waitAndReport( indexer, a.pollMillis > 0 ? a.pollMillis : a.pollSeconds * 1000L );
         if( a.report != null ) {
             writeReport( a.report, indexer.status() );
         }
@@ -382,14 +382,14 @@ public final class BootstrapExtractionCli {
     }
 
     /**
-     * Polls the indexer at {@code pollSeconds} cadence, logs an aggregate
+     * Polls the indexer at {@code pollMillis} cadence, logs an aggregate
      * progress line at INFO, and returns the exit code when state leaves RUNNING.
      */
     private static int waitAndReport( final BootstrapEntityExtractionIndexer indexer,
-                                      final int pollSeconds ) {
+                                      final long pollMillis ) {
         while( indexer.isRunning() ) {
             try {
-                TimeUnit.SECONDS.sleep( pollSeconds );
+                TimeUnit.MILLISECONDS.sleep( pollMillis );
             } catch( final InterruptedException ie ) {
                 Thread.currentThread().interrupt();
                 LOG.warn( "Extract-CLI interrupted — waiting for current page to finish so the " +
@@ -493,6 +493,8 @@ public final class BootstrapExtractionCli {
         public double confThreshold        = 0.55;
         public long   timeoutMs            = 120_000L;
         public int    pollSeconds          = 30;
+        /** Sub-second poll override for tests; 0 (the default) keeps the CLI's pollSeconds cadence. Not CLI-parseable. */
+        public long   pollMillis           = 0;
         public boolean showHelp            = false;
         public int    maxPages             = 0;
 

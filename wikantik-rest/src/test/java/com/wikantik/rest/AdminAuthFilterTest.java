@@ -28,7 +28,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -85,14 +84,9 @@ class AdminAuthFilterTest {
 
     @Test
     void testAnonymousRequestReturnsForbidden() throws Exception {
-        // Use a fresh anonymous session (not the default "mock-session" which saveText() authenticates)
-        final HttpSession anonSession = Mockito.mock( HttpSession.class );
-        Mockito.doReturn( "anon-filter-test-" + System.nanoTime() ).when( anonSession ).getId();
-
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/users" );
+        // Use a fresh anonymous session (not the shared id, which saveText() authenticates)
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/admin/users" );
         Mockito.doReturn( "GET" ).when( request ).getMethod();
-        Mockito.doReturn( anonSession ).when( request ).getSession();
-        Mockito.doReturn( anonSession ).when( request ).getSession( Mockito.anyBoolean() );
 
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         final StringWriter sw = new StringWriter();
@@ -109,13 +103,8 @@ class AdminAuthFilterTest {
 
     @Test
     void testForbiddenResponseIsValidJson() throws Exception {
-        final HttpSession anonSession = Mockito.mock( HttpSession.class );
-        Mockito.doReturn( "anon-json-test-" + System.nanoTime() ).when( anonSession ).getId();
-
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/groups" );
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/admin/groups" );
         Mockito.doReturn( "POST" ).when( request ).getMethod();
-        Mockito.doReturn( anonSession ).when( request ).getSession();
-        Mockito.doReturn( anonSession ).when( request ).getSession( Mockito.anyBoolean() );
 
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         final StringWriter sw = new StringWriter();
@@ -150,13 +139,8 @@ class AdminAuthFilterTest {
      */
     @Test
     void testNonAdminGetRequestReturnsForbidden() throws Exception {
-        final HttpSession anonSession = Mockito.mock( HttpSession.class );
-        Mockito.doReturn( "anon-get-test-" + System.nanoTime() ).when( anonSession ).getId();
-
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/policy" );
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/admin/policy" );
         Mockito.doReturn( "GET" ).when( request ).getMethod();
-        Mockito.doReturn( anonSession ).when( request ).getSession();
-        Mockito.doReturn( anonSession ).when( request ).getSession( Mockito.anyBoolean() );
 
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         final StringWriter sw = new StringWriter();
@@ -178,14 +162,9 @@ class AdminAuthFilterTest {
      */
     @Test
     void testBrowserNavigationPassesThroughForSpaShell() throws Exception {
-        final HttpSession anonSession = Mockito.mock( HttpSession.class );
-        Mockito.doReturn( "anon-html-test-" + System.nanoTime() ).when( anonSession ).getId();
-
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph" );
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/admin/knowledge-graph" );
         Mockito.doReturn( "GET" ).when( request ).getMethod();
         Mockito.doReturn( "text/html,application/xhtml+xml" ).when( request ).getHeader( "Accept" );
-        Mockito.doReturn( anonSession ).when( request ).getSession();
-        Mockito.doReturn( anonSession ).when( request ).getSession( Mockito.anyBoolean() );
 
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         final FilterChain chain = Mockito.mock( FilterChain.class );
@@ -204,14 +183,9 @@ class AdminAuthFilterTest {
      */
     @Test
     void testFetchApiCallStillForbiddenWhenUnauthenticated() throws Exception {
-        final HttpSession anonSession = Mockito.mock( HttpSession.class );
-        Mockito.doReturn( "anon-fetch-test-" + System.nanoTime() ).when( anonSession ).getId();
-
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/users" );
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/admin/users" );
         Mockito.doReturn( "GET" ).when( request ).getMethod();
         Mockito.doReturn( "*/*" ).when( request ).getHeader( "Accept" );
-        Mockito.doReturn( anonSession ).when( request ).getSession();
-        Mockito.doReturn( anonSession ).when( request ).getSession( Mockito.anyBoolean() );
 
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         final StringWriter sw = new StringWriter();
@@ -231,14 +205,9 @@ class AdminAuthFilterTest {
      */
     @Test
     void testHtmlAcceptOnPostStillForbidden() throws Exception {
-        final HttpSession anonSession = Mockito.mock( HttpSession.class );
-        Mockito.doReturn( "anon-post-html-test-" + System.nanoTime() ).when( anonSession ).getId();
-
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/users/bulk-action" );
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/admin/users/bulk-action" );
         Mockito.doReturn( "POST" ).when( request ).getMethod();
         Mockito.doReturn( "text/html,application/json" ).when( request ).getHeader( "Accept" );
-        Mockito.doReturn( anonSession ).when( request ).getSession();
-        Mockito.doReturn( anonSession ).when( request ).getSession( Mockito.anyBoolean() );
 
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         final StringWriter sw = new StringWriter();

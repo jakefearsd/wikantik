@@ -125,9 +125,31 @@ public class HttpMockFactory {
         return sc;
     }
 
+    /**
+     * Session id shared by every mock produced by the no-arg {@link #createHttpSession()} /
+     * {@link #createHttpRequest()} helpers. {@code SessionMonitor} keys {@code WikiSession}s
+     * by this id, so separate mock requests resolve to the SAME WikiSession — which is what
+     * lets a test log in once (e.g. {@code TestEngine.adminSession()}) and act authenticated
+     * on later requests.
+     *
+     * <p><b>Pollution hazard:</b> that same linkage leaks authentication state between tests
+     * in one class (an admin login in setUp bleeds into an "anonymous" 403 test). Tests that
+     * need a genuinely anonymous/fresh session must use {@link #createIsolatedHttpRequest(String)}
+     * or evict this id from the {@code SessionMonitor} in tearDown.</p>
+     */
+    public static final String SHARED_SESSION_ID = "mock-session";
+
     public static HttpSession createHttpSession() {
+        return createHttpSession( SHARED_SESSION_ID );
+    }
+
+    /**
+     * Creates a mock HttpSession with an explicit id — pass a unique id to opt out of the
+     * {@link #SHARED_SESSION_ID} WikiSession sharing described above.
+     */
+    public static HttpSession createHttpSession( final String id ) {
         final HttpSession session = Mockito.mock( HttpSession.class );
-        Mockito.doReturn( "mock-session" ).when( session ).getId();
+        Mockito.doReturn( id ).when( session ).getId();
         return session;
     }
 
@@ -156,6 +178,19 @@ public class HttpMockFactory {
      * @param path the path relative to the wiki context, for example "/Wiki.jsp"
      * @return the new request
      */
+    /**
+     * Like {@link #createHttpRequest(String)}, but the request carries a unique session id,
+     * so it never resolves to the shared {@link #SHARED_SESSION_ID} WikiSession. Use for
+     * tests that must be genuinely anonymous regardless of earlier logins in the class.
+     */
+    public static HttpServletRequest createIsolatedHttpRequest( final String path ) {
+        final HttpServletRequest request = createHttpRequest( "/JSPWiki", path );
+        final HttpSession session = createHttpSession( SHARED_SESSION_ID + "-" + java.util.UUID.randomUUID() );
+        Mockito.doReturn( session ).when( request ).getSession();
+        Mockito.doReturn( session ).when( request ).getSession( Mockito.anyBoolean() );
+        return request;
+    }
+
     public static HttpServletRequest createHttpRequest( final String contextName, final String path ) {
         final HttpSession session = createHttpSession();
         final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );

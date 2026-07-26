@@ -252,9 +252,7 @@ class AdminKnowledgeResourceTest {
                 "At least 1 page should have been updated" );
 
         // Cleanup
-        try { pm.deletePage( "MergeSrcPage" ); } catch ( final Exception e ) { /* ignore */ }
-        try { pm.deletePage( "OldNode" ); } catch ( final Exception e ) { /* ignore */ }
-        try { pm.deletePage( "NewNode" ); } catch ( final Exception e ) { /* ignore */ }
+        engine.deleteQuietly( "MergeSrcPage", "OldNode", "NewNode" );
     }
 
     @Test
@@ -308,10 +306,7 @@ class AdminKnowledgeResourceTest {
         assertTrue( textB.contains( "OtherNode" ), "Page B should still reference OtherNode" );
 
         // Cleanup
-        try { pm.deletePage( "MultiMergA" ); } catch ( final Exception e ) { /* ignore */ }
-        try { pm.deletePage( "MultiMergB" ); } catch ( final Exception e ) { /* ignore */ }
-        try { pm.deletePage( "OldTarget" ); } catch ( final Exception e ) { /* ignore */ }
-        try { pm.deletePage( "NewTarget" ); } catch ( final Exception e ) { /* ignore */ }
+        engine.deleteQuietly( "MultiMergA", "MultiMergB", "OldTarget", "NewTarget" );
     }
 
     @Test

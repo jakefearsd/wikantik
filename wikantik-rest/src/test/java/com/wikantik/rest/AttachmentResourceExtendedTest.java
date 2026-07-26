@@ -25,7 +25,6 @@ import com.wikantik.TestEngine;
 import com.wikantik.auth.SessionMonitor;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.managers.AttachmentManager;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
@@ -73,14 +72,13 @@ class AttachmentResourceExtendedTest {
     }
 
     private void anonymizeMockSession() {
-        SessionMonitor.getInstance( engine ).remove( "mock-session" );
+        SessionMonitor.getInstance( engine ).remove( HttpMockFactory.SHARED_SESSION_ID );
     }
 
     @AfterEach
     void tearDown() throws Exception {
         if ( engine != null ) {
-            final PageManager pm = engine.getManager( PageManager.class );
-            try { pm.deletePage( "ExtAttachPage" ); } catch ( final Exception e ) { /* ignore */ }
+            engine.deleteQuietly( "ExtAttachPage" );
             engine.stop();
         }
     }

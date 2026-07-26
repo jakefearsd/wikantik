@@ -27,7 +27,6 @@ import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.agent.HeadingOutline;
 import com.wikantik.api.agent.KeyFact;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.Audience;
 import com.wikantik.api.pagegraph.Confidence;
 import jakarta.servlet.http.HttpServletRequest;
@@ -73,10 +72,7 @@ class PageForAgentResourceTest {
     @AfterEach
     void tearDown() throws Exception {
         if ( engine != null ) {
-            final PageManager pm = engine.getManager( PageManager.class );
-            try { pm.deletePage( "HybridRetrieval" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "Slug" ); }            catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "ForAgentAclPage" ); } catch ( final Exception e ) { /* ignore */ }
+            engine.deleteQuietly( "HybridRetrieval", "Slug", "ForAgentAclPage" );
             engine.stop();
         }
     }

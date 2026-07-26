@@ -18,7 +18,8 @@
  */
 package com.wikantik.pages;
 
-import com.wikantik.TestEngine;
+import com.wikantik.MockEngineBuilder;
+import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.pages.PageLock;
 import com.wikantik.api.spi.Wiki;
@@ -29,10 +30,11 @@ import java.util.Date;
 
 
 public class PageLockTest {
-    
+
     @Test
     public void testPageLockIsExpired() throws Exception {
-        final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
+        // PageLock.isExpired() is pure date math — a mock Engine avoids a full engine boot.
+        final Engine engine = MockEngineBuilder.engine().build();
         final Page page = Wiki.contents().page( engine, "test" );
         final PageLock lock1 = new PageLock( page, "user", new Date( System.currentTimeMillis() - 10000 ), new Date( System.currentTimeMillis() - 5000 ) );
         final PageLock lock2 = new PageLock( page, "user", new Date( System.currentTimeMillis() - 10000 ), new Date( System.currentTimeMillis() + 5000 ) );

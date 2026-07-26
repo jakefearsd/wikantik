@@ -81,7 +81,7 @@ class DerivedIngestResourceTest {
 
     /** Clears the shared mock WikiSession so the next request resolves as anonymous. */
     private void anonymizeMockSession() {
-        SessionMonitor.getInstance( engine ).remove( "mock-session" );
+        SessionMonitor.getInstance( engine ).remove( HttpMockFactory.SHARED_SESSION_ID );
     }
 
     @AfterEach

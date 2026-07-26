@@ -77,9 +77,15 @@ class AdminUserResourceTest {
         assertTrue( obj.has( "users" ), "Response should contain 'users' key" );
         final JsonArray users = obj.getAsJsonArray( "users" );
         assertNotNull( users, "Users array should not be null" );
-        // The XML user database in the test harness may or may not have pre-existing users;
-        // we only assert the response structure is correct.
-        assertTrue( users.size() >= 0, "Users array should be a valid (possibly empty) array" );
+        // InMemoryUserDatabase always seeds the standard test accounts.
+        boolean adminListed = false;
+        for ( int i = 0; i < users.size(); i++ ) {
+            if ( "admin".equals( users.get( i ).getAsJsonObject().get( "loginName" ).getAsString() ) ) {
+                adminListed = true;
+                break;
+            }
+        }
+        assertTrue( adminListed, "seeded 'admin' account should be in the user listing: " + users );
     }
 
     @Test

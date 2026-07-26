@@ -127,9 +127,7 @@ class AdminContentResourceTest {
                 "Should have queued at least 2 pages for reindexing" );
 
         // Cleanup
-        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
-        try { pm.deletePage( "ReindexPage1" ); } catch ( final Exception e ) { /* ignore */ }
-        try { pm.deletePage( "ReindexPage2" ); } catch ( final Exception e ) { /* ignore */ }
+        engine.deleteQuietly( "ReindexPage1", "ReindexPage2" );
     }
 
     @Test
@@ -150,8 +148,7 @@ class AdminContentResourceTest {
                 "Should report entries removed count" );
 
         // Cleanup
-        try { engine.getManager( com.wikantik.api.managers.PageManager.class ).deletePage( "CacheTestPage" ); }
-        catch ( final Exception e ) { /* ignore */ }
+        engine.deleteQuietly( "CacheTestPage" );
     }
 
     @Test
@@ -227,8 +224,7 @@ class AdminContentResourceTest {
                 "No versions should be purged when only 1 exists" );
 
         // Cleanup
-        try { engine.getManager( com.wikantik.api.managers.PageManager.class ).deletePage( "PurgeTestPage" ); }
-        catch ( final Exception e ) { /* ignore */ }
+        engine.deleteQuietly( "PurgeTestPage" );
     }
 
     @Test
@@ -299,8 +295,7 @@ class AdminContentResourceTest {
         }
 
         // Cleanup
-        try { engine.getManager( com.wikantik.api.managers.PageManager.class ).deletePage( "BrokenLinkSource" ); }
-        catch ( final Exception e ) { /* ignore */ }
+        engine.deleteQuietly( "BrokenLinkSource" );
     }
 
     @Test
@@ -311,17 +306,16 @@ class AdminContentResourceTest {
         assertTrue( obj.has( "pageCount" ) );
         assertTrue( obj.has( "caches" ) );
         final JsonArray caches = obj.getAsJsonArray( "caches" );
-        // Verify cache entries have expected structure
-        if ( caches.size() > 0 ) {
-            final JsonObject cache = caches.get( 0 ).getAsJsonObject();
-            assertTrue( cache.has( "name" ), "Cache entry should have 'name'" );
-            assertTrue( cache.has( "fullName" ), "Cache entry should have 'fullName'" );
-            assertTrue( cache.has( "size" ), "Cache entry should have 'size'" );
-            assertTrue( cache.has( "maxSize" ), "Cache entry should have 'maxSize'" );
-            assertTrue( cache.has( "hits" ), "Cache entry should have 'hits'" );
-            assertTrue( cache.has( "misses" ), "Cache entry should have 'misses'" );
-            assertTrue( cache.has( "hitRatio" ), "Cache entry should have 'hitRatio'" );
-        }
+        assertFalse( caches.isEmpty(),
+                "engine startup always registers render/page caches — empty means the stats endpoint lost them" );
+        final JsonObject cache = caches.get( 0 ).getAsJsonObject();
+        assertTrue( cache.has( "name" ), "Cache entry should have 'name'" );
+        assertTrue( cache.has( "fullName" ), "Cache entry should have 'fullName'" );
+        assertTrue( cache.has( "size" ), "Cache entry should have 'size'" );
+        assertTrue( cache.has( "maxSize" ), "Cache entry should have 'maxSize'" );
+        assertTrue( cache.has( "hits" ), "Cache entry should have 'hits'" );
+        assertTrue( cache.has( "misses" ), "Cache entry should have 'misses'" );
+        assertTrue( cache.has( "hitRatio" ), "Cache entry should have 'hitRatio'" );
     }
 
     @Test

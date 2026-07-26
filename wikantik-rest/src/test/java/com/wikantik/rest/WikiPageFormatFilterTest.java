@@ -26,7 +26,6 @@ import com.wikantik.TestEngine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
-import com.wikantik.api.managers.PageManager;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
@@ -93,8 +92,7 @@ class WikiPageFormatFilterTest {
     @AfterEach
     void tearDown() throws Exception {
         if ( engine != null ) {
-            final PageManager pm = engine.getManager( PageManager.class );
-            try { pm.deletePage( "FormatPage" ); } catch ( final Exception ignored ) {}
+            engine.deleteQuietly( "FormatPage" );
             engine.stop();
         }
     }

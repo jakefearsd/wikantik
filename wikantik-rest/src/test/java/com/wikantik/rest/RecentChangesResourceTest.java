@@ -24,7 +24,6 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
-import com.wikantik.api.managers.PageManager;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
@@ -64,9 +63,7 @@ class RecentChangesResourceTest {
     @AfterEach
     void tearDown() throws Exception {
         if ( engine != null ) {
-            final PageManager pm = engine.getManager( PageManager.class );
-            try { pm.deletePage( "RestRecentPage1" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestRecentPage2" ); } catch ( final Exception e ) { /* ignore */ }
+            engine.deleteQuietly( "RestRecentPage1", "RestRecentPage2" );
             engine.stop();
         }
     }

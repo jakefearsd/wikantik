@@ -24,7 +24,6 @@ import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Page;
-import com.wikantik.api.managers.PageManager;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
@@ -67,9 +66,7 @@ class ChangesResourceTest {
     @AfterEach
     void tearDown() throws Exception {
         if ( engine != null ) {
-            final PageManager pm = engine.getManager( PageManager.class );
-            try { pm.deletePage( "ChangesPageA" ); } catch ( final Exception ignored ) {}
-            try { pm.deletePage( "ChangesPageB" ); } catch ( final Exception ignored ) {}
+            engine.deleteQuietly( "ChangesPageA", "ChangesPageB" );
             engine.stop();
         }
     }

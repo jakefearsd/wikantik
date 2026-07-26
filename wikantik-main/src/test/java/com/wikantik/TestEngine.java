@@ -243,6 +243,24 @@ public class TestEngine extends WikiEngine {
     }
 
     /**
+     * Deletes the named test pages, logging (never rethrowing) any failure — the
+     * standard tearDown cleanup helper. Replaces the copy-pasted
+     * {@code try { pm.deletePage(n); } catch( Exception e ) { /* ignore *&#47; }} shape.
+     *
+     * @param pageNames pages to delete; missing pages are fine.
+     */
+    public void deleteQuietly( final String... pageNames ) {
+        final PageManager pm = getManager( PageManager.class );
+        for( final String name : pageNames ) {
+            try {
+                pm.deletePage( name );
+            } catch( final Exception e ) {
+                LOG.warn( "test cleanup: could not delete page '{}': {}", name, e.getMessage() );
+            }
+        }
+    }
+
+    /**
      * Waits for the ReferenceManager to complete its background initialization.
      * This ensures tests have predictable behavior when checking reference data.
      * <p>

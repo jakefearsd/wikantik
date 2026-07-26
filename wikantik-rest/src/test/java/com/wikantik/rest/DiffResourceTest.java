@@ -23,7 +23,6 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
-import com.wikantik.api.managers.PageManager;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
@@ -64,8 +63,7 @@ class DiffResourceTest {
     @AfterEach
     void tearDown() throws Exception {
         if ( engine != null ) {
-            final PageManager pm = engine.getManager( PageManager.class );
-            try { pm.deletePage( "RestDiffPage" ); } catch ( final Exception e ) { /* ignore */ }
+            engine.deleteQuietly( "RestDiffPage" );
             engine.stop();
         }
     }

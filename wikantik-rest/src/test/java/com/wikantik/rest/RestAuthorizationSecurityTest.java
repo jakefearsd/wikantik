@@ -83,19 +83,9 @@ class RestAuthorizationSecurityTest {
     @AfterEach
     void tearDown() throws Exception {
         if ( engine != null ) {
-            final PageManager pm = engine.getManager( PageManager.class );
-            try { pm.deletePage( "SecTestDeletePage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "SecTestAclPage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "SecTestPublicPage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "SecTestEditPage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "SecTestAttPage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "SecTestDiffAcl" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "SecTestHistAcl" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "SecTestBacklinkAcl" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "SecTestRecentPublic" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "SecTestRecentAcl" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "SecTestListPublic" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "SecTestListAcl" ); } catch ( final Exception e ) { /* ignore */ }
+            engine.deleteQuietly( "SecTestDeletePage", "SecTestAclPage", "SecTestPublicPage", "SecTestEditPage",
+                    "SecTestAttPage", "SecTestDiffAcl", "SecTestHistAcl", "SecTestBacklinkAcl",
+                    "SecTestRecentPublic", "SecTestRecentAcl", "SecTestListPublic", "SecTestListAcl" );
             engine.stop();
         }
     }

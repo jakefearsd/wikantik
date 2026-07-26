@@ -100,10 +100,7 @@ class SearchResourceTest {
     @AfterEach
     void tearDown() throws Exception {
         if ( engine != null ) {
-            final PageManager pm = engine.getManager( PageManager.class );
-            try { pm.deletePage( "RestSearchAlpha" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestSearchBeta" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "SecSearchRestricted" ); } catch ( final Exception e ) { /* ignore */ }
+            engine.deleteQuietly( "RestSearchAlpha", "RestSearchBeta", "SecSearchRestricted" );
             engine.stop();
         }
     }
@@ -165,15 +162,11 @@ class SearchResourceTest {
 
     @Test
     void testSearchResultFields() throws Exception {
-        final String json = doSearch( "Alpha", null );
-        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        final JsonArray results = awaitSearchResults( "Alpha" );
 
-        final JsonArray results = obj.getAsJsonArray( "results" );
-        if ( results.size() > 0 ) {
-            final JsonObject entry = results.get( 0 ).getAsJsonObject();
-            assertTrue( entry.has( "name" ) );
-            assertTrue( entry.has( "score" ) );
-        }
+        final JsonObject entry = results.get( 0 ).getAsJsonObject();
+        assertTrue( entry.has( "name" ), "search result entry should carry a name field" );
+        assertTrue( entry.has( "score" ), "search result entry should carry a score field" );
     }
 
     @Test

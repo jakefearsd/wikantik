@@ -67,22 +67,10 @@ class PageResourceTest {
     @AfterEach
     void tearDown() throws Exception {
         if ( engine != null ) {
-            final PageManager pm = engine.getManager( PageManager.class );
-            try { pm.deletePage( "RestTestPage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestEventPage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestTestFrontmatter" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestPutPage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestDeletePage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestRenderPage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestPluginPage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestPluginLinkPage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestEditLinkPage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestVersionPage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestPatchMergePage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestPatchReplacePage" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestRenameSource" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestRenameTarget" ); } catch ( final Exception e ) { /* ignore */ }
-            try { pm.deletePage( "RestRenameExisting" ); } catch ( final Exception e ) { /* ignore */ }
+            engine.deleteQuietly( "RestTestPage", "RestEventPage", "RestTestFrontmatter", "RestPutPage",
+                    "RestDeletePage", "RestRenderPage", "RestPluginPage", "RestPluginLinkPage", "RestEditLinkPage",
+                    "RestVersionPage", "RestPatchMergePage", "RestPatchReplacePage", "RestRenameSource",
+                    "RestRenameTarget", "RestRenameExisting" );
             engine.stop();
         }
     }

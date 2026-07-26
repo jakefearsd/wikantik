@@ -101,10 +101,7 @@ class SitemapServletTest {
             pm.deletePage( "LeftMenuFooter" );
             pm.deletePage( "TitleBox" );
             pm.deletePage( "CSSStyles" );
-            try { pm.deletePage( "About" ); } catch ( final Exception ignored ) {}
-            try { pm.deletePage( "SitemapLastmodPage" ); } catch ( final Exception ignored ) {}
-            try { pm.deletePage( "NewPageAfterCache" ); } catch ( final Exception ignored ) {}
-            try { pm.deletePage( "NewsTestPage" ); } catch ( final Exception ignored ) {}
+            m_engine.deleteQuietly( "About", "SitemapLastmodPage", "NewPageAfterCache", "NewsTestPage" );
         }
     }
 

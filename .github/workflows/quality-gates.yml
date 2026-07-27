@@ -59,6 +59,34 @@ jobs:
         working-directory: wikantik-frontend
         run: npm test
 
+  shell-tests:
+    # Deploy/ops tooling suites under bin/tests/. These guard bin/remote.sh,
+    # bin/container.sh and the DB helper scripts — none of which the Maven
+    # reactor covers, so before this job they only ran when someone remembered
+    # to run them by hand. Dry-run + stub style: no real ssh, no real Postgres.
+    # `docker compose config` is the only external need (preinstalled on
+    # ubuntu-latest); the suites never start a container.
+    #
+    # test-backup.sh is deliberately NOT listed: it stubs pg_dump/psql on PATH,
+    # but docker/backup/backup.sh resets PATH unconditionally (the BusyBox crond
+    # fix), so the stubs never take effect and the suite is red everywhere.
+    # Fixing it means changing that PATH reset — tracked separately.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Deploy + ops tooling tests
+        run: |
+          set -e
+          for suite in test-remote.sh test-container.sh \
+                       test-audit-retention.sh test-create-migrate-user.sh; do
+            echo "::group::${suite}"
+            bash "bin/tests/${suite}"
+            echo "::endgroup::"
+          done
+
   osv-scan:
     # Dependency vulnerability scan: Maven tree via a CycloneDX SBOM (Maven has
     # no lockfile) + the frontend npm lockfile, checked against OSV.dev.

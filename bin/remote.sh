@@ -96,7 +96,15 @@ load_env() {
     # Registry image prefix for `deploy --pull TAG` (remote-side docker pull).
     # Default matches bin/deploy-release.sh's WIKANTIK_IMAGE convention.
     : "${WIKANTIK_IMAGE:=ghcr.io/jakefearsd/wikantik}"
+    # How many wikantik:X.Y.Z version tags to keep on the remote. Version tags
+    # are what keep old releases addressable (and safe from `docker image
+    # prune`) so there is always something concrete to roll back to.
+    : "${ROLLBACK_KEEP:=5}"
 }
+
+# Temp tag holding the pre-deploy image between steps 5 and 6a. Never promoted
+# to :rollback until the new image's ID is known to differ — see cmd_deploy.
+PREV_TAG="wikantik:__deploy_prev"
 
 # ---------- Argument parsing (global flags) ----------
 
@@ -342,20 +350,31 @@ Flow (default / --skip-build):
   2. docker compose build wikantik
   3. flock --nonblock on the remote
   4. rsync compose + .env to REMOTE_REPO_DIR
-  5. tag remote wikantik:latest as wikantik:rollback   (silent on first deploy)
+  5. snapshot remote wikantik:latest under a temp tag  (silent on first deploy)
   6. docker save | ssh 'docker load'
+ 6a. promote the snapshot to :rollback ONLY if the new image differs, then tag
+     wikantik:<version> from the image label and prune to ROLLBACK_KEEP (${ROLLBACK_KEEP})
   7. container.sh -e prod up -d
+ 7a. verify the running container's image == wikantik:latest (fails a no-op deploy)
   8. poll HEALTH_URL every 3s up to --health-timeout
   9. on failure: re-promote :rollback, print last 50 wikantik log lines, exit 1
 
 Flow (--pull TAG) — steps 1+2+6 above are replaced by a single remote pull+tag:
   3. flock --nonblock on the remote
   4. rsync compose + .env to REMOTE_REPO_DIR
-  5. tag remote wikantik:latest as wikantik:rollback   (silent on first deploy)
+  5. snapshot remote wikantik:latest under a temp tag  (silent on first deploy)
   6. remote: docker pull ${WIKANTIK_IMAGE}:TAG && docker tag ${WIKANTIK_IMAGE}:TAG wikantik:latest
+ 6a. promote the snapshot to :rollback ONLY if the new image differs, then tag
+     wikantik:<version> from the image label and prune to ROLLBACK_KEEP (${ROLLBACK_KEEP})
   7. container.sh -e prod up -d
+ 7a. verify the running container's image == wikantik:latest (fails a no-op deploy)
   8. poll HEALTH_URL every 3s up to --health-timeout
   9. on failure: re-promote :rollback, print last 50 wikantik log lines, exit 1
+
+Why 5/6a are split: tagging :rollback before the load made a repeat deploy of
+the same image overwrite the only rollback target with the image you would need
+to roll back *from*. IDs are compared remote-side because docker save|load
+recomputes the image ID across differing storage backends.
 EOF
 
     while [[ $# -gt 0 ]]; do
@@ -411,8 +430,13 @@ EOF
         _rsync -avz --chmod=F600 "${env_src}" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/.env"
     fi
 
-    # ---------- 5: tag prior image as :rollback (silent on first deploy) ----------
-    _ssh "docker tag wikantik:latest wikantik:rollback 2>/dev/null || true"
+    # ---------- 5: snapshot the prior image (silent on first deploy) ----------
+    # NOT :rollback yet. Tagging :rollback here unconditionally meant a repeat
+    # deploy of the same image copied the just-deployed image onto :rollback,
+    # destroying the only rollback target — the image you would need to roll
+    # back *from*. Park it under a temp tag; step 6a promotes it only if the
+    # newly-loaded image actually differs.
+    _ssh "docker tag wikantik:latest ${PREV_TAG} 2>/dev/null || true"
 
     # ---------- 6: get the new image onto the remote ----------
     if [[ -n "${pull_tag}" ]]; then
@@ -433,8 +457,55 @@ EOF
         docker save wikantik:latest | ${ssh_inline} "${REMOTE_USER}@${REMOTE_HOST}" 'docker load'
     fi
 
+    # ---------- 6a: decide the rollback target, tag + prune version tags ----------
+    # Compares image IDs on the remote, after the load. Comparing local-vs-remote
+    # IDs would be wrong: `docker save | docker load` recomputes the ID when the
+    # two daemons use different storage backends, so an identical image can
+    # arrive with a different ID.
+    _ssh "set -e
+prev=\$(docker image inspect -f '{{.Id}}' ${PREV_TAG} 2>/dev/null || true)
+new=\$(docker image inspect -f '{{.Id}}' wikantik:latest 2>/dev/null || true)
+if [ -z \"\${new}\" ]; then
+    echo 'remote.sh: no wikantik:latest on the remote after load.' >&2; exit 1
+fi
+if [ -z \"\${prev}\" ]; then
+    echo 'remote.sh: first deploy — no prior image, rollback target not set.'
+elif [ \"\${prev}\" = \"\${new}\" ]; then
+    echo 'remote.sh: same image redeployed; rollback target left unchanged.'
+else
+    docker tag ${PREV_TAG} wikantik:rollback
+    echo \"remote.sh: rollback target set to the prior image (\${prev}).\"
+fi
+docker rmi ${PREV_TAG} >/dev/null 2>&1 || true
+ver=\$(docker image inspect -f '{{index .Config.Labels \"org.opencontainers.image.version\"}}' wikantik:latest 2>/dev/null || true)
+if [ -n \"\${ver}\" ]; then
+    docker tag wikantik:latest \"wikantik:\${ver}\"
+    echo \"remote.sh: tagged wikantik:\${ver}.\"
+    # Retention: keep the newest ROLLBACK_KEEP semver tags, drop the rest.
+    docker images --format '{{.Tag}}' wikantik 2>/dev/null \
+        | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\$' | sort -Vr | tail -n +\$((${ROLLBACK_KEEP} + 1)) \
+        | while read -r old; do docker rmi \"wikantik:\${old}\" >/dev/null 2>&1 || true; done
+fi"
+
     # ---------- 7: up -d via remote container.sh ----------
     _ssh "cd $(printf '%q' "${REMOTE_REPO_DIR}") && bin/container.sh -e prod up -d"
+
+    # ---------- 7a: prove the running container IS the image we just shipped ----------
+    # The health poll below only proves *something* healthy is listening — it
+    # passes trivially when compose decides not to recreate and the previous
+    # container stays up. That is how a no-op deploy reported success.
+    _ssh "set -e
+cid=\$(cd $(printf '%q' "${REMOTE_REPO_DIR}") && bin/container.sh -e prod ps -q wikantik)
+if [ -z \"\${cid}\" ]; then
+    echo 'remote.sh: no running wikantik container after up -d.' >&2; exit 1
+fi
+running=\$(docker inspect -f '{{.Image}}' \"\${cid}\")
+want=\$(docker image inspect -f '{{.Id}}' wikantik:latest)
+if [ \"\${running}\" != \"\${want}\" ]; then
+    echo \"remote.sh: deployed image is not the running image (running \${running}, expected \${want}) — the container was not recreated.\" >&2
+    exit 1
+fi
+echo 'remote.sh: verified the running container is the deployed image.'"
 
     # ---------- 8: health poll ----------
     if [[ "${DRY_RUN}" -eq 1 ]]; then
@@ -463,22 +534,60 @@ EOF
 
 cmd_rollback() {
     _subcommand_help "${1:-}" <<'EOF' || return 0
-rollback — re-promote wikantik:rollback to wikantik:latest, force-recreate the service.
+rollback — re-promote a prior image to wikantik:latest, force-recreate the service.
 
-Usage: bin/remote.sh [--dry-run] rollback
+Usage: bin/remote.sh [--dry-run] rollback [--to X.Y.Z]
 
-Fails if no :rollback image exists on the remote (means no successful prior
-deploy has been recorded). In that case, recovery is manual: re-deploy a
-known-good build or restore from backup. Acquires the same deploy lock
-as `deploy` and `restore`.
+Without --to, re-promotes wikantik:rollback (the image displaced by the last
+deploy that actually changed the running image). With --to, re-promotes the
+named wikantik:X.Y.Z version tag — deploy retains the newest ROLLBACK_KEEP
+(default 5) of those, so you can step back further than one release and can
+see what you are choosing.
+
+Fails if the requested image does not exist on the remote, listing the version
+tags that ARE available. If none are, recovery is manual: re-deploy a known-good
+build or restore from backup. Acquires the same deploy lock as `deploy` and
+`restore`.
 EOF
 
+    local target="wikantik:rollback" to_version=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --to=*) to_version="${1#*=}"; shift ;;
+            --to)
+                if [[ -z "${2:-}" || "${2}" == -* ]]; then
+                    echo "rollback --to: missing <X.Y.Z> argument." >&2
+                    exit 2
+                fi
+                to_version="$2"; shift 2 ;;
+            *) echo "rollback: unknown flag: $1" >&2; exit 2 ;;
+        esac
+    done
+    if [[ -n "${to_version}" ]]; then
+        # Validate before it reaches a remote shell — this string is interpolated
+        # into an ssh command.
+        if [[ ! "${to_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "rollback --to: '${to_version}' is not a X.Y.Z version." >&2
+            exit 2
+        fi
+        target="wikantik:${to_version}"
+    fi
+
     _acquire_deploy_lock
-    _ssh "docker image inspect wikantik:rollback >/dev/null 2>&1 \
-          || { echo 'no wikantik:rollback image on ${REMOTE_HOST} — nothing to roll back to.' >&2; exit 1; }"
-    _ssh "docker tag wikantik:rollback wikantik:latest"
+    _ssh "if ! docker image inspect $(printf '%q' "${target}") >/dev/null 2>&1; then
+    echo 'no ${target} image on ${REMOTE_HOST} — nothing to roll back to.' >&2
+    echo 'available wikantik tags:' >&2
+    docker images --format '  {{.Repository}}:{{.Tag}}' wikantik >&2 || true
+    exit 1
+fi"
+    # Preserve a way back out of the rollback itself: the image being replaced
+    # becomes the new :rollback, unless we are re-promoting :rollback already.
+    if [[ -n "${to_version}" ]]; then
+        _ssh "docker tag wikantik:latest wikantik:rollback 2>/dev/null || true"
+    fi
+    _ssh "docker tag $(printf '%q' "${target}") wikantik:latest"
     _ssh "cd $(printf '%q' "${REMOTE_REPO_DIR}") && bin/container.sh -e prod up -d --force-recreate wikantik"
-    echo "Rollback complete on ${REMOTE_HOST}."
+    echo "Rollback complete on ${REMOTE_HOST} (promoted ${target})."
 }
 
 cmd_bootstrap() {

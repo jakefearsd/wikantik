@@ -20,11 +20,19 @@
 #   1. (X.Y.Z given) docker pull ghcr.io/jakefearsd/wikantik:X.Y.Z
 #   2. docker tag <image> wikantik:latest
 #   3. bin/remote.sh deploy --skip-build
-#        → tags the running remote image wikantik:rollback
+#        → snapshots the running remote image (promoted to wikantik:rollback
+#          only if the newly-loaded image differs — a repeat deploy of the same
+#          version therefore keeps its existing rollback target)
 #        → docker save | ssh 'docker load'
+#        → tags wikantik:<version> from the image label, keeping the newest
+#          ROLLBACK_KEEP (default 5) so old releases survive `docker image prune`
 #        → rsyncs docker-compose*.yml + the prod env file
 #        → container.sh -e prod up -d   (entrypoint runs pending migrations)
-#        → polls /api/health; auto-rolls-back on failure
+#        → verifies the running container IS the deployed image, then polls
+#          /api/health; auto-rolls-back on failure
+#
+# Roll back with:  bin/remote.sh rollback            (one step back)
+#                  bin/remote.sh rollback --to X.Y.Z (a specific retained version)
 #
 # Env:
 #   WIKANTIK_IMAGE   registry image (default: ghcr.io/jakefearsd/wikantik)

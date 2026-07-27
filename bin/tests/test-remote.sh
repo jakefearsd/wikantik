@@ -227,9 +227,10 @@ _body_deploy_dry_run_shape() {
     out="$("${FAKE_ENV}/bin/remote.sh" --dry-run deploy --skip-build 2>&1)" \
         || fail "deploy dry-run non-zero: ${out}"
 
-    # Tag-rollback step
-    echo "${out}" | grep -q "docker tag wikantik:latest wikantik:rollback" \
-        || fail "deploy did not tag prior image as :rollback: ${out}"
+    # Prior-image snapshot (promoted to :rollback post-load; see
+    # test_deploy_rollback_guard for the same-image case).
+    echo "${out}" | grep -q "docker tag wikantik:latest wikantik:__deploy_prev" \
+        || fail "deploy did not snapshot the prior image: ${out}"
     # Image stream
     echo "${out}" | grep -q "docker save wikantik:latest" \
         || fail "deploy did not docker-save the image: ${out}"
@@ -471,3 +472,97 @@ test_deploy_health_timeout_flag_space() {
     ok "deploy --health-timeout 120 parses (space form)"
 }
 test_deploy_health_timeout_flag_space
+
+# --- rollback target must survive a repeat deploy of the same image ---
+#
+# Regression guard for the 2.3.12 deploy: step 5 used to run an unconditional
+# `docker tag wikantik:latest wikantik:rollback` *before* loading the new image.
+# Re-running a deploy (retry, double-invoke, idempotent re-deploy) therefore
+# copied the just-deployed image onto :rollback, destroying the only rollback
+# target — prod ended up with :rollback == :latest == 2.3.12 and nothing to
+# roll back to. The prior image is now parked under a temp tag and promoted to
+# :rollback only once the new image's ID is known to differ.
+_body_deploy_rollback_guard() {
+    local out
+    out="$("${FAKE_ENV}/bin/remote.sh" --dry-run deploy --skip-build 2>&1)" \
+        || fail "deploy dry-run non-zero: ${out}"
+
+    echo "${out}" | grep -q "wikantik:__deploy_prev" \
+        || fail "deploy did not park the prior image under a temp tag: ${out}"
+    # The promote decision must be conditional on the IDs differing.
+    echo "${out}" | grep -q 'rollback target left unchanged' \
+        || fail "deploy has no same-image branch that preserves :rollback: ${out}"
+    echo "${out}" | grep -q "docker tag wikantik:__deploy_prev wikantik:rollback" \
+        || fail "deploy never promotes the prior image to :rollback: ${out}"
+    # The old unconditional pre-load tagging must be gone.
+    echo "${out}" | grep -q "docker tag wikantik:latest wikantik:rollback" \
+        && fail "deploy still unconditionally tags :latest as :rollback: ${out}"
+    return 0
+}
+test_deploy_rollback_guard() {
+    with_fake_env _body_deploy_rollback_guard
+    ok "deploy preserves :rollback when the same image is redeployed"
+}
+test_deploy_rollback_guard
+
+# --- deploy must prove the running container is the image it just shipped ---
+#
+# The health poll only asserts /api/health returns 200, which passes trivially
+# when the previous container is still up and compose decided not to recreate
+# (exactly what happened on the 2.3.12 re-run: compose reported "Running", not
+# "Recreated", and the deploy still reported success).
+_body_deploy_verifies_running_image() {
+    local out
+    out="$("${FAKE_ENV}/bin/remote.sh" --dry-run deploy --skip-build 2>&1)" \
+        || fail "deploy dry-run non-zero: ${out}"
+    echo "${out}" | grep -q "deployed image is not the running image" \
+        || fail "deploy does not verify the running container matches :latest: ${out}"
+    echo "${out}" | grep -q "container.sh -e prod ps -q wikantik" \
+        || fail "deploy does not resolve the running container via compose: ${out}"
+}
+test_deploy_verifies_running_image() {
+    with_fake_env _body_deploy_verifies_running_image
+    ok "deploy verifies the running container is the deployed image"
+}
+test_deploy_verifies_running_image
+
+# --- deploy retains version-identified tags so rollback targets survive prune ---
+#
+# Prior versions used to go untagged (<none>) the moment :latest/:rollback moved
+# on, so a `docker image prune` would delete every rollback target. Version tags
+# keep the last N releases addressable by name.
+_body_deploy_version_tag_retention() {
+    local out
+    out="$("${FAKE_ENV}/bin/remote.sh" --dry-run deploy --skip-build 2>&1)" \
+        || fail "deploy dry-run non-zero: ${out}"
+    echo "${out}" | grep -q "org.opencontainers.image.version" \
+        || fail "deploy does not read the version label to tag the image: ${out}"
+    echo "${out}" | grep -q "ROLLBACK_KEEP" \
+        || fail "deploy does not apply a retention count to version tags: ${out}"
+}
+test_deploy_version_tag_retention() {
+    with_fake_env _body_deploy_version_tag_retention
+    ok "deploy applies version tags with bounded retention"
+}
+test_deploy_version_tag_retention
+
+# --- rollback --to X.Y.Z targets a named version ---
+_body_rollback_to_version() {
+    local out exit_code=0
+    out="$("${FAKE_ENV}/bin/remote.sh" --dry-run rollback --to 2.3.10 2>&1)" \
+        || fail "rollback --to dry-run non-zero: ${out}"
+    echo "${out}" | grep -q "wikantik:2.3.10" \
+        || fail "rollback --to 2.3.10 did not target the version tag: ${out}"
+    echo "${out}" | grep -q "force-recreate wikantik" \
+        || fail "rollback --to did not force-recreate: ${out}"
+
+    # A malformed version must be rejected before any ssh happens.
+    out="$("${FAKE_ENV}/bin/remote.sh" --dry-run rollback --to 'latest; rm -rf /' 2>&1)" || exit_code=$?
+    [[ "${exit_code}" -eq 2 ]] \
+        || fail "rollback --to with a malformed version should exit 2, got ${exit_code}: ${out}"
+}
+test_rollback_to_version() {
+    with_fake_env _body_rollback_to_version
+    ok "rollback --to X.Y.Z targets a named version and validates input"
+}
+test_rollback_to_version

@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **A repeat deploy no longer destroys the rollback target.** `remote.sh deploy` tagged the
+  remote `wikantik:latest` as `wikantik:rollback` *before* loading the new image, so deploying
+  the same image twice — a retry, a double-invoke, an idempotent re-deploy — copied the
+  just-deployed image onto `:rollback`, leaving `:rollback == :latest` and nothing to roll back
+  to (observed on the 2.3.12 deploy). The prior image is now parked under a temp tag and
+  promoted to `:rollback` only once the newly-loaded image is known to differ. IDs are compared
+  remote-side because `docker save | docker load` recomputes the image ID when the two daemons
+  use different storage backends.
+- **A deploy that silently changes nothing now fails.** The health poll only proved *something*
+  healthy was listening, so it passed when compose declined to recreate the container and the
+  previous version stayed up. Deploy now asserts the running container's image is the image it
+  just shipped, and fails loudly naming both IDs.
+
+### Added
+- **Version-identified rollback targets.** Deploy tags `wikantik:<X.Y.Z>` on the remote from the
+  image's `org.opencontainers.image.version` label and retains the newest `ROLLBACK_KEEP`
+  (default 5), so prior releases stay addressable instead of becoming dangling `<none>` images
+  that `docker image prune` deletes. `remote.sh rollback --to X.Y.Z` re-promotes a named
+  version (validated as X.Y.Z before it reaches a remote shell) and lists what is available
+  when the requested one is absent.
+
 ## [2.3.12] - 2026-07-26
 
 ### Fixed

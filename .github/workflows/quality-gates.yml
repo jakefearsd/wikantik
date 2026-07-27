@@ -77,6 +77,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # The compose files declare `env_file: .env`, which is gitignored — without
+      # it `docker compose config` fails outright ("env file .env not found"),
+      # so the suites only ever passed on a machine that already had a local
+      # .env. The tracked template is enough: these tests only parse compose,
+      # they never start anything.
+      - name: Seed .env from the tracked template
+        run: cp .env.example .env
+
       - name: Deploy + ops tooling tests
         run: |
           set -e

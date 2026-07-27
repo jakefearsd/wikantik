@@ -20,6 +20,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   previous version stayed up. Deploy now asserts the running container's image is the image it
   just shipped, and fails loudly naming both IDs.
 
+- **The backup sidecar no longer overwrites a caller's environment.**
+  `docker/backup/backup.sh` unconditionally reset `PATH` and re-exported every variable from
+  PID 1's environ (the BusyBox crond fix), which clobbered any explicitly-supplied `PATH` or
+  env — silently defeating the offline test harness, whose `pg_dump`/`psql` stubs were dropped
+  on the floor so `bin/tests/test-backup.sh` could never pass anywhere. Both steps now *repair*
+  a stripped environment instead of overwriting a good one: `PATH` is restored only when
+  `pg_dump` is not already resolvable, and PID 1's values fill in only variables the caller
+  left unset. Cron behaviour is unchanged.
+- **Two green CI gates that were red.** The complexity ratchet caught two violations introduced
+  by the 2.3.12 design-pattern pass — `AnthropicHttpCaller.call` at 9 parameters and
+  `PageCanonicalIdsDao.upsert` at cognitive complexity 24 (threshold 20). The former groups its
+  four connection arguments into an `Endpoint` record; the latter splits its INSERT and UPDATE
+  branches into `insertNew`/`updateExisting` with a shared stale-slug-owner warning. Behaviour
+  is unchanged. Dependency scanning flagged `brace-expansion` and `postcss` (both dev-only,
+  both upgraded).
+
 ### Added
 - **Version-identified rollback targets.** Deploy tags `wikantik:<X.Y.Z>` on the remote from the
   image's `org.opencontainers.image.version` label and retains the newest `ROLLBACK_KEEP`
@@ -27,6 +43,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   that `docker image prune` deletes. `remote.sh rollback --to X.Y.Z` re-promotes a named
   version (validated as X.Y.Z before it reaches a remote shell) and lists what is available
   when the requested one is absent.
+- **The `bin/tests/` shell suites now run in CI** (`quality-gates.yml`), covering `remote.sh`,
+  `container.sh`, the backup sidecar and the DB helpers — none of which the Maven reactor
+  touches, so until now they only ran when someone remembered to. The job seeds `.env` from
+  `.env.example` first, because the compose files declare it as a required `env_file` and
+  without it `docker compose config` fails outright.
+- **`osv-scanner.toml`** — a reviewed suppression list for the dependency gate. Its single
+  entry documents why the react-router RSC advisory cannot apply here (the SPA uses no RSC
+  APIs) and that no fixed version exists for `react-router-dom`, with an expiry so it cannot
+  rot silently.
 
 ## [2.3.12] - 2026-07-26
 

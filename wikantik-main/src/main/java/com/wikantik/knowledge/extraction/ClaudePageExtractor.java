@@ -102,7 +102,8 @@ public final class ClaudePageExtractor implements PageExtractor {
     private String callAnthropic( final Page page, final ExtractionContext ctx )
             throws IOException, InterruptedException {
         final String userPrompt = PageExtractionPromptBuilder.buildUserPrompt( page, ctx );
-        final String text = AnthropicHttpCaller.call( httpClient, apiKey, model, timeoutMs, MAX_OUTPUT_TOKENS,
+        final String text = AnthropicHttpCaller.call(
+            new AnthropicHttpCaller.Endpoint( httpClient, apiKey, model, timeoutMs ), MAX_OUTPUT_TOKENS,
             PageExtractionPromptBuilder.SYSTEM_PROMPT, userPrompt,
             ( statusCode, respBody ) ->
                 LOG.warn( "Claude page extract HTTP {} for page '{}': {}", statusCode, page.name(), respBody ),

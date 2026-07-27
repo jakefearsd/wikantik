@@ -57,101 +57,117 @@ public class PageCanonicalIdsDao extends SpineJdbcSupport {
      */
     public enum UpsertResult { WRITTEN, SKIPPED_STALE_SLUG_OWNER }
 
+    /**
+     * The desired state of one {@code page_canonical_ids} row. Groups the five values that
+     * travel together through every branch of the upsert, so the branch helpers below take
+     * one argument instead of five.
+     */
+    private record UpsertSpec( String canonicalId, String currentSlug, String title, String type, String cluster ) {}
+
     public UpsertResult upsert( final String canonicalId,
                                 final String currentSlug,
                                 final String title,
                                 final String type,
                                 final String cluster ) {
+        final UpsertSpec spec = new UpsertSpec( canonicalId, currentSlug, title, type, cluster );
         try {
             return inTransaction( conn -> {
                 final Optional< Row > existing = findByCanonicalId( conn, canonicalId );
-                if ( existing.isEmpty() ) {
-                    // Before inserting, check whether the slug is already claimed by a
-                    // different canonical_id.  This happens when the frontmatter canonical_id
-                    // was changed after the DB row was first written (data corruption /
-                    // stale row), or when two pages share the same slug.  Attempting the
-                    // INSERT would throw a unique-constraint violation with a noisy stacktrace;
-                    // instead we detect the conflict pre-emptively and warn cleanly.
-                    final Optional< Row > slugOwner = findBySlug( conn, currentSlug );
-                    if ( slugOwner.isPresent() ) {
-                        final String ownerId = slugOwner.get().canonicalId();
-                        if ( ownerId.equals( canonicalId ) ) {
-                            // Already consistent — nothing to do (should be unreachable since
-                            // findByCanonicalId returned empty, but guard defensively).
-                            LOG.debug( "upsert({}, {}): slug already owned by same canonical_id — no-op",
-                                       canonicalId, currentSlug );
-                            return UpsertResult.WRITTEN;
-                        }
-                        LOG.warn( "upsert({}, {}): slug '{}' is already claimed by canonical_id '{}'. "
-                                + "Frontmatter and DB are out of sync — skipping DB write so the "
-                                + "in-memory projection continues cleanly. "
-                                + "To fix: run bin/db/one-shots/reconcile_page_canonical_ids.sh "
-                                + "(or manually DELETE the stale row from page_canonical_ids "
-                                + "WHERE canonical_id='{}' AND current_slug='{}').",
-                                  canonicalId, currentSlug, currentSlug,
-                                  ownerId, ownerId, currentSlug );
-                        return UpsertResult.SKIPPED_STALE_SLUG_OWNER;
-                    }
-                    update( conn, "INSERT INTO page_canonical_ids " +
-                            "(canonical_id, current_slug, title, type, cluster) " +
-                            "VALUES (?, ?, ?, ?, ?)", ps -> {
-                        ps.setString( 1, canonicalId );
-                        ps.setString( 2, currentSlug );
-                        ps.setString( 3, title );
-                        ps.setString( 4, type );
-                        ps.setString( 5, cluster );
-                    } );
-                } else {
-                    final Row prev = existing.get();
-                    if ( prev.currentSlug().equals( currentSlug ) ) {
-                        LOG.debug( "upsert({}, {}): canonical_id and slug unchanged — updating metadata only",
-                                   canonicalId, currentSlug );
-                    } else {
-                        // Mirror of the INSERT-branch slug-owner check: when this canonical_id
-                        // already exists in the DB but its slug is changing to one already
-                        // claimed by a *different* canonical_id, the UPDATE on current_slug
-                        // would explode with page_canonical_ids_current_slug_key. That fires
-                        // a verbose PSQLException stacktrace into catalina.out (seen 2026-05-15
-                        // boot — PaxosAndRaft).  Detect pre-emptively, WARN with the same
-                        // recovery hint as the INSERT branch, and skip the write.
-                        final Optional< Row > slugOwner = findBySlug( conn, currentSlug );
-                        if ( slugOwner.isPresent()
-                                && !slugOwner.get().canonicalId().equals( canonicalId ) ) {
-                            final String ownerId = slugOwner.get().canonicalId();
-                            LOG.warn( "upsert({}, {}): rename target slug '{}' is already claimed by "
-                                    + "canonical_id '{}'. Frontmatter and DB are out of sync — "
-                                    + "skipping DB write so the in-memory projection continues "
-                                    + "cleanly. To fix: run bin/db/one-shots/reconcile_page_canonical_ids.sh "
-                                    + "(or manually DELETE the stale row from page_canonical_ids "
-                                    + "WHERE canonical_id='{}' AND current_slug='{}').",
-                                      canonicalId, currentSlug, currentSlug,
-                                      ownerId, ownerId, currentSlug );
-                            return UpsertResult.SKIPPED_STALE_SLUG_OWNER;
-                        }
-                        if ( !slugHistoryRowExists( conn, canonicalId, prev.currentSlug() ) ) {
-                            update( conn, "INSERT INTO page_slug_history (canonical_id, previous_slug) " +
-                                    "VALUES (?, ?)", ps -> {
-                                ps.setString( 1, canonicalId );
-                                ps.setString( 2, prev.currentSlug() );
-                            } );
-                        }
-                    }
-                    update( conn, "UPDATE page_canonical_ids SET " +
-                            "current_slug = ?, title = ?, type = ?, cluster = ?, updated_at = CURRENT_TIMESTAMP " +
-                            "WHERE canonical_id = ?", ps -> {
-                        ps.setString( 1, currentSlug );
-                        ps.setString( 2, title );
-                        ps.setString( 3, type );
-                        ps.setString( 4, cluster );
-                        ps.setString( 5, canonicalId );
-                    } );
-                }
-                return UpsertResult.WRITTEN;
+                return existing.isEmpty()
+                        ? insertNew( conn, spec )
+                        : updateExisting( conn, spec, existing.get() );
             } );
         } catch ( final SQLException e ) {
             LOG.warn( "PageCanonicalIdsDao.upsert({}) failed: {}", canonicalId, e.getMessage(), e );
             throw new RuntimeException( "upsert failed", e );
         }
+    }
+
+    /**
+     * INSERT path — no row yet carries this canonical_id.
+     *
+     * <p>Before inserting, check whether the slug is already claimed by a different
+     * canonical_id. This happens when the frontmatter canonical_id was changed after the DB
+     * row was first written (data corruption / stale row), or when two pages share the same
+     * slug. Attempting the INSERT would throw a unique-constraint violation with a noisy
+     * stacktrace; instead we detect the conflict pre-emptively and warn cleanly.
+     */
+    private UpsertResult insertNew( final Connection conn, final UpsertSpec spec ) throws SQLException {
+        final Optional< Row > slugOwner = findBySlug( conn, spec.currentSlug() );
+        if ( slugOwner.isPresent() ) {
+            final String ownerId = slugOwner.get().canonicalId();
+            if ( ownerId.equals( spec.canonicalId() ) ) {
+                // Already consistent — nothing to do (should be unreachable since
+                // findByCanonicalId returned empty, but guard defensively).
+                LOG.debug( "upsert({}, {}): slug already owned by same canonical_id — no-op",
+                           spec.canonicalId(), spec.currentSlug() );
+                return UpsertResult.WRITTEN;
+            }
+            warnStaleSlugOwner( "slug '{}' is already claimed by canonical_id '{}'", spec, ownerId );
+            return UpsertResult.SKIPPED_STALE_SLUG_OWNER;
+        }
+        update( conn, "INSERT INTO page_canonical_ids " +
+                "(canonical_id, current_slug, title, type, cluster) " +
+                "VALUES (?, ?, ?, ?, ?)", ps -> {
+            ps.setString( 1, spec.canonicalId() );
+            ps.setString( 2, spec.currentSlug() );
+            ps.setString( 3, spec.title() );
+            ps.setString( 4, spec.type() );
+            ps.setString( 5, spec.cluster() );
+        } );
+        return UpsertResult.WRITTEN;
+    }
+
+    /**
+     * UPDATE path — this canonical_id already has a row. A slug change additionally records
+     * slug history, after the same stale-owner guard the INSERT path applies.
+     */
+    private UpsertResult updateExisting( final Connection conn, final UpsertSpec spec, final Row prev )
+            throws SQLException {
+        if ( prev.currentSlug().equals( spec.currentSlug() ) ) {
+            LOG.debug( "upsert({}, {}): canonical_id and slug unchanged — updating metadata only",
+                       spec.canonicalId(), spec.currentSlug() );
+        } else {
+            // Mirror of the INSERT-branch slug-owner check: when this canonical_id already
+            // exists in the DB but its slug is changing to one already claimed by a
+            // *different* canonical_id, the UPDATE on current_slug would explode with
+            // page_canonical_ids_current_slug_key. That fires a verbose PSQLException
+            // stacktrace into catalina.out (seen 2026-05-15 boot — PaxosAndRaft). Detect
+            // pre-emptively, WARN with the same recovery hint, and skip the write.
+            final Optional< Row > slugOwner = findBySlug( conn, spec.currentSlug() );
+            if ( slugOwner.isPresent() && !slugOwner.get().canonicalId().equals( spec.canonicalId() ) ) {
+                warnStaleSlugOwner( "rename target slug '{}' is already claimed by canonical_id '{}'",
+                                    spec, slugOwner.get().canonicalId() );
+                return UpsertResult.SKIPPED_STALE_SLUG_OWNER;
+            }
+            if ( !slugHistoryRowExists( conn, spec.canonicalId(), prev.currentSlug() ) ) {
+                update( conn, "INSERT INTO page_slug_history (canonical_id, previous_slug) " +
+                        "VALUES (?, ?)", ps -> {
+                    ps.setString( 1, spec.canonicalId() );
+                    ps.setString( 2, prev.currentSlug() );
+                } );
+            }
+        }
+        update( conn, "UPDATE page_canonical_ids SET " +
+                "current_slug = ?, title = ?, type = ?, cluster = ?, updated_at = CURRENT_TIMESTAMP " +
+                "WHERE canonical_id = ?", ps -> {
+            ps.setString( 1, spec.currentSlug() );
+            ps.setString( 2, spec.title() );
+            ps.setString( 3, spec.type() );
+            ps.setString( 4, spec.cluster() );
+            ps.setString( 5, spec.canonicalId() );
+        } );
+        return UpsertResult.WRITTEN;
+    }
+
+    /** Shared stale-slug-owner warning: same recovery hint from both upsert branches. */
+    private static void warnStaleSlugOwner( final String conflict, final UpsertSpec spec, final String ownerId ) {
+        LOG.warn( "upsert({}, {}): " + conflict + ". Frontmatter and DB are out of sync — skipping DB "
+                + "write so the in-memory projection continues cleanly. To fix: run "
+                + "bin/db/one-shots/reconcile_page_canonical_ids.sh (or manually DELETE the stale row "
+                + "from page_canonical_ids WHERE canonical_id='{}' AND current_slug='{}').",
+                  spec.canonicalId(), spec.currentSlug(), spec.currentSlug(),
+                  ownerId, ownerId, spec.currentSlug() );
     }
 
     private Optional< Row > findBySlug( final Connection c, final String slug ) throws SQLException {

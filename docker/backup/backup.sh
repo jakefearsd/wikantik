@@ -40,14 +40,26 @@ esac
 
 # Cron starts jobs with a stripped environment: none of the compose
 # `environment:` vars (POSTGRES_*/PGPASSWORD/METRICS_DIR) and only a bare PATH,
-# so a scheduled run dies on `set -u` or cannot find pg_dump. Set a sane PATH,
-# then import the container's real env (preserved in PID 1's environ) so cron
-# runs behave like a manual `docker exec`.
-PATH="/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+# so a scheduled run dies on `set -u` or cannot find pg_dump. Restore a sane
+# PATH, then import the container's real env (preserved in PID 1's environ) so
+# cron runs behave like a manual `docker exec`.
+#
+# Both steps REPAIR a stripped environment rather than overwrite a good one:
+# an invocation that can already resolve pg_dump keeps its own PATH, and a
+# variable the caller set explicitly is never replaced by PID 1's value. Doing
+# this unconditionally silently defeated any caller that supplied its own PATH
+# or env — including the offline test harness, whose pg_dump/psql stubs were
+# dropped on the floor so bin/tests/test-backup.sh could never pass.
+if ! command -v pg_dump >/dev/null 2>&1; then
+    PATH="/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+    export PATH
+fi
 if [ -r /proc/1/environ ]; then
     while IFS='=' read -r _k _v; do
         case "${_k}" in
-            [A-Za-z_]*) export "${_k}=${_v}" ;;
+            # Fill in only what the caller left unset. printenv (not eval) keeps
+            # a hostile variable NAME from PID 1's environ out of the shell.
+            [A-Za-z_]*) printenv "${_k}" >/dev/null 2>&1 || export "${_k}=${_v}" ;;
         esac
     done <<ENVEOF
 $(tr '\0' '\n' < /proc/1/environ)

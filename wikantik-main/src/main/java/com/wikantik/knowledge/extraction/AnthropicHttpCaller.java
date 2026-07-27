@@ -54,6 +54,14 @@ final class AnthropicHttpCaller {
     private AnthropicHttpCaller() {}
 
     /**
+     * Where and how to reach the Anthropic Messages API. Groups the four values that are
+     * fixed for the lifetime of a caller (both extractors hold them as fields and pass the
+     * same ones on every call), leaving only the genuinely per-request arguments on
+     * {@link #call}.
+     */
+    record Endpoint( HttpClient httpClient, String apiKey, String model, long timeoutMs ) {}
+
+    /**
      * Sends an Anthropic Messages request and returns the first content block's raw
      * {@code text}, or {@code null} on a non-2xx status, a malformed/absent JSON envelope,
      * an empty/non-object {@code content} array, or a {@code null} text field.
@@ -62,24 +70,24 @@ final class AnthropicHttpCaller {
      * @param onMalformedJson invoked with the parse-exception message when the response
      *                        body isn't valid JSON
      */
-    static String call( final HttpClient httpClient, final String apiKey, final String model, final long timeoutMs,
+    static String call( final Endpoint endpoint,
             final int maxTokens, final String systemPrompt, final String userPrompt,
             final BiConsumer< Integer, String > onHttpError, final Consumer< String > onMalformedJson )
             throws IOException, InterruptedException {
         final Map< String, Object > body = Map.of(
-            "model", model,
+            "model", endpoint.model(),
             "max_tokens", maxTokens,
             "system", systemPrompt,
             "messages", List.of( Map.of( "role", "user", "content", userPrompt ) )
         );
         final HttpRequest req = HttpRequest.newBuilder( URI.create( ANTHROPIC_BASE ) )
-            .timeout( Duration.ofMillis( timeoutMs ) )
+            .timeout( Duration.ofMillis( endpoint.timeoutMs() ) )
             .header( "Content-Type", "application/json" )
-            .header( "x-api-key", apiKey )
+            .header( "x-api-key", endpoint.apiKey() )
             .header( "anthropic-version", ANTHROPIC_VERSION )
             .POST( HttpRequest.BodyPublishers.ofString( GSON.toJson( body ) ) )
             .build();
-        final HttpResponse< String > res = httpClient.send( req, HttpResponse.BodyHandlers.ofString() );
+        final HttpResponse< String > res = endpoint.httpClient().send( req, HttpResponse.BodyHandlers.ofString() );
         if( res.statusCode() / 100 != 2 ) {
             onHttpError.accept( res.statusCode(), res.body() );
             return null;

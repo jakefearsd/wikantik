@@ -87,7 +87,8 @@ public final class ClaudeProposalJudge implements ProposalJudge {
     private String callAnthropic( final ConsolidatedProposal p, final JudgeContext c )
             throws IOException, InterruptedException {
         final String userPrompt = OllamaProposalJudge.buildUserPrompt( p, c );
-        return AnthropicHttpCaller.call( httpClient, apiKey, model, timeoutMs, 1024,
+        return AnthropicHttpCaller.call(
+            new AnthropicHttpCaller.Endpoint( httpClient, apiKey, model, timeoutMs ), 1024,
             OllamaProposalJudge.SYSTEM_PROMPT, userPrompt,
             ( statusCode, respBody ) ->
                 LOG.warn( "ClaudeProposalJudge HTTP {} for sig {}: {}", statusCode, p.signature(), respBody ),

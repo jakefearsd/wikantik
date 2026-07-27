@@ -1,0 +1,32 @@
+# OSV-Scanner configuration for the `osv-scan` quality gate
+# (.github/workflows/quality-gates.yml).
+#
+# Entries here suppress a specific advisory for a stated reason. They are NOT a
+# way to make the gate quiet: every entry must name why the finding cannot apply
+# to this codebase, and carry a review date so it cannot rot silently. If the
+# reason stops holding (we start using the affected API, or an upgrade path
+# appears), delete the entry and fix the dependency instead.
+
+[[IgnoredVulns]]
+id = "GHSA-qwww-vcr4-c8h2"
+ignoreUntil = 2026-10-27
+reason = """
+react-router RSC-mode CSRF bypass. Not applicable and not currently fixable:
+
+1. Not applicable — the advisory states "This only affects your application if
+   you are using the unstable RSC APIs". Wikantik's frontend is a client-side
+   Vite SPA: it uses BrowserRouter/MemoryRouter, Link, Outlet and the hooks, and
+   imports no `unstable_*` or RSC entry points. There is no server-side router
+   and no RSC render path, so the vulnerable action-dispatch flow does not exist
+   here.
+
+2. No upgrade path — the advisory's only fixed version is react-router 8.3.0.
+   This app depends on react-router-dom, which has published no 8.x release
+   (latest is 7.18.1), and every 7.x from 7.12.0 up is in the affected range.
+   Forcing react-router 8.3.0 underneath react-router-dom 7 mismatches its peer
+   and would mean migrating 78 source files off react-router-dom — a major
+   version jump to remediate a code path the app does not use.
+
+Revisit when react-router-dom ships an 8.x line (or when the SPA adopts any RSC
+API, which invalidates reason 1 immediately).
+"""

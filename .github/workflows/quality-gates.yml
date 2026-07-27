@@ -66,11 +66,6 @@ jobs:
     # to run them by hand. Dry-run + stub style: no real ssh, no real Postgres.
     # `docker compose config` is the only external need (preinstalled on
     # ubuntu-latest); the suites never start a container.
-    #
-    # test-backup.sh is deliberately NOT listed: it stubs pg_dump/psql on PATH,
-    # but docker/backup/backup.sh resets PATH unconditionally (the BusyBox crond
-    # fix), so the stubs never take effect and the suite is red everywhere.
-    # Fixing it means changing that PATH reset — tracked separately.
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -88,7 +83,7 @@ jobs:
       - name: Deploy + ops tooling tests
         run: |
           set -e
-          for suite in test-remote.sh test-container.sh \
+          for suite in test-remote.sh test-container.sh test-backup.sh \
                        test-audit-retention.sh test-create-migrate-user.sh; do
             echo "::group::${suite}"
             bash "bin/tests/${suite}"
@@ -123,6 +118,7 @@ jobs:
       - name: Scan Maven SBOM + npm lockfile
         run: |
           osv-scanner scan source \
+            --config osv-scanner.toml \
             -L target/bom.json \
             -L wikantik-frontend/package-lock.json
 

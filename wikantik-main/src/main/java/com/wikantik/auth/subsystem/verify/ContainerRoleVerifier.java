@@ -96,7 +96,9 @@ public final class ContainerRoleVerifier {
         containerTable.append( "  <tr>\n" );
         containerTable.append( "    <th rowspan=\"2\">Action</th>\n" );
         containerTable.append( "    <th rowspan=\"2\">Page</th>\n" );
-        containerTable.append( "    <th colspan=\"" ).append( roles.length ).append( 1 ).append( "\">Roles</th>\n" );
+        // +1 for the leading "Anonymous" column. Note the parenthesis: appending
+        // roles.length and 1 separately concatenates the digits ("2" + "1" = "21").
+        containerTable.append( "    <th colspan=\"" ).append( roles.length + 1 ).append( "\">Roles</th>\n" );
         containerTable.append( "  </tr>\n" );
         containerTable.append( "  <tr>\n" );
         containerTable.append( "    <th>Anonymous</th>\n" );

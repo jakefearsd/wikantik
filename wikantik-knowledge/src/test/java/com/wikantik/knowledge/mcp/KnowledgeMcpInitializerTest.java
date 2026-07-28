@@ -24,6 +24,7 @@ import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.spi.EngineSPI;
 import com.wikantik.api.spi.Wiki;
+import io.modelcontextprotocol.server.McpSyncServer;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import org.junit.jupiter.api.Test;
@@ -70,5 +71,48 @@ class KnowledgeMcpInitializerTest {
         }
         verify( ctx, never() ).addFilter( any( String.class ), any( jakarta.servlet.Filter.class ) );
         verify( ctx, never() ).addServlet( any( String.class ), any( jakarta.servlet.Servlet.class ) );
+    }
+
+    // -----------------------------------------------------------------------
+    // contextDestroyed — shutdown must be null-safe and must never propagate.
+    // -----------------------------------------------------------------------
+
+    @Test
+    void contextDestroyed_withoutAServer_isANoOp() {
+        // contextInitialized never ran (or bailed out), so mcpServer is still null.
+        new KnowledgeMcpInitializer().contextDestroyed( mock( ServletContextEvent.class ) );
+    }
+
+    @Test
+    void contextDestroyed_closesTheServer() throws Exception {
+        final KnowledgeMcpInitializer initializer = new KnowledgeMcpInitializer();
+        final McpSyncServer server = mock( McpSyncServer.class );
+        injectServer( initializer, server );
+
+        initializer.contextDestroyed( mock( ServletContextEvent.class ) );
+
+        verify( server ).close();
+    }
+
+    @Test
+    void contextDestroyed_swallowsCloseFailures() throws Exception {
+        final KnowledgeMcpInitializer initializer = new KnowledgeMcpInitializer();
+        final McpSyncServer server = mock( McpSyncServer.class );
+        doThrow( new IllegalStateException( "transport already gone" ) ).when( server ).close();
+        injectServer( initializer, server );
+
+        // Container shutdown must not be derailed by a failing MCP close.
+        initializer.contextDestroyed( mock( ServletContextEvent.class ) );
+
+        verify( server ).close();
+    }
+
+    /** The field is only ever assigned by the boot path, which needs a live engine. */
+    private static void injectServer( final KnowledgeMcpInitializer initializer,
+                                      final McpSyncServer server ) throws Exception {
+        final java.lang.reflect.Field f =
+                KnowledgeMcpInitializer.class.getDeclaredField( "mcpServer" );
+        f.setAccessible( true );
+        f.set( initializer, server );
     }
 }

@@ -37,7 +37,12 @@
 
       mvn clean install -Pcoverage -DskipITs -T 1C
       bin/run-tests.sh --it            # (with -Pcoverage; or run the IT modules with -Pcoverage)
-      mvn -Pcoverage -pl wikantik-coverage-report org.jacoco:jacoco-maven-plugin:report-aggregate
+      mvn -Pcoverage org.jacoco:jacoco-maven-plugin:report-aggregate
+
+    Run the final aggregate goal from the REPOSITORY ROOT, not with
+    `-pl wikantik-coverage-report`: report-aggregate only sees exec files from
+    modules that are in the *reactor*, so restricting the reactor to this one
+    module silently produces an empty (0-of-0) report.
 
     Output: target/site/jacoco-aggregate/index.html (+ jacoco.csv).
   </description>
@@ -48,9 +53,14 @@
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-event</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-api</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-cache</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-cache-memcached</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-http</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-ingest</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-connectors</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-main</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-mcp-core</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-admin-mcp</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-ontology</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-tools</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-scim</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-knowledge</artifactId><version>${project.version}</version></dependency>

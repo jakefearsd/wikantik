@@ -217,8 +217,33 @@ public class AuthentikScimFullLoopIT {
     private void pollWikiUser( final String userName,
                                final Predicate<String> bodyOk,
                                final String what ) throws Exception {
+        pollWikiUser( userName, bodyOk, what, false );
+    }
+
+    /**
+     * As {@link #pollWikiUser(String, Predicate, String)}, but when {@code retrigger} is
+     * set the provider sync is re-requested on every attempt.
+     *
+     * <p>This mirrors how Authentik actually schedules outgoing syncs. {@code sync_single}
+     * takes a Postgres advisory lock ({@code OutgoingSyncProvider.sync_lock}) opened with
+     * {@code timeout=0}; when a sync is already in flight the new task logs "Failed to
+     * acquire sync lock, skipping" and <em>silently returns</em>. A trigger is therefore a
+     * best-effort request, not a guarantee — a single provider save issued while the
+     * previous sync is still running is simply dropped. That is exactly what happened to
+     * the deactivation half of this test: the user was disabled, one sync was requested,
+     * the lock was still held from the provisioning sync, and nothing was ever pushed.
+     * Re-triggering each round means the first attempt made after the lock frees does the
+     * work.</p>
+     */
+    private void pollWikiUser( final String userName,
+                               final Predicate<String> bodyOk,
+                               final String what,
+                               final boolean retrigger ) throws Exception {
         final long deadline = System.currentTimeMillis() + POLL_MS;
         while ( System.currentTimeMillis() < deadline ) {
+            if ( retrigger ) {
+                triggerSync();
+            }
             final HttpResponse<String> r = http.send(
                     HttpRequest.newBuilder()
                             .uri( URI.create( wikiBase + "/scim/v2/Users?filter="
@@ -262,7 +287,8 @@ public class AuthentikScimFullLoopIT {
                             .getAsJsonArray( "Resources" );
                     return resources != null && resources.size() > 0;
                 },
-                "user '" + userName + "' provisioned into wiki via Authentik SCIM" );
+                "user '" + userName + "' provisioned into wiki via Authentik SCIM",
+                /*retrigger=*/ true );
 
         // 3. Disable the user in Authentik, force a sync.
         disableUser( userPk );
@@ -280,8 +306,7 @@ public class AuthentikScimFullLoopIT {
                     final var activeField = resources.get( 0 ).getAsJsonObject().get( "active" );
                     return activeField != null && !activeField.getAsBoolean();
                 },
-                "user '" + userName + "' deactivated in wiki via Authentik SCIM" );
-
-        assertTrue( true, "full loop: provision + disable propagated via Authentik SCIM" );
+                "user '" + userName + "' deactivated in wiki via Authentik SCIM",
+                /*retrigger=*/ true );
     }
 }

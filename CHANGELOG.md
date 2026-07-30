@@ -6,7 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Removed
+- **The Knowledge-Graph page-level graph rerank is gone** — 2,464 lines across seven production
+  classes (`GraphRerankStep`, `GraphProximityScorer`, `QueryEntityResolver`, `PageMentionsLoader`,
+  `InMemoryGraphNeighborIndex`, `GraphNeighborIndex`, `GraphRerankConfig`) and their seven test
+  classes, plus the `wikantik.search.graph.*` properties. The 2026-06-16 ceiling spike settled it
+  twice over: the shipped dense-chunk context bundle never invoked the step at all (output was
+  bit-identical at every boost value), and on the page-gated path where it did run it was
+  net-negative — re-extracting the evaluation slice with a much richer Claude-generated knowledge
+  graph moved the result only to *zero* net lift at recall@12 and −1 at recall@5. Relational
+  section relevance is not an entity-proximity signal: the graph knows which entities relate, not
+  which passage answers the question. Evidence and verdict in `eval/kg-spike/A1-findings.md`.
+  `RetrievalMode.HYBRID_GRAPH` / `HYBRID_GRAPH_WEIGHTED` are retained as wire-compatible labels so
+  historical `retrieval_runs` rows still parse; requesting either mode now logs a warning and
+  degrades to `HYBRID`. The Knowledge Graph and RDF ontology are unaffected — they remain
+  first-class for the human knowledge base, agent traversal, and SPARQL.
+
 ### Fixed
+- **A rendering defect in the admin security page.** `ContainerRoleVerifier` built its roles
+  header with `.append(roles.length).append(1)`, which concatenates digits rather than adding —
+  two roles rendered `colspan="21"` instead of `colspan="3"`. Caught by a test written to fail
+  first.
 - **A repeat deploy no longer destroys the rollback target.** `remote.sh deploy` tagged the
   remote `wikantik:latest` as `wikantik:rollback` *before* loading the new image, so deploying
   the same image twice — a retry, a double-invoke, an idempotent re-deploy — copied the

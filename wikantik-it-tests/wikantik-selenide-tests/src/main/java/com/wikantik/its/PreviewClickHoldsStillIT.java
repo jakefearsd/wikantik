@@ -201,43 +201,33 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
             const cb = arguments[arguments.length - 1];
             const dataLine = arguments[0];
             setTimeout(() => {
-                const preview = document.querySelector('.editor-preview');
-                const target  = preview
-                    ? preview.querySelector('.article-prose [data-line="' + dataLine + '"]')
-                    : null;
-                const scrollAfter   = preview ? preview.scrollTop : -1;
-                const blockTopAfter  = target  ? target.getBoundingClientRect().top : -1;
-                const previewTop     = preview ? preview.getBoundingClientRect().top : -1;
-                const scroller       = document.querySelector('.cm-scroller');
-                const editorScrollAfter  = scroller ? scroller.scrollTop : -1;
-                const scrollerTop    = scroller ? scroller.getBoundingClientRect().top : -1;
-                // Focus the editor, then POLL (up to a wall-clock deadline) for the
-                // CodeMirror caret to render at a non-zero window-Y. Under heavy
-                // parallel-IT load the cursor can take many frames to position after
-                // focus; a single read often gets caretTop=0 (not-yet-rendered),
-                // which the alignment assertion would misread as "caret not visible".
-                // Once the caret has rendered it is already at its final (aligned)
-                // position, so the first caretTop>0 read is the value we want.
-                //
-                // The poll is driven by setTimeout, NOT requestAnimationFrame. These
-                // ITs run a real (non-headless) browser window by default
-                // (it-wikantik.config.headless=false), and Chrome suspends rAF
-                // entirely for a window it is not painting — occluded, minimised, or
-                // an idle desktop session. With rAF driving the loop, the callback
-                // below was simply never reached on an unattended machine and the
-                // test burned its full 120s script timeout. setTimeout keeps firing
-                // when a window is not being rendered (throttled to ~1s, which the
-                // 3s deadline tolerates), so the callback is always reached.
-                const cmContent = document.querySelector('.cm-content');
-                if (cmContent) cmContent.focus();
+                // Every geometry value is sampled at COMPLETION time (see snapshot()),
+                // never up-front. Sampling at script start reported pre-scroll values
+                // while the caret was read post-scroll, so the alignment assertion
+                // compared two different instants and failed intermittently under load.
+                const snapshot = (caretTop) => {
+                    const preview = document.querySelector('.editor-preview');
+                    const target  = preview
+                        ? preview.querySelector('.article-prose [data-line="' + dataLine + '"]')
+                        : null;
+                    const scroller = document.querySelector('.cm-scroller');
+                    return {
+                        scrollAfter:       preview  ? preview.scrollTop : -1,
+                        blockTopAfter:     target   ? target.getBoundingClientRect().top : -1,
+                        previewTop:        preview  ? preview.getBoundingClientRect().top : -1,
+                        editorScrollAfter: scroller ? scroller.scrollTop : -1,
+                        scrollerTop:       scroller ? scroller.getBoundingClientRect().top : -1,
+                        caretTop:          caretTop,
+                        hasFocus:          document.hasFocus()
+                    };
+                };
+
                 // Read the caret's window-Y. CodeMirror's drawSelection extension paints
                 // a .cm-cursor element only while the selection lies inside its rendered
                 // viewport, so that element is absent in perfectly healthy states (the
-                // editor here reports .cm-focused with an empty .cm-cursorLayer). Fall
-                // back to the browser's own selection geometry, which is the same caret
-                // the user sees and is what this test actually wants to measure. A
-                // collapsed range can report an all-zero rect, so fall back to the
-                // range's start container when that happens.
+                // editor can report .cm-focused with an empty .cm-cursorLayer). Fall back
+                // to the browser's own selection geometry — the same caret the user sees,
+                // and what this test actually wants to measure.
                 const readCaret = () => {
                     const cursor = document.querySelector('.cm-cursorLayer .cm-cursor')
                                 || document.querySelector('.cm-cursor');
@@ -260,25 +250,40 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
                     }
                     return -1;
                 };
-                const deadline = Date.now() + 3000;
-                // hasFocus distinguishes "the OS window is not focused, so CodeMirror
-                // cannot paint a caret at all" (environmental) from "the editor failed
-                // to take focus" (a real defect). Without it the two are indistinguishable
-                // and an unattended desktop looks like a product bug.
-                const done = (caretTop) =>
-                    cb({ scrollAfter, blockTopAfter, caretTop, previewTop, editorScrollAfter,
-                         scrollerTop, hasFocus: document.hasFocus() });
+
+                const cmContent = document.querySelector('.cm-content');
+                if (cmContent) cmContent.focus();
+
+                // Poll until the caret is readable AND the editor's alignment scroll has
+                // SETTLED (two consecutive identical scrollTop samples). Waiting only for
+                // "caret readable" exits too early: the selection exists immediately after
+                // the click, so the caret would be measured mid-scroll and read as
+                // unaligned. Bounded by a wall-clock deadline so a starved run measures
+                // late rather than hanging.
+                //
+                // setTimeout drives the loop, NOT requestAnimationFrame. These ITs run a
+                // real (non-headless) browser by default (it-wikantik.config.headless=false)
+                // and Chrome suspends rAF entirely for a window it is not painting —
+                // occluded, minimised, or an idle desktop. With rAF the callback was never
+                // reached on an unattended machine and the test burned its 120s timeout.
+                const deadline = Date.now() + 5000;
+                let lastScroll = null;
+                let stableFor  = 0;
                 const poll = () => {
                     let caretTop = -1;
+                    let nowScroll = -1;
                     try {
                         caretTop = readCaret();
+                        const scroller = document.querySelector('.cm-scroller');
+                        nowScroll = scroller ? scroller.scrollTop : -1;
                     } catch (e) {
-                        // Never strand the callback on a DOM read failure.
-                        done(-1);
+                        cb(snapshot(-1));   // never strand the callback
                         return;
                     }
-                    if (caretTop > 0 || Date.now() >= deadline) {
-                        done(caretTop);
+                    stableFor = (nowScroll === lastScroll) ? stableFor + 1 : 0;
+                    lastScroll = nowScroll;
+                    if ((caretTop > 0 && stableFor >= 2) || Date.now() >= deadline) {
+                        cb(snapshot(caretTop));
                     } else {
                         setTimeout(poll, 16);
                     }

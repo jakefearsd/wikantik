@@ -73,7 +73,7 @@ The implementation was built for high performance and **graceful degradation**.
 The reranker was a non-critical enhancement, wrapped in fail-closed logic:
 *   **Disabled**: with the feature off, returned the input list verbatim.
 *   **Index Not Ready**: if the `kg_edges` table was being rebuilt or exceeded memory caps, returned the input list.
-*   **Zero Matches**: if no query entities resolved, or no candidate mentioned the graph neighbourhood, every proximity score was $0.0$ and the RRF order was preserved bit-identically.
+*   **Zero Matches**: if no query entities resolved, or no candidate mentioned the graph neighbourhood, every proximity score was \$0.0$ and the RRF order was preserved bit-identically.
 
 ## 4. Why it did not survive
 

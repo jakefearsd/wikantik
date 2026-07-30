@@ -47,7 +47,7 @@ As a platform born from a rapid modernization of Apache JSPWiki, Wikantik has un
 
 3. **Single-Host Deployment Model:** Production runs on a single Docker host (all services co-located). Horizontal app-tier scale requires splitting PostgreSQL first; there is no hosted/SaaS option.
 
-4. **KG Rerank Ceiling:** Measured recall lift from Knowledge Graph-aware reranking was near zero (even with a strong KG), because section relevance is not well-predicted by entity-proximity in a co-mention graph. The reranker is left dormant (`boost=0`) — not removed, but not contributing.
+4. **KG Rerank Ceiling:** Measured recall lift from Knowledge Graph-aware reranking was near zero (even with a strong KG), because section relevance is not well-predicted by entity-proximity in a co-mention graph. The reranker was first left dormant, then deleted outright in 2026-07 once it was clear the page-level design could not be salvaged.
 
 5. **Ollama Dependency for Extraction:** LLM-based entity extraction requires a running Ollama instance (model `gemma4-graph:12b`). Extraction is an offline batch process (`wikantik-extract-cli`), so the wiki serves fine without it, but KG enrichment stalls if Ollama is absent.
 

@@ -241,7 +241,7 @@ The admin endpoint also serves resources, prompts, and completions (see *Capabil
 
 | Tool | Purpose |
 |---|---|
-| `retrieve_context` | **Primary RAG entry point.** Hybrid BM25 + dense (RRF-fused) with fail-closed BM25 fallback. Returns chunked results with citation URLs and confidence. (Graph-aware rerank is wired but off by default; production runs BM25+dense only.) |
+| `retrieve_context` | **Primary RAG entry point.** Hybrid BM25 + dense (RRF-fused) with fail-closed BM25 fallback. Returns chunked results with citation URLs and confidence. (Graph-aware rerank was removed in 2026-07; production runs BM25+dense only.) |
 | `get_page` | Pinned fetch of a specific page once you know its name. |
 | `list_pages` | Browse-style page enumeration, optionally prefix-filtered. |
 | `list_metadata_values` | Distinct frontmatter keys + their values across the corpus — discovery before targeted filtering. |

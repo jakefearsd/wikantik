@@ -66,7 +66,8 @@ public class AuthentikScimFullLoopIT {
     private static final String SCIM_TOKEN = "it-scim-token";
 
     /** How long to poll the wiki waiting for async SCIM propagation. */
-    private static final long POLL_MS = 60_000L;
+    private static final long POLL_MS = Long.getLong(
+        "it-wikantik.scim.fullloop.poll-ms", 60_000L );
 
     /** Interval between poll attempts. */
     private static final long INTERVAL_MS = 1_000L;
@@ -102,10 +103,14 @@ public class AuthentikScimFullLoopIT {
 
         // The managed default SCIM mappings (pk is instance-specific; the managed
         // name is stable across Authentik instances).
-        final String userMapping = firstPk( authentik.get(
-            "/api/v3/propertymappings/provider/scim/?managed=goauthentik.io/providers/scim/user" ) );
-        final String groupMapping = firstPk( authentik.get(
-            "/api/v3/propertymappings/provider/scim/?managed=goauthentik.io/providers/scim/group" ) );
+        // Authentik reports /-/health/ready/ 200 BEFORE it has applied its bundled
+        // blueprints, so these managed mappings can legitimately not exist yet — the
+        // lookup then 400s with "not one of the available choices" and the suite fails
+        // during setup. Poll until the blueprint has landed.
+        final String userMapping =
+            awaitFirstPk( "/api/v3/propertymappings/provider/scim/?managed=goauthentik.io/providers/scim/user" );
+        final String groupMapping =
+            awaitFirstPk( "/api/v3/propertymappings/provider/scim/?managed=goauthentik.io/providers/scim/group" );
 
         final String providerBody = "{"
             + "\"name\":\"wiki-scim\","
@@ -164,6 +169,30 @@ public class AuthentikScimFullLoopIT {
             "{\"is_active\":false}" );
         System.out.println( "[FULLLOOP] disable user -> " + r.statusCode() + " " + r.body() );
         assertEquals( 200, r.statusCode(), "user disable should be 200: " + r.body() );
+    }
+
+    /**
+     * Polls an Authentik list endpoint until it yields at least one result, then returns
+     * the first pk. Absorbs the blueprint-application delay after Authentik reports ready.
+     */
+    private String awaitFirstPk( final String path ) throws Exception {
+        final long deadline = System.currentTimeMillis() + 60_000L;
+        String lastBody = "(no response)";
+        while ( System.currentTimeMillis() < deadline ) {
+            final HttpResponse<String> r = authentik.get( path );
+            lastBody = r.body();
+            if ( r.statusCode() == 200 ) {
+                final var results = JsonParser.parseString( lastBody )
+                    .getAsJsonObject().getAsJsonArray( "results" );
+                if ( results != null && results.size() > 0 ) {
+                    return results.get( 0 ).getAsJsonObject().get( "pk" ).getAsString();
+                }
+            }
+            Thread.sleep( 1_000L );
+        }
+        fail( "Authentik never published a mapping for " + path
+            + " within 60s (blueprints not applied?); last response: " + lastBody );
+        return null; // unreachable
     }
 
     /** Extracts the first {@code results[].pk} from a paginated Authentik list response. */

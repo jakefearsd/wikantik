@@ -46,7 +46,13 @@ public class ScimDiscoveryResource extends HttpServlet {
     private static final String SERVICE_PROVIDER_CONFIG =
         "{\n"
         + "  \"schemas\": [\"urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig\"],\n"
-        + "  \"documentationUri\": \"\",\n"
+        // documentationUri is OPTIONAL (RFC 7643 §5) and is deliberately OMITTED rather
+        // than emitted as "". An empty string is not a valid URI reference: strict clients
+        // validate this field as a URL and reject the whole document. Authentik does
+        // exactly that — it logs "failed to get ServiceProviderConfig", cannot establish
+        // our capabilities, and then silently provisions nobody. Do not reintroduce an
+        // empty placeholder here; if a docs URL ever exists, emit the absolute URL.
+
         + "  \"patch\": { \"supported\": true },\n"
         + "  \"bulk\":  { \"supported\": false, \"maxOperations\": 0, \"maxPayloadSize\": 0 },\n"
         + "  \"filter\": { \"supported\": true, \"maxResults\": 1000 },\n"

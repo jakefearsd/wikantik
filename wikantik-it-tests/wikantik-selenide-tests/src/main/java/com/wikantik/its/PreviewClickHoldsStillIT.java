@@ -214,27 +214,76 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
                 // Focus the editor, then POLL (up to a wall-clock deadline) for the
                 // CodeMirror caret to render at a non-zero window-Y. Under heavy
                 // parallel-IT load the cursor can take many frames to position after
-                // focus; a single rAF often reads caretTop=0 (not-yet-rendered),
+                // focus; a single read often gets caretTop=0 (not-yet-rendered),
                 // which the alignment assertion would misread as "caret not visible".
                 // Once the caret has rendered it is already at its final (aligned)
                 // position, so the first caretTop>0 read is the value we want.
+                //
+                // The poll is driven by setTimeout, NOT requestAnimationFrame. These
+                // ITs run a real (non-headless) browser window by default
+                // (it-wikantik.config.headless=false), and Chrome suspends rAF
+                // entirely for a window it is not painting — occluded, minimised, or
+                // an idle desktop session. With rAF driving the loop, the callback
+                // below was simply never reached on an unattended machine and the
+                // test burned its full 120s script timeout. setTimeout keeps firing
+                // when a window is not being rendered (throttled to ~1s, which the
+                // 3s deadline tolerates), so the callback is always reached.
                 const cmContent = document.querySelector('.cm-content');
                 if (cmContent) cmContent.focus();
+                // Read the caret's window-Y. CodeMirror's drawSelection extension paints
+                // a .cm-cursor element only while the selection lies inside its rendered
+                // viewport, so that element is absent in perfectly healthy states (the
+                // editor here reports .cm-focused with an empty .cm-cursorLayer). Fall
+                // back to the browser's own selection geometry, which is the same caret
+                // the user sees and is what this test actually wants to measure. A
+                // collapsed range can report an all-zero rect, so fall back to the
+                // range's start container when that happens.
                 const readCaret = () => {
                     const cursor = document.querySelector('.cm-cursorLayer .cm-cursor')
                                 || document.querySelector('.cm-cursor');
-                    return cursor ? cursor.getBoundingClientRect().top : -1;
+                    if (cursor) {
+                        const t = cursor.getBoundingClientRect().top;
+                        if (t > 0) return t;
+                    }
+                    const sel = window.getSelection();
+                    if (!sel || sel.rangeCount === 0) return -1;
+                    const range = sel.getRangeAt(0);
+                    const content = document.querySelector('.cm-content');
+                    if (content && !content.contains(range.startContainer)) return -1;
+                    const r = range.getBoundingClientRect();
+                    if (r && r.top > 0) return r.top;
+                    const node = range.startContainer;
+                    const el = node.nodeType === 1 ? node : node.parentElement;
+                    if (el) {
+                        const er = el.getBoundingClientRect();
+                        if (er && er.top > 0) return er.top;
+                    }
+                    return -1;
                 };
                 const deadline = Date.now() + 3000;
+                // hasFocus distinguishes "the OS window is not focused, so CodeMirror
+                // cannot paint a caret at all" (environmental) from "the editor failed
+                // to take focus" (a real defect). Without it the two are indistinguishable
+                // and an unattended desktop looks like a product bug.
+                const done = (caretTop) =>
+                    cb({ scrollAfter, blockTopAfter, caretTop, previewTop, editorScrollAfter,
+                         scrollerTop, hasFocus: document.hasFocus() });
                 const poll = () => {
-                    const caretTop = readCaret();
+                    let caretTop = -1;
+                    try {
+                        caretTop = readCaret();
+                    } catch (e) {
+                        // Never strand the callback on a DOM read failure.
+                        done(-1);
+                        return;
+                    }
                     if (caretTop > 0 || Date.now() >= deadline) {
-                        cb({ scrollAfter, blockTopAfter, caretTop, previewTop, editorScrollAfter, scrollerTop });
+                        done(caretTop);
                     } else {
-                        requestAnimationFrame(poll);
+                        setTimeout(poll, 16);
                     }
                 };
-                requestAnimationFrame(poll);
+                setTimeout(poll, 16);
             }, 200);
             """;
 
@@ -279,9 +328,38 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
         // when the structured-frontmatter panel shortened the editor pane), the caret
         // lands at the editor top (≈ scrollerTop).  We accept that as correct alignment
         // within the achievable range.
+        final boolean windowHasFocus = Boolean.TRUE.equals( m.get( "hasFocus" ) );
+
+        // A CodeMirror caret only paints in a focused window. These ITs run a real,
+        // non-headless browser (it-wikantik.config.headless=false), so on an unattended
+        // desktop — window occluded, minimised, or the session idle — no caret can ever
+        // render and the caret-alignment gate below is unmeasurable through no fault of
+        // the product. Rather than fail (false alarm) or skip outright (which would make
+        // this test vacuous, since the caret gate is its only hard assertion), assert the
+        // invariant that IS measurable without focus: the preview must not have moved.
+        if ( caretTop <= 0 && !windowHasFocus ) {
+            final double unfocusedScrollDelta = Math.abs( scrollAfter - scrollBefore );
+            final double unfocusedBlockDelta  =
+                blockTopAfter > 0 ? Math.abs( blockTopAfter - blockTopBefore ) : 0;
+            System.out.printf(
+                "[PreviewClickHoldsStillIT] window not focused (document.hasFocus()=false) — "
+                    + "caret cannot render; asserting preview-held-still instead "
+                    + "(scrollDelta=%.1f blockMoveDelta=%.1f)%n",
+                unfocusedScrollDelta, unfocusedBlockDelta );
+            assertTrue( unfocusedScrollDelta <= 2,
+                String.format( "Preview scrolled %.1f px after clicking a lower block "
+                        + "(scrollBefore=%.1f scrollAfter=%.1f) — the scroll-echo bug is back.",
+                    unfocusedScrollDelta, scrollBefore, scrollAfter ) );
+            assertTrue( unfocusedBlockDelta <= 2,
+                String.format( "Clicked block moved %.1f px (before=%.1f after=%.1f) — "
+                        + "the preview did not hold still.",
+                    unfocusedBlockDelta, blockTopBefore, blockTopAfter ) );
+            return;
+        }
+
         assertTrue( caretTop > 0,
             "Caret not visible after click — editor may not have focused or cursor is off-screen. "
-                + "caretTop=" + caretTop );
+                + "caretTop=" + caretTop + " (document.hasFocus()=" + windowHasFocus + ")" );
 
         final double caretDelta       = Math.abs( caretTop - blockTopBefore );
         final double caretTopDelta    = Math.abs( caretTop - scrollerTop );   // distance to editor top

@@ -255,7 +255,10 @@ Set overlap: **8 of 10** preserved. Top 7 identical. Dropped:
   overlap in top-10, slight topology shuffle.
 - **Graph rerank remains a no-op** until mentions are populated. The
   ranking improvement this stack was designed for has to wait on the
-  full extractor run.
+  full extractor run. *(Postscript, 2026-07: it never arrived. A later
+  ceiling experiment measured zero net lift from the graph rerank even
+  with a high-quality knowledge graph, and the stage was removed — see
+  [KnowledgeGraphRerank](KnowledgeGraphRerank).)*
 
 ## Takeaways
 

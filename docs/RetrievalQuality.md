@@ -77,7 +77,7 @@ Three modes are evaluated, matching `com.wikantik.api.eval.RetrievalMode`:
 |-----------|-------------|
 | `bm25` | BM25 full-text only (Lucene). |
 | `hybrid` | BM25 + dense (vector) fusion. |
-| `hybrid_graph` | Hybrid + KG graph-proximity rerank. |
+| `hybrid_graph` | **RETIRED** — was hybrid + KG graph-proximity rerank. The rerank was deleted in 2026-07 after measuring zero lift (`eval/kg-spike/A1-findings.md`); the label is kept so historical rows parse, and a fresh run of this mode degrades to `hybrid`. |
 
 Each mode is run independently per query set. Dashboard cells are bucketed by
 `(query_set_id, mode)`.
@@ -147,7 +147,7 @@ run_id        BIGSERIAL    PRIMARY KEY
 query_set_id  VARCHAR(64)  NOT NULL REFERENCES retrieval_query_sets(id)
 started_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 finished_at   TIMESTAMPTZ
-mode          VARCHAR(32)  NOT NULL    -- 'bm25' | 'hybrid' | 'hybrid_graph'
+mode          VARCHAR(32)  NOT NULL    -- 'bm25' | 'hybrid' | 'hybrid_graph' (retired)
 ndcg_at_5     NUMERIC(5,4)
 ndcg_at_10    NUMERIC(5,4)
 recall_at_20  NUMERIC(5,4)
@@ -209,7 +209,7 @@ in `retrieval_runs`. Each metric column (`ndcg_at_5`, `ndcg_at_10`, `recall_at_2
 
 - **Query set** — text field; filters by `query_set_id` (exact, case-sensitive match
   against the backend parameter).
-- **Mode** — dropdown: `(any)` / `bm25` / `hybrid` / `hybrid_graph`.
+- **Mode** — dropdown: `(any)` / `bm25` / `hybrid` (plus the retired `hybrid_graph` on historical rows).
 
 Default limit is 30 runs per cell (fetched from the API; the most recent 30 runs
 are returned and bucketed client-side).
@@ -234,7 +234,7 @@ Query parameters:
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `query_set_id` | string | — | Filter to one query set. |
-| `mode` | string | — | Filter to one mode (`bm25`, `hybrid`, `hybrid_graph`). Unknown mode → 400. |
+| `mode` | string | — | Filter to one mode (`bm25`, `hybrid`; `hybrid_graph` still parses for historical rows). Unknown mode → 400. |
 | `limit` | integer | 50 | Clamped to 1–1000. |
 
 Response:
@@ -379,7 +379,7 @@ rows to reflect the current `canonical_id`s, or regenerate the query set.
 
 - [docs/wikantik-pages/RunningTheRetrievalQualityHarness.md](wikantik-pages/RunningTheRetrievalQualityHarness.md) — manual invocation + nightly scheduler design.
 - [docs/wikantik-pages/EvaluatingRetrievalQuality.md](wikantik-pages/EvaluatingRetrievalQuality.md) — metric definitions (nDCG, MRR, Recall@K) and Gold Set construction.
-- [docs/KnowledgeGraphRerank.md](KnowledgeGraphRerank.md) — graph rerank configuration; affects `hybrid_graph` scores.
-- [docs/KgInclusionPolicy.md](KgInclusionPolicy.md) — KG inclusion policy; excluding clusters affects the `hybrid_graph` rerank quality.
+- [docs/KnowledgeGraphRerank.md](KnowledgeGraphRerank.md) — historical record of the (now deleted) graph rerank.
+- [docs/KgInclusionPolicy.md](KgInclusionPolicy.md) — KG inclusion policy.
 - `bin/db/migrations/V016__retrieval_quality.sql` — DDL for the three retrieval tables.
 - `bin/db/migrations/V017__seed_retrieval_query_set.sql` — initial `core-agent-queries` seed.

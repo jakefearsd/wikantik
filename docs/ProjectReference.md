@@ -239,7 +239,7 @@ tool-description examples). All six phases shipped 2026-04-25 — design is comp
 
 ### Hybrid Retrieval — [HybridRetrieval.md](wikantik-pages/HybridRetrieval.md)
 
-Implemented. BM25 + dense, fused with RRF, with fail-closed BM25 fallback. The Knowledge Graph-aware rerank step is present in the code but **off by default** (`wikantik.search.graph.boost = 0`) — a 2026-06-16 ceiling experiment measured no net ranking lift.
+Implemented. BM25 + dense, fused with RRF, with fail-closed BM25 fallback. The Knowledge Graph-aware rerank step was **deleted in 2026-07**: a 2026-06-16 ceiling experiment measured no net ranking lift even with a Claude-quality KG, and the shipped dense-chunk bundle never invoked it at all. Evidence and verdict: `eval/kg-spike/A1-findings.md`. The `hybrid_graph` / `hybrid_graph_weighted` retrieval modes survive only as wire-compatible labels for historical `retrieval_runs` rows.
 
 Dense backend is selectable via `wikantik.search.dense.backend = inmemory | pgvector | lucene-hnsw`.
 **`lucene-hnsw` is the docker1 production default** — an in-process Lucene HNSW

@@ -1,12 +1,25 @@
 # Knowledge-Graph-Aware Search Rerank — Configuration Guide
 
-> **Status: shelved — off by default.** A 2026-06-16 ceiling experiment measured
-> no net ranking lift from the graph rerank step (relational section relevance is
-> not entity proximity). Production search runs as **BM25 + dense, fused with RRF,
-> fail-closed to BM25** — no KG rerank. The Knowledge Graph and RDF ontology
-> remain first-class for the human knowledge base, agent traversal, and SPARQL.
-> The tuning/sweep instructions below remain valid for anyone who wants to
-> experiment; the default is `boost = 0` (disabled).
+> **Status: REMOVED (2026-07). This document is a historical record.** A
+> 2026-06-16 ceiling experiment measured no net ranking lift from the graph
+> rerank step even with a Claude-quality knowledge graph — relational section
+> relevance is not entity proximity — and the shipped dense-chunk bundle never
+> invoked the step at all. Verdict and numbers:
+> [`eval/kg-spike/A1-findings.md`](../eval/kg-spike/A1-findings.md).
+>
+> The implementing classes (`GraphRerankStep`, `GraphProximityScorer`,
+> `QueryEntityResolver`, `PageMentionsLoader`, `InMemoryGraphNeighborIndex`,
+> `GraphRerankConfig`) and the `wikantik.search.graph.*` properties have been
+> deleted. **The configuration and tuning instructions below no longer apply to
+> any shipping code** — they are preserved to document what was built and
+> measured, so the experiment is not repeated blind.
+>
+> Production search runs as **BM25 + dense, fused with RRF, fail-closed to
+> BM25** — no KG rerank. The Knowledge Graph and RDF ontology remain
+> first-class for the human knowledge base, agent traversal, and SPARQL. If
+> relational retrieval ever becomes a priority, the reframed lever is a
+> **section-level** signal inside the dense bundle — a new design, not this
+> page-level boost.
 
 This guide covers the three subsystems that together let Wikantik answer search
 queries with graph-aware reranking: the save-time **entity extractor** that

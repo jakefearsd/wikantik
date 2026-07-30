@@ -87,8 +87,7 @@ final class SearchSubsystemCoverageBranchTest {
         final SearchSubsystem.Services preBuilt = new SearchSubsystem.Services(
             null, null, null, null, null,
             null, null, null, null, null,
-            null, null, null, null, null,
-            null, null );
+            null, null, null );
         when( wikiEngine.getSearchSubsystem() ).thenReturn( preBuilt );
 
         final SearchSubsystem.Services result = SearchSubsystemBridge.fromLegacyEngine( wikiEngine );

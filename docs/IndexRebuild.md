@@ -22,7 +22,7 @@ The Lucene search index must be rebuilt when:
    re-runs the chunker and re-populates `kg_content_chunks`, which is
    the foundation for `content_chunk_embeddings` and
    `chunk_entity_mentions`. See
-   [KnowledgeGraphRerank.md](KnowledgeGraphRerank.md) for the full
+   [HybridRetrieval.md](wikantik-pages/HybridRetrieval.md) for the full
    downstream pipeline.
 
 ## How to Rebuild

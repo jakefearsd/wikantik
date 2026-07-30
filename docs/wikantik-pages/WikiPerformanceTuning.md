@@ -219,7 +219,7 @@ Performance degrades over time. Periodic review catches drift.
 
 - EhCache for render caches (1-hour TTL, 10K entries)
 - Memcached adapter for distributed
-- BM25 + dense + graph rerank for search
+- BM25 + dense (RRF fusion) for search
 - pgvector embeddings
 
 ## Common failure patterns

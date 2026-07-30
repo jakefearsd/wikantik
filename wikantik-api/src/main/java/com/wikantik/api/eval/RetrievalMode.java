@@ -35,16 +35,22 @@ public enum RetrievalMode {
     /** BM25 fused with dense embeddings (RRF). The production default. */
     HYBRID( "hybrid" ),
 
-    /** Hybrid plus the entity-co-mention graph rerank step. */
+    /**
+     * RETIRED — was hybrid plus the entity-co-mention graph rerank step.
+     *
+     * <p>The rerank was deleted in 2026-07 after the Phase-4 Track-A ceiling
+     * spike measured no net recall lift even with a Claude-quality knowledge
+     * graph — relational section relevance is not an entity-proximity signal
+     * (evidence + verdict: {@code eval/kg-spike/A1-findings.md}). The constant
+     * survives only so historical {@code retrieval_runs.mode} rows still parse
+     * via {@link #fromWire}; a fresh run degrades to {@link #HYBRID}.</p>
+     */
     HYBRID_GRAPH( "hybrid_graph" ),
 
     /**
-     * HYBRID_GRAPH variant that weights graph traversal by per-edge tier
-     * ({@code kg_edges.tier}) and per-mention confidence
-     * ({@code chunk_entity_mentions.confidence}). Cheap human-tier edges
-     * accumulate distance at face value; machine-tier edges accumulate at a
-     * configurable multiple. Provisional/probe-mode variant — see the
-     * provenance-weighted rerank value-probe doc for the experiment context.
+     * RETIRED — was the {@link #HYBRID_GRAPH} variant weighting graph traversal
+     * by per-edge tier and per-mention confidence. Retained for wire
+     * compatibility on the same terms as {@link #HYBRID_GRAPH}.
      */
     HYBRID_GRAPH_WEIGHTED( "hybrid_graph_weighted" );
 

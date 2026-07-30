@@ -36,8 +36,8 @@ All three tools are opt-in (kept out of the default build so it stays fast).
     `sendScim`/`sendError` + `CONTENT_TYPE`/`GSON`).
   - `ExperimentAggSweep`/`FinalSweep`/`GrandFinale` (retrieval research harness) —
     near-identical sweep scaffolding; low priority (throwaway research scripts).
-  - `GraphRerankConfig` ↔ `HybridConfig` (20 lines) — config records; candidate
-    for a shared base if they keep drifting together.
+  - ~~`GraphRerankConfig` ↔ `HybridConfig` (20 lines)~~ — resolved 2026-07 by
+    deleting `GraphRerankConfig` along with the rest of the KG graph rerank.
   - Intra-file blocks in `AdminPolicyResource`, `AdminHubDiscoveryResource`,
     `OllamaEmbeddingClient`, `BlogResource`.
 
@@ -111,8 +111,9 @@ Worst **cognitive** methods: `ExtractionResponseParser:66` (52),
    left uncovered — needs a live API key), `attachment` 69% → **79.9%** (`AttachmentServlet`
    real-multipart `upload()`, `doPost` success, `validateNextPage` phishing rewrite, mime
    fallback). Combined coverage 82.6% → **83.1%** (86.0% ex research/CLI).
-4. **(duplication) Consolidate the config records** (`GraphRerankConfig`/
-   `HybridConfig`) if they keep co-evolving.
+4. ~~**(duplication) Consolidate the config records** (`GraphRerankConfig`/
+   `HybridConfig`)~~ — moot: `GraphRerankConfig` was deleted in 2026-07 with the
+   KG graph rerank (`eval/kg-spike/A1-findings.md`).
 5. **(scope decision) Decide whether to exclude the experiment/CLI research
    tooling from the coverage denominator** so the metric reflects shippable code.
    Deferred pending a call on what counts as "production".

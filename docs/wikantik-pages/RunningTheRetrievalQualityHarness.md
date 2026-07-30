@@ -20,7 +20,8 @@ runbook:
   inputs:
   - A query set (the design names `core-agent-queries` as the seed — until Phase 5
     lands you may need to author one)
-  - The retrieval mode under test (`bm25`, `hybrid`, or `hybrid_graph`)
+  - The retrieval mode under test (`bm25` or `hybrid`; `hybrid_graph` is retired —
+    the graph rerank was removed in 2026-07, so that mode now behaves as `hybrid`)
   steps:
   - Confirm the harness is on the classpath — class name is `com.wikantik.knowledge.eval.RetrievalExperimentHarness`
     (or as currently named in the wikantik-knowledge module)

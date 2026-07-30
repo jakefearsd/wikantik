@@ -344,7 +344,7 @@ populated (wait ~20 seconds after startup with the custom-jdbc provider).
 ## Cross-links
 
 - [docs/wikantik-pages/KgInclusionPolicy.md](wikantik-pages/KgInclusionPolicy.md) — conceptual explainer, common workflows, and the agent curation path.
-- [docs/KnowledgeGraphRerank.md](KnowledgeGraphRerank.md) — how the policy interacts with the graph rerank step.
+- [docs/KnowledgeGraphRerank.md](KnowledgeGraphRerank.md) — historical record of the removed graph rerank step.
 - [docs/RetrievalQuality.md](RetrievalQuality.md) — measuring whether policy decisions affect retrieval scores.
 - [docs/AuditLog.md](AuditLog.md) — tamper-evident admin audit log (separate from `kg_policy_audit`).
 - `bin/db/migrations/V018__kg_inclusion_policy.sql` — DDL.

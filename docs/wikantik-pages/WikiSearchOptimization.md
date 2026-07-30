@@ -102,7 +102,7 @@ Combined with keyword search (hybrid retrieval), often the best results.
 
 ### Wikantik approach
 
-Wikantik uses BM25 + dense embeddings for hybrid retrieval. KG reranking is **off by default** (boost=0, never wired into production; shelved 2026-06-16 after a measured zero-lift ceiling spike). See `KnowledgeGraphRerank`.
+Wikantik uses BM25 + dense embeddings for hybrid retrieval. KG reranking is **not used** — it was shelved after a measured zero-lift ceiling spike (2026-06-16) and removed in 2026-07. See `KnowledgeGraphRerank`.
 
 This pattern (hybrid retrieval) has emerged as the modern best-of-breed for wikis with diverse content.
 

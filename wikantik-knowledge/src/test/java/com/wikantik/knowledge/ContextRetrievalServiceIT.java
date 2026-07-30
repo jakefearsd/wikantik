@@ -99,7 +99,7 @@ class ContextRetrievalServiceIT {
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             FakeEngine.create(),
-            searchManager, hybrid, null, chunkIndex, chunkRepo, similarity,
+            searchManager, hybrid, chunkIndex, chunkRepo, similarity,
             new com.wikantik.knowledge.MentionIndex( dataSource ),
             pageManager, null, "https://wiki.example", null );
 

@@ -118,10 +118,10 @@ Retrieval is **hybrid**: lexical BM25 (Apache Lucene, full-page index) fused wit
    │
    ├─▶ BM25 (Lucene)        ┐
    │                         ├─ reciprocal rank fusion ─▶ candidates
-   ├─▶ dense ANN (pgvector / ┘                                │
-   │     lucene-hnsw)                                          ▼
-   │                                          de-dup · version-pin · cite
-   └─▶ (KG rerank: wired but boost=0 — see critique)           │
+   └─▶ dense ANN (pgvector / ┘                                │
+         lucene-hnsw)                                          ▼
+                                              de-dup · version-pin · cite
+                                                                │
                                                                 ▼
                                           context bundle  (GET /api/bundle,
                                           assemble_bundle MCP) — ranked,

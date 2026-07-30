@@ -419,8 +419,8 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         // Steps 3–4 — edge collection + name resolution; degrade gracefully on repository failure.
         try {
             // Step 3 — collect intra-page edges (both endpoints must be in pageEntityIds).
-            // Issues one query per entity — acceptable at page scale; batch with = ANY(?) (as
-            // PageMentionsLoader does) if this becomes a hotspot.
+            // Issues one query per entity — acceptable at page scale; collapse into a single
+            // = ANY(?) batch if this becomes a hotspot.
             final Map< UUID, KgEdge > seenEdges = new LinkedHashMap<>();
             for ( final UUID entityId : pageEntityIds ) {
                 for ( final KgEdge edge : edges.getEdgesForNode( entityId, "both" ) ) {

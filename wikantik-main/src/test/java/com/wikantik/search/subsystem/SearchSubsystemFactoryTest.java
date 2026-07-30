@@ -31,14 +31,10 @@ import com.wikantik.search.embedding.BootstrapEmbeddingIndexer;
 import com.wikantik.search.embedding.EmbeddingIndexService;
 import com.wikantik.search.embedding.OllamaEmbeddingClient;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
-import com.wikantik.search.hybrid.GraphProximityScorer;
-import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridSearchService;
 import com.wikantik.search.hybrid.InMemoryChunkVectorIndex;
-import com.wikantik.search.hybrid.InMemoryGraphNeighborIndex;
 import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
 import com.wikantik.search.hybrid.QueryEmbedder;
-import com.wikantik.search.hybrid.QueryEntityResolver;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
@@ -99,12 +95,8 @@ final class SearchSubsystemFactoryTest {
     void createPropagatesHybridAndEmbeddingServices() {
         final HybridSearchService  hybrid               = mock( HybridSearchService.class );
         final QueryEmbedder        queryEmbedder        = mock( QueryEmbedder.class );
-        final QueryEntityResolver  queryEntityResolver  = mock( QueryEntityResolver.class );
-        final GraphRerankStep      graphRerankStep      = mock( GraphRerankStep.class );
-        final GraphProximityScorer graphProximityScorer = mock( GraphProximityScorer.class );
 
-        final InMemoryChunkVectorIndex   chunkVectorIndex   = mock( InMemoryChunkVectorIndex.class );
-        final InMemoryGraphNeighborIndex graphNeighborIndex = mock( InMemoryGraphNeighborIndex.class );
+        final InMemoryChunkVectorIndex chunkVectorIndex = mock( InMemoryChunkVectorIndex.class );
 
         final EmbeddingIndexService       embeddingIndexService       = mock( EmbeddingIndexService.class );
         final OllamaEmbeddingClient       embeddingClient             = mock( OllamaEmbeddingClient.class );
@@ -116,11 +108,7 @@ final class SearchSubsystemFactoryTest {
         final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( HybridSearchService.class ) ).thenReturn( hybrid );
         when( engine.getManager( QueryEmbedder.class ) ).thenReturn( queryEmbedder );
-        when( engine.getManager( QueryEntityResolver.class ) ).thenReturn( queryEntityResolver );
-        when( engine.getManager( GraphRerankStep.class ) ).thenReturn( graphRerankStep );
-        when( engine.getManager( GraphProximityScorer.class ) ).thenReturn( graphProximityScorer );
         when( engine.getManager( InMemoryChunkVectorIndex.class ) ).thenReturn( chunkVectorIndex );
-        when( engine.getManager( InMemoryGraphNeighborIndex.class ) ).thenReturn( graphNeighborIndex );
         when( engine.getManager( EmbeddingIndexService.class ) ).thenReturn( embeddingIndexService );
         when( engine.getManager( OllamaEmbeddingClient.class ) ).thenReturn( embeddingClient );
         when( engine.getManager( BootstrapEmbeddingIndexer.class ) ).thenReturn( bootstrapEmbeddingIndexer );
@@ -138,11 +126,7 @@ final class SearchSubsystemFactoryTest {
 
         assertSame( hybrid,                      services.hybridSearch() );
         assertSame( queryEmbedder,               services.queryEmbedder() );
-        assertSame( queryEntityResolver,         services.queryEntityResolver() );
-        assertSame( graphRerankStep,             services.graphRerankStep() );
-        assertSame( graphProximityScorer,        services.graphProximityScorer() );
         assertSame( chunkVectorIndex,            services.chunkVectorIndex() );
-        assertSame( graphNeighborIndex,          services.graphNeighborIndex() );
         assertSame( embeddingIndexService,       services.embeddingIndexService() );
         assertSame( embeddingClient,             services.embeddingClient() );
         assertSame( bootstrapEmbeddingIndexer,   services.bootstrapEmbeddingIndexer() );

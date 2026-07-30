@@ -261,7 +261,7 @@ class DefaultContextRetrievalServiceTest {
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, null, null, null, null, null, mentionIndex, pm, null, "", null );
+            sm, null, null, null, null, mentionIndex, pm, null, "", null );
 
         final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
             "q", 5, 3, null ) );
@@ -302,7 +302,7 @@ class DefaultContextRetrievalServiceTest {
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, null, null, null, null, null, mentionIndex, pm, null, "", null );
+            sm, null, null, null, null, mentionIndex, pm, null, "", null );
         svc.retrieve( new com.wikantik.api.knowledge.ContextQuery( "q", 5, 3, null ) );
 
         org.mockito.Mockito.verify( mentionIndex, org.mockito.Mockito.times( 1 ) )
@@ -346,7 +346,7 @@ class DefaultContextRetrievalServiceTest {
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, hybrid, null, chunkIndex, chunkRepo, null, null, pm, null, "https://wiki.example", null );
+            sm, hybrid, chunkIndex, chunkRepo, null, null, pm, null, "https://wiki.example", null );
 
         final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
             "alpha query", 5, 2, null ) );
@@ -414,7 +414,7 @@ class DefaultContextRetrievalServiceTest {
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, hybrid, null, chunkIndex, chunkRepo, null, null, pm, null, "", null );
+            sm, hybrid, chunkIndex, chunkRepo, null, null, pm, null, "", null );
 
         final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
             "q", 5, /*chunksPerPage*/ 2, null ) );

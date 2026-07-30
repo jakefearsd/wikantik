@@ -68,8 +68,6 @@
             <Class name="com.wikantik.search.DefaultSearchManager"/>
             <Class name="com.wikantik.search.embedding.AsyncEmbeddingIndexListener"/>
             <Class name="com.wikantik.search.embedding.EmbeddingIndexService"/>
-            <Class name="com.wikantik.search.hybrid.PageMentionsLoader"/>
-            <Class name="com.wikantik.search.hybrid.QueryEntityResolver"/>
         </Or>
         <Bug code="CT"/>
     </Match>

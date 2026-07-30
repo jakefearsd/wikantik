@@ -42,7 +42,6 @@ import com.wikantik.knowledge.retrieval.RelatedPagesFinder;
 import com.wikantik.search.FrontmatterMetadataCache;
 import com.wikantik.search.SearchManager;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
-import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridSearchService;
 import com.wikantik.search.hybrid.ScoredChunk;
 import org.apache.logging.log4j.LogManager;
@@ -71,7 +70,6 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
     private final Engine engine;
     private final SearchManager searchManager;
     private final HybridSearchService hybridSearch;
-    private final GraphRerankStep graphRerank;
     private final PageManager pageManager;
     private final String publicBaseUrl;
     private final com.wikantik.api.ontology.OntologyQueryService ontologyQuery;
@@ -83,7 +81,6 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             final Engine engine,
             final SearchManager searchManager,
             final HybridSearchService hybridSearch,
-            final GraphRerankStep graphRerank,
             final ChunkVectorIndex chunkIndex,
             final ContentChunkRepository chunkRepo,
             final NodeMentionSimilarity similarity,
@@ -95,12 +92,11 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         if ( engine == null ) throw new IllegalArgumentException( "engine required" );
         if ( searchManager == null ) throw new IllegalArgumentException( "searchManager required" );
         if ( pageManager == null ) throw new IllegalArgumentException( "pageManager required" );
-        // hybridSearch, graphRerank, chunkIndex, chunkRepo, similarity, mentionIndex, fmCache
+        // hybridSearch, chunkIndex, chunkRepo, similarity, mentionIndex, fmCache
         // all nullable: the service degrades rather than failing when optional deps are absent.
         this.engine = engine;
         this.searchManager = searchManager;
         this.hybridSearch = hybridSearch;
-        this.graphRerank = graphRerank;
         this.pageManager = pageManager;
         this.publicBaseUrl = publicBaseUrl == null ? "" : publicBaseUrl;
         // Optional: when present (and the flag enabled at the wiring site), the query is
@@ -132,7 +128,6 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         return new DefaultContextRetrievalService(
             engine, sm,
             search.hybridSearch(),
-            search.graphRerankStep(),
             search.chunkVectorIndex(),
             kg.contentChunkRepository(),
             kg.nodeMentionSimilarity(),
@@ -197,7 +192,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             }
             return new RetrievalResult( query.query(), List.of(), 0 );
         }
-        final RerankPipelineResult pipeline = applyHybridAndGraphRerank( query.query(), bm25 );
+        final RerankPipelineResult pipeline = applyHybridRerank( query.query(), bm25 );
         final List< SearchResult > ordered = pipeline.ordered();
         // Plumb the first dense scan's chunks down so fetchContributingChunks
         // can skip its second full-corpus scan when the first one already
@@ -258,8 +253,8 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         Optional< List< ScoredChunk > > reusableChunks
     ) {}
 
-    private RerankPipelineResult applyHybridAndGraphRerank( final String query,
-                                                            final Collection< SearchResult > bm25 ) {
+    private RerankPipelineResult applyHybridRerank( final String query,
+                                                    final Collection< SearchResult > bm25 ) {
         final List< SearchResult > asList = new ArrayList<>( bm25 == null ? List.of() : bm25 );
         if ( hybridSearch == null || !hybridSearch.isEnabled() ) {
             return new RerankPipelineResult( asList, Optional.empty() );
@@ -273,14 +268,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         }
         final com.wikantik.search.hybrid.RerankOutcome rerankOut =
             hybridSearch.rerankWithChunks( query, names );
-        List< String > fused = rerankOut.fusedPageNames();
-        if ( graphRerank != null ) {
-            try {
-                fused = graphRerank.rerank( query, fused );
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "Graph rerank failed; using hybrid fused order: {}", e.getMessage(), e );
-            }
-        }
+        final List< String > fused = rerankOut.fusedPageNames();
         if ( fused.equals( names ) ) {
             return new RerankPipelineResult( asList, rerankOut.denseChunks() );
         }

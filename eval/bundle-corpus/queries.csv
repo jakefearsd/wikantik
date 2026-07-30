@@ -58,10 +58,15 @@ q40,measuring what matters,SIMILARITY,01KQ0P44MSXHJQMSTXW9A5YN7Y,II. Leading vs.
 # Gold spans two sections in HybridRetrieval.
 r01,how does Wikantik hybrid retrieval decide between BM25 and dense results,RELATIONAL,01KQ0P44QZYNK9BZ0FV5NQ9CF8,Wiring,relational-multi-hop; answer requires both wiring and fail-closed sections
 r01,how does Wikantik hybrid retrieval decide between BM25 and dense results,RELATIONAL,01KQ0P44QZYNK9BZ0FV5NQ9CF8,Fail-closed behaviour,relational-multi-hop; fallback policy is the second half of the answer
-# R02: "What turns the Knowledge Graph rerank on and is it enabled by default?"
-# Requires reading KnowledgeGraphRerank (Configuration) + HybridRetrieval (Configuration)
-r02,what configuration enables the Knowledge Graph rerank and what is the default,RELATIONAL,01KQPQVYPFSBSGX38YP6XFQPMV,Configuration,relational-multi-hop; rerank config lives here
-r02,what configuration enables the Knowledge Graph rerank and what is the default,RELATIONAL,01KQ0P44QZYNK9BZ0FV5NQ9CF8,Configuration,relational-multi-hop; the boost=0.0 default lives in HybridRetrieval config section
+# R02: "Why was the Knowledge Graph rerank removed and what moved recall instead?"
+# Requires reading KnowledgeGraphRerank (Why it was removed) + HybridRetrieval (Section recall levers).
+# REPLACED 2026-07-30: the previous r02 asked which configuration enables the KG rerank. That
+# question became unanswerable when the rerank was deleted (eval/kg-spike/A1-findings.md) — and its
+# second gold was already stale, since HybridRetrieval's Configuration section never documented the
+# boost default. Replaced rather than dropped so the corpus keeps its query count and its
+# two-page RELATIONAL span; recall numbers predating this date measured the old r02.
+r02,why was the Knowledge Graph rerank removed from Wikantik retrieval,RELATIONAL,01KQPQVYPFSBSGX38YP6XFQPMV,Why it was removed,relational-multi-hop; the measured verdict lives here
+r02,why was the Knowledge Graph rerank removed from Wikantik retrieval,RELATIONAL,01KQ0P44QZYNK9BZ0FV5NQ9CF8,Section recall levers,relational-multi-hop; the levers that did move recall are the second half of the answer
 # R03: "What is the difference between the Page Graph and the Knowledge Graph?"
 # Requires understanding both subsystems — answered by PageGraphVsKnowledgeGraph.
 # That page has NO canonical_id yet; use KnowledgeGraphCore + HybridRetrieval as proxy.

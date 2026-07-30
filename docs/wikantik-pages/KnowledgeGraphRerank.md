@@ -1,7 +1,6 @@
 ---
-summary: Technical overview of the graph-aware reranking strategy in Wikantik. Explains
-  how the system combines traditional lexical BM25 scores with dense vector similarity
-  and Knowledge Graph (KG) co-mention data to improve retrieval precision.
+summary: Historical record of Wikantik's Knowledge Graph rerank stage — how it worked,
+  and why it was removed in 2026-07 after measuring zero retrieval lift.
 title: Knowledge Graph Rerank
 tags:
 - knowledge-graph
@@ -19,54 +18,81 @@ canonical_id: 01KQPQVYPFSBSGX38YP6XFQPMV
 
 # Knowledge Graph Rerank
 
-> **Status: OFF by default — shelved.** Knowledge-Graph reranking is **not**
-> used in default hybrid search. The boost weight defaults to **0** and the
-> page-level reranker was **never wired into production**. A 2026-06-16 ceiling
-> spike measured **zero net lift** even with a Claude-quality KG: relational
-> section relevance is not the same as entity-proximity. The rerank was shelved
-> (Phase 4 Track A) and left **dormant, not removed**. Do not expect KG
-> reranking to affect retrieval results unless it is explicitly re-enabled.
+> **Status: REMOVED (2026-07). This page is a historical record.**
+> Knowledge-Graph reranking is **not** part of Wikantik retrieval, and the code
+> that implemented it has been deleted. A 2026-06-16 ceiling spike measured
+> **zero net lift** even with a Claude-quality KG — relational section relevance
+> is not the same thing as entity proximity — and the shipped dense-chunk
+> context bundle never invoked the step at all. The feature was first shelved
+> (dormant, boost = 0), then removed once it was clear the page-level design
+> could never be the fix.
 
 > 🌐 **Product overview:** [Knowledge graph on wikantik.com](https://www.wikantik.com/platform/knowledge-graph.html) — a plain-language walkthrough for readers and AI agents.
 
 
-Knowledge Graph Rerank is the final stage of the Wikantik retrieval pipeline. It transforms a raw list of search results into a contextually relevant set of pages by leveraging the semantic relationships stored in the [Knowledge Graph](Knowledge Graph).
+Knowledge Graph Rerank *was* intended as the final stage of the Wikantik
+retrieval pipeline: reordering a fused result list using the semantic
+relationships stored in the [Knowledge Graph](Knowledge Graph). This page
+records what was built and what the measurement showed, so the experiment is not
+repeated blind.
 
-## The Retrieval Pipeline
+## The retrieval pipeline as it ships today
 
-The Wikantik search engine (exposed via `/api/search` and the `/knowledge-mcp` tool `retrieve_context`) follows a multi-stage process:
+The Wikantik search engine (exposed via `/api/search` and the `/knowledge-mcp`
+tool `retrieve_context`) runs three stages:
 
 1.  **Lexical Retrieval (BM25)**: A fast keyword-based search against the Lucene index.
-2.  **Semantic Retrieval (Dense Vector)**: Cosine similarity search using embeddings stored in `pgvector`.
-3.  **Hybrid Fusion**: Combining the scores from BM25 and Vector search using Reciprocal Rank Fusion (RRF).
-4.  **Graph Rerank (Final Stage)**: Adjusting the scores based on "Node Mention" density and co-occurrence in the graph.
+2.  **Semantic Retrieval (Dense Vector)**: Cosine similarity search using embeddings.
+3.  **Hybrid Fusion**: Combining BM25 and dense scores with Reciprocal Rank Fusion (RRF).
 
-## How Graph Rerank Works
+A fourth **Graph Rerank** stage used to sit after fusion. It is gone. See
+[HybridRetrieval](HybridRetrieval) for the pipeline that actually serves
+queries.
 
-The reranker identifies "seed nodes" within the top-N results from the hybrid fusion stage. It then uses the [KnowledgeGraphService](KnowledgeGraphService) to find co-mentioned neighbors and high-confidence relationships.
+## How the graph rerank worked
 
-- **Boost by Co-mention**: If a page is not in the top results but is heavily co-mentioned with multiple pages that *are* in the top results, its score is boosted.
-- **Entity Density**: Pages that contain a high density of relevant entities (nodes) related to the query are prioritized.
-- **Fail-Closed Fallback**: As documented in [WikantikDevelopment](WikantikDevelopment), if the embedding service or the graph database is unreachable, the system fails closed to a BM25-only result set to ensure availability.
+The reranker identified "seed nodes" within the top-N results from hybrid
+fusion, then used the [KnowledgeGraphService](KnowledgeGraphService) to find
+co-mentioned neighbours and high-confidence relationships.
 
-## Configuration
+- **Boost by co-mention**: a page heavily co-mentioned with pages already in the
+  top results had its score boosted.
+- **Entity density**: pages containing a high density of query-relevant entities
+  were prioritised.
+- **Fail-closed fallback**: if the embedding service or graph store was
+  unreachable, the system fell back to BM25-only results. That fail-closed
+  behaviour still governs hybrid retrieval today — see
+  [WikantikDevelopment](WikantikDevelopment).
 
-Reranking behavior is controlled via `wikantik-custom.properties`:
+## Why it was removed
 
-```properties
-# Graph reranking is OFF by default (shelved 2026-06-16). The boost weight is the
-# on/off gate: 0 disables it (the default), and the rerank step is not even wired
-# when boost = 0. This is the property that matters.
-wikantik.search.graph.boost = 0
+Two independent findings, both from the 2026-06-16 ceiling spike:
 
-# The remaining graph-rerank knobs all live under wikantik.search.graph.* and are
-# inert while boost = 0 — e.g. wikantik.search.graph.max-hops,
-# wikantik.search.graph.weight.tier.human / .tier.machine,
-# wikantik.search.graph.weight.mention.floor. See GraphRerankConfig for the full
-# set and defaults. (BM25/dense fusion weights are a separate concern — they live
-# under wikantik.search.hybrid.rrf.* and are documented on HybridRetrieval.)
-```
+1.  **Structural.** The rerank reordered whole *page names* inside the
+    page-gated retrieval path. The shipped context bundle uses a global
+    dense-chunk source that goes straight from query embedding to top-K chunks,
+    so it never called the rerank at all. Output was bit-identical at every
+    boost value tried — the knob could not affect the path being served.
+2.  **Quality.** On the page-gated path where the step *did* run, it was
+    net-negative. Re-extracting the evaluation slice with a much richer
+    Claude-generated KG (84 mentions vs 65, every node embedded) moved the
+    result to **zero net lift at recall@12 and −1 at recall@5**.
 
-## Performance Impact
+The root cause: the KG knows *which entities are related*. It does not know
+*which section answers a relational question*. Entity coverage was never the
+bottleneck for these queries, so a better KG could not help.
 
-Benchmarks recorded in [KnowledgeGraphExtractionBenchmarks](KnowledgeGraphExtractionBenchmarks) show that while graph reranking adds approximately 15-20ms of latency, it significantly improves `Recall@5` for "multi-hop" queries where the relevant information is spread across related topics rather than a single page.
+## What replaced it
+
+Nothing — the retrieval gains came from elsewhere. The levers that actually
+moved section recall (roughly 0.60 → 0.74) were a chunker heading-fidelity fix
+and contextual document embeddings, both documented on
+[HybridRetrieval](HybridRetrieval).
+
+The Knowledge Graph and the RDF ontology remain first-class for the human
+knowledge base, agent traversal, and SPARQL. Their value is as a curated
+knowledge surface, not as a retrieval ranking signal.
+
+If relational retrieval becomes a priority again, the reframed lever is a
+**section-level** signal inside the dense bundle — a new design, not the
+page-level boost described here.

@@ -266,9 +266,11 @@ public class AdminOverviewResource extends RestServletBase {
             final var runner = getSubsystems().knowledge().retrievalQualityRunner();
             final JsonObject o = new JsonObject();
             final var modes = new java.util.LinkedHashMap< String, com.wikantik.api.eval.RetrievalMode >();
+            // HYBRID_GRAPH is deliberately absent: the graph rerank was deleted after
+            // measuring zero lift (eval/kg-spike/A1-findings.md), so no new run can
+            // produce that mode.
             modes.put( "bm25", com.wikantik.api.eval.RetrievalMode.BM25 );
             modes.put( "hybrid", com.wikantik.api.eval.RetrievalMode.HYBRID );
-            modes.put( "hybridGraph", com.wikantik.api.eval.RetrievalMode.HYBRID_GRAPH );
             for ( final var entry : modes.entrySet() ) {
                 final var rows = runner.recentRuns( null, entry.getValue(), 1 );
                 if ( !rows.isEmpty() && rows.get( 0 ).ndcgAt5() != null ) {

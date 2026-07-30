@@ -31,12 +31,8 @@ import com.wikantik.search.embedding.BootstrapEmbeddingIndexer;
 import com.wikantik.search.embedding.EmbeddingIndexService;
 import com.wikantik.search.embedding.OllamaEmbeddingClient;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
-import com.wikantik.search.hybrid.GraphProximityScorer;
-import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridSearchService;
-import com.wikantik.search.hybrid.InMemoryGraphNeighborIndex;
 import com.wikantik.search.hybrid.QueryEmbedder;
-import com.wikantik.search.hybrid.QueryEntityResolver;
 import com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle;
 import com.wikantik.search.subsystem.lucene.LuceneIndexer;
 import com.wikantik.search.subsystem.lucene.LuceneSearcher;
@@ -69,8 +65,8 @@ public final class SearchSubsystem {
      *
      * <p>{@code engine} is the legacy seam — every service in
      * {@link Services} is constructed by {@code WikiEngine.initialize}
-     * (specifically {@code wireHybridRetrieval} / {@code wireGraphRerank})
-     * and registered via {@code managers.put(...)}. The Phase 7 Ckpt 1
+     * (specifically {@code wireHybridRetrieval}) and registered via
+     * {@code managers.put(...)}. The Phase 7 Ckpt 1
      * factory pulls each one off the engine's manager registry. Subsequent
      * checkpoints narrow this seam.</p>
      *
@@ -119,13 +115,9 @@ public final class SearchSubsystem {
         // Hybrid retrieval:
         HybridSearchService  hybridSearch,
         QueryEmbedder        queryEmbedder,
-        QueryEntityResolver  queryEntityResolver,
-        GraphRerankStep      graphRerankStep,
-        GraphProximityScorer graphProximityScorer,
 
         // Chunk vector index (may be in-memory or pgvector-backed):
-        ChunkVectorIndex           chunkVectorIndex,
-        InMemoryGraphNeighborIndex graphNeighborIndex,
+        ChunkVectorIndex chunkVectorIndex,
 
         // Embedding pipeline:
         EmbeddingIndexService       embeddingIndexService,

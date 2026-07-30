@@ -33,19 +33,13 @@ import com.wikantik.search.embedding.EmbeddingConfig;
 import com.wikantik.search.embedding.EmbeddingIndexService;
 import com.wikantik.search.embedding.TextEmbeddingClient;
 import com.wikantik.search.hybrid.DenseRetriever;
-import com.wikantik.search.hybrid.GraphProximityScorer;
-import com.wikantik.search.hybrid.GraphRerankConfig;
-import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridConfig;
 import com.wikantik.search.hybrid.HybridFuser;
 import com.wikantik.search.hybrid.HybridMetricsBridge;
 import com.wikantik.search.hybrid.HybridSearchService;
 import com.wikantik.search.hybrid.InMemoryChunkVectorIndex;
-import com.wikantik.search.hybrid.InMemoryGraphNeighborIndex;
-import com.wikantik.search.hybrid.PageMentionsLoader;
 import com.wikantik.search.hybrid.QueryEmbedder;
 import com.wikantik.search.hybrid.QueryEmbedderConfig;
-import com.wikantik.search.hybrid.QueryEntityResolver;
 import com.wikantik.admin.ContentIndexRebuildService;
 import com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner;
 import com.wikantik.knowledge.eval.RetrievalQualityDao;
@@ -61,8 +55,8 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Wiring helpers for the Search subsystem's optional services: hybrid retrieval,
- * graph rerank, and the retrieval-quality runner.
+ * Wiring helpers for the Search subsystem's optional services: hybrid retrieval
+ * and the retrieval-quality runner.
  *
  * <p>Phase 9 Ckpt 4c of the wikantik-main decomposition. These methods were
  * previously private helpers on {@link WikiEngine}. Moving them here reduces
@@ -301,9 +295,7 @@ public final class SearchWiringHelper {
 
         // Per-cache Caffeine metrics (size + hits + misses + evictions). One
         // call per Caffeine cache the application owns; tagged by short name
-        // so Prometheus / Grafana can break out hit-rate by cache. The two
-        // graph-rerank caches (query_entities + page_mentions) are wired in
-        // wireGraphRerank where their owning components are constructed.
+        // so Prometheus / Grafana can break out hit-rate by cache.
         if ( meterRegistry != null ) {
             if ( chunkRepo != null ) {
                 com.wikantik.observability.CaffeineCacheMetricsBridge
@@ -382,76 +374,6 @@ public final class SearchWiringHelper {
     }
 
     // -----------------------------------------------------------------------
-    // Graph rerank
-    // -----------------------------------------------------------------------
-
-    /**
-     * Wires the graph-aware rerank step: loads {@code kg_edges} into an
-     * {@link InMemoryGraphNeighborIndex}, builds the name-based
-     * {@link QueryEntityResolver}, and registers a {@link GraphRerankStep}.
-     * Config-gated: {@code wikantik.search.graph.boost=0} skips wiring.
-     */
-    public static void wireGraphRerank( final Properties props,
-                                        final javax.sql.DataSource ds,
-                                        final WikiEngine engine ) {
-        final GraphRerankConfig cfg;
-        try {
-            cfg = GraphRerankConfig.fromProperties( props );
-        } catch ( final IllegalArgumentException e ) {
-            LOG.warn( "Invalid graph rerank config; feature disabled: {}", e.getMessage() );
-            return;
-        }
-        if ( !cfg.enabled() ) {
-            LOG.info( "Graph rerank disabled (wikantik.search.graph.boost=0)" );
-            return;
-        }
-        final InMemoryGraphNeighborIndex neighborIndex;
-        try {
-            // Always build a weighted index — the unweighted BFS used by HYBRID_GRAPH
-            // ignores per-edge weights, while HYBRID_GRAPH_WEIGHTED consults them.
-            final java.util.Map< String, Double > tierWeights = java.util.Map.of(
-                "human",   cfg.tierHumanWeight(),
-                "machine", cfg.tierMachineWeight()
-            );
-            neighborIndex = new InMemoryGraphNeighborIndex( ds, cfg.neighborIndexMaxEdges(), tierWeights );
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "Graph neighbor index failed to initialize; graph rerank disabled: {}", e.getMessage(), e );
-            return;
-        }
-        final GraphProximityScorer scorer = new GraphProximityScorer( neighborIndex );
-        final QueryEntityResolver resolver = new QueryEntityResolver( ds, cfg );
-        final PageMentionsLoader mentionsLoader = new PageMentionsLoader( ds );
-        final GraphRerankStep step =
-            new GraphRerankStep( resolver, mentionsLoader, scorer, neighborIndex, cfg );
-
-        engine.setManager( InMemoryGraphNeighborIndex.class, neighborIndex );
-        engine.setManager( com.wikantik.search.hybrid.GraphNeighborIndex.class, neighborIndex );
-        engine.setManager( GraphProximityScorer.class, scorer );
-        engine.setManager( QueryEntityResolver.class, resolver );
-        engine.setManager( PageMentionsLoader.class, mentionsLoader );
-        engine.setManager( GraphRerankStep.class, step );
-
-        // Caffeine cache metrics for the two graph-rerank caches (query_entities,
-        // page_mentions, page_mentions_confidence). Their owning components are
-        // constructed locally here, so we register against the same shared
-        // MeterRegistry that wireHybridRetrieval used for the others.
-        final io.micrometer.core.instrument.MeterRegistry meterRegistry =
-            com.wikantik.api.observability.MeterRegistryHolder.get();
-        if ( meterRegistry != null ) {
-            com.wikantik.observability.CaffeineCacheMetricsBridge
-                .register( meterRegistry, "query_entities", resolver.cache() );
-            com.wikantik.observability.CaffeineCacheMetricsBridge
-                .register( meterRegistry, "page_mentions", mentionsLoader.loadForCache() );
-            com.wikantik.observability.CaffeineCacheMetricsBridge
-                .register( meterRegistry, "page_mentions_confidence",
-                    mentionsLoader.loadForWithConfidenceCache() );
-        }
-
-        LOG.info( "Graph rerank wired (boost={}, maxHops={}, indexNodes={})",
-            cfg.boost(), cfg.maxHops(), neighborIndex.nodeCount() );
-    }
-
-    // -----------------------------------------------------------------------
     // Retrieval-quality runner
     // -----------------------------------------------------------------------
 
@@ -460,10 +382,10 @@ public final class SearchWiringHelper {
      * {@code /admin/retrieval-quality} endpoint and the nightly schedule have
      * a backend.
      *
-     * <p>{@code searchManager}, {@code pageManager}, {@code hybridSearch}, and
-     * {@code graphRerankStep} are the collaborators consumed by the retriever
-     * lambda.  Each may be {@code null} when the corresponding feature is
-     * disabled; the lambda degrades gracefully in that case.</p>
+     * <p>{@code searchManager}, {@code pageManager}, and {@code hybridSearch}
+     * are the collaborators consumed by the retriever lambda.  Each may be
+     * {@code null} when the corresponding feature is disabled; the lambda
+     * degrades gracefully in that case.</p>
      */
     public static void wireRetrievalQualityRunner( final Properties props,
                                                     final javax.sql.DataSource ds,
@@ -471,13 +393,12 @@ public final class SearchWiringHelper {
                                                     final SearchManager searchManager,
                                                     final PageManager pageManager,
                                                     final HybridSearchService hybridSearch,
-                                                    final GraphRerankStep graphRerankStep,
                                                     final WikiEngine engine ) {
         try {
             final RetrievalQualityDao rqDao = new RetrievalQualityDao( ds );
             final RetrievalQualityMetrics rqMetrics = RetrievalQualityMetrics.resolveAndBind();
             final DefaultRetrievalQualityRunner.Retriever retriever =
-                buildRetriever( engine, searchManager, pageManager, hybridSearch, graphRerankStep );
+                buildRetriever( engine, searchManager, pageManager, hybridSearch );
             final DefaultRetrievalQualityRunner.CanonicalIdResolver resolver =
                 slug -> structuralIndex.resolveCanonicalIdFromSlug( slug );
             final int hour = TextUtil.getIntegerProperty( props, "wikantik.retrieval.cron.hour_utc", 3 );
@@ -502,7 +423,7 @@ public final class SearchWiringHelper {
      * Bridges the live search stack to the
      * {@link DefaultRetrievalQualityRunner.Retriever} functional interface.
      *
-     * <p>All four service parameters may be {@code null} when the corresponding
+     * <p>All three service parameters may be {@code null} when the corresponding
      * feature is disabled; the lambda degrades gracefully (falls back to BM25
      * or returns an empty list).</p>
      */
@@ -510,8 +431,7 @@ public final class SearchWiringHelper {
             final WikiEngine engine,
             final SearchManager searchManager,
             final PageManager pageManager,
-            final HybridSearchService hybridSearch,
-            final GraphRerankStep graphRerankStep ) {
+            final HybridSearchService hybridSearch ) {
         return ( mode, query ) -> {
             if ( searchManager == null ) return List.of();
             final com.wikantik.api.core.Context ctx;
@@ -539,16 +459,16 @@ public final class SearchWiringHelper {
                     return bm25Names;
                 case HYBRID:
                     return hybridSearch == null ? bm25Names : hybridSearch.rerank( query, bm25Names );
-                case HYBRID_GRAPH: {
-                    final List< String > fused =
-                        hybridSearch == null ? bm25Names : hybridSearch.rerank( query, bm25Names );
-                    return graphRerankStep == null ? fused : graphRerankStep.rerank( query, fused );
-                }
-                case HYBRID_GRAPH_WEIGHTED: {
-                    final List< String > fused =
-                        hybridSearch == null ? bm25Names : hybridSearch.rerank( query, bm25Names );
-                    return graphRerankStep == null ? fused : graphRerankStep.rerankWeighted( query, fused );
-                }
+                case HYBRID_GRAPH:
+                case HYBRID_GRAPH_WEIGHTED:
+                    // Retired modes: the KG page-level graph rerank was deleted after the
+                    // Phase-4 Track-A ceiling spike measured zero lift even with a
+                    // Claude-quality KG (eval/kg-spike/A1-findings.md). The enum constants
+                    // survive so historical retrieval_runs.mode rows still parse; a fresh
+                    // run degrades to plain HYBRID rather than silently measuring BM25.
+                    LOG.warn( "Retrieval mode {} is retired (graph rerank removed); running HYBRID instead",
+                        mode );
+                    return hybridSearch == null ? bm25Names : hybridSearch.rerank( query, bm25Names );
                 default:
                     return bm25Names;
             }

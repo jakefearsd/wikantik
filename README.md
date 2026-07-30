@@ -572,7 +572,7 @@ Migrating from a previous Wikantik install? See
 - [MathematicalNotation.md](docs/MathematicalNotation.md) — LaTeX math rendering (`$…$`, `$$…$$`, ```` ```math ````) via Flexmark + KaTeX, plus the save-time validation that blocks un-isolated display math
 - [NewUI.md](docs/NewUI.md) — React SPA design and architecture (reader, editor, admin, Knowledge Graph viewer)
 - [DatabaseUpdates.md](docs/DatabaseUpdates.md) — Knowledge Graph schema and index layout
-- [KnowledgeGraphRerank.md](docs/KnowledgeGraphRerank.md) — Configuration, verification, and tuning guide for the entity extractor, unified embeddings, and the experimental Knowledge Graph-aware search rerank (off by default — measured no net ranking lift, left dormant)
+- [KnowledgeGraphRerank.md](docs/KnowledgeGraphRerank.md) — Configuration and verification guide for the entity extractor and unified embeddings, plus the historical record of the Knowledge Graph-aware search rerank (removed in 2026-07 after measuring no net ranking lift)
 - [RelationalUserDatabase.md](docs/RelationalUserDatabase.md) — PostgreSQL user and group database configuration
 - [Sitemap.md](docs/Sitemap.md) — Sitemap.xml and Atom feed servlets
 - [SeoAndCrawling.md](docs/SeoAndCrawling.md) — SEO and crawler configuration: robots.txt, per-page `<title>`, JSON-LD, AI-crawler policy, and prerendering for bots

@@ -44,8 +44,8 @@ public final class SearchSubsystemBridge {
         if ( !( engine instanceof com.wikantik.WikiEngine wikiEngine ) ) {
             // Non-WikiEngine callers cannot reach getManager — return a fully-null record.
             return new SearchSubsystem.Services(
-                null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null );
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null );
         }
         final SearchSubsystem.Services typed = wikiEngine.getSearchSubsystem();
         if ( typed != null ) return typed;

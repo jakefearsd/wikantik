@@ -51,7 +51,7 @@ The results from BM25 and Dense retrieval are combined using **Reciprocal Rank F
 *   **Resilience**: The system is designed to "fail-safe." If the embedding service is down, the fuser automatically collapses to the lexical result, ensuring search remains functional.
 
 ### D. Knowledge Graph Reranking
-KG reranking is **off by default** (boost=0, never wired into production; shelved 2026-06-16 after a measured zero-lift ceiling spike). See `KnowledgeGraphRerank`.
+KG reranking is **not used** — it was shelved after a measured zero-lift ceiling spike (2026-06-16) and removed in 2026-07. See `KnowledgeGraphRerank`.
 
 ## 2. The Embedding Infrastructure
 

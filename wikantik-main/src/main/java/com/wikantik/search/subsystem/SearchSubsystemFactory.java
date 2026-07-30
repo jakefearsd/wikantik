@@ -34,14 +34,10 @@ import com.wikantik.search.embedding.EmbeddingConfig;
 import com.wikantik.search.embedding.EmbeddingIndexService;
 import com.wikantik.search.embedding.OllamaEmbeddingClient;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
-import com.wikantik.search.hybrid.GraphProximityScorer;
-import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridSearchService;
 import com.wikantik.search.hybrid.InMemoryChunkVectorIndex;
-import com.wikantik.search.hybrid.InMemoryGraphNeighborIndex;
 import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
 import com.wikantik.search.hybrid.QueryEmbedder;
-import com.wikantik.search.hybrid.QueryEntityResolver;
 
 import javax.sql.DataSource;
 import java.util.Locale;
@@ -57,8 +53,7 @@ import java.util.Properties;
  * <p>Pulls every Search-owned service off the engine's legacy manager
  * registry. Every field is constructed earlier in
  * {@code WikiEngine.initialize()} (specifically
- * {@code wireHybridRetrieval} / {@code wireGraphRerank} /
- * {@code wireEntityExtraction}) and registered via
+ * {@code wireHybridRetrieval} / {@code wireEntityExtraction}) and registered via
  * {@code engine.setManager(...)}. When a wiring path was skipped (no
  * datasource, embeddings disabled, hybrid disabled, etc.) the
  * corresponding manager is absent and the slot stays {@code null} — same
@@ -96,13 +91,9 @@ public final class SearchSubsystemFactory {
         final SearchProvider searchProvider =
             searchManager != null ? safeGetSearchEngine( searchManager ) : null;
 
-        // Hybrid retrieval (registered by wireHybridRetrieval +
-        // wireGraphRerank when the master flags are on).
+        // Hybrid retrieval (registered by wireHybridRetrieval when the master flag is on).
         final HybridSearchService  hybridSearch         = engine.getManager( HybridSearchService.class );
         final QueryEmbedder        queryEmbedder        = engine.getManager( QueryEmbedder.class );
-        final QueryEntityResolver  queryEntityResolver  = engine.getManager( QueryEntityResolver.class );
-        final GraphRerankStep      graphRerankStep      = engine.getManager( GraphRerankStep.class );
-        final GraphProximityScorer graphProximityScorer = engine.getManager( GraphProximityScorer.class );
 
         // Chunk vector index inputs — resolved here (see the extraction
         // constraint in the class javadoc); selection + construction live
@@ -119,10 +110,6 @@ public final class SearchSubsystemFactory {
             engine.getManager( InMemoryChunkVectorIndex.class );
         final ChunkVectorIndex chunkVectorIndex = resolveChunkVectorIndex(
             deps, wikiProps, wiredChunkVectorIndex, inMemoryChunkVectorIndex );
-
-        // In-memory graph neighbor index (registered by wireGraphRerank).
-        final InMemoryGraphNeighborIndex graphNeighborIndex =
-            engine.getManager( InMemoryGraphNeighborIndex.class );
 
         // Embedding pipeline.
         final EmbeddingIndexService       embeddingIndexService       =
@@ -148,11 +135,7 @@ public final class SearchSubsystemFactory {
             luceneHelpers.luceneIndexLifecycle(),
             hybridSearch,
             queryEmbedder,
-            queryEntityResolver,
-            graphRerankStep,
-            graphProximityScorer,
             chunkVectorIndex,
-            graphNeighborIndex,
             embeddingIndexService,
             embeddingClient,
             bootstrapEmbeddingIndexer,

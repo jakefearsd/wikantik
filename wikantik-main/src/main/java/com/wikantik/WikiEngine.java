@@ -274,14 +274,8 @@ public class WikiEngine implements Engine {
         s.put( com.wikantik.search.SearchProvider.class,                                 rebuildSearch );
         s.put( com.wikantik.search.hybrid.HybridSearchService.class,                     rebuildSearch );
         s.put( com.wikantik.search.hybrid.QueryEmbedder.class,                           rebuildSearch );
-        s.put( com.wikantik.search.hybrid.QueryEntityResolver.class,                     rebuildSearch );
-        s.put( com.wikantik.search.hybrid.GraphRerankStep.class,                         rebuildSearch );
-        s.put( com.wikantik.search.hybrid.GraphProximityScorer.class,                    rebuildSearch );
         s.put( com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class,                rebuildSearch );
         s.put( com.wikantik.search.hybrid.ChunkVectorIndex.class,                        rebuildSearch );
-        s.put( com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class,              rebuildSearch );
-        s.put( com.wikantik.search.hybrid.GraphNeighborIndex.class,                      rebuildSearch );
-        s.put( com.wikantik.search.hybrid.PageMentionsLoader.class,                      rebuildSearch );
         s.put( com.wikantik.search.embedding.EmbeddingIndexService.class,                rebuildSearch );
         s.put( com.wikantik.search.embedding.OllamaEmbeddingClient.class,                rebuildSearch );
         s.put( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class,            rebuildSearch );
@@ -1160,18 +1154,12 @@ public class WikiEngine implements Engine {
                 props, ds, svcs.chunkProjector(), svcs.contentChunkRepository(),
                 persistenceSubsystem, excludedPagesRepo, this );
 
-            // Wire graph rerank (SearchWiringHelper).
-            com.wikantik.search.subsystem.SearchWiringHelper.wireGraphRerank( props, ds, this );
-
             // Wire retrieval-quality runner (SearchWiringHelper).
-            // HybridSearchService + GraphRerankStep are registered by the two helpers above.
+            // HybridSearchService is registered by wireHybridRetrieval above.
             final com.wikantik.search.hybrid.HybridSearchService hybridSearch =
                 getManager( com.wikantik.search.hybrid.HybridSearchService.class );
-            final com.wikantik.search.hybrid.GraphRerankStep graphRerankStep =
-                getManager( com.wikantik.search.hybrid.GraphRerankStep.class );
             com.wikantik.search.subsystem.SearchWiringHelper.wireRetrievalQualityRunner(
-                props, ds, structuralIndex, searchMgr, pageManager,
-                hybridSearch, graphRerankStep, this );
+                props, ds, structuralIndex, searchMgr, pageManager, hybridSearch, this );
 
             // Wire the retrieval query log (real-traffic capture for eval-corpus grounding; default on).
             this.setQueryLogService( com.wikantik.knowledge.querylog.QueryLogWiring.build( ds, props ) );

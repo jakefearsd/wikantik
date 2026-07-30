@@ -60,8 +60,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -160,8 +164,6 @@ class AdminOverviewResourceFullTest {
                 List.of( retrievalRow( RetrievalMode.BM25, 0.5 ) ) );
         when( runner.recentRuns( null, RetrievalMode.HYBRID, 1 ) ).thenReturn(
                 List.of( retrievalRow( RetrievalMode.HYBRID, 0.83 ) ) );
-        // HYBRID_GRAPH has no run yet — must be omitted from the JSON, not null-valued.
-        when( runner.recentRuns( null, RetrievalMode.HYBRID_GRAPH, 1 ) ).thenReturn( List.of() );
 
         // --- content index snapshot ---
         final ContentIndexRebuildService indexSvc = mock( ContentIndexRebuildService.class );
@@ -307,7 +309,10 @@ class AdminOverviewResourceFullTest {
         final JsonObject modes = data.getAsJsonObject( "retrievalModes" );
         assertEquals( 0.5, modes.get( "bm25" ).getAsDouble() );
         assertEquals( 0.83, modes.get( "hybrid" ).getAsDouble() );
-        assertFalse( modes.has( "hybridGraph" ), "mode with no run must be omitted, not null" );
+        // HYBRID_GRAPH is retired (the graph rerank was deleted after measuring zero lift,
+        // eval/kg-spike/A1-findings.md). The overview must neither report it nor ask for it.
+        assertFalse( modes.has( "hybridGraph" ), "retired mode must not be reported" );
+        verify( runner, never() ).recentRuns( any(), eq( RetrievalMode.HYBRID_GRAPH ), anyInt() );
 
         final JsonObject attachments = data.getAsJsonObject( "attachments" );
         assertEquals( "filesystem", attachments.get( "provider" ).getAsString() );

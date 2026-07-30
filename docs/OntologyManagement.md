@@ -26,7 +26,7 @@ A plain wiki stores prose. Wikantik additionally maintains a formal model of
 - **Agent-grade retrieval.** Agents don't read a wiki the way people do. The
   ontology powers ontology-aware query expansion, structured per-page projections,
   and the `knowledge-mcp` tool surface — so an agent can traverse typed relations
-  and ask "what implements X" instead of grepping text. (The Knowledge Graph-aware search rerank is shelved — a 2026-06-16 ceiling experiment measured no net lift; see [KnowledgeGraphRerank.md](KnowledgeGraphRerank.md).)
+  and ask "what implements X" instead of grepping text. (The Knowledge Graph-aware search rerank was removed in 2026-07 — a 2026-06-16 ceiling experiment measured no net lift; see [KnowledgeGraphRerank.md](KnowledgeGraphRerank.md).)
 - **Shared human + AI curation.** Humans and AI agents both create and refine
   the model through surfaces that read the **same** schema and the **same**
   validation rules. The ontology evolves under shared control rather than
@@ -376,6 +376,6 @@ technologies are typed correctly at the source.
 - [Frontmatter.md](Frontmatter.md) — the full frontmatter field reference + the structured editor
 - [PageGraphVsKnowledgeGraph.md](wikantik-pages/PageGraphVsKnowledgeGraph.md) — Page Graph vs Knowledge Graph
 - [KgInclusionPolicy.md](KgInclusionPolicy.md) — which pages' entities are in the KG
-- [KnowledgeGraphRerank.md](KnowledgeGraphRerank.md) — KG-aware retrieval rerank
+- [KnowledgeGraphRerank.md](KnowledgeGraphRerank.md) — the removed KG-aware retrieval rerank (historical)
 - [wiki-ontology-design](superpowers/specs/2026-06-08-wiki-ontology-design.md) — the RDF/OWL layer design
 - [structured-page-curation-design](superpowers/specs/2026-06-08-structured-page-curation-design.md) — the editor + curation surfaces

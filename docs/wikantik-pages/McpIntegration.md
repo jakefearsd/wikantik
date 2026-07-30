@@ -505,7 +505,7 @@ Drop a fragment like this into the agent's project / system prompt so it does no
 ### Retrieval-quality investigation
 
 1. `GET /admin/retrieval-quality?limit=20` to read recent runs.
-2. `POST /admin/retrieval-quality/run` with `{"query_set_id": "core-agent-queries", "mode": "HYBRID_GRAPH"}` to trigger an ad-hoc run.
+2. `POST /admin/retrieval-quality/run` with `{"query_set_id": "core-agent-queries", "mode": "HYBRID"}` to trigger an ad-hoc run. (`HYBRID_GRAPH` still parses for historical rows but is retired — the graph rerank was removed in 2026-07.)
 3. Diff the per-mode nDCG@5/@10, Recall@20, MRR. Smoke gate is `nDCG@5 >= 0.5`.
 
 ## Observability

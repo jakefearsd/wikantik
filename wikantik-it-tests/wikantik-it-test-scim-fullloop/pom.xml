@@ -40,7 +40,7 @@
     <!-- Authentik host ports reserved dynamically by build-helper; NO static
          defaults (would shadow the reservation in the effective POM, breaking
          parallel runs). -->
-    <it-wikantik.authentik.image>ghcr.io/goauthentik/server:2024.10</it-wikantik.authentik.image>
+    <it-wikantik.authentik.image>ghcr.io/goauthentik/server:2026.5.6</it-wikantik.authentik.image>
     <it-wikantik.authentik-redis.image>docker.io/library/redis:7-alpine</it-wikantik.authentik-redis.image>
   </properties>
 
@@ -241,17 +241,18 @@
                     <extraHosts>
                       <extraHost>host.docker.internal:host-gateway</extraHost>
                     </extraHosts>
-                    <!-- Worker starts after server (server runs migrations); no HTTP
-                         health endpoint. Wait for the Celery worker to connect to the
-                         broker and begin processing ("Dispatching startup tasks", which
-                         this Authentik version logs once the worker is operational — it
-                         does NOT log the "celery@... ready" banner in its JSON output).
-                         The marker appears before the noisy startup email-failure stack
-                         traces that can break docker's log stream. 180s for a cold boot
-                         (the worker waits on the server's migrations first). -->
+                    <!-- Worker starts after server (server runs migrations) and exposes
+                         no HTTP endpoint, so readiness comes from the image's own
+                         HEALTHCHECK ("ak healthcheck"; 60s start period, 30s interval).
+                         This deliberately does NOT match a log line: the previous marker
+                         ("Dispatching startup tasks") was a Celery-era string that no
+                         longer exists once Authentik replaced its task system, so the
+                         wait silently timed out on any newer image. The healthcheck is
+                         stable across versions. 300s covers a cold boot plus the start
+                         period. -->
                     <wait>
-                      <log>Dispatching startup tasks</log>
-                      <time>180000</time>
+                      <healthy>true</healthy>
+                      <time>300000</time>
                     </wait>
                     <autoRemove>false</autoRemove>
                   </run>

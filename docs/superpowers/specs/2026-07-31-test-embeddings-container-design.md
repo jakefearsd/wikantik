@@ -133,7 +133,25 @@ quietly to BM25 would defeat the entire exercise.
 - **First run downloads ~600 MB.** Mitigated by the named volume; only a cold machine pays
   it. Worth calling out in the runbook so it is not mistaken for a hang.
 - **CPU embedding is slower than the retired GPU host.** Contained by scoping embeddings to
-  one module. The actual delta should be measured once the module exists and recorded here.
+  one module. **Measured 2026-07-31**, same machine, same session, warm `~/.m2`, warm
+  `ollama-models` volume:
+
+  | Run | Wall clock |
+  |---|---|
+  | IT phase `-T 4`, the four pre-existing modules (before) | **2m 16s** |
+  | IT phase `-T 4`, with `wikantik-it-test-dense` (after) | **2m 43s** |
+  | `wikantik-it-test-dense` alone, inside that reactor | 1m 56s |
+  | Full canonical gate `bin/run-tests.sh --parallel 4`, green | **5m 21s** (Phase 1 2m 36s + IT 2m 43s) |
+
+  **The new module costs ~27s of gate wall clock** — it is not the critical-path module
+  (`custom-jdbc` at 2m 18s is), so under `-T 4` it only pays for the fifth slot serialising
+  behind the first module to finish. Embedding itself is negligible: the suite seeds five
+  short pages and the whole `DenseBundleIT` class runs in under 4s once Tomcat is up.
+
+  The full gate now measures 5m 21s against the ~4m 30s baseline recorded earlier, but only
+  ~27s of that gap is this module: the *unchanged* four-module IT phase measured 2m 16s on
+  the same day, well above the ~1m 45s that baseline implies, so the remainder is ambient
+  machine drift, not a cost of this change.
 - **A second Ollama instance on a dev machine costs RAM** (~1 GiB resident with
   `OLLAMA_KEEP_ALIVE`). The separate test port makes the two instances explicit rather than
   accidental.

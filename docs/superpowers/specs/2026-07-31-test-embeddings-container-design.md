@@ -1,0 +1,145 @@
+# Containerised embeddings for local dev and the test suite
+
+**Date:** 2026-07-31
+**Status:** design approved, not yet implemented
+
+## Problem
+
+`inference.jakefear.com` — the embedding host the wiki has always pointed at — is
+physically decommissioned (packed for a move). It resolves to `192.168.0.10` on the LAN
+and answers nothing.
+
+The consequences are not evenly distributed:
+
+- **Production is fine.** It overrides `WIKANTIK_EMBEDDING_BASE_URL` in `.env` and runs a
+  CPU-only `ollama` sidecar (`docker-compose.prod.yml`), so dense retrieval works.
+- **Local dev and the IT suite are not.** Both fall through to the shipped default, fail
+  every embedding call, and degrade to BM25. A single IT module logged 34
+  `UnresolvedAddressException`s and 146 `ConnectException`s in one run.
+
+The real cost is not the log noise. It is that **the dense/bundle path has no end-to-end
+coverage at all.** No IT asserts `GET /api/bundle`, `assemble_bundle`, or dense retrieval;
+the closest is a tool-listing assertion in the knowledge-disabled suite. Eighteen unit
+classes exercise the dense components against fakes. The RAG path Wikantik actually ships
+is verified nowhere against a live embedder.
+
+## Goals
+
+1. Give the IT suite a real embedding provider, so dense retrieval and the context bundle
+   are covered end to end rather than silently falling back to BM25.
+2. Give local development the same, so manual testing matches production behaviour.
+3. Keep the added wall-clock small — the canonical gate is ~4:30 and the full `--all` run
+   ~8:49, and that is worth protecting.
+
+## Non-goals
+
+- **Changing the shipped `ini/wikantik.properties` default.** It still points at
+  `inference.jakefear.com`. This is a deliberate deferral: the situation is temporary and
+  the host is expected back after the move. Local dev overrides it via `.env`; the new IT
+  module overrides it explicitly. Non-dense IT modules continue to emit DNS-failure noise,
+  which is accepted for now.
+- Turning embeddings on across all IT modules. Coverage goes where it is asserted.
+- Replacing the production sidecar or altering prod configuration in any way.
+
+## Design
+
+### 1. The container
+
+A single service definition in a new `docker/docker-compose.embeddings.yml`, mirroring the
+`ollama-embed` sidecar that already exists in `docker-compose.cloud.yml` rather than
+introducing a second way to run Ollama:
+
+- `ollama/ollama:latest`, CPU-only (no GPU reservation).
+- `ollama-models` named volume, so the ~600 MB model pull happens once and survives
+  restarts.
+- Entrypoint serves and then runs `ollama pull "${WIKANTIK_EMBEDDING_MODEL_TAG:-qwen3-embedding:0.6b}"`.
+  `ollama pull` checks the local blob store first, so re-running it on every start is cheap
+  and idempotent.
+- Healthcheck: `ollama list`.
+
+**Model:** `qwen3-embedding:0.6b` (Ollama tag) ↔ `qwen3-embedding-0.6b` (internal code),
+**1024 dimensions**. The dimension is not a free choice — it must match what the index was
+built with.
+
+**Ports.** Two instances on distinct published ports:
+
+| Consumer | Port | Why |
+|---|---|---|
+| Local dev | `11434` | Conventional Ollama port. |
+| Test suite | `11435` | So a test run can never silently borrow the developer's dev container, and both can run at once. |
+
+### 2. Local development
+
+`bin/deploy-local.sh` brings the container up if it is not already running and waits for
+its healthcheck — the same treatment it already gives the Tomcat download.
+
+`wikantik.search.embedding.base-url` becomes a `@@…@@` placeholder in
+`wikantik-war/src/main/config/tomcat/wikantik-custom.properties`, rendered from `.env`
+(`WIKANTIK_EMBEDDING_BASE_URL`, documented in `.env.example`). The script already sources
+`.env`, so this follows the existing `@@POSTGRES_*@@` mechanism.
+
+`WIKANTIK_LOCAL_EMBEDDINGS=false` opts out, for BM25-only work or a machine without the
+disk to spare. When set, `deploy-local.sh` skips the container entirely and leaves the
+base URL untouched.
+
+### 3. Test suite
+
+`bin/run-tests.sh` starts one shared embedder before the IT phase, waits for healthy, and
+tears it down afterwards. One model load serves the whole run regardless of `--parallel N`.
+
+It manages its own container rather than reusing whatever happens to be listening.
+Depending on ambient machine state is the precise failure mode that made
+`PreviewClickHoldsStillIT` hang for 120s on an unattended desktop; that lesson is fresh
+enough not to repeat.
+
+### 4. New module: `wikantik-it-test-dense`
+
+Its own Cargo Tomcat and pgvector Postgres with build-helper-reserved ports, matching the
+existing IT modules. Embeddings are enabled **only here**, pointed at the shared embedder,
+with `wikantik.search.dense.backend=lucene-hnsw` to match the production default.
+
+It **joins the default gate**: `bin/run-tests.sh` gains a fifth deterministic IT module, so
+`--parallel 4` becomes a five-module reactor and `bin/run-tests.sh --module dense` runs it
+alone. It is not opt-in like the Authentik full-loop — coverage nobody runs is coverage
+that rots, which is what happened to the SCIM loop until 2026-07-30.
+
+It asserts the currently-uncovered path end to end:
+
+1. A saved page is chunked and embedded.
+2. `GET /api/bundle?q=…` returns a section from that page.
+3. The returned section carries a version-pinned citation.
+
+**The non-vacuity guard is the load-bearing part.** The query must have no lexical overlap
+with the target page, so that a BM25 fallback cannot possibly satisfy it — the match has to
+come from the embedding. Without that constraint the test passes with the embedder switched
+off, which would rebuild exactly the kind of vacuous green this codebase has removed
+elsewhere (see the `if (results.size() > 0)` polling antipattern, and the `assertTrue(true)`
+removed from the Authentik full-loop).
+
+The module fails loudly when the embedder is unreachable. That is its purpose; degrading
+quietly to BM25 would defeat the entire exercise.
+
+### 5. Failure policy
+
+| Situation | Behaviour |
+|---|---|
+| Embedder unreachable, dense module | Fail, naming the endpoint. |
+| Embedder unreachable, other IT modules | Unchanged from today — BM25 fallback. |
+| Model not yet pulled | Container start blocks on the pull; the healthcheck gates readiness. |
+| No Docker | Same as the existing suites, which already require it (Testcontainers, Authentik). |
+
+## Risks
+
+- **First run downloads ~600 MB.** Mitigated by the named volume; only a cold machine pays
+  it. Worth calling out in the runbook so it is not mistaken for a hang.
+- **CPU embedding is slower than the retired GPU host.** Contained by scoping embeddings to
+  one module. The actual delta should be measured once the module exists and recorded here.
+- **A second Ollama instance on a dev machine costs RAM** (~1 GiB resident with
+  `OLLAMA_KEEP_ALIVE`). The separate test port makes the two instances explicit rather than
+  accidental.
+
+## Open question deferred
+
+When `inference.jakefear.com` returns after the move, decide whether the shipped default
+should point at it again, at `localhost`, or be removed in favour of requiring an explicit
+override. Not decided here.

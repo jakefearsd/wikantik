@@ -23,6 +23,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   first-class for the human knowledge base, agent traversal, and SPARQL.
 
 ### Fixed
+- **SCIM provisioning was broken against any strictly-validating IdP.** Our
+  `/scim/v2/ServiceProviderConfig` emitted `"documentationUri": ""`. The field is OPTIONAL
+  (RFC 7643 §5) and an empty string is not a valid URI reference, so Authentik — which
+  validates it as a URL — failed to parse the document, logged "failed to get
+  ServiceProviderConfig", could not establish our capabilities, and then silently
+  provisioned nobody. Every one of our own SCIM tests passed because none of them
+  URL-validate. The field is now omitted, pinned by `ScimDiscoveryResourceTest` plus a
+  recursive guard that no `*Uri`/`*Url` field in the payload is ever blank.
 - **A rendering defect in the admin security page.** `ContainerRoleVerifier` built its roles
   header with `.append(roles.length).append(1)`, which concatenates digits rather than adding —
   two roles rendered `colspan="21"` instead of `colspan="3"`. Caught by a test written to fail

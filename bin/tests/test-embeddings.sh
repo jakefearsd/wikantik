@@ -300,5 +300,40 @@ else
   fail "run-tests --module dense unexpectedly succeeded — did wikantik-it-test-dense get created without updating this test?"
 fi
 
+# --- Fix round 1 (code review): the embedder must NOT start for a
+# single-module run that has nothing to do with embeddings — --fullloop
+# (the Authentik SCIM full-loop, ONE_MODULE="scim-fullloop") is the exact
+# case the review named. wikantik-it-test-scim-fullloop is a real module
+# directory (unlike the not-yet-created dense one), so without shimming mvn
+# too this would launch a real Maven/Testcontainers IT build; the mvn shim
+# fakes instant success so run-tests.sh's own dispatch logic is what's under
+# test, not the build it would otherwise kick off. Reusing $RTCALLS/$RTENV
+# from the dense case above deliberately proves the NEGATIVE: after this run,
+# the docker shim must have logged nothing new — reset both to empty first so
+# a stale hit from the dense run above can't leak in and produce a false pass.
+cat > "${RTSHIM}/mvn" <<'EOF'
+#!/usr/bin/env bash
+echo "Tests run: 1, Failures: 0, Errors: 0"
+exit 0
+EOF
+chmod +x "${RTSHIM}/mvn"
+
+: > "$RTCALLS"
+: > "$RTENV"
+rt_rc2=0
+PATH="${RTSHIM}:${PATH}" "$RUNTESTS" --fullloop >"${RTSHIM}/out-fullloop.log" 2>&1 || rt_rc2=$?
+
+if [ ! -s "$RTCALLS" ]; then
+  pass "run-tests --fullloop (scim-fullloop) does NOT start the embedder — unrelated to embeddings"
+else
+  fail "run-tests --fullloop invoked docker (embedder started for a module that has nothing to do with embeddings): $(cat "$RTCALLS")"
+fi
+
+if [ "$rt_rc2" -eq 0 ]; then
+  pass "run-tests --fullloop completes normally under the shimmed mvn (dispatch logic alone is what's under test)"
+else
+  fail "run-tests --fullloop unexpectedly failed under the shimmed mvn (rc=${rt_rc2}) — see ${RTSHIM}/out-fullloop.log"
+fi
+
 if [ "$fails" -ne 0 ]; then echo "test-embeddings: ${fails} failure(s)"; exit 1; fi
 echo "test-embeddings: all passed"

@@ -111,6 +111,12 @@ if command -v flock >/dev/null 2>&1 && ! flock -n 9; then
   exit 3
 fi
 
+# Short --module name for the dense IT module (Task 4 creates
+# wikantik-it-tests/wikantik-it-test-dense). Single source of truth: used to
+# build its IT_MODULES entry below AND to gate the shared embedder further
+# down — only a dense run, or the full IT phase, actually needs it started.
+DENSE_MODULE="dense"
+
 # IT modules in their required sequential order (custom-jdbc runs the Selenide
 # browser suite via the shared wikantik-selenide-tests jar).
 IT_MODULES=(
@@ -118,7 +124,7 @@ IT_MODULES=(
   "wikantik-it-tests/wikantik-it-test-sso"
   "wikantik-it-tests/wikantik-it-test-knowledge-disabled"
   "wikantik-it-tests/wikantik-it-test-custom-jdbc"
-  "wikantik-it-tests/wikantik-it-test-dense"
+  "wikantik-it-tests/wikantik-it-test-${DENSE_MODULE}"
 )
 
 # Shared CPU embedder for the IT phase. One instance serves every module for the
@@ -302,7 +308,12 @@ if [ "$RUN_IT" = 1 ] && [ "$unit_phase_rc" -ne 0 ]; then
   RUN_IT=0
 fi
 
-if [ "$RUN_IT" = 1 ] || [ -n "$ONE_MODULE" ]; then
+# Only start the shared embedder for a run that actually needs it: the full
+# IT phase, or a single-module run of the dense module specifically. Other
+# --module runs (rest, sso, knowledge-disabled, custom-jdbc, scim-fullloop)
+# have nothing to do with embeddings — starting it for e.g. --fullloop would
+# add up to the full 360s embed_start timeout of dead wait for no reason.
+if [ "$RUN_IT" = 1 ] || [ "$ONE_MODULE" = "$DENSE_MODULE" ]; then
   embed_start || true   # the dense module fails loudly on its own if this did not work
   trap embed_stop EXIT
 fi

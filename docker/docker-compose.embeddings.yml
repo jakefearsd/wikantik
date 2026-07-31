@@ -1,0 +1,41 @@
+# CPU-only Ollama used as an embedding provider for local development and the
+# IT suite. Mirrors the ollama-embed sidecar in docker-compose.cloud.yml rather
+# than introducing a second way to run Ollama.
+#
+# Two independent instances are expected, distinguished by project name + port:
+#   local dev   COMPOSE_PROJECT_NAME=wikantik-embed-dev  PORT=11434
+#   test suite  COMPOSE_PROJECT_NAME=wikantik-embed-test PORT=11435
+# They must never be shared: a test run borrowing the developer's container
+# makes results depend on ambient machine state.
+services:
+  ollama-embed:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "${WIKANTIK_EMBEDDING_PORT:-11434}:11434"
+    environment:
+      # Keep the 0.6B model resident (~1 GiB) so queries never pay a reload.
+      OLLAMA_KEEP_ALIVE: "-1"
+    volumes:
+      - ollama-models:/root/.ollama
+    # `ollama pull` checks the local blob store before downloading, so running it
+    # on every start is cheap and idempotent once the model is cached in the
+    # named volume. That is what lets this survive restarts without a separate
+    # one-shot init container.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        SERVE_PID=$$!
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        ollama pull "${WIKANTIK_EMBEDDING_MODEL_TAG:-qwen3-embedding:0.6b}"
+        wait "$$SERVE_PID"
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      start_period: 30s
+      retries: 10
+
+volumes:
+  ollama-models:

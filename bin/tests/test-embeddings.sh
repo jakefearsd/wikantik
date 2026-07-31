@@ -203,5 +203,102 @@ else
   pass "opted-out fresh install leaves base-url commented out, matching .env.example"
 fi
 
+
+# =============================================================================
+# Task 3: run-tests.sh manages one shared embedder for the whole IT phase.
+# Static assertions per spec, plus a behavioural check (docker + curl shimmed
+# on PATH, same style as bin/tests/test-container.sh) proving the readiness
+# gate really reuses embeddings_model_ready() (bin/lib/embeddings.sh) instead
+# of a third bare `curl .../api/tags` HTTP-200 probe — that probe is exactly
+# the trap Tasks 1 and 2 both had to fix: it reports ready while the model is
+# still downloading in the background.
+# =============================================================================
+RUNTESTS="${REPO_DIR}/bin/run-tests.sh"
+checkf "run-tests starts the shared embedder"                   "$RUNTESTS" 'wikantik-embed-test'
+checkf "run-tests uses the test port 11435"                     "$RUNTESTS" '11435'
+checkf "run-tests tears the embedder down"                      "$RUNTESTS" 'embed_stop'
+checkf "dense module is in the default gate"                    "$RUNTESTS" 'wikantik-it-test-dense'
+checkf "run-tests sources the shared embeddings lib"             "$RUNTESTS" 'lib/embeddings.sh'
+checkf "run-tests readiness gate calls embeddings_model_ready"   "$RUNTESTS" 'embeddings_model_ready "\${EMBED_URL}"'
+
+if grep -qE 'curl[^\n]*--max-time[^\n]*"\$\{EMBED_URL\}/api/tags"[[:space:]]*>/dev/null' "$RUNTESTS"; then
+  fail "run-tests.sh still has the bare curl \${EMBED_URL}/api/tags reachability probe (the Task 1/2 trap)"
+else
+  pass "run-tests.sh has no bare curl \${EMBED_URL}/api/tags reachability probe"
+fi
+
+# --- Behavioural: exercise the real embed_start/embed_stop code path with
+# docker + curl shimmed on PATH — no real containers, no network. `--module
+# dense` hits embed_start/trap before failing on the not-yet-created Task 4
+# module directory (that module ships in Task 4), so this run is expected to
+# exit non-zero; only the embedder wiring is under test here.
+RTSHIM="$(mktemp -d)"
+RTCALLS="${RTSHIM}/docker.calls"
+RTENV="${RTSHIM}/docker.env"
+RTCURLCOUNT="${RTSHIM}/curl.count"
+trap 'cleanup_lib_test; rm -rf "$RTSHIM"' EXIT
+
+cat > "${RTSHIM}/docker" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "${RTCALLS}"
+echo "\${COMPOSE_PROJECT_NAME:-UNSET} \${WIKANTIK_EMBEDDING_PORT:-UNSET}" >> "${RTENV}"
+exit 0
+EOF
+chmod +x "${RTSHIM}/docker"
+
+# First call reports an empty model list (still downloading); only the second
+# reports the tag present. A bare HTTP-200 check would declare ready after
+# call 1 — the curl-call-count assertion below is what makes that regression
+# visible.
+cat > "${RTSHIM}/curl" <<EOF
+#!/usr/bin/env bash
+n=0
+[ -f "${RTCURLCOUNT}" ] && n=\$(cat "${RTCURLCOUNT}")
+n=\$((n+1))
+echo "\$n" > "${RTCURLCOUNT}"
+if [ "\$n" -lt 2 ]; then
+  printf '%s' '{"models":[]}'
+else
+  printf '%s' '{"models":[{"name":"qwen3-embedding:0.6b"}]}'
+fi
+exit 0
+EOF
+chmod +x "${RTSHIM}/curl"
+
+# set -e is active for this whole file: guard with `|| rt_rc=$?` rather than a
+# bare `cmd; rc=$?`, which set -e would abort on before the assignment ever runs.
+rt_rc=0
+PATH="${RTSHIM}:${PATH}" "$RUNTESTS" --module dense >"${RTSHIM}/out.log" 2>&1 || rt_rc=$?
+
+if [ -f "$RTCALLS" ] && grep -q " up -d" "$RTCALLS" 2>/dev/null; then
+  pass "run-tests --module dense invokes docker compose up -d for the embedder"
+else
+  fail "run-tests --module dense never invoked docker compose up -d"
+fi
+
+if [ -f "$RTENV" ] && grep -q "^wikantik-embed-test 11435$" "$RTENV"; then
+  pass "run-tests wires the test project name + port 11435 into the docker compose env"
+else
+  fail "run-tests did not pass COMPOSE_PROJECT_NAME=wikantik-embed-test / WIKANTIK_EMBEDDING_PORT=11435 to docker compose"
+fi
+
+if [ -f "$RTCURLCOUNT" ] && [ "$(cat "$RTCURLCOUNT")" -ge 2 ]; then
+  pass "run-tests readiness loop retries past an empty model list instead of accepting a bare 200"
+else
+  fail "run-tests readiness loop accepted the first (empty-model-list) response — reverted to a bare HTTP-200 probe"
+fi
+
+if [ -f "$RTCALLS" ] && grep -q " down" "$RTCALLS" 2>/dev/null; then
+  pass "run-tests tears the embedder down (docker compose down) on exit"
+else
+  fail "run-tests never invoked docker compose down on exit"
+fi
+
+if [ "$rt_rc" -ne 0 ]; then
+  pass "run-tests --module dense exits non-zero (Task 4's module does not exist yet)"
+else
+  fail "run-tests --module dense unexpectedly succeeded — did wikantik-it-test-dense get created without updating this test?"
+fi
+
 if [ "$fails" -ne 0 ]; then echo "test-embeddings: ${fails} failure(s)"; exit 1; fi
 echo "test-embeddings: all passed"

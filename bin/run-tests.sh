@@ -20,12 +20,12 @@
 #
 # Usage:
 #   bin/run-tests.sh                 # DEFAULT GATE: unit phase + deterministic IT modules
-#                                    #   (rest, sso, knowledge-disabled, custom-jdbc) — the pre-commit run
+#                                    #   (rest, sso, knowledge-disabled, custom-jdbc, dense) — the pre-commit run
 #   bin/run-tests.sh --all           # EVERYTHING: default gate + the opt-in, heavy
 #                                    #   Authentik SCIM full-loop (scim-fullloop)
 #   bin/run-tests.sh --unit          # unit phase only (Phase 1)
 #   bin/run-tests.sh --it            # default-gate IT phase only (assumes a prior --unit)
-#   bin/run-tests.sh --module rest   # IT phase for one module: rest|sso|custom-jdbc|scim-fullloop
+#   bin/run-tests.sh --module rest   # IT phase for one module: rest|sso|knowledge-disabled|custom-jdbc|dense|scim-fullloop
 #   bin/run-tests.sh --fullloop      # ONLY the opt-in Authentik full-loop
 #   bin/run-tests.sh --it --parallel 4   # opt-in: default IT modules in one -T 4 reactor
 #                                        # (-p 4 short form; or IT_PARALLELISM=4 env — flag wins)
@@ -45,7 +45,7 @@ Usage: bin/run-tests.sh [MODE] [OPTIONS]
 
 There are two "everything" levels:
   * the no-arg run is the DEFAULT GATE  — unit + the deterministic IT modules
-    (rest, sso, knowledge-disabled, custom-jdbc). This is what you run before committing.
+    (rest, sso, knowledge-disabled, custom-jdbc, dense). This is what you run before committing.
   * --all is EVERYTHING               — the default gate PLUS the opt-in, heavy
     Authentik SCIM full-loop (scim-fullloop). Use it for a complete run.
 
@@ -53,7 +53,7 @@ MODES (default, no args: the default gate = unit, then default-gate IT modules)
   --all                  EVERYTHING: unit + default-gate IT modules + scim-fullloop
   --unit                 Unit reactor only (Phase 1)
   --it                   Default-gate IT modules only (assumes --unit ran)
-  --module <name>        One IT module: rest|sso|knowledge-disabled|custom-jdbc|scim-fullloop
+  --module <name>        One IT module: rest|sso|knowledge-disabled|custom-jdbc|dense|scim-fullloop
   --fullloop             ONLY the opt-in Authentik SCIM full-loop (-Pscim-fullloop)
   --list                 Show modules and their gate, then exit
 
@@ -67,7 +67,7 @@ ENVIRONMENT
   IT_PARALLELISM=1       Fallback for --parallel (flag wins)
 
 EXAMPLES
-  bin/run-tests.sh                      # default gate (unit + rest,sso,knowledge-disabled,custom-jdbc) — pre-commit
+  bin/run-tests.sh                      # default gate (unit + rest,sso,knowledge-disabled,custom-jdbc,dense) — pre-commit
   bin/run-tests.sh --all                # EVERYTHING incl. the heavy Authentik full-loop
   bin/run-tests.sh --all -o both        # everything, streaming build output to console + log
   bin/run-tests.sh --unit               # fast unit-only pass
@@ -88,6 +88,7 @@ list_modules() {
   echo "  sso                 wikantik-it-tests/wikantik-it-test-sso                (Keycloak OIDC + SAML, type=both)"
   echo "  knowledge-disabled  wikantik-it-tests/wikantik-it-test-knowledge-disabled (knowledge-subsystem-off degradation)"
   echo "  custom-jdbc         wikantik-it-tests/wikantik-it-test-custom-jdbc        (Selenide browser suite)"
+  echo "  dense               wikantik-it-tests/wikantik-it-test-dense              (dense retrieval + context bundle)"
   echo
   echo "Opt-in (run only via --fullloop / --module scim-fullloop):"
   echo "  scim-fullloop  wikantik-it-tests/wikantik-it-test-scim-fullloop (Authentik SCIM full-loop)"
@@ -117,7 +118,46 @@ IT_MODULES=(
   "wikantik-it-tests/wikantik-it-test-sso"
   "wikantik-it-tests/wikantik-it-test-knowledge-disabled"
   "wikantik-it-tests/wikantik-it-test-custom-jdbc"
+  "wikantik-it-tests/wikantik-it-test-dense"
 )
+
+# Shared CPU embedder for the IT phase. One instance serves every module for the
+# whole run, so the model loads once regardless of --parallel N. This manages its
+# own container rather than reusing whatever happens to be listening: depending on
+# ambient machine state is what made PreviewClickHoldsStillIT hang for 120s.
+EMBED_PORT=11435
+EMBED_URL="http://localhost:${EMBED_PORT}"
+EMBED_MODEL_TAG="qwen3-embedding:0.6b"
+EMBED_PROJECT="wikantik-embed-test"
+EMBED_COMPOSE="${REPO_DIR}/docker/docker-compose.embeddings.yml"
+
+# embeddings_model_ready() lives in bin/lib/embeddings.sh (shared with
+# deploy-local.sh) precisely so both callers use the same readiness gate: a bare
+# `curl .../api/tags` HTTP-200 check reports ready while the model pull is still
+# running in the background (Ollama answers 200 with an empty model list mid-pull)
+# — Tasks 1 and 2 both had to fix that exact trap. Sourcing has no side effects
+# beyond defining functions/constants.
+# shellcheck disable=SC1091
+source "${REPO_DIR}/bin/lib/embeddings.sh"
+
+embed_start() {
+  echo ">>> Starting shared embedder on ${EMBED_URL}"
+  COMPOSE_PROJECT_NAME="${EMBED_PROJECT}" WIKANTIK_EMBEDDING_PORT="${EMBED_PORT}" \
+    WIKANTIK_EMBEDDING_MODEL_TAG="${EMBED_MODEL_TAG}" \
+    docker compose -f "${EMBED_COMPOSE}" up -d >/dev/null 2>&1 || return 1
+  for _ in $(seq 1 180); do
+    embeddings_model_ready "${EMBED_URL}" "${EMBED_MODEL_TAG}" && { echo "    embedder ready"; return 0; }
+    sleep 2
+  done
+  echo "    WARNING: embedder not ready after 360s"
+  return 1
+}
+
+embed_stop() {
+  COMPOSE_PROJECT_NAME="${EMBED_PROJECT}" WIKANTIK_EMBEDDING_PORT="${EMBED_PORT}" \
+    WIKANTIK_EMBEDDING_MODEL_TAG="${EMBED_MODEL_TAG}" \
+    docker compose -f "${EMBED_COMPOSE}" down >/dev/null 2>&1 || true
+}
 
 RUN_UNIT=1
 RUN_IT=1
@@ -158,7 +198,7 @@ while [ $# -gt 0 ]; do
     --unit)    RUN_IT=0 ;;
     --it)      RUN_UNIT=0 ;;
     --module)  RUN_UNIT=0; RUN_IT=0; ONE_MODULE="${2:-}"; shift
-               [ -n "$ONE_MODULE" ] || { echo "--module needs a name (rest|sso|knowledge-disabled|custom-jdbc|scim-fullloop)" >&2; exit 2; } ;;
+               [ -n "$ONE_MODULE" ] || { echo "--module needs a name (rest|sso|knowledge-disabled|custom-jdbc|dense|scim-fullloop)" >&2; exit 2; } ;;
     --parallel|-p)
                IT_PARALLELISM="${2:-}"; shift
                case "$IT_PARALLELISM" in
@@ -260,6 +300,11 @@ if [ "$RUN_IT" = 1 ] && [ "$unit_phase_rc" -ne 0 ]; then
     echo "            mvn clean install -DskipTests -T 1C && bin/run-tests.sh --it --parallel ${IT_PARALLELISM}"
   } | tee -a "$REPORT"
   RUN_IT=0
+fi
+
+if [ "$RUN_IT" = 1 ] || [ -n "$ONE_MODULE" ]; then
+  embed_start || true   # the dense module fails loudly on its own if this did not work
+  trap embed_stop EXIT
 fi
 
 if [ "$RUN_IT" = 1 ]; then

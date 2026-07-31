@@ -84,7 +84,8 @@ jobs:
         run: |
           set -e
           for suite in test-remote.sh test-container.sh test-backup.sh \
-                       test-audit-retention.sh test-create-migrate-user.sh; do
+                       test-audit-retention.sh test-create-migrate-user.sh \
+                       test-embeddings.sh; do
             echo "::group::${suite}"
             bash "bin/tests/${suite}"
             echo "::endgroup::"

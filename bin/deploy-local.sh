@@ -315,23 +315,18 @@ elif [[ -f "${PROJECT_ROOT}/.env.example" ]]; then
 fi
 
 # --- Local embeddings container ---------------------------------------------
+# embeddings_model_ready() / repair_embedding_base_url() live in
+# bin/lib/embeddings.sh so bin/tests/test-embeddings.sh can exercise them
+# directly (stubbed curl, temp files) without executing this whole script.
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/embeddings.sh"
+
 : "${WIKANTIK_LOCAL_EMBEDDINGS:=true}"
 : "${WIKANTIK_EMBEDDING_BASE_URL:=http://localhost:11434}"
 : "${WIKANTIK_EMBEDDING_MODEL_TAG:=qwen3-embedding:0.6b}"
 EMBEDDING_PORT="${WIKANTIK_EMBEDDING_BASE_URL##*:}"
-# Readiness means the configured model tag actually shows up in /api/tags'
-# response body — NOT merely that the daemon answers HTTP 200. Ollama returns
-# 200 with an empty model list while a pull is still running (the same
-# weakness Task 1's review found and fixed in the container's own
-# healthcheck), so a plain reachability probe here would report "Embeddings
-# available" and deploy a wiki that cannot actually embed anything on a cold
-# cache (first-ever pull: ~600 MB, can take several minutes).
-embeddings_model_ready() {
-    curl -sf --max-time 3 "${WIKANTIK_EMBEDDING_BASE_URL}/api/tags" 2>/dev/null \
-        | grep -qF "${WIKANTIK_EMBEDDING_MODEL_TAG}"
-}
 if [[ "${WIKANTIK_LOCAL_EMBEDDINGS}" == "true" ]]; then
-    if ! embeddings_model_ready; then
+    if ! embeddings_model_ready "${WIKANTIK_EMBEDDING_BASE_URL}" "${WIKANTIK_EMBEDDING_MODEL_TAG}"; then
         print_status "Starting local embeddings container on port ${EMBEDDING_PORT}"
         COMPOSE_PROJECT_NAME=wikantik-embed-dev \
         WIKANTIK_EMBEDDING_PORT="${EMBEDDING_PORT}" \
@@ -340,11 +335,11 @@ if [[ "${WIKANTIK_LOCAL_EMBEDDINGS}" == "true" ]]; then
         # First run pulls ~600 MB; that is a download, not a hang.
         print_status "Waiting for the embedder (first run downloads the model)"
         for _ in $(seq 1 180); do
-            embeddings_model_ready && break
+            embeddings_model_ready "${WIKANTIK_EMBEDDING_BASE_URL}" "${WIKANTIK_EMBEDDING_MODEL_TAG}" && break
             sleep 2
         done
     fi
-    if embeddings_model_ready; then
+    if embeddings_model_ready "${WIKANTIK_EMBEDDING_BASE_URL}" "${WIKANTIK_EMBEDDING_MODEL_TAG}"; then
         print_status "Embeddings available at ${WIKANTIK_EMBEDDING_BASE_URL}"
     else
         print_warning "Embedder did not come up; the wiki will fall back to BM25."
@@ -388,21 +383,34 @@ else
 fi
 
 # Copy properties template if destination doesn't exist (substituting
-# @@REPO_ROOT@@ and @@EMBEDDING_BASE_URL@@ tokens)
+# @@REPO_ROOT@@ and @@EMBEDDING_BASE_URL@@ tokens). The base-url token is
+# only rendered live when WIKANTIK_LOCAL_EMBEDDINGS=true; opting out leaves
+# the line commented out (falls back to the ini-bundle default) so the
+# rendered file matches .env.example's documented "leave the base URL
+# untouched" behaviour instead of baking in a URL nothing is serving.
 if [[ ! -f "${PROPS_DEST}" ]]; then
-    sed -e "s|@@REPO_ROOT@@|${PROJECT_ROOT}|g" \
-        -e "s|@@EMBEDDING_BASE_URL@@|${WIKANTIK_EMBEDDING_BASE_URL}|g" \
-        "${CONFIG_DIR}/wikantik-custom-postgresql.properties.template" \
-        > "${PROPS_DEST}"
+    if [[ "${WIKANTIK_LOCAL_EMBEDDINGS}" == "true" ]]; then
+        sed -e "s|@@REPO_ROOT@@|${PROJECT_ROOT}|g" \
+            -e "s|@@EMBEDDING_BASE_URL@@|${WIKANTIK_EMBEDDING_BASE_URL}|g" \
+            "${CONFIG_DIR}/wikantik-custom-postgresql.properties.template" \
+            > "${PROPS_DEST}"
+    else
+        sed -e "s|@@REPO_ROOT@@|${PROJECT_ROOT}|g" \
+            -e "/@@EMBEDDING_BASE_URL@@/s/^/#/" \
+            -e "s|@@EMBEDDING_BASE_URL@@|(unset — WIKANTIK_LOCAL_EMBEDDINGS=false; falls back to the ini-bundle default)|" \
+            "${CONFIG_DIR}/wikantik-custom-postgresql.properties.template" \
+            > "${PROPS_DEST}"
+    fi
     print_status "Created ${PROPS_DEST} (paths substituted for ${SCRIPT_DIR})"
 else
     print_status "Properties file already exists (not overwritten)"
-    # An existing install predates the embedding setting and is never rewritten,
-    # so it would silently keep using the dead ini default. Append it once.
-    if ! grep -q "^wikantik.search.embedding.base-url" "${PROPS_DEST}"; then
-        printf '\n# Added by deploy-local.sh — local embeddings container.\nwikantik.search.embedding.base-url = %s\n' \
-            "${WIKANTIK_EMBEDDING_BASE_URL}" >> "${PROPS_DEST}"
-        print_status "Added embedding base-url to the existing ${PROPS_DEST}"
+    # An existing install predates the embedding setting and is never rewritten
+    # wholesale, so a missing/stale value would otherwise persist silently.
+    # repair_embedding_base_url (bin/lib/embeddings.sh) appends when the key is
+    # absent, auto-corrects only the one known-dead ini default, and otherwise
+    # warns rather than clobbering a value the operator may have set on purpose.
+    if [[ "${WIKANTIK_LOCAL_EMBEDDINGS}" == "true" ]]; then
+        repair_embedding_base_url "${PROPS_DEST}" "${WIKANTIK_EMBEDDING_BASE_URL}" "${WIKANTIK_EMBEDDING_MODEL_TAG}"
     fi
 fi
 

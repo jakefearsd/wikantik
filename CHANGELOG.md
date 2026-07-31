@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.13] - 2026-07-31
+
 ### Removed
 - **The Knowledge-Graph page-level graph rerank is gone** — 2,464 lines across seven production
   classes (`GraphRerankStep`, `GraphProximityScorer`, `QueryEntityResolver`, `PageMentionsLoader`,

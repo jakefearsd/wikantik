@@ -65,15 +65,46 @@ import static org.junit.jupiter.api.Assertions.fail;
  * → embedding → Lucene HNSW upsert. Nothing is inserted into the database behind the
  * application's back.</p>
  *
- * <p><b>The load-bearing design point is the non-vacuity guard</b> in
- * {@link #bundleFindsASectionNoLexicalSearchCouldFind()}. Its query shares not one
- * word with the page it must retrieve — {@link #querySharesNoWordWithTheTargetPage()}
- * asserts that mechanically, so a later edit cannot quietly reintroduce a lexical
- * shortcut — and it demands that page rank <em>first</em>, ahead of four unrelated
- * fixtures. A BM25 fallback cannot produce that result: with zero shared terms the
- * lexical ranker has nothing to score. The match has to come from the embedding.
- * Without that constraint the suite would pass with the embedder switched off,
- * rebuilding exactly the kind of vacuous green removed elsewhere in this codebase.</p>
+ * <h2>What this suite actually proves, and how</h2>
+ *
+ * <p>Stop the embedder and this class fails through three independent mechanisms,
+ * each of which is a direct consequence of nothing being embedded:</p>
+ * <ol>
+ *   <li>{@link #seedCorpusAgainstALiveEmbedder()} asserts the embedder answers 200
+ *       and that {@code /api/tags} actually lists {@code qwen3-embedding:0.6b}
+ *       — not merely that something is listening on the port.</li>
+ *   <li>{@link #bundleFindsASectionNoLexicalSearchCouldFind()} polls for the target
+ *       at rank 1 and times out after {@link #INDEX_BUDGET_MS}, because with no
+ *       vectors in the HNSW index the bundle returns nothing at all.</li>
+ *   <li>{@link #denseRankerContributesCandidates()} asserts the {@code dense} array
+ *       from {@code ?debug=rankings} is non-empty. That array is populated only when
+ *       the query embedded successfully <em>and</em> the vector index holds the
+ *       freshly-embedded chunks, so it names the failure rather than leaving it to
+ *       be inferred.</li>
+ * </ol>
+ *
+ * <h2>The zero-overlap guard: future-proofing, not the current proof</h2>
+ *
+ * <p>{@link #SEMANTIC_QUERY} shares not one word with the page it must retrieve, and
+ * {@link #querySharesNoWordWithTheTargetPage()} asserts that mechanically so a later
+ * edit cannot quietly reintroduce a lexical shortcut. It is worth being precise about
+ * what that buys today, because the obvious claim — "a BM25 fallback cannot produce
+ * this result" — is stronger than the facts support:</p>
+ *
+ * <p>In this deployment there is no lexical competitor to defeat in the first place.
+ * {@code LuceneBm25ChunkIndex.fromDataSource} snapshots {@code kg_content_chunks}
+ * <em>once</em>, at wiring time, and an IT deployment wires against a freshly-migrated,
+ * empty database — so the BM25 chunk index holds zero documents for the entire life of
+ * the process ({@code bm25 chunks=0} in the startup log) no matter what these tests
+ * later save. The pages seeded here are never in it. So the guard is not currently
+ * ruling out a BM25 shortcut; the three mechanisms above are what make the suite
+ * non-vacuous, and every retrieved section necessarily came from the dense side.</p>
+ *
+ * <p>The guard stays because it costs nothing and becomes genuinely load-bearing the
+ * day that index is rebuilt or refreshed on write — at which point a lexically-obvious
+ * query really could be satisfied without any embedding, and this constraint is what
+ * would stop that from passing for the wrong reason. Treat it as an invariant being
+ * held in advance, not as evidence already collected.</p>
  */
 @TestMethodOrder( MethodOrderer.OrderAnnotation.class )
 class DenseBundleIT {
@@ -85,10 +116,14 @@ class DenseBundleIT {
     private static final String TARGET = "DenseProbeFermentation";
 
     /**
-     * NON-VACUITY GUARD QUERY. Every word here — how, do, i, look, after, my, sourdough,
+     * ZERO-LEXICAL-OVERLAP QUERY. Every word here — how, do, i, look, after, my, sourdough,
      * starter — is absent from {@link #TARGET}'s entire source (frontmatter, heading and
      * body), which {@link #querySharesNoWordWithTheTargetPage()} verifies. Lucene's
      * StandardAnalyzer does not stem, so no shared term survives tokenisation either.
+     *
+     * <p>See the class javadoc for what this does and does not establish today: the BM25
+     * chunk index is empty in an IT deployment, so this is an invariant held in advance
+     * rather than the mechanism that currently keeps the suite honest.</p>
      */
     private static final String SEMANTIC_QUERY = "how do I look after my sourdough starter";
 
@@ -235,9 +270,9 @@ class DenseBundleIT {
     // -----------------------------------------------------------------------
 
     /**
-     * Mechanically enforces the property the guard rests on. If someone later reworders
-     * either the query or the page and lets a word leak across, this fails before the
-     * guard has a chance to pass for the wrong reason.
+     * Mechanically enforces the zero-overlap invariant. If someone later rewords either the
+     * query or the page and lets a word leak across, this fails immediately rather than
+     * leaving a weakened guard silently in place.
      */
     @Test
     @Order( 1 )
@@ -245,9 +280,11 @@ class DenseBundleIT {
         final Set< String > shared = new LinkedHashSet<>( words( SEMANTIC_QUERY ) );
         shared.retainAll( words( TARGET + "\n" + FIXTURES.get( TARGET ) ) );
         assertTrue( shared.isEmpty(),
-            "The non-vacuity guard requires zero lexical overlap between the query and '"
-                + TARGET + "' — a shared term would let BM25 satisfy the guard without any "
-                + "embedding. Shared words: " + shared );
+            "This module requires zero lexical overlap between the query and '" + TARGET
+                + "'. It is not what makes the suite non-vacuous today (the BM25 chunk "
+                + "index is empty in an IT deployment — see the class javadoc); it is the "
+                + "invariant that keeps it honest once that index is ever refreshed on "
+                + "write. Shared words: " + shared );
     }
 
     /** A bundle is assembled, and every section carries a well-formed version-pinned citation. */
@@ -284,11 +321,15 @@ class DenseBundleIT {
     }
 
     /**
-     * NON-VACUITY GUARD. {@link #SEMANTIC_QUERY} shares no word with {@link #TARGET}
-     * (asserted in {@link #querySharesNoWordWithTheTargetPage()}), so the lexical ranker
-     * has nothing to score and cannot produce this result. The target must nevertheless
-     * come back <em>ranked first</em>, ahead of four unrelated fixture pages. If this
-     * passes with the embedder stopped, the guard is broken and the suite is worthless.
+     * The retrieval-quality assertion: {@link #TARGET} must come back <em>ranked first</em>
+     * for a query that shares no word with it, ahead of four unrelated fixture pages.
+     * Nothing but a semantic match can order it that way.
+     *
+     * <p>With the embedder stopped this does not merely rank wrong — it times out, because
+     * an empty vector index means the bundle returns no sections at all. The zero-overlap
+     * property (asserted in {@link #querySharesNoWordWithTheTargetPage()}) is what will
+     * keep this honest if the BM25 chunk index ever starts holding these pages; today it
+     * holds nothing. See the class javadoc.</p>
      */
     @Test
     @Order( 3 )
@@ -300,8 +341,10 @@ class DenseBundleIT {
         final JsonObject bundle = awaitBundleRankedFirst( SEMANTIC_QUERY, TARGET );
         final JsonArray sections = bundle.getAsJsonArray( "sections" );
         assertFalse( sections.isEmpty(),
-            "A semantically-related query returned nothing — dense retrieval is not "
-                + "contributing, so the bundle is running BM25-only: " + bundle );
+            "A semantically-related query returned nothing. Dense retrieval is not "
+                + "contributing, and there is no lexical index to pick up the slack (the "
+                + "BM25 chunk index is snapshotted from an empty DB at wiring time), so "
+                + "the bundle has no candidate source at all: " + bundle );
         assertEquals( TARGET, str( sections.get( 0 ).getAsJsonObject(), "slug" ),
             "'" + SEMANTIC_QUERY + "' shares no word with '" + TARGET + "', so only an "
                 + "embedding can rank it first. Ranking was " + slugs( sections ) );
@@ -313,6 +356,16 @@ class DenseBundleIT {
      * ranking is only possible when the query embedded successfully AND the vector index
      * holds the freshly-embedded chunks, so this pinpoints a dead embedder in one assertion
      * instead of leaving it to be inferred from a ranking that came out wrong.
+     *
+     * <p>Only the {@code dense} array is asserted on. The {@code bm25} array is expected to
+     * be empty here and is not evidence of anything: the index behind it was snapshotted
+     * from an empty database at wiring time.</p>
+     *
+     * <p>The endpoint answers 409 unless the active candidate source is a
+     * {@code HybridChunkSectionSource}, which only exists when
+     * {@code wikantik.bundle.bm25.enabled} is true — pinned explicitly in this module's
+     * {@code wikantik-custom.properties} rather than inherited, so a change to the shipped
+     * default cannot turn this assertion into an unrelated-looking 409.</p>
      */
     @Test
     @Order( 4 )

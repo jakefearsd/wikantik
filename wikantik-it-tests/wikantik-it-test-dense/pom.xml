@@ -46,6 +46,20 @@
       points resources at the shared wikantik-selenide-tests file; overriding
       here with combine.self="override" replaces that list instead of appending,
       so the embeddings-enabled config is unambiguously the one on the classpath.
+
+      COPYING THIS BLOCK? Note what else the override drops. The shared
+      wikantik-selenide-tests/src/main/resources directory is not just
+      wikantik-custom.properties — it also holds junit-platform.properties (the
+      JUnit 5 parallel-execution config for the Selenide browser suite) and
+      wikantik-mcp.properties. Overriding the resource list removes ALL of them
+      from this module's classpath, not only the file being replaced.
+
+      Both omissions are deliberate and benign here: DenseBundleIT is a plain
+      HTTP client suite with no @Execution(CONCURRENT) opt-in, so without
+      junit-platform.properties JUnit's sequential default is exactly what it
+      already wanted; and there are no MCP tests here, so McpConfig's jar
+      defaults are fine. A module that runs Selenide classes, or that opts into
+      concurrent execution, must add those files back rather than inherit this.
     -->
     <resources combine.self="override">
       <resource>

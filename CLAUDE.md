@@ -40,6 +40,7 @@ uncovers a bug), escalate to the matching skill the moment it stops being mechan
 | Maven | 3.9+ | `mvn -version` |
 | Node.js + npm | 20.19+ (or 22.12+) | Required by Vite 8 (Rolldown). WAR build runs `npm install` + `vite build` automatically |
 | PostgreSQL | 15+ | For local deployment; unit tests use in-memory H2 |
+| Docker (+ compose) | any recent | Required by the **IT phase** of `bin/run-tests.sh`: per-module pgvector containers *and* the shared CPU-ollama embedder (`docker/docker-compose.embeddings.yml`, port 11435). Also used by `bin/deploy-local.sh` for a dev embedder on 11434. **First run on a machine pulls the ~600 MB `qwen3-embedding:0.6b` model** into the `ollama-models` volume — a multi-minute download, not a hang. It is cached after that. `WIKANTIK_LOCAL_EMBEDDINGS=false` opts `deploy-local.sh` out; the IT phase does not opt out. |
 | Graphviz (`dot`) | any recent | **Only** for the code-health **site** build (`bin/site.sh`) module-coupling SVG. `apt-get install graphviz`. Optional — without it the site links the raw `.dot` instead. |
 
 The `tomcat/` directory is **gitignored** and created on first run of `deploy-local.sh`.
@@ -137,18 +138,32 @@ mvn test -Dtest=MarkdownRendererTest#testMarkupSimpleMarkdown
 # Debug a test
 mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug
 
-# CANONICAL pre-commit gate (unit + all default IT modules, ~5:45 total).
+# CANONICAL pre-commit gate (unit + all default IT modules, ~6 min on a warm machine).
 # Phase 1 runs every unit test once (-T 1C -DskipITs, installs artifacts incl.
-# the WAR + selenide-tests test-jar); Phase 2 runs the four IT modules in one
+# the WAR + selenide-tests test-jar); Phase 2 runs the FIVE IT modules in one
 # -T 4 reactor with per-module reserved ports + uniquely-named pgvector
-# containers. Identical coverage to the old full reactor (8809 unit + 371 IT
-# tests) without re-running the units inside the IT phase.
+# containers. Same coverage as the old full reactor without re-running the units
+# inside the IT phase.
+#
+# REQUIRES DOCKER. Before Phase 2 the script starts ONE shared CPU-ollama
+# embedder (docker/docker-compose.embeddings.yml, port 11435 — deliberately not
+# 11434, so it can never borrow your dev instance) and tears it down afterwards.
+# On a machine that has never run it, this first pulls the ~600 MB
+# qwen3-embedding:0.6b model; the run appears to stall for several minutes at
+# "waiting for qwen3-embedding:0.6b". That is a download, not a hang — it is
+# cached in the ollama-models volume and every later run starts warm.
+# Readiness budget is 900s; watch progress with
+#   docker logs -f $(docker ps -qf name=wikantik-embed-test)
 bin/run-tests.sh --parallel 4
 
 # Equivalent but slower fallbacks: bin/run-tests.sh (sequential IT phase), or the
 # single full reactor (re-runs all unit tests inside the IT phase — ~9 min):
 #   mvn clean install -Pintegration-tests -fae
-# The integration tests all live under wikantik-it-tests (Selenide browser + REST + custom provider suites).
+# The integration tests all live under wikantik-it-tests: Selenide browser, REST,
+# custom provider, knowledge-disabled, and wikantik-it-test-dense (the only module
+# with embeddings enabled — end-to-end dense retrieval + GET /api/bundle against
+# the live embedder). Run that one alone with:
+#   bin/run-tests.sh --module dense
 
 # Run memory profiling test (from wikantik-main module)
 mvn test -Dtest=MemoryProfiling
@@ -435,6 +450,12 @@ run-tests.sh is the sanctioned path (it also serializes runs per checkout via a
 lock; concurrent Maven builds on one working tree corrupt each other's surefire
 state). The opt-in Authentik scim-fullloop suite always runs sequentially and is
 never folded into `--parallel`.
+
+The shared embedder is the one resource NOT per-module: run-tests.sh starts a single
+container on 11435 for the whole IT phase, so the model loads once regardless of N.
+Only `wikantik-it-test-dense` actually uses it. Invoking that module's failsafe run
+directly (bare `mvn -pl …`) skips that setup and the suite fails at `@BeforeAll` with
+the compose command it wanted — start it by hand or use `bin/run-tests.sh --module dense`.
 
 **Correct usage:**
 ```bash

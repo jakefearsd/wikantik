@@ -154,16 +154,31 @@ EMBED_COMPOSE="${REPO_DIR}/docker/docker-compose.embeddings.yml"
 # shellcheck disable=SC1091
 source "${REPO_DIR}/bin/lib/embeddings.sh"
 
+# Readiness budget. A warm machine (model already in the ollama-models volume)
+# is ready in seconds; the long pole is a COLD machine, where the first run
+# downloads ~600 MB before /api/tags ever lists the tag. 360s was tight enough
+# that a household broadband link (~20 Mbit) could plausibly lose the race, and
+# losing it fails the whole gate for a reason that is not a test failure — so the
+# budget is 900s. It costs nothing on a warm machine, which exits the loop on
+# the first iteration; only a genuinely-stuck pull ever pays it.
+EMBED_READY_TRIES=450     # x 2s sleep = 900s
+EMBED_READY_SLEEP=2
+
 embed_start() {
   echo ">>> Starting shared embedder on ${EMBED_URL}"
   COMPOSE_PROJECT_NAME="${EMBED_PROJECT}" WIKANTIK_EMBEDDING_PORT="${EMBED_PORT}" \
     WIKANTIK_EMBEDDING_MODEL_TAG="${EMBED_MODEL_TAG}" \
     docker compose -f "${EMBED_COMPOSE}" up -d >/dev/null 2>&1 || return 1
-  for _ in $(seq 1 180); do
+  echo "    waiting for ${EMBED_MODEL_TAG} (first run on this machine downloads ~600 MB)"
+  for _ in $(seq 1 "${EMBED_READY_TRIES}"); do
     embeddings_model_ready "${EMBED_URL}" "${EMBED_MODEL_TAG}" && { echo "    embedder ready"; return 0; }
-    sleep 2
+    sleep "${EMBED_READY_SLEEP}"
   done
-  echo "    WARNING: embedder not ready after 360s"
+  echo "    WARNING: embedder not ready after $(( EMBED_READY_TRIES * EMBED_READY_SLEEP ))s."
+  echo "             The first run pulls ~600 MB into the ollama-models volume; on a slow"
+  echo "             link that can outlast this budget. Check progress with:"
+  echo "                 docker logs -f \$(docker ps -qf name=${EMBED_PROJECT})"
+  echo "             then re-run — the volume persists, so the second run starts warm."
   return 1
 }
 

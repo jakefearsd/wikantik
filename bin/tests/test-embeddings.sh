@@ -203,6 +203,107 @@ else
   pass "opted-out fresh install leaves base-url commented out, matching .env.example"
 fi
 
+# --- The key must appear EXACTLY ONCE in the rendered file, in BOTH branches.
+# java.util.Properties is last-wins, so a second copy further down silently
+# overrides an operator's edit to the documented one. The template briefly
+# carried both (documented+commented in the embedding block, live at the
+# bottom), which is precisely the silent-stale-config failure this whole
+# change set exists to eliminate.
+RENDERED_ON="$(sed -e "s|@@REPO_ROOT@@|/tmp/fake-root|g" \
+                    -e "s|@@EMBEDDING_BASE_URL@@|http://localhost:11434|g" \
+                    "$TEMPLATE")"
+live_count()  { printf '%s\n' "$1" | grep -cE '^[[:space:]]*wikantik\.search\.embedding\.base-url[[:space:]]*=' || true; }
+total_count() { printf '%s\n' "$1" | grep -cE '^[[:space:]]*#?[[:space:]]*wikantik\.search\.embedding\.base-url[[:space:]]*=' || true; }
+
+# Total occurrences (live OR commented) must be 1 in both branches: a second
+# copy anywhere is what an operator uncomments and then finds overridden.
+for _branch in "on:$RENDERED_ON" "off:$RENDERED_OUT"; do
+  _name="${_branch%%:*}"
+  _n="$(total_count "${_branch#*:}")"
+  if [ "$_n" -eq 1 ]; then
+    pass "rendered file (${_name}) mentions wikantik.search.embedding.base-url exactly once"
+  else
+    fail "rendered file (${_name}) mentions wikantik.search.embedding.base-url ${_n} times — Properties is last-wins, so a duplicate silently overrides the documented one"
+  fi
+done
+
+# The live-rendered branch must actually be uncommented, or the whole point of
+# rendering it is lost and the install silently inherits the dead ini default.
+if [ "$(live_count "$RENDERED_ON")" -eq 1 ] \
+   && printf '%s\n' "$RENDERED_ON" | grep -qE '^wikantik\.search\.embedding\.base-url[[:space:]]*=[[:space:]]*http://localhost:11434$'; then
+  pass "rendered file (on) sets base-url live exactly once"
+else
+  fail "rendered file (on) does not set base-url live exactly once"
+fi
+# The opted-out branch must set NOTHING live — it falls back to the ini default.
+if [ "$(live_count "$RENDERED_OUT")" -eq 0 ]; then
+  pass "rendered file (off) leaves base-url entirely commented out"
+else
+  fail "rendered file (off) still declares base-url live"
+fi
+
+# --- embedding_url_split(): the naive ${url##*:} it replaces returned
+# "//localhost" for a port-less URL and "11434/" for a trailing slash, and
+# deploy-local.sh runs under `set -e`, so `docker compose` then aborted the
+# ENTIRE deploy before Tomcat was configured.
+check_split() { # check_split <url> <expected "host port">
+  local got; got="$(embedding_url_split "$1")"
+  if [ "$got" = "$2" ]; then
+    pass "embedding_url_split '$1' -> '$2'"
+  else
+    fail "embedding_url_split '$1' -> '$got' (expected '$2')"
+  fi
+}
+check_split "http://localhost:11434"   "localhost 11434"
+check_split "http://localhost:11434/"  "localhost 11434"
+check_split "http://localhost"         "localhost 11434"
+check_split "http://localhost/"        "localhost 11434"
+check_split "http://embed.example.com:8080/v1" "embed.example.com 8080"
+check_split "localhost:11435"          "localhost 11435"
+
+if embedding_host_is_local "localhost" && embedding_host_is_local "127.0.0.1"; then
+  pass "embedding_host_is_local accepts loopback"
+else
+  fail "embedding_host_is_local rejects loopback"
+fi
+if embedding_host_is_local "embed.example.com"; then
+  fail "embedding_host_is_local accepted a remote host — deploy-local.sh would publish the remote's port locally and then poll the remote"
+else
+  pass "embedding_host_is_local rejects a remote host"
+fi
+checkf "deploy-local refuses to containerise a remote base-url" "$DEPLOY" 'embedding_host_is_local'
+
+# --- repair_embedding_base_url() on a file that already carries the key TWICE.
+# An unfiltered grep returns both lines, so `existing_line` is multi-line, both
+# [[ == ]] comparisons fall through, and the function emits a nonsense
+# multi-line warning instead of repairing anything.
+PROPSFILE="$(mktemp)"
+: > "$MSGLOG"
+printf 'wikantik.search.embedding.base-url = http://inference.jakefear.com:11434\nwikantik.applicationName = Wikantik\nwikantik.search.embedding.base-url = http://inference.jakefear.com:11434\n' > "$PROPSFILE"
+repair_embedding_base_url "$PROPSFILE" "http://localhost:11434" "qwen3-embedding:0.6b"
+if [ "$(grep -c 'inference.jakefear.com' "$PROPSFILE" || true)" -eq 0 ] \
+   && [ "$(grep -c 'http://localhost:11434' "$PROPSFILE" || true)" -eq 2 ]; then
+  pass "repair rewrites EVERY duplicate of the known-dead URL"
+else
+  fail "repair left a duplicate known-dead URL behind: $(cat "$PROPSFILE")"
+fi
+rm -f "$PROPSFILE"
+
+# Duplicates that are NOT the dead URL: the warning must name one value (the
+# effective, last-wins one), not a smeared multi-line blob.
+PROPSFILE="$(mktemp)"
+: > "$MSGLOG"
+printf 'wikantik.search.embedding.base-url = http://one.example:11434\nwikantik.search.embedding.base-url = http://two.example:11434\n' > "$PROPSFILE"
+CURL_STUB_RC=7 CURL_STUB_BODY='' \
+  repair_embedding_base_url "$PROPSFILE" "http://localhost:11434" "qwen3-embedding:0.6b"
+if grep -q 'base-url is http://two.example:11434,' "$MSGLOG"; then
+  pass "repair warns about the effective (last-wins) value when the key is duplicated"
+else
+  fail "repair emitted a multi-line/garbled warning for a duplicated key: $(cat "$MSGLOG")"
+fi
+rm -f "$PROPSFILE"
+: > "$MSGLOG"
+
 
 # =============================================================================
 # Task 3: run-tests.sh manages one shared embedder for the whole IT phase.

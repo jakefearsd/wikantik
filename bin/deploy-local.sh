@@ -324,9 +324,28 @@ source "${SCRIPT_DIR}/lib/embeddings.sh"
 : "${WIKANTIK_LOCAL_EMBEDDINGS:=true}"
 : "${WIKANTIK_EMBEDDING_BASE_URL:=http://localhost:11434}"
 : "${WIKANTIK_EMBEDDING_MODEL_TAG:=qwen3-embedding:0.6b}"
-EMBEDDING_PORT="${WIKANTIK_EMBEDDING_BASE_URL##*:}"
+
+# Host/port split and the is-this-machine test both live in bin/lib/embeddings.sh
+# so bin/tests/test-embeddings.sh can exercise them against real URLs rather than
+# a copy of the parsing. `${url##*:}` used to be inlined here and was wrong for a
+# URL with no port ("//localhost") and one with a trailing slash ("11434/").
+read -r EMBEDDING_HOST EMBEDDING_PORT <<< "$(embedding_url_split "${WIKANTIK_EMBEDDING_BASE_URL}")"
+if embedding_host_is_local "${EMBEDDING_HOST}"; then
+    EMBEDDING_IS_LOCAL=true
+else
+    EMBEDDING_IS_LOCAL=false
+fi
+
 if [[ "${WIKANTIK_LOCAL_EMBEDDINGS}" == "true" ]]; then
-    if ! embeddings_model_ready "${WIKANTIK_EMBEDDING_BASE_URL}" "${WIKANTIK_EMBEDDING_MODEL_TAG}"; then
+    if [[ "${EMBEDDING_IS_LOCAL}" != "true" ]]; then
+        print_status "WIKANTIK_EMBEDDING_BASE_URL names ${EMBEDDING_HOST}, not this machine — using it as-is, not starting a container"
+    elif ! [[ "${EMBEDDING_PORT}" =~ ^[0-9]+$ ]]; then
+        # Don't abort the deploy over a malformed URL — Tomcat config is the point
+        # of this script. Say exactly what is wrong and carry on; the wiki degrades
+        # to BM25, the same as any other embedder-unavailable case.
+        print_warning "Cannot parse a port out of WIKANTIK_EMBEDDING_BASE_URL='${WIKANTIK_EMBEDDING_BASE_URL}' (got '${EMBEDDING_PORT}')."
+        echo "         Skipping the embeddings container; expected form is http://host:port."
+    elif ! embeddings_model_ready "${WIKANTIK_EMBEDDING_BASE_URL}" "${WIKANTIK_EMBEDDING_MODEL_TAG}"; then
         print_status "Starting local embeddings container on port ${EMBEDDING_PORT}"
         COMPOSE_PROJECT_NAME=wikantik-embed-dev \
         WIKANTIK_EMBEDDING_PORT="${EMBEDDING_PORT}" \
@@ -342,7 +361,10 @@ if [[ "${WIKANTIK_LOCAL_EMBEDDINGS}" == "true" ]]; then
     if embeddings_model_ready "${WIKANTIK_EMBEDDING_BASE_URL}" "${WIKANTIK_EMBEDDING_MODEL_TAG}"; then
         print_status "Embeddings available at ${WIKANTIK_EMBEDDING_BASE_URL}"
     else
-        print_warning "Embedder did not come up; the wiki will fall back to BM25."
+        print_warning "Embedder at ${WIKANTIK_EMBEDDING_BASE_URL} is not serving ${WIKANTIK_EMBEDDING_MODEL_TAG}; the wiki will fall back to BM25."
+        if [[ "${EMBEDDING_IS_LOCAL}" == "true" ]]; then
+            echo "         A first run downloads ~600 MB; re-run this script once the pull finishes."
+        fi
     fi
 else
     print_status "WIKANTIK_LOCAL_EMBEDDINGS=false — skipping the embeddings container"

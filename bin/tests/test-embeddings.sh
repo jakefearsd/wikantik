@@ -38,5 +38,21 @@ check "has a healthcheck"                'healthcheck:'
 # substring match would still pass if a future edit deleted the real
 # invocation but left the comment behind.
 check "pulls the model on start"         'ollama pull "\${WIKANTIK_EMBEDDING_MODEL_TAG'
+
+TEMPLATE="${REPO_DIR}/wikantik-war/src/main/config/tomcat/wikantik-custom-postgresql.properties.template"
+DEPLOY="${REPO_DIR}/bin/deploy-local.sh"
+ENVEX="${REPO_DIR}/.env.example"
+checkf() { # checkf <description> <file> <pattern>
+  if grep -q -- "$3" "$2"; then echo "  ok: $1"; else echo "  FAIL: $1 (no match for: $3)"; fails=$((fails+1)); fi
+}
+checkf "template carries the base-url placeholder" "$TEMPLATE" '@@EMBEDDING_BASE_URL@@'
+checkf "deploy-local substitutes it"               "$DEPLOY"   '@@EMBEDDING_BASE_URL@@'
+checkf "deploy-local can be opted out"             "$DEPLOY"   'WIKANTIK_LOCAL_EMBEDDINGS'
+# deploy-local.sh does NOT overwrite an existing properties file, so an existing
+# install would otherwise never gain the new setting.
+checkf "deploy-local repairs an existing props file" "$DEPLOY" 'embedding.base-url'
+checkf ".env.example documents the base url"       "$ENVEX"    'WIKANTIK_EMBEDDING_BASE_URL'
+checkf ".env.example documents the opt-out"        "$ENVEX"    'WIKANTIK_LOCAL_EMBEDDINGS'
+
 if [ "$fails" -ne 0 ]; then echo "test-embeddings: ${fails} failure(s)"; exit 1; fi
 echo "test-embeddings: all passed"

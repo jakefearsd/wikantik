@@ -179,3 +179,8 @@ wikantik.frontmatter.autoDefaults = true
 # corpus); bump to a few thousand for a large page tree. 0 = single entry,
 # -1 = disable. Integer.
 #wikantik.versioningFileProvider.cacheSize             = 100
+
+# Dense-retrieval embedding provider. Rendered from .env by bin/deploy-local.sh.
+# The ini-bundle default points at a host that no longer exists, so local dev
+# must override it; bin/deploy-local.sh runs a CPU ollama container on 11434.
+wikantik.search.embedding.base-url = @@EMBEDDING_BASE_URL@@

@@ -314,6 +314,45 @@ elif [[ -f "${PROJECT_ROOT}/.env.example" ]]; then
     set -a; source "${ENV_FILE}"; set +a
 fi
 
+# --- Local embeddings container ---------------------------------------------
+: "${WIKANTIK_LOCAL_EMBEDDINGS:=true}"
+: "${WIKANTIK_EMBEDDING_BASE_URL:=http://localhost:11434}"
+: "${WIKANTIK_EMBEDDING_MODEL_TAG:=qwen3-embedding:0.6b}"
+EMBEDDING_PORT="${WIKANTIK_EMBEDDING_BASE_URL##*:}"
+# Readiness means the configured model tag actually shows up in /api/tags'
+# response body — NOT merely that the daemon answers HTTP 200. Ollama returns
+# 200 with an empty model list while a pull is still running (the same
+# weakness Task 1's review found and fixed in the container's own
+# healthcheck), so a plain reachability probe here would report "Embeddings
+# available" and deploy a wiki that cannot actually embed anything on a cold
+# cache (first-ever pull: ~600 MB, can take several minutes).
+embeddings_model_ready() {
+    curl -sf --max-time 3 "${WIKANTIK_EMBEDDING_BASE_URL}/api/tags" 2>/dev/null \
+        | grep -qF "${WIKANTIK_EMBEDDING_MODEL_TAG}"
+}
+if [[ "${WIKANTIK_LOCAL_EMBEDDINGS}" == "true" ]]; then
+    if ! embeddings_model_ready; then
+        print_status "Starting local embeddings container on port ${EMBEDDING_PORT}"
+        COMPOSE_PROJECT_NAME=wikantik-embed-dev \
+        WIKANTIK_EMBEDDING_PORT="${EMBEDDING_PORT}" \
+        WIKANTIK_EMBEDDING_MODEL_TAG="${WIKANTIK_EMBEDDING_MODEL_TAG}" \
+            docker compose -f "${PROJECT_ROOT}/docker/docker-compose.embeddings.yml" up -d
+        # First run pulls ~600 MB; that is a download, not a hang.
+        print_status "Waiting for the embedder (first run downloads the model)"
+        for _ in $(seq 1 180); do
+            embeddings_model_ready && break
+            sleep 2
+        done
+    fi
+    if embeddings_model_ready; then
+        print_status "Embeddings available at ${WIKANTIK_EMBEDDING_BASE_URL}"
+    else
+        print_warning "Embedder did not come up; the wiki will fall back to BM25."
+    fi
+else
+    print_status "WIKANTIK_LOCAL_EMBEDDINGS=false — skipping the embeddings container"
+fi
+
 POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 POSTGRES_DB="${POSTGRES_DB:-wikantik}"
@@ -348,14 +387,23 @@ else
     print_status "Context file already exists (not overwritten)"
 fi
 
-# Copy properties template if destination doesn't exist (substituting @@REPO_ROOT@@ tokens)
+# Copy properties template if destination doesn't exist (substituting
+# @@REPO_ROOT@@ and @@EMBEDDING_BASE_URL@@ tokens)
 if [[ ! -f "${PROPS_DEST}" ]]; then
-    sed "s|@@REPO_ROOT@@|${PROJECT_ROOT}|g" \
+    sed -e "s|@@REPO_ROOT@@|${PROJECT_ROOT}|g" \
+        -e "s|@@EMBEDDING_BASE_URL@@|${WIKANTIK_EMBEDDING_BASE_URL}|g" \
         "${CONFIG_DIR}/wikantik-custom-postgresql.properties.template" \
         > "${PROPS_DEST}"
     print_status "Created ${PROPS_DEST} (paths substituted for ${SCRIPT_DIR})"
 else
     print_status "Properties file already exists (not overwritten)"
+    # An existing install predates the embedding setting and is never rewritten,
+    # so it would silently keep using the dead ini default. Append it once.
+    if ! grep -q "^wikantik.search.embedding.base-url" "${PROPS_DEST}"; then
+        printf '\n# Added by deploy-local.sh — local embeddings container.\nwikantik.search.embedding.base-url = %s\n' \
+            "${WIKANTIK_EMBEDDING_BASE_URL}" >> "${PROPS_DEST}"
+        print_status "Added embedding base-url to the existing ${PROPS_DEST}"
+    fi
 fi
 
 # Remove stale jspwiki-custom.properties if present

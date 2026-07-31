@@ -108,6 +108,17 @@ else
   fail "embeddings_model_ready false when the configured tag is present"
 fi
 
+# A variant tag must NOT satisfy the check. Ollama's /api/tags is matched as text,
+# so an unanchored substring match reports ready when only "…:0.6b-instruct" is
+# pulled — the wiki would then embed against a model of a different dimension, or
+# none at all. Quote-bounding the tag is what makes this exact.
+if CURL_STUB_RC=0 CURL_STUB_BODY='{"models":[{"name":"qwen3-embedding:0.6b-instruct"}]}' \
+   embeddings_model_ready "http://localhost:11434" "qwen3-embedding:0.6b"; then
+  fail "embeddings_model_ready true when only a VARIANT tag (:0.6b-instruct) is present"
+else
+  pass "embeddings_model_ready false when only a variant tag is present"
+fi
+
 if CURL_STUB_RC=7 CURL_STUB_BODY='' \
    embeddings_model_ready "http://localhost:19999" "qwen3-embedding:0.6b"; then
   fail "embeddings_model_ready true when the server is unreachable"

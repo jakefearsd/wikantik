@@ -74,7 +74,13 @@ embedding_host_is_local() {
 # against in Task 1).
 embeddings_model_ready() {
     local base_url="$1" model_tag="$2"
-    curl -sf --max-time 3 "${base_url%/}/api/tags" 2>/dev/null | grep -qF -- "${model_tag}"
+    # Match the tag QUOTE-BOUNDED, not as a bare substring: /api/tags renders each
+    # model as "name":"<tag>", so an unquoted match also succeeds for a longer tag
+    # that merely starts with ours (e.g. "qwen3-embedding:0.6b-instruct"). That would
+    # report ready against a model of a different dimension — or none at all, if the
+    # configured tag was never pulled. Still a fixed-string match, so the '.' in a
+    # version like 0.6b stays literal rather than becoming a regex wildcard.
+    curl -sf --max-time 3 "${base_url%/}/api/tags" 2>/dev/null | grep -qF -- "\"${model_tag}\""
 }
 
 # Ensures ${1} (an ALREADY-EXISTING wikantik-custom.properties file) doesn't

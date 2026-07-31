@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -177,11 +178,17 @@ class DenseBundleIT {
     }
 
     /**
-     * Budget for the async chunk → embed → HNSW-upsert pipeline to catch up. Generous
-     * because CPU embedding is slow and up to five IT modules share the machine under
-     * {@code bin/run-tests.sh --parallel}.
+     * Budget for the async chunk → embed → HNSW-upsert pipeline to catch up.
+     *
+     * <p>Measured happy path for the whole class — five pages seeded, embedded and
+     * retrieved — is ~3.6s once Tomcat is up, so 90s is roughly 25x headroom even with
+     * five IT modules sharing the machine under {@code bin/run-tests.sh --parallel}.
+     * It is deliberately not larger: three tests poll independently, so the budget is
+     * paid three times over when the dense path is genuinely dead, and this module
+     * would become the IT phase's critical path precisely on the runs that are already
+     * failing. A real failure should surface fast, not stall the gate.</p>
      */
-    private static final long INDEX_BUDGET_MS = 180_000L;
+    private static final long INDEX_BUDGET_MS = 90_000L;
 
     private static HttpClient http;
 
@@ -286,7 +293,11 @@ class DenseBundleIT {
     @Test
     @Order( 3 )
     void bundleFindsASectionNoLexicalSearchCouldFind() throws Exception {
-        final JsonObject bundle = awaitBundleContaining( SEMANTIC_QUERY, TARGET );
+        // Waits on the rank-1 condition, not mere presence: polling for presence and then
+        // asserting rank-1 lets the loop return in a transient partially-indexed state
+        // (target indexed, a fixture that outranks it not yet), turning a timing artifact
+        // into a semantic-looking failure.
+        final JsonObject bundle = awaitBundleRankedFirst( SEMANTIC_QUERY, TARGET );
         final JsonArray sections = bundle.getAsJsonArray( "sections" );
         assertFalse( sections.isEmpty(),
             "A semantically-related query returned nothing — dense retrieval is not "
@@ -324,24 +335,43 @@ class DenseBundleIT {
     // Helpers
     // -----------------------------------------------------------------------
 
-    /**
-     * Polls {@code GET /api/bundle} until {@code expectedSlug} appears among the returned
-     * sections, or the budget expires. The chunk → embed → index pipeline is asynchronous
-     * by design, so an empty first response is normal rather than a failure.
-     */
+    /** Polls until {@code expectedSlug} appears anywhere among the returned sections. */
     private static JsonObject awaitBundleContaining( final String query, final String expectedSlug )
             throws Exception {
+        return awaitBundle( query, ranking -> ranking.contains( expectedSlug ),
+            "'" + expectedSlug + "' never appeared in the bundle" );
+    }
+
+    /** Polls until {@code expectedSlug} is the <em>top-ranked</em> section. */
+    private static JsonObject awaitBundleRankedFirst( final String query, final String expectedSlug )
+            throws Exception {
+        return awaitBundle( query, ranking -> !ranking.isEmpty() && expectedSlug.equals( ranking.get( 0 ) ),
+            "'" + expectedSlug + "' never reached rank 1 in the bundle" );
+    }
+
+    /**
+     * Polls {@code GET /api/bundle} until {@code ready} accepts the section ranking, or the
+     * budget expires. The chunk → embed → index pipeline is asynchronous by design, so an
+     * empty first response is normal rather than a failure.
+     *
+     * <p>Callers pass the predicate they are about to assert on, so the wait condition and
+     * the assertion can never disagree — a poll that returns on a weaker condition than the
+     * one being asserted is a flake generator.</p>
+     */
+    private static JsonObject awaitBundle( final String query,
+                                           final Predicate< List< String > > ready,
+                                           final String failureLead ) throws Exception {
         final long deadline = System.currentTimeMillis() + INDEX_BUDGET_MS;
         JsonObject last = null;
         while ( System.currentTimeMillis() < deadline ) {
             last = bundle( query );
-            if ( slugs( last.getAsJsonArray( "sections" ) ).contains( expectedSlug ) ) {
+            if ( ready.test( slugs( last.getAsJsonArray( "sections" ) ) ) ) {
                 return last;
             }
             Thread.sleep( 2_000L );
         }
-        fail( "'" + expectedSlug + "' never appeared in the bundle for '" + query + "' within "
-            + ( INDEX_BUDGET_MS / 1000 ) + "s. Last response: " + last );
+        fail( failureLead + " for '" + query + "' within " + ( INDEX_BUDGET_MS / 1000 )
+            + "s. Last response: " + last );
         return null;   // unreachable
     }
 

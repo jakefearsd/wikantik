@@ -96,7 +96,15 @@ list_modules() {
 
 # Logs/report live OUTSIDE any target/ dir — `mvn clean` wipes target/ at the
 # start of the build, which would unlink an in-progress log. This dir is gitignored.
-LOG_DIR="${REPO_DIR}/.test-suite-logs"
+#
+# WIKANTIK_TEST_SUITE_LOG_DIR redirects it, and exists for exactly one caller:
+# bin/tests/test-embeddings.sh drives this script with docker/curl/mvn shimmed on
+# PATH to test its *dispatch* logic. Without the redirect each such run truncates a
+# real run's it-<module>.log and report.txt (run_step redirects into $log
+# unconditionally, shimmed mvn or not) and takes .run.lock — so a shell-unit run
+# during a real gate would either destroy that gate's evidence or bail at the lock
+# with exit 3, which reads as a legitimate test result. Never set this by hand.
+LOG_DIR="${WIKANTIK_TEST_SUITE_LOG_DIR:-${REPO_DIR}/.test-suite-logs}"
 REPORT="${LOG_DIR}/report.txt"
 mkdir -p "$LOG_DIR"
 

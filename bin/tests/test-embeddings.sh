@@ -228,14 +228,25 @@ else
 fi
 
 # --- Behavioural: exercise the real embed_start/embed_stop code path with
-# docker + curl shimmed on PATH — no real containers, no network. `--module
-# dense` hits embed_start/trap before failing on the not-yet-created Task 4
-# module directory (that module ships in Task 4), so this run is expected to
-# exit non-zero; only the embedder wiring is under test here.
+# docker + curl + mvn ALL shimmed on PATH — no real containers, no network, no
+# builds. Every external command run-tests.sh can reach must be shimmed: this is
+# a shell-unit suite (it runs in the quality-gates `shell-tests` job), so an
+# unshimmed binary here means a CI shell job silently spawning the thing it was
+# supposed to be a cheap proxy for.
+#
+# `mvn` in particular: until wikantik-it-test-dense existed, `--module dense`
+# died at run-tests.sh's `[ -d "$mod" ]` check and never reached Maven, so the
+# shim was omitted. The moment Task 4 created the directory, this block started
+# running a REAL Cargo/Tomcat IT reactor — and because the only assertion was
+# "exit code is non-zero", it passed on that failure and tested nothing.
+# WIKANTIK_TEST_SUITE_LOG_DIR (below) keeps run-tests.sh's own logs inside the
+# shim dir so these runs cannot truncate a real run's .test-suite-logs/*.log.
 RTSHIM="$(mktemp -d)"
 RTCALLS="${RTSHIM}/docker.calls"
 RTENV="${RTSHIM}/docker.env"
 RTCURLCOUNT="${RTSHIM}/curl.count"
+RTMVNARGS="${RTSHIM}/mvn.args"
+RTLOGDIR="${RTSHIM}/test-suite-logs"
 trap 'cleanup_lib_test; rm -rf "$RTSHIM"' EXIT
 
 cat > "${RTSHIM}/docker" <<EOF
@@ -265,10 +276,22 @@ exit 0
 EOF
 chmod +x "${RTSHIM}/curl"
 
+# Records the argv run-tests.sh dispatches, so the assertions below can check
+# WHICH build was requested instead of only that something exited non-zero.
+# Prints a surefire-shaped line because run_step greps the log for one.
+cat > "${RTSHIM}/mvn" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "${RTMVNARGS}"
+echo "Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"
+exit 0
+EOF
+chmod +x "${RTSHIM}/mvn"
+
 # set -e is active for this whole file: guard with `|| rt_rc=$?` rather than a
 # bare `cmd; rc=$?`, which set -e would abort on before the assignment ever runs.
 rt_rc=0
-PATH="${RTSHIM}:${PATH}" "$RUNTESTS" --module dense >"${RTSHIM}/out.log" 2>&1 || rt_rc=$?
+PATH="${RTSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${RTLOGDIR}" \
+  "$RUNTESTS" --module dense >"${RTSHIM}/out.log" 2>&1 || rt_rc=$?
 
 if [ -f "$RTCALLS" ] && grep -q " up -d" "$RTCALLS" 2>/dev/null; then
   pass "run-tests --module dense invokes docker compose up -d for the embedder"
@@ -294,34 +317,52 @@ else
   fail "run-tests never invoked docker compose down on exit"
 fi
 
-if [ "$rt_rc" -ne 0 ]; then
-  pass "run-tests --module dense exits non-zero (Task 4's module does not exist yet)"
+# The dispatch itself, not just the exit code. `-pl <the dense module>` is the
+# only thing that makes `--module dense` mean anything; asserting on it catches a
+# typo'd/renamed module path, which "exited non-zero" never could.
+if [ -f "$RTMVNARGS" ] && grep -q -- '-pl wikantik-it-tests/wikantik-it-test-dense' "$RTMVNARGS"; then
+  pass "run-tests --module dense dispatches maven at -pl wikantik-it-tests/wikantik-it-test-dense"
 else
-  fail "run-tests --module dense unexpectedly succeeded — did wikantik-it-test-dense get created without updating this test?"
+  fail "run-tests --module dense did not dispatch maven at -pl wikantik-it-tests/wikantik-it-test-dense: $( [ -f "$RTMVNARGS" ] && cat "$RTMVNARGS" || echo '(mvn never invoked)' )"
+fi
+
+if [ -f "$RTMVNARGS" ] && grep -q -- '-Pintegration-tests' "$RTMVNARGS"; then
+  pass "run-tests --module dense dispatches under -Pintegration-tests"
+else
+  fail "run-tests --module dense did not activate the integration-tests profile"
+fi
+
+if [ "$rt_rc" -eq 0 ]; then
+  pass "run-tests --module dense completes normally under the shimmed mvn (dispatch logic alone is what's under test)"
+else
+  fail "run-tests --module dense failed under the shimmed mvn (rc=${rt_rc}) — see ${RTSHIM}/out.log"
+fi
+
+# The shim dir must have absorbed run-tests.sh's logs. If this fails, the suite is
+# writing into the developer's real .test-suite-logs and destroying evidence — the
+# exact damage this whole block used to do. Keyed on report.txt, which run-tests.sh
+# truncates immediately after taking the lock, so this stays a true statement about
+# WHERE logs went no matter how far the dispatch under test got.
+if [ -f "${RTLOGDIR}/report.txt" ]; then
+  pass "run-tests honours WIKANTIK_TEST_SUITE_LOG_DIR (real .test-suite-logs untouched)"
+else
+  fail "run-tests ignored WIKANTIK_TEST_SUITE_LOG_DIR — this suite is clobbering the real .test-suite-logs/"
 fi
 
 # --- Fix round 1 (code review): the embedder must NOT start for a
 # single-module run that has nothing to do with embeddings — --fullloop
 # (the Authentik SCIM full-loop, ONE_MODULE="scim-fullloop") is the exact
-# case the review named. wikantik-it-test-scim-fullloop is a real module
-# directory (unlike the not-yet-created dense one), so without shimming mvn
-# too this would launch a real Maven/Testcontainers IT build; the mvn shim
-# fakes instant success so run-tests.sh's own dispatch logic is what's under
-# test, not the build it would otherwise kick off. Reusing $RTCALLS/$RTENV
-# from the dense case above deliberately proves the NEGATIVE: after this run,
-# the docker shim must have logged nothing new — reset both to empty first so
-# a stale hit from the dense run above can't leak in and produce a false pass.
-cat > "${RTSHIM}/mvn" <<'EOF'
-#!/usr/bin/env bash
-echo "Tests run: 1, Failures: 0, Errors: 0"
-exit 0
-EOF
-chmod +x "${RTSHIM}/mvn"
-
+# case the review named. Reuses the recording mvn shim created above (it must
+# not be replaced by a non-recording one, or the dense dispatch assertions
+# above lose their evidence trail). Reusing $RTCALLS/$RTENV from the dense case
+# deliberately proves the NEGATIVE: after this run, the docker shim must have
+# logged nothing new — reset both to empty first so a stale hit from the dense
+# run above can't leak in and produce a false pass.
 : > "$RTCALLS"
 : > "$RTENV"
 rt_rc2=0
-PATH="${RTSHIM}:${PATH}" "$RUNTESTS" --fullloop >"${RTSHIM}/out-fullloop.log" 2>&1 || rt_rc2=$?
+PATH="${RTSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${RTLOGDIR}" \
+  "$RUNTESTS" --fullloop >"${RTSHIM}/out-fullloop.log" 2>&1 || rt_rc2=$?
 
 if [ ! -s "$RTCALLS" ]; then
   pass "run-tests --fullloop (scim-fullloop) does NOT start the embedder — unrelated to embeddings"

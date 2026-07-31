@@ -518,9 +518,12 @@ class DenseBundleIT {
         final var sections = b.getAsJsonArray( "sections" );
         assertTrue( sections.size() > 0, "expected at least one section" );
 
+        // GET /api/bundle serialises ContextBundle directly with Gson — there is NO
+        // "data" envelope. Shape: { query, sections[], coverage }, and each section is
+        // BundleSection { canonicalId, slug, headingPath, text, score, citation }.
         final JsonObject first = sections.get( 0 ).getAsJsonObject();
-        assertTrue( first.has( "citation" ) || first.has( "page" ),
-            "a bundle section must identify its source: " + first );
+        assertTrue( first.has( "slug" ), "a bundle section must name its source page: " + first );
+        assertTrue( first.has( "citation" ), "a bundle section must carry a citation: " + first );
     }
 
     /**

@@ -33,6 +33,10 @@ check "defaults to qwen3-embedding:0.6b" 'qwen3-embedding:0.6b'
 check "caches models in a named volume"  'ollama-models'
 check "has a healthcheck"                'healthcheck:'
 # The pull must be idempotent-on-restart, not a one-shot init container.
-check "pulls the model on start"         'ollama pull'
+# Anchored to the actual invocation (not just the substring "ollama pull"),
+# which also appears in a prose comment above the entrypoint script — a plain
+# substring match would still pass if a future edit deleted the real
+# invocation but left the comment behind.
+check "pulls the model on start"         'ollama pull "\${WIKANTIK_EMBEDDING_MODEL_TAG'
 if [ "$fails" -ne 0 ]; then echo "test-embeddings: ${fails} failure(s)"; exit 1; fi
 echo "test-embeddings: all passed"

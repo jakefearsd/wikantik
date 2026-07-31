@@ -30,8 +30,16 @@ services:
         until ollama list >/dev/null 2>&1; do sleep 1; done
         ollama pull "${WIKANTIK_EMBEDDING_MODEL_TAG:-qwen3-embedding:0.6b}"
         wait "$$SERVE_PID"
+    # `ollama serve` answers within seconds, well before the ~600 MB model pull
+    # above finishes — `ollama list` alone would report healthy while the model
+    # is still downloading in the background, racing anything that starts this
+    # container and gates readiness on health (as later tasks do). Gate on the
+    # configured model actually appearing in `ollama list` instead, so
+    # "healthy" means "this tag is pullable/servable", not just "daemon is up".
+    # The container has neither curl nor wget (Ubuntu base with only the
+    # `ollama` binary), so the check has to go through the `ollama` CLI itself.
     healthcheck:
-      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "ollama list | grep -q \"^${WIKANTIK_EMBEDDING_MODEL_TAG:-qwen3-embedding:0.6b}[[:space:]]\""]
       interval: 10s
       timeout: 10s
       start_period: 30s

@@ -156,8 +156,8 @@ source "${REPO_DIR}/bin/lib/embeddings.sh"
 
 # Readiness budget. A warm machine (model already in the ollama-models volume)
 # is ready in seconds; the long pole is a COLD machine, where the first run
-# downloads ~600 MB before /api/tags ever lists the tag. 360s was tight enough
-# that a household broadband link (~20 Mbit) could plausibly lose the race, and
+# downloads ~600 MB before /api/tags ever lists the tag. The PREVIOUS 360s budget
+# was tight enough that a household broadband link (~20 Mbit) could lose the race, and
 # losing it fails the whole gate for a reason that is not a test failure — so the
 # budget is 900s. It costs nothing on a warm machine, which exits the loop on
 # the first iteration; only a genuinely-stuck pull ever pays it.
@@ -335,7 +335,10 @@ fi
 # IT phase, or a single-module run of the dense module specifically. Other
 # --module runs (rest, sso, knowledge-disabled, custom-jdbc, scim-fullloop)
 # have nothing to do with embeddings — starting it for e.g. --fullloop would
-# add up to the full 360s embed_start timeout of dead wait for no reason.
+# add up to the full embed_start readiness budget (EMBED_READY_TRIES x
+# EMBED_READY_SLEEP, above) of dead wait for no reason. Named rather than
+# numbered on purpose: this comment previously hard-coded 360s and went stale
+# the moment that budget was raised.
 if [ "$RUN_IT" = 1 ] || [ "$ONE_MODULE" = "$DENSE_MODULE" ]; then
   embed_start || true   # the dense module fails loudly on its own if this did not work
   trap embed_stop EXIT

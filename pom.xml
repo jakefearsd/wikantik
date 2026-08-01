@@ -105,7 +105,7 @@
     <caffeine.version>3.2.4</caffeine.version>
     <ulid-creator.version>5.2.4</ulid-creator.version>
     <jmustache.version>1.16</jmustache.version>
-    <jena.version>6.1.0</jena.version>
+    <jena.version>6.2.0</jena.version>
 
     <!-- ============================================================
          Security pins for VULNERABLE TRANSITIVE dependencies.

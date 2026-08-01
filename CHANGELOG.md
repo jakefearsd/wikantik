@@ -6,6 +6,40 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **The lexical half of `/api/bundle` stopped seeing new content the moment a page was saved.**
+  `LuceneBm25ChunkIndex` was built once, at wiring time, and had no update path at all — so every
+  page written since the last restart was invisible to BM25 chunk retrieval, while the dense half
+  of the same fused query upserted on every save. BM25 is precisely the half that catches exact
+  terms, identifiers and rare tokens that embeddings miss, and on a wiki whose pages are authored
+  continuously by agents over MCP the gap widened for as long as an instance stayed up. The index
+  is now maintained in place (`upsertChunks`/`reload` over a `SearcherManager`), driven from the
+  chunk-projection seam. Deliberately *not* from the post-embedding callback: that only fires when
+  the embedding succeeded, and BM25 — which needs chunk text alone — is what retrieval degrades to
+  when the embedding backend is down, so gating its refresh there would have frozen lexical
+  retrieval during exactly that outage. The same reasoning fixed the no-embedding-client
+  configuration, which previously had no refresh path whatsoever in the one mode where BM25 is the
+  only ranker. Reconciliation is page-scoped rather than id-scoped, because the save-time
+  notification carries only the chunk ids a page still has: a page re-chunked from three chunks
+  down to one would otherwise leave the two dropped chunks searchable forever.
+- **`ChunkProjector`'s post-chunk sink silently dropped a consumer.** It was a single slot with two
+  unrelated registrants — the search wiring and the entity-extraction wiring — and the second
+  displaced the first. The only thing preventing lost work was a hand-rolled chain in
+  `KnowledgeWiringHelper` that had to know about its neighbour. Sinks now accumulate
+  (`addPostChunkSink`) with per-sink failure isolation, so registering a third consumer no longer
+  requires knowing about the first two.
+
+### Changed
+- The embeddings test container's healthcheck matches its model tag exactly (`awk` on the first
+  field) instead of `grep "^tag[[:space:]]"` — the tag contains a `.`, which was a regex wildcard,
+  and the anchored prefix also matched longer variant tags whose embedding dimension differs.
+- `bin/run-tests.sh` is now the single source of the IT embedder port, passing it as
+  `-Dit.embed.port`; the deployed wiki's `embedding.base-url` and `DenseBundleIT`'s readiness probe
+  both derive from it rather than repeating the literal.
+- The SSO callback logs a WARN naming the session ID and response-committed state when it completes
+  without throwing but leaves the session anonymous — instrumentation for a single unreproduced
+  `SSOLoginIT` failure (#49) that previously left no evidence at all.
+
 ## [2.3.13] - 2026-07-31
 
 ### Removed

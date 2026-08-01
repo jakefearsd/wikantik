@@ -48,6 +48,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import static com.wikantik.its.dense.DenseProbeCorpus.FIXTURES;
+import static com.wikantik.its.dense.DenseProbeCorpus.SEMANTIC_QUERY;
+import static com.wikantik.its.dense.DenseProbeCorpus.SHAPE_QUERY;
+import static com.wikantik.its.dense.DenseProbeCorpus.TARGET;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -83,134 +87,35 @@ import static org.junit.jupiter.api.Assertions.fail;
  *       be inferred.</li>
  * </ol>
  *
- * <h2>The zero-overlap guard: future-proofing, not the current proof</h2>
+ * <h2>The zero-overlap guard</h2>
  *
  * <p>{@link #SEMANTIC_QUERY} shares not one word with the page it must retrieve, and
- * {@link #querySharesNoWordWithTheTargetPage()} asserts that mechanically so a later
- * edit cannot quietly reintroduce a lexical shortcut. It is worth being precise about
- * what that buys today, because the obvious claim — "a BM25 fallback cannot produce
- * this result" — is stronger than the facts support:</p>
+ * {@link DenseProbeCorpusIT#querySharesNoWordWithTheTargetPage()} asserts that mechanically so a later
+ * edit cannot quietly reintroduce a lexical shortcut.</p>
  *
- * <p>In this deployment there is no lexical competitor to defeat in the first place.
- * {@code LuceneBm25ChunkIndex.fromDataSource} snapshots {@code kg_content_chunks}
- * <em>once</em>, at wiring time, and an IT deployment wires against a freshly-migrated,
- * empty database — so the BM25 chunk index holds zero documents for the entire life of
- * the process ({@code bm25 chunks=0} in the startup log) no matter what these tests
- * later save. The pages seeded here are never in it. So the guard is not currently
- * ruling out a BM25 shortcut; the three mechanisms above are what make the suite
- * non-vacuous, and every retrieved section necessarily came from the dense side.</p>
- *
- * <p>The guard stays because it costs nothing and becomes genuinely load-bearing the
- * day that index is rebuilt or refreshed on write — at which point a lexically-obvious
- * query really could be satisfied without any embedding, and this constraint is what
- * would stop that from passing for the wrong reason. Treat it as an invariant being
- * held in advance, not as evidence already collected.</p>
+ * <p>This guard is now load-bearing, which it was not when this class was written. The
+ * BM25 chunk index used to be a snapshot taken once at wiring time, and an IT deployment
+ * wires against a freshly-migrated, empty database — so it held zero documents for the
+ * life of the process ({@code bm25 chunks=0}) and there was simply no lexical competitor
+ * to defeat. That defect is fixed: the index is maintained incrementally on every save
+ * (see {@link #lexicalRankerSeesPagesSavedAfterStartup()}, which fails if it is not), so
+ * the pages seeded here really are lexically retrievable. A query with any word in common
+ * with its target could now be satisfied without embedding anything, and zero overlap is
+ * what rules that out.</p>
  */
 @TestMethodOrder( MethodOrderer.OrderAnnotation.class )
 class DenseBundleIT {
 
     private static final String BASE = System.getProperty( "it-wikantik.base.url" );
-    private static final String EMBEDDER = "http://localhost:11435";
-
-    /** The page the semantic query must retrieve. Named so it does NOT leak the query's words. */
-    private static final String TARGET = "DenseProbeFermentation";
 
     /**
-     * ZERO-LEXICAL-OVERLAP QUERY. Every word here — how, do, i, look, after, my, sourdough,
-     * starter — is absent from {@link #TARGET}'s entire source (frontmatter, heading and
-     * body), which {@link #querySharesNoWordWithTheTargetPage()} verifies. Lucene's
-     * StandardAnalyzer does not stem, so no shared term survives tokenisation either.
-     *
-     * <p>See the class javadoc for what this does and does not establish today: the BM25
-     * chunk index is empty in an IT deployment, so this is an invariant held in advance
-     * rather than the mechanism that currently keeps the suite honest.</p>
+     * Same source as the deployed wiki's {@code wikantik.search.embedding.base-url}: the
+     * {@code it.embed.port} Maven property, which {@code bin/run-tests.sh} sets from its own
+     * {@code EMBED_PORT}. Probing a different endpoint from the one the wiki was configured
+     * with would make this suite's readiness check meaningless.
      */
-    private static final String SEMANTIC_QUERY = "how do I look after my sourdough starter";
-
-    /** A plainly-worded query used only for the response-shape assertions. */
-    private static final String SHAPE_QUERY = "inspecting a beehive before autumn";
-
-    /**
-     * Five short fixture pages on unrelated subjects. Only {@link #TARGET} is about
-     * maintaining a live fermentation culture; the other four exist so that "the target
-     * ranked first" is a real discrimination result rather than the only available answer.
-     */
-    private static final Map< String, String > FIXTURES = new LinkedHashMap<>();
-
-    static {
-        FIXTURES.put( TARGET, """
-            ---
-            summary: Keeping a jar of wild yeast culture healthy on the kitchen counter.
-            tags: [dense-probe]
-            ---
-            # Wild Yeast Culture Maintenance
-
-            A jar of fermented grain paste kept on the kitchen counter hosts a stable
-            colony of wild yeast and lactobacilli. Refresh it twice each day with equal
-            weights of milled wheat and clean water, discarding half the mass beforehand
-            so the colony never exhausts its supply of sugars. A healthy jar doubles in
-            volume within six hours, smells pleasantly acidic, and floats when a spoonful
-            is dropped into water. Refrigerate the jar to slow the colony down when
-            travelling.
-            """ );
-
-        FIXTURES.put( "DenseProbeApiary", """
-            ---
-            summary: Seasonal inspection routine for a small backyard apiary.
-            tags: [dense-probe]
-            ---
-            # Hive Inspection Routine
-
-            Open each hive on a warm still afternoon when most foragers are away in the
-            field. Lift the crown board slowly, check the brood pattern for an even laying
-            queen, and count the frames of stores before the autumn dearth. Smoke calms the
-            colony but heavy smoking drives the queen down. Record every inspection so
-            swarming behaviour can be anticipated a season in advance.
-            """ );
-
-        FIXTURES.put( "DenseProbeGlaciology", """
-            ---
-            summary: Measuring mass balance on retreating alpine ice.
-            tags: [dense-probe]
-            ---
-            # Mass Balance Measurement
-
-            Stakes drilled into the ablation zone record surface lowering through the melt
-            season, while snow pits dug near the accumulation basin give winter
-            accumulation. Satellite altimetry supplements the ground network where crevasse
-            fields make travel unsafe. The difference between the two terms gives the annual
-            mass balance, the single most useful indicator of whether the ice is advancing
-            or retreating.
-            """ );
-
-        FIXTURES.put( "DenseProbeLutherie", """
-            ---
-            summary: Repairing an open seam on a carved violin belly.
-            tags: [dense-probe]
-            ---
-            # Open Seam Repair
-
-            A seam that has opened along the rib line is repaired with hot hide glue, never
-            with modern adhesives, so that a future restorer can take the instrument apart
-            again. Warm a thin palette knife, work it gently into the joint to clear old
-            glue, then clamp with spool clamps padded in cork. Leave the instrument to cure
-            overnight before restringing.
-            """ );
-
-        FIXTURES.put( "DenseProbeHarbourPilotage", """
-            ---
-            summary: Boarding arrangements and bridge procedure for harbour pilots.
-            tags: [dense-probe]
-            ---
-            # Boarding And Bridge Procedure
-
-            The pilot boards by ladder on the lee side while the vessel maintains steerage
-            way at reduced speed. On reaching the bridge the pilot exchanges a master-pilot
-            information card covering draught, manoeuvring characteristics and tug
-            arrangements. Helm orders are repeated back by the quartermaster, and the master
-            retains command throughout the transit of the fairway.
-            """ );
-    }
+    private static final String EMBEDDER =
+        "http://localhost:" + System.getProperty( "it.embed.port", "11435" );
 
     /**
      * Budget for the async chunk → embed → HNSW-upsert pipeline to catch up.
@@ -252,8 +157,8 @@ class DenseBundleIT {
             "No embedder at " + EMBEDDER + ( unreachable == null ? "" : " (" + unreachable + ")" )
                 + ". bin/run-tests.sh starts it; if you invoked "
                 + "maven directly, run: COMPOSE_PROJECT_NAME=wikantik-embed-test "
-                + "WIKANTIK_EMBEDDING_PORT=11435 docker compose -f "
-                + "docker/docker-compose.embeddings.yml up -d" );
+                + "WIKANTIK_EMBEDDING_PORT=" + System.getProperty( "it.embed.port", "11435" )
+                + " docker compose -f docker/docker-compose.embeddings.yml up -d" );
         assertTrue( tags.body().contains( "qwen3-embedding:0.6b" ),
             "Embedder at " + EMBEDDER + " does not serve qwen3-embedding:0.6b — the wiki is "
                 + "configured for model code qwen3-embedding-0.6b (1024 dims) and every "
@@ -269,27 +174,9 @@ class DenseBundleIT {
     // Tests
     // -----------------------------------------------------------------------
 
-    /**
-     * Mechanically enforces the zero-overlap invariant. If someone later rewords either the
-     * query or the page and lets a word leak across, this fails immediately rather than
-     * leaving a weakened guard silently in place.
-     */
-    @Test
-    @Order( 1 )
-    void querySharesNoWordWithTheTargetPage() {
-        final Set< String > shared = new LinkedHashSet<>( words( SEMANTIC_QUERY ) );
-        shared.retainAll( words( TARGET + "\n" + FIXTURES.get( TARGET ) ) );
-        assertTrue( shared.isEmpty(),
-            "This module requires zero lexical overlap between the query and '" + TARGET
-                + "'. It is not what makes the suite non-vacuous today (the BM25 chunk "
-                + "index is empty in an IT deployment — see the class javadoc); it is the "
-                + "invariant that keeps it honest once that index is ever refreshed on "
-                + "write. Shared words: " + shared );
-    }
-
     /** A bundle is assembled, and every section carries a well-formed version-pinned citation. */
     @Test
-    @Order( 2 )
+    @Order( 1 )
     void bundleReturnsCitedSections() throws Exception {
         final JsonObject bundle = awaitBundleContaining( SHAPE_QUERY, "DenseProbeApiary" );
         final JsonArray sections = bundle.getAsJsonArray( "sections" );
@@ -325,14 +212,13 @@ class DenseBundleIT {
      * for a query that shares no word with it, ahead of four unrelated fixture pages.
      * Nothing but a semantic match can order it that way.
      *
-     * <p>With the embedder stopped this does not merely rank wrong — it times out, because
-     * an empty vector index means the bundle returns no sections at all. The zero-overlap
-     * property (asserted in {@link #querySharesNoWordWithTheTargetPage()}) is what will
-     * keep this honest if the BM25 chunk index ever starts holding these pages; today it
-     * holds nothing. See the class javadoc.</p>
+     * <p>The BM25 chunk index does hold these pages, so the lexical ranker is a real
+     * competitor here — it simply cannot answer this query, because the zero-overlap
+     * property asserted in {@link DenseProbeCorpusIT#querySharesNoWordWithTheTargetPage()} leaves it with
+     * no matching term. That is what makes rank 1 attributable to the embedding.</p>
      */
     @Test
-    @Order( 3 )
+    @Order( 2 )
     void bundleFindsASectionNoLexicalSearchCouldFind() throws Exception {
         // Waits on the rank-1 condition, not mere presence: polling for presence and then
         // asserting rank-1 lets the loop return in a transient partially-indexed state
@@ -341,10 +227,9 @@ class DenseBundleIT {
         final JsonObject bundle = awaitBundleRankedFirst( SEMANTIC_QUERY, TARGET );
         final JsonArray sections = bundle.getAsJsonArray( "sections" );
         assertFalse( sections.isEmpty(),
-            "A semantically-related query returned nothing. Dense retrieval is not "
-                + "contributing, and there is no lexical index to pick up the slack (the "
-                + "BM25 chunk index is snapshotted from an empty DB at wiring time), so "
-                + "the bundle has no candidate source at all: " + bundle );
+            "A semantically-related query returned nothing. The lexical ranker cannot "
+                + "answer this query by construction (zero shared terms), so an empty "
+                + "result means dense retrieval contributed nothing: " + bundle );
         assertEquals( TARGET, str( sections.get( 0 ).getAsJsonObject(), "slug" ),
             "'" + SEMANTIC_QUERY + "' shares no word with '" + TARGET + "', so only an "
                 + "embedding can rank it first. Ranking was " + slugs( sections ) );
@@ -358,8 +243,10 @@ class DenseBundleIT {
      * instead of leaving it to be inferred from a ranking that came out wrong.
      *
      * <p>Only the {@code dense} array is asserted on. The {@code bm25} array is expected to
-     * be empty here and is not evidence of anything: the index behind it was snapshotted
-     * from an empty database at wiring time.</p>
+     * be empty for <em>this</em> query specifically — {@link #SEMANTIC_QUERY} shares no term
+     * with anything in the corpus — so it carries no information here. That the lexical
+     * index is populated at all is established separately by
+     * {@link #lexicalRankerSeesPagesSavedAfterStartup()}.</p>
      *
      * <p>The endpoint answers 409 unless the active candidate source is a
      * {@code HybridChunkSectionSource}, which only exists when
@@ -368,7 +255,7 @@ class DenseBundleIT {
      * default cannot turn this assertion into an unrelated-looking 409.</p>
      */
     @Test
-    @Order( 4 )
+    @Order( 3 )
     void denseRankerContributesCandidates() throws Exception {
         awaitBundleContaining( SEMANTIC_QUERY, TARGET );   // ensure the pipeline has caught up
 
@@ -382,6 +269,36 @@ class DenseBundleIT {
             "The dense ranker returned no candidates. Either the query failed to embed "
                 + "(embedder at " + EMBEDDER + " down or serving the wrong model) or the "
                 + "Lucene HNSW index never received the seeded chunks: " + r.body() );
+    }
+
+    /**
+     * The lexical half of the fusion must also see content saved after startup.
+     *
+     * <p>Regression cover for the defect where {@code LuceneBm25ChunkIndex} was a snapshot
+     * taken once at wiring time: in a deployment like this one — wired against a
+     * freshly-migrated, empty database — it held zero documents for the life of the process,
+     * so {@code ?mode=lexical} could never return anything the tests had saved. In production
+     * the same bug made every page written since the last restart invisible to lexical chunk
+     * retrieval, while the dense half of the same query updated on every save.</p>
+     *
+     * <p>{@code mode=lexical} ranks by BM25 alone (dense weight 0), so a hit here cannot have
+     * come from the vector index.</p>
+     */
+    @Test
+    @Order( 4 )
+    void lexicalRankerSeesPagesSavedAfterStartup() throws Exception {
+        // "ablation" and "crevasse" appear only in DenseProbeGlaciology, and nowhere in the
+        // seed corpus this deployment ships — a term the lexical ranker can only know about
+        // if it picked up a page written by this suite.
+        final String rareTerm = "ablation crevasse";
+        final JsonObject bundle = awaitBundle( rareTerm, "lexical",
+            ranking -> ranking.contains( "DenseProbeGlaciology" ),
+            "the BM25 chunk index never picked up a page saved after startup — "
+                + "'DenseProbeGlaciology' never appeared in a lexical-mode bundle" );
+
+        final List< String > slugs = slugs( bundle.getAsJsonArray( "sections" ) );
+        assertTrue( slugs.contains( "DenseProbeGlaciology" ),
+            "lexical-mode bundle for '" + rareTerm + "' returned " + slugs );
     }
 
     // -----------------------------------------------------------------------
@@ -414,10 +331,18 @@ class DenseBundleIT {
     private static JsonObject awaitBundle( final String query,
                                            final Predicate< List< String > > ready,
                                            final String failureLead ) throws Exception {
+        return awaitBundle( query, null, ready, failureLead );
+    }
+
+    /** As {@link #awaitBundle(String, Predicate, String)}, in an explicit retrieval mode. */
+    private static JsonObject awaitBundle( final String query,
+                                           final String mode,
+                                           final Predicate< List< String > > ready,
+                                           final String failureLead ) throws Exception {
         final long deadline = System.currentTimeMillis() + INDEX_BUDGET_MS;
         JsonObject last = null;
         while ( System.currentTimeMillis() < deadline ) {
-            last = bundle( query );
+            last = bundle( query, mode );
             if ( ready.test( slugs( last.getAsJsonArray( "sections" ) ) ) ) {
                 return last;
             }
@@ -429,8 +354,13 @@ class DenseBundleIT {
     }
 
     private static JsonObject bundle( final String query ) throws Exception {
+        return bundle( query, null );
+    }
+
+    private static JsonObject bundle( final String query, final String mode ) throws Exception {
         final HttpResponse< String > r = get( "/api/bundle?q="
-            + URLEncoder.encode( query, StandardCharsets.UTF_8 ) );
+            + URLEncoder.encode( query, StandardCharsets.UTF_8 )
+            + ( mode == null ? "" : "&mode=" + mode ) );
         assertEquals( 200, r.statusCode(), "GET /api/bundle: " + r.body() );
         return JsonParser.parseString( r.body() ).getAsJsonObject();
     }
@@ -489,13 +419,28 @@ class DenseBundleIT {
      * Lower-cased maximal letter runs. Deliberately keeps stop words: Lucene's
      * StandardAnalyzer drops some of them, so requiring an empty intersection over the
      * unfiltered token set is strictly stronger than the analyzer's own view.
+     * refuses to return over plain http — the Cargo IT deployment is http-only, so the jar
+     * is keyed on an https view of each URI. Same shim as {@code FrontmatterSaveContractIT}.
      */
-    private static Set< String > words( final String text ) {
-        final Set< String > out = new LinkedHashSet<>();
-        for ( final String w : text.toLowerCase( Locale.ROOT ).split( "[^a-z]+" ) ) {
-            if ( !w.isEmpty() ) out.add( w );
-        }
-        return out;
+    private static CookieHandler secureCookieOverHttp() {
+        final CookieManager cm = new CookieManager( null, CookiePolicy.ACCEPT_ALL );
+        return new CookieHandler() {
+            @Override
+            public Map< String, List< String > > get( final URI uri,
+                    final Map< String, List< String > > requestHeaders ) throws IOException {
+                return cm.get( asHttps( uri ), requestHeaders );
+            }
+
+            @Override
+            public void put( final URI uri, final Map< String, List< String > > responseHeaders )
+                    throws IOException {
+                cm.put( uri, responseHeaders );
+            }
+
+            private URI asHttps( final URI uri ) {
+                return URI.create( uri.toString().replaceFirst( "^http:", "https:" ) );
+            }
+        };
     }
 
     private static String sha256( final String text ) throws Exception {
@@ -523,31 +468,5 @@ class DenseBundleIT {
             }
         }
         return sb.append( '"' ).toString();
-    }
-
-    /**
-     * The wiki sets its session cookie with {@code Secure}, which java.net's cookie manager
-     * refuses to return over plain http — the Cargo IT deployment is http-only, so the jar
-     * is keyed on an https view of each URI. Same shim as {@code FrontmatterSaveContractIT}.
-     */
-    private static CookieHandler secureCookieOverHttp() {
-        final CookieManager cm = new CookieManager( null, CookiePolicy.ACCEPT_ALL );
-        return new CookieHandler() {
-            @Override
-            public Map< String, List< String > > get( final URI uri,
-                    final Map< String, List< String > > requestHeaders ) throws IOException {
-                return cm.get( asHttps( uri ), requestHeaders );
-            }
-
-            @Override
-            public void put( final URI uri, final Map< String, List< String > > responseHeaders )
-                    throws IOException {
-                cm.put( uri, responseHeaders );
-            }
-
-            private URI asHttps( final URI uri ) {
-                return URI.create( uri.toString().replaceFirst( "^http:", "https:" ) );
-            }
-        };
     }
 }

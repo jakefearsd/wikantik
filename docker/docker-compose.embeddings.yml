@@ -38,8 +38,14 @@ services:
     # "healthy" means "this tag is pullable/servable", not just "daemon is up".
     # The container has neither curl nor wget (Ubuntu base with only the
     # `ollama` binary), so the check has to go through the `ollama` CLI itself.
+    #
+    # awk with an exact first-field comparison rather than `grep "^tag[[:space:]]"`:
+    # the tag contains a dot ("0.6b"), which grep would treat as a wildcard, and the
+    # anchored-prefix form also matched any longer tag sharing our prefix. A variant
+    # like qwen3-embedding:0.6b-instruct has a different dimension, so reporting it as
+    # this model produces an index the wiki cannot query. Exact match or nothing.
     healthcheck:
-      test: ["CMD-SHELL", "ollama list | grep -q \"^${WIKANTIK_EMBEDDING_MODEL_TAG:-qwen3-embedding:0.6b}[[:space:]]\""]
+      test: ["CMD-SHELL", "ollama list | awk -v t=\"${WIKANTIK_EMBEDDING_MODEL_TAG:-qwen3-embedding:0.6b}\" '$$1 == t { found = 1 } END { exit !found }'"]
       interval: 10s
       timeout: 10s
       start_period: 30s

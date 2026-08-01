@@ -132,20 +132,8 @@ It asserts the currently-uncovered path end to end:
 2. `GET /api/bundle?q=…` returns a section from that page.
 3. The returned section carries a version-pinned citation.
 
-**Non-vacuity — what actually holds, as built.** The design intended the zero-lexical-overlap
-query to be the load-bearing guard: no shared terms, so a BM25 fallback could not satisfy it
-and the match had to come from the embedding. That reasoning does not describe the shipped
-system, and the corrected version is worth stating precisely rather than leaving the stronger
-claim standing.
-
-`LuceneBm25ChunkIndex.fromDataSource` snapshots `kg_content_chunks` **once**, at wiring time.
-An IT deployment wires against a freshly-migrated, empty database, so the BM25 chunk index
-holds zero documents for the whole life of the process (`bm25 chunks=0` in the startup log)
-regardless of what the tests later save. There is no lexical ranker in play to defeat. The
-guard therefore is not currently the thing ruling out a false pass.
-
-The suite is nonetheless not vacuous. With the embedder stopped it fails through three
-independent mechanisms:
+**Non-vacuity.** With the embedder stopped the suite fails through three independent
+mechanisms:
 
 1. `@BeforeAll` asserts `/api/tags` answers 200 **and** lists `qwen3-embedding:0.6b` — not
    just that something is listening.
@@ -154,9 +142,20 @@ independent mechanisms:
 3. `denseRankerContributesCandidates` asserts the `dense` array from `?debug=rankings` is
    non-empty, which requires both a successful query embedding and a populated HNSW index.
 
-The zero-overlap constraint stays, described honestly as future-proofing: it costs nothing
-and becomes genuinely load-bearing the day the BM25 chunk index is rebuilt or refreshed on
-write, at which point a lexically-obvious query really could pass without any embedding.
+The zero-lexical-overlap query is the fourth guard, and it is load-bearing: the BM25 chunk
+index holds the seeded pages, so the lexical ranker is a genuine competitor and a shared word
+would let it satisfy the rank-1 assertion with no embedding involved.
+
+*This was not true as originally built,* and the correction is recorded because the reasoning
+matters. `LuceneBm25ChunkIndex.fromDataSource` used to snapshot `kg_content_chunks` **once**,
+at wiring time; an IT deployment wires against a freshly-migrated, empty database, so the index
+held zero documents for the life of the process (`bm25 chunks=0`) regardless of what the tests
+later saved. There was no lexical ranker to defeat, and the guard was documented honestly as an
+invariant held in advance. That turned out to be a **production** defect rather than a test
+artifact — every page written since the last restart was invisible to lexical chunk retrieval —
+and it was fixed (issue #48): the index is now maintained incrementally on the chunk-projection
+seam. `lexicalRankerSeesPagesSavedAfterStartup` is the regression cover, and the zero-overlap
+guard became real the same day.
 
 The module fails loudly when the embedder is unreachable. That is its purpose; degrading
 quietly would defeat the entire exercise.
@@ -166,7 +165,7 @@ quietly would defeat the entire exercise.
 | Situation | Behaviour |
 |---|---|
 | Embedder unreachable, dense module | Fail, naming the endpoint. |
-| Embedder unreachable, other IT modules | Unchanged from today. `/api/search` degrades to the live Lucene page index, which is real BM25 fallback. The **bundle** path does not: its BM25 chunk index is snapshotted from an empty DB at wiring time, so it falls back to an empty index and returns nothing. Only the dense module exercises the bundle at all. |
+| Embedder unreachable, other IT modules | Unchanged from today. `/api/search` degrades to the live Lucene page index, and — since issue #48 — the **bundle**'s BM25 chunk half is genuinely populated too, so it degrades to real lexical results rather than an empty index. Only the dense module exercises the bundle at all. |
 | Model not yet pulled | The container comes up immediately — the entrypoint backgrounds `ollama serve` and pulls alongside it, so start does **not** block. Readiness is gated entirely by the model-presence healthcheck and by the callers' own `embeddings_model_ready()` poll. Anything that treats "container running" as "ready" will hit a live daemon with no model. |
 | No Docker | Same as the existing suites, which already require it (Testcontainers, Authentik). |
 
@@ -174,6 +173,13 @@ quietly would defeat the entire exercise.
 
 - **First run downloads ~600 MB.** Mitigated by the named volume; only a cold machine pays
   it. Worth calling out in the runbook so it is not mistaken for a hang.
+
+  Note the volume is **per-instance**, not shared: Compose prefixes volume names with the
+  project name, so the two instances own `wikantik-embed-dev_ollama-models` and
+  `wikantik-embed-test_ollama-models` separately and a cold machine pays the download once
+  per instance. Left that way deliberately — a single shared blob store would have two
+  `ollama` daemons writing it concurrently, and one duplicated download beats debugging a
+  corrupted model cache.
 - **CPU embedding is slower than the retired GPU host.** Contained by scoping embeddings to
   one module. **Measured 2026-07-31**, same machine, same session, warm `~/.m2`, warm
   `ollama-models` volume:

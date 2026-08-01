@@ -37,6 +37,20 @@
     <it-wikantik.groupdatabase>com.wikantik.auth.authorize.JDBCGroupDatabase</it-wikantik.groupdatabase>
     <it-wikantik.userdatabase>com.wikantik.auth.user.JDBCUserDatabase</it-wikantik.userdatabase>
     <it-wikantik.referenceStyle>relative</it-wikantik.referenceStyle>
+
+    <!--
+      Port of the shared CPU embedder the IT phase starts. bin/run-tests.sh owns the
+      value and passes it as -Dit.embed.port, which overrides this; the literal here is
+      the fallback for a direct `mvn -pl ... -Pintegration-tests` invocation. From this
+      one property it reaches BOTH consumers — the deployed wiki's
+      wikantik.search.embedding.base-url (resource filtering) and DenseBundleIT's
+      readiness probe (failsafe systemPropertyVariables, below) — so the two can never
+      end up pointing at different endpoints.
+
+      Deliberately NOT 11434: that is the developer's own dev embedder, and a test run
+      that silently borrowed it would depend on ambient machine state.
+    -->
+    <it.embed.port>11435</it.embed.port>
   </properties>
 
   <build>
@@ -107,6 +121,8 @@
             <it.db.password>${it.db.password}</it.db.password>
             <it.db.port>${it.db.port}</it.db.port>
             <it.db.name>${it.db.name}</it.db.name>
+            <!-- Same source as the deployed wiki's embedding base-url — see it.embed.port above. -->
+            <it.embed.port>${it.embed.port}</it.embed.port>
           </systemPropertyVariables>
         </configuration>
       </plugin>

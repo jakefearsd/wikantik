@@ -141,6 +141,11 @@ IT_MODULES=(
 # ambient machine state is what made PreviewClickHoldsStillIT hang for 120s.
 EMBED_PORT=11435
 EMBED_URL="http://localhost:${EMBED_PORT}"
+# Handed to the IT reactor so the dense module's wikantik-custom.properties (resource
+# filtering) and DenseBundleIT's readiness probe (failsafe system property) both derive
+# their endpoint from THIS value. The module pom carries 11435 as a fallback for a direct
+# maven invocation; whenever the suite runs, this is the number that wins.
+EMBED_MVN_OPT="-Dit.embed.port=${EMBED_PORT}"
 EMBED_MODEL_TAG="qwen3-embedding:0.6b"
 EMBED_PROJECT="wikantik-embed-test"
 EMBED_COMPOSE="${REPO_DIR}/docker/docker-compose.embeddings.yml"
@@ -352,13 +357,13 @@ if [ "$RUN_IT" = 1 ]; then
     # Phase 1), so the ~6000 unit tests are not re-run.
     it_pl="$(IFS=,; echo "${IT_MODULES[*]}")"
     run_step "IT (parallel x${IT_PARALLELISM})" "${LOG_DIR}/it-parallel.log" \
-      install -Pintegration-tests -fae -T "${IT_PARALLELISM}" -pl "$it_pl"
+      install -Pintegration-tests -fae -T "${IT_PARALLELISM}" "${EMBED_MVN_OPT}" -pl "$it_pl"
   else
     for mod in "${IT_MODULES[@]}"; do
       # -pl <module> WITHOUT -am: deps resolve from the Phase-1 install, so unit
       # tests are not re-run. Sequential (default). -fae within the module.
       run_step "IT: ${mod}" "${LOG_DIR}/it-$(basename "$mod").log" \
-        install -Pintegration-tests -fae -pl "$mod"
+        install -Pintegration-tests -fae "${EMBED_MVN_OPT}" -pl "$mod"
     done
   fi
 elif [ -n "$ONE_MODULE" ]; then
@@ -369,7 +374,7 @@ elif [ -n "$ONE_MODULE" ]; then
       install -Pintegration-tests,scim-fullloop -fae -pl "$mod"
   else
     run_step "IT: ${mod}" "${LOG_DIR}/it-${ONE_MODULE}.log" \
-      install -Pintegration-tests -fae -pl "$mod"
+      install -Pintegration-tests -fae "${EMBED_MVN_OPT}" -pl "$mod"
   fi
 fi
 

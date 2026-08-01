@@ -438,6 +438,17 @@ else
   fail "run-tests --module dense did not dispatch maven at -pl wikantik-it-tests/wikantik-it-test-dense: $( [ -f "$RTMVNARGS" ] && cat "$RTMVNARGS" || echo '(mvn never invoked)' )"
 fi
 
+# The embedder port must reach Maven, not just docker: the dense module derives BOTH
+# the deployed wiki's wikantik.search.embedding.base-url (resource filtering) and
+# DenseBundleIT's readiness probe (failsafe system property) from -Dit.embed.port. If the
+# shell starts a container on one port while Maven configures the wiki for the pom's
+# fallback, the suite probes a live embedder and the wiki talks to nothing.
+if [ -f "$RTMVNARGS" ] && grep -q -- '-Dit.embed.port=11435' "$RTMVNARGS"; then
+  pass "run-tests passes the embedder port to maven as -Dit.embed.port"
+else
+  fail "run-tests did not pass -Dit.embed.port to maven — the wiki and the test can now disagree about the endpoint: $( [ -f "$RTMVNARGS" ] && cat "$RTMVNARGS" || echo '(mvn never invoked)' )"
+fi
+
 if [ -f "$RTMVNARGS" ] && grep -q -- '-Pintegration-tests' "$RTMVNARGS"; then
   pass "run-tests --module dense dispatches under -Pintegration-tests"
 else

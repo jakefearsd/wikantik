@@ -112,11 +112,12 @@ class LuceneBm25ChunkIndexTest {
     @Test
     void topKChunksFailsOpenOnQueryError() throws Exception {
         final LuceneBm25ChunkIndex idx = index();
-        // Force the underlying reader closed so the next search throws AlreadyClosedException;
-        // topKChunks must catch (IOException | RuntimeException) and degrade to empty, not propagate.
-        final java.lang.reflect.Field f = LuceneBm25ChunkIndex.class.getDeclaredField( "reader" );
+        // Close the SearcherManager the read path acquires from, so the next query throws
+        // AlreadyClosedException; topKChunks must catch (IOException | RuntimeException) and
+        // degrade to an empty list rather than propagating into the bundle assembly.
+        final java.lang.reflect.Field f = LuceneBm25ChunkIndex.class.getDeclaredField( "searcherManager" );
         f.setAccessible( true );
-        ( (org.apache.lucene.index.DirectoryReader) f.get( idx ) ).close();
+        ( (org.apache.lucene.search.SearcherManager) f.get( idx ) ).close();
         assertTrue( idx.topKChunks( "canary traffic", 5 ).isEmpty(), "query error → fail-open empty list" );
     }
 }

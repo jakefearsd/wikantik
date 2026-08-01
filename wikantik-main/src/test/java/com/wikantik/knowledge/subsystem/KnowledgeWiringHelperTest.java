@@ -153,7 +153,7 @@ class KnowledgeWiringHelperTest {
         verify( engine ).setManager( eq( ChunkEntityMentionRepository.class ), any() );
         verify( engine ).setManager( eq( AsyncEntityExtractionListener.class ), any() );
         verify( engine ).setManager( eq( BootstrapEntityExtractionIndexer.class ), any() );
-        verify( chunkProjector ).setPostChunkSink( any() );
+        verify( chunkProjector ).addPostChunkSink( any() );
     }
 
     @Test
@@ -180,7 +180,7 @@ class KnowledgeWiringHelperTest {
         verify( engine ).setManager( eq( ChunkEntityMentionRepository.class ), any() );
         verify( engine ).setManager( eq( AsyncEntityExtractionListener.class ), any() );
         verify( engine ).setManager( eq( BootstrapEntityExtractionIndexer.class ), any() );
-        verify( chunkProjector ).setPostChunkSink( any() );
+        verify( chunkProjector ).addPostChunkSink( any() );
     }
 
     @Test
@@ -205,7 +205,7 @@ class KnowledgeWiringHelperTest {
 
         verify( engine, never() ).setManager( eq( BootstrapEntityExtractionIndexer.class ), any() );
         verify( engine, never() ).setManager( eq( ChunkEntityMentionRepository.class ), any() );
-        verify( chunkProjector, never() ).setPostChunkSink( any() );
+        verify( chunkProjector, never() ).addPostChunkSink( any() );
     }
 
     @Test
@@ -250,7 +250,7 @@ class KnowledgeWiringHelperTest {
         verify( engine, never() ).setManager( eq( BootstrapEntityExtractionIndexer.class ), any() );
         verify( engine, never() ).setManager( eq( AsyncEntityExtractionListener.class ), any() );
         verify( engine, never() ).setManager( eq( ChunkEntityMentionRepository.class ), any() );
-        verify( chunkProjector, never() ).setPostChunkSink( any() );
+        verify( chunkProjector, never() ).addPostChunkSink( any() );
     }
 
     @Test
@@ -275,6 +275,6 @@ class KnowledgeWiringHelperTest {
 
         verify( engine, never() ).setManager( eq( BootstrapEntityExtractionIndexer.class ), any() );
         verify( engine, never() ).setManager( eq( ChunkEntityMentionRepository.class ), any() );
-        verify( chunkProjector, never() ).setPostChunkSink( any() );
+        verify( chunkProjector, never() ).addPostChunkSink( any() );
     }
 }

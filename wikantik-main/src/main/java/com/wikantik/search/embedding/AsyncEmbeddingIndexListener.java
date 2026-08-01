@@ -29,11 +29,19 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
- * Listener that re-indexes dense-vector embeddings off the save thread.
- * Registered as the {@code postChunkSink} on {@code ChunkProjector}; for
- * every batch of chunk IDs handed over post-save it submits a task that
- * calls {@link EmbeddingIndexService#indexChunks} on a single-thread
- * executor.
+ * Listener that carries chunk changes off the save thread and re-indexes the
+ * derived retrieval structures. Registered as the {@code postChunkSink} on
+ * {@code ChunkProjector}; for every batch of chunk IDs handed over post-save it
+ * submits one task to a single-thread executor which
+ * <ol>
+ *   <li>notifies the {@linkplain #setChunkChangeCallback chunk-change callback} —
+ *       consumers that depend only on chunk text, i.e. the lexical BM25 index; then</li>
+ *   <li>calls {@link EmbeddingIndexService#indexChunks} and, on success, notifies the
+ *       {@linkplain #setPostIndexCallback post-index callback} — consumers that depend
+ *       on the embeddings themselves, i.e. the dense vector index.</li>
+ * </ol>
+ * The split matters: an embedding backend outage must not also freeze lexical
+ * retrieval, which is the fallback the outage degrades to.
  *
  * <p>Single-threaded so we naturally serialise: a saved page will never
  * race with itself, and two saves to different pages queue instead of
@@ -53,6 +61,7 @@ public class AsyncEmbeddingIndexListener implements Consumer< List< UUID > >, Au
     private final ExecutorService executor;
     private final boolean ownsExecutor;
     private volatile Consumer< List< UUID > > postIndexCallback;
+    private volatile Consumer< List< UUID > > chunkChangeCallback;
 
     /**
      * Builds a listener backed by a private single-thread executor. Caller
@@ -107,6 +116,26 @@ public class AsyncEmbeddingIndexListener implements Consumer< List< UUID > >, Au
         this.postIndexCallback = callback;
     }
 
+    /**
+     * Registers a callback invoked on the executor thread for every batch of changed
+     * chunks, <em>before</em> embedding is attempted and regardless of whether it
+     * succeeds. For consumers whose input is the chunk text alone — the BM25 lexical
+     * chunk index ({@code LuceneBm25ChunkIndex.upsertChunks}) — as opposed to
+     * {@link #setPostIndexCallback}, which is for consumers of the embeddings.
+     *
+     * <p>Registered here rather than composed onto {@code ChunkProjector}'s sink
+     * directly because that sink is reassigned later in startup by the entity-extraction
+     * wiring, which rebuilds it from {@code WikiEngine.getHybridIndexListener()} — i.e.
+     * from this object. Anything hung off this listener survives that reassignment;
+     * anything composed onto the projector does not.</p>
+     *
+     * <p>Pass {@code null} to clear. Exceptions from the callback are logged at warn and
+     * swallowed so a broken lexical index cannot stop the embedding that follows it.</p>
+     */
+    public void setChunkChangeCallback( final Consumer< List< UUID > > callback ) {
+        this.chunkChangeCallback = callback;
+    }
+
     private static ExecutorService defaultExecutor() {
         return Executors.newSingleThreadExecutor( r -> {
             final Thread t = new Thread( r, "wikantik-embedding-index" );
@@ -133,6 +162,11 @@ public class AsyncEmbeddingIndexListener implements Consumer< List< UUID > >, Au
     }
 
     private void runIndex( final List< UUID > chunkIds ) {
+        // First, and unconditionally: consumers that need only the chunk text. Ordered
+        // ahead of the embedding call so lexical retrieval does not wait on an HTTP
+        // round-trip to the embedding backend, and still runs when that call throws.
+        notify( this.chunkChangeCallback, chunkIds, "Chunk-change callback" );
+
         boolean indexed = false;
         try {
             final int upserted = indexer.indexChunks( chunkIds, modelCode );
@@ -146,15 +180,21 @@ public class AsyncEmbeddingIndexListener implements Consumer< List< UUID > >, Au
                 modelCode, chunkIds.size(), e.getMessage(), e );
         }
         if ( indexed ) {
-            final Consumer< List< UUID > > cb = this.postIndexCallback;
-            if ( cb != null ) {
-                try {
-                    cb.accept( chunkIds );
-                } catch( final RuntimeException e ) {
-                    LOG.warn( "Post-index callback failed (model={}): {}",
-                        modelCode, e.getMessage(), e );
-                }
-            }
+            notify( this.postIndexCallback, chunkIds, "Post-index callback" );
+        }
+    }
+
+    /** Invokes a callback with failure isolation — one broken consumer must not affect the other. */
+    private void notify( final Consumer< List< UUID > > callback,
+                         final List< UUID > chunkIds,
+                         final String label ) {
+        if ( callback == null ) {
+            return;
+        }
+        try {
+            callback.accept( chunkIds );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "{} failed (model={}): {}", label, modelCode, e.getMessage(), e );
         }
     }
 

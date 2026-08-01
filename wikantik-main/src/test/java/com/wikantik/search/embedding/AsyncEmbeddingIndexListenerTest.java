@@ -209,4 +209,49 @@ class AsyncEmbeddingIndexListenerTest {
             verify( indexer, times( 1 ) ).indexChunks( any(), eq( MODEL ) );
         }
     }
+
+    /**
+     * The lexical (BM25) chunk index depends only on chunk <em>text</em>, never on an
+     * embedding. Its refresh therefore must not be gated on {@code indexChunks} succeeding:
+     * BM25 is exactly the half that has to keep working while the embedding backend is
+     * down, and gating it there would make an embedder outage silently freeze lexical
+     * retrieval too.
+     */
+    @Test
+    void chunkChangeCallback_runs_even_when_embedding_fails() throws InterruptedException {
+        final EmbeddingIndexService indexer = mock( EmbeddingIndexService.class );
+        when( indexer.indexChunks( any(), eq( MODEL ) ) )
+            .thenThrow( new RuntimeException( "embedding backend unreachable" ) );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        final AtomicInteger lexical = new AtomicInteger();
+        final AtomicInteger dense = new AtomicInteger();
+        try( final AsyncEmbeddingIndexListener listener =
+                 new AsyncEmbeddingIndexListener( indexer, MODEL, ex ) ) {
+            listener.setChunkChangeCallback( ids -> lexical.incrementAndGet() );
+            listener.setPostIndexCallback( ids -> dense.incrementAndGet() );
+            listener.accept( List.of( UUID.randomUUID() ) );
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
+            assertEquals( 1, lexical.get(),
+                "the chunk-change callback must fire even though embedding threw" );
+            assertEquals( 0, dense.get(),
+                "the post-index callback must NOT fire when there is no embedding to index" );
+        }
+    }
+
+    /** A broken lexical consumer must not stop the embedding attempt that follows it. */
+    @Test
+    void chunkChangeCallback_failure_does_not_block_embedding() throws InterruptedException {
+        final EmbeddingIndexService indexer = mock( EmbeddingIndexService.class );
+        when( indexer.indexChunks( any(), eq( MODEL ) ) ).thenReturn( 1 );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        try( final AsyncEmbeddingIndexListener listener =
+                 new AsyncEmbeddingIndexListener( indexer, MODEL, ex ) ) {
+            listener.setChunkChangeCallback( ids -> { throw new RuntimeException( "bm25 blew up" ); } );
+            listener.accept( List.of( UUID.randomUUID() ) );
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
+            verify( indexer, times( 1 ) ).indexChunks( any(), eq( MODEL ) );
+        }
+    }
 }

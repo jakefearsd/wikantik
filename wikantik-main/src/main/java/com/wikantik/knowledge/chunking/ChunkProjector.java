@@ -114,24 +114,37 @@ public class ChunkProjector implements PageFilter {
     public MeterRegistry meterRegistry() { return meterRegistry; }
 
     /**
-     * Post-projection sink invoked after chunks for a page are diff-applied.
-     * Receives the full list of chunk IDs currently stored for the page
+     * Post-projection sinks invoked after chunks for a page are diff-applied.
+     * Each receives the full list of chunk IDs currently stored for the page
      * (inserts + updates, never deletes) so downstream consumers can rebuild
-     * derived projections (dense embeddings, etc.).
+     * derived projections (dense embeddings, the lexical chunk index, entity
+     * extraction).
      *
-     * <p>The sink is invoked on the same thread that drove the save; it is
-     * the sink's responsibility to off-load any expensive work onto a
+     * <p>Sinks are invoked on the same thread that drove the save; it is
+     * each sink's responsibility to off-load any expensive work onto a
      * background executor. This keeps ChunkProjector itself free of thread
      * pools while honouring the "don't block the save path" contract.</p>
+     *
+     * <p>A list rather than a single slot because registration happens from two
+     * unrelated points in startup — the search wiring and the entity-extraction
+     * wiring — which ran in an order neither controlled. With one slot the later
+     * registration silently replaced the earlier one, and the only thing keeping
+     * that from dropping work was a hand-rolled chain in the second caller that
+     * had to know about the first. Copy-on-write because registration happens a
+     * handful of times at startup and iteration happens on every save.</p>
      */
-    private volatile Consumer< List< UUID > > postChunkSink;
+    private final java.util.List< Consumer< List< UUID > > > postChunkSinks =
+        new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /**
      * Registers a sink to be called after a successful projectPage apply.
-     * Passing {@code null} clears any previously registered sink.
+     * Sinks accumulate: registering a second one does not displace the first.
+     * A {@code null} sink is ignored.
      */
-    public void setPostChunkSink( final Consumer< List< UUID > > sink ) {
-        this.postChunkSink = sink;
+    public void addPostChunkSink( final Consumer< List< UUID > > sink ) {
+        if ( sink != null ) {
+            postChunkSinks.add( sink );
+        }
     }
 
     /**
@@ -206,25 +219,34 @@ public class ChunkProjector implements PageFilter {
 
     /**
      * Reads back every chunk ID currently stored for {@code pageName} and
-     * hands them to the registered sink. A sink failure is isolated — it
-     * logs at {@code warn} with context but never propagates back into the
-     * save path, which has already committed.
+     * hands them to each registered sink. Failures are isolated per sink — a
+     * broken consumer logs at {@code warn} with context but never propagates
+     * back into the save path (which has already committed) and never stops
+     * the remaining sinks from running.
      */
     private void notifyPostChunkSink( final String pageName ) {
-        final Consumer< List< UUID > > sink = postChunkSink;
-        if ( sink == null ) {
+        if ( postChunkSinks.isEmpty() ) {
             return;
         }
+        final List< UUID > ids;
         try {
             final List< ChunkDiff.Stored > stored = repository.findByPage( pageName );
-            final List< UUID > ids = new java.util.ArrayList<>( stored.size() );
+            ids = new java.util.ArrayList<>( stored.size() );
             for ( final ChunkDiff.Stored s : stored ) {
                 ids.add( s.id() );
             }
-            sink.accept( ids );
         } catch( final RuntimeException e ) {
-            LOG.warn( "Post-chunk sink failed for page '{}': {}",
+            LOG.warn( "Post-chunk sink read-back failed for page '{}': {}",
                 pageName, e.getMessage(), e );
+            return;
+        }
+        for ( final Consumer< List< UUID > > sink : postChunkSinks ) {
+            try {
+                sink.accept( ids );
+            } catch( final RuntimeException e ) {
+                LOG.warn( "Post-chunk sink failed for page '{}': {}",
+                    pageName, e.getMessage(), e );
+            }
         }
     }
 

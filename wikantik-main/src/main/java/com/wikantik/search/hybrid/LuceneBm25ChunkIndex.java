@@ -27,7 +27,6 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
-import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.StoredFields;
@@ -39,6 +38,9 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.search.SearcherFactory;
+import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
@@ -48,10 +50,16 @@ import org.apache.logging.log4j.Logger;
 import javax.sql.DataSource;
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -63,8 +71,24 @@ import java.util.UUID;
  *
  * <p>One {@link ByteBuffersDirectory} doc per chunk: analysed {@code text} +
  * stored {@code chunk_id}/{@code page_name}. Queries are built from analysed tokens
- * (OR of {@link TermQuery}s) so no queryparser dependency is needed. Spike scaffolding
- * behind {@code wikantik.bundle.bm25.enabled} (default off) — see the bundle wiring.
+ * (OR of {@link TermQuery}s) so no queryparser dependency is needed. Enabled by
+ * {@code wikantik.bundle.bm25.enabled} — see the bundle wiring.
+ *
+ * <h2>Staying current</h2>
+ *
+ * <p>The index is maintained in place, not snapshotted. {@link #upsertChunks} is
+ * driven from the chunk-projection seam on every save, so a page becomes lexically
+ * retrievable as soon as it has been chunked. That deliberately does <em>not</em>
+ * depend on the embedding backend: BM25 needs only chunk text, and it is precisely
+ * the half that has to keep working when embeddings are unavailable.</p>
+ *
+ * <p>Reconciliation is <em>page-scoped</em> rather than id-scoped. The save-time
+ * notification carries only the ids a page still has, so a page re-chunked from three
+ * chunks down to one would otherwise leave the two dropped chunks searchable forever.
+ * Rewriting every affected page wholesale is self-healing and bounded by page size.</p>
+ *
+ * <p>Reads go through a {@link SearcherManager}, so queries in flight during a refresh
+ * finish against a consistent point-in-time view.</p>
  */
 public final class LuceneBm25ChunkIndex {
 
@@ -74,60 +98,203 @@ public final class LuceneBm25ChunkIndex {
     static final String F_TEXT = "text";
     private static final int MAX_QUERY_TERMS = 1024;
 
+    private static final String LOAD_ALL_SQL =
+        "select id, page_name, text from kg_content_chunks";
+    private static final String PAGES_FOR_IDS_SQL =
+        "select distinct page_name from kg_content_chunks where id = any (?)";
+    private static final String LOAD_BY_PAGES_SQL =
+        "select id, page_name, text from kg_content_chunks where page_name = any (?)";
+
     /** Minimal chunk projection the index needs (id, owning page, body). */
     public record IndexedChunk( UUID id, String pageName, String text ) {}
 
     private final Analyzer analyzer;
+    private final DataSource dataSource;   // null for the in-list (test) constructors
     private final Directory directory;
-    private final DirectoryReader reader;
-    private final IndexSearcher searcher;
-    private final int size;
+    private final IndexWriter writer;
+    private final SearcherManager searcherManager;
+    /**
+     * Live doc count, refreshed on the writer thread. Cached rather than read through
+     * the {@link SearcherManager} because {@link #topKChunks} consults it before every
+     * query and an acquire/release pair per query is pure overhead.
+     */
+    private volatile int cachedSize;
 
     public LuceneBm25ChunkIndex( final List< IndexedChunk > chunks ) {
         this( chunks, new StandardAnalyzer() );
     }
 
     public LuceneBm25ChunkIndex( final List< IndexedChunk > chunks, final Analyzer analyzer ) {
+        this( analyzer, null );
+        replaceAll( chunks );
+    }
+
+    private LuceneBm25ChunkIndex( final Analyzer analyzer, final DataSource dataSource ) {
         this.analyzer = analyzer;
+        this.dataSource = dataSource;
         this.directory = new ByteBuffersDirectory();
         try {
             final IndexWriterConfig cfg = new IndexWriterConfig( analyzer ).setSimilarity( new BM25Similarity() );
-            int n = 0;
-            try ( IndexWriter writer = new IndexWriter( directory, cfg ) ) {
-                for ( final IndexedChunk c : chunks ) {
-                    if ( c == null || c.text() == null || c.text().isBlank() ) continue;
-                    final Document doc = new Document();
-                    doc.add( new StringField( F_ID, c.id().toString(), Field.Store.YES ) );
-                    doc.add( new StringField( F_PAGE, c.pageName() == null ? "" : c.pageName(), Field.Store.YES ) );
-                    doc.add( new TextField( F_TEXT, c.text(), Field.Store.NO ) );
-                    writer.addDocument( doc );
-                    n++;
+            this.writer = new IndexWriter( directory, cfg );
+            this.writer.commit();
+            // BM25 similarity is applied by the SearcherFactory, once per searcher at
+            // creation. It must NOT be set on the acquired searcher inside topKChunks:
+            // SearcherManager hands the same IndexSearcher to every concurrent request
+            // thread, so mutating it per query is a data race on shared state.
+            this.searcherManager = new SearcherManager( directory, new SearcherFactory() {
+                @Override
+                public IndexSearcher newSearcher( final IndexReader reader, final IndexReader previous ) {
+                    final IndexSearcher s = new IndexSearcher( reader );
+                    s.setSimilarity( new BM25Similarity() );
+                    return s;
                 }
-            }
-            this.reader = DirectoryReader.open( directory );
-            this.searcher = new IndexSearcher( reader );
-            this.searcher.setSimilarity( new BM25Similarity() );
-            this.size = n;
+            } );
         } catch ( final IOException e ) {
             throw new IllegalStateException( "Failed to build BM25 chunk index", e );
         }
     }
 
-    /** Loads every chunk's text from {@code kg_content_chunks} and builds the index with the given analyzer. */
+    /**
+     * Loads every chunk's text from {@code kg_content_chunks} and builds the index with the
+     * given analyzer. The returned index keeps the {@link DataSource} so it can be refreshed
+     * incrementally afterwards — see {@link #upsertChunks}.
+     */
     public static LuceneBm25ChunkIndex fromDataSource( final DataSource ds, final Analyzer analyzer ) {
-        final List< IndexedChunk > chunks = new ArrayList<>();
-        final String sql = "select id, page_name, text from kg_content_chunks";
-        try ( Connection conn = ds.getConnection();
-              Statement st = conn.createStatement();
-              ResultSet rs = st.executeQuery( sql ) ) {
-            while ( rs.next() ) {
-                chunks.add( new IndexedChunk(
-                    UUID.fromString( rs.getString( "id" ) ), rs.getString( "page_name" ), rs.getString( "text" ) ) );
+        final LuceneBm25ChunkIndex index = new LuceneBm25ChunkIndex( analyzer, ds );
+        index.replaceAll( index.loadAll() );
+        return index;
+    }
+
+    /**
+     * Re-indexes every page touched by {@code chunkIds}, so content saved after the index
+     * was built becomes lexically retrievable without a restart.
+     *
+     * <p>Called on the embedding executor's thread (never the save thread) for every batch
+     * of changed chunks, whether or not the embedding attempt for that batch succeeded.</p>
+     *
+     * <p>Fail-closed: any SQL or IO failure logs at {@code WARN} and leaves the previous
+     * contents in place, so a transient database blip degrades to staleness rather than
+     * emptying the lexical half of the fusion mid-flight.</p>
+     */
+    public void upsertChunks( final Collection< UUID > chunkIds ) {
+        if ( dataSource == null || chunkIds == null || chunkIds.isEmpty() ) return;
+        final Set< UUID > targets = new LinkedHashSet<>( chunkIds );
+        try ( Connection conn = dataSource.getConnection() ) {
+            final Set< String > pages = pagesFor( conn, targets );
+            final List< IndexedChunk > current = pages.isEmpty() ? List.of() : loadByPages( conn, pages );
+
+            // Rewrite each affected page wholesale: delete every doc carrying its
+            // page_name, then re-add the chunks the page currently has.
+            for ( final String page : pages ) {
+                writer.deleteDocuments( new Term( F_PAGE, page ) );
             }
-        } catch ( final java.sql.SQLException e ) {
+            // Ids we were notified about that no longer exist anywhere — their page could
+            // not be resolved above, so drop them by id or they would linger indefinitely.
+            final Set< UUID > alive = new HashSet<>();
+            for ( final IndexedChunk c : current ) alive.add( c.id() );
+            for ( final UUID id : targets ) {
+                if ( !alive.contains( id ) ) writer.deleteDocuments( new Term( F_ID, id.toString() ) );
+            }
+            for ( final IndexedChunk c : current ) addDocument( c );
+            commitAndRefresh();
+        } catch ( final SQLException | IOException e ) {
+            LOG.warn( "BM25 chunk upsert failed ({} ids); prior index contents preserved: {}",
+                targets.size(), e.getMessage(), e );
+        }
+    }
+
+    /**
+     * Full rebuild from the database. Fail-closed in the same way as {@link #upsertChunks}:
+     * a load failure leaves the existing index untouched rather than blanking it.
+     */
+    public void reload() {
+        if ( dataSource == null ) return;   // in-list (test) instance: nothing to reload from
+        final List< IndexedChunk > chunks;
+        try {
+            chunks = loadAll();
+        } catch ( final IllegalStateException e ) {
+            LOG.warn( "BM25 chunk reload failed; prior index contents preserved: {}", e.getMessage(), e );
+            return;
+        }
+        replaceAll( chunks );
+        LOG.info( "BM25 chunk index reloaded: chunks={}", cachedSize );
+    }
+
+    private List< IndexedChunk > loadAll() {
+        final List< IndexedChunk > chunks = new ArrayList<>();
+        try ( Connection conn = dataSource.getConnection();
+              Statement st = conn.createStatement();
+              ResultSet rs = st.executeQuery( LOAD_ALL_SQL ) ) {
+            while ( rs.next() ) {
+                chunks.add( readChunk( rs ) );
+            }
+        } catch ( final SQLException e ) {
             throw new IllegalStateException( "Failed to load chunks for BM25 index", e );
         }
-        return new LuceneBm25ChunkIndex( chunks, analyzer );
+        return chunks;
+    }
+
+    private static Set< String > pagesFor( final Connection conn, final Set< UUID > ids ) throws SQLException {
+        final Set< String > pages = new LinkedHashSet<>();
+        try ( PreparedStatement ps = conn.prepareStatement( PAGES_FOR_IDS_SQL ) ) {
+            ps.setArray( 1, conn.createArrayOf( "uuid", ids.toArray( new UUID[ 0 ] ) ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) pages.add( rs.getString( 1 ) );
+            }
+        }
+        return pages;
+    }
+
+    private static List< IndexedChunk > loadByPages( final Connection conn, final Set< String > pages )
+            throws SQLException {
+        final List< IndexedChunk > chunks = new ArrayList<>();
+        try ( PreparedStatement ps = conn.prepareStatement( LOAD_BY_PAGES_SQL ) ) {
+            ps.setArray( 1, conn.createArrayOf( "text", pages.toArray( new String[ 0 ] ) ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) chunks.add( readChunk( rs ) );
+            }
+        }
+        return chunks;
+    }
+
+    private static IndexedChunk readChunk( final ResultSet rs ) throws SQLException {
+        return new IndexedChunk(
+            UUID.fromString( rs.getString( "id" ) ), rs.getString( "page_name" ), rs.getString( "text" ) );
+    }
+
+    /** Wipes the index and rebuilds it from {@code chunks}. Used by construction and {@link #reload}. */
+    private void replaceAll( final List< IndexedChunk > chunks ) {
+        try {
+            writer.deleteAll();
+            for ( final IndexedChunk c : chunks ) {
+                addDocument( c );
+            }
+            commitAndRefresh();
+        } catch ( final IOException e ) {
+            throw new IllegalStateException( "Failed to build BM25 chunk index", e );
+        }
+    }
+
+    /** Stages one chunk, replacing any existing doc with the same id. */
+    private void addDocument( final IndexedChunk c ) throws IOException {
+        if ( c == null || c.text() == null || c.text().isBlank() ) return;
+        final Document doc = new Document();
+        doc.add( new StringField( F_ID, c.id().toString(), Field.Store.YES ) );
+        doc.add( new StringField( F_PAGE, c.pageName() == null ? "" : c.pageName(), Field.Store.YES ) );
+        doc.add( new TextField( F_TEXT, c.text(), Field.Store.NO ) );
+        writer.updateDocument( new Term( F_ID, c.id().toString() ), doc );
+    }
+
+    /** Publishes staged writes to readers and refreshes the cached doc count. */
+    private void commitAndRefresh() throws IOException {
+        writer.commit();
+        searcherManager.maybeRefreshBlocking();
+        final IndexSearcher searcher = searcherManager.acquire();
+        try {
+            cachedSize = searcher.getIndexReader().numDocs();
+        } finally {
+            searcherManager.release( searcher );
+        }
     }
 
     /**
@@ -157,8 +324,10 @@ public final class LuceneBm25ChunkIndex {
 
     /** Top-{@code k} chunks by BM25 score, highest first. Never throws → empty on any failure. */
     public List< ScoredChunk > topKChunks( final String queryText, final int k ) {
-        if ( queryText == null || queryText.isBlank() || size == 0 || k <= 0 ) return List.of();
+        if ( queryText == null || queryText.isBlank() || cachedSize == 0 || k <= 0 ) return List.of();
+        IndexSearcher searcher = null;
         try {
+            searcher = searcherManager.acquire();   // already BM25-configured by the SearcherFactory
             final Query query = buildQuery( queryText );
             final TopDocs hits = searcher.search( query, k );
             final StoredFields stored = searcher.storedFields();
@@ -171,11 +340,20 @@ public final class LuceneBm25ChunkIndex {
         } catch ( final IOException | RuntimeException e ) {
             LOG.warn( "BM25 chunk query failed for '{}': {}", queryText, e.getMessage() );
             return List.of();
+        } finally {
+            if ( searcher != null ) {
+                try {
+                    searcherManager.release( searcher );
+                } catch ( final IOException e ) {
+                    LOG.warn( "BM25 searcher release failed: {}", e.getMessage(), e );
+                }
+            }
         }
     }
 
+    /** Live document count. */
     public int size() {
-        return size;
+        return cachedSize;
     }
 
     /** OR of the analysed query terms — pure-core Lucene, no queryparser dependency. */

@@ -71,6 +71,22 @@ public final class SearchWiringHelper {
 
     private static final Logger LOG = LogManager.getLogger( SearchWiringHelper.class );
 
+    /**
+     * Off-thread applier for BM25 refreshes on the no-embedding-client path, where there is
+     * no {@code AsyncEmbeddingIndexListener} executor to borrow. Single-threaded so refreshes
+     * serialise, and daemon so it can never hold the JVM open.
+     *
+     * <p>Static, shared by every engine in the JVM, rather than one per wiring call: the
+     * branch that uses it is the ordinary configuration for unit tests (no embedding client),
+     * which build engines repeatedly, and a per-engine executor would leak a thread apiece.</p>
+     */
+    private static final java.util.concurrent.Executor BM25_REFRESH =
+        java.util.concurrent.Executors.newSingleThreadExecutor( r -> {
+            final Thread t = new Thread( r, "wikantik-bm25-refresh" );
+            t.setDaemon( true );
+            return t;
+        } );
+
     private SearchWiringHelper() {}
 
     // -----------------------------------------------------------------------
@@ -123,8 +139,18 @@ public final class SearchWiringHelper {
             // keeps serving (BM25-only ranking) with the inference host gone.
             // DENSE remains present but returns empty candidates (logged per
             // query) — an honest answer to an explicitly-dense request.
+            final com.wikantik.search.hybrid.LuceneBm25ChunkIndex lexicalOnlyIndex =
+                buildBm25Index( props, ds );
             engine.setBundleSectionSources( buildBundleSourceMap(
-                props, QueryEmbedder.disabled(), null, chunkRepo, ds ) );
+                props, QueryEmbedder.disabled(), null, chunkRepo, lexicalOnlyIndex ) );
+            // Keep it current directly off the projector: this branch never builds an
+            // AsyncEmbeddingIndexListener, so without this the one ranker still standing
+            // would freeze at its startup snapshot — worst of all in exactly the
+            // degraded mode where it is the ONLY ranker.
+            if ( lexicalOnlyIndex != null && chunkProjector != null ) {
+                chunkProjector.addPostChunkSink(
+                    ids -> BM25_REFRESH.execute( () -> lexicalOnlyIndex.upsertChunks( ids ) ) );
+            }
             LOG.info( "Embedding client absent — bundle sources wired BM25-only (LEXICAL/HYBRID)" );
             return;
         }
@@ -235,6 +261,11 @@ public final class SearchWiringHelper {
         // doesn't add a new engine.getManager() call site (see DecompositionArchTest).
         engine.setChunkVectorIndex( vectorIndex );
 
+        // Built before the listener below so the same object can be both kept current on
+        // every save AND handed to the bundle sources further down. null when BM25 is
+        // disabled or its build failed — every use site is null-guarded.
+        final com.wikantik.search.hybrid.LuceneBm25ChunkIndex bm25Index = buildBm25Index( props, ds );
+
         final AsyncEmbeddingIndexListener listener =
             new AsyncEmbeddingIndexListener( indexService, modelCode );
         // Backends with an in-process index (inmemory, lucene-hnsw) refresh it
@@ -243,7 +274,14 @@ public final class SearchWiringHelper {
         if ( upsertCallback != null ) {
             listener.setPostIndexCallback( upsertCallback );
         }
-        chunkProjector.setPostChunkSink( listener );
+        // The lexical half refreshes off the chunk text alone, so it hangs off the
+        // unconditional callback rather than the post-embedding one: BM25 is what
+        // retrieval degrades TO when the embedding backend is down, and it would be
+        // self-defeating for that outage to freeze it as well.
+        if ( bm25Index != null ) {
+            listener.setChunkChangeCallback( bm25Index::upsertChunks );
+        }
+        chunkProjector.addPostChunkSink( listener );
         engine.setManager( AsyncEmbeddingIndexListener.class, listener );
 
         if ( rebuildService != null ) {
@@ -278,7 +316,7 @@ public final class SearchWiringHelper {
         // the retrieval-patch seam. The 2026-06-14 measurement showed retrieving the top-K chunks
         // directly (no page pre-select) realises the section-recall ceiling (recall@12 0.735) where
         // the page-gated path only reaches ~0.685.
-        engine.setBundleSectionSources( buildBundleSourceMap( props, embedder, vectorIndex, chunkRepo, ds ) );
+        engine.setBundleSectionSources( buildBundleSourceMap( props, embedder, vectorIndex, chunkRepo, bm25Index ) );
 
         final BootstrapEmbeddingIndexer bootstrap =
             new BootstrapEmbeddingIndexer( ds, indexService, modelCode, indexReloadHook );
@@ -316,11 +354,36 @@ public final class SearchWiringHelper {
     }
 
     /**
+     * Builds the RAM BM25 chunk index when {@code wikantik.bundle.bm25.enabled} is on.
+     *
+     * <p>Returns {@code null} — never throws — when the feature is off or the build fails, so a
+     * BM25 problem costs the lexical half of the fusion rather than the whole retrieval stack.
+     * Split out of {@code buildBundleSourceMap} because the index now has a second consumer:
+     * the incremental refresh wired onto {@code AsyncEmbeddingIndexListener}, which is
+     * constructed earlier in startup than the bundle sources.</p>
+     */
+    private static com.wikantik.search.hybrid.LuceneBm25ChunkIndex buildBm25Index(
+            final java.util.Properties props, final javax.sql.DataSource ds ) {
+        if ( !Boolean.parseBoolean( props.getProperty( "wikantik.bundle.bm25.enabled", "false" ) ) ) {
+            return null;
+        }
+        try {
+            final String bm25Analyzer = props.getProperty( "wikantik.bundle.bm25.analyzer", "standard" );
+            return com.wikantik.search.hybrid.LuceneBm25ChunkIndex.fromDataSource( ds,
+                com.wikantik.search.hybrid.LuceneBm25ChunkIndex.analyzerFor( bm25Analyzer ) );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "BM25 chunk index build failed; LEXICAL/HYBRID degrade to dense-only: {}",
+                e.getMessage(), e );
+            return null;
+        }
+    }
+
+    /**
      * Builds the per-mode context-bundle candidate source map from config + the in-scope embedder /
      * vector index / chunk repository. Always produces a DENSE entry (global top-K dense-chunk source).
-     * When {@code wikantik.bundle.bm25.enabled} is true and the BM25 index builds successfully, also
-     * populates HYBRID (dense+BM25 RRF) and LEXICAL (BM25-only ranking, dense weight=0). If BM25 fails
-     * to build, HYBRID and LEXICAL remain pointing to the dense source — logged once at WARN, not thrown.
+     * When {@code bm25Index} is present, also populates HYBRID (dense+BM25 RRF) and LEXICAL (BM25-only
+     * ranking, dense weight=0). When it is {@code null} — BM25 disabled, or its build failed — HYBRID
+     * and LEXICAL stay pointing at the dense source.
      */
     private static java.util.Map< com.wikantik.api.bundle.RetrievalMode,
                                    com.wikantik.knowledge.bundle.SectionCandidateSource >
@@ -328,7 +391,7 @@ public final class SearchWiringHelper {
                     final java.util.Properties props, final QueryEmbedder embedder,
                     final com.wikantik.search.hybrid.ChunkVectorIndex vectorIndex,
                     final com.wikantik.knowledge.chunking.ContentChunkRepository chunkRepo,
-                    final javax.sql.DataSource ds ) {
+                    final com.wikantik.search.hybrid.LuceneBm25ChunkIndex bm25Index ) {
         final int denseTopK = com.wikantik.util.TextUtil.getIntegerProperty(
             props, "wikantik.bundle.dense.top_k", 300 );
         final com.wikantik.knowledge.bundle.DenseChunkSectionSource dense =
@@ -340,35 +403,30 @@ public final class SearchWiringHelper {
         map.put( com.wikantik.api.bundle.RetrievalMode.DENSE, dense );
         map.put( com.wikantik.api.bundle.RetrievalMode.HYBRID, dense );   // overwritten below if BM25 builds
 
-        // Chunk-level hybrid: wikantik.bundle.bm25.enabled wraps HYBRID/LEXICAL with a RAM BM25 chunk
-        // index + RRF fusion. Shipped ini default is ON; LEXICAL = dense-weight-0 fuser (BM25-only ranking).
-        // The 2026-06-18 sweep (eval/bm25-chunk-spike/) found bm25=0.5/dense=1.5/rrfK=20/truncate=20.
-        if ( Boolean.parseBoolean( props.getProperty( "wikantik.bundle.bm25.enabled", "false" ) ) ) {
-            try {
-                final String bm25Analyzer = props.getProperty( "wikantik.bundle.bm25.analyzer", "standard" );
-                final com.wikantik.search.hybrid.LuceneBm25ChunkIndex bm25Index =
-                    com.wikantik.search.hybrid.LuceneBm25ChunkIndex.fromDataSource( ds,
-                        com.wikantik.search.hybrid.LuceneBm25ChunkIndex.analyzerFor( bm25Analyzer ) );
-                // Resolve each knob to a local ONCE so the log line can never drift from the wiring.
-                final double bm25Weight  = com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.bm25.bm25_weight", 0.5 );
-                final double denseWeight = com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.bm25.dense_weight", 1.5 );
-                final int rrfK     = com.wikantik.util.TextUtil.getIntegerProperty( props, "wikantik.bundle.bm25.rrf_k", 20 );
-                final int truncate = com.wikantik.util.TextUtil.getIntegerProperty( props, "wikantik.bundle.bm25.truncate", 20 );
-                final com.wikantik.search.hybrid.HybridFuser hybridFuser =
-                    new com.wikantik.search.hybrid.HybridFuser( rrfK, bm25Weight, denseWeight, truncate );
-                final com.wikantik.search.hybrid.HybridFuser lexicalFuser =
-                    new com.wikantik.search.hybrid.HybridFuser( rrfK, bm25Weight, 0.0, truncate );  // dense weight 0 → BM25-only ranking
-                map.put( com.wikantik.api.bundle.RetrievalMode.HYBRID,
-                    new com.wikantik.knowledge.bundle.HybridChunkSectionSource(
-                        embedder, vectorIndex, bm25Index, chunkRepo, hybridFuser, denseTopK ) );
-                map.put( com.wikantik.api.bundle.RetrievalMode.LEXICAL,
-                    new com.wikantik.knowledge.bundle.HybridChunkSectionSource(
-                        embedder, vectorIndex, bm25Index, chunkRepo, lexicalFuser, denseTopK ) );
-                LOG.info( "Bundle sources: HYBRID+DENSE+LEXICAL (bm25_w={}, dense_w={}, rrfK={}, trunc={}), bm25 chunks={}",
-                    bm25Weight, denseWeight, rrfK, truncate, bm25Index.size() );
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "BM25 chunk index build failed; LEXICAL/HYBRID degrade to dense-only: {}", e.getMessage(), e );
-            }
+        // Chunk-level hybrid: the BM25 chunk index (built by buildBm25Index) wraps HYBRID/LEXICAL
+        // with RRF fusion. Shipped ini default is ON; LEXICAL = dense-weight-0 fuser (BM25-only
+        // ranking). The 2026-06-18 sweep (eval/bm25-chunk-spike/) found bm25=0.5/dense=1.5/rrfK=20/
+        // truncate=20. Note the reported chunk count is the count AT WIRING TIME — the index is
+        // maintained incrementally from there (LuceneBm25ChunkIndex.upsertChunks), so it is a
+        // starting point, not a ceiling.
+        if ( bm25Index != null ) {
+            // Resolve each knob to a local ONCE so the log line can never drift from the wiring.
+            final double bm25Weight  = com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.bm25.bm25_weight", 0.5 );
+            final double denseWeight = com.wikantik.util.TextUtil.getDoubleProperty( props, "wikantik.bundle.bm25.dense_weight", 1.5 );
+            final int rrfK     = com.wikantik.util.TextUtil.getIntegerProperty( props, "wikantik.bundle.bm25.rrf_k", 20 );
+            final int truncate = com.wikantik.util.TextUtil.getIntegerProperty( props, "wikantik.bundle.bm25.truncate", 20 );
+            final com.wikantik.search.hybrid.HybridFuser hybridFuser =
+                new com.wikantik.search.hybrid.HybridFuser( rrfK, bm25Weight, denseWeight, truncate );
+            final com.wikantik.search.hybrid.HybridFuser lexicalFuser =
+                new com.wikantik.search.hybrid.HybridFuser( rrfK, bm25Weight, 0.0, truncate );  // dense weight 0 → BM25-only ranking
+            map.put( com.wikantik.api.bundle.RetrievalMode.HYBRID,
+                new com.wikantik.knowledge.bundle.HybridChunkSectionSource(
+                    embedder, vectorIndex, bm25Index, chunkRepo, hybridFuser, denseTopK ) );
+            map.put( com.wikantik.api.bundle.RetrievalMode.LEXICAL,
+                new com.wikantik.knowledge.bundle.HybridChunkSectionSource(
+                    embedder, vectorIndex, bm25Index, chunkRepo, lexicalFuser, denseTopK ) );
+            LOG.info( "Bundle sources: HYBRID+DENSE+LEXICAL (bm25_w={}, dense_w={}, rrfK={}, trunc={}), bm25 chunks={} at startup",
+                bm25Weight, denseWeight, rrfK, truncate, bm25Index.size() );
         }
         return map;
     }

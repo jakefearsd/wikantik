@@ -305,21 +305,10 @@ public final class KnowledgeWiringHelper {
                 extractorCfg.backend() );
         }
 
-        // Chain with any existing post-chunk sink (hybrid embedding indexer).
-        final Consumer< List< java.util.UUID > > prior = engine.getHybridIndexListener();
-        final Consumer< List< java.util.UUID > > safePrior = prior == null
-            ? null
-            : ids -> {
-                try {
-                    prior.accept( ids );
-                } catch ( final RuntimeException e ) {
-                    LOG.warn( "Hybrid index listener failed; entity extraction will still run: {}",
-                              e.getMessage(), e );
-                }
-            };
-        final Consumer< List< java.util.UUID > > composite =
-            safePrior == null ? listener : safePrior.andThen( listener );
-        chunkProjector.setPostChunkSink( composite );
+        // Additive: ChunkProjector keeps every registered sink and isolates failures
+        // between them, so this no longer has to know about — or hand-chain — whatever
+        // the search wiring registered earlier.
+        chunkProjector.addPostChunkSink( listener );
 
         final String modelLabel = EntityExtractorConfig.BACKEND_CLAUDE.equalsIgnoreCase( extractorCfg.backend() )
             ? extractorCfg.claudeModel()

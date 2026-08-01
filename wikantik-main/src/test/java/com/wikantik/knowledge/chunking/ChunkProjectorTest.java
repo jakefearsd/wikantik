@@ -145,7 +145,7 @@ class ChunkProjectorTest {
     void postChunkSinkReceivesChunkIdsAfterSuccessfulApply() {
         final java.util.concurrent.atomic.AtomicReference< List< UUID > > captured =
             new java.util.concurrent.atomic.AtomicReference<>();
-        projector.setPostChunkSink( captured::set );
+        projector.addPostChunkSink( captured::set );
         projector.projectPage( "SinkPage", Map.of(),
             "Body with enough prose content to produce a single chunk of reasonable size "
             + "so that the min-tokens floor does not cause merge-forward to swallow this "
@@ -159,7 +159,7 @@ class ChunkProjectorTest {
 
     @Test
     void postChunkSinkExceptionDoesNotPropagate() {
-        projector.setPostChunkSink( ids -> {
+        projector.addPostChunkSink( ids -> {
             throw new RuntimeException( "sink blew up" );
         } );
         assertDoesNotThrow( () -> projector.projectPage( "CrashPage", Map.of(),
@@ -181,11 +181,52 @@ class ChunkProjectorTest {
 
         final java.util.concurrent.atomic.AtomicInteger sinkCalls =
             new java.util.concurrent.atomic.AtomicInteger();
-        projector.setPostChunkSink( ids -> sinkCalls.incrementAndGet() );
+        projector.addPostChunkSink( ids -> sinkCalls.incrementAndGet() );
 
         // Second save with identical content — diff is empty, sink must not fire.
         projector.projectPage( "HubPage", Map.of(), body );
         assertEquals( 0, sinkCalls.get(),
             "sink must not be called when diff is empty (content unchanged)" );
+    }
+
+    /**
+     * Sinks accumulate rather than displace one another. Registration happens from two
+     * unrelated points in startup (search wiring, entity-extraction wiring); when this was
+     * a single slot the second registration silently dropped the first, and only a
+     * hand-rolled chain in the second caller — which had to know about the first — kept
+     * the embedding indexer alive at all.
+     */
+    @Test
+    void everyRegisteredSinkIsNotified() {
+        final java.util.List< String > called = new java.util.ArrayList<>();
+        projector.addPostChunkSink( ids -> called.add( "first" ) );
+        projector.addPostChunkSink( ids -> called.add( "second" ) );
+
+        projector.projectPage( "MultiSinkPage", Map.of(),
+            "Body with enough prose content to produce a single chunk of reasonable size "
+            + "so that the min-tokens floor does not cause merge-forward to swallow this "
+            + "buffer and we end up with at least one persisted chunk row in the database." );
+
+        assertEquals( List.of( "first", "second" ), called,
+            "both sinks run, in registration order" );
+    }
+
+    /** One broken sink must not stop the others — they are unrelated subsystems. */
+    @Test
+    void aFailingSinkDoesNotSuppressTheOthers() {
+        final java.util.concurrent.atomic.AtomicInteger survivor =
+            new java.util.concurrent.atomic.AtomicInteger();
+        projector.addPostChunkSink( ids -> {
+            throw new RuntimeException( "first sink blew up" );
+        } );
+        projector.addPostChunkSink( ids -> survivor.incrementAndGet() );
+
+        projector.projectPage( "IsolatedSinkPage", Map.of(),
+            "Body with enough prose content to produce a single chunk of reasonable size "
+            + "so that the min-tokens floor does not cause merge-forward to swallow this "
+            + "buffer and we end up with at least one persisted chunk row in the database." );
+
+        assertEquals( 1, survivor.get(),
+            "a sink registered after a failing one must still be notified" );
     }
 }

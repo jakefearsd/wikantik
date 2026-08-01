@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.14] - 2026-08-01
+
 ### Fixed
 - **The lexical half of `/api/bundle` stopped seeing new content the moment a page was saved.**
   `LuceneBm25ChunkIndex` was built once, at wiring time, and had no update path at all — so every

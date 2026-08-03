@@ -15,6 +15,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the version now floats in from jena-arq, which is what the pin block's own rule asks for ("remove
   a pin once the declaring dependency ships the fix itself"). 0.24.0 still carries the
   CVE-2026-43869 fix, so dropping the pin costs nothing on the security side.
+- **The Google Drive connector stack moves as one unit.** google-api-client 2.7.0 → 2.9.0,
+  google-auth-library-oauth2-http 1.30.1 → 1.50.0, google-api-services-drive `rev20240914` →
+  `rev20260720`, and the google-http-client family 1.45.3 → 2.2.0. They cannot move independently:
+  google-api-client 2.9.0 requires google-http-client 2.x. All five versions now live in
+  `google-*.version` properties, so the family convergence the old inline comment merely *asked* for
+  is enforced by the build instead of by hand.
+  google-http-client 2.0's sole breaking change is its Guava dependency moving to the `-android`
+  flavour, which changes nothing here: 1.45.3 already requested `-android` (30.1.1) and the
+  `sec.guava` pin has been overriding that all along. pac4j declares guava 33.6.0-jre — the exact
+  version the pin carries — so the WAR still resolves a single guava and the SSO stack is untouched
+  (`SSOLoginIT`/`SAMLLoginIT`/`SSOEdgeCaseIT` green). A class-level diff of google-http-client
+  1.45.3 → 2.2.0 shows zero removals, three additions, and an unchanged Java 8 baseline.
+  Note: no test exercises a live Drive OAuth exchange, so this is verified to compile and to not
+  regress anything else — an `/admin/connectors` dry-run against a real Drive connector is still
+  the only thing that proves Drive sync itself.
 - Routine dependency refresh: jsoup 1.18.3 → 1.23.1 (the connectors' HTML parser), okio 3.18.0 →
   3.18.1, cyclonedx-maven-plugin 2.9.2 → 2.9.3, and the local dev Tomcat download 11.0.18 → 11.0.24.
   Frontend in-range updates land in `package-lock.json` only — the existing carets already permitted

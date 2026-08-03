@@ -15,6 +15,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the version now floats in from jena-arq, which is what the pin block's own rule asks for ("remove
   a pin once the declaring dependency ships the fix itself"). 0.24.0 still carries the
   CVE-2026-43869 fix, so dropping the pin costs nothing on the security side.
+- Routine dependency refresh: jsoup 1.18.3 → 1.23.1 (the connectors' HTML parser), okio 3.18.0 →
+  3.18.1, cyclonedx-maven-plugin 2.9.2 → 2.9.3, and the local dev Tomcat download 11.0.18 → 11.0.24.
+  Frontend in-range updates land in `package-lock.json` only — the existing carets already permitted
+  them — moving react/react-dom to 19.2.8, vite to 8.2.0, vitest and `@vitest/coverage-v8` to 4.1.10,
+  eslint to 10.8.0, react-router-dom to 7.18.2, plus the CodeMirror and tooling packages.
+  `actions/setup-node` in `quality-gates.yml` goes v4 → v6, matching `release.yml`.
+  Deliberately held: `katex` (0.18.1 is out, but `rehype-katex@7.0.1` still pins `katex: ^0.16.0` and
+  the app imports katex directly too, so bumping would ship two copies and split math rendering
+  between the two paths) and `@testing-library/jest-dom` 7.0.0 (major, no benefit here).
 
 ## [2.3.14] - 2026-08-01
 

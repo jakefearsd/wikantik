@@ -94,7 +94,7 @@
     <selenium.version>4.46.0</selenium.version>
     <slf4j.version>2.0.18</slf4j.version>
     <tika.version>3.3.2</tika.version>
-    <tomcat.version>11.0.18</tomcat.version>
+    <tomcat.version>11.0.24</tomcat.version>
     <xstream.version>1.4.21</xstream.version>
     <mcp-sdk.version>2.0.0</mcp-sdk.version>
     <snakeyaml.version>2.6</snakeyaml.version>
@@ -120,7 +120,7 @@
     <sec.jackson2.version>2.22.1</sec.jackson2.version>                   <!-- via pac4j-core (2.22.0) + tika-parser-cad-module (2.21.3); GHSA-5jmj-h7xm-6q6v + 2.21.x GHSAs, all fixed by 2.22.1 -->
     <sec.junrar.version>7.6.0</sec.junrar.version>                       <!-- via tika-parsers;              CVE-2026-41245 -->
     <sec.guava.version>33.6.0-jre</sec.guava.version>                    <!-- via pac4j-oidc/pac4j-saml (opensaml); CVE-2023-2976, CVE-2020-8908 -->
-    <sec.okio.version>3.18.0</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
+    <sec.okio.version>3.18.1</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
 
     <plugin.antrun.version>3.2.0</plugin.antrun.version>
     <plugin.assembly.version>3.8.0</plugin.assembly.version>
@@ -151,7 +151,7 @@
     <plugin.clirr.version>2.8</plugin.clirr.version>
     <plugin.wro4j.version>2.1.1</plugin.wro4j.version>
     <plugin.cobertura.version>2.7</plugin.cobertura.version>
-    <plugin.cyclonedx.version>2.9.2</plugin.cyclonedx.version>
+    <plugin.cyclonedx.version>2.9.3</plugin.cyclonedx.version>
     <plugin.sonar.version>5.7.0.6970</plugin.sonar.version>
     <plugin.sonar-report.version>0.1</plugin.sonar-report.version>
     <plugin.eclipse-lifecycle-mapping.version>1.0.0</plugin.eclipse-lifecycle-mapping.version>

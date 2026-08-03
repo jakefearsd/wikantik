@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Jena 6.1.0 → 6.2.0, retiring the `libthrift` security pin.** `libthrift` had been held at 0.23.0
+  because 0.24.0 is binary-incompatible with jena-arq 6.1.0 and breaks TDB2 write transactions —
+  `Tdb2SmokeTest` failed with a masked "forced abort", and the KG/ontology subsystem then reported
+  itself disabled, 503-ing every admin KG endpoint. Jena 6.2.0 declares libthrift 0.24.0 itself, so
+  the incompatibility is resolved upstream and the override is deleted rather than carried forward —
+  the version now floats in from jena-arq, which is what the pin block's own rule asks for ("remove
+  a pin once the declaring dependency ships the fix itself"). 0.24.0 still carries the
+  CVE-2026-43869 fix, so dropping the pin costs nothing on the security side.
+
 ## [2.3.14] - 2026-08-01
 
 ### Fixed

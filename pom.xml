@@ -105,7 +105,7 @@
     <caffeine.version>3.2.4</caffeine.version>
     <ulid-creator.version>5.2.4</ulid-creator.version>
     <jmustache.version>1.16</jmustache.version>
-    <jena.version>6.1.0</jena.version>
+    <jena.version>6.2.0</jena.version>
 
     <!-- ============================================================
          Security pins for VULNERABLE TRANSITIVE dependencies.
@@ -118,13 +118,6 @@
     <sec.commons-beanutils.version>1.11.0</sec.commons-beanutils.version> <!-- via tribuo->opencsv;          CVE-2025-48734 -->
     <sec.jackson3.version>3.2.1</sec.jackson3.version>                    <!-- via mcp-sdk (Jackson 3 family); CVE-2026-29062 +2 -->
     <sec.jackson2.version>2.22.1</sec.jackson2.version>                   <!-- via pac4j-core (2.22.0) + tika-parser-cad-module (2.21.3); GHSA-5jmj-h7xm-6q6v + 2.21.x GHSAs, all fixed by 2.22.1 -->
-    <!-- PINNED AT 0.23.0 — do NOT bump to 0.24.0: it is binary-incompatible with
-         jena-arq 6.1.0 and breaks TDB2 write transactions (Tdb2SmokeTest fails with a
-         masked "forced abort", and the KG/ontology subsystem then reports itself
-         disabled, 503-ing every admin KG endpoint). 0.23.0 already carries the
-         CVE-2026-43869 fix, so there is no security reason to move. Revisit only when
-         Jena itself upgrades. -->
-    <sec.libthrift.version>0.23.0</sec.libthrift.version>                 <!-- via jena-arq;                  CVE-2026-43869 -->
     <sec.junrar.version>7.6.0</sec.junrar.version>                       <!-- via tika-parsers;              CVE-2026-41245 -->
     <sec.guava.version>33.6.0-jre</sec.guava.version>                    <!-- via pac4j-oidc/pac4j-saml (opensaml); CVE-2023-2976, CVE-2020-8908 -->
     <sec.okio.version>3.18.0</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
@@ -794,12 +787,6 @@
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
         <version>${sec.jackson2.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.thrift</groupId>
-        <artifactId>libthrift</artifactId>
-        <version>${sec.libthrift.version}</version>
       </dependency>
 
       <dependency>

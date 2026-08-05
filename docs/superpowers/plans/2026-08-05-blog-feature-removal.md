@@ -646,13 +646,37 @@ git commit -m "feat: remove blog special-casing from page-storage providers"
 
 - [ ] **Step 1: Remove the dead i18n keys**
 
-In `PluginResources_ru.properties`, delete the `# WeblogEntryPlugin` comment and the `weblogentryplugin.*` keys — these are legacy JSPWiki leftovers for a plugin that no longer exists. Check the sibling locale files for the same keys:
+Delete the `# WeblogEntryPlugin` comment and the `weblogentryplugin.*` keys — legacy JSPWiki leftovers for a plugin that never existed in Wikantik — plus the `#blog texts in various JSPs` comment and the `blog.commenttitle` / `blog.backtomain` / `blog.addcomments` / `blog.permalink` keys.
+
+**Sweep every locale and both source trees** — these keys are duplicated more widely than the plan
+originally recorded (Task 5 found a set in `wikantik-main/src/main/resources/templates/default_ru.properties`
+that the earlier file list missed):
 
 ```bash
-grep -rn "weblogentryplugin\|blog\." wikantik-main/src/main/resources/plugin/ wikantik-util/src/test/resources/templates/
+grep -rn "weblogentryplugin\|^blog\.\|#blog texts" \
+  --include=*.properties wikantik-main/src wikantik-util/src wikantik-war/src 2>/dev/null | grep -v "/target/"
 ```
 
-Delete every match. In `default.properties` that is the `#blog texts in various JSPs` comment plus `blog.commenttitle`, `blog.backtomain`, `blog.addcomments`, `blog.permalink`.
+Delete every match, in every locale file it appears in. Re-run the grep afterwards and expect no output.
+
+- [ ] **Step 1d: Remove the stale PMD complexity-baseline entries**
+
+`build-support/pmd-complexity-baseline.properties` is the burn-down baseline for the complexity
+ratchet, and by project convention **entries only ever come out of it**. Two now name deleted classes:
+
+```
+com.wikantik.blog.DefaultBlogManager=CyclomaticComplexity,GodClass
+com.wikantik.rest.BlogResource=CyclomaticComplexity,GodClass
+```
+
+Delete both lines. Removing entries tightens the ratchet, which is the intended direction — it can
+never cause a false CI failure. Verify the gate still passes:
+
+```bash
+bin/agent-build.sh start pmd -- mvn pmd:check -Pcomplexity-gate
+```
+
+Expected: SUCCESS.
 
 - [ ] **Step 1a: Remove the dead WeblogPlugin CSS marker**
 

@@ -20,7 +20,6 @@ canonical_id: 01KQ0P44REFP9483SXP4P9S0FG
 enables:
 - AdminSecurityUi
 - KnowledgeAdminUi
-- BlogFeature
 ---
 # JSP to React Migration
 

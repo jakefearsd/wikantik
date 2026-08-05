@@ -15,7 +15,6 @@ summary: Drag-and-drop file attachment UI with server-side image processing and 
   Markdown references
 related:
 - WikantikDevelopment
-- BlogFeature
 - JspToReactMigration
 canonical_id: 01KQ0P44M4DND319VRMF10RT6Z
 ---

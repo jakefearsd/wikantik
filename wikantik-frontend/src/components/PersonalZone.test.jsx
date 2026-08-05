@@ -6,7 +6,6 @@ import PersonalZone from './PersonalZone';
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('../hooks/useUnreadMentions', () => ({ useUnreadMentions: () => ({ count: 2 }) }));
 vi.mock('../hooks/useMyPages', () => ({ useMyPages: () => ({ pages: [{ slug: 'Foo', title: 'Foo' }], loading: false }) }));
-vi.mock('../hooks/useMyBlog', () => ({ useMyBlog: () => ({ entries: [], loading: false }) }));
 vi.mock('../hooks/useRecentlyViewed', () => ({ useRecentlyViewed: () => ({ items: [], record: () => {} }) }));
 vi.mock('../hooks/useDrafts', () => ({ useDrafts: () => ({ drafts: [], removeDraft: () => {} }) }));
 
@@ -51,5 +50,13 @@ describe('PersonalZone', () => {
     renderZone();
     fireEvent.click(screen.getByText('Me'));
     expect(screen.queryByText(/resume editing/i)).not.toBeInTheDocument();
+  });
+
+  it('does not render a blog section', () => {
+    useAuth.mockReturnValue({ user: { authenticated: true, username: 'Alice', loginPrincipal: 'alice', roles: [] }, logout: () => {} });
+    renderZone();
+    fireEvent.click(screen.getByText('Me'));
+    expect(screen.queryByText(/my blog/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/blog home/i)).not.toBeInTheDocument();
   });
 });

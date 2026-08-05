@@ -301,45 +301,6 @@ export const api = {
       request(`/api/self/apikeys/${id}`, { method: 'DELETE' }),
   },
 
-  // Blog
-  blog: {
-    list: ({ signal } = {}) => request('/api/blog', { signal }),
-    get: (username, { render, signal } = {}) => {
-      const params = new URLSearchParams();
-      if (render) params.set('render', 'true');
-      const qs = params.toString();
-      return request(`/api/blog/${encodeURIComponent(username)}${qs ? '?' + qs : ''}`, { signal });
-    },
-    create: () => request('/api/blog', { method: 'POST', body: '{}' }),
-    update: (username, content) =>
-      request(`/api/blog/${encodeURIComponent(username)}`, {
-        method: 'PUT',
-        body: JSON.stringify({ content }),
-      }),
-    remove: (username) => request(`/api/blog/${encodeURIComponent(username)}`, { method: 'DELETE' }),
-    listEntries: (username) => request(`/api/blog/${encodeURIComponent(username)}/entries`),
-    getEntry: (username, name, { render, signal } = {}) => {
-      const params = new URLSearchParams();
-      if (render) params.set('render', 'true');
-      const qs = params.toString();
-      return request(`/api/blog/${encodeURIComponent(username)}/entries/${encodeURIComponent(name)}${qs ? '?' + qs : ''}`, { signal });
-    },
-    createEntry: (username, topic, content) =>
-      request(`/api/blog/${encodeURIComponent(username)}/entries`, {
-        method: 'POST',
-        body: JSON.stringify({ topic, ...(content ? { content } : {}) }),
-      }),
-    updateEntry: (username, name, content) =>
-      request(`/api/blog/${encodeURIComponent(username)}/entries/${encodeURIComponent(name)}`, {
-        method: 'PUT',
-        body: JSON.stringify({ content }),
-      }),
-    deleteEntry: (username, name) =>
-      request(`/api/blog/${encodeURIComponent(username)}/entries/${encodeURIComponent(name)}`, {
-        method: 'DELETE',
-      }),
-  },
-
   // Admin — User Management
   admin: {
     listUsers: () => request('/admin/users'),

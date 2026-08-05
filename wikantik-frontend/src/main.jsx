@@ -9,7 +9,7 @@ import './styles/globals.css';
 
 // Eager: hot-path reader views are kept in the main chunk so the first
 // /wiki/{slug} navigation has no extra round trip. Everything else is
-// code-split — admin pages, editors, blog, graph viewers — so anonymous
+// code-split — admin pages, editors, graph viewers — so anonymous
 // readers don't pay for them.
 const PageEditor = React.lazy(() => import('./components/PageEditor'));
 const SearchResultsPage = React.lazy(() => import('./components/SearchResultsPage'));
@@ -17,12 +17,6 @@ const DiffViewer = React.lazy(() => import('./components/DiffViewer'));
 const UserPreferencesPage = React.lazy(() => import('./components/UserPreferencesPage'));
 const MentionsPage = React.lazy(() => import('./components/MentionsPage'));
 const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPage'));
-const BlogDiscovery = React.lazy(() => import('./components/BlogDiscovery'));
-const BlogHome = React.lazy(() => import('./components/BlogHome'));
-const BlogEntry = React.lazy(() => import('./components/BlogEntry'));
-const CreateBlog = React.lazy(() => import('./components/CreateBlog'));
-const NewBlogEntry = React.lazy(() => import('./components/NewBlogEntry'));
-const BlogEditor = React.lazy(() => import('./components/BlogEditor'));
 
 const AdminLayout = React.lazy(() => import('./components/admin/AdminLayout'));
 const OverviewDashboard = React.lazy(() => import('./components/admin/OverviewDashboard'));
@@ -59,7 +53,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/" element={<Navigate to="/wiki/Main" replace />} />
             <Route path="/wiki/:name" element={<PageView />} />
             <Route path="/wiki" element={<Navigate to="/wiki/Main" replace />} />
-            <Route path="/edit/blog/:username/:pageName" element={<BlogEditor />} />
             <Route path="/edit/:name" element={<PageEditor />} />
             <Route path="/diff/:name" element={<DiffViewer />} />
             <Route path="/search" element={<SearchResultsPage />} />
@@ -97,11 +90,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="connectors/new" element={<AddConnectorWizard />} />
               <Route path="connectors/:id" element={<ConnectorDetailPage />} />
             </Route>
-            <Route path="/blog" element={<BlogDiscovery />} />
-            <Route path="/blog/create" element={<CreateBlog />} />
-            <Route path="/blog/:username/new" element={<NewBlogEntry />} />
-            <Route path="/blog/:username/Blog" element={<BlogHome />} />
-            <Route path="/blog/:username/:entryName" element={<BlogEntry />} />
           </Route>
         </Routes>
         </Suspense>

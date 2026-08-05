@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useUnreadMentions } from '../hooks/useUnreadMentions';
 import { useMyPages } from '../hooks/useMyPages';
-import { useMyBlog } from '../hooks/useMyBlog';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { useDrafts } from '../hooks/useDrafts';
 import CollapsibleSection from './CollapsibleSection';
@@ -34,7 +33,6 @@ export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = 
 
   const { count: mentions } = useUnreadMentions({ enabled: authed });
   const { pages } = useMyPages({ enabled: authed });
-  const { entries } = useMyBlog({ login, enabled: authed });
   const { items: recent } = useRecentlyViewed({ login, enabled: authed });
   const { drafts, removeDraft } = useDrafts({ login, enabled: authed });
 
@@ -99,24 +97,6 @@ export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = 
             render={(r) => (
               <Link key={r.slug} to={`/wiki/${r.slug}`} className="sidebar-link" onClick={onMobileClose}>
                 {r.title}
-              </Link>
-            )}
-          />
-        </CollapsibleSection>
-
-        <CollapsibleSection id="my-blog" icon="✍️" title="My blog" count={entries.length}>
-          <Link to={`/blog/${login}/Blog`} className="sidebar-link" onClick={onMobileClose}>Blog home</Link>
-          <PreviewList
-            items={entries}
-            emptyLabel="No blog entries yet."
-            render={(e) => (
-              <Link
-                key={e.name}
-                to={`/blog/${login}/${e.name}`}
-                className="sidebar-link"
-                onClick={onMobileClose}
-              >
-                {e.title || e.name}
               </Link>
             )}
           />

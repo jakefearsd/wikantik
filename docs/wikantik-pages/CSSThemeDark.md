@@ -146,7 +146,7 @@ form#searchform2 + div .fragment { color: var(--text-color-richer);}form#searchf
 
 .toc ul li:hover { background-color:var(--background-lighter);}
 
-/* --- [WeblogPlugin]().less --- *//* --- [RecentChangesPlugin]().less --- */
+/* --- [RecentChangesPlugin]().less --- */
 
 .recentchanges .date { border-color:var(--border-color);}/* --- [CommentBox]().less --- */
 

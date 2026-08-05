@@ -23,11 +23,15 @@
 - **No cruft.** The end state must contain no vestige of the feature — no dead constants, no
   "formerly blog" comments, no compatibility shims, no orphaned i18n keys, no tests that exist only
   to assert the feature is gone.
-- **Transient TDD scaffolding.** The reflection-based tests in Task 5 (`coreSubsystemHasNoBlogComponent`)
-  and Task 6 (`providerHasNoBlogSpecialCasing`) are removal anchors, not permanent regression guards:
-  they assert internal structure and would be cruft if left behind. They must exist while their task
-  runs — the task review verifies them — and are **deleted in Task 7, Step 2a**. The Task 2 and Task 3
-  tests are different: they assert user-visible render and routing behaviour, and they stay.
+- **All TDD scaffolding is transient (revised after Task 6).** Every test written during this plan
+  exists only to anchor a removal, and every one of them names the dead feature. That includes the
+  Task 5/6 reflection tests (`coreSubsystemHasNoBlogComponent`, `providerHasNoBlogSpecialCasing`) AND
+  the Task 2/3 behavioural ones (`does not render a blog section`, `blogRootPassesThroughToTheChain`,
+  `blogSubPathPassesThroughToTheChain`). An earlier draft kept the behavioural pair as permanent
+  regression guards; that was wrong. Once the components and routes are deleted there is no code path
+  left to regress — `/blog` becomes an arbitrary unrouted path, so asserting it passes through says
+  nothing a test of `/anything-else` wouldn't. A test named after a feature that no longer exists is
+  itself a trace of it. **All five are deleted in Task 7, Step 2a.**
 
 ## Known False Positives — Do NOT Touch
 
@@ -704,17 +708,37 @@ Expected: no output (every changed line is accounted for by the marker removal a
 
 - [ ] **Step 2a: Delete the transient TDD scaffolding**
 
-These two tests were removal anchors, not regression guards. They assert internal structure via
-reflection, and leaving them behind is exactly the cruft this removal is meant to avoid:
+All five tests written during this plan were removal anchors. Each one names the dead feature, and
+with the code gone there is no path left for them to guard. Delete every one, plus any import or
+helper left unused by the deletion:
 
-- `wikantik-main/src/test/java/com/wikantik/core/subsystem/CoreSubsystemFactoryTest.java` — delete the
-  `coreSubsystemHasNoBlogComponent` test method (and its now-unused `java.util.Arrays` import if
-  nothing else in the file uses it).
-- `wikantik-main/src/test/java/com/wikantik/providers/AbstractFileProviderTest.java` — delete the
-  `providerHasNoBlogSpecialCasing` test method (same import check).
+- `wikantik-main/src/test/java/com/wikantik/core/subsystem/CoreSubsystemFactoryTest.java` — the
+  `coreSubsystemHasNoBlogComponent` method.
+- `wikantik-main/src/test/java/com/wikantik/providers/AbstractFileProviderTest.java` — the
+  `providerHasNoBlogSpecialCasing` method.
+- `wikantik-frontend/src/components/PersonalZone.test.jsx` — the `does not render a blog section` test.
+- `wikantik-rest/src/test/java/com/wikantik/rest/SpaRoutingFilterTest.java` — both
+  `blogRootPassesThroughToTheChain` and `blogSubPathPassesThroughToTheChain`, and the
+  `// ---- blog removal: /blog is no longer an SPA route ----` section comment above them.
 
-Keep the Task 2 `PersonalZone` assertion and the Task 3 `SpaRoutingFilter` pass-through tests — those
-assert real user-visible behaviour and earn their place.
+After deleting each, check whether an import (`java.util.Arrays`, a mock, a testing-library helper)
+is now unused in that file and remove it too. Re-run each affected suite; the counts should drop by
+exactly the number of deleted tests and nothing else should change.
+
+- [ ] **Step 2b: Purge the remaining prose and fixture references**
+
+These are comments, javadoc and test fixtures that still name the feature. None affect behaviour;
+all are traces:
+
+- `wikantik-rest/.../AttachmentResource.java:59` and `AttachmentResourceTest.java:372-380` — the
+  javadoc example AND the matching test assertions use `blog/admin/20260403Post` as a hierarchical
+  page name. Replace with a non-blog hierarchical example, keeping the test's assertions meaningful
+  (they exercise path parsing, which is unchanged — only the fixture string moves).
+- `wikantik-main/.../plugin/RecentArticles.java:57` — the usage example reads
+  `[{RecentArticles include='Blog.*' count=5}]`. Change the pattern to a neutral one.
+- `wikantik-main/.../render/RenderingManager.java:235` — the comment cites "a blog homepage whose
+  plugins display entries from other pages" as its example. Reword to a surviving example; the
+  behaviour it explains is unchanged.
 
 - [ ] **Step 1b: Fix the two stale references found during Tasks 1–3**
 

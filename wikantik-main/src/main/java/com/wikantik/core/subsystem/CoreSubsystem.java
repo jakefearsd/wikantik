@@ -20,7 +20,6 @@ package com.wikantik.core.subsystem;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.SystemPageRegistry;
-import com.wikantik.blog.BlogManager;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.content.RecentArticlesManager;
 import com.wikantik.i18n.InternationalizationManager;
@@ -42,8 +41,8 @@ import java.util.Properties;
  * <p>Core is the foundation that every other subsystem depends on: typed
  * properties access, the wiki event bus, the shared metrics registry, and
  * the small leaf managers ({@link SystemPageRegistry},
- * {@link RecentArticlesManager}, {@link BlogManager}) that don't justify
- * their own subsystem boundary.</p>
+ * {@link RecentArticlesManager}) that don't justify their own subsystem
+ * boundary.</p>
  */
 public final class CoreSubsystem {
 
@@ -66,7 +65,6 @@ public final class CoreSubsystem {
         MeterRegistry meterRegistry,
         SystemPageRegistry systemPageRegistry,
         RecentArticlesManager recentArticlesManager,
-        BlogManager blogManager,
         Engine engine
     ) {}
 
@@ -83,7 +81,6 @@ public final class CoreSubsystem {
         MeterRegistry meterRegistry,
         SystemPageRegistry systemPageRegistry,
         RecentArticlesManager recentArticlesManager,
-        BlogManager blogManager,
         CachingManager cachingManager,
         VariableManager variableManager,
         ProgressManager progressManager,

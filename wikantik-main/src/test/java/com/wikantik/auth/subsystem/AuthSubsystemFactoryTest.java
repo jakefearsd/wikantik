@@ -24,7 +24,6 @@ import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.authorize.GroupManager;
-import com.wikantik.blog.BlogManager;
 import com.wikantik.content.RecentArticlesManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystem;
@@ -70,7 +69,6 @@ final class AuthSubsystemFactoryTest {
             new Properties(), null, new SimpleMeterRegistry(),
             mock( SystemPageRegistry.class ),
             mock( RecentArticlesManager.class ),
-            mock( BlogManager.class ),
             engine ) );
 
         final AuthSubsystem.Services services = AuthSubsystemFactory.create(
@@ -95,7 +93,6 @@ final class AuthSubsystemFactoryTest {
             new Properties(), null, new SimpleMeterRegistry(),
             mock( SystemPageRegistry.class ),
             mock( RecentArticlesManager.class ),
-            mock( BlogManager.class ),
             engine ) );
 
         assertThrows( NullPointerException.class, () -> AuthSubsystemFactory.create( null ) );

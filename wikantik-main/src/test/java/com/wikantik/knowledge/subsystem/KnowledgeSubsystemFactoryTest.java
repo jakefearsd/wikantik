@@ -25,7 +25,6 @@ import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
-import com.wikantik.blog.BlogManager;
 import com.wikantik.content.RecentArticlesManager;
 import com.wikantik.core.subsystem.CoreSubsystem;
 import com.wikantik.core.subsystem.CoreSubsystemFactory;
@@ -82,7 +81,7 @@ class KnowledgeSubsystemFactoryTest {
         when( engine.getManager( com.wikantik.cache.CachingManager.class ) ).thenReturn( null );
         return CoreSubsystemFactory.create( new CoreSubsystem.Deps(
             props, null, meterRegistry, systemPageRegistry,
-            mock( RecentArticlesManager.class ), mock( BlogManager.class ), engine ) );
+            mock( RecentArticlesManager.class ), engine ) );
     }
 
     private PersistenceSubsystem.Services persistence() {

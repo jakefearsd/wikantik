@@ -20,7 +20,6 @@ package com.wikantik.core.subsystem;
 
 import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.SystemPageRegistry;
-import com.wikantik.blog.BlogManager;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.content.RecentArticlesManager;
 import com.wikantik.i18n.InternationalizationManager;
@@ -34,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -51,6 +51,18 @@ import static org.mockito.Mockito.when;
 final class CoreSubsystemFactoryTest {
 
     @Test
+    void coreSubsystemHasNoBlogComponent() {
+        // CoreSubsystem itself is a plain final class (getRecordComponents() would return
+        // null); the blogManager component lives on its nested Deps/Services records.
+        final boolean hasBlogComponent = java.util.stream.Stream.concat(
+                java.util.Arrays.stream( CoreSubsystem.Deps.class.getRecordComponents() ),
+                java.util.Arrays.stream( CoreSubsystem.Services.class.getRecordComponents() ) )
+            .anyMatch( c -> c.getName().toLowerCase( java.util.Locale.ROOT ).contains( "blog" ) );
+        assertFalse( hasBlogComponent,
+            "CoreSubsystem must not carry a blogManager component after blog removal" );
+    }
+
+    @Test
     void createWiresServicesFromDeps() {
         final Properties raw = new Properties();
         raw.setProperty( "answer", "42" );
@@ -58,7 +70,6 @@ final class CoreSubsystemFactoryTest {
 
         final SystemPageRegistry sys = mock( SystemPageRegistry.class );
         final RecentArticlesManager recent = mock( RecentArticlesManager.class );
-        final BlogManager blog = mock( BlogManager.class );
         final SimpleMeterRegistry meters = new SimpleMeterRegistry();
 
         final CachingManager cachingManager = mock( CachingManager.class );
@@ -76,7 +87,7 @@ final class CoreSubsystemFactoryTest {
         when( engine.getManager( InternationalizationManager.class ) ).thenReturn( i18n );
 
         final CoreSubsystem.Services services = CoreSubsystemFactory.create(
-            new CoreSubsystem.Deps( raw, null, meters, sys, recent, blog, engine ) );
+            new CoreSubsystem.Deps( raw, null, meters, sys, recent, engine ) );
 
         assertNotNull( services.properties() );
         assertEquals( "42", services.properties().get( "answer" ) );
@@ -89,7 +100,6 @@ final class CoreSubsystemFactoryTest {
         assertSame( meters, services.meterRegistry() );
         assertSame( sys, services.systemPageRegistry() );
         assertSame( recent, services.recentArticlesManager() );
-        assertSame( blog, services.blogManager() );
         assertSame( cachingManager, services.cachingManager() );
         assertSame( variableManager, services.variableManager() );
         assertSame( progressManager, services.progressManager() );
@@ -110,7 +120,6 @@ final class CoreSubsystemFactoryTest {
                 new Properties(), null, null,
                 mock( SystemPageRegistry.class ),
                 mock( RecentArticlesManager.class ),
-                mock( BlogManager.class ),
                 engine ) );
 
         assertNotNull( services.meterRegistry() );
@@ -121,12 +130,11 @@ final class CoreSubsystemFactoryTest {
     void createRejectsMissingDeps() {
         assertThrows( NullPointerException.class, () -> CoreSubsystemFactory.create( null ) );
         assertThrows( NullPointerException.class, () -> CoreSubsystemFactory.create(
-            new CoreSubsystem.Deps( null, null, null, null, null, null, null ) ) );
+            new CoreSubsystem.Deps( null, null, null, null, null, null ) ) );
         assertThrows( NullPointerException.class, () -> CoreSubsystemFactory.create(
             new CoreSubsystem.Deps( new Properties(), null, null,
                 mock( SystemPageRegistry.class ),
                 mock( RecentArticlesManager.class ),
-                mock( BlogManager.class ),
                 null ) ) );
     }
 }

@@ -20,7 +20,6 @@ package com.wikantik.core.subsystem;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.SystemPageRegistry;
-import com.wikantik.blog.BlogManager;
 import com.wikantik.content.RecentArticlesManager;
 
 /**
@@ -55,7 +54,7 @@ public final class CoreSubsystemBridge {
                 new DefaultWikiProperties( raw ),
                 new DefaultWikiEventBus(),
                 new io.micrometer.core.instrument.simple.SimpleMeterRegistry(),
-                null, null, null, null, null, null, null, null, null );
+                null, null, null, null, null, null, null, null );
         }
         final CoreSubsystem.Services typed = wikiEngine.getCoreSubsystem();
         if ( typed != null ) return typed;
@@ -89,7 +88,6 @@ public final class CoreSubsystemBridge {
             /* meterRegistry= */ null,
             engine.getManager( SystemPageRegistry.class ),
             engine.getManager( RecentArticlesManager.class ),
-            engine.getManager( BlogManager.class ),
             engine
         );
     }

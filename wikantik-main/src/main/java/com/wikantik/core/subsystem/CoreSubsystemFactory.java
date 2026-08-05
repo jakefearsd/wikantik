@@ -48,7 +48,7 @@ public final class CoreSubsystemFactory {
         Objects.requireNonNull( deps, "deps" );
         Objects.requireNonNull( deps.rawProperties(), "rawProperties" );
         Objects.requireNonNull( deps.engine(), "engine" );
-        // systemPageRegistry, recentArticlesManager, and blogManager are optional
+        // systemPageRegistry and recentArticlesManager are optional
         // (null in mid-initialize and test-fixture paths that haven't registered them yet).
 
         final WikiProperties properties = new DefaultWikiProperties( deps.rawProperties() );
@@ -69,7 +69,6 @@ public final class CoreSubsystemFactory {
             meters,
             deps.systemPageRegistry(),
             deps.recentArticlesManager(),
-            deps.blogManager(),
             cachingManager,
             variableManager,
             progressManager,

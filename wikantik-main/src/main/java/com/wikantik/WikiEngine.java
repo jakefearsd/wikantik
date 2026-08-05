@@ -36,7 +36,6 @@ import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.content.PageRenamer;
-import com.wikantik.blog.BlogManager;
 import com.wikantik.content.RecentArticlesManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.diff.DifferenceManager;
@@ -209,15 +208,14 @@ public class WikiEngine implements Engine {
      * "known type, not yet populated" (debug, expected during boot) from "genuinely
      * unknown type" (warn). Equals the former typed-field-readers keyset:
      * every SNAPSHOT_REBUILDERS key, plus ContextRetrievalService, SystemPageRegistry,
-     * RecentArticlesManager, and BlogManager (excluded from SNAPSHOT_REBUILDERS by
+     * and RecentArticlesManager (excluded from SNAPSHOT_REBUILDERS by
      * design; see setManager and the getManager coreSubsystem fallthrough).
      */
     private static boolean isKnownManagerType( final Class<?> t ) {
         return SNAPSHOT_REBUILDERS.containsKey( t )
             || t == com.wikantik.api.knowledge.ContextRetrievalService.class
             || t == com.wikantik.api.managers.SystemPageRegistry.class
-            || t == com.wikantik.content.RecentArticlesManager.class
-            || t == com.wikantik.blog.BlogManager.class;
+            || t == com.wikantik.content.RecentArticlesManager.class;
     }
 
     /**
@@ -482,8 +480,7 @@ public class WikiEngine implements Engine {
                 getManager( ReferenceManager.class ), getManager( SearchManager.class ) );
             buildCoreAuthPageRenderingSubsystems( props,
                 getManager( SystemPageRegistry.class ),
-                getManager( RecentArticlesManager.class ),
-                getManager( BlogManager.class ) );
+                getManager( RecentArticlesManager.class ) );
 
             // Phase 9: Knowledge graph (optional — requires datasource
             // configuration). Builds persistenceSubsystem internally and
@@ -640,9 +637,6 @@ public class WikiEngine implements Engine {
         // Phase 7: RecentArticlesManager for article listing APIs and plugins.
         initComponent( RecentArticlesManager.class );
 
-        // Phase 7b: BlogManager for user blog lifecycle and plugins.
-        initComponent( BlogManager.class );
-
         // Phase 8: ReferenceManager scans all pages for cross-references.
         initReferenceManager();
     }
@@ -694,8 +688,7 @@ public class WikiEngine implements Engine {
      */
     private void buildCoreAuthPageRenderingSubsystems( final Properties props,
             final SystemPageRegistry systemPageRegistry,
-            final RecentArticlesManager recentArticlesManager,
-            final BlogManager blogManager ) {
+            final RecentArticlesManager recentArticlesManager ) {
         // Build the Core subsystem after its leaf managers are constructed.
         // Knowledge (built next, in initKnowledgeGraph) consumes Core via WikiSubsystems.
         this.coreSubsystem = com.wikantik.core.subsystem.CoreSubsystemFactory.create(
@@ -705,7 +698,6 @@ public class WikiEngine implements Engine {
                 com.wikantik.api.observability.MeterRegistryHolder.get(),
                 systemPageRegistry,
                 recentArticlesManager,
-                blogManager,
                 this ) );
 
         // Build the Auth subsystem after the four auth managers are registered.
@@ -836,8 +828,8 @@ public class WikiEngine implements Engine {
         if ( fromRegistry != null ) return fromRegistry;
 
         // 2. Fall through to typed subsystem services. Phase 2 of the
-        //    wikantik-main decomposition removed SystemPageRegistry,
-        //    RecentArticlesManager, and BlogManager from the registered-service set;
+        //    wikantik-main decomposition removed SystemPageRegistry and
+        //    RecentArticlesManager from the registered-service set;
         //    this bridge keeps getManager(X.class) returning them transparently.
         //    New code should reach the typed accessor directly: getCoreSubsystem().xxx().
         if ( coreSubsystem != null ) {
@@ -846,9 +838,6 @@ public class WikiEngine implements Engine {
             }
             if ( manager.isInstance( coreSubsystem.recentArticlesManager() ) ) {
                 return ( T ) coreSubsystem.recentArticlesManager();
-            }
-            if ( manager.isInstance( coreSubsystem.blogManager() ) ) {
-                return ( T ) coreSubsystem.blogManager();
             }
         }
 
@@ -1705,8 +1694,8 @@ public class WikiEngine implements Engine {
      *
      * <p>Phase 2 of the wikantik-main subsystem decomposition. New code
      * should obtain typed properties, the event bus, the metrics registry,
-     * and the leaf managers (SystemPageRegistry, RecentArticlesManager,
-     * BlogManager) through this accessor.</p>
+     * and the leaf managers (SystemPageRegistry, RecentArticlesManager)
+     * through this accessor.</p>
      */
     public com.wikantik.core.subsystem.CoreSubsystem.Services getCoreSubsystem() {
         return coreSubsystem;

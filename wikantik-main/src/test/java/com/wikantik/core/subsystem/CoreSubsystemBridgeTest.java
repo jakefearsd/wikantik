@@ -20,7 +20,6 @@ package com.wikantik.core.subsystem;
 
 import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.SystemPageRegistry;
-import com.wikantik.blog.BlogManager;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.content.RecentArticlesManager;
 import com.wikantik.variables.VariableManager;
@@ -47,7 +46,6 @@ final class CoreSubsystemBridgeTest {
     void rebuildFromManagers_delegatesToFactory_wiresServicesFromRegistry() {
         final SystemPageRegistry   sys     = mock( SystemPageRegistry.class );
         final RecentArticlesManager recent = mock( RecentArticlesManager.class );
-        final BlogManager          blog    = mock( BlogManager.class );
         final CachingManager       caching = mock( CachingManager.class );
         final VariableManager      vars    = mock( VariableManager.class );
 
@@ -58,7 +56,6 @@ final class CoreSubsystemBridgeTest {
         when( engine.getWikiProperties() ).thenReturn( raw );
         when( engine.getManager( SystemPageRegistry.class ) ).thenReturn( sys );
         when( engine.getManager( RecentArticlesManager.class ) ).thenReturn( recent );
-        when( engine.getManager( BlogManager.class ) ).thenReturn( blog );
         when( engine.getManager( CachingManager.class ) ).thenReturn( caching );
         when( engine.getManager( VariableManager.class ) ).thenReturn( vars );
 
@@ -69,7 +66,6 @@ final class CoreSubsystemBridgeTest {
         assertSame( raw, services.properties().asProperties() );
         assertSame( sys, services.systemPageRegistry() );
         assertSame( recent, services.recentArticlesManager() );
-        assertSame( blog, services.blogManager() );
         assertSame( caching, services.cachingManager() );
         assertSame( vars, services.variableManager() );
     }

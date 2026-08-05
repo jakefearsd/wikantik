@@ -104,7 +104,5 @@ class RobotsTxtTest {
                 "robots.txt must keep 'Allow: /api/pages/' for page-content fetching; was: " + content );
         assertFalse( content.contains( "Disallow: /wiki" ),
                 "robots.txt must not disallow /wiki (public content); was: " + content );
-        assertFalse( content.contains( "Disallow: /blog" ),
-                "robots.txt must not disallow /blog (public content); was: " + content );
     }
 }

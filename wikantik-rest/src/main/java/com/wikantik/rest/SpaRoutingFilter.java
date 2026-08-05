@@ -94,8 +94,8 @@ public class SpaRoutingFilter implements Filter {
 
     private static final Logger LOG = LogManager.getLogger( SpaRoutingFilter.class );
 
-    private static final String[] SPA_PREFIXES = { "/wiki/", "/edit/", "/diff/", "/admin/", "/blog/" };
-    private static final String[] SPA_EXACT = { "/admin", "/search", "/page-graph", "/knowledge-graph", "/preferences", "/reset-password", "/blog", "/login", "/me/mentions", "/change-password" };
+    private static final String[] SPA_PREFIXES = { "/wiki/", "/edit/", "/diff/", "/admin/" };
+    private static final String[] SPA_EXACT = { "/admin", "/search", "/page-graph", "/knowledge-graph", "/preferences", "/reset-password", "/login", "/me/mentions", "/change-password" };
 
     private volatile Engine engine;
     private ServletContext servletContext;
@@ -191,7 +191,7 @@ public class SpaRoutingFilter implements Filter {
             return;
         }
 
-        // Other SPA prefixes (/edit/, /diff/, /admin/, /blog/) and exact
+        // Other SPA prefixes (/edit/, /diff/, /admin/) and exact
         // routes (/search etc.) share URL space with JSON APIs, so we gate
         // forwarding on Accept: text/html to let fetch() calls reach their
         // servlets.

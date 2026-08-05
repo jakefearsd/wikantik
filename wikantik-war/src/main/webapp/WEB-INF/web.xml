@@ -377,8 +377,6 @@
      <url-pattern>/reset-password</url-pattern>
      <url-pattern>/change-password</url-pattern>
      <url-pattern>/login</url-pattern>
-     <url-pattern>/blog/*</url-pattern>
-     <url-pattern>/blog</url-pattern>
      <url-pattern>/</url-pattern>
    </filter-mapping>
 
@@ -645,12 +643,6 @@
    <servlet>
        <servlet-name>AdminPageOwnershipResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminPageOwnershipResource</servlet-class>
-   </servlet>
-
-   <!-- Blog API -->
-   <servlet>
-       <servlet-name>BlogResource</servlet-name>
-       <servlet-class>com.wikantik.rest.BlogResource</servlet-class>
    </servlet>
 
    <!-- Admin API -->
@@ -953,14 +945,6 @@
    <servlet-mapping>
        <servlet-name>ConvertResource</servlet-name>
        <url-pattern>/api/convert/*</url-pattern>
-   </servlet-mapping>
-   <servlet-mapping>
-       <servlet-name>BlogResource</servlet-name>
-       <url-pattern>/api/blog/*</url-pattern>
-   </servlet-mapping>
-   <servlet-mapping>
-       <servlet-name>BlogResource</servlet-name>
-       <url-pattern>/api/blog</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminUserResource</servlet-name>

@@ -40,6 +40,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the app imports katex directly too, so bumping would ship two copies and split math rendering
   between the two paths) and `@testing-library/jest-dom` 7.0.0 (major, no benefit here).
 
+### Removed
+- **The blog feature is gone in its entirety.** `BlogManager` and its engine wiring, the
+  `/api/blog` REST surface, the `/blog/*` SPA routes, the `BlogListing`/`ArticleListing`/
+  `LatestArticle` plugins, the six React blog screens, and all blog content. Blogging moved to a
+  separate application, so this removes a subsystem rather than deprecating it.
+  The notable part is the page-storage layer: blog pages had their own on-disk layout
+  (`blog/<username>/<slug>` as real subdirectories, with `OLD/` nested *inside* the user directory
+  rather than at the top level) plus username case-folding on every cache key. That special-casing
+  reached ~12 sites across `AbstractFileProvider` and `VersioningFileProvider` — shared code on the
+  hot path for every page, not just blog ones — and is now gone, collapsing eight
+  `isBlogPage(…) ? normaliseBlogName(…) : …` ternaries to their else-branch.
+
 ## [2.3.14] - 2026-08-01
 
 ### Fixed

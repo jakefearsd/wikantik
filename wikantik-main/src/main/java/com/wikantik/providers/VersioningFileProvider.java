@@ -180,47 +180,12 @@ public class VersioningFileProvider extends AbstractFileProvider {
     /**
      *  Returns the directory where the old versions of the pages
      *  are being kept.
-     *
-     *  <p>For blog pages (names starting with {@code blog/<username>/}), the OLD directory
-     *  lives <em>inside</em> the blog user directory rather than at the top level.  For example,
-     *  {@code blog/jake/Blog} resolves to {@code pageDir/blog/jake/OLD/Blog} instead of
-     *  {@code pageDir/OLD/blog/jake/Blog}.</p>
      */
     private File findOldPageDir( final String page ) {
         if( page == null ) {
             throw new InternalWikiException( "Page may NOT be null in the provider!" );
         }
-        final File oldDir = getOldDirectory( page );
-        return new File( oldDir, getPageBaseName( page ) );
-    }
-
-    /**
-     *  Returns the root OLD directory for the given page.  For blog pages the OLD directory
-     *  is nested inside the blog user directory (e.g. {@code pageDir/blog/jake/OLD/}).
-     *  For regular pages it is the top-level {@code pageDir/OLD/}.
-     */
-    private File getOldDirectory( final String page ) {
-        if( AbstractFileProvider.isBlogPage( page ) ) {
-            // For blog/jake/SomePage, OLD/ lives in pageDir/blog/jake/OLD/
-            final String mangledName = mangleName( page );
-            final int lastSlash = mangledName.lastIndexOf( '/' );
-            final String blogUserDir = mangledName.substring( 0, lastSlash );
-            return new File( new File( getPageDirectory(), blogUserDir ), PAGEDIR );
-        }
-        return new File( getPageDirectory(), PAGEDIR );
-    }
-
-    /**
-     *  Returns just the page filename portion (not the full path) for use inside the OLD
-     *  directory.  For blog pages this is the slug only; for regular pages it is the full
-     *  mangled name.
-     */
-    private String getPageBaseName( final String page ) {
-        if( AbstractFileProvider.isBlogPage( page ) ) {
-            final String mangledName = mangleName( page );
-            return mangledName.substring( mangledName.lastIndexOf( '/' ) + 1 );
-        }
-        return mangleName( page );
+        return new File( new File( getPageDirectory(), PAGEDIR ), mangleName( page ) );
     }
 
     /**

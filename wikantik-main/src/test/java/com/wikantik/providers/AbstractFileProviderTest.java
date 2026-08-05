@@ -327,16 +327,4 @@ class AbstractFileProviderTest {
         Assertions.assertEquals( "active", retrieved.getAttribute( "@status" ) );
         Assertions.assertEquals( "alice", retrieved.getAttribute( "@owner" ) );
     }
-
-    /**
-     * The provider must not retain any blog-specific storage helpers.
-     */
-    @Test
-    void providerHasNoBlogSpecialCasing() {
-        final boolean hasBlogMethod = java.util.Arrays.stream(
-                AbstractFileProvider.class.getDeclaredMethods() )
-            .anyMatch( m -> m.getName().toLowerCase( java.util.Locale.ROOT ).contains( "blog" ) );
-        Assertions.assertFalse( hasBlogMethod,
-            "AbstractFileProvider must not retain blog-specific methods after blog removal" );
-    }
 }

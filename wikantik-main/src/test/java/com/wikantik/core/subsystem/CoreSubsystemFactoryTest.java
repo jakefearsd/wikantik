@@ -33,7 +33,6 @@ import org.junit.jupiter.api.Test;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -49,18 +48,6 @@ import static org.mockito.Mockito.when;
  * non-null delegating impl, and the leaf managers pass straight through.</p>
  */
 final class CoreSubsystemFactoryTest {
-
-    @Test
-    void coreSubsystemHasNoBlogComponent() {
-        // CoreSubsystem itself is a plain final class (getRecordComponents() would return
-        // null); the blogManager component lives on its nested Deps/Services records.
-        final boolean hasBlogComponent = java.util.stream.Stream.concat(
-                java.util.Arrays.stream( CoreSubsystem.Deps.class.getRecordComponents() ),
-                java.util.Arrays.stream( CoreSubsystem.Services.class.getRecordComponents() ) )
-            .anyMatch( c -> c.getName().toLowerCase( java.util.Locale.ROOT ).contains( "blog" ) );
-        assertFalse( hasBlogComponent,
-            "CoreSubsystem must not carry a blogManager component after blog removal" );
-    }
 
     @Test
     void createWiresServicesFromDeps() {

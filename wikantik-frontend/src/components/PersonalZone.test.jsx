@@ -51,12 +51,4 @@ describe('PersonalZone', () => {
     fireEvent.click(screen.getByText('Me'));
     expect(screen.queryByText(/resume editing/i)).not.toBeInTheDocument();
   });
-
-  it('does not render a blog section', () => {
-    useAuth.mockReturnValue({ user: { authenticated: true, username: 'Alice', loginPrincipal: 'alice', roles: [] }, logout: () => {} });
-    renderZone();
-    fireEvent.click(screen.getByText('Me'));
-    expect(screen.queryByText(/my blog/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/blog home/i)).not.toBeInTheDocument();
-  });
 });

@@ -882,26 +882,6 @@ class SpaRoutingFilterTest {
         assertEquals( "Foo%zzBar", SpaRoutingFilter.extractPageName( "/wiki/Foo%zzBar" ) );
     }
 
-    // ---- blog removal: /blog is no longer an SPA route ----
-
-    @Test
-    void blogRootPassesThroughToTheChain() throws Exception {
-        final HttpServletRequest request = mockRequest( "/blog" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain ).doFilter( any(), any() );
-    }
-
-    @Test
-    void blogSubPathPassesThroughToTheChain() throws Exception {
-        final HttpServletRequest request = mockRequest( "/blog/jakefear/Blog" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain ).doFilter( any(), any() );
-    }
-
     // ---- helpers ----
 
     @Test

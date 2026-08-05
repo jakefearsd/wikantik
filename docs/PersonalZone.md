@@ -1,7 +1,7 @@
 # Personal Zone and Preferences
 
 The **Personal Zone** is the authenticated-user sidebar panel that surfaces quick
-links to your pages, blog, drafts, recently-viewed pages, and your mention
+links to your pages, drafts, recently-viewed pages, and your mention
 notification count. The **Preferences** page (`/preferences`) lets you edit your
 profile and change your password.
 
@@ -28,13 +28,11 @@ when the section is collapsed. Inside:
 - **My pages** — pages owned by you. Shows up to 3 inline; a "View all N" button
   expands to 15.
 - **Recently viewed** — pages you have opened recently.
-- **My blog** — a link to your blog home (`/blog/{login}/Blog`) and up to 3
-  recent entries. Expands to 15.
 - **Resume editing** — shown only when you have local autosave drafts. Each
   draft row links to the editor for that page and has a discard (✕) button.
 
 All subsections are individually collapsible. State is tracked per-section by id
-(`me-zone`, `my-pages`, `recent`, `my-blog`, `drafts`).
+(`me-zone`, `my-pages`, `recent`, `drafts`).
 
 ## Preferences page (`/preferences`)
 
@@ -50,7 +48,7 @@ The top fieldset shows the following fields:
 |-------|----------|-------|
 | Login Name | Read-only | Your account's login identifier. Cannot be changed by self-service. |
 | Wiki Name | Read-only | CamelCase wiki identifier derived from your full name at registration. |
-| Full Name | Editable | Displayed in your profile, blog author lines, and search results. |
+| Full Name | Editable | Displayed in your profile and search results. |
 | Email | Editable | Used for password reset. |
 | Bio | Editable | Up to 1000 characters. Shown on your user profile page. |
 
@@ -172,7 +170,6 @@ the account.
 ## Cross-links
 
 - [docs/CommentsAndMentions.md](CommentsAndMentions.md) — @-mention inbox reachable from the Personal Zone
-- [docs/Blog.md](Blog.md) — personal blog surfaced in the Personal Zone sidebar
 - [docs/PageOwnership.md](PageOwnership.md) — page ownership tied to the author profile
 - [docs/ApiKeys.md](ApiKeys.md) — API keys revoked on account deletion
 - [docs/ScimProvisioning.md](ScimProvisioning.md) — IdP-driven account lifecycle management

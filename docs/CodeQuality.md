@@ -39,7 +39,7 @@ All three tools are opt-in (kept out of the default build so it stays fast).
   - ~~`GraphRerankConfig` ↔ `HybridConfig` (20 lines)~~ — resolved 2026-07 by
     deleting `GraphRerankConfig` along with the rest of the KG graph rerank.
   - Intra-file blocks in `AdminPolicyResource`, `AdminHubDiscoveryResource`,
-    `OllamaEmbeddingClient`, `BlogResource`.
+    `OllamaEmbeddingClient`.
 
 ### Complexity — PMD (above-default thresholds)
 Violation counts: CyclomaticComplexity **118**, CognitiveComplexity **81**,

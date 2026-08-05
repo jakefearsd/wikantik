@@ -232,7 +232,7 @@ public interface RenderingManager extends RenderApi, WikiEventListener, Internal
     /**
      * Evicts all render cache entries (document and HTML caches) for the given page.
      * This is useful when the page's rendered output depends on external data that has
-     * changed (e.g., a blog homepage whose plugins display entries from other pages).
+     * changed (e.g., a hub page whose RecentArticles plugin displays entries from other pages).
      *
      * @param pageName the wiki page name whose cache entries should be evicted
      */

@@ -56,7 +56,7 @@ import java.util.Map;
  *   <li>{@code DELETE /api/attachments/PageName/filename.ext} - Delete an attachment</li>
  * </ul>
  * <p>
- * Path parsing handles hierarchical page names (e.g. {@code blog/admin/20260403Post}):
+ * Path parsing handles hierarchical page names (e.g. {@code docs/admin/ReleaseNotes}):
  * the last path segment containing a period is treated as a filename; everything before
  * it is the page name. If no segment contains a period, the entire path is the page name.
  */

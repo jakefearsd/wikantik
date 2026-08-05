@@ -50,7 +50,6 @@ Key capabilities:
 - **Programmatic API keys** — issue and revoke bearer tokens for the MCP / OpenAPI / REST surfaces from the admin panel (see [ApiKeys.md](docs/ApiKeys.md))
 - **Tamper-evident audit log** — hash-chained record of administrative and security-relevant actions, queryable / verifiable / exportable at `/admin/audit` (see [AuditLog.md](docs/AuditLog.md))
 - **Comments & @-mentions** — threaded discussion on pages with mention notifications and an unread inbox at `/me/mentions` (see [CommentsAndMentions.md](docs/CommentsAndMentions.md))
-- **Per-user blogs** — Markdown blog spaces under `/blog/*` with their own discovery, entries, and editor (see [Blog.md](docs/Blog.md))
 - **Observability** — health checks, Prometheus metrics at `/metrics` (IP-restricted to internal networks), structured logging with request correlation; monitoring is handled by the external jakemon stack
 - **Content clusters** — thematic article groupings with hub pages, sub-clusters, cross-references, and automated structural auditing
 - **NIST 800-63B password validation** — blocklist-checked password strength enforcement for account creation
@@ -595,7 +594,6 @@ configuration, the relevant admin UI route, REST endpoints, auth model, and trou
 - [HubDiscovery.md](docs/HubDiscovery.md) — **hub discovery** (`/admin/knowledge-graph` → Hub Discovery tab): HDBSCAN cluster-based hub proposals, clustering-parameter tuning, the accept/dismiss workflow, and existing-hub health stats
 - [RetrievalQuality.md](docs/RetrievalQuality.md) — **retrieval-quality dashboard** (`/admin/retrieval-quality`): nightly nDCG/Recall/MRR CI and the Prometheus gauges
 - [CommentsAndMentions.md](docs/CommentsAndMentions.md) — **comments & @-mentions**: threaded page discussion, mention notifications, and the `/me/mentions` inbox
-- [Blog.md](docs/Blog.md) — **per-user blogs** (`/blog/*`): blog spaces, entries, discovery, and the editor
 - [PersonalZone.md](docs/PersonalZone.md) — **personal zone** (`/preferences`): user preferences, profile, and notification settings
 
 ### Security

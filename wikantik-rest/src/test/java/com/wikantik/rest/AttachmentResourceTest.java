@@ -369,15 +369,15 @@ class AttachmentResourceTest {
 
     @Test
     void testParseAttachmentPathHierarchicalPage() {
-        final String[] result = AttachmentResource.parseAttachmentPath( "blog/admin/20260403Post" );
-        assertEquals( "blog/admin/20260403Post", result[0] );
+        final String[] result = AttachmentResource.parseAttachmentPath( "docs/admin/ReleaseNotes" );
+        assertEquals( "docs/admin/ReleaseNotes", result[0] );
         assertNull( result[1] );
     }
 
     @Test
     void testParseAttachmentPathHierarchicalPageWithFile() {
-        final String[] result = AttachmentResource.parseAttachmentPath( "blog/admin/20260403Post/beach.jpg" );
-        assertEquals( "blog/admin/20260403Post", result[0] );
+        final String[] result = AttachmentResource.parseAttachmentPath( "docs/admin/ReleaseNotes/beach.jpg" );
+        assertEquals( "docs/admin/ReleaseNotes", result[0] );
         assertEquals( "beach.jpg", result[1] );
     }
 

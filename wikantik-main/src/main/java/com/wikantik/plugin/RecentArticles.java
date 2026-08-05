@@ -54,7 +54,7 @@ import java.util.Map;
  * <pre>
  * [{RecentArticles count=5 since=7}]
  * [{RecentArticles count=10 excerpt=true excerptLength=150}]
- * [{RecentArticles include='Blog.*' count=5}]
+ * [{RecentArticles include='Announcement.*' count=5}]
  * </pre>
  *
  * @since 3.0.7

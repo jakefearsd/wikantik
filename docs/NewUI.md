@@ -10,7 +10,7 @@ it.
 
 Fully implemented. The SPA covers reading, inline editing, search, change
 history, similar-pages discovery, attachment management, comments/mentions,
-blogs, dark mode, the admin panel (users, content, security, knowledge, API
+dark mode, the admin panel (users, content, security, knowledge, API
 keys, KG policy, retrieval quality, page ownership, audit), and the graph
 viewers.
 
@@ -40,9 +40,9 @@ SPA paths to `/index.html` so React Router can take over.
 
 `SpaRoutingFilter` matches two categories of path:
 
-- **Prefix routes** (anything under): `/wiki/`, `/edit/`, `/diff/`, `/admin/`, `/blog/`
+- **Prefix routes** (anything under): `/wiki/`, `/edit/`, `/diff/`, `/admin/`
 - **Exact routes**: `/admin`, `/search`, `/page-graph`, `/knowledge-graph`,
-  `/preferences`, `/reset-password`, `/blog`, `/login`, `/me/mentions`
+  `/preferences`, `/reset-password`, `/login`, `/me/mentions`
 
 The full route table from `main.jsx`:
 
@@ -51,7 +51,6 @@ The full route table from `main.jsx`:
 | `/` | `<Navigate to="/wiki/Main" replace />` | No home page — always redirects |
 | `/wiki/:name` | `PageView` | Article reader (eager-loaded) |
 | `/wiki` | `<Navigate to="/wiki/Main" replace />` | Bare /wiki redirect |
-| `/edit/blog/:username/:pageName` | `BlogEditor` | Blog post editor |
 | `/edit/:name` | `PageEditor` | Wiki page editor |
 | `/diff/:name` | `DiffViewer` | Side-by-side version diff |
 | `/search` | `SearchResultsPage` | Full-text + faceted search |
@@ -61,11 +60,6 @@ The full route table from `main.jsx`:
 | `/me/mentions` | `MentionsPage` | @-mention inbox |
 | `/reset-password` | `ResetPasswordPage` | Password reset flow |
 | `/login` | `LoginPage` | Login (dual-registered in web.xml + SPA_EXACT) |
-| `/blog` | `BlogDiscovery` | Blog directory |
-| `/blog/create` | `CreateBlog` | Create new blog |
-| `/blog/:username/new` | `NewBlogEntry` | New blog post |
-| `/blog/:username/Blog` | `BlogHome` | Author's blog home |
-| `/blog/:username/:entryName` | `BlogEntry` | Individual blog post |
 | `/admin` (index) | `OverviewDashboard` | Admin overview |
 | `/admin/users` | `AdminUsersPage` | User management |
 | `/admin/content` | `AdminContentPage` | Content & index tools |
@@ -119,8 +113,6 @@ wikantik-frontend/
     │   ├── DiffViewer.jsx
     │   ├── MentionsPage.jsx     @-mention inbox (/me/mentions)
     │   ├── PersonalZone.jsx     Personal zone widget
-    │   ├── BlogDiscovery.jsx / BlogHome.jsx / BlogEntry.jsx /
-    │   │   BlogEditor.jsx / CreateBlog.jsx / NewBlogEntry.jsx
     │   ├── LoginPage.jsx / LoginForm.jsx / SsoLoginButton.jsx
     │   ├── UserPreferencesPage.jsx / ResetPasswordPage.jsx
     │   ├── TableOfContents.jsx / Breadcrumbs.jsx
@@ -275,16 +267,6 @@ mention inbox lives at `/me/mentions` (`MentionsPage`).
 
 For the full feature spec see [docs/CommentsAndMentions.md](CommentsAndMentions.md).
 
-## Blog
-
-Blog routes all live under `/blog/*`. `BlogDiscovery` lists all author blogs;
-`BlogHome` is an author's blog index; `BlogEntry` renders a single post;
-`BlogEditor` is the post editor (also reachable via `/edit/blog/:username/:pageName`);
-`CreateBlog` and `NewBlogEntry` handle blog and post creation. The hook
-`useMyBlog` manages the current user's blog state.
-
-For the full feature spec see [docs/Blog.md](Blog.md).
-
 ## Personal Zone
 
 `PersonalZone` (`/components/PersonalZone.jsx`) surfaces the current user's
@@ -388,7 +370,7 @@ A set of reusable primitives used across both the reader and admin panel:
 
 - **Auth & session**: `useAuth.jsx` (login state, current user via `AuthProvider` context)
 - **Theme**: `useDarkMode.js` (toggle + localStorage persistence)
-- **API / data fetching**: `useApi.js` (fetch + auth header plumbing), `useAttachments.js`, `useMyPages.js`, `useMyBlog.js`
+- **API / data fetching**: `useApi.js` (fetch + auth header plumbing), `useAttachments.js`, `useMyPages.js`
 - **Editor**: `useEditorDrop.js` (drag-and-drop into editor), `useDraft.js` / `useDrafts.js` (auto-save draft management)
 - **Comments / mentions**: `useMentionPicker.js` (debounced `@`-mention autocomplete with caret tracking), `useUnreadMentions.js`
 - **Navigation / UX**: `useGlobalHotkeys.js` (Cmd+K search trigger), `useScrollSpy.js` (ToC active heading), `useScrollLock.js` (modal body lock), `useFocusTrap.js` (modal focus management), `useDocumentTitle.js`

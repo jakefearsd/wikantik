@@ -210,7 +210,7 @@ class AdminOverviewResourceFullTest {
 
         final WikiSubsystems subs = new WikiSubsystems(
                 new com.wikantik.core.subsystem.CoreSubsystem.Services(
-                        wikiProps, null, null, null, null, null, null, null, null, null, null, null ),
+                        wikiProps, null, null, null, null, null, null, null, null, null, null ),
                 null,
                 new com.wikantik.auth.subsystem.AuthSubsystem.Services(
                         null, null, userManager, null, null, null, null, null ),
@@ -372,7 +372,7 @@ class AdminOverviewResourceFullTest {
 
         final WikiSubsystems subs = new WikiSubsystems(
                 new com.wikantik.core.subsystem.CoreSubsystem.Services(
-                        wikiProps, null, null, null, null, null, null, null, null, null, null, null ),
+                        wikiProps, null, null, null, null, null, null, null, null, null, null ),
                 null, null, null, null, null, null, null );
 
         final JsonObject data = invoke( mock( Engine.class ), subs ).getAsJsonObject( "data" );

@@ -14,7 +14,7 @@ canonical_id: 01KQ0P44S61S5AYQJVF4EBFAMM
 
 **As an AI agent**, connect over the Model Context Protocol: the read-only `/knowledge-mcp` server retrieves and assembles ranked, **citation-bearing** context bundles and traverses the knowledge graph, while `/wikantik-admin-mcp` authors and curates pages — and the whole corpus is queryable as linked data over [SPARQL](Ontology). Agents go through the same save pipeline, permissions, and retrieval index as the human UI; see [Wikantik System Architecture](WikantikArchitecture) for how it all fits together.
 
-New here? Start with [About](About) for the manifesto, or the [Wikantik Platform Hub](WikantikPlatformHub) for the platform deep-dives. Power users: the [Knowledge Graph Admin](WikantikKnowledgeGraphAdmin) guide. You can also read the [site blog](../blog/).
+New here? Start with [About](About) for the manifesto, or the [Wikantik Platform Hub](WikantikPlatformHub) for the platform deep-dives. Power users: the [Knowledge Graph Admin](WikantikKnowledgeGraphAdmin) guide.
 
 ## Article Clusters
 

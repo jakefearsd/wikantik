@@ -692,6 +692,21 @@ reflection, and leaving them behind is exactly the cruft this removal is meant t
 Keep the Task 2 `PersonalZone` assertion and the Task 3 `SpaRoutingFilter` pass-through tests — those
 assert real user-visible behaviour and earn their place.
 
+- [ ] **Step 1b: Fix the two stale references found during Tasks 1–3**
+
+**`wikantik-rest/src/main/java/com/wikantik/rest/AttachmentResource.java:59`** — the javadoc reads
+"Path parsing handles hierarchical page names (e.g. `blog/admin/20260403Post`)". Hierarchical page
+names still exist as a general concept, but `blog/…` is no longer a valid one. Replace the example
+with a non-blog hierarchical name that reflects reality. First confirm what hierarchical names still
+occur (`grep -rn "getPage.*\"[A-Za-z]*/" wikantik-rest/src/main` or check the attachment path-parsing
+tests for the shapes they exercise) and use one of those. Do not delete the javadoc — the behaviour
+it documents is unchanged.
+
+**`docs/CodeQuality.md:42`** — a dated baseline (captured 2026-06-06) lists `BlogResource` among the
+most-complex classes. The class no longer exists. Remove just that one name from the list, leaving
+the surrounding sentence grammatical and the other names and all numbers untouched. Do not attempt
+to recompute the baseline — it is explicitly a point-in-time snapshot refreshed by `bin/site.sh`.
+
 - [ ] **Step 2: Full-repo sweep**
 
 ```bash

@@ -45,7 +45,11 @@ A raw `grep -ri blog` over this repo over-reports badly. These matches are **not
 | `plugin/RecentArticles.java` | javadoc example only — `RecentArticles` is **not** a blog plugin, it stays |
 | `AttachmentResource.java:59` | javadoc example of a hierarchical page name |
 | `RenderingManager.java:235` | javadoc example |
-| `wikantik-wikipages/*/CSSThemeDark.md`, `InstallationTips.md` | CSS class names / unrelated prose |
+| `InstallationTips.md` | unrelated prose |
+
+**Correction (found during Task 1):** `CSSThemeDark.md` is **not** a false positive. It contains
+`/* --- [WeblogPlugin]().less --- */`, an empty CSS section marker for JSPWiki's legacy blog plugin
+with no rules attached. It is real blog residue and is removed in Task 7, Step 1a.
 
 Conversely, two plugins have generic names but **are** blog-only and must be deleted: `ArticleListing` and `LatestArticle` (both call `BlogManager`, both used only on the two `Blog.md` pages).
 
@@ -649,6 +653,30 @@ grep -rn "weblogentryplugin\|blog\." wikantik-main/src/main/resources/plugin/ wi
 ```
 
 Delete every match. In `default.properties` that is the `#blog texts in various JSPs` comment plus `blog.commenttitle`, `blog.backtomain`, `blog.addcomments`, `blog.permalink`.
+
+- [ ] **Step 1a: Remove the dead WeblogPlugin CSS marker**
+
+`CSSThemeDark.md` carries `/* --- [WeblogPlugin]().less --- */` — an empty section marker inherited
+from JSPWiki's LESS build for a blog plugin that never existed in Wikantik. There are **no CSS rules
+between it and the next marker**, so deleting just the marker is safe and changes no styling.
+
+Find every copy:
+
+```bash
+grep -rn "WeblogPlugin" docs/wikantik-pages wikantik-wikipages --include=*.md | grep -v "/target/"
+```
+
+Expected: 5 files — `docs/wikantik-pages/CSSThemeDark.md` plus `wikantik-wikipages/{en,es,ru,zh_CN}/src/main/resources/CSSThemeDark.md`. In each, delete only the `/* --- [WeblogPlugin]().less --- */`
+comment, leaving the adjacent `/* --- [RecentChangesPlugin]().less --- */` marker and all CSS rules
+untouched. Do not reflow or reformat the surrounding line.
+
+Verify no styling changed — the only removed text is a comment:
+
+```bash
+git diff -- '*CSSThemeDark.md' | grep -E "^[+-]" | grep -v "^[+-][+-]" | grep -v "WeblogPlugin"
+```
+
+Expected: no output (every changed line is accounted for by the marker removal alone).
 
 - [ ] **Step 2a: Delete the transient TDD scaffolding**
 

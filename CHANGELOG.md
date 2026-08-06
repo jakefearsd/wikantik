@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `WIKANTIK_EMBEDDING_COMMIT_BATCH_SIZE` entrypoint passthrough for
+  `wikantik.search.embedding.commit-batch-size`, so the embedding backfill's commit interval can be
+  tuned per host from `.env` without rebuilding the WAR. Added because the setting matters most
+  exactly where you cannot rebuild conveniently: a host that keeps dying mid-backfill wants a small
+  interval (the value is how much embedding work a crash discards), and the default of 256 is chosen
+  for a machine that stays up.
+
 ## [2.3.15] - 2026-08-06
 
 ### Fixed

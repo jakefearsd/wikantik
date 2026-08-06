@@ -67,6 +67,10 @@
 #   WIKANTIK_KNOWLEDGE_ENABLED   "true"/"false" — consumed by wikantik.knowledge.enabled
 #                                (default true when unset; the consuming property ships
 #                                with the same release)
+#   WIKANTIK_EMBEDDING_COMMIT_BATCH_SIZE
+#                                rows committed per transaction during an embedding
+#                                backfill (default: ini bundle default = 256). Lower on
+#                                hosts where a long backfill may be interrupted.
 #   WIKANTIK_EMBEDDING_BASE_URL  dense-retrieval embedding service base URL override, e.g.
 #                                http://embedding-sidecar:11434 (default: ini bundle default,
 #                                the shared inference host — unreachable from some networks)
@@ -262,6 +266,19 @@ if [ -n "${WIKANTIK_EMBEDDING_BASE_URL:-}" ]; then
 
 # Embedding service base URL override (entrypoint-injected from env).
 wikantik.search.embedding.base-url = ${WIKANTIK_EMBEDDING_BASE_URL}
+EOF
+fi
+
+# Optional: rows committed per transaction during an embedding backfill.
+#   WIKANTIK_EMBEDDING_COMMIT_BATCH_SIZE — integer > 0 (default: ini bundle default = 256).
+#   Lower it on a host where a long backfill is likely to be interrupted: the value is
+#   how much embedding work a crash discards. A commit is sub-millisecond next to
+#   seconds-per-chunk CPU inference, so there is no throughput cost to lowering it.
+if [ -n "${WIKANTIK_EMBEDDING_COMMIT_BATCH_SIZE:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# Embedding backfill commit interval (entrypoint-injected from env).
+wikantik.search.embedding.commit-batch-size = ${WIKANTIK_EMBEDDING_COMMIT_BATCH_SIZE}
 EOF
 fi
 

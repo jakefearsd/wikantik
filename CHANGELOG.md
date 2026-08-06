@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.16] - 2026-08-06
+
 ### Added
 - `WIKANTIK_EMBEDDING_BATCH_SIZE` and `WIKANTIK_EMBEDDING_TIMEOUT_MS` entrypoint passthroughs. These
   two are coupled to how much CPU the embedding backend is allowed: a batch must complete inside the

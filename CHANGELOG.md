@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.15] - 2026-08-06
+
 ### Fixed
 - **The embedding backfill could never persist anything, so dense retrieval had been silently running
   empty.** `EmbeddingIndexService.indexAll`/`indexStale` wrapped the *entire corpus* in one

@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **The embedding backfill could never persist anything, so dense retrieval had been silently running
+  empty.** `EmbeddingIndexService.indexAll`/`indexStale` wrapped the *entire corpus* in one
+  transaction — `setAutoCommit(false)`, drain ~19.5k chunks, single `commit()` at the very end. On a
+  CPU embedder that is roughly 3.5 hours in one open transaction, so any interruption (crash,
+  restart, redeploy) rolled back every embedded row. Production had `content_chunk_embeddings`
+  row_count 0 for days while looking healthy: the embedder was fine, ollama was fine, and the
+  progress log cheerfully reported "2208 rows upserted so far" — all of it uncommitted, and all of it
+  discarded when the host died mid-run.
+  Completed work is now committed every `wikantik.search.embedding.commit-batch-size` rows (default
+  256 — eight embedding batches, so commits land on batch boundaries). The interval is sized against
+  inference cost, not commit cost: a commit is sub-millisecond next to seconds-per-chunk embedding,
+  so there is no throughput argument for a larger window, and it bounds an interrupted run's loss to
+  minutes instead of everything.
+  Two details worth knowing. The drain uses **separate read and write connections** because the
+  SELECT streams behind a server-side cursor and committing on that same connection would invalidate
+  it mid-drain. And the progress callback now fires *after* the commit, so observers never see
+  progress a crash would erase — the old message said "upserted", which is what made a
+  never-persisting backfill look like a working one. `indexChunks` (the page-save path) deliberately
+  keeps single-transaction semantics: all-or-nothing for one page is correct, and the set is tiny.
+
 ### Changed
 - **Jena 6.1.0 → 6.2.0, retiring the `libthrift` security pin.** `libthrift` had been held at 0.23.0
   because 0.24.0 is binary-incompatible with jena-arq 6.1.0 and breaks TDB2 write transactions —

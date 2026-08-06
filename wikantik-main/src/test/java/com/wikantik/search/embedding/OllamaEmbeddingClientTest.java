@@ -66,7 +66,7 @@ class OllamaEmbeddingClientTest {
     private EmbeddingConfig config( final EmbeddingModel model, final int batchSize ) {
         return new EmbeddingConfig(
             true, "ollama", "http://127.0.0.1:" + port, null,
-            model, null, 5_000, batchSize );
+            model, null, 5_000, batchSize, EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE );
     }
 
     private void handleWithFixedDim( final int dim, final int returnCountSupplier ) {
@@ -210,7 +210,7 @@ class OllamaEmbeddingClientTest {
         handleWithFixedDim( 1024, 0 );
         final EmbeddingConfig c = new EmbeddingConfig(
             true, "ollama", "http://127.0.0.1:" + port, "secret-key",
-            EmbeddingModel.BGE_M3, null, 5_000, 32 );
+            EmbeddingModel.BGE_M3, null, 5_000, 32, EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE );
         final OllamaEmbeddingClient client = new OllamaEmbeddingClient( HttpClient.newHttpClient(), c );
 
         client.embed( List.of( "x" ), EmbeddingKind.QUERY );

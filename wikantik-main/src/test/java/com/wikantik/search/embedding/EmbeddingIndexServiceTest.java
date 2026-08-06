@@ -148,6 +148,43 @@ class EmbeddingIndexServiceTest {
         assertTrue( hasEmbedding( ids.get( 2 ) ) );
     }
 
+    /**
+     * A full backfill takes hours of CPU inference. If it runs inside one
+     * transaction, any interruption (crash, restart, redeploy) discards every
+     * embedded row — which is exactly what left production with zero rows after
+     * 2208 chunks had been embedded. Completed batches must be durable before
+     * the run finishes.
+     *
+     * <p>{@code countRows()} opens its own connection, so it observes only
+     * COMMITTED rows — that is what makes this a real durability assertion
+     * rather than a read of the indexer's own uncommitted transaction.</p>
+     */
+    @Test
+    void indexAll_commitsCompletedBatches_beforeTheRunFinishes() throws SQLException {
+        seedChunks( 8 );
+        stubBatchEmbed( 8, false );
+
+        final List< Integer > visibleToOtherConnections = new ArrayList<>();
+
+        final EmbeddingIndexService svc = new EmbeddingIndexService(
+            dataSource, client, /*batchSize*/ 2, /*contextResolver*/ null, /*commitBatchSize*/ 4 );
+
+        svc.indexAll( MODEL, upserted -> {
+            try {
+                visibleToOtherConnections.add( countRows() );
+            } catch( final SQLException e ) {
+                throw new IllegalStateException( "probe query failed", e );
+            }
+        } );
+
+        assertEquals( 8, countRows(), "every row committed once the run completes" );
+        assertTrue(
+            visibleToOtherConnections.stream().anyMatch( n -> n > 0 && n < 8 ),
+            "another connection must see committed partial progress while the run is still "
+          + "in flight — otherwise an interrupted backfill loses every embedded row. Observed: "
+          + visibleToOtherConnections );
+    }
+
     @Test
     void indexChunks_updatesExistingRowViaOnConflict() throws SQLException {
         final List< UUID > ids = seedChunks( 1 );

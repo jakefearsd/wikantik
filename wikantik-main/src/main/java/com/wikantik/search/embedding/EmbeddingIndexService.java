@@ -64,6 +64,18 @@ public class EmbeddingIndexService {
     /** Default batch size matches {@code EmbeddingConfig.DEFAULT_BATCH_SIZE}. */
     public static final int DEFAULT_BATCH_SIZE = 32;
 
+    /**
+     * Rows committed per transaction during a backfill. Default 256 — eight
+     * {@link #DEFAULT_BATCH_SIZE} batches, so commits land on batch boundaries.
+     *
+     * <p>Sized against inference cost, not commit cost: on a CPU-only embedder a
+     * chunk takes on the order of half a second, so 256 rows is minutes of work
+     * while the commit itself is sub-millisecond. That bounds what an interrupted
+     * run loses to a few minutes instead of the entire corpus, and the commit
+     * overhead stays four orders of magnitude below the embedding time.</p>
+     */
+    public static final int DEFAULT_COMMIT_BATCH_SIZE = 256;
+
     private static final String SELECT_ALL_SQL =
         "SELECT id, text, heading_path, page_name FROM kg_content_chunks ORDER BY page_name, chunk_index";
 
@@ -134,6 +146,8 @@ public class EmbeddingIndexService {
     private final int batchSize;
     /** page_name → frontmatter context for contextual document embeddings; never null. */
     private final java.util.function.Function< String, EmbeddingTextBuilder.PageContext > contextResolver;
+    /** Rows to accumulate before committing; see {@link #DEFAULT_COMMIT_BATCH_SIZE}. */
+    private final int commitBatchSize;
 
     /**
      * Maximum number of whole-batch retries on a transient embedding failure
@@ -163,6 +177,24 @@ public class EmbeddingIndexService {
     public EmbeddingIndexService( final DataSource dataSource, final TextEmbeddingClient client,
                                   final int batchSize,
                                   final java.util.function.Function< String, EmbeddingTextBuilder.PageContext > contextResolver ) {
+        this( dataSource, client, batchSize, contextResolver, DEFAULT_COMMIT_BATCH_SIZE );
+    }
+
+    /**
+     * Adds an explicit commit interval. A full backfill is hours of CPU inference;
+     * committing only at the end means any interruption discards all of it, so
+     * completed work is committed every {@code commitBatchSize} rows.
+     *
+     * @param commitBatchSize rows to accumulate before committing; must be positive
+     */
+    public EmbeddingIndexService( final DataSource dataSource, final TextEmbeddingClient client,
+                                  final int batchSize,
+                                  final java.util.function.Function< String, EmbeddingTextBuilder.PageContext > contextResolver,
+                                  final int commitBatchSize ) {
+        if ( commitBatchSize <= 0 ) {
+            throw new IllegalArgumentException( "commitBatchSize must be positive, got " + commitBatchSize );
+        }
+        this.commitBatchSize = commitBatchSize;
         if ( dataSource == null ) {
             throw new IllegalArgumentException( "dataSource must not be null" );
         }
@@ -227,30 +259,39 @@ public class EmbeddingIndexService {
     public int indexAll( final String modelCode, final IntConsumer onBatchFlushed ) {
         requireModelCode( modelCode );
         int upserted = 0;
-        try( Connection conn = dataSource.getConnection() ) {
-            conn.setAutoCommit( false );
-            try( PreparedStatement sel = conn.prepareStatement( SELECT_ALL_SQL );
-                 PreparedStatement ins = conn.prepareStatement( UPSERT_SQL ) ) {
+        // Two connections on purpose: the SELECT streams behind a server-side cursor,
+        // and committing on that same connection would invalidate it mid-drain. The
+        // read connection never writes; the write connection commits every
+        // commitBatchSize rows so an interrupted run keeps its completed work.
+        try( Connection readConn = dataSource.getConnection();
+             Connection writeConn = dataSource.getConnection() ) {
+            readConn.setAutoCommit( false );
+            writeConn.setAutoCommit( false );
+            try( PreparedStatement sel = readConn.prepareStatement( SELECT_ALL_SQL );
+                 PreparedStatement ins = writeConn.prepareStatement( UPSERT_SQL ) ) {
                 sel.setFetchSize( 500 );
                 try( ResultSet rs = sel.executeQuery() ) {
                     final int[] progressThreshold = { 200 };
-                    upserted += drainToUpserts( rs, ins, modelCode, up -> {
+                    upserted += drainToUpserts( writeConn, rs, ins, modelCode, up -> {
                         fireProgress( onBatchFlushed, up );
                         if ( up >= progressThreshold[0] ) {
-                            LOG.info( "  embedding indexer: {} rows upserted so far (model={})",
+                            LOG.info( "  embedding indexer: {} rows committed so far (model={})",
                                 up, modelCode );
                             progressThreshold[0] += 200;
                         }
                     } );
                 }
-                conn.commit();
+                writeConn.commit();
+                readConn.rollback();   // read-only txn; release its snapshot
             } catch( final SQLException e ) {
-                conn.rollback();
-                LOG.warn( "indexAll rolled back (model={}): {}", modelCode, e.getMessage(), e );
+                writeConn.rollback();
+                LOG.warn( "indexAll rolled back uncommitted tail (model={}, committed={}): {}",
+                    modelCode, upserted, e.getMessage(), e );
                 throw new RuntimeException( "indexAll failed for " + modelCode, e );
             } catch( final RuntimeException e ) {
-                conn.rollback();   // explicit — do not depend on implicit rollback-on-close
-                LOG.warn( "indexAll rolled back on runtime error (model={}): {}", modelCode, e.getMessage(), e );
+                writeConn.rollback();   // explicit — do not depend on implicit rollback-on-close
+                LOG.warn( "indexAll rolled back uncommitted tail on runtime error (model={}, committed={}): {}",
+                    modelCode, upserted, e.getMessage(), e );
                 throw e;
             }
         } catch( final SQLException e ) {
@@ -275,23 +316,38 @@ public class EmbeddingIndexService {
     public int indexStale( final String modelCode ) {
         requireModelCode( modelCode );
         int upserted = 0;
-        try( Connection conn = dataSource.getConnection() ) {
-            conn.setAutoCommit( false );
-            try( PreparedStatement sel = conn.prepareStatement( SELECT_STALE_SQL );
-                 PreparedStatement ins = conn.prepareStatement( UPSERT_SQL ) ) {
+        // See indexAll: separate read/write connections so periodic commits cannot
+        // invalidate the streaming cursor. This is the startup path — it embeds the
+        // whole corpus when the table is empty, so partial durability matters most here.
+        try( Connection readConn = dataSource.getConnection();
+             Connection writeConn = dataSource.getConnection() ) {
+            readConn.setAutoCommit( false );
+            writeConn.setAutoCommit( false );
+            try( PreparedStatement sel = readConn.prepareStatement( SELECT_STALE_SQL );
+                 PreparedStatement ins = writeConn.prepareStatement( UPSERT_SQL ) ) {
                 sel.setString( 1, modelCode );
                 sel.setFetchSize( 500 );
+                final int[] progressThreshold = { 200 };
                 try( ResultSet rs = sel.executeQuery() ) {
-                    upserted += drainToUpserts( rs, ins, modelCode, null );
+                    upserted += drainToUpserts( writeConn, rs, ins, modelCode, up -> {
+                        if ( up >= progressThreshold[0] ) {
+                            LOG.info( "  embedding reconcile: {} rows committed so far (model={})",
+                                up, modelCode );
+                            progressThreshold[0] += 200;
+                        }
+                    } );
                 }
-                conn.commit();
+                writeConn.commit();
+                readConn.rollback();   // read-only txn; release its snapshot
             } catch( final SQLException e ) {
-                conn.rollback();
-                LOG.warn( "indexStale rolled back (model={}): {}", modelCode, e.getMessage(), e );
+                writeConn.rollback();
+                LOG.warn( "indexStale rolled back uncommitted tail (model={}, committed={}): {}",
+                    modelCode, upserted, e.getMessage(), e );
                 throw new RuntimeException( "indexStale failed for " + modelCode, e );
             } catch( final RuntimeException e ) {
-                conn.rollback();   // explicit — do not depend on implicit rollback-on-close
-                LOG.warn( "indexStale rolled back on runtime error (model={}): {}", modelCode, e.getMessage(), e );
+                writeConn.rollback();   // explicit — do not depend on implicit rollback-on-close
+                LOG.warn( "indexStale rolled back uncommitted tail on runtime error (model={}, committed={}): {}",
+                    modelCode, upserted, e.getMessage(), e );
                 throw e;
             }
         } catch( final SQLException e ) {
@@ -322,9 +378,11 @@ public class EmbeddingIndexService {
      * flush (each full mid-drain batch and the final partial batch). {@code indexAll} uses it
      * for progress reporting + periodic logging; the reconcile/incremental paths pass {@code null}.
      */
-    private int drainToUpserts( final ResultSet rs, final PreparedStatement ins, final String modelCode,
+    private int drainToUpserts( final Connection writeConn, final ResultSet rs,
+                                final PreparedStatement ins, final String modelCode,
                                 final IntConsumer afterFlush ) throws SQLException {
         int upserted = 0;
+        int committed = 0;
         final List< UUID > batchIds = new ArrayList<>( batchSize );
         final List< String > batchTexts = new ArrayList<>( batchSize );
         final java.util.Map< String, EmbeddingTextBuilder.PageContext > ctxMemo =
@@ -339,6 +397,14 @@ public class EmbeddingIndexService {
                 upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
                 batchIds.clear();
                 batchTexts.clear();
+                // Commit completed work so an interruption costs at most one
+                // commit window rather than the whole run. Notify only after the
+                // commit lands, so observers never see progress that a crash
+                // would erase.
+                if ( writeConn != null && upserted - committed >= commitBatchSize ) {
+                    writeConn.commit();
+                    committed = upserted;
+                }
                 if ( afterFlush != null ) {
                     afterFlush.accept( upserted );
                 }
@@ -374,7 +440,10 @@ public class EmbeddingIndexService {
                 final UUID[] idArray = chunkIds.toArray( UUID[]::new );
                 sel.setArray( 1, conn.createArrayOf( "uuid", idArray ) );
                 try( ResultSet rs = sel.executeQuery() ) {
-                    upserted += drainToUpserts( rs, ins, modelCode, null );
+                    // null writeConn = no mid-drain commits. This path re-embeds one
+                    // page's chunks after a save; all-or-nothing is the right semantic
+                    // and the set is far too small to need incremental durability.
+                    upserted += drainToUpserts( null, rs, ins, modelCode, null );
                 }
                 conn.commit();
             } catch( final SQLException e ) {

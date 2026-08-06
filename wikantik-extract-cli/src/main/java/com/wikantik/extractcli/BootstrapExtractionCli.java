@@ -283,7 +283,8 @@ public final class BootstrapExtractionCli {
             model,
             /*ollamaTagOverride*/ tag,
             /*timeoutMs*/ Math.max( 1, (int) Math.min( a.timeoutMs, Integer.MAX_VALUE ) ),
-            EmbeddingConfig.DEFAULT_BATCH_SIZE );
+            EmbeddingConfig.DEFAULT_BATCH_SIZE,
+            EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE );
         final TextEmbeddingClient batched = new OllamaEmbeddingClient( http, cfg );
         // Single-text adapter — KgNodeEmbeddingService never batches.
         final EmbeddingClient single = text ->

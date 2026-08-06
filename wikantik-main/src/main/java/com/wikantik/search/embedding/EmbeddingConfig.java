@@ -49,7 +49,8 @@ public record EmbeddingConfig(
     EmbeddingModel model,
     String ollamaTagOverride,
     int timeoutMs,
-    int batchSize
+    int batchSize,
+    int commitBatchSize
 ) {
 
     private static final Logger LOG = LogManager.getLogger( EmbeddingConfig.class );
@@ -62,6 +63,7 @@ public record EmbeddingConfig(
     public static final String PROP_OLLAMA_TAG   = "wikantik.search.embedding.ollama-tag";
     public static final String PROP_TIMEOUT_MS   = "wikantik.search.embedding.timeout-ms";
     public static final String PROP_BATCH_SIZE   = "wikantik.search.embedding.batch-size";
+    public static final String PROP_COMMIT_BATCH_SIZE = "wikantik.search.embedding.commit-batch-size";
 
     public static final String BACKEND_OLLAMA = "ollama";
 
@@ -70,6 +72,9 @@ public record EmbeddingConfig(
     public static final String  DEFAULT_MODEL_CODE = "qwen3-embedding-0.6b";
     public static final int     DEFAULT_TIMEOUT_MS = 30_000;
     public static final int     DEFAULT_BATCH_SIZE = 32;
+    /** @see EmbeddingIndexService#DEFAULT_COMMIT_BATCH_SIZE */
+    public static final int     DEFAULT_COMMIT_BATCH_SIZE =
+        EmbeddingIndexService.DEFAULT_COMMIT_BATCH_SIZE;
 
     public EmbeddingConfig {
         if( backend == null || backend.isBlank() ) {
@@ -111,8 +116,10 @@ public record EmbeddingConfig(
                                                     DEFAULT_TIMEOUT_MS, PROP_TIMEOUT_MS );
         final int     batchSize = parsePositiveInt( props.getProperty( PROP_BATCH_SIZE ),
                                                     DEFAULT_BATCH_SIZE, PROP_BATCH_SIZE );
+        final int     commitBatchSize = parsePositiveInt( props.getProperty( PROP_COMMIT_BATCH_SIZE ),
+                                                    DEFAULT_COMMIT_BATCH_SIZE, PROP_COMMIT_BATCH_SIZE );
         return new EmbeddingConfig( enabled, backend, baseUrl, apiKey, model,
-                                    tagOverride, timeoutMs, batchSize );
+                                    tagOverride, timeoutMs, batchSize, commitBatchSize );
     }
 
     /** The Ollama model tag this config should use, respecting any override. */

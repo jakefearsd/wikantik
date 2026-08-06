@@ -66,6 +66,30 @@ class EmbeddingConfigTest {
     }
 
     @Test
+    void commitBatchSizeDefaultsWhenAbsent() {
+        assertEquals( EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE,
+            EmbeddingConfig.fromProperties( new Properties() ).commitBatchSize() );
+    }
+
+    @Test
+    void commitBatchSizeReadsConfiguredValue() {
+        final Properties p = new Properties();
+        p.setProperty( EmbeddingConfig.PROP_COMMIT_BATCH_SIZE, "512" );
+        assertEquals( 512, EmbeddingConfig.fromProperties( p ).commitBatchSize() );
+    }
+
+    @Test
+    void nonPositiveCommitBatchSizeIsRejected() {
+        final Properties p = new Properties();
+        p.setProperty( EmbeddingConfig.PROP_COMMIT_BATCH_SIZE, "0" );
+        // Fails fast rather than silently defaulting, matching every other numeric
+        // property here — a commit interval of 0 would otherwise mean "never commit",
+        // which is the exact bug this setting exists to prevent.
+        assertThrows( IllegalArgumentException.class,
+            () -> EmbeddingConfig.fromProperties( p ) );
+    }
+
+    @Test
     void missingTagOverrideFallsBackToModelDefault() {
         final Properties p = new Properties();
         p.setProperty( EmbeddingConfig.PROP_MODEL, "qwen3-embedding-0.6b" );

@@ -125,6 +125,10 @@ wikantik.search.embedding.base-url   = @@EMBEDDING_BASE_URL@@
 # GPU; smaller = lower tail latency on CPU.
 #wikantik.search.embedding.batch-size = 32
 
+# Rows committed per transaction during a corpus backfill. Bounds how much
+# embedding work an interrupted run loses. Integer > 0.
+#wikantik.search.embedding.commit-batch-size = 256
+
 # ----- Knowledge-graph entity extraction -----
 # Backend for save-time + batch entity extraction.
 # Valid: disabled | ollama | claude

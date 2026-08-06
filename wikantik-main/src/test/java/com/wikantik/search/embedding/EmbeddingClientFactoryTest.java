@@ -35,7 +35,7 @@ class EmbeddingClientFactoryTest {
     void disabledFlagReturnsEmpty() {
         final EmbeddingConfig c = new EmbeddingConfig(
             false, "ollama", "http://localhost:11434", null,
-            EmbeddingModel.NOMIC_EMBED_V1_5, null, 30_000, 32 );
+            EmbeddingModel.NOMIC_EMBED_V1_5, null, 30_000, 32, EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE );
         final Optional< TextEmbeddingClient > client = EmbeddingClientFactory.create( c, HttpClient.newHttpClient() );
         assertFalse( client.isPresent() );
     }
@@ -44,7 +44,7 @@ class EmbeddingClientFactoryTest {
     void enabledFlagReturnsOllamaClient() {
         final EmbeddingConfig c = new EmbeddingConfig(
             true, "ollama", "http://localhost:11434", null,
-            EmbeddingModel.BGE_M3, null, 30_000, 32 );
+            EmbeddingModel.BGE_M3, null, 30_000, 32, EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE );
         final Optional< TextEmbeddingClient > client = EmbeddingClientFactory.create( c, HttpClient.newHttpClient() );
         assertTrue( client.isPresent() );
         assertInstanceOf( OllamaEmbeddingClient.class, client.get() );
@@ -56,7 +56,7 @@ class EmbeddingClientFactoryTest {
     void unsupportedBackendIsRejected() {
         final EmbeddingConfig c = new EmbeddingConfig(
             true, "tei", "http://localhost:8001", null,
-            EmbeddingModel.BGE_M3, null, 30_000, 32 );
+            EmbeddingModel.BGE_M3, null, 30_000, 32, EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE );
         assertThrows( IllegalArgumentException.class,
             () -> EmbeddingClientFactory.create( c, HttpClient.newHttpClient() ) );
     }

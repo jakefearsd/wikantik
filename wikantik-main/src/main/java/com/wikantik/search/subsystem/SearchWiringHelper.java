@@ -182,7 +182,7 @@ public final class SearchWiringHelper {
                     summary == null ? null : summary.toString() );
             };
         final EmbeddingIndexService indexService =
-            new EmbeddingIndexService( ds, client, cfg.batchSize(), ctxResolver );
+            new EmbeddingIndexService( ds, client, cfg.batchSize(), ctxResolver, cfg.commitBatchSize() );
         engine.setManager( EmbeddingIndexService.class, indexService );
 
         // Pick the dense retrieval backend up front so DenseRetriever (constructed

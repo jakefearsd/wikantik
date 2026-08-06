@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `WIKANTIK_EMBEDDING_BATCH_SIZE` and `WIKANTIK_EMBEDDING_TIMEOUT_MS` entrypoint passthroughs. These
+  two are coupled to how much CPU the embedding backend is allowed: a batch must complete inside the
+  timeout, or the request fails, is classified transient, and after 3 retries the entire reconcile
+  aborts. Capping the embedder's cores (a docker `cpus:` limit) multiplies per-batch time, so the
+  stock 32-texts/30s pair — fine unthrottled — starts timing out and embedding fails outright rather
+  than merely running slower. Found the hard way on a host capped to 2 CPUs to stop it power-cycling
+  under sustained all-core inference. Neither knob was reachable from the container env before, so
+  the only way to survive a CPU cap was to rebuild the WAR.
 - `WIKANTIK_EMBEDDING_COMMIT_BATCH_SIZE` entrypoint passthrough for
   `wikantik.search.embedding.commit-batch-size`, so the embedding backfill's commit interval can be
   tuned per host from `.env` without rebuilding the WAR. Added because the setting matters most

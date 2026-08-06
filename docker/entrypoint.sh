@@ -67,6 +67,13 @@
 #   WIKANTIK_KNOWLEDGE_ENABLED   "true"/"false" — consumed by wikantik.knowledge.enabled
 #                                (default true when unset; the consuming property ships
 #                                with the same release)
+#   WIKANTIK_EMBEDDING_BATCH_SIZE
+#                                texts per embedding backend round-trip (default 32).
+#   WIKANTIK_EMBEDDING_TIMEOUT_MS
+#                                per-request embedding timeout in ms (default 30000).
+#                                Coupled to the backend's available CPU — capping the
+#                                embedder's cores multiplies per-batch time and can push
+#                                a previously-fine batch past this timeout.
 #   WIKANTIK_EMBEDDING_COMMIT_BATCH_SIZE
 #                                rows committed per transaction during an embedding
 #                                backfill (default: ini bundle default = 256). Lower on
@@ -266,6 +273,32 @@ if [ -n "${WIKANTIK_EMBEDDING_BASE_URL:-}" ]; then
 
 # Embedding service base URL override (entrypoint-injected from env).
 wikantik.search.embedding.base-url = ${WIKANTIK_EMBEDDING_BASE_URL}
+EOF
+fi
+
+# Optional: embedding batch size and per-request timeout.
+#   WIKANTIK_EMBEDDING_BATCH_SIZE — texts per backend round-trip (default: ini bundle
+#   default = 32). WIKANTIK_EMBEDDING_TIMEOUT_MS — per-request HTTP timeout in ms
+#   (default: ini bundle default = 30000).
+#
+#   These two are coupled to how much CPU the embedding backend actually gets. A batch
+#   must finish inside the timeout or the request fails, is treated as transient, and
+#   after 3 retries the whole reconcile aborts. Constraining the backend's CPU (e.g. a
+#   docker `cpus:` cap) multiplies per-batch time, so a batch/timeout pair that worked
+#   unthrottled can start timing out. Lower the batch size, raise the timeout, or both.
+if [ -n "${WIKANTIK_EMBEDDING_BATCH_SIZE:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# Embedding batch size (entrypoint-injected from env).
+wikantik.search.embedding.batch-size = ${WIKANTIK_EMBEDDING_BATCH_SIZE}
+EOF
+fi
+
+if [ -n "${WIKANTIK_EMBEDDING_TIMEOUT_MS:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# Embedding per-request timeout (entrypoint-injected from env).
+wikantik.search.embedding.timeout-ms = ${WIKANTIK_EMBEDDING_TIMEOUT_MS}
 EOF
 fi
 

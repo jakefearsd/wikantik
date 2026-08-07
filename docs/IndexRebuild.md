@@ -166,6 +166,56 @@ Example:
 POLL_SECONDS=5 PROGRESS_SECONDS=15 bin/kg-rebuild.sh --skip-extract
 ```
 
+## The embedding backfill (separate pipeline)
+
+Everything above concerns the Lucene **text** index. Dense retrieval has its own pipeline —
+`EmbeddingIndexService` writing `content_chunk_embeddings` — with different triggers, failure modes
+and tuning. Rebuilding one does not rebuild the other.
+
+**Triggers.** `BootstrapEmbeddingIndexer.startIfNeeded()` runs on every boot and calls `indexStale`,
+which embeds only chunks that are missing or whose embedding predates the chunk's `modified`. That
+makes it self-healing and resumable: an interrupted run is completed by the next startup rather than
+restarted. `POST /admin/content/rebuild-indexes` forces a full pass (`indexAll`), which first
+*deletes* the model's existing rows so the admin progress bar can track 0 → N.
+
+**Durability.** Completed work is committed every `wikantik.search.embedding.commit-batch-size` rows
+(default 256), so an interruption costs at most one commit window. This was not always true — before
+2.3.15 the entire corpus ran in a single transaction and any crash discarded all of it, which is how
+production sat at zero embeddings for days while the logs reported thousands of rows "upserted".
+
+**Batch size and timeout are coupled — and coupled to the embedder's CPU.** A batch must complete
+inside `wikantik.search.embedding.timeout-ms` or the request fails, is classified transient, and after
+3 retries the *entire* reconcile aborts. Two things make this bite:
+
+- Constraining the embedder's cores (a docker `cpus:`/`cpuset:` limit) multiplies per-batch time.
+- Chunk sizes vary widely — check `/admin/content/index-status` for `chunks.avg_tokens` vs
+  `max_tokens`. A batch is embedded as sequential inference, so an *average* batch can fit the
+  timeout comfortably while one drawing several outsized chunks blows straight past it.
+
+The practical failure is therefore intermittent: most batches succeed, then one unlucky batch kills
+the whole run. On a CPU-only embedder pinned to 2 cores, `batch-size = 8` with
+`timeout-ms = 300000` runs the full corpus cleanly. All three settings are container-env tunable —
+see the `WIKANTIK_EMBEDDING_*` rows in [DockerDeployment.md](DockerDeployment.md).
+
+**Monitoring.**
+
+```bash
+curl -s -u "$LOGIN:$PASS" http://HOST:8080/admin/content/index-status \
+  | python3 -c "import json,sys; e=json.load(sys.stdin)['embeddings']; b=e['bootstrap']; \
+print(b['state'], f\"{e['row_count']}/{b['chunks_total']}\", 'err=', b['error_message'])"
+```
+
+`state` is `RUNNING` → `COMPLETED`, or `FAILED` with `error_message` set. `row_count` climbing in
+exact `commit-batch-size` increments is the signal that commits are landing.
+
+**When it finishes.** On success, `invokePostRun()` fires the dense index's reload hook and hybrid
+retrieval comes back **without a restart**. On `FAILED` that hook never fires, so the dense index
+stays exactly as stale as it was and hybrid silently degrades to BM25-only. The tell is a
+`/api/bundle` response whose `coverage` block reports `topSimilarity: -1.0` and
+`confidence: "unknown"` — the sentinel for "no dense similarity computed". A bundle can look
+perfectly healthy on section count alone while dense is entirely absent, so check coverage, not
+just results.
+
 ## Verifying the Rebuild
 
 After the index rebuilds, verify with:

@@ -77,8 +77,10 @@ rebase against `latestContent` and retry (no extra `read_page` needed).
   window refills in ~1s).
 - **Re-indexing is async.** Each save re-chunks + re-embeds off-thread; retrieval reflects the change
   only after the embed queue drains. Don't measure recall immediately after a big batch — and on the
-  dev `inmemory` backend a restart drops still-pending re-embeds, so let the queue drain first (prod
-  `lucene-hnsw` reads the DB).
+  dev `inmemory` backend a restart drops still-pending re-embeds, so let the queue drain first. (Prod
+  `lucene-hnsw` does *not* read through to the DB — it maintains its own Lucene index, but the
+  page-save path calls `upsertChunks` + `commitAndRefresh`, so a saved page is queryable without a
+  restart. Only `pgvector` genuinely reads through.)
 - Validate at the end with `assemble_bundle` on a sample (rule 2 above) — not after every edit.
 
 ### Rename / reorganize
@@ -149,9 +151,12 @@ Run when authoring or updating a page. **The live check (step 2) is the real gat
    to confirm the miss, then apply steps 1–2. (On a fresh/local instance with no traffic this returns
    nothing — it pays off against production logs.)
 
-> **Re-index note:** changing frontmatter re-embeds the page asynchronously. With the in-memory dense
-> backend the bundle won't reflect the change until the index reloads (a restart); `pgvector`/
-> `lucene-hnsw` backends read from the DB and update without a restart.
+> **Re-index note:** changing frontmatter re-embeds the page asynchronously. All three dense backends
+> reflect a *page save* without a restart, but by different means: `pgvector` reads through to the
+> dual-written `embedding vector(1024)` column, while `inmemory` and `lucene-hnsw` maintain their own
+> index and are updated incrementally by the `upsertChunks` callback on the save path. The difference
+> only bites on a **bulk corpus re-embed**, which does not refresh those two mid-run — they reload
+> once, when the bootstrap run completes successfully.
 
 ## SEO and Web Visibility
 

@@ -367,6 +367,15 @@ page-pre-select gap. Realized bundle @12 trajectory: 0.500 → 0.583 → 0.602 �
 Op note: the `inmemory` dense backend needs a reload after a re-index (restart) for the bundle to hydrate;
 prod `lucene-hnsw` reads from DB and is unaffected.
 
+> **Correction (2026-08-07):** the second clause is wrong. `lucene-hnsw` does not read through to the
+> DB — it maintains its own Lucene index and, like `inmemory`, is refreshed by an `upsertChunks`
+> callback on the page-save path and a `reload` hook after a bootstrap run. A **bulk re-index** does
+> not refresh it mid-run, and the reload hook fires only from `invokePostRun()` on the success path,
+> so a FAILED bootstrap leaves it stale with hybrid silently degraded to BM25-only. Only `pgvector`
+> genuinely reads through (its index is the dual-written `embedding vector(1024)` column). Verified
+> against `SearchWiringHelper` / `LuceneHnswChunkVectorIndex` and observed end-to-end on prod during
+> the 2026-08-06 backfill. The measurements above are unaffected — this corrects only the op note.
+
 ## MMR rerank measurement gate (Phase 1, 2026-07-10)
 
 The recall@12 no-regression gate is a MANUAL run — the bundle eval real-corpus tier is

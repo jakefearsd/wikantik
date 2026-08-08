@@ -12,6 +12,12 @@
     "https://wiki.wikantik.com/wiki/KnowledgeGraphRerank",
     "https://wiki.wikantik.com/wiki/ObservabilityDesign",
     "https://wiki.wikantik.com/wiki/DockerDeployment",
-    "https://wiki.wikantik.com/export/ontology.ttl"
+    "https://wiki.wikantik.com/export/ontology.ttl",
+    "https://wiki.wikantik.com/wiki/DataSciencePracticeHub",
+    "https://wiki.wikantik.com/wiki/OperationsResearchHub",
+    "https://wiki.wikantik.com/wiki/SoftwareEngineeringPracticesHub",
+    "https://wiki.wikantik.com/wiki/PandasVsPolars",
+    "https://wiki.wikantik.com/wiki/OpenSourceOptimizationSolvers",
+    "https://wiki.wikantik.com/wiki/PropertyBasedTesting"
   ]
 }

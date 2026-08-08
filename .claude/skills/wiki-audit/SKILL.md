@@ -5,7 +5,47 @@ description: Use when auditing wiki health, running maintenance checks, or gener
 
 ## Overview
 
-Audit the wiki's structural integrity, metadata completeness, and SEO readiness using four compound MCP tools. Auto-fix trivial issues, produce a prioritized Markdown report for follow-up via the wiki-content skill.
+Audit the wiki's structural integrity, metadata completeness, and SEO readiness. Auto-fix trivial issues, produce a prioritized Markdown report for follow-up via the wiki-content skill.
+
+> **⚠️ STALE PIPELINE (verify before use):** the four compound tools this skill was written
+> against (`get_cluster_map`, `audit_cluster`, `audit_cross_cluster`, `apply_audit_fixes`) were
+> **retired in the 2026-06-20 MCP tool reconciliation** and are absent from the live admin-mcp
+> server. Until this skill is rewritten, implement the legacy steps with live tools:
+> `list_clusters` + `list_pages_by_filter` (map), `verify_pages` with all checks (per-cluster
+> structural/metadata/SEO lint), `get_broken_links` + `get_orphaned_pages` (wiki-wide rollup),
+> and individual `update_page` calls for fixes (respecting the Auto-Fix Policy below).
+> The **Demand and Freshness Checks** section below is current and uses only live tools.
+
+## Demand and Freshness Checks (current — run on every audit)
+
+Two checks added 2026-08-08 per the content-program policy (see memory: practice-content-program).
+
+### D1 — Under-served real queries
+
+```
+misses = list_retrieval_queries(max_avg_results=1, since_days=<days since last audit>)   # admin-mcp
+for each miss:
+    bundle = assemble_bundle(query=miss.query)          # knowledge-mcp — confirm the miss is real
+    if confirmed: add to report → either fix an existing page's summary/headings
+                  (wiki-content retrieval loop) or queue a new page (project-anchored writing)
+```
+
+A query with no owning page is a content-gap signal; a query whose owning page exists but
+doesn't surface is a frontmatter/heading fix (see wiki-content skill, Retrieval Verification Loop).
+
+### D2 — Tool-practice staleness
+
+Tool-versioned content decays in ~a year; decision-rule content decays slowly. Flag, don't auto-fix:
+
+```
+for cluster in [operations-research, data-science-practice, software-engineering-practices]:
+    pages = list_pages_by_filter(cluster=cluster)
+    flag pages where verified_at is absent OR older than 12 months
+```
+
+Flagged pages go in the report under **Suggestion** as re-verification candidates: web-check the
+fast-decaying claims (versions, licensing, maintenance status, API spellings), fix, then
+`mark_page_verified`. Never re-verify by rereading alone — the point is checking against the world.
 
 ## Pipeline
 

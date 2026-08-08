@@ -113,8 +113,8 @@ flip in `.env`, then `bin/remote.sh deploy --skip-build` for a ~30 s restart.
 | `WIKANTIK_INDEXNOW_API_KEY` | *(empty — IndexNow disabled)* | `wikantik.indexnow.apiKey` | IndexNow verification key for `ping_search_engines` (Bing/Yandex). The same value must be served publicly at `<baseURL>/<key>.txt`. |
 | `MCP_ACCESS_KEYS` | *(none)* | `mcp.access.keys` in `wikantik-mcp.properties` | Comma-separated MCP bearer keys. DB-backed `api_keys` also work. |
 | `MCP_USERS` | `curator` | *(env only — for compose healthcheck context)* | Informational; records which user accounts are expected MCP callers. |
-| `MCP_RATE_LIMIT_GLOBAL` | `100` | `mcp.ratelimit.global` | Global request-per-minute cap across all MCP clients. |
-| `MCP_RATE_LIMIT_PER_CLIENT` | `10` | `mcp.ratelimit.perClient` | Per-client request-per-minute cap. |
+| `MCP_RATE_LIMIT_GLOBAL` | `500` | `mcp.ratelimit.global` | Global requests-per-**second** cap across all MCP clients (1-second sliding window in `SlidingWindowRateLimiter`). |
+| `MCP_RATE_LIMIT_PER_CLIENT` | `50` | `mcp.ratelimit.perClient` | Per-client requests-per-**second** cap (same 1-second sliding window). Raised 5x from 10 on 2026-08-08 to unthrottle agent authoring sessions. |
 | `DB_HOST_BIND` | `172.17.0.1` | `docker-compose.prod.yml` port binding | Host interface PostgreSQL is published on (prod overlay only) — the docker0 bridge gateway by default, keeping the DB off the LAN. Set to `0.0.0.0` only to expose LAN-wide. |
 | `DB_EXPORTER_PASSWORD` | *(none)* | passed to V031 via `migrate.sh` as `:exporter_password` | Password for the `wikantik_exporter` monitoring role created by migration V031. Required in prod to let the jakemon postgres-exporter authenticate. |
 | `WIKANTIK_SEED_DEV_USERS` | `false` | entrypoint only | Set `true` to ensure the default admin (admin/admin123, must-change-on-first-login) exists on start (via `bin/db/seed-users.sql`). Fresh databases get the same flagged admin from migrations V002+V039 regardless. **Never set in production.** |

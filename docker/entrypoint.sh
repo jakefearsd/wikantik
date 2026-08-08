@@ -474,8 +474,8 @@ mcp.server.name = wikantik-mcp
 mcp.server.title = Wikantik Knowledge Base
 mcp.server.version = 2.0.0
 mcp.instructions.file = wikantik-mcp-instructions.txt
-mcp.ratelimit.global = ${MCP_RATE_LIMIT_GLOBAL:-100}
-mcp.ratelimit.perClient = ${MCP_RATE_LIMIT_PER_CLIENT:-10}
+mcp.ratelimit.global = ${MCP_RATE_LIMIT_GLOBAL:-500}
+mcp.ratelimit.perClient = ${MCP_RATE_LIMIT_PER_CLIENT:-50}
 EOF
 
 if [ -n "${MCP_ACCESS_KEYS:-}" ]; then

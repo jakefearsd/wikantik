@@ -7,10 +7,10 @@
 # Empirical measurements on this dev machine (2026-04-24):
 #   * retrieve_context: ~5 req/s sustained concurrent, ~2 req/s sequential
 #   * initialize / tools-list: ~300 req/s cheap-metadata concurrent
-# perClient=20 comfortably absorbs the metadata burst that every MCP
-# client fires at session open (initialize + notifications/initialized
-# + tools/list) and leaves headroom for a steady retrieve_context stream;
-# global=60 allows ~3 concurrent agents without surprises.
+# perClient=100 lets a single agent sustain fast batched tool-call loops
+# (raised 5x on 2026-08-08 — the old 20/s ceiling throttled bulk authoring
+# sessions); global=300 allows ~3 concurrent agents at full speed without
+# surprises.
 
-mcp.ratelimit.global = 60
-mcp.ratelimit.perClient = 20
+mcp.ratelimit.global = 300
+mcp.ratelimit.perClient = 100

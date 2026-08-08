@@ -128,6 +128,9 @@
           <h3>A live Confluence connector, not just a one-time export</h3>
           <p>Wikantik ships a native <a href="/platform/connectors.html">Confluence connector</a> that syncs a space, page by page, on a recurring schedule through the Confluence API — set up through a guided admin wizard with a dry-run connection test, with your API token encrypted at rest. Synced pages are clearly marked with where they came from and stay current as the source changes, so you can run Wikantik and Confluence side by side during an evaluation instead of committing to a big-bang cutover up front. It is a sync connector, not a pixel-perfect migration tool: it carries over page content, not Confluence's macro ecosystem, so heavily macro-laden pages still want a human pass.</p>
 
+          <h2>Can you still self-host Confluence? Server EOL, Data Center, and your options</h2>
+          <p>Many teams land here after discovering that self-hosting Confluence got harder. Atlassian ended support for Confluence Server in February 2024, leaving <strong>Confluence Data Center</strong> as the only self-managed edition — licensed annually with a 500-user minimum tier, which prices out small and mid-size teams that simply want a wiki on their own hardware. The practical choices today are: move to hosted Confluence on Atlassian Cloud (per-seat, your data in Atlassian's cloud), pay for Data Center, or adopt a self-hosted Confluence alternative built for single-team scale. Wikantik is squarely the third option: Docker Compose on any Linux host, PostgreSQL underneath, free self-managed licensing, and a <a href="/platform/connectors.html">live Confluence connector</a> so the move can be gradual rather than a cliff.</p>
+
           <h2>Honest trade-offs: where Confluence is genuinely stronger</h2>
           <p>Confluence has a large, mature ecosystem of third-party plugins and integrations. If your team depends on specific Confluence macros, deep Jira integration, or any of the hundreds of Marketplace add-ons, those do not exist in Wikantik. The rich-text editor and inline comments are polished in ways that a Markdown editor simply is not for non-technical contributors. And Confluence's install base means most enterprise tools have Confluence connectors already — Wikantik is newer and has a smaller ecosystem by definition.</p>
           <p>If your team is already all-in on the Atlassian suite and non-technical contributors are the primary writers, Confluence may remain the better fit. Wikantik is strongest when the primary authors are engineers, the content is technical, and AI-assisted retrieval and data ownership are first-class concerns.</p>
@@ -148,6 +151,14 @@
             <details>
               <summary>Is Wikantik cheaper than Confluence?</summary>
               <p>Wikantik's self-managed option is free software — you pay for your own infrastructure. The fully-managed option is priced on compute, not per seat. Whether it is cheaper depends on your team size, infrastructure costs, and how you value operational ownership.</p>
+            </details>
+            <details>
+              <summary>Can Confluence itself still be self-hosted?</summary>
+              <p>Only via Confluence Data Center. Atlassian ended Confluence Server support in February 2024, and Data Center licensing starts at a 500-user tier — viable for large enterprises, rarely for small teams. That licensing change is the most common reason teams evaluate a self-hosted Confluence alternative like Wikantik, which runs on Docker and PostgreSQL with no per-seat or minimum-tier licensing.</p>
+            </details>
+            <details>
+              <summary>What about hosted Confluence — is Atlassian Cloud the answer?</summary>
+              <p>Hosted Confluence (Atlassian Cloud) removes the operations burden but keeps per-seat pricing and moves your knowledge base into Atlassian's cloud. If what you actually want is a hosted wiki without per-seat costs — or the option to run the same software on your own infrastructure later — a self-hostable platform with a managed option gives you both paths without a storage-format migration between them.</p>
             </details>
           </section>
         </div>

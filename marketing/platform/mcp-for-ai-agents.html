@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="google-adsense-account" content="ca-pub-5083997587716933">
-  <title>MCP server for your wiki — a knowledge base for AI agents | Wikantik</title>
+  <title>Knowledge base MCP server — your wiki as tools for AI agents | Wikantik</title>
   <meta name="description" content="Wikantik exposes native Model Context Protocol servers so your AI agents query, retrieve, and cite your wiki directly — read-only retrieval plus admin curation tools.">
   <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://www.wikantik.com/platform/mcp-for-ai-agents.html">
@@ -13,13 +13,13 @@
   <!-- Open Graph -->
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://www.wikantik.com/platform/mcp-for-ai-agents.html">
-  <meta property="og:title" content="MCP server for your wiki — a knowledge base for AI agents | Wikantik">
+  <meta property="og:title" content="Knowledge base MCP server — your wiki as tools for AI agents | Wikantik">
   <meta property="og:description" content="Wikantik exposes native Model Context Protocol servers so your AI agents query, retrieve, and cite your wiki directly — read-only retrieval plus admin curation tools.">
   <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="MCP server for your wiki — a knowledge base for AI agents | Wikantik">
+  <meta name="twitter:title" content="Knowledge base MCP server — your wiki as tools for AI agents | Wikantik">
   <meta name="twitter:description" content="Wikantik exposes native Model Context Protocol servers so your AI agents query, retrieve, and cite your wiki directly — read-only retrieval plus admin curation tools.">
   <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
@@ -42,7 +42,7 @@
 
   <script type="application/ld+json">
   { "@context": "https://schema.org", "@type": "TechArticle",
-    "headline": "MCP server for your wiki — a knowledge base for AI agents",
+    "headline": "Knowledge base MCP server — your wiki as tools for AI agents",
     "description": "Wikantik exposes native Model Context Protocol servers so your AI agents query, retrieve, and cite your wiki directly — read-only retrieval plus admin curation tools.",
     "datePublished": "2026-06-07", "dateModified": "2026-07-05",
     "author": { "@type": "Person", "name": "Jacob Fear" },
@@ -98,8 +98,8 @@
       <article class="doc">
         <header class="doc-head">
           <p class="eyebrow">Platform</p>
-          <h1>MCP for AI agents: your wiki as a tool surface</h1>
-          <p class="doc-lede">Wikantik exposes two native Model Context Protocol servers over Streamable HTTP — one for reading and retrieval, one for curation and analytics — so your AI agents can query, cite, and manage your knowledge base without scraping HTML or parsing sitemaps.</p>
+          <h1>A knowledge base MCP server: your wiki as a tool surface for AI agents</h1>
+          <p class="doc-lede">Wikantik exposes two native Model Context Protocol servers over Streamable HTTP — one for reading and retrieval, one for curation and analytics — so your AI agents can query, cite, and manage your knowledge base without scraping HTML or parsing sitemaps. If you are looking for a knowledge base MCP server your whole team can write to, this is the built-in kind: the wiki is the MCP server.</p>
         </header>
         <div class="doc-body">
 
@@ -164,6 +164,10 @@
             <details>
               <summary>How is MCP access controlled?</summary>
               <p>Both MCP servers sit behind access filters (<code>KnowledgeMcpAccessFilter</code> and <code>McpAccessFilter</code>) that require a bearer token or API key. No token, no tool calls. The same page-level ACLs that protect the web UI are enforced on retrieval results.</p>
+            </details>
+            <details>
+              <summary>How is this different from building a knowledge base MCP server myself?</summary>
+              <p>A typical DIY knowledge base MCP server wraps a vector store and a chunking pipeline that you build, feed, and keep in sync. Here the MCP server is a built-in surface of the wiki itself: content is authored (or synced via connectors) once, and hybrid retrieval, the knowledge graph, citations with version pins, and access control come with it — no separate ingestion pipeline to operate, and no drift between what the team edits and what agents retrieve.</p>
             </details>
           </section>
         </div>

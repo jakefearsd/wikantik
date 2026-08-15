@@ -832,6 +832,136 @@ git commit -m "docs: changelog for dead-code sweep"
 
 ---
 
+### Task 11: Repair shipped pages that reference removed code
+
+Added 2026-08-15 on the user's instruction ("fix broken content as part of the work") after Task 2
+surfaced the first instance. A sweep of every `[{$variable}]` and `[{Plugin}]` reference in the
+shipped default pages (`wikantik-wikipages/*/src/main/resources`) and the served local corpus
+(`docs/wikantik-pages/*.md`) found dangling references confined to **three files**, all of them the
+translated copies of `SystemInfo.md`, which were never updated during the JSPWiki→Wikantik rebrand.
+
+Verified facts — do not re-derive, but do re-check with `grep -a` before editing (these files are
+ISO-8859-1 / 8-bit and plain `grep` silently reports nothing):
+
+| Reference | Status | Action |
+|---|---|---|
+| `[{SessionsPlugin}]`, `[{SessionsPlugin property=users}]` | No such class anywhere in the tree, and no renderer special-case | Delete the rows |
+| `[{ListLocksPlugin}]` | Same | Delete the row + its section heading |
+| `[{$jspwiki.attachmentProvider}]` | Resolver 7 only honours a `wikantik.` prefix, and `wikantik.attachmentProvider` is **not set** in the shipped ini — but `DefaultVariableManager.getAttachmentprovider()` exists, so the bare getter form resolves | Rewrite to `[{$attachmentprovider}]` |
+| `[{$jspwiki.breakTitleWithSpaces}]` | Live key at `ini/wikantik.properties:261` | Rewrite prefix to `wikantik.` |
+| `[{$jspwiki.translatorReader.matchEnglishPlurals}]` | Live key at `:271` | Rewrite prefix |
+| `[{$jspwiki.translatorReader.camelCaseLinks}]` | Live key at `:284` | Rewrite prefix |
+| `[{$jspwiki.translatorReader.allowHTML}]` | Live key at `:478` | Rewrite prefix |
+| `[{$jspwiki.rss.generate\|fileName\|interval}]` | Keys deleted in Task 2 | Delete the rows + their section heading |
+| `[{TableOfContents}]` (11 shipped pages) | **NOT broken** — `PluginLinkNodePostProcessorState.process` intercepts it and maps it to Flexmark's `TocExtension`; no plugin class is needed | Leave alone |
+| `[{$message}]` on `RejectedMessage.md`, `[[{$variablename}]` on `TextFormattingRules.md` | **NOT broken** — a live session variable, and an escaped syntax example inside backticks | Leave alone |
+
+Out of scope, deliberately: broken *wikilinks* (a content-maintenance concern with its own admin
+tooling, unrelated to code removal), and the fact that these three translated pages write their
+tables without a header/separator row so they render as literal lines rather than tables
+(pre-existing formatting drift, not a dangling reference).
+
+**Files:** `wikantik-wikipages/{es,ru,zh_CN}/src/main/resources/SystemInfo.md` — all three are 45
+lines with **identical structure**, so one line map serves all three:
+
+```
+ 9  | **…sessions…**        | [{SessionsPlugin }]()                              DELETE
+10  | **…active users…**    | [{SessionsPlugin property=users}]()                DELETE
+15  | **…attachments…**     | [{$jspwiki.attachmentProvider}]                    → [{$attachmentprovider}]
+23  | **…titles…**          | [{$jspwiki.breakTitleWithSpaces}]                  → wikantik.
+24  | **…plurals…**         | [{$jspwiki.translatorReader.matchEnglishPlurals}]  → wikantik.
+25  | **…CamelCase…**       | [{$jspwiki.translatorReader.camelCaseLinks}]       → wikantik.
+26  | **…HTML…**            | [{$jspwiki.translatorReader.allowHTML}]            → wikantik.
+28  #### <RSS section heading>                                                   DELETE 28-33
+29  (blank)                                                                        (heading, blank,
+30  | **…generate RSS…**    | [{$jspwiki.rss.generate}]                            3 rows, blank)
+31  | **…file name…**       | [{$jspwiki.rss.fileName}]
+32  | **…interval…**        | [{$jspwiki.rss.interval}]
+33  (blank)
+41  #### <currently-locked-pages heading>                                        DELETE 41-44
+42  (blank)                                                                        (heading, blank,
+43  [{ListLocksPlugin }]()                                                         plugin, blank)
+44  (blank)
+```
+
+**Interfaces:**
+- Consumes: Task 2 (which deleted the `wikantik.rss.*` keys these rows would otherwise point at)
+- Produces: zero dangling `[{$…}]` or `[{Plugin}]` references in any shipped or served page.
+
+- [ ] **Step 1: Confirm the inventory still holds**
+
+```bash
+cd /home/jakefear/source/jspwiki
+grep -rhao '\[{\$[A-Za-z0-9_.]*}\]' wikantik-wikipages/*/src/main/resources docs/wikantik-pages/*.md | sed 's/\[{\$//; s/}\]//' | sort | uniq -c | sort -rn
+grep -ran 'SessionsPlugin\|ListLocksPlugin' wikantik-wikipages docs/wikantik-pages | grep -v /target/
+```
+
+Expected: eight `jspwiki.*` variable names at 3 occurrences each, and `SessionsPlugin`/`ListLocksPlugin` only in the three translated `SystemInfo.md` files. Note the `-a` on the second sweep — without it these files read as binary and print nothing.
+
+- [ ] **Step 2: Record each file's encoding**
+
+```bash
+for f in es ru zh_CN; do file -b --mime-encoding wikantik-wikipages/$f/src/main/resources/SystemInfo.md; done
+```
+
+Expected: `iso-8859-1`, `unknown-8bit`, `unknown-8bit`. Write these down — Step 5 checks they are unchanged.
+
+- [ ] **Step 3: Rewrite the five live variable references**
+
+Byte-safe, ASCII-only match and replace, so no translated prose is touched:
+
+```bash
+for f in es ru zh_CN; do
+  p=wikantik-wikipages/$f/src/main/resources/SystemInfo.md
+  LC_ALL=C sed -i 's/{\$jspwiki\.attachmentProvider}/{$attachmentprovider}/' "$p"
+  LC_ALL=C sed -i 's/{\$jspwiki\./{$wikantik./g' "$p"
+done
+```
+
+The second expression rewrites only what the first left behind — after Step 4 removes the RSS rows there must be no `jspwiki.` left at all, so run Step 4 first if you prefer; either order works as long as the final sweep is clean.
+
+- [ ] **Step 4: Delete the four dead blocks, bottom-up so line numbers stay valid**
+
+```bash
+for f in es ru zh_CN; do
+  p=wikantik-wikipages/$f/src/main/resources/SystemInfo.md
+  LC_ALL=C sed -i '41,44d' "$p"   # locked-pages heading + ListLocksPlugin
+  LC_ALL=C sed -i '28,33d' "$p"   # RSS heading + 3 rss rows
+  LC_ALL=C sed -i '9,10d'  "$p"   # two SessionsPlugin rows
+done
+```
+
+Bottom-up is mandatory: deleting lines 9-10 first would shift every later range by two. Verify each file is 45 − 12 = 33 lines afterwards.
+
+- [ ] **Step 5: Verify — encoding preserved, no dangling references, pure deletions**
+
+```bash
+for f in es ru zh_CN; do file -b --mime-encoding wikantik-wikipages/$f/src/main/resources/SystemInfo.md; done
+grep -ran 'jspwiki\.\|SessionsPlugin\|ListLocksPlugin' wikantik-wikipages/*/src/main/resources/SystemInfo.md
+git diff --stat -- '*SystemInfo.md'
+```
+
+Expected: the same three encodings as Step 2; no output from the reference sweep; a diff that is deletions plus five single-line rewrites per file — **never** a whole-file rewrite (that means the editor re-encoded the file; revert and redo with `LC_ALL=C sed`).
+
+- [ ] **Step 6: Confirm the surviving markup still reads correctly**
+
+Dump each file and check that no section heading now stands over nothing, no blank-line run doubled, and the closing line survives:
+
+```bash
+for f in es ru zh_CN; do echo "== $f"; LC_ALL=C cat -n wikantik-wikipages/$f/src/main/resources/SystemInfo.md | LC_ALL=C sed 's/[^[:print:]\t]/·/g' | cut -c1-90; done
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add wikantik-wikipages/es/src/main/resources/SystemInfo.md \
+        wikantik-wikipages/ru/src/main/resources/SystemInfo.md \
+        wikantik-wikipages/zh_CN/src/main/resources/SystemInfo.md
+git commit -m "fix: repair dangling variable and plugin references in translated SystemInfo pages"
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage.** Every Tier-A row maps to a task: descriptors → T1; config keys → T2; i18n bundle + `TranslationsCheck` → T3; Command/ContextEnum + `WikiServletFilter` installer text + `GenericCommand.getKind/isRedirectCommand` → T4; classes → T5; methods → T6; frontend → T7; WAR relics → T8. Tier B → T9 (decisions taken 2026-08-15; two deletions + two documented keeps). Tier C is explicitly out of scope and listed as follow-ups. Sweep + gate → T10.

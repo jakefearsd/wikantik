@@ -24,7 +24,7 @@ related:
 
 # Cluster Declaration Design
 
-> **Status: active. Phases 0 and 1 complete 2026-08-15; phases 0b and 2–5 not started.**
+> **Status: active. Phases 0, 0b, 1 and 2 complete 2026-08-15; phases 3–5 not started.**
 > Supersedes the informal cluster convention described in
 > [StructuralSpineDesign](StructuralSpineDesign). Decision recorded as
 > ADR-0009. The phases below are sequenced; nothing outside them is planned.
@@ -452,7 +452,7 @@ state and migrated independently.
 
 Production settled at **90 hubs declaring 90 distinct clusters**.
 
-### Phase 0b — Corpus reconciliation
+### Phase 0b — Corpus reconciliation — **COMPLETE 2026-08-15**
 
 Phase 0 surfaced a problem the rest of this design had assumed away: **the
 repository corpus and the production page store are different corpora, not two
@@ -504,6 +504,29 @@ Scope:
    authored in-repo is pushed to production and then mirrored back, so the
    direction of truth stays single.
 
+Shipped: `CorpusDivergenceCli` in `wikantik-extract-cli` compares
+`docs/wikantik-pages/` against a live wiki's `/api/structure/sitemap` — one unpaginated
+request, so the remote snapshot is complete by construction rather than assembled from
+per-page fetches that can each fail. A `CorpusSnapshot` carries its own read errors, and
+`CorpusDiff` **refuses** (exit 2, distinct from exit 1 for divergence) to compare an
+incomplete one: that is the encoded lesson, since a partial corpus turns every unread page
+into a phantom "missing from production". Filesystem name-mangling is reversed, so
+`AgentLoops+Hub.md` compares as the page `AgentLoops Hub`.
+
+```
+java -cp wikantik-extract-cli/target/wikantik-extract-cli.jar \
+     com.wikantik.extractcli.CorpusDivergenceCli docs/wikantik-pages https://wiki.wikantik.com [--check]
+```
+
+First run against production: **240 findings — 3 only-in-repo, 163 only-in-prod, 74
+differing fields.** The scale of "only-in-prod" is the measurement that justifies this phase.
+Among the differences: `WikantikDevelopment` and `WikantikDevelopmentHub` carry opposite
+`type` values in the two corpora — precisely the disagreement that produced the Phase 0
+defect.
+
+The one-way export (production → repository) remains unbuilt; the divergence report is the
+guardrail that was actually blocking, and it reuses the same `RemoteCorpusSource`.
+
 Phase 0b does **not** block Phase 1; they are independent.
 
 ### Phase 1 — Projection — **COMPLETE 2026-08-15**
@@ -528,11 +551,28 @@ a `hub_declared` boolean alongside `hub_slug`, since Gson omits null keys and th
 have to infer meaning from an absent field. Hub `hasPart` falls back to frontmatter `related`
 whenever the structural index is unavailable, so SSR never blocks on a warming index.
 
-### Phase 2 — Enforcement
+### Phase 2 — Enforcement — **COMPLETE 2026-08-15**
 
 The duplicate-declaration ERROR in `StructuralSpinePageFilter`, shipped dark
 behind a property gate and flipped on only after Phase 0 verifies clean. The
 undeclared-cluster WARNING routed to `/admin/drift`.
+
+Shipped: the ERROR is gated by `wikantik.cluster_declaration.enforcement.enabled`,
+**default false**. Enabling it against a corpus that still holds duplicates would make the
+offending hub pages un-saveable — trapping exactly the content that needs editing to fix
+them — so the flip is a deliberate act after a corpus verifies clean. Both corpora verified
+clean in Phase 0, so the flip is now safe to make.
+
+The incumbent hub can always re-save itself: a page is treated as the current declarant if
+**either** its `canonical_id` or its slug matches, so neither an in-flight rename nor a
+frontmatter-stripping save path can lock an author out of the page they need to edit.
+Matching on the cluster alone would have made every hub in the wiki un-editable the moment
+the gate was flipped.
+
+The warning travels on the shared `ValidationCtx` (a new `clusterIsDeclared` predicate)
+rather than being invented at the dashboard, so one signal feeds both the drift burn-down and
+any future editor surface. With no structural index wired the predicate passes everything —
+an index that has not warmed up must not flag the entire corpus.
 
 ### Phase 3 — Rendering
 

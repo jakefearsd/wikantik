@@ -44,5 +44,14 @@ committing 1,193 duplicate files creates a machine-owned copy of human-owned pag
 write-back path — the drift generator ADR-0004 exists to prevent. Not deferred: **not in the
 plan, in any form.** Likewise cluster nesting deeper than one level.
 
-Design detail, measured evidence, and the six-phase migration: `ClusterDeclarationDesign`
+Consequence discovered while migrating (2026-08-15): the repository corpus and the production page
+store are **different corpora, not two copies**. Production holds pages absent from
+`docs/wikantik-pages/` — including the hub declaring production's `computer-science` cluster — so a
+corpus-wide plan derived from the checkout is wrong for production, and `bin/remote.sh pages-pull`
+cannot reconcile them (it fails `Permission denied` on container-owned pages and silently returns a
+partial corpus). Production is therefore **authoritative for content**; the checkout is a mirror and
+the local-development corpus. Corpus-wide changes are derived from the live structural index, never
+from the checkout.
+
+Design detail, measured evidence, and the seven-phase migration: `ClusterDeclarationDesign`
 (`docs/wikantik-pages/ClusterDeclarationDesign.md`).

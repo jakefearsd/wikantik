@@ -24,9 +24,10 @@ related:
 
 # Cluster Declaration Design
 
-> **Status: active.** Supersedes the informal cluster convention described in
+> **Status: active. Phase 0 complete 2026-08-15; phases 1–5 not started.**
+> Supersedes the informal cluster convention described in
 > [StructuralSpineDesign](StructuralSpineDesign). Decision recorded as
-> ADR-0009. Phases 0–5 below are sequenced; nothing outside them is planned.
+> ADR-0009. The phases below are sequenced; nothing outside them is planned.
 
 ## Hub-declared clusters replace free-text cluster strings
 
@@ -393,9 +394,9 @@ mode). **It is not wanted. No work is proposed, now or later.**
 
 ## Phases
 
-All six phases are planned and sequenced. Nothing outside them is in scope.
+All seven phases are planned and sequenced. Nothing outside them is in scope.
 
-### Phase 0 — Content migration
+### Phase 0 — Content migration — **COMPLETE 2026-08-15**
 
 Executable **today, before any code lands**: `cluster: parent/child` is already
 legal, `(type: hub, cluster: X)` is already the shape, and every change is a
@@ -403,44 +404,21 @@ frontmatter edit revertable per page through normal version history. The
 directory equivalent would require the code to land first and offer no per-page
 rollback.
 
-**Multi-hub clusters (15) — resolve by pattern:**
+**Multi-hub clusters — resolve by pattern:** promote the narrower hub to a
+sub-cluster (`FormalMethodsHub` → `distributed-systems/formal-methods`,
+`DimensionalModelingHub` → `data-engineering/dimensional-modeling`,
+`JavaMemoryManagementHub` → `java/memory-management`, `MlModelDeploymentHub` →
+`machine-learning/mlops`, and so on); demote overlapping or stub indexes to
+`type: article`; merge true duplicates.
 
-*Promote to sub-cluster (~11):* `FormalMethodsHub` →
-`distributed-systems/formal-methods`; `DimensionalModelingHub` →
-`data-engineering/dimensional-modeling`; `JavaMemoryManagementHub` →
-`java/memory-management`; `MlModelDeploymentHub` → `machine-learning/mlops`;
-`QuantitativeFinanceResearchHub` → `machine-learning/quantitative-finance`;
-`BackwardsCompatibilityStrategiesHub` →
-`software-engineering-practices/backwards-compatibility`;
-`TypesofInvestmentAccountsTutorialHub` → `index-fund-investing/account-types`;
-`DownsizingInRetirementHub` → `retirement-planning/downsizing`;
-`LeanManufacturingPrinciplesHub` → `warehouse-automation/lean-manufacturing`;
-`AIInfrastructureHub` → `generative-ai/ai-infrastructure`;
-`LogisticsIndustrialHub` → `operations-research/logistics`.
+**Headless clusters:** declare a hub for the real ones; fold the debris
+(`Test`, `engineering`, `economics-finance`, `military-history`,
+`professional-development`, `industrial-ai`, `science`, `programming-languages`,
+`american-coinage`, `coin-collecting`) into their proper homes.
 
-*Merge duplicates (3):* `WikantikDevelopment` + `WikantikDevelopmentHub`;
-`DevOpsAndSreHub` + `InfrastructureSreHub`; `AmericanCoinageHub` +
-`CoinCollectingHub` — the last folded together with the headless
-`american-coinage` (2) and `coin-collecting` (1) clusters into `numismatics`.
-
-*Demote mistyped hubs to `type: article` (4):* `Berlin`, `DataMaturityLifecycle`,
-`EuRetirementSavingsGuide`, `IndexFundInvestingForEarlyRetirement`.
-
-**Headless clusters (20):** declare a hub for the real ones — `van-life` (32),
-`computer-science` (30), `cooking-and-food` (13), `engineering-leadership` (13,
-where the unclustered `EngineeringLeadershipHub` page is the obvious declarant),
-`mechanical-engineering` (10), `immigration` (9), `remote-host-management` (6),
-`blockchain-tech` (5). Merge or delete the debris — `Test`, `engineering` (3),
-`hobbies` (3), `economics-finance` (1), `military-history` (1),
-`professional-development` (1), `computational-finance` (2, folded into
-`machine-learning/quantitative-finance`), `industrial-ai` (2),
-`life-sciences` (3), `materials-science` (3).
-
-**Clusterless hubs (13):** the `auto-generated: true` pages with spaced names
-(`AgentLoops Hub`, `PredicateLogic Hub`, …) are assigned a cluster or demoted.
-
-**Unclustered pages (9):** `Main` and `News` are system pages and stay
-unclustered by design; the other seven are assigned.
+**Clusterless hubs:** the `auto-generated: true` pages with spaced names
+(`AgentLoops Hub`, `PredicateLogic Hub`, …) become sub-cluster declarations at
+their members' majority cluster, with real summaries and tags.
 
 **`hubs:` reconciliation (473 pages, 586 entries)** — 85% mechanical:
 
@@ -453,18 +431,89 @@ unclustered by design; the other seven are assigned.
 
 Phase 0 lands a valid **scalar** state throughout. Pages needing two memberships
 get one home now and their second in Phase 5; that sequencing is deliberate, not
-churn.
+churn. The `hubs:` strip itself is deferred until `HubSyncFilter` is removed —
+stripping the field while its bidirectional sync is live would cascade hundreds
+of unintended `related:` rewrites and invalidate in-flight edit hashes.
 
-*Both targets must be updated:* production's page store is independent of the
-repository, so each fix is a git edit **and** an MCP write. Bundled system pages
-refuse MCP writes and ship by deploy.
+*Both targets must be migrated separately.* The repository and production are
+**not two copies of one corpus** — see Phase 0b. Each was planned from its own
+state and migrated independently.
+
+**Outcome, validated against each target's own index:**
+
+| Invariant | Repository | Production |
+|---|---|---|
+| Duplicate cluster declarations | 0 (was 15) | 0 (was 19) |
+| Headless clusters | 0 (was 20) | 0 (was 11) |
+| Clusterless hub pages | 0 (was 13) | 0 (was 6) |
+| Orphan sub-clusters | 0 | 0 |
+| Depth > 1 | 0 | 0 |
+| Sub-clusters created | 24 | 28 |
+
+Production settled at **90 hubs declaring 90 distinct clusters**.
+
+### Phase 0b — Corpus reconciliation
+
+Phase 0 surfaced a problem the rest of this design had assumed away: **the
+repository corpus and the production page store are different corpora, not two
+copies of one.**
+
+Measured 2026-08-15: production holds pages absent from `docs/wikantik-pages/`
+entirely — including `ProgrammingLanguagesHub`, which *declares production's
+`computer-science` cluster* — the repository holds pages production lacks, and
+frontmatter differs on pages present in both. The two disagreed on 4 of the 15
+multi-hub resolutions.
+
+This is not cosmetic. Planning a corpus-wide change from the checkout produces a
+plan that is **wrong for production**. During Phase 0 it did exactly that: a hub
+was created on production for a cluster that was headless *in the repository* but
+already declared *in production*, introducing the precise duplicate-declaration
+defect this design exists to make impossible. It was caught by validating against
+the live index rather than against the plan, and reverted.
+
+**The existing transport cannot reconcile them.** `bin/remote.sh pages-pull`
+runs as the ssh user while app-written pages are container-owned, so it fails
+`Permission denied (13)` across a large subset and **silently returns a partial
+corpus** — 1191 of ~1200 pages, missing precisely the pages the application has
+rewritten — with nothing but a non-zero exit code to signal the gap. A tool whose
+failure mode is "quietly returns most of the data" is worse than no tool, because
+its output looks authoritative.
+
+**Decision: production is authoritative for content; the checkout is a mirror.**
+Production is where agents write, where the structural index lives, and where the
+content persists across deploys. `docs/wikantik-pages/` is the local-development
+corpus and the version-controlled record — it is not, and has never been, what
+seeds production. (Fresh installs seed from `wikantik-wikipages`, a separate
+module.) Naming this explicitly is most of the fix.
+
+Scope:
+
+1. **A complete, verifiable export** (production → repository, one-way). It must
+   fail loudly on partial transfer rather than return a truncated corpus. The
+   reliable path is the live index — walk `list_pages_by_filter` and batch through
+   `read_pages` — not the rsync that is already known to lose container-owned
+   files. Incremental via `updated_since` after the first full run.
+2. **A divergence report** — pages present on one side only, and frontmatter
+   deltas (`cluster`, `type`, `canonical_id`) on pages present in both. This is
+   the guardrail that would have prevented the Phase 0 defect. It belongs beside
+   the existing `GenerateMainPageCli` in `wikantik-extract-cli`, which already
+   establishes the pattern of a CLI that reads the corpus and supports a
+   `--check` mode for CI.
+3. **The planning rule, stated in the doc and enforced by habit:** corpus-wide
+   changes are derived from the live index, never from the checkout. A page
+   authored in-repo is pushed to production and then mirrored back, so the
+   direction of truth stays single.
+
+Phase 0b does **not** block Phase 1; they are independent.
 
 ### Phase 1 — Projection
 
 Segment-aware prefix matching in `StructuralProjection` and `StructuralFilter`;
-prefix walk in `DefaultKgInclusionPolicy.lookupCluster` (this fixes a live
-latent defect — today a sub-cluster inherits no policy and is silently
-EXCLUDE'd from the Knowledge Graph); deterministic hub selection; four new
+prefix walk in `DefaultKgInclusionPolicy.lookupCluster` — **no longer latent
+after Phase 0**: the lookup is exact-match, so the 28 sub-clusters now in
+production inherit no policy and are silently EXCLUDE'd from the Knowledge
+Graph until this lands, making it the highest-priority item in the phase;
+deterministic hub selection; four new
 `StructuralConflict.Kind` values — `DUPLICATE_CLUSTER_DECLARATION`,
 `HEADLESS_CLUSTER`, `UNDECLARED_CLUSTER`, `CLUSTERLESS_HUB`; `cluster_status` on
 the page payload; hub `hasPart` derived from membership.

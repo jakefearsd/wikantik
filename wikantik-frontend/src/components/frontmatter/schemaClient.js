@@ -17,8 +17,3 @@ export function getSchema() {
   }
   return cached;
 }
-
-/** Test hook: drop the cache so each test fetches fresh. */
-export function _resetSchemaCache() {
-  cached = null;
-}

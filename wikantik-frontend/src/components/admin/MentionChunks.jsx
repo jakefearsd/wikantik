@@ -71,7 +71,7 @@ export function makeHighlightRehype(needle) {
 // scale — but we still tighten margins and downgrade headings (chunks are
 // passages plucked from the middle of pages; their original <h1>/<h2>
 // outranks our admin layout's heading hierarchy).
-export const CHUNK_COMPONENTS = {
+const CHUNK_COMPONENTS = {
   p:    ({ children }) => <p style={{ margin: '0 0 8px 0' }}>{children}</p>,
   h1:   ({ children }) => <strong style={{ display: 'block', margin: '4px 0' }}>{children}</strong>,
   h2:   ({ children }) => <strong style={{ display: 'block', margin: '4px 0' }}>{children}</strong>,

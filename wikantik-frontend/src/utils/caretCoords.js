@@ -58,5 +58,3 @@ export function getCaretCoordinates(textarea) {
   document.body.removeChild(mirror);
   return { top: top + lineHeight + 2, left };
 }
-
-export default getCaretCoordinates;

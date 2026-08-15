@@ -65,10 +65,6 @@ export function toggleCluster(state, cluster) {
   return { ...state, clusters: next };
 }
 
-export function setClusters(state, clusters) {
-  return { ...state, clusters: new Set(clusters) };
-}
-
 export function setTags(state, tags) {
   return { ...state, tags: new Set(tags) };
 }

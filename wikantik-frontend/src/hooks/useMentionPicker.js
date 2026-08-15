@@ -171,5 +171,3 @@ export function useMentionPicker({ textareaRef, fetchCandidates }) {
     close,
   };
 }
-
-export default useMentionPicker;

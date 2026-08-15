@@ -7,7 +7,7 @@ const CapabilitiesContext = createContext(null);
 // "full") so a broken/slow /api/capabilities call never blanks out the UI of
 // an existing deployment — the SPA renders exactly as it did before this
 // endpoint existed until proven otherwise by a real `false` in the response.
-export const DEFAULT_CAPABILITIES = {
+const DEFAULT_CAPABILITIES = {
   knowledgeGraph: true,
   hybridSearch: true,
   genaiMode: 'full',

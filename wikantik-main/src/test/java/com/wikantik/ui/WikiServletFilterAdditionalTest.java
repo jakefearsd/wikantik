@@ -90,6 +90,7 @@ class WikiServletFilterAdditionalTest {
         assertDoesNotThrow( () -> filter.doFilter( req, resp, chain ) );
 
         Mockito.verify( resp ).setStatus( jakarta.servlet.http.HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+        Mockito.verify( resp ).setContentType( "text/plain;charset=UTF-8" );
 
         writer.flush();
         final String output = baos.toString();

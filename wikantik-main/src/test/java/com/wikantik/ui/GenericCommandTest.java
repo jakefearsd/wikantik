@@ -19,13 +19,14 @@
 package com.wikantik.ui;
 
 import com.wikantik.api.core.Command;
+import com.wikantik.api.core.ContextEnum;
 
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for {@link GenericCommand#toString()}.
+ * Tests for {@link GenericCommand#toString()} and the {@link ContextEnum} field-order invariant.
  */
 class GenericCommandTest {
 
@@ -47,11 +48,18 @@ class GenericCommandTest {
                 "untargeted command should have no target segment, was: " + s );
     }
 
+    /**
+     * Guards the {@link ContextEnum} constructor arguments against transposition. A URL pattern is always a
+     * substitution template rooted at the webapp base ({@code %u}); a request context never is. Swapping the two
+     * arguments of any constant therefore breaks both halves of this invariant at once.
+     */
     @Test
-    void everyStaticCommandHasARequestContextAndUrlPattern() {
-        for ( final Command c : GenericCommand.allCommands() ) {
-            assertNotNull( c.getRequestContext(), c.getName() );
-            assertNotNull( c.getURLPattern(), c.getName() );
+    void noContextEnumConstantHasTransposedConstructorArguments() {
+        for ( final ContextEnum ctx : ContextEnum.values() ) {
+            assertTrue( ctx.getUrlPattern().startsWith( "%u" ),
+                    () -> ctx.name() + ": urlPattern must start with %u, was: " + ctx.getUrlPattern() );
+            assertFalse( ctx.getRequestContext().startsWith( "%u" ),
+                    () -> ctx.name() + ": requestContext must not be a URL pattern, was: " + ctx.getRequestContext() );
         }
     }
 }

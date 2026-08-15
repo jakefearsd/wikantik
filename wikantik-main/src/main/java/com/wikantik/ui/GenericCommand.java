@@ -221,7 +221,7 @@ public final class GenericCommand implements Command {
     }
 
     /**
-     * Returns a String representation of the Command. Matches the format produced by {@link AbstractCommand#toString()}.
+     * Returns a String representation of the Command.
      *
      * @return string form
      */
@@ -238,7 +238,7 @@ public final class GenericCommand implements Command {
     // ---- static factory: all commands ----
 
     /**
-     * Returns a defensively-created array of all static Commands, in the same order as {@link AllCommands#get()}.
+     * Returns a defensively-created array of all static Commands.
      *
      * @return the array of commands
      */

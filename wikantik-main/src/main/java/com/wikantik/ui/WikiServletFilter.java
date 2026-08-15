@@ -96,9 +96,10 @@ public class WikiServletFilter implements Filter {
         
         if( engine == null ) {
             LOG.error( "Engine is null; wikantik.properties failed to load. Responding 503." );
-            final HttpServletResponse httpResponse = ( HttpServletResponse )response;
-            httpResponse.setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
-            httpResponse.setContentType( "text/plain;charset=UTF-8" );
+            if( response instanceof final HttpServletResponse httpResponse ) {
+                httpResponse.setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+            }
+            response.setContentType( "text/plain;charset=UTF-8" );
             final PrintWriter out = response.getWriter();
             out.print( "Wikantik is not configured (wikantik.properties failed to load)" );
             return;

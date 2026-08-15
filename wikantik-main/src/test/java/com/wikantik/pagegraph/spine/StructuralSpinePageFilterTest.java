@@ -21,10 +21,17 @@ package com.wikantik.pagegraph.spine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.FilterException;
+import com.wikantik.api.exceptions.FrontmatterValidationException;
+import com.wikantik.api.pagegraph.ClusterDetails;
+import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -56,6 +63,68 @@ class StructuralSpinePageFilterTest {
         final Properties p = new Properties();
         p.setProperty( "wikantik.structural_spine.enforcement.enabled", "false" );
         return p;
+    }
+
+    /* ---------- Phase 2: duplicate cluster declaration ---------- */
+
+    private static Properties withDuplicateGate( final boolean on ) {
+        final Properties p = enabled();
+        p.setProperty( "wikantik.cluster_declaration.enforcement.enabled", String.valueOf( on ) );
+        return p;
+    }
+
+    /** Wires the index so {@code cluster} is already declared by the named hub page. */
+    private void clusterDeclaredBy( final String cluster, final String hubSlug, final String hubId ) {
+        final PageDescriptor hub = new PageDescriptor( hubId, hubSlug, hubSlug, PageType.HUB,
+                cluster, List.of(), null, Instant.now(), Optional.empty(), false );
+        when( svc.getCluster( cluster ) ).thenReturn( Optional.of(
+                new ClusterDetails( cluster, hub, List.of( hub ), Map.of(), Instant.now() ) ) );
+    }
+
+    private static String hubPage( final String canonicalId, final String cluster ) {
+        return "---\ncanonical_id: " + canonicalId + "\ntype: hub\ncluster: " + cluster + "\n---\nBody.";
+    }
+
+    @Test
+    void rejects_a_hub_declaring_a_cluster_another_page_already_declares() {
+        clusterDeclaredBy( "machine-learning", "MLHub", "01HAA000000000000000000001" );
+        final var filter = new StructuralSpinePageFilter( svc, n -> false, withDuplicateGate( true ) );
+
+        final FrontmatterValidationException boom = assertThrows( FrontmatterValidationException.class,
+                () -> filter.preSave( ctx, hubPage( "01HAA000000000000000000002", "machine-learning" ) ) );
+
+        assertTrue( boom.getMessage().contains( "MLHub" ) || boom.toString().contains( "MLHub" ),
+                    "the refusal must name the hub that already declares it: " + boom );
+    }
+
+    /**
+     * The declaring hub must remain editable. Comparing only "is this cluster declared?"
+     * would make every hub un-saveable the moment enforcement went live.
+     */
+    @Test
+    void allows_the_declaring_hub_to_save_itself_again() throws Exception {
+        clusterDeclaredBy( "machine-learning", "MyPage", "01HAA000000000000000000001" );
+        final var filter = new StructuralSpinePageFilter( svc, n -> false, withDuplicateGate( true ) );
+
+        assertNotNull( filter.preSave( ctx, hubPage( "01HAA000000000000000000001", "machine-learning" ) ) );
+    }
+
+    @Test
+    void allows_a_non_hub_page_to_name_a_declared_cluster() throws Exception {
+        clusterDeclaredBy( "machine-learning", "MLHub", "01HAA000000000000000000001" );
+        final var filter = new StructuralSpinePageFilter( svc, n -> false, withDuplicateGate( true ) );
+
+        assertNotNull( filter.preSave( ctx,
+                "---\ncanonical_id: 01HAA000000000000000000009\ntype: article\ncluster: machine-learning\n---\nBody." ) );
+    }
+
+    /** Ships dark: the gate is off unless explicitly enabled, so Phase 2 can land before the flip. */
+    @Test
+    void duplicate_declaration_is_not_enforced_by_default() throws Exception {
+        clusterDeclaredBy( "machine-learning", "MLHub", "01HAA000000000000000000001" );
+        final var filter = new StructuralSpinePageFilter( svc, n -> false, enabled() );
+
+        assertNotNull( filter.preSave( ctx, hubPage( "01HAA000000000000000000002", "machine-learning" ) ) );
     }
 
     @Test

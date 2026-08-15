@@ -61,7 +61,7 @@ public final class SchemaDrivenFrontmatterValidator {
             final Object raw = metadata.get( spec.key() );
             switch ( spec.widget() ) {
                 case ENUM -> validateEnum( spec, raw, ctx, out );
-                case TEXT, TEXTAREA -> validateText( spec, raw, out );
+                case TEXT, TEXTAREA -> validateText( spec, raw, ctx, out );
                 case DATE -> validateDate( spec, raw, out, false );
                 case DATETIME -> validateDate( spec, raw, out, true );
                 case TAGS -> validateTags( spec, raw, out );
@@ -134,7 +134,8 @@ public final class SchemaDrivenFrontmatterValidator {
         return tokens;
     }
 
-    private void validateText( final FieldSpec spec, final Object raw, final List< FieldViolation > out ) {
+    private void validateText( final FieldSpec spec, final Object raw, final ValidationCtx ctx,
+                                final List< FieldViolation > out ) {
         if ( raw == null ) {
             return;
         }
@@ -159,6 +160,15 @@ public final class SchemaDrivenFrontmatterValidator {
                     + " Tolerated for now, but it will be rejected once the corpus is normalized.";
             out.add( new FieldViolation( spec.key(), Severity.WARNING, spec.key() + ".slug.malformed",
                     msg, suggestion.isEmpty() ? null : suggestion ) );
+        }
+        if ( "cluster".equals( spec.key() ) && !ctx.clusterIsDeclared().test( val ) ) {
+            // ClusterDeclarationDesign: a cluster exists only if a hub page declares it.
+            // Advisory by design — naming an undeclared cluster must never block the save
+            // (the page stays fully retrievable); it surfaces in the editor and is counted
+            // on the /admin/drift burn-down, where the fix is to write the missing hub.
+            out.add( FieldViolation.of( spec.key(), Severity.WARNING, "cluster.undeclared",
+                    "cluster '" + val + "' is not declared by any hub page. Create a page with"
+                            + " 'type: hub' and 'cluster: " + val + "' to declare it." ) );
         }
     }
 

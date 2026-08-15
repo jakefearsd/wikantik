@@ -25,11 +25,17 @@ import com.wikantik.api.filters.PageFilter;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.exceptions.FrontmatterValidationException;
+import com.wikantik.api.frontmatter.schema.FieldViolation;
+import com.wikantik.api.frontmatter.schema.Severity;
+import com.wikantik.api.pagegraph.ClusterDetails;
+import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.function.Predicate;
@@ -60,9 +66,21 @@ public class StructuralSpinePageFilter implements PageFilter {
     /** Master flag; default {@code true}. Setting to {@code false} reverts to Phase 2 warn-only behaviour. */
     public static final String PROP_ENFORCEMENT_ENABLED = "wikantik.structural_spine.enforcement.enabled";
 
+    /**
+     *  Gates the duplicate-cluster-declaration ERROR (ClusterDeclarationDesign Phase 2).
+     *
+     *  <p>Defaults to <b>false</b> so the rule can ship dark and be switched on only once a
+     *  corpus verifies clean — enabling it against a corpus that still has duplicates would
+     *  make the offending hub pages un-saveable, trapping the very content that needs
+     *  editing to fix them.</p>
+     */
+    public static final String PROP_DUPLICATE_DECLARATION_ENFORCED =
+            "wikantik.cluster_declaration.enforcement.enabled";
+
     private final StructuralIndexService structuralIndex;
     private final Predicate< String > isSystemPage;
     private final boolean enabled;
+    private final boolean duplicateDeclarationEnforced;
 
     public StructuralSpinePageFilter( final StructuralIndexService structuralIndex,
                                        final Predicate< String > isSystemPage,
@@ -71,6 +89,8 @@ public class StructuralSpinePageFilter implements PageFilter {
         this.isSystemPage = isSystemPage == null ? name -> false : isSystemPage;
         this.enabled = Boolean.parseBoolean(
                 props.getProperty( PROP_ENFORCEMENT_ENABLED, "true" ) );
+        this.duplicateDeclarationEnforced = Boolean.parseBoolean(
+                props.getProperty( PROP_DUPLICATE_DECLARATION_ENFORCED, "false" ) );
         LOG.info( "StructuralSpinePageFilter: enforcement {}",
                   enabled ? "enabled" : "disabled" );
     }
@@ -118,6 +138,11 @@ public class StructuralSpinePageFilter implements PageFilter {
             }
         }
 
+        // -- duplicate cluster declaration (Phase 2) --
+        if ( duplicateDeclarationEnforced ) {
+            rejectDuplicateDeclaration( pageName, metadata );
+        }
+
         // -- kg_include validation --
         final Object kgInclude = metadata.get( "kg_include" );
         if ( kgInclude != null ) {
@@ -130,5 +155,53 @@ public class StructuralSpinePageFilter implements PageFilter {
         }
 
         return rewritten ? FrontmatterWriter.write( metadata, parsed.body() ) : content;
+    }
+
+    /**
+     *  Refuses a save that would leave two hub pages declaring one cluster.
+     *
+     *  <p>This is the single blocking rule of ClusterDeclarationDesign, and the only thing
+     *  that makes "exactly one hub per cluster" true by construction rather than by luck of
+     *  filesystem enumeration order.</p>
+     *
+     *  <p>Crucially it lets the <b>existing</b> declarant re-save itself. Matching on the
+     *  cluster alone would make every hub un-editable the moment the gate was flipped; a page
+     *  is treated as the incumbent if either its canonical_id or its slug matches, so an
+     *  in-flight rename does not lock the author out either.</p>
+     */
+    private void rejectDuplicateDeclaration( final String pageName, final Map< String, Object > metadata )
+            throws FrontmatterValidationException {
+        if ( !"hub".equalsIgnoreCase( str( metadata.get( "type" ) ) ) ) {
+            return;
+        }
+        final String cluster = str( metadata.get( "cluster" ) );
+        if ( cluster == null ) {
+            return;
+        }
+        final PageDescriptor incumbent = structuralIndex.getCluster( cluster )
+                                                        .map( ClusterDetails::hubPage )
+                                                        .orElse( null );
+        if ( incumbent == null ) {
+            return;
+        }
+        final String myId = str( metadata.get( "canonical_id" ) );
+        final boolean samePage = ( myId != null && myId.equals( incumbent.canonicalId() ) )
+                || ( pageName != null && pageName.equals( incumbent.slug() ) );
+        if ( samePage ) {
+            return;
+        }
+        throw new FrontmatterValidationException( List.of( FieldViolation.of(
+                "cluster", Severity.ERROR, "cluster.duplicate_declaration",
+                "cluster '" + cluster + "' is already declared by hub '" + incumbent.slug()
+                        + "'. Exactly one hub may declare a cluster - either edit that page, or"
+                        + " give this hub a sub-cluster of its own, e.g. '" + cluster + "/<name>'." ) ) );
+    }
+
+    private static String str( final Object raw ) {
+        if ( raw == null ) {
+            return null;
+        }
+        final String s = raw.toString().trim();
+        return s.isEmpty() ? null : s;
     }
 }

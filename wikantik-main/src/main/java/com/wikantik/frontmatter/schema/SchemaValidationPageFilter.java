@@ -30,6 +30,7 @@ import com.wikantik.api.frontmatter.schema.FrontmatterSchema;
 import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
 import com.wikantik.api.frontmatter.schema.Severity;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -82,15 +83,37 @@ public class SchemaValidationPageFilter implements PageFilter {
               Boolean.parseBoolean( props.getProperty( PROP_ENFORCEMENT_ENABLED, "true" ) ) );
     }
 
-    /** Engine-backed context shared by the save filter and the drift sweep. */
+    /**
+     *  Engine-backed context shared by the save filter and the drift sweep, with no structural
+     *  index — cluster declaration then always passes.
+     */
     public static ValidationCtx engineBackedCtx( final Properties props, final PageManager pageManager ) {
+        return engineBackedCtx( props, pageManager, null );
+    }
+
+    /**
+     *  Engine-backed context that can also tell whether a cluster is declared.
+     *
+     *  <p>A cluster exists only if some hub page declares it (ClusterDeclarationDesign), and that
+     *  is a property of the structural index rather than of the page being validated — so it has
+     *  to be supplied here. The resulting warning is what the {@code /admin/drift} burn-down
+     *  counts.</p>
+     *
+     *  <p>A {@code null} index means every cluster passes. Warning about the entire corpus
+     *  because the index has not warmed up yet would be noise, not signal.</p>
+     */
+    public static ValidationCtx engineBackedCtx( final Properties props, final PageManager pageManager,
+                                                   final StructuralIndexService structuralIndex ) {
         final Severity nonCanonical = "error".equalsIgnoreCase(
                 props.getProperty( PROP_NONCANONICAL_SEVERITY, "warning" ) )
                 ? Severity.ERROR : Severity.WARNING;
         final Set< String > trusted = parseTrusted( props.getProperty( PROP_TRUSTED_AUTHORS ) );
         final Predicate< String > pageResolves = name -> pageManager.wikiPageExists( name );
         final Predicate< String > isTrustedAuthor = trusted.isEmpty() ? a -> true : trusted::contains;
-        return new ValidationCtx( pageResolves, isTrustedAuthor, nonCanonical );
+        final Predicate< String > clusterIsDeclared = structuralIndex == null
+                ? c -> true
+                : c -> structuralIndex.getCluster( c ).map( d -> d.hubPage() != null ).orElse( false );
+        return new ValidationCtx( pageResolves, isTrustedAuthor, nonCanonical, clusterIsDeclared );
     }
 
     private static Set< String > parseTrusted( final String csv ) {

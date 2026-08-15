@@ -21,8 +21,10 @@ package com.wikantik.drift;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.frontmatter.schema.FrontmatterSchema;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.frontmatter.schema.SchemaDrivenFrontmatterValidator;
 import com.wikantik.frontmatter.schema.SchemaValidationPageFilter;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.ontology.OntologyShaclValidator;
 import com.wikantik.ontology.runtime.OntologyRebuildCoordinator;
 import org.apache.logging.log4j.LogManager;
@@ -45,6 +47,23 @@ public final class DriftWiringHelper {
 
     private DriftWiringHelper() {}
 
+    /**
+     *  The structural index, or {@code null} when the page-graph subsystem is not wired.
+     *
+     *  <p>The drift sweep counts an "undeclared cluster" warning, which needs to know which
+     *  clusters have a declaring hub. Degrading to {@code null} keeps the sweep silent on that
+     *  code rather than flagging the entire corpus when the index is unavailable.</p>
+     */
+    private static StructuralIndexService structuralIndexOrNull( final WikiEngine engine ) {
+        try {
+            return PageGraphSubsystemBridge.fromLegacyEngine( engine ).structuralIndexService();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Structural index unavailable for drift wiring; "
+                              + "undeclared-cluster drift will not be counted: {}", e.getMessage() );
+            return null;
+        }
+    }
+
     public static void wireDrift( final WikiEngine engine,
                                   final Properties props,
                                   final DataSource dataSource,
@@ -62,7 +81,8 @@ public final class DriftWiringHelper {
         final DriftSweepService service = new DriftSweepService(
                 pageManager,
                 new SchemaDrivenFrontmatterValidator( FrontmatterSchema.defaultSchema() ),
-                SchemaValidationPageFilter.engineBackedCtx( props, pageManager ),
+                SchemaValidationPageFilter.engineBackedCtx( props, pageManager,
+                                                            structuralIndexOrNull( engine ) ),
                 shaclSource,
                 new DriftSnapshotRepository( dataSource ) );
         engine.setManager( DriftSweepService.class, service );

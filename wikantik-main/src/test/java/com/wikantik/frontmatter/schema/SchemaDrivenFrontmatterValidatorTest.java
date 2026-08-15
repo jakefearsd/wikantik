@@ -131,6 +131,37 @@ class SchemaDrivenFrontmatterValidatorTest {
         assertTrue( first( vs, "verified_at" ).isEmpty(), "a parsed java.util.Date must be accepted" );
     }
 
+    /**
+     * ClusterDeclarationDesign: naming a cluster no hub declares is advisory, never blocking —
+     * it must not stop the save, but it must reach the drift dashboard, which counts exactly
+     * these validator codes.
+     */
+    @Test
+    void warns_when_a_page_names_a_cluster_no_hub_declares() {
+        final ValidationCtx noClusters =
+                new ValidationCtx( p -> true, a -> true, Severity.WARNING, c -> false );
+        final List< FieldViolation > vs =
+                validator.validate( Map.of( "cluster", "van-life" ), noClusters );
+        final FieldViolation v = first( vs, "cluster" ).orElseThrow();
+        assertEquals( Severity.WARNING, v.severity() );
+        assertEquals( "cluster.undeclared", v.code() );
+    }
+
+    @Test
+    void does_not_warn_when_the_cluster_is_declared() {
+        final ValidationCtx allDeclared =
+                new ValidationCtx( p -> true, a -> true, Severity.WARNING, c -> true );
+        assertTrue( first( validator.validate( Map.of( "cluster", "van-life" ), allDeclared ),
+                           "cluster" ).isEmpty() );
+    }
+
+    /** Degrades silently when no index is wired: lenient() must not manufacture warnings. */
+    @Test
+    void lenient_context_does_not_warn_about_clusters() {
+        assertTrue( first( validator.validate( Map.of( "cluster", "van-life" ), ValidationCtx.lenient() ),
+                           "cluster" ).isEmpty() );
+    }
+
     @Test
     void unresolvedRelatedWarns() {
         final ValidationCtx noPages = new ValidationCtx( p -> false, a -> true, Severity.WARNING );

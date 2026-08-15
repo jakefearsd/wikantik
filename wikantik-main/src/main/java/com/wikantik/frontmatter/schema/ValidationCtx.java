@@ -35,10 +35,22 @@ import java.util.function.Predicate;
 public record ValidationCtx(
         Predicate< String > pageResolves,
         Predicate< String > isTrustedAuthor,
-        Severity nonCanonicalEnumSeverity
+        Severity nonCanonicalEnumSeverity,
+        Predicate< String > clusterIsDeclared
 ) {
     /** Permissive context for unit tests / no-service callers: everything resolves, enums warn. */
     public static ValidationCtx lenient() {
-        return new ValidationCtx( p -> true, a -> true, Severity.WARNING );
+        return new ValidationCtx( p -> true, a -> true, Severity.WARNING, c -> true );
+    }
+
+    /**
+     *  Three-argument form for callers with no structural index to consult. Cluster
+     *  declaration then always passes: a validator that cannot see the taxonomy must stay
+     *  silent rather than warn about every cluster in the corpus.
+     */
+    public ValidationCtx( final Predicate< String > pageResolves,
+                          final Predicate< String > isTrustedAuthor,
+                          final Severity nonCanonicalEnumSeverity ) {
+        this( pageResolves, isTrustedAuthor, nonCanonicalEnumSeverity, c -> true );
     }
 }

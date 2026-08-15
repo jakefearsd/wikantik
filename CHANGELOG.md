@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-08-15
+
 ### Added
 - **Cluster declaration — the hub page is now the authoritative declaration of its cluster**
   (`ClusterDeclarationDesign`, ADR-0009; all seven phases). A cluster exists if and only if exactly

@@ -60,8 +60,6 @@
             <Class name="com.wikantik.mcp.McpAccessFilter"/>
             <Class name="com.wikantik.tools.ToolsAccessFilter"/>
             <Class name="com.wikantik.providers.PageProviderDecorator"/>
-            <!-- MBean -->
-            <Class name="com.wikantik.management.SimpleMBean"/>
             <!-- Providers -->
             <Class name="com.wikantik.providers.LruPropertyCache"/>
             <!-- Search -->

@@ -35,6 +35,17 @@ import java.util.Properties;
  */
 class PageProviderDecoratorTest {
 
+    /**
+     * Minimal no-op decorator used to exercise the {@link PageProviderDecorator}
+     * delegation contract (chaining, {@code getRealProvider()} unwrapping) without
+     * depending on a concrete production subclass.
+     */
+    private static final class NoOpPageProviderDecorator extends PageProviderDecorator {
+        NoOpPageProviderDecorator( final PageProvider delegate ) {
+            super( delegate );
+        }
+    }
+
     private TestEngine engine;
 
     @AfterEach
@@ -76,70 +87,16 @@ class PageProviderDecoratorTest {
 
         final PageProvider baseProvider = engine.getManager( PageManager.class ).getProvider();
 
-        // Chain decorators: Metrics -> Logging -> Base
+        // Chain decorators: outer no-op -> Logging -> Base
         final LoggingPageProviderDecorator loggingDecorator =
                 new LoggingPageProviderDecorator( baseProvider );
-        final MetricsPageProviderDecorator metricsDecorator =
-                new MetricsPageProviderDecorator( loggingDecorator );
+        final NoOpPageProviderDecorator outerDecorator =
+                new NoOpPageProviderDecorator( loggingDecorator );
 
         // Verify chain
-        Assertions.assertEquals( loggingDecorator, metricsDecorator.getDelegate() );
+        Assertions.assertEquals( loggingDecorator, outerDecorator.getDelegate() );
         Assertions.assertEquals( baseProvider, loggingDecorator.getDelegate() );
-        Assertions.assertEquals( baseProvider, metricsDecorator.getRealProvider() );
-    }
-
-    @Test
-    void testMetricsDecoratorTracksCalls() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        props.setProperty( CachingManager.PROP_CACHE_ENABLE, "false" );
-        engine = TestEngine.build( props );
-
-        final PageProvider provider = engine.getManager( PageManager.class ).getProvider();
-        final MetricsPageProviderDecorator metricsProvider = new MetricsPageProviderDecorator( provider );
-
-        // Initial state
-        Assertions.assertEquals( 0, metricsProvider.getMetrics().pageExistsCalls.get() );
-        Assertions.assertEquals( 0, metricsProvider.getMetrics().getPageInfoCalls.get() );
-
-        // Save through engine (doesn't go through decorator)
-        engine.saveText( "MetricsTest", "Content" );
-
-        // Call through decorator
-        metricsProvider.pageExists( "MetricsTest" );
-        metricsProvider.pageExists( "MetricsTest" );
-        metricsProvider.pageExists( "NonExistent" );
-
-        Assertions.assertEquals( 3, metricsProvider.getMetrics().pageExistsCalls.get() );
-        Assertions.assertTrue( metricsProvider.getMetrics().pageExistsTimeNanos.get() > 0 );
-
-        metricsProvider.getPageInfo( "MetricsTest", -1 );
-        Assertions.assertEquals( 1, metricsProvider.getMetrics().getPageInfoCalls.get() );
-    }
-
-    @Test
-    void testMetricsDecoratorReset() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        props.setProperty( CachingManager.PROP_CACHE_ENABLE, "false" );
-        engine = TestEngine.build( props );
-
-        final PageProvider provider = engine.getManager( PageManager.class ).getProvider();
-        final MetricsPageProviderDecorator metricsProvider = new MetricsPageProviderDecorator( provider );
-
-        engine.saveText( "ResetTest", "Content" );
-
-        // Make some calls
-        metricsProvider.pageExists( "ResetTest" );
-        metricsProvider.getPageInfo( "ResetTest", -1 );
-
-        Assertions.assertTrue( metricsProvider.getMetrics().pageExistsCalls.get() > 0 );
-        Assertions.assertTrue( metricsProvider.getMetrics().getPageInfoCalls.get() > 0 );
-
-        // Reset
-        metricsProvider.resetMetrics();
-
-        Assertions.assertEquals( 0, metricsProvider.getMetrics().pageExistsCalls.get() );
-        Assertions.assertEquals( 0, metricsProvider.getMetrics().getPageInfoCalls.get() );
-        Assertions.assertEquals( 0, metricsProvider.getMetrics().pageExistsTimeNanos.get() );
+        Assertions.assertEquals( baseProvider, outerDecorator.getRealProvider() );
     }
 
     @Test
@@ -182,7 +139,7 @@ class PageProviderDecoratorTest {
 
         // Create a 3-level chain
         final LoggingPageProviderDecorator level1 = new LoggingPageProviderDecorator( baseProvider );
-        final MetricsPageProviderDecorator level2 = new MetricsPageProviderDecorator( level1 );
+        final NoOpPageProviderDecorator level2 = new NoOpPageProviderDecorator( level1 );
         final LoggingPageProviderDecorator level3 = new LoggingPageProviderDecorator( level2 );
 
         // getRealProvider should unwrap all levels
@@ -199,7 +156,7 @@ class PageProviderDecoratorTest {
         engine = TestEngine.build( props );
 
         final PageProvider provider = engine.getManager( PageManager.class ).getProvider();
-        final MetricsPageProviderDecorator metricsProvider = new MetricsPageProviderDecorator( provider );
+        final PageProviderDecorator decorator = new NoOpPageProviderDecorator( provider );
 
         // Create multiple versions
         engine.saveText( "VersionTest", "v1" );
@@ -207,50 +164,7 @@ class PageProviderDecoratorTest {
         engine.saveText( "VersionTest", "v3" );
 
         // Get version history through decorator
-        final var history = metricsProvider.getVersionHistory( "VersionTest" );
+        final var history = decorator.getVersionHistory( "VersionTest" );
         Assertions.assertEquals( 3, history.size() );
-        Assertions.assertEquals( 1, metricsProvider.getMetrics().getVersionHistoryCalls.get() );
-    }
-
-    @Test
-    void testMetricsAverageCalculation() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        props.setProperty( CachingManager.PROP_CACHE_ENABLE, "false" );
-        engine = TestEngine.build( props );
-
-        final PageProvider provider = engine.getManager( PageManager.class ).getProvider();
-        final MetricsPageProviderDecorator metricsProvider = new MetricsPageProviderDecorator( provider );
-
-        engine.saveText( "AvgTest", "Content" );
-
-        // Make multiple calls
-        for ( int i = 0; i < 10; i++ ) {
-            metricsProvider.getPageText( "AvgTest", -1 );
-        }
-
-        Assertions.assertEquals( 10, metricsProvider.getMetrics().getPageTextCalls.get() );
-        Assertions.assertTrue( metricsProvider.getMetrics().getAverageGetPageTextMs() > 0 );
-
-        // Empty metrics should return 0 average
-        metricsProvider.resetMetrics();
-        Assertions.assertEquals( 0.0, metricsProvider.getMetrics().getAverageGetPageTextMs() );
-    }
-
-    @Test
-    void testMetricsToString() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        props.setProperty( CachingManager.PROP_CACHE_ENABLE, "false" );
-        engine = TestEngine.build( props );
-
-        final PageProvider provider = engine.getManager( PageManager.class ).getProvider();
-        final MetricsPageProviderDecorator metricsProvider = new MetricsPageProviderDecorator( provider );
-
-        engine.saveText( "ToStringTest", "Content" );
-        metricsProvider.pageExists( "ToStringTest" );
-        metricsProvider.getPageInfo( "ToStringTest", -1 );
-
-        final String metricsString = metricsProvider.getMetrics().toString();
-        Assertions.assertTrue( metricsString.contains( "pageExists=1" ) );
-        Assertions.assertTrue( metricsString.contains( "getPageInfo=1" ) );
     }
 }

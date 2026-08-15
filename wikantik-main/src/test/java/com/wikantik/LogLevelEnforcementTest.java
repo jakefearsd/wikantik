@@ -107,7 +107,6 @@ public class LogLevelEnforcementTest {
             // Background thread crash — must be visible
             "WikiBackgroundThread.java",
             // Servlet error handling — request-level failures
-            "SimpleMBean.java",
             "Preferences.java",
             // Diff providers — diff generation failures
             "ContextualDiffProvider.java",

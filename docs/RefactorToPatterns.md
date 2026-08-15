@@ -48,16 +48,16 @@ public abstract class PageProviderDecorator implements PageProvider {
     // ... delegate all other methods by default
 }
 
-// Specific decorators
-public class CachingPageProviderDecorator extends PageProviderDecorator { ... }
-public class MetricsPageProviderDecorator extends PageProviderDecorator { ... }
+// A concrete decorator — the one subclass that actually shipped from this
+// proposal. PageProviderDecorator itself is the surviving base class;
+// CachingProvider is a separate, non-decorator wrapper around FileSystemProvider.
 public class LoggingPageProviderDecorator extends PageProviderDecorator { ... }
 ```
 
 ### Benefits
 
 - Single Responsibility Principle - each decorator handles one concern
-- Easy to compose decorators: `new Caching(new Logging(new FileSystem()))`
+- Easy to compose decorators: `new LoggingPageProviderDecorator(new FileSystemProvider())`
 - Same pattern applies to AttachmentProvider
 
 **Effort:** Medium | **Impact:** High

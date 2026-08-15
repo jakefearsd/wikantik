@@ -357,53 +357,6 @@ class ParserPackageBranchTest {
     }
 
     // -----------------------------------------------------------------------
-    // VariableContent — null-root and null-context paths (covers L60, L62, L66-67, L91, L101)
-    // -----------------------------------------------------------------------
-
-    @Nested
-    class VariableContentBranches {
-
-        @Test
-        void getValue_when_not_attached_to_document_returns_var_name() {
-            // VariableContent not yet added to a WikiDocument → getDocument() returns null (L60→L62)
-            final VariableContent vc = new VariableContent( "myVar" );
-            assertEquals( "myVar", vc.getValue(),
-                    "When not attached to a document, getValue() should return the variable name" );
-        }
-
-        @Test
-        void getText_delegates_to_getValue() {
-            // getText() calls getValue() (L91)
-            final VariableContent vc = new VariableContent( "testVar" );
-            assertEquals( vc.getValue(), vc.getText() );
-        }
-
-        @Test
-        void toString_returns_debug_string() {
-            // toString() returns "VariableElement[\"varName\"]" (L101)
-            final VariableContent vc = new VariableContent( "someVar" );
-            assertEquals( "VariableElement[\"someVar\"]", vc.toString() );
-        }
-
-        @Test
-        void getValue_when_document_has_null_context_returns_error_string() {
-            // Attach vc inside a JDOM2 Element which is a child of WikiDocument (L65-L67).
-            // WikiDocument extends Document; VariableContent extends Text (must be inside an Element).
-            final Page page = mock( Page.class );
-            final WikiDocument doc = new WikiDocument( page );
-            final org.jdom2.Element rootEl = new org.jdom2.Element( "root" );
-            doc.setRootElement( rootEl );
-            final VariableContent vc = new VariableContent( "nullCtxVar" );
-            rootEl.addContent( vc );
-
-            // doc.getContext() returns null (not set) → "No WikiContext available: INTERNAL ERROR"
-            final String result = vc.getValue();
-            assertEquals( "No WikiContext available: INTERNAL ERROR", result,
-                    "When document exists but context is null, getValue() should return the internal error string" );
-        }
-    }
-
-    // -----------------------------------------------------------------------
     // MarkupParser.callMutatorChain — non-empty chain (lines 313-315)
     // -----------------------------------------------------------------------
 

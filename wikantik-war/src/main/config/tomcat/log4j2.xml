@@ -51,12 +51,6 @@
             <AppenderRef ref="SecurityLog"/>
         </Logger>
 
-        <!-- Page access tracking via WikiServlet -->
-        <Logger name="com.wikantik.WikiServlet" level="INFO" additivity="false">
-            <AppenderRef ref="Console"/>
-            <AppenderRef ref="AccessLog"/>
-        </Logger>
-
         <!-- Database connection issues -->
         <Logger name="org.apache.tomcat.dbcp" level="WARN"/>
 

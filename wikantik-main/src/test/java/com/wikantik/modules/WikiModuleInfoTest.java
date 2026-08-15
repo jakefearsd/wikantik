@@ -45,16 +45,9 @@ class WikiModuleInfoTest {
     void testGettersReturnNullWhenNotInitialized() {
         final WikiModuleInfo info = new WikiModuleInfo( "SomeModule" );
         assertNull( info.getDescription() );
-        assertNull( info.getModuleUrl() );
-        assertNull( info.getModuleVersion() );
-        assertNull( info.getHtmlTemplate() );
-        assertNull( info.getStylesheetLocation() );
-        assertNull( info.getScriptLocation() );
         assertNull( info.getAuthor() );
-        assertNull( info.getAuthorUrl() );
         assertNull( info.getMinVersion() );
         assertNull( info.getMaxVersion() );
-        assertNull( info.getAdminBeanClass() );
     }
 
     // -----------------------------------------------------------------------
@@ -66,31 +59,17 @@ class WikiModuleInfoTest {
         final WikiModuleInfo info = new WikiModuleInfo( "XmlPlugin" );
 
         final Element el = new Element( "plugin" );
-        el.addContent( new Element( "adminBean" ).setText( "com.example.AdminBean" ) );
         el.addContent( new Element( "author" ).setText( "Alice" ) );
-        el.addContent( new Element( "authorUrl" ).setText( "https://example.com/alice" ) );
         el.addContent( new Element( "description" ).setText( "A test plugin" ) );
         el.addContent( new Element( "maxVersion" ).setText( "9.9.9" ) );
         el.addContent( new Element( "minVersion" ).setText( "1.0.0" ) );
-        el.addContent( new Element( "script" ).setText( "scripts/plugin.js" ) );
-        el.addContent( new Element( "stylesheet" ).setText( "styles/plugin.css" ) );
-        el.addContent( new Element( "template" ).setText( "templates/plugin.html" ) );
-        el.addContent( new Element( "url" ).setText( "https://example.com/plugin" ) );
-        el.addContent( new Element( "version" ).setText( "2.1.0" ) );
 
         info.initializeFromXML( el );
 
-        assertEquals( "com.example.AdminBean", info.getAdminBeanClass() );
         assertEquals( "Alice", info.getAuthor() );
-        assertEquals( "https://example.com/alice", info.getAuthorUrl() );
         assertEquals( "A test plugin", info.getDescription() );
         assertEquals( "9.9.9", info.getMaxVersion() );
         assertEquals( "1.0.0", info.getMinVersion() );
-        assertEquals( "scripts/plugin.js", info.getScriptLocation() );
-        assertEquals( "styles/plugin.css", info.getStylesheetLocation() );
-        assertEquals( "templates/plugin.html", info.getHtmlTemplate() );
-        assertEquals( "https://example.com/plugin", info.getModuleUrl() );
-        assertEquals( "2.1.0", info.getModuleVersion() );
     }
 
     @Test
@@ -100,7 +79,6 @@ class WikiModuleInfoTest {
 
         info.initializeFromXML( el );
 
-        assertNull( info.getAdminBeanClass() );
         assertNull( info.getAuthor() );
         assertNull( info.getDescription() );
         assertNull( info.getMinVersion() );

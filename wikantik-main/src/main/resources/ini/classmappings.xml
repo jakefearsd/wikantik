@@ -60,10 +60,6 @@
     <mappedClass>com.wikantik.plugin.DefaultPluginManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>com.wikantik.ui.admin.AdminBeanManager</requestedClass>
-    <mappedClass>com.wikantik.ui.admin.DefaultAdminBeanManager</mappedClass>
-  </mapping>
-  <mapping>
     <requestedClass>com.wikantik.api.managers.AttachmentManager</requestedClass>
     <mappedClass>com.wikantik.attachment.DefaultAttachmentManager</mappedClass>
   </mapping>
@@ -112,24 +108,12 @@
     <mappedClass>com.wikantik.render.DefaultRenderingManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>com.wikantik.rss.RSSGenerator</requestedClass>
-    <mappedClass>com.wikantik.rss.DefaultRSSGenerator</mappedClass>
-  </mapping>
-  <mapping>
     <requestedClass>com.wikantik.search.SearchManager</requestedClass>
     <mappedClass>com.wikantik.search.DefaultSearchManager</mappedClass>
   </mapping>
   <mapping>
     <requestedClass>com.wikantik.ui.CommandResolver</requestedClass>
     <mappedClass>com.wikantik.ui.DefaultCommandResolver</mappedClass>
-  </mapping>
-  <mapping>
-    <requestedClass>com.wikantik.ui.EditorManager</requestedClass>
-    <mappedClass>com.wikantik.ui.DefaultEditorManager</mappedClass>
-  </mapping>
-  <mapping>
-    <requestedClass>com.wikantik.ui.TemplateManager</requestedClass>
-    <mappedClass>com.wikantik.ui.DefaultTemplateManager</mappedClass>
   </mapping>
   <mapping>
     <requestedClass>com.wikantik.ui.progress.ProgressManager</requestedClass>

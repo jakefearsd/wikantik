@@ -36,20 +36,15 @@ import java.nio.charset.StandardCharsets;
 public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
     protected String name;
     protected String description;
-    protected String moduleUrl;
-    protected String moduleVersion;
-    protected String htmlTemplate;
     protected String scriptLocation;
     protected String scriptText;
     protected String stylesheetLocation;
     protected String stylesheetText;
     protected String author;
-    protected String authorUrl;
     protected URL    resource;
     protected String minVersion;
     protected String maxVersion;
-    protected String adminBeanClass;
-    
+
     /**
      *  Create a new info container.
      *  
@@ -84,28 +79,14 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      *  @param el The element to parse.
      */
     protected void initializeFromXML( final Element el ) {
-        adminBeanClass = el.getChildText( "adminBean" );
         author = el.getChildText( "author" );
-        authorUrl = el.getChildText( "authorUrl" );
         description = el.getChildText( "description" );
         maxVersion = el.getChildText( "maxVersion" );
         minVersion = el.getChildText( "minVersion" );
         scriptLocation = el.getChildText( "script" );
         stylesheetLocation = el.getChildText( "stylesheet" );
-        htmlTemplate = el.getChildText( "template" );
-        moduleUrl = el.getChildText( "url" );
-        moduleVersion = el.getChildText( "version" );
     }
 
-    /**
-     *  Returns the AdminBean class which is supposed to manage this module.
-     *  
-     *  @return A class name.
-     */
-    public String getAdminBeanClass() {
-        return adminBeanClass;
-    }
-    
     /**
      *  Returns the common name for this particular module.  Note that this is not the class name, nor is it an alias.
      *  For different modules the name may have different meanings.
@@ -126,51 +107,6 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
     public String getDescription() {
         return description;
     }
-    
-    /**
-     *  The URL for this getting more information about this module.
-     *  
-     *  @return A module URL.
-     */
-    public String getModuleUrl() {
-        return moduleUrl;
-    }
-    
-    /**
-     *  The current version of the implemented module
-     *  
-     *  @return A module version.
-     */
-    public String getModuleVersion() {
-        return moduleVersion;
-    }
-    
-    /**
-     *  Return the location of the html template for this module.
-     *  
-     *  @return The path to the location.
-     */
-    public String getHtmlTemplate() {
-        return htmlTemplate;
-    }
-
-    /**
-     *  Returns the style sheet location for this module.
-     *  
-     *  @return The path to the location.
-     */
-    public String getStylesheetLocation() {
-        return stylesheetLocation;
-    }
-
-    /**
-     *  Return the location of the script for this module.
-     *  
-     *  @return The path to the location.
-     */
-    public String getScriptLocation() {
-        return scriptLocation;
-    }
 
     /**
      *  Returns the name of the author of this plugin (if defined).
@@ -180,13 +116,6 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
         return author;
     }
 
-    /**
-     *  Returns the url of the author of this plugin (if defined).
-     */
-    public String getAuthorUrl() {
-        return authorUrl;
-    }
-    
     /**
      *  Returns the minimum version of JSPWiki that this module supports.
      *  

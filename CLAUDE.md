@@ -326,7 +326,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 - **wikantik-event**: Event system for decoupled communication
 - **wikantik-util**: Utility classes and helpers
 - **wikantik-cache**: EhCache-based caching layer (1-hour TTL for render caches, 10K entry capacity)
-- **wikantik-cache-memcached**: Distributed cache adapter for Memcached
+- **wikantik-cache-memcached**: Distributed cache adapter for Memcached. **Opt-in, not wired into the WAR** — to use it, override the `com.wikantik.cache.CachingManager` mapping in `classmappings.xml`, put this jar on the container classpath, and set `wikantik.cache.memcached.servers`. Retained deliberately for multi-node deployments; the default single-node path is EhCache (`wikantik-cache`).
 - **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers, SPA routing, `/wiki/{slug}?format=md|json` content filter
 - **wikantik-rest**: REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`). Includes the structured-curation surfaces: `/api/frontmatter-schema`, `/api/frontmatter/validate`, and page-scoped KG curation at `/api/page-knowledge/*` (view-gated read, edit-gated writes through `KgCurationOps`).
 - **wikantik-mcp-core**: Shared MCP substrate — `McpTool`/`McpToolUtils`/`McpAudit`, endpoint bootstrap, the access filter, config, and the shared `QueryNodesTool`/`SearchKnowledgeTool` that both MCP endpoints register. Extracted in 2.3.0 to break the `wikantik-knowledge → wikantik-admin-mcp` module cycle. (Admin's 26-tool count = 24 tools declared in `wikantik-admin-mcp` + these 2.)

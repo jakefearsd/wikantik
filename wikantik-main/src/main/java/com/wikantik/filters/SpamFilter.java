@@ -81,6 +81,13 @@ import jakarta.servlet.http.HttpServletRequest;
  *
  *  <p>Changes by admin users are ignored in any case.</p>
  *
+ *  <p><b>Activation.</b> Page filters are instantiated only from {@code filters.xml}
+ *  ({@code DefaultFilterManager}); no shipped deployment includes one, so this filter is
+ *  normally not constructed and the {@code spam*} slots on {@code RenderingSubsystem.Services}
+ *  are null. That is intentional — the chain is retained as a dormant, re-activatable
+ *  subsystem. Drop a {@code filters.xml} on the classpath (or set
+ *  {@code wikantik.filterConfig}) to switch it on.</p>
+ *
  *  @since 2.1.112
  */
 public class SpamFilter implements PageFilter {

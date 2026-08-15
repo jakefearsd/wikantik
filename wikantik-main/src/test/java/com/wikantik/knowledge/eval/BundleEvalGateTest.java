@@ -40,13 +40,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * score perfect context recall. This validates the corpus + harness plumbing
  * deterministically.</p>
  *
- * <p><b>Real-corpus tier (TODO, Phase-0 Task 8 Step 4):</b> a {@code @Nested}
- * {@code @Testcontainers(disabledWithoutDocker = true)} class that loads the checked-in
- * embedding snapshot (Task 7), builds the configured {@code ChunkVectorIndex}, runs the
- * corpus through {@link ContextServiceBundleRetriever}, and asserts the per-category
- * floors in {@code eval/bundle-corpus/thresholds.properties}. It is added once the
- * embedding fixture (Task 7) and frozen baseline (Task 9) exist; the floors are 0.0
- * (non-blocking) until then.</p>
+ * <p><b>Real-corpus evaluation</b> does not run here: it lives in {@code bin/eval/*.py}, which
+ * drives {@code GET /api/bundle} against a deployed wiki and scores the results in
+ * {@code eval/bundle-corpus/}. This class only asserts that the corpus file and its harness
+ * plumbing are present and well-formed.</p>
  */
 class BundleEvalGateTest {
 

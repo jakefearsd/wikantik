@@ -72,8 +72,9 @@ rebase against `latestContent` and retry (no extra `read_page` needed).
 
 ### Bulk edits (a corpus-wide search/SEO pass)
 
-- **Pace your calls.** The MCP endpoint rate-limits to ~10 req/sec per client (1-sec sliding window) —
-  a tight loop fails with `429` after ~10 calls. Space calls out and back off ~1s on a `429` (the
+- **Pace your calls.** The MCP endpoint rate-limits to ~50 req/sec per client (1-sec sliding window;
+  raised 5x from 10/s on 2026-08-08, global cap 500/s) —
+  a tight loop fails with `429` past ~50 calls. Back off ~1s on a `429` (the
   window refills in ~1s).
 - **Re-indexing is async.** Each save re-chunks + re-embeds off-thread; retrieval reflects the change
   only after the embed queue drains. Don't measure recall immediately after a big batch — and on the

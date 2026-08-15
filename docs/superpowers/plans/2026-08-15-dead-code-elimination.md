@@ -962,6 +962,73 @@ git commit -m "fix: repair dangling variable and plugin references in translated
 
 ---
 
+### Task 12: Repair the same broken content on the production wiki
+
+**Runs last — after Task 10's canonical gate is green.** Code deletion does not touch the production
+page store: prod content is managed over MCP and does not travel with a deploy. The two affected
+pages were read from prod on 2026-08-15 and confirmed to carry the same dangling references the repo
+copies did.
+
+**Constraints:**
+- **MCP tools only.** Use `mcp__wikantik-admin__read_page` / `update_page`. Never curl, never REST,
+  never a shell client — this project's content workflow is MCP-only. Invoke the `wiki-content` skill
+  before starting.
+- Change **only** the blocks named below. These are live pages with hand-curated frontmatter
+  (`cluster`, `canonical_id`); preserve it byte-for-byte.
+- Pace calls well under the ~50 req/s per-client rate limit — this is two page writes, so it is a
+  non-issue, but do not batch-loop.
+
+**Files:** none in the repo.
+
+- [ ] **Step 1: Re-read both pages from prod immediately before editing**
+
+Content may have changed since the 2026-08-15 read. Fetch `SystemInfo` and `InstallationTips` and
+confirm each still contains the block described below. If a page no longer matches, stop and report
+rather than writing a stale body.
+
+- [ ] **Step 2: `SystemInfo` — delete the RSS section**
+
+Remove the heading, its table header and separator, and all three rows:
+
+```markdown
+#### RSS (Rich Site Summary)
+
+| Property | Value |
+|----------|-------|
+| **Do we generate RSS files?** | [{$wikantik.rss.generate}] |
+| **If we do, what's the file name?** | [{$wikantik.rss.fileName}] |
+| **How often is the RSS updated?** | [{$wikantik.rss.interval}] |
+```
+
+Leave one blank line so `#### Usability` flows into `#### Personal information`. Every other variable
+on that page resolves and must be left exactly as it is — verified: `applicationname`, `baseurl`,
+`jspwikiversion`, `encoding`, `totalpages`, `uptime`, `pageprovider`, `inlinedimages`, `pluginpath`,
+`pagefilters`, `pageproviderdescription`, `interwikilinks`, `wikantik.breakTitleWithSpaces`,
+`wikantik.translatorReader.matchEnglishPlurals`, `wikantik.translatorReader.allowHTML`, `username`,
+`loginstatus`.
+
+- [ ] **Step 3: `InstallationTips` — delete the RSS-feed section**
+
+```markdown
+#### Enabling the [RSS](http://blogspace.com/rss/) feed
+
+In your wikantik.properties -file, you'll need to set the "wikantik.rss.generate" to "true".
+```
+
+While in the file, correct one stale property name in the Windows-configuration paragraph:
+`jspwiki.fileSystemProvider.pageDir` → `wikantik.fileSystemProvider.pageDir`. That is prose, not a
+variable reference, so it renders either way — but it names a prefix that has not existed since the
+rebrand. Change nothing else.
+
+- [ ] **Step 4: Verify**
+
+Re-read both pages and confirm: the RSS blocks are gone, frontmatter is intact, and no other line
+moved. Then check that no other prod page references the deleted keys —
+`mcp__wikantik-knowledge__retrieve_context` or a `search_knowledge` pass for `wikantik.rss` — and
+report anything found rather than editing it unprompted.
+
+---
+
 ## Self-Review
 
 **Spec coverage.** Every Tier-A row maps to a task: descriptors → T1; config keys → T2; i18n bundle + `TranslationsCheck` → T3; Command/ContextEnum + `WikiServletFilter` installer text + `GenericCommand.getKind/isRedirectCommand` → T4; classes → T5; methods → T6; frontend → T7; WAR relics → T8. Tier B → T9 (decisions taken 2026-08-15; two deletions + two documented keeps). Tier C is explicitly out of scope and listed as follow-ups. Sweep + gate → T10.

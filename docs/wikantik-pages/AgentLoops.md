@@ -4,9 +4,6 @@ status: active
 date: '2026-04-24'
 cluster: agentic-ai
 title: Agent Loops
-hubs:
-- AgenticAiHub
-- AgentLoops Hub
 tags:
 - agent
 - agent-loop

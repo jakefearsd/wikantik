@@ -88,6 +88,50 @@ class ClusterPathTest {
         assertNull( ClusterPath.reparent( null, "a", "b" ) );
     }
 
+    // --- Phase 5: multi-membership parsing -------------------------------------------------
+
+    @Test
+    void a_scalar_cluster_is_a_single_membership() {
+        assertEquals( java.util.List.of( "machine-learning" ),
+                      ClusterPath.memberships( "machine-learning" ) );
+    }
+
+    @Test
+    void a_list_cluster_is_every_membership_in_order() {
+        assertEquals( java.util.List.of( "machine-learning", "quantitative-finance" ),
+                      ClusterPath.memberships( java.util.List.of( "machine-learning", "quantitative-finance" ) ) );
+    }
+
+    /** First entry is primary, so order is meaningful and must survive de-duplication. */
+    @Test
+    void duplicate_memberships_collapse_keeping_first_position() {
+        assertEquals( java.util.List.of( "a", "b" ),
+                      ClusterPath.memberships( java.util.List.of( "a", "b", "a" ) ) );
+    }
+
+    @Test
+    void blank_and_null_entries_are_dropped() {
+        final java.util.List< String > raw = new java.util.ArrayList<>();
+        raw.add( "a" );
+        raw.add( "   " );
+        raw.add( null );
+        assertEquals( java.util.List.of( "a" ), ClusterPath.memberships( raw ) );
+    }
+
+    @Test
+    void a_missing_or_blank_cluster_is_no_membership() {
+        assertTrue( ClusterPath.memberships( null ).isEmpty() );
+        assertTrue( ClusterPath.memberships( "  " ).isEmpty() );
+        assertTrue( ClusterPath.memberships( java.util.List.of() ).isEmpty() );
+    }
+
+    @Test
+    void the_primary_membership_is_the_first_entry() {
+        assertEquals( "machine-learning",
+                      ClusterPath.primary( java.util.List.of( "machine-learning", "van-life" ) ) );
+        assertNull( ClusterPath.primary( null ) );
+    }
+
     @Test
     void null_is_never_a_descendant_and_has_no_parent() {
         assertFalse( ClusterPath.isSelfOrDescendant( null, "machine-learning" ) );

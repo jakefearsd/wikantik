@@ -2,10 +2,10 @@
 type: reference
 status: active
 date: '2026-03-14'
-cluster: geopolitics-and-finance
+cluster:
+- geopolitics-and-finance
+- russia-ukraine-war
 title: Conflicts and Equity Markets
-hubs:
-- RussiaUkraineWarOverview
 tags:
 - finance
 - geopolitics

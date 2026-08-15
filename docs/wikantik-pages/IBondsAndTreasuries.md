@@ -4,8 +4,6 @@ status: active
 cluster: personal-finance
 date: '2026-04-26'
 title: I Bonds and Treasuries
-hubs:
-- PersonalFinanceHub
 tags:
 - treasuries
 - i-bonds

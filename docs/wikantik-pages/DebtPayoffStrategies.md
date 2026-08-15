@@ -4,9 +4,6 @@ status: active
 date: '2026-04-26'
 cluster: personal-finance
 title: Debt Payoff Strategies
-hubs:
-- PersonalFinanceHub
-- DebtPayoffStrategies Hub
 tags:
 - debt
 - debt-payoff

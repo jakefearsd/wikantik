@@ -16,8 +16,6 @@ tags:
 related:
 - EventualConsistency
 - CrdtDataStructures
-hubs:
-- DistributedSystemsHub
 ---
 # Byzantine Fault Tolerance
 

@@ -19,8 +19,6 @@ related:
 - HashFunctions
 - DatabaseIndexingStrategies
 - CachingStrategies
-hubs:
-- DataStructuresHub
 ---
 # Bloom Filters
 

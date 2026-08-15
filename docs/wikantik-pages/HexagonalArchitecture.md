@@ -13,8 +13,6 @@ tags:
 - ports-and-adapters
 - software-architecture
 - decoupling
-hubs:
-- WikantikDevelopment
 ---
 
 # Ports and Adapters: The Hexagonal Core

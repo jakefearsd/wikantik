@@ -4,8 +4,6 @@ status: active
 cluster: retirement-planning
 date: '2026-04-26'
 title: Pre-Medicare Bridge Strategies
-hubs:
-- RetirementPlanningGuide
 tags:
 - pre-medicare
 - early-retirement

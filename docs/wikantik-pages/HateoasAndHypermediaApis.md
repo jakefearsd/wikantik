@@ -17,8 +17,6 @@ tags:
 related:
 - ApiProtocolComparison
 - GraphQlFundamentals
-hubs:
-- WebServicesAndApisHub
 ---
 # HATEOAS and Hypermedia APIs
 

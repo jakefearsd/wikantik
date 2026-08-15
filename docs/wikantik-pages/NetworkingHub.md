@@ -4,8 +4,6 @@ status: active
 date: '2026-04-26'
 cluster: networking
 title: Networking Hub
-hubs:
-- WebServicesAndApisHub
 tags:
 - networking
 - protocol

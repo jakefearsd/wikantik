@@ -4,8 +4,6 @@ status: active
 cluster: mathematics
 date: '2026-04-26'
 title: Symbolic Logic
-hubs:
-- MathematicsHub
 tags:
 - symbolic-logic
 - mathematics

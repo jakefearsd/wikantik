@@ -4,9 +4,6 @@ status: active
 date: '2026-04-26'
 cluster: index-fund-investing
 title: Tax Loss Harvesting
-hubs:
-- LowCostIndexFundInvestingHub
-- RebalancingStrategies Hub
 tags:
 - tax-loss-harvesting
 - tlh

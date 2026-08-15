@@ -4,8 +4,6 @@ status: active
 cluster: index-fund-investing
 date: '2026-04-26'
 title: Dividend vs. Total Return Investing
-hubs:
-- LowCostIndexFundInvestingHub
 tags:
 - dividends
 - total-return

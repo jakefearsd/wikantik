@@ -98,9 +98,14 @@ caching). Per hub it surfaces:
   hubs may want to be merged.
 
 The drilldown also supports **removing a member**: it edits the hub page's
-`related:` frontmatter and saves it back (`HubSyncFilter` reconciles the
-underlying KG edges on save). Removing a member below 2 remaining members is
-refused (`409` — dismiss/delete the hub itself instead).
+`related:` frontmatter and saves it back. Removing a member below 2 remaining
+members is refused (`409` — dismiss/delete the hub itself instead).
+
+> **Since ClusterDeclarationDesign Phase 5**, `related:` on a hub is *editorial
+> highlights*, not membership — membership is the `cluster:` field on each member
+> page. `HubSyncFilter`, which used to reconcile `hubs:`/`related:` on every save,
+> has been deleted along with the `hubs:` field. To move a page between clusters,
+> edit its `cluster:` (or use `rename_cluster` for a whole cluster at once).
 
 ## Admin UI walkthrough
 

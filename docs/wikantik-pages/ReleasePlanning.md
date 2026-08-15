@@ -18,8 +18,6 @@ related:
 - CiCdPipelines
 - TechnicalProjectManagement
 - FeatureToggleManagement
-hubs:
-- DevOpsAndSreHub
 ---
 # Release Planning
 

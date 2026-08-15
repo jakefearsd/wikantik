@@ -14,9 +14,6 @@ summary: How to build a three-fund portfolio with total market, international, a
 status: active
 date: 2026-03-21T00:00:00Z
 canonical_id: 01KQ0P44R3MBX5A75FD4W19QZD
-hubs:
-- IndexFundInvestingForEarlyRetirement
-- LowCostIndexFundInvestingHub
 part-of:
 - IndexFundInvestingForEarlyRetirement
 tags:

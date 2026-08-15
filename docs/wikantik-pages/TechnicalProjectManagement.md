@@ -18,8 +18,6 @@ related:
 - EngineeringDecisionFrameworks
 - RemoteTeamManagement
 - TechnicalWritingGuide
-hubs:
-- EngineeringLeadershipHub
 ---
 # Technical Project Management
 

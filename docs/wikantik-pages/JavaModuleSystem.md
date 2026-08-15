@@ -19,8 +19,6 @@ related:
 - JavaCollectionsFramework
 - MavenMultiModuleProjects
 - JavaBuildToolComparison
-hubs:
-- JavaHub
 ---
 # Java Module System
 

@@ -18,6 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.mcp.tools.PageCheckResult.Severity;
 
 import java.time.Instant;
@@ -411,19 +412,23 @@ public final class PageChecks {
     public static class ClusterPresentCheck implements PageCheck {
         @Override
         public List< PageCheckResult > check( final PageCheckContext ctx ) {
-            final Object val = ctx.metadata().get( "cluster" );
-            final String cluster = val != null ? val.toString().strip() : null;
-            if ( cluster == null || cluster.isEmpty() ) {
+            // Phase 5: `cluster:` may be a list. Lint each membership on its own — the
+            // stringified list ("[a, b]") would fail the kebab check for every multi-cluster page.
+            final List< String > memberships = ClusterPath.memberships( ctx.metadata().get( "cluster" ) );
+            if ( memberships.isEmpty() ) {
                 return List.of( new PageCheckResult( ctx.pageName(), PageCheckResult.Severity.WARNING,
                         "retrieval", "cluster_missing_for_retrieval",
                         "No cluster — chunk embeddings lack the domain prefix that disambiguates cross-topic queries" ) );
             }
-            if ( !KEBAB.matcher( cluster ).matches() ) {
-                return List.of( new PageCheckResult( ctx.pageName(), PageCheckResult.Severity.WARNING,
-                        "retrieval", "cluster_not_kebab",
-                        "Cluster '" + cluster + "' is not kebab-case — use lowercase-hyphenated slugs (e.g. hybrid-retrieval)" ) );
+            final List< PageCheckResult > out = new ArrayList<>();
+            for ( final String cluster : memberships ) {
+                if ( !KEBAB.matcher( cluster ).matches() ) {
+                    out.add( new PageCheckResult( ctx.pageName(), PageCheckResult.Severity.WARNING,
+                            "retrieval", "cluster_not_kebab",
+                            "Cluster '" + cluster + "' is not kebab-case — use lowercase-hyphenated slugs (e.g. hybrid-retrieval)" ) );
+                }
             }
-            return List.of();
+            return out;
         }
     }
 

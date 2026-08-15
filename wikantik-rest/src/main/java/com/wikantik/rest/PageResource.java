@@ -18,7 +18,9 @@
  */
 package com.wikantik.rest;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.api.pagegraph.ClusterStatus;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 
@@ -93,27 +95,53 @@ public class PageResource extends RestServletBase {
      *  declared path with no hub, which the UI renders as an undeclared cluster.</p>
      */
     private JsonObject clusterStatusJson( final Map< String, Object > metadata ) {
-        final Object raw = metadata == null ? null : metadata.get( "cluster" );
-        final String cluster = raw == null ? null : raw.toString();
-        if ( cluster == null || cluster.isBlank() ) {
+        // Phase 5: `cluster:` is a scalar or a list. The FIRST entry is the primary and keeps
+        // driving placement — breadcrumbs, sidebar, JSON-LD — so `path` never changes meaning.
+        final List< String > memberships =
+                ClusterPath.memberships( metadata == null ? null : metadata.get( "cluster" ) );
+        if ( memberships.isEmpty() ) {
             return null;
         }
-        ClusterStatus status;
-        try {
-            final StructuralIndexService idx = getSubsystems().pageGraph().structuralIndexService();
-            status = ClusterStatus.of( cluster, idx == null ? null : idx.getCluster( cluster ).orElse( null ) );
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "cluster_status: structural index unavailable for cluster '{}': {}",
-                      cluster, e.getMessage() );
-            status = ClusterStatus.of( cluster, null );
-        }
+        final ClusterStatus status = resolveCluster( memberships.get( 0 ) );
+
         final JsonObject out = new JsonObject();
         out.addProperty( "path", status.path() );
         out.addProperty( "parent", status.parent() );
         out.addProperty( "hub_slug", status.hubSlug() );
         out.addProperty( "hub_declared", status.hubSlug() != null );
         out.addProperty( "member_count", status.memberCount() );
+
+        // Emitted only when there is genuinely more than one home, so a single-cluster page's
+        // payload is byte-identical to what pre-Phase-5 clients already handle.
+        if ( memberships.size() > 1 ) {
+            final JsonArray all = new JsonArray();
+            for ( final String path : memberships ) {
+                final ClusterStatus each = resolveCluster( path );
+                final JsonObject entry = new JsonObject();
+                entry.addProperty( "path", each.path() );
+                entry.addProperty( "hub_slug", each.hubSlug() );
+                entry.addProperty( "hub_declared", each.hubSlug() != null );
+                all.add( entry );
+            }
+            out.add( "memberships", all );
+        }
         return out;
+    }
+
+    /**
+     *  Resolves one cluster path against the structural index, degrading to an undeclared
+     *  status when the index is unavailable — a warming or absent index must leave the page
+     *  renderable rather than failing the whole payload.
+     */
+    private ClusterStatus resolveCluster( final String cluster ) {
+        try {
+            final StructuralIndexService idx = getSubsystems().pageGraph().structuralIndexService();
+            return ClusterStatus.of( cluster, idx == null ? null : idx.getCluster( cluster ).orElse( null ) );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "cluster_status: structural index unavailable for cluster '{}': {}",
+                      cluster, e.getMessage() );
+            return ClusterStatus.of( cluster, null );
+        }
     }
 
     @Override

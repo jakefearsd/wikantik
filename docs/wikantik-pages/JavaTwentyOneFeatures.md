@@ -13,8 +13,6 @@ type: article
 date: '2026-05-22'
 status: active
 canonical_id: 01KQ0P44RD0W7H088EW5N6NGTP
-hubs:
-- JavaMemoryManagementHub
 tags:
 - java
 - java-21

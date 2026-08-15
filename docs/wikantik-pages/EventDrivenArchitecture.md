@@ -4,8 +4,6 @@ status: active
 cluster: software-architecture
 date: '2026-04-25'
 title: Event-Driven Architecture
-hubs:
-- SoftwareArchitectureHub
 tags:
 - event-driven
 - messaging

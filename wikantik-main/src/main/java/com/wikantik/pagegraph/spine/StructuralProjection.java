@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -97,13 +98,17 @@ public final class StructuralProjection {
      *  {@code machine-learning-ops} is never a member of {@code machine-learning}.</p>
      */
     private List< PageDescriptor > membersOf( final String cluster ) {
-        final List< PageDescriptor > out = new ArrayList<>( byCluster.getOrDefault( cluster, List.of() ) );
+        // De-duplicated by canonical_id: since Phase 5 one page may name both a parent and its
+        // own sub-cluster, in which case it is reached twice — directly and through the
+        // descendant walk — and would inflate every member count a curator reads.
+        final Map< String, PageDescriptor > out = new LinkedHashMap<>();
+        byCluster.getOrDefault( cluster, List.of() ).forEach( p -> out.putIfAbsent( p.canonicalId(), p ) );
         byCluster.forEach( ( name, pages ) -> {
             if ( !name.equals( cluster ) && ClusterPath.isSelfOrDescendant( name, cluster ) ) {
-                out.addAll( pages );
+                pages.forEach( p -> out.putIfAbsent( p.canonicalId(), p ) );
             }
         } );
-        return out;
+        return new ArrayList<>( out.values() );
     }
 
     private static Instant lastUpdated( final List< PageDescriptor > pages ) {
@@ -129,6 +134,16 @@ public final class StructuralProjection {
               .forEach( p -> out.add( new StructuralConflict(
                       p.slug(), p.canonicalId(), StructuralConflict.Kind.CLUSTERLESS_HUB,
                       "hub page declares no cluster, so it declares nothing" ) ) );
+
+        // Phase 5: hubs stay scalar. A hub naming several clusters declares only the first;
+        // the rest are ordinary memberships, and the discrepancy is burned down on /admin/drift.
+        byType.getOrDefault( PageType.HUB, List.of() ).stream()
+              .filter( p -> p.clusters().size() > 1 )
+              .forEach( p -> out.add( new StructuralConflict(
+                      p.slug(), p.canonicalId(), StructuralConflict.Kind.MULTI_CLUSTER_HUB,
+                      "hub page names " + p.clusters().size() + " clusters " + p.clusters()
+                              + "; a declaration is singular, so only '" + p.cluster()
+                              + "' is declared" ) ) );
 
         byCluster.keySet().forEach( cluster -> {
             if ( !hubByCluster.containsKey( cluster ) ) {
@@ -197,8 +212,11 @@ public final class StructuralProjection {
     public List< PageDescriptor > listPagesByFilter( final StructuralFilter filter ) {
         return byCanonicalId.values().stream()
                 .filter( p -> filter.type().map( t -> t == p.type() ).orElse( true ) )
+                // Phase 5: a page matches if ANY of its memberships is the cluster or beneath it.
                 .filter( p -> filter.cluster()
-                        .map( c -> ClusterPath.isSelfOrDescendant( p.cluster(), c ) ).orElse( true ) )
+                        .map( c -> p.clusters().stream()
+                                    .anyMatch( m -> ClusterPath.isSelfOrDescendant( m, c ) ) )
+                        .orElse( true ) )
                 .filter( p -> filter.tags().isEmpty() || p.tags().containsAll( filter.tags() ) )
                 .filter( p -> filter.updatedSince()
                         .map( since -> p.updated() != null && !p.updated().isBefore( since ) )

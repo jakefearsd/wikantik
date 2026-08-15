@@ -3,9 +3,6 @@ type: article
 date: '2026-04-26'
 cluster: mathematics
 title: Fuzzy Logic
-hubs:
-- MathematicsHub
-- ChaosDynamical Hub
 tags:
 - fuzzy-logic
 - mathematics

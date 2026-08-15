@@ -20,8 +20,6 @@ related:
 - TechnicalDebtManagement
 - DebuggingStrategies
 - JavaCollectionsFramework
-hubs:
-- SoftwareEngineeringPracticesHub
 ---
 # Refactoring Strategies
 

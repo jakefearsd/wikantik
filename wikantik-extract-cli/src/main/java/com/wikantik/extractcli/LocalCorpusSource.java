@@ -18,6 +18,7 @@
  */
 package com.wikantik.extractcli;
 
+import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 
 import java.io.IOException;
@@ -80,7 +81,7 @@ public final class LocalCorpusSource {
             final Map< String, Object > meta = parsed.metadata();
             pages.put( slug, new PageFacts( slug,
                                              str( meta.get( "canonical_id" ) ),
-                                             str( meta.get( "cluster" ) ),
+                                             ClusterPath.primary( meta.get( "cluster" ) ),
                                              str( meta.get( "type" ) ) ) );
         } catch ( final IOException | RuntimeException e ) {
             errors.add( "failed to read " + file.getFileName() + ": " + e.getMessage() );

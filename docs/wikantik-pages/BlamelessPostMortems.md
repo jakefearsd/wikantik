@@ -4,8 +4,6 @@ status: active
 cluster: software-architecture
 date: '2026-04-25'
 title: Blameless Post-Mortems
-hubs:
-- SoftwareArchitectureHub
 tags:
 - post-mortem
 - incident-response

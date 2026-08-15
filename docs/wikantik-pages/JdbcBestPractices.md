@@ -19,8 +19,6 @@ related:
 - SpringBootFundamentals
 - DatabaseConnectionSecurity
 - TaxonomyDesignPrinciples
-hubs:
-- JavaHub
 ---
 # JDBC Best Practices
 

@@ -20,8 +20,6 @@ tags:
 - democracy
 - decolonization
 - '1974'
-hubs:
-- PortugueseHistoryHub
 ---
 # The Carnation Revolution (April 25, 1974)
 

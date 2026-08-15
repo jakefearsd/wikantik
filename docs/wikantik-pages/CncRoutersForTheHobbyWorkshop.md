@@ -12,8 +12,6 @@ summary: 'Desktop CNC routers for hobbyists: machines, software, capabilities, a
 status: active
 date: '2026-03-20'
 canonical_id: 01KQ0P44NH6753GDGWHP9EEAVJ
-hubs:
-- HobbyWoodworkingInTheTwentyFirstCentury
 part-of:
 - HobbyWoodworkingInTheTwentyFirstCentury
 tags:

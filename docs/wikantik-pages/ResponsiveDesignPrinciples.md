@@ -18,9 +18,6 @@ tags:
 - container-queries
 - fluid-typography
 status: active
-hubs:
-- FrontendDevelopmentHub
-- WebComponents Hub
 ---
 # Responsive Design Principles
 

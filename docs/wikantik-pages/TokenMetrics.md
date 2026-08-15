@@ -17,8 +17,6 @@ related:
 - ToolOutputOptimization
 - SkillPerformance
 - CustomSkillsArchitecture
-hubs:
-- AgenticAiHub
 ---
 # Token Metrics
 

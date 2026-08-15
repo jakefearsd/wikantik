@@ -13,8 +13,6 @@ summary: Conveyor and sorting technology — the fixed transport networks that m
 status: active
 date: 2026-03-18T00:00:00Z
 canonical_id: 01KQ0P44P096M7E6VE60M6DR6N
-hubs:
-- WarehouseAutomationHub
 part-of:
 - WarehouseAutomationHub
 tags:

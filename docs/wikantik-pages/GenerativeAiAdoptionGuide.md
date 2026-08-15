@@ -1,10 +1,10 @@
 ---
 status: active
 type: reference
-hubs:
-- MlModelDeploymentHub
 date: 2026-03-14T01:00:00Z
-cluster: generative-ai
+cluster:
+- generative-ai
+- machine-learning/mlops
 title: Generative AI Adoption Guide
 tags:
 - generative-ai

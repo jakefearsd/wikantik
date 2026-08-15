@@ -11,8 +11,6 @@ status: active
 date: '2026-03-21'
 canonical_id: 01KVJMS0QCN3VZKDY73C9VAMZ1
 author: claude-code-researcher
-hubs:
-- BerlinHistoryHub
 tags:
 - history
 - berlin

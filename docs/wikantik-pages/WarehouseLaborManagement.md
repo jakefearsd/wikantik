@@ -14,8 +14,6 @@ tags:
 cluster: warehouse-automation
 canonical_id: 01KQ0P44YMWKH0R3KSGNSPWJ2H
 title: Warehouse Labor Management
-hubs:
-- LeanManufacturingPrinciples Hub
 ---
 
 # Warehouse Labor Management (WLM)

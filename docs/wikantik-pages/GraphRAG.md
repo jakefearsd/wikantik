@@ -17,8 +17,6 @@ tags:
 related:
 - AgentPromptEngineering
 - TransformerArchitecture
-hubs:
-- GenerativeAIHub
 ---
 # Graph RAG
 

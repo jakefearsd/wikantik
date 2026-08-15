@@ -19,8 +19,6 @@ related:
 - ToilReductionStrategies
 - StatusPageBestPractices
 - CloudMonitoring
-hubs:
-- DevOpsAndSreHub
 ---
 # On-Call Practices
 

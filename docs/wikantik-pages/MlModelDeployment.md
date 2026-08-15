@@ -12,9 +12,6 @@ canonical_id: 01KQ0P44SJ92AV14Z89S8V8H4Z
 type: article
 title: ML Model Deployment
 status: active
-hubs:
-- MLHub
-- MlModelDeploymentHub
 tags:
 - deployment
 - mlops

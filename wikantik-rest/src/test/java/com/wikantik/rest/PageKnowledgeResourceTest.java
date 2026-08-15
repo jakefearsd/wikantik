@@ -516,7 +516,6 @@ class PageKnowledgeResourceTest {
             null,        // mentionIndex
             null,        // nodeMentionSimilarity
             null,        // frontmatterDefaultsFilter
-            null,        // hubSyncFilter
             null,        // forAgentProjectionService
             null,        // bootstrapEntityExtractionIndexer
             null,        // kgInclusionPolicy

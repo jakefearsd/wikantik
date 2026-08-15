@@ -17,8 +17,6 @@ related:
 - ImmutableDataPatterns
 - JavaRecordsAndSealedClasses
 - CleanCodePrinciples
-hubs:
-- DesignPatternsHub
 ---
 # Builder Pattern and Fluent APIs
 

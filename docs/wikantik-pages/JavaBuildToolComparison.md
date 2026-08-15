@@ -18,8 +18,6 @@ related:
 - JavaModuleSystem
 - JavaAnnotationProcessing
 - MonorepoVsPolyrepo
-hubs:
-- JavaHub
 ---
 # Java Build Tool Comparison
 

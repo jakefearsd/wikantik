@@ -17,8 +17,6 @@ related:
 - DocumentClusteringApproaches
 - LinearAlgebra
 - BayesianReasoning
-hubs:
-- MachineLearningHub
 ---
 # Clustering Algorithms
 

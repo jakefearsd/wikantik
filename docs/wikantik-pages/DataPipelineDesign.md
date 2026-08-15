@@ -19,9 +19,6 @@ tags:
 - airflow
 - orchestration
 status: active
-hubs:
-- DataEngineeringHub
-- DataModelingFundamentals Hub
 ---
 # Data Pipeline Design
 

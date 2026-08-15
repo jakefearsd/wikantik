@@ -1,10 +1,10 @@
 ---
 status: active
 type: article
-hubs:
-- RebalancingStrategies Hub
 date: 2026-03-21T00:00:00Z
-cluster: retirement-planning
+cluster:
+- retirement-planning
+- index-fund-investing/rebalancing
 title: The FIRE Movement
 tags:
 - retirement

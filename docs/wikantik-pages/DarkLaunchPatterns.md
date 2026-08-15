@@ -19,8 +19,6 @@ related:
 - CanaryDeployments
 - ChaosEngineering
 - AgentTesting
-hubs:
-- SoftwareArchitectureHub
 ---
 # Dark Launch Patterns
 

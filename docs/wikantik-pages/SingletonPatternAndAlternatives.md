@@ -4,8 +4,6 @@ status: active
 cluster: software-architecture
 date: '2026-04-25'
 title: Singleton Pattern and Alternatives
-hubs:
-- SoftwareArchitectureHub
 tags:
 - singleton
 - design-patterns

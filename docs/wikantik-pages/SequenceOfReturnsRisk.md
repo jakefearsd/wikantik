@@ -16,8 +16,6 @@ summary: Deep dive into sequence of returns risk — why the first 5-10 years of
 status: active
 date: 2026-03-21T00:00:00Z
 canonical_id: 01KQ0P44W8P0401F969G5MGMW3
-hubs:
-- RetirementPlanningGuide
 part-of:
 - RetirementPlanningGuide
 tags:

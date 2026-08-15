@@ -1,8 +1,6 @@
 ---
 status: active
 type: article
-hubs:
-- Berlin
 date: 2026-03-21T00:00:00Z
 cluster: berlin-history
 title: The Reformation Era in Berlin

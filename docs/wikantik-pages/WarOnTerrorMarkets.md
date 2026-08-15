@@ -12,8 +12,6 @@ summary: The 9/11 market shock, two decades of war costs, and the transformation
 status: active
 date: '2026-03-14'
 canonical_id: 01KQ0P44YJKXQK2DAAH7V984ZH
-hubs:
-- ConflictMarketPatternsHub
 part-of:
 - ConflictsAndEquityMarkets
 tags:

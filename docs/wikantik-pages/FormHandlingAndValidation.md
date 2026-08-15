@@ -17,9 +17,6 @@ tags:
 - ux
 - accessibility
 status: active
-hubs:
-- FrontendDevelopmentHub
-- WebComponents Hub
 ---
 # Form Handling and Validation
 

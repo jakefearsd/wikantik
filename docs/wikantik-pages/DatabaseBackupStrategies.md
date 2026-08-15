@@ -18,8 +18,6 @@ tags:
 - recovery
 - pitr
 - databases
-hubs:
-- DatabasePerformanceMonitoringHub
 ---
 # Database Backup Strategies
 

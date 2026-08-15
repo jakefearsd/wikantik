@@ -19,8 +19,6 @@ related:
 - MicroservicesArchitecture
 - ChaosEngineering
 - ServiceLevelAgreements
-hubs:
-- SoftwareArchitectureHub
 ---
 # Container Orchestration
 

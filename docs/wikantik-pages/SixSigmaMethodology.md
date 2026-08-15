@@ -5,8 +5,6 @@ tags:
 - defect
 cluster: software-engineering-practices
 type: article
-hubs:
-- LeanManufacturingPrinciples Hub
 auto-generated: false
 summary: Technical guide to the DMAIC framework for process optimization and defect
   reduction.

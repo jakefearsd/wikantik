@@ -4,8 +4,6 @@ status: active
 date: 2026-03-15T00:00:00Z
 cluster: index-fund-investing/account-types
 title: Compound Interest and Tax-Advantaged Accounts
-hubs:
-- TypesofInvestmentAccountsTutorialHub
 tags:
 - investing
 - compound-interest

@@ -18,8 +18,6 @@ related:
 - AwsFundamentals
 - LegacyCodeModernization
 - CloudDisasterRecovery
-hubs:
-- CloudPlatformsHub
 ---
 # Cloud Migration Strategies
 

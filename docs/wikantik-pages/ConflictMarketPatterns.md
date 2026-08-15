@@ -15,8 +15,6 @@ summary: 'Cross-cutting analysis of recurring market patterns across all major c
 status: active
 date: '2026-03-14'
 canonical_id: 01KQ0P44NVEKCRM3FA3EDTA9KQ
-hubs:
-- ConflictMarketPatternsHub
 part-of:
 - ConflictsAndEquityMarkets
 tags:

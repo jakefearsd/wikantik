@@ -4,8 +4,6 @@ status: active
 cluster: geopolitics-and-finance
 date: '2026-04-26'
 title: War Bonds and Government Debt
-hubs:
-- ConflictMarketPatternsHub
 tags:
 - war-bonds
 - government-debt

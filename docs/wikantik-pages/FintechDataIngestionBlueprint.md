@@ -1,6 +1,4 @@
 ---
-hubs:
-- WealthviewHub
 date: 2026-05-03T00:00:00Z
 status: active
 summary: A high-density technical implementation spec for ingesting, normalizing,

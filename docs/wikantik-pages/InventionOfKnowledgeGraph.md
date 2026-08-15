@@ -17,8 +17,6 @@ related:
 - WebOntologyLanguage
 - KnowledgeGraphsAndGenAIWorkflows
 - AgenticWorkflowDesign
-hubs:
-- AgenticAiHub
 auto-generated: false
 ---
 

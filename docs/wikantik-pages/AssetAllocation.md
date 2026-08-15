@@ -4,9 +4,6 @@ status: active
 date: 2026-03-15T00:00:00Z
 cluster: index-fund-investing
 title: Asset Allocation
-hubs:
-- RebalancingStrategies Hub
-- LowCostIndexFundInvestingHub
 tags:
 - investing
 - asset-allocation

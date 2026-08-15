@@ -1,5 +1,7 @@
 ---
-cluster: index-fund-investing
+cluster:
+- index-fund-investing
+- geopolitics-and-finance
 title: 'Conflict-Resilient Portfolios: Index Investing Through Geopolitical Crises'
 related:
 - ConflictsAndEquityMarkets
@@ -15,8 +17,6 @@ summary: How historical conflict patterns inform index fund portfolio constructi
 status: active
 date: '2026-03-21'
 canonical_id: 01KQ0P44NVJTTW6J2JNBN6FPMX
-hubs:
-- ConflictMarketPatternsHub
 part-of:
 - ConflictsAndEquityMarkets
 tags:

@@ -4,9 +4,6 @@ status: active
 date: '2026-05-10'
 cluster: retirement-planning
 title: Monte Carlo Simulation in Retirement Planning
-hubs:
-- RetirementPlanningGuide
-- EuRetirementSavingsGuide
 relations:
 - type: component_of
   target_id: RetirementPlanningGuide

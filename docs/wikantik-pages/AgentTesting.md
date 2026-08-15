@@ -7,8 +7,6 @@ tags:
 - testing
 - evaluation
 - llm-as-judge
-hubs:
-- AgentLoops Hub
 title: Agent Testing
 cluster: agentic-ai
 date: '2026-05-24'

@@ -15,8 +15,6 @@ tags:
 - data-structures
 related:
 - NPCompleteAndNPHardComputability
-hubs:
-- DataStructuresHub
 ---
 # Graph Coloring Deep Dive
 

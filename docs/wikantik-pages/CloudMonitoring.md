@@ -3,7 +3,9 @@ date: '2026-04-26'
 summary: How to monitor cloud workloads — metrics, logs, traces, alarms — and the
   trade-offs between native cloud tools (CloudWatch) and dedicated observability platforms
   (Datadog, New Relic, Grafana stack).
-cluster: cloud-platforms
+cluster:
+- cloud-platforms
+- databases
 related:
 - DevOpsAndSreHub
 - AwsFundamentals
@@ -13,9 +15,6 @@ canonical_id: 01KQ0P44NFST15NVWTXRXWPJM7
 type: article
 title: Cloud Monitoring
 status: active
-hubs:
-- CloudPlatformsHub
-- DatabasePerformanceMonitoringHub
 tags:
 - monitoring
 - observability

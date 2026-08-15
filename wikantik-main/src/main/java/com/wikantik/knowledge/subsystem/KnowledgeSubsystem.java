@@ -34,7 +34,6 @@ import com.wikantik.knowledge.HubDiscoveryService;
 import com.wikantik.knowledge.HubOverviewService;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
-import com.wikantik.knowledge.HubSyncFilter;
 import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.chunking.ChunkProjector;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
@@ -116,11 +115,10 @@ public final class KnowledgeSubsystem {
      *       timeout-tracking surface works regardless.</li>
      * </ul>
      *
-     * <p>{@code frontmatterDefaultsFilter} and {@code hubSyncFilter} are
-     * page-save filters (Rendering subsystem territory in Phase 6). They are
-     * Knowledge-driven (read/write KG state) and produced here for now;
-     * Phase 6 will route them through Rendering's filter registration without
-     * moving their construction.</p>
+     * <p>{@code frontmatterDefaultsFilter} is a page-save filter (Rendering subsystem
+     * territory in Phase 6). It is Knowledge-driven (reads/writes KG state) and produced
+     * here for now; Phase 6 will route it through Rendering's filter registration without
+     * moving its construction.</p>
      *
      * <p>Phase 8 Checkpoint 1.5 additions (all nullable):</p>
      * <ul>
@@ -161,7 +159,6 @@ public final class KnowledgeSubsystem {
         MentionIndex mentionIndex,
         NodeMentionSimilarity nodeMentionSimilarity,
         FrontmatterDefaultsFilter frontmatterDefaultsFilter,
-        HubSyncFilter hubSyncFilter,
         ForAgentProjectionService forAgentProjectionService,
         BootstrapEntityExtractionIndexer bootstrapEntityExtractionIndexer,
         KgInclusionPolicy kgInclusionPolicy,

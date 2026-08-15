@@ -10,8 +10,6 @@ type: article
 date: '2026-03-13'
 status: active
 canonical_id: 01KQ0P44VZ4DSG7VB4JH4Z1YWW
-hubs:
-- RussiaUkraineWarOverview
 part-of:
 - RussiaUkraineWarOverview
 tags:

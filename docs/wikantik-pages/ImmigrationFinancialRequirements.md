@@ -21,8 +21,6 @@ tags:
 - i-864
 - affidavit-of-support
 - financial
-hubs:
-- SpousalGreenCardGuide
 ---
 # Immigration Financial Requirements
 

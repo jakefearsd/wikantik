@@ -6,10 +6,9 @@ canonical_id: 01KQTCAKV3BVHYPW20PHSFGXJR
 verified_at: '2026-06-20T20:40:31.893363642Z'
 type: design
 status: active
-cluster: wikantik-platform
-hubs:
-- WikantikPlatformHub
-- WikantikDevelopment
+cluster:
+- wikantik-platform
+- wikantik-development
 title: Wikantik System Architecture
 tags:
 - architecture

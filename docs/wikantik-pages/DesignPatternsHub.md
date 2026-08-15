@@ -4,9 +4,6 @@ status: active
 date: '2026-04-26'
 cluster: design-patterns
 title: Design Patterns
-hubs:
-- SoftwareEngineeringPracticesHub
-- JavaHub
 tags:
 - design-patterns
 - software-design

@@ -4,8 +4,6 @@ related:
 - TheBerlinWall
 - BerlinDuringTheColdWar
 canonical_id: 01KVJMS12J2HTZQW8PEVC5PXVM
-hubs:
-- BerlinHistoryHub
 auto-generated: false
 type: article
 status: active

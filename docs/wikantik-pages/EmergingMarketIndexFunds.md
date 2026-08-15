@@ -19,8 +19,6 @@ related:
 - IndexFundPortfolioConstruction
 - IntroductionToIndexFundsAndETFs
 - TotalStockMarketFundAnatomy
-hubs:
-- LowCostIndexFundInvestingHub
 ---
 # Emerging Market Index Funds
 

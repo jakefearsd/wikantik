@@ -4,8 +4,6 @@ status: active
 cluster: software-architecture
 date: '2026-04-25'
 title: gRPC Fundamentals
-hubs:
-- SoftwareArchitectureHub
 tags:
 - grpc
 - protobuf

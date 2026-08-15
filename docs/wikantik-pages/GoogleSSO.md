@@ -1,6 +1,4 @@
 ---
-hubs:
-- AuthenticationAndAuthorizationHub
 date: 2025-05-15T00:00:00Z
 summary: Google SSO via OAuth 2.0 and OIDC — Authorization Code flow, mandatory JWT
   validation steps (sig, iss, aud, exp), and secure session establishment.

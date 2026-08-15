@@ -37,7 +37,6 @@ import com.wikantik.knowledge.HubDiscoveryService;
 import com.wikantik.knowledge.HubOverviewService;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
-import com.wikantik.knowledge.HubSyncFilter;
 import com.wikantik.knowledge.KgEdgeRepository;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
@@ -198,26 +197,6 @@ public final class KnowledgeSubsystemFactory {
                 .mentionIndex( mentionIndex ).materialization( kgMat ).judgeService( kgJudge )
                 .build();
 
-        final HubSyncFilter hubSync = new HubSyncFilter(
-            name -> {
-                try {
-                    final Page p = pageMgr.getPage( name );
-                    return p != null ? pageMgr.getPureText( p ) : null;
-                } catch ( final Exception e ) {
-                    LOG.warn( "HubSyncFilter: failed to read page '{}': {}", name, e.getMessage() );
-                    return null;
-                }
-            },
-            ( name, content ) -> {
-                try {
-                    saveHelper.saveText( name, content,
-                        SaveOptions.builder().changeNote( "Hub membership sync" ).build() );
-                } catch ( final Exception e ) {
-                    LOG.warn( "HubSyncFilter: failed to save page '{}': {}", name, e.getMessage() );
-                }
-            }
-        );
-
         // Share the search-side embedding model code so the mention-centroid
         // reader picks the same vectors the hybrid retriever already stores.
         final String modelCode = EmbeddingConfig.fromProperties( props ).model().code();
@@ -297,7 +276,6 @@ public final class KnowledgeSubsystemFactory {
             mentionIndex,
             similarity,
             fmDefaults,
-            hubSync,
             /*forAgentProjectionService=*/   null,
             /*bootstrapEntityExtractionIndexer=*/ null,
             /*kgInclusionPolicy=*/           null,
@@ -338,7 +316,6 @@ public final class KnowledgeSubsystemFactory {
             /*mentionIndex=*/                null,
             /*nodeMentionSimilarity=*/       null,
             fmDefaults,
-            /*hubSyncFilter=*/               null,
             /*forAgentProjectionService=*/   null,
             /*bootstrapEntityExtractionIndexer=*/ null,
             /*kgInclusionPolicy=*/           null,
@@ -422,8 +399,9 @@ public final class KnowledgeSubsystemFactory {
             preferRegistry( engine, NodeMentionSimilarity.class,            existing.nodeMentionSimilarity() ),
             // 15. frontmatterDefaultsFilter — hot-swappable, no side-effects
             preferRegistry( engine, FrontmatterDefaultsFilter.class,        existing.frontmatterDefaultsFilter() ),
-            // 16. hubSyncFilter — hot-swappable, no side-effects
-            preferRegistry( engine, HubSyncFilter.class,                    existing.hubSyncFilter() ),
+            // (16. hubSyncFilter removed — ClusterDeclarationDesign Phase 5 retires the
+            // hubs:/related: sync mechanism entirely; cluster: is now the sole membership
+            // field. Row numbers below are left as-is; 17 was already reserved for retrieval.)
             // 18. forAgentProjectionService — hot-swappable; side-effect risk: memoized cache —
             //     preferRegistry reads the singleton, preserving cache state.
             preferRegistry( engine, ForAgentProjectionService.class,        existing.forAgentProjectionService() ),
@@ -551,7 +529,6 @@ public final class KnowledgeSubsystemFactory {
             engine.getManager( MentionIndex.class ),
             engine.getManager( NodeMentionSimilarity.class ),
             engine.getManager( FrontmatterDefaultsFilter.class ),
-            engine.getManager( HubSyncFilter.class ),
             engine.getManager( ForAgentProjectionService.class ),
             engine.getManager( BootstrapEntityExtractionIndexer.class ),
             engine.getManager( KgInclusionPolicy.class ),

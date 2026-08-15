@@ -4,9 +4,6 @@ status: active
 date: '2026-04-26'
 cluster: index-fund-investing
 title: Behavioral Finance For Investors
-hubs:
-- LowCostIndexFundInvestingHub
-- RebalancingStrategies Hub
 tags:
 - behavioral-finance
 - investor-psychology

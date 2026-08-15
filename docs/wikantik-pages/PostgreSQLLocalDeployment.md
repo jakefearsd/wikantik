@@ -1,8 +1,6 @@
 ---
 status: active
 type: article
-hubs:
-- InfrastructureSreHub
 date: '2026-05-15'
 cluster: wikantik-development
 title: PostgreSQL Local Deployment

@@ -3,8 +3,6 @@ type: article
 date: 2025-02-13T00:00:00Z
 cluster: mathematics
 title: Probability Theory
-hubs:
-- ChaosDynamical Hub
 tags:
 - mathematics
 - probability

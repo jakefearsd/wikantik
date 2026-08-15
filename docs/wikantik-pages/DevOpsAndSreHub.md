@@ -15,12 +15,6 @@ canonical_id: 01KZHC6PVV4SBQM9R0F3T7K8Z8
 type: hub
 title: DevOps and SRE Hub
 status: active
-hubs:
-- NetworkingHub
-- SoftwareEngineeringPracticesHub
-- DataEngineeringHub
-- CloudPlatformsHub
-- WebServicesAndApisHub
 tags:
 - devops
 - sre

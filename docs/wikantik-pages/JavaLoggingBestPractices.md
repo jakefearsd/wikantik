@@ -18,8 +18,6 @@ related:
 - DebuggingStrategies
 - CodeDocumentationBestPractices
 - SpringBootFundamentals
-hubs:
-- JavaHub
 ---
 # Java Logging Best Practices
 

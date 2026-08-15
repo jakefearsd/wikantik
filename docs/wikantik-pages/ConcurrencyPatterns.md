@@ -19,8 +19,6 @@ related:
 - ActorModelProgramming
 - JavaConcurrencyPatterns
 - ReactiveProgramming
-hubs:
-- SoftwareArchitectureHub
 ---
 # Concurrency Patterns
 

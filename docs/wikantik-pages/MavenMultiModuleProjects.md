@@ -19,8 +19,6 @@ related:
 - JavaModuleSystem
 - SpringBootFundamentals
 - JpaAndHibernatePatterns
-hubs:
-- JavaHub
 ---
 # Maven Multi-Module Projects
 

@@ -18,8 +18,6 @@ related:
 - DataStructures
 - TypeSystemsComparison
 - AbstractAlgebra
-hubs:
-- ProgrammingLanguagesHub
 ---
 # Compiler Design Basics
 

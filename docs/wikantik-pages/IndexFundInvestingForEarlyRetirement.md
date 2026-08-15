@@ -1,11 +1,10 @@
 ---
 status: active
 type: article
-hubs:
-- RetirementPlanningGuide
-- EuRetirementSavingsGuide
 date: 2026-03-21T00:00:00Z
-cluster: index-fund-investing
+cluster:
+- index-fund-investing
+- retirement-planning
 title: Index Fund Investing for Early Retirement (FIRE)
 tags:
 - personal-finance

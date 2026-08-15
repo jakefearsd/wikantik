@@ -19,8 +19,6 @@ related:
 - SkillIntegration
 - TokenMetrics
 - ToolOutputOptimization
-hubs:
-- AgenticAiHub
 ---
 # Skill Performance
 

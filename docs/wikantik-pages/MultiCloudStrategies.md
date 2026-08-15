@@ -18,8 +18,6 @@ related:
 - CloudNativeApplicationDesign
 - CloudMigrationStrategies
 - TerraformFundamentals
-hubs:
-- CloudPlatformsHub
 ---
 # Multi-Cloud Strategies
 

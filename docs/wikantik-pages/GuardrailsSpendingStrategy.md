@@ -14,8 +14,6 @@ summary: Adaptive retirement spending using Guyton-Klinger decision rules and Ki
 status: active
 date: 2026-03-21T00:00:00Z
 canonical_id: 01KQ0P44QT8PRMQTD8Q1XKVVR7
-hubs:
-- RetirementPlanningGuide
 part-of:
 - RetirementPlanningGuide
 tags:

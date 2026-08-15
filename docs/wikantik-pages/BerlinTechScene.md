@@ -17,8 +17,6 @@ tags:
 - venture-capital
 - startups
 - digital-economy
-hubs:
-- BerlinHistoryHub
 ---
 # Berlin Tech Scene: From Industrial Hub to Silicon Allee
 

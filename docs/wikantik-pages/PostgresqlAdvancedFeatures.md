@@ -4,8 +4,6 @@ status: active
 cluster: databases
 date: '2026-04-25'
 title: PostgreSQL Advanced Features
-hubs:
-- DatabasesHub
 tags:
 - postgresql
 - jsonb

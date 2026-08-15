@@ -20,9 +20,6 @@ tags:
 - glide-path
 - 401k
 status: active
-hubs:
-- LowCostIndexFundInvestingHub
-- RebalancingStrategies Hub
 ---
 # Target Date Funds
 

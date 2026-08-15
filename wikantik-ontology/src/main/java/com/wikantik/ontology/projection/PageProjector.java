@@ -55,12 +55,14 @@ public final class PageProjector {
         if ( page.author() != null ) {
             m.add( subject, m.createProperty( DCT + "creator" ), m.createLiteral( page.author() ) );
         }
-        // dct:subject links to tag + cluster concepts.
+        // dct:subject links to tag + cluster concepts. dct:subject is genuinely multi-valued, so
+        // a multi-membership page (ClusterDeclarationDesign Phase 5) gets one triple per cluster,
+        // not only the primary; clusters() already excludes blanks and duplicates.
         for ( final String tag : page.tags() ) {
             m.add( subject, m.createProperty( DCT + "subject" ), m.createResource( Iris.concept( tag ) ) );
         }
-        if ( page.cluster() != null && !page.cluster().isBlank() ) {
-            m.add( subject, m.createProperty( DCT + "subject" ), m.createResource( Iris.concept( page.cluster() ) ) );
+        for ( final String cluster : page.clusters() ) {
+            m.add( subject, m.createProperty( DCT + "subject" ), m.createResource( Iris.concept( cluster ) ) );
         }
         return m;
     }

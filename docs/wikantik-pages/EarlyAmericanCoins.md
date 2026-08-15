@@ -13,8 +13,6 @@ tags:
 - early-american
 - fugio-cent
 - us-mint
-hubs:
-- AmericanCoinageHub
 ---
 
 # Technical Analysis of Early American Coinage (1787–1795)

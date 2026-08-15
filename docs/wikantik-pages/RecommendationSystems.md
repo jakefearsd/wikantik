@@ -20,8 +20,6 @@ related:
 - MathematicsHub
 - InformationTheory
 type: article
-hubs:
-- AnomalyDetectionTechniques Hub
 canonical_id: 01KQ0P44V8HR56S53FQVR0H4JB
 ---
 # Recommendation Systems: The Architecture of Latent Discovery

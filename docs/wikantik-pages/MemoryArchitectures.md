@@ -17,8 +17,6 @@ related:
 - MemoryManagementFundamentals
 - JavaMemoryManagement
 - QuantumComputing
-hubs:
-- ComputerScienceFoundationsHub
 ---
 # Memory Architectures
 

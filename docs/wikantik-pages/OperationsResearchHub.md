@@ -19,8 +19,6 @@ tags:
 - supply-chain
 - hub
 status: active
-hubs:
-- WarehouseAutomationHub
 ---
 # Operations Research Hub
 

@@ -1,10 +1,10 @@
 ---
 status: active
 type: article
-hubs:
-- ChaosDynamical Hub
 date: Mar 17, 2026, 1:00:00 AM
-cluster: machine-learning
+cluster:
+- machine-learning
+- mathematics/chaos-and-dynamical-systems
 title: Mathematical Foundations of Machine Learning
 tags:
 - ai

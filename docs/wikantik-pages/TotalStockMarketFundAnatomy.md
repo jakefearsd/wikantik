@@ -4,8 +4,6 @@ status: active
 cluster: index-fund-investing
 date: '2026-04-26'
 title: Total Stock Market Fund Anatomy
-hubs:
-- LowCostIndexFundInvestingHub
 tags:
 - total-stock-market
 - index-funds

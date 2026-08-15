@@ -20,8 +20,6 @@ related:
 - RecurrentNeuralNetworks
 - GradientDescentAndOptimizers
 - LinearAlgebra
-hubs:
-- MachineLearningHub
 ---
 # Neural Network Architectures
 

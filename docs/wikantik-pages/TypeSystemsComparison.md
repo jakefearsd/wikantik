@@ -18,8 +18,6 @@ related:
 - ReactBestPractices
 - DesignPatternsOverview
 - AbstractAlgebra
-hubs:
-- ProgrammingLanguagesHub
 ---
 # Type Systems Comparison
 

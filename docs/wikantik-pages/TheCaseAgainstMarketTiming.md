@@ -4,9 +4,6 @@ status: active
 date: '2026-04-26'
 cluster: index-fund-investing
 title: The Case Against Market Timing
-hubs:
-- LowCostIndexFundInvestingHub
-- RebalancingStrategies Hub
 tags:
 - market-timing
 - behavioral-finance

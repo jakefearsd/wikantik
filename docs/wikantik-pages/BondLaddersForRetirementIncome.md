@@ -4,8 +4,6 @@ status: active
 cluster: retirement-planning
 date: '2026-04-26'
 title: Bond Ladders for Retirement Income
-hubs:
-- RetirementPlanningGuide
 tags:
 - bonds
 - bond-ladder

@@ -1,7 +1,7 @@
 ---
-cluster: generative-ai
-hubs:
-- FineTuningLargeLanguageModels Hub
+cluster:
+- generative-ai
+- machine-learning/fine-tuning
 title: Synthetic Data Generation
 date: 2024-05-16T00:00:00Z
 mitigates:

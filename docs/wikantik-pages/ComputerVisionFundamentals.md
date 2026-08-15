@@ -19,9 +19,6 @@ tags:
 - cnn
 - image-processing
 status: active
-hubs:
-- MLHub
-- AnomalyDetectionTechniques Hub
 ---
 # Computer Vision Fundamentals
 

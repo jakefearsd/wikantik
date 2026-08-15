@@ -18,8 +18,6 @@ related:
 - WebAccessibilityGuide
 - ResponsiveDesignPrinciples
 - TypeScriptFundamentals
-hubs:
-- FrontendDevelopmentHub
 ---
 # Internationalization and Localization
 

@@ -17,9 +17,6 @@ tags:
 - css-in-js
 - tailwind
 status: active
-hubs:
-- FrontendDevelopmentHub
-- WebComponents Hub
 ---
 # CSS Architecture Patterns
 

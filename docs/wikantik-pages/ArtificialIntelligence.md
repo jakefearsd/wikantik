@@ -1,6 +1,4 @@
 ---
-hubs:
-- MlModelDeploymentHub
 status: active
 summary: AI history, core techniques, capabilities, major applications, ethical considerations,
   and key research organizations — from expert systems to frontier LLMs.
@@ -11,7 +9,9 @@ tags:
 - technology
 - overview
 type: reference
-cluster: generative-ai
+cluster:
+- generative-ai
+- machine-learning/mlops
 canonical_id: 01KQ0P44M29WSBRXEMNK1B8GHW
 related:
 - LlmsSinceTwentyTwenty

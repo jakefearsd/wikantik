@@ -2,10 +2,10 @@
 type: article
 status: active
 date: 2026-05-15T00:00:00Z
-cluster: numismatics
+cluster:
+- numismatics
+- physics-engineering
 title: 'Counterfeit Detection Physics: Instrumental Analysis'
-hubs:
-- PhysicsHub
 tags:
 - physics
 - coins

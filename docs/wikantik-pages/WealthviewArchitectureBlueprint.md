@@ -15,8 +15,6 @@ tags:
 - postgresql
 - system-design
 status: active
-hubs:
-- WealthviewHub
 ---
 
 # Wealthview Architecture Blueprint

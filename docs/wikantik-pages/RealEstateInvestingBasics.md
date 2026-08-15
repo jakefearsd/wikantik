@@ -4,8 +4,6 @@ status: active
 cluster: personal-finance
 date: '2026-04-26'
 title: Real Estate Investing Basics
-hubs:
-- PersonalFinanceHub
 tags:
 - real-estate-investing
 - reits

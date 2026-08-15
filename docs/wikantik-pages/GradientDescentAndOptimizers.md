@@ -13,8 +13,6 @@ summary: Technical analysis of optimization algorithms (SGD, AdamW, Lion) and co
 status: active
 date: '2026-05-15'
 canonical_id: 01KQ12YDV1FC565JEW2X6HJA23
-hubs:
-- MachineLearningHub
 tags:
 - gradient-descent
 - adam

@@ -4,8 +4,6 @@ status: active
 cluster: agentic-ai
 date: '2026-04-25'
 title: Knowledge Graph vs. Relational Database
-hubs:
-- AgenticAiHub
 tags:
 - knowledge-graph
 - relational-database

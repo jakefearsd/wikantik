@@ -4,8 +4,6 @@ status: active
 cluster: retirement-planning
 date: '2026-04-26'
 title: Retirement Planning for Women
-hubs:
-- RetirementPlanningGuide
 tags:
 - women
 - retirement

@@ -12,8 +12,6 @@ summary: How 44 years of Cold War shaped defence sector investing, oil-geopoliti
 status: active
 date: '2026-03-14'
 canonical_id: 01KQ0P44NMWXH7JVGM0EN403SE
-hubs:
-- ConflictMarketPatternsHub
 part-of:
 - ConflictsAndEquityMarkets
 tags:

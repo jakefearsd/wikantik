@@ -4,9 +4,6 @@ status: active
 date: '2026-04-25'
 cluster: security
 title: OAuth and OIDC Deep Dive
-hubs:
-- SecurityHub
-- AuthenticationAndAuthorizationHub
 tags:
 - oauth
 - oidc

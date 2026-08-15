@@ -19,8 +19,6 @@ related:
 - CloudDatabases
 - CdnArchitecture
 - FileUploadPatterns
-hubs:
-- CloudPlatformsHub
 ---
 # Cloud Storage Options
 

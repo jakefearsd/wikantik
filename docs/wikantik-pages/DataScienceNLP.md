@@ -18,8 +18,6 @@ related:
 - NLPOverview
 - SentimentAnalysisWithMachineLearning
 - TransformerArchitecture
-hubs:
-- MLHub
 ---
 # Data Science NLP
 

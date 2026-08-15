@@ -19,8 +19,6 @@ related:
 - RemoteTeamManagement
 - BurnoutPreventionInTech
 - PairProgrammingPractices
-hubs:
-- EngineeringLeadershipHub
 ---
 # Technical Leadership Skills
 

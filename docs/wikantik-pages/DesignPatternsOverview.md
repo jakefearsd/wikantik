@@ -21,8 +21,6 @@ related:
 - DomainDrivenDesign
 - HexagonalArchitecture
 - CqrsPattern
-hubs:
-- SoftwareArchitectureHub
 ---
 # Design Patterns Overview
 

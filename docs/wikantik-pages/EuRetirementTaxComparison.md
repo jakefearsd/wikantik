@@ -1,8 +1,6 @@
 ---
 status: active
 type: article
-hubs:
-- EuRetirementSavingsGuide
 date: '2026-03-15T00:00:00Z'
 cluster: retirement-planning
 title: EU Retirement Tax Comparison

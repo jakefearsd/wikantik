@@ -17,8 +17,6 @@ related:
 - EntityResolutionTechniques
 - SPARQL
 - AgenticWorkflowDesign
-hubs:
-- AgenticAiHub
 auto-generated: false
 ---
 

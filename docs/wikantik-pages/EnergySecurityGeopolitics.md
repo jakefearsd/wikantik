@@ -2,11 +2,10 @@
 type: article
 status: active
 date: 2026-05-15T00:00:00Z
-cluster: geopolitics-and-finance
+cluster:
+- geopolitics-and-finance
+- warehouse-automation/lean-manufacturing
 title: 'Energy Security Geopolitics: The 2026 Crisis and Structural Shifts'
-hubs:
-- GeopoliticalFinancialBridgeHub
-- LeanManufacturingPrinciplesHub
 tags:
 - energy
 - security

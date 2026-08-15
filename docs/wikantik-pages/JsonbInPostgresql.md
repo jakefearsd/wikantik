@@ -2,11 +2,10 @@
 type: article
 status: active
 date: '2026-04-25'
-cluster: databases
+cluster:
+- databases
+- data-engineering/data-modeling
 title: JSONB in PostgreSQL
-hubs:
-- DatabasesHub
-- DataModelingFundamentals Hub
 tags:
 - postgresql
 - jsonb

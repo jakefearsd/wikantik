@@ -4,8 +4,6 @@ status: active
 date: '2026-04-26'
 cluster: personal-finance
 title: Personal Finance Hub
-hubs:
-- WealthviewHub
 tags:
 - personal-finance
 - hub

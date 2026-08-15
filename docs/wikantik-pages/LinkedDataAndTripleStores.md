@@ -17,8 +17,6 @@ related:
 - SPARQL
 - KnowledgeGraphVsRelationalDatabase
 - CurrentSemanticWeb
-hubs:
-- AgenticAiHub
 auto-generated: false
 ---
 

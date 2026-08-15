@@ -10,8 +10,6 @@ summary: International military support and the European defense response to the
 status: active
 date: '2026-03-13'
 canonical_id: 01KQ0P44VZR75RD299X7YXRNXP
-hubs:
-- RussiaUkraineWarOverview
 part-of:
 - RussiaUkraineWarOverview
 tags:

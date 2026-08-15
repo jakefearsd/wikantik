@@ -13,8 +13,6 @@ summary: When and how to claim Social Security — breakeven analysis, spousal a
 status: active
 date: 2026-03-14T00:00:00Z
 canonical_id: 01KQ0P44WP7ACK88FQ77QPPBCC
-hubs:
-- RetirementPlanningGuide
 part-of:
 - RetirementPlanningGuide
 tags:

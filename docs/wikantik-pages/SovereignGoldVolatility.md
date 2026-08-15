@@ -4,8 +4,6 @@ status: active
 date: 2026-05-15T00:00:00Z
 cluster: geopolitics-and-finance
 title: 'Sovereign Gold Volatility: The 2026 Trophy Asset Re-Rating'
-hubs:
-- GeopoliticalFinancialBridgeHub
 tags:
 - gold
 - volatility

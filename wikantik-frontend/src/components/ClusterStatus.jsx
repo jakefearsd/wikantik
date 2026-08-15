@@ -17,11 +17,45 @@ import Badge from './ui/Badge';
  *
  * `hub_slug` is absent from the payload when nothing declares the cluster (the server omits
  * null keys), so declaration is read from the `hub_declared` boolean, which is always present.
+ *
+ * `memberships` (ClusterDeclarationDesign Phase 5, multi-membership) is a purely additive list
+ * of every cluster the page names, primary first — present only when there is more than one.
+ * `clusterStatus.path` above stays the sole driver of placement/breadcrumbs; entries after the
+ * first here are rendered as visually-subordinate secondaries alongside it.
  */
+function SecondaryMemberships({ memberships }) {
+  if (!Array.isArray(memberships) || memberships.length < 2) return null;
+
+  return (
+    <span className="cluster-memberships-secondary" data-testid="cluster-memberships-secondary">
+      {memberships.slice(1).map((m) =>
+        m.hub_declared ? (
+          <Link
+            key={m.path}
+            className="tag tag-secondary"
+            to={`/wiki/${m.hub_slug}`}
+            title={`Also in ${m.path}, declared by ${m.hub_slug}`}
+          >
+            {m.path}
+          </Link>
+        ) : (
+          <span key={m.path} className="cluster-memberships-secondary-item">
+            <span className="tag tag-secondary">{m.path}</span>
+            <Badge variant="default" className="badge-secondary" title={`No hub page declares "${m.path}" yet.`}>
+              cluster not yet defined
+            </Badge>
+          </span>
+        )
+      )}
+    </span>
+  );
+}
+
 export default function ClusterStatus({ clusterStatus, isHub = false, canEdit = false }) {
   const path = clusterStatus?.path || null;
 
-  // Readers see exactly what they saw before: the bare chip, or nothing.
+  // Readers see exactly what they saw before: the bare chip, or nothing. Secondary
+  // memberships are editor-only curation state, same as everything else below.
   if (!canEdit) {
     return path ? <span className="tag">{path}</span> : null;
   }
@@ -34,27 +68,35 @@ export default function ClusterStatus({ clusterStatus, isHub = false, canEdit = 
     );
   }
 
+  const secondary = <SecondaryMemberships memberships={clusterStatus.memberships} />;
+
   if (isHub) {
     const count = clusterStatus.member_count ?? 0;
     const parts = ['HUB', `declares ${path}`];
     if (clusterStatus.parent) parts.push(`parent ${clusterStatus.parent}`);
     parts.push(`${count} page${count === 1 ? '' : 's'}`);
     return (
-      <span
-        className="cluster-declaration"
-        data-testid="cluster-declaration"
-        title="This page is the hub that declares this cluster."
-      >
-        {parts.join(' · ')}
-      </span>
+      <>
+        <span
+          className="cluster-declaration"
+          data-testid="cluster-declaration"
+          title="This page is the hub that declares this cluster."
+        >
+          {parts.join(' · ')}
+        </span>
+        {secondary}
+      </>
     );
   }
 
   if (clusterStatus.hub_declared) {
     return (
-      <Link className="tag" to={`/wiki/${clusterStatus.hub_slug}`} title={`Declared by ${clusterStatus.hub_slug}`}>
-        {path}
-      </Link>
+      <>
+        <Link className="tag" to={`/wiki/${clusterStatus.hub_slug}`} title={`Declared by ${clusterStatus.hub_slug}`}>
+          {path}
+        </Link>
+        {secondary}
+      </>
     );
   }
 
@@ -64,6 +106,7 @@ export default function ClusterStatus({ clusterStatus, isHub = false, canEdit = 
       <Badge variant="default" title={`No hub page declares "${path}" yet.`}>
         cluster not yet defined
       </Badge>
+      {secondary}
     </>
   );
 }

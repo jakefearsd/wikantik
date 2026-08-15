@@ -4,8 +4,6 @@ status: active
 cluster: index-fund-investing
 date: '2026-04-26'
 title: ESG Investing
-hubs:
-- LowCostIndexFundInvestingHub
 tags:
 - esg
 - socially-responsible-investing

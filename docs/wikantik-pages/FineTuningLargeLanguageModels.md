@@ -5,8 +5,6 @@ status: active
 date: 2025-05-15T00:00:00Z
 cluster: machine-learning
 title: Fine-Tuning Large Language Models
-hubs:
-- FineTuningLargeLanguageModels Hub
 tags:
 - generative-ai
 - llm

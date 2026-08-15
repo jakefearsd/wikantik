@@ -14,8 +14,6 @@ tags:
 - ci-cd
 - testing
 - wikantik-development
-hubs:
-- WikantikDevelopment
 ---
 # Continuous Integration (CI) in Wikantik
 

@@ -3,8 +3,6 @@ type: article
 cluster: personal-finance
 date: '2026-04-26'
 title: Long Term Care Insurance
-hubs:
-- PersonalFinanceHub
 tags:
 - long-term-care
 - insurance

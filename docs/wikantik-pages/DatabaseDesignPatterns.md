@@ -3,7 +3,9 @@ date: '2026-04-25'
 summary: Patterns at the multi-table level — event sourcing, audit trails, polymorphic
   associations, materialised views, soft delete, temporal data — with the trade-offs
   that decide when each pays.
-cluster: databases
+cluster:
+- databases
+- data-engineering/dimensional-modeling
 related:
 - DatabaseDesign
 - DatabaseIndexingStrategies
@@ -13,9 +15,6 @@ canonical_id: 01KQEKGD9ED8G0WM5GFWCK094R
 type: article
 title: Database Design Patterns
 status: active
-hubs:
-- DatabasesHub
-- DimensionalModelingHub
 tags:
 - database
 - design-patterns

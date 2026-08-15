@@ -18,8 +18,6 @@ related:
 - CdnArchitecture
 - WebApplicationFirewalls
 - TcpIpFundamentals
-hubs:
-- NetworkingHub
 ---
 # Reverse Proxy Patterns
 

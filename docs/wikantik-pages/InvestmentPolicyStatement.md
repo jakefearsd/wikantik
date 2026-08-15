@@ -2,11 +2,10 @@
 type: article
 status: active
 date: '2026-04-26'
-cluster: personal-finance
+cluster:
+- personal-finance
+- index-fund-investing/rebalancing
 title: Investment Policy Statement
-hubs:
-- PersonalFinanceHub
-- RebalancingStrategies Hub
 tags:
 - investment-policy
 - ips

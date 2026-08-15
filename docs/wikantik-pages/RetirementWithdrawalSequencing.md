@@ -14,8 +14,6 @@ summary: Which retirement accounts to draw from first and how the optimal withdr
 status: active
 date: 2026-03-14T00:00:00Z
 canonical_id: 01KQ0P44VQNR04JS1WACCZ54JZ
-hubs:
-- RetirementPlanningGuide
 part-of:
 - RetirementPlanningGuide
 tags:

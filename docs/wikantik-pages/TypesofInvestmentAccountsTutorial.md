@@ -2,10 +2,10 @@
 type: article
 status: active
 date: 2026-04-02T00:00:00Z
-cluster: retirement-planning
+cluster:
+- retirement-planning
+- index-fund-investing/account-types
 title: Types of Investment Accounts
-hubs:
-- TypesofInvestmentAccountsTutorialHub
 tags:
 - investing
 - accounts

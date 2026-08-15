@@ -744,6 +744,35 @@ a.tag:hover {
   border-radius: 4px;
 }
 
+/* Secondary cluster memberships (ClusterDeclarationDesign Phase 5, multi-membership). The
+   primary chip above still drives placement/breadcrumbs at full weight; these render smaller
+   and muted right after it so a reader can tell primary from secondary at a glance. */
+.cluster-memberships-secondary {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+.cluster-memberships-secondary-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tag-secondary {
+  opacity: 0.7;
+  font-size: 0.68rem;
+  padding: 1px 8px;
+}
+
+.badge-secondary {
+  opacity: 0.7;
+  padding: 2px 6px;
+  font-size: 0.62rem;
+}
+
 /* ============================================================
    Page Meta
    ============================================================ */

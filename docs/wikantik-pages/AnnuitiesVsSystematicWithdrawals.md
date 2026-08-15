@@ -4,8 +4,6 @@ status: active
 cluster: retirement-planning
 date: '2026-04-26'
 title: Annuities vs. Systematic Withdrawals
-hubs:
-- RetirementPlanningGuide
 tags:
 - retirement
 - annuities

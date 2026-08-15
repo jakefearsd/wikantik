@@ -18,8 +18,6 @@ related:
 - GradientDescentAndOptimizers
 - LinearAlgebra
 - BayesianReasoning
-hubs:
-- MachineLearningHub
 ---
 # Deep Learning Fundamentals
 

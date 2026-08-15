@@ -19,8 +19,6 @@ related:
 - JavaCollectionsFramework
 - DebuggingStrategies
 - SpringBootFundamentals
-hubs:
-- JavaHub
 ---
 # JUnit 5 Advanced Features
 

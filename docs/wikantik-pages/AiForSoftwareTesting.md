@@ -4,8 +4,6 @@ status: active
 cluster: agentic-ai
 date: '2026-04-25'
 title: AI for Software Testing
-hubs:
-- AgenticAiHub
 tags:
 - testing
 - ai-coding

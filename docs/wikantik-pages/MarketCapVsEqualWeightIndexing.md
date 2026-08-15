@@ -20,8 +20,6 @@ related:
 - SmallCapValuePremium
 - IndexFundPortfolioConstruction
 - AssetAllocationGuide
-hubs:
-- LowCostIndexFundInvestingHub
 ---
 # Market Cap vs. Equal Weight Indexing
 

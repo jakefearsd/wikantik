@@ -11,14 +11,6 @@ canonical_id: 01KZHC6PVR4SBQM9R0F3T7K8Z4
 type: hub
 title: Software Engineering Practices Hub
 status: active
-hubs:
-- MathematicsHub
-- DataStructuresHub
-- AgenticAiHub
-- DevOpsAndSreHub
-- FrontendDevelopmentHub
-- JavaHub
-- DesignPatternsHub
 tags:
 - software-engineering
 - practices

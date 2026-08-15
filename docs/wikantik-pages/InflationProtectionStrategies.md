@@ -4,8 +4,6 @@ status: active
 cluster: personal-finance
 date: '2026-04-26'
 title: Inflation Protection Strategies
-hubs:
-- PersonalFinanceHub
 tags:
 - inflation
 - inflation-protection

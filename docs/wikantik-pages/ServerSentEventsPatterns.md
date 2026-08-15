@@ -17,8 +17,6 @@ related:
 - WebSocketPatterns
 - ApiProtocolComparison
 - WebhookPatterns
-hubs:
-- WebServicesAndApisHub
 ---
 # Server-Sent Events Patterns
 

@@ -2,11 +2,10 @@
 type: article
 status: active
 date: '2026-04-25'
-cluster: agentic-ai
+cluster:
+- agentic-ai
+- generative-ai/ai-infrastructure
 title: Open Source LLMs
-hubs:
-- AgenticAiHub
-- AIInfrastructureHub
 tags:
 - open-source-llm
 - llama

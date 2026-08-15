@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.retrieval;
 
+import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.knowledge.PageList;
@@ -101,8 +102,11 @@ public final class PageListEngine {
     }
 
     public boolean matchesFilter( final Page page, final Map< String, Object > meta, final PageListFilter f ) {
+        // Phase 5: a page matches when ANY membership is the requested cluster or sits beneath
+        // it. Comparing the raw frontmatter value would never match a list-valued `cluster:`.
         if ( f.cluster() != null
-                && !f.cluster().equals( meta.get( "cluster" ) ) ) {
+                && ClusterPath.memberships( meta.get( "cluster" ) ).stream()
+                              .noneMatch( m -> ClusterPath.isSelfOrDescendant( m, f.cluster() ) ) ) {
             return false;
         }
         if ( f.type() != null

@@ -131,8 +131,9 @@ public class SpaRoutingFilter implements Filter {
         if ( !"hub".equalsIgnoreCase( type == null ? "" : type.toString() ) ) {
             return java.util.List.of();
         }
-        final Object clusterRaw = parsed.metadata().get( "cluster" );
-        final String cluster = clusterRaw == null ? "" : clusterRaw.toString();
+        // A hub declares exactly one cluster — its primary — even if the page also joins others.
+        final String cluster = java.util.Objects.requireNonNullElse(
+                com.wikantik.api.pagegraph.ClusterPath.primary( parsed.metadata().get( "cluster" ) ), "" );
         if ( cluster.isBlank() ) {
             return java.util.List.of();
         }

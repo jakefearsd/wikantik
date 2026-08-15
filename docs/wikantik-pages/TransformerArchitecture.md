@@ -2,7 +2,9 @@
 canonical_id: 01KQ0P44XWV2CPAYD99SW0HVQF
 title: Transformer Architecture
 type: article
-cluster: generative-ai
+cluster:
+- generative-ai
+- machine-learning
 status: active
 date: '2026-04-26'
 summary: How transformers actually work — attention, positional encoding, the encoder/decoder
@@ -18,9 +20,6 @@ related:
 - AgentPromptEngineering
 - OpenSourceLlmEcosystem
 - NLPOverview
-hubs:
-- GenerativeAIHub
-- MLHub
 ---
 # Transformer Architecture
 

@@ -20,8 +20,6 @@ related:
 - AgentLoops
 - AgentPlanning
 - ToolUse
-hubs:
-- AgenticAiHub
 ---
 # Agentic Architecture
 

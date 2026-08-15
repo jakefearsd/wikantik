@@ -4,8 +4,6 @@ status: active
 cluster: personal-finance
 date: '2026-04-26'
 title: US Tax Treaties with European Countries
-hubs:
-- PersonalFinanceHub
 tags:
 - taxes
 - international-tax

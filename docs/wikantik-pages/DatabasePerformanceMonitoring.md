@@ -19,8 +19,6 @@ related:
 - PostgresqlAdvancedFeatures
 - DatabaseDesign
 - DistributedTracing
-hubs:
-- DatabasesHub
 ---
 # Database Performance Monitoring
 

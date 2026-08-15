@@ -9,8 +9,6 @@ summary: Status of peace negotiations and diplomatic efforts to end the Russia-U
 status: active
 date: '2026-03-13'
 canonical_id: 01KQ0P44W06EFE76VF5C45QJNQ
-hubs:
-- RussiaUkraineWarOverview
 part-of:
 - RussiaUkraineWarOverview
 tags:

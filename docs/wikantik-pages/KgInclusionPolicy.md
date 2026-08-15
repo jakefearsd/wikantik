@@ -30,8 +30,6 @@ runbook:
   - WikantikKnowledgeGraphAdmin
   - StructuralSpineDesign
 canonical_id: 01KQEDYJR57WYQCV645PKSDBMQ
-hubs:
-- WikantikDevelopmentHub
 tags:
 - kg-policy
 - knowledge-graph

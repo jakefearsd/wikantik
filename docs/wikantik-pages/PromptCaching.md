@@ -17,8 +17,6 @@ related:
 - PromptCachingStrategies
 - AgentPromptEngineering
 - OpenSourceLlmEcosystem
-hubs:
-- GenerativeAIHub
 ---
 # Prompt Caching
 

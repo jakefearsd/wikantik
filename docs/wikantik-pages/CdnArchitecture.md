@@ -13,8 +13,6 @@ summary: CDN mechanics, edge caching strategies (Cache-Control, cache-busting), 
 status: active
 date: '2026-04-26'
 canonical_id: 01KQ0P44MZ8C2W84BXAB1R8FS0
-hubs:
-- CloudPlatformsHub
 tags:
 - cdn
 - edge-computing

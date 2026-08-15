@@ -1,5 +1,7 @@
 ---
-cluster: geopolitics-and-finance
+cluster:
+- geopolitics-and-finance
+- russia-ukraine-war
 title: Russia-Ukraine War Markets
 related:
 - ConflictsAndEquityMarkets
@@ -12,8 +14,6 @@ type: article
 date: '2026-03-14'
 status: active
 canonical_id: 01KQ0P44VZJES9W3V44BYJ9X06
-hubs:
-- RussiaUkraineWarOverview
 part-of:
 - ConflictsAndEquityMarkets
 - RussiaUkraineWarOverview

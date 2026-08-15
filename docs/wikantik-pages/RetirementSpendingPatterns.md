@@ -4,8 +4,6 @@ status: active
 cluster: retirement-planning
 date: '2026-04-26'
 title: Retirement Spending Patterns
-hubs:
-- RetirementPlanningGuide
 tags:
 - retirement-spending
 - spending-patterns

@@ -4,8 +4,6 @@ status: active
 cluster: mathematics
 date: '2026-04-25'
 title: Bayesian Reasoning
-hubs:
-- MathematicsHub
 tags:
 - bayesian
 - probability

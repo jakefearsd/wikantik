@@ -18,8 +18,6 @@ related:
 - TechnicalProjectManagement
 - TechnicalWritingGuide
 - TechnologyRadarProcess
-hubs:
-- EngineeringLeadershipHub
 ---
 # Engineering Decision Frameworks
 

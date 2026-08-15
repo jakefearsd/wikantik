@@ -4,8 +4,6 @@ status: active
 cluster: mathematics
 date: '2026-05-03'
 title: Differential Calculus
-hubs:
-- MathematicsHub
 tags:
 - calculus
 - mathematics

@@ -4,8 +4,6 @@ status: active
 cluster: personal-finance
 date: '2026-04-26'
 title: Insurance Types and Coverage
-hubs:
-- PersonalFinanceHub
 tags:
 - insurance
 - personal-finance

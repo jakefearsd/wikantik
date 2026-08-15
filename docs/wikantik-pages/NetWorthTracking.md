@@ -3,9 +3,6 @@ type: article
 date: '2026-04-26'
 cluster: personal-finance
 title: Net Worth Tracking
-hubs:
-- PersonalFinanceHub
-- DebtPayoffStrategies Hub
 tags:
 - net-worth
 - personal-finance

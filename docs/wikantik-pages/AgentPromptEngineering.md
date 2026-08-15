@@ -4,8 +4,6 @@ status: active
 cluster: generative-ai
 date: '2026-04-26'
 title: Agent Prompt Engineering
-hubs:
-- GenerativeAIHub
 tags:
 - prompt-engineering
 - agents

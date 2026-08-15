@@ -12,9 +12,6 @@ canonical_id: 01KQ0P44R4PPR5C2BAXMJJ4871
 type: article
 title: Inference Serving
 status: active
-hubs:
-- MLHub
-- MlModelDeploymentHub
 tags:
 - inference
 - serving

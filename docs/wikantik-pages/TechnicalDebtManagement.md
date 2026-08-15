@@ -19,8 +19,6 @@ related:
 - LegacyCodeModernization
 - CleanCodePrinciples
 - EngineeringDecisionFrameworks
-hubs:
-- SoftwareEngineeringPracticesHub
 ---
 # Technical Debt Management
 

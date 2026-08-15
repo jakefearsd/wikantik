@@ -4,8 +4,6 @@ status: active
 date: '2026-05-15T00:00:00Z'
 cluster: software-architecture
 title: Architecture Critique and Design Patterns
-hubs:
-- ArchitectureHub
 tags:
 - architecture
 - design-patterns

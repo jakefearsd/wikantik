@@ -3,10 +3,10 @@ auto-generated: false
 type: article
 status: active
 date: '2026-05-24'
-cluster: agentic-ai
+cluster:
+- agentic-ai
+- machine-learning/fine-tuning
 title: LLM Fine-Tuning
-hubs:
-- FineTuningLargeLanguageModels Hub
 tags:
 - llm
 - fine-tuning

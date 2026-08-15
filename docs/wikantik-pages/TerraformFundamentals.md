@@ -18,8 +18,6 @@ related:
 - CloudNativeApplicationDesign
 - CloudSecurityFundamentals
 - MonorepoVsPolyrepo
-hubs:
-- CloudPlatformsHub
 ---
 # Terraform Fundamentals
 

@@ -17,8 +17,6 @@ related:
 - ReactBestPractices
 - DesignSystems
 - SinglePageApplicationArchitecture
-hubs:
-- FrontendHub
 ---
 # Web Performance Optimization
 

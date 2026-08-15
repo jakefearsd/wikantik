@@ -4,8 +4,6 @@ status: active
 cluster: geopolitics-and-finance
 date: '2026-04-26'
 title: Defense Sector Investing
-hubs:
-- ConflictMarketPatternsHub
 tags:
 - defense-investing
 - defense-stocks

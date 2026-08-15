@@ -17,9 +17,6 @@ tags:
 - data-quality
 - data-governance
 status: active
-hubs:
-- DataEngineeringHub
-- DataModelingFundamentals Hub
 ---
 # Master Data Management
 

@@ -16,8 +16,6 @@ tags:
 - manufacturing
 - hub
 - operations-research
-hubs:
-- LeanManufacturingPrinciplesHub
 ---
 
 # Logistics and Industrial Systems Hub

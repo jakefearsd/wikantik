@@ -19,8 +19,6 @@ related:
 - CPUInference
 - PromptCaching
 - ModelSelectionEfficiency
-hubs:
-- MLHub
 ---
 # Cost-Effective Inference
 

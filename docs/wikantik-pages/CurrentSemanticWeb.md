@@ -19,8 +19,6 @@ related:
 - KnowledgeGraphsAndGenAIWorkflows
 - EntityResolutionTechniques
 - AgenticWorkflowDesign
-hubs:
-- AgenticAiHub
 auto-generated: false
 ---
 

@@ -22,8 +22,6 @@ tags:
 - adjustment-of-status
 - i-485
 - uscis
-hubs:
-- SpousalGreenCardGuide
 ---
 # Adjustment of Status (I-485)
 

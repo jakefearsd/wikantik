@@ -20,8 +20,6 @@ related:
 - PkiAndCertificates
 - NumberTheory
 - AbstractAlgebra
-hubs:
-- SecurityHub
 ---
 # Encryption Fundamentals
 

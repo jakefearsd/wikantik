@@ -19,9 +19,6 @@ tags:
 - llm-monitoring
 - evaluation
 status: active
-hubs:
-- AgenticAiHub
-- AgentLoops Hub
 ---
 # Agent Observability
 

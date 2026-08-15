@@ -16,8 +16,6 @@ related:
 - CostEffectiveInference
 - InferenceServing
 - ModelSelectionEfficiency
-hubs:
-- MachineLearningHub
 auto-generated: false
 ---
 # CPU Inference

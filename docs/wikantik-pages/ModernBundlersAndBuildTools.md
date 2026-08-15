@@ -17,9 +17,6 @@ tags:
 - webpack
 - esbuild
 status: active
-hubs:
-- FrontendDevelopmentHub
-- WebComponents Hub
 ---
 # Modern Bundlers and Build Tools
 

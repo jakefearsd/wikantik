@@ -2,8 +2,6 @@
 auto-generated: false
 status: active
 type: article
-hubs:
-- ChaosDynamical Hub
 date: '2026-05-24'
 cluster: mathematics
 title: Calculus Refresh for CS

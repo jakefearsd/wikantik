@@ -16,8 +16,6 @@ related:
 canonical_id: 01KQEKGDB4WDQQX7D2W6Z994KQ
 type: article
 status: active
-hubs:
-- DatabasesHub
 cluster: databases
 date: '2026-04-25'
 ---

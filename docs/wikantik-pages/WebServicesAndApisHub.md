@@ -4,13 +4,6 @@ status: active
 date: '2026-04-26'
 cluster: web-services-and-apis
 title: Web Services and APIs
-hubs:
-- NetworkingHub
-- DevOpsAndSreHub
-- CloudPlatformsHub
-- BackwardsCompatibilityStrategiesHub
-- FrontendDevelopmentHub
-- JavaHub
 tags:
 - api
 - web-services

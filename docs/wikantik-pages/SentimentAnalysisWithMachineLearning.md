@@ -11,9 +11,6 @@ auto-generated: false
 canonical_id: 01KQ0P44W86812BJ406PFT3WNP
 title: Sentiment Analysis with Machine Learning
 type: article
-hubs:
-- MachineLearningHub
-- AnomalyDetectionTechniques Hub
 tags:
 - sentiment-analysis
 - nlp

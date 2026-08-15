@@ -4,8 +4,6 @@ status: active
 cluster: retirement-planning
 date: '2026-04-26'
 title: Calculating Your FI Number
-hubs:
-- RetirementPlanningGuide
 tags:
 - financial-independence
 - fi-number

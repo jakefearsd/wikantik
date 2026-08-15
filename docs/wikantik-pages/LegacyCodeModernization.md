@@ -20,8 +20,6 @@ related:
 - DebuggingStrategies
 - CleanCodePrinciples
 - TechnicalLeadershipSkills
-hubs:
-- SoftwareEngineeringPracticesHub
 ---
 # Legacy Code Modernization
 

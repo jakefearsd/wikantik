@@ -4,9 +4,6 @@ status: active
 date: '2026-04-26'
 cluster: data-engineering
 title: Data Engineering Hub
-hubs:
-- GenerativeAIHub
-- WealthviewHub
 tags:
 - data-engineering
 - pipelines

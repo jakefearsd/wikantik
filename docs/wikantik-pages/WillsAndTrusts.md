@@ -13,8 +13,6 @@ summary: The four documents every adult needs, when a trust adds real value vs. 
 status: active
 date: '2026-04-26'
 canonical_id: 01KQ0P44Z6M6T85S1EQZA3JE3E
-hubs:
-- PersonalFinanceHub
 tags:
 - estate-planning
 - wills

@@ -4,8 +4,6 @@ status: active
 cluster: personal-finance
 date: '2026-04-26'
 title: Life Insurance Types
-hubs:
-- PersonalFinanceHub
 tags:
 - life-insurance
 - insurance

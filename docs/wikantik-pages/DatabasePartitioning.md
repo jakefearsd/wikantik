@@ -18,8 +18,6 @@ related:
 - DatabaseDesign
 - DatabaseIndexingStrategies
 - PostgresqlAdvancedFeatures
-hubs:
-- DatabasesHub
 ---
 # Database Partitioning
 

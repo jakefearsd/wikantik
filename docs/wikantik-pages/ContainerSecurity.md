@@ -19,9 +19,6 @@ tags:
 - supply-chain
 - runtime-security
 status: active
-hubs:
-- SecurityHub
-- ContainerSecurity Hub
 ---
 # Container Security
 

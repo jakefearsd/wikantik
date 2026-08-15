@@ -68,4 +68,18 @@ class PageProjectorTest {
         assertTrue( g.contains( subj, dctSubject, ResourceFactory.createResource( Iris.concept( "graph-databases" ) ) ),
                 "the cluster is also a dct:subject concept" );
     }
+
+    @Test
+    void multiMembershipPageEmitsDctSubjectForEachCluster() {
+        // ClusterDeclarationDesign Phase 5: dct:subject is genuinely multi-valued, so every
+        // declared membership — not only the primary — must be projected.
+        final PageRecord p = new PageRecord( CID, "GraphDatabaseFundamentals", "Graph Database Fundamentals",
+                "article", "graph-databases", List.of( "graph-databases", "databases" ), List.of(),
+                "Intro to graph DBs", "2026-03-14", "claude-code-researcher" );
+        final Model g = PageProjector.project( p );
+        final var subj = ResourceFactory.createResource( Iris.page( CID ) );
+        final var dctSubject = ResourceFactory.createProperty( "http://purl.org/dc/terms/subject" );
+        assertTrue( g.contains( subj, dctSubject, ResourceFactory.createResource( Iris.concept( "graph-databases" ) ) ) );
+        assertTrue( g.contains( subj, dctSubject, ResourceFactory.createResource( Iris.concept( "databases" ) ) ) );
+    }
 }

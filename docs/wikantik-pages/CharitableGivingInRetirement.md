@@ -4,8 +4,6 @@ status: active
 cluster: retirement-planning
 date: '2026-04-26'
 title: Charitable Giving in Retirement
-hubs:
-- RetirementPlanningGuide
 tags:
 - charitable-giving
 - qcd

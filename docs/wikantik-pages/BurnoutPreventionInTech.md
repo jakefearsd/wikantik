@@ -18,8 +18,6 @@ related:
 - RemoteTeamManagement
 - TechnicalProjectManagement
 - ToilReductionStrategies
-hubs:
-- EngineeringLeadershipHub
 ---
 # Burnout Prevention in Tech
 

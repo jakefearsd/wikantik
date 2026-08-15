@@ -18,8 +18,6 @@ related:
 - ConcurrencyPatterns
 - EventDrivenArchitecture
 - ReactBestPractices
-hubs:
-- SoftwareArchitectureHub
 ---
 # Reactive Programming
 

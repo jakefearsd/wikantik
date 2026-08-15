@@ -18,8 +18,6 @@ related:
 - TechnicalProjectManagement
 - BurnoutPreventionInTech
 - PairProgrammingPractices
-hubs:
-- EngineeringLeadershipHub
 ---
 # Remote Team Management
 

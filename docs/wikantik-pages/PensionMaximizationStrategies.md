@@ -19,8 +19,6 @@ related:
 - LifeInsuranceTypes
 - MilitaryRetirementBenefits
 - SocialSecuritySpousalAndSurvivorBenefits
-hubs:
-- RetirementPlanningGuide
 ---
 # Pension Maximization Strategies
 

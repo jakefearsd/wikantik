@@ -13,8 +13,6 @@ summary: REST, GraphQL, and gRPC compared — latency and payload benchmarks, pr
 status: active
 date: 2025-05-15T00:00:00Z
 canonical_id: 01KQ0P44KXCAPX3R4NJDFCQVMP
-hubs:
-- WebServicesAndApisHub
 tags:
 - api
 - protocols

@@ -4,8 +4,6 @@ status: active
 cluster: retirement-planning
 date: '2026-04-26'
 title: Bucket Strategy for Retirement
-hubs:
-- RetirementPlanningGuide
 tags:
 - bucket-strategy
 - retirement

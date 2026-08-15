@@ -18,8 +18,6 @@ related:
 - TrunkBasedDevelopment
 - ReleaseEngineering
 - FeatureToggleManagement
-hubs:
-- DevOpsAndSreHub
 ---
 # CI/CD Pipelines
 

@@ -5,8 +5,6 @@ related:
 - ObserverPattern
 - AdapterPattern
 title: "Structural Composition: The Decorator Pattern"
-hubs:
-- SoftwareArchitectureHub
 status: active
 date: '2026-05-22'
 summary: A guide to wrapping objects to add behavior dynamically. Explores the importance of stacking order in middleware and resilient client design.

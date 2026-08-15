@@ -17,8 +17,6 @@ related:
 - GitWorkflows
 - CiCdPipelines
 - JavaBuildToolComparison
-hubs:
-- DevOpsAndSreHub
 ---
 # Monorepo vs. Polyrepo
 

@@ -19,8 +19,6 @@ related:
 - PkiAndCertificates
 - ApplicationSecurityFundamentals
 - ZeroTrustArchitecture
-hubs:
-- SecurityHub
 ---
 # SSL/TLS Deep Dive
 

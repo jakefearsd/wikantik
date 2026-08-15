@@ -4,8 +4,6 @@ status: active
 date: 2026-05-15T00:00:00Z
 cluster: distributed-systems
 title: 'Fault-Tolerant Systems: State of the Art 2025'
-hubs:
-- EngineeringDisciplineHub
 tags:
 - systems
 - distributed

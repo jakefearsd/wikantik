@@ -4,8 +4,6 @@ status: active
 cluster: agentic-ai
 date: '2026-04-25'
 title: Responsible AI Deployment
-hubs:
-- AgenticAiHub
 tags:
 - responsible-ai
 - ai-safety

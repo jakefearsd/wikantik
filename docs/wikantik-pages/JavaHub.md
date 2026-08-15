@@ -11,11 +11,6 @@ canonical_id: 01KZHC6PVQ4SBQM9R0F3T7K8Z3
 type: hub
 title: Java
 status: active
-hubs:
-- SoftwareEngineeringPracticesHub
-- JavaMemoryManagementHub
-- DesignPatternsHub
-- WebServicesAndApisHub
 tags:
 - java
 - hub

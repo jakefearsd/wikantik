@@ -6,8 +6,6 @@ related:
 - ExpenseRatiosAndTheirEffectOnCompounding
 - LowCostIndexFundInvesting
 canonical_id: 01KQ0P44Q95A79EB4J2GCK28P2
-hubs:
-- IndexFundInvestingForEarlyRetirement
 tags:
 - personal-finance
 - investing

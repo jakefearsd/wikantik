@@ -19,8 +19,6 @@ tags:
 - earthquake
 - enlightenment
 - lisbon
-hubs:
-- PortugueseHistoryHub
 ---
 # The Lisbon Earthquake of 1755
 

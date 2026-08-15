@@ -122,7 +122,6 @@ class KnowledgeSubsystemFactoryFlagTest {
         assertNull( s.hubDiscoveryRepository(),  "hubDiscoveryRepository" );
         assertNull( s.mentionIndex(),            "mentionIndex" );
         assertNull( s.nodeMentionSimilarity(),   "nodeMentionSimilarity" );
-        assertNull( s.hubSyncFilter(),           "hubSyncFilter" );
         assertNull( s.kgCurationOps(),           "kgCurationOps" );
     }
 
@@ -143,7 +142,6 @@ class KnowledgeSubsystemFactoryFlagTest {
         assertNotNull( s.mentionIndex(),          "mentionIndex built by default" );
         assertNotNull( s.nodeMentionSimilarity(), "nodeMentionSimilarity built by default" );
         assertNotNull( s.kgCurationOps(),         "kgCurationOps built by default" );
-        assertNotNull( s.hubSyncFilter(),         "hubSyncFilter built by default" );
         assertNotNull( s.chunkProjector(),        "chunkProjector built by default" );
         assertNotNull( s.contentChunkRepository(),"contentChunkRepository built by default" );
     }

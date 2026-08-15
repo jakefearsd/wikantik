@@ -17,8 +17,6 @@ related:
 - ApiProtocolComparison
 - IdempotencyPatterns
 - BatchApiDesign
-hubs:
-- WebServicesAndApisHub
 ---
 # File Upload Patterns
 

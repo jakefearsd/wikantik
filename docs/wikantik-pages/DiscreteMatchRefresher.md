@@ -14,8 +14,6 @@ tags:
 - set-theory
 - graph-theory
 - network-flow
-hubs:
-- ChaosDynamical Hub
 ---
 
 # Discrete Mathematics: Foundations of the Digital World

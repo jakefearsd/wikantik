@@ -19,8 +19,6 @@ summary: Stock/bond/cash allocation ranges by life stage, risk tolerance dimensi
 status: active
 date: 2026-03-14T00:00:00Z
 canonical_id: 01KQ0P44M4YMBMM144GMECFYC4
-hubs:
-- IndexFundInvestingForEarlyRetirement
 part-of:
 - IndexFundInvestingForEarlyRetirement
 tags:

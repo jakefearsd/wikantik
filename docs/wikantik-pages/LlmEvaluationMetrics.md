@@ -3,8 +3,6 @@ type: article
 date: '2026-05-24'
 cluster: agentic-ai
 title: LLM Evaluation Metrics
-hubs:
-- AgentLoops Hub
 tags:
 - llm-evaluation
 - metrics

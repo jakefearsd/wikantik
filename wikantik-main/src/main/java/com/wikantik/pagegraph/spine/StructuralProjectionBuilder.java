@@ -50,8 +50,14 @@ public final class StructuralProjectionBuilder {
         byCanonicalId.put( page.canonicalId(), page );
         slugToCanonicalId.put( page.slug(), page.canonicalId() );
 
+        // Phase 5: a page is indexed under every cluster it names. Declaration stays singular —
+        // only the primary can declare — so a hub that also joins another cluster is a member
+        // there, never its hub.
+        for ( final String membership : page.clusters() ) {
+            byCluster.computeIfAbsent( membership, k -> new ArrayList<>() ).add( page );
+        }
+
         if ( page.cluster() != null ) {
-            byCluster.computeIfAbsent( page.cluster(), k -> new ArrayList<>() ).add( page );
             if ( page.type() == PageType.HUB ) {
                 // Two hubs declaring one cluster is a defect (Phase 2 blocks it at save
                 // time, and the rebuild reports it as DUPLICATE_CLUSTER_DECLARATION). Until

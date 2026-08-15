@@ -2,7 +2,9 @@
 summary: Technical analysis of Service Mesh architectures, sidecar proxy patterns,
   and the trade-offs between mTLS security and operational complexity.
 date: '2026-04-26'
-cluster: devops-sre
+cluster:
+- devops-sre
+- security/container-security
 related:
 - LoadBalancingStrategies
 - ReverseProxyPatterns
@@ -12,9 +14,6 @@ auto-generated: false
 canonical_id: 01KQ0P44WB2QYZ7CSMFH42FAZ0
 title: Service Mesh Architecture
 type: article
-hubs:
-- DevOpsAndSreHub
-- ContainerSecurity Hub
 tags:
 - service-mesh
 - istio

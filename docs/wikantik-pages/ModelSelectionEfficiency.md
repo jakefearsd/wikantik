@@ -18,8 +18,6 @@ related:
 - ModelSelection
 - CostEffectiveInference
 - CPUInference
-hubs:
-- MLHub
 ---
 # Model Selection for Efficiency
 

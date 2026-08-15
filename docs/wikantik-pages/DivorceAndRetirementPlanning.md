@@ -19,8 +19,6 @@ related:
 - RetirementPlanningForCouples
 - WillsAndTrusts
 - RetirementReadinessChecklist
-hubs:
-- RetirementPlanningGuide
 ---
 # Divorce and Retirement Planning
 

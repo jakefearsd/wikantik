@@ -12,8 +12,6 @@ summary: How the Gulf War established the buy-the-invasion pattern and the oil-p
 status: active
 date: '2026-03-14'
 canonical_id: 01KQ0P44QT1DWPZ1D0T04PXGCJ
-hubs:
-- ConflictMarketPatternsHub
 part-of:
 - ConflictsAndEquityMarkets
 tags:

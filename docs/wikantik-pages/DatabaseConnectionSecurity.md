@@ -18,8 +18,6 @@ tags:
 - authentication
 - connection-pooling
 - security
-hubs:
-- DatabasePerformanceMonitoringHub
 ---
 # Database Connection Security
 

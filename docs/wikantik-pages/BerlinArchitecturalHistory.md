@@ -2,8 +2,6 @@
 title: Berlin Architectural History
 cluster: berlin-history
 type: article
-hubs:
-- BerlinHistoryHub
 summary: 'Berlin''s architectural evolution: Bauhaus functionalism, the curtain wall,
   and the tension between utopian modernism and post-war reconstruction.'
 canonical_id: 01KQ0P44MGY8K0GATYPQJD9PP1

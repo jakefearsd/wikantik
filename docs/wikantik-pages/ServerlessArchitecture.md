@@ -18,8 +18,6 @@ related:
 - AwsFundamentals
 - CloudNativeApplicationDesign
 - CloudMonitoring
-hubs:
-- CloudPlatformsHub
 ---
 # Serverless Architecture
 

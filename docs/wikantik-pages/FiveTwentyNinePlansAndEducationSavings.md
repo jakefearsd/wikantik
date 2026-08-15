@@ -4,8 +4,6 @@ status: active
 cluster: personal-finance
 date: '2026-04-26'
 title: 529 Plans and Education Savings
-hubs:
-- PersonalFinanceHub
 tags:
 - 529-plan
 - education-savings

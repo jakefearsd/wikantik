@@ -22,9 +22,6 @@ related:
 - CpuInference
 - OpenSourceLLMs
 canonical_id: 01KQEKGDD6EWGYTHZ65JHZRK4P
-hubs:
-- MachineLearningHub
-- FineTuningLargeLanguageModels Hub
 enables:
 - LLMs
 ---

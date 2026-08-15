@@ -20,8 +20,6 @@ related:
 - JavaRecordsAndSealedClasses
 - JavaCollectionsFramework
 - DebuggingStrategies
-hubs:
-- SoftwareEngineeringPracticesHub
 ---
 # Immutable Data Patterns
 

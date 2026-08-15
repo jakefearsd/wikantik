@@ -18,8 +18,6 @@ related:
 - AwsFundamentals
 - SecurityComplianceFrameworks
 - VulnerabilityManagement
-hubs:
-- CloudPlatformsHub
 ---
 # Cloud Compliance Frameworks
 

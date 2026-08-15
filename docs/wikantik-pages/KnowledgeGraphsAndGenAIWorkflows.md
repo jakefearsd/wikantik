@@ -19,8 +19,6 @@ related:
 - KnowledgeGraphVsRelationalDatabase
 - PromptCachingStrategies
 - VectorIndexingInternals
-hubs:
-- AgenticAiHub
 auto-generated: false
 ---
 

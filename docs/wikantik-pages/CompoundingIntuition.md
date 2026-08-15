@@ -1,8 +1,6 @@
 ---
 status: active
 type: article
-hubs:
-- TypesofInvestmentAccountsTutorialHub
 date: 2026-03-14T00:00:00Z
 cluster: index-fund-investing
 title: Compounding Intuition

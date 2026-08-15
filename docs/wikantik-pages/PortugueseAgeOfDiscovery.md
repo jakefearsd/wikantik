@@ -4,8 +4,6 @@ related:
 - MedievalPortugal
 - PortugueseColonialEmpire
 canonical_id: 01KVJMS1S5Z4M542N0099FDEZQ
-hubs:
-- PortugueseHistoryHub
 auto-generated: false
 type: article
 status: active

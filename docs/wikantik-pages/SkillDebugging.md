@@ -17,8 +17,6 @@ related:
 - CustomSkillsArchitecture
 - SkillComposition
 - SkillDocumentation
-hubs:
-- AgenticAiHub
 ---
 # Skill Debugging
 

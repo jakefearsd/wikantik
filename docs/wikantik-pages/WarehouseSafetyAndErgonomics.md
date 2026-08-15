@@ -13,8 +13,6 @@ tags:
 cluster: warehouse-automation
 canonical_id: 01KQ0P44YP5AJGX29ZDV6HEAF8
 title: Warehouse Safety And Ergonomics
-hubs:
-- LeanManufacturingPrinciples Hub
 ---
 
 # Warehouse Safety and Ergonomics

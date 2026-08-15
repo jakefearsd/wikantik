@@ -37,6 +37,7 @@ import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.retrieval.ContributingChunkAssembler;
+import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.knowledge.retrieval.PageListEngine;
 import com.wikantik.knowledge.retrieval.RelatedPagesFinder;
 import com.wikantik.search.FrontmatterMetadataCache;
@@ -317,7 +318,8 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             buildUrl( page.getName() ),
             score,
             PageListEngine.stringOrEmpty( meta.get( "summary" ) ),
-            PageListEngine.stringOrNull( meta.get( "cluster" ) ),
+            // The primary membership: RetrievedPage.cluster is single-valued and drives display.
+            ClusterPath.primary( meta.get( "cluster" ) ),
             PageListEngine.stringList( meta.get( "tags" ) ),
             chunks,
             related,

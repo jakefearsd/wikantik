@@ -13,9 +13,6 @@ canonical_id: 01KQ0P44R9KG70GP7TP45YESDY
 type: article
 title: Java Collections Framework
 status: active
-hubs:
-- JavaHub
-- JavaMemoryManagementHub
 tags:
 - java
 - collections

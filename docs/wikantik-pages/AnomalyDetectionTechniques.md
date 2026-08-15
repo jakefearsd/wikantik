@@ -13,8 +13,6 @@ tags:
 - local-outlier-factor
 - unsupervised-learning
 status: active
-hubs:
-- AnomalyDetectionTechniques Hub
 ---
 # Anomaly Detection Techniques
 

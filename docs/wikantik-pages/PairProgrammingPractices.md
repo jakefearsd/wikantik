@@ -19,8 +19,6 @@ related:
 - DebuggingStrategies
 - TechnicalLeadershipSkills
 - RemoteTeamManagement
-hubs:
-- SoftwareEngineeringPracticesHub
 ---
 # Pair Programming Practices
 

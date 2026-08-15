@@ -1,6 +1,4 @@
 ---
-hubs:
-- DemandPlanningAndSop Hub
 date: 2026-05-08T00:00:00Z
 status: active
 summary: 'Advanced analytical methods for optimal decision-making: mathematical programming,

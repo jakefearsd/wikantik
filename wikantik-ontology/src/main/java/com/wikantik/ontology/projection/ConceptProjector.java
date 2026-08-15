@@ -44,9 +44,9 @@ public final class ConceptProjector {
         final Set< String > values = new LinkedHashSet<>();
         for ( final PageRecord p : pages ) {
             values.addAll( p.tags() );
-            if ( p.cluster() != null && !p.cluster().isBlank() ) {
-                values.add( p.cluster() );
-            }
+            // Every declared membership gets its own concept (ClusterDeclarationDesign Phase 5),
+            // not only the primary; clusters() already excludes blanks and duplicates.
+            values.addAll( p.clusters() );
         }
         final Map< String, Model > out = new HashMap<>();
         for ( final String value : values ) {

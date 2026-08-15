@@ -4,9 +4,6 @@ status: active
 date: '2026-04-26'
 cluster: mathematics
 title: Temporal Logic
-hubs:
-- MathematicsHub
-- PredicateLogic Hub
 tags:
 - temporal-logic
 - ltl

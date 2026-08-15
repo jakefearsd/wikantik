@@ -18,9 +18,6 @@ tags:
 - data-engineering
 - transformation
 status: active
-hubs:
-- DataEngineeringHub
-- DataModelingFundamentals Hub
 ---
 # ETL vs. ELT
 

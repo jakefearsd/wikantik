@@ -139,7 +139,6 @@ class KnowledgeSubsystemFactoryTest {
             assertNotNull( services.mentionIndex(),                   "mentionIndex" );
             assertNotNull( services.nodeMentionSimilarity(),          "nodeMentionSimilarity" );
             assertNotNull( services.frontmatterDefaultsFilter(),      "frontmatterDefaultsFilter" );
-            assertNotNull( services.hubSyncFilter(),                  "hubSyncFilter" );
             // Phase 8 Ckpt 1.5 post-construction fields — null from factory
             // (WikiEngine wires them after create() returns; bridge reads from getManager).
             assertNull( services.contextRetrievalService(),           "contextRetrievalService (post-construction)" );

@@ -103,3 +103,75 @@ describe('ClusterStatus', () => {
     expect(screen.getByText(/not yet defined/i)).toBeTruthy();
   });
 });
+
+// ---- Phase 5: multi-membership — `memberships` is purely additive to the primary above ----
+
+const TWO_DECLARED_MEMBERSHIPS = {
+  ...DECLARED,
+  memberships: [
+    { path: 'machine-learning', hub_slug: 'MLHub', hub_declared: true },
+    { path: 'deep-learning', hub_slug: 'DLHub', hub_declared: true },
+  ],
+};
+
+const SECONDARY_UNDECLARED = {
+  ...DECLARED,
+  memberships: [
+    { path: 'machine-learning', hub_slug: 'MLHub', hub_declared: true },
+    { path: 'van-life', hub_slug: null, hub_declared: false },
+  ],
+};
+
+const SINGLE_MEMBERSHIP = {
+  ...DECLARED,
+  memberships: [{ path: 'machine-learning', hub_slug: 'MLHub', hub_declared: true }],
+};
+
+describe('ClusterStatus — secondary memberships (Phase 5)', () => {
+  it('renders both the primary and a declared secondary membership for an editor', () => {
+    show({ clusterStatus: TWO_DECLARED_MEMBERSHIPS, isHub: false, canEdit: true });
+    const primary = screen.getByRole('link', { name: 'machine-learning' });
+    expect(primary.getAttribute('href')).toBe('/wiki/MLHub');
+    const secondary = screen.getByRole('link', { name: 'deep-learning' });
+    expect(secondary.getAttribute('href')).toBe('/wiki/DLHub');
+  });
+
+  it('marks a secondary membership as visually subordinate to the primary', () => {
+    show({ clusterStatus: TWO_DECLARED_MEMBERSHIPS, isHub: false, canEdit: true });
+    const primary = screen.getByRole('link', { name: 'machine-learning' });
+    const secondary = screen.getByRole('link', { name: 'deep-learning' });
+    expect(primary.className).not.toMatch(/tag-secondary/);
+    expect(secondary.className).toMatch(/tag-secondary/);
+  });
+
+  it('flags an undeclared secondary membership with the same mild "not yet defined" affordance as the primary undeclared state', () => {
+    show({ clusterStatus: SECONDARY_UNDECLARED, isHub: false, canEdit: true });
+    // primary is declared, so it links and carries no badge of its own
+    expect(screen.getByRole('link', { name: 'machine-learning' })).toBeTruthy();
+    // secondary is undeclared
+    expect(screen.getByText('van-life')).toBeTruthy();
+    expect(screen.getByText(/not yet defined/i)).toBeTruthy();
+  });
+
+  it('shows nothing extra for a reader who cannot edit, even with multiple memberships', () => {
+    show({ clusterStatus: TWO_DECLARED_MEMBERSHIPS, isHub: false, canEdit: false });
+    expect(screen.getByText('machine-learning')).toBeTruthy();
+    expect(screen.queryByText('deep-learning')).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('renders no secondary memberships block when the field is absent (older server / non-multi page)', () => {
+    show({ clusterStatus: DECLARED, isHub: false, canEdit: true });
+    expect(screen.queryByTestId('cluster-memberships-secondary')).toBeNull();
+  });
+
+  it('renders no secondary memberships block when the array holds only the primary entry', () => {
+    show({ clusterStatus: SINGLE_MEMBERSHIP, isHub: false, canEdit: true });
+    expect(screen.queryByTestId('cluster-memberships-secondary')).toBeNull();
+  });
+
+  it('renders no secondary memberships block when the array is empty', () => {
+    show({ clusterStatus: { ...DECLARED, memberships: [] }, isHub: false, canEdit: true });
+    expect(screen.queryByTestId('cluster-memberships-secondary')).toBeNull();
+  });
+});

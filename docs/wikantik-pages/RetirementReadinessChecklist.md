@@ -18,8 +18,6 @@ related:
 - PreMedicareBridgeStrategies
 - EstatePlanningForRetirees
 - RetirementSpendingPatterns
-hubs:
-- RetirementPlanningGuide
 ---
 # Retirement Readiness Checklist
 

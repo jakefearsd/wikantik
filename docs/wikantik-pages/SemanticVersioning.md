@@ -12,8 +12,6 @@ tags:
 - versioning
 - ci-cd
 - automation
-hubs:
-- BackwardsCompatibilityStrategiesHub
 ---
 
 # Semantic Versioning (SemVer) 2.0.0

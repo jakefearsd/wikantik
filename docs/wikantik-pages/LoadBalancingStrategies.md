@@ -18,8 +18,6 @@ related:
 - ReverseProxyPatterns
 - DnsDeepDive
 - CdnArchitecture
-hubs:
-- NetworkingHub
 ---
 
 Load balancing is the distribution of network traffic across a pool of backend resources. It is implemented at either the Transport Layer (L4) or the Application Layer (L7).

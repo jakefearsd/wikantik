@@ -19,8 +19,6 @@ related:
 - BloomFilters
 - StringMatchingAlgorithms
 - DatabaseIndexingStrategies
-hubs:
-- DataStructuresHub
 ---
 # Trie Data Structure
 

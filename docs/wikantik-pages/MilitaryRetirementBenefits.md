@@ -4,8 +4,6 @@ status: active
 cluster: retirement-planning
 date: '2026-04-26'
 title: Military Retirement Benefits
-hubs:
-- RetirementPlanningGuide
 tags:
 - military-retirement
 - veterans

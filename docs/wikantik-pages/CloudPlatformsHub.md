@@ -12,10 +12,6 @@ canonical_id: 01KQEKBKX2QVEW6716V6Y8N5QT
 type: hub
 title: Cloud Platforms Hub
 status: active
-hubs:
-- NetworkingHub
-- DevOpsAndSreHub
-- DataEngineeringHub
 tags:
 - cloud
 - aws

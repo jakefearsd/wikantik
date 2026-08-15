@@ -18,8 +18,6 @@ related:
 - CurrentSemanticWeb
 - KnowledgeGraphsAndGenAIWorkflows
 - FederatedKnowledgeGraphs
-hubs:
-- AgenticAiHub
 auto-generated: false
 ---
 

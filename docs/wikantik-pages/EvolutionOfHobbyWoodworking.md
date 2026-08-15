@@ -12,8 +12,6 @@ tags:
 - maker-movement
 - digital-fabrication
 - craftsmanship
-hubs:
-- HobbyWoodworkingInTheTwentyFirstCentury
 ---
 
 # Evolution of Hobby Woodworking: From Industrial Arts to the Maker Movement

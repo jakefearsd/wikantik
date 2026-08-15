@@ -18,8 +18,6 @@ related:
 - JavaAnnotationProcessing
 - JavaTwentyOneFeatures
 - SpringBootFundamentals
-hubs:
-- JavaHub
 ---
 # Java Reflection and Proxies
 

@@ -16,8 +16,6 @@ related:
 - CustomSkillsArchitecture
 - SkillIntegration
 - SkillLibraries
-hubs:
-- AgenticAiHub
 ---
 # Skill Composition
 

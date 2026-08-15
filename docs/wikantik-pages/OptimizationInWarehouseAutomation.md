@@ -1,5 +1,7 @@
 ---
-cluster: warehouse-automation
+cluster:
+- warehouse-automation
+- operations-research/demand-planning
 title: Optimization in Warehouse Automation
 related:
 - OperationsResearchHub
@@ -17,8 +19,6 @@ date: '2026-03-21'
 canonical_id: 01KQ0P44TDGH7ZESM085FP6PV2
 uses:
 - OR
-hubs:
-- DemandPlanningAndSop Hub
 tags:
 - operations-research
 - warehouse-automation

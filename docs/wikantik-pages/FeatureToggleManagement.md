@@ -17,8 +17,6 @@ related:
 - TrunkBasedDevelopment
 - CiCdPipelines
 - ReleaseEngineering
-hubs:
-- DevOpsAndSreHub
 ---
 # Feature Toggle Management
 

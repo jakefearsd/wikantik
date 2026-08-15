@@ -21,8 +21,6 @@ tags:
 - lucene
 - pgvector
 - graph-rerank
-hubs:
-- WikantikPlatformHub
 ---
 
 # Wikantik Hybrid Search Architecture

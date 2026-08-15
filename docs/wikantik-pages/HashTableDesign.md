@@ -16,8 +16,6 @@ tags:
 related:
 - BalancedSearchTrees
 - HeapAndPriorityQueues
-hubs:
-- DataStructuresHub
 ---
 # Hash Table Design
 

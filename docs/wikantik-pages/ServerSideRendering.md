@@ -18,9 +18,6 @@ tags:
 - nextjs
 - rendering
 status: active
-hubs:
-- FrontendDevelopmentHub
-- WebComponents Hub
 ---
 # Server-Side Rendering
 

@@ -18,9 +18,6 @@ tags:
 - offline
 - frontend
 status: active
-hubs:
-- FrontendDevelopmentHub
-- WebComponents Hub
 ---
 # Progressive Web Apps
 

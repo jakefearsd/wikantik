@@ -18,9 +18,6 @@ tags:
 - tree-of-thought
 - replanning
 status: active
-hubs:
-- AgenticAiHub
-- AgentLoops Hub
 ---
 # Agent Planning: Architectural Regimes and Replanning
 

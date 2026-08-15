@@ -15,8 +15,6 @@ summary: Warehouse Management Systems — the software layer that controls inven
 status: active
 date: 2026-03-18T00:00:00Z
 canonical_id: 01KQ0P44YNBCX03E93WPSJ4QM5
-hubs:
-- WarehouseAutomationHub
 part-of:
 - WarehouseAutomationHub
 tags:

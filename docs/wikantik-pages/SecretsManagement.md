@@ -1,6 +1,4 @@
 ---
-hubs:
-- ContainerSecurity Hub
 date: 2025-05-15T00:00:00Z
 summary: Vault/KMS integration, dynamic secrets, and solving the Secret Zero bootstrap
   problem — architecture for managing credentials in distributed systems.

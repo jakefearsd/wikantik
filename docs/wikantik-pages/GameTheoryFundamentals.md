@@ -14,8 +14,6 @@ tags:
 - nash-equilibrium
 - agents
 - multi-agent-systems
-hubs:
-- ChaosDynamical Hub
 ---
 
 # Game Theory: The Logic of Strategic Interaction

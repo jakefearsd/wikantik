@@ -18,8 +18,6 @@ related:
 - ToilReductionStrategies
 - ScheduledTaskManagement
 - CodeDocumentationBestPractices
-hubs:
-- DevOpsAndSreHub
 ---
 # Runbook Automation
 

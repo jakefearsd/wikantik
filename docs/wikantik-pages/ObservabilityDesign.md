@@ -13,8 +13,6 @@ type: article
 canonical_id: 01KQ0P44T771NATW10QVZEVR5Y
 cluster: devops-sre
 title: 'Wikantik Observability Stack: Loki, Prometheus, Grafana'
-hubs:
-- InfrastructureSreHub
 ---
 # Wikantik Observability System Design
 

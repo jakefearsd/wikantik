@@ -26,6 +26,7 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.ClusterDetails;
 import com.wikantik.api.pagegraph.ClusterSummary;
 import com.wikantik.api.pagegraph.IndexHealth;
+import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.api.pagegraph.Sitemap;
@@ -139,7 +140,10 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 }
 
                 final PageType type = PageType.fromFrontmatter( fm.get( "type" ) );
-                final String cluster = asString( fm.get( "cluster" ) );
+                // Phase 5: `cluster:` may be a scalar or a list. ClusterPath.memberships is the
+                // one place that difference is resolved; the DAO column keeps the primary.
+                final List< String > clusters = ClusterPath.memberships( fm.get( "cluster" ) );
+                final String cluster = clusters.isEmpty() ? null : clusters.get( 0 );
                 final String title = firstNonBlank( asString( fm.get( "title" ) ), p.getName() );
                 final String summary = asString( fm.get( "summary" ) );
                 final List< String > tags = stringList( fm.get( "tags" ) );
@@ -148,8 +152,8 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 final boolean derived = fm.get( "derived_from" ) != null;
 
                 builder.addPage( new PageDescriptor(
-                        canonicalId, p.getName(), title, type, cluster, tags, summary, updated, kgInclude,
-                        derived ) );
+                        canonicalId, p.getName(), title, type, cluster, clusters, tags, summary, updated,
+                        kgInclude, derived ) );
 
                 // Only persist canonical_ids authored in frontmatter. Synthesised IDs live
                 // in memory until an author (or Phase 4's mandatory validator) writes them
@@ -290,7 +294,8 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         }
 
         final PageType type = PageType.fromFrontmatter( fm.get( "type" ) );
-        final String cluster = asString( fm.get( "cluster" ) );
+        final List< String > clusters = ClusterPath.memberships( fm.get( "cluster" ) );
+        final String cluster = clusters.isEmpty() ? null : clusters.get( 0 );
         final String title = firstNonBlank( asString( fm.get( "title" ) ), slug );
         final String summary = asString( fm.get( "summary" ) );
         final List< String > tags = stringList( fm.get( "tags" ) );
@@ -299,7 +304,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         final Optional< Boolean > kgInclude = parseKgInclude( fm.get( "kg_include" ) );
         final boolean derived = fm.get( "derived_from" ) != null;
         final PageDescriptor next = new PageDescriptor(
-                canonicalId, slug, title, type, cluster, tags, summary, updated, kgInclude, derived );
+                canonicalId, slug, title, type, cluster, clusters, tags, summary, updated, kgInclude, derived );
 
         if ( authored ) {
             PageCanonicalIdsDao.UpsertResult upsertResult = PageCanonicalIdsDao.UpsertResult.WRITTEN;

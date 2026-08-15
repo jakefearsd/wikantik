@@ -4,8 +4,6 @@ status: active
 cluster: geopolitics-and-finance
 date: '2026-04-26'
 title: Geopolitical Risk and Investing
-hubs:
-- ConflictMarketPatternsHub
 tags:
 - geopolitical-risk
 - investing

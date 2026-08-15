@@ -16,8 +16,6 @@ tags:
 related:
 - PromptCaching
 - AgentPromptEngineering
-hubs:
-- GenerativeAIHub
 ---
 # Prompt Caching Strategies
 

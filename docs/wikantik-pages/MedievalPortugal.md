@@ -18,8 +18,6 @@ tags:
 - medieval
 - reconquista
 - aljubarrota
-hubs:
-- PortugueseHistoryHub
 ---
 # Medieval Portugal: Forging a Nation (1139–1415)
 

@@ -19,8 +19,6 @@ related:
 - SkillIntegration
 - SkillDocumentation
 - SkillPerformance
-hubs:
-- AgenticAiHub
 ---
 # Skill Libraries
 

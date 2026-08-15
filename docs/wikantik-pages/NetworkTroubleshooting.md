@@ -19,8 +19,6 @@ related:
 - DnsDeepDive
 - LoadBalancingStrategies
 - DebuggingStrategies
-hubs:
-- NetworkingHub
 ---
 # Network Troubleshooting
 

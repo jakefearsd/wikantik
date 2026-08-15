@@ -18,9 +18,6 @@ tags:
 - tree-of-thought
 - reflection
 status: active
-hubs:
-- AgenticAiHub
-- AgentLoops Hub
 ---
 # Agent Reasoning
 

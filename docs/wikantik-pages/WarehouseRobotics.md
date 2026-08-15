@@ -14,9 +14,6 @@ summary: Warehouse robotics — AMRs, AGVs, robotic picking arms, and cobots tha
 status: active
 date: 2026-03-18T00:00:00Z
 canonical_id: 01KQ0P44YN37W9PRZ33CGQ1QM5
-hubs:
-- WarehouseAutomationHub
-- AutomatedStorageAndRetrieval Hub
 part-of:
 - WarehouseAutomationHub
 tags:

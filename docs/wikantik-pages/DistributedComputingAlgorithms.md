@@ -20,8 +20,6 @@ related:
 - ConcurrencyDistributed
 - ByzantineFaultTolerance
 - CrdtDataStructures
-hubs:
-- DistributedSystemsHub
 ---
 # Distributed Computing Algorithms
 

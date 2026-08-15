@@ -2,11 +2,10 @@
 type: article
 status: active
 date: '2026-04-25'
-cluster: databases
+cluster:
+- databases
+- data-engineering/data-modeling
 title: NoSQL Database Types
-hubs:
-- DatabasesHub
-- DataModelingFundamentals Hub
 tags:
 - nosql
 - mongodb

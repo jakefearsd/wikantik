@@ -1,9 +1,9 @@
 ---
 title: Docker Deployment
 type: article
-cluster: cloud-platforms
-hubs:
-- ContainerSecurity Hub
+cluster:
+- cloud-platforms
+- security/container-security
 summary: 'Deploy Wikantik with Docker: environment variables, volume-backed data persistence,
   daily backup container, and docker-compose example.'
 canonical_id: 01KQ0P44PWCCMS8D7BBBM6HEZ5

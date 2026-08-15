@@ -17,8 +17,6 @@ related:
 - LoadBalancingStrategies
 - CdnArchitecture
 - NetworkTroubleshooting
-hubs:
-- NetworkingHub
 ---
 # DNS Deep Dive
 

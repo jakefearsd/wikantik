@@ -4,8 +4,6 @@ status: active
 cluster: agentic-ai
 date: '2026-04-25'
 title: Chain-of-Thought Reasoning
-hubs:
-- AgenticAiHub
 tags:
 - chain-of-thought
 - prompt-engineering

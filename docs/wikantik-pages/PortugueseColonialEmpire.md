@@ -20,8 +20,6 @@ tags:
 - brazil
 - africa
 - empire
-hubs:
-- PortugueseHistoryHub
 ---
 # The Portuguese Colonial Empire
 

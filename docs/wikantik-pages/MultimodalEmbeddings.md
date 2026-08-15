@@ -13,8 +13,6 @@ summary: Unified vector spaces across text, image, and audio. Technical deep div
 status: active
 date: '2026-05-15'
 canonical_id: 01KQEKGDDDCQYHZN00W3ZGN3RS
-hubs:
-- AgenticAiHub
 tags:
 - multimodal
 - embeddings

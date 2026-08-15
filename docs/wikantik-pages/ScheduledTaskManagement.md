@@ -18,8 +18,6 @@ related:
 - RunbookAutomation
 - DevOpsFundamentals
 - AwsLambdaPatterns
-hubs:
-- DevOpsAndSreHub
 ---
 # Scheduled Task Management
 

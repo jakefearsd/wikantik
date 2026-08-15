@@ -60,7 +60,13 @@ public record StructuralConflict(
          */
         UNDECLARED_CLUSTER,
         /** A {@code type: hub} page carries no cluster, so it declares nothing. Subject: the page. */
-        CLUSTERLESS_HUB
+        CLUSTERLESS_HUB,
+        /**
+         *  A {@code type: hub} page names more than one cluster. A declaration is singular by
+         *  definition, so only the first is treated as declared and the rest are plain
+         *  memberships. Subject: the hub page.
+         */
+        MULTI_CLUSTER_HUB
     }
 
     public StructuralConflict {

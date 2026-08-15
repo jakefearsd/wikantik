@@ -17,8 +17,6 @@ related:
 - EngineeringDecisionFrameworks
 - TechnicalLeadershipSkills
 - TechnicalDebtManagement
-hubs:
-- EngineeringLeadershipHub
 ---
 # Technology Radar Process
 

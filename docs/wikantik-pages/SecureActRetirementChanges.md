@@ -4,8 +4,6 @@ status: active
 cluster: retirement-planning
 date: '2026-04-26'
 title: SECURE Act Retirement Changes
-hubs:
-- RetirementPlanningGuide
 tags:
 - secure-act
 - secure-2

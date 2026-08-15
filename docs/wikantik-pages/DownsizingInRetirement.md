@@ -5,8 +5,6 @@ status: active
 date: 2025-05-15T00:00:00Z
 cluster: retirement-planning/downsizing
 title: Downsizing in Retirement
-hubs:
-- DownsizingInRetirementHub
 tags:
 - real-estate
 - retirement-planning

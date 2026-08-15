@@ -17,8 +17,6 @@ related:
 - BatchVsStreaming
 - ApacheSparkFundamentals
 - DistributedTracing
-hubs:
-- DataSystemsHub
 auto-generated: false
 ---
 # Apache Kafka Fundamentals

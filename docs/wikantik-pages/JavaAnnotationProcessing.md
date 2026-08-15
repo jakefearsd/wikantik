@@ -17,8 +17,6 @@ related:
 - JavaTwentyOneFeatures
 - MavenMultiModuleProjects
 - JavaBuildToolComparison
-hubs:
-- JavaHub
 ---
 # Java Annotation Processing
 

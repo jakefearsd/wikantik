@@ -16,9 +16,6 @@ type: article
 date: '2026-03-14'
 status: active
 canonical_id: 01KQ0P44GXB0KV6SBXTF1GABZ0
-hubs:
-- IndexFundInvestingForEarlyRetirement
-- TypesofInvestmentAccountsTutorialHub
 part-of:
 - IndexFundInvestingForEarlyRetirement
 tags:

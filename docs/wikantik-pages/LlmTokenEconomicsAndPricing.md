@@ -4,8 +4,6 @@ status: active
 cluster: agentic-ai
 date: '2026-04-25'
 title: LLM Token Economics and Pricing
-hubs:
-- AgenticAiHub
 tags:
 - llm
 - token-pricing

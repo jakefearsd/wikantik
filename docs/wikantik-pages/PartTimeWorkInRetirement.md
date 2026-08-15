@@ -4,8 +4,6 @@ status: active
 cluster: retirement-planning
 date: '2026-04-26'
 title: Part-Time Work in Retirement
-hubs:
-- RetirementPlanningGuide
 tags:
 - part-time-work
 - retirement

@@ -13,8 +13,6 @@ tags:
 cluster: data-structures
 title: Balanced Search Trees
 date: '2026-04-26'
-hubs:
-- DataStructuresHub
 type: article
 status: active
 canonical_id: 01KQ0P44MCJA2WTGJB4NK967T6

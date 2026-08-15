@@ -19,8 +19,6 @@ related:
 - EncryptionFundamentals
 - SecurityIncidentResponse
 - ZeroTrustArchitecture
-hubs:
-- SecurityHub
 ---
 # Threat Modeling
 

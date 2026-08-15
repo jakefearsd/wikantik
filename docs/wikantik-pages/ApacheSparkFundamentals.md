@@ -17,8 +17,6 @@ related:
 - ApacheKafkaFundamentals
 - DataLakehouse
 - DistributedComputingAlgorithms
-hubs:
-- DataSystemsHub
 auto-generated: false
 ---
 # Apache Spark Fundamentals

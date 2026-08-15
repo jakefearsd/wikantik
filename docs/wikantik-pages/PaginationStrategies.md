@@ -18,8 +18,6 @@ related:
 - ApiProtocolComparison
 - BatchApiDesign
 - GraphQlFundamentals
-hubs:
-- WebServicesAndApisHub
 ---
 # Pagination Strategies
 

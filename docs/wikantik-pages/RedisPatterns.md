@@ -19,8 +19,6 @@ related:
 - ApiRateLimitingAlgorithms
 - ConsistentHashing
 - DistributedComputingAlgorithms
-hubs:
-- DataSystemsHub
 ---
 # Redis Patterns
 

@@ -20,10 +20,6 @@ tags:
 - deep-learning
 - ai
 - hub
-hubs:
-- MathematicsHub
-- GenerativeAIHub
-- AgenticAiHub
 ---
 
 # Machine Learning Hub

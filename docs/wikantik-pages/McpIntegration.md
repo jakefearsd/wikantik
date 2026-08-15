@@ -25,8 +25,6 @@ tags:
 - agent-integration
 - tools
 status: deployed
-hubs:
-- WikantikDevelopmentHub
 ---
 # MCP Integration
 

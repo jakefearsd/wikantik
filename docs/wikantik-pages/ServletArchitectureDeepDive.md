@@ -18,8 +18,6 @@ related:
 - WebServicesAndApisHub
 - WebApplicationFirewalls
 - HttpTwoAndHttpThree
-hubs:
-- JavaHub
 ---
 # Servlet Architecture Deep Dive
 

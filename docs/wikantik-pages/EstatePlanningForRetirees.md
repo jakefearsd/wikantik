@@ -4,8 +4,6 @@ status: active
 cluster: retirement-planning
 date: '2026-04-26'
 title: Estate Planning for Retirees
-hubs:
-- RetirementPlanningGuide
 tags:
 - estate-planning
 - retirement

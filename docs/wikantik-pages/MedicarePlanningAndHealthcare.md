@@ -13,8 +13,6 @@ summary: Pre-Medicare ACA bridge, Medicare enrollment, IRMAA surcharges, and how
 status: active
 date: 2026-03-14T00:00:00Z
 canonical_id: 01KQ0P44SDB8R1HSQQEHDXG5YT
-hubs:
-- RetirementPlanningGuide
 part-of:
 - RetirementPlanningGuide
 tags:

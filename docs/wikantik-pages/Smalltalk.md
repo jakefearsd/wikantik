@@ -1,6 +1,4 @@
 ---
-hubs:
-- ArchitectureHub
 date: 2026-05-08T00:00:00Z
 status: active
 summary: Pioneer of pure OOP (1972). Created at Xerox PARC by Alan Kay, it defined
@@ -14,7 +12,9 @@ tags:
 - ide
 - computer-history
 type: article
-cluster: computer-science
+cluster:
+- computer-science
+- software-architecture
 canonical_id: 01KRN9CBK8HM8ZEKPD0T1KPXFZ
 title: Smalltalk
 ---

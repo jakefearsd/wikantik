@@ -21,9 +21,6 @@ tags:
 - linear-algebra
 - optimization
 status: active
-hubs:
-- MathematicsHub
-- ChaosDynamical Hub
 ---
 
 # Applied Math Survey: The Intellectual Infrastructure of the Modern World

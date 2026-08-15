@@ -1,7 +1,4 @@
 ---
-hubs:
-- WikantikPlatformHub
-- WikantikDevelopment
 date: '2026-06-20'
 status: active
 summary: How Wikantik's LLM-extracted Knowledge Graph works — nodes, edges, provenance,
@@ -14,7 +11,9 @@ tags:
 - retrieval
 - architecture
 type: article
-cluster: wikantik-platform
+cluster:
+- wikantik-platform
+- wikantik-development
 canonical_id: 01KQTCBW5GBFJVWYB8V1CP49P5
 title: The Wikantik Knowledge Graph
 ---

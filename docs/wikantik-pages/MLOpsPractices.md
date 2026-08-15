@@ -8,8 +8,6 @@ tags:
 - must
 cluster: machine-learning/mlops
 type: article
-hubs:
-- MlModelDeploymentHub
 auto-generated: false
 canonical_id: 01KQ0P44S42059KB445F036V87
 ---

@@ -15,8 +15,6 @@ summary: Building a reliable retirement paycheck from Social Security, portfolio
 status: active
 date: 2026-03-14T00:00:00Z
 canonical_id: 01KQ0P44VMBD2J4E6X7DR6KCAT
-hubs:
-- RetirementPlanningGuide
 part-of:
 - RetirementPlanningGuide
 tags:

@@ -162,6 +162,75 @@ class SchemaDrivenFrontmatterValidatorTest {
                            "cluster" ).isEmpty() );
     }
 
+    /**
+     * ClusterDeclarationDesign Phase 5: a hub declares exactly one cluster, so a
+     * multi-entry {@code cluster:} list on a {@code type: hub} page is blocking.
+     */
+    @Test
+    void hubWithMultiValuedClusterListIsAnError() {
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "type", "hub", "cluster", List.of( "a", "b" ) ), ValidationCtx.lenient() );
+        final FieldViolation v = first( vs, "cluster" ).orElseThrow();
+        assertEquals( Severity.ERROR, v.severity() );
+        assertEquals( "cluster.hub.multivalued", v.code() );
+    }
+
+    /** The hub-type check must not be case-sensitive to the authored {@code type:} value. */
+    @Test
+    void hubTypeIsCaseInsensitiveForMultivaluedCheck() {
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "type", "Hub", "cluster", List.of( "a", "b" ) ), ValidationCtx.lenient() );
+        final FieldViolation v = first( vs, "cluster" ).orElseThrow();
+        assertEquals( Severity.ERROR, v.severity() );
+        assertEquals( "cluster.hub.multivalued", v.code() );
+    }
+
+    /** A single-element list is just a normalised scalar — never an error, even on a hub. */
+    @Test
+    void hubWithSingleElementClusterListIsFine() {
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "type", "hub", "cluster", List.of( "interval-trees" ) ), ValidationCtx.lenient() );
+        assertTrue( first( vs, "cluster" ).isEmpty() );
+    }
+
+    /** A scalar {@code cluster:} on a hub page must behave exactly as it always has. */
+    @Test
+    void hubWithScalarClusterIsUnaffected() {
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "type", "hub", "cluster", "interval-trees" ), ValidationCtx.lenient() );
+        assertTrue( first( vs, "cluster" ).isEmpty() );
+    }
+
+    /**
+     * On a non-hub page, every membership in a {@code cluster:} list is validated on its own —
+     * the message must name the offending entry, not the stringified list.
+     */
+    @Test
+    void multiMembershipNonHubValidatesEachEntryIndependently() {
+        // "Interval Trees" is declared (so only its slug shape fails); "not-declared" has a
+        // valid slug shape but is not declared by any hub.
+        final ValidationCtx ctx = new ValidationCtx( p -> true, a -> true, Severity.WARNING,
+                c -> "Interval Trees".equals( c ) );
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "type", "article", "cluster", List.of( "Interval Trees", "not-declared" ) ), ctx );
+        final List< FieldViolation > clusterViolations =
+                vs.stream().filter( v -> v.field().equals( "cluster" ) ).toList();
+        assertEquals( 2, clusterViolations.size() );
+
+        final FieldViolation slugViolation = clusterViolations.stream()
+                .filter( v -> v.code().equals( "cluster.slug.malformed" ) ).findFirst().orElseThrow();
+        assertEquals( "interval-trees", slugViolation.suggestion() );
+        assertTrue( !slugViolation.message().contains( "not-declared" ),
+                    "the slug violation must name only the malformed entry: " + slugViolation.message() );
+
+        final FieldViolation undeclaredViolation = clusterViolations.stream()
+                .filter( v -> v.code().equals( "cluster.undeclared" ) ).findFirst().orElseThrow();
+        assertTrue( undeclaredViolation.message().contains( "not-declared" ) );
+        assertTrue( !undeclaredViolation.message().contains( "Interval Trees" ),
+                    "the undeclared violation must name only the undeclared entry: "
+                            + undeclaredViolation.message() );
+    }
+
     @Test
     void unresolvedRelatedWarns() {
         final ValidationCtx noPages = new ValidationCtx( p -> false, a -> true, Severity.WARNING );

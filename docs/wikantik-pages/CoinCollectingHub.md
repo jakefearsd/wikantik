@@ -1,6 +1,4 @@
 ---
-hubs:
-- AmericanCoinageHub
 title: Coin Collecting and Economic History Hub
 cluster: numismatics
 canonical_id: 01KR79P65890NNHWXVY39Z20PA

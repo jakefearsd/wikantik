@@ -18,8 +18,6 @@ related:
 - BatchApiDesign
 - WebhookPatterns
 - ServerSentEventsPatterns
-hubs:
-- WebServicesAndApisHub
 ---
 # Idempotency Patterns
 

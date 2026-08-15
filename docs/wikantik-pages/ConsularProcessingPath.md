@@ -22,8 +22,6 @@ tags:
 - consular-processing
 - nvc
 - embassy
-hubs:
-- SpousalGreenCardGuide
 ---
 # Consular Processing
 

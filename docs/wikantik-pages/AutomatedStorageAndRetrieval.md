@@ -13,9 +13,6 @@ summary: Automated Storage and Retrieval Systems (AS/RS) — fixed high-density 
 status: active
 date: 2026-03-18T00:00:00Z
 canonical_id: 01KQ0P44M6BMN9DTEWMR5219RF
-hubs:
-- WarehouseAutomationHub
-- AutomatedStorageAndRetrieval Hub
 part-of:
 - WarehouseAutomationHub
 tags:

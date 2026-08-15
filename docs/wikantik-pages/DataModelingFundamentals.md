@@ -12,10 +12,6 @@ canonical_id: 01KQ0P44P9WDGC8990M3AQS80V
 type: article
 title: Data Modeling Fundamentals
 status: active
-hubs:
-- DataEngineeringHub
-- DataModelingFundamentals Hub
-- DimensionalModelingHub
 tags:
 - data-modeling
 - star-schema

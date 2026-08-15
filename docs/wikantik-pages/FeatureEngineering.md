@@ -3,8 +3,6 @@ type: article
 cluster: machine-learning
 date: '2026-05-10'
 title: 'Feature Engineering: The Practitioner''s High-Fidelity Framework'
-hubs:
-- MachineLearningHub
 tags:
 - feature-engineering
 - ml-architecture

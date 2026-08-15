@@ -1,10 +1,10 @@
 ---
 status: active
 type: article
-hubs:
-- PhysicsHub
 date: '2026-05-14'
-cluster: mathematics
+cluster:
+- mathematics
+- physics-engineering
 title: Topology
 tags:
 - topology

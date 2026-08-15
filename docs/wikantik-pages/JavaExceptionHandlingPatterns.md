@@ -18,8 +18,6 @@ related:
 - JavaRecordsAndSealedClasses
 - DebuggingStrategies
 - CleanCodePrinciples
-hubs:
-- JavaHub
 ---
 # Java Exception Handling Patterns
 

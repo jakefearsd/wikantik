@@ -4,8 +4,6 @@ status: active
 cluster: agentic-ai
 date: '2026-04-24'
 title: AI Hallucination Mitigation
-hubs:
-- AgenticAiHub
 tags:
 - hallucination
 - factuality

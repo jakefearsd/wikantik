@@ -16,8 +16,6 @@ tags:
 - hub
 - css
 - typescript
-hubs:
-- WebServicesAndApisHub
 ---
 # FrontendDevelopment Hub
 

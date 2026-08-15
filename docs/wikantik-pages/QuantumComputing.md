@@ -15,8 +15,6 @@ tags:
 - algorithms
 related:
 - MemoryArchitectures
-hubs:
-- ComputerScienceFoundationsHub
 ---
 # Quantum Computing
 

@@ -14,8 +14,6 @@ tags:
 - tdd
 - testing
 - wikantik-development
-hubs:
-- WikantikDevelopment
 ---
 # Test Driven Development (TDD) in Wikantik
 

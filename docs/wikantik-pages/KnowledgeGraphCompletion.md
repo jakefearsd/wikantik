@@ -13,8 +13,6 @@ summary: Engineering missing-link prediction in Knowledge Graphs via translation
 status: active
 date: '2026-05-15'
 canonical_id: 01KQ12YDVE8863TEYGXSS7ESS3
-hubs:
-- AgenticAiHub
 tags:
 - knowledge-graph
 - knowledge-graph-completion

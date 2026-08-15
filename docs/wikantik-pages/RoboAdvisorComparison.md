@@ -4,8 +4,6 @@ status: active
 cluster: index-fund-investing
 date: '2026-04-26'
 title: Robo Advisor Comparison
-hubs:
-- LowCostIndexFundInvestingHub
 tags:
 - robo-advisor
 - automated-investing

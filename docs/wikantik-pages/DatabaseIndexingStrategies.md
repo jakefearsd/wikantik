@@ -20,8 +20,6 @@ related:
 - DatabasePerformanceMonitoring
 - PostgresqlAdvancedFeatures
 - DatabasePartitioning
-hubs:
-- DatabasesHub
 ---
 # Database Indexing Strategies
 

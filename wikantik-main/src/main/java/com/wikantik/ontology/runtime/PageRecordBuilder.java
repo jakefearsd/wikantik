@@ -18,6 +18,7 @@
  */
 package com.wikantik.ontology.runtime;
 
+import com.wikantik.api.pagegraph.ClusterPath;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -67,8 +68,11 @@ public final class PageRecordBuilder {
         } catch ( final RuntimeException e ) {
             LOG.warn( "frontmatter parse failed for {}: {}", row.currentSlug(), e.getMessage() );
         }
+        // Phase 5: the DB row carries only the primary cluster, but the ontology projects one
+        // dct:subject per membership — so the full set is read from the page's own frontmatter.
         return new PageRecord(
                 row.canonicalId(), row.currentSlug(), row.title(), row.type(), row.cluster(),
+                ClusterPath.memberships( md.get( "cluster" ) ),
                 tags( md.get( "tags" ) ), str( md.get( "summary" ) ), isoDate( md.get( "date" ) ),
                 str( md.get( "author" ) ) );
     }

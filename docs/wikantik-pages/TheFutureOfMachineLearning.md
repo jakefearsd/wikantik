@@ -1,8 +1,6 @@
 ---
 status: active
 type: article
-hubs:
-- MlModelDeploymentHub
 date: 2026-03-17T00:00:00Z
 cluster: machine-learning
 title: The Future of Machine Learning

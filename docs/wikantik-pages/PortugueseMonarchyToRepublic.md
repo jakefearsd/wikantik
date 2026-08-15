@@ -19,8 +19,6 @@ tags:
 - monarchy
 - republic
 - revolution
-hubs:
-- PortugueseHistoryHub
 ---
 # From Monarchy to Republic (1807–1910)
 

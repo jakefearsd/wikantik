@@ -20,8 +20,6 @@ related:
 - LegacyCodeModernization
 - JavaExceptionHandlingPatterns
 - TechnicalDebtManagement
-hubs:
-- SoftwareEngineeringPracticesHub
 ---
 # Debugging Strategies
 

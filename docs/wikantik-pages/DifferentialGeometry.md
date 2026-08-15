@@ -2,10 +2,10 @@
 type: article
 status: active
 date: '2026-05-10'
-cluster: mathematics
+cluster:
+- mathematics
+- physics-engineering
 title: Differential Geometry
-hubs:
-- PhysicsHub
 tags:
 - mathematics
 - differential-geometry

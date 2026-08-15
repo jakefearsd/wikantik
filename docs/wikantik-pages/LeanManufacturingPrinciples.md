@@ -18,8 +18,6 @@ related:
 - SystemsThinking
 - MathematicsHub
 type: article
-hubs:
-- LeanManufacturingPrinciples Hub
 canonical_id: 01KQ0P44RRKM1FGP1XCBP3KEQW
 ---
 

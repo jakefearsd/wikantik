@@ -18,8 +18,6 @@ related:
 - AwsFundamentals
 - CloudMonitoring
 - IdempotencyPatterns
-hubs:
-- CloudPlatformsHub
 ---
 # AWS Lambda Patterns
 

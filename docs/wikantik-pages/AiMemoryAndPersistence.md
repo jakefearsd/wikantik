@@ -4,8 +4,6 @@ status: active
 cluster: agentic-ai
 date: '2026-04-25'
 title: AI Memory and Persistence
-hubs:
-- AgenticAiHub
 tags:
 - ai-memory
 - persistence

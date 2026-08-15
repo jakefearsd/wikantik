@@ -18,8 +18,6 @@ tags:
 - berlin
 - cold-war
 - berlin-wall
-hubs:
-- BerlinHistoryHub
 ---
 # The Berlin Wall (1961–1989)
 

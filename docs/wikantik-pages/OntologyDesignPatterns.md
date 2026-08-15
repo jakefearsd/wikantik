@@ -19,8 +19,6 @@ related:
 - KnowledgeGraphVsRelationalDatabase
 - DatabaseDesign
 - AbstractAlgebra
-hubs:
-- AgenticAiHub
 ---
 # Ontology Design Patterns
 

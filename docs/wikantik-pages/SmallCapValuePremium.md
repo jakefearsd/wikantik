@@ -20,8 +20,6 @@ related:
 - IndexFundPortfolioConstruction
 - TotalStockMarketFundAnatomy
 - MarketCapVsEqualWeightIndexing
-hubs:
-- LowCostIndexFundInvestingHub
 ---
 # Small Cap Value Premium
 

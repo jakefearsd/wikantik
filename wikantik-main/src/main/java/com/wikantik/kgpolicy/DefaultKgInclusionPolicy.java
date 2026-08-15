@@ -91,9 +91,36 @@ public class DefaultKgInclusionPolicy implements KgInclusionPolicy {
         if ( override.isPresent() ) {
             return override.get() ? ClusterAction.INCLUDE : ClusterAction.EXCLUDE;
         }
-        final Optional< String > cluster = pageDescriptor( pageName ).map( PageDescriptor::cluster );
-        if ( cluster.isEmpty() ) return ClusterAction.EXCLUDE;
-        return lookupCluster( cluster.get() ).map( ClusterPolicy::action ).orElse( ClusterAction.EXCLUDE );
+        final List< String > memberships =
+                pageDescriptor( pageName ).map( PageDescriptor::clusters ).orElse( List.of() );
+        return decidingPolicy( memberships ).map( ClusterPolicy::action ).orElse( ClusterAction.EXCLUDE );
+    }
+
+    /**
+     *  Resolves a page's memberships to the single policy that decides its fate.
+     *
+     *  <p>ClusterDeclarationDesign Phase 5, and <b>fail-closed by construction</b>: an explicit
+     *  EXCLUDE on <i>any</i> membership wins outright, so adding a second cluster to a page can
+     *  never quietly pull it into the Knowledge Graph. Only if nothing excludes it does an
+     *  INCLUDE on any membership carry. Absent everywhere means excluded, per the system
+     *  default — inclusion is the one place cluster is authoritative rather than advisory.</p>
+     *
+     *  @param memberships every cluster the page names, primary first
+     *  @return the deciding policy, or empty when no membership carries one
+     */
+    private Optional< ClusterPolicy > decidingPolicy( final List< String > memberships ) {
+        Optional< ClusterPolicy > firstInclude = Optional.empty();
+        for ( final String membership : memberships ) {
+            final Optional< ClusterPolicy > policy = lookupCluster( membership );
+            if ( policy.isPresent() && policy.get().action() == ClusterAction.EXCLUDE ) {
+                return policy;
+            }
+            if ( firstInclude.isEmpty() && policy.isPresent()
+                    && policy.get().action() == ClusterAction.INCLUDE ) {
+                firstInclude = policy;
+            }
+        }
+        return firstInclude;
     }
 
     @Override
@@ -109,8 +136,9 @@ public class DefaultKgInclusionPolicy implements KgInclusionPolicy {
         final PageDescriptor pd = pdOpt.get();
         final boolean isSys = systemPages.isSystemPage( pd.slug() );
         final Optional< Boolean > override = overrides.kgInclude( pd.slug() );
-        final Optional< ClusterPolicy > policy = pd.cluster() == null
-                ? Optional.empty() : lookupCluster( pd.cluster() );
+        // The deciding policy across every membership, so the explanation names the cluster
+        // that actually settled the outcome rather than merely the primary.
+        final Optional< ClusterPolicy > policy = decidingPolicy( pd.clusters() );
 
         final ClusterAction effective;
         final Optional< ExclusionReason > reason;

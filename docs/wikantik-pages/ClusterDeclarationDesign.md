@@ -24,7 +24,7 @@ related:
 
 # Cluster Declaration Design
 
-> **Status: active. Phases 0, 0b, 1, 2 and 3 complete 2026-08-15; phases 4–5 not started.**
+> **Status: active. ALL PHASES COMPLETE 2026-08-15 (0, 0b, 1, 2, 3, 4, 5).**
 > Supersedes the informal cluster convention described in
 > [StructuralSpineDesign](StructuralSpineDesign). Decision recorded as
 > ADR-0009. The phases below are sequenced; nothing outside them is planned.
@@ -394,7 +394,7 @@ mode). **It is not wanted. No work is proposed, now or later.**
 
 ## Phases
 
-All seven phases are planned and sequenced. Nothing outside them is in scope.
+All seven phases are planned and sequenced, and all seven have shipped. Nothing outside them is in scope.
 
 ### Phase 0 — Content migration — **COMPLETE 2026-08-15**
 
@@ -623,7 +623,7 @@ gains one ordinary, revertable revision. That is the property a
 directory-structured store could not have offered, and it is the concrete
 payoff of the projection this design chose over hierarchy.
 
-### Phase 5 — Multi-membership
+### Phase 5 — Multi-membership — **COMPLETE 2026-08-15**
 
 Consolidation, not a new feature: 89 pages already assert it in an unvalidated
 field.
@@ -636,6 +636,89 @@ field.
   path, and any explicit EXCLUDE among a page's memberships wins overall. A
   second membership can never quietly pull a page into the Knowledge Graph.
 - The 112 held entries from Phase 0 become second memberships.
+
+#### What made this a small change
+
+`ClusterPath.memberships(raw)` is the one place the scalar-or-list difference is
+resolved; every consumer downstream sees a list, and a page authored either way
+behaves identically.
+
+The load-bearing decision is that **`PageDescriptor.cluster()` keeps meaning "the
+primary"** and a new `clusters()` carries the full set. Placement is singular and
+membership is plural, so the ~60 consumers that ask *where does this page live*
+— breadcrumbs, the embedding prefix, `articleSection`, sidebar, the sitemap —
+remained correct without being touched, and only the handful that ask *is this
+page a member of X* changed. The canonical constructor re-derives `cluster` from
+`clusters`, so the two views of one fact cannot drift apart; a 10-argument
+convenience constructor kept every existing call site compiling.
+
+Four consumers genuinely changed: the projection (index under every membership,
+filter on any), Knowledge Graph inclusion, `rename_cluster`, and the ontology's
+`dct:subject`.
+
+#### Fail-closed, and why it is the only safe rule
+
+Inclusion is the single place cluster is authoritative rather than advisory, so
+the resolution is deliberately asymmetric: an explicit EXCLUDE on *any*
+membership wins outright; only in its absence does an INCLUDE on any membership
+carry; absent everywhere stays excluded. Anything weaker would mean a curator's
+deliberate exclusion could be undone by an unrelated author adding a second
+membership to one of its pages.
+
+#### Defects this phase surfaced
+
+Two were found in code the design had not considered, both of which would have
+made the feature quietly wrong rather than visibly broken:
+
+- **The ontology's multi-valued projection was dead on arrival.** `PageRecord`
+  was built from the `page_canonical_ids` row, which stores only the primary, so
+  the extra `dct:subject` triples could never be emitted. The memberships are now
+  read from the page's own frontmatter.
+- **The structured frontmatter editor destroyed multi-membership.** `cluster`
+  renders with the TEXT widget; React coerces a list to `"a,b"` in the input, and
+  the first edit saved that back as a single invalid slug. The field now
+  round-trips scalar-or-list with the same rule the server uses — scalar when
+  there is one value, list when there are several.
+
+Transitive membership also had to be de-duplicated: a page may legitimately name
+both a parent and its own sub-cluster, and would otherwise be counted twice —
+once directly, once through the descendant walk — inflating every member count a
+curator reads.
+
+#### Retiring `hubs:`
+
+With `cluster:` able to express everything `hubs:` could, the rival mechanism is
+gone: `HubSyncFilter` — the bidirectional two-writer sync whose divergence
+motivated this design, and whose re-save cascades two unrelated subsystems had
+coded around — is deleted, and the field is stripped from the corpus. A hub
+declaring a list is reported as `MULTI_CLUSTER_HUB` on `/admin/drift` and refused
+at save, so declaration stays singular.
+
+The repository migration resolved **586 `hubs:` entries across 473 pages**,
+matching the Phase 0 reconciliation estimate exactly:
+
+| Bucket | Count | Outcome |
+|---|---|---|
+| Target's cluster already covered by this page | 410 | Dropped — pure redundancy |
+| Target names no existing page | 46 | Dropped (8 distinct dangling names) |
+| **Target resolves to a cluster the page lacks** | **52** | **Kept — 51 pages gained a second membership** |
+| Target exists but declares no cluster | 33 | Dropped |
+| Entry sits on a hub page | 45 | Dropped — see below |
+| Self-reference | 0 | — |
+
+The last bucket is the one the plan had not anticipated. **17 hub pages carried
+`hubs:` themselves**, but there it means *related hub* navigation, not
+membership — and promoting those entries would have made 17 hubs list-valued,
+producing exactly the defect this phase forbids. Hub-owned entries are therefore
+dropped rather than promoted. All 75 hubs verified scalar afterwards.
+
+Every migrated page kept its original scalar as the **first** entry, so no page's
+primary cluster moved: placement is unchanged corpus-wide, and only membership
+was added.
+
+*Applied to the repository corpus only.* Production is authoritative for content
+(Phase 0b) and was deliberately left untouched, so prod pages still carry `hubs:`
+until the same migration is run there.
 
 ## Permanently out of scope
 

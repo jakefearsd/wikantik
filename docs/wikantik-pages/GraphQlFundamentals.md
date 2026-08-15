@@ -18,8 +18,6 @@ related:
 - HateoasAndHypermediaApis
 - PaginationStrategies
 - IdempotencyPatterns
-hubs:
-- WebServicesAndApisHub
 ---
 # GraphQL Fundamentals
 

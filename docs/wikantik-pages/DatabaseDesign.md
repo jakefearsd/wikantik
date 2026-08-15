@@ -19,8 +19,6 @@ related:
 - DatabaseIndexingStrategies
 - DatabaseMigrationStrategies
 - DimensionalModeling
-hubs:
-- DatabasesHub
 ---
 # Database Design: Pragmatic Schema Engineering
 

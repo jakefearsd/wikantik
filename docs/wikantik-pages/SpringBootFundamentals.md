@@ -19,8 +19,6 @@ related:
 - JpaAndHibernatePatterns
 - ServletArchitectureDeepDive
 - JavaCollectionsFramework
-hubs:
-- JavaHub
 ---
 # Spring Boot Fundamentals
 

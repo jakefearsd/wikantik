@@ -18,8 +18,6 @@ related:
 - ModelSelection
 - CrossValidationAndModelEvaluation
 - ModelSelectionEfficiency
-hubs:
-- MLHub
 ---
 # Tree-Based Models
 

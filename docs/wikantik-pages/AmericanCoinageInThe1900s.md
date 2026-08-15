@@ -2,8 +2,6 @@
 title: American Coinage in the 1900s
 cluster: numismatics/american-coinage
 type: article
-hubs:
-- AmericanCoinageHub
 summary: '20th-century US coinage: decoupling face value from metal content, modern-art
   design influence, and numismatic policy institutionalization via the CCAC.'
 canonical_id: 01KQ0P44KQ0F75PRFBYGEX7S9Y

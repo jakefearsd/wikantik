@@ -2,7 +2,9 @@
 date: '2026-04-25'
 summary: 'What to instrument, alert on, and visualise for production LLM systems:
   eval-in-prod, drift detection, and dashboards that catch quiet quality regressions.'
-cluster: agentic-ai
+cluster:
+- agentic-ai
+- machine-learning/mlops
 related:
 - AgentObservability
 - LlmEvaluationMetrics
@@ -13,9 +15,6 @@ canonical_id: 01KQ12YDRVHVES5SVP5N14DQ5X
 type: article
 title: AI Observability in Production
 status: active
-hubs:
-- AgenticAiHub
-- MlModelDeploymentHub
 tags:
 - llm
 - observability

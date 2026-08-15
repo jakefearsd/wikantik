@@ -14,9 +14,6 @@ summary: Known limitations of warehouse automation — capital cost, inflexibili
 status: active
 date: 2026-03-18T00:00:00Z
 canonical_id: 01KQ0P44YK708FN5TTETMFCD0Q
-hubs:
-- WarehouseAutomationHub
-- AutomatedStorageAndRetrieval Hub
 part-of:
 - WarehouseAutomationHub
 tags:

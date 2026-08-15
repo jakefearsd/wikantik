@@ -4,8 +4,6 @@ status: active
 date: 2026-05-15T00:00:00Z
 cluster: generative-ai
 title: 'Generative AI: Foundations and Frontiers 2026'
-hubs:
-- AIInfrastructureHub
 tags:
 - ai
 - generative-ai

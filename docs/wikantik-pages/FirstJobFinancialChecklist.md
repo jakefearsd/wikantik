@@ -3,9 +3,6 @@ type: article
 date: '2026-04-26'
 cluster: personal-finance
 title: First Job Financial Checklist
-hubs:
-- PersonalFinanceHub
-- DebtPayoffStrategies Hub
 tags:
 - first-job
 - early-career

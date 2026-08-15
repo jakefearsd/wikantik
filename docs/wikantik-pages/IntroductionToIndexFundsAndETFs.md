@@ -4,8 +4,6 @@ status: active
 date: 2026-03-15T00:00:00Z
 cluster: index-fund-investing
 title: Introduction to Index Funds and ETFs
-hubs:
-- LowCostIndexFundInvestingHub
 tags:
 - investing
 - index-funds

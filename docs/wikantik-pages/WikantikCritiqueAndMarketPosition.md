@@ -9,8 +9,6 @@ verified_by: gemini-cli-mcp-client
 canonical_id: 01KQTCCQ3H9K0M9E95ZCK3KHN5
 date: '2026-06-20'
 verified_at: '2026-05-04T21:10:44.598011331Z'
-hubs:
-- WikantikPlatformHub
 tags:
 - market-position
 - architecture

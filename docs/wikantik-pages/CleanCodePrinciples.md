@@ -20,8 +20,6 @@ related:
 - CodeDocumentationBestPractices
 - DebuggingStrategies
 - LegacyCodeModernization
-hubs:
-- SoftwareEngineeringPracticesHub
 ---
 # Clean Code Principles
 

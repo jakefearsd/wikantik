@@ -14,8 +14,6 @@ tags:
 - authentication
 - authorization
 - rate-limiting
-hubs:
-- AuthenticationAndAuthorizationHub
 ---
 # API Security: Technical Implementation
 

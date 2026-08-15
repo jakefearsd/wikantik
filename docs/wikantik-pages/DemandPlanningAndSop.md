@@ -8,8 +8,6 @@ tags:
 - operations
 cluster: operations-research
 type: article
-hubs:
-- DemandPlanningAndSop Hub
 auto-generated: false
 canonical_id: 01KQ0P44PHST4J295PTSHTA0JK
 ---

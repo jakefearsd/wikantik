@@ -3,6 +3,7 @@
 // and shows inline violations (with an "apply suggestion" affordance). Curated-open enums render as a
 // free-entry Combobox; closed enums as a Select. Unknown keys are handled by FrontmatterEditor's
 // Advanced area, not here.
+import { useState } from 'react';
 import Select from '../ui/Select';
 import Combobox from '../ui/Combobox';
 import TagInput from '../ui/TagInput';
@@ -45,6 +46,54 @@ function TextField({ spec, value, onChange }) {
           {spec.maxLen != null ? `/${spec.maxLen}` : ''}
         </span>
       )}
+    </div>
+  );
+}
+
+// cluster: is either a scalar string or a YAML list of cluster slugs (first entry primary —
+// see ClusterDeclarationDesign Phase 5). The server-authoritative widget stays TEXT, so this
+// is keyed off spec.key, not spec.widget. Round-trips losslessly: emits a plain scalar string
+// for exactly one value, an array for two or more, and '' for none — matching the server and
+// the pre-existing empty-field behavior of the plain TEXT widget.
+function ClusterField({ spec, value, onChange }) {
+  const [draft, setDraft] = useState('');
+  const list = Array.isArray(value) ? value : value ? [value] : [];
+
+  const emit = (next) => onChange(next.length === 0 ? '' : next.length === 1 ? next[0] : next);
+
+  const commit = (raw) => {
+    const v = raw.trim();
+    setDraft('');
+    if (!v || list.includes(v)) return;
+    emit([...list, v]);
+  };
+
+  const remove = (v) => emit(list.filter((x) => x !== v));
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      commit(draft);
+    } else if (e.key === 'Backspace' && draft === '' && list.length > 0) {
+      remove(list[list.length - 1]);
+    }
+  };
+
+  return (
+    <div className="fm-cluster">
+      {list.map((c, i) => (
+        <Chip key={c} label={i === 0 && list.length > 1 ? `${c} (primary)` : c} onRemove={() => remove(c)} />
+      ))}
+      <input
+        className="fm-cluster-field"
+        type="text"
+        aria-label={spec.label}
+        value={draft}
+        placeholder={list.length > 0 ? 'add another cluster…' : spec.label}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={onKeyDown}
+        onBlur={() => commit(draft)}
+      />
     </div>
   );
 }
@@ -133,7 +182,12 @@ export default function FieldWidget({ spec, value, onChange, violations = [], on
       break;
     case 'TEXT':
     default:
-      control = <TextField spec={spec} value={value} onChange={onChange} />;
+      control =
+        key === 'cluster' ? (
+          <ClusterField spec={spec} value={value} onChange={onChange} />
+        ) : (
+          <TextField spec={spec} value={value} onChange={onChange} />
+        );
       break;
   }
 

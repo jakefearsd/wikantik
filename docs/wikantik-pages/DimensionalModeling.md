@@ -3,7 +3,9 @@ summary: Technical guide to dimensional modeling, contrasting the traditional Ki
   Star Schema with modern OBT (One Big Table) patterns in columnar warehouses like
   Snowflake and BigQuery.
 date: 2025-05-15T00:00:00Z
-cluster: databases
+cluster:
+- databases
+- data-engineering/dimensional-modeling
 auto-generated: false
 canonical_id: 01KQ0P44PP2JT1AGY6TM70J6FR
 title: Dimensional Modeling
@@ -15,8 +17,6 @@ tags:
 - obt
 - snowflake
 - bigquery
-hubs:
-- DimensionalModelingHub
 ---
 
 # Dimensional Modeling: From Star Schema to OBT

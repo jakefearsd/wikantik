@@ -17,8 +17,6 @@ related:
 - HttpTwoAndHttpThree
 - WebServicesAndApisHub
 - WebApplicationFirewalls
-hubs:
-- NetworkingHub
 ---
 # CORS Deep Dive
 

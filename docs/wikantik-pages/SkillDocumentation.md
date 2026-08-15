@@ -17,8 +17,6 @@ related:
 - SkillComposition
 - SkillDebugging
 - TechnicalWritingGuide
-hubs:
-- AgenticAiHub
 ---
 # Skill Documentation
 

@@ -59,7 +59,7 @@ public final class KnowledgeSubsystemBridge {
             // Non-WikiEngine callers cannot reach getManager — return a fully-null record.
             return new KnowledgeSubsystem.Services(
                 null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null,
                 null, null, null );
         }
         final KnowledgeSubsystem.Services typed = wikiEngine.getKnowledgeSubsystem();

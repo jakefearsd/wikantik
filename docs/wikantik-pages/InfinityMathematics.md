@@ -15,8 +15,6 @@ related:
 - SetTheoryLogic
 - AppliedMathSurvey
 - TopologyMathematics
-hubs:
-- MathematicsHub
 ---
 
 # Infinity in Mathematics: Cardinals, Ordinals, and Fractals

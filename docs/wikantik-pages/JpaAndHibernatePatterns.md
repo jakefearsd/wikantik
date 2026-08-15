@@ -18,8 +18,6 @@ related:
 - SpringBootFundamentals
 - JavaRecordsAndSealedClasses
 - ImmutableDataPatterns
-hubs:
-- JavaHub
 ---
 # JPA and Hibernate Patterns
 

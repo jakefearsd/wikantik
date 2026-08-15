@@ -2,8 +2,6 @@
 title: Inventory Theory
 cluster: operations-research
 type: article
-hubs:
-- DemandPlanningAndSop Hub
 summary: EOQ and Newsvendor models, (s,S) multi-period stochastic policies, Clark-Scarf
   multi-echelon decomposition, and lead-time variance effects on safety stock.
 canonical_id: 01KQ0P44R70Z2KWGKRTMCQFYGG

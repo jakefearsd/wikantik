@@ -21,8 +21,6 @@ tags:
 - i-751
 - conditional-residence
 - uscis
-hubs:
-- SpousalGreenCardGuide
 ---
 # Conditional Residence and the I-751
 

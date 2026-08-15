@@ -95,16 +95,37 @@ public final class ClusterRenameService {
         final Set< String > movingSlugs = new LinkedHashSet<>();
         final Set< String > targetPaths = new LinkedHashSet<>();
         for ( final PageDescriptor p : members ) {
-            final String next = ClusterPath.reparent( p.cluster(), from, to );
-            if ( next == null || next.equals( p.cluster() ) ) {
+            // A multi-membership page (ClusterDeclarationDesign Phase 5) may match this
+            // subtree through any of its memberships, not just the primary — mirrors the
+            // ANY-membership match listPagesByFilter already used to select `members`.
+            final String matched = matchingMembership( p, from );
+            if ( matched == null ) {
                 continue;
             }
-            changes.add( new ClusterRenamePlan.PageChange( p.slug(), p.cluster(), next ) );
+            final String next = ClusterPath.reparent( matched, from, to );
+            if ( next.equals( matched ) ) {
+                continue;
+            }
+            changes.add( new ClusterRenamePlan.PageChange( p.slug(), matched, next ) );
             movingSlugs.add( p.slug() );
             targetPaths.add( next );
         }
 
         return new ClusterRenamePlan( from, to, changes, findConflicts( targetPaths, movingSlugs ) );
+    }
+
+    /**
+     *  The first of a page's memberships that lies within the {@code from} subtree — primary
+     *  (index 0) if it matches, otherwise the first non-primary match — or {@code null} when
+     *  none does.
+     */
+    private static String matchingMembership( final PageDescriptor p, final String from ) {
+        for ( final String entry : p.clusters() ) {
+            if ( ClusterPath.isSelfOrDescendant( entry, from ) ) {
+                return entry;
+            }
+        }
+        return null;
     }
 
     /**
@@ -149,7 +170,7 @@ public final class ClusterRenameService {
         final Map< String, String > failures = new LinkedHashMap<>();
         for ( final ClusterRenamePlan.PageChange change : plan.changes() ) {
             try {
-                rewriteCluster( change, actor );
+                rewriteCluster( from, to, change, actor );
                 renamed.add( change.slug() );
             } catch ( final Exception e ) {
                 // Never abort the sweep: a page that cannot be written leaves the rest
@@ -164,7 +185,18 @@ public final class ClusterRenameService {
         return new ClusterRenameResult( from, to, renamed, failures );
     }
 
-    private void rewriteCluster( final ClusterRenamePlan.PageChange change, final String actor )
+    /**
+     *  Rewrites one page's {@code cluster:} frontmatter for a rename.
+     *
+     *  <p>A scalar value stays a scalar (rewritten wholesale, exactly as before Phase 5). A
+     *  list value (multi-membership) is rewritten entry-by-entry through {@link ClusterPath#reparent}:
+     *  every membership inside the {@code from} subtree moves, every other membership is
+     *  preserved verbatim and in order. Re-deriving from the page's own raw frontmatter — rather
+     *  than trusting {@code change}'s single from/to pair — is what makes this correct even when
+     *  more than one membership on the same page falls inside the renamed subtree.</p>
+     */
+    private void rewriteCluster( final String from, final String to,
+                                  final ClusterRenamePlan.PageChange change, final String actor )
             throws Exception {
         final Page page = pageManager.getPage( change.slug() );
         if ( page == null ) {
@@ -172,7 +204,16 @@ public final class ClusterRenameService {
         }
         final ParsedPage parsed = FrontmatterParser.parse( pageManager.getPureText( page ) );
         final Map< String, Object > metadata = new LinkedHashMap<>( parsed.metadata() );
-        metadata.put( "cluster", change.toCluster() );
+        final Object rawCluster = metadata.get( "cluster" );
+        if ( rawCluster instanceof List< ? > ) {
+            final List< String > rewritten = new ArrayList<>();
+            for ( final String entry : ClusterPath.memberships( rawCluster ) ) {
+                rewritten.add( ClusterPath.reparent( entry, from, to ) );
+            }
+            metadata.put( "cluster", rewritten );
+        } else {
+            metadata.put( "cluster", change.toCluster() );
+        }
 
         saveHelper.saveText( change.slug(),
                              FrontmatterWriter.write( metadata, parsed.body() ),

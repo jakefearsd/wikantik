@@ -4,8 +4,6 @@ related:
 - ReformationAndUrbanDevelopmentInBerlin
 - ReformationEraInBerlin
 canonical_id: 01KQ0P44MKRKK26X2Y36Q919NX
-hubs:
-- Berlin
 auto-generated: false
 type: article
 status: active

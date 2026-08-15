@@ -4,8 +4,6 @@ status: active
 date: 2026-05-15T00:00:00Z
 cluster: wikantik-development
 title: 'Knowledge Graph RAG (GraphRAG) Uplift Plan: 2025 Roadmap'
-hubs:
-- InfrastructureSreHub
 tags:
 - rag
 - graphrag

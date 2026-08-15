@@ -19,6 +19,7 @@
 package com.wikantik.rest;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
@@ -171,6 +172,52 @@ class PageResourceTest {
         // renders must be a boolean that cannot vanish from the payload.
         assertTrue( status.has( "hub_declared" ), "hub_declared must always be present: " + status );
         assertTrue( status.has( "member_count" ), "member_count must always be present: " + status );
+    }
+
+    /**
+     * ClusterDeclarationDesign Phase 5: a page may name several clusters. The first is the
+     * primary and keeps driving placement, so {@code path} must not change meaning; the rest
+     * arrive as {@code memberships} so the reader can see every home the page has.
+     */
+    @Test
+    void testGetPageCarriesEveryClusterMembership() throws Exception {
+        engine.saveText( "RestMultiHubA",
+                "---\ntype: hub\ncluster: rest-multi-a\n---\nHub A." );
+        engine.saveText( "RestMultiHubB",
+                "---\ntype: hub\ncluster: rest-multi-b\n---\nHub B." );
+        engine.saveText( "RestMultiMember",
+                "---\ntype: article\ncluster:\n  - rest-multi-a\n  - rest-multi-b\n---\nMember body." );
+
+        final String json = doGet( "RestMultiMember" );
+        final JsonObject status = gson.fromJson( json, JsonObject.class ).getAsJsonObject( "cluster_status" );
+
+        assertEquals( "rest-multi-a", status.get( "path" ).getAsString(),
+                      "the first membership is the primary: " + status );
+        assertTrue( status.has( "memberships" ), "expected memberships on a multi-cluster page: " + status );
+        final JsonArray memberships = status.getAsJsonArray( "memberships" );
+        assertEquals( 2, memberships.size(), "both memberships must be present: " + status );
+        assertEquals( "rest-multi-a", memberships.get( 0 ).getAsJsonObject().get( "path" ).getAsString() );
+        assertEquals( "rest-multi-b", memberships.get( 1 ).getAsJsonObject().get( "path" ).getAsString() );
+        // Presence, not value: whether a hub declares the cluster depends on the structural
+        // index having caught up with these just-saved pages, which it has not in this engine.
+        // Asserting the value here would test index warm-up rather than the payload — the
+        // declaration lookup itself is covered by the projection tests.
+        assertTrue( memberships.get( 1 ).getAsJsonObject().has( "hub_declared" ),
+                    "every membership must carry hub_declared: " + status );
+    }
+
+    /** A single-cluster page must look exactly as it did before Phase 5. */
+    @Test
+    void testGetPageOmitsMembershipsForASingleClusterPage() throws Exception {
+        engine.saveText( "RestSingleClusterPage",
+                "---\ntype: article\ncluster: rest-single-demo\n---\nBody." );
+
+        final String json = doGet( "RestSingleClusterPage" );
+        final JsonObject status = gson.fromJson( json, JsonObject.class ).getAsJsonObject( "cluster_status" );
+
+        assertEquals( "rest-single-demo", status.get( "path" ).getAsString() );
+        assertFalse( status.has( "memberships" ),
+                     "a single-cluster page must not carry a memberships array: " + status );
     }
 
     @Test

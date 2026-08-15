@@ -18,8 +18,6 @@ related:
 - CustomSkillsArchitecture
 - SkillComposition
 - TokenMetrics
-hubs:
-- AgenticAiHub
 ---
 # Multi-Agent Orchestration
 

@@ -3,8 +3,6 @@ type: article
 cluster: mathematics
 date: '2026-04-26'
 title: Set Theory and Logic
-hubs:
-- MathematicsHub
 tags:
 - set-theory
 - mathematics

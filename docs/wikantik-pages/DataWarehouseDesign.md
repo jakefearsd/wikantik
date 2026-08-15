@@ -2,8 +2,6 @@
 auto-generated: false
 status: active
 type: article
-hubs:
-- DimensionalModelingHub
 date: 2026-05-20T00:00:00Z
 cluster: data-engineering/dimensional-modeling
 title: Data Warehouse Design

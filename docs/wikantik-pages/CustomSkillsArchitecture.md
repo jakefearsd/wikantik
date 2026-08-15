@@ -18,8 +18,6 @@ related:
 - SkillDocumentation
 - SkillIntegration
 - ToolOutputOptimization
-hubs:
-- AgenticAiHub
 ---
 # Custom Skills Architecture
 

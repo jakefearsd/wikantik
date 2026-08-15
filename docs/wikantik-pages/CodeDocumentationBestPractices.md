@@ -19,8 +19,6 @@ related:
 - TechnicalWritingGuide
 - RefactoringStrategies
 - LegacyCodeModernization
-hubs:
-- SoftwareEngineeringPracticesHub
 ---
 # Code Documentation Best Practices
 

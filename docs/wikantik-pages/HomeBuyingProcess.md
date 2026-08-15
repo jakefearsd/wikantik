@@ -20,9 +20,6 @@ tags:
 - mortgages
 - housing
 status: active
-hubs:
-- PersonalFinanceHub
-- DebtPayoffStrategies Hub
 ---
 # Home Buying Process
 

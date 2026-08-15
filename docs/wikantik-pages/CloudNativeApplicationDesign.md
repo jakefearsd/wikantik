@@ -18,8 +18,6 @@ related:
 - ServerlessArchitecture
 - CloudMigrationStrategies
 - TerraformFundamentals
-hubs:
-- CloudPlatformsHub
 ---
 # Cloud Native Application Design
 

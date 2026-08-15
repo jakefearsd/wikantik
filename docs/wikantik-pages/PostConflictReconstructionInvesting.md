@@ -4,8 +4,6 @@ status: active
 cluster: geopolitics-and-finance
 date: '2026-04-26'
 title: Post-Conflict Reconstruction Investing
-hubs:
-- ConflictMarketPatternsHub
 tags:
 - post-conflict
 - reconstruction

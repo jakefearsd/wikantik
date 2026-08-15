@@ -5,8 +5,6 @@ part-of:
 - HobbyWoodworkingInTheTwentyFirstCentury
 date: '2026-03-20'
 cluster: hobby-woodworking
-hubs:
-- HobbyWoodworkingInTheTwentyFirstCentury
 tags:
 - woodworking
 - 3d-printing

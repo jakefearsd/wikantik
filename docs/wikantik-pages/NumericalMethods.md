@@ -13,8 +13,6 @@ tags:
 - error-analysis
 - ode-solvers
 - pde-discretization
-hubs:
-- ChaosDynamical Hub
 ---
 
 # Numerical Methods: Solving the Continuous on the Discrete

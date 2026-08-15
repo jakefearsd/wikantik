@@ -21,9 +21,6 @@ tags:
 - vector-memory
 - state-management
 status: active
-hubs:
-- AgenticAiHub
-- AgentLoops Hub
 ---
 
 # Agent Memory: State Management and Storage Substrates

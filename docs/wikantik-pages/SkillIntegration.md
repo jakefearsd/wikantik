@@ -18,8 +18,6 @@ related:
 - SkillComposition
 - SkillLibraries
 - SkillPerformance
-hubs:
-- AgenticAiHub
 ---
 # Skill Integration
 

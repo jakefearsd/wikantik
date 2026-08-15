@@ -4,9 +4,6 @@ status: active
 date: '2026-04-26'
 cluster: index-fund-investing
 title: Dollar Cost Averaging
-hubs:
-- LowCostIndexFundInvestingHub
-- RebalancingStrategies Hub
 tags:
 - dollar-cost-averaging
 - dca

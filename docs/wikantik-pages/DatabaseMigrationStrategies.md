@@ -3,8 +3,6 @@ type: article
 cluster: databases
 date: '2026-04-25'
 title: Database Migration Strategies
-hubs:
-- DatabasesHub
 tags:
 - database-migration
 - schema-evolution

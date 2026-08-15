@@ -64,4 +64,27 @@ class ConceptProjectorTest {
                 ResourceFactory.createProperty( SKOS + "broader" ),
                 ResourceFactory.createResource( Iris.concept( "retirement-planning" ) ) ) );
     }
+
+    @Test
+    void multiMembershipPageProjectsAConceptForEachClusterWithItsOwnBroaderChain() {
+        // ClusterDeclarationDesign Phase 5: a page may declare several memberships. Both must be
+        // minted as concepts, and — since they sit under different parents — each must keep its
+        // own skos:broader edge rather than only the primary (clusters().get(0)) surviving.
+        final PageRecord multi = new PageRecord( "C1", "Slug1", "T", "article",
+                "retirement-planning/eu-retirement",
+                List.of( "retirement-planning/eu-retirement", "tax-strategy/vat" ),
+                List.of(), null, null, null );
+        final Map< String, Model > graphs = ConceptProjector.project( List.of( multi ) );
+
+        assertTrue( graphs.containsKey( Iris.concept( "retirement-planning/eu-retirement" ) ) );
+        assertTrue( graphs.containsKey( Iris.concept( "tax-strategy/vat" ) ) );
+        assertTrue( graphs.get( Iris.concept( "retirement-planning/eu-retirement" ) ).contains(
+                ResourceFactory.createResource( Iris.concept( "retirement-planning/eu-retirement" ) ),
+                ResourceFactory.createProperty( SKOS + "broader" ),
+                ResourceFactory.createResource( Iris.concept( "retirement-planning" ) ) ) );
+        assertTrue( graphs.get( Iris.concept( "tax-strategy/vat" ) ).contains(
+                ResourceFactory.createResource( Iris.concept( "tax-strategy/vat" ) ),
+                ResourceFactory.createProperty( SKOS + "broader" ),
+                ResourceFactory.createResource( Iris.concept( "tax-strategy" ) ) ) );
+    }
 }

@@ -18,9 +18,6 @@ tags:
 - sql
 - transformations
 status: active
-hubs:
-- DataEngineeringHub
-- DataModelingFundamentals Hub
 ---
 # dbt and Analytics Engineering
 

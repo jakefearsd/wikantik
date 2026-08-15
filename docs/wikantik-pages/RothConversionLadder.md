@@ -4,8 +4,6 @@ status: active
 date: '2026-05-10'
 cluster: index-fund-investing/account-types
 title: The Roth Conversion Ladder
-hubs:
-- IndexFundInvestingForEarlyRetirement
 relations:
 - type: component_of
   target_id: IndexFundInvestingForEarlyRetirement

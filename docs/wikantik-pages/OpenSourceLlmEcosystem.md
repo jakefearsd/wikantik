@@ -4,8 +4,6 @@ status: active
 cluster: generative-ai
 date: '2026-04-26'
 title: Open Source LLM Ecosystem
-hubs:
-- GenerativeAIHub
 tags:
 - llm
 - open-source

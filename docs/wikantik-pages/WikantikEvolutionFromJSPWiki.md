@@ -1,7 +1,4 @@
 ---
-hubs:
-- WikantikPlatformHub
-- WikantikDevelopment
 status: active
 date: '2026-06-20'
 summary: How Wikantik evolved from the Apache JSPWiki fork in 2026 — what changed,
@@ -14,7 +11,9 @@ tags:
 - migration
 - platform
 type: article
-cluster: wikantik-platform
+cluster:
+- wikantik-platform
+- wikantik-development
 canonical_id: 01KQTCC38PBFSD7TD6ACJFCZZ3
 title: 'History and Evolution: From JSPWiki to Wikantik'
 ---

@@ -2,8 +2,6 @@
 title: Retirement Planning for Late Starters
 cluster: retirement-planning
 type: article
-hubs:
-- DownsizingInRetirementHub
 summary: 'Retirement planning for late starters: time-compressed accumulation, tax
   arbitrage, and mitigating sequence-of-returns risk.'
 canonical_id: 01KQ0P44VMTCNBATT3MY7QYHJM

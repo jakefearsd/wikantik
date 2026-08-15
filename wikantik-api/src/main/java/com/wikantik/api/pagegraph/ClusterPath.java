@@ -88,6 +88,54 @@ public final class ClusterPath {
     }
 
     /**
+     *  Normalises a raw {@code cluster:} frontmatter value into its list of memberships.
+     *
+     *  <p>ClusterDeclarationDesign Phase 5. A non-hub page may name more than one cluster,
+     *  so the value is either a scalar (one membership) or a list (several). This is the one
+     *  place that difference is resolved — every consumer downstream sees a list, and a page
+     *  authored either way behaves identically.</p>
+     *
+     *  <p>Order is meaningful: <b>the first entry is primary</b>, driving breadcrumbs, JSON-LD
+     *  {@code articleSection}/{@code isPartOf}, the embedding prefix, and sidebar placement.
+     *  Duplicates therefore collapse to their <i>first</i> position rather than their last.</p>
+     *
+     *  @param raw the frontmatter value: a {@code String}, a {@code List}, or {@code null}
+     *  @return the memberships in declared order, blanks dropped, duplicates removed; never null
+     */
+    public static java.util.List< String > memberships( final Object raw ) {
+        if ( raw == null ) {
+            return java.util.List.of();
+        }
+        final java.util.Collection< ? > values = raw instanceof java.util.Collection< ? > c
+                ? c
+                : java.util.List.of( raw );
+        // LinkedHashSet: de-duplicate without losing the declared order that makes entry 0 primary.
+        final java.util.Set< String > out = new java.util.LinkedHashSet<>();
+        for ( final Object value : values ) {
+            if ( value == null ) {
+                continue;
+            }
+            final String trimmed = value.toString().trim();
+            if ( !trimmed.isEmpty() ) {
+                out.add( trimmed );
+            }
+        }
+        return java.util.List.copyOf( out );
+    }
+
+    /**
+     *  The primary membership of a raw {@code cluster:} value — the first entry, or
+     *  {@code null} when the page names no cluster at all.
+     *
+     *  @param raw the frontmatter value: a {@code String}, a {@code List}, or {@code null}
+     *  @return the primary cluster path, or {@code null}
+     */
+    public static String primary( final Object raw ) {
+        final java.util.List< String > all = memberships( raw );
+        return all.isEmpty() ? null : all.get( 0 );
+    }
+
+    /**
      *  Returns the immediate parent of a cluster path, or {@code null} for a top-level
      *  cluster (and for {@code null} input).
      *

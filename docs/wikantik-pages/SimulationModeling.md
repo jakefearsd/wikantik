@@ -15,8 +15,6 @@ tags:
 - monte-carlo
 - discrete-event
 related: []
-hubs:
-- OperationsResearchHub
 ---
 # Simulation Modeling
 

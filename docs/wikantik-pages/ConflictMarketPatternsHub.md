@@ -19,8 +19,6 @@ canonical_id: 01KQ0P44NVFH6WVSSJ39P1PVPB
 type: hub
 title: Geopolitics and Finance Hub
 status: active
-hubs:
-- GeopoliticalFinancialBridgeHub
 tags:
 - conflict-investing
 - markets

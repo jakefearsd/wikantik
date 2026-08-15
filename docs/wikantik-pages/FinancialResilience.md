@@ -4,9 +4,6 @@ status: active
 date: '2026-04-26'
 cluster: personal-finance
 title: Financial Resilience
-hubs:
-- PersonalFinanceHub
-- DebtPayoffStrategies Hub
 tags:
 - financial-resilience
 - personal-finance

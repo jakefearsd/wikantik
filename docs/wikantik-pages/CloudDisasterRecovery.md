@@ -18,8 +18,6 @@ related:
 - AwsFundamentals
 - CloudStorageOptions
 - StatusPageBestPractices
-hubs:
-- CloudPlatformsHub
 ---
 # Cloud Disaster Recovery
 

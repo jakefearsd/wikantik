@@ -3,9 +3,6 @@ type: article
 date: '2026-04-26'
 cluster: mathematics
 title: Propositional Logic
-hubs:
-- MathematicsHub
-- PredicateLogic Hub
 tags:
 - propositional-logic
 - mathematics

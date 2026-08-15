@@ -20,8 +20,6 @@ tags:
 - spouse
 - visa-categories
 - uscis
-hubs:
-- SpousalGreenCardGuide
 ---
 # Marriage-Based Immigration Categories
 

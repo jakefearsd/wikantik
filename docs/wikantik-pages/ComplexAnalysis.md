@@ -4,9 +4,6 @@ status: active
 date: '2026-04-26'
 cluster: mathematics
 title: Complex Analysis
-hubs:
-- MathematicsHub
-- ChaosDynamical Hub
 tags:
 - complex-analysis
 - mathematics

@@ -17,9 +17,6 @@ tags:
 - data-engineering
 - distributed-computing
 status: active
-hubs:
-- DataEngineeringHub
-- DataModelingFundamentals Hub
 ---
 # MapReduce Paradigm
 

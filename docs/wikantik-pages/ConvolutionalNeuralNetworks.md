@@ -18,8 +18,6 @@ related:
 - DeepLearningFundamentals
 - LinearAlgebra
 - GradientDescentAndOptimizers
-hubs:
-- MachineLearningHub
 ---
 # Convolutional Neural Networks
 

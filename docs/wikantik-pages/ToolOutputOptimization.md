@@ -16,8 +16,6 @@ related:
 - TokenMetrics
 - SkillPerformance
 - CustomSkillsArchitecture
-hubs:
-- AgenticAiHub
 auto-generated: false
 ---
 

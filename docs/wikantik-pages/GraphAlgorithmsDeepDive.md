@@ -20,8 +20,6 @@ related:
 - DynamicProgrammingPatterns
 - DistributedComputingAlgorithms
 - GraphDatabaseFundamentals
-hubs:
-- DataStructuresHub
 ---
 # Graph Algorithms Deep Dive
 

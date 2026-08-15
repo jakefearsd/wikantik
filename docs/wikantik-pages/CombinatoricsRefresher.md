@@ -1,6 +1,4 @@
 ---
-hubs:
-- ChaosDynamical Hub
 date: 2025-02-13T00:00:00Z
 status: active
 summary: 'Counting, arrangement, and enumeration: combinatorial explosion, grid-path

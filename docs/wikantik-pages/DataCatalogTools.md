@@ -17,9 +17,6 @@ tags:
 - data-discovery
 - data-governance
 status: active
-hubs:
-- DataEngineeringHub
-- DataModelingFundamentals Hub
 ---
 # Data Catalog Tools
 

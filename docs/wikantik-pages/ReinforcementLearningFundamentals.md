@@ -16,9 +16,6 @@ tags:
 - rl
 - agents
 status: active
-hubs:
-- MLHub
-- AnomalyDetectionTechniques Hub
 ---
 # Reinforcement Learning Fundamentals
 

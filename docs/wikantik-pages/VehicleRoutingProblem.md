@@ -3,10 +3,10 @@ auto-generated: false
 type: article
 status: active
 date: 2025-05-15T00:00:00Z
-cluster: operations-research/logistics
+cluster:
+- operations-research/logistics
+- operations-research/demand-planning
 title: Vehicle Routing Problem
-hubs:
-- DemandPlanningAndSop Hub
 tags:
 - optimization
 - logistics

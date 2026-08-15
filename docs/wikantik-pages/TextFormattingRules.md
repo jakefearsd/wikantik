@@ -19,8 +19,6 @@ tags:
 - frontmatter
 - plugins
 status: active
-hubs:
-- WikantikDevelopmentHub
 ---
 
 # Text Formatting Rules

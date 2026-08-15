@@ -13,9 +13,9 @@ uses:
 - PPO
 status: active
 type: article
-cluster: generative-ai
-hubs:
-- MlModelDeploymentHub
+cluster:
+- generative-ai
+- machine-learning/mlops
 title: AI Model Training
 tags:
 - ai

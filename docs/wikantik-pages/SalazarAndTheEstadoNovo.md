@@ -4,8 +4,6 @@ related:
 - PortugueseColonialEmpire
 - CarnationRevolution
 canonical_id: 01KVJMS20E9Y0X1QJ7ZG2490EV
-hubs:
-- PortugueseHistoryHub
 auto-generated: false
 type: article
 status: active

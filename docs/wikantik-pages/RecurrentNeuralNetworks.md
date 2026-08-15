@@ -18,8 +18,6 @@ related:
 - NeuralNetworkArchitectures
 - DeepLearningFundamentals
 - GradientDescentAndOptimizers
-hubs:
-- MachineLearningHub
 ---
 # Recurrent Neural Networks
 

@@ -18,8 +18,6 @@ tags:
 - democracy
 - european-union
 - economy
-hubs:
-- PortugueseHistoryHub
 ---
 # Modern Portugal: 1976–Present
 

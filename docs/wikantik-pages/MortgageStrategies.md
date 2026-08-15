@@ -3,9 +3,6 @@ type: article
 date: '2026-04-26'
 cluster: personal-finance
 title: Mortgage Strategies
-hubs:
-- PersonalFinanceHub
-- DebtPayoffStrategies Hub
 tags:
 - mortgage
 - housing

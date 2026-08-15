@@ -14,8 +14,6 @@ tags:
 - jwt
 - oauth2
 - openid-connect
-hubs:
-- AuthenticationAndAuthorizationHub
 ---
 
 # Authentication vs. Authorization: Systems Identity

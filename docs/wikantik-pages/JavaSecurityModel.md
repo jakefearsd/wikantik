@@ -18,8 +18,6 @@ related:
 - JavaReflectionAndProxies
 - WebApplicationFirewalls
 - VulnerabilityManagement
-hubs:
-- JavaHub
 ---
 # Java Security Model
 

@@ -3,7 +3,9 @@ summary: Technical guide to Dependency Injection (DI) and Inversion of Control (
   Covers constructor injection, lifecycles (Singleton/Transient), and Guice/Spring
   patterns.
 date: 2025-05-15T00:00:00Z
-cluster: design-patterns
+cluster:
+- design-patterns
+- software-architecture
 auto-generated: false
 canonical_id: 01KQ0P44PH044M4T08CZ5W1NBJ
 type: article
@@ -15,8 +17,6 @@ tags:
 - decoupling
 - software-architecture
 status: active
-hubs:
-- ArchitectureHub
 ---
 
 # Dependency Injection: Decoupling Systems

@@ -19,8 +19,6 @@ related:
 - RetirementPlanningForCouples
 - DivorceAndRetirementPlanning
 - PensionMaximizationStrategies
-hubs:
-- RetirementPlanningGuide
 ---
 # Social Security Spousal and Survivor Benefits
 

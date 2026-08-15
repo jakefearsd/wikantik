@@ -4,8 +4,6 @@ status: active
 cluster: networking
 date: '2026-04-26'
 title: HTTP/2 and HTTP/3
-hubs:
-- NetworkingHub
 tags:
 - http2
 - http3

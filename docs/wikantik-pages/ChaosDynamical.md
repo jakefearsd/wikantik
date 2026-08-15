@@ -4,8 +4,6 @@ status: active
 date: '2026-05-18'
 cluster: mathematics
 title: Chaos and Dynamical Systems
-hubs:
-- ChaosDynamical Hub
 tags:
 - chaos-theory
 - dynamical-systems

@@ -2,10 +2,10 @@
 type: article
 status: active
 date: 2026-03-15T01:00:00Z
-cluster: retirement-planning
+cluster:
+- retirement-planning
+- index-fund-investing/account-types
 title: Tax Benefits of Retirement Accounts
-hubs:
-- TypesofInvestmentAccountsTutorialHub
 tags:
 - retirement
 - taxes

@@ -20,8 +20,6 @@ related:
 - JavaStreamsAndFunctionalProgramming
 - DebuggingStrategies
 - RefactoringStrategies
-hubs:
-- SoftwareEngineeringPracticesHub
 ---
 # Functional Programming Principles
 

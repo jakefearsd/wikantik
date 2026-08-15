@@ -4,8 +4,6 @@ status: active
 cluster: index-fund-investing
 date: '2026-04-26'
 title: Mutual Fund vs. ETF Comparison
-hubs:
-- LowCostIndexFundInvestingHub
 tags:
 - etf
 - mutual-fund

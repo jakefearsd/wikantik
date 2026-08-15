@@ -33,9 +33,6 @@ canonical_id: 01KQEKGD6VT29FGWF8YE9TM671
 type: hub
 title: Agentic AI Hub
 status: active
-hubs:
-- GenerativeAIHub
-- PhilosophyHub
 tags:
 - agentic-ai
 - agents

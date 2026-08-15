@@ -13,10 +13,6 @@ canonical_id: 01KQEKGD9XWDSFGH7TWHH63NZT
 type: hub
 title: Distributed Systems Hub
 status: active
-hubs:
-- DataStructuresHub
-- CloudPlatformsHub
-- EngineeringDisciplineHub
 tags:
 - distributed-systems
 - cloud-computing

@@ -22,8 +22,6 @@ tags:
 - i-130
 - uscis
 - forms
-hubs:
-- SpousalGreenCardGuide
 ---
 # Filing the I-130 Petition
 

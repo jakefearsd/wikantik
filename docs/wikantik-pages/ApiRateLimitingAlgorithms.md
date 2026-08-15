@@ -5,8 +5,6 @@ status: active
 cluster: software-architecture
 date: '2026-04-26'
 title: API Rate Limiting Algorithms
-hubs:
-- SoftwareArchitectureHub
 tags:
 - rate-limiting
 - token-bucket

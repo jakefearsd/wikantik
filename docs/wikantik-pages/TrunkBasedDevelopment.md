@@ -19,8 +19,6 @@ related:
 - CiCdPipelines
 - FeatureToggleManagement
 - MonorepoVsPolyrepo
-hubs:
-- DevOpsAndSreHub
 ---
 # Trunk-Based Development
 

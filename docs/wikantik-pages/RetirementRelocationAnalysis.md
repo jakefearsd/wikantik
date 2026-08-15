@@ -13,8 +13,6 @@ tags:
 - relocation
 - retirement-planning
 - state-taxes
-hubs:
-- DownsizingInRetirementHub
 ---
 
 # Retirement Relocation: Tax Arbitrage and Domicile Risk

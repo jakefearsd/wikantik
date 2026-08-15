@@ -4,8 +4,6 @@ status: active
 cluster: distributed-systems
 date: '2026-04-25'
 title: Distributed Concurrency
-hubs:
-- DistributedSystemsHub
 tags:
 - distributed-concurrency
 - consensus

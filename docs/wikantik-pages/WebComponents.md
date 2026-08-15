@@ -17,9 +17,6 @@ tags:
 - shadow-dom
 - frontend
 status: active
-hubs:
-- FrontendDevelopmentHub
-- WebComponents Hub
 ---
 # Web Components
 

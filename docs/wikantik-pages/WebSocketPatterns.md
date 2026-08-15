@@ -19,8 +19,6 @@ related:
 - ApiProtocolComparison
 - WebhookPatterns
 - HttpTwoAndHttpThree
-hubs:
-- WebServicesAndApisHub
 ---
 # WebSocket Patterns
 

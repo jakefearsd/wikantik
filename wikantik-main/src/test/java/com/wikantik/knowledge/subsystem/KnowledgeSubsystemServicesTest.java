@@ -42,7 +42,7 @@ class KnowledgeSubsystemServicesTest {
     private static KnowledgeSubsystem.Services allNullServices() {
         return new KnowledgeSubsystem.Services(
             null, null, null, null, null, null, null, null, null, null,
-            null, null, null, null, null, null, null, null, null, null,
+            null, null, null, null, null, null, null, null, null,
             null, null, null );
     }
 

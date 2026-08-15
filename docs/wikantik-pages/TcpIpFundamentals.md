@@ -19,8 +19,6 @@ related:
 - HttpTwoAndHttpThree
 - LoadBalancingStrategies
 - NetworkTroubleshooting
-hubs:
-- NetworkingHub
 ---
 # TCP/IP Fundamentals
 

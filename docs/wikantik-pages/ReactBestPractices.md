@@ -18,8 +18,6 @@ related:
 - DesignSystems
 - TypeSystemsComparison
 - SinglePageApplicationArchitecture
-hubs:
-- FrontendHub
 ---
 # React Best Practices
 

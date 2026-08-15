@@ -1,13 +1,6 @@
 ---
 status: active
 type: hub
-hubs:
-- PersonalFinanceHub
-- IndexFundInvestingForEarlyRetirement
-- EuRetirementSavingsGuide
-- LowCostIndexFundInvestingHub
-- TypesofInvestmentAccountsTutorialHub
-- DownsizingInRetirementHub
 date: 2026-03-21T02:00:00Z
 cluster: retirement-planning
 title: Retirement Planning Guide

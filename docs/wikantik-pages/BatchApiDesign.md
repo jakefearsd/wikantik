@@ -18,8 +18,6 @@ related:
 - IdempotencyPatterns
 - PaginationStrategies
 - FileUploadPatterns
-hubs:
-- WebServicesAndApisHub
 ---
 # Batch API Design
 

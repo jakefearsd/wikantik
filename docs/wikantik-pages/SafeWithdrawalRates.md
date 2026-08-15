@@ -16,9 +16,6 @@ summary: How much you can spend from your portfolio each year — the 4% rule, s
 status: active
 date: 2026-03-21T00:00:00Z
 canonical_id: 01KQ0P44W03Q7AZVT7NR37RTD5
-hubs:
-- RetirementPlanningGuide
-- EuRetirementSavingsGuide
 part-of:
 - RetirementPlanningGuide
 tags:

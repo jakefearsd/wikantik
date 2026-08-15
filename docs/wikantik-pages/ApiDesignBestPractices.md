@@ -3,10 +3,10 @@ auto-generated: false
 type: article
 status: active
 date: '2025-05-15T00:00:00Z'
-cluster: web-services-and-apis
+cluster:
+- web-services-and-apis
+- software-engineering-practices/backwards-compatibility
 title: API Design Best Practices
-hubs:
-- BackwardsCompatibilityStrategiesHub
 tags:
 - web-services
 - api-design

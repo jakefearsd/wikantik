@@ -2,8 +2,6 @@
 cluster: devops-sre
 date: '2026-04-26'
 title: Status Page Best Practices
-hubs:
-- DevOpsAndSreHub
 tags:
 - status-page
 - incidents

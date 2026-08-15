@@ -3,8 +3,6 @@ status: active
 type: article
 part-of:
 - Berlin
-hubs:
-- Berlin
 cluster: berlin-history
 title: Reformation and Urban Development in Berlin
 tags:

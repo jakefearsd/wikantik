@@ -17,8 +17,6 @@ related:
 - TrunkBasedDevelopment
 - CiCdPipelines
 - MonorepoVsPolyrepo
-hubs:
-- DevOpsAndSreHub
 ---
 # Git Workflows
 

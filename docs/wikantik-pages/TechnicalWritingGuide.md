@@ -19,8 +19,6 @@ related:
 - EngineeringDecisionFrameworks
 - TechnicalLeadershipSkills
 - LegacyCodeModernization
-hubs:
-- SoftwareEngineeringPracticesHub
 ---
 # Technical Writing Guide
 

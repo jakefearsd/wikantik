@@ -2,12 +2,10 @@
 type: article
 status: active
 date: 2026-03-15T01:00:00Z
-cluster: index-fund-investing
+cluster:
+- index-fund-investing
+- personal-finance
 title: 'Low-Cost Index Funds: 2026 Guide to the Cheapest Funds'
-hubs:
-- LowCostIndexFundInvestingHub
-- PersonalFinanceHub
-- TypesofInvestmentAccountsTutorialHub
 tags:
 - investing
 - index-funds

@@ -15,8 +15,6 @@ summary: AI and machine learning in warehousing — demand forecasting, slotting
 status: active
 date: 2026-03-18T00:00:00Z
 canonical_id: 01KQ0P44YJZ6JZKFTNWNC5F825
-hubs:
-- WarehouseAutomationHub
 part-of:
 - WarehouseAutomationHub
 tags:

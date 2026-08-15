@@ -1,10 +1,10 @@
 ---
 status: active
 type: article
-hubs:
-- MlModelDeploymentHub
 date: 2026-03-14T00:00:00Z
-cluster: generative-ai
+cluster:
+- generative-ai
+- machine-learning/mlops
 title: Practical Prompt Engineering
 tags:
 - generative-ai

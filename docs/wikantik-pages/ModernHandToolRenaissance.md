@@ -13,8 +13,6 @@ tags:
 - hand-planes
 - ergonomics
 - craftsmanship
-hubs:
-- HobbyWoodworkingInTheTwentyFirstCentury
 ---
 
 # The Modern Hand Tool Renaissance: Metallurgy and Mechanics

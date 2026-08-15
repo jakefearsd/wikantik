@@ -19,8 +19,6 @@ related:
 - DivorceAndRetirementPlanning
 - RetirementReadinessChecklist
 - PreMedicareBridgeStrategies
-hubs:
-- RetirementPlanningGuide
 ---
 # Retirement Planning for Couples
 

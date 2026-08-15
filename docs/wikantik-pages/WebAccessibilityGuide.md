@@ -18,9 +18,6 @@ tags:
 - aria
 - keyboard-navigation
 status: active
-hubs:
-- FrontendDevelopmentHub
-- WebComponents Hub
 ---
 # Web Accessibility Guide
 

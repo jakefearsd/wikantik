@@ -20,8 +20,6 @@ related:
 - ServerlessArchitecture
 - AwsLambdaPatterns
 - CloudSecurityFundamentals
-hubs:
-- CloudPlatformsHub
 ---
 # AWS Fundamentals
 

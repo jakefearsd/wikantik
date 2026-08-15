@@ -4,8 +4,6 @@ status: active
 date: '2026-05-10'
 cluster: retirement-planning
 title: Roth Conversion Strategy
-hubs:
-- RetirementPlanningGuide
 relations:
 - type: component_of
   target_id: RetirementPlanningGuide

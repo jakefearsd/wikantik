@@ -20,8 +20,6 @@ related:
 - BalancedSearchTrees
 - GraphAlgorithmsDeepDive
 - DatabaseIndexingStrategies
-hubs:
-- DataStructuresHub
 ---
 # Data Structures
 

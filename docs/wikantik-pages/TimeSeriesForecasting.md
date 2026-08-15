@@ -12,9 +12,6 @@ auto-generated: false
 canonical_id: 01KQ0P44XQ9WWFHYKFSFVMCEYF
 title: Time Series Forecasting
 type: article
-hubs:
-- MachineLearningHub
-- AnomalyDetectionTechniques Hub
 tags:
 - time-series
 - forecasting

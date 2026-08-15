@@ -20,9 +20,6 @@ tags:
 - index-funds
 - tax-efficient-investing
 status: active
-hubs:
-- LowCostIndexFundInvestingHub
-- RebalancingStrategies Hub
 ---
 # Rebalancing Strategies
 

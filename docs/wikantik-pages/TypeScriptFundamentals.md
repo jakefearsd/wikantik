@@ -17,9 +17,6 @@ tags:
 - types
 - frontend
 status: active
-hubs:
-- FrontendDevelopmentHub
-- WebComponents Hub
 ---
 # TypeScript Fundamentals
 

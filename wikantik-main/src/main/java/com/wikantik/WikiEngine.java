@@ -313,7 +313,6 @@ public class WikiEngine implements Engine {
         s.put( com.wikantik.knowledge.MentionIndex.class,                                      rebuildKnowledge );
         s.put( com.wikantik.knowledge.embedding.NodeMentionSimilarity.class,                   rebuildKnowledge );
         s.put( com.wikantik.knowledge.FrontmatterDefaultsFilter.class,                         rebuildKnowledge );
-        s.put( com.wikantik.knowledge.HubSyncFilter.class,                                     rebuildKnowledge );
         s.put( com.wikantik.api.agent.ForAgentProjectionService.class,                         rebuildKnowledge );
         s.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class,       rebuildKnowledge );
         s.put( com.wikantik.api.kgpolicy.KgInclusionPolicy.class,                              rebuildKnowledge );
@@ -1176,11 +1175,6 @@ public class WikiEngine implements Engine {
                     structuralIndex::resolveCanonicalIdFromSlug,
                     ownershipEnforcement ),
                 -998 );
-            // hubSyncFilter is null when the KG subsystem is disabled
-            // (wikantik.knowledge.enabled=false) — skip its registration.
-            if ( svcs.hubSyncFilter() != null ) {
-                filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );
-            }
 
             // Assign the typed snapshot ONLY after all helpers have run.
             // See note above next to the local 'svcs' assignment.
@@ -1556,7 +1550,6 @@ public class WikiEngine implements Engine {
             base.mentionIndex(),
             base.nodeMentionSimilarity(),
             base.frontmatterDefaultsFilter(),
-            base.hubSyncFilter(),
             getManager( com.wikantik.api.agent.ForAgentProjectionService.class ),
             getManager( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class ),
             getManager( com.wikantik.api.kgpolicy.KgInclusionPolicy.class ),

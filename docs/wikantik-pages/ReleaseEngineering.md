@@ -2,8 +2,6 @@
 cluster: devops-sre
 date: '2026-04-26'
 title: Release Engineering
-hubs:
-- DevOpsAndSreHub
 tags:
 - release-engineering
 - deployment

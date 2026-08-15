@@ -11,8 +11,6 @@ summary: Technical deep-dive into distributed tracing mechanics, W3C propagation
 status: active
 date: '2026-04-26'
 canonical_id: 01KQ12YDTP6JTFQEKQZT19ACQZ
-hubs:
-- ObservabilityHub
 tags:
 - observability
 - tracing

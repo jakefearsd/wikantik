@@ -2,10 +2,10 @@
 type: article
 status: active
 date: 2026-05-15T00:00:00Z
-cluster: machine-learning
+cluster:
+- machine-learning
+- generative-ai/ai-infrastructure
 title: 'Computer Vision: Foundations and Geometric Principles'
-hubs:
-- AIInfrastructureHub
 tags:
 - ai
 - computer-vision

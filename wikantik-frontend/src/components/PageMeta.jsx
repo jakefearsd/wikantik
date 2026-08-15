@@ -1,4 +1,5 @@
 import Badge from './ui/Badge';
+import ClusterStatus from './ClusterStatus';
 import { formatDate, formatRelative } from '../utils/datetime';
 import { readingTime } from '../utils/readingTime';
 
@@ -24,6 +25,13 @@ export default function PageMeta({ page }) {
     ? chip.label
     : undefined;
 
+  // Taxonomy context. Everything past the bare chip is editor-only and client-side only,
+  // so the anonymous render path stays exactly as it was — see ClusterStatus.
+  const clusterStatus = page.cluster_status || null;
+  const fmCluster = page.metadata?.cluster || null;
+  const isHub = String(page.metadata?.type || '').toLowerCase() === 'hub';
+  const canEdit = !!page.permissions?.edit;
+
   // Reading time — prefer page.content (raw markdown body from API) over contentHtml
   const textSource = page.content || page.contentHtml || '';
   const rt = readingTime(textSource);
@@ -45,12 +53,25 @@ export default function PageMeta({ page }) {
           <span>v{page.version}</span>
         </>
       )}
-      {page.metadata?.cluster && (
+      {clusterStatus ? (
         <>
           <span className="page-meta-dot">·</span>
-          <span className="tag">{page.metadata.cluster}</span>
+          <ClusterStatus clusterStatus={clusterStatus} isHub={isHub} canEdit={canEdit} />
         </>
-      )}
+      ) : fmCluster ? (
+        // Legacy payload: the page names a cluster but the server sent no cluster_status
+        // (older response, or a client holding a pre-Phase-1 payload). Show the bare chip
+        // rather than inventing curation state we cannot actually verify.
+        <>
+          <span className="page-meta-dot">·</span>
+          <span className="tag">{fmCluster}</span>
+        </>
+      ) : canEdit ? (
+        <>
+          <span className="page-meta-dot">·</span>
+          <ClusterStatus clusterStatus={null} isHub={isHub} canEdit />
+        </>
+      ) : null}
       {rt.minutes > 0 && (
         <>
           <span className="page-meta-dot">·</span>

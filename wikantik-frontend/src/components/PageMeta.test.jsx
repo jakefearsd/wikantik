@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import PageMeta from './PageMeta';
 
 describe('PageMeta', () => {
@@ -51,5 +52,45 @@ describe('PageMeta', () => {
     expect(screen.queryByText('Verified')).toBeNull();
     expect(screen.queryByText('Provisional')).toBeNull();
     expect(screen.queryByText('Stale')).toBeNull();
+  });
+
+  // ------- cluster status (ClusterDeclarationDesign Phase 3) -------
+
+  const inRouter = (page) => render(<MemoryRouter><PageMeta page={page} /></MemoryRouter>);
+
+  it('shows only the plain cluster chip to a reader who cannot edit', () => {
+    inRouter({
+      metadata: { cluster: 'van-life' },
+      cluster_status: { path: 'van-life', hub_declared: false, member_count: 32 },
+    });
+    expect(screen.getByText('van-life')).toBeTruthy();
+    expect(screen.queryByText(/not yet defined/i)).toBeNull();
+  });
+
+  it('flags an undeclared cluster to an editor', () => {
+    inRouter({
+      permissions: { edit: true },
+      metadata: { cluster: 'van-life' },
+      cluster_status: { path: 'van-life', hub_declared: false, member_count: 32 },
+    });
+    expect(screen.getByText(/not yet defined/i)).toBeTruthy();
+  });
+
+  it('states the declaration on a hub page for an editor', () => {
+    inRouter({
+      permissions: { edit: true },
+      metadata: { cluster: 'machine-learning', type: 'hub' },
+      cluster_status: { path: 'machine-learning', hub_declared: true, hub_slug: 'MLHub', member_count: 44 },
+    });
+    expect(screen.getByTestId('cluster-declaration').textContent).toMatch(/HUB/);
+  });
+
+  /**
+   * The SPA may hold a payload from before cluster_status existed (or rendered by an older
+   * server). The chip must not vanish — fall back to the frontmatter cluster.
+   */
+  it('falls back to the frontmatter cluster when the payload carries no cluster_status', () => {
+    inRouter({ metadata: { cluster: 'legacy-cluster' } });
+    expect(screen.getByText('legacy-cluster')).toBeTruthy();
   });
 });

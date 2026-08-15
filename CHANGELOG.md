@@ -22,8 +22,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   content-template column (`Command.getContentTemplate()`, the third `ContextEnum` constructor
   argument across all 23 surviving constants). 12 unreferenced Java classes and 16 unreferenced
   methods, including the finished `AssignCanonicalIdsCli` backfill (made redundant by save-time
-  `canonical_id` enforcement) and the unused `ContextServiceBundleRetriever` eval adapter. 4 unused
-  frontend dependencies, a dead probe script, 8 unused exports, and 2 duplicate default exports
+  `canonical_id` enforcement) and the unused `ContextServiceBundleRetriever` eval adapter. The
+  Task 10 orphan re-scan then caught one more one-shot leftover a level deeper: `MathSyntaxFixer`,
+  the library `MathSyntaxFixCli` alone drove, deleted alongside its test once nothing else called it.
+  4 unused frontend dependencies, a dead probe script, 8 unused exports, and 2 duplicate default exports
   (`knip` now reports zero findings). Non-Tomcat deployment descriptors (`geronimo-web.xml`,
   `jboss-deployment-structure.xml`), JSPWiki's inherited 543 KB `OldChangeLog`, duplicated IDE
   config, an unreferenced container policy file, and licence files for artifacts no longer shipped.

@@ -6,13 +6,11 @@
 | **Wikantik 引擎版本** | [{$jspwikiversion}]
 | **字符编码** | [{$encoding}]
 | **总页面数** | [{$totalpages}]
-| **总活动会话数** | [{SessionsPlugin }]()
-| **活动的 Wiki 用户** | [{SessionsPlugin property=users}]()
 | **到目前为止的运行时间** | [{$uptime}]
 | **当前页面提供程序** | [{$pageprovider}]   
   
 [{$pageproviderdescription}]
-| **当前附件提供程序** | [{$jspwiki.attachmentProvider}]
+| **当前附件提供程序** | [{$attachmentprovider}]
 | **可用的 [InterWiki]() 链接** | [{$interwikilinks}]
 | **嵌�式图像** | [{$inlinedimages}]
 | **�他插件搜索路径** | [{$pluginpath}]
@@ -20,16 +18,10 @@
 
 #### 使用�况
 
-| **我们美化标题吗？** | [{$jspwiki.breakTitleWithSpaces}]
-| **我们匹�英语复数形式吗？** | [{$jspwiki.translatorReader.matchEnglishPlurals}]
-| **使用了 [CamelCase]() 链接吗？** | [{$jspwiki.translatorReader.camelCaseLinks}]
-| **页面�许 HTML 吗？** | [{$jspwiki.translatorReader.allowHTML}]
-
-#### [RichSiteSummary]()
-
-| **我们生成 RSS 文件吗？** | [{$jspwiki.rss.generate}]
-| **如果生成，那文件名是？** | [{$jspwiki.rss.fileName}]
-| **RSS 更新的频率如何？** | [{$jspwiki.rss.interval}]
+| **我们美化标题吗？** | [{$wikantik.breakTitleWithSpaces}]
+| **我们匹�英语复数形式吗？** | [{$wikantik.translatorReader.matchEnglishPlurals}]
+| **使用了 [CamelCase]() 链接吗？** | [{$wikantik.translatorReader.camelCaseLinks}]
+| **页面�许 HTML 吗？** | [{$wikantik.translatorReader.allowHTML}]
 
 #### 个人信息
 
@@ -37,9 +29,5 @@
 
 | **用户名** | [{$username}]
 | **登录状态** | [{$loginstatus}]
-
-#### 目前在编辑的页面
-
-[{ListLocksPlugin }]()
 
 Wikantik 主页是 [http://wikantik.com/](). 欢迎使用 Wikantik！

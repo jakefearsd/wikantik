@@ -6,13 +6,11 @@
 | **В[е�]()�сия Проц[е�]()�сора Wikantik** | [{$jspwikiversion}]
 | **Кодиров[к�]()� символов** | [{$encoding}]
 | **Общ[ее]() Колич[е�]()�тво Страниц** | [{$totalpages}]
-| **Колич[е�]()�тво А[к�]()�ивны� С[е�]()�нсов** | [{SessionsPlugin }]()
-| **А[к�]()�ивные Пользоват[е�]()�и Wiki** | [{SessionsPlugin property=users}]()
 | **Т[ек�]()�щ[ее]() Вр[е�]()�я Работы** | [{$uptime}]
 | **Т[ек�]()�щий Провайд[е�]()� Страниц** | [{$pageprovider}]   
   
 [{$pageproviderdescription}]
-| **Т[ек�]()�щий Присо[е�]()�иня[е�]()�ый Провайд[е�]()�** | [{$jspwiki.attachmentProvider}]
+| **Т[ек�]()�щий Присо[е�]()�иня[е�]()�ый Провайд[е�]()�** | [{$attachmentprovider}]
 | **Доступные м[е�]()�-Wiki со[е�]()�ин[е�]()�ия** | [{$interwikilinks}]
 | **Встро[е�]()�ные изображ[е�]()�ия** | [{$inlinedimages}]
 | **Дополнит[е�]()�ьный Путь Поис[к�]()� Плагина** | [{$pluginpath}]
@@ -20,16 +18,10 @@
 
 #### Удобство пользования
 
-| **Мы у[к�]()�аша[е�]()� заголов[к�]()�?** | [{$jspwiki.breakTitleWithSpaces}]
-| **Мы соотв[е�]()�ству[е�]()� английс[к�]()�м множ[е�]()�тв[е�]()�ным формам?** | [{$jspwiki.translatorReader.matchEnglishPlurals}]
-| **Используются ли ссыл[к�]()� [CamelCase]()?** | [{$jspwiki.translatorReader.camelCaseLinks}]
-| **HTML допус[к�]()�[е�]()�ся на страница�?** | [{$jspwiki.translatorReader.allowHTML}]
-
-#### [RichSiteSummary]()
-
-| **Мы г[е�]()�[е�]()�иру[е�]()� файлы RSS?** | [{$jspwiki.rss.generate}]
-| **Если мы д[е�]()�а[е�]()� это, то [к�]()�[к�]()�е имя файла?** | [{$jspwiki.rss.fileName}]
-| **Как часто RSS обновля[е�]()�ся?** | [{$jspwiki.rss.interval}]
+| **Мы у[к�]()�аша[е�]()� заголов[к�]()�?** | [{$wikantik.breakTitleWithSpaces}]
+| **Мы соотв[е�]()�ству[е�]()� английс[к�]()�м множ[е�]()�тв[е�]()�ным формам?** | [{$wikantik.translatorReader.matchEnglishPlurals}]
+| **Используются ли ссыл[к�]()� [CamelCase]()?** | [{$wikantik.translatorReader.camelCaseLinks}]
+| **HTML допус[к�]()�[е�]()�ся на страница�?** | [{$wikantik.translatorReader.allowHTML}]
 
 #### Личная информация
 
@@ -37,9 +29,5 @@
 
 | **Имя пользоват[е�]()�я** | [{$username}]
 | **Состояние в�ода в сист[е�]()�у** | [{$loginstatus}]
-
-#### Список страниц, отр[е�]()�а[к�]()�ированны� в настоящий мом[е�]()�т
-
-[{ListLocksPlugin }]()
 
 Домашняя страница Wikantik – [http://wikantik.com/](). Добро пожаловать!

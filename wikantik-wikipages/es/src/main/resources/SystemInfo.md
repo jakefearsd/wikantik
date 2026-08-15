@@ -6,13 +6,11 @@
 | **[Versi�]()�n de Wikantik** | [{$jspwikiversion}]
 | **Encoding de las páginas** | [{$encoding}]
 | **Número total de páginas** | [{$totalpages}]
-| **Total de sesiones activas** | [{SessionsPlugin }]()
-| **Usuarios activos en la Wiki** | [{SessionsPlugin property=users}]()
 | **Tiempo en activo actual** | [{$uptime}]
 | **Provider actual de la página** | [{$pageprovider}]   
   
 [{$pageproviderdescription}]
-| **Provider actual de los adjuntos** | [{$jspwiki.attachmentProvider}]
+| **Provider actual de los adjuntos** | [{$attachmentprovider}]
 | **Enlaces [InterWiki]() disponibles** | [{$interwikilinks}]
 | **Las imágenes embebidas son** | [{$inlinedimages}]
 | **ruta adicional de búsqueda de Plugins** | [{$pluginpath}]
@@ -20,16 +18,10 @@
 
 #### Usabilidad
 
-| **¿Embellecemos los títulos?** | [{$jspwiki.breakTitleWithSpaces}]
-| **¿Hacemos coincidir las formas plurales inglesas?** | [{$jspwiki.translatorReader.matchEnglishPlurals}]
-| **¿Se usan los enlaces a partir de mayúsculas y minúsculas ([CamelCase]())?** | [{$jspwiki.translatorReader.camelCaseLinks}]
-| **¿[Est�]()� permitido el uso de HTML en las páginas?** | [{$jspwiki.translatorReader.allowHTML}]
-
-#### Contenido enriquecido
-
-| **¿Generamos ficheros RSS?** | [{$jspwiki.rss.generate}]
-| **Si lo hacemos, ¿cuál es el nombre del fichero?** | [{$jspwiki.rss.fileName}]
-| **¿Cada cuánto se actualiza el canal RSS?** | [{$jspwiki.rss.interval}]
+| **¿Embellecemos los títulos?** | [{$wikantik.breakTitleWithSpaces}]
+| **¿Hacemos coincidir las formas plurales inglesas?** | [{$wikantik.translatorReader.matchEnglishPlurals}]
+| **¿Se usan los enlaces a partir de mayúsculas y minúsculas ([CamelCase]())?** | [{$wikantik.translatorReader.camelCaseLinks}]
+| **¿[Est�]()� permitido el uso de HTML en las páginas?** | [{$wikantik.translatorReader.allowHTML}]
 
 #### [Informaci�]()�n personal
 
@@ -37,9 +29,5 @@
 
 | **Nombre de usuario** | [{$username}]
 | **Estado de la identificación en el sistema** | [{$loginstatus}]
-
-#### Lista de las páginas editadas actualmente
-
-[{ListLocksPlugin }]()
 
 La web de Wikantik está en [http://wikantik.com/](). ¡Bienvenido!

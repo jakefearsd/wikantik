@@ -18,6 +18,7 @@ summary: 'The "No-GIL" Revolution: True Parallelism Python 3.14 (released late 2
   solidified the Free-threaded build (PEP 703) as a supported production standard.'
 produces:
 - Free-threaded build
+cluster: computer-science
 ---
 
 # Python: The Universal AI Operating System

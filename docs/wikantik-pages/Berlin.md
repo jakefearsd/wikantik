@@ -3,7 +3,7 @@ related:
 - BerlinsTransformationFromMargraviateToCapitalCity
 - ReformationAndUrbanDevelopmentInBerlin
 - ReformationEraInBerlin
-type: hub
+type: article
 cluster: berlin-history
 status: active
 canonical_id: 01KQ0P44MFPCNAVMXA25W7T3GS

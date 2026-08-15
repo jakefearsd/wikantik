@@ -2,7 +2,7 @@
 summary: Deep dive into the SemVer 2.0.0 specification and its integration into automated
   CI/CD pipelines.
 date: 2025-05-15T00:00:00Z
-cluster: software-engineering-practices
+cluster: software-engineering-practices/backwards-compatibility
 auto-generated: false
 canonical_id: 01KQ0P44W7VKS643JKBG1KP4X2
 title: Semantic Versioning

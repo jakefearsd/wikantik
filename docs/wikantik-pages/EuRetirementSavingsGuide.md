@@ -9,7 +9,7 @@ tags:
 - eu
 - international
 - tax
-type: hub
+type: article
 cluster: retirement-planning
 canonical_id: 01KQ0P44Q77D4ZERJ5ZN2N571W
 related:

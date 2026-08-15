@@ -8,6 +8,7 @@ tags:
 - modern
 summary: 'The Strategy Pattern (The Architect''s Pivot) Utility: Highest.'
 title: Gang Of Four Patterns Utility
+cluster: design-patterns
 ---
 
 # Gang of Four Patterns: 2026 Utility and Performance

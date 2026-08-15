@@ -11,7 +11,7 @@ tags:
 - hub
 type: hub
 canonical_id: 01KQ0P44RANZ15BBDJFRH6BDPS
-cluster: java
+cluster: java/memory-management
 related:
 - JavaHub
 - JavaCollectionsFramework

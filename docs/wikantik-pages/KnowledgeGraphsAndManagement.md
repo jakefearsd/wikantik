@@ -6,7 +6,7 @@ tags:
 - hitl
 - data-fabric
 - semantics
-cluster: industrial-ai
+cluster: machine-learning
 type: article
 date: 2025-01-24T00:00:00Z
 auto-generated: false

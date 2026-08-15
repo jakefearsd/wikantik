@@ -2,7 +2,7 @@
 canonical_id: 01KQ0P44P2RTSTPVGVX1EPPBES
 title: Cost-Effective Inference
 type: article
-cluster: machine-learning
+cluster: machine-learning/mlops
 status: active
 date: '2026-04-26'
 summary: Practical strategies for reducing the cost of model inference — quantization,

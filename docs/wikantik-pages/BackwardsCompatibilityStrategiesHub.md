@@ -10,7 +10,7 @@ tags:
 - hub
 type: hub
 canonical_id: 01KQ0P44MA4M3XQ42T887AY1S0
-cluster: software-engineering-practices
+cluster: software-engineering-practices/backwards-compatibility
 related:
 - BackwardsCompatibilityStrategies
 - ApiDesignBestPractices

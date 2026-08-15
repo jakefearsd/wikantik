@@ -5,7 +5,7 @@ related:
 - McpIntegration
 cluster: wikantik-development
 canonical_id: 01J7KQTCD38PBFSD7TD6ACJFDA
-type: hub
+type: article
 tags:
 - wikantik
 - development

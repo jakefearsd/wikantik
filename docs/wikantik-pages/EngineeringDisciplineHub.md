@@ -9,7 +9,7 @@ tags:
 - resilience
 - software-engineering
 - hub
-type: hub
+type: article
 cluster: software-engineering-practices
 canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD5
 related:

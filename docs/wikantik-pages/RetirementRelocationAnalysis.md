@@ -2,7 +2,7 @@
 date: 2025-05-15T00:00:00Z
 summary: A quantitative framework for evaluating retirement relocation, focusing on
   tax arbitrage, state death taxes, and the 'Lock-in Effect'.
-cluster: retirement-planning
+cluster: retirement-planning/downsizing
 auto-generated: false
 canonical_id: 01KQ0P44VP76869W9QE5G2CYSA
 type: article

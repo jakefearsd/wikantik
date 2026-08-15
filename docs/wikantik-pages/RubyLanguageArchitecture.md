@@ -13,6 +13,7 @@ canonical_id: 01KREVEHHB0W68SPTJGKHDJR1Y
 summary: The YJIT Breakthrough YJIT has transitioned from an experiment to the production
   standard.
 type: article
+cluster: computer-science
 ---
 
 # Ruby: Performance Maturity and Infrastructure Autonomy

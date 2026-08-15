@@ -10,7 +10,7 @@ tags:
 - digital-twin
 - industrial-engineering
 - process-optimization
-cluster: warehouse-automation
+cluster: warehouse-automation/lean-manufacturing
 related:
 - OperationsResearchHub
 - InventoryTheory

@@ -11,7 +11,7 @@ tags:
 - international
 type: article
 canonical_id: 01KQEDYJR57P2ZPG3ZCQ4N64KA
-cluster: coin-collecting
+cluster: numismatics
 related:
 - CoinCollectingHub
 - AmericanCoinHistory

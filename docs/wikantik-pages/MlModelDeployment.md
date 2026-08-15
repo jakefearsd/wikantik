@@ -3,7 +3,7 @@ date: '2026-04-26'
 summary: The end-to-end process of deploying ML models to production — packaging,
   versioning, infrastructure, monitoring, rollback, and the organizational practices
   that make deployment routine instead of risky.
-cluster: machine-learning
+cluster: machine-learning/mlops
 related:
 - InferenceServing
 - CostEffectiveInference

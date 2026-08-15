@@ -1,6 +1,6 @@
 ---
 status: active
-type: hub
+type: article
 hubs:
 - RetirementPlanningGuide
 - EuRetirementSavingsGuide

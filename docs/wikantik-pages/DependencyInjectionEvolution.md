@@ -19,6 +19,7 @@ related_to:
 - XML Hell
 contrasts_with:
 - Reflection Tax
+cluster: software-architecture
 ---
 
 # Dependency Injection: The 20-Year Evolution of Inversion

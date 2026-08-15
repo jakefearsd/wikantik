@@ -10,6 +10,7 @@ related:
 - RateLimitingAndThrottling
 - SecretsManagement
 - ServiceMeshArchitecture
+cluster: security/container-security
 ---
 
 # ContainerSecurity Hub

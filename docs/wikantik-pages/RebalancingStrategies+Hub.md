@@ -13,6 +13,7 @@ related:
 - TargetDateFunds
 - TaxLossHarvesting
 - TheCaseAgainstMarketTiming
+cluster: index-fund-investing/rebalancing
 ---
 
 # RebalancingStrategies Hub

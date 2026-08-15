@@ -14,7 +14,7 @@ summary: Strategic frameworks for salary negotiation, emphasizing leverage, mark
   data anchoring, and the differentiation between base compensation and total rewards.
 status: active
 date: '2026-05-15'
-cluster: professional-development
+cluster: engineering-leadership
 ---
 
 # Salary Negotiation Strategies

@@ -12,6 +12,7 @@ related:
 - SentimentAnalysisWithMachineLearning
 - TextAnalysisWithDataScience
 - TimeSeriesForecasting
+cluster: machine-learning/anomaly-detection
 ---
 
 # AnomalyDetectionTechniques Hub

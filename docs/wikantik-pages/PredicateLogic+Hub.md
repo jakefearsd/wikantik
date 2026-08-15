@@ -8,6 +8,7 @@ related:
 - PredicateLogic
 - PropositionalLogic
 - TemporalLogic
+cluster: mathematics/predicate-logic
 ---
 
 # PredicateLogic Hub

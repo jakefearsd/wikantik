@@ -14,6 +14,7 @@ related:
 - MapReduceParadigm
 - MasterDataManagement
 - NoSqlDatabaseTypes
+cluster: data-engineering/data-modeling
 ---
 
 # DataModelingFundamentals Hub

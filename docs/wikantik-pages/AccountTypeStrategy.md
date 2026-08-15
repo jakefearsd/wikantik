@@ -1,5 +1,5 @@
 ---
-cluster: index-fund-investing
+cluster: index-fund-investing/account-types
 title: 'Account Type Strategy for Early Retirement: Taxable vs. Tax-Advantaged'
 related:
 - IndexFundInvestingForEarlyRetirement

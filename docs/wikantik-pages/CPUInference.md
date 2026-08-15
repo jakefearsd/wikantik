@@ -2,7 +2,7 @@
 canonical_id: 01KQ0P44MV6PQB6DVJ6NST7SZ7
 title: CPU Inference
 type: article
-cluster: machine-learning
+cluster: machine-learning/mlops
 status: active
 date: '2026-05-15'
 tags:

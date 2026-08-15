@@ -19,7 +19,7 @@ summary: Central index for Formal Methods and Verification in distributed comput
   higher-order logic.
 status: active
 date: '2026-05-15'
-cluster: distributed-systems
+cluster: distributed-systems/formal-methods
 ---
 
 # Formal Methods Hub

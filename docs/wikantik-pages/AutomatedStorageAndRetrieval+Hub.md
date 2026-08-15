@@ -7,6 +7,7 @@ related:
 - AutomatedStorageAndRetrieval
 - WarehouseAutomationLimitations
 - WarehouseRobotics
+cluster: warehouse-automation/automated-storage
 ---
 
 # AutomatedStorageAndRetrieval Hub

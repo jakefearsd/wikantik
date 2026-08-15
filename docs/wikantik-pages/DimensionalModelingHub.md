@@ -10,7 +10,7 @@ tags:
 - hub
 type: hub
 canonical_id: 01KQ0P44PP4126N42S5H9SHNDP
-cluster: data-engineering
+cluster: data-engineering/dimensional-modeling
 related:
 - DimensionalModeling
 - DataWarehouseDesign

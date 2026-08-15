@@ -6,7 +6,7 @@ tags:
 - model
 - data
 - must
-cluster: machine-learning
+cluster: machine-learning/mlops
 type: article
 hubs:
 - MlModelDeploymentHub

@@ -10,7 +10,7 @@ tags:
 - hub
 type: hub
 canonical_id: 01KQ0P44PZQTMDH4RXPEXJWQA6
-cluster: retirement-planning
+cluster: retirement-planning/downsizing
 related:
 - DownsizingInRetirement
 - RetirementPlanningForLateStarters

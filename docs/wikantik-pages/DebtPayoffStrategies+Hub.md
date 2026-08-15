@@ -12,6 +12,7 @@ related:
 - HomeBuyingProcess
 - MortgageStrategies
 - NetWorthTracking
+cluster: personal-finance/debt-payoff
 ---
 
 # DebtPayoffStrategies Hub

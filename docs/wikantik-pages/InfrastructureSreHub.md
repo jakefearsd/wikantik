@@ -9,7 +9,7 @@ tags:
 - devops
 - observability
 - hub
-type: hub
+type: article
 cluster: devops-sre
 canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD7
 related:

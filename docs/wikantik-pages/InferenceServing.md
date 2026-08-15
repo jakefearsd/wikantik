@@ -3,7 +3,7 @@ date: '2026-04-26'
 summary: Production inference serving — serving frameworks, batching strategies, autoscaling,
   multi-model deployment, and the operational realities that determine whether ML
   models actually deliver business value.
-cluster: machine-learning
+cluster: machine-learning/mlops
 related:
 - CostEffectiveInference
 - CPUInference

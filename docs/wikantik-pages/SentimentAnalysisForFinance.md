@@ -1,6 +1,6 @@
 ---
 title: Sentiment Analysis for Financial Markets
-cluster: machine-learning
+cluster: machine-learning/quantitative-finance
 canonical_id: 01KRTB67YHJ96D0PBJ1NEJDY22
 relations:
 - type: component_of

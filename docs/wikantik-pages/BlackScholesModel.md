@@ -13,7 +13,7 @@ type: article
 relations:
 - type: related_to
   target_id: 01KS8J2Z2A938D4EYVWFA9F36M
-cluster: computational-finance
+cluster: machine-learning/quantitative-finance
 canonical_id: 01KS8K3Z3B938D4EYVWFA9F36N
 title: The Black-Scholes Model
 ---

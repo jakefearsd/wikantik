@@ -4,7 +4,7 @@ type: article
 part-of:
 - OperationsResearchHub
 date: 2026-03-17T00:00:00Z
-cluster: operations-research
+cluster: operations-research/logistics
 title: Supply Chain and Logistics Optimization
 tags:
 - operations-research

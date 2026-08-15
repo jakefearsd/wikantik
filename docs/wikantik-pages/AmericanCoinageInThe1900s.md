@@ -1,6 +1,6 @@
 ---
 title: American Coinage in the 1900s
-cluster: american-coinage
+cluster: numismatics/american-coinage
 type: article
 hubs:
 - AmericanCoinageHub

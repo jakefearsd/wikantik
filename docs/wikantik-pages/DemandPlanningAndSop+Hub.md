@@ -9,6 +9,7 @@ related:
 - OperationsResearch
 - OptimizationInWarehouseAutomation
 - VehicleRoutingProblem
+cluster: operations-research/demand-planning
 ---
 
 # DemandPlanningAndSop Hub

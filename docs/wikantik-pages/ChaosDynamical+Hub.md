@@ -15,6 +15,7 @@ related:
 - MathematicalFoundationsOfMachineLearning
 - NumericalMethods
 - ProbabilityTheory
+cluster: mathematics/chaos-and-dynamical-systems
 ---
 
 # ChaosDynamical Hub

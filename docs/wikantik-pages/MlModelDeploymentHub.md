@@ -2,7 +2,7 @@
 date: '2026-04-26'
 summary: Index for deploying ML models to production — MLOps, inference serving, model
   monitoring, and practices that distinguish prototypes from production ML.
-cluster: machine-learning
+cluster: machine-learning/mlops
 related:
 - MlModelDeployment
 - MLOpsPractices

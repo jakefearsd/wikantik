@@ -6,7 +6,7 @@ tags:
 - data-engineering
 - data-architecture
 - data-strategy
-type: hub
+type: article
 cluster: data-engineering
 date: 2026-05-20T00:00:00Z
 auto-generated: false

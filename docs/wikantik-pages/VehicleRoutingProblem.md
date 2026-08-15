@@ -3,7 +3,7 @@ auto-generated: false
 type: article
 status: active
 date: 2025-05-15T00:00:00Z
-cluster: operations-research
+cluster: operations-research/logistics
 title: Vehicle Routing Problem
 hubs:
 - DemandPlanningAndSop Hub

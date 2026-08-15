@@ -19,7 +19,7 @@ summary: Authoritative research index for the intersection of Machine Learning, 
   HRP, Causal ML, and Informational Spillovers.
 status: active
 date: '2026-05-15'
-cluster: machine-learning
+cluster: machine-learning/quantitative-finance
 ---
 
 # Quantitative Finance Research Hub

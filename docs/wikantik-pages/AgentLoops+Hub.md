@@ -11,6 +11,7 @@ related:
 - AgentReasoning
 - AgentTesting
 - LlmEvaluationMetrics
+cluster: agentic-ai/agent-loops
 ---
 
 # AgentLoops Hub

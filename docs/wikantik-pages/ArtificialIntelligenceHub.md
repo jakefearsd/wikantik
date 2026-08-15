@@ -8,7 +8,7 @@ tags:
 - generative-ai
 - agentic-ai
 - hub
-type: hub
+type: article
 title: Artificial Intelligence Hub
 cluster: generative-ai
 ---

@@ -6,7 +6,7 @@ tags:
 - digital-twin
 - supply-chain
 - industry-4.0
-cluster: industrial-ai
+cluster: machine-learning
 type: article
 date: 2025-01-24T00:00:00Z
 auto-generated: false

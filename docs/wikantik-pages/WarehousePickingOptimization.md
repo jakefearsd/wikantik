@@ -18,7 +18,7 @@ relations:
 - type: component_of
   target_id: 01KQEKGDDVHTHY07CQ3YKSQ5PA
 canonical_id: 01KRPPFJAB0VPQ4GRJA8WZ4AQS
-cluster: operations-research
+cluster: operations-research/logistics
 title: 'Warehouse Picking Optimization: Routing and Batching'
 ---
 

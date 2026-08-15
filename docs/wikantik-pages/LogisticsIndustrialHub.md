@@ -2,7 +2,7 @@
 date: '2026-05-15'
 summary: Central index for industrial logistics, supply chain optimization, and manufacturing
   systems. Bridges Operations Research math with physical-world engineering.
-cluster: operations-research
+cluster: operations-research/logistics
 canonical_id: 01KRQG0KG2C04V3J62NQM7P3GP
 type: hub
 relations:

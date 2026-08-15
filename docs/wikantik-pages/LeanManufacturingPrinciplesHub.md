@@ -10,7 +10,7 @@ tags:
 - efficiency
 - hub
 type: hub
-cluster: warehouse-automation
+cluster: warehouse-automation/lean-manufacturing
 canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD8
 related:
 - EnergySecurityGeopolitics

@@ -13,6 +13,7 @@ related:
 - TypeScriptFundamentals
 - WebAccessibilityGuide
 - WebComponents
+cluster: frontend-development/web-components
 ---
 
 # WebComponents Hub

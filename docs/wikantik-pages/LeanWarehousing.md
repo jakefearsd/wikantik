@@ -9,7 +9,7 @@ type: article
 summary: 'Lean principles in warehousing: Muda elimination, Value Stream Mapping,
   Kaizen, and operations research integration for dynamic slotting and resilience.'
 title: Lean Warehousing
-cluster: warehouse-automation
+cluster: warehouse-automation/lean-manufacturing
 canonical_id: 01KQ0P44RR2TYVXA2VNDPT81EE
 ---
 

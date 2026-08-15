@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KRQG26NMZ9B66K341C5PP04J
-type: article
+type: hub
 tags:
 - materials-science
 - physics
@@ -14,7 +14,7 @@ summary: The foundational science of matter and its properties, examining the re
   between atomic structure and macroscopic performance in engineering.
 status: active
 date: '2026-05-15'
-cluster: engineering
+cluster: materials-science
 ---
 
 # Materials Science

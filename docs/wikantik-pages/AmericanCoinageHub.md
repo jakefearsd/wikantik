@@ -10,7 +10,7 @@ tags:
 - american-history
 - hub
 type: hub
-cluster: numismatics
+cluster: numismatics/american-coinage
 canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD2
 related:
 - AmericanCoinageInThe1900s

@@ -15,7 +15,7 @@ relations:
   target_id: 01KQ0P44SRPADVP4CV9AZFQ47T
 - type: related_to
   target_id: BlackScholesModel
-cluster: computational-finance
+cluster: machine-learning/quantitative-finance
 canonical_id: 01KS8J2Z2A938D4EYVWFA9F36M
 title: Geometric Brownian Motion
 ---

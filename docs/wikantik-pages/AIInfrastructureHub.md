@@ -9,7 +9,7 @@ tags:
 - machine-learning
 - hub
 type: hub
-cluster: generative-ai
+cluster: generative-ai/ai-infrastructure
 canonical_id: 01J7KQTCD38PBFSD7TD6ACJFD1
 related:
 - GenerativeAI

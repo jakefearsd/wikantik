@@ -5,7 +5,7 @@ summary: Page for testing KG curation MCP tools.
 tags:
 - concurrenttag
 type: article
-cluster: Test
+cluster: wikantik-development
 canonical_id: 01H3X4ZV8C5W5R6T7Y8U9I0O1P
 related_to:
 - ExistingTarget

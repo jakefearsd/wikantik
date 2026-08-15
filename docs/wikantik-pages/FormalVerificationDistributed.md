@@ -19,7 +19,7 @@ summary: Technical survey of formal methods for distributed protocols. Covers TL
   extraction in 2026-scale projects.
 status: active
 date: '2026-05-15'
-cluster: distributed-systems
+cluster: distributed-systems/formal-methods
 ---
 
 # Formal Verification of Distributed Systems: Design to Extraction

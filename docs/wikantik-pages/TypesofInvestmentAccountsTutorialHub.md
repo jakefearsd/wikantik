@@ -12,7 +12,7 @@ tags:
 - account-strategy
 - hub
 type: hub
-cluster: index-fund-investing
+cluster: index-fund-investing/account-types
 canonical_id: 01KQ0P44Y4A0DPESG2KMM32D5K
 related:
 - AccountTypeStrategy

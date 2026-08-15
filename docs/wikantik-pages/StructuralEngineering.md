@@ -1,6 +1,6 @@
 ---
 title: Structural Engineering
-cluster: engineering
+cluster: mechanical-engineering
 canonical_id: 01KRQG26MJFCN2BGXXK43MNK0G
 relations:
 - type: component_of

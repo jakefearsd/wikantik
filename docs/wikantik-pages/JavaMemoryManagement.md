@@ -2,7 +2,7 @@
 auto-generated: false
 type: article
 status: active
-cluster: java
+cluster: java/memory-management
 date: '2026-05-22'
 title: 'Java Memory Management: Heap, GC, and JVM Internals'
 tags:

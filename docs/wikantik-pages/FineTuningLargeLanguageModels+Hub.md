@@ -8,6 +8,7 @@ related:
 - LLMFineTuning
 - ModelQuantization
 - SyntheticDataGeneration
+cluster: machine-learning/fine-tuning
 ---
 
 # FineTuningLargeLanguageModels Hub

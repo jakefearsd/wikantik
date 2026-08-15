@@ -14,7 +14,7 @@ summary: Principles of sustainable architectural design, focusing on passive cli
   control, embodied carbon reduction, and net-zero energy systems.
 status: active
 date: '2026-05-15'
-cluster: engineering
+cluster: mechanical-engineering
 ---
 
 # Sustainable Architecture

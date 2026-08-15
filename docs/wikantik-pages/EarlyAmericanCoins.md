@@ -2,7 +2,7 @@
 date: 2025-05-15T00:00:00Z
 summary: Technical analysis of early U.S. coinage, focusing on the Fugio Cent of 1787,
   the 1792 patterns, and the metallurgical shifts of the first federal issues.
-cluster: american-coinage
+cluster: numismatics/american-coinage
 auto-generated: false
 canonical_id: 01KQ0P44Q0844HD4VJC2309YEN
 type: article

@@ -198,29 +198,6 @@ public class TimedCounterList<T> extends AbstractList<T>
         }
     }
     
-    /**
-     *  Returns the time when this particular item was added on the list.
-     *  
-     *  @param index The index of the object.
-     *  @return The addition time in milliseconds (@see System.currentTimeMillis()).
-     */
-    public long getAddTime(final int index )
-    {
-        lock.readLock().lock();
-        long res;
-        
-        try
-        {
-            res = list.get( index ).addTime;
-        }
-        finally
-        {
-            lock.readLock().unlock();
-        }
-        
-        return res;
-    }
-    
     private static class CounterItem<E>
     {
         private final E      obj;

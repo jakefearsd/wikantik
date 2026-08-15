@@ -20,7 +20,6 @@ package com.wikantik.auth;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.api.exceptions.NoRequiredPropertyException;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -51,36 +50,6 @@ public abstract class AbstractJDBCDatabase {
 
     /** Whether the database supports transactions (commits). */
     protected boolean supportsCommits;
-
-    /**
-     * Looks up a JDBC DataSource from JNDI using the standard Java EE naming convention.
-     *
-     * @param jndiName the JNDI name of the DataSource (e.g., "jdbc/UserDatabase")
-     * @param datasourcePropertyName the property name for error reporting
-     * @throws NoRequiredPropertyException if the JNDI lookup fails
-     */
-    public void lookupDataSource( final String jndiName, final String datasourcePropertyName )
-            throws NoRequiredPropertyException {
-        ds = JndiDataSources.lookup( jndiName, getClass().getSimpleName(), datasourcePropertyName );
-    }
-
-    /**
-     * Tests the database connection by executing a simple query.
-     *
-     * @param testSql the SQL statement to execute for testing (e.g., "SELECT * FROM users")
-     * @throws WikiSecurityException if the connection test fails
-     */
-    @SuppressWarnings( "PMD.UnusedLocalVariable" ) // try-with-resources holds the prepared statement only for its side effect.
-    public void testConnection( final String testSql ) throws WikiSecurityException {
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( testSql ) ) {
-            // Just prepare the statement to test connectivity
-        } catch( final SQLException e ) {
-            LOG.error( "DB connectivity error: {}", e.getMessage() );
-            throw new WikiSecurityException( "DB connectivity error: " + e.getMessage(), e );
-        }
-        LOG.info( "{} connection test successful.", getClass().getSimpleName() );
-    }
 
     /**
      * Detects whether the database supports transactions and sets the supportsCommits flag.

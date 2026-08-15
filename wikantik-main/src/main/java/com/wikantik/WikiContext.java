@@ -259,37 +259,6 @@ public class WikiContext implements Context, Command {
     }
 
     // -----------------------------------------------------------------------
-    // Scope accessors — expose the three sub-objects for callers that need them
-    // -----------------------------------------------------------------------
-
-    /**
-     * Returns the {@link RequestScope} for this context.
-     *
-     * @return the request scope; never {@code null}
-     */
-    public RequestScope getRequestScope() {
-        return requestScope;
-    }
-
-    /**
-     * Returns the {@link PageScope} for this context.
-     *
-     * @return the page scope; never {@code null}
-     */
-    public PageScope getPageScope() {
-        return pageScope;
-    }
-
-    /**
-     * Returns the {@link RenderingScope} for this context.
-     *
-     * @return the rendering scope; never {@code null}
-     */
-    public RenderingScope getRenderingScope() {
-        return renderingScope;
-    }
-
-    // -----------------------------------------------------------------------
     // Command interface delegates
     // -----------------------------------------------------------------------
 

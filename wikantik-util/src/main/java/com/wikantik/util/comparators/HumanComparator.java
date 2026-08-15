@@ -242,11 +242,6 @@ public final class HumanComparator implements Comparator< String > {
         return leftValue - rightValue; // Otherwise compare the values
     }
 
-    public CharType[] getSortOrder()
-    {
-        return sortOrder.clone();
-    }
-
     /**
      * Very broadly characterises a character as a digit, a letter or a punctuation character.
      * 

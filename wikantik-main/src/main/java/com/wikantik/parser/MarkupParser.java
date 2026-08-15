@@ -366,19 +366,6 @@ public abstract class MarkupParser {
     }
 
     /**
-     *  Push back any character to the current input.  Does not push back a read EOF, though.
-     *
-     *  @param c Character to push back.
-     *  @throws IOException In case the character cannot be pushed back.
-     */
-    protected void pushBack( final int c ) throws IOException {
-        if( c != -1 && in != null ) {
-            pos--;
-            in.unread( c );
-        }
-    }
-
-    /**
      *  Writes HTML for error message.  Does not add it to the document, you have to do it yourself.
      *
      *  @param error The error string.

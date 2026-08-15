@@ -234,15 +234,6 @@ public class HubProposalRepository {
         return null;
     }
 
-    public void clearCentroids() {
-        try ( Connection conn = dataSource.getConnection();
-              Statement st = conn.createStatement() ) {
-            st.execute( "DELETE FROM hub_centroids" );
-        } catch ( final SQLException e ) {
-            LOG.warn( "Failed to clear hub centroids: {}", e.getMessage() );
-        }
-    }
-
     private static HubProposal mapRow( final ResultSet rs ) throws SQLException {
         return new HubProposal(
             rs.getInt( "id" ),

@@ -125,13 +125,4 @@ public class LruPropertyCache implements PropertyCacheStrategy {
     public int size() {
         return (int) cache.estimatedSize();
     }
-
-    /**
-     * Returns the maximum cache size.
-     *
-     * @return the maximum size
-     */
-    public int getMaxSize() {
-        return maxSize;
-    }
 }

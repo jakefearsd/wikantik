@@ -129,11 +129,4 @@ public final class SessionEventDispatcher implements WikiEventListener {
             }
         }
     }
-
-    /** Current alive-session count. Test-only / introspection helper. */
-    public int sessionCount() {
-        synchronized ( sessions ) {
-            return sessions.size();
-        }
-    }
 }

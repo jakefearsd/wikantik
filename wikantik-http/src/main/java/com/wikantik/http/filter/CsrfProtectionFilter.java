@@ -87,15 +87,6 @@ public class CsrfProtectionFilter implements Filter {
         chain.doFilter( request, response );
     }
 
-    public static boolean isCsrfProtectedPost( final HttpServletRequest request ) {
-        if( isPost( request ) ) {
-            final Engine engine = Wiki.engine().find( request.getServletContext(), null );
-            final Session session = Wiki.session().find( engine, request );
-            return requestContainsValidCsrfToken( request, session );
-        }
-        return false;
-    }
-
     private static boolean requestContainsValidCsrfToken( final ServletRequest request, final Session session ) {
         return session.antiCsrfToken().equals( request.getParameter( ANTICSRF_PARAM ) );
     }

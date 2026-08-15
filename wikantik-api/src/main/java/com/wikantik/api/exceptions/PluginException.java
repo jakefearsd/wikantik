@@ -28,8 +28,6 @@ public class PluginException  extends WikiException {
 
     private static final long serialVersionUID = -289900047240960332L;
 
-    private final Throwable throwable;
-
     /**
      *  Create a PluginException.
      *
@@ -37,7 +35,6 @@ public class PluginException  extends WikiException {
      */
     public PluginException( final String message ) {
         super( message );
-        throwable = null;
     }
 
     /**
@@ -50,18 +47,6 @@ public class PluginException  extends WikiException {
             justification = "Wrapping the caller's Throwable is the explicit purpose of this exception; defensive-copying a Throwable is impractical and would discard state." )
     public PluginException( final String message, final Throwable original ) {
         super( message, original );
-        throwable = original;
-    }
-
-    /**
-     *  Return the original exception.
-     *
-     *  @return The original exception.
-     */
-    @SuppressFBWarnings( value = "EI_EXPOSE_REP",
-            justification = "Exposing the wrapped Throwable is the contract of this accessor." )
-    public Throwable getRootThrowable() {
-        return throwable;
     }
 
 }

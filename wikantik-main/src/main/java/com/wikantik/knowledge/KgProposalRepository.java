@@ -454,10 +454,6 @@ public final class KgProposalRepository extends KgJdbcSupport {
         }
     }
 
-    public long countPendingProposals() {
-        return queryCount( "SELECT COUNT(*) FROM kg_proposals WHERE status = 'pending'" );
-    }
-
     public long countPendingUnjudgedProposals() {
         return queryCount( "SELECT COUNT(*) FROM kg_proposals "
             + "WHERE status = 'pending' AND machine_status IS NULL" );

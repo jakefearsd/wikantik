@@ -88,16 +88,6 @@ public final class RequestScope {
     }
 
     /**
-     * Returns the mutable per-request variable map.  Changes to the returned map are
-     * reflected in this scope.
-     *
-     * @return the variable map; never {@code null}
-     */
-    public HashMap<String, Object> getVariableMap() {
-        return variableMap;
-    }
-
-    /**
      * Prototype: a copy sharing the request, session, resolver AND the variable map with
      * this scope — mutations of the copy's variables affect the original, matching
      * {@link com.wikantik.WikiContext#clone()} semantics.

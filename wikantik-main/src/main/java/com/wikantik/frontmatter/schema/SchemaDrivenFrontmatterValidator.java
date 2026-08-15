@@ -67,7 +67,7 @@ public final class SchemaDrivenFrontmatterValidator {
                         // cluster: is the one TEXT field that may be YAML-multi-valued
                         // (ClusterDeclarationDesign Phase 5) — it needs its own entry-aware path
                         // rather than validateText's raw.toString(), which would stringify a list.
-                        validateCluster( spec, metadata, ctx, out );
+                        ClusterFieldValidator.validate( spec, metadata, ctx, out );
                     } else {
                         validateText( spec, raw, ctx, out );
                     }
@@ -170,64 +170,6 @@ public final class SchemaDrivenFrontmatterValidator {
                     + " Tolerated for now, but it will be rejected once the corpus is normalized.";
             out.add( new FieldViolation( spec.key(), Severity.WARNING, spec.key() + ".slug.malformed",
                     msg, suggestion.isEmpty() ? null : suggestion ) );
-        }
-    }
-
-    /**
-     * Validates {@code cluster:}, the one TEXT field that may be a YAML list rather than a
-     * scalar (ClusterDeclarationDesign Phase 5: a non-hub page may belong to several clusters).
-     *
-     * <p>A {@code type: hub} page declares exactly one cluster — a declaration is singular — so
-     * more than one entry there is a blocking {@link Severity#ERROR}. A single-element list on a
-     * hub is just a normalised scalar and raises no error. Everywhere else, every membership is
-     * validated independently through {@link #validateClusterEntry}, so a violation names the
-     * offending entry rather than the stringified list.</p>
-     */
-    private void validateCluster( final FieldSpec spec, final Map< String, Object > metadata,
-                                  final ValidationCtx ctx, final List< FieldViolation > out ) {
-        final Object raw = metadata.get( spec.key() );
-        if ( raw == null ) {
-            return;
-        }
-        final List< String > memberships = ClusterPath.memberships( raw );
-        if ( memberships.isEmpty() ) {
-            return;
-        }
-        final Object typeRaw = metadata.get( "type" );
-        final boolean isHub = typeRaw != null && "hub".equalsIgnoreCase( typeRaw.toString().trim() );
-        if ( isHub && memberships.size() > 1 ) {
-            out.add( FieldViolation.of( spec.key(), Severity.ERROR, "cluster.hub.multivalued",
-                    "a hub page declares exactly one cluster; '" + spec.key() + "' names "
-                            + memberships.size() + ": " + memberships + ". Remove all but one." ) );
-            return;
-        }
-        for ( final String entry : memberships ) {
-            validateClusterEntry( spec, entry, ctx, out );
-        }
-    }
-
-    /** The per-entry checks {@link #validateCluster} runs against each membership. */
-    private void validateClusterEntry( final FieldSpec spec, final String val, final ValidationCtx ctx,
-                                       final List< FieldViolation > out ) {
-        if ( spec.pattern() != null && !val.matches( spec.pattern() ) ) {
-            // Advisory, not blocking: ~15 live clusters are non-kebab (e.g. "Data Structures"), so a
-            // blocking error would 422 every edit to those pages. Warn sternly + suggest the slug.
-            final String suggestion = slugify( val );
-            final String msg = "'" + spec.key() + "' value \"" + val
-                    + "\" is not a valid slug — use lowercase kebab-case"
-                    + ( suggestion.isEmpty() ? "." : ", e.g. '" + suggestion + "'." )
-                    + " Tolerated for now, but it will be rejected once the corpus is normalized.";
-            out.add( new FieldViolation( spec.key(), Severity.WARNING, spec.key() + ".slug.malformed",
-                    msg, suggestion.isEmpty() ? null : suggestion ) );
-        }
-        if ( !ctx.clusterIsDeclared().test( val ) ) {
-            // ClusterDeclarationDesign: a cluster exists only if a hub page declares it.
-            // Advisory by design — naming an undeclared cluster must never block the save
-            // (the page stays fully retrievable); it surfaces in the editor and is counted
-            // on the /admin/drift burn-down, where the fix is to write the missing hub.
-            out.add( FieldViolation.of( spec.key(), Severity.WARNING, "cluster.undeclared",
-                    "cluster '" + val + "' is not declared by any hub page. Create a page with"
-                            + " 'type: hub' and 'cluster: " + val + "' to declare it." ) );
         }
     }
 

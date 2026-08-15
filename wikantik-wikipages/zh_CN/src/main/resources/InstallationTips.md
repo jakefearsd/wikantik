@@ -54,10 +54,6 @@
 
 左侧底部叫做 [LeftMenuFooter]()，这个页面也是完�可以编辑的。
 
-#### 启用 [RSS](http://blogspace.com/rss/) 订�
-
-在 wikantik.properties 文件中，您需要将 "wikantik.rss.generate" 设置为 "true"，
-
 #### 我不喜欢页面标题中�~�� ThingsSquashedTogether，怎么办？
 
 正如 Finns 所说，"voe tokkiinsa"，意为“是的，当然”。您只需要在 wikantik.properties 文件中将 "wikantik.breakTitleWithSpaces" 属性设置为 "true"。

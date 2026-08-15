@@ -33,14 +33,6 @@ InterWiki links let you reference external wikis and services using the syntax `
 | **Do we match english plural forms?** | [{$wikantik.translatorReader.matchEnglishPlurals}] |
 | **Is HTML allowed on pages?** | [{$wikantik.translatorReader.allowHTML}] |
 
-#### RSS (Rich Site Summary)
-
-| Property | Value |
-|----------|-------|
-| **Do we generate RSS files?** | [{$wikantik.rss.generate}] |
-| **If we do, what's the file name?** | [{$wikantik.rss.fileName}] |
-| **How often is the RSS updated?** | [{$wikantik.rss.interval}] |
-
 #### Personal information
 
 Here is what I know about you currently:

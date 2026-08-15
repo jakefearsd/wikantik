@@ -54,10 +54,6 @@ Si tú (el administrador) no quieres que sea editable, siempre puedes editar la 
 
 La parte inferior de la sección de la izquierda es otra página más, llamada [LeftMenuFooter](), y también es totalmente editable.
 
-#### Activando el feed [RSS](http://blogspace.com/rss/)
-
-En tu archivo wikantik.properties, tienes que establecer el parámetro "wikantik.rss.generate" a "true".
-
 #### No me gusta que~ LasPalabrasSeAmontonenEnLosTitulos en los títulos de las páginas. ¿Puedo hacer algo al respecto?
 
 Como dicen los finlandeses, "voe tokkiinsa", es decir "sí, por supuesto". Simplemente establece el parámetro "wikantik.breakTitleWithSpaces" a "true" en tu fichero wikantik.properties.

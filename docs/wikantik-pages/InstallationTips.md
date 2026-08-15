@@ -58,10 +58,6 @@ If you (the administrator) don't want anyone else to modify it, you can always e
 
 The lower part of the left hand side is similarly called [LeftMenuFooter](), and it is fully editable as well.
 
-#### Enabling the [RSS](http://blogspace.com/rss/) feed
-
-In your wikantik.properties -file, you'll need to set the "wikantik.rss.generate" to "true".
-
 #### I don't like~ ThingsSquashedTogether in the page titles. What can I do?
 
 As Finns say, "voe tokkiinsa", meaning "yes, of course". Just set the "wikantik.breakTitleWithSpaces" property to "true" in your wikantik.properties-file.

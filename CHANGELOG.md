@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-08-15
+
 ### Changed
 - **Restored the complexity ratchet and OSV scan to green after 2.4.0.** The cluster work tripped
   three static gates, and only one of them was a false positive:

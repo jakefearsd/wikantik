@@ -24,7 +24,7 @@ related:
 
 # Cluster Declaration Design
 
-> **Status: active. Phases 0, 0b, 1 and 2 complete 2026-08-15; phases 3–5 not started.**
+> **Status: active. Phases 0, 0b, 1, 2 and 3 complete 2026-08-15; phases 4–5 not started.**
 > Supersedes the informal cluster convention described in
 > [StructuralSpineDesign](StructuralSpineDesign). Decision recorded as
 > ADR-0009. The phases below are sequenced; nothing outside them is planned.
@@ -574,9 +574,22 @@ rather than being invented at the dashboard, so one signal feeds both the drift 
 any future editor surface. With no structural index wired the predicate passes everything —
 an index that has not warmed up must not flag the entire corpus.
 
-### Phase 3 — Rendering
+### Phase 3 — Rendering — **COMPLETE 2026-08-15**
 
 The four states above, gated on `page.permissions.edit`, client-side only.
+
+Shipped: `ClusterStatus.jsx`, mounted in `PageMeta`. A reader who cannot edit sees exactly
+what they saw before — the bare cluster chip, or nothing — so the anonymous render path is
+byte-identical and ongoing SEO tuning stays unconfounded by this feature. Gating client-side
+rather than in SSR also keeps the server response invariant per user, so edge caching is
+untouched.
+
+The component reads declaration from the `hub_declared` boolean rather than from the presence
+of `hub_slug`, because the server omits null keys and an absent field would otherwise have to
+be interpreted. A payload carrying **no** `cluster_status` at all (an older response, or a
+client holding a pre-Phase-1 payload) falls back to the bare frontmatter chip rather than
+inventing curation state that cannot be verified — a stale client must not report every
+cluster as undeclared.
 
 ### Phase 4 — Curation tooling
 

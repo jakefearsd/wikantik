@@ -29,7 +29,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 /**
- *  A WikiModule describes whatever JSPWiki plugin there is: it can be a plugin, an editor, a filter, etc.
+ *  A WikiModule describes whatever JSPWiki plugin there is: it can be a plugin, a filter, etc.
  *
  *  @since 2.4
  */

@@ -63,6 +63,8 @@ class WikiModuleInfoTest {
         el.addContent( new Element( "description" ).setText( "A test plugin" ) );
         el.addContent( new Element( "maxVersion" ).setText( "9.9.9" ) );
         el.addContent( new Element( "minVersion" ).setText( "1.0.0" ) );
+        el.addContent( new Element( "script" ).setText( "scripts/plugin.js" ) );
+        el.addContent( new Element( "stylesheet" ).setText( "styles/plugin.css" ) );
 
         info.initializeFromXML( el );
 
@@ -70,6 +72,11 @@ class WikiModuleInfoTest {
         assertEquals( "A test plugin", info.getDescription() );
         assertEquals( "9.9.9", info.getMaxVersion() );
         assertEquals( "1.0.0", info.getMinVersion() );
+        // scriptLocation/stylesheetLocation have no public getter (nothing in src/main calls one),
+        // but DefaultPluginManager.WikiPluginInfo reads the inherited protected fields directly to
+        // build per-plugin script/stylesheet include text, so the XML-driven population must stay covered.
+        assertEquals( "scripts/plugin.js", info.scriptLocation );
+        assertEquals( "styles/plugin.css", info.stylesheetLocation );
     }
 
     @Test

@@ -29,14 +29,6 @@
             </Policies>
             <DefaultRolloverStrategy max="90"/>
         </RollingFile>
-
-        <!-- Access log for page views -->
-        <RollingFile name="AccessLog" fileName="${logDir}/access.log" filePattern="${logDir}/access-%d{yyyy-MM-dd}.log.gz">
-            <PatternLayout pattern="%d{ISO8601} %msg%n"/>
-            <Policies>
-                <TimeBasedTriggeringPolicy interval="1"/>
-            </Policies>
-        </RollingFile>
     </Appenders>
 
     <Loggers>

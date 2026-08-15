@@ -6,6 +6,106 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Cluster declaration — the hub page is now the authoritative declaration of its cluster**
+  (`ClusterDeclarationDesign`, ADR-0009; all seven phases). A cluster exists if and only if exactly
+  one page carries `type: hub` plus a `cluster: <path>` — the pair the corpus already wrote, now a
+  declaration rather than a coincidence. No new frontmatter fields. This was prompted by an
+  evaluation of directory-structured content storage, which is **rejected and recorded as such**:
+  a path in frontmatter is data (validatable, re-projectable, multi-valued, revertable per page),
+  while a path in the filesystem is a location that would bind page identity, `page_slug_history`,
+  `OLD/`, `-att/`, URLs and wikilinks to one axis — and every partition that became a retrieval
+  filter in this system has measurably *cost* recall. Cluster nesting deeper than one level, and
+  any filesystem-shaped export of the corpus, are permanently out of scope.
+- **Multi-membership.** `cluster:` may now be a scalar **or a list** on non-hub pages; the first
+  entry is primary and drives breadcrumbs, JSON-LD `articleSection`/`isPartOf`, the embedding
+  prefix and sidebar placement, so no tie-break field was needed. Hubs stay scalar — a list-valued
+  hub is a 422 at save and a `MULTI_CLUSTER_HUB` conflict on `/admin/drift`. This consolidates a
+  capability the corpus was *already* asserting: 89 pages carried multiple `hubs:` entries in a
+  field the schema did not even describe.
+- **`rename_cluster`** — `POST /admin/clusters/rename?from=&to=[&confirm=true]` and an MCP tool on
+  `/wikantik-admin-mcp` (26 → **27** tools). Renames a cluster across every member in one
+  operation, carrying sub-clusters along. Unlike `rename_page`, an unconfirmed call is **not an
+  error — it returns the plan**: a bulk rewrite is exactly the operation whose blast radius a
+  curator should see first, and computing the plan writes nothing. A target another hub already
+  declares is refused (409 / MCP error naming the incumbent) *before* any write, so a half-applied
+  rename can never split the corpus across two names; past that gate the sweep never aborts and
+  reports failed pages by name. It rewrites frontmatter only — no page names, `canonical_id`s or
+  URLs move.
+- **`cluster_status` on the page payload** — `{path, parent, hub_slug, hub_declared, member_count}`,
+  plus an additive `memberships[]` array when a page has more than one. Whether a cluster has a
+  declaring hub is not in the page's own frontmatter, so the server derives it. `hub_declared` is
+  an always-present boolean because Gson omits null keys and a reader must not have to infer
+  meaning from an absent field.
+- **Cluster status in the reader** (`ClusterStatus.jsx` in `PageMeta`): four states — hub
+  declaration, member of a declared cluster, member of an undeclared one, unclustered — **gated on
+  `page.permissions.edit` and rendered client-side only**, never in SSR. A reader who cannot edit
+  sees exactly what they saw before, so the anonymous render path stays byte-identical, ongoing SEO
+  tuning is unconfounded, and edge caching is untouched.
+- **`CorpusDivergenceCli`** (`wikantik-extract-cli`) — compares `docs/wikantik-pages/` against a
+  live wiki's `/api/structure/sitemap`. It exists because the repository corpus and the production
+  page store turned out to be *different corpora, not two copies*: planning a corpus-wide change
+  from the checkout produced a plan that was wrong for production and briefly introduced the exact
+  duplicate-declaration defect this design forbids. **Exit 2 means refused because a snapshot was
+  incomplete** — a partial corpus turns every unread page into a phantom "missing from production",
+  so comparing one is worse than not comparing at all.
+- Four new `StructuralConflict.Kind` values feeding the `/admin/drift` burn-down —
+  `DUPLICATE_CLUSTER_DECLARATION`, `HEADLESS_CLUSTER`, `UNDECLARED_CLUSTER`, `CLUSTERLESS_HUB` —
+  plus `MULTI_CLUSTER_HUB` from the multi-membership phase.
+
+### Changed
+- **Knowledge Graph inclusion resolves cluster policy segment-aware and fail-closed.** Two fixes in
+  one: `DefaultKgInclusionPolicy` now walks ancestors, so a `parent/sub` cluster inherits its
+  parent's policy instead of matching exactly and being silently excluded — a live defect that
+  would have removed every newly created sub-cluster from the Knowledge Graph; and across several
+  memberships an explicit EXCLUDE on **any** of them wins outright. Inclusion is the one place
+  cluster is authoritative rather than advisory, so anything weaker would let an unrelated author
+  undo a curator's deliberate exclusion by adding a second membership.
+- **Hub selection is deterministic.** Pages arrive from `listFiles()` in unsorted filesystem order,
+  and the previous last-writer-wins `put()` made `list_clusters` report a different hub run to run
+  without ever reporting a conflict. Ties now break on lowest slug and the loser is reported.
+- **Cluster matching is segment-aware everywhere**, through a single `ClusterPath` class in
+  `wikantik-api`. A bare `startsWith` reports `machine-learning-ops` as a descendant of
+  `machine-learning`, silently merging two unrelated clusters. Membership is transitive and resolved
+  at query time, so re-parenting needs no reindex, and the transitive lookup de-duplicates: a page
+  naming both a parent and its own sub-cluster would otherwise be counted twice.
+- **Hub `hasPart` is derived from real cluster membership** rather than the hub's `related:` list,
+  with `related` retained only as a degraded-index fallback. This fixes a live SEO defect — `MLHub`
+  was publishing `hasPart` for ten pages that were not in its cluster at all. Hub `related:` is
+  rescoped to editorial highlights.
+- **The ontology projects one `dct:subject` per membership**, each sub-cluster keeping its own
+  `skos:broader` chain. `PageRecord` is now built from the page's frontmatter rather than the
+  `page_canonical_ids` row, which stores only the primary — without that the multi-valued
+  projection could never have emitted anything.
+- **The structured frontmatter editor round-trips a list-valued `cluster`.** The field used the
+  plain TEXT widget, where React coerces an array to `"a,b"` and the first edit saved that back as
+  a single invalid slug — silent destruction of a page's memberships. It now emits a scalar for one
+  value and an array for several, matching the server's rule exactly.
+- Corpus migration: 90 hubs declaring 90 distinct clusters in production, with 0 duplicate
+  declarations, 0 headless clusters, 0 clusterless hubs and 28 sub-clusters, all one level deep.
+
+### Removed
+- **`HubSyncFilter` and the `hubs:` frontmatter field.** The wiki carried *three* rival membership
+  mechanisms — `cluster:` (validated, read by every consumer), `hubs:` (473 pages, 40% of the
+  corpus, absent from `FrontmatterSchema` so no schema grep would find it), and hub `related:` —
+  with a bidirectional filter rewriting the latter two on every save. They had fully diverged:
+  `MLHub` listed 11 related members against 44 actual, `hubs:` pointed at 46 pages that do not
+  exist, and 13 pages named themselves as their own hub. The filter's bulk re-save cascades were
+  load-bearing enough that two unrelated subsystems carried explicit workarounds for them. The
+  repository migration resolved 586 `hubs:` entries across 473 pages: 410 redundant, 46 dangling,
+  33 pointing at pages that declare no cluster, 45 sitting on hub pages (hub-to-hub navigation, not
+  membership — promoting those would have made 17 hubs list-valued), and **52 kept, giving 51 pages
+  a second cluster membership**. Every migrated page kept its original value as the first entry, so
+  no page's primary cluster moved.
+
+### Notes
+- The Phase 2 duplicate-declaration 422 ships **dark**:
+  `wikantik.cluster_declaration.enforcement.enabled` defaults to `false`. Both corpora verified
+  clean, so the flip is safe — but enabling it against a corpus that still holds duplicates makes
+  the offending hub pages un-saveable, trapping exactly the content that needs editing to fix them.
+- Production is authoritative for content, and the `hubs:` retirement was applied to the
+  repository corpus only; the same migration must be run against production separately.
+
 ## [2.3.17] - 2026-08-15
 
 ### Removed

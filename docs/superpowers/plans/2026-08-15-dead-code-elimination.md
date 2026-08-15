@@ -795,6 +795,28 @@ mvn apache-rat:check -pl wikantik-wikipages
 
 Change nothing else in `CLAUDE.md` — the memcached bullet is Task 9's.
 
+- [ ] **Step 1c: Fix the stale usage example in `PageProviderDecorator`'s class javadoc**
+
+`wikantik-main/src/main/java/com/wikantik/providers/PageProviderDecorator.java:~48` carries a `<pre>` usage example citing `CachingPageProviderDecorator` — a type that has never existed in this tree. It is a code sample, not a `{@link}`, so it does not break `mvn javadoc:javadoc`; it just teaches the next reader a class name they will not find. Re-point it at types that exist (verify each with `find wikantik-*/src/main -name '<Name>.java'` before citing it — `CachingProvider` and `VersioningFileProvider` are real). Same class of drift Task 5 fixed in `RefactorToPatterns.md`.
+
+- [ ] **Step 1d: Re-run the orphan scan — deletions cascade**
+
+Removing a method can leave the private/package-private helpers it alone called with no caller, and removing a class can do the same to a utility only it used. Task 6 hit exactly this: deleting `isCsrfProtectedPost` orphaned `CsrfProtectionFilter.isPost`, which then survived only because three tests called it. A per-task sweep cannot see this — it only re-checks the names that task deleted.
+
+So sweep once, at the end, across everything Tasks 4-6 removed:
+
+```bash
+cd /home/jakefear/source/jspwiki
+# every private/package-private method declared in main, with no non-declaration
+# occurrence anywhere in src/main
+for f in $(find wikantik-*/src/main -name '*.java' | grep -v /target/); do
+  grep -oE '^\s+(private|static|final|synchronized| )*[A-Za-z<>\[\],. ]+\b([a-z][A-Za-z0-9_]*)\s*\(' "$f" \
+    | sed -E 's/.*\b([a-z][A-Za-z0-9_]*)\s*\($/\1/'
+done | sort -u > /tmp/decls.txt
+```
+
+Then for any name that looks newly orphaned, read its call sites rather than trusting a count — and apply the same rule the tasks used: a method whose only remaining callers are tests written to exercise it is dead, and the method and those tests go together. Report what the sweep finds even if the answer is "nothing else."
+
 - [ ] **Step 2: Changelog**
 
 ```markdown

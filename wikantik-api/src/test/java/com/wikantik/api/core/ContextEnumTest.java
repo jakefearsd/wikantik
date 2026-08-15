@@ -26,11 +26,10 @@ public class ContextEnumTest {
 
     @Test
     public void testEnumData() {
-        Assertions.assertEquals( 27, ContextEnum.values().length );
+        Assertions.assertEquals( 23, ContextEnum.values().length );
 
         Assertions.assertEquals( "view", ContextEnum.PAGE_VIEW.getRequestContext() );
         Assertions.assertEquals( "%uwiki/%n", ContextEnum.PAGE_VIEW.getUrlPattern() );
-        Assertions.assertEquals( "PageContent", ContextEnum.PAGE_VIEW.getContentTemplate() );
     }
 
 }

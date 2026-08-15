@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Additional tests for {@link WikiServletFilter} covering uncovered branches:
- * null chain throws ServletException, engine-not-started outputs HTML error page,
+ * null chain throws ServletException, engine-not-started responds 503,
  * destroy() is a no-op, getWikiContext returns null for missing attribute.
  */
 class WikiServletFilterAdditionalTest {
@@ -68,11 +68,11 @@ class WikiServletFilterAdditionalTest {
     }
 
     // -----------------------------------------------------------------------
-    // doFilter when engine == null writes HTML error page
+    // doFilter when engine == null responds 503
     // -----------------------------------------------------------------------
 
     @Test
-    void doFilterWithNullEngineWritesErrorHtml() throws Exception {
+    void doFilterWithNullEngineRespondsServiceUnavailable() throws Exception {
         final WikiServletFilter filter = new WikiServletFilter();
         // engine field is null (not initialised)
 
@@ -80,21 +80,21 @@ class WikiServletFilterAdditionalTest {
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         final PrintWriter writer = new PrintWriter( baos, true );
 
-        // We need a response that has getWriter() but also supports the character-encoding
-        // call made before the engine null check (actually the encoding is set on the request)
         final jakarta.servlet.http.HttpServletResponse resp =
                 Mockito.mock( jakarta.servlet.http.HttpServletResponse.class );
         Mockito.doReturn( writer ).when( resp ).getWriter();
 
         final FilterChain chain = HttpMockFactory.createFilterChain();
 
-        // Should NOT throw — just write the error page
+        // Should NOT throw — just report the misconfiguration
         assertDoesNotThrow( () -> filter.doFilter( req, resp, chain ) );
+
+        Mockito.verify( resp ).setStatus( jakarta.servlet.http.HttpServletResponse.SC_SERVICE_UNAVAILABLE );
 
         writer.flush();
         final String output = baos.toString();
-        assertTrue( output.contains( "JSPWiki has not been started" ),
-                    "Error page should mention that JSPWiki has not been started; got: " + output );
+        assertTrue( output.contains( "Wikantik is not configured" ),
+                    "Body should report the missing configuration; got: " + output );
         // Chain must NOT have been called
         Mockito.verify( chain, Mockito.never() ).doFilter( Mockito.any(), Mockito.any() );
     }

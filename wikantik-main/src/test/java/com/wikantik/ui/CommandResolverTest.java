@@ -106,7 +106,6 @@ class CommandResolverTest {
         // Passing an EDIT request with no explicit page params means the EDIT action
         Command a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertEquals( GenericCommand.PAGE_EDIT, a );
-        Assertions.assertEquals( "EditContent", a.getContentTemplate() );
         Assertions.assertEquals( "edit/", a.getRoutePath() );
         Assertions.assertEquals( "%uedit/%n", a.getURLPattern() );
         Assertions.assertNull( a.getTarget() );
@@ -153,7 +152,6 @@ class CommandResolverTest {
         Mockito.doReturn( "SinglePage" ).when( request ).getParameter( "page" );
         Command a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertNotSame( GenericCommand.PAGE_EDIT, a );
-        Assertions.assertEquals( "EditContent", a.getContentTemplate() );
         Assertions.assertEquals( "edit/", a.getRoutePath() );
         Assertions.assertEquals( "%uedit/%n", a.getURLPattern() );
         Assertions.assertEquals( page, a.getTarget() );
@@ -163,7 +161,6 @@ class CommandResolverTest {
         Mockito.doReturn( "Search" ).when( request ).getParameter( "page" );
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertEquals( GenericCommand.WIKI_FIND, a );
-        Assertions.assertEquals( "FindContent", a.getContentTemplate() );
         Assertions.assertEquals( "search", a.getRoutePath() );
         Assertions.assertEquals( "%usearch", a.getURLPattern() );
         Assertions.assertNull( a.getTarget() );
@@ -173,7 +170,6 @@ class CommandResolverTest {
         Mockito.doReturn( "Foo" ).when( request ).getParameter( "group" );
         a = resolver.findCommand( request, ContextEnum.GROUP_VIEW.getRequestContext() );
         Assertions.assertNotSame( GenericCommand.GROUP_VIEW, a );
-        Assertions.assertEquals( "GroupContent", a.getContentTemplate() );
         Assertions.assertEquals( "group", a.getRoutePath() );
         Assertions.assertEquals( "%ugroup?group=%n", a.getURLPattern() );
         Assertions.assertEquals( new GroupPrincipal( "Foo" ), a.getTarget() );

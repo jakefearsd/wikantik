@@ -46,4 +46,12 @@ class GenericCommandTest {
         assertFalse( s.contains( "target=" ),
                 "untargeted command should have no target segment, was: " + s );
     }
+
+    @Test
+    void everyStaticCommandHasARequestContextAndUrlPattern() {
+        for ( final Command c : GenericCommand.allCommands() ) {
+            assertNotNull( c.getRequestContext(), c.getName() );
+            assertNotNull( c.getURLPattern(), c.getName() );
+        }
+    }
 }

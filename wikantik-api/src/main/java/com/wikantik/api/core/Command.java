@@ -22,7 +22,7 @@ import java.security.Permission;
 
 
 /**
- * <p>Represents a logical "unit of work" that includes a request context, URL pattern, content template and (optionally) a target and
+ * <p>Represents a logical "unit of work" that includes a request context, URL pattern and (optionally) a target and
  * required security permission. Examples of Commands include "view a page," "create a group," and "edit user preferences." </p>
  * <p> Commands come in two flavors: "static" and "targeted." </p>
  * <ul>
@@ -30,7 +30,7 @@ import java.security.Permission;
  * They have no intrinsic idea of the context they are acting in. For example, the static command {@code com.wikantik.ui.PageCommand#VIEW} embodies the
  * idea of viewing a page &#8212; but exactly <em>which</em> page is left undefined. Static commands exist so that they can be freely
  * shared and passed around without incurring the penalties of object creation. Static commands are a lot like naked request contexts
- * ("edit", "view", etc.) except that they include additional, essential properties such as the associated URL pattern and content template.</li>
+ * ("edit", "view", etc.) except that they include additional, essential properties such as the associated URL pattern.</li>
  * <li><strong>Targeted commands</strong> "decorate" static commands by scoping a static Command at a specific target such as a WikiPage or
  * GroupPrincipal. Targeted commands are created by calling an existing Command's {@link #targetedCommand(Object)} and supplying the target
  * object. Implementing classes generally require a specific target type. For example, the {@code com.wikantik.ui.PageCommand} class requires that the
@@ -67,15 +67,6 @@ public interface Command {
      * @throws IllegalArgumentException if the target is not of the correct type
      */
     Command targetedCommand( Object target );
-
-    /**
-     * Returns the content template associated with a Command, such as <code>PreferencesContent</code>. For Commands that are not
-     * page-related, this method will always return <code>null</code>. <em>Calling methods should always check to see if the result
-     * of this method is <code>null</code></em>.
-     *
-     * @return the content template
-     */
-    String getContentTemplate();
 
     /**
      * Returns the URL route path associated with the Command. The route path is a local path within the webapp; it is not a general HTTP URL.

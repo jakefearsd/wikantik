@@ -54,7 +54,6 @@ public final class GenericCommand implements Command {
     public static final Command PAGE_INFO     = pageCmd( ContextEnum.PAGE_INFO, PagePermission.VIEW_ACTION );
     public static final Command PAGE_PREVIEW  = pageCmd( ContextEnum.PAGE_PREVIEW, PagePermission.VIEW_ACTION );
     public static final Command PAGE_RENAME   = pageCmd( ContextEnum.PAGE_RENAME, PagePermission.RENAME_ACTION );
-    public static final Command PAGE_RSS      = pageCmd( ContextEnum.PAGE_RSS, PagePermission.VIEW_ACTION );
     public static final Command PAGE_UPLOAD   = pageCmd( ContextEnum.PAGE_UPLOAD, PagePermission.UPLOAD_ACTION );
     public static final Command PAGE_VIEW     = pageCmd( ContextEnum.PAGE_VIEW, PagePermission.VIEW_ACTION );
     public static final Command PAGE_NONE     = pageCmd( ContextEnum.PAGE_NONE, null );
@@ -66,12 +65,9 @@ public final class GenericCommand implements Command {
     public static final Command WIKI_CREATE_GROUP = wikiCmd( ContextEnum.WIKI_CREATE_GROUP, WikiPermission.CREATE_GROUPS_ACTION );
     public static final Command WIKI_ERROR        = wikiCmd( ContextEnum.WIKI_ERROR, null );
     public static final Command WIKI_FIND         = wikiCmd( ContextEnum.WIKI_FIND, null );
-    public static final Command WIKI_INSTALL      = wikiCmd( ContextEnum.WIKI_INSTALL, null );
     public static final Command WIKI_LOGIN        = wikiCmd( ContextEnum.WIKI_LOGIN, WikiPermission.LOGIN_ACTION );
     public static final Command WIKI_LOGOUT       = wikiCmd( ContextEnum.WIKI_LOGOUT, WikiPermission.LOGIN_ACTION );
-    public static final Command WIKI_MESSAGE      = wikiCmd( ContextEnum.WIKI_MESSAGE, null );
     public static final Command WIKI_PREFS        = wikiCmd( ContextEnum.WIKI_PREFS, WikiPermission.EDIT_PROFILE_ACTION );
-    public static final Command WIKI_WORKFLOW     = wikiCmd( ContextEnum.WIKI_WORKFLOW, null );
 
     // ---- static command constants: group commands ----
 
@@ -87,7 +83,6 @@ public final class GenericCommand implements Command {
 
     private final String requestContext;
     private final String urlPattern;
-    private final String contentTemplate;
     private final Object target;
     private final String routePath;
     private final String routeFriendlyName;
@@ -100,7 +95,6 @@ public final class GenericCommand implements Command {
 
     private GenericCommand( final String requestContext,
                             final String urlPattern,
-                            final String contentTemplate,
                             final Object target,
                             final Permission permission,
                             final Function<Object, Command> targetFactory,
@@ -110,7 +104,6 @@ public final class GenericCommand implements Command {
             throw new IllegalArgumentException( "Request context, URL pattern and type must not be null." );
         }
         this.requestContext = requestContext;
-        this.contentTemplate = contentTemplate;
         this.target = target;
         this.permission = permission;
         this.targetFactory = targetFactory;
@@ -149,12 +142,6 @@ public final class GenericCommand implements Command {
     }
 
     // ---- Command interface methods ----
-
-    /** {@inheritDoc} */
-    @Override
-    public String getContentTemplate() {
-        return contentTemplate;
-    }
 
     /** {@inheritDoc} */
     @Override
@@ -225,24 +212,6 @@ public final class GenericCommand implements Command {
     }
 
     /**
-     * Returns {@code true} if this is a redirect command.
-     *
-     * @return whether this command is of kind REDIRECT
-     */
-    public boolean isRedirectCommand() {
-        return kind == CommandKind.REDIRECT;
-    }
-
-    /**
-     * Returns the {@link CommandKind} for this command.
-     *
-     * @return the command kind
-     */
-    public CommandKind getKind() {
-        return kind;
-    }
-
-    /**
      * Returns the "friendly name" derived from the route path.
      *
      * @return the friendly name
@@ -278,10 +247,10 @@ public final class GenericCommand implements Command {
             GROUP_DELETE, GROUP_EDIT, GROUP_VIEW,
             PAGE_ATTACH, PAGE_COMMENT, PAGE_CONFLICT, PAGE_DELETE, PAGE_DIFF,
             PAGE_EDIT, PAGE_INFO, PAGE_NONE, PAGE_OTHER, PAGE_PREVIEW,
-            PAGE_RENAME, PAGE_RSS, PAGE_UPLOAD, PAGE_VIEW,
+            PAGE_RENAME, PAGE_UPLOAD, PAGE_VIEW,
             REDIRECT,
-            WIKI_CREATE_GROUP, WIKI_ERROR, WIKI_FIND, WIKI_INSTALL,
-            WIKI_LOGIN, WIKI_LOGOUT, WIKI_MESSAGE, WIKI_PREFS, WIKI_WORKFLOW,
+            WIKI_CREATE_GROUP, WIKI_ERROR, WIKI_FIND,
+            WIKI_LOGIN, WIKI_LOGOUT, WIKI_PREFS,
             WIKI_ADMIN
         };
     }
@@ -295,10 +264,9 @@ public final class GenericCommand implements Command {
     private static GenericCommand pageCmd( final ContextEnum ctx, final String action ) {
         final String reqCtx = ctx.getRequestContext();
         final String urlPat = ctx.getUrlPattern();
-        final String tmpl = ctx.getContentTemplate();
         final Function<Object, String> nameExtractor = t -> ( (Page) t ).getName();
 
-        // The targetFactory captures action, reqCtx, urlPat, tmpl, nameExtractor by closure.
+        // The targetFactory captures action, reqCtx, urlPat, nameExtractor by closure.
         // It will be set below via a helper to avoid forward-reference issues.
         final Function<Object, Command>[] holder = new Function[1];
 
@@ -308,10 +276,10 @@ public final class GenericCommand implements Command {
             }
             final Page page = (Page) t;
             final Permission perm = ( action == null ) ? null : PermissionFactory.getPagePermission( page, action );
-            return new GenericCommand( reqCtx, urlPat, tmpl, page, perm, holder[0], nameExtractor, CommandKind.PAGE );
+            return new GenericCommand( reqCtx, urlPat, page, perm, holder[0], nameExtractor, CommandKind.PAGE );
         };
 
-        return new GenericCommand( reqCtx, urlPat, tmpl, null, null, holder[0], nameExtractor, CommandKind.PAGE );
+        return new GenericCommand( reqCtx, urlPat, null, null, holder[0], nameExtractor, CommandKind.PAGE );
     }
 
     /**
@@ -321,7 +289,6 @@ public final class GenericCommand implements Command {
     private static GenericCommand wikiCmd( final ContextEnum ctx, final String action ) {
         final String reqCtx = ctx.getRequestContext();
         final String urlPat = ctx.getUrlPattern();
-        final String tmpl = ctx.getContentTemplate();
 
         final Function<Object, Command>[] holder = new Function[1];
 
@@ -331,10 +298,10 @@ public final class GenericCommand implements Command {
             }
             final String wiki = (String) t;
             final Permission perm = ( action == null ) ? null : new WikiPermission( wiki, action );
-            return new GenericCommand( reqCtx, urlPat, tmpl, wiki, perm, holder[0], null, CommandKind.WIKI );
+            return new GenericCommand( reqCtx, urlPat, wiki, perm, holder[0], null, CommandKind.WIKI );
         };
 
-        return new GenericCommand( reqCtx, urlPat, tmpl, null, null, holder[0], null, CommandKind.WIKI );
+        return new GenericCommand( reqCtx, urlPat, null, null, holder[0], null, CommandKind.WIKI );
     }
 
     /**
@@ -343,7 +310,6 @@ public final class GenericCommand implements Command {
     private static GenericCommand wikiAdminCmd( final ContextEnum ctx ) {
         final String reqCtx = ctx.getRequestContext();
         final String urlPat = ctx.getUrlPattern();
-        final String tmpl = ctx.getContentTemplate();
 
         final Function<Object, Command>[] holder = new Function[1];
 
@@ -352,10 +318,10 @@ public final class GenericCommand implements Command {
                 throw new IllegalArgumentException( "Target must non-null and of type String." );
             }
             final String wiki = (String) t;
-            return new GenericCommand( reqCtx, urlPat, tmpl, wiki, new AllPermission( wiki ), holder[0], null, CommandKind.WIKI );
+            return new GenericCommand( reqCtx, urlPat, wiki, new AllPermission( wiki ), holder[0], null, CommandKind.WIKI );
         };
 
-        return new GenericCommand( reqCtx, urlPat, tmpl, null, new AllPermission( null ), holder[0], null, CommandKind.WIKI );
+        return new GenericCommand( reqCtx, urlPat, null, new AllPermission( null ), holder[0], null, CommandKind.WIKI );
     }
 
     /**
@@ -365,7 +331,6 @@ public final class GenericCommand implements Command {
     private static GenericCommand groupCmd( final ContextEnum ctx, final String action ) {
         final String reqCtx = ctx.getRequestContext();
         final String urlPat = ctx.getUrlPattern();
-        final String tmpl = ctx.getContentTemplate();
         final Function<Object, String> nameExtractor = t -> ( (GroupPrincipal) t ).getName();
 
         final Function<Object, Command>[] holder = new Function[1];
@@ -376,10 +341,10 @@ public final class GenericCommand implements Command {
             }
             final GroupPrincipal group = (GroupPrincipal) t;
             final Permission perm = new GroupPermission( group.getName(), action );
-            return new GenericCommand( reqCtx, urlPat, tmpl, group, perm, holder[0], nameExtractor, CommandKind.GROUP );
+            return new GenericCommand( reqCtx, urlPat, group, perm, holder[0], nameExtractor, CommandKind.GROUP );
         };
 
-        return new GenericCommand( reqCtx, urlPat, tmpl, null, null, holder[0], nameExtractor, CommandKind.GROUP );
+        return new GenericCommand( reqCtx, urlPat, null, null, holder[0], nameExtractor, CommandKind.GROUP );
     }
 
     /**
@@ -387,7 +352,6 @@ public final class GenericCommand implements Command {
      */
     private static GenericCommand redirectCmd( final ContextEnum ctx ) {
         final String reqCtx = ctx.getRequestContext();
-        final String tmpl = ctx.getContentTemplate();
         final Function<Object, String> nameExtractor = Object::toString;
 
         final Function<Object, Command>[] holder = new Function[1];
@@ -397,10 +361,10 @@ public final class GenericCommand implements Command {
                 throw new IllegalArgumentException( "Target must non-null and of type String." );
             }
             final String url = (String) t;
-            return new GenericCommand( reqCtx, url, tmpl, url, null, holder[0], nameExtractor, CommandKind.REDIRECT );
+            return new GenericCommand( reqCtx, url, url, null, holder[0], nameExtractor, CommandKind.REDIRECT );
         };
 
-        return new GenericCommand( reqCtx, ctx.getUrlPattern(), tmpl, null, null, holder[0], nameExtractor, CommandKind.REDIRECT );
+        return new GenericCommand( reqCtx, ctx.getUrlPattern(), null, null, holder[0], nameExtractor, CommandKind.REDIRECT );
     }
 
 }

@@ -28,11 +28,8 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.auth.NoSuchPrincipalException;
-import com.wikantik.auth.UserManager;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.permissions.AllPermission;
-import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.context.PageScope;
 import com.wikantik.context.RenderingScope;
 import com.wikantik.context.RequestScope;
@@ -116,17 +113,11 @@ public class WikiContext implements Context, Command {
     /** User is viewing page history. */
     public static final String INFO = ContextEnum.PAGE_INFO.getRequestContext();
 
-    /** User is running the install/configuration wizard. */
-    public static final String INSTALL = ContextEnum.WIKI_INSTALL.getRequestContext();
-
     /** User is preparing for a login/authentication. */
     public static final String LOGIN = ContextEnum.WIKI_LOGIN.getRequestContext();
 
     /** User is preparing to log out. */
     public static final String LOGOUT = ContextEnum.WIKI_LOGOUT.getRequestContext();
-
-    /** The wiki wants to display a message. */
-    public static final String MESSAGE = ContextEnum.WIKI_MESSAGE.getRequestContext();
 
     /** Not a wiki context; use to access static files. */
     public static final String NONE = ContextEnum.PAGE_NONE.getRequestContext();
@@ -143,9 +134,6 @@ public class WikiContext implements Context, Command {
     /** User is renaming a page. */
     public static final String RENAME = ContextEnum.PAGE_RENAME.getRequestContext();
 
-    /** RSS feed is being generated. */
-    public static final String RSS = ContextEnum.PAGE_RSS.getRequestContext();
-
     /** User is uploading something. */
     public static final String UPLOAD = ContextEnum.PAGE_UPLOAD.getRequestContext();
 
@@ -154,9 +142,6 @@ public class WikiContext implements Context, Command {
 
     /** User is viewing an existing group */
     public static final String VIEW_GROUP = ContextEnum.GROUP_VIEW.getRequestContext();
-
-    /** User wants to view or administer workflows. */
-    public static final String WORKFLOW = ContextEnum.WIKI_WORKFLOW.getRequestContext();
 
     private static final Logger LOG = LogManager.getLogger( WikiContext.class );
 
@@ -307,16 +292,6 @@ public class WikiContext implements Context, Command {
     // -----------------------------------------------------------------------
     // Command interface delegates
     // -----------------------------------------------------------------------
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.core.Command#getContentTemplate()
-     */
-    @Override
-    public String getContentTemplate()
-    {
-        return command.getContentTemplate();
-    }
 
     /**
      * {@inheritDoc}
@@ -740,19 +715,6 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public Permission requiredPermission() {
-        // This is a filthy rotten hack -- absolutely putrid
-        if ( GenericCommand.WIKI_INSTALL.equals( command ) ) {
-            // See if admin users exists
-            try {
-                final UserManager userMgr = AuthSubsystemBridge.fromLegacyEngine( engine ).users();
-                final UserDatabase userDb = userMgr.getUserDatabase();
-                userDb.findByLoginName( "admin" );
-            } catch ( final NoSuchPrincipalException e ) {
-                return DUMMY_PERMISSION;
-            }
-            return new AllPermission( engine.getApplicationName() );
-        }
-
         // TODO: we should really break the contract so that this
         // method returns null, but until then we will use this hack
         if( command.requiredPermission() == null ) {

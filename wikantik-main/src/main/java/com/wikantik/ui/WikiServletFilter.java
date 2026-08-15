@@ -38,6 +38,7 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 
@@ -94,20 +95,14 @@ public class WikiServletFilter implements Filter {
         }
         
         if( engine == null ) {
+            LOG.error( "Engine is null; wikantik.properties failed to load. Responding 503." );
+            final HttpServletResponse httpResponse = ( HttpServletResponse )response;
+            httpResponse.setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+            httpResponse.setContentType( "text/plain;charset=UTF-8" );
             final PrintWriter out = response.getWriter();
-            out.print("<!DOCTYPE html><html lang=\"en\"><head><title>Fatal problem with JSPWiki</title></head>");
-            out.print("<body>");
-            out.print("<h1>JSPWiki has not been started</h1>");
-            out.print("<p>JSPWiki is not running.  This is probably due to a configuration error in your wikantik.properties file, ");
-            out.print("or a problem with your servlet container.  Please double-check everything before issuing a bug report ");
-            out.print("at wikantik.com.</p>");
-            out.print("<p>We apologize for the inconvenience.  No, really, we do.  We're trying to ");
-            out.print("JSPWiki as easy as we can, but there is only so much we have time to test ");
-            out.print("platforms.</p>");
-            out.print( "<p>Please go to the <a href='Install.jsp'>installer</a> to continue.</p>" );
-            out.print("</body></html>");
+            out.print( "Wikantik is not configured (wikantik.properties failed to load)" );
             return;
-        }   
+        }
         
         // If we haven't done so, wrap the request
         HttpServletRequest httpRequest = ( HttpServletRequest )request;

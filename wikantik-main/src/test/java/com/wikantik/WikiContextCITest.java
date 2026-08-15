@@ -25,12 +25,10 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.AuthorizationManager;
-import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.permissions.AllPermission;
-import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.ui.CommandResolver;
 import com.wikantik.ui.GenericCommand;
@@ -50,7 +48,6 @@ import java.util.PropertyPermission;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -69,7 +66,6 @@ class WikiContextCITest {
     @Mock private UserManager userManager;
     @Mock private GroupManager groupManager;
     @Mock private AuthenticationManager authenticationManager;
-    @Mock private UserDatabase userDatabase;
 
     private Engine engine;
     private WikiPage frontPage;
@@ -105,14 +101,8 @@ class WikiContextCITest {
     }
 
     // -----------------------------------------------------------------------
-    // getContentTemplate / getRoutePath
+    // getRoutePath
     // -----------------------------------------------------------------------
-
-    @Test
-    void getContentTemplate_delegatesToCommand() {
-        final WikiContext ctx = createViewContext( frontPage );
-        assertEquals( GenericCommand.PAGE_VIEW.getContentTemplate(), ctx.getContentTemplate() );
-    }
 
     @Test
     void getRoutePath_delegatesToCommand() {
@@ -405,29 +395,6 @@ class WikiContextCITest {
 
         final Permission perm = ctx.requiredPermission();
         assertNotNull( perm );
-    }
-
-    @Test
-    void requiredPermission_installCommand_withAdminUser_returnsAllPermission() {
-        when( userManager.getUserDatabase() ).thenReturn( userDatabase );
-        // admin user exists — findByLoginName returns normally (no exception)
-
-        final WikiContext ctx = new WikiContext( engine, null, GenericCommand.WIKI_INSTALL, commandResolver );
-        final Permission perm = ctx.requiredPermission();
-
-        assertInstanceOf( AllPermission.class, perm );
-    }
-
-    @Test
-    void requiredPermission_installCommand_withoutAdminUser_returnsDummyPermission() throws Exception {
-        when( userManager.getUserDatabase() ).thenReturn( userDatabase );
-        doThrow( new NoSuchPrincipalException( "no admin" ) )
-                .when( userDatabase ).findByLoginName( "admin" );
-
-        final WikiContext ctx = new WikiContext( engine, null, GenericCommand.WIKI_INSTALL, commandResolver );
-        final Permission perm = ctx.requiredPermission();
-
-        assertInstanceOf( PropertyPermission.class, perm );
     }
 
     @Test

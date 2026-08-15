@@ -24,7 +24,7 @@ related:
 
 # Cluster Declaration Design
 
-> **Status: active. Phase 0 complete 2026-08-15; phases 1–5 not started.**
+> **Status: active. Phases 0 and 1 complete 2026-08-15; phases 0b and 2–5 not started.**
 > Supersedes the informal cluster convention described in
 > [StructuralSpineDesign](StructuralSpineDesign). Decision recorded as
 > ADR-0009. The phases below are sequenced; nothing outside them is planned.
@@ -506,7 +506,7 @@ Scope:
 
 Phase 0b does **not** block Phase 1; they are independent.
 
-### Phase 1 — Projection
+### Phase 1 — Projection — **COMPLETE 2026-08-15**
 
 Segment-aware prefix matching in `StructuralProjection` and `StructuralFilter`;
 prefix walk in `DefaultKgInclusionPolicy.lookupCluster` — **no longer latent
@@ -517,6 +517,16 @@ deterministic hub selection; four new
 `StructuralConflict.Kind` values — `DUPLICATE_CLUSTER_DECLARATION`,
 `HEADLESS_CLUSTER`, `UNDECLARED_CLUSTER`, `CLUSTERLESS_HUB`; `cluster_status` on
 the page payload; hub `hasPart` derived from membership.
+
+
+Shipped: `ClusterPath` (wikantik-api) is the single segment-aware comparison used by every
+consumer — a bare `startsWith` would merge `machine-learning-ops` into `machine-learning`.
+Cluster membership is transitive and resolved at **query time**, so re-parenting never needs a
+reindex. Hub selection breaks ties on lowest slug, because pages arrive from `listFiles()` in
+unsorted order and last-writer-wins reported a different hub run to run. `cluster_status` carries
+a `hub_declared` boolean alongside `hub_slug`, since Gson omits null keys and the reader must not
+have to infer meaning from an absent field. Hub `hasPart` falls back to frontmatter `related`
+whenever the structural index is unavailable, so SSR never blocks on a warming index.
 
 ### Phase 2 — Enforcement
 

@@ -62,6 +62,33 @@ class ClusterPathTest {
     }
 
     @Test
+    void reparent_renames_the_cluster_itself() {
+        assertEquals( "ml", ClusterPath.reparent( "machine-learning", "machine-learning", "ml" ) );
+    }
+
+    @Test
+    void reparent_carries_sub_clusters_along_with_their_parent() {
+        assertEquals( "ml/mlops", ClusterPath.reparent( "machine-learning/mlops", "machine-learning", "ml" ) );
+    }
+
+    /** Segment-aware again: a sibling sharing a string prefix must not be dragged into the rename. */
+    @Test
+    void reparent_leaves_a_sibling_sharing_a_string_prefix_untouched() {
+        assertEquals( "machine-learning-ops",
+                      ClusterPath.reparent( "machine-learning-ops", "machine-learning", "ml" ) );
+    }
+
+    @Test
+    void reparent_leaves_an_unrelated_cluster_untouched() {
+        assertEquals( "van-life", ClusterPath.reparent( "van-life", "machine-learning", "ml" ) );
+    }
+
+    @Test
+    void reparent_of_null_is_null() {
+        assertNull( ClusterPath.reparent( null, "a", "b" ) );
+    }
+
+    @Test
     void null_is_never_a_descendant_and_has_no_parent() {
         assertFalse( ClusterPath.isSelfOrDescendant( null, "machine-learning" ) );
         assertFalse( ClusterPath.isSelfOrDescendant( "machine-learning", null ) );

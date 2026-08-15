@@ -67,6 +67,27 @@ public final class ClusterPath {
     }
 
     /**
+     *  Rewrites {@code path} as if the cluster {@code from} had been renamed to {@code to},
+     *  carrying any sub-clusters along with it.
+     *
+     *  <p>{@code reparent("machine-learning/mlops", "machine-learning", "ml")} yields
+     *  {@code "ml/mlops"}. A path outside the renamed subtree is returned unchanged — and
+     *  because the subtree test is {@link #isSelfOrDescendant}, a sibling that merely shares a
+     *  string prefix ({@code machine-learning-ops}) is never dragged into the rename.</p>
+     *
+     *  @param path the cluster path to rewrite; {@code null} yields {@code null}
+     *  @param from the cluster being renamed
+     *  @param to   its new path
+     *  @return the rewritten path, or the original when it lies outside the subtree
+     */
+    public static String reparent( final String path, final String from, final String to ) {
+        if ( path == null || from == null || to == null || !isSelfOrDescendant( path, from ) ) {
+            return path;
+        }
+        return to + path.substring( from.length() );
+    }
+
+    /**
      *  Returns the immediate parent of a cluster path, or {@code null} for a top-level
      *  cluster (and for {@code null} input).
      *

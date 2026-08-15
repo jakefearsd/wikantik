@@ -591,12 +591,37 @@ client holding a pre-Phase-1 payload) falls back to the bare frontmatter chip ra
 inventing curation state that cannot be verified — a stale client must not report every
 cluster as undeclared.
 
-### Phase 4 — Curation tooling
+### Phase 4 — Curation tooling — **COMPLETE 2026-08-15**
 
 `rename_cluster` — admin endpoint plus MCP tool, mirroring `rename_page` —
 rewriting `cluster:` across every member in one operation. Without it, the path
 form's O(pages) reorganization *is* the curation overhead this design exists to
 minimize.
+
+Shipped: `ClusterRenameService` (wikantik-main) beneath two surfaces —
+`POST /admin/clusters/rename?from=&to=[&confirm=true]` and the `rename_cluster`
+MCP tool on `/wikantik-admin-mcp` (taking admin-mcp to 27 tools). One subtree
+query resolves the members, so a rename carries sub-clusters with it, and
+`ClusterPath.reparent` keeps that segment-aware: renaming `machine-learning`
+never drags `machine-learning-ops` along.
+
+Unlike `rename_page`, an **unconfirmed call is not an error — it returns the
+plan**. A bulk rewrite is precisely the operation whose blast radius a curator
+should see before committing, and computing the plan writes nothing.
+
+A target another hub already declares is refused outright (409 / MCP error
+naming the incumbent), *before* any page is written. Catching it at plan time
+rather than at the first failing save is what keeps a half-applied rename from
+splitting the corpus across two cluster names. Past that gate the sweep never
+aborts: a page that cannot be written is reported by name and the rest still
+move, so the caller gets a precise retry list instead of an unknown partial
+state.
+
+The rename touches **frontmatter only** — no page names, no `canonical_id`s, no
+`page_slug_history` rows, no URLs, no wikilink rewriting. Every member simply
+gains one ordinary, revertable revision. That is the property a
+directory-structured store could not have offered, and it is the concrete
+payoff of the projection this design chose over hierarchy.
 
 ### Phase 5 — Multi-membership
 

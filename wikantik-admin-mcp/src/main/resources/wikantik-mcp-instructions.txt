@@ -184,6 +184,18 @@ rename_page       Rename a page, moving content, attachments, and version
                   renamed. Returns {success, oldName, newName, finalName,
                   linksUpdated}.
 
+rename_cluster    Rename a cluster across every page whose frontmatter names it,
+                  carrying its sub-clusters along ("machine-learning" -> "ml"
+                  also moves "machine-learning/mlops" -> "ml/mlops"; a sibling
+                  that merely shares a string prefix, like
+                  "machine-learning-ops", is left alone). Without confirm=true
+                  it returns the PLAN and writes nothing — check pageCount and
+                  changes before applying. Refuses a target cluster another hub
+                  already declares, naming that hub. Edits frontmatter only:
+                  page names, canonical_ids and URLs are untouched. Returns
+                  {applied, from, to, pageCount, changes|renamed, conflicts,
+                  failures, complete}.
+
 mark_page_verified  Stamp pages as verified. Writes verified_at = NOW() and
                   verified_by = <verifier> into frontmatter. The structural
                   index recomputes confidence on the next save; verifiers in

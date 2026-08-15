@@ -12,7 +12,7 @@ interactions route through MCP server tools directly.
 > bash — so this skill runs identically under Claude Code and Antigravity. The live bundle check is the
 > `assemble_bundle` MCP tool, never `GET /api/bundle`. Do not add client-specific mechanisms.
 
-> **Tool surface reconciled 2026-06-20 against the live servers** (admin-mcp = 26 tools, knowledge-mcp
+> **Tool surface reconciled 2026-08-15 against the live servers** (admin-mcp = 27 tools, knowledge-mcp
 > = 20 tools). The old compound tools (`publish_cluster`, `extend_cluster`, `get_cluster_map`,
 > `audit_cluster`, `update_metadata`, `patch_page`, `write_page`, `batch_*`, `query_metadata`,
 > `scan_markdown_links`) **no longer exist** — do not call them. The real tools are listed at the
@@ -87,6 +87,9 @@ rebase against `latestContent` and retry (no extra `read_page` needed).
 ### Rename / reorganize
 
 `rename_page(oldName, newName, updateLinks=true, confirm=true)` moves content and rewrites referrers.
+`rename_cluster(from, to, confirm?)` rewrites `cluster:` across every member of a cluster, sub-clusters
+included. **Omit `confirm` to get the plan** (which pages change, plus conflicts) — it writes nothing
+until `confirm=true`. Refuses a target another hub already declares. Page names and URLs are untouched.
 `mark_page_verified(slugs, verifier, confidence?)` stamps `verified_at`/`verified_by`.
 `delete_pages(slugs, confirm=true)` removes pages.
 
@@ -208,6 +211,7 @@ Frontmatter drives search-engine, social, feed, and news outputs:
 | `write_pages` | Batch-create new pages (fails existing); inline frontmatter validation |
 | `update_page` | Edit an existing page (full-content + optimistic `expectedContentHash`; `metadata` merges) |
 | `rename_page` | Rename + optionally rewrite referrers (`confirm=true`) |
+| `rename_cluster` | Bulk-rewrite a cluster path across all members (plan by default; `confirm=true` applies) |
 | `mark_page_verified` | Stamp `verified_at`/`verified_by` |
 | `delete_pages` | Delete pages (`confirm=true`) |
 

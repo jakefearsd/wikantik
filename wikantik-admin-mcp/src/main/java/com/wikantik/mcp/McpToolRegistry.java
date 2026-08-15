@@ -114,6 +114,18 @@ public class McpToolRegistry {
                 renamePage, writePages, updatePage, markPageVerified
         ) );
 
+        // Cluster curation (ClusterDeclarationDesign Phase 4). Registered unconditionally: the
+        // advertised tool surface must not vary with wiring, or an agent that read the server
+        // instructions finds a tool it was told about simply missing. Without a structural index
+        // there is no way to resolve a cluster's members, so the tool refuses at call time with
+        // that reason instead.
+        final var structuralIndex = com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge
+                .fromLegacyEngine( engine ).structuralIndexService();
+        authorConfigurableList.add( new RenameClusterTool(
+                structuralIndex == null ? null
+                        : new com.wikantik.pagegraph.spine.ClusterRenameService(
+                                pageManager, structuralIndex, pageSaveHelper ) ) );
+
         // --- Knowledge proposal tools (only if KnowledgeGraphService is available) ---
         // future: switch to engine.getKnowledgeSubsystem() when KnowledgeSubsystemBridge
         // retires in Phase 9. See wikantik-main/.../KnowledgeSubsystemBridge.java javadoc

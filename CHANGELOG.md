@@ -6,6 +6,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Restored the complexity ratchet and OSV scan to green after 2.4.0.** The cluster work tripped
+  three static gates, and only one of them was a false positive:
+  - `PageDescriptor` and `PageRecord` grew single-cluster convenience constructors that trip
+    `ExcessiveParameterList`. PMD cannot see that a record's canonical constructor already carries
+    the same list, so these are suppressed with justification — removing the overloads would force
+    every single-cluster call site to spell out a redundant derived argument.
+  - `DefaultStructuralIndexService.applyIncrementalUpdate` exceeded the NPath threshold. Extracting
+    `toDescriptor()` and `persistCanonicalId()` fixes it and removes a genuine duplication: the full
+    rebuild and the incremental update were each carrying their own copy of the
+    frontmatter-to-descriptor mapping, which is exactly the pair that must never disagree about how
+    a page is read.
+  - `SchemaDrivenFrontmatterValidator` exceeded its cyclomatic budget. The cluster rules moved to a
+    dedicated `ClusterFieldValidator`: `cluster` is the one schema field that is scalar-or-list,
+    whose legality depends on another field (`type`), and which consults the live structural index —
+    so isolating it keeps the generic validator generic.
+
+  These are complexity-only changes with no behavioural difference; the 2.4.0 artifact is
+  unaffected, and this release exists so the released tag reflects the tidied code.
+- Pinned `nanoid` to 3.3.18 via an npm `overrides` entry (GHSA-2v37-7h3g-55p8, CVSS 8.2, a dev-only
+  transitive). Pinned rather than added as a direct dev-dependency, which would have been a phantom
+  import and tripped `knip`.
+
 ## [2.4.0] - 2026-08-15
 
 ### Added

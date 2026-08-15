@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.17] - 2026-08-15
+
 ### Removed
 - **Dead-code sweep (2026-08-15 audit).** Nineteen commits, 113 files, 28,694 deletions against 171
   insertions of production change. Stale JSPWiki-era wiring — four `classmappings.xml` mappings for

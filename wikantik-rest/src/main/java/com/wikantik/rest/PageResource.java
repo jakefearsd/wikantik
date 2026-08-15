@@ -19,6 +19,8 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
+import com.wikantik.api.pagegraph.ClusterStatus;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
@@ -74,6 +76,45 @@ public class PageResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( PageResource.class );
+
+    /**
+     *  Builds the derived {@code cluster_status} block for a page, or {@code null} when the
+     *  page names no cluster.
+     *
+     *  <p>Whether a cluster has a declaring hub is not in the page's own frontmatter, so the
+     *  reader cannot compute it — the server resolves it here.</p>
+     *
+     *  <p>{@code hub_slug} is omitted when no hub declares the cluster (Gson drops nulls), so
+     *  the boolean {@code hub_declared} carries that signal instead: it is always present and
+     *  cannot vanish, and the client keys its "cluster not yet defined" badge off it rather
+     *  than inferring meaning from an absent key.</p>
+     *
+     *  <p>Never throws: a structural index that is absent or still warming degrades to the
+     *  declared path with no hub, which the UI renders as an undeclared cluster.</p>
+     */
+    private JsonObject clusterStatusJson( final Map< String, Object > metadata ) {
+        final Object raw = metadata == null ? null : metadata.get( "cluster" );
+        final String cluster = raw == null ? null : raw.toString();
+        if ( cluster == null || cluster.isBlank() ) {
+            return null;
+        }
+        ClusterStatus status;
+        try {
+            final StructuralIndexService idx = getSubsystems().pageGraph().structuralIndexService();
+            status = ClusterStatus.of( cluster, idx == null ? null : idx.getCluster( cluster ).orElse( null ) );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "cluster_status: structural index unavailable for cluster '{}': {}",
+                      cluster, e.getMessage() );
+            status = ClusterStatus.of( cluster, null );
+        }
+        final JsonObject out = new JsonObject();
+        out.addProperty( "path", status.path() );
+        out.addProperty( "parent", status.parent() );
+        out.addProperty( "hub_slug", status.hubSlug() );
+        out.addProperty( "hub_declared", status.hubSlug() != null );
+        out.addProperty( "member_count", status.memberCount() );
+        return out;
+    }
 
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
@@ -225,6 +266,11 @@ public class PageResource extends RestServletBase {
         permissions.put( "rename", hasPagePermission( request, pageName, "rename" ) );
         permissions.put( "delete", hasPagePermission( request, pageName, "delete" ) );
         result.put( "permissions", permissions );
+
+        final JsonObject clusterStatus = clusterStatusJson( parsed.metadata() );
+        if ( clusterStatus != null ) {
+            result.put( "cluster_status", clusterStatus );
+        }
 
         sendJson( response, result );
     }

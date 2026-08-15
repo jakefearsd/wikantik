@@ -114,6 +114,66 @@ class DefaultKgInclusionPolicyTest {
     }
 
     @Test
+    void sub_cluster_inherits_parent_cluster_policy() {
+        wireSlug( "InferenceServing", "machine-learning/mlops" );
+        // No policy row for the sub-cluster; the parent is INCLUDE.
+        when( repo.find( "machine-learning" ) ).thenReturn( Optional.of(
+                new ClusterPolicy( "machine-learning", ClusterAction.INCLUDE, "x", "a", Instant.now(), null ) ) );
+        assertEquals( ClusterAction.INCLUDE, newPolicy().shouldInclude( "InferenceServing" ) );
+    }
+
+    @Test
+    void setting_a_parent_policy_invalidates_cached_sub_cluster_resolution() {
+        wireSlug( "InferenceServing", "machine-learning/mlops" );
+        final DefaultKgInclusionPolicy policy = newPolicy();
+        // No policy anywhere yet: EXCLUDE, and the miss is memoised under the sub-cluster key.
+        assertEquals( ClusterAction.EXCLUDE, policy.shouldInclude( "InferenceServing" ) );
+
+        // Operator now sets the PARENT policy. The sub-cluster's cached miss must not survive.
+        when( repo.find( "machine-learning" ) ).thenReturn( Optional.of(
+                new ClusterPolicy( "machine-learning", ClusterAction.INCLUDE, "x", "a", Instant.now(), null ) ) );
+        policy.setClusterPolicy( "machine-learning", ClusterAction.INCLUDE, "x", "a" );
+
+        assertEquals( ClusterAction.INCLUDE, policy.shouldInclude( "InferenceServing" ) );
+    }
+
+    @Test
+    void sub_cluster_own_policy_wins_over_parent() {
+        wireSlug( "Secret", "machine-learning/private" );
+        when( repo.find( "machine-learning" ) ).thenReturn( Optional.of(
+                new ClusterPolicy( "machine-learning", ClusterAction.INCLUDE, "x", "a", Instant.now(), null ) ) );
+        when( repo.find( "machine-learning/private" ) ).thenReturn( Optional.of(
+                new ClusterPolicy( "machine-learning/private", ClusterAction.EXCLUDE, "x", "a", Instant.now(), null ) ) );
+        assertEquals( ClusterAction.EXCLUDE, newPolicy().shouldInclude( "Secret" ) );
+    }
+
+    /**
+     * Invariant guard: the ancestor walk must be segment-aware. A `startsWith`
+     * implementation would wrongly make `machine-learning-ops` a descendant of
+     * `machine-learning`. Passes before and after the inheritance change — it
+     * exists to fail if someone rewrites the walk as string-prefix matching.
+     */
+    @Test
+    void sibling_cluster_sharing_a_string_prefix_does_not_inherit() {
+        wireSlug( "OpsPage", "machine-learning-ops" );
+        when( repo.find( "machine-learning" ) ).thenReturn( Optional.of(
+                new ClusterPolicy( "machine-learning", ClusterAction.INCLUDE, "x", "a", Instant.now(), null ) ) );
+        assertEquals( ClusterAction.EXCLUDE, newPolicy().shouldInclude( "OpsPage" ) );
+    }
+
+    /**
+     * Invariant guard: {@code getClusterPolicy} backs the admin detail view and the
+     * clear/edit flow, so it reports only the row actually set on that cluster —
+     * never one inherited from a parent, which the operator could not clear.
+     */
+    @Test
+    void getClusterPolicy_reports_only_the_row_set_on_that_cluster() {
+        when( repo.find( "machine-learning" ) ).thenReturn( Optional.of(
+                new ClusterPolicy( "machine-learning", ClusterAction.INCLUDE, "x", "a", Instant.now(), null ) ) );
+        assertTrue( newPolicy().getClusterPolicy( "machine-learning/mlops" ).isEmpty() );
+    }
+
+    @Test
     void explain_packs_full_state() {
         wireSlug( "Foo", "java" );
         when( repo.find( "java" ) ).thenReturn(

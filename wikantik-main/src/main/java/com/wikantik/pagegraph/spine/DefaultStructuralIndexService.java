@@ -177,8 +177,12 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             }
         }
 
-        current.set( builder.build() );
+        final StructuralProjection projection = builder.build();
+        current.set( projection );
         this.unclaimed = missing;
+        // Per-page defects found while parsing, plus the taxonomy defects only visible
+        // once every page has been indexed (duplicate/headless/orphan clusters).
+        foundConflicts.addAll( projection.structuralConflicts() );
         this.conflicts = List.copyOf( foundConflicts );
 
         final Instant finish = Instant.now();

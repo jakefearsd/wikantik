@@ -19,9 +19,11 @@
 package com.wikantik.pagegraph.spine;
 
 import com.wikantik.api.pagegraph.ClusterDetails;
+import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.api.pagegraph.ClusterSummary;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.PageType;
+import com.wikantik.api.pagegraph.StructuralConflict;
 import com.wikantik.api.pagegraph.Sitemap;
 import com.wikantik.api.pagegraph.StructuralFilter;
 import com.wikantik.api.pagegraph.TagSummary;
@@ -56,6 +58,7 @@ public final class StructuralProjection {
     private final Map< String, PageDescriptor > hubByCluster;
     private final Map< String, List< PageDescriptor > > byTag;
     private final Map< PageType, List< PageDescriptor > > byType;
+    private final List< StructuralConflict > duplicateDeclarations;
     private final Instant generatedAt;
 
     StructuralProjection( final Map< String, PageDescriptor > byCanonicalId,
@@ -64,7 +67,9 @@ public final class StructuralProjection {
                           final Map< String, PageDescriptor > hubByCluster,
                           final Map< String, List< PageDescriptor > > byTag,
                           final Map< PageType, List< PageDescriptor > > byType,
+                          final List< StructuralConflict > duplicateDeclarations,
                           final Instant generatedAt ) {
+        this.duplicateDeclarations = List.copyOf( duplicateDeclarations );
         this.byCanonicalId     = Map.copyOf( byCanonicalId );
         this.slugToCanonicalId = Map.copyOf( slugToCanonicalId );
         this.byCluster         = deepCopy( byCluster );
@@ -80,21 +85,85 @@ public final class StructuralProjection {
     public int clusterCount() { return byCluster.size(); }
     public int tagCount()     { return byTag.size(); }
 
+    /**
+     *  All pages belonging to {@code cluster}, including those in its sub-clusters.
+     *
+     *  <p>Membership is transitive: a page in {@code machine-learning/mlops} is also a
+     *  member of {@code machine-learning}. This is resolved here, at query time, rather
+     *  than by indexing each page under every ancestor — the index stays a faithful
+     *  record of what each page declares, and re-parenting needs no reindex.</p>
+     *
+     *  <p>Matching goes through {@link ClusterPath}, so it is segment-aware:
+     *  {@code machine-learning-ops} is never a member of {@code machine-learning}.</p>
+     */
+    private List< PageDescriptor > membersOf( final String cluster ) {
+        final List< PageDescriptor > out = new ArrayList<>( byCluster.getOrDefault( cluster, List.of() ) );
+        byCluster.forEach( ( name, pages ) -> {
+            if ( !name.equals( cluster ) && ClusterPath.isSelfOrDescendant( name, cluster ) ) {
+                out.addAll( pages );
+            }
+        } );
+        return out;
+    }
+
+    private static Instant lastUpdated( final List< PageDescriptor > pages ) {
+        return pages.stream().map( PageDescriptor::updated ).filter( Objects::nonNull )
+                    .max( Instant::compareTo ).orElse( null );
+    }
+
+    /**
+     *  Every taxonomy defect visible in this snapshot, as defined by ClusterDeclarationDesign.
+     *
+     *  <p>Computed on demand rather than stored, so it always reflects the current snapshot.
+     *  Duplicate declarations are the exception — they are captured during the build, because
+     *  the projection keeps only the winning hub and cannot recover the loser afterwards.</p>
+     *
+     *  <p>An empty list means the taxonomy satisfies every invariant: exactly one hub per
+     *  cluster, no cluster without a hub, no hub without a cluster, no orphaned sub-cluster.</p>
+     */
+    public List< StructuralConflict > structuralConflicts() {
+        final List< StructuralConflict > out = new ArrayList<>( duplicateDeclarations );
+
+        byType.getOrDefault( PageType.HUB, List.of() ).stream()
+              .filter( p -> p.cluster() == null || p.cluster().isBlank() )
+              .forEach( p -> out.add( new StructuralConflict(
+                      p.slug(), p.canonicalId(), StructuralConflict.Kind.CLUSTERLESS_HUB,
+                      "hub page declares no cluster, so it declares nothing" ) ) );
+
+        byCluster.keySet().forEach( cluster -> {
+            if ( !hubByCluster.containsKey( cluster ) ) {
+                out.add( new StructuralConflict(
+                        cluster, null, StructuralConflict.Kind.HEADLESS_CLUSTER,
+                        "cluster '" + cluster + "' has member pages but no hub declares it" ) );
+            }
+            final String parent = ClusterPath.parent( cluster );
+            if ( parent != null && !hubByCluster.containsKey( parent ) ) {
+                out.add( new StructuralConflict(
+                        cluster, null, StructuralConflict.Kind.UNDECLARED_CLUSTER,
+                        "sub-cluster '" + cluster + "' names parent '" + parent
+                                + "', which no hub declares" ) );
+            }
+        } );
+
+        out.sort( Comparator.comparing( StructuralConflict::slug )
+                            .thenComparing( c -> c.kind().name() ) );
+        return List.copyOf( out );
+    }
+
     public List< ClusterSummary > listClusters() {
         final List< ClusterSummary > out = new ArrayList<>( byCluster.size() );
-        byCluster.forEach( ( name, pages ) -> out.add( new ClusterSummary(
-                name,
-                hubByCluster.get( name ),
-                pages.size(),
-                pages.stream().map( PageDescriptor::updated ).filter( Objects::nonNull )
-                     .max( Instant::compareTo ).orElse( null ) ) ) );
+        byCluster.keySet().forEach( name -> {
+            final List< PageDescriptor > members = membersOf( name );
+            out.add( new ClusterSummary( name, hubByCluster.get( name ), members.size(),
+                                          lastUpdated( members ) ) );
+        } );
         out.sort( Comparator.comparing( ClusterSummary::name ) );
         return out;
     }
 
     public Optional< ClusterDetails > getCluster( final String name ) {
-        final List< PageDescriptor > pages = byCluster.get( name );
-        if ( pages == null ) {
+        final List< PageDescriptor > pages = membersOf( name );
+        if ( pages.isEmpty() ) {
             return Optional.empty();
         }
         final Map< String, Integer > tagDist = new TreeMap<>();
@@ -128,7 +197,8 @@ public final class StructuralProjection {
     public List< PageDescriptor > listPagesByFilter( final StructuralFilter filter ) {
         return byCanonicalId.values().stream()
                 .filter( p -> filter.type().map( t -> t == p.type() ).orElse( true ) )
-                .filter( p -> filter.cluster().map( c -> c.equals( p.cluster() ) ).orElse( true ) )
+                .filter( p -> filter.cluster()
+                        .map( c -> ClusterPath.isSelfOrDescendant( p.cluster(), c ) ).orElse( true ) )
                 .filter( p -> filter.tags().isEmpty() || p.tags().containsAll( filter.tags() ) )
                 .filter( p -> filter.updatedSince()
                         .map( since -> p.updated() != null && !p.updated().isBefore( since ) )

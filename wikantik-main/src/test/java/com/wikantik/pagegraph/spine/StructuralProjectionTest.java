@@ -20,6 +20,7 @@ package com.wikantik.pagegraph.spine;
 
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.PageType;
+import com.wikantik.api.pagegraph.StructuralConflict;
 import com.wikantik.api.pagegraph.StructuralFilter;
 import org.junit.jupiter.api.Test;
 
@@ -66,6 +67,141 @@ class StructuralProjectionTest {
         assertEquals( 2, tags2.size() );
         final var tags1 = proj.listTags( 1 );
         assertEquals( 2, tags1.size() );
+    }
+
+    private static List< StructuralConflict.Kind > kinds( final StructuralProjection proj ) {
+        return proj.structuralConflicts().stream().map( StructuralConflict::kind ).toList();
+    }
+
+    @Test
+    void reports_a_duplicate_declaration_naming_the_hub_that_lost() {
+        final var proj = new StructuralProjectionBuilder()
+                .addPage( page( "A", "AlphaHub", PageType.HUB, "c1", List.of() ) )
+                .addPage( page( "B", "BetaHub",  PageType.HUB, "c1", List.of() ) )
+                .build();
+        final var dup = proj.structuralConflicts().stream()
+                .filter( c -> c.kind() == StructuralConflict.Kind.DUPLICATE_CLUSTER_DECLARATION )
+                .findFirst().orElseThrow();
+        assertEquals( "BetaHub", dup.slug() );
+        assertTrue( dup.detail().contains( "c1" ) );
+    }
+
+    @Test
+    void reports_a_cluster_that_has_members_but_no_hub() {
+        final var proj = new StructuralProjectionBuilder()
+                .addPage( page( "A", "Orphan", PageType.ARTICLE, "van-life", List.of() ) )
+                .build();
+        assertTrue( kinds( proj ).contains( StructuralConflict.Kind.HEADLESS_CLUSTER ) );
+    }
+
+    @Test
+    void reports_a_hub_page_that_declares_no_cluster() {
+        final var proj = new StructuralProjectionBuilder()
+                .addPage( page( "A", "StrayHub", PageType.HUB, null, List.of() ) )
+                .build();
+        final var stray = proj.structuralConflicts().stream()
+                .filter( c -> c.kind() == StructuralConflict.Kind.CLUSTERLESS_HUB )
+                .findFirst().orElseThrow();
+        assertEquals( "StrayHub", stray.slug() );
+    }
+
+    @Test
+    void reports_a_sub_cluster_whose_parent_nobody_declares() {
+        final var proj = new StructuralProjectionBuilder()
+                .addPage( page( "A", "MlopsHub", PageType.HUB, "machine-learning/mlops", List.of() ) )
+                .build();
+        final var orphan = proj.structuralConflicts().stream()
+                .filter( c -> c.kind() == StructuralConflict.Kind.UNDECLARED_CLUSTER )
+                .findFirst().orElseThrow();
+        assertTrue( orphan.detail().contains( "machine-learning" ) );
+    }
+
+    @Test
+    void a_healthy_taxonomy_reports_no_structural_conflicts() {
+        final var proj = new StructuralProjectionBuilder()
+                .addPage( page( "A", "MLHub",     PageType.HUB,     "machine-learning",       List.of() ) )
+                .addPage( page( "B", "MlopsHub",  PageType.HUB,     "machine-learning/mlops", List.of() ) )
+                .addPage( page( "C", "Inference", PageType.ARTICLE, "machine-learning/mlops", List.of() ) )
+                .build();
+        assertEquals( List.of(), proj.structuralConflicts() );
+    }
+
+    /**
+     * Two hubs declaring one cluster is a defect Phase 2 blocks at save time, but the
+     * index must never report a different winner depending on filesystem enumeration
+     * order — `listFiles()` is unsorted, so last-writer-wins was non-deterministic.
+     */
+    @Test
+    void hub_selection_is_deterministic_regardless_of_page_order() {
+        final var alpha = page( "A", "AlphaHub", PageType.HUB, "c1", List.of() );
+        final var beta  = page( "B", "BetaHub",  PageType.HUB, "c1", List.of() );
+
+        final var forward = new StructuralProjectionBuilder().addPage( alpha ).addPage( beta ).build();
+        final var reverse = new StructuralProjectionBuilder().addPage( beta ).addPage( alpha ).build();
+
+        assertEquals( "AlphaHub", forward.getCluster( "c1" ).orElseThrow().hubPage().slug() );
+        assertEquals( "AlphaHub", reverse.getCluster( "c1" ).orElseThrow().hubPage().slug() );
+    }
+
+    /** A sub-cluster's pages are members of its parent too — resolved at query time. */
+    @Test
+    void getCluster_of_a_parent_includes_sub_cluster_pages() {
+        final var proj = new StructuralProjectionBuilder()
+                .addPage( page( "A", "MLHub",            PageType.HUB,     "machine-learning",       List.of() ) )
+                .addPage( page( "B", "InferenceServing", PageType.ARTICLE, "machine-learning/mlops", List.of() ) )
+                .build();
+        final var details = proj.getCluster( "machine-learning" ).orElseThrow();
+        assertEquals( 2, details.articles().size() );
+        assertTrue( details.articles().stream().anyMatch( p -> "InferenceServing".equals( p.slug() ) ) );
+    }
+
+    @Test
+    void getCluster_of_a_sub_cluster_does_not_include_its_parents_pages() {
+        final var proj = new StructuralProjectionBuilder()
+                .addPage( page( "A", "MLHub",            PageType.HUB,     "machine-learning",       List.of() ) )
+                .addPage( page( "B", "InferenceServing", PageType.ARTICLE, "machine-learning/mlops", List.of() ) )
+                .build();
+        final var details = proj.getCluster( "machine-learning/mlops" ).orElseThrow();
+        assertEquals( 1, details.articles().size() );
+        assertEquals( "InferenceServing", details.articles().get( 0 ).slug() );
+    }
+
+    @Test
+    void listClusters_counts_sub_cluster_pages_under_the_parent() {
+        final var proj = new StructuralProjectionBuilder()
+                .addPage( page( "A", "MLHub",            PageType.HUB,     "machine-learning",       List.of() ) )
+                .addPage( page( "B", "InferenceServing", PageType.ARTICLE, "machine-learning/mlops", List.of() ) )
+                .build();
+        final var parent = proj.listClusters().stream()
+                .filter( c -> "machine-learning".equals( c.name() ) ).findFirst().orElseThrow();
+        assertEquals( 2, parent.articleCount() );
+    }
+
+    @Test
+    void listPagesByFilter_by_cluster_includes_sub_cluster_pages() {
+        final var proj = new StructuralProjectionBuilder()
+                .addPage( page( "A", "MLHub",            PageType.HUB,     "machine-learning",       List.of() ) )
+                .addPage( page( "B", "InferenceServing", PageType.ARTICLE, "machine-learning/mlops", List.of() ) )
+                .build();
+        final var result = proj.listPagesByFilter( new StructuralFilter(
+                Optional.empty(), Optional.of( "machine-learning" ), null, null, 100, null ) );
+        assertEquals( 2, result.size() );
+    }
+
+    /**
+     * Invariant guard: cluster matching is segment-aware. A `startsWith` filter would
+     * pull `machine-learning-ops` into `machine-learning`.
+     */
+    @Test
+    void listPagesByFilter_by_cluster_excludes_a_sibling_sharing_a_string_prefix() {
+        final var proj = new StructuralProjectionBuilder()
+                .addPage( page( "A", "MLHub",   PageType.HUB,     "machine-learning",     List.of() ) )
+                .addPage( page( "B", "OpsPage", PageType.ARTICLE, "machine-learning-ops", List.of() ) )
+                .build();
+        final var result = proj.listPagesByFilter( new StructuralFilter(
+                Optional.empty(), Optional.of( "machine-learning" ), null, null, 100, null ) );
+        assertEquals( 1, result.size() );
+        assertEquals( "MLHub", result.get( 0 ).slug() );
     }
 
     @Test

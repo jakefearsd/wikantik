@@ -531,6 +531,27 @@ class SemanticHeadRendererTest {
         assertEquals( "CollectionPage", ld.get( "@type" ).getAsString() );
     }
 
+    /**
+     * A hub's `hasPart` must describe what the cluster actually contains, not what its
+     * `related:` list happens to say. Those had diverged badly — MLHub published hasPart
+     * for ten pages that were not in its cluster.
+     */
+    @Test
+    void hubHasPartIsDerivedFromClusterMembershipWhenSupplied() {
+        final String html = SemanticHeadRenderer.renderHead(
+                "SemanticHub", com.wikantik.api.frontmatter.FrontmatterParser.parse( HUB_BODY ),
+                BASE_URL, APP_NAME, null, java.util.List.of( "RealMemberOne", "RealMemberTwo" ) );
+        final JsonObject ld = extractFirstJsonLd( html );
+        assertNotNull( ld );
+        final JsonArray parts = ld.getAsJsonArray( "hasPart" );
+        final java.util.List< String > names = new java.util.ArrayList<>();
+        for ( final JsonElement part : parts ) {
+            names.add( part.getAsJsonObject().get( "name" ).getAsString() );
+        }
+        assertEquals( java.util.List.of( "RealMemberOne", "RealMemberTwo" ), names );
+    }
+
+    /** With no membership available (degraded index), `related:` remains the fallback. */
     @Test
     void hubJsonLdHasHasPart() {
         final String html = SemanticHeadRenderer.renderHead(

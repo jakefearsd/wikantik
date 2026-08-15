@@ -34,11 +34,33 @@ public record StructuralConflict(
         Kind kind,
         String detail
 ) {
+    /**
+     *  What kind of structural defect this conflict records.
+     *
+     *  <p>For most kinds {@code slug} identifies the offending <b>page</b>. The two
+     *  cluster-scoped kinds ({@link #HEADLESS_CLUSTER}, {@link #UNDECLARED_CLUSTER}) are
+     *  reported once per cluster and carry the <b>cluster path</b> in {@code slug} with a
+     *  {@code null} canonicalId — no single page is at fault.</p>
+     */
     public enum Kind {
         /** Page lacks a {@code canonical_id} in frontmatter and was indexed under a synthesised ID. */
         MISSING_CANONICAL_ID,
         /** Page declares a relation that the validator rejected. */
-        RELATION_ISSUE
+        RELATION_ISSUE,
+        /**
+         *  Two or more hub pages declare the same cluster. Reported once per losing hub;
+         *  {@code slug} is the hub that did not win the tie-break.
+         */
+        DUPLICATE_CLUSTER_DECLARATION,
+        /** A cluster has member pages but no hub declares it. Subject: the cluster path. */
+        HEADLESS_CLUSTER,
+        /**
+         *  A sub-cluster names a parent that no hub declares — an orphaned branch of the
+         *  taxonomy. Subject: the sub-cluster path.
+         */
+        UNDECLARED_CLUSTER,
+        /** A {@code type: hub} page carries no cluster, so it declares nothing. Subject: the page. */
+        CLUSTERLESS_HUB
     }
 
     public StructuralConflict {

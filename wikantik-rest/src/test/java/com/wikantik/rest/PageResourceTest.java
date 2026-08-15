@@ -149,6 +149,41 @@ class PageResourceTest {
         assertEquals( "article", obj.getAsJsonObject( "metadata" ).get( "type" ).getAsString() );
     }
 
+    /**
+     * The reader must be able to render the cluster declaration without a second
+     * request, and whether a cluster has a hub is not in the page's own frontmatter —
+     * so the server derives it onto the payload.
+     */
+    @Test
+    void testGetPageIncludesDerivedClusterStatus() throws Exception {
+        engine.saveText( "RestClusterStatusHub",
+                "---\ntype: hub\ncluster: rest-status-demo\n---\nHub body." );
+        engine.saveText( "RestClusterStatusMember",
+                "---\ntype: article\ncluster: rest-status-demo\n---\nMember body." );
+
+        final String json = doGet( "RestClusterStatusMember" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.has( "cluster_status" ), "expected cluster_status on the payload, got: " + json );
+        final JsonObject status = obj.getAsJsonObject( "cluster_status" );
+        assertEquals( "rest-status-demo", status.get( "path" ).getAsString() );
+        // hub_slug is omitted when no hub declares the cluster, so the signal the client
+        // renders must be a boolean that cannot vanish from the payload.
+        assertTrue( status.has( "hub_declared" ), "hub_declared must always be present: " + status );
+        assertTrue( status.has( "member_count" ), "member_count must always be present: " + status );
+    }
+
+    @Test
+    void testGetPageOmitsClusterStatusWhenPageHasNoCluster() throws Exception {
+        engine.saveText( "RestNoClusterPage", "---\ntype: article\n---\nNo cluster here." );
+
+        final String json = doGet( "RestNoClusterPage" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "cluster_status" ) && obj.get( "cluster_status" ).isJsonObject(),
+                     "a page with no cluster must not carry a cluster_status object" );
+    }
+
     @Test
     void testGetPageNotFound() throws Exception {
         final String json = doGet( "NonExistentPage12345" );

@@ -100,7 +100,25 @@ public final class SemanticHeadRenderer {
     public static String renderHead( final String pageName, final ParsedPage parsed,
                                       final String baseUrl, final String appName,
                                       final Date modified ) {
-        final PageSeoModel model = PageSeoModel.from( pageName, parsed, baseUrl, appName, modified );
+        return renderHead( pageName, parsed, baseUrl, appName, modified, java.util.List.of() );
+    }
+
+    /**
+     * As {@link #renderHead(String, ParsedPage, String, String, Date)}, but with the hub's
+     * actual cluster membership supplied by the caller.
+     *
+     * <p>A hub's {@code hasPart} should list what its cluster contains — a fact held by the
+     * structural index, not by the hub's own frontmatter. Callers with index access pass the
+     * member slugs here; pass an empty list (or use the shorter overload) when the index is
+     * unavailable, and emission falls back to frontmatter {@code related}.</p>
+     *
+     * @param hubMembers slugs of the pages in this hub's cluster; empty when unknown
+     */
+    public static String renderHead( final String pageName, final ParsedPage parsed,
+                                      final String baseUrl, final String appName,
+                                      final Date modified, final java.util.List< String > hubMembers ) {
+        final PageSeoModel model =
+                PageSeoModel.from( pageName, parsed, baseUrl, appName, modified, hubMembers );
 
         final StringBuilder sb = new StringBuilder( 2048 );
 

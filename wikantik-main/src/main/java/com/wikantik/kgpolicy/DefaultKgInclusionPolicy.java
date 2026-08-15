@@ -26,6 +26,7 @@ import com.wikantik.api.kgpolicy.KgInclusionPolicy;
 import com.wikantik.api.kgpolicy.PolicyAuditEntry;
 import com.wikantik.api.kgpolicy.PolicyExplanation;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 
@@ -59,6 +60,13 @@ public class DefaultKgInclusionPolicy implements KgInclusionPolicy {
     private final KgClusterPolicyRepository repo;
     private final FrontmatterOverrideReader overrides;
 
+    /**
+     *  Memoises the <i>resolved</i> (possibly inherited) policy per cluster path.
+     *  Because a sub-cluster's entry can be derived from an ancestor's row, a write
+     *  to any cluster invalidates the whole map rather than a single key — a write
+     *  to {@code machine-learning} changes the answer for {@code machine-learning/mlops}.
+     *  Clearing wholesale is cheap: cluster counts are in the tens.
+     */
     private final ConcurrentMap< String, Optional< ClusterPolicy > > policyCache = new ConcurrentHashMap<>();
 
     public DefaultKgInclusionPolicy( final SystemPageRegistry systemPages,
@@ -137,9 +145,18 @@ public class DefaultKgInclusionPolicy implements KgInclusionPolicy {
         return repo.list();
     }
 
+    /**
+     *  {@inheritDoc}
+     *
+     *  <p><b>Exact match, deliberately.</b> This is the "what row is set on this
+     *  cluster" accessor that backs the admin detail view and the clear/edit
+     *  flow; it must not report a policy inherited from a parent cluster, or the
+     *  operator would see a policy they cannot clear. Inheritance applies only to
+     *  the decision paths — {@link #shouldInclude} and {@link #explain}.</p>
+     */
     @Override
     public Optional< ClusterPolicy > getClusterPolicy( final String cluster ) {
-        return lookupCluster( cluster );
+        return repo.find( cluster );
     }
 
     @Override
@@ -151,7 +168,7 @@ public class DefaultKgInclusionPolicy implements KgInclusionPolicy {
                 prior.map( p -> p.action().wire() ).orElse( null ),
                 action.wire(),
                 reason, actor );
-        policyCache.remove( cluster );
+        policyCache.clear();
         ReconciliationHook.onClusterPolicyChange( cluster );
     }
 
@@ -161,7 +178,7 @@ public class DefaultKgInclusionPolicy implements KgInclusionPolicy {
         if ( prior.isEmpty() ) return;
         repo.delete( cluster );
         repo.appendAudit( cluster, prior.get().action().wire(), "cleared", null, actor );
-        policyCache.remove( cluster );
+        policyCache.clear();
         ReconciliationHook.onClusterPolicyChange( cluster );
     }
 
@@ -171,7 +188,7 @@ public class DefaultKgInclusionPolicy implements KgInclusionPolicy {
         repo.appendAudit( cluster,
                 repo.find( cluster ).map( p -> p.action().wire() ).orElse( null ),
                 "reviewed", null, actor );
-        policyCache.remove( cluster );
+        policyCache.clear();
     }
 
     @Override
@@ -198,6 +215,28 @@ public class DefaultKgInclusionPolicy implements KgInclusionPolicy {
     }
 
     private Optional< ClusterPolicy > lookupCluster( final String cluster ) {
-        return policyCache.computeIfAbsent( cluster, repo::find );
+        return policyCache.computeIfAbsent( cluster, this::resolveInherited );
+    }
+
+    /**
+     *  Resolves the policy that <i>applies</i> to a cluster path, walking up to
+     *  ancestors until a row is found: {@code a/b/c → a/b → a}. Most specific wins.
+     *
+     *  <p>The walk is <b>segment-aware by construction</b> — it only ever splits on
+     *  {@code '/'}, so {@code machine-learning-ops} can never inherit from
+     *  {@code machine-learning}. A {@code startsWith} comparison would get that
+     *  wrong; see ClusterDeclarationDesign, "Implementation invariant".</p>
+     *
+     *  <p>Depth-agnostic on purpose. The one-level depth limit lives solely in
+     *  {@code CLUSTER_SLUG_PATTERN}; this loop does not assume it.</p>
+     */
+    private Optional< ClusterPolicy > resolveInherited( final String cluster ) {
+        for ( String candidate = cluster; candidate != null; candidate = ClusterPath.parent( candidate ) ) {
+            final Optional< ClusterPolicy > found = repo.find( candidate );
+            if ( found.isPresent() ) {
+                return found;
+            }
+        }
+        return Optional.empty();
     }
 }

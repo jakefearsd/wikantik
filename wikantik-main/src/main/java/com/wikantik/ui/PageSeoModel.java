@@ -51,6 +51,7 @@ import java.util.Map;
  * @param cluster              frontmatter {@code cluster}, or {@code ""} if absent
  * @param isHub                {@code true} when frontmatter {@code type} is {@code "hub"}
  * @param related              frontmatter {@code related} list
+ * @param hubMembers           slugs in this hub's cluster, from the structural index; empty when unknown
  * @param tags                 frontmatter {@code tags} list
  * @param schemaType           schema.org {@code @type}, re-sourced from {@link NodeTypeMapping#schemaOrgType}
  * @param canonicalId          frontmatter {@code canonical_id}, or {@code ""} if absent
@@ -72,6 +73,7 @@ record PageSeoModel(
         String cluster,
         boolean isHub,
         List< String > related,
+        List< String > hubMembers,
         List< String > tags,
         String schemaType,
         String canonicalId,
@@ -109,6 +111,22 @@ record PageSeoModel(
      */
     static PageSeoModel from( final String pageName, final ParsedPage parsed, final String baseUrl,
                                final String appName, final Date modified ) {
+        return from( pageName, parsed, baseUrl, appName, modified, List.of() );
+    }
+
+    /**
+     * As {@link #from(String, ParsedPage, String, String, Date)}, but with the hub's actual
+     * cluster membership supplied by the caller (which has structural-index access).
+     *
+     * <p>A hub's {@code hasPart} describes what the cluster contains, and that is a property of
+     * the index, not of the hub's own frontmatter. Pass an empty list when the index is
+     * unavailable — emission then falls back to frontmatter {@code related}.</p>
+     *
+     * @param hubMembers slugs of the pages in this hub's cluster; empty when unknown
+     */
+    static PageSeoModel from( final String pageName, final ParsedPage parsed, final String baseUrl,
+                               final String appName, final Date modified,
+                               final List< String > hubMembers ) {
         final Map< String, Object > meta = parsed.metadata();
 
         final String safePageName = orEmpty( pageName );
@@ -148,7 +166,8 @@ record PageSeoModel(
 
         return new PageSeoModel( safePageName, safeAppName, safeBaseUrl, canonical, documentTitle,
                 effectiveTitle, effectiveDescription, effectiveKeywords, pageDate, cluster, isHub,
-                related, tags, schemaType, canonicalId, imageUrl, hasCustomImage, modified, meta );
+                related, hubMembers == null ? List.of() : List.copyOf( hubMembers ),
+                tags, schemaType, canonicalId, imageUrl, hasCustomImage, modified, meta );
     }
 
     // -------- derivation sub-steps (extracted to keep `from` itself trivially simple) --------

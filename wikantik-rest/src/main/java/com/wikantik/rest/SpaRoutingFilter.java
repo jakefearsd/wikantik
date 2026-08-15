@@ -112,6 +112,53 @@ public class SpaRoutingFilter implements Filter {
      * the servlet context startup sequence), so we defer the lookup until the
      * first request and cache the result.
      */
+    /**
+     *  Slugs of the pages in this page's cluster, when the page is a hub — used as the
+     *  hub's JSON-LD {@code hasPart}.
+     *
+     *  <p>What a cluster contains is a fact held by the structural index, not by the hub's
+     *  own frontmatter, so it has to be resolved here rather than derived from
+     *  {@code related:}. The hub itself is excluded: a collection is not part of itself.</p>
+     *
+     *  <p>Returns an empty list for non-hubs and whenever the index is unavailable — the
+     *  emitter then falls back to frontmatter {@code related}, so SSR never breaks or
+     *  blocks on a warming index.</p>
+     */
+    private static java.util.List< String > hubMembers( final String pageName,
+                                                         final ParsedPage parsed,
+                                                         final HttpServletRequest req ) {
+        final Object type = parsed.metadata().get( "type" );
+        if ( !"hub".equalsIgnoreCase( type == null ? "" : type.toString() ) ) {
+            return java.util.List.of();
+        }
+        final Object clusterRaw = parsed.metadata().get( "cluster" );
+        final String cluster = clusterRaw == null ? "" : clusterRaw.toString();
+        if ( cluster.isBlank() ) {
+            return java.util.List.of();
+        }
+        try {
+            final Object subs = req.getServletContext()
+                                   .getAttribute( com.wikantik.WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE );
+            if ( !( subs instanceof com.wikantik.WikiSubsystems ws ) || ws.pageGraph() == null ) {
+                return java.util.List.of();
+            }
+            final com.wikantik.api.pagegraph.StructuralIndexService idx = ws.pageGraph().structuralIndexService();
+            if ( idx == null ) {
+                return java.util.List.of();
+            }
+            return idx.getCluster( cluster )
+                      .map( d -> d.articles().stream()
+                                  .map( com.wikantik.api.pagegraph.PageDescriptor::slug )
+                                  .filter( s -> !s.equals( pageName ) )
+                                  .toList() )
+                      .orElseGet( java.util.List::of );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "SpaRoutingFilter: hub membership unavailable for cluster '{}': {}",
+                      cluster, e.getMessage() );
+            return java.util.List.of();
+        }
+    }
+
     private Engine resolveEngine() {
         Engine e = engine;
         if ( e == null && servletContext != null ) {
@@ -457,7 +504,8 @@ public class SpaRoutingFilter implements Filter {
         final ParsedPage parsed = FrontmatterParser.parse( rawText == null ? "" : rawText );
         final String baseUrl = BaseUrlResolver.resolve( eng, req, null );
         final String appName = eng.getApplicationName();
-        final String head = SemanticHeadRenderer.renderHead( pageName, parsed, baseUrl, appName, modified );
+        final String head = SemanticHeadRenderer.renderHead( pageName, parsed, baseUrl, appName, modified,
+                                                              hubMembers( pageName, parsed, req ) );
         // Full flexmark render of the body, reused for BOTH the no-JS #root body
         // and the JSON data island (rendered once). Falls back to the lightweight
         // no-JS fragment if the full render is unavailable. Putting real rendered

@@ -65,10 +65,14 @@ final class JsonLdEmitter {
         }
         sb.append( "\"@type\":" ).append( jsonStr( model.schemaType() ) ).append(',');
         sb.append( "\"name\":" ).append( jsonStr( model.safePageName() ) ).append(',');
-        final List< String > related = model.related();
-        if ( !related.isEmpty() ) {
+        // hasPart describes what the cluster actually contains, so it is sourced from real
+        // cluster membership. Frontmatter `related` is the fallback for when the structural
+        // index is unavailable — the two had diverged badly in practice (MLHub published
+        // hasPart for ten pages that were not in its cluster).
+        final List< String > parts = model.hubMembers().isEmpty() ? model.related() : model.hubMembers();
+        if ( !parts.isEmpty() ) {
             sb.append( "\"hasPart\":[" );
-            appendHasPartItems( sb, related, model.safeBaseUrl() );
+            appendHasPartItems( sb, parts, model.safeBaseUrl() );
             sb.append( "]," );
         }
     }

@@ -85,6 +85,24 @@ class DefaultStructuralIndexServiceTest {
         verify( dao, times( 2 ) ).upsert( any(), any(), any(), any(), any() );
     }
 
+    /** Taxonomy defects must reach the same conflicts() surface as missing canonical_ids. */
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void rebuild_reports_taxonomy_conflicts_through_the_conflicts_surface() throws Exception {
+        final Page orphan = fakePage( "Orphan",
+                "canonical_id: 01H8G3Z1K6Q5W7P9X2V4R0T8MN\n" +
+                "title: Orphan\n" +
+                "type: article\n" +
+                "cluster: van-life", "body" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( orphan ) );
+
+        svc.rebuild();
+
+        assertTrue( svc.conflicts().stream().anyMatch(
+                c -> c.kind() == com.wikantik.api.pagegraph.StructuralConflict.Kind.HEADLESS_CLUSTER ),
+                "expected a HEADLESS_CLUSTER conflict for van-life, got: " + svc.conflicts() );
+    }
+
     @Test
     @SuppressWarnings( { "unchecked", "rawtypes" } )
     void rebuild_synthesises_canonical_id_for_pages_missing_frontmatter_field() throws Exception {

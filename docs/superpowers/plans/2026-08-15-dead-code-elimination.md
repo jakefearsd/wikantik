@@ -92,6 +92,9 @@ Plus targeted checks: DB tables in migrations vs. Java readers (all live), `filt
 
 **Tier C — audit-only follow-ups (not in this plan's tasks).**
 
+- **Root-level `mvn apache-rat:check` has never been green.** It scans the whole repo (1,187 violations under `docs/wikantik-pages`, 345 under `wikantik-frontend/src`, plus `bin/`, `eval/`, `deploy/`, `loadtest/` — none of which ever carried Apache headers). RAT is bound to a phase only in `wikantik-wikipages/pom.xml`; no CI workflow runs it (`codeql.yml` explicitly passes `-Drat.skip=true`). Either add the missing excludes so the documented command means something, or drop the licence-check claim. Task 10 does the minimum: corrects the command in `CLAUDE.md` so it is truthful.
+- **`WikiPluginInfo.getIncludeText` / `getScriptText` / `getStylesheetText`** (`DefaultPluginManager`) are unreferenced in `src/main` but exercised by ~9 test files. They belong to the plugin-module metadata surface a third-party template could plausibly call, so deleting them is a public-API judgement, not mechanical dead-code removal. Deliberately out of scope here.
+
 - `CoreResources.properties`: 118 keys, 36 with a literal reference. The rest may be composed at
   runtime (`"security.error." + …`, `"common." + …`), so a literal grep is not proof. Needs a per-key
   trace before deleting; do it as a separate pass.
@@ -630,11 +633,13 @@ Remove the `OldChangeLog` `<exclude>` line from `pom.xml`.
 - [ ] **Step 3: Verify**
 
 ```bash
-bin/agent-build.sh start t8 -- bash -c "mvn -q apache-rat:check && mvn -q package -pl wikantik-war -DskipTests"
+bin/agent-build.sh start t8 -- mvn -q package -pl wikantik-war -DskipTests
 bin/agent-build.sh wait t8 480
 ```
 
 Expected: SUCCESS; the WAR builds without the two descriptors (Tomcat never read them).
+
+**Do not** verify with root-level `mvn apache-rat:check`. That command scans the entire repo — `docs/`, `bin/`, `eval/`, `wikantik-frontend/src`, none of which ever carried Apache headers — and is red on unmodified `main` with ~1,990 violations. RAT is bound to a lifecycle phase only in `wikantik-wikipages/pom.xml`, and no CI workflow runs it (`codeql.yml` passes `-Drat.skip=true`). Removing the `OldChangeLog` `<exclude>` is safe because the file it named is gone; the RAT run that actually executes during `mvn clean install` covers `wikantik-wikipages` only and never scanned `wikantik-war`.
 
 - [ ] **Step 4: Commit**
 
@@ -770,6 +775,25 @@ grep -rn "TranslationsCheck\|CommentedProperties\|PropertiesUtils\|MetricsPagePr
 ```
 
 Expected: no output. Anything printed is a leftover — remove it.
+
+- [ ] **Step 1b: Correct the RAT command in `CLAUDE.md`**
+
+Under "Code Quality", the documented command is:
+
+```bash
+# Apache RAT license check
+mvn apache-rat:check
+```
+
+Run from the repo root it scans `docs/`, `bin/`, `eval/` and `wikantik-frontend/src` and reports ~1,990 violations — it has never passed, and no CI workflow runs it. RAT is bound to a lifecycle phase only in `wikantik-wikipages`. Replace those two lines with:
+
+```bash
+# Apache RAT license check (bound only in wikantik-wikipages; a root-level run
+# scans docs/, bin/, eval/ and the frontend, which carry no Apache headers)
+mvn apache-rat:check -pl wikantik-wikipages
+```
+
+Change nothing else in `CLAUDE.md` — the memcached bullet is Task 9's.
 
 - [ ] **Step 2: Changelog**
 

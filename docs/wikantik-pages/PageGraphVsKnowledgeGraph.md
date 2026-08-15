@@ -2,6 +2,7 @@
 title: Page Graph vs Knowledge Graph
 type: article
 cluster: wikantik-development
+date: '2026-05-02'
 audience:
 - humans
 - agents
@@ -9,6 +10,10 @@ summary: 'Canonical explainer of two distinct subsystems: the Page Graph (wikili
   edges) vs. the Knowledge Graph (LLM-extracted entities) and why not to conflate
   them.'
 canonical_id: 01KTGSV428AK6A68N69X235ZHT
+related:
+- ClusterDeclarationDesign
+- StructuralSpineDesign
+- HybridRetrieval
 tags:
 - page-graph
 - knowledge-graph
@@ -38,7 +43,9 @@ on retrieval, navigation, or admin tooling. Use the right name.
 - **Companion structure** (not edges of the Page Graph itself, but
   co-resident in the same subsystem): the `canonical_id` field in
   frontmatter (the rename-stable identifier) and the `cluster:` field
-  (hub membership).
+  (hub membership). How a cluster comes into existence — the hub page
+  that declares it, and why the store stays flat — is specified in
+  [ClusterDeclarationDesign](ClusterDeclarationDesign).
 - **Purpose.** Navigation, authoring aids (broken-link triage, orphan
   pages), the visual `/page-graph` view.
 - **Audience.** Human readers and authors.
@@ -80,6 +87,11 @@ strictly the wikilinks graph. If curated typed edges between concepts
 need to come back later, they belong on the Knowledge Graph as
 admin-approved edges, not in page frontmatter.
 
+The `hubs:` frontmatter field and hub `related:`-as-membership are
+retired on the same principle — one authoritative mechanism per
+concept. `cluster:` is the sole membership mechanism; see
+[ClusterDeclarationDesign](ClusterDeclarationDesign).
+
 ## Page Graph consumers
 
 Code that reads wikilink or cluster data from the Page Graph subsystem:
@@ -88,6 +100,8 @@ Code that reads wikilink or cluster data from the Page Graph subsystem:
 
 ## See also
 
+- [ClusterDeclarationDesign](ClusterDeclarationDesign) — how a cluster is
+  declared (hub page + `cluster:` path) and why content storage stays flat.
 - [StructuralSpineDesign](StructuralSpineDesign) — the canonical-id
   and cluster machinery that lives inside the Page Graph subsystem.
 - [HybridRetrieval](HybridRetrieval) — the hybrid retrieval stack that serves queries (the KG graph rerank was removed in 2026-07).

@@ -84,7 +84,6 @@ runbook:
   - KnowledgeExtractionFromText
 summary: Invoke `bin/kg-judge-experiment.sh` to sample `kg_proposals`, compare judge
   models, and check calibration before flipping the production `--judge` default.
-cluster: wikantik-development
 ---
 
 # Running the Judge Experiment Harness

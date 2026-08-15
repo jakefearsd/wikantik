@@ -267,13 +267,13 @@ public class DefaultUserManager implements UserManager {
                 final InternationalizationManager i18n = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).i18n();
                 final String app = engine.getApplicationName();
                 final String to = profile.getEmail();
-                final String subject = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
+                final String subject = i18n.get( InternationalizationManager.CORE_BUNDLE, loc,
                                                  "notification.createUserProfile.accept.subject", app );
 
                 final String loginUrl = engine.getURL( ContextEnum.WIKI_LOGIN.getRequestContext(), null, null );
                 final String absoluteLoginUrl = HttpUtil.getAbsoluteUrl( context.getHttpRequest(), loginUrl );
 
-                final String content = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
+                final String content = i18n.get( InternationalizationManager.CORE_BUNDLE, loc,
                                                  "notification.createUserProfile.accept.content", app,
                                                  profile.getLoginName(),
                                                  profile.getFullname(),
@@ -294,9 +294,9 @@ public class DefaultUserManager implements UserManager {
             try {
                 final InternationalizationManager i18n = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).i18n();
                 final String app = engine.getApplicationName();
-                final String adminSubject = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
+                final String adminSubject = i18n.get( InternationalizationManager.CORE_BUNDLE, loc,
                         "notification.createUserProfile.admin.subject", app );
-                final String adminContent = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
+                final String adminContent = i18n.get( InternationalizationManager.CORE_BUNDLE, loc,
                         "notification.createUserProfile.admin.content", app,
                         profile.getLoginName(),
                         profile.getFullname(),

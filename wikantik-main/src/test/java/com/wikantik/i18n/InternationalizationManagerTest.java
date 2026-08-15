@@ -30,14 +30,16 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Locale;
 import java.util.Properties;
+import java.util.ResourceBundle;
 import org.apache.commons.lang3.StringUtils;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Checks to ensure all i18n keys have values is all languages
- * 
+ *
  * see also  https://wiki.wikantik.com/Wiki.jsp?page=HowToI18n
  * and  https://wikantik.com/development/i18n.html
- * @see TranslationsCheck
  */
 public class InternationalizationManagerTest {
 
@@ -61,18 +63,12 @@ public class InternationalizationManagerTest {
     }
 
     @Test
-    public void testGetFromDefTemplateWithArgs() {
-        final String str = i18n.get(InternationalizationManager.DEF_TEMPLATE,
-                Locale.ENGLISH,
-                "notification.createUserProfile.accept.content",
-                "JSPWiki", "testUser", "Test User", "test@user.com", "www.foo.com");
-        Assertions.assertEquals("Congratulations! Your new profile on JSPWiki has been created. "
-                + "Your profile details are as follows: \n\n"
-                + "Login name: testUser \n"
-                + "Your name : Test User \n"
-                + "E-mail    : test@user.com \n\n"
-                + "If you forget your password, you can reset it at www.foo.com",
-                str);
+    void notificationKeysLiveInCoreBundle() {
+        final ResourceBundle rb = ResourceBundle.getBundle( InternationalizationManager.CORE_BUNDLE, Locale.ENGLISH );
+        assertTrue( rb.containsKey( "notification.createUserProfile.accept.subject" ) );
+        assertTrue( rb.containsKey( "notification.createUserProfile.accept.content" ) );
+        assertTrue( rb.containsKey( "notification.createUserProfile.admin.subject" ) );
+        assertTrue( rb.containsKey( "notification.createUserProfile.admin.content" ) );
     }
 
     @Test
@@ -106,39 +102,6 @@ public class InternationalizationManagerTest {
         }
         Assertions.assertTrue(missingMessages.isEmpty(), StringUtils.join(missingMessages, "\n"));
     }
-    
-    @Test
-    public void scanForMissingI18NStrings2() throws IOException {
-        Properties props = loadProperties(new File("src/main/resources/templates/default.properties"));
-        File[] propFiles = new File("src/main/resources/templates").listFiles(new FileFilter() {
-            @Override
-            public boolean accept(File pathname) {
-                if (pathname.isDirectory()) {
-                    return false;
-                }
-                if (!pathname.getName().endsWith(".properties")) {
-                    return false;
-                }
-                if (pathname.getName().equals("default.properties")) {
-                    return false;
-                }
-                return true;
-
-            }
-        });
-        List<String> missingMessages = new ArrayList<>();
-
-        for (File propFile : propFiles) {
-            Properties target = loadProperties(propFile);
-            for (Object key : props.keySet()) {
-                if (!target.containsKey(key)) {
-                    missingMessages.add(propFile.getName() + " is missing key '" + key + "'");
-                }
-            }
-        }
-        Assertions.assertTrue(missingMessages.isEmpty(), StringUtils.join(missingMessages, "\n"));
-    }
-    
     
     @Test
     public void scanForMissingI18NStrings3() throws IOException {

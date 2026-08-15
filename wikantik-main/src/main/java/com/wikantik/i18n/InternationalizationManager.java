@@ -33,11 +33,7 @@ public interface InternationalizationManager {
 
     /** The name of the ResourceBundle which contains any and all JSPWiki core resource strings.  It's value is {@value}. */
     String CORE_BUNDLE = "CoreResources";
-    
-    /** The name of the ResourceBundle which contains any and all JSPWiki default templates resource strings.  It's value is {@value}. */
-    String DEF_TEMPLATE = "templates.default";
     // public static final String JSPWIKI_BUNDLE = "jspwiki";
-    // public static final String PLUGINS_BUNDLE = "plugins";
 
     /**
      *  Returns a String from the CORE_BUNDLE using English as the default locale.

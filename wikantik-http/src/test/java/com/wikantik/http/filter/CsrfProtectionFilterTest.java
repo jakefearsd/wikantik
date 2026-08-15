@@ -31,27 +31,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CsrfProtectionFilterTest {
 
     @Test
-    void testIsPostReturnsTrueForPost() {
-        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
-        Mockito.doReturn( "POST" ).when( request ).getMethod();
-        assertTrue( CsrfProtectionFilter.isPost( request ) );
-    }
-
-    @Test
-    void testIsPostReturnsFalseForGet() {
-        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
-        Mockito.doReturn( "GET" ).when( request ).getMethod();
-        assertFalse( CsrfProtectionFilter.isPost( request ) );
-    }
-
-    @Test
-    void testIsPostReturnsFalseForPut() {
-        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
-        Mockito.doReturn( "PUT" ).when( request ).getMethod();
-        assertFalse( CsrfProtectionFilter.isPost( request ) );
-    }
-
-    @Test
     void sparqlEndpointIsCsrfExemptLikeRestApi() {
         final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
         Mockito.doReturn( "/sparql" ).when( request ).getServletPath();

@@ -91,10 +91,6 @@ public class CsrfProtectionFilter implements Filter {
         return session.antiCsrfToken().equals( request.getParameter( ANTICSRF_PARAM ) );
     }
 
-    static boolean isPost( final HttpServletRequest request ) {
-        return "POST".equalsIgnoreCase( request.getMethod() );
-    }
-
     /**
      * State-changing HTTP methods that need CSRF / origin protection: POST, PUT, DELETE, PATCH.
      * Safe methods (GET/HEAD/OPTIONS) must not be included — they are idempotent by RFC and

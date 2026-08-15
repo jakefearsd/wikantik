@@ -1002,6 +1002,23 @@ copies did.
 
 **Files:** none in the repo.
 
+> **BLOCKED, 2026-08-15 — this task cannot be completed by an agent.** Both pages were read from prod
+> successfully, but `update_page` refuses them: `{"updated": false, "error": "system page — refusing to
+> edit via MCP"}`. `SystemInfo` and `InstallationTips` are bundled system pages (they ship in
+> `wikantik-wikipages`), and the MCP write surface deliberately blocks edits to those — by design, not a
+> fault. The tool's own documentation says such updates "require admin UI / direct DB access", neither
+> of which is an appropriate unilateral action against production.
+>
+> **Impact after this release ships:** prod `SystemInfo` will render its three RSS rows as
+> `NoSuchVariableException` (visible error text in a table), because the `wikantik.rss.*` keys backing
+> them are gone. Prod `InstallationTips` will show a stale instruction to set `wikantik.rss.generate` —
+> prose, so it renders fine, it is just wrong. Nothing else on either page is affected; every other
+> variable they reference was verified live.
+>
+> **Remediation (a human with admin rights, ~2 minutes):** open each page in the wiki's own editor and
+> apply the two edits below — the system-page guard is MCP-specific, so the normal admin UI works.
+> The exact replacement bodies are in `.superpowers/sdd/2026-08-15-dead-code-elimination/` if useful.
+
 - [ ] **Step 1: Re-read both pages from prod immediately before editing**
 
 Content may have changed since the 2026-08-15 read. Fetch `SystemInfo` and `InstallationTips` and

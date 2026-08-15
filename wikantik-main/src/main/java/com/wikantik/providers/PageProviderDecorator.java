@@ -45,12 +45,11 @@ import java.util.Properties;
  * <p>
  * Example usage:
  * <pre>
- * PageProvider provider = new CachingPageProviderDecorator(
- *     new LoggingPageProviderDecorator(
- *         new VersioningFileProvider()
- *     )
+ * PageProvider provider = new LoggingPageProviderDecorator(
+ *     new VersioningFileProvider()
  * );
  * </pre>
+ * Additional cross-cutting decorators can be layered the same way, each wrapping the next.
  *
  * @since 2.12.3
  */

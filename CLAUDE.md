@@ -248,7 +248,12 @@ Tomcat upgrades, or anything that touches `wikantik-custom.properties` /
 
 ### Code Quality
 ```bash
-# Apache RAT license check
+# Apache RAT license check — informational only. It is never bound to a lifecycle phase anywhere in
+# this reactor (pluginManagement-only wiring in pom.xml / wikantik-wikipages/pom.xml) and no CI
+# workflow runs it. It currently fails wherever it's invoked — root scope reports ~1,990 violations
+# across docs/, bin/, eval/, and the frontend (none of which carry Apache headers); even a single
+# Java module can fail on non-code scaffolding (e.g. wikantik-util fails on its Maven-site files,
+# src/site/site.xml + src/site/markdown/index.md). A red run is not a regression to chase.
 mvn apache-rat:check
 
 # Generate Javadocs with UML diagrams

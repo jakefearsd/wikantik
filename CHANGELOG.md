@@ -6,6 +6,33 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Removed
+- **Dead-code sweep (2026-08-15 audit).** Nineteen commits, 113 files, 28,694 deletions against 171
+  insertions of production change. Stale JSPWiki-era wiring — four `classmappings.xml` mappings for
+  classes deleted long ago (`RSSGenerator`, `EditorManager`, `TemplateManager`, `AdminBeanManager`),
+  the dead `plain` editor module block, seven JSP-era `WikiModuleInfo` getters, a
+  `com.wikantik.WikiServlet` log4j2 logger plus the orphaned `AccessLog` appender it fed (both the
+  Tomcat and Docker log configs), and two dead root-`pom.xml` entries. Unread configuration keys —
+  `wikantik.rss.*`, ~50 `wikantik.defaultprefs.*`, `wikantik.securecookie`,
+  `wikantik.cache.custom-config-file`. The entire JSP-template i18n bundle —
+  `templates/default{,_es,_ru}.properties` (464 keys × 3 locales; the 4 still-read
+  `notification.createUserProfile.*` keys moved to `CoreResources`) — plus 105 dead `install.jsp.*`
+  keys and the 217-line `TranslationsCheck` CLI that existed only to diff those bundles. The
+  `PAGE_RSS`/`WIKI_INSTALL`/`WIKI_WORKFLOW`/`WIKI_MESSAGE` commands and the whole JSP
+  content-template column (`Command.getContentTemplate()`, the third `ContextEnum` constructor
+  argument across all 23 surviving constants). 12 unreferenced Java classes and 16 unreferenced
+  methods, including the finished `AssignCanonicalIdsCli` backfill (made redundant by save-time
+  `canonical_id` enforcement) and the unused `ContextServiceBundleRetriever` eval adapter. 4 unused
+  frontend dependencies, a dead probe script, 8 unused exports, and 2 duplicate default exports
+  (`knip` now reports zero findings). Non-Tomcat deployment descriptors (`geronimo-web.xml`,
+  `jboss-deployment-structure.xml`), JSPWiki's inherited 543 KB `OldChangeLog`, duplicated IDE
+  config, an unreferenced container policy file, and licence files for artifacts no longer shipped.
+  Also repaired: dangling `[{SessionsPlugin}]`/`[{ListLocksPlugin}]` invocations and five
+  pre-rebrand `jspwiki.` variables in the three translated `SystemInfo` pages, and `wikantik.rss.*`
+  references in the shipped `SystemInfo`/`InstallationTips` pages. The SpamFilter chain and the
+  `wikantik-cache-memcached` module were reviewed and deliberately kept as dormant,
+  re-activatable subsystems; both now document why they are inert.
+
 ## [2.3.16] - 2026-08-06
 
 ### Added

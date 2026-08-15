@@ -57,7 +57,7 @@ class MathRuleProbeTest {
         final ObjectMapper mapper = new ObjectMapper();
         try (InputStream in = MathRuleProbeTest.class.getClassLoader()
                 .getResourceAsStream("math/probe-dataset.json")) {
-            assertNotNull(in, "probe-dataset.json not found on classpath (run node scripts/math-probe/probe.mjs first)");
+            assertNotNull(in, "probe-dataset.json not found on classpath");
             final JsonNode arr = mapper.readTree(in);
             final List<Row> rows = new ArrayList<>();
             for (final JsonNode n : arr) {
@@ -141,8 +141,7 @@ class MathRuleProbeTest {
 
         // Guard: dataset must be meaningful
         assertTrue(rows.size() >= 400,
-                "probe-dataset.json must have ≥400 rows to give reliable metrics; found " + rows.size()
-                        + " — run: node scripts/math-probe/probe.mjs");
+                "probe-dataset.json must have ≥400 rows to give reliable metrics; found " + rows.size());
 
         final List<RuleResult> results = new ArrayList<>();
         results.add(measure("unbalancedBraces",        LatexRules::unbalancedBraces,        rows));

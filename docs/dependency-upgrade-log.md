@@ -81,7 +81,12 @@ Latest-stable sweep across the Maven reactor and the frontend. Verified with
   copies into the bundle and let the editor preview (rehype-katex → 0.16) and
   the reader (`src/utils/math.js` → 0.18) render math with different engines and
   CSS. Revisit only when rehype-katex widens its range.
-- **junrar 7.6.0 → 8.1.0 — no gain, real risk.** `sec.junrar.version` is a
+- **junrar: on 7.6.1; the 8.x MAJOR stays held.** *(Updated later the same day:*
+  *Dependabot replaced the 8.1.0 PR with a 7.6.**1** patch, which was taken —*
+  *its changelog carries "prevent directory creation outside target directory",*
+  *a path-traversal fix in a RAR parser reachable from `POST /api/ingest`.*
+  *That is a patch on Tika's own 7.6 line, not the held major.)*
+  The major remains refused: `sec.junrar.version` is a
   security pin of a Tika transitive (CVE-2026-41245, fixed in 7.6.0). Tika 3.3.2
   *itself* declares `junrar.version` = **7.6.0**, so the pin now matches upstream
   exactly. Forcing an untested major under Tika's RAR parser buys no security and

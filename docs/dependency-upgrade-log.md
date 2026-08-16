@@ -177,7 +177,37 @@ bumping it fails the build outright (`bcjmail-jdk18on:jar:1.85.2 was not found`)
 Splitting the property would mix Bouncy Castle artifact versions, which upstream
 advises against. Revisit when the full 1.85.2 set ships.
 
-## Flakes observed during verification (not regressions) — running tally
+## Flakes observed during verification — ROOT-CAUSED AND FIXED (`c8ac5cb218`)
+
+The tally below is the *pre-fix* record. All three were root-caused rather than
+retried; the gate then ran **3/3** against the final code. Kept as the worked
+example of what these failures actually were, because in every case the naive
+read ("just a flaky browser test", "bump the timeout") was wrong.
+
+- **`SearchPluginTests`** — `TestEngine.shutdown()` deleted the work dir while a
+  Lucene indexer was still writing to it (engine shutdown only *requests* that a
+  `WikiBackgroundThread` stop). Visible even in passing runs as 9
+  `NoSuchFileException: .../lucene/write.lock` per unit phase — now 0. Orphaned
+  indexers then starved the next test under `-T 1C`.
+- **`KnowledgeTabIT`** — both "panel ready" guards were ineffective:
+  `shouldNot(exist)` passes *vacuously* before the panel mounts, and
+  `[class*=kg-panel-]` is a **substring** match that also matches
+  `kg-panel-loading`. The test proceeded while the panel was still loading.
+- **`KnowledgeGraphNavDisabledIT`** — asserted a negative against a deliberately
+  **fail-open** UI (`useCapabilities` defaults `knowledgeGraph: true`), so the
+  link exists until `/api/capabilities` resolves. Correct condition, wrong budget.
+
+**Browser ITs now run headless by default** — four headed Chromes contending for
+one compositor, with Chrome throttling unpainted windows, is a standing flakiness
+source. Verified by running the suite with `DISPLAY` unset.
+
+**Watch the cost of a teardown fix.** Waiting for background threads initially
+added ~1s per engine and **~2 minutes** to the unit phase (the test profile
+defaults to `LuceneSearchProvider`, so every engine owns an indexer). Waking a
+*sleeping* thread on shutdown took it from 1003ms to 27ms per engine. Measure
+before accepting a correctness fix's runtime bill.
+
+## Pre-fix tally (kept for comparison)
 
 Six full `bin/run-tests.sh --parallel 4` runs were needed to land this work.
 **Four passed, two failed — on two different tests, both timing/async, both

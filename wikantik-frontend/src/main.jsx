@@ -27,6 +27,7 @@ const AdminKnowledgePage = React.lazy(() => import('./components/admin/AdminKnow
 const AdminApiKeysPage = React.lazy(() => import('./components/admin/AdminApiKeysPage'));
 const AdminRetrievalQualityPage = React.lazy(() => import('./components/admin/AdminRetrievalQualityPage'));
 const AdminDriftPage = React.lazy(() => import('./components/admin/AdminDriftPage'));
+const InsightsPanel = React.lazy(() => import('./components/admin/InsightsPanel'));
 const AdminKgPolicyPage = React.lazy(() => import('./components/admin/AdminKgPolicyPage'));
 const AdminKgPolicyExplain = React.lazy(() => import('./components/admin/AdminKgPolicyExplain'));
 const AdminKgPolicyPending = React.lazy(() => import('./components/admin/AdminKgPolicyPending'));
@@ -80,6 +81,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="apikeys" element={<AdminApiKeysPage />} />
               <Route path="retrieval-quality" element={<AdminRetrievalQualityPage />} />
               <Route path="drift" element={<AdminDriftPage />} />
+              <Route path="insights" element={<InsightsPanel />} />
               <Route path="kg-policy" element={<AdminKgPolicyPage />} />
               <Route path="kg-policy/explain" element={<AdminKgPolicyExplain />} />
               <Route path="kg-policy/pending" element={<AdminKgPolicyPending />} />

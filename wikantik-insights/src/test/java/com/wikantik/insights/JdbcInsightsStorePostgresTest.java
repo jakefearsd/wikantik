@@ -20,6 +20,7 @@ package com.wikantik.insights;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -149,5 +150,88 @@ class JdbcInsightsStorePostgresTest {
             rs.getBigDecimal( "position" );
             assertTrue( rs.wasNull(), "a missing position must stay NULL, never 0" );
         }
+    }
+
+    // --- read path (A5): these queries back /admin/insights/acquisition -------------------
+
+    private VisibilityRow rollup( final String engine, final String date, final int impressions,
+                                  final int clicks, final Double position ) {
+        return new VisibilityRow( LocalDate.parse( date ), 28, engine, "wiki.wikantik.com",
+                "/wiki/A", "", impressions, clicks, position );
+    }
+
+    @Test
+    void engineTotalsReadsOnlyPageRollupRowsNotQueryRows() {
+        final JdbcInsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "bing", "2026-08-14", 108, 2, 4.7 ),
+                // a query row for the same snapshot must NOT be summed into the page totals:
+                // engines omit low-volume queries, so query rows undercount the true total.
+                new VisibilityRow( LocalDate.parse( "2026-08-14" ), 28, "bing",
+                        "wiki.wikantik.com", "", "philosophy hub", 999, 99, 3.0 ) ) );
+
+        final List< EngineTotal > totals =
+                store.engineTotals( "wiki.wikantik.com", LocalDate.parse( "2026-08-14" ) );
+
+        assertEquals( 1, totals.size() );
+        assertEquals( 108, totals.get( 0 ).impressions() );
+        assertEquals( 2, totals.get( 0 ).clicks() );
+    }
+
+    @Test
+    void engineWithNoPageRowsIsOmittedNotZeroFilled() {
+        // Yandex emits no by_page rows at all. A zero-filled row would read as "ranked, no
+        // clicks" when the truth is "this engine reports no page data" — a different claim.
+        final JdbcInsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "google", "2026-08-14", 2518, 8, 36.0 ),
+                new VisibilityRow( LocalDate.parse( "2026-08-14" ), 28, "yandex",
+                        "wiki.wikantik.com", "", "some query", 45, 0, 5.6 ) ) );
+
+        final List< String > engines =
+                store.engineTotals( "wiki.wikantik.com", LocalDate.parse( "2026-08-14" ) )
+                     .stream().map( EngineTotal::engine ).toList();
+
+        assertEquals( List.of( "google" ), engines );
+    }
+
+    @Test
+    void nullPositionsAreExcludedFromTheAverageRatherThanCountedAsZero() {
+        // Averaging a NULL position as 0 would report rank 1 — the best possible position —
+        // for an engine that reported no position at all, and fire every CTR-vs-rank rule.
+        final JdbcInsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "bing", "2026-08-14", 10, 1, 4.0 ),
+                new VisibilityRow( LocalDate.parse( "2026-08-14" ), 28, "bing",
+                        "wiki.wikantik.com", "/wiki/B", "", 10, 0, null ) ) );
+
+        final EngineTotal t = store.engineTotals( "wiki.wikantik.com",
+                LocalDate.parse( "2026-08-14" ) ).get( 0 );
+
+        assertNotNull( t.position() );
+        assertEquals( 4.0, t.position(), 0.001,
+                "the NULL-position row must be excluded from the average, not averaged as 0" );
+    }
+
+    @Test
+    void latestSnapshotDatePicksTheNewestAndTrendRespectsItsWindow() {
+        final JdbcInsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "google", "2026-06-04", 100, 1, 40.0 ),
+                rollup( "google", "2026-08-14", 200, 8, 36.0 ) ) );
+
+        assertEquals( LocalDate.parse( "2026-08-14" ),
+                store.latestSnapshotDate( "wiki.wikantik.com" ).orElseThrow() );
+
+        assertEquals( 2, store.trend( "wiki.wikantik.com", LocalDate.parse( "2026-06-01" ) ).size() );
+        assertEquals( 1, store.trend( "wiki.wikantik.com", LocalDate.parse( "2026-07-01" ) ).size(),
+                "the trend window must exclude snapshots older than the cutoff" );
+    }
+
+    @Test
+    void latestSnapshotDateIsEmptyForAnUnknownSite() {
+        final JdbcInsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of( rollup( "google", "2026-08-14", 1, 0, 1.0 ) ) );
+        assertTrue( store.latestSnapshotDate( "nope.example.com" ).isEmpty() );
     }
 }

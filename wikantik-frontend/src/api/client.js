@@ -490,6 +490,14 @@ export const api = {
 
     getDriftStatus: () => request('/admin/drift/status'),
 
+    // Search visibility acquisition insights (Google/Bing/Yandex snapshots)
+    getInsightsAcquisition: (site, days = 90) => {
+      const params = new URLSearchParams();
+      if (site) params.set('site', site);
+      params.set('days', String(days));
+      return request(`/admin/insights/acquisition?${params.toString()}`);
+    },
+
     // KG inclusion / exclusion policy
     kgPolicy: {
       listClusters: () => request('/admin/kg-policy/clusters'),

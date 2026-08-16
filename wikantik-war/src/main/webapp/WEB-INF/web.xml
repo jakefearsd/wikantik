@@ -687,6 +687,10 @@
        <servlet-class>com.wikantik.rest.InsightsIngestResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>InsightsResource</servlet-name>
+       <servlet-class>com.wikantik.rest.InsightsResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>OntologySparqlResource</servlet-name>
        <servlet-class>com.wikantik.rest.OntologySparqlResource</servlet-class>
    </servlet>
@@ -997,6 +1001,10 @@
    <servlet-mapping>
        <servlet-name>InsightsIngestResource</servlet-name>
        <url-pattern>/admin/insights/ingest</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>InsightsResource</servlet-name>
+       <url-pattern>/admin/insights/acquisition</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>OntologySparqlResource</servlet-name>

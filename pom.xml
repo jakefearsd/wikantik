@@ -130,7 +130,7 @@
     <sec.commons-beanutils.version>1.11.0</sec.commons-beanutils.version> <!-- via tribuo->opencsv;          CVE-2025-48734 -->
     <sec.jackson3.version>3.2.2</sec.jackson3.version>                    <!-- via mcp-sdk (Jackson 3 family); CVE-2026-29062 +2 -->
     <sec.jackson2.version>2.22.1</sec.jackson2.version>                   <!-- via pac4j-core (2.22.0) + tika-parser-cad-module (2.21.3); GHSA-5jmj-h7xm-6q6v + 2.21.x GHSAs, all fixed by 2.22.1 -->
-    <sec.junrar.version>7.6.0</sec.junrar.version>                       <!-- via tika-parsers;              CVE-2026-41245 -->
+    <sec.junrar.version>7.6.1</sec.junrar.version>                       <!-- via tika-parsers;              CVE-2026-41245 -->
     <sec.guava.version>33.6.0-jre</sec.guava.version>                    <!-- via pac4j-oidc/pac4j-saml (opensaml); CVE-2023-2976, CVE-2020-8908 -->
     <sec.okio.version>3.18.1</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
 

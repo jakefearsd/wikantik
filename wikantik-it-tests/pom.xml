@@ -236,6 +236,14 @@
               <groupId>io.fabric8</groupId>
               <artifactId>docker-maven-plugin</artifactId>
               <configuration>
+              <!-- Remove each container's anonymous volume when the container is
+                   removed. The postgres/pgvector images declare
+                   VOLUME /var/lib/postgresql/data, so Docker auto-creates one per
+                   container; it carries only com.docker.volume.anonymous and no
+                   org.testcontainers label, so nothing ever reaps it. The plugin
+                   defaults removeVolumes to false, which leaked a volume per
+                   container per build. -->
+              <removeVolumes>true</removeVolumes>
                 <images>
                   <image>
                     <alias>${it.db.container-alias}</alias>
@@ -293,7 +301,7 @@
                            per-module-unique name) so a concurrently-running
                            sibling's pgvector container is never deleted. Keyed
                            on the static name, not the (now-dynamic) port. -->
-                      <argument>docker rm -f "${it.db.container-alias}" &gt;/dev/null 2&gt;&amp;1 &amp;&amp; echo "Removed stale container ${it.db.container-alias}" || true</argument>
+                      <argument>docker rm -f -v "${it.db.container-alias}" &gt;/dev/null 2&gt;&amp;1 &amp;&amp; echo "Removed stale container ${it.db.container-alias}" || true</argument>
                     </arguments>
                   </configuration>
                 </execution>

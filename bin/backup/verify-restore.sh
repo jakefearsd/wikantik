@@ -31,7 +31,10 @@ CONTAINER="wikantik-verify-restore-$$"
 WORKDIR="$(mktemp -d)"
 
 cleanup() {
-    docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true
+    # -v is load-bearing: the pgvector image declares VOLUME /var/lib/postgresql/data,
+    # so Docker auto-creates an anonymous volume per container. Without -v the volume
+    # outlives the container, carries no reapable label, and accumulates forever.
+    docker rm -f -v "${CONTAINER}" >/dev/null 2>&1 || true
     rm -rf "${WORKDIR}" || true
 }
 trap cleanup EXIT

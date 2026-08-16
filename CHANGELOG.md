@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.3] - 2026-08-16
+
 ### Added
 - **npm supply-chain hardening.** The shipped WAR now builds the frontend with
   `npm ci --ignore-scripts` rather than `npm install`, so the bundle is installed

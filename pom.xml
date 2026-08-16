@@ -227,6 +227,7 @@
     <module>wikantik-knowledge</module>
     <module>wikantik-ontology</module>
     <module>wikantik-observability</module>
+    <module>wikantik-insights</module>
     <module>wikantik-rest</module>
     <module>wikantik-extract-cli</module>
     <module>wikantik-war</module>

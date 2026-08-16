@@ -52,8 +52,32 @@ jobs:
       - name: Frontend lint (ESLint)
         working-directory: wikantik-frontend
         run: |
-          npm ci --no-audit --no-fund
+          npm ci --no-audit --no-fund --ignore-scripts
           npm run lint
+
+      # Supply-chain gates. These run on every push to main, which is the path
+      # this repo actually uses — dependency-review.yml only fires on pull
+      # requests, so it covers Dependabot's PRs but never a direct push.
+      - name: Frontend supply-chain — registry signatures & provenance
+        working-directory: wikantik-frontend
+        # Verifies every installed tarball against the registry's signing key,
+        # catching a tampered or substituted package that a version check alone
+        # would pass. Baseline 2026-08-16: 382/382 signed, 91 attested.
+        run: npm audit signatures
+
+      - name: Frontend supply-chain — known vulnerabilities
+        working-directory: wikantik-frontend
+        # audit-level=high comes from wikantik-frontend/.npmrc. Moderate findings
+        # in the dev toolchain are reported but non-blocking: nothing in
+        # devDependencies reaches the shipped bundle.
+        run: npm audit
+
+      - name: Frontend supply-chain — lockfile must be authoritative
+        working-directory: wikantik-frontend
+        # `npm ci` above already fails on package.json/lock drift. This asserts
+        # the stronger property that no install rewrote the lockfile, so the
+        # tree CI verified is byte-identical to the one the WAR build installs.
+        run: git diff --exit-code -- package-lock.json
 
       - name: Frontend unit tests (vitest)
         working-directory: wikantik-frontend

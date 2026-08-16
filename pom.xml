@@ -121,7 +121,12 @@
          OSV.dev scan of the resolved tree on 2026-06-21. Remove a
          pin once the declaring dependency ships the fix itself.
          ============================================================ -->
-    <sec.bouncycastle.version>1.85</sec.bouncycastle.version>             <!-- via pac4j-saml/oidc + tika-crypto; CVE-2026-5598/-0636/-5588 -->
+    <sec.bouncycastle.version>1.85</sec.bouncycastle.version>               <!-- via pac4j-saml/oidc + tika-crypto; CVE-2026-5598/-0636/-5588.
+                                                                                 HELD at 1.85: versions-plugin reports bcprov-jdk18on 1.85.2, but that
+                                                                                 patch was released for bcprov ONLY — bcpkix/bcjmail/bcutil have no
+                                                                                 1.85.2 (verified 404 on Central), and this one property drives all
+                                                                                 four. Bumping it fails the build; splitting it would mix Bouncy
+                                                                                 Castle artifact versions, which upstream advises against. -->
     <sec.commons-beanutils.version>1.11.0</sec.commons-beanutils.version> <!-- via tribuo->opencsv;          CVE-2025-48734 -->
     <sec.jackson3.version>3.2.2</sec.jackson3.version>                    <!-- via mcp-sdk (Jackson 3 family); CVE-2026-29062 +2 -->
     <sec.jackson2.version>2.22.1</sec.jackson2.version>                   <!-- via pac4j-core (2.22.0) + tika-parser-cad-module (2.21.3); GHSA-5jmj-h7xm-6q6v + 2.21.x GHSAs, all fixed by 2.22.1 -->

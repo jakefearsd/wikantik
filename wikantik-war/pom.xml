@@ -143,12 +143,22 @@
                         <phase>generate-resources</phase>
                         <goals><goal>exec</goal></goals>
                         <configuration>
+                            <!-- `ci`, NOT `install`. This is the artifact that ships, so it must
+                                 be reproducible: `npm ci` installs package-lock.json exactly and
+                                 fails if the lock and package.json disagree. `npm install` would
+                                 re-resolve every caret range at build time, so a malicious patch
+                                 release published after the last lockfile update would be pulled
+                                 silently into the production bundle, across 406 transitive
+                                 packages. The ignore-scripts flag additionally blocks dependency
+                                 lifecycle scripts (the install-time RCE vector); only `fsevents`
+                                 declares one here, and it is dev/macOS-only. -->
                             <executable>npm</executable>
                             <workingDirectory>${project.basedir}/../wikantik-frontend</workingDirectory>
                             <arguments>
-                                <argument>install</argument>
+                                <argument>ci</argument>
                                 <argument>--no-audit</argument>
                                 <argument>--no-fund</argument>
+                                <argument>--ignore-scripts</argument>
                             </arguments>
                         </configuration>
                     </execution>
@@ -157,7 +167,11 @@
                         <phase>generate-resources</phase>
                         <goals><goal>exec</goal></goals>
                         <configuration>
-                            <executable>npx</executable>
+                            <!-- `npm run build`, NOT `npx vite build`. npx will silently DOWNLOAD
+                                 a package from the registry when it cannot resolve one locally —
+                                 turning a broken install into an unpinned fetch. `npm run` only
+                                 ever executes node_modules/.bin, so it fails loudly instead. -->
+                            <executable>npm</executable>
                             <workingDirectory>${project.basedir}/../wikantik-frontend</workingDirectory>
                             <!-- Bake the Maven version into the SPA bundle (vite reads
                                  process.env.WIKANTIK_VERSION → __APP_VERSION__ → footer). -->
@@ -165,7 +179,7 @@
                                 <WIKANTIK_VERSION>${project.version}</WIKANTIK_VERSION>
                             </environmentVariables>
                             <arguments>
-                                <argument>vite</argument>
+                                <argument>run</argument>
                                 <argument>build</argument>
                             </arguments>
                         </configuration>

@@ -1,8 +1,42 @@
-# Dependabot keeps the Maven dependency tree current. Weekly cadence to
-# keep PR volume manageable; review and merge the bumps as they land.
+# Dependabot keeps the dependency trees current. Weekly cadence to keep PR
+# volume manageable; review and merge the bumps as they land.
+#
+# Both ecosystems are covered. npm was added 2026-08-16 — before that the
+# frontend's 406-package transitive tree received no automated vulnerability or
+# update PRs at all, which was the largest gap in the supply-chain posture
+# despite npm being the more actively attacked registry.
 version: 2
 updates:
   - package-ecosystem: "maven"
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      # HELD DELIBERATELY — see docs/dependency-upgrade-log.md (2026-08-16).
+      # junrar is a security pin of a Tika transitive (CVE-2026-41245, fixed in
+      # 7.6.0). Tika 3.3.2 itself declares junrar 7.6.0, so the pin matches
+      # upstream exactly. Forcing an untested major under Tika's RAR parser buys
+      # no security and risks the ingest path. Without this ignore, Dependabot
+      # re-proposes it every week until someone merges it by reflex.
+      - dependency-name: "com.github.junrar:junrar"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "npm"
+    directory: "/wikantik-frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      # The dev toolchain churns fast and ships nothing to production; group it
+      # so a week of patch bumps is one reviewable PR rather than a dozen.
+      dev-toolchain:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+    ignore:
+      # HELD DELIBERATELY — see docs/dependency-upgrade-log.md (2026-08-16).
+      # rehype-katex (latest, 7.0.1) hard-depends on katex ^0.16.0. Taking katex
+      # 0.17+ resolves two katex copies into the bundle and splits math rendering
+      # between the editor preview and the reader. Revisit when rehype-katex
+      # widens its range; security patches within 0.16.x still come through.
+      - dependency-name: "katex"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]

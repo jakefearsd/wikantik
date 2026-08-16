@@ -102,3 +102,84 @@ concurrently with a Maven build therefore fails in a way that looks like a broke
 upgrade — `npm run lint` silently falls back to whatever `eslint` is on `PATH`
 (here a system-wide 6.4.0, which cannot read flat config). Run npm checks and
 Maven builds sequentially, not in parallel.
+
+---
+
+# npm Supply-Chain Audit — 2026-08-16
+
+Posture review of the frontend dependency tree, prompted by the ongoing wave of
+npm registry compromises. Scope: `wikantik-frontend` (32 direct deps, **406**
+lockfile entries).
+
+## Findings — the tree itself is clean
+
+| Check | Result |
+|---|---|
+| Known vulnerabilities (`npm audit`) | **0** |
+| Registry signatures (`npm audit signatures`) | **382/382 verified**, 91 with provenance attestations |
+| Lockfile integrity | 406/406 entries carry `integrity`; **all sha512**, none weaker |
+| Package origin | 406/406 resolved from `registry.npmjs.org` — no git/http/tarball/file sources |
+| Packages with install scripts | **1** — `fsevents` (dev-only, macOS-only, optional) |
+| Deprecated packages | 0 |
+| Typosquat scan (short/odd names) | `ajv`, `ms`, `uri-js`, `ws`, `zod` — all legitimate, high-reputation |
+
+## Findings — the *build* was the weak point
+
+1. **The shipped artifact was built with `npm install`, not `npm ci`.** The
+   Dockerfile runs `mvn package -pl wikantik-war`, which invoked
+   `npm install --no-audit --no-fund`. Every one of the 406 packages is on a
+   caret range, so `npm install` re-resolves at build time: a malicious patch
+   release published after the last lockfile update would be pulled silently
+   into the production bundle. CI's `quality-gates.yml` already used `npm ci`,
+   so the tree that was *tested* was not guaranteed to be the tree that
+   *shipped*. **Fixed** — the WAR build now uses
+   `npm ci --no-audit --no-fund --ignore-scripts`.
+2. **`npx vite build`.** `npx` silently downloads a package from the registry
+   when it cannot resolve one locally, turning a broken install into an unpinned
+   fetch. **Fixed** — now `npm run build`, which only ever executes
+   `node_modules/.bin`.
+3. **No Dependabot coverage for npm at all.** `.github/dependabot.yml` declared
+   only the `maven` ecosystem, so the 406-package tree received no automated
+   vulnerability or update PRs — on the more actively attacked of the two
+   registries. **Fixed** — npm ecosystem added, dev-toolchain updates grouped.
+4. **No supply-chain gate on the path this repo actually uses.**
+   `dependency-review.yml` is `on: [pull_request]`; it does fire (Dependabot
+   opens PRs) but never sees a direct push to main, which is how this repo is
+   developed. **Fixed** — `quality-gates.yml` (runs on every push to main) now
+   runs `npm audit signatures`, `npm audit`, and asserts the lockfile was not
+   rewritten by the install.
+5. **No `.npmrc`.** Added, with `ignore-scripts=true` (blocks the install-time
+   RCE vector — verified it does *not* block explicit `npm run`), an explicit
+   `registry=` pin so a stray env var or user-level `~/.npmrc` cannot redirect
+   resolution, and `audit-level=high`.
+
+## Also found — the earlier Maven sweep was incomplete
+
+The root-only (`-N`) property scan misses dependencies declared in submodules
+with literal versions. A recursive scan found four: `crawler-commons` (1.4),
+`jsoup` (1.23.1), and `h2` (2.4.240, in four modules). **Scan recursively, not
+just `-N` at the root.**
+
+- `crawler-commons` 1.4 → **1.6** applied (usage is limited to the robots.txt
+  parser: `SimpleRobotRulesParser`, `BaseRobotRules`, `SimpleRobotRules`).
+
+## Held — bouncycastle 1.85, do not bump the shared property
+
+`versions-plugin` reports `bcprov-jdk18on` 1.85.2. That patch was released for
+**bcprov only** — `bcpkix`, `bcjmail` and `bcutil` have no 1.85.2 (verified: 404
+on Maven Central). One property, `sec.bouncycastle.version`, drives all four, so
+bumping it fails the build outright (`bcjmail-jdk18on:jar:1.85.2 was not found`).
+Splitting the property would mix Bouncy Castle artifact versions, which upstream
+advises against. Revisit when the full 1.85.2 set ships.
+
+## Flake observed during verification (not a regression)
+
+`KnowledgeTabIT.addEntitiesAndConformantRelation` failed once under
+`--parallel 4` — `kg-add-entity-btn` still `disabled` at the 5s Selenide
+timeout. Evidence it is an intermittent parallel-execution flake and not caused
+by this changeset: the identical 4-wide gate passed both **before** the failure
+(with selenium 4.47.0 already applied) and **after** it, and
+`bin/run-tests.sh --module custom-jdbc` passes in isolation (110 tests, 0
+failures — the same test count as the failing run, so the test did execute).
+Same class as the known `EditIT` CodeMirror flake: a timing assertion that loses
+its race when four IT modules contend for the box.

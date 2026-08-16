@@ -131,10 +131,14 @@ public class BundleResource extends RestServletBase {
         resp.setContentType( "application/json; charset=UTF-8" );
         resp.getWriter().write( BUNDLE_GSON.toJson( bundle ) );
 
-        // Harvest the query for corpus-grounding (async + fail-open; never affects the response above).
+        // Harvest the query for corpus-grounding (async + fail-open; never affects the response
+        // above). coverage.confidence() is the datum the AGENT_GAP content-intelligence rule
+        // fires on — a non-empty bundle with "weak" coverage is a content gap a raw result count
+        // hides entirely (design §6.2/§7.3).
         final QueryLogService qlog = queryLogService();
         if ( qlog != null ) {
-            qlog.log( q, actorType( req ), SourceSurface.API_BUNDLE, bundle.sections().size() );
+            qlog.log( q, actorType( req ), SourceSurface.API_BUNDLE, bundle.sections().size(),
+                bundle.coverage().confidence(), null );
         }
     }
 

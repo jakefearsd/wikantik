@@ -33,6 +33,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -81,6 +82,45 @@ class JdbcInsightsStorePostgresTest {
                     position      NUMERIC(6,2),
                     ingested_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     PRIMARY KEY (snapshot_date, engine, site_host, page_path, query_text)
+                )""" );
+
+            // V052 / V053, applied verbatim so the ON CONFLICT / RETURNING SQL under test runs
+            // against the real schema rather than a hand-simplified stand-in.
+            st.execute( "DROP TABLE IF EXISTS content_change_log" );
+            st.execute( """
+                CREATE TABLE IF NOT EXISTS content_change_log (
+                    id                    BIGSERIAL   PRIMARY KEY,
+                    page_path             TEXT        NOT NULL,
+                    change_type           TEXT        NOT NULL,
+                    opportunity_type      TEXT,
+                    applied_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    applied_by            TEXT        NOT NULL,
+                    note                  TEXT,
+
+                    baseline_start        DATE        NOT NULL,
+                    baseline_end          DATE        NOT NULL,
+                    baseline_impressions  INTEGER     NOT NULL,
+                    baseline_clicks       INTEGER     NOT NULL,
+                    baseline_ctr          NUMERIC(8,5),
+                    baseline_position     NUMERIC(6,2),
+
+                    evaluated_at          TIMESTAMPTZ,
+                    effect                TEXT,
+                    effect_ctr_delta      NUMERIC(8,5),
+                    effect_position_delta NUMERIC(6,2),
+                    effect_detail         JSONB
+                )""" );
+
+            st.execute( "DROP TABLE IF EXISTS content_opportunity_snooze" );
+            st.execute( """
+                CREATE TABLE IF NOT EXISTS content_opportunity_snooze (
+                    opportunity_type TEXT        NOT NULL,
+                    target           TEXT        NOT NULL,
+                    snoozed_until    DATE        NOT NULL,
+                    reason           TEXT        NOT NULL,
+                    snoozed_by       TEXT        NOT NULL,
+                    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (opportunity_type, target)
                 )""" );
         }
     }
@@ -233,5 +273,148 @@ class JdbcInsightsStorePostgresTest {
         final JdbcInsightsStore store = new JdbcInsightsStore( ds );
         store.upsert( List.of( rollup( "google", "2026-08-14", 1, 0, 1.0 ) ) );
         assertTrue( store.latestSnapshotDate( "nope.example.com" ).isEmpty() );
+    }
+
+    // --- content_change_log (V052) ----------------------------------------------------------
+
+    private ContentChange change( final String opportunityType, final String note,
+                                  final Double baselineCtr, final Double baselinePosition ) {
+        return new ContentChange( "/wiki/A", "title", opportunityType, "testbot", note,
+                LocalDate.parse( "2026-07-01" ), LocalDate.parse( "2026-07-28" ),
+                500, 20, baselineCtr, baselinePosition );
+    }
+
+    @Test
+    void recordChangeReturnsAGeneratedId() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final Optional<Long> id = store.recordChange( change( "agent_gap", "curated KG relations", 0.04, 12.5 ) );
+        assertTrue( id.isPresent() );
+        assertTrue( id.get() > 0 );
+    }
+
+    @Test
+    void recordChangeStoresNullableFieldsAsNull() throws Exception {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final long id = store.recordChange( change( null, null, null, null ) ).orElseThrow();
+
+        try ( Connection c = ds.getConnection();
+              ResultSet rs = c.createStatement().executeQuery(
+                  "SELECT opportunity_type, note, baseline_ctr, baseline_position "
+                  + "FROM content_change_log WHERE id = " + id ) ) {
+            assertTrue( rs.next() );
+            rs.getString( "opportunity_type" );
+            assertTrue( rs.wasNull(), "manual changes (no motivating rule) must store a NULL opportunity_type" );
+            rs.getString( "note" );
+            assertTrue( rs.wasNull() );
+            rs.getBigDecimal( "baseline_ctr" );
+            assertTrue( rs.wasNull(), "0-impression baselines must store a NULL ctr, never 0" );
+            rs.getBigDecimal( "baseline_position" );
+            assertTrue( rs.wasNull() );
+        }
+    }
+
+    @Test
+    void unevaluatedChangesExcludesRowsAlreadyEvaluated() throws Exception {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final long evaluatedId = store.recordChange( change( "agent_gap", "a", 0.04, 12.5 ) ).orElseThrow();
+        store.recordChange( change( "agent_gap", "b", 0.05, 11.0 ) );
+
+        try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
+            st.execute( "UPDATE content_change_log SET evaluated_at = NOW(), effect = 'no_effect' "
+                      + "WHERE id = " + evaluatedId );
+        }
+
+        final List<PendingChange> pending = store.unevaluatedChanges( LocalDate.parse( "2026-08-16" ) );
+
+        assertEquals( 1, pending.size() );
+        assertEquals( "b", pending.get( 0 ).note() );
+    }
+
+    @Test
+    void unevaluatedChangesExcludesRowsAppliedAfterTheCutoff() throws Exception {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final long futureId = store.recordChange( change( "agent_gap", "future", 0.04, 12.5 ) ).orElseThrow();
+
+        try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
+            st.execute( "UPDATE content_change_log SET applied_at = '2026-09-01T00:00:00Z' "
+                      + "WHERE id = " + futureId );
+        }
+
+        final List<PendingChange> pending = store.unevaluatedChanges( LocalDate.parse( "2026-08-16" ) );
+
+        assertTrue( pending.isEmpty(),
+                "a change applied after the cutoff has not had 28 days to accumulate an after-window" );
+    }
+
+    @Test
+    void unevaluatedChangesReturnsFullBaselineAndMetadata() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.recordChange( change( "engine_divergence", "diagnostic only", 0.031, 22.4 ) );
+
+        final PendingChange pending = store.unevaluatedChanges( LocalDate.parse( "2026-08-16" ) ).get( 0 );
+
+        assertEquals( "/wiki/A", pending.pagePath() );
+        assertEquals( "title", pending.changeType() );
+        assertEquals( "engine_divergence", pending.opportunityType() );
+        assertEquals( "testbot", pending.appliedBy() );
+        assertEquals( 500, pending.baselineImpressions() );
+        assertEquals( 20, pending.baselineClicks() );
+        assertEquals( 0.031, pending.baselineCtr(), 0.0001 );
+        assertEquals( 22.4, pending.baselinePosition(), 0.0001 );
+        assertEquals( LocalDate.parse( "2026-07-01" ), pending.baselineStart() );
+        assertEquals( LocalDate.parse( "2026-07-28" ), pending.baselineEnd() );
+    }
+
+    // --- content_opportunity_snooze (V053) ----------------------------------------------------
+
+    @Test
+    void snoozeWritesARow() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final boolean written = store.snooze( new OpportunitySnooze( "engine_divergence", "/wiki/A",
+                LocalDate.parse( "2026-09-01" ), "authority gap, not a page problem", "jake" ) );
+        assertTrue( written );
+    }
+
+    @Test
+    void reSnoozingTheSamePairConvergesInsteadOfDuplicating() throws Exception {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.snooze( new OpportunitySnooze( "agent_gap", "philosophy of mind",
+                LocalDate.parse( "2026-09-01" ), "first reason", "jake" ) );
+        store.snooze( new OpportunitySnooze( "agent_gap", "philosophy of mind",
+                LocalDate.parse( "2026-10-15" ), "revised reason", "jake" ) );
+
+        try ( Connection c = ds.getConnection();
+              ResultSet rs = c.createStatement().executeQuery(
+                  "SELECT COUNT(*) n, MAX(snoozed_until) u, MAX(reason) r FROM content_opportunity_snooze" ) ) {
+            assertTrue( rs.next() );
+            assertEquals( 1, rs.getInt( "n" ) );
+            assertEquals( LocalDate.parse( "2026-10-15" ), rs.getDate( "u" ).toLocalDate() );
+            assertEquals( "revised reason", rs.getString( "r" ) );
+        }
+    }
+
+    @Test
+    void activeSnoozesExcludesExpiredEntries() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.snooze( new OpportunitySnooze( "agent_gap", "expired query",
+                LocalDate.parse( "2026-08-01" ), "past", "jake" ) );
+        store.snooze( new OpportunitySnooze( "agent_gap", "active query",
+                LocalDate.parse( "2026-09-01" ), "future", "jake" ) );
+
+        final List<OpportunitySnooze> active = store.activeSnoozes( LocalDate.parse( "2026-08-16" ) );
+
+        assertEquals( 1, active.size() );
+        assertEquals( "active query", active.get( 0 ).target() );
+    }
+
+    @Test
+    void activeSnoozesIncludesTheExpiryDayItself() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.snooze( new OpportunitySnooze( "agent_gap", "expires today",
+                LocalDate.parse( "2026-08-16" ), "reason", "jake" ) );
+
+        final List<OpportunitySnooze> active = store.activeSnoozes( LocalDate.parse( "2026-08-16" ) );
+
+        assertEquals( 1, active.size(), "snoozed_until is inclusive" );
     }
 }

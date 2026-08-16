@@ -174,11 +174,25 @@ public class SearchResource extends RestServletBase {
 
         sendJson( response, result );
 
-        // Harvest the query for corpus-grounding (async + fail-open; never affects the response above).
-        final QueryLogService qlog = queryLogService();
-        if ( qlog != null ) {
-            qlog.log( query, actorType( request ), SourceSurface.API_SEARCH, retrieval.pages().size() );
+        // Harvest the query for corpus-grounding (async + fail-open; never affects the response
+        // above). Only *submitted* queries are logged — the SPA's search-as-you-type box hits
+        // this same endpoint on every keystroke and marks each request `typeahead=true`, so a
+        // 20-character search no longer produces twenty rows reading "P", "Pe", "Per", ...
+        // (design §6.2). Requests with no `typeahead` param (the SPA's real submit, curl, MCP/
+        // tools callers) are treated as submitted, matching prior behavior exactly.
+        if ( !isTypeahead( request ) ) {
+            final QueryLogService qlog = queryLogService();
+            if ( qlog != null ) {
+                qlog.log( query, actorType( request ), SourceSurface.API_SEARCH, retrieval.pages().size() );
+            }
         }
+    }
+
+    /** True when the caller marked this request as incremental search-as-you-type, not a
+     *  submitted search. Absent/blank/anything-but-"true" defaults to "submitted" so existing
+     *  non-SPA callers (curl, MCP, `tools_search_wiki`) keep being logged unchanged. */
+    private static boolean isTypeahead( final HttpServletRequest request ) {
+        return "true".equalsIgnoreCase( request.getParameter( "typeahead" ) );
     }
 
     /**

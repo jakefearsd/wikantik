@@ -66,4 +66,43 @@ public interface InsightsStore {
      * @return trend points ordered by snapshot date then engine
      */
     List<TrendPoint> trend( String siteHost, LocalDate since );
+
+    /**
+     * Records an applied content change with its pre-change baseline in
+     * {@code content_change_log} (V052). The baseline is captured at write time -- see
+     * {@link ContentChange}'s javadoc.
+     *
+     * @param change the change and its baseline
+     * @return the generated row id, or empty if the write failed
+     */
+    Optional<Long> recordChange( ContentChange change );
+
+    /**
+     * Reads {@code content_change_log} rows not yet evaluated ({@code evaluated_at IS NULL})
+     * whose {@code applied_at} is at or before {@code cutoff} -- i.e. rows the nightly evaluator
+     * (content-intelligence design §7.4.2) is ready to score. Passing {@code cutoff = today}
+     * (rather than filtering on age here) keeps the 28-day rule a caller-side concern.
+     *
+     * @param cutoff the latest {@code applied_at} to include
+     * @return matching rows, oldest {@code applied_at} first
+     */
+    List<PendingChange> unevaluatedChanges( LocalDate cutoff );
+
+    /**
+     * Upserts one snooze into {@code content_opportunity_snooze} (V053), keyed by
+     * {@code (opportunityType, target)}. A repeat call for the same pair replaces the prior
+     * snooze rather than erroring.
+     *
+     * @param snooze the snooze to write
+     * @return {@code true} if the write succeeded
+     */
+    boolean snooze( OpportunitySnooze snooze );
+
+    /**
+     * Reads every snooze active as of {@code today} (i.e. {@code snoozed_until >= today}).
+     *
+     * @param today the date to check snoozes against
+     * @return active snoozes
+     */
+    List<OpportunitySnooze> activeSnoozes( LocalDate today );
 }

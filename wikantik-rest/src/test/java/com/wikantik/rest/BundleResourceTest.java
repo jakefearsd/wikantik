@@ -178,8 +178,42 @@ class BundleResourceTest {
 
         resource.doGet( req, resp );
 
-        // the returned section count is the result_count signal; api_bundle surface; classified actor
-        verify( qlog ).log( "deploy", ActorType.HUMAN, SourceSurface.API_BUNDLE, 1 );
+        // the returned section count is the result_count signal; api_bundle surface; classified
+        // actor; coverage carries the bundle's confidence (BundleCoverage.empty() here since the
+        // stub ContextBundle doesn't set one -> "unknown"); no session hash is wired for this surface.
+        verify( qlog ).log( "deploy", ActorType.HUMAN, SourceSurface.API_BUNDLE, 1,
+            BundleCoverage.UNKNOWN, null );
+    }
+
+    @Test
+    void doGet_logsCoverageConfidence_whenBundleReportsWeakCoverage() throws Exception {
+        final BundleAssemblyService svc = mock( BundleAssemblyService.class );
+        final ContextBundle bundle = new ContextBundle( "deploy", List.of(
+                new BundleSection( "01DEP", "DeployGuide", List.of( "Setup" ), "do x", 0.2,
+                        new CitationHandle( "01DEP", 7, List.of( "Setup" ), "do x", "abc123" ) ) ),
+                new BundleCoverage( 1, 1, 0.2, BundleCoverage.WEAK ) );
+        when( svc.assemble( eq( "deploy" ), any( RetrievalMode.class ) ) ).thenReturn( bundle );
+        final QueryLogService qlog = mock( QueryLogService.class );
+        final BundleResource resource = new BundleResource() {
+            @Override protected BundleAssemblyService bundleService() { return svc; }
+            @Override protected QueryLogService queryLogService() { return qlog; }
+            @Override protected ActorType actorType( final HttpServletRequest r ) { return ActorType.AGENT; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                return new java.util.HashSet<>( names );
+            }
+        };
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getParameter( "q" ) ).thenReturn( "deploy" );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( req, resp );
+
+        // This is the datum the AGENT_GAP content-intelligence rule fires on: a non-empty bundle
+        // (1 section) whose coverage confidence is still "weak" — a raw result count alone hides it.
+        verify( qlog ).log( "deploy", ActorType.AGENT, SourceSurface.API_BUNDLE, 1,
+            BundleCoverage.WEAK, null );
     }
 
     @Test

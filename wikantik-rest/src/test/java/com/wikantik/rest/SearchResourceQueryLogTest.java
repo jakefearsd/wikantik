@@ -32,8 +32,13 @@ import java.io.StringWriter;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class SearchResourceQueryLogTest {
@@ -65,5 +70,53 @@ class SearchResourceQueryLogTest {
 
         // logs the ORIGINAL user query (not the Lucene-escaped form); api_search surface; 0 = zero-result signal
         verify( qlog ).log( "deploy", ActorType.AGENT, SourceSurface.API_SEARCH, 0 );
+    }
+
+    /**
+     * The write-amplification bug: the search box hits {@code /api/search} on every keystroke.
+     * Before the fix, typing "Per" -> "Pers" -> "Personal" then submitting "Personal Finance"
+     * wrote FOUR rows — the 90-day prod sample reading literal partial words is this bug. Only
+     * the final, explicitly-submitted query may be logged.
+     */
+    @Test
+    void doGet_onlyTheSubmittedQuery_isLogged_notEachTypeaheadKeystroke() throws Exception {
+        final ContextRetrievalService ctx = mock( ContextRetrievalService.class );
+        when( ctx.retrieve( any() ) ).thenReturn( new RetrievalResult( "x", List.of(), 0 ) );
+        final QueryLogService qlog = mock( QueryLogService.class );
+        final SearchResource servlet = new SearchResource() {
+            @Override protected ContextRetrievalService retrievalService() { return ctx; }
+            @Override protected QueryLogService queryLogService() { return qlog; }
+            @Override protected ActorType actorType( final HttpServletRequest r ) { return ActorType.HUMAN; }
+            @Override protected java.util.Set< String > filterViewable( final HttpServletRequest r,
+                    final java.util.Collection< String > pageNames ) {
+                return new java.util.LinkedHashSet<>( pageNames );
+            }
+        };
+
+        // Three incremental typeahead requests as the reader types...
+        fireSearch( servlet, "Per", true );
+        fireSearch( servlet, "Pers", true );
+        fireSearch( servlet, "Personal", true );
+        // ...then the actual submitted search.
+        fireSearch( servlet, "Personal Finance", false );
+
+        verify( qlog, times( 1 ) ).log( eq( "Personal Finance" ), eq( ActorType.HUMAN ),
+            eq( SourceSurface.API_SEARCH ), anyInt() );
+        verify( qlog, never() ).log( eq( "Per" ), any(), any(), any() );
+        verify( qlog, never() ).log( eq( "Pers" ), any(), any(), any() );
+        verify( qlog, never() ).log( eq( "Personal" ), any(), any(), any() );
+        verifyNoMoreInteractions( qlog );
+    }
+
+    private static void fireSearch( final SearchResource servlet, final String query, final boolean typeahead )
+            throws Exception {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getParameter( "q" ) ).thenReturn( query );
+        if ( typeahead ) {
+            when( req.getParameter( "typeahead" ) ).thenReturn( "true" );
+        }
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+        servlet.doGet( req, resp );
     }
 }

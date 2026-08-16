@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -59,7 +60,10 @@ class JdbcQueryLogServiceTest {
                     actor_type VARCHAR(16) NOT NULL,
                     source_surface VARCHAR(32) NOT NULL,
                     result_count INTEGER,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    session_hash VARCHAR(16),
+                    clicked_rank INTEGER,
+                    coverage TEXT
                 )""" );
         }
     }
@@ -122,5 +126,111 @@ class JdbcQueryLogServiceTest {
         assertDoesNotThrow( () -> new JdbcQueryLogService( broken, true, INLINE )
             .log( "q", ActorType.HUMAN, SourceSurface.API_BUNDLE, 1 ),
             "a write failure must never propagate to the retrieval path" );
+    }
+
+    // --- 6-arg form: coverage + session_hash (V051) -----------------------------------------
+
+    @Test
+    void log_sixArgForm_storesCoverageAndSessionHash() throws Exception {
+        new JdbcQueryLogService( ds, true, INLINE )
+            .log( "how do I deploy locally", ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, 0,
+                  "weak", "0123456789abcdef" );
+
+        try ( Connection c = ds.getConnection(); Statement s = c.createStatement();
+              ResultSet rs = s.executeQuery(
+                  "SELECT coverage, session_hash FROM retrieval_query_log" ) ) {
+            assertTrue( rs.next(), "a row was written" );
+            assertEquals( "weak", rs.getString( "coverage" ) );
+            assertEquals( "0123456789abcdef", rs.getString( "session_hash" ) );
+        }
+    }
+
+    @Test
+    void log_sixArgForm_storesNullCoverageAndSessionHash_whenNotSupplied() throws Exception {
+        new JdbcQueryLogService( ds, true, INLINE )
+            .log( "q", ActorType.HUMAN, SourceSurface.API_SEARCH, 5, null, null );
+
+        try ( Connection c = ds.getConnection(); Statement s = c.createStatement();
+              ResultSet rs = s.executeQuery(
+                  "SELECT coverage, session_hash FROM retrieval_query_log" ) ) {
+            assertTrue( rs.next() );
+            rs.getString( "coverage" );
+            assertTrue( rs.wasNull(), "coverage stays SQL NULL when the caller has no bundle" );
+            rs.getString( "session_hash" );
+            assertTrue( rs.wasNull(), "session_hash stays SQL NULL when the caller has no session (agent surfaces)" );
+        }
+    }
+
+    @Test
+    void log_fourArgForm_stillStoresNullCoverageAndSessionHash() throws Exception {
+        // Old callers (unchanged 4-arg call sites) must keep behaving exactly as before: the two
+        // new columns simply default to NULL, they don't need to know the columns exist.
+        new JdbcQueryLogService( ds, true, INLINE )
+            .log( "deploy", ActorType.HUMAN, SourceSurface.API_BUNDLE, 2 );
+
+        try ( Connection c = ds.getConnection(); Statement s = c.createStatement();
+              ResultSet rs = s.executeQuery(
+                  "SELECT query_text, coverage, session_hash FROM retrieval_query_log" ) ) {
+            assertTrue( rs.next() );
+            assertEquals( "deploy", rs.getString( "query_text" ) );
+            rs.getString( "coverage" );
+            assertTrue( rs.wasNull() );
+            rs.getString( "session_hash" );
+            assertTrue( rs.wasNull() );
+        }
+    }
+
+    @Test
+    void log_sixArgForm_isNoOp_whenDisabled() throws Exception {
+        new JdbcQueryLogService( ds, false, INLINE )
+            .log( "q", ActorType.AGENT, SourceSurface.API_SEARCH, 3, "strong", "sesh" );
+        assertEquals( 0, count() );
+    }
+
+    @Test
+    void log_sixArgForm_failsOpen_onSqlError() throws Exception {
+        final DataSource broken = mock( DataSource.class );
+        when( broken.getConnection() ).thenThrow( new SQLException( "no connection" ) );
+        assertDoesNotThrow( () -> new JdbcQueryLogService( broken, true, INLINE )
+            .log( "q", ActorType.HUMAN, SourceSurface.API_BUNDLE, 1, "partial", "sesh" ),
+            "a write failure on the 6-arg form must never propagate to the retrieval path" );
+    }
+
+    // --- recordClick (in-memory H2 dispatch/guard behavior; the real UPDATE syntax is only
+    //     verified against Postgres — see JdbcQueryLogServicePostgresTest) --------------------
+
+    @Test
+    void recordClick_isNoOp_whenDisabled() throws Exception {
+        insertRawRow( "deploy", "sesh1" );
+        new JdbcQueryLogService( ds, false, INLINE ).recordClick( "sesh1", "deploy", 3 );
+
+        try ( Connection c = ds.getConnection(); Statement s = c.createStatement();
+              ResultSet rs = s.executeQuery( "SELECT clicked_rank FROM retrieval_query_log" ) ) {
+            assertTrue( rs.next() );
+            rs.getInt( "clicked_rank" );
+            assertTrue( rs.wasNull(), "disabled service must not touch clicked_rank" );
+        }
+    }
+
+    @Test
+    void recordClick_isNoOp_onBlankOrNullSessionOrQuery() throws Exception {
+        final JdbcQueryLogService svc = new JdbcQueryLogService( ds, true, INLINE );
+        assertDoesNotThrow( () -> {
+            svc.recordClick( null, "deploy", 1 );
+            svc.recordClick( "  ", "deploy", 1 );
+            svc.recordClick( "sesh1", null, 1 );
+            svc.recordClick( "sesh1", "  ", 1 );
+        } );
+    }
+
+    private void insertRawRow( final String query, final String sessionHash ) throws Exception {
+        try ( Connection c = ds.getConnection();
+              PreparedStatement ps = c.prepareStatement(
+                  "INSERT INTO retrieval_query_log (query_text, actor_type, source_surface, session_hash) "
+                  + "VALUES (?, 'human', 'api_search', ?)" ) ) {
+            ps.setString( 1, query );
+            ps.setString( 2, sessionHash );
+            ps.executeUpdate();
+        }
     }
 }

@@ -55,7 +55,9 @@ export default function SearchOverlay({ onClose }) {
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
-        const data = await api.search(query);
+        // Incremental search-as-you-type — must not be logged as a submitted query (see
+        // api.search's `typeahead` option).
+        const data = await api.search(query, 20, { typeahead: true });
         setResultsSync(data.results || []);
         setFocusedSync(-1);
       } catch {

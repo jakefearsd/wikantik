@@ -87,6 +87,44 @@ public class JdbcInsightsStore implements InsightsStore {
     /** Marks the page-rollup row -- see {@link VisibilityRow} for why it is authoritative. */
     private static final String PAGE_ROLLUP_QUERY_TEXT = "";
 
+    private static final String INSERT_CHANGE_SQL = """
+        INSERT INTO content_change_log
+            (page_path, change_type, opportunity_type, applied_by, note,
+             baseline_start, baseline_end, baseline_impressions, baseline_clicks,
+             baseline_ctr, baseline_position)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        RETURNING id
+        """;
+
+    // applied_at is TIMESTAMPTZ; cutoff is a caller-supplied LocalDate (the nightly evaluator
+    // passes today - 28 days per design §7.4.2), so the comparison casts to date rather than
+    // requiring the caller to reason about time-of-day.
+    private static final String UNEVALUATED_CHANGES_SQL = """
+        SELECT id, page_path, change_type, opportunity_type, applied_at, applied_by, note,
+               baseline_start, baseline_end, baseline_impressions, baseline_clicks,
+               baseline_ctr, baseline_position
+        FROM content_change_log
+        WHERE evaluated_at IS NULL AND applied_at::date <= ?
+        ORDER BY applied_at ASC
+        """;
+
+    private static final String SNOOZE_UPSERT_SQL = """
+        INSERT INTO content_opportunity_snooze
+            (opportunity_type, target, snoozed_until, reason, snoozed_by)
+        VALUES (?,?,?,?,?)
+        ON CONFLICT (opportunity_type, target)
+        DO UPDATE SET snoozed_until = EXCLUDED.snoozed_until,
+                      reason        = EXCLUDED.reason,
+                      snoozed_by    = EXCLUDED.snoozed_by,
+                      created_at    = NOW()
+        """;
+
+    private static final String ACTIVE_SNOOZES_SQL = """
+        SELECT opportunity_type, target, snoozed_until, reason, snoozed_by
+        FROM content_opportunity_snooze
+        WHERE snoozed_until >= ?
+        """;
+
     private final DataSource dataSource;
 
     /**
@@ -203,5 +241,126 @@ public class JdbcInsightsStore implements InsightsStore {
             throw new IllegalStateException( "visibility trend query failed", e );
         }
         return out;
+    }
+
+    @Override
+    public Optional<Long> recordChange( final ContentChange change ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( INSERT_CHANGE_SQL ) ) {
+            ps.setString( 1, change.pagePath() );
+            ps.setString( 2, change.changeType() );
+            setNullableString( ps, 3, change.opportunityType() );
+            ps.setString( 4, change.appliedBy() );
+            setNullableString( ps, 5, change.note() );
+            ps.setDate( 6, Date.valueOf( change.baselineStart() ) );
+            ps.setDate( 7, Date.valueOf( change.baselineEnd() ) );
+            ps.setInt( 8, change.baselineImpressions() );
+            ps.setInt( 9, change.baselineClicks() );
+            setNullableDouble( ps, 10, change.baselineCtr() );
+            setNullableDouble( ps, 11, change.baselinePosition() );
+
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() ? Optional.of( rs.getLong( "id" ) ) : Optional.empty();
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to record content change for page {}: {}",
+                    change.pagePath(), e.getMessage(), e );
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public List<PendingChange> unevaluatedChanges( final LocalDate cutoff ) {
+        final List<PendingChange> out = new ArrayList<>();
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( UNEVALUATED_CHANGES_SQL ) ) {
+            ps.setDate( 1, Date.valueOf( cutoff ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) {
+                    out.add( new PendingChange(
+                            rs.getLong( "id" ),
+                            rs.getString( "page_path" ),
+                            rs.getString( "change_type" ),
+                            rs.getString( "opportunity_type" ),
+                            rs.getTimestamp( "applied_at" ).toInstant(),
+                            rs.getString( "applied_by" ),
+                            rs.getString( "note" ),
+                            rs.getDate( "baseline_start" ).toLocalDate(),
+                            rs.getDate( "baseline_end" ).toLocalDate(),
+                            rs.getInt( "baseline_impressions" ),
+                            rs.getInt( "baseline_clicks" ),
+                            getNullableDouble( rs, "baseline_ctr" ),
+                            getNullableDouble( rs, "baseline_position" ) ) );
+                }
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to read unevaluated content changes at or before {}: {}",
+                    cutoff, e.getMessage(), e );
+            throw new IllegalStateException( "unevaluated content changes query failed", e );
+        }
+        return out;
+    }
+
+    @Override
+    public boolean snooze( final OpportunitySnooze snooze ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( SNOOZE_UPSERT_SQL ) ) {
+            ps.setString( 1, snooze.opportunityType() );
+            ps.setString( 2, snooze.target() );
+            ps.setDate( 3, Date.valueOf( snooze.snoozedUntil() ) );
+            ps.setString( 4, snooze.reason() );
+            ps.setString( 5, snooze.snoozedBy() );
+            return ps.executeUpdate() > 0;
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to write snooze for type={} target={}: {}",
+                    snooze.opportunityType(), snooze.target(), e.getMessage(), e );
+            return false;
+        }
+    }
+
+    @Override
+    public List<OpportunitySnooze> activeSnoozes( final LocalDate today ) {
+        final List<OpportunitySnooze> out = new ArrayList<>();
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( ACTIVE_SNOOZES_SQL ) ) {
+            ps.setDate( 1, Date.valueOf( today ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) {
+                    out.add( new OpportunitySnooze(
+                            rs.getString( "opportunity_type" ),
+                            rs.getString( "target" ),
+                            rs.getDate( "snoozed_until" ).toLocalDate(),
+                            rs.getString( "reason" ),
+                            rs.getString( "snoozed_by" ) ) );
+                }
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to read active snoozes as of {}: {}", today, e.getMessage(), e );
+            throw new IllegalStateException( "active snoozes query failed", e );
+        }
+        return out;
+    }
+
+    private static void setNullableString( final PreparedStatement ps, final int index, final String value )
+            throws SQLException {
+        if ( value == null ) {
+            ps.setNull( index, Types.VARCHAR );
+        } else {
+            ps.setString( index, value );
+        }
+    }
+
+    private static void setNullableDouble( final PreparedStatement ps, final int index, final Double value )
+            throws SQLException {
+        if ( value == null ) {
+            ps.setNull( index, Types.NUMERIC );
+        } else {
+            ps.setDouble( index, value );
+        }
+    }
+
+    private static Double getNullableDouble( final ResultSet rs, final String column ) throws SQLException {
+        final double value = rs.getDouble( column );
+        return rs.wasNull() ? null : value;
     }
 }

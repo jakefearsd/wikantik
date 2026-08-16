@@ -193,11 +193,13 @@ public class BriefingResource extends RestServletBase {
         }
 
         // Telemetry (fail-open; interfaces are contracted never to throw, never affects the
-        // response written above).
+        // response written above). coverage.confidence() is the datum the AGENT_GAP content-
+        // intelligence rule fires on (design §6.2/§7.3).
         final boolean promptPresent = prompt != null && !prompt.isBlank();
         final QueryLogService qlog = queryLogService();
         if ( qlog != null && promptPresent ) {
-            qlog.log( prompt, actorType( req ), SourceSurface.API_BRIEFING, gated.sections().size() );
+            qlog.log( prompt, actorType( req ), SourceSurface.API_BRIEFING, gated.sections().size(),
+                gated.coverage().confidence(), null );
         }
 
         final BriefingLogService blog = briefingLogService();

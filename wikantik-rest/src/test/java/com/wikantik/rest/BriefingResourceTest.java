@@ -277,6 +277,43 @@ class BriefingResourceTest {
         assertEquals( 1, entry.pointerCount() );
         assertTrue( entry.promptPresent() );
 
-        verify( qlog ).log( "deploy", ActorType.AGENT, SourceSurface.API_BRIEFING, 0 );
+        // coverage carries the briefing's post-gate confidence (BundleCoverage.empty() here since
+        // the stub ContextBriefing doesn't set one, and both items are dropped by the ACL gate
+        // -> recount() reports "unknown"); no session hash is wired for this surface.
+        verify( qlog ).log( "deploy", ActorType.AGENT, SourceSurface.API_BRIEFING, 0,
+            BundleCoverage.UNKNOWN, null );
+    }
+
+    /* (h) coverage.confidence() is passed through to the query-log call — this is the datum the
+       AGENT_GAP content-intelligence rule fires on (design §6.2/§7.3): a weak-coverage bundle is
+       a content gap a raw section count alone hides. */
+    @Test
+    void doGet_logsCoverageConfidence_whenBriefingReportsWeakCoverage() throws Exception {
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        final BriefingItem itemA = new BriefingItem( "A", "01A", "Page A", "summary a",
+                "pin", true, "content a" );
+        final ContextBriefing briefing = new ContextBriefing( "deploy", List.of(),
+                new BundleCoverage( 1, 1, 0.2, BundleCoverage.WEAK ),
+                List.of( itemA ), List.of(), 4000, 100 );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final QueryLogService qlog = mock( QueryLogService.class );
+        final BriefingResource resource = new BriefingResource() {
+            @Override protected BriefingAssemblyService briefingService() { return svc; }
+            @Override protected QueryLogService queryLogService() { return qlog; }
+            @Override protected BriefingLogService briefingLogService() { return null; }
+            @Override protected ActorType actorType( final HttpServletRequest r ) { return ActorType.HUMAN; }
+            @Override protected java.util.Set< String > filterViewable(
+                    final HttpServletRequest r, final java.util.Collection< String > names ) {
+                return new java.util.HashSet<>( names );   // A stays viewable -> coverage isn't re-thinned to empty
+            }
+        };
+        final HttpServletRequest request = req( "A", null, "deploy", null, null, null );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( request, resp );
+
+        verify( qlog ).log( "deploy", ActorType.HUMAN, SourceSurface.API_BRIEFING, 0,
+            BundleCoverage.WEAK, null );
     }
 }

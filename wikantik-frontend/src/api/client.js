@@ -188,8 +188,15 @@ export const api = {
     }),
 
   // Search
-  search: (query, limit = 20, { signal } = {}) =>
-    request(`/api/search?q=${encodeURIComponent(query)}&limit=${limit}`, { signal }),
+  // `typeahead: true` marks an incremental search-as-you-type request so the backend does not
+  // log it to the retrieval query log (only submitted searches should be logged — a single
+  // 20-character search must not write 20 rows). Submitted searches (SearchResultsPage, after
+  // Enter/click/deep-link) omit it and are logged normally.
+  search: (query, limit = 20, { signal, typeahead = false } = {}) =>
+    request(
+      `/api/search?q=${encodeURIComponent(query)}&limit=${limit}${typeahead ? '&typeahead=true' : ''}`,
+      { signal }
+    ),
 
   // History & Diff
   getHistory: (name) =>

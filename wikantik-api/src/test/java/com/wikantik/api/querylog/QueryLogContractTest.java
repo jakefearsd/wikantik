@@ -20,9 +20,44 @@ package com.wikantik.api.querylog;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class QueryLogContractTest {
+
+    /** Minimal implementation that only overrides the legacy 4-arg method, to prove the new
+     *  6-arg {@code log} default delegates to it (dropping coverage/sessionHash) rather than
+     *  requiring every existing implementer to add an override. */
+    private static final class LegacyOnlyService implements QueryLogService {
+        final List< Object > calls = new ArrayList<>();
+
+        @Override
+        public void log( final String query, final ActorType actor, final SourceSurface surface,
+                         final Integer resultCount ) {
+            calls.add( List.of( query, actor, surface, resultCount == null ? "null" : resultCount ) );
+        }
+    }
+
+    @Test
+    void sixArgLogDefault_delegatesToFourArgForm_droppingCoverageAndSessionHash() {
+        final LegacyOnlyService svc = new LegacyOnlyService();
+
+        svc.log( "deploy", ActorType.HUMAN, SourceSurface.API_BUNDLE, 3, "weak", "abc123" );
+
+        assertEquals( 1, svc.calls.size(), "the default must delegate exactly once, not drop the call" );
+        assertEquals( List.of( "deploy", ActorType.HUMAN, SourceSurface.API_BUNDLE, 3 ), svc.calls.get( 0 ) );
+    }
+
+    @Test
+    void recordClickDefault_isNoOp_neverThrows() {
+        final LegacyOnlyService svc = new LegacyOnlyService();
+        assertDoesNotThrow( () -> svc.recordClick( "abc123", "deploy", 2 ) );
+        assertTrue( svc.calls.isEmpty(), "the no-op default must not also log a row" );
+    }
 
     @Test
     void actorType_wireRoundTrips() {

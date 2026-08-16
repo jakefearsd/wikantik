@@ -330,6 +330,43 @@ describe('admin.pageOwnership methods', () => {
   });
 });
 
+// ── typeahead write-amplification fix ──────────────────────────────────────
+// The search-as-you-type box hits the same /api/search endpoint as a submitted
+// search; only submitted queries may be logged server-side. The `typeahead`
+// query param is how the client marks the difference — assert the actual URL
+// values, not just that fetch was called.
+describe('api.search typeahead marking', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn().mockResolvedValue(mockFetchResponse({ status: 200, body: { results: [] } }));
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function lastCall() {
+    return global.fetch.mock.calls[global.fetch.mock.calls.length - 1];
+  }
+
+  it('a plain call (submitted search) omits the typeahead param', async () => {
+    await api.search('deploy', 50);
+    const [url] = lastCall();
+    expect(url).toBe('/api/search?q=deploy&limit=50');
+    expect(url).not.toContain('typeahead');
+  });
+
+  it('typeahead: true appends &typeahead=true to the request URL', async () => {
+    await api.search('deploy', 20, { typeahead: true });
+    const [url] = lastCall();
+    expect(url).toBe('/api/search?q=deploy&limit=20&typeahead=true');
+  });
+
+  it('typeahead: false behaves exactly like the default (omitted)', async () => {
+    await api.search('deploy', 20, { typeahead: false });
+    const [url] = lastCall();
+    expect(url).toBe('/api/search?q=deploy&limit=20');
+  });
+});
+
 describe('api.knowledge.listProposalsFiltered', () => {
   beforeEach(() => {
     global.fetch = vi.fn();

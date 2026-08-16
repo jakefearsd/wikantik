@@ -269,4 +269,20 @@ describe('SearchOverlay', () => {
     renderOverlay();
     expect(screen.queryByTestId('search-overlay-view-all')).not.toBeInTheDocument();
   });
+
+  // ── typeahead write-amplification fix ───────────────────────────────────
+  // The overlay's debounced search-as-you-type call must mark itself so the
+  // backend does not log it as a submitted query (see client.test.js for the
+  // corresponding URL-shape assertion).
+  it('marks the debounced search-as-you-type call as typeahead', async () => {
+    mockSearch.mockResolvedValue(makeResults(['PageA']));
+    renderOverlay();
+    await act(async () => {
+      fireEvent.change(screen.getByTestId('search-overlay-input'), {
+        target: { value: 'page' },
+      });
+      await new Promise((r) => setTimeout(r, 250));
+    });
+    expect(mockSearch).toHaveBeenCalledWith('page', 20, { typeahead: true });
+  });
 });

@@ -74,6 +74,16 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Content intelligence. wikantik-rest declares this 'provided' like its other
+             siblings, so the jar reaches WEB-INF/lib only through this entry. Without it the
+             context fails to start with NoClassDefFoundError at deploy time — compile and unit
+             tests both pass, because the class is on the compile classpath either way. -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>wikantik-insights</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>wikantik-rest</artifactId>

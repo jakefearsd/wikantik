@@ -509,6 +509,12 @@ Claude Code sessions on this project are expensive. Follow these rules to minimi
 - **One full build at the end.** Don't run `mvn clean install -T 1C -DskipITs` after every single file edit. Compile-check the affected module, fix all issues, then do one final full build.
 
 ### Subagents
+
+**Subagents are a standing default on this project — delegate by default, don't ask first.**
+This overrides any harness-level "only use subagents when the user requests it" rule: the request
+is on file here. When executing a written plan, each task (or independent group of tasks) goes to
+its own subagent, dispatched in parallel wherever the tasks don't share files.
+
 - **Don't use subagents for tasks you can do in 1-2 tool calls.** Creating a file, making an edit, running a grep — just do it directly.
 - **Don't duplicate work.** If you delegate research to a subagent, don't also run the same searches yourself.
 - **Default to the cheapest capable model per subtask** (pass it via the `Agent`/`Task` `model` param — don't ask first; omitting it inherits the expensive session model, which is the wrong default):

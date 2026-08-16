@@ -6,6 +6,68 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **npm supply-chain hardening.** The shipped WAR now builds the frontend with
+  `npm ci --ignore-scripts` rather than `npm install`, so the bundle is installed
+  from `package-lock.json` exactly. `npm install` re-resolved every caret range at
+  build time across 406 transitive packages, meaning a malicious patch release
+  published after the last lockfile update would be pulled silently into the
+  production bundle — and CI already used `npm ci`, so the tree that was *tested*
+  was not guaranteed to be the tree that *shipped*. The build step is now
+  `npm run build` instead of `npx vite build`, because `npx` silently downloads
+  from the registry when it cannot resolve a package locally.
+- `wikantik-frontend/.npmrc`: `ignore-scripts` (the install-time RCE vector; only
+  `fsevents` declares one here, dev/macOS-only), an explicit `registry=` pin so a
+  stray environment variable cannot redirect resolution, and `audit-level=high`.
+- Dependabot now covers **npm** as well as maven — the 406-package frontend tree
+  previously received no automated vulnerability PRs at all, on the more actively
+  attacked of the two registries.
+- `quality-gates.yml` runs `npm audit signatures`, `npm audit`, and asserts the
+  install did not rewrite the lockfile. These run on push to main, which is the
+  path this repo actually uses; `dependency-review.yml` is pull_request-only and
+  so only ever sees Dependabot's PRs.
+
+### Changed
+- Dependency sweep to latest stable: anthropic-java 2.54.0, archunit 1.5.0,
+  commons-collections 4.6.0, junit 6.1.3, lucene 10.5.1, nekohtml 3.0.4,
+  docker-maven-plugin 0.49.0, jackson3 3.2.2, selenium 4.47.0,
+  crawler-commons 1.6, and `@testing-library/jest-dom` 6 → 7 plus seven frontend
+  patch bumps. katex is held at 0.16 (rehype-katex hard-depends on `^0.16.0`;
+  taking 0.18 would bundle two katex copies and split editor/reader math
+  rendering) and the junrar 8.x major is held (Tika 3.3.2 targets 7.6.0).
+- **Browser integration tests now run headless by default.** Four headed Chrome
+  instances contending for one compositor — with Chrome throttling unpainted
+  windows — was a standing source of timing flakiness under parallel ITs.
+
+### Fixed
+- **junrar 7.6.1** — carries "prevent directory creation outside target
+  directory", a path-traversal fix in the RAR parser Tika uses, which is
+  reachable from `POST /api/ingest` and the connector ingestion path.
+- **Anonymous Docker volume leaked per integration-test container.** The
+  postgres/pgvector images declare `VOLUME /var/lib/postgresql/data`, so Docker
+  auto-creates a volume per container; it carries no reapable label and dies only
+  with `docker rm -v`, which nothing in the test path passed. On the development
+  machine this had accumulated 3,345 volumes / 169GB. Fixed at all four sites, and
+  `fulltestsuite.sh` no longer force-removes *every* pgvector container on the
+  host (it matched `ancestor=`, killing other projects' live testcontainers).
+- **Three intermittent gate failures, root-caused rather than retried.**
+  `TestEngine` deleted its work directory while a Lucene indexer was still
+  writing to it (engine shutdown only *requests* that a background thread stop),
+  which orphaned indexers that then starved later tests; `WikiBackgroundThread`
+  now wakes a sleeping thread on shutdown so this costs 27ms rather than 1s per
+  engine. `KnowledgeTabIT`'s two "panel ready" guards were both ineffective —
+  Selenide's `shouldNot(exist)` passes vacuously before an element mounts, and
+  `[class*=kg-panel-]` is a substring match that also matches the
+  `kg-panel-loading` placeholder. `KnowledgeGraphNavDisabledIT` asserted a
+  negative against a deliberately fail-open capabilities UI on too tight a budget.
+- Documentation reconciled against code truth across the repo, the marketing site
+  and the module site docs: MCP tool counts (admin 26 → 27), connector counts
+  (documented as six while listing seven; six are admin-creatable), migration
+  range (V001..V049), plus removal of three documented-but-nonexistent things
+  (`get_cluster`, `traverse_relations`, and two KG "Missing/Low-Plausibility
+  Edges" features) and a `jspwiki.plugin.searchPath` property that silently
+  no-ops.
+
 ## [2.4.2] - 2026-08-16
 
 ### Added

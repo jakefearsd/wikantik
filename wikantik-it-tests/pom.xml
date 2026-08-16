@@ -201,7 +201,14 @@
                   <it-wikantik.base.url>http://localhost:${it.wikantik.servlet.port}/${it-wikantik.context}</it-wikantik.base.url>
                   <it-wikantik.config.browser-size>1366x768</it-wikantik.config.browser-size>
                   <it-wikantik.config.download-folder>./target/downloads</it-wikantik.config.download-folder>
-                  <it-wikantik.config.headless>false</it-wikantik.config.headless>
+                  <!-- Headless by default. Four IT modules run concurrently under
+                       bin/run-tests.sh with parallel IT modules; four HEADED Chrome instances then
+                       contend for one compositor/X server, and a browser window that is
+                       occluded or unpainted has its rendering and timers throttled by
+                       Chrome. That is a standing source of timing flakiness in the
+                       Selenide suite. Override with -Dit-wikantik.config.headless=false
+                       when you need to watch a test run. -->
+                  <it-wikantik.config.headless>true</it-wikantik.config.headless>
                   <it-wikantik.config.reports-folder>${project.basedir}/target/selenide</it-wikantik.config.reports-folder>
                   <it-wikantik.config.wdm.target-path>${project.basedir}/target/wdm</it-wikantik.config.wdm.target-path>
                   <it-wikantik.login.janne.username>janne</it-wikantik.login.janne.username>

@@ -58,8 +58,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.AbstractMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  *  Simple test engine that always assumes pages are found.
@@ -291,8 +294,61 @@ public class TestEngine extends WikiEngine {
     @Override
     public void shutdown() {
         super.shutdown();
+        // MUST come before the directory wipes. Engine shutdown only *requests* that
+        // WikiBackgroundThreads stop — WikiBackgroundThread.shutdown() sets a killMe
+        // flag and returns ("the shutdown is not immediate"). Deleting the work dir
+        // straight afterwards yanks it out from under a thread that is still running,
+        // which is why passing runs still logged
+        // `NoSuchFileException: .../lucene/write.lock`.
+        //
+        // The leak matters beyond the noise: a test class that builds several engines
+        // (e.g. PluginCoverageTest$SearchPluginTests, five @Tests each calling
+        // initEngine() with wikantik.lucene.indexdelay=0) accumulates orphaned Lucene
+        // indexers that spin for the rest of the fork. Under `-T 1C` the box is
+        // saturated, the orphans starve the *current* test's indexer, and the 10s
+        // await for search results expires — an intermittent failure that reproduces
+        // only under parallel load.
+        awaitBackgroundThreadsStopped();
         TestEngine.emptyWikiDir( getWikiProperties() );
         TestEngine.emptyWorkDir( getWikiProperties() );
+    }
+
+    /**
+     * Blocks until this engine's {@link WikiBackgroundThread}s have actually died, so
+     * the caller can safely delete the directories they were writing to. Scoped to
+     * <em>this</em> engine ({@link WikiBackgroundThread#getEngine()}) — other tests'
+     * engines may legitimately still be running in the same JVM fork.
+     *
+     * <p>Bounded, and deliberately non-fatal on expiry: a stuck background thread must
+     * not convert one test's problem into a hang. It warns instead, which is a far
+     * better signal than the silent directory race it replaces.
+     */
+    private void awaitBackgroundThreadsStopped() {
+        final long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos( 10 );
+        while( System.nanoTime() < deadlineNanos ) {
+            if( liveBackgroundThreads().isEmpty() ) {
+                return;
+            }
+            try {
+                Thread.sleep( 25 );
+            } catch( final InterruptedException e ) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+        LOG.warn( "TestEngine.shutdown: background threads still alive after 10s, "
+                  + "wiping work dir anyway (expect NoSuchFileException noise): {}",
+                  liveBackgroundThreads() );
+    }
+
+    /** Names of this engine's still-live background threads; empty once all have died. */
+    private List< String > liveBackgroundThreads() {
+        return Thread.getAllStackTraces().keySet().stream()
+                     .filter( WikiBackgroundThread.class::isInstance )
+                     .map( WikiBackgroundThread.class::cast )
+                     .filter( t -> t.isAlive() && t.getEngine() == this )
+                     .map( Thread::getName )
+                     .collect( Collectors.toList() );
     }
 
     public static void emptyWorkDir() {

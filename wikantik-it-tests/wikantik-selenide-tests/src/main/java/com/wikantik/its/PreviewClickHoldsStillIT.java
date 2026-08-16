@@ -261,11 +261,12 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
                 // unaligned. Bounded by a wall-clock deadline so a starved run measures
                 // late rather than hanging.
                 //
-                // setTimeout drives the loop, NOT requestAnimationFrame. These ITs run a
-                // real (non-headless) browser by default (it-wikantik.config.headless=false)
-                // and Chrome suspends rAF entirely for a window it is not painting —
-                // occluded, minimised, or an idle desktop. With rAF the callback was never
+                // setTimeout drives the loop, NOT requestAnimationFrame. Chrome suspends
+                // rAF for any window it is not painting — occluded, minimised, an idle
+                // desktop, and likewise in headless. With rAF the callback was never
                 // reached on an unattended machine and the test burned its 120s timeout.
+                // setTimeout is correct in BOTH modes, so this survived the switch to
+                // headless-by-default; do not "modernise" it to rAF.
                 const deadline = Date.now() + 5000;
                 let lastScroll = null;
                 let stableFor  = 0;

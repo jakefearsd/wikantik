@@ -60,12 +60,23 @@ class KnowledgeGraphNavDisabledIT extends WithIntegrationTestSetup {
      * "Knowledge Graph" link when the subsystem is off — that section has no
      * role gate, so this is checkable pre-login.
      */
+    /** Budget for the fail-open /api/capabilities round trip to land and prune
+     *  capability-gated nav. Matches the 15s used elsewhere in this class. */
+    private static final Duration CAPABILITIES_WAIT = Duration.ofSeconds( 15 );
+
     @Test
     @Order( 1 )
     void readerSidebar_hasNoKnowledgeGraphLink() {
         ViewWikiPage.open( "Main" );
+        // CAPABILITIES_WAIT, not Selenide's 4s default. useCapabilities is
+        // deliberately FAIL-OPEN (knowledgeGraph defaults to true so a failed
+        // /api/capabilities fetch never hides features), so the sidebar renders
+        // this link immediately and drops it only once capabilities resolve.
+        // "The link is gone" is therefore the correct condition to poll — it is
+        // the 4s budget that is wrong, because that round trip competes with three
+        // other IT modules. Do not weaken this to a bare shouldNot(exist).
         $$( "a.sidebar-link" ).findBy( exactText( "Knowledge Graph" ) )
-                .shouldNot( exist );
+                .shouldNot( exist, CAPABILITIES_WAIT );
     }
 
     /**
@@ -78,8 +89,9 @@ class KnowledgeGraphNavDisabledIT extends WithIntegrationTestSetup {
         ViewWikiPage.open( "Main" )
                 .clickOnLogin()
                 .performLogin( Env.LOGIN_JANNE_USERNAME, Env.LOGIN_JANNE_PASSWORD );
+        // Same fail-open capabilities race as above.
         $$( "a.sidebar-link" ).findBy( exactText( "Knowledge Graph" ) )
-                .shouldNot( exist );
+                .shouldNot( exist, CAPABILITIES_WAIT );
     }
 
     /**

@@ -32,7 +32,11 @@ public class Env {
     /** Selenide tests download's folder. Default value is {@code ./target/downloads}. */
     public static final String TESTS_CONFIG_DOWNLOADS_FOLDER = System.getProperty( "it-wikantik.config.download-folder", "./target/downloads" );
     
-    /** Should the browser start on headless mode? Only for Firefox / Chrome. Default value is {@code false}. */
+    /** Should the browser start on headless mode? Only for Firefox / Chrome.
+     *  Defaults to {@code false} here, but the IT poms set it to {@code true} —
+     *  concurrent IT modules would otherwise run several headed Chromes against one
+     *  compositor, whose throttling of unpainted windows is a standing flakiness
+     *  source. Pass {@code -Dit-wikantik.config.headless=false} to watch a run. */
     public static final boolean TESTS_CONFIG_HEADLESS = Boolean.parseBoolean( System.getProperty( "it-wikantik.config.headless", "false" ) );
 
     /** Selenide tests reports' folder. Default value is {@code ./target/selenide}. */

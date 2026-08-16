@@ -66,7 +66,24 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
         if ( event instanceof WikiEngineEvent engineEvent
                 && engineEvent.getType() == WikiEngineEvent.SHUTDOWN ) {
             LOG.info( "Detected wiki engine shutdown: killing {}.", getName() );
-            killMe = true;
+            requestStop();
+        }
+    }
+
+    /**
+     *  Marks this thread for death and, where it is parked in the run loop's polling sleep,
+     *  wakes it so it observes the flag now rather than up to {@code POLLING_INTERVAL} later.
+     *
+     *  <p>The interrupt is guarded on {@link Thread.State#TIMED_WAITING} on purpose: a thread
+     *  inside {@code backgroundTask()} is doing real work — a Lucene write, say — and aborting
+     *  that to save at most one interval is a bad trade. The run loop already treats
+     *  {@code InterruptedException} as a shutdown signal and still runs {@code shutdownTask()},
+     *  so waking a sleeper is safe.
+     */
+    private void requestStop() {
+        killMe = true;
+        if( getState() == Thread.State.TIMED_WAITING ) {
+            interrupt();
         }
     }
     
@@ -87,12 +104,15 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
     }
     
     /**
-     *  Requests the shutdown of this background thread.  Note that the shutdown is not immediate.
+     *  Requests the shutdown of this background thread. Note that the shutdown is not
+     *  immediate: a thread busy in {@code backgroundTask()} finishes that work first.
+     *  See {@link #requestStop()} for why a sleeping thread is woken but a working one
+     *  is not.
      *
      *  @since 2.4.92
      */
     public void shutdown() {
-        killMe = true;
+        requestStop();
     }
 
     /**

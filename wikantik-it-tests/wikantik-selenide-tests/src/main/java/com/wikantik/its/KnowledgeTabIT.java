@@ -108,26 +108,37 @@ public class KnowledgeTabIT extends WithIntegrationTestSetup {
                 .shouldBe( visible, ASYNC_WAIT )
                 .click();
 
-        // Ensure the panel finished its async entity-load before interacting.
-        // Accepting .kg-panel-loading here was a race: text typed into the
-        // add-entity row while loading is wiped when the load resolves and the
-        // row re-renders — leaving the Add button correctly disabled and the
-        // click timing out.
-        $( ".kg-panel-loading" ).shouldNot( Condition.exist, ASYNC_WAIT );
-        $( "[class*=kg-panel-], .kg-panel-empty" )
-                .shouldBe( visible, ASYNC_WAIT );
+        // Wait for the LOADED panel, not merely "some kg-panel-ish element".
+        //
+        // The previous pair of guards could both pass before the panel had even
+        // started loading, which is what made this test flaky under --parallel 4:
+        //
+        //   $(".kg-panel-loading").shouldNot(exist)  — Selenide's shouldNot(exist)
+        //     is satisfied immediately by an element that is ABSENT, and clicking
+        //     the tab mounts the panel a tick later. So this passed vacuously,
+        //     before the loading placeholder had been rendered at all.
+        //
+        //   $("[class*=kg-panel-]")                  — [class*=…] is a SUBSTRING
+        //     match, and the loading placeholder's own class is `kg-panel-loading`.
+        //     So "the panel is visible" was satisfied by the loading placeholder.
+        //
+        // KnowledgeGraphPanel early-returns <div class="kg-panel-loading"> while
+        // loading and <div class="kg-panel"> once loaded, so the exact class
+        // `kg-panel` is the one signal that means "load finished". It is present
+        // for the empty case too — the empty state renders inside it.
+        $( ".kg-panel" ).shouldBe( visible, ASYNC_WAIT );
 
         // Add the technology entity.
         addEntity( TECH_NAME, "technology" );
 
         // The entity name must appear in the panel after the add.
-        $( "[class*=kg-panel-]" )
+        $( ".kg-panel" )
                 .shouldHave( text( TECH_NAME ), ASYNC_WAIT );
 
         // Add the concept entity.
         addEntity( CONCEPT_NAME, "concept" );
 
-        $( "[class*=kg-panel-]" )
+        $( ".kg-panel" )
                 .shouldHave( text( CONCEPT_NAME ), ASYNC_WAIT );
 
         // Add a conformant relation: implements (technology → concept).
@@ -139,7 +150,7 @@ public class KnowledgeTabIT extends WithIntegrationTestSetup {
                 .shouldNot( Condition.exist, ASYNC_WAIT );
 
         // A relation row referencing TECH_NAME must appear in the panel.
-        $( "[class*=kg-panel-]" )
+        $( ".kg-panel" )
                 .shouldHave( text( TECH_NAME ), ASYNC_WAIT );
 
         // Cancel to leave the fixture body unmodified.
@@ -178,8 +189,10 @@ public class KnowledgeTabIT extends WithIntegrationTestSetup {
                 .shouldBe( visible, ASYNC_WAIT )
                 .click();
 
-        $( "[class*=kg-panel-], .kg-panel-empty, .kg-panel-loading" )
-                .shouldBe( visible, ASYNC_WAIT );
+        // Loaded panel only — see addEntitiesAndConformantRelation for why
+        // [class*=kg-panel-] is not a "loaded" signal (it matches kg-panel-loading).
+        // This test drives the edge form, which exists only after the load settles.
+        $( ".kg-panel" ).shouldBe( visible, ASYNC_WAIT );
 
         // Attempt a non-conformant relation: implements with concept as source.
         // The SHACL shape constrains implements' domain to technology; concept
@@ -203,9 +216,19 @@ public class KnowledgeTabIT extends WithIntegrationTestSetup {
      * Selects by stable {@code data-testid} attributes set on the panel controls.
      */
     private static void addEntity( final String name, final String type ) {
-        // Set the name input using the native value setter so React's onChange fires.
         final var nameInput = $( "[data-testid=kg-add-entity-name]" )
-                .shouldBe( visible, Duration.ofSeconds( 5 ) );
+                .shouldBe( visible, ASYNC_WAIT );
+
+        // Wait for the row to be idle before typing. handleAddEntity() clears
+        // newEntityName *asynchronously* (await upsertEntity → setNewEntityName('')
+        // → await fetchSlice()), so a second addEntity() call can inject its value
+        // into an input whose pending reset has not flushed yet. React then applies
+        // the reset, wipes what we just typed, and the Add button stays correctly
+        // disabled — surfacing as "Element should be enabled" with no clue why.
+        // An empty input is the precise signal that the previous add has settled.
+        nameInput.shouldHave( Condition.exactValue( "" ), ASYNC_WAIT );
+
+        // Set the name using the native value setter so React's onChange fires.
         Selenide.executeJavaScript(
             "var el = arguments[0];"
             + " var desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');"
@@ -213,19 +236,23 @@ public class KnowledgeTabIT extends WithIntegrationTestSetup {
             + " el.dispatchEvent(new Event('input', { bubbles: true }));",
             nameInput, name );
 
+        // Assert the value actually reached React state before going near the
+        // button. The button's disabled attribute is derived purely from
+        // !newEntityName.trim(), so without this the failure message is the
+        // uninformative "element should be enabled"; with it, a failure reports
+        // what the input really contains.
+        nameInput.shouldHave( Condition.exactValue( name ), ASYNC_WAIT );
+
         // Select the entity type.
         $( "[data-testid=kg-add-entity-type]" ).selectOptionContainingText( type );
 
-        // Click the Add button — waiting for enabled first proves React has
-        // processed the injected input event (the button is disabled while
-        // newEntityName is empty).
         $( "[data-testid=kg-add-entity-btn]" )
-                .shouldBe( visible, Duration.ofSeconds( 5 ) )
-                .shouldBe( Condition.enabled, Duration.ofSeconds( 5 ) )
+                .shouldBe( visible, ASYNC_WAIT )
+                .shouldBe( Condition.enabled, ASYNC_WAIT )
                 .click();
 
         // Wait for the entity to appear in the list.
-        $( "[class*=kg-panel-]" ).shouldHave( text( name ), Duration.ofSeconds( 10 ) );
+        $( ".kg-panel" ).shouldHave( text( name ), Duration.ofSeconds( 10 ) );
     }
 
     /**

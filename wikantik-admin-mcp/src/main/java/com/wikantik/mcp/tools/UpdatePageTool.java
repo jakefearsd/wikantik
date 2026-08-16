@@ -37,6 +37,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,6 +96,16 @@ public class UpdatePageTool extends DefaultAuthorTool {
                         "summary", "BM25 + dense + KG rerank, fail-closed BM25 fallback.",
                         "tags", List.of( "retrieval", "search" )
                 ) )
+        ) );
+        properties.put( "removeKeys", Map.of(
+                "type", "array",
+                "items", Map.of( "type", "string" ),
+                "description", "Frontmatter keys to DELETE from the page. The metadata merge can "
+                        + "only add or overwrite fields, so this is the only way to retire one. "
+                        + "Applied after the merge, so a single call can set one field and remove "
+                        + "another. Keys the page does not have are ignored. 'canonical_id' cannot "
+                        + "be removed — it is the page's rename-stable identity.",
+                "examples", List.of( List.of( "hubs" ) )
         ) );
         properties.put( "expectedContentHash", Map.of(
                 "type", "string",
@@ -210,10 +221,28 @@ public class UpdatePageTool extends DefaultAuthorTool {
             final Map< String, Object > metadata = arguments.get( "metadata" ) instanceof Map< ?, ? >
                 ? (Map< String, Object >) arguments.get( "metadata" ) : null;
 
-            if ( content == null && metadata == null ) {
+            final List< String > removeKeys = new ArrayList<>();
+            if ( arguments.get( "removeKeys" ) instanceof Iterable< ? > raw ) {
+                for ( final Object key : raw ) {
+                    if ( key != null && !key.toString().isBlank() ) {
+                        removeKeys.add( key.toString().trim() );
+                    }
+                }
+            }
+            // canonical_id is the page's rename-stable identity. Removing it would make the
+            // save-time filter mint a fresh one, orphaning the page's history and every citation
+            // pinned to it — so refuse rather than let an agent do that by accident.
+            if ( removeKeys.contains( "canonical_id" ) ) {
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                    "provide content (the new body) and/or metadata (frontmatter fields to merge) — "
-                        + "nothing to update" );
+                    "removeKeys cannot remove 'canonical_id'",
+                    "canonical_id is the page's stable identity across renames; dropping it would "
+                        + "orphan the page's history. Remove the other keys and leave it in place." );
+            }
+
+            if ( content == null && metadata == null && removeKeys.isEmpty() ) {
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
+                    "provide content (the new body), metadata (frontmatter fields to merge), "
+                        + "and/or removeKeys (frontmatter fields to delete) — nothing to update" );
             }
 
             // Parse the page's CURRENT frontmatter + body once. update_page is merge-by-default:
@@ -262,6 +291,11 @@ public class UpdatePageTool extends DefaultAuthorTool {
             // Every existing field the caller did not touch is preserved.
             final Map< String, Object > mergedMetadata = new LinkedHashMap<>( existingParsed.metadata() );
             mergedMetadata.putAll( normalized.metadata() );
+            // Removal runs AFTER the merge so one call can set one field and retire another,
+            // and so an explicitly-removed key cannot be resurrected by the existing frontmatter.
+            for ( final String key : removeKeys ) {
+                mergedMetadata.remove( key );
+            }
             final boolean hasMetadata = !mergedMetadata.isEmpty();
 
             FrontmatterWarningSink.clear();

@@ -226,6 +226,117 @@ class UpdatePageToolTest {
             opts.getValue().metadata().get( "summary" ), "summary added" );
     }
 
+    // --- removeKeys: retiring a frontmatter field -------------------------------------------
+    // The merge is otherwise unconditional (existing frontmatter is always the base), so
+    // without this there is no way to retire a field through the MCP surface at all.
+
+    @Test
+    void execute_removeKeysDeletesTheField() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 3 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        final String current = "---\ntitle: T\ncluster: c\nhubs:\n- MLHub\n---\nbody";
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( current );
+
+        final ArgumentCaptor< SaveOptions > opts = ArgumentCaptor.forClass( SaveOptions.class );
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
+        tool.execute( Map.of( "slug", "P", "removeKeys", List.of( "hubs" ),
+            "expectedContentHash", McpToolUtils.computeContentHash( current ) ) );
+
+        verify( helper ).saveText( eq( "P" ), anyString(), opts.capture() );
+        assertFalse( opts.getValue().metadata().containsKey( "hubs" ), "hubs must be gone" );
+        assertEquals( "T", opts.getValue().metadata().get( "title" ), "untouched fields preserved" );
+        assertEquals( "c", opts.getValue().metadata().get( "cluster" ) );
+    }
+
+    /** Removal must win over the merge, so one call can both set a field and retire another. */
+    @Test
+    void execute_removeKeysAppliesAfterTheMetadataMerge() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 3 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        final String current = "---\ntitle: T\ncluster: c\nhubs:\n- MLHub\n---\nbody";
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( current );
+
+        final ArgumentCaptor< SaveOptions > opts = ArgumentCaptor.forClass( SaveOptions.class );
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
+        tool.execute( Map.of( "slug", "P",
+            "metadata", Map.of( "cluster", List.of( "c", "second" ) ),
+            "removeKeys", List.of( "hubs" ),
+            "expectedContentHash", McpToolUtils.computeContentHash( current ) ) );
+
+        verify( helper ).saveText( eq( "P" ), anyString(), opts.capture() );
+        assertFalse( opts.getValue().metadata().containsKey( "hubs" ) );
+        assertEquals( List.of( "c", "second" ), opts.getValue().metadata().get( "cluster" ) );
+    }
+
+    /**
+     * canonical_id is the page's rename-stable identity. Removing it would make the save-time
+     * filter mint a fresh one, silently orphaning the page's history and every citation
+     * pinned to it — so the tool refuses rather than letting an agent do that by accident.
+     */
+    @Test
+    void execute_removeKeysRefusesCanonicalId() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 3 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        final String current = "---\ncanonical_id: 01HAA000000000000000000000\ntitle: T\n---\nbody";
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( current );
+
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slug", "P",
+            "removeKeys", List.of( "canonical_id" ),
+            "expectedContentHash", McpToolUtils.computeContentHash( current ) ) );
+
+        final String text = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "canonical_id" ), "the refusal must name the key: " + text );
+        verify( helper, never() ).saveText( anyString(), anyString(), any() );
+    }
+
+    /** Retiring a field the page never had is a no-op, not an error. */
+    @Test
+    void execute_removeKeysIgnoresAbsentFields() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 3 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        final String current = "---\ntitle: T\n---\nbody";
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( current );
+
+        final ArgumentCaptor< SaveOptions > opts = ArgumentCaptor.forClass( SaveOptions.class );
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
+        tool.execute( Map.of( "slug", "P", "removeKeys", List.of( "hubs" ),
+            "expectedContentHash", McpToolUtils.computeContentHash( current ) ) );
+
+        verify( helper ).saveText( eq( "P" ), anyString(), opts.capture() );
+        assertEquals( "T", opts.getValue().metadata().get( "title" ) );
+    }
+
+    /** removeKeys alone is a legitimate edit — it must not trip the "nothing to do" guard. */
+    @Test
+    void execute_removeKeysAloneIsAValidEdit() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 3 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        final String current = "---\ntitle: T\nhubs:\n- MLHub\n---\nbody";
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( current );
+
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
+        tool.execute( Map.of( "slug", "P", "removeKeys", List.of( "hubs" ),
+            "expectedContentHash", McpToolUtils.computeContentHash( current ) ) );
+
+        verify( helper ).saveText( eq( "P" ), anyString(), any() );
+    }
+
     @Test
     void execute_errorsWhenNeitherContentNorMetadata() throws Exception {
         final PageManager pm = mock( PageManager.class );

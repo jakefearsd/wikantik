@@ -66,7 +66,8 @@ update_page(slug, metadata={ summary: "…" }, expectedContentHash=<hash>)
 update_page(slug, content="<new body>", expectedContentHash=<hash>)
 ```
 `metadata` merges onto the existing frontmatter (untouched fields preserved); `content` replaces the
-body (omit to keep it). Provide content and/or metadata. Optimistic locking: a stale
+body (omit to keep it). Provide content and/or metadata. The merge only ever **adds** fields — to
+**delete** one, pass `removeKeys=["fieldName"]` (applied after the merge; `canonical_id` is refused). Optimistic locking: a stale
 `expectedContentHash` returns `{updated:false, error:"hash mismatch", latestContent, currentHash}` —
 rebase against `latestContent` and retry (no extra `read_page` needed).
 

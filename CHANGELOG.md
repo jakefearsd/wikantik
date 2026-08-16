@@ -6,6 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **`update_page` gains `removeKeys` — the MCP surface can now retire a frontmatter field.**
+  The metadata merge is unconditional by design (the existing frontmatter is always the base, so a
+  one-field edit cannot drop the rest), which meant there was no way to *delete* a field at all:
+  passing `hubs: null` writes a null-valued key rather than removing it, and frontmatter inside
+  `content` merges the same way. `removeKeys` takes a list of field names and is applied **after**
+  the merge, so a single call can set one field and retire another, and an explicitly-removed key
+  cannot be resurrected by the existing frontmatter. Keys the page does not carry are ignored
+  rather than erroring.
+
+  `canonical_id` is **refused**: it is the page's rename-stable identity, and dropping it would make
+  the save-time filter mint a fresh one, orphaning the page's history and every citation pinned to
+  it. Silently ignoring the request would have been worse than refusing — an agent would believe it
+  had succeeded.
+
+  Found while planning the production `hubs:` retirement (ClusterDeclarationDesign Phase 5): the
+  corpus migration is impossible through the MCP surface without it.
+
 ## [2.4.1] - 2026-08-15
 
 ### Changed

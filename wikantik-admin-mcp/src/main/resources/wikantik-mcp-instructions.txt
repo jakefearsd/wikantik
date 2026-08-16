@@ -168,8 +168,15 @@ write_pages       Batch-create new wiki pages. Each item: {pageName, content,
 update_page       Edit an existing page with optimistic locking. Required:
                   pageName, content, expectedContentHash (the contentHash from
                   the most recent read_page on this page). Optional metadata
-                  is merged into frontmatter. Returns {pageName, updated,
-                  newContentHash, newVersion} on success or {pageName,
+                  is merged into frontmatter — listed fields are added or
+                  overwritten, every other existing field is preserved, so a
+                  one-field edit cannot drop the rest. Because the merge only
+                  ever adds, use optional removeKeys (a list of field names) to
+                  DELETE a frontmatter field; it is applied after the merge, so
+                  one call can set one field and retire another. Keys the page
+                  does not have are ignored, and 'canonical_id' is refused —
+                  it is the page's rename-stable identity. Returns {pageName,
+                  updated, newContentHash, newVersion} on success or {pageName,
                   updated:false, error:"hash mismatch", currentHash} if another
                   writer changed the page first — re-fetch and retry.
 

@@ -177,7 +177,38 @@ bumping it fails the build outright (`bcjmail-jdk18on:jar:1.85.2 was not found`)
 Splitting the property would mix Bouncy Castle artifact versions, which upstream
 advises against. Revisit when the full 1.85.2 set ships.
 
-## Flake observed during verification (not a regression)
+## Flakes observed during verification (not regressions) — running tally
+
+Six full `bin/run-tests.sh --parallel 4` runs were needed to land this work.
+**Four passed, two failed — on two different tests, both timing/async, both
+passing on immediate re-run.** Recorded here so the rate can be compared over
+time rather than re-litigated each session.
+
+| Run | Result | Failing test |
+|---|---|---|
+| 1 | PASS | — |
+| 2 | FAIL | `KnowledgeTabIT.addEntitiesAndConformantRelation` (IT, parallel x4) |
+| 3 | PASS | — (same module in isolation: 110 tests, 0 failures) |
+| 4 | PASS | — |
+| 5 | FAIL | `PluginCoverageTest$SearchPluginTests` (Phase 1 unit, `-T 1C`) |
+| 6 | PASS | — |
+
+**Flake 1 — `KnowledgeTabIT`:** `kg-add-entity-btn` still `disabled` at the 5s
+Selenide timeout. The identical 4-wide gate passed both before and after, and the
+module passes in isolation, so it is contention under parallel IT execution.
+Same class as the known `EditIT` CodeMirror flake.
+
+**Flake 2 — `PluginCoverageTest$SearchPluginTests`:** Lucene
+`IndexNotFoundException: no segments* file found` while awaiting the search
+index. This is the documented `wikantik-main` parallel-flakiness under `-T 1C`
+(filesystem races, no code regression) — not related to the junrar bump it
+appeared under, which is confined to Tika's RAR parser.
+
+Neither was caused by this changeset. A ~2-in-6 intermittent failure rate on the
+pre-commit gate is worth watching: if it persists, the two tests need explicit
+waits rather than fixed timeouts, not a longer timeout.
+
+Original note:
 
 `KnowledgeTabIT.addEntitiesAndConformantRelation` failed once under
 `--parallel 4` — `kg-add-entity-btn` still `disabled` at the 5s Selenide

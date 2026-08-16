@@ -198,6 +198,19 @@ SpotBugs, tests, tech-debt, and dependency health, with per-module drill-down.
   Excluded from indexing via `marketing/robots.txt`.
   - `--build-site` runs `bin/site.sh` first; `--marketing-only` / `--site-only`
     (or the `bin/deploy-site.sh` shim) publish one half.
+  - **`--build-site` cannot finish inside an agent Bash call.** A full site build
+    is 30+ minutes and agent Bash is hard-capped at ~10 minutes — no script can
+    raise that cap on itself, so run it from a real terminal. If it *is* killed,
+    `bin/site.sh`'s phases are detached via `bin/agent-build.sh` (setsid) and
+    **keep running**. Re-running `--build-site` then refuses rather than starting
+    a second concurrent Maven build over the same working tree (which would
+    corrupt surefire state): poll `bin/agent-build.sh status sitecov|siteit|sitegen`,
+    then publish with a plain `bin/deploy-marketing.sh` once `target/staging/`
+    exists. The refusal only triggers on a genuinely live build — stale
+    `.build-logs` entries report SUCCESS/KILLED, not RUNNING.
+  - `SITE_WAIT_BUDGET` (default 600, raised to 1800 by `--build-site`) is a
+    **poll interval, not a deadline** — `bin/site.sh` loops until the build
+    actually ends. Raising it only makes the "still running" line rarer.
   - If `target/staging/` was never built, the combined run publishes marketing,
     prints a loud SKIPPED notice, and still exits 0 — a missing local build must
     not block a marketing deploy, and the `/site` already on the host is left

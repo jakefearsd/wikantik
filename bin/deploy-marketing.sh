@@ -30,7 +30,13 @@
 #   (no flags)        publish marketing + code-health site (if built)
 #   --marketing-only  publish only the marketing site
 #   --site-only       publish only the code-health site (requires it be built)
-#   --build-site      run bin/site.sh first, then publish both
+#   --build-site      run bin/site.sh first, then publish both. NOTE: a full
+#                     site build runs 30+ minutes, which is longer than an agent
+#                     Bash call is allowed to live (~10 min cap). Run it from a
+#                     real terminal. If it is killed anyway the detached build
+#                     keeps running — re-running --build-site then REFUSES
+#                     rather than starting a second concurrent Maven build; wait
+#                     for it, then plain `bin/deploy-marketing.sh` to publish.
 #   --dry-run         print every action, change nothing
 #
 # Configuration (env overrides; defaults match the live setup):
@@ -109,10 +115,45 @@ run() {
 
 # ---------------------------------------------------------------- preflight
 
-# Optionally build the code-health site first (a full Maven site run — minutes).
+# Optionally build the code-health site first.
+#
+# This is the long pole by far — a full coverage build + IT reactor + site
+# generation runs well past half an hour. Two things follow from that:
+#
+#  1. It CANNOT complete inside an agent Bash call, which is hard-capped at
+#     ~10 minutes. Run it from a real terminal (or `! bin/deploy-marketing.sh
+#     --build-site`, which is still subject to that cap). Nothing in this script
+#     can raise that cap — it is imposed on us, not by us.
+#  2. bin/site.sh detaches each phase via bin/agent-build.sh (setsid), so the
+#     BUILD SURVIVES being killed even though this script does not. That is the
+#     trap: if this call is killed at the 10-minute mark the build keeps going,
+#     and naively re-running --build-site would start a SECOND concurrent Maven
+#     build over the same working tree — which corrupts surefire state. So we
+#     refuse to start one while another is live, and tell you how to resume.
 if [[ "${BUILD_SITE}" -eq 1 && "${DO_SITE}" -eq 1 ]]; then
-    echo "==> Building code-health site (bin/site.sh)"
-    run bin/site.sh
+    if [[ "${DRY_RUN}" -eq 0 ]]; then
+        live=()
+        for phase in sitecov siteit sitegen; do
+            if bin/agent-build.sh status "${phase}" 2>/dev/null | grep -q '^RUNNING'; then
+                live+=("${phase}")
+            fi
+        done
+        if [[ ${#live[@]} -gt 0 ]]; then
+            echo "deploy-marketing: a code-health site build is already running: ${live[*]}" >&2
+            echo "  A previous --build-site run was probably killed (agent Bash caps at ~10 min);" >&2
+            echo "  the detached build survived it. Starting a second Maven build over the same" >&2
+            echo "  working tree would corrupt surefire state, so this is a refusal, not a retry." >&2
+            echo "  Watch it:    bin/agent-build.sh status ${live[0]}" >&2
+            echo "               bin/agent-build.sh tail   ${live[0]} 40" >&2
+            echo "  Then deploy: bin/deploy-marketing.sh          # once target/staging/ exists" >&2
+            exit 1
+        fi
+    fi
+    echo "==> Building code-health site (bin/site.sh) — expect 30+ minutes"
+    echo "    Phases detach via bin/agent-build.sh and survive this script being killed."
+    # A poll interval, not a deadline: bin/site.sh loops until the build ends.
+    # 1800 keeps a long build from spamming a 'still running' line every 10 min.
+    run env SITE_WAIT_BUDGET=1800 bin/site.sh
 fi
 
 # Marketing: every allowlisted file must exist before we ship anything.

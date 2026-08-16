@@ -15,9 +15,18 @@
 #   bin/site.sh --unit-only     # skip the IT reactor (unit coverage only)
 #   bin/site.sh --skip-build    # reuse existing exec/test data, regenerate site only
 #   bin/site.sh -h|--help
+#
+# Env:
+#   SITE_WAIT_BUDGET  seconds per bounded `agent-build.sh wait` poll (default 600).
+#                     NOT a timeout — wait_done loops until the build actually
+#                     finishes. This only controls how often "still running" is
+#                     printed. bin/deploy-marketing.sh --build-site raises it to
+#                     1800 to keep a long site build quiet.
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_ROOT}"
+
+SITE_WAIT_BUDGET="${SITE_WAIT_BUDGET:-600}"
 
 UNIT_ONLY=0; SKIP_BUILD=0
 for arg in "$@"; do
@@ -36,10 +45,13 @@ AB="bin/agent-build.sh"
 # code-health site build can run far longer than any single budget, so on code 2
 # we keep waiting and only abort on a real failure (code 1). $1=build name,
 # $2=human label for the failure message.
+#
+# SITE_WAIT_BUDGET is therefore a POLL INTERVAL, not a deadline: raising it does
+# not let a build run longer, it only makes the "still running" line rarer.
 wait_done() {
   local name="$1" label="$2" rc
   while :; do
-    "${AB}" wait "${name}" 600; rc=$?
+    "${AB}" wait "${name}" "${SITE_WAIT_BUDGET}"; rc=$?
     case "${rc}" in
       0) return 0 ;;
       2) echo "    (${label} still running — continuing to wait…)" ;;

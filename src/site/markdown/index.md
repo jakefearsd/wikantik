@@ -1,7 +1,9 @@
 # Wikantik Code Health
 
 Generated code-health dashboard for the Wikantik reactor. Regenerate with
-`bin/site.sh`; publish with `bin/deploy-site.sh`.
+`bin/site.sh`; publish with `bin/deploy-marketing.sh`, which ships this site
+and the marketing site together (`bin/deploy-site.sh` is a shim for publishing
+this half alone).
 
 ## Reports
 

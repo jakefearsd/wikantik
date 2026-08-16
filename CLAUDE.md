@@ -268,7 +268,15 @@ mvn pmd:check -Pcomplexity-gate
 ```bash
 # Full code-health site (coverage/coupling/PMD/CPD/SpotBugs/tests/tech-debt/deps)
 bin/site.sh                 # -> target/staging/index.html
-! bin/deploy-site.sh        # publish to https://wikantik.com/site (interactive sudo)
+
+# ONE publish command for everything on www.wikantik.com — the marketing site
+# (docroot root) AND the code-health site (/site subdir). Same host, same
+# docroot, one interactive sudo prompt. Must be run with `!` so the prompt is
+# answerable.
+! bin/deploy-marketing.sh              # both (code-health half skipped + reported if unbuilt)
+! bin/deploy-marketing.sh --build-site # run bin/site.sh first, then publish both
+! bin/deploy-marketing.sh --marketing-only
+! bin/deploy-site.sh                   # thin shim for --site-only
 ```
 
 High test coverage at the line level, above 90% is a goal for this development team,

@@ -191,8 +191,22 @@ SpotBugs, tests, tech-debt, and dependency health, with per-module drill-down.
 - Generate: `bin/site.sh` (full unit+IT) or `bin/site.sh --unit-only` (fast).
   Two phases (coverage build → `mvn site site:stage`), run via `bin/agent-build.sh`.
   Output: `target/staging/index.html`.
-- Publish: `! bin/deploy-site.sh` (interactive sudo on host `cloudflare`) →
-  https://wikantik.com/site/ . Excluded from indexing via `marketing/robots.txt`.
+- Publish: `! bin/deploy-marketing.sh` (interactive sudo on host `cloudflare`)
+  ships the marketing site **and** the code-health site in one run — they share
+  a host and an nginx docroot, and both privileged copies happen inside a
+  single `ssh -t`, so sudo prompts once. → https://wikantik.com/site/ .
+  Excluded from indexing via `marketing/robots.txt`.
+  - `--build-site` runs `bin/site.sh` first; `--marketing-only` / `--site-only`
+    (or the `bin/deploy-site.sh` shim) publish one half.
+  - If `target/staging/` was never built, the combined run publishes marketing,
+    prints a loud SKIPPED notice, and still exits 0 — a missing local build must
+    not block a marketing deploy, and the `/site` already on the host is left
+    intact. `--site-only` treats the same condition as a hard error, since that
+    is the thing you explicitly asked for.
+  - **Landmine:** the marketing half copies with `cp -r`, *not* `rsync --delete`,
+    because the code-health site lives inside the same docroot at `/site`. Do
+    not "improve" it to `rsync --delete` without excluding `/site`, or a
+    marketing deploy will silently wipe the code-health site.
 - Requires graphviz (`dot`) on the generating box for the coupling SVG (optional;
   falls back to a linked `.dot`).
 - Design: `docs/superpowers/specs/2026-07-23-code-health-site-design.md`.

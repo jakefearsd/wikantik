@@ -28,7 +28,7 @@ also accepts `--help`. Underlying compose files at the repo root
 `docker/entrypoint.sh` are still the source of truth — `bin/container.sh`
 is just an ergonomic facade.
 
-Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agent on each host pushing metrics and logs to a central Prometheus + Loki + Grafana on host `inference`. The wikantik container exposes `/metrics`, which jakemon scrapes. There is no in-repo observability stack.
+Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agent on each host pushing metrics and logs to a central Prometheus + Loki + Grafana on host **docker2**. The wikantik container exposes `/metrics`, which jakemon scrapes. There is no in-repo observability stack.
 
 ## Load testing
 
@@ -36,7 +36,7 @@ Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agen
 against an instrumented set of endpoints. `--verify` scrapes `/metrics`
 before and after and fails if a target dashboard panel did not move;
 `--writes` adds an authenticated edit/delete cycle. k6 remote-writes its
-own metrics into jakemon's central Prometheus (`192.168.0.10:9090`) so
+own metrics into jakemon's central Prometheus (`192.168.0.5:9090`) so
 offered load and host response share a timeline. See `loadtest/README.md`.
 
 **Container deployment gotchas** (learned from the first docker1 deploy,
@@ -107,8 +107,19 @@ gitignored `.env.prod` at the repo root (`remote.sh` ships it to the remote
 as `.env`, preferring it over the dev `.env`).
 
 Prod content lives at `${WIKANTIK_PAGES_DIR}` on the remote host as a
-bind mount — so `rsync` is the source of truth for the page tree,
-independent of container lifecycle.
+bind mount, independent of container lifecycle — so the page tree
+survives an image swap and `deploy` never carries content.
+
+**The checkout and prod are different corpora, not two copies.** Prod holds
+pages the repo does not have. `pages-push` writes the repo's tree onto the
+remote but does not reconcile the two, and `pages-pull` cannot: it fails
+`Permission denied` on container-owned pages and silently returns a
+*partial* corpus, which is worse than none — every unread page reads as
+"missing from production". **Prod is authoritative for content; the checkout
+is a mirror.** Derive corpus-wide plans from the live index (`list_clusters`,
+`list_pages_by_filter`), never from the repo, and use
+`CorpusDivergenceCli` (`wikantik-extract-cli`) to measure the gap — it exits
+**2** when it refuses because the snapshot it was given was incomplete.
 
 ## Cloud deployment (AWS/GCP)
 
@@ -235,7 +246,7 @@ tool-description examples). All six phases shipped 2026-04-25 — design is comp
 
 **Retrieval-quality CI is in.** `DefaultRetrievalQualityRunner` (in `wikantik-main` under `com.wikantik.knowledge.eval`) executes the curated `core-agent-queries` query set (16 questions seeded from the agent-cookbook runbooks, plus one cross-cluster query) through `BM25`, `HYBRID`, and `HYBRID_GRAPH`, computes per-query nDCG@5/@10 + Recall@20 + MRR, persists aggregates to `retrieval_runs`, and publishes `wikantik_retrieval_ndcg_at_5` / `_at_10` / `_recall_at_20` / `_mrr` gauges keyed by `{set,mode}`. Schedule activates when `wikantik.retrieval.cron.enabled=true` (default; default hour `wikantik.retrieval.cron.hour_utc=3`). Operators triage at `GET /admin/retrieval-quality?limit=N` and trigger ad-hoc runs via `POST /admin/retrieval-quality/run` with `{"query_set_id":"...","mode":"..."}`. The runner depends on narrow `Retriever` / `CanonicalIdResolver` functional seams so `RetrievalQualitySmokeTest` (the pre-merge gate) can drive it deterministically without a live search stack. Threshold tuning is deferred — `nDCG@5 >= 0.5` is the smoke gate; production thresholds calibrate after two weeks of nightly runs.
 
-**Tool-description examples are in.** Every MCP tool on `/wikantik-admin-mcp` (26) and `/knowledge-mcp` (20), plus both OpenAPI tools on `/tools/*` (2), now ships with at least one worked input/output example in its schema. On the MCP servers, examples land per-property on `inputSchema.properties.<name>` and as a top-level `examples` array on `outputSchema` (the SDK's `JsonSchema` record can't carry top-level extras; `outputSchema` is a free Map). On the OpenAPI tool server, examples use OpenAPI 3.1's `example` keyword on request/response content and on parameter objects. The canonical specimen — `search_knowledge` — matches the design doc's hand-written example verbatim. Agents seeing concrete payloads make first-call success more reliable than reasoning from type schemas alone.
+**Tool-description examples are in.** Every MCP tool on `/wikantik-admin-mcp` (27) and `/knowledge-mcp` (21), plus both OpenAPI tools on `/tools/*` (2), now ships with at least one worked input/output example in its schema. On the MCP servers, examples land per-property on `inputSchema.properties.<name>` and as a top-level `examples` array on `outputSchema` (the SDK's `JsonSchema` record can't carry top-level extras; `outputSchema` is a free Map). On the OpenAPI tool server, examples use OpenAPI 3.1's `example` keyword on request/response content and on parameter objects. The canonical specimen — `search_knowledge` — matches the design doc's hand-written example verbatim. Agents seeing concrete payloads make first-call success more reliable than reasoning from type schemas alone.
 
 ### Hybrid Retrieval — [HybridRetrieval.md](wikantik-pages/HybridRetrieval.md)
 
@@ -261,6 +272,81 @@ full diagnostic chain: [ScalingCharacterization.md § 14](ScalingCharacterizatio
 Diagnose concurrency stalls with thread dumps (`jcmd 1 Thread.print`) + host CPU
 from Prometheus — high latency + moderate CPU means blocking, not compute.
 
+### Cluster Declaration — [ClusterDeclarationDesign.md](wikantik-pages/ClusterDeclarationDesign.md)
+
+All seven phases shipped 2026-08-15 (2.4.0), recorded as
+[ADR-0009](adr/0009-cluster-taxonomy-is-frontmatter-projection-not-filesystem-hierarchy.md).
+The hub page is the authoritative *declaration* of its cluster: a cluster exists iff
+exactly one page carries `type: hub` plus a scalar `cluster: <path>`. No new
+frontmatter fields — the pair the corpus already wrote became a declaration.
+Directory-structured content storage was evaluated and **rejected**: a path in
+frontmatter is data (validatable, re-projectable, multi-valued, revertable per page),
+while a path in the filesystem would bind page identity, `page_slug_history`, `OLD/`,
+`-att/`, URLs and wikilinks to one axis. Cluster nesting deeper than one level and any
+filesystem-shaped corpus export are **permanently out of scope, not follow-ups**.
+
+**Multi-membership is in.** `cluster:` is scalar-or-list on non-hub pages; the first
+entry is **primary** and drives placement (breadcrumbs, JSON-LD
+`articleSection`/`isPartOf`, sidebar, embedding prefix), so no tie-break field was
+needed. Hubs stay scalar — a list-valued hub is a save-time 422 plus a
+`MULTI_CLUSTER_HUB` drift conflict. `ClusterPath.memberships(raw)` in `wikantik-api`
+is the single place scalar-vs-list is resolved, and `PageDescriptor.cluster()` is
+re-derived from `clusters()` so the two cannot drift. Only four consumers genuinely
+changed: projection (index under every membership, **de-dup the transitive lookup** or
+a page naming both a parent and its own sub-cluster is counted twice), **KG inclusion
+(fail-closed — an explicit EXCLUDE on ANY membership wins outright**, so a second
+membership can never quietly pull a page into the Knowledge Graph), `rename_cluster`
+(must rewrite list entries, never collapse a list to a scalar), and the ontology's
+`dct:subject` (one per membership).
+
+**Matching is segment-aware, never `startsWith`.** `ClusterPath` is the single
+comparison point; a bare `startsWith` makes `machine-learning-ops` a false descendant
+of `machine-learning`, silently merging two unrelated clusters. Membership is
+transitive and resolved at query time, so re-parenting needs no reindex. Hub selection
+ties break on lowest slug and the loser is reported (previously last-writer-wins over
+unsorted `listFiles()` order, so `list_clusters` could name a different hub run to run
+without ever reporting a conflict).
+
+**Enforcement ships DARK.** The duplicate-declaration 422 in
+`StructuralSpinePageFilter` is gated by
+`wikantik.cluster_declaration.enforcement.enabled`, default **false**. Both corpora
+verified clean in Phase 0, so the flip is safe — but enabling it against a corpus that
+*does* contain duplicates makes the offending hub pages un-saveable. Check
+`/admin/drift` first. Everything else is a WARNING feeding the burn-down:
+`DUPLICATE_CLUSTER_DECLARATION`, `HEADLESS_CLUSTER`, `UNDECLARED_CLUSTER`,
+`CLUSTERLESS_HUB`, `MULTI_CLUSTER_HUB`.
+
+**Retired with it:** the `hubs:` frontmatter field (473 pages, 89 already
+multi-membership, and absent from `FrontmatterSchema` entirely) and
+`HubSyncFilter` are **deleted**; hub `hasPart` is now derived from real membership
+with `related` retained only as a degraded-index fallback.
+
+**Curation tooling.** `ClusterRenameService` behind
+`POST /admin/clusters/rename?from=&to=[&confirm=true]` and the `rename_cluster` MCP
+tool (admin-mcp 26 → **27**). **An unconfirmed call returns the plan — that is
+success, not an error**: a bulk rewrite is exactly the operation whose blast radius a
+curator should see first, and computing the plan writes nothing. A target another hub
+already declares is refused (409 / MCP error naming the incumbent) *before* any write;
+past that gate the sweep never aborts and reports failed pages by name. It rewrites
+`cluster:` frontmatter only — no page names, `canonical_id`s or URLs move. The tool is
+registered **unconditionally** (refusing at call time when the structural index is
+absent) because `InstructionsRegistryDriftTest`, `McpInstructionsDriftIT` and
+`McpProtocolIT.EXPECTED_TOOLS` require the advertised surface not to vary with wiring
+— a new MCP tool must be added to `wikantik-mcp-instructions.txt` **and**
+`McpProtocolIT.EXPECTED_TOOLS` or those three go red.
+
+**Reader surface.** `ClusterStatus.jsx` in `PageMeta` renders four states, gated on
+`page.permissions.edit` and **client-side only, never SSR** — a reader who cannot edit
+sees exactly what they saw before, so the anonymous render path stays byte-identical,
+SEO tuning is unconfounded, and edge caching is untouched. It reads `hub_declared`, not
+the presence of `hub_slug`.
+
+**Corpus divergence.** Phase 0b shipped `CorpusDivergenceCli` (`wikantik-extract-cli`),
+which compares the repo corpus to a live wiki's `/api/structure/sitemap`. **Exit 2 =
+refused because a snapshot was incomplete**; exit 1 = divergence under `--check`. First
+prod run: 240 findings, 163 pages present only in prod. See the corpus warning under
+*Remote container deployment* above before planning any corpus-wide change.
+
 ### Other subsystems
 
 - **[PageGraphVsKnowledgeGraph.md](wikantik-pages/PageGraphVsKnowledgeGraph.md)** — Canonical explainer distinguishing the Page Graph (wikilink edges) from the Knowledge Graph (LLM-extracted entities). Reference this before touching either subsystem.
@@ -268,4 +354,4 @@ from Prometheus — high latency + moderate CPU means blocking, not compute.
 - **[IndexingSupport.md](../IndexingSupport.md)** — Implemented. Raw content + change feed + sitemap for RAG ingestion and SEO.
 - **KG inclusion policy** — Cluster-primary KG inclusion/exclusion policy with admin dashboard, CLI, and frontmatter override. Implemented 2026-04-27. New `kg_cluster_policy` / `kg_policy_audit` / `kg_excluded_pages` tables; admin surface at `/admin/kg-policy/*`; `bin/kg-policy.sh` CLI. Default-exclude. System pages now also filtered out of the KG extraction pipeline (latent bug fix bundled in). Page-level override via `kg_include: true|false` frontmatter, validated at save time. See [KgInclusionPolicy](wikantik-pages/KgInclusionPolicy.md) for the operator guide.
 - **Derived agent hints** — Derived `agent_hints` projection field (no author burden), hub summary overlay, `read_pages` batch MCP tool, `/admin/agent-grade-audit` weak-signal report. Implemented 2026-05-10.
-- **Connector framework + admin UI** — External-source connectors (filesystem, web crawler, sitemap, RSS/Atom, Google Drive OAuth2, GitHub, Confluence) syncing into derived pages, with admin-managed configs (`connector_configs`, hot-applied registry rebuild — no restart), per-connector sync scheduling, encrypted credential storage, and a full `/admin/connectors` UI (list/detail, guided add wizard, dry-run test, provenance marking on reader surfaces). `wikantik.connectors.enabled` is a kill switch defaulting **true**. Shipped 2026-07-15; **not yet deployed to prod** (docker1). Design docs: `docs/superpowers/specs/2026-07-11-connector-framework-phase{1,2-runtime}-design.md`, `2026-07-11-{rss-atom-feed,sitemap,web-crawler}-connector-design.md`, `2026-07-11-connector-credential-encryption-design.md`, `2026-07-12-google-drive-connector-design.md`, `2026-07-14-github-confluence-connectors-design.md`, `2026-07-15-connector-admin-ui-design.md`. Operator/user-facing guide: [Connectors.md](Connectors.md).
+- **Connector framework + admin UI** — Seven external-source connectors (filesystem, web crawler, sitemap, RSS/Atom, Google Drive OAuth2, GitHub, Confluence) syncing into derived pages, with admin-managed configs (`connector_configs`, hot-applied registry rebuild — no restart), per-connector sync scheduling, encrypted credential storage, and a full `/admin/connectors` UI (list/detail, guided add wizard, dry-run test, provenance marking on reader surfaces). Six types are admin-creatable (`ConnectorConfigCodec.UI_TYPES`); `filesystem` is properties-defined only by design (D9) because it reads arbitrary server-local paths. `SyncOrchestrator`'s contract that `poll()` never throws is load-bearing. `wikantik.connectors.enabled` is a kill switch defaulting **true**. Shipped 2026-07-15; live on prod (docker1) via 2.3.7, verified 2026-07-17. Design docs: `docs/superpowers/specs/2026-07-11-connector-framework-phase{1,2-runtime}-design.md`, `2026-07-11-{rss-atom-feed,sitemap,web-crawler}-connector-design.md`, `2026-07-11-connector-credential-encryption-design.md`, `2026-07-12-google-drive-connector-design.md`, `2026-07-14-github-confluence-connectors-design.md`, `2026-07-15-connector-admin-ui-design.md`. Operator/user-facing guide: [Connectors.md](Connectors.md).

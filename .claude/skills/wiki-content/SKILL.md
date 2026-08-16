@@ -12,8 +12,11 @@ interactions route through MCP server tools directly.
 > bash — so this skill runs identically under Claude Code and Antigravity. The live bundle check is the
 > `assemble_bundle` MCP tool, never `GET /api/bundle`. Do not add client-specific mechanisms.
 
-> **Tool surface reconciled 2026-08-15 against the live servers** (admin-mcp = 27 tools, knowledge-mcp
-> = 20 tools). The old compound tools (`publish_cluster`, `extend_cluster`, `get_cluster_map`,
+> **Tool surface reconciled 2026-08-16 against the live servers** (admin-mcp = 27 tools, knowledge-mcp
+> = 21 tools). Note that knowledge-mcp registers several tools *conditionally* on what is wired in a
+> given deployment (`find_similar`, `get_page_for_agent`, `assemble_bundle`, `get_briefing`,
+> `get_ontology`/`sparql_query`, `list_stale_citations`), so 21 is the fully-wired count — a leaner
+> deployment legitimately advertises fewer. The old compound tools (`publish_cluster`, `extend_cluster`, `get_cluster_map`,
 > `audit_cluster`, `update_metadata`, `patch_page`, `write_page`, `batch_*`, `query_metadata`,
 > `scan_markdown_links`) **no longer exist** — do not call them. The real tools are listed at the
 > bottom. Authoring is on the **admin-mcp** server; discovery + retrieval checks are on the

@@ -16,8 +16,8 @@ This document outlines the three most likely performance bottlenecks in the Wika
 
 **Location:**
 
-*   `wikantik-main/src/main/java/org/apache/wiki/providers/FileSystemProvider.java`
-*   `wikantik-main/src/main/java/org/apache/wiki/providers/BasicAttachmentProvider.java`
+*   `wikantik-main/src/main/java/com/wikantik/providers/FileSystemProvider.java`
+*   `wikantik-main/src/main/java/com/wikantik/providers/BasicAttachmentProvider.java`
 
 **Description:**
 
@@ -38,8 +38,8 @@ The default providers for pages and attachments (`FileSystemProvider` and `Basic
 
 **Location:**
 
-*   `wikantik-main/src/main/java/org/apache/wiki/references/DefaultReferenceManager.java`
-*   `wikantik-main/src/main/java/org/apache/wiki/search/LuceneSearchProvider.java`
+*   `wikantik-main/src/main/java/com/wikantik/pagegraph/references/DefaultReferenceManager.java`
+*   `wikantik-main/src/main/java/com/wikantik/search/LuceneSearchProvider.java`
 
 **Description:**
 
@@ -61,8 +61,8 @@ Wikantik's search and reference management capabilities rely on indexing, which 
 
 **Location:**
 
-*   `wikantik-main/src/main/java/org/apache/wiki/render/DefaultRenderingManager.java`
-*   `wikantik-main/src/main/java/org/apache/wiki/plugin/DefaultPluginManager.java`
+*   `wikantik-main/src/main/java/com/wikantik/render/DefaultRenderingManager.java`
+*   `wikantik-main/src/main/java/com/wikantik/plugin/DefaultPluginManager.java`
 
 **Description:**
 

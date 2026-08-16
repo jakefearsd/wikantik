@@ -13,8 +13,9 @@ walks every command needed to build, run, and test the project locally.
 - **Suggest a feature.** Open a feature-request issue describing the
   problem you're trying to solve and how you'd want it solved. Concrete
   use cases beat abstract design.
-- **Improve docs.** Anything under `docs/` — including the `wikantik-pages/`
-  subset, which is also the live wiki — is fair game. PRs that fix
+- **Improve docs.** Anything under `docs/` is fair game, including the
+  `wikantik-pages/` subset — a mirror of the production wiki corpus
+  (not a live copy of it; the two diverge over time). PRs that fix
   factual drift between the docs and the running code are especially
   welcome.
 - **Submit code.** See the development workflow below.
@@ -64,15 +65,19 @@ mvn test -Dtest=MarkdownRendererTest
 # Single test method
 mvn test -Dtest=MarkdownRendererTest#testMarkupSimpleMarkdown
 
-# Full integration suite — MUST be sequential (no -T flag), -fae so all
-# IT modules run even if one has failures
-mvn clean install -Pintegration-tests -fae
+# Canonical pre-commit gate — unit phase + 4-wide parallel IT phase
+bin/run-tests.sh --parallel 4
+
+# Sequential IT fallback (e.g. when diagnosing a suspected cross-module issue)
+bin/run-tests.sh
 ```
 
 Integration tests stand up an ephemeral PostgreSQL+pgvector container per
-module via `fabric8:docker-maven-plugin`. They run sequentially because
-they share fixed ports — running them in parallel causes flaky failures
-on port collisions.
+module via `fabric8:docker-maven-plugin`. Parallel IT execution is
+supported *only* through `bin/run-tests.sh --parallel N` — its single
+reactor gives every IT module a build-helper-reserved free port set and a
+uniquely-named pgvector container so they can't collide. Don't bolt `-T`
+onto a raw `mvn clean install -Pintegration-tests` invocation yourself.
 
 ### Code conventions
 
@@ -96,7 +101,7 @@ on port collisions.
 1. Branch from `main`.
 2. Squash commits into a logical set; each commit message should
    explain *why* the change matters, not just what.
-3. Run the full IT reactor before opening: `mvn clean install -Pintegration-tests -fae`.
+3. Run the full IT reactor before opening: `bin/run-tests.sh --parallel 4`.
 4. Open the PR. Use the template; link any related issues.
 5. Wait for CI to go green. Reviewers will look at the diff and comment.
 
@@ -111,8 +116,18 @@ If you're touching a new area:
   before working in either.
 - The architectural reviews under
   [`docs/ArchitectureCritique.md`](docs/ArchitectureCritique.md) and
-  [`docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md`](docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md)
-  give the long view.
+  [`docs/ProjectReference.md`](docs/ProjectReference.md) give the long view.
+  (The `wikantik-main` decomposition design spec was retired once the work
+  landed; its status is tracked in `ProjectReference.md`, and the rules it
+  established are enforced mechanically by `DecompositionArchTest` — notably
+  R-2 (the service-locator pattern is frozen — no *new* `WikiEngine#getManager`
+  callers), R-4 (`getManager` is banned outside the approved wiring classes),
+  and R-5 (`WikiEngine` must not re-accrete late-bound service state, so no new
+  `mgr_*` fields or `register*` setters — register via
+  `engine.setManager(Type.class, impl)` from the owning `*WiringHelper`
+  instead, per [ADR-0008](docs/adr/0008-late-bound-service-registration.md)).
+  **That test's ArchUnit freeze store mutates even on a failing
+  run**, so if you break it, restore the store from git before retrying.)
 
 ## Code of Conduct
 

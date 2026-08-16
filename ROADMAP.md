@@ -8,15 +8,35 @@ specific past decision was made, see the design specs under
 [`ArchitectureCritique.md`](docs/ArchitectureCritique.md) for honest
 strengths-and-weaknesses self-review.
 
-## Now (2.0.x — live in production)
+## Now (2.4.x — live in production)
 
-Wikantik 2.0 has shipped and runs in production (`wiki.wikantik.com`,
-containerised on docker1, images published to
-`ghcr.io/jakefearsd/wikantik` and deployed via `bin/deploy-release.sh`).
-Day-to-day work is an incremental 2.0.x stream — enterprise hardening
-(SSO, SCIM provisioning, the tamper-evident audit log, off-site backups)
-and reader/editor UI fit-and-finish. The canonical record of what
-shipped is [`CHANGELOG.md`](CHANGELOG.md).
+Wikantik runs in production (`wiki.wikantik.com`, containerised on
+docker1, images published to `ghcr.io/jakefearsd/wikantik` and deployed
+via `bin/deploy-release.sh`). Day-to-day work is an incremental 2.x
+stream. The canonical record of what shipped is
+[`CHANGELOG.md`](CHANGELOG.md); the highlights since 2.0:
+
+- **Enterprise hardening** — SSO (OIDC + SAML via pac4j), SCIM 2.0
+  provisioning, the tamper-evident hash-chained audit log, off-box
+  backups, and a two-tier per-IP rate limiter.
+- **RAG-as-a-Service** — the wiki assembles a ranked, de-duplicated,
+  version-pinned-cited *context bundle* rather than synthesizing an
+  answer ([ADR-0001](docs/adr/0001-rag-returns-context-bundle-not-synthesized-answer.md)),
+  plus budgeted session briefings for coding agents and first-class
+  `cite://` citation edges with stale-citation self-healing.
+- **External-source connectors** — seven connector types syncing into
+  derived pages, with DB-backed configs, an encrypted credential store,
+  and a guided admin wizard.
+- **The `wikantik:` RDF/OWL ontology** — a write-time SHACL gate and a
+  public SPARQL / JSON-LD / dump surface behind a public-vs-restricted
+  ACL split.
+- **Cluster declaration** (2.4.0) — the hub page is now the
+  authoritative declaration of its cluster, with scalar-or-list
+  multi-membership and bulk `rename_cluster`
+  ([ADR-0009](docs/adr/0009-cluster-taxonomy-is-frontmatter-projection-not-filesystem-hierarchy.md)).
+- **Cloud reference deployments** — single-VM Terraform modules for AWS
+  and GCP, and a `wikantik.genai.mode` cost ceiling so LLM spend is a
+  dial rather than an all-or-nothing bet.
 
 ## Next (target: 2.x minors over the next quarter)
 
@@ -28,15 +48,27 @@ shipped is [`CHANGELOG.md`](CHANGELOG.md).
 - **Hybrid retrieval tuning loop.** Currently the
   retrieval-quality CI is wired but not gating; when enough data is
   collected, switch from "smoke-only" to "regression gate."
+- **Turn on cluster-declaration enforcement.** The duplicate-declaration
+  save-time 422 shipped dark —
+  `wikantik.cluster_declaration.enforcement.enabled` defaults to
+  `false`. Flipping it requires a corpus verified free of duplicate
+  declarations first (via `/admin/drift`), because enabling it against
+  a corpus that has them makes the offending hub pages un-saveable.
+  The production corpus migration off the retired `hubs:` field is the
+  other half of that work.
 - **Knowledge Graph reviewer ergonomics.** Current admin surface works
   but is dense; planned work to surface evidence-side-by-side and
   bulk-action inverses.
 - **Auth modernisation.** OAuth/OIDC via pac4j shipped; next is
   fine-grained scopes for MCP tokens (per-tool allowlists rather than
   global bearer access).
-- **Observability dashboards.** Prometheus exporters exist; ship a
-  Grafana dashboard JSON in-repo for the most common operator views
-  (ingest rate, retrieval latency, KG queue depth).
+- **Observability dashboards.** Prometheus exporters exist and the
+  container exposes `/metrics`, but monitoring itself now lives in the
+  external **jakemon** stack (Grafana Alloy → Prometheus + Loki +
+  Grafana), so there is no in-repo observability stack to ship a
+  dashboard into. The open work is a set of curated operator views in
+  jakemon (ingest rate, retrieval latency, KG queue depth) rather than
+  a dashboard JSON in this repo.
 - **Audit log egress.** The tamper-evident audit log is DB-only today;
   add an exporter so records can stream to an external SIEM / log
   pipeline (syslog/CEF or an outbound webhook) for orgs that centralise

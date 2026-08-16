@@ -98,21 +98,25 @@ and the **First-time setup** section in `CLAUDE.md`.
 
 ### 3.1 `users` table
 
-Source: `bin/db/migrations/V002__core_users_groups.sql`
+Source: `bin/db/migrations/V002__core_users_groups.sql`, plus later
+`ADD COLUMN IF NOT EXISTS` additions in `V039__password_must_change.sql` and
+`V042__user_last_login.sql`.
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
-    uid         VARCHAR(100),
-    email       VARCHAR(100),
-    full_name   VARCHAR(100),
-    login_name  VARCHAR(100) NOT NULL PRIMARY KEY,
-    password    VARCHAR(100),
-    wiki_name   VARCHAR(100),
-    created     TIMESTAMP,
-    modified    TIMESTAMP,
-    lock_expiry TIMESTAMP,
-    bio         VARCHAR(1000),
-    attributes  TEXT
+    uid                   VARCHAR(100),
+    email                 VARCHAR(100),
+    full_name             VARCHAR(100),
+    login_name            VARCHAR(100) NOT NULL PRIMARY KEY,
+    password              VARCHAR(100),
+    wiki_name             VARCHAR(100),
+    created               TIMESTAMP,
+    modified              TIMESTAMP,
+    lock_expiry           TIMESTAMP,
+    bio                   VARCHAR(1000),
+    attributes            TEXT,
+    password_must_change  BOOLEAN NOT NULL DEFAULT FALSE,
+    last_login            TIMESTAMP
 );
 ```
 
@@ -129,13 +133,18 @@ Key points:
   `com.wikantik.util.Serializer`).
 - `wiki_name` is the display-style wiki name (e.g. `Administrator`) and must
   be distinct from `login_name`.
+- `password_must_change` (added by V039) forces a password change on next
+  login — set when an admin resets a password or seeds a fresh default admin.
+- `last_login` (added by V042) is stamped by the application on every
+  `LOGIN_AUTHENTICATED` event.
 
 `JDBCUserDatabase` queries and writes exactly these columns. The SQL constants
 inside the class confirm the column list:
 
 ```
-INSERT: uid, email, full_name, password, wiki_name, modified, login_name, attributes, bio, created
-UPDATE: uid, email, full_name, password, wiki_name, modified, login_name, attributes, bio, lock_expiry
+INSERT: uid, email, full_name, password, wiki_name, modified, login_name, attributes, bio, created, password_must_change
+UPDATE: uid, email, full_name, password, wiki_name, modified, login_name, attributes, bio, lock_expiry, password_must_change
+UPDATE_LAST_LOGIN: last_login (separate single-column update, keyed on login_name)
 ```
 
 ### 3.2 `roles` table

@@ -37,12 +37,12 @@ Key capabilities:
 - **RAG context bundle** — `GET /api/bundle?q=…` (and the `assemble_bundle` MCP tool) returns the top-ranked, de-duplicated, **version-pinned-cited** sections across the corpus as ready-to-ground context — *not* a synthesized answer ([ADR-0001](docs/adr/0001-rag-returns-context-bundle-not-synthesized-answer.md)). Each response carries a `coverage` signal (`sectionCount`, `distinctPageCount`, `topSimilarity`, `confidence`) so an agent knows how well-grounded an answer will be, and a per-request `mode=hybrid|dense|lexical` selects the retrieval strategy (see [HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
 - **Context briefing** — `GET /api/briefing` (and the `get_briefing` MCP tool) assembles a budgeted, de-duplicated, injection-ready Markdown (or JSON) briefing from pinned pages, clusters, and the task prompt, for coding agents to inject as session-start context; `briefing_log` records telemetry, and portable client shims live under [`clients/`](clients/)
 - **Version-pinned citations & self-healing** — inline `cite://` markup is parsed at save into first-class, span-hashed citation edges; when a cited page changes, graded span-level staleness surfaces the drift through the `list_stale_citations` MCP tool and `/admin/drift/citations` ([ADR-0005](docs/adr/0005-persisted-citation-edges-and-stale-citation-curation.md))
-- **Admin MCP server** at `/wikantik-admin-mcp` — 26 tools (page writes, Page Graph link analysis, metadata queries, Knowledge Graph proposals, structural audits, verification stamping, query-log reads), 6 resources, 8 prompts, 3 completions. Bearer-token / API-key authenticated.
+- **Admin MCP server** at `/wikantik-admin-mcp` — 27 tools (page writes, Page Graph link analysis, metadata queries, Knowledge Graph proposals, structural audits, verification stamping, bulk cluster renames, query-log reads), 6 resources, 8 prompts, 3 completions. Bearer-token / API-key authenticated.
 - **Knowledge MCP server** at `/knowledge-mcp` — 21 read-only tools: the primary answer-grounding `assemble_bundle`, hybrid retrieval (BM25 + dense) via `retrieve_context`, Knowledge Graph traversal, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`), schema discovery, the agent-grade `get_page_for_agent` projection, batched markdown reads via `read_pages`, read-only ontology access (`get_ontology` + `sparql_query`), stale-citation curation (`list_stale_citations`), and session-start context briefings via `get_briefing`. Same auth scheme.
 - **OpenAPI tool server** at `/tools/*` — OpenWebUI-compatible OpenAPI 3.1 endpoint exposing `search_wiki` and `get_page` for non-MCP LLM clients
 - **Raw content and change feed** — `GET /wiki/{slug}?format=md|json` and `GET /api/changes?since=…` for search-engine crawlers and RAG ingestion pipelines (see [IndexingSupport.md](IndexingSupport.md))
 - **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60); fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
-- **External-source connectors** — six connector types (filesystem, web crawler, sitemap, RSS/Atom feed, Google Drive, GitHub, Confluence) sync external content into first-class **derived pages** riding every existing rail (search, embeddings, Knowledge Graph, citations); DB-backed configs with hot-apply, an encrypted credentials store, a guided Add Connector wizard, dry-run test-connection, and reader-facing provenance badges, managed at `/admin/connectors` (see [Connectors.md](docs/Connectors.md))
+- **External-source connectors** — seven connector types (filesystem, web crawler, sitemap, RSS/Atom feed, Google Drive, GitHub, Confluence) sync external content into first-class **derived pages** riding every existing rail (search, embeddings, Knowledge Graph, citations); six of them are creatable straight from the admin UI, while `filesystem` stays properties-defined by design (it reads arbitrary host paths, so it is deliberately excluded from `ConnectorConfigCodec.UI_TYPES`). DB-backed configs with hot-apply, an encrypted credentials store, a guided Add Connector wizard, dry-run test-connection, and reader-facing provenance badges, managed at `/admin/connectors` (see [Connectors.md](docs/Connectors.md))
 - **Cost-governed LLM usage** — a single `wikantik.genai.mode` ceiling (`full` / `embeddings-only` / `none`) caps embedding and chat-inference spend per deployment; the wiki, hybrid search, and MCP surfaces all run with LLM inference fully off, and `GET /api/capabilities` reports the effective tier so clients — human and agent — can adapt (see [CostTiers.md](docs/CostTiers.md))
 - **Admin panel** at `/admin/` — user management, content management (orphaned pages, broken links, version purging, chunk inspector, index status), security management (groups and policy grants), API keys, page ownership, Knowledge-Graph curation, KG inclusion policy, ontology rebuild, a metadata-drift burn-down dashboard, retrieval-quality dashboard, and a tamper-evident audit log
 - **Database-backed authorisation** — policy grants and groups stored in PostgreSQL, manageable through the admin UI, with bootstrap admin override for recovery
@@ -51,7 +51,7 @@ Key capabilities:
 - **Tamper-evident audit log** — hash-chained record of administrative and security-relevant actions, queryable / verifiable / exportable at `/admin/audit` (see [AuditLog.md](docs/AuditLog.md))
 - **Comments & @-mentions** — threaded discussion on pages with mention notifications and an unread inbox at `/me/mentions` (see [CommentsAndMentions.md](docs/CommentsAndMentions.md))
 - **Observability** — health checks, Prometheus metrics at `/metrics` (IP-restricted to internal networks), structured logging with request correlation; monitoring is handled by the external jakemon stack
-- **Content clusters** — thematic article groupings with hub pages, sub-clusters, cross-references, and automated structural auditing
+- **Content clusters, declared by their hub page** — a cluster exists if and only if exactly one page carries `type: hub` plus a `cluster: <path>` value, making the hub the authoritative *declaration* rather than a coincidence of metadata ([ADR-0009](docs/adr/0009-cluster-taxonomy-is-frontmatter-projection-not-filesystem-hierarchy.md)). Non-hub pages may declare **multiple memberships** (`cluster:` is scalar-or-list; the first entry is primary and drives breadcrumbs, JSON-LD `articleSection`, sidebar placement, and the embedding prefix). Sub-clusters are `parent/child`, one level deep, matched segment-aware so `machine-learning-ops` is never mistaken for a child of `machine-learning`. Structural conflicts (duplicate declaration, headless cluster, undeclared cluster, clusterless hub, multi-cluster hub) surface on the `/admin/drift` burn-down, and `POST /admin/clusters/rename` (plus the `rename_cluster` MCP tool) rewrites a cluster across every member in one plan-first operation — the taxonomy is a frontmatter projection, never a filesystem hierarchy
 - **NIST 800-63B password validation** — blocklist-checked password strength enforcement for account creation
 - **Structured frontmatter metadata** — YAML frontmatter (type, tags, summary, cluster, status, runbook blocks, verification, …) edited through a schema-driven form with **live validation and Save-gating**; one block feeds full-text & faceted search, the topical hierarchy, the RDF ontology, SEO structured data, and agent-grade retrieval (see [Frontmatter.md](docs/Frontmatter.md))
 
@@ -117,7 +117,7 @@ flowchart LR
         Raw["/wiki/{slug}?format=md|json<br/>Raw content for crawlers"]
         Changes["/api/changes?since=…<br/>Change feed"]
         Bundle["/api/bundle · /api/briefing<br/>RAG context bundle + briefing"]
-        AdminMCP["/wikantik-admin-mcp<br/>26 admin/write tools"]
+        AdminMCP["/wikantik-admin-mcp<br/>27 admin/write tools"]
         KnowMCP["/knowledge-mcp<br/>21 read-only retrieval tools"]
         Tools["/tools/*<br/>OpenAPI 3.1<br/>(search_wiki, get_page)"]
         RDF["/sparql · /id/* · /export/*<br/>Public RDF (SPARQL/JSON-LD/dumps)"]
@@ -334,7 +334,7 @@ bin/redeploy.sh   # shutdown + rotate catalina.out + swap WAR + startup
 ```
 
 Database schema lives in [`bin/db/migrations/`](bin/db/migrations/README.md)
-(currently V001..V044 — applied idempotently via `schema_migrations`).
+(currently V001..V049 — applied idempotently via `schema_migrations`).
 To bring an existing database up to date (including production), run
 `bin/db/migrate.sh` with connection env vars set.
 
@@ -399,7 +399,7 @@ guardrails, and installing that cloud's CLI + Terraform on macOS and Ubuntu
 (Azure has no Terraform module yet — its article maps the reference topology
 onto hand-provisioned Azure resources).
 
-Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agent on each host pushing metrics and logs to a central Prometheus + Loki + Grafana on host `inference`. The wikantik container exposes `/metrics`, which jakemon scrapes. There is no in-repo observability stack.
+Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agent on each host pushing metrics and logs to a central Prometheus + Loki + Grafana on host **docker2**. The wikantik container exposes `/metrics`, which jakemon scrapes. There is no in-repo observability stack.
 
 Every subcommand supports `--help`. The compose files and
 `docker/entrypoint.sh` remain the source of truth — the scripts are
@@ -420,17 +420,17 @@ monitoring, and the bare-metal ↔ container migration.
 | `wikantik-cache-memcached` | Distributed cache adapter for Memcached |
 | `wikantik-http` | Servlet filters — CSRF, CORS, CSP, security headers, SPA routing, backpressure, and the reusable `SlidingWindowRateLimiter` |
 | `wikantik-mcp-core` | Shared MCP substrate — `McpTool`/`McpToolUtils`/`McpAudit`, endpoint bootstrap, the access filter, config, and the shared `query_nodes` / `search_knowledge` tools. Extracted to break the `wikantik-knowledge → wikantik-admin-mcp` module cycle (2.3.0) |
-| `wikantik-rest` | REST/JSON API (`/api/*`, incl. `/api/bundle` context bundle and `/api/briefing` session briefing) and admin panel endpoints (`/admin/*`) |
-| `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 26 tools (writes + analytics + verification stamping + query-log reads), 6 resources, 8 prompts, 3 completions |
+| `wikantik-rest` | REST/JSON API — 33 servlets on `/api/*` (incl. `/api/bundle` context bundle and `/api/briefing` session briefing) and 26 on `/admin/*` (incl. `/admin/drift/*`, `/admin/clusters/rename`, `/admin/connectors/*`, `/admin/ontology/*`); also hosts the public RDF surface (`/sparql`, `/id/*`, `/export/*`) |
+| `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 27 tools (writes + analytics + verification stamping + cluster renames + query-log reads), 6 resources, 8 prompts, 3 completions |
 | `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 21 read-only tools: `assemble_bundle` (primary answer-grounding context bundle, with `coverage` signal + `mode` toggle), retrieval / Knowledge Graph traversal / structural-spine / agent-projection / batched-read / ontology (`get_ontology` + `sparql_query`) / stale-citation (`list_stale_citations`) / context-briefing (`get_briefing`); also hosts the Knowledge Graph service (pgvector embeddings, co-mention graph, hub discovery) |
 | `wikantik-ontology` | RDF/OWL ontology layer (Apache Jena) — the `wikantik:` T-Box + SHACL shapes, Postgres→RDF projectors, the TDB2 store, and the public SPARQL / JSON-LD / RDF-dump surface |
 | `wikantik-tools` | OpenAPI 3.1 tool server at `/tools/*` — 2 tools for OpenWebUI-compatible non-MCP clients |
 | `wikantik-scim` | SCIM 2.0 provisioning server at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD and discovery for IdP onboarding/offboarding |
-| `wikantik-extract-cli` | Standalone entity-extractor CLI for offline batch extraction; also hosts the derived-page batch ingester |
+| `wikantik-extract-cli` | Standalone entity-extractor CLI for offline batch extraction; also hosts the derived-page batch ingester and `CorpusDivergenceCli`, which diffs a repo page tree against a live wiki's `/api/structure/sitemap` |
 | `wikantik-ingest` | Document-extraction layer for derived pages (Apache Tika + flexmark) — isolates the heavy PDF/Office parsers from the engine |
-| `wikantik-connectors` | External-source connector runtime — filesystem, web crawler, sitemap, RSS/Atom feed, Google Drive, GitHub, and Confluence connectors syncing into derived pages via a shared `SyncOrchestrator` (hash-dedup, cursor-resume, tombstones); DB-backed configs with hot-apply and an encrypted credentials store, managed at `/admin/connectors` |
+| `wikantik-connectors` | External-source connector runtime — seven connectors (filesystem, web crawler, sitemap, RSS/Atom feed, Google Drive, GitHub, Confluence) syncing into derived pages via a shared `SyncOrchestrator` (hash-dedup, cursor-resume, tombstones); DB-backed configs with hot-apply and an encrypted credentials store, managed at `/admin/connectors`. Six types are admin-creatable (`ConnectorConfigCodec.UI_TYPES`); `filesystem` is properties-defined only |
 | `wikantik-observability` | Health checks, Prometheus metrics, request correlation, and the two-tier per-IP `RateLimitFilter` |
-| `wikantik-frontend` | React SPA (Vite 8 / Rolldown build) — reader, editor, admin panel, Knowledge Graph viewer, Page Graph viewer |
+| `wikantik-frontend` | React 19 SPA (Vite 8 / Rolldown build, Vitest 4) — reader, editor, admin panel, Knowledge Graph viewer, Page Graph viewer. Not a Maven module: `wikantik-war` drives `npm install` + `vite build` and bundles the output |
 | `wikantik-war` | WAR packaging and deployment config; bundles the frontend build output |
 | `wikantik-wikipages` | Default wiki pages shipped with a fresh install |
 | `wikantik-it-tests` | Integration tests (Selenide browser automation, REST, custom-provider suites; Cargo-launched Tomcat + PostgreSQL/pgvector) |
@@ -587,7 +587,7 @@ configuration, the relevant admin UI route, REST endpoints, auth model, and trou
 
 - [ScimProvisioning.md](docs/ScimProvisioning.md) — **SCIM 2.0 provisioning** (`/scim/v2/*`): IdP-driven user/group onboarding and offboarding, bearer token, discovery endpoints
 - [ApiKeys.md](docs/ApiKeys.md) — **programmatic API keys** (`/admin/apikeys`): issuing, scoping, and revoking bearer tokens for the MCP / OpenAPI / REST surfaces
-- [Connectors.md](docs/Connectors.md) — **external-source connectors** (`/admin/connectors`): the six connector types, the guided Add Connector wizard, DB-backed configs with hot-apply, encrypted credentials, and derived-page provenance marking
+- [Connectors.md](docs/Connectors.md) — **external-source connectors** (`/admin/connectors`): the seven connector types (six admin-creatable), the guided Add Connector wizard, DB-backed configs with hot-apply, encrypted credentials, and derived-page provenance marking
 - [AuditLog.md](docs/AuditLog.md) — **tamper-evident audit log** (`/admin/audit`): the hash-chained action record, query/verify/export, and retention
 - [PageOwnership.md](docs/PageOwnership.md) — **page ownership** (`/admin/page-ownership`): the owner model, the seeded `agents` account, and reassignment
 - [KgInclusionPolicy.md](docs/KgInclusionPolicy.md) — **Knowledge-Graph inclusion policy** (`/admin/kg-policy`): the cluster-primary default-exclude policy, `kg_include:` overrides, and `bin/kg-policy.sh`
@@ -613,20 +613,24 @@ configuration, the relevant admin UI route, REST endpoints, auth model, and trou
 
 - [ArchitectureCritique.md](docs/ArchitectureCritique.md) — Self-critical architecture review (strengths and weaknesses, no marketing gloss)
 - [PageGraphVsKnowledgeGraph.md](docs/wikantik-pages/PageGraphVsKnowledgeGraph.md) — Engineering rationale for keeping the two graph subsystems distinct
+- [ClusterDeclarationDesign.md](docs/wikantik-pages/ClusterDeclarationDesign.md) — the hub page as the authoritative cluster declaration: multi-membership, segment-aware `ClusterPath` matching, the structural-conflict burn-down, and bulk cluster renames
+- [StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md) — the machine-queryable structural index behind `/api/structure/*` and the spine MCP tools
+- [AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md) — runbook pages, verification metadata, the for-agent projection, and retrieval-quality CI
+- [HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md) — BM25 + dense RRF fusion, the dense-backend choice, and the measured recall levers (plus the ones measured and rejected)
 - [ProjectReference.md](docs/ProjectReference.md) — operational runbooks and the detailed design-doc status blocks (the wikantik-main decomposition and other multi-phase efforts are tracked here)
 - [RefactorToPatterns.md](docs/RefactorToPatterns.md) — GoF design patterns applied across the codebase
 - [PerformanceEvaluation.md](docs/PerformanceEvaluation.md) — I/O, indexing, and rendering bottleneck analysis
 - [complete_markdown_migration.md](docs/complete_markdown_migration.md) — Migration from legacy wiki syntax to Markdown-only rendering
 - [semantic_wiki_thoughts.md](docs/semantic_wiki_thoughts.md) — AI-augmented semantic wiki vision
 - [full_rebrand_project.md](docs/full_rebrand_project.md) — Contributor reference for the JSPWiki → Wikantik rebrand and naming conventions
-- **Architecture Decision Records** ([`docs/adr/`](docs/adr/)) — the load-bearing design decisions with their context and consequences: [0001 RAG returns a context bundle, not a synthesized answer](docs/adr/0001-rag-returns-context-bundle-not-synthesized-answer.md), [0002 the Knowledge Graph is a first-class knowledge base](docs/adr/0002-knowledge-graph-is-first-class-knowledge-base.md), [0003 RAG is an in-process module with human/machine parity](docs/adr/0003-rag-in-process-module-human-machine-parity.md), [0004 a derived page's body is machine-owned/regenerable](docs/adr/0004-derived-page-body-is-machine-owned-regenerable.md), [0005 persisted citation edges + stale-citation curation](docs/adr/0005-persisted-citation-edges-and-stale-citation-curation.md), [0006 ontology posture (OWL-RL + event-fresh sync)](docs/adr/0006-ontology-posture-owl-rl-and-event-fresh-entity-sync.md), [0007 LLM model selection is a cost-governed axis](docs/adr/0007-llm-model-selection-is-a-cost-governed-axis.md), [0008 late-bound service registration](docs/adr/0008-late-bound-service-registration.md)
+- **Architecture Decision Records** ([`docs/adr/`](docs/adr/)) — the load-bearing design decisions with their context and consequences: [0001 RAG returns a context bundle, not a synthesized answer](docs/adr/0001-rag-returns-context-bundle-not-synthesized-answer.md), [0002 the Knowledge Graph is a first-class knowledge base](docs/adr/0002-knowledge-graph-is-first-class-knowledge-base.md), [0003 RAG is an in-process module with human/machine parity](docs/adr/0003-rag-in-process-module-human-machine-parity.md), [0004 a derived page's body is machine-owned/regenerable](docs/adr/0004-derived-page-body-is-machine-owned-regenerable.md), [0005 persisted citation edges + stale-citation curation](docs/adr/0005-persisted-citation-edges-and-stale-citation-curation.md), [0006 ontology posture (OWL-RL + event-fresh sync)](docs/adr/0006-ontology-posture-owl-rl-and-event-fresh-entity-sync.md), [0007 LLM model selection is a cost-governed axis](docs/adr/0007-llm-model-selection-is-a-cost-governed-axis.md), [0008 late-bound service registration](docs/adr/0008-late-bound-service-registration.md), [0009 cluster taxonomy is a frontmatter projection, not a filesystem hierarchy](docs/adr/0009-cluster-taxonomy-is-frontmatter-projection-not-filesystem-hierarchy.md)
 - [ADR-001: Extract manager interfaces to API](docs/adrs/001-extract-manager-interfaces-to-api.md) — the earlier module-decomposition ADR (separate `docs/adrs/` series)
 
 ### MCP Integration
 
 Wikantik exposes two independent Model Context Protocol servers (both using the Streamable HTTP transport), plus an OpenAPI 3.1 tool server for non-MCP clients:
 
-**`/wikantik-admin-mcp`** — `wikantik-admin-mcp` module. Admin / write surface for AI-assisted wiki operations: structural-verification checks, Page Graph link and backlink analysis, history and diffs, metadata querying, recent changes, an export/import workflow for bulk editing, Knowledge Graph proposals, page writes, verification stamping, and query-log reads (`list_retrieval_queries`). Exposes **26 tools, 6 resources, 8 prompts, 3 completions**. Authoritative tool list: `wikantik-admin-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java`. Initializer: `com.wikantik.mcp.McpServerInitializer`.
+**`/wikantik-admin-mcp`** — `wikantik-admin-mcp` module. Admin / write surface for AI-assisted wiki operations: structural-verification checks, Page Graph link and backlink analysis, history and diffs, metadata querying, recent changes, per-page CRUD for bulk editing, Knowledge Graph proposals and curation, admin-bypass KG reads (so curators see freshly-created entities), orphaned-node triage, page writes, verification stamping, bulk cluster renames (`rename_cluster` — an unconfirmed call returns the plan rather than erroring), and query-log reads (`list_retrieval_queries`). Exposes **27 tools, 6 resources, 8 prompts, 3 completions**. Authoritative tool list: `wikantik-admin-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java`, wire-asserted by `McpProtocolIT.EXPECTED_TOOLS`. Initializer: `com.wikantik.mcp.McpServerInitializer`.
 
 **`/knowledge-mcp`** — `wikantik-knowledge` module. Read-only retrieval surface designed for coding agents consuming the wiki as a knowledge base. The **primary answer-grounding tool is `assemble_bundle`** — it returns the top-ranked, de-duplicated, version-pinned, citation-bearing section text as a ready-to-ground *context bundle* (with a `coverage` signal and a `mode=hybrid|dense|lexical` toggle), never a synthesized answer; `retrieve_context` is reframed as page/section discovery. The rest of the surface: hybrid search (BM25 + dense), Knowledge Graph schema discovery, node querying, traversal, similarity search, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id`), the agent-grade `get_page_for_agent` projection (now also carrying derived `agent_hints` with `prefer_tools` / `prefer_pages`, plus a `summary_synthesized` flag for hub-page overlays), batched markdown reads via `read_pages` (cap 20), read-only ontology access (`get_ontology` plus `sparql_query` over the `wikantik:` RDF model), stale-citation curation (`list_stale_citations`), and `get_briefing` — session-start context briefings (budgeted, deduped, injection-ready markdown) for coding agents. Exposes **21 tools**. Authoritative tool list: `wikantik-knowledge/src/main/java/com/wikantik/knowledge/mcp/`. Initializer: `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
 
@@ -635,6 +639,8 @@ Wikantik exposes two independent Model Context Protocol servers (both using the 
 Both MCP endpoints share the same bearer-token / API-key authentication scheme (`McpAccessFilter`, `KnowledgeMcpAccessFilter`). Tool naming is `snake_case` across all three endpoints. Every tool ships with at least one worked input/output example in its JSON schema (admin/knowledge MCP: per-property on `inputSchema.properties.<name>` plus a top-level `examples` array on `outputSchema`; OpenAPI tool server: `example` keys per OpenAPI 3.1). See [docs/wikantik-pages/GoodMcpDesign.md](docs/wikantik-pages/GoodMcpDesign.md) for the design principles these servers follow.
 
 **Structural spine** (see [docs/wikantik-pages/StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md)): `list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id` — all mirrored at `/api/structure/*`. Part of the Page Graph subsystem; typed `relations:` frontmatter was removed 2026-05-02.
+
+**Cluster declaration** (see [docs/wikantik-pages/ClusterDeclarationDesign.md](docs/wikantik-pages/ClusterDeclarationDesign.md), [ADR-0009](docs/adr/0009-cluster-taxonomy-is-frontmatter-projection-not-filesystem-hierarchy.md)): the hub page declares its cluster, `cluster:` is scalar-or-list on non-hub pages, membership is transitive and segment-aware via `ClusterPath` (never `startsWith`), and `rename_cluster` / `POST /admin/clusters/rename` rewrite a cluster across every member plan-first. The duplicate-declaration save-time 422 ships behind `wikantik.cluster_declaration.enforcement.enabled`, which defaults to **false** — enabling it against a corpus that already contains duplicate declarations makes the offending hub pages un-saveable, so verify with `/admin/drift` first.
 
 **Agent-grade content layer** (shipped 2026-04-25 — see [docs/wikantik-pages/AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md)): `type: runbook` pages with a six-key schema, verification metadata (`verified_at`, `verified_by`, `confidence`, `audience`), the token-optimised `GET /api/pages/for-agent/{canonical_id}` projection (and matching `get_page_for_agent` MCP tool), nightly retrieval-quality CI (nDCG@5/@10, Recall@20, MRR persisted to `retrieval_runs`, exposed at `/admin/retrieval-quality` and as Prometheus gauges), and worked tool-description examples on every MCP / OpenAPI tool.
 
@@ -661,8 +667,16 @@ mvn clean install -T 1C -DskipITs
 # modules need — prefer this over -Dmaven.test.skip)
 mvn clean install -DskipTests
 
-# Integration tests (MUST be sequential — no -T flag)
-mvn clean install -Pintegration-tests -fae
+# CANONICAL pre-commit gate — unit phase + all five IT modules (~6 min warm).
+# Requires Docker: it starts one shared CPU-ollama embedder on port 11435 for
+# the IT phase and tears it down afterwards. Parallelism is safe ONLY through
+# this script, which reserves per-module ports and uniquely-named pgvector
+# containers; never bolt -T onto a raw -Pintegration-tests invocation.
+bin/run-tests.sh --parallel 4
+
+# Sequential IT fallback, or a single IT module:
+bin/run-tests.sh
+bin/run-tests.sh --module dense
 ```
 
 ## Contact

@@ -101,7 +101,7 @@ Tuning of the agent surface based on external-agent feedback (Gemini's report on
 
 Three Prometheus counters land alongside: `wikantik_agent_hints_derivation_failures_total`, `wikantik_hub_summary_synthesis_total`, `wikantik_read_pages_partial_failures_total{reason}`.
 
-Spec: [docs/superpowers/specs/2026-05-10-derived-agent-hints-design.md](../superpowers/specs/2026-05-10-derived-agent-hints-design.md). Implementation plan: [docs/superpowers/plans/2026-05-10-derived-agent-hints.md](../superpowers/plans/2026-05-10-derived-agent-hints.md).
+Design spec and implementation plan retired once the work shipped; status is tracked in `docs/ProjectReference.md` § Other subsystems (Derived agent hints).
 
 ## Conclusion: The Goal of Structural Integrity
 

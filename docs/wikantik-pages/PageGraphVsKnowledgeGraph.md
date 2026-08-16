@@ -96,7 +96,7 @@ concept. `cluster:` is the sole membership mechanism; see
 
 Code that reads wikilink or cluster data from the Page Graph subsystem:
 
-- **`AgentHintsDeriver`** (in `wikantik-main`, package `com.wikantik.knowledge.agent`) — uses `ReferenceManager.findReferrers(slug)` to compute intra-cluster inbound link centrality for `prefer_pages` ranking on the `/for-agent` projection. See [docs/superpowers/specs/2026-05-10-derived-agent-hints-design.md](../superpowers/specs/2026-05-10-derived-agent-hints-design.md).
+- **`AgentHintsDeriver`** (in `wikantik-main`, package `com.wikantik.knowledge.agent`) — uses `ReferenceManager.findReferrers(slug)` to compute intra-cluster inbound link centrality for `prefer_pages` ranking on the `/for-agent` projection. See `docs/ProjectReference.md` § Other subsystems (Derived agent hints).
 
 ## See also
 

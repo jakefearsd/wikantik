@@ -23,7 +23,7 @@ As a platform born from a rapid modernization of Apache JSPWiki, Wikantik has un
 
 ## Strengths: The Competitive Edge
 
-1. **Agent-Centric Architecture:** Wikantik ships two production MCP servers — `/wikantik-admin-mcp` (26 write/analytics tools) and `/knowledge-mcp` (19–20 read-only retrieval + ontology tools) — plus an OpenAPI 3.1 tool server at `/tools/*` for non-MCP clients. No other self-hosted wiki ships an agent surface at this depth.
+1. **Agent-Centric Architecture:** Wikantik ships two production MCP servers — `/wikantik-admin-mcp` (27 write/analytics tools) and `/knowledge-mcp` (21 read-only retrieval + ontology tools when fully wired) — plus an OpenAPI 3.1 tool server at `/tools/*` for non-MCP clients. No other self-hosted wiki ships an agent surface at this depth.
 
 2. **Hybrid Retrieval:** BM25 (Lucene) + dense vector (Lucene HNSW in-process or pgvector) fused via Reciprocal Rank Fusion (k=60), with fail-closed BM25 fallback when Ollama is unavailable. Section recall@12 improved from 0.60 to 0.74 after chunker heading-fidelity fixes and contextual document embeddings.
 

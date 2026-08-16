@@ -16,7 +16,7 @@ frontmatter.
 
 ---
 
-## The six connector types
+## The seven connector types
 
 | Type | Syncs | Auth |
 |---|---|---|
@@ -30,8 +30,9 @@ frontmatter.
 
 `filesystem` is the one type that reads server-local paths, so it is
 **properties-only** — it shows up read-only in the admin UI but cannot be
-created or edited there. The other five are fully manageable from
-`/admin/connectors`.
+created or edited there. It is excluded from `ConnectorConfigCodec.UI_TYPES`,
+so `validate()` rejects it as an unknown type on any admin-originated write.
+The other **six** are fully manageable from `/admin/connectors`.
 
 ---
 

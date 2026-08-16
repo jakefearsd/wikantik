@@ -40,8 +40,8 @@ install paths run the identical Tomcat patch.
 | `/api/` | REST API (pages, attachments, search, history, knowledge graph) |
 | `/wiki/{slug}?format=md\|json` | Raw content for crawlers and RAG ingestion |
 | `/api/changes?since=…` | Incremental change feed for sync pipelines |
-| `/wikantik-admin-mcp` | Admin MCP server (writes + analytics + verification stamping) — 26 tools |
-| `/knowledge-mcp` | Knowledge MCP server (hybrid retrieval + Knowledge Graph + structural-spine + agent-projection) — 20 tools |
+| `/wikantik-admin-mcp` | Admin MCP server (writes + analytics + verification stamping + cluster renames) — 27 tools |
+| `/knowledge-mcp` | Knowledge MCP server (hybrid retrieval + Knowledge Graph + structural-spine + agent-projection + context bundles/briefings) — 21 tools |
 | `/tools/*` | OpenAPI 3.1 tool server (OpenWebUI-compatible) — 2 tools |
 | `/api/health` | Application health checks |
 | `/metrics` | Prometheus-compatible metrics (IP-restricted via `InternalNetworkFilter`) |
@@ -349,7 +349,7 @@ bin/remote.sh restore REMOTE_PATH                     # sidecar restore + restar
 
 ### Monitoring
 
-Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agent on each host pushing metrics and logs to a central Prometheus + Loki + Grafana on host `inference`. The wikantik container exposes `/metrics`, which jakemon scrapes. There is no in-repo observability stack.
+Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agent on each host pushing metrics and logs to a central Prometheus + Loki + Grafana on host **docker2**. The wikantik container exposes `/metrics`, which jakemon scrapes. There is no in-repo observability stack.
 
 ## 4. External services
 

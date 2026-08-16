@@ -60,8 +60,12 @@ one that applies:
 1. **System page?** Sandbox, Main, navigation pages, etc. Always excluded.
 2. **`kg_include: false` in frontmatter?** Excluded, regardless of cluster.
 3. **`kg_include: true` in frontmatter?** Included, regardless of cluster.
-4. **Cluster policy.** If the page's cluster has an `include` row in
-   `kg_cluster_policy`, the page is included. Otherwise excluded.
+4. **Cluster policy.** Each of the page's `cluster:` memberships (primary
+   plus any secondary memberships) is resolved against `kg_cluster_policy`,
+   walking up to the parent cluster when a sub-cluster (`parent/child`) has
+   no policy row of its own — most-specific row wins. Across memberships, an
+   explicit `exclude` on *any* membership wins outright (fail-closed);
+   otherwise an `include` on any membership carries. Otherwise excluded.
 
 The default is **exclude** — a cluster you haven't touched contributes nothing
 to the KG. This is deliberate: imports of new content can't sneak into agent
@@ -215,8 +219,8 @@ cluster policy yet. The bypass applies to:
 
 - REST `/admin/knowledge-graph/*` reads (already gated by `AdminAuthFilter`).
 - The MCP tools registered on `/wikantik-admin-mcp` — `list_proposals`,
-  `inspect_proposals`, and the new admin-bypass copies of `query_nodes`
-  and `search_knowledge` (26 tools total).
+  `inspect_proposals`, and the admin-bypass copies of `query_nodes`
+  and `search_knowledge` (27 tools total).
 
 The agent-facing `/knowledge-mcp` server keeps the filter on, so retrieval
 quality is unchanged. See

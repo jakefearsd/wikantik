@@ -9,15 +9,18 @@ container.
 | Workflow | Trigger | Runner | Role |
 |----------|---------|--------|------|
 | `release.yml` | push of a `v*.*.*` tag | GitHub-hosted | **The release pipeline** — builds, publishes, releases |
+| `quality-gates.yml` | push to `main`, weekly schedule, manual | GitHub-hosted | Static gates (build+RAT, complexity ratchet, frontend lint/tests), shell-tool tests, and an OSV dependency scan on every push; the full ~5k-test unit suite runs weekly + on demand |
 | `codeql.yml` | `workflow_dispatch` (manual) | GitHub-hosted | Security scanning, on demand |
 | `ci-cd.yml` | `workflow_dispatch` (manual) | `self-hosted` | Legacy build-and-deploy — dormant |
 | `staging-deploy.yml` | `workflow_dispatch` (manual) | `self-hosted` | Legacy staging deploy — dormant |
 | `dependency-review.yml` | pull requests | GitHub-hosted | Dependency diff review |
 
-Only `release.yml` runs automatically. `ci-cd.yml`, `codeql.yml`, and
-`staging-deploy.yml` were switched to `workflow_dispatch`-only to conserve
-GitHub Actions minutes — the test suite is run locally before a release
-(`mvn clean install -Pintegration-tests -fae`, per `CLAUDE.md`).
+`release.yml` and `quality-gates.yml` run automatically (on a tag push and on
+every push to `main`, respectively). `ci-cd.yml`, `codeql.yml`, and
+`staging-deploy.yml` are `workflow_dispatch`-only to conserve GitHub Actions
+minutes. The full IT reactor (Cargo/Postgres/pgvector) is not runnable on
+hosted runners, so it stays a local pre-commit gate — the canonical command is
+`bin/run-tests.sh --parallel 4` (see `CLAUDE.md`).
 
 `ci-cd.yml` and `staging-deploy.yml` additionally declare `runs-on: self-hosted`
 and describe an older "CI builds the image and SSHes it to production" model.
@@ -65,5 +68,8 @@ gh run list --workflow=release.yml          # recent release runs
 ## Cost
 
 `release.yml` runs only on a tag push, and the manual workflows run only
-when dispatched — so routine pushes to `main` consume no Actions minutes.
+when dispatched. Routine pushes to `main` do trigger `quality-gates.yml`
+(static gates, shell tests, OSV scan), which is deliberately scoped to
+GitHub-hosted runners so it costs Actions minutes rather than depending on
+the (currently unregistered) self-hosted runner.
 Dependabot version-update runs continue on their own schedule.

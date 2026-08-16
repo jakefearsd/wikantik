@@ -33,7 +33,7 @@ sudo systemctl enable --now postgresql
 
 `bin/db/install-fresh.sh` creates the `wikantik` database, the `wikantik` application
 role, installs the `pgvector` extension, and runs every migration in
-`bin/db/migrations/` (V001 through V037 as of this writing). Idempotent — safe to
+`bin/db/migrations/` (V001 through V049 as of this writing). Idempotent — safe to
 re-run against an already-bootstrapped database.
 
 ```bash
@@ -168,7 +168,7 @@ Tomcat download and JDBC driver download automatically.
 ## 3. Manual Schema Reference (legacy / advanced)
 
 > **SUPERSEDED for normal use.** The supported path is `bin/db/install-fresh.sh`
-> which runs all migrations (V001 through V037). Use the manual SQL below only for
+> which runs all migrations (V001 through V049). Use the manual SQL below only for
 > external review, adapting to a different RDBMS, or understanding what the schema
 > contains. **Never apply this DDL directly to a Wikantik database** — use
 > `bin/db/install-fresh.sh` so the `schema_migrations` ledger stays in sync.

@@ -1,8 +1,9 @@
 # Wikantik load-test harness
 
 A k6 harness that drives the **instrumented** Wikantik endpoints. k6 remote-writes
-its own metrics into jakemon's central Prometheus (`192.168.0.10:9090`) so offered
-load and host response share a timeline in Grafana.
+its own metrics into jakemon's central Prometheus on host `docker2`
+(`192.168.0.5:9090`) so offered load and host response share a timeline in
+Grafana.
 
 > **This document is the tactical reference** — install, configure, run.
 > For the methodology — when to run a load test, how to isolate variables,
@@ -40,10 +41,12 @@ Run this once after standing up a new stack:
 
 This provisions:
 - A `testbot` admin user (password from `test.properties`), hashed with
-  CryptoUtil's `{SHA-256}` SSHA scheme and inserted `ON CONFLICT DO NOTHING`.
+  CryptoUtil's `{SHA-256}` SSHA scheme and upserted (`ON CONFLICT (login_name)
+  DO UPDATE` — re-running the script refreshes the password rather than
+  no-op'ing).
 - An API key with scope `all` (covers both `/wikantik-admin-mcp` and `/tools/*`),
-  derived from `test.api.key` in `test.properties`. The DB stores only the
-  SHA-256 hex hash of the plaintext token.
+  derived from `test.api.key` in `test.properties`, inserted `ON CONFLICT DO
+  NOTHING`. The DB stores only the SHA-256 hex hash of the plaintext token.
 
 At the end the script prints the exact `loadtest/loadtest.env` values to use.
 Copy those into `loadtest/loadtest.env` (gitignored, copied from `.env.example`).

@@ -52,9 +52,9 @@ The three built-in profiles and when to use each — copied from
 | `load` | ramps to `--vus`, sustains for `--duration`, ramps down | finding steady-state at a target VU |
 | `stress` | staged ramp: 25 % → 50 % → 100 % → 0 % over 8 min | finding the knee / capacity ceiling |
 
-All three remote-write k6's own metrics into jakemon's Prometheus
-(`192.168.0.10:9090`), so offered load and host response share a timeline in
-Grafana.
+All three remote-write k6's own metrics into jakemon's Prometheus on host
+`docker2` (`192.168.0.5:9090`), so offered load and host response share a
+timeline in Grafana.
 
 ## Reading the k6 output
 
@@ -154,7 +154,7 @@ out and the next-biggest one move up.
 ## Pairing with Prometheus
 
 The Wikantik container publishes `/metrics`, which jakemon's Alloy agent
-scrapes into Prometheus at `192.168.0.10:9090`. During a load test you can
+scrapes into Prometheus at `192.168.0.5:9090`. During a load test you can
 query Prometheus directly for time-series data the k6 aggregate doesn't
 break down:
 
@@ -165,13 +165,13 @@ curl -s -G --data-urlencode \
     --data-urlencode 'start=2026-05-21T13:50:00Z' \
     --data-urlencode 'end=2026-05-21T14:01:00Z' \
     --data-urlencode 'step=60s' \
-    http://192.168.0.10:9090/api/v1/query_range
+    http://192.168.0.5:9090/api/v1/query_range
 
 # Container CPU split (which containers are running hot):
 curl -s -G --data-urlencode \
     'query=topk(5, sum by (id)(rate(container_cpu_usage_seconds_total{job="integrations/cadvisor",host="docker1"}[2m])) * 100)' \
     --data-urlencode 'time=2026-05-21T13:55:00Z' \
-    http://192.168.0.10:9090/api/v1/query
+    http://192.168.0.5:9090/api/v1/query
 
 # Cache hit-rate per cache (the wikantik scrape job):
 curl -s http://docker1:8080/metrics | grep -E 'wikantik_cache_(hits|misses|size)'
@@ -388,10 +388,15 @@ This makes the next session's "what changed?" attribution trivial.
 ## When to flip the dense-retrieval backend
 
 The pgvector backend is the **multi-host scaling lever**. On a single shared
-host (the docker1 reference), the in-memory dense backend wins: per-query
-latency floor is sub-ms vs ~3 ms with pgvector (one PG round-trip per
-search), and DBCP pool serialisation under load is worse than the in-process
-SIMD path.
+host (the docker1 reference), an in-process dense backend wins over pgvector:
+per-query latency floor is sub-ms vs ~3 ms with pgvector (one PG round-trip
+per search), and DBCP pool serialisation under load is worse than the
+in-process path. **`lucene-hnsw` is the docker1 production default** (since
+2.3.1) — it replaced the older `inmemory` (exact brute-force) backend because
+the brute-force dot-product scan was ~60 % of search CPU at load; `inmemory`
+remains available for dev/small corpora and as a rollback. See
+[`docs/ScalingCharacterization.md` § 14.1](ScalingCharacterization.md) for the
+JFR-driven cutover.
 
 The pgvector path's win materialises when:
 
@@ -402,9 +407,11 @@ The pgvector path's win materialises when:
   in-memory float[] is ~50 MB — trivial. At 1 M chunks it's ~4 GB —
   noticeable. pgvector's HNSW index is memory-mapped and disk-backed.
 
-See [`docs/superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md`](superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md)
-for the cutover sequence and the rollback contract (it's a one-flag flip
-with a `--skip-build` redeploy).
+The cutover is a one-flag flip (`WIKANTIK_DENSE_BACKEND`) with a
+`--skip-build` redeploy; the knob and its trade-offs are documented in
+[`DockerDeployment.md` § Performance / search-backend tuning](DockerDeployment.md#performance--search-backend-tuning-optional).
+(The original pgvector design spec was retired in the completed-spec purge,
+`8f76da7334`.)
 
 ## Further reading
 
@@ -413,7 +420,9 @@ with a `--skip-build` redeploy).
   scaling study, methodology, every run captured to date
 - [`docs/DockerDeployment.md` § Performance / search-backend tuning](DockerDeployment.md#performance--search-backend-tuning-optional)
   — the runtime configuration knobs
-- [`docs/superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md`](superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md)
-  — pgvector design + multi-host crossover analysis
-- [`docs/superpowers/specs/2026-05-21-versioning-provider-contention-fix-design.md`](superpowers/specs/2026-05-21-versioning-provider-contention-fix-design.md)
-  — the contention-fix design that drove much of the recent throughput win
+- [`docs/wikantik-pages/HybridRetrieval.md`](wikantik-pages/HybridRetrieval.md)
+  — the dense-backend choice and the measured retrieval levers
+
+(The pgvector-HNSW and versioning-provider-contention design specs were
+retired in the completed-spec purge, `8f76da7334`; their shipped behaviour is
+covered by the two documents above and by `ScalingCharacterization.md` § 14.)

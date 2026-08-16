@@ -371,8 +371,9 @@ there is no in-repo observability stack.
 ### jakemon dependency (one-time)
 
 Both signal types below are Prometheus **textfile** metrics. The jakemon universal agent config
-(`agent/config.alloy`) enables the textfile collector on its `prometheus.exporter.unix`, reading
-the host's `/var/lib/jakemon/textfile` (via the agent's `/host` mount):
+(`agent/config.alloy`, in the **jakemon** repo — not this one) enables the textfile collector on
+its `prometheus.exporter.unix`, reading the host's `/var/lib/jakemon/textfile` (via the agent's
+`/host` mount):
 
 ```alloy
 prometheus.exporter.unix "host" {
@@ -382,8 +383,9 @@ prometheus.exporter.unix "host" {
 ```
 
 Producers (docker1's backup sidecar, the NAS pull) drop `.prom` files there. Deploy the agent
-change with `bin/deploy-agent.sh <host>` — which force-recreates the agent so the new config
-loads (a plain `up -d` won't, since the config is bind-mounted and Alloy doesn't auto-reload).
+change from the **jakemon** repo with `bin/deploy-agent.sh <host>` — which force-recreates the
+agent so the new config loads (a plain `up -d` won't, since the config is bind-mounted and Alloy
+doesn't auto-reload).
 Hosts without a producer harmlessly report `node_textfile_scrape_error=1` until their dir exists.
 
 ### Signals emitted by this repo

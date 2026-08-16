@@ -51,6 +51,44 @@ named graphs), queried via SPARQL. A *projection*, downstream of the other two. 
 two consumers: the [[knowledge-base]] (humans) and [[linked-data-publishing]] (machines).
 _Avoid_: "the graph", "the RDF", "the triplestore" (when you mean the modelled dataset).
 
+## Cluster taxonomy
+
+The topical hierarchy. It is a *projection of frontmatter*, never a filesystem
+hierarchy (see `docs/adr/0009-cluster-taxonomy-is-frontmatter-projection-not-filesystem-hierarchy.md`).
+
+**Cluster**:
+A thematic grouping of pages, named by a path value. It *exists* only when a
+[[cluster-declaration]] names it; a `cluster:` value nobody declares is an
+undeclared cluster, which is a drift finding rather than a cluster.
+_Avoid_: "category", "folder", "namespace", "section".
+
+**Cluster declaration**:
+The single page — carrying `type: hub` plus a scalar `cluster:` value — that makes a
+cluster exist. Exactly one page may declare a given cluster; two is a conflict, not a
+merge. The declaration is what distinguishes a real cluster from a typo.
+_Avoid_: "the hub" (that's the page), "cluster definition", "registering a cluster".
+
+**Membership**:
+A non-hub page's claim to belong to a cluster, written in its own `cluster:` field.
+Scalar or list — a page may hold several. Transitive: membership in `parent/child`
+is membership in `parent`.
+_Avoid_: "assignment", "tagging", "filing" (tags are a separate axis).
+
+**Primary cluster**:
+The first entry when a page's `cluster:` is a list — the one that drives *placement*:
+breadcrumbs, JSON-LD `articleSection`/`isPartOf`, sidebar, and the embedding prefix.
+Placement is singular; membership is plural. Both are read from the same field, so
+they cannot drift.
+_Avoid_: "main cluster", "default cluster", "canonical cluster".
+
+**Structural conflict**:
+A named, non-blocking disagreement between what the corpus asserts and what the
+taxonomy permits — duplicate declaration, headless cluster, undeclared cluster,
+clusterless hub, multi-cluster hub. Surfaced on the `/admin/drift` burn-down as
+patient curation work, not a save-time error (with one exception: duplicate
+declaration, behind a flag that ships off).
+_Avoid_: "error", "validation failure", "broken cluster".
+
 ## Knowledge base & the two senses of "semantic web"
 
 "Semantic Web" is overloaded — it names two consumers with opposite priorities. Say which.

@@ -3,10 +3,15 @@
 > **Design note (superseded direction).** This critique recommends adopting a
 > Guice-style dependency-injection framework. The project subsequently chose a
 > lighter path — incremental subsystem-factory extraction without an external
-> DI framework (see
-> [`docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md`](superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md),
-> all phases shipped). Treat the diagnosis below as accurate and the Guice
-> prescription as a considered alternative that was not taken.
+> DI framework. All phases shipped; the design spec was retired once the work
+> landed, and the status now lives in
+> [`ProjectReference.md`](ProjectReference.md). The rules it established are
+> enforced mechanically by `DecompositionArchTest` (R-2 freezes new
+> `WikiEngine#getManager` callers, R-4 bans `getManager` outside the approved
+> wiring classes, R-5 stops `WikiEngine` re-accreting late-bound service
+> state — see [ADR-0008](adr/0008-late-bound-service-registration.md)).
+> Treat the diagnosis below as accurate and the Guice prescription as a
+> considered alternative that was not taken.
 
 ## Executive Summary
 Wikantik represents a sophisticated modernization of a legacy codebase (JSPWiki). It successfully introduces "agent-grade" capabilities—such as hybrid retrieval, knowledge graphs, and semantic indexing—into a Java 25/Jakarta EE environment. The code quality is high, characterized by strong design patterns and a robust testing culture. 

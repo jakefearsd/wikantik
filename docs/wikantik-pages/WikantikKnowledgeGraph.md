@@ -67,8 +67,8 @@ SEO metadata (`<script type="application/ld+json">`) is re-sourced from `NodeTyp
 
 The KG is exposed through two MCP servers:
 
-- **`/knowledge-mcp`** (19–20 read-only tools): `query_nodes`, `traverse`, `find_similar`, `search_knowledge`, `discover_schema`, `get_node`, `get_ontology`, `sparql_query`, `list_stale_citations`, and `assemble_bundle` (RAG context bundle). Auth: bearer token / API key.
-- **`/wikantik-admin-mcp`** (26 tools): admin-bypass mirrors of `query_nodes` and `search_knowledge` so curators see freshly-created entities; `list_orphaned_kg_nodes` for degree-0 entity discovery; proposal review and KG curation writes.
+- **`/knowledge-mcp`** (21 read-only tools): `query_nodes`, `traverse`, `find_similar`, `search_knowledge`, `discover_schema`, `get_node`, `get_ontology`, `sparql_query`, `list_stale_citations`, and `assemble_bundle` (RAG context bundle). Auth: bearer token / API key.
+- **`/wikantik-admin-mcp`** (27 tools): admin-bypass mirrors of `query_nodes` and `search_knowledge` so curators see freshly-created entities; `list_orphaned_kg_nodes` for degree-0 entity discovery; `rename_cluster` for bulk cluster-path rewrites; proposal review and KG curation writes.
 
 ### RAG-as-a-Service and Stale Citation Self-Healing
 

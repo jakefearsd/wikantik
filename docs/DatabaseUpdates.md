@@ -16,7 +16,7 @@ migration in order).
 ## Migration timeline
 
 The migration directory is the source of truth. As of the latest
-release, schema state runs from V001 through V030:
+release, schema state runs from **V001 through V049**:
 
 | Migration | What it adds |
 |-----------|--------------|
@@ -47,6 +47,25 @@ release, schema state runs from V001 through V030:
 | V028 | `kg_edge_audit` — audit trail for KG edge create / update / delete |
 | V029 | Extend the `kg_edge_audit` action CHECK to add the `CONFIRM` action |
 | V030 | Broaden the `kg_edges` relationship-type CHECK to allow `generalizes` |
+| V031 | `wikantik_exporter` NOLOGIN role — least-privilege identity for metrics scraping |
+| V032 | `content_chunk_embeddings.embedding vector(1024)` + an HNSW index — the pgvector dual-write that makes dense rows queryable the instant they commit |
+| V033 | `comment_threads`, `comments` — threaded page discussion |
+| V034 | `page_owners`, `comment_mentions` — page ownership and @-mention notifications |
+| V035 | Seed the `agents` service account — the default owner for agent-authored pages |
+| V036 | `audit_log` — the tamper-evident hash-chained action record, monthly-partitioned |
+| V037 | Widen `audit_log.detail` to `TEXT` |
+| V038 | `drift_sweeps`, `drift_snapshot_counts` — aggregates behind the `/admin/drift` burn-down |
+| V039 | `must_change_password` — the general-purpose forced-rotation flag |
+| V040 | `citations` — first-class version-pinned, span-hashed citation edges parsed from `cite://` body markup |
+| V041 | `retrieval_query_log` — append-only capture of real retrieval queries across all agent surfaces |
+| V042 | Track each account's last successful authentication |
+| V043 | Canonicalise the admin `AllPermission` policy grant |
+| V044 | `briefing_log` — context-briefing telemetry |
+| V045 | `bundle_eval_run` — scheduled bundle-eval results |
+| V046 | `connector_sync_state` — per-connector cursor/hash state |
+| V047 | `connector_credentials` — the encrypted (AES-256-GCM) connector secret store |
+| V048 | `connector_configs` — admin-managed connector definitions (hot-applied, no restart) |
+| V049 | `connector_sync_run` — per-run connector sync history, purged on connector delete |
 
 Two follow-up migration policies:
 

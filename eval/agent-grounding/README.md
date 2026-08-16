@@ -26,7 +26,7 @@ more coarsely than sonnet, so switching providers resets the baseline.
 
 **Question set:** 16 questions on Wikantik internals (architecture, retrieval, security, rendering pipeline, Knowledge Graph, Page Graph, module layout, configuration).
 
-**Dense-vs-BM25 comparison (`--lexical`):** the `--lexical` flag is accepted but is currently a **no-op**. Neither `/api/bundle` nor the `/knowledge-mcp` tools expose a lexical toggle in their public interface. The flag is reserved for future use once the bundle API surface gains an explicit BM25-only mode.
+**Dense-vs-BM25 comparison (`--lexical`):** the `--lexical` flag forces BM25-only retrieval for both grounded arms — `grounded_bundle` appends `mode=lexical` to the `/api/bundle` call (`bundle_client.py`), and `grounded_mcp` forces `"mode": "lexical"` onto any `assemble_bundle` tool call the model makes (`arms.py`). Both `/api/bundle` and the `assemble_bundle` MCP tool accept a `mode` of `hybrid` (default), `dense`, or `lexical` (`RetrievalMode` in `wikantik-api`).
 
 ## Prerequisites
 
@@ -78,8 +78,7 @@ The `runs/` directory is gitignored — outputs are not committed.
 
 ## Optional: dense-vs-BM25 comparison
 
-The `--lexical` flag is a no-op today (see above). Once the API surface supports it,
-the comparison arm would be run as:
+Run the comparison arm with `--lexical` to force BM25-only retrieval (see above):
 
 ```bash
 python3 run_eval.py --run-id "${RUN}-bm25" --lexical && \

@@ -1,6 +1,6 @@
 ---
 summary: Operator + agent guide for wiring Claude Code, Gemini CLI, and OpenAPI-only
-  clients into Wikantik's three tool surfaces (~36 tools)
+  clients into Wikantik's three tool surfaces (~50 tools)
 date: '2026-04-29'
 cluster: wikantik-development
 depends-on:
@@ -34,8 +34,8 @@ Wikantik exposes three separate agent-facing surfaces. Each is a distinct servle
 
 | Path | Module | Protocol | Tools | Capabilities | Auth filter | Default scope |
 |---|---|---|---|---|---|---|
-| `/wikantik-admin-mcp` | `wikantik-admin-mcp` | MCP Streamable HTTP | 26 read + write + analytics | tools, resources, prompts, completions | `McpAccessFilter` | `mcp` (or `all`) |
-| `/knowledge-mcp` | `wikantik-knowledge` | MCP Streamable HTTP | 20 read-only retrieval + KG + spine + projection | tools | `KnowledgeMcpAccessFilter` | `mcp` (or `all`) |
+| `/wikantik-admin-mcp` | `wikantik-admin-mcp` | MCP Streamable HTTP | 27 read + write + analytics | tools, resources, prompts, completions | `McpAccessFilter` | `mcp` (or `all`) |
+| `/knowledge-mcp` | `wikantik-knowledge` | MCP Streamable HTTP | 21 read-only retrieval + KG + spine + projection | tools | `KnowledgeMcpAccessFilter` | `mcp` (or `all`) |
 | `/tools/*` | `wikantik-tools` | OpenAPI 3.1 | 2 (`search_wiki`, `get_page`) | OpenAPI document at `/tools/openapi.json` | `ToolsAccessFilter` | `tools` (or `all`) |
 
 The two MCP endpoints share the same access-filter implementation and the same `wikantik-mcp.properties`, so a legacy property-file key (or a DB-backed `mcp` key) authorises both. The OpenAPI endpoint is independent: it has its own properties file and key scope.
@@ -190,7 +190,7 @@ The same file feeds both `McpAccessFilter` (admin) and `KnowledgeMcpAccessFilter
 
 Tool names below are canonical wire identifiers (snake\_case). Every tool ships with at least one worked input/output example in its schema (Phase 6 of the agent-grade content rewrite, 2026-04-25) — agents should surface `examples` to the model when constructing the first call rather than reasoning purely from JSON Schema types.
 
-### `/wikantik-admin-mcp` (26 tools)
+### `/wikantik-admin-mcp` (27 tools)
 
 **Read-only / analytics** — no author resolution required, registered with `readOnly=true` annotation:
 
@@ -208,6 +208,11 @@ Tool names below are canonical wire identifiers (snake\_case). Every tool ships 
 | `preview_structured_data` | What a page's frontmatter will produce in HTML — meta tags, OG/Twitter, JSON-LD, BreadcrumbList, Atom, News Sitemap. |
 | `ping_search_engines` | Submit URLs/sitemap to Google Ping + IndexNow after a publish. |
 | `list_proposals` | List pending knowledge-graph proposals (only when KG is configured). |
+| `inspect_proposals` | Bulk deep-dive on pending proposals (1..50 ids) with prior review history (KG-conditional). |
+| `query_nodes` | Admin-bypass mirror of the `/knowledge-mcp` tool — filter/search KG nodes, including entities whose source page hasn't cleared cluster inclusion yet (KG-conditional). |
+| `search_knowledge` | Admin-bypass mirror of the `/knowledge-mcp` tool — full-text search over KG node names + property values, bypassing the inclusion filter (KG-conditional). |
+| `list_orphaned_kg_nodes` | Find degree-0 KG entities (no edges) at scale (KG-conditional). |
+| `list_retrieval_queries` | Read real production retrieval-query traffic log (only when a query-log reader is wired). |
 
 **Write / author-configurable** — implement `AuthorConfigurable`; the MCP exchange's `clientInfo.name` is injected as the default author before each call:
 
@@ -219,10 +224,14 @@ Tool names below are canonical wire identifiers (snake\_case). Every tool ships 
 | `delete_pages` | Permanent delete with `confirm=true`. System pages refused. |
 | `mark_page_verified` | Stamp `verified_at`/`verified_by`/`confidence` frontmatter. |
 | `propose_knowledge` | Propose a new node or edge for the knowledge graph (KG-conditional). |
+| `rename_cluster` | Bulk-rewrite `cluster:` frontmatter across every member when a hub's declared cluster path changes; plan-by-default, applies on `confirm=true`. Registered unconditionally — refuses at call time if the structural index is absent. |
+| `review_proposals` | Bulk `approve \| reject \| judge` on pending proposals (1..50 ids; `reject` requires a top-level `reason`) (KG-conditional). |
+| `curate_edges` | Heterogeneous bulk KG edge curation ops (1..50 ops) (KG-conditional). |
+| `curate_nodes` | Heterogeneous bulk KG node curation ops (1..50 ops) (KG-conditional). |
 
 The admin endpoint also serves resources, prompts, and completions (see *Capabilities*).
 
-### `/knowledge-mcp` (20 tools)
+### `/knowledge-mcp` (21 tools)
 
 **Knowledge-graph traversal & introspection** (registered when `KnowledgeGraphService` is configured):
 
@@ -243,6 +252,7 @@ The admin endpoint also serves resources, prompts, and completions (see *Capabil
 | `get_page` | Pinned fetch of a specific page once you know its name. |
 | `list_pages` | Browse-style page enumeration, optionally prefix-filtered. |
 | `list_metadata_values` | Distinct frontmatter keys + their values across the corpus — discovery before targeted filtering. |
+| `read_pages` | Batched raw-markdown reads (cap 20). Per-page failures (`not_found`, `internal_error`) come back as data on a 200 response, removing the per-page read tax for cluster-spanning research. |
 
 **Structural-spine navigation** (registered when `StructuralIndexService` is configured) — fastest path for *structural* questions because they hit the index, not full-text search:
 
@@ -252,13 +262,22 @@ The admin endpoint also serves resources, prompts, and completions (see *Capabil
 | `list_tags` | Enumerate tags with frequency. |
 | `list_pages_by_filter` | Pages matching `cluster=`, `tag=`, `type=`, etc. |
 | `get_page_by_id` | Resolve a page by its stable `canonical_id` (ULID). |
-| `traverse_relations` | Walk typed relations declared in frontmatter (`relations:` block) — declared graph, not derived. |
 
-**Agent-grade projection** (registered when `ForAgentProjectionService` is configured):
+**Agent-grade projection & context bundle** (registered when the corresponding service is configured):
 
 | Tool | Purpose |
 |---|---|
 | `get_page_for_agent` | Token-budgeted projection of a page: summary, key facts, headings outline, typed relations, recent changes, MCP tool hints, verification state. **Default-of-choice for "read this page"** — falls back gracefully via `degraded` flag and `missing_fields` rather than failing the whole request. Memoised in `wikantik.forAgentCache` (1h TTL). |
+| `assemble_bundle` | RAG-as-a-Service context bundle — ranked, de-duplicated, version-pinned-cited sections, NO answer synthesis. Mirrors `GET /api/bundle`. |
+| `get_briefing` | Session-start context briefing — budgeted, deduped, injection-ready markdown or structured JSON assembled from pins/clusters/prompt. Mirrors `GET /api/briefing`. |
+
+**Ontology and citation tools** (registered when the ontology / citation subsystems are configured):
+
+| Tool | Purpose |
+|---|---|
+| `get_ontology` | Fetch the formal RDF/OWL T-Box (`wikantik:` ontology). |
+| `sparql_query` | Read-only SPARQL (`SELECT`/`ASK`/`CONSTRUCT`) over the ontology; `UPDATE` is rejected. |
+| `list_stale_citations` | Phase 3 stale-citation curation — citations whose grounding section has drifted since the citation was pinned. |
 
 ### `/tools/*` (2 tools)
 
@@ -464,7 +483,7 @@ Drop a fragment like this into the agent's project / system prompt so it does no
 >
 > - **Read a page:** prefer `get_page_for_agent` over `read_page` / `get_page`. It returns a token-budgeted projection with summary, key facts, headings outline, typed relations, and verification state. Treat any field listed in `missing_fields` as unavailable rather than empty. Treat `confidence: stale` as untrusted information.
 > - **Search content:** prefer `retrieve_context` over `search_knowledge` for question-answering — it is the hybrid BM25 + dense (RRF-fused) path. Use citation URLs from the response when reporting findings.
-> - **Browse structure:** for cluster / tag / type questions use the structural-spine tools (`list_clusters`, `list_tags`, `list_pages_by_filter`, `traverse_relations`, `get_page_by_id`). Do not full-text-search structural questions; the spine is faster and exact.
+> - **Browse structure:** for cluster / tag / type questions use the structural-spine tools (`list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id`). Do not full-text-search structural questions; the spine is faster and exact.
 > - **Plan multi-step work:** before doing complex authoring or maintenance, search for `type: runbook` pages on the topic (`list_pages_by_filter` with `type=runbook` or `retrieve_context` with the right query) and follow the `steps:` block.
 > - **Discover the schema:** call `discover_schema` once per session before constructing custom KG queries; call `list_metadata_values` before custom frontmatter filters.
 > - **Edit pages (if authoring is enabled):** use `update_page` with `expectedContentHash` for optimistic locking. Always provide a `changeNote`. Use `mark_page_verified` to stamp verification after a substantive review. Never call `delete_pages` or `rename_page` without `confirm=true`.
@@ -497,8 +516,7 @@ Drop a fragment like this into the agent's project / system prompt so it does no
 ### Knowledge-graph traversal from a known page
 
 1. `get_page_for_agent` to get the page's `canonical_id`.
-2. `traverse_relations` with that id to walk the *declared* graph.
-3. Use `traverse` (KG, not spine) only when the declared graph is insufficient — it walks the derived co-mention graph and is more permissive.
+2. `traverse` from an entity mentioned on that page to walk the derived co-mention / typed-relation graph, bounded by depth and provenance filters.
 
 ### Retrieval-quality investigation
 

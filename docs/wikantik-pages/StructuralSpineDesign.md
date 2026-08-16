@@ -41,7 +41,7 @@ canonical_id: 01KQ0P60Q4PP4BXR1WQKBPV1WS
 
 ## Problem
 
-Wikantik exposes 1000+ pages through two MCP servers (`/wikantik-admin-mcp`, `/knowledge-mcp`), 23 REST resources, and full-text search. None of them let an agent ask **"what does this wiki contain?"** without first paying the cost of full-text search. The taxonomy that exists — cluster membership, tag assignments, type declarations, page-to-page relationships — is encoded in human-readable places (YAML frontmatter, `Main.md` prose) but never exposed as structured data that agents can query.
+Wikantik exposes 1000+ pages through two MCP servers (`/wikantik-admin-mcp`, `/knowledge-mcp`), 33 REST resources, and full-text search. None of them let an agent ask **"what does this wiki contain?"** without first paying the cost of full-text search. The taxonomy that exists — cluster membership, tag assignments, type declarations, page-to-page relationships — is encoded in human-readable places (YAML frontmatter, `Main.md` prose) but never exposed as structured data that agents can query.
 
 Concrete consequences today:
 
@@ -401,7 +401,7 @@ Total: ~1.75 dev-sprints. The structural queries (Phase 1's observe-only mode) a
 ## Open questions
 
 1. **ULID vs UUIDv7.** Proposal picks ULID for its URL-safety and sort-friendliness, but UUIDv7 has wider tooling support. Decision: ULID, but store as `CHAR(26)` so migration to UUIDv7 is a column-type change, not a schema rethink.
-2. **Cluster membership: frontmatter `cluster` vs multi-cluster.** Today `cluster: <name>` is a scalar. Multi-cluster membership is not supported — if needed, extend the frontmatter parser to accept `cluster: [name1, name2]` in a follow-up. No relation mechanism needed.
+2. **Cluster membership: frontmatter `cluster` vs multi-cluster.** Resolved by [ClusterDeclarationDesign](ClusterDeclarationDesign) Phase 5 (shipped 2026-08-15): `cluster:` is scalar-or-list on non-hub pages (hubs stay scalar), with the first entry as primary. `ClusterPath.memberships(...)` is the single place scalar-vs-list is resolved.
 
 ## Structural Index consumers
 

@@ -7,6 +7,9 @@ safely and repeatably.
 
 ## Files
 
+The earliest, foundational migrations (illustrative, not the full list — see
+this directory for the current set, currently up to V049):
+
 - `V001__schema_migrations.sql` — tracking table used by `migrate.sh`
 - `V002__core_users_groups.sql` — users, roles, groups, group_members + default admin seed
 - `V003__policy_grants.sql` — database-backed authorization policy
@@ -14,6 +17,10 @@ safely and repeatably.
 - `V005__hub_membership.sql` — Hub centroids and Hub membership proposals
 - `V006__hub_discovery_proposals.sql` — cluster-based hub discovery review queue
 - `V007__hub_discovery_proposal_status.sql` — dismissed-status tracking for V006
+
+Data backfills are **not** versioned migrations — they live as one-off
+scripts in `bin/db/one-shots/` (SQL or shell, dated or descriptively named),
+run by hand against the target database, never through `migrate.sh`.
 
 The companion scripts live one directory up (`bin/db/`):
 
@@ -41,7 +48,7 @@ V<NNN>__<snake_case_description>.sql
    no-op.
 2. **Must not reference hard-coded role names** for grants. Use the
    `:app_user` psql variable — `migrate.sh` sets it from the
-   `DB_APP_USER` environment variable (default `jspwiki`).
+   `DB_APP_USER` environment variable (default `wikantik`).
 3. **Must not be edited after it has been applied in production.** Once
    `V00N` has run anywhere other than local dev, fix mistakes by writing
    a follow-up `V00(N+1)` migration. The `schema_migrations` table

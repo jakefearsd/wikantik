@@ -13,7 +13,7 @@
 ## Test plan
 
 - [ ] Unit tests pass: `mvn clean install -T 1C -DskipITs`
-- [ ] Integration tests pass: `mvn clean install -Pintegration-tests -fae`
+- [ ] Integration tests pass: `bin/run-tests.sh --parallel 4` (canonical gate — unit phase + the 5 default IT modules; the raw `mvn -Pintegration-tests -fae` reactor is a slower sequential fallback)
 - [ ] Manual verification (describe what you exercised in the running wiki):
 - [ ] If schema changed: new `Vxxx__<desc>.sql` migration is included and idempotent
 - [ ] If a `bin/` script changed: its `--help` still produces useful output

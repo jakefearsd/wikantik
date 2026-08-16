@@ -22,7 +22,7 @@ Based on comprehensive analysis of the Wikantik codebase, six high-value refacto
 
 `CachingProvider` wraps `PageProvider` but this pattern isn't generalized.
 
-**Code Location:** `wikantik-main/src/main/java/org/apache/wiki/providers/CachingProvider.java:63-102`
+**Code Location:** `wikantik-main/src/main/java/com/wikantik/providers/CachingProvider.java` (package renamed from `org.apache.wiki` since this review; line numbers not re-verified)
 
 ### Problem
 
@@ -73,7 +73,7 @@ Providers are instantiated independently via `ClassUtil.buildInstance()`:
 - `AttachmentManager` creates its `AttachmentProvider`
 - `SearchManager` creates its `SearchProvider`
 
-**Code Location:** `wikantik-main/src/main/java/org/apache/wiki/WikiEngine.java:272-310`
+**Code Location:** `wikantik-main/src/main/java/com/wikantik/WikiEngine.java` (package renamed from `org.apache.wiki` since this review; line numbers not re-verified)
 
 ### Problem
 
@@ -141,7 +141,7 @@ initComponent( PageManager.class, this, props );
 // ... 20+ more
 ```
 
-**Code Location:** `wikantik-main/src/main/java/org/apache/wiki/WikiEngine.java:272-310`
+**Code Location:** `wikantik-main/src/main/java/com/wikantik/WikiEngine.java` (package renamed from `org.apache.wiki` since this review; line numbers not re-verified)
 
 ### Problem
 
@@ -206,7 +206,7 @@ private static class CachedProperties {
 private CachedProperties m_cachedProperties;  // Only ONE entry!
 ```
 
-**Code Location:** `wikantik-main/src/main/java/org/apache/wiki/providers/VersioningFileProvider.java:697-720`
+**Code Location:** `wikantik-main/src/main/java/com/wikantik/providers/VersioningFileProvider.java` (package renamed from `org.apache.wiki` since this review; line numbers not re-verified)
 
 ### Problem
 
@@ -271,7 +271,7 @@ public static final int PAGE_UNLOCK = 12;
 public static final int PAGE_REQUESTED = 20;
 ```
 
-**Code Location:** `jspwiki-event/src/main/java/org/apache/wiki/event/WikiEvent.java`
+**Code Location:** `wikantik-event/src/main/java/com/wikantik/event/WikiEvent.java` (module and package renamed from `jspwiki-event`/`org.apache.wiki.event` since this review)
 
 ### Problem
 

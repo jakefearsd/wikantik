@@ -16,7 +16,7 @@ The `migrate` role split and the V031 monitoring role are in production. The
 unimplemented.
 
 **Goal:** Make production schema changes routine, auditable, and repeatable
-without granting the application role (`jspwiki`) privileges it should not have.
+without granting the application role (`wikantik`) privileges it should not have.
 
 ---
 
@@ -56,7 +56,7 @@ The role split (item 1) is done. Items 2 and 3 are still open.
 └──────────────┘                    │  roles:                  │
                                     │    postgres  (superuser) │
                                     │    migrate   (owns DDL)  │
-                                    │    jspwiki   (DML only)  │
+                                    │    wikantik  (DML only)  │
                                     │    wikantik_exporter     │
                                     │      (pg_monitor, V031)  │
                                     │                          │
@@ -75,7 +75,7 @@ The role split (item 1) is done. Items 2 and 3 are still open.
 |------|-----------|------------|
 | `postgres` | Initial provision | Superuser. Installs extensions only. |
 | `migrate` | Every deploy | `CREATE` on schema, owns all tables. |
-| `jspwiki` | Application runtime | `SELECT/INSERT/UPDATE/DELETE` on tables + `USAGE/SELECT` on sequences. No DDL. |
+| `wikantik` | Application runtime | `SELECT/INSERT/UPDATE/DELETE` on tables + `USAGE/SELECT` on sequences. No DDL. |
 | `wikantik_exporter` | Prometheus scrape (V031) | `pg_monitor` membership. No login by default; `migrate.sh` sets a password if `exporter_password` is provided. |
 
 ### Bootstrapping the migrate role (one time per DB)
@@ -86,7 +86,7 @@ Run as a PostgreSQL superuser after `install-fresh.sh`:
 DB_NAME=wikantik \
 DB_MIGRATE_USER=migrate \
 DB_MIGRATE_PASSWORD='<strong-password>' \
-DB_APP_USER=jspwiki \
+DB_APP_USER=wikantik \
     bin/db/create-migrate-user.sh
 ```
 
@@ -174,14 +174,14 @@ Planned options in order of preference:
 
 ```bash
 # 1. Create DB, app role, extensions, run all migrations
-sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=wikantik \
     DB_APP_PASSWORD='<app-password>' \
     bin/db/install-fresh.sh
 
 # 2. Create the migrate role and transfer ownership
 DB_NAME=wikantik DB_MIGRATE_USER=migrate \
     DB_MIGRATE_PASSWORD='<migrate-password>' \
-    DB_APP_USER=jspwiki \
+    DB_APP_USER=wikantik \
     bin/db/create-migrate-user.sh
 ```
 
@@ -220,6 +220,6 @@ can read top-to-bottom in five minutes.
 - Where do `migrate` role credentials live in the final state? Need a concrete choice
   (Vault? AWS Secrets Manager? host `.pgpass`?) before writing the wrapper.
 - Do we need a separate **read-only** role for analytics / backup tooling? Probably
-  yes — add `wikantik_ro` alongside `jspwiki` when a clean role audit happens.
+  yes — add `wikantik_ro` alongside `wikantik` when a clean role audit happens.
 - pg_dump / pg_restore authorization with the new role split — the backup role should
   be distinct from `migrate` so a compromised backup credential cannot mutate schema.

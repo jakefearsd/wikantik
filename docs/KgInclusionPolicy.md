@@ -41,6 +41,12 @@ Knowledge Graph indexing. Pages not admitted by the policy are recorded in
 3. **`kg_include: true` in frontmatter?** Included, regardless of cluster.
 4. **Cluster policy.** If the page's `cluster:` frontmatter maps to an `include` row
    in `kg_cluster_policy`, the page is included. Otherwise excluded (default-exclude).
+   Lookup walks up ancestor cluster paths (`a/b/c → a/b → a`, segment-aware — never
+   `startsWith`) when a sub-cluster has no policy row of its own; the most specific
+   row wins. `cluster:` may name multiple memberships (Phase 5 multi-membership),
+   in which case the resolution is **fail-closed**: an explicit `exclude` on *any*
+   membership wins outright, and only when nothing excludes it does an `include` on
+   any membership carry. (`DefaultKgInclusionPolicy.decidingPolicy`/`resolveInherited`.)
 
 **Exclusion reason precedence** recorded in `kg_excluded_pages`:
 `system_page` > `page_override` > `cluster_policy`.
@@ -331,9 +337,11 @@ policy rows at all.
 **Pages still appearing in retrieval after excluding a cluster**
 
 The exclusion applies to new extraction runs and KG queries, but existing `kg_nodes`
-/ `kg_edges` rows are not deleted by soft-exclude. If the KG rerank step is enabled,
-entities from excluded pages may still boost results through the graph proximity
-scorer. Run `purge --confirm` to hard-delete the KG data for the cluster.
+/ `kg_edges` rows are not deleted by soft-exclude. (The KG page-level graph rerank
+that once boosted results via entity proximity was deleted in 2026-07 after
+measuring zero retrieval lift — see [KnowledgeGraphRerank.md](KnowledgeGraphRerank.md)
+— so this is not currently a live pathway.) Run `purge --confirm` to hard-delete the
+KG data for the cluster.
 
 **`explain` returns 404**
 

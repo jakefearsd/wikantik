@@ -2,8 +2,10 @@
 
 **Study date:** 2026-05-19 / 2026-05-20
 **Host:** docker1 — 16-core, Docker-hosted; wikantik container at 2 GB / db (pgvector pg18) at 2 GB after Phase 0
-**Methodology spec:** [docs/superpowers/specs/2026-05-19-wikantik-scaling-characterization-design.md](superpowers/specs/2026-05-19-wikantik-scaling-characterization-design.md)
-**Implementation plan:** [docs/superpowers/plans/2026-05-19-wikantik-scaling-characterization.md](superpowers/plans/2026-05-19-wikantik-scaling-characterization.md)
+**Methodology spec / implementation plan:** retired once the study landed (the
+completed design specs and plan artifacts were purged in `8f76da7334`). This
+document *is* the surviving record — the numbers, JFR captures, and contention
+analyses below are the primary source, not a summary of one.
 
 ---
 
@@ -189,7 +191,7 @@ These six items should become a single follow-up spec (working title `2026-05-DD
 
 ## 9. Sweep #3 — code-surgery + JFR findings (2026-05-20)
 
-The Phase 0 baseline and Phase 3 Postgres tuning stayed in place. Two surgical changes landed on top per [docs/superpowers/specs/2026-05-20-search-path-optimization-design.md](superpowers/specs/2026-05-20-search-path-optimization-design.md):
+The Phase 0 baseline and Phase 3 Postgres tuning stayed in place. Two surgical changes landed on top (design spec since retired):
 
 1. **`MentionIndex.findRelatedPagesBatch`** — replaces the N+1 per-page lookup in `DefaultContextRetrievalService.retrieve()`'s result-building loop with a single batched call (one DBCP acquire + one prepared statement reused across the N executions).
 2. **`fetchContributingChunks` short-circuit + reuse** — when the hybrid pass already produced ≥ `pages × chunksPerPage` chunks (surfaced via the new `RerankOutcome` carrier and `HybridSearchService.rerankWithChunks`), skip the second full-corpus brute-force `topKChunks(emb, 200)` scan entirely.
@@ -299,7 +301,7 @@ The `MaxRAMPercentage=70` heap setting + the new SIMD work pattern produced one 
 
 ## 11. Sweep #5 — listener-mutex fix (2026-05-20)
 
-`WikiEventManager.WikiEventDelegate`'s storage swapped from `ArrayList<WeakReference<WikiEventListener>>` to `WeakHashMap<WikiEventListener, Boolean>`. `addWikiEventListener` is now O(1); `fireEvent` snapshots under the lock and dispatches callbacks outside it. Per [docs/superpowers/specs/2026-05-20-listener-mutex-fix-design.md](superpowers/specs/2026-05-20-listener-mutex-fix-design.md).
+`WikiEventManager.WikiEventDelegate`'s storage swapped from `ArrayList<WeakReference<WikiEventListener>>` to `WeakHashMap<WikiEventListener, Boolean>`. `addWikiEventListener` is now O(1); `fireEvent` snapshots under the lock and dispatches callbacks outside it. (design spec since retired).
 
 ### Sweep #5 vs Sweep #4 at N=300
 
@@ -545,9 +547,10 @@ traversal). A first cut stored `chunk_id`/`page_name` as Lucene **stored fields*
 and read them back per candidate — which decompressed an LZ4 block per hit and
 became ~44 % of CPU. Fixed by retrieving via **DocValues** (columnar, no
 decompression). Parity gate: lucene-hnsw within 0.02 nDCG@5 of brute force on a
-real pgvector container. Specs:
-[lucene-hnsw](superpowers/specs/2026-05-22-lucene-hnsw-dense-retrieval-design.md),
-[DocValues](superpowers/specs/2026-05-22-hnsw-docvalues-retrieval-design.md).
+real pgvector container. (The lucene-hnsw and DocValues design specs were
+retired with the rest of the completed-spec purge; the shipped behaviour is
+documented in [HybridRetrieval.md](wikantik-pages/HybridRetrieval.md) and the
+knobs in [WikantikOperations.md](WikantikOperations.md).)
 
 **Lesson:** CPU *composition* (where the cycles go) is a more reliable signal
 from a single JFR than throughput, which the closed-loop think-time load model

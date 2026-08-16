@@ -136,7 +136,7 @@ to render the provenance banner and the ↯ derived badge in lists and search
 results. Editing them by hand has no lasting effect — the next reflow or sync
 overwrites them from the actual source. See
 [Connectors.md](Connectors.md#reader-facing-provenance) for the full
-provenance model and the six connector types that produce derived pages.
+provenance model and the seven connector types that produce derived pages.
 
 ---
 
@@ -365,7 +365,8 @@ evidence for ratcheting a warning to an error once its count hits zero. See
 
 - [OntologyManagement.md](OntologyManagement.md) — the RDF/SKOS model frontmatter projects into, and curation
 - [KgInclusionPolicy.md](KgInclusionPolicy.md) — `kg_include` and the cluster-primary policy
-- [Connectors.md](Connectors.md) — the `derived_*` fields and the six connector types that stamp them
+- [Connectors.md](Connectors.md) — the `derived_*` fields and the seven connector types that stamp them
 - [AgentGradeContentDesign.md](wikantik-pages/AgentGradeContentDesign.md) — runbooks, verification, the for-agent projection
-- [StructuralSpineDesign.md](wikantik-pages/StructuralSpineDesign.md) — `cluster`/`hubs`/`canonical_id` and the structural index
+- [StructuralSpineDesign.md](wikantik-pages/StructuralSpineDesign.md) — `cluster`/`canonical_id` and the structural index
+- [ClusterDeclarationDesign.md](wikantik-pages/ClusterDeclarationDesign.md) — the hub page as the cluster's declaration, scalar-or-list `cluster:` multi-membership, and bulk renames (the `hubs:` field it replaced is gone)
 - [SeoAndCrawling.md](SeoAndCrawling.md) — how `type`/`summary`/`image` become structured data

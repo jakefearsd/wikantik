@@ -1,5 +1,13 @@
 # JSP Dead Code Catalog
 
+> **Status: COMPLETED.** This catalog (written 2026-03-28) was actioned the
+> following day — JSP pages, templates, tag classes, form classes, and the
+> legacy `mootools.js` were deleted in commit `eb68d6b481` and follow-up
+> commits on 2026-03-29, with further JSP-era cleanup continuing since
+> (see `git log --grep=JSP`). None of the paths below exist in the tree
+> today. Kept as a historical record of the removal plan, not a pending
+> checklist.
+
 After completing the React SPA migration (features 1-8), the following files become dead code and can be safely deleted. This catalog serves as the checklist for the JSP removal follow-up.
 
 ## Summary

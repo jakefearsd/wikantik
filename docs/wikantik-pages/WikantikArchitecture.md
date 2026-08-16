@@ -22,7 +22,7 @@ tags:
 ---
 # Wikantik System Architecture
 
-Wikantik began as a fork of Apache JSPWiki and has been re-architected into something its ancestor never was: an **agent-grade knowledge platform** where every page is simultaneously a human-readable document, a retrieval target, a node in two distinct graphs, and a set of machine-callable tools. This page is the deep, current (pre-2.1.0) reference for how the system is built — the modules, the data model, the retrieval and knowledge layers, the agent surface, the rendering and security pipelines — followed by an honest assessment of where it is strong, where it is weak, and where it should go next.
+Wikantik began as a fork of Apache JSPWiki and has been re-architected into something its ancestor never was: an **agent-grade knowledge platform** where every page is simultaneously a human-readable document, a retrieval target, a node in two distinct graphs, and a set of machine-callable tools. This page is the deep, current reference for how the system is built — the modules, the data model, the retrieval and knowledge layers, the agent surface, the rendering and security pipelines — followed by an honest assessment of where it is strong, where it is weak, and where it should go next.
 
 The guiding principle, repeated throughout the design, is **human–machine parity**: a human editing in the browser and an AI agent calling an MCP tool go through the *same* save pipeline, the *same* validation, the *same* permission checks, and read from the *same* retrieval index. There is no separate "API content." That single decision shapes almost everything below.
 
@@ -41,7 +41,7 @@ The guiding principle, repeated throughout the design, is **human–machine pari
             ▼               ▼            ▼             ▼                  ▼
       /api/* REST     /wikantik-     /knowledge-   /scim/v2/*     /sparql · /id/*
       /admin/*        admin-mcp        mcp                         /export/*  (RDF)
-            │          (26 tools)    (19–20 tools)    │                  │
+            │          (27 tools)    (21 tools)       │                  │
             └───────────────────────────┬────────────┴──────────────────┘
                                          ▼
                          ┌───────────────────────────────────────────┐
@@ -75,9 +75,9 @@ Modules are layered: `wikantik-api` defines the contracts (ports); everything el
 | `wikantik-util` | core | Helpers, crypto utilities. |
 | `wikantik-cache` / `-cache-memcached` | core | EhCache render/object caches; Memcached adapter for distributed deploys. |
 | `wikantik-http` | edge | Servlet filters: CSRF, CORS, CSP, security headers, SPA routing, the `/wiki/{slug}?format=md\|json` content filter. |
-| `wikantik-rest` | edge | REST `/api/*` (25 resources, incl. `POST /api/ingest`, `GET /api/bundle`) and admin `/admin/*` (audit, drift, ontology, derived, kg-policy). Public RDF servlets. |
-| `wikantik-admin-mcp` | agent | MCP server at `/wikantik-admin-mcp` — 26 write/analytics/KG-curation tools. |
-| `wikantik-knowledge` | agent + brain | MCP server at `/knowledge-mcp` (19–20 read tools) **and** the KG service: pgvector embeddings, co-mention graph, hybrid retriever, the context-bundle assembler. |
+| `wikantik-rest` | edge | REST `/api/*` (33 resources, incl. `POST /api/ingest`, `GET /api/bundle`) and admin `/admin/*` (audit, drift, ontology, derived, kg-policy). Public RDF servlets. |
+| `wikantik-admin-mcp` | agent | MCP server at `/wikantik-admin-mcp` — 27 write/analytics/KG-curation tools. |
+| `wikantik-knowledge` | agent + brain | MCP server at `/knowledge-mcp` (21 read tools) **and** the KG service: pgvector embeddings, co-mention graph, hybrid retriever, the context-bundle assembler. |
 | `wikantik-tools` | agent | OpenAPI 3.1 tool server `/tools/*` (2 tools) for non-MCP clients. |
 | `wikantik-scim` | agent | SCIM 2.0 provisioning `/scim/v2/*` — IdP-driven Users + Groups. |
 | `wikantik-ontology` | knowledge | Apache Jena: the `wikantik:` T-Box (`wikantik.ttl`), SHACL shapes, Postgres→RDF projectors, TDB2 store. |
@@ -155,11 +155,11 @@ Agents are first-class clients, not an afterthought. Every surface enforces the 
 
 | Endpoint | Protocol | What |
 |----------|----------|------|
-| `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 26 write/analytics/KG-curation tools (incl. admin-bypass reads, orphan listing, real-traffic query log). |
-| `/knowledge-mcp` | MCP | 19–20 read tools: hybrid retrieval, KG traversal, schema discovery, structural-spine nav, agent-grade page projection, batched reads, `get_ontology`, `sparql_query`, `list_stale_citations`, and `assemble_bundle`. |
+| `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 27 write/analytics/KG-curation tools (incl. admin-bypass reads, orphan listing, real-traffic query log). |
+| `/knowledge-mcp` | MCP | 21 read tools: hybrid retrieval, KG traversal, schema discovery, structural-spine nav, agent-grade page projection, batched reads, `get_ontology`, `sparql_query`, `list_stale_citations`, and `assemble_bundle`. |
 | `/tools/*` | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) for OpenWebUI-style non-MCP clients. |
 | `/scim/v2/*` | SCIM 2.0 | IdP-driven Users + Groups provisioning (SCIM Groups never grant Admin). |
-| `/api/*`, `/admin/*` | REST/JSON | 25 + 13 resources; `GET /api/bundle`, `POST /api/ingest`, `/api/changes?since=` feed. |
+| `/api/*`, `/admin/*` | REST/JSON | 33 + 26 resources; `GET /api/bundle`, `POST /api/ingest`, `/api/changes?since=` feed. |
 | `/sparql`, `/id/{type}/{id}`, `/export/*` | RDF | Public read-only ontology: SPARQL, per-resource JSON-LD/Turtle dereferencing, full dumps. |
 
 ## 7. Storage Model — The Hybrid

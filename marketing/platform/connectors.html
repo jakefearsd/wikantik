@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="google-adsense-account" content="ca-pub-5083997587716933">
   <title>Connectors — sync Confluence, Drive, GitHub &amp; more into your wiki | Wikantik</title>
-  <meta name="description" content="Six connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.">
+  <meta name="description" content="Seven connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.">
   <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://www.wikantik.com/platform/connectors.html">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -14,13 +14,13 @@
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://www.wikantik.com/platform/connectors.html">
   <meta property="og:title" content="Connectors — sync Confluence, Drive, GitHub &amp; more into your wiki | Wikantik">
-  <meta property="og:description" content="Six connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.">
+  <meta property="og:description" content="Seven connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.">
   <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Connectors — sync Confluence, Drive, GitHub &amp; more into your wiki | Wikantik">
-  <meta name="twitter:description" content="Six connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.">
+  <meta name="twitter:description" content="Seven connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.">
   <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <link rel="stylesheet" href="/styles.css">
@@ -43,7 +43,7 @@
   <script type="application/ld+json">
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Connectors: sync external content into your wiki, with provenance",
-    "description": "Six connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.",
+    "description": "Seven connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.",
     "datePublished": "2026-07-17", "dateModified": "2026-07-17",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
@@ -61,7 +61,7 @@
   { "@context": "https://schema.org", "@type": "FAQPage",
     "mainEntity": [
       { "@type": "Question", "name": "What sources can a Wikantik connector sync from?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Six connector types today: a local filesystem, a web crawler, an XML sitemap, RSS/Atom feeds, Google Drive (OAuth2), GitHub, and Confluence. Each is a continuous sync, not a one-time import — content is re-pulled on a schedule and kept current." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Seven connector types today: a local filesystem, a web crawler, an XML sitemap, RSS/Atom feeds, Google Drive (OAuth2), GitHub, and Confluence. Each is a continuous sync, not a one-time import — content is re-pulled on a schedule and kept current." } },
       { "@type": "Question", "name": "Will readers know a page came from an external source?",
         "acceptedAnswer": { "@type": "Answer", "text": "Yes. Every synced page carries a provenance banner naming the source and connector, plus a small badge in search results, page lists, and the cluster tree. Nothing is silently absorbed into the wiki as if a human wrote it." } },
       { "@type": "Question", "name": "Are connector credentials stored securely?",
@@ -101,11 +101,11 @@
         <header class="doc-head">
           <p class="eyebrow">Platform</p>
           <h1>Connectors: sync external content into your wiki, with provenance</h1>
-          <p class="doc-lede">Most of what a team "knows" doesn't live in the wiki — it's scattered across Confluence spaces, GitHub repos, Google Drive folders, RSS feeds, and internal sites nobody remembers to copy over. Wikantik connectors close that gap: six source types sync continuously into ordinary wiki pages, clearly marked with where they came from, so that content is searchable, citable, and part of the knowledge graph — without turning the wiki into an opaque mirror of somewhere else.</p>
+          <p class="doc-lede">Most of what a team "knows" doesn't live in the wiki — it's scattered across Confluence spaces, GitHub repos, Google Drive folders, RSS feeds, and internal sites nobody remembers to copy over. Wikantik connectors close that gap: seven source types sync continuously into ordinary wiki pages, clearly marked with where they came from, so that content is searchable, citable, and part of the knowledge graph — without turning the wiki into an opaque mirror of somewhere else.</p>
         </header>
         <div class="doc-body">
 
-          <h2>Six sources, one sync model</h2>
+          <h2>Seven sources, one sync model</h2>
           <p>A connector is a continuous sync, not a one-time import. Once configured, it runs on its own schedule and keeps the corresponding wiki pages current as the source changes:</p>
           <ul>
             <li><strong>Filesystem</strong> — a local or mounted directory of documents.</li>
@@ -129,7 +129,7 @@
           <p>A derived page is indexed exactly like any other page: it participates in <a href="/platform/hybrid-retrieval.html">hybrid retrieval</a>, is eligible to appear in a <a href="/platform/rag-context-bundles.html">context bundle</a> with the same version-pinned citations as hand-written content, and — if its assigned cluster is included under the <a href="/platform/knowledge-graph.html">knowledge graph's</a> inclusion policy — gets entities and relationships extracted from it the same as any other page. Connecting an external source is a way to widen what your agents and search can actually find, not a side channel that content has to "graduate" out of.</p>
 
           <h2>A guided admin experience</h2>
-          <p>Setting up a connector is a stepped wizard in the admin panel, not a properties file and a restart: pick a source type, fill in its settings with inline guidance (down to the exact GitHub token scopes or the Confluence API-token walkthrough), authorize where needed (Google Drive is a real OAuth consent redirect), and run a <strong>dry-run connection test</strong> before saving anything. The test reuses the connector's own fetch path — so "success" means the real sync will work too — and reports what it found in plain language, not a raw API response.</p>
+          <p>Setting up a connector is a stepped wizard in the admin panel, not a properties file and a restart: pick a source type — six of the seven are configurable this way, with the filesystem connector set up via properties file given the server-path access it requires — fill in its settings with inline guidance (down to the exact GitHub token scopes or the Confluence API-token walkthrough), authorize where needed (Google Drive is a real OAuth consent redirect), and run a <strong>dry-run connection test</strong> before saving anything. The test reuses the connector's own fetch path — so "success" means the real sync will work too — and reports what it found in plain language, not a raw API response.</p>
           <p>Once saved, the connector's detail page shows its last runs, sync status, and the pages it has produced, with a one-click "Sync Now" alongside its schedule. A <code>wikantik.connectors.enabled</code> kill switch lets an operator pause all syncing instantly if something looks wrong.</p>
 
           <h2>Credentials stay encrypted, never echoed</h2>
@@ -142,7 +142,7 @@
             <h2>Frequently asked questions</h2>
             <details>
               <summary>What sources can a Wikantik connector sync from?</summary>
-              <p>Six connector types today: a local filesystem, a web crawler, an XML sitemap, RSS/Atom feeds, Google Drive (OAuth2), GitHub, and Confluence. Each is a continuous sync, not a one-time import — content is re-pulled on a schedule and kept current.</p>
+              <p>Seven connector types today: a local filesystem, a web crawler, an XML sitemap, RSS/Atom feeds, Google Drive (OAuth2), GitHub, and Confluence. Each is a continuous sync, not a one-time import — content is re-pulled on a schedule and kept current.</p>
             </details>
             <details>
               <summary>Will readers know a page came from an external source?</summary>

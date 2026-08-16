@@ -30,7 +30,7 @@ The initial modernization was exceptionally compressed, taking place over two mo
 - **JSP-to-React Migration:** The entire JSP-based rendering engine was replaced with a Vite-powered React SPA served at `/`.
 - **Security Modernization:** Static XML policy files were replaced with a dynamic, database-backed RBAC system (`policy_grants` table, manageable via admin UI). JAAS-based SSO (OIDC + SAML via pac4j) was added.
 - **The Knowledge Layer:** The `kg_*` tables and pgvector-backed embeddings introduced the Knowledge Graph and hybrid search.
-- **MCP Integration:** Two dedicated Model Context Protocol servers were built to expose wiki internals to AI agents: `/wikantik-admin-mcp` (26 write/analytics tools) and `/knowledge-mcp` (read-only retrieval).
+- **MCP Integration:** Two dedicated Model Context Protocol servers were built to expose wiki internals to AI agents: `/wikantik-admin-mcp` (27 write/analytics tools) and `/knowledge-mcp` (21 read-only retrieval tools).
 
 ## Continued Evolution (May–June 2026)
 

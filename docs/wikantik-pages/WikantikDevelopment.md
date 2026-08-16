@@ -33,7 +33,7 @@ This cluster documents the development history of the Wikantik platform itself �
 - **[Test Driven Development (TDD)](TestDrivenDevelopment):** The mandatory TDD-first mandate: a failing test demonstrates every defect before a fix is written.
 - **[Hexagonal Architecture](HexagonalArchitecture):** Core wiki logic is decoupled from infrastructure (PostgreSQL, React, MCP) via manager interfaces in `wikantik-api`.
 - **[Continuous Integration (CI)](ContinuousIntegration):** Tag-triggered `release.yml` on GitHub Actions builds + publishes `ghcr.io/jakefearsd/wikantik:<version>`; integration tests run via Selenide + Cargo-launched Tomcat with PostgreSQL + pgvector; nightly retrieval-quality CI (nDCG/Recall/MRR) gates embedding regressions.
-- **Database Migrations:** Every schema change ships a numbered idempotent `V<NNN>__description.sql` under `bin/db/migrations/`; applied by `migrate.sh` on every deploy. Currently V001–V037.
+- **Database Migrations:** Every schema change ships a numbered idempotent `V<NNN>__description.sql` under `bin/db/migrations/`; applied by `migrate.sh` on every deploy. Currently V001–V049.
 
 ## Module Structure
 
@@ -48,8 +48,8 @@ Wikantik is a Maven multi-module reactor. Key modules:
 | `wikantik-cache` | EhCache-based caching layer (1-hour TTL, 10K entry capacity) |
 | `wikantik-http` | Servlet filters — CSRF, CORS, CSP, security headers, SPA routing |
 | `wikantik-rest` | REST/JSON API (`/api/*`) and admin endpoints (`/admin/*`) |
-| `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 26 tools |
-| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 19–20 read-only tools; also hosts the KG service, hybrid retriever, RAG bundle |
+| `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 27 tools |
+| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 21 read-only tools; also hosts the KG service, hybrid retriever, RAG bundle |
 | `wikantik-ontology` | RDF/OWL ontology (Apache Jena + TDB2) — T-Box, projectors, SHACL gate, public SPARQL surface |
 | `wikantik-ingest` | Derived-page document extraction (Apache Tika 3.3.0 + flexmark-html2md) |
 | `wikantik-scim` | SCIM 2.0 provisioning at `/scim/v2/*` |
@@ -66,7 +66,7 @@ Wikantik began as a fork of Apache JSPWiki. Through a sustained modernization ef
 - **Frontend:** JSP templates replaced with a React SPA (Vite + React Router), served at `/`
 - **Storage:** File-based providers augmented with PostgreSQL for users, groups, permissions, audit log, and the Knowledge Graph; pgvector for dense embeddings
 - **Security:** XML policy files migrated to database-backed `policy_grants` table with admin UI; SCIM 2.0 provisioning added at `/scim/v2/*`; JAAS-based SSO (OIDC + SAML via pac4j) with session fixation defense and SameSite=Lax cookies
-- **AI Integration:** Two dedicated MCP servers — `/wikantik-admin-mcp` (26 write/analytics tools) and `/knowledge-mcp` (19–20 read-only retrieval + ontology tools) — plus an OpenAPI 3.1 tool server at `/tools/*`
+- **AI Integration:** Two dedicated MCP servers — `/wikantik-admin-mcp` (27 write/analytics tools) and `/knowledge-mcp` (21 read-only retrieval + ontology tools) — plus an OpenAPI 3.1 tool server at `/tools/*`
 - **Retrieval:** Hybrid BM25 + dense (Lucene HNSW / pgvector) via RRF; chunk-level contextual embeddings; RAG-as-a-Service context bundle at `GET /api/bundle` + `assemble_bundle` MCP
 - **Ontology:** RDF/OWL ontology layer (`wikantik-ontology`) — 9 entity + 5 content classes, SHACL write-time gate, public SPARQL endpoint, JSON-LD SEO re-sourced from the ontology
 - **Observability:** Health checks, Prometheus `/metrics`; monitoring handled by the external **jakemon** stack (Grafana Alloy + central Prometheus + Loki + Grafana)

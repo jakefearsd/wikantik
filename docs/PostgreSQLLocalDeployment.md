@@ -114,8 +114,8 @@ sudo -u postgres DB_NAME=wikantik DB_APP_USER=wikantik \
     bin/db/install-fresh.sh --no-migrate-role
 ```
 
-This applies every `V*.sql` in `bin/db/migrations/` (currently through the V03x
-series) — the full relational schema: users/roles/groups, `policy_grants`, the
+This applies every `V*.sql` in `bin/db/migrations/` (currently V001–V049) —
+the full relational schema: users/roles/groups, `policy_grants`, the
 Knowledge Graph tables (`kg_*`) and the `vector` extension, the Ollama-backed
 embedding stack (`kg_content_chunks`, `content_chunk_embeddings`,
 `chunk_entity_mentions`), hub tables, `api_keys`, the Page Graph structural index
@@ -139,9 +139,11 @@ can drop the `sudo -u postgres` prefix.
 mvn clean install -DskipTests -T 1C
 ```
 
-`-T 1C` enables one-thread-per-core parallel builds. **Don't** combine
-this with the `integration-tests` profile — IT modules share fixed
-ports and require sequential execution.
+`-T 1C` enables one-thread-per-core parallel builds. **Don't** bolt this
+onto a raw `mvn ... -Pintegration-tests` invocation — parallel IT execution
+is supported only through `bin/run-tests.sh --parallel N` (each module
+reserves its own free port via build-helper); a bare `-T` on the profile
+risks port collisions and corrupts shared build state on one checkout.
 
 ### Step 3: Configure secrets
 

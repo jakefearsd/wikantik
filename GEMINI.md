@@ -15,7 +15,8 @@ This guide orients Gemini to the Wikantik codebase for the primary purposes of *
 Writing content is a first-class engineering task in Wikantik. Every article must maintain the machine-readable "Structural Spine".
 
 *   **Syntax Authority:** Refer to `docs/wikantik-pages/TextFormattingRules.md`. Use CommonMark with Flexmark extensions.
-*   **Frontmatter is Mandatory:** Every page must start with a valid YAML block containing `title`, `type`, `cluster`, `status`, `date`, and `summary`.
+*   **Frontmatter is Mandatory (by convention, not by the engine):** Every page must start with a valid YAML block carrying `title`, `type`, `cluster`, `status`, `date`, and `summary`. Note what the server actually enforces: only *malformed YAML* is a hard 422 — `SchemaDrivenFrontmatterValidator` treats field-value problems as advisory **warnings** so corpus pages with non-kebab clusters or non-ISO dates still save. `FrontmatterSchema` declares no required fields. Treat the list above as the house standard you are expected to meet, not as something a failed save will catch for you.
+*   **`cluster:` is scalar-or-list:** on a non-hub page it may name several clusters; the **first entry is primary** and drives breadcrumbs, JSON-LD `articleSection`, sidebar placement, and the embedding prefix. A `type: hub` page's `cluster:` must stay scalar — a list-valued hub is a save-time error. The hub page is what *declares* a cluster exists. The old `hubs:` field is gone.
 *   **Canonical IDs:** The `canonical_id` (ULID) is stable for the life of the page and is the only authoritative linking mechanism. It is auto-injected by `StructuralSpinePageFilter` on first save. **Never modify or delete it.**
 *   **Runbooks:** Pages of `type: runbook` must include a fully populated `runbook:` block (see `TextFormattingRules.md` for schema).
 *   **Verification Metadata:** Use the `mark_page_verified` MCP tool to stamp `verified_at` and `verified_by`.
@@ -36,7 +37,7 @@ When performing refactoring (e.g., decoupling `WikiEngine` or modernizing legacy
 ### 4. Minor Feature Addition Workflow
 For adding small features like new Plugins, Filters, or REST endpoints:
 
-*   **New Plugins:** Implement `com.wikantik.api.plugin.Plugin` and add the package to `jspwiki.plugin.searchPath` in `wikantik-custom.properties`.
+*   **New Plugins:** Implement `com.wikantik.api.plugin.Plugin` and add the package to `wikantik.plugin.searchPath` in `wikantik-custom.properties`.
 *   **New Filters:** Implement `com.wikantik.api.filters.PageFilter`. Note that `StructuralSpinePageFilter` and `RunbookValidationPageFilter` are critical—do not interfere with their priority levels.
 *   **New MCP Tools:** Add to `com.wikantik.mcp.McpToolRegistry` (Admin) or `com.wikantik.knowledge.mcp` (Knowledge). Tool names MUST be `snake_case`.
 *   **Small REST Endpoints:** Extend `RestServletBase` to inherit ACL and policy grant enforcement.
@@ -54,7 +55,7 @@ mvn compile -pl wikantik-main -am -q
 mvn test -pl wikantik-main -Dtest=MyNewFeatureTest
 
 # 3. Verify the Structural Spine hasn't regressed (if changing content logic)
-mvn test -pl wikantik-it-tests -Dtest=MainPageRegressionTest -Pintegration-tests
+mvn test -pl wikantik-extract-cli -Dtest=MainPageRegressionTest
 
 # 4. Final tactical deploy
 bin/deploy-local.sh

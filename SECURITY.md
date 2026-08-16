@@ -43,13 +43,13 @@ Coordinated disclosure is the norm. Once a fix is available:
 ## Supported versions
 
 Wikantik follows a single-track release model. `main` (development) and the
-latest released minor (`2.1.x` as of this writing) receive security updates.
+latest released version (`2.4.2` as of this writing) receive security updates.
 Older releases are unsupported — please upgrade.
 
 | Version | Supported? |
 |---------|------------|
 | `main` (development) | Yes |
-| `2.1.x` (latest released minor) | Yes |
+| `2.4.x` (latest released) | Yes |
 | Older releases | No — please upgrade |
 
 ## Threat model in scope

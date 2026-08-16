@@ -1,6 +1,6 @@
 > **Retired 2026-05-19.** The self-hosted Promtail/Loki/Prometheus/Grafana overlay was
 > removed from this repository. Monitoring is now handled by the external **jakemon** stack
-> (Grafana Alloy agent → central Prometheus + Loki + Grafana on host `inference`), which
+> (Grafana Alloy agent → central Prometheus + Loki + Grafana on host `docker2`), which
 > scrapes the wikantik `/metrics` endpoint. See `docs/WikantikOperations.md` for current
 > monitoring notes. The large configuration sections (Promtail YAML, Loki config, Prometheus
 > prometheus.yml, docker-compose.observability.yml, systemd units) from the original design
@@ -36,7 +36,7 @@ which allows only loopback (`127.x.x.x` / `::1`) and configured private CIDR
 ranges. External requests receive 403.
 
 The jakemon stack's Grafana Alloy agent scrapes this endpoint from the host
-network and forwards metrics to central Prometheus on host `inference`.
+network and forwards metrics to central Prometheus on host `docker2`.
 
 ```bash
 # From the local host (loopback is allowed)
@@ -62,5 +62,5 @@ The following were design-only or optional overlays and have been removed:
 - systemd unit files for Loki, Promtail, Prometheus, node_exporter
 - Loki/Promtail log-aggregation tier (was design-only, never deployed)
 
-The jakemon repo on host `inference` now owns the full monitoring stack. See
+The jakemon repo, running on host `docker2`, now owns the full monitoring stack. See
 `docs/WikantikOperations.md` for the current monitoring architecture.

@@ -16,10 +16,11 @@ Configuration for both bare-metal and container environments relies heavily on e
 - `MAIL_SMTP_PASSWORD`: Credentials for email dispatch.
 
 ### 1.2 Containerized Deployment (Recommended for Production)
-The production Docker environment runs three critical services defined in `docker-compose.yml` and `docker-compose.prod.yml`:
+The production Docker environment runs four services defined in `docker-compose.yml` and `docker-compose.prod.yml`:
 1. `wikantik`: The primary application running on Tomcat 11/JDK 25.
 2. `db`: PostgreSQL 18 database (`pgvector/pgvector:pg18` — the `vector` extension is required).
-3. `backup`: An Alpine-based container that executes cron jobs for scheduled backups.
+3. `ollama`: CPU embedding sidecar serving the fixed `qwen3-embedding:0.6b` model (reached only on the compose network at `http://ollama:11434`, no host port). `wikantik` does not `depend_on` it — the query embedder fails closed to BM25 if it's unreachable.
+4. `backup`: An Alpine-based container that executes cron jobs for scheduled backups.
 
 **Persistent Volumes (prod):**
 - `pgdata`: Named volume holding the PostgreSQL cluster.
@@ -172,7 +173,7 @@ still counted in the request metrics.
 |---|---|---|
 | `maxTotal` | 90 | Pressed just under Postgres `max_connections` (100, default). Was the throughput ceiling until per-request DB hits were cached; **PgBouncer** is the lever to grow past this. |
 | `maxWaitMillis` | 5000 (5 s) | How long a request waits for a connection before failing. Cut from 10 s once the pool stopped being the bottleneck — a long wait now signals real trouble, so fail fast and free the thread. |
-| `maxIdle` | 30 (prod) / 10 (dev) | Idle connections kept warm. |
+| `maxIdle` | 30 | Idle connections kept warm. Same value in both the container (`docker/entrypoint.sh`) and the bare-metal template (`Wikantik-context.xml.template`) — there is no dev/prod split. |
 
 **Per-request caches** (short-TTL Caffeine; each removed a DB connection from the
 hot path that caused pool exhaustion under load)
@@ -231,6 +232,30 @@ This is the mechanism behind letting MCP edit `About` (CHANGELOG 2.3.5): to
 open a second page to MCP curation, add its exact name to
 `wikantik.systemPages.mcpEditable`, e.g.
 `wikantik.systemPages.mcpEditable = About,Welcome`.
+
+### 1.8 Cluster taxonomy — declaration & enforcement
+
+A cluster exists iff exactly one page declares it: `type: hub` plus a scalar
+`cluster: <path>` in frontmatter. Non-hub pages may belong to one or more
+clusters (`cluster:` is scalar-or-list there); the first entry is the primary
+and drives breadcrumbs, JSON-LD placement, and sidebar location.
+
+- **Duplicate-declaration enforcement ships dark.**
+  `wikantik.cluster_declaration.enforcement.enabled` (`wikantik-custom.properties`
+  override, in `StructuralSpinePageFilter`) defaults to **`false`**. While off,
+  two hub pages can both declare the same `cluster:` path and both saves
+  succeed — the conflict only shows up as a WARNING on `/admin/drift`. Turning
+  it on makes a duplicate declaration a save-time **422**, so confirm
+  `/admin/drift` reports zero duplicate declarations before flipping it —
+  otherwise every hub page sharing that duplicate becomes un-saveable until
+  one of them is renamed off the path.
+- **Bulk rename:** `POST /admin/clusters/rename?from=<path>&to=<path>[&confirm=true]`
+  (`AdminClusterResource`) rewrites the `cluster:` frontmatter of every member
+  page. Omitting `confirm=true` (or passing `confirm=false`) returns the
+  rewrite **plan** without applying it — that's the expected response, not an
+  error. A `to` path another hub already declares is refused with `409`
+  before any write. The same operation is available as the `rename_cluster`
+  tool on `/wikantik-admin-mcp`.
 
 ---
 
@@ -366,7 +391,7 @@ Nodes and edges carry a `provenance` label:
 The **Graph Projector** runs on every page save. It parses frontmatter to insert relationship edges and removes stale data. Missing target pages are created as "stub nodes".
 
 ### 5.2 Proposals & AI Integration
-AI agents connected via MCP submit `new-node`, `new-edge`, or `modify-property` proposals through the `propose_knowledge` tool. 
+AI agents connected via MCP submit `new-node`, `new-edge`, `new-property`, or `modify-property` proposals through the `propose_knowledge` tool. 
 - **Approval:** A newly accepted `new-edge` relation is written back to the source page's YAML frontmatter.
 - **Rejection:** Rejections include reasons and prevent agents from submitting the exact same proposal again.
 
@@ -376,7 +401,5 @@ AI agents connected via MCP submit `new-node`, `new-edge`, or `modify-property` 
 
 ### 5.4 Embeddings & Advanced Quality Tools
 Wikantik leverages a unified embedding model for hybrid search and structural similarity.
-- **Merge Candidates:** Finds structurally and semantically similar nodes. Merging updates all corresponding edges and frontmatter references.
-- **Missing Edges:** The system predicts missing relationships based on topology.
-- **Low-Plausibility Edges:** Flags existing connections that seem structurally anomalous. 
+- **Merge Candidates:** `GET /admin/knowledge-graph/nodes/{name}/similar` (surfaced in the node-explorer's node-detail panel) finds structurally and semantically similar nodes; `POST /admin/knowledge-graph/nodes/merge` merges two, updating corresponding edges and frontmatter references.
 - **Pages Without Frontmatter:** Accessible under Content Embeddings, used to flag pages that have zero footprint in the semantic graph.

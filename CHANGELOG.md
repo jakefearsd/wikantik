@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-08-16
+
 ### Added
 - **`update_page` gains `removeKeys` — the MCP surface can now retire a frontmatter field.**
   The metadata merge is unconditional by design (the existing frontmatter is always the base, so a

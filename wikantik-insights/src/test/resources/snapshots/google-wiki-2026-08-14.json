@@ -1,0 +1,5826 @@
+{
+  "by_page": [
+    {
+      "clicks": 1,
+      "ctr": 1.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ClaudeCodeWorkflows",
+      "position": 4.0
+    },
+    {
+      "clicks": 1,
+      "ctr": 0.2,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/CommercialMipSolvers",
+      "position": 26.6
+    },
+    {
+      "clicks": 1,
+      "ctr": 0.5,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/FrontmatterConventions",
+      "position": 7.5
+    },
+    {
+      "clicks": 1,
+      "ctr": 0.1,
+      "impressions": 10,
+      "key": "https://wiki.wikantik.com/wiki/GeometricBrownianMotion",
+      "position": 14.3
+    },
+    {
+      "clicks": 1,
+      "ctr": 0.3333,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/JavaMemoryManagement",
+      "position": 14.33
+    },
+    {
+      "clicks": 1,
+      "ctr": 0.3333,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/JunitFiveAdvancedFeatures",
+      "position": 31.33
+    },
+    {
+      "clicks": 1,
+      "ctr": 0.3333,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/LocalRAG",
+      "position": 16.0
+    },
+    {
+      "clicks": 1,
+      "ctr": 0.0588,
+      "impressions": 17,
+      "key": "https://wiki.wikantik.com/wiki/PromptCaching",
+      "position": 72.47
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/terms-of-service.html",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AIModelTraining",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "https://wiki.wikantik.com/wiki/AbTestingInPractice",
+      "position": 77.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AccountTypeStrategy",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/AcidTransactionsAndIsolation",
+      "position": 20.8
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/AdaLanguage",
+      "position": 34.43
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "https://wiki.wikantik.com/wiki/AdapterPattern",
+      "position": 36.75
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AdventureTravelPlanning",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AgentCookbook",
+      "position": 21.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 10,
+      "key": "https://wiki.wikantik.com/wiki/AgentReasoning",
+      "position": 72.1
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/AgenticAiHub",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AgenticArchitecture",
+      "position": 48.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AgenticOrchestration",
+      "position": 45.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AiContentModerationSystems",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AiForCodeReview",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/AiGovernanceFrameworks",
+      "position": 12.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AiPairProgramming",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AiPoweredSearch",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/AlgorithmDesignParadigms",
+      "position": 15.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/AmericanCoinHistory",
+      "position": 23.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/AmortizedAnalysis",
+      "position": 40.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AnnuitiesVsSystematicWithdrawals",
+      "position": 76.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "https://wiki.wikantik.com/wiki/AnsweringRestApiQuestions",
+      "position": 48.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ApachePulsarFundamentals",
+      "position": 29.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/ApiGatewayPatterns",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ApplicationSecurityFundamentals",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ArchitectureHub",
+      "position": 53.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/ArtificialIntelligenceHub",
+      "position": 81.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AssetAllocation",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 23,
+      "key": "https://wiki.wikantik.com/wiki/AssetAllocationGuide",
+      "position": 15.83
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "https://wiki.wikantik.com/wiki/AutoScalingStrategies",
+      "position": 46.17
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/AutomatedStorageAndRetrieval",
+      "position": 37.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/AwsMaturityModel",
+      "position": 35.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/BackdoorRothStrategies",
+      "position": 57.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/BackgroundAgentsAndAsyncDelegation",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/BackupPower",
+      "position": 38.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/BackwardsCompatibilityStrategies",
+      "position": 49.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/BalancedSearchTrees",
+      "position": 41.25
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/BayesianInference",
+      "position": 68.4
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/BayesianReasoning",
+      "position": 54.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/BendLanguage",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/BerlinInTheIndustrialRevolution",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/BerlinUnderTheThirdReich",
+      "position": 42.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/BerlinsTransformationFromMargraviateToCapitalCity",
+      "position": 6.29
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 11,
+      "key": "https://wiki.wikantik.com/wiki/BlackScholesModel",
+      "position": 69.82
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/BlockchainMathematics",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/BlockchainProvenance",
+      "position": 79.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/BondIndexFunds",
+      "position": 50.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/BondLaddersForRetirementIncome",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/BuilderPatternAndFluentApis",
+      "position": 16.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/BusinessIntelligenceFundamentals",
+      "position": 17.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/BusinessMetricsAndKpis",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "https://wiki.wikantik.com/wiki/ByzantineFaultTolerance",
+      "position": 76.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 9,
+      "key": "https://wiki.wikantik.com/wiki/CLanguage",
+      "position": 44.11
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CalculusRefreshForCS",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/CanaryDeployments",
+      "position": 42.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CapacityModeling",
+      "position": 85.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 11,
+      "key": "https://wiki.wikantik.com/wiki/CategoryTheory",
+      "position": 52.27
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CellBasedArchitecture",
+      "position": 37.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/CharitableGivingInRetirement",
+      "position": 51.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CheeseProduction",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/ChocolateTempering",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ChoosingAnImmigrationAttorney",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/CircuitBreakerPattern",
+      "position": 36.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ClockSynchronization",
+      "position": 43.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 39,
+      "key": "https://wiki.wikantik.com/wiki/CloudDisasterRecovery",
+      "position": 78.18
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/CloudMigrationStrategies",
+      "position": 73.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CloudMonitoring",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CloudNativeApplicationDesign",
+      "position": 70.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CloudStorageOptions",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 16,
+      "key": "https://wiki.wikantik.com/wiki/ClusteringAlgorithms",
+      "position": 23.06
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/CncRoutersForTheHobbyWorkshop",
+      "position": 20.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CodingAgentLandscape",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/CoinCollectingHub",
+      "position": 30.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/CoinGradingAndAuthentication",
+      "position": 29.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CommunityDisasterPlanning",
+      "position": 85.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ComputerVisionFundamentals",
+      "position": 49.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/ConcurrencyAndSynchronization",
+      "position": 73.57
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ConcurrencyDistributed",
+      "position": 49.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 14,
+      "key": "https://wiki.wikantik.com/wiki/ConcurrencyPatterns",
+      "position": 73.14
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ConditionalResidenceAndI751",
+      "position": 77.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ConflictMarketPatternsHub",
+      "position": 54.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/ConnectionPooling",
+      "position": 43.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/ConstraintProgramming",
+      "position": 36.29
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/ConsularProcessingPath",
+      "position": 60.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 67,
+      "key": "https://wiki.wikantik.com/wiki/ConveyorAndSortingTechnology",
+      "position": 54.49
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CostBenefitAnalysis",
+      "position": 41.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/CrdtDataStructures",
+      "position": 39.4
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CrossFunctionalTeamCollaboration",
+      "position": 25.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CustomSkillsArchitecture",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/DarkLaunchPatterns",
+      "position": 38.71
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/DataEngineeringHub",
+      "position": 47.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/DataMaturityLifecycle",
+      "position": 50.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/DataMeshArchitecture",
+      "position": 71.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/DataModelingFundamentals",
+      "position": 78.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/DataQualityFrameworks",
+      "position": 88.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/DataValidationForPipelines",
+      "position": 14.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/DatabaseBackupStrategies",
+      "position": 30.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/DatabasePartitioning",
+      "position": 38.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "https://wiki.wikantik.com/wiki/DatabaseSharding",
+      "position": 43.88
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/DbtAndAnalyticsEngineering",
+      "position": 39.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/DebtPayoffStrategies",
+      "position": 24.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/DemandPlanningAndSop",
+      "position": 70.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 16,
+      "key": "https://wiki.wikantik.com/wiki/DependencyInjectionPatterns",
+      "position": 62.88
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/DesignPatternsHub",
+      "position": 5.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/DevOps",
+      "position": 84.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 9,
+      "key": "https://wiki.wikantik.com/wiki/DevOpsFundamentals",
+      "position": 74.89
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/DevelopingWithPostgresql",
+      "position": 20.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/DigitalDesignToolsForWoodworkers",
+      "position": 16.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 13,
+      "key": "https://wiki.wikantik.com/wiki/DimensionalModeling",
+      "position": 54.08
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/DiscreteMatchRefresher",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/DistributedComputingAlgorithms",
+      "position": 30.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/DistributedSystemModels",
+      "position": 37.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/DistributedTracing",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/DistributionallyRobustOptimizationConceptual",
+      "position": 41.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/DockerDeployment",
+      "position": 5.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/DocumentClusteringApproaches",
+      "position": 26.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/DollarCostAveraging",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/DomainAndIntegrationEvents",
+      "position": 50.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/DynamicProgrammingPatterns",
+      "position": 12.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/EarlyAmericanCoins",
+      "position": 59.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/EasternPhilosophy",
+      "position": 54.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/EfficientContext",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/ElasticsearchFundamentals",
+      "position": 66.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/EmbeddingsVectorDB",
+      "position": 66.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/EmergencyCommunication",
+      "position": 65.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/EnterpriseIntegrationHub",
+      "position": 74.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/ErgodicTheoryFinance",
+      "position": 53.6
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 41,
+      "key": "https://wiki.wikantik.com/wiki/ErlangProgrammingLanguage",
+      "position": 60.66
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/EsgInvesting",
+      "position": 38.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/EventDrivenArchitecture",
+      "position": 42.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/EventualConsistency",
+      "position": 44.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/ExactlyOnceAndDeliveryGuarantees",
+      "position": 67.6
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ExpenseRatiosAndTheirEffectOnCompounding",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/FactoryPattern",
+      "position": 47.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/FaultTolerantSystems",
+      "position": 20.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/FederatedKnowledgeGraphs",
+      "position": 26.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/FileUploadPatterns",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/FilingTheI130Petition",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/FlowEngineering",
+      "position": 26.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/FoodPreservation",
+      "position": 74.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ForecastingAcrossIndustries",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/FormHandlingAndValidation",
+      "position": 28.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/FormalMethodsHub",
+      "position": 14.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/FormalVerificationDistributed",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 17,
+      "key": "https://wiki.wikantik.com/wiki/Fortran",
+      "position": 67.94
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/FoundationalAlgorithmsForComputerScientists",
+      "position": 23.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 51,
+      "key": "https://wiki.wikantik.com/wiki/FourierAnalysis",
+      "position": 71.31
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/FreshFoodDemandForecasting",
+      "position": 37.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/FrontmatterAndKnowledgeGraphs",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/FunctionalProgrammingPrinciples",
+      "position": 44.4
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/FuzzyLogic",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/GPUAcceleration",
+      "position": 38.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 22,
+      "key": "https://wiki.wikantik.com/wiki/GameTheoryFundamentals",
+      "position": 57.23
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/GcpMaturityModel",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 88,
+      "key": "https://wiki.wikantik.com/wiki/GearingSystems",
+      "position": 61.48
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 43,
+      "key": "https://wiki.wikantik.com/wiki/GeneralRelativity",
+      "position": 64.91
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/GenerationClock",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/GermanRetirementSystem",
+      "position": 68.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/GoogleOrToolsInPractice",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/GradientBoostingInPractice",
+      "position": 39.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/GraphAlgorithmsDeepDive",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 21,
+      "key": "https://wiki.wikantik.com/wiki/GraphColoringDeepDive",
+      "position": 7.57
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "https://wiki.wikantik.com/wiki/GraphDatabaseFundamentals",
+      "position": 27.17
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/GraphQlFundamentals",
+      "position": 71.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/GraphRAG",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/GroupTheorySymmetry",
+      "position": 23.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 14,
+      "key": "https://wiki.wikantik.com/wiki/GuardrailsSpendingStrategy",
+      "position": 8.71
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/GulfWarMarkets",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 27,
+      "key": "https://wiki.wikantik.com/wiki/HNSW",
+      "position": 39.19
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/HashTableDesign",
+      "position": 64.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/HealthSavingsAccounts",
+      "position": 38.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 10,
+      "key": "https://wiki.wikantik.com/wiki/HeapAndPriorityQueues",
+      "position": 26.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "https://wiki.wikantik.com/wiki/HeartbeatAndLeasePatterns",
+      "position": 6.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/HighAvailability",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/HighYieldSavingsAccounts",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/HistoricalAssetCorrelations",
+      "position": 44.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/HistoryOfOperationsResearch",
+      "position": 36.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/HistoryOfTheFourPercentRule",
+      "position": 23.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 14,
+      "key": "https://wiki.wikantik.com/wiki/HomeHardening",
+      "position": 64.07
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/HostCloudflare",
+      "position": 80.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/HydraulicsPneumatics",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/IdempotencyPatterns",
+      "position": 69.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/IdempotentReceiver",
+      "position": 2.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/IdentityTheftProtection",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ImmigrationPolicyOverview",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/InfinityMathematics",
+      "position": 19.4
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/InflationProtectionStrategies",
+      "position": 86.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/InformationGeometryConceptual",
+      "position": 35.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/InformationTheory",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/InfrastructureAsCode",
+      "position": 91.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/InfrastructureSreHub",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/InsuranceTypesAndCoverage",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/IntegerAndCombinatorialOptimization",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "https://wiki.wikantik.com/wiki/IntegralCalculus",
+      "position": 71.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/IntegrationMiddlewareAndTooling",
+      "position": 27.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/IntegrationPatternVocabulary",
+      "position": 31.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 59,
+      "key": "https://wiki.wikantik.com/wiki/IntervalTrees",
+      "position": 30.66
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/IntroductionToIndexFundsAndETFs",
+      "position": 82.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/InventoryTheory",
+      "position": 30.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/InvestingInYourTwenties",
+      "position": 19.75
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 50,
+      "key": "https://wiki.wikantik.com/wiki/JavaAnnotationProcessing",
+      "position": 34.22
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 11,
+      "key": "https://wiki.wikantik.com/wiki/JavaBuildToolComparison",
+      "position": 26.55
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/JavaCollectionsFramework",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/JavaConcurrencyPatterns",
+      "position": 94.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/JavaExceptionHandlingPatterns",
+      "position": 21.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/JavaLanguage",
+      "position": 40.75
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/JavaLoggingBestPractices",
+      "position": 56.14
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/JavaRecordsAndSealedClasses",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/JavaReflectionAndProxies",
+      "position": 29.8
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/JavaScriptLanguage",
+      "position": 66.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 12,
+      "key": "https://wiki.wikantik.com/wiki/JavaSecurityModel",
+      "position": 6.42
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/JavaTwentyOneFeatures",
+      "position": 25.25
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/JpaAndHibernatePatterns",
+      "position": 64.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "https://wiki.wikantik.com/wiki/JsonbInPostgresql",
+      "position": 31.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 23,
+      "key": "https://wiki.wikantik.com/wiki/JspToReactMigration",
+      "position": 17.57
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 46,
+      "key": "https://wiki.wikantik.com/wiki/JvmTuning",
+      "position": 48.39
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "https://wiki.wikantik.com/wiki/KafkaAlternativesCompared",
+      "position": 61.38
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/KentBeckDistributedPatterns",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/KgRagUpliftPlan",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/KnowledgeGraphVsRelationalDatabase",
+      "position": 31.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/KnowledgeGraphsAndGenAIWorkflows",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/LamportAndVectorClocks",
+      "position": 50.29
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/LangChainVsLangGraph",
+      "position": 50.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/LeaderElectionAlgorithms",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/LeanManufacturingPrinciples",
+      "position": 49.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/LeasePattern",
+      "position": 39.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 25,
+      "key": "https://wiki.wikantik.com/wiki/LeversAndAdvantage",
+      "position": 47.96
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/LifeInsuranceTypes",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/LinkedDataAndTripleStores",
+      "position": 56.6
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/LinuxCommandLineEssentials",
+      "position": 41.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/LinuxCommands",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/LinuxForWindowsUsers",
+      "position": 31.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/Lisp",
+      "position": 9.25
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 13,
+      "key": "https://wiki.wikantik.com/wiki/LispProgrammingLanguage",
+      "position": 57.92
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/LlmEvaluationMetrics",
+      "position": 8.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/LoadTestingStrategies",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/LocalNetworkForNomads",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/LowCostIndexFundInvestingHub",
+      "position": 64.4
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "https://wiki.wikantik.com/wiki/MLHub",
+      "position": 56.88
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 12,
+      "key": "https://wiki.wikantik.com/wiki/MarkdownLinks",
+      "position": 44.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/MarketCapVsEqualWeightIndexing",
+      "position": 61.29
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/MarkovChainFundamentals",
+      "position": 8.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/MasterDataManagement",
+      "position": 77.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/MaterializedViews",
+      "position": 30.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 28,
+      "key": "https://wiki.wikantik.com/wiki/MathematicalFoundationsOfMachineLearning",
+      "position": 54.14
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 154,
+      "key": "https://wiki.wikantik.com/wiki/MavenMultiModuleProjects",
+      "position": 29.68
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 20,
+      "key": "https://wiki.wikantik.com/wiki/MeasureTheory",
+      "position": 56.75
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/MechanicalCoupling",
+      "position": 27.8
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/MedicarePlanningAndHealthcare",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "https://wiki.wikantik.com/wiki/MedievalBerlin",
+      "position": 11.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 29,
+      "key": "https://wiki.wikantik.com/wiki/MessageQueuePatterns",
+      "position": 74.1
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/MetaheuristicOptimization",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/Metaphysics",
+      "position": 59.75
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/Microbiology",
+      "position": 52.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/MicroservicesArchitecture",
+      "position": 76.4
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "https://wiki.wikantik.com/wiki/MilitaryRetirementBenefits",
+      "position": 62.17
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/ModalLogic",
+      "position": 43.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/ModernBundlersAndBuildTools",
+      "position": 24.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/ModernHandToolRenaissance",
+      "position": 9.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 23,
+      "key": "https://wiki.wikantik.com/wiki/MojoLanguage",
+      "position": 31.22
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/MolecularGastronomy",
+      "position": 87.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 19,
+      "key": "https://wiki.wikantik.com/wiki/MonteCarloMethods",
+      "position": 81.68
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/MonteCarloRetirementPlanning",
+      "position": 5.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/MultiModalAiApplications",
+      "position": 13.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/MultiObjectiveOptimization",
+      "position": 24.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/MutualFundVsEtfComparison",
+      "position": 45.6
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 10,
+      "key": "https://wiki.wikantik.com/wiki/MysticetiConsensus",
+      "position": 19.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/NatsAndJetStream",
+      "position": 38.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/NetWorthTracking",
+      "position": 31.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/NeuralNetworkArchitectures",
+      "position": 19.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/NonStandardAnalysisFinance",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/NormalizationAndDenormalization",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/NuclearDeterrenceAndStability",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/NumericalErrorAndStability",
+      "position": 22.57
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/NumericalLinearAlgebra",
+      "position": 3.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/NumericalRootFinding",
+      "position": 35.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/OauthAndOidcDeepDive",
+      "position": 42.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ObjectOrientedDesignPrinciples",
+      "position": 42.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/OllamaSetup",
+      "position": 51.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/OpenSourceErpAndWms",
+      "position": 44.25
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/OperationsResearch",
+      "position": 43.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/OptimizationAlgorithms",
+      "position": 40.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/OrderOrchestrationAndSagas",
+      "position": 56.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/OutboxPattern",
+      "position": 18.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/PacelcTheorem",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PacificCoastHighwayCouples",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/ParallelAgentsAndWorktrees",
+      "position": 74.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 18,
+      "key": "https://wiki.wikantik.com/wiki/PartialDifferentialEquations",
+      "position": 61.28
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 98,
+      "key": "https://wiki.wikantik.com/wiki/Pascal",
+      "position": 64.4
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PaxosAndRaft",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/PensionMaximizationStrategies",
+      "position": 81.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/PerformanceProfiling",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/PerishableVehicleRouting",
+      "position": 16.6
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PerlLanguage",
+      "position": 57.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PhilosophyHub",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PhysicalChemistry",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/PkiAndCertificates",
+      "position": 41.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PortableShowerOptions",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/PortugueseAgeOfDiscovery",
+      "position": 6.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/PortugueseColonialEmpire",
+      "position": 52.6
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PortugueseMonarchyToRepublic",
+      "position": 41.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PostConflictReconstructionInvesting",
+      "position": 29.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PostgreSQLLocalDeployment",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 13,
+      "key": "https://wiki.wikantik.com/wiki/PostgresqlAdvancedFeatures",
+      "position": 48.54
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PostharvestRespirationBiology",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PracticalPromptEngineering",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PreMedicareBridgeStrategies",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PredictiveMicrobiologyFreshFood",
+      "position": 35.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ProbabilityTheory",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ProgressiveWebApps",
+      "position": 98.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/PromptCachingStrategies",
+      "position": 26.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ProofTechniques",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/PropertyBasedTesting",
+      "position": 23.25
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PrussianBerlinAndTheRiseOfAPower",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 9,
+      "key": "https://wiki.wikantik.com/wiki/PrussianIndustrialRevolution",
+      "position": 21.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 44,
+      "key": "https://wiki.wikantik.com/wiki/PulleySystems",
+      "position": 51.23
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PythonDeployment",
+      "position": 47.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/QuantitativeFinanceResearchHub",
+      "position": 13.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/QuantumComputing",
+      "position": 53.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/QueueingTheory",
+      "position": 40.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 33,
+      "key": "https://wiki.wikantik.com/wiki/RabbitMqVsKafka",
+      "position": 57.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/RandomVariablesAndDistributions",
+      "position": 97.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/ReactBestPractices",
+      "position": 55.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/ReactiveProgramming",
+      "position": 42.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/RecommendationSystems",
+      "position": 22.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/RedisPatterns",
+      "position": 34.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/RedpandaAndKafkaCompatibleEngines",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ReinforcementLearningFundamentals",
+      "position": 31.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/RemotePropertyManagement",
+      "position": 59.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/RepositoryPattern",
+      "position": 42.6
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/RetirementAccountWithdrawalRules",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/RetirementPlanningForLateStarters",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/RetrievalExperimentHarness",
+      "position": 30.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/RevenueManagementWithOR",
+      "position": 18.71
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/ReverseProxyPatterns",
+      "position": 86.25
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/RoadmapComposableReranking",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 13,
+      "key": "https://wiki.wikantik.com/wiki/RoboAdvisorComparison",
+      "position": 68.92
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/RotationalDynamics",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/RubyLanguage",
+      "position": 17.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/RunbookAutomation",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/RussiaUkraineWarEnergyWar",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/RussiaUkraineWarHumanitarianCrisis",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "https://wiki.wikantik.com/wiki/RussiaUkraineWarMilitaryTechnology",
+      "position": 29.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 15,
+      "key": "https://wiki.wikantik.com/wiki/RussiaUkraineWarOverview",
+      "position": 18.13
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/RussiaUkraineWarPeaceNegotiations",
+      "position": 26.6
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/RustLanguage",
+      "position": 27.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/SPARQL",
+      "position": 62.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/SafeWithdrawalRates",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 20,
+      "key": "https://wiki.wikantik.com/wiki/SagaPattern",
+      "position": 50.6
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/SalaryNegotiationStrategies",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/SalazarAndTheEstadoNovo",
+      "position": 49.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/ScalaLanguage",
+      "position": 18.6
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "https://wiki.wikantik.com/wiki/ScikitLearnPipelines",
+      "position": 30.83
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/SecurityComplianceFrameworks",
+      "position": 21.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/SecurityIncidentResponse",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/SecurityLoggingAndAuditTrails",
+      "position": 80.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/SelfSovereignIdentity",
+      "position": 77.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/SelfSufficiencySkills",
+      "position": 62.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/SemanticVersioning",
+      "position": 35.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/SequencesAndSeries",
+      "position": 39.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 9,
+      "key": "https://wiki.wikantik.com/wiki/ServerSentEventsPatterns",
+      "position": 38.11
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ServerSideRendering",
+      "position": 51.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/ServerlessArchitecture",
+      "position": 78.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ServiceLevelAgreements",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ShiftLeftDataEngineering",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/SidecarPattern",
+      "position": 29.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/SingletonPatternAndAlternatives",
+      "position": 32.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/SitemapOptimization",
+      "position": 11.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/SixSigmaMethodology",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/SkillComposition",
+      "position": 22.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/SkillIntegration",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/SkillPerformance",
+      "position": 5.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/SmallCapValuePremium",
+      "position": 29.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/SoftwareArchitecturePatterns",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/SoftwareEngineeringCareerGrowth",
+      "position": 38.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 13,
+      "key": "https://wiki.wikantik.com/wiki/SoftwareEngineeringPracticesHub",
+      "position": 61.69
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/SpecificationPattern",
+      "position": 20.75
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/SpousalGreenCardGuide",
+      "position": 73.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "https://wiki.wikantik.com/wiki/SqlLanguage",
+      "position": 60.25
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/SslTlsDeepDive",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/StaticAnalysisToolchain",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/StochasticModelsInOR",
+      "position": 27.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/Stoicism",
+      "position": 25.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "https://wiki.wikantik.com/wiki/StranglerFigPattern",
+      "position": 63.38
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/StructuralSpineDesign",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/SupplyChainAndLogisticsOptimization",
+      "position": 44.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/SupportVectorMachines",
+      "position": 20.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/SwiftLanguage",
+      "position": 54.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/SymbolicLogic",
+      "position": 40.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/TargetDateFunds",
+      "position": 35.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/TaxBracketManagementInRetirement",
+      "position": 25.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "https://wiki.wikantik.com/wiki/TaxonomyDesignPrinciples",
+      "position": 53.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/TcpCongestionControl",
+      "position": 66.25
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/TechnicalWritingGuide",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/TemporalLogic",
+      "position": 42.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/TensorTheory",
+      "position": 49.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 23,
+      "key": "https://wiki.wikantik.com/wiki/TerraformFundamentals",
+      "position": 39.22
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/TestTimeComputeScaling",
+      "position": 21.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/TheFutureOfMachineLearning",
+      "position": 12.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/TheoryOfComputation",
+      "position": 90.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ThreeDeePrintingMeetsWoodworking",
+      "position": 26.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/TimeSeriesDatabases",
+      "position": 43.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ToolCalling",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ToolOutputOptimization",
+      "position": 35.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/TopologicalDataAnalysis",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/Topology",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/TotalStockMarketFundAnatomy",
+      "position": 26.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/TransformerArchitecture",
+      "position": 61.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/TreeBasedModels",
+      "position": 54.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 30,
+      "key": "https://wiki.wikantik.com/wiki/TrieDataStructure",
+      "position": 52.57
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/TrunkBasedDevelopment",
+      "position": 16.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 13,
+      "key": "https://wiki.wikantik.com/wiki/TwoPhaseCommitProtocol",
+      "position": 21.15
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/TypesofInvestmentAccountsTutorial",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/USTaxTreatiesWithEuropeanCountries",
+      "position": 79.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/UserProfileBio",
+      "position": 61.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/VanOutdoorLivingGear",
+      "position": 26.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/VariablePercentageWithdrawal",
+      "position": 42.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/VectorIndexingInternals",
+      "position": 74.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/VehicleRoutingProblem",
+      "position": 29.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/VettingGuestsRemotely",
+      "position": 83.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/VisitorPattern",
+      "position": 41.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WarehouseAiAndMl",
+      "position": 49.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WarehouseAutomationHub",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 13,
+      "key": "https://wiki.wikantik.com/wiki/WarehouseManagementSystems",
+      "position": 62.08
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/WarehousePickingOptimization",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/WarehouseRobotics",
+      "position": 25.6
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WealthviewHub",
+      "position": 29.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 10,
+      "key": "https://wiki.wikantik.com/wiki/WebApplicationFirewalls",
+      "position": 69.9
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WebOntologyLanguage",
+      "position": 24.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "https://wiki.wikantik.com/wiki/WebSocketPatterns",
+      "position": 54.12
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/WeimarRepublicBerlin",
+      "position": 78.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WikantikArchitecture",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WikantikKnowledgeGraphAdmin",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/WikantikSearchRefinement",
+      "position": 6.43
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WikiBackupAndRestore",
+      "position": 33.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 28,
+      "key": "https://wiki.wikantik.com/wiki/WikiPageTemplates",
+      "position": 54.07
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WikiPerformanceTuning",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/WikiSearchOptimization",
+      "position": 53.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/WikiToMarkdownConverter",
+      "position": 55.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WoodFinishingGuide",
+      "position": 80.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/WoodSpeciesSelectionGuide",
+      "position": 44.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WorldCoinsForBeginners",
+      "position": 27.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WorldWarOneMarkets",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WorldWarTwoMarkets",
+      "position": 94.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/WriteAheadLog",
+      "position": 38.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WritingANewMcpTool",
+      "position": 84.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ZigLanguage",
+      "position": 43.0
+    }
+  ],
+  "by_query": [
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "\"deserialization_gadget\" spotbugs",
+      "position": 7.2
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "\"terraform\" -site:reddit.com -site:twitter.com -site:x.com -site:wykop.pl -site:tripadvisor.com -site:youtube.com -site:yelp.com -site:booking.com -site:facebook.com -site:instagram.com -site:tiktok.com",
+      "position": 7.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "abstract measure theory",
+      "position": 17.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "agent cookbook",
+      "position": 21.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "agent reasoning",
+      "position": 64.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "agentic reasoning",
+      "position": 75.43
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "ai hub",
+      "position": 93.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "alibaba cloud disaster recovery",
+      "position": 32.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "america's first coin",
+      "position": 47.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "amortised analysis",
+      "position": 59.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "amortized analysis",
+      "position": 57.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "and terraform",
+      "position": 63.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "annotation processing in java",
+      "position": 39.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "annotation processor",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "annotationprocessor",
+      "position": 35.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "annuitization vs withdrawal",
+      "position": 76.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "apache pulsar wiki",
+      "position": 29.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "applications of general relativity",
+      "position": 66.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "artificial intelligence hub",
+      "position": 76.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "auction theory",
+      "position": 95.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "automated horizontal storage",
+      "position": 81.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "backup power integration",
+      "position": 25.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "backwards incompatible",
+      "position": 70.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "basian logic",
+      "position": 50.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bayes inference",
+      "position": 72.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "bayesian inference",
+      "position": 77.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bayesian logic",
+      "position": 70.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "bayesian reasoning",
+      "position": 66.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bazel vs gradle vs maven",
+      "position": 31.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bazel vs maven",
+      "position": 40.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "blockchain provenance",
+      "position": 79.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "bond index fund",
+      "position": 51.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bond index funds",
+      "position": 47.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "building hardening",
+      "position": 66.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "byzantine fault tolerance",
+      "position": 71.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "byzantine fault tolerance system",
+      "position": 76.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "byzantine fault tolerant",
+      "position": 78.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "byzantine-fault-tolerant",
+      "position": 77.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "c language wiki",
+      "position": 42.62
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "c minus language",
+      "position": 56.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "charitable giving in retirement",
+      "position": 44.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "cheese biotechnology",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "cloud disaster",
+      "position": 80.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 20,
+      "key": "cloud disaster recovery",
+      "position": 84.65
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "cloud native disaster recovery",
+      "position": 99.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "cloud native wiki",
+      "position": 70.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "cloud storage disaster recovery",
+      "position": 96.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "cloudendure disaster recovery",
+      "position": 62.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "compare robo adviser account options",
+      "position": 74.43
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "computer language pascal",
+      "position": 76.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "contact metaphysic",
+      "position": 84.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "control de congestion tcp",
+      "position": 67.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "convey-and-sort automation",
+      "position": 88.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "conveyor and sortation systems",
+      "position": 88.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "conveyor line sorting system",
+      "position": 46.17
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "conveyor sortation",
+      "position": 80.88
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "conveyor sortation systems",
+      "position": 97.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "conveyor sorter",
+      "position": 51.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "conveyor sorters",
+      "position": 44.17
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "conveyor sorting",
+      "position": 41.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "conveyor sorting system",
+      "position": 56.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "conveyor sorting systems",
+      "position": 97.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "conveyor sorting technologies",
+      "position": 11.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "conveyors and sorters",
+      "position": 96.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "crdt",
+      "position": 48.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "data quality frameworks",
+      "position": 88.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "data structures trie",
+      "position": 68.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "data structures tries",
+      "position": 37.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "dateshifting",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "dependency injection pattern",
+      "position": 66.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "dependency injection types",
+      "position": 72.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "devops fundamentals",
+      "position": 60.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "devops wiki",
+      "position": 58.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "di pattern",
+      "position": 52.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "di types",
+      "position": 62.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "different types of dependency injection",
+      "position": 65.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "digital advisor comparison",
+      "position": 74.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "dimensional modeling",
+      "position": 87.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "dimensional modeling star schema",
+      "position": 71.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "disaster recovery wiki",
+      "position": 55.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "donor advised fund retirement",
+      "position": 61.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "effort arm",
+      "position": 48.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "embedding database",
+      "position": 66.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "enterprise integration hub",
+      "position": 53.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "equal weighted indexes",
+      "position": 69.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "equation for general relativity",
+      "position": 74.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "equation of general relativity",
+      "position": 66.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 21,
+      "key": "erlang",
+      "position": 60.9
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "erlang architecture",
+      "position": 51.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "erlang language",
+      "position": 59.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "erlang models",
+      "position": 100.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "erlang programming language",
+      "position": 72.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "erlang wiki",
+      "position": 23.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "failover cloud",
+      "position": 90.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "first us coin",
+      "position": 64.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "formula for general relativity",
+      "position": 66.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 12,
+      "key": "fortran",
+      "position": 70.25
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "fortran programming",
+      "position": 68.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "fortran programming language",
+      "position": 87.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "fortran wiki",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "fourier analisys",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "fourier analys",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "fourier analyser",
+      "position": 76.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 17,
+      "key": "fourier analysis",
+      "position": 74.24
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "fourier anaylsis",
+      "position": 79.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "fourier decomposition",
+      "position": 71.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "fourier function",
+      "position": 55.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "fourier transform analysis",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "fulcrum and lever",
+      "position": 67.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "g1heapregionsize",
+      "position": 51.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "gair system",
+      "position": 90.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "game theoretic",
+      "position": 67.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "game theoretic model",
+      "position": 79.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "game theory equation",
+      "position": 18.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "game theory equations",
+      "position": 68.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "game theory equilibrium",
+      "position": 64.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "game theory graph",
+      "position": 52.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "game theory types",
+      "position": 77.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 15,
+      "key": "gear system",
+      "position": 76.87
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 22,
+      "key": "gear systems",
+      "position": 61.18
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "gear wiki",
+      "position": 62.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "gearing solutions",
+      "position": 66.8
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 13,
+      "key": "gearing system",
+      "position": 56.92
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "gearing systems",
+      "position": 43.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "gearings",
+      "position": 57.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "gears system",
+      "position": 71.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "gears systems",
+      "position": 72.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 18,
+      "key": "general relativity",
+      "position": 60.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "general relativity equation",
+      "position": 66.25
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "general relativity equations",
+      "position": 70.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "general relativity formula",
+      "position": 67.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "general relativity formulas",
+      "position": 69.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "general relativity math",
+      "position": 60.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "general relativity spacetime",
+      "position": 65.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "general theory of relativity equation",
+      "position": 63.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "general theory of relativity equations",
+      "position": 77.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "git worktrees parallel coding agents",
+      "position": 70.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "gr theory",
+      "position": 51.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "guesty",
+      "position": 80.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "hardened homes",
+      "position": 48.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "heap vs priority queue",
+      "position": 50.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "hierarchical navigable small worlds",
+      "position": 63.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "historical asset class correlation",
+      "position": 44.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 10,
+      "key": "hnsw",
+      "position": 32.9
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "hnsw index",
+      "position": 19.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "hnsw indexing",
+      "position": 83.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "home hardening",
+      "position": 53.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "house hardening",
+      "position": 50.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "hsnw",
+      "position": 50.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "ima formula for lever",
+      "position": 68.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "inference bayesian",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "infrastructure as code",
+      "position": 88.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "infrastructure-as-code",
+      "position": 93.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "integral calculus",
+      "position": 73.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "interface adapters",
+      "position": 43.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "ivf indexing",
+      "position": 90.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "java annotation processing",
+      "position": 19.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "java annotation processor",
+      "position": 37.25
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "java language wiki",
+      "position": 38.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "java multi module project",
+      "position": 28.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 14,
+      "key": "jsp to react migration",
+      "position": 17.29
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "jvm garbage collection tuning",
+      "position": 65.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "jvm optimization",
+      "position": 52.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 10,
+      "key": "jvm performance tuning",
+      "position": 62.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 15,
+      "key": "jvm tuning",
+      "position": 48.2
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "jvm tuning techniques",
+      "position": 43.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "kafka alternative",
+      "position": 76.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "kafka alternatives",
+      "position": 18.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "kafka-compatible streaming platform",
+      "position": 45.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "kimball snowflake",
+      "position": 72.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "kimball star schema",
+      "position": 72.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "kimball style star schema",
+      "position": 63.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "langage pascal",
+      "position": 62.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "language lisp",
+      "position": 59.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "language pascal",
+      "position": 56.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "lever ima formula",
+      "position": 66.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "lever physics",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "lisp computer language",
+      "position": 63.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "lisp lang",
+      "position": 58.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "lisp programming",
+      "position": 61.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "lisp programming language",
+      "position": 62.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "logging for java",
+      "position": 54.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 24,
+      "key": "low latency message queue",
+      "position": 76.29
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "ltm gcp",
+      "position": 43.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "ma of a lever",
+      "position": 58.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "machine learning hub",
+      "position": 68.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "machine learning mathematics",
+      "position": 57.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "machine learning maths",
+      "position": 67.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "market cap weighted index",
+      "position": 71.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "math of machine learning",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "mathematical foundation of machine learning",
+      "position": 50.29
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 10,
+      "key": "mathematical foundations for machine learning",
+      "position": 54.4
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "mathematical foundations of machine learning",
+      "position": 70.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "mathematical proof methods",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "maven build specific module",
+      "position": 26.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "maven dependency type pom",
+      "position": 42.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "maven multimoduleprojectdirectory",
+      "position": 36.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "maven vs bazel",
+      "position": 31.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "maxgcpausemillis",
+      "position": 38.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "measure theory",
+      "position": 58.38
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "mechanical advantage of a lever formula",
+      "position": 59.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "mechanical advantage of levers",
+      "position": 47.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "mechanical leverage",
+      "position": 55.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "mechanical pulley system",
+      "position": 58.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "mechanisms levers",
+      "position": 50.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "mega backdoor roth conversion limits",
+      "position": 98.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "message queue typescript",
+      "position": 60.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "microbial production",
+      "position": 60.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "microservice orchestration pattern",
+      "position": 80.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "microservices orchestration pattern",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "ml hub",
+      "position": 74.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "mlhub",
+      "position": 35.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "modal logic",
+      "position": 49.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "mojo lang",
+      "position": 50.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "mojo language",
+      "position": 55.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "mojo language release date",
+      "position": 71.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "mojo programming language",
+      "position": 49.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "mojo programming language release date",
+      "position": 70.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "monte carlo algorithm",
+      "position": 76.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 11,
+      "key": "monte carlo method",
+      "position": 84.18
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "monte carlo methodology",
+      "position": 80.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "monte carlo methods",
+      "position": 79.75
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "monte-carlo method",
+      "position": 78.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "multi module maven",
+      "position": 24.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "multi module maven project",
+      "position": 25.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "multi module project",
+      "position": 37.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "numismaticscollectorshub.com",
+      "position": 40.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "obt vs star",
+      "position": 34.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "oldest us coin",
+      "position": 70.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "one big table data modeling",
+      "position": 49.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "open source wms",
+      "position": 42.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "orchestrator pattern microservices",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "partial diff equation",
+      "position": 57.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "partial differential equation",
+      "position": 66.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "partial differential equation symbol",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 10,
+      "key": "partial differential equations",
+      "position": 65.9
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "partial equations",
+      "position": 58.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "pascal c++",
+      "position": 54.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "pascal code",
+      "position": 56.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "pascal code language",
+      "position": 65.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "pascal coding",
+      "position": 70.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "pascal coding language",
+      "position": 75.88
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "pascal computer language",
+      "position": 70.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "pascal lang",
+      "position": 57.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "pascal langage",
+      "position": 70.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 21,
+      "key": "pascal language",
+      "position": 70.24
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "pascal language history",
+      "position": 77.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "pascal language wiki",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "pascal languages",
+      "position": 70.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "pascal programing language",
+      "position": 69.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 24,
+      "key": "pascal programming language",
+      "position": 69.17
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "pascal programming languages",
+      "position": 58.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "pascal software language",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "pattern adapter",
+      "position": 58.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "physics of a lever",
+      "position": 48.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "pki certificate validation",
+      "position": 72.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "place of marriage i-751",
+      "position": 77.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "post conveyor system",
+      "position": 92.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "postgres spread",
+      "position": 62.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "prefix trie",
+      "position": 81.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "priority queue vs heap",
+      "position": 62.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "programming language erlang",
+      "position": 65.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "programming language pascal",
+      "position": 71.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "prompt cache",
+      "position": 81.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 11,
+      "key": "prompt caching",
+      "position": 80.55
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "proxy loopback",
+      "position": 97.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "prussian train",
+      "position": 44.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "pulley block system",
+      "position": 53.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "pulley mechanism",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 11,
+      "key": "pulley system",
+      "position": 53.18
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "pulley system components",
+      "position": 57.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "pulley system in physics",
+      "position": 60.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "pulley systems",
+      "position": 52.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "pulleys",
+      "position": 60.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "pulleys mechanism",
+      "position": 49.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "pulleys systems",
+      "position": 47.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "quantum computing wiki",
+      "position": 49.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "quantum computing wikipedia",
+      "position": 58.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "rabbitmq queue type classic vs quorum vs stream",
+      "position": 71.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 10,
+      "key": "rabbitmq queue vs stream",
+      "position": 51.9
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "rabbitmq stream vs queue",
+      "position": 45.12
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "rabbitmq streams vs queues",
+      "position": 72.75
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "remote guest verification",
+      "position": 83.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "retirement pension maximization",
+      "position": 72.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "retirement planning and pension maximization",
+      "position": 90.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "rope and pulley systems",
+      "position": 52.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "rpa disaster recovery",
+      "position": 89.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "s&op demand planning",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "saga cs",
+      "position": 63.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "saga pattern",
+      "position": 56.43
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "saga pattern c#",
+      "position": 71.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "self efficient",
+      "position": 81.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "self-efficient",
+      "position": 85.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "self-sovereign authentication",
+      "position": 97.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "semantic taxonomy",
+      "position": 68.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "serverless architecture database",
+      "position": 89.33
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 13,
+      "key": "software engineering hub",
+      "position": 61.69
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "sortation conveyor",
+      "position": 93.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "sortation conveyors",
+      "position": 91.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "sorter conveyor",
+      "position": 33.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "sorting conveyor",
+      "position": 41.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "sorting conveyor systems",
+      "position": 74.25
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "sorting conveyors",
+      "position": 29.86
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "sorting line conveyor",
+      "position": 15.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "sql implementations",
+      "position": 78.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "sql paradigm",
+      "position": 72.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "sql technologies",
+      "position": 78.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "sql wiki",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "sre hub",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "stock bond allocation by age",
+      "position": 67.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "stock bond ratio by age",
+      "position": 73.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "storm hardening",
+      "position": 98.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "straggler fig pattern",
+      "position": 59.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "strangler pattern",
+      "position": 83.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "structural hardening",
+      "position": 26.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "sufficiencies",
+      "position": 72.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 10,
+      "key": "system gears",
+      "position": 64.6
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "system of gears",
+      "position": 62.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "system of pulley",
+      "position": 40.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "system of pulleys",
+      "position": 60.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "t r i e",
+      "position": 65.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "tax bracket management",
+      "position": 59.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "taxonomy architecture",
+      "position": 80.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "taxonomy in semantics",
+      "position": 75.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "temporal saga orchestration",
+      "position": 56.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "terraform fundamentals",
+      "position": 37.75
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "terraform language",
+      "position": 78.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "terraform precondition",
+      "position": 62.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "terraform wiki",
+      "position": 60.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "trie data structure",
+      "position": 64.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "trie data structure c",
+      "position": 69.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "trie structure",
+      "position": 61.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "two-phase commit protocol wikipedia",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "type of dependency injection",
+      "position": 65.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "types of dependency injection",
+      "position": 71.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "types of game theory",
+      "position": 81.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "types of integral calculus",
+      "position": 74.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "user bio",
+      "position": 61.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "vs mutual funds",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "vtiax etf equivalent",
+      "position": 65.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "vug mutual fund equivalent",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "wealthview banking",
+      "position": 29.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "web application firewall xss",
+      "position": 98.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "weimar berlin",
+      "position": 84.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what are low cost index funds",
+      "position": 59.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is a low cost index funds",
+      "position": 67.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is a low-cost index fund",
+      "position": 67.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is a low-cost index funds",
+      "position": 63.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is a random variable of interest",
+      "position": 97.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is dbt in analytics",
+      "position": 45.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is erlang",
+      "position": 76.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "what is erlang language",
+      "position": 66.5
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is fourier analysis",
+      "position": 78.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is jvm tuning",
+      "position": 42.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is lisp in programming language",
+      "position": 85.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is nats jetstream",
+      "position": 69.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is prompt caching",
+      "position": 72.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is saga pattern",
+      "position": 60.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is the best kafka alternative platform",
+      "position": 86.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "why does a lever work",
+      "position": 43.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 28,
+      "key": "wiki pages templates",
+      "position": 54.07
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "wiki quantum computing",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "wiki sql",
+      "position": 46.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "wikipedia geometric brownian motion s_t = s_0 exp((mu - sigma^2/2)t + sigma w_t)",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "wikipedia two-phase commit protocol",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "wms branches",
+      "position": 80.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "wood coating formulation",
+      "position": 80.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "wzorzec saga",
+      "position": 48.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "x-delivery-count",
+      "position": 52.0
+    }
+  ],
+  "coverage": {
+    "errors": null,
+    "indexed_pages": 0,
+    "raw": {
+      "sitemap": [
+        {
+          "contents": [
+            {
+              "indexed": "0",
+              "submitted": "1317",
+              "type": "web"
+            },
+            {
+              "indexed": "0",
+              "submitted": "22",
+              "type": "news"
+            }
+          ],
+          "errors": "0",
+          "isPending": false,
+          "isSitemapsIndex": false,
+          "lastDownloaded": "2026-08-14T15:53:26.424Z",
+          "lastSubmitted": "2026-05-25T09:12:14.907Z",
+          "path": "https://wiki.wikantik.com/sitemap.xml",
+          "type": "sitemap",
+          "warnings": "0"
+        }
+      ]
+    }
+  },
+  "engine": "google",
+  "generated": "2026-08-14",
+  "site": "wiki.wikantik.com",
+  "totals": {
+    "avg_position": 61.41,
+    "clicks": 0,
+    "impressions": 993
+  }
+}

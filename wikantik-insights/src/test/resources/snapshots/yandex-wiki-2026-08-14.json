@@ -1,0 +1,172 @@
+{
+  "by_page": [],
+  "by_query": [
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 17,
+      "key": "java hub",
+      "position": 5.82
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "tax bracket management in retirement",
+      "position": 6.67
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "cp library",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "berlin indignation",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "method for 10-day early stopping validation set division in 5-year data prediction",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "does the lathe tailstock rotate with the workpiece?",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "siglip sigmoid loss vs clip softmax loss multimodal alignment improvement",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "rational allocation approach for personal assets structure",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "langgraph architecture stateful agents graph-based workflow cycles human-in-the-loop persistence",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "info:..action?softwarearchitecturepatterns=",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "hnsw index query matching node rules",
+      "position": 13.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "allinurl:..action?softwarearchitecturepatterns=",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "link:..rss?softwarearchitecturepatterns=",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "intitle:..json?softwarearchitecturepatterns=",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "inurl:..rss?softwarearchitecturepatterns=",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "population of new amsterdam at founding before huguenot influx",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "clip infonce loss formula temperature parameter contrastive learning image text alignment",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "ext:..asp?softwarearchitecturepatterns=",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "new amsterdam population 1624 before huguenot influx",
+      "position": 11.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "parallel barrier without shared mutable state",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "how to choose equal weight vs market cap weight index",
+      "position": 8.0
+    }
+  ],
+  "coverage": {
+    "errors": 0,
+    "indexed_pages": 518,
+    "raw": {
+      "excluded_pages_count": 0,
+      "searchable_pages_count": 518,
+      "site_problems": {
+        "RECOMMENDATION": 2
+      },
+      "sqi": 0
+    }
+  },
+  "engine": "yandex",
+  "generated": "2026-08-14",
+  "site": "wiki.wikantik.com",
+  "totals": {
+    "avg_position": 5.62,
+    "clicks": 0,
+    "impressions": 45
+  }
+}

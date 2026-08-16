@@ -1,0 +1,1629 @@
+{
+  "by_page": [
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PhilosophyHub",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/FileUploadPatterns",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/HuguenotMigrationBerlin",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/FrontmatterAndKnowledgeGraphs",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AiSafetyAndAlignment",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ObjectStoragePatterns",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/KentBeckDistributedPatterns",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/OauthAndOidcDeepDive",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/KnowledgeGraphVsRelationalDatabase",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/SidecarPattern",
+      "position": 5.0
+    },
+    {
+      "clicks": 1,
+      "ctr": 0.1667,
+      "impressions": 6,
+      "key": "https://wiki.wikantik.com/wiki/BendLanguage",
+      "position": 6.0
+    },
+    {
+      "clicks": 1,
+      "ctr": 1.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/VectorIndexingInternals",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 8,
+      "key": "https://wiki.wikantik.com/wiki/CoinGradingAndAuthentication",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/EngineeringDecisionFrameworks",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/InfinityMathematics",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ToilReductionStrategies",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/RequirementsGathering",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/AcidTransactionsAndIsolation",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 7,
+      "key": "https://wiki.wikantik.com/wiki/BendLanguage",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/VectorIndexingInternals",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/CoinGradingAndAuthentication",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/PhiAccrualFailureDetector",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/ShiftLeftDataEngineering",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/IntervalTrees",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/DarkLaunchPatterns",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CarnationRevolution",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/IdempotentReceiver",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/KentBeckDistributedPatterns",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/EngineeringDecisionFrameworks",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/TaxEfficientBondInvestingCA",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/MysticetiConsensus",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 13,
+      "key": "https://wiki.wikantik.com/wiki/VectorIndexingInternals",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 5,
+      "key": "https://wiki.wikantik.com/wiki/BendLanguage",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/EngineeringDecisionFrameworks",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/PhiAccrualFailureDetector",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/PrussianIndustrialRevolution",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/ToposTheoryConceptual",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/DarkLaunchPatterns",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/MedievalBerlin",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/KentBeckDistributedPatterns",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/BerlinInTheIndustrialRevolution",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PhilosophyHub",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/OauthAndOidcDeepDive",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/StructuredLogging",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/HybridLogicalClocks",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CellBasedArchitecture",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/FormalVerificationDistributed",
+      "position": 7.0
+    },
+    {
+      "clicks": 1,
+      "ctr": 0.5,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/PrussianIndustrialRevolution",
+      "position": 2.0
+    },
+    {
+      "clicks": 1,
+      "ctr": 0.5,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/DarkLaunchPatterns",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 21,
+      "key": "https://wiki.wikantik.com/wiki/VectorIndexingInternals",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/WikiMigrationStrategies",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/JavaSecurityModel",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/WorldWarOneMarkets",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/BendLanguage",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/ObjectStoragePatterns",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/JspToReactMigration",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/MedievalBerlin",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ObjectiveCLanguage",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CoinGradingAndAuthentication",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/LinkedDataAndTripleStores",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CarnationRevolution",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/FileUploadPatterns",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/IdempotentReceiver",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/EvolutionOfHobbyWoodworking",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/KentBeckDistributedPatterns",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/BatchProcessingPatterns",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/HuguenotMigrationBerlin",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 11,
+      "key": "https://wiki.wikantik.com/wiki/VectorIndexingInternals",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 10,
+      "key": "https://wiki.wikantik.com/wiki/MedievalBerlin",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/JavaSecurityModel",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/JspToReactMigration",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/WikiAnalyticsAndEngagement",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "https://wiki.wikantik.com/wiki/KnowledgeGraphVsRelationalDatabase",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/CompositePattern",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "https://wiki.wikantik.com/wiki/GeometricBrownianMotion",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/FormalVerificationDistributed",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "https://wiki.wikantik.com/wiki/JavaRecordsAndSealedClasses",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/BendLanguage",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/HybridLogicalClocks",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WealthViewArchitectureBaseline",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PortugueseMonarchyToRepublic",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/GuardrailsSpendingStrategy",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/ErgodicTheoryFinance",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/WikiContentManagementWorkflow",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/PortugueseAgeOfDiscovery",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/InfinityMathematics",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/BerlinTechScene",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "https://wiki.wikantik.com/wiki/CompoundingIntuition",
+      "position": 1.0
+    }
+  ],
+  "by_query": [
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "philosophy hub",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "upload file pattern",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "the huguenot influx",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "knowledge graph frontmatter",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "ai safety alignment",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "kent beck 3x framework",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "object storage pattern",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "oauth/oidc deep dive",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "can i use a sidecar ambassador pattern for my app with a sql database?",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "benefits of knowledge graphs vs relational databases",
+      "position": 10.0
+    },
+    {
+      "clicks": 1,
+      "ctr": 1.0,
+      "impressions": 1,
+      "key": "hnsw vs ivf vs pq faiss vector index trade-offs approximate nearest neighbor",
+      "position": 7.0
+    },
+    {
+      "clicks": 1,
+      "ctr": 1.0,
+      "impressions": 1,
+      "key": "bend parallel language",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "bend programming language",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "bend language",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "gdca ancient coin grading",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "why is the aleph symbol used to talk about different sizes/ \"cardinalities\" of infinity",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "daci vs darc",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "cockroachdb \"deadlock detection\" \"write skew\" \"phantom\" \"serializable\"",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bend language visual",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "toil reduction wikipedia",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "jtbd spec",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "phi accrual failure detector category",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "data contracts validation ci/cd shift left data",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "bend language",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "bend2 language",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "faiss wiki indexes ivf pq hnsw scaling gpu",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "consructing of interval treees in data structures",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "ivf nearest neighboor",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "coin grading fee standards",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "moving mysticeti eliminates certification step organizing",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "balanced augmented interval tree",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "percentage of federal holdings mutal funds for ca state tax exemption",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "ivf-pq vector index algorithm speed recall memory tradeoffs",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bend programming language team",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "coin grading company fee structure and suitable coin types for grading",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "silver coin authentication with star struck marks",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "dark launches pattern",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bend programming language is it useful and what happended to it",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "is bend the programming language still used",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "kent beck 3x",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "idempotent receiver",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "hnsw ivf product quantization vector index algorithms comparison",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "daci vs adr",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "carnation revoltuio wiki",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "hnsw product quantization memory accuracy tradeoff",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "bend programming language",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "\"daci\" for adr documents",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "faiss ivf-pq vs ivf-pq",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "is faiss ivf - pq same as ivf- pq?",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "daci for adr documents",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "industrial revolution berlin",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "why is logic modeled with topos intuition math stack",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "that's why faiss ivf-pq is widely used.",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "detector de fallos phi accrual",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "faiss ivf-hnsw",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "formal verification tla+ distributed systems practical scope",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bend language",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "philosophy hub",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "charles sieg oauth deep dive",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "phi accrual failure detector",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "kent beck 3x framework",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "berlin and the industrial revolution and popuulation boom",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is indexivfpq?pd&adppc=edgeinjp&pc=asts",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "faiss index choice guidelines wiki hnsw ivf",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "cell based architecture release risk blast radius",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "berlin in medieval times",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "structured logging wiki",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bend language performance vs julia parallel language",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "faiss index selection ivf hnsw pq guidelines master readme",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "hybrid logical clock hlc distributed causal consistency multi-agent system 2025 2026",
+      "position": 6.0
+    },
+    {
+      "clicks": 1,
+      "ctr": 1.0,
+      "impressions": 1,
+      "key": "the prussian industrial revolution",
+      "position": 2.0
+    },
+    {
+      "clicks": 1,
+      "ctr": 1.0,
+      "impressions": 1,
+      "key": "dark-launch discipline",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "hnsw vs ivf indexing diagram",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "keep images attachments embedded content working wiki migration",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "hnsw vs ivf indexing challenges",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "characteristics of java's security model",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "hnsw ivf product quantization vector search papers",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "how long were th us markets closed due to world war i",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "object storage metadata storage patterns objectkey vs path prefix",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "hnsw vs ivf-pq performance one million vectors",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bend language",
+      "position": 9.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "idempotent receiver",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what conection pattern is used for file upload?",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "jsp to react migration",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "is hobbyist woodworking on the rise or decline",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "hnsw ivf-pq million vectors performance evaluation",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "hnsw memory usage vs latency trade-off in production environments",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "vdark-launch discipline",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "vector recall ann ivf pq",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "which is a primary goal of java security model?",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "prussian ndustrial complex meaning",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "linked data as triplestores",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "kent beck impact framework",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "wiki objective-c",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "hnsw ivf_flat pq vector indexing algorithms",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "ngc coin grading who is ilami?",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "population of berlin in the 17th century",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bend language gpus",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "carnation revolution wikipedia shqip full",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "batch processing patterns design idempotency partial failure",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "jsp-to-react-migration",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "berlin city medieval",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 6,
+      "key": "berlin in the medieval ages",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "vector index hnsw ivf flat pq parameters overview",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "transaction relationships in knowledge graph vs relational database",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "wiki analytics page views search success metrics",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "primary goal of java's security model",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "feature level walkthrough jsp to react migration",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "medieval history of berlin",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "the component interface: filesystemnode. it requires two methods: int getsize() and void showdetails(string indentation).",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "hnsw and ivf explained like a professor",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "domain modeling v\u1edbi records & sealed types java",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "hnsw , ivf vector indexing",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "geometric brownian motion wiki",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "tla+ alloy coq lean formal verification distributed systems",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bend programming language",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "wiki geometric brownian",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "pfau example guardrais strategy",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "berlin tech startup ecosystem 2013 2014 \"silicon allee\" history venture capital",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what programming languages does wealthview banking use?",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "what is hybrid logocal clock",
+      "position": 10.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "vector search index optimization hnsw vs ivf-pq recall-latency pareto frontier\u2060",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "infinity aleph 1 omega mathematical concepts",
+      "position": 8.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "intuition compound",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "how to handle unsorted articles in wiki workflow",
+      "position": 1.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "portuguese age of discovery in wiki",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "portuguese transition to republic",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "hnsw vs ivf \u043f\u0430\u043c\u044f\u0442\u044c \u0440\u0430\u0441\u0445\u043e\u0434",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "lease vs ownership in distributed systems",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 4,
+      "key": "bend programming language official github hvm2",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 3,
+      "key": "ibm cas vector index type ivf hnsw",
+      "position": 6.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 2,
+      "key": "n log n performance data sorting \"wiki\"",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bend language",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "bend language parallel programming official documentation",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "dark launch l\u00e0 g\u00ec",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "medieval portuguese wikipedia",
+      "position": 4.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "ratcheting strategy kitces isn't it just the guardrails",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "berlin tech scene",
+      "position": 3.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "navigable hnsw graphs inverted file product quantization ivf-pq",
+      "position": 2.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "vector database architecture survey paper indexing hnsw ivf pq",
+      "position": 5.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "cell-based architecture microservices scale blast radius",
+      "position": 7.0
+    },
+    {
+      "clicks": 0,
+      "ctr": 0.0,
+      "impressions": 1,
+      "key": "is cali or sgov rtn more intertest and more tax efficient for california tax payers?",
+      "position": 10.0
+    }
+  ],
+  "coverage": {
+    "errors": null,
+    "indexed_pages": null,
+    "raw": {}
+  },
+  "engine": "bing",
+  "generated": "2026-08-14",
+  "site": "wiki.wikantik.com",
+  "totals": {
+    "avg_position": 5.2,
+    "clicks": 4,
+    "impressions": 220
+  }
+}

@@ -36,6 +36,25 @@ Google indexes our pages and declines to rank them. It has stopped indexing new 
 "discovered – currently not indexed"). Both are the same signal: the site does not have enough
 authority to justify more of Google's attention.
 
+### The second most important inference: there is not enough traffic to measure anything per page
+
+Measured 2026-08-17 on the 2026-08-14 snapshot: **479 pages share 2,626 impressions and 10 clicks
+per 28 days. The median page gets 2 impressions.** p90 is 12, p99 is 53, the maximum is 154.
+
+That is below the floor at which any per-page statistic means something. A page reported at "Bing
+position 2.0" was seen **once**. Consequently:
+
+- **`ENGINE_DIVERGENCE`, `VOCABULARY_GAP` and `STALE_HIGH_TRAFFIC` are gated off** below 5,000
+  site impressions/28 d (`wikantik.insights.rules.gate.impressions28d`). They will report as
+  `suppressed` rather than returning an empty list, so you can tell "gated" from "nothing found".
+- **`AGENT_GAP` still runs**, because its denominator is MCP retrieval traffic, not impressions.
+- **Do not lower the gate to make the backlog non-empty.** A backlog manufactured from 2-impression
+  samples is worse than no backlog, because the consumer acts on it autonomously.
+
+The practical consequence: **the search-driven half of this loop is not yet a working feedback
+signal, and the agent-driven half is.** Work the `AGENT_GAP` queue and the link graph; treat search
+metrics as a trend to watch, not a work queue.
+
 ---
 
 ## 2. What NOT to do
@@ -119,6 +138,11 @@ two consequences:
 1. **`AGENT_GAP` is the only rule with a live denominator.** When a retrieval returns zero
    sections, or a bundle comes back with `coverage` of `weak`/`unknown`, that is a real, observed
    content gap with a real consumer behind it. Prioritise those over any SEO opportunity.
+   *Caveat on history:* the MCP surfaces (`assemble_bundle`, `get_briefing`) logged their retrievals
+   without the coverage field until 2026-08-17, so every row before that date has `coverage` NULL
+   and is only usable for its zero-result signal. 37 of the 52 agent retrievals in the preceding
+   28 days came through exactly that path. Coverage-based `AGENT_GAP` findings only accumulate
+   from that fix forward.
 2. **Ranking in Bing is ranking in the answer layer.** Optimising for the engine that feeds AI
    assistants is optimising for the readers we actually have.
 

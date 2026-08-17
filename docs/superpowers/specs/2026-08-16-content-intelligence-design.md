@@ -1248,6 +1248,19 @@ because the capability gap they close is invisible from this repository.
 Until J3, the backlog contains only the four native rules, and `suppressDivergenceAffected` has
 nothing to suppress — which is correct behaviour, not a defect.
 
+**J1 and J2 are prerequisites for the divergence suppression, not merely nice to have.** Inspected
+2026-08-17: jakemon's detectors emit opportunities keyed on **query** — `target_page` is the empty
+string for `striking_distance`, `ctr_gap`, `content_gap` and `decay`, and only `cannibalization`
+populates `target_pages`. `ENGINE_DIVERGENCE` is keyed on **page**. Two rule families keyed on
+different entities cannot be matched against each other, so shipping J3 alone would import the
+opportunities but leave the suppression permanently inert — and suppression is the entire
+justification for Rule 2 ("it earns its place by suppressing false work rather than creating it").
+
+Query→page attribution (J1) is what closes that gap: with it, an imported query-keyed opportunity
+can be resolved to the page it concerns and matched against a divergence finding for that page.
+Sequence the three accordingly: **J1 and J2 before J3**, or accept that the imported half of the
+backlog arrives without the control that stops it recommending pointless rewrites.
+
 Unrelated but adjacent, and worth doing while in that file: jakemon's Google provider derives
 `indexed_pages` from `contents[].indexed` in the Sitemaps API, a field Google deprecated and now
 always returns as `0`. It reported 0 while Search Console showed 988. It should return `None`

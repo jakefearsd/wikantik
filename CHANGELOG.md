@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.7] - 2026-08-17
+
 ### Added
 - **The ingest parser now reads the `query_page` cross product.** It previously
   read only `by_page` and `by_query` — two *disjoint* projections, neither of

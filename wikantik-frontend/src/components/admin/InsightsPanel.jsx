@@ -9,6 +9,7 @@ import { api } from '../../api/client';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
 import Sparkline from './Sparkline';
+import BacklogPanel from './BacklogPanel';
 import '../../styles/admin.css';
 
 const DEFAULT_SITE = 'wiki.wikantik.com';
@@ -53,56 +54,64 @@ export default function InsightsPanel() {
   const hasSnapshot = !!data?.snapshotDate;
 
   return (
-    <AdminPage loading={loading} error={error} loadingLabel="Loading search visibility…">
-      <PageHeader
-        title="Search Visibility"
-        description="Search-engine acquisition — clicks, impressions, CTR, and average position from search-visibility snapshots."
-      />
+    <>
+      <AdminPage loading={loading} error={error} loadingLabel="Loading search visibility…">
+        <PageHeader
+          title="Search Visibility"
+          description="Search-engine acquisition — clicks, impressions, CTR, and average position from search-visibility snapshots."
+        />
 
-      {!hasSnapshot ? (
-        <div className="admin-empty-state" data-testid="insights-empty-state">
-          <p>No search visibility snapshots yet for {data?.site || DEFAULT_SITE}.</p>
-        </div>
-      ) : (
-        <>
-          <div className="admin-toolbar">
-            <span>Site: {data.site}</span>
-            <span>
-              Latest snapshot: <span data-testid="insights-snapshot-date">{data.snapshotDate}</span>
-            </span>
+        {!hasSnapshot ? (
+          <div className="admin-empty-state" data-testid="insights-empty-state">
+            <p>No search visibility snapshots yet for {data?.site || DEFAULT_SITE}.</p>
           </div>
+        ) : (
+          <>
+            <div className="admin-toolbar">
+              <span>Site: {data.site}</span>
+              <span>
+                Latest snapshot: <span data-testid="insights-snapshot-date">{data.snapshotDate}</span>
+              </span>
+            </div>
 
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Engine</th>
-                <th>Clicks</th>
-                <th>Impressions</th>
-                <th>CTR</th>
-                <th>Avg position</th>
-                <th>Trend</th>
-              </tr>
-            </thead>
-            <tbody>
-              {engines.length === 0 && (
+            <table className="admin-table">
+              <thead>
                 <tr>
-                  <td colSpan={COLUMNS}><em>No page-level rows for {data.snapshotDate}.</em></td>
+                  <th>Engine</th>
+                  <th>Clicks</th>
+                  <th>Impressions</th>
+                  <th>CTR</th>
+                  <th>Avg position</th>
+                  <th>Trend</th>
                 </tr>
-              )}
-              {engines.map((e) => (
-                <tr key={e.engine}>
-                  <td>{e.engine}</td>
-                  <td data-testid={`clicks-${e.engine}`}>{e.clicks}</td>
-                  <td data-testid={`impressions-${e.engine}`}>{e.impressions}</td>
-                  <td data-testid={`ctr-${e.engine}`}>{formatCtr(e.ctr)}</td>
-                  <td data-testid={`position-${e.engine}`}>{formatPosition(e.position)}</td>
-                  <td><Sparkline values={trendByEngine[e.engine] || []} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
-    </AdminPage>
+              </thead>
+              <tbody>
+                {engines.length === 0 && (
+                  <tr>
+                    <td colSpan={COLUMNS}><em>No page-level rows for {data.snapshotDate}.</em></td>
+                  </tr>
+                )}
+                {engines.map((e) => (
+                  <tr key={e.engine}>
+                    <td>{e.engine}</td>
+                    <td data-testid={`clicks-${e.engine}`}>{e.clicks}</td>
+                    <td data-testid={`impressions-${e.engine}`}>{e.impressions}</td>
+                    <td data-testid={`ctr-${e.engine}`}>{formatCtr(e.ctr)}</td>
+                    <td data-testid={`position-${e.engine}`}>{formatPosition(e.position)}</td>
+                    <td><Sparkline values={trendByEngine[e.engine] || []} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </AdminPage>
+
+      {/* Independent subsystem: rendered even if the acquisition fetch above fails, since a
+          stale search-visibility snapshot has no bearing on whether the backlog can load. */}
+      <div className="page-enter">
+        <BacklogPanel />
+      </div>
+    </>
   );
 }

@@ -6,6 +6,7 @@ vi.mock('../../api/client', () => ({
   api: {
     admin: {
       getInsightsAcquisition: vi.fn(),
+      getInsightsBacklog: vi.fn(),
     },
   },
 }));
@@ -28,6 +29,16 @@ const ACQUISITION = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // BacklogPanel is now rendered inside InsightsPanel and fetches independently — give it
+  // a benign default so the pre-existing acquisition tests below aren't affected.
+  api.admin.getInsightsBacklog.mockResolvedValue({
+    site: 'wiki.wikantik.com',
+    generatedAt: '2026-08-14',
+    count: 0,
+    opportunities: [],
+    suppressed: [],
+    uncalibratedTypes: [],
+  });
 });
 
 describe('InsightsPanel', () => {

@@ -505,6 +505,19 @@ export const api = {
       return request(`/admin/insights/acquisition?${params.toString()}`);
     },
 
+    // Content-opportunity backlog (ranked retrieval-gap rules). Three of the four rules
+    // are gated below a per-site traffic threshold — see `suppressed` in the response.
+    getInsightsBacklog: ({ site, type, limit, minPriority, includeSnoozed } = {}) => {
+      const params = new URLSearchParams();
+      if (site) params.set('site', site);
+      if (type) params.set('type', type);
+      if (limit) params.set('limit', String(limit));
+      if (minPriority != null) params.set('minPriority', String(minPriority));
+      if (includeSnoozed) params.set('includeSnoozed', String(includeSnoozed));
+      const qs = params.toString();
+      return request(`/admin/insights/backlog${qs ? '?' + qs : ''}`);
+    },
+
     // KG inclusion / exclusion policy
     kgPolicy: {
       listClusters: () => request('/admin/kg-policy/clusters'),

@@ -79,7 +79,7 @@ public class AdminPolicyResource extends RestServletBase {
     private static final Set< String > PRINCIPAL_TYPES = Set.of( "role", "user", "group" );
 
     /** Valid permission types. */
-    private static final Set< String > PERMISSION_TYPES = Set.of( "page", "wiki", "group" );
+    private static final Set< String > PERMISSION_TYPES = Set.of( "page", "wiki", "group", "admin" );
 
     /** Built-in broad roles that must never be granted AllPermission (would make the whole population admin). */
     private static final Set< String > BROAD_ROLES = Set.of( "All", "Anonymous", "Asserted", "Authenticated" );
@@ -473,6 +473,16 @@ public class AdminPolicyResource extends RestServletBase {
                 return "AllPermission cannot be granted to the built-in role '" + principalName + "'.";
             }
             return null;
+        }
+
+        // 'admin' scopes access to ONE /admin/* functional area. It is far narrower than
+        // AllPermission, but it is still administrative, so it inherits AllPermission's broad-role
+        // guard (R3): granting it to All / Anonymous / Asserted / Authenticated would hand the
+        // whole population an admin surface — and with target '*', every surface.
+        if ( "admin".equals( permissionType )
+                && "role".equals( principalType )
+                && BROAD_ROLES.stream().anyMatch( r -> r.equalsIgnoreCase( principalName ) ) ) {
+            return "An 'admin' area grant cannot be given to the built-in role '" + principalName + "'.";
         }
 
         // Validate permission type

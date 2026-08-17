@@ -22,6 +22,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorizationManager;
+import com.wikantik.auth.permissions.AdminPermission;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 
@@ -131,7 +132,19 @@ public class AdminAuthFilter implements Filter {
         final AllPermission adminPerm = new AllPermission( engine.getApplicationName() );
         final AuthorizationManager authMgr = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
 
-        if ( !authMgr.checkPermission( session, adminPerm ) ) {
+        // Scoped area grant is checked FIRST, and with the SILENT twin. Ordering and choice of
+        // method are both load-bearing:
+        //
+        //   checkPermission() is the audited enforcement call — it emits access.denied on failure.
+        //   Asking it about AllPermission first and only then falling back would log a denial for
+        //   every request that goes on to SUCCEED via a scoped grant, putting false "access denied"
+        //   records in the audit log for allowed traffic. (Caught by AuditLogIT, which also saw the
+        //   second denial overwrite the first and change its reported targetType.)
+        //
+        // So: ask the speculative question silently with isPermitted(); if that does not grant,
+        // fall through to the audited AllPermission check, which then behaves exactly as it did
+        // before this change — same decision, same single audit event.
+        if ( !hasAreaGrant( authMgr, session, req ) && !authMgr.checkPermission( session, adminPerm ) ) {
             // WARN so operators can correlate "I got logged out" reports with the
             // exact request that produced the 403. Includes session ID + principal
             // + path so a bouncing/changing JSESSIONID is visible at a glance.
@@ -170,6 +183,71 @@ public class AdminAuthFilter implements Filter {
         }
         final String accept = req.getHeader( "Accept" );
         return accept != null && accept.contains( "text/html" );
+    }
+
+    /**
+     * Second chance for a principal holding a scoped grant on this one admin area.
+     *
+     * <p>Widens access but never narrows it: this can only turn a request that would have been
+     * denied into one that is allowed. An administrator holding {@link AllPermission} is granted
+     * here too (AllPermission implies every {@code AdminPermission}), so their behaviour is
+     * unchanged. {@code /admin/*} spans 26 functional areas, and an integration that needs one of
+     * them should not also hold {@code connector-credentials}, {@code apikeys} and
+     * {@code policy}.</p>
+     *
+     * <p>Uses {@code isPermitted} — the <em>silent</em> twin of {@code checkPermission} — because
+     * this is a speculative question, not an enforcement decision. The enforcement denial is still
+     * emitted, once, by the {@link AllPermission} check that follows when this returns false.</p>
+     *
+     * <p><strong>Fails closed by construction.</strong> The area is *derived* from the first path
+     * segment rather than read from a lookup table, so there is no map to fall out of sync with the
+     * servlet registrations — a newly added endpoint automatically gets its own area, which nobody
+     * holds a grant for, so it keeps requiring {@link AllPermission} exactly as it does today. A
+     * path with no area segment ({@code /admin}, {@code /admin/}) is refused here outright.</p>
+     */
+    private boolean hasAreaGrant( final AuthorizationManager authMgr, final Session session,
+                                  final HttpServletRequest req ) {
+        final String area = adminAreaOf( req.getRequestURI(), req.getContextPath() );
+        if ( area == null ) {
+            return false;
+        }
+        final boolean granted = authMgr.isPermitted( session,
+                new AdminPermission( area, AdminPermission.ACCESS_ACTION ) );
+        if ( granted ) {
+            LOG.info( "Admin area access granted by scoped grant: area={} path={} principal={}",
+                    area, req.getRequestURI(),
+                    session.getLoginPrincipal() != null ? session.getLoginPrincipal().getName() : "(null)" );
+        }
+        return granted;
+    }
+
+    /**
+     * The admin area a request path falls in — the first segment after {@code /admin/}, lowercased.
+     * {@code null} when the path carries no area segment.
+     *
+     * <p>Package-private for test: the mapping is security-relevant and a path-traversal-ish input
+     * ({@code /admin/../foo}, a bare {@code /admin}) must not resolve to something a grant could
+     * match.</p>
+     */
+    static String adminAreaOf( final String requestUri, final String contextPath ) {
+        if ( requestUri == null ) {
+            return null;
+        }
+        String path = requestUri;
+        if ( contextPath != null && !contextPath.isEmpty() && path.startsWith( contextPath ) ) {
+            path = path.substring( contextPath.length() );
+        }
+        final String prefix = "/admin/";
+        if ( !path.startsWith( prefix ) ) {
+            return null;
+        }
+        final String rest = path.substring( prefix.length() );
+        final int slash = rest.indexOf( '/' );
+        final String segment = ( slash < 0 ? rest : rest.substring( 0, slash ) ).strip();
+        if ( segment.isEmpty() || segment.contains( ".." ) || segment.contains( ":" ) ) {
+            return null;
+        }
+        return segment.toLowerCase( java.util.Locale.ROOT );
     }
 
     @Override

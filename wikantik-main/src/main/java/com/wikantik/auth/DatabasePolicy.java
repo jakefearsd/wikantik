@@ -18,6 +18,7 @@
  */
 package com.wikantik.auth;
 
+import com.wikantik.auth.permissions.AdminPermission;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.permissions.GroupPermission;
 import com.wikantik.auth.permissions.PagePermission;
@@ -201,6 +202,10 @@ public class DatabasePolicy
             case "page" -> new PagePermission( qualifyTarget( target ), actions );
             case "wiki" -> new WikiPermission( target, actions );
             case "group" -> new GroupPermission( qualifyTarget( target ), actions );
+            // Scoped access to ONE /admin/* functional area (target = the area, e.g. "insights").
+            // Additive only: AllPermission still implies every AdminPermission, so an existing
+            // administrator's reach is unchanged.
+            case "admin" -> new AdminPermission( qualifyTarget( target ), actions );
             default ->
             {
                 LOG.warn( "Unrecognized permission type '{}' in table '{}'; skipping.", permType, tableName );

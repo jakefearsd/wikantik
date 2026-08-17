@@ -129,6 +129,12 @@ public final class AllPermission extends Permission implements Serializable {
         if( permission instanceof GroupPermission groupPerm ) {
             otherWiki = groupPerm.getWiki();
         }
+        // An admin holds every admin area. Without this branch otherWiki stays null, isSubset
+        // fails, and every administrator is denied the entire /admin/* surface the moment any
+        // AdminPermission grant exists.
+        if( permission instanceof AdminPermission adminPerm ) {
+            otherWiki = adminPerm.getWiki();
+        }
 
         // If the wiki is implied, it's allowed
         return PagePermission.isSubset( wiki, otherWiki );

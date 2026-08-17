@@ -36,6 +36,7 @@ public class PermissionChecks {
         return permission instanceof WikiPermission  ||
                permission instanceof PagePermission  ||
                permission instanceof GroupPermission ||
+               permission instanceof AdminPermission ||
                permission instanceof AllPermission;
     }
 

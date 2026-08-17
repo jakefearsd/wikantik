@@ -20,6 +20,7 @@ package com.wikantik.insights;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -105,4 +106,151 @@ public interface InsightsStore {
      * @return active snoozes
      */
     List<OpportunitySnooze> activeSnoozes( LocalDate today );
+
+    /**
+     * Every row from the most recent {@code snapshot_date} <strong>per engine</strong>, for the
+     * given site -- both rollup and query rows. Engines poll on independent cadences, so this
+     * deliberately does not require one shared date across engines (that would silently empty a
+     * cross-engine comparison whenever one engine's latest snapshot lags another's).
+     *
+     * <p>An engine whose latest snapshot is older than {@code withinDays} before the newest
+     * snapshot date across all engines is excluded entirely -- a stale engine is worse than an
+     * absent one in a comparison view.</p>
+     *
+     * @param siteHost   the site host
+     * @param withinDays how many days before the newest snapshot date an engine's own latest
+     *                   snapshot may lag before it is dropped
+     * @return the latest rows per engine, ordered by engine then page path then query text
+     */
+    List<VisibilityRow> latestRowsPerEngine( String siteHost, int withinDays );
+
+    /**
+     * Sum of {@code impressions} over page-rollup rows only ({@code query_text = ''}), from the
+     * latest {@code snapshot_date} per engine, across every engine. Feeds a traffic gate, so query
+     * rows -- which would double count against the page total -- are never included.
+     *
+     * @param siteHost the site host
+     * @return total rollup impressions across engines' latest snapshots
+     */
+    int siteImpressions28d( String siteHost );
+
+    /**
+     * Demand signals from {@code retrieval_query_log} within the last {@code sinceDays} days,
+     * grouped by exact {@code query_text}.
+     *
+     * @param sinceDays how many days back to look, inclusive of today
+     * @return one {@link DemandRow} per distinct query text observed in the window
+     */
+    List<DemandRow> demandRows( int sinceDays );
+
+    /**
+     * Most recent {@code applied_at::date} per {@code page_path} from {@code content_change_log}.
+     *
+     * @return page path to last-change date
+     */
+    Map<String, LocalDate> lastChangeByTarget();
+
+    /**
+     * Records the realised outcome of a previously-applied change (design §7.4.2/§7.4.4).
+     *
+     * @param changeId       the {@code content_change_log} row id to update
+     * @param verdict        the effect verdict (e.g. {@code positive}, {@code no_effect},
+     *                       {@code insufficient_data})
+     * @param ctrDelta       realised CTR delta, or {@code null}
+     * @param positionDelta  realised position delta, or {@code null}
+     * @param clickDelta     realised, site-adjusted click delta, or {@code null}
+     * @param method         which comparison the evaluator ran ({@code query_intersection} or
+     *                       {@code page_rollup}), or {@code null}
+     * @param detailJson     free-form JSON detail, stored as {@code jsonb}, or {@code null}
+     * @return {@code true} if a row was updated
+     */
+    boolean recordEffect( long changeId, String verdict, Double ctrDelta, Double positionDelta,
+                          Double clickDelta, String method, String detailJson );
+
+    /**
+     * Count of evaluated, non-{@code insufficient_data} {@code content_change_log} rows per
+     * {@code opportunity_type} -- used to decide which rule types have enough evaluated history
+     * to be calibrated.
+     *
+     * @return opportunity type to evaluated-row count
+     */
+    Map<String, Integer> verdictCountsByType();
+
+    /**
+     * Evaluated rows with both a recorded prediction and a recorded outcome -- the raw material
+     * for self-calibration (design §7.4.4).
+     *
+     * @return calibration samples
+     */
+    List<CalibrationSample> calibrationSamples();
+
+    /**
+     * Upserts one {@code content_opportunity_seen} (V054) row per {@code (type, target)} pair,
+     * advancing {@code last_seen} to {@code today} while preserving {@code first_seen} across
+     * repeat calls. Fail-soft: on failure this logs a warning and returns an empty map rather than
+     * throwing, so callers fall back to treating every opportunity as first-seen today.
+     *
+     * @param typeTargetPairs each element a {@code {opportunityType, target}} pair
+     * @param today           the date to stamp as {@code last_seen} (and {@code first_seen} for a
+     *                        new pair)
+     * @return {@code "<type> <target>"} to the row's {@code first_seen} after the upsert; empty on
+     *         failure
+     */
+    Map<String, LocalDate> upsertSeen( List<String[]> typeTargetPairs, LocalDate today );
+
+    /**
+     * Resolves one page's {@code search_visibility_snapshot} rollup window nearest a target date
+     * (design §7.4.2/§7.4.3) -- the primitive the nightly effect evaluator uses to read "the 28
+     * days after a change applied on D".
+     *
+     * <p><strong>The critical semantic: select a snapshot, never sum snapshots.</strong> Every
+     * row in {@code search_visibility_snapshot} is <em>already</em> a trailing 28-day aggregate,
+     * stamped with its window's <em>end</em> date -- not a daily figure. "The 28 days after a
+     * change applied on D" is therefore not a sum over rows between D and D+28; it is the
+     * <strong>single</strong> snapshot whose {@code snapshot_date} lands nearest {@code D + 28}.
+     * Summing multiple snapshot dates would sum overlapping 28-day windows and inflate the
+     * after-figure several-fold, because the same underlying daily impressions would be counted
+     * once for every snapshot whose trailing window includes that day. This method picks exactly
+     * one {@code snapshot_date} (nearest {@code targetDate}, ties broken toward the earlier date)
+     * and aggregates only across <em>engines</em> for that one date -- never across dates. Do not
+     * "fix" this into a {@code SUM(...) WHERE snapshot_date BETWEEN ...} without re-reading design
+     * §7.4.2.</p>
+     *
+     * <p>Within the matched date, impressions and clicks are summed across every engine that
+     * reported a page-rollup row ({@code query_text = ''}); {@code position} is the
+     * impression-weighted mean of the engines that reported one, skipping engines that reported
+     * no position.</p>
+     *
+     * @param siteHost      the site host
+     * @param pagePath      the page path
+     * @param targetDate    the date to resolve a snapshot near (e.g. {@code appliedAt + 28 days})
+     * @param toleranceDays how many days before/after {@code targetDate} a snapshot may fall and
+     *                      still be selected
+     * @return the resolved window, or empty if no page-rollup snapshot for this page falls within
+     *         tolerance of {@code targetDate}
+     */
+    Optional<PageWindow> pageWindowNear( String siteHost, String pagePath, LocalDate targetDate,
+                                         int toleranceDays );
+
+    /**
+     * The difference-in-differences control term for {@link #pageWindowNear} (design §7.4.3) --
+     * the same nearest-single-snapshot resolution, but totalled across <strong>every page's</strong>
+     * rollup row for the site rather than one page's. Read {@link #pageWindowNear}'s javadoc first:
+     * the same "select one snapshot, never sum snapshots" rule applies here.
+     *
+     * <p>This method resolves its own nearest {@code snapshot_date} independently of any
+     * {@link #pageWindowNear} call -- the site-wide rollup total for a date and one page's rollup
+     * for that same target may legitimately land on different actual {@code snapshot_date}s, since
+     * each resolution only considers the snapshot dates that have rollup data for what it is
+     * totalling. Callers must not assume the two share a date; each returned {@link PageWindow}
+     * carries its own {@code snapshotDate} for exactly this reason.</p>
+     *
+     * @param siteHost      the site host
+     * @param targetDate    the date to resolve a snapshot near
+     * @param toleranceDays how many days before/after {@code targetDate} a snapshot may fall and
+     *                      still be selected
+     * @return the resolved site-wide window, or empty if no page-rollup snapshot falls within
+     *         tolerance of {@code targetDate}
+     */
+    Optional<PageWindow> siteWindowNear( String siteHost, LocalDate targetDate, int toleranceDays );
 }

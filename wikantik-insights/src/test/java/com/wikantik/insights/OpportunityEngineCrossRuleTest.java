@@ -155,17 +155,11 @@ class OpportunityEngineCrossRuleTest {
 
     // --- suppression asymmetry: VOCABULARY_GAP vs. STALE_HIGH_TRAFFIC, through evaluate() ------
 
-    /** Ten shared (google, bing) query rows that make {@code evaluateEngineDivergence} fire for PAGE. */
+    /** A google/bing page-rollup row pair that makes {@code evaluateEngineDivergence} fire for PAGE. */
     private static List<VisibilityRow> divergenceRows() {
-        final List<VisibilityRow> rows = new ArrayList<>();
-        for ( int i = 0; i < 10; i++ ) {
-            final String query = "query " + i;
-            rows.add( new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "google", SITE, PAGE, query,
-                    20, 5, 3.0 ) );
-            rows.add( new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "bing", SITE, PAGE, query,
-                    3, 1, 20.0 ) );
-        }
-        return rows;
+        return new ArrayList<>( List.of(
+                new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "google", SITE, PAGE, "", 20, 5, 3.0 ),
+                new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "bing", SITE, PAGE, "", 5, 1, 20.0 ) ) );
     }
 
     @Test

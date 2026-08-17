@@ -58,35 +58,35 @@ class OpportunityEngineStaleHighTrafficTest {
 
     private static final PageFacts NEVER_VERIFIED = factsWith( null, null );
 
-    // --- impressions threshold (default min 200, floor 10) -------------------------------------
+    // --- impressions threshold (default min 20, floor 10) --------------------------------------
 
     @Test
     void justBelowImpressionThresholdStaysSilent() {
-        final List<VisibilityRow> rows = List.of( rollup( "google", 199 ) );
+        final List<VisibilityRow> rows = List.of( rollup( "google", 19 ) );
         assertTrue( engine.evaluateStaleHighTraffic( rows, NEVER_VERIFIED, TODAY, defaults ).isEmpty() );
     }
 
     @Test
     void atImpressionThresholdFires() {
-        final List<VisibilityRow> rows = List.of( rollup( "google", 200 ) );
+        final List<VisibilityRow> rows = List.of( rollup( "google", 20 ) );
         final List<Opportunity> result = engine.evaluateStaleHighTraffic( rows, NEVER_VERIFIED, TODAY, defaults );
         assertEquals( 1, result.size() );
-        assertEquals( 4.0, result.get( 0 ).priority(), 0.0001, "priority = impressions x 0.02" );
+        assertEquals( 0.4, result.get( 0 ).priority(), 0.0001, "priority = impressions x 0.02" );
     }
 
     @Test
     void aboveImpressionThresholdFiresWithScaledPriority() {
-        final List<VisibilityRow> rows = List.of( rollup( "google", 201 ) );
+        final List<VisibilityRow> rows = List.of( rollup( "google", 21 ) );
         final List<Opportunity> result = engine.evaluateStaleHighTraffic( rows, NEVER_VERIFIED, TODAY, defaults );
         assertEquals( 1, result.size() );
-        assertEquals( 4.02, result.get( 0 ).priority(), 0.0001 );
+        assertEquals( 0.42, result.get( 0 ).priority(), 0.0001 );
     }
 
     // --- the required null-verified-at-with-low-impressions silence case -----------------------
 
     @Test
     void nullVerifiedAtWithLowImpressionsStaysSilent() {
-        final List<VisibilityRow> rows = List.of( rollup( "google", 50 ) );
+        final List<VisibilityRow> rows = List.of( rollup( "google", 15 ) );
         assertTrue( engine.evaluateStaleHighTraffic( rows, NEVER_VERIFIED, TODAY, defaults ).isEmpty(),
                 "never-verified counts as stale, but only once the impressions floor also clears" );
     }
@@ -101,12 +101,27 @@ class OpportunityEngineStaleHighTrafficTest {
                 defaults.engineDivergenceMinPositionGap(),
                 defaults.vocabularyGapMinClicks(), 5, defaults.staleDays(),
                 defaults.globalFloorMinImpressions(), defaults.globalFloorMinOccurrences(),
-                defaults.cooldownDays() );
+                defaults.cooldownDays(),
+                defaults.gateImpressions28d(), defaults.divergenceMinImpressionsWeak(),
+                defaults.weightAgentGap(), defaults.weightEngineDivergence(),
+                defaults.weightVocabularyGap(), defaults.weightStaleHighTraffic() );
 
         final List<VisibilityRow> rows = List.of( rollup( "google", 7 ) );
         assertTrue( engine.evaluateStaleHighTraffic( rows, NEVER_VERIFIED, TODAY, misconfigured ).isEmpty(),
                 "7 impressions satisfies the misconfigured per-rule minimum of 5, but the global "
                 + "floor of 10 must still block it" );
+    }
+
+    // --- blank page path is skipped, never treated as a target ("" defect regression) ----------
+
+    @Test
+    void aStoreFullOfBlankPagePathRollupRowsProducesZeroOpportunities() {
+        final List<VisibilityRow> rows = List.of(
+                new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "google", SITE, "", "", 500, 0, null ),
+                new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "bing", SITE, null, "", 500, 0, null ) );
+        assertTrue( engine.evaluateStaleHighTraffic( rows, NEVER_VERIFIED, TODAY, defaults ).isEmpty(),
+                "rows with no attributed page path must never produce an opportunity targeting "
+                + "the empty string" );
     }
 
     // --- staleness: age boundary (default 180 days, ">" not ">=") ------------------------------

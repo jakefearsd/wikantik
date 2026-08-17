@@ -42,10 +42,16 @@ import java.time.LocalDate;
  * @param baselineCtr         clicks / impressions for the baseline window, or {@code null} if
  *                            impressions was {@code 0}
  * @param baselinePosition    average position in the baseline window, or {@code null} if unreported
+ * @param predictedPriority   the priority the engine assigned when this change was proposed
+ *                            (V055, design §7.4.4), or {@code null} for a manually-applied change
+ *                            with no motivating rule. Recorded at write time because it is
+ *                            otherwise unrecoverable once thresholds or weights move -- see
+ *                            {@link InsightsStore#calibrationSamples}.
  */
 public record ContentChange( String pagePath, String changeType, String opportunityType,
                              String appliedBy, String note,
                              LocalDate baselineStart, LocalDate baselineEnd,
                              int baselineImpressions, int baselineClicks,
-                             Double baselineCtr, Double baselinePosition ) {
+                             Double baselineCtr, Double baselinePosition,
+                             Double predictedPriority ) {
 }

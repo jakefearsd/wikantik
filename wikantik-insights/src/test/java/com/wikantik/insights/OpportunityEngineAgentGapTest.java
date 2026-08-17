@@ -134,7 +134,10 @@ class OpportunityEngineAgentGapTest {
                 defaults.vocabularyGapMinClicks(), defaults.staleHighTrafficMinImpressions(),
                 defaults.staleDays(),
                 defaults.globalFloorMinImpressions(), defaults.globalFloorMinOccurrences(),
-                defaults.cooldownDays() );
+                defaults.cooldownDays(),
+                defaults.gateImpressions28d(), defaults.divergenceMinImpressionsWeak(),
+                defaults.weightAgentGap(), defaults.weightEngineDivergence(),
+                defaults.weightVocabularyGap(), defaults.weightStaleHighTraffic() );
 
         final DemandRow row = new DemandRow( "philosophy of mind", null, 0, 1, 2 );
         assertTrue( engine.evaluateAgentGap( List.of( row ), TODAY, misconfigured ).isEmpty(),

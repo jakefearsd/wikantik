@@ -33,9 +33,11 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -126,7 +128,12 @@ class JdbcInsightsStorePostgresTest {
                     effect                TEXT,
                     effect_ctr_delta      NUMERIC(8,5),
                     effect_position_delta NUMERIC(6,2),
-                    effect_detail         JSONB
+                    effect_detail         JSONB,
+
+                    -- V055
+                    predicted_priority    NUMERIC(10,4),
+                    effect_click_delta    NUMERIC(10,2),
+                    effect_method         TEXT
                 )""" );
 
             st.execute( "DROP TABLE IF EXISTS content_opportunity_snooze" );
@@ -139,6 +146,32 @@ class JdbcInsightsStorePostgresTest {
                     snoozed_by       TEXT        NOT NULL,
                     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     PRIMARY KEY (opportunity_type, target)
+                )""" );
+
+            // V054
+            st.execute( "DROP TABLE IF EXISTS content_opportunity_seen" );
+            st.execute( """
+                CREATE TABLE IF NOT EXISTS content_opportunity_seen (
+                    opportunity_type TEXT NOT NULL,
+                    target           TEXT NOT NULL,
+                    first_seen       DATE NOT NULL,
+                    last_seen        DATE NOT NULL,
+                    PRIMARY KEY (opportunity_type, target)
+                )""" );
+
+            // V041 + V051, applied verbatim so demandRows() runs against the real schema.
+            st.execute( "DROP TABLE IF EXISTS retrieval_query_log" );
+            st.execute( """
+                CREATE TABLE IF NOT EXISTS retrieval_query_log (
+                    id             BIGSERIAL   PRIMARY KEY,
+                    query_text     TEXT        NOT NULL,
+                    actor_type     TEXT        NOT NULL,
+                    source_surface TEXT        NOT NULL,
+                    result_count   INTEGER,
+                    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    session_hash   VARCHAR(16),
+                    clicked_rank   INTEGER,
+                    coverage       TEXT
                 )""" );
         }
     }
@@ -297,9 +330,15 @@ class JdbcInsightsStorePostgresTest {
 
     private ContentChange change( final String opportunityType, final String note,
                                   final Double baselineCtr, final Double baselinePosition ) {
+        return change( opportunityType, note, baselineCtr, baselinePosition, null );
+    }
+
+    private ContentChange change( final String opportunityType, final String note,
+                                  final Double baselineCtr, final Double baselinePosition,
+                                  final Double predictedPriority ) {
         return new ContentChange( "/wiki/A", "title", opportunityType, "testbot", note,
                 LocalDate.parse( "2026-07-01" ), LocalDate.parse( "2026-07-28" ),
-                500, 20, baselineCtr, baselinePosition );
+                500, 20, baselineCtr, baselinePosition, predictedPriority );
     }
 
     @Test
@@ -439,5 +478,435 @@ class JdbcInsightsStorePostgresTest {
         final List<OpportunitySnooze> active = store.activeSnoozes( LocalDate.parse( "2026-08-16" ) );
 
         assertEquals( 1, active.size(), "snoozed_until is inclusive" );
+    }
+
+    // --- latestRowsPerEngine / siteImpressions28d --------------------------------------------
+
+    @Test
+    void latestRowsPerEnginePicksADifferentLatestDatePerEngine() {
+        // Engines poll on independent cadences. If this collapsed to one shared date, whichever
+        // engine's cadence lagged would vanish from the comparison entirely.
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "google", "2026-07-20", 50, 1, 20.0 ),
+                rollup( "google", "2026-08-14", 200, 8, 15.0 ),
+                rollup( "bing", "2026-07-25", 30, 0, 25.0 ),
+                rollup( "bing", "2026-08-10", 90, 3, 18.0 ) ) );
+
+        final List<VisibilityRow> rows = store.latestRowsPerEngine( "wiki.wikantik.com", 28 );
+
+        final List<VisibilityRow> googleRows = rows.stream()
+                .filter( r -> r.engine().equals( "google" ) ).toList();
+        final List<VisibilityRow> bingRows = rows.stream()
+                .filter( r -> r.engine().equals( "bing" ) ).toList();
+
+        assertEquals( 1, googleRows.size() );
+        assertEquals( LocalDate.parse( "2026-08-14" ), googleRows.get( 0 ).snapshotDate() );
+        assertEquals( 1, bingRows.size() );
+        assertEquals( LocalDate.parse( "2026-08-10" ), bingRows.get( 0 ).snapshotDate(),
+                "bing's own latest date must be used, not google's" );
+    }
+
+    @Test
+    void latestRowsPerEngineDropsAnEngineStalerThanWithinDays() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "google", "2026-08-14", 200, 8, 15.0 ),
+                // yandex's latest snapshot is 40 days behind google's -- outside a 28-day window.
+                rollup( "yandex", "2026-07-05", 10, 0, 40.0 ) ) );
+
+        final List<VisibilityRow> rows = store.latestRowsPerEngine( "wiki.wikantik.com", 28 );
+
+        assertEquals( List.of( "google" ), rows.stream().map( VisibilityRow::engine ).distinct().toList() );
+    }
+
+    @Test
+    void latestRowsPerEngineIncludesBothRollupAndQueryRows() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "google", "2026-08-14", 200, 8, 15.0 ),
+                new VisibilityRow( LocalDate.parse( "2026-08-14" ), 28, "google", "wiki.wikantik.com",
+                        "", "some query", 40, 2, 12.0 ) ) );
+
+        final List<VisibilityRow> rows = store.latestRowsPerEngine( "wiki.wikantik.com", 28 );
+
+        assertEquals( 2, rows.size() );
+        assertTrue( rows.stream().anyMatch( r -> r.queryText().isEmpty() ) );
+        assertTrue( rows.stream().anyMatch( r -> r.queryText().equals( "some query" ) ) );
+    }
+
+    @Test
+    void siteImpressions28dIgnoresQueryRows() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "google", "2026-08-14", 200, 8, 15.0 ),
+                rollup( "bing", "2026-08-14", 100, 4, 20.0 ),
+                new VisibilityRow( LocalDate.parse( "2026-08-14" ), 28, "google", "wiki.wikantik.com",
+                        "", "some query", 999, 99, 3.0 ) ) );
+
+        assertEquals( 300, store.siteImpressions28d( "wiki.wikantik.com" ),
+                "the query row's 999 impressions must not be summed into the page total" );
+    }
+
+    @Test
+    void siteImpressions28dIsZeroForAnUnknownSite() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of( rollup( "google", "2026-08-14", 200, 8, 15.0 ) ) );
+        assertEquals( 0, store.siteImpressions28d( "nope.example.com" ) );
+    }
+
+    // --- demandRows (retrieval_query_log) -----------------------------------------------------
+
+    private void insertQueryLogRow( final String queryText, final String sessionHash,
+                                    final Integer resultCount, final String coverage ) throws Exception {
+        try ( Connection c = ds.getConnection();
+              java.sql.PreparedStatement ps = c.prepareStatement(
+                  "INSERT INTO retrieval_query_log "
+                  + "(query_text, actor_type, source_surface, result_count, session_hash, coverage) "
+                  + "VALUES (?,?,?,?,?,?)" ) ) {
+            ps.setString( 1, queryText );
+            ps.setString( 2, "human" );
+            ps.setString( 3, "api_bundle" );
+            if ( resultCount == null ) {
+                ps.setNull( 4, java.sql.Types.INTEGER );
+            } else {
+                ps.setInt( 4, resultCount );
+            }
+            ps.setString( 5, sessionHash );
+            ps.setString( 6, coverage );
+            ps.executeUpdate();
+        }
+    }
+
+    @Test
+    void demandRowsCountsDistinctSessionsNotRawOccurrences() throws Exception {
+        // Two calls from the same session must count once toward distinctSessions but still
+        // twice toward occurrences -- collapsing them would understate real repeat demand.
+        insertQueryLogRow( "philosophy of mind", "sess-1", 3, "weak" );
+        insertQueryLogRow( "philosophy of mind", "sess-1", 5, "weak" );
+        insertQueryLogRow( "philosophy of mind", "sess-2", 0, "weak" );
+
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final DemandRow row = store.demandRows( 28 ).get( 0 );
+
+        assertEquals( "philosophy of mind", row.queryText() );
+        assertEquals( 3, row.occurrences() );
+        assertEquals( 2, row.distinctSessions() );
+        assertEquals( 3, row.resultCount(), "rounded average of 3, 5, 0" );
+        assertEquals( "weak", row.coverage() );
+    }
+
+    @Test
+    void demandRowsPicksTheMostFrequentCoverageValue() throws Exception {
+        insertQueryLogRow( "graph databases", "sess-1", 10, "strong" );
+        insertQueryLogRow( "graph databases", "sess-2", 10, "strong" );
+        insertQueryLogRow( "graph databases", "sess-3", 1, "weak" );
+
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final DemandRow row = store.demandRows( 28 ).get( 0 );
+
+        assertEquals( "strong", row.coverage() );
+    }
+
+    @Test
+    void demandRowsExcludesRowsOutsideTheWindow() throws Exception {
+        insertQueryLogRow( "recent query", "sess-1", 5, "strong" );
+        try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
+            st.execute( "INSERT INTO retrieval_query_log (query_text, actor_type, source_surface, "
+                      + "result_count, created_at) VALUES ('stale query', 'human', 'api_bundle', 5, "
+                      + "NOW() - INTERVAL '90 days')" );
+        }
+
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final List<String> queries = store.demandRows( 28 ).stream()
+                .map( DemandRow::queryText ).toList();
+
+        assertEquals( List.of( "recent query" ), queries );
+    }
+
+    // --- lastChangeByTarget --------------------------------------------------------------------
+
+    @Test
+    void lastChangeByTargetReturnsTheMostRecentDatePerPage() throws Exception {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.recordChange( change( "agent_gap", "first", 0.04, 12.5 ) );
+        store.recordChange( change( "agent_gap", "second", 0.04, 12.5 ) );
+
+        try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
+            st.execute( "UPDATE content_change_log SET applied_at = '2026-07-01T00:00:00Z' "
+                      + "WHERE note = 'first'" );
+            st.execute( "UPDATE content_change_log SET applied_at = '2026-07-15T00:00:00Z' "
+                      + "WHERE note = 'second'" );
+        }
+
+        final Map<String, LocalDate> byTarget = store.lastChangeByTarget();
+
+        assertEquals( LocalDate.parse( "2026-07-15" ), byTarget.get( "/wiki/A" ) );
+    }
+
+    // --- recordEffect ----------------------------------------------------------------------
+
+    @Test
+    void recordEffectRoundTripsAllSixFields() throws Exception {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final long id = store.recordChange( change( "agent_gap", "n", 0.04, 12.5, 0.62 ) ).orElseThrow();
+
+        final boolean updated = store.recordEffect( id, "positive", 0.012, -3.5, 8.0,
+                "page_rollup", "{\"note\":\"looks good\"}" );
+
+        assertTrue( updated );
+
+        try ( Connection c = ds.getConnection();
+              ResultSet rs = c.createStatement().executeQuery(
+                  "SELECT evaluated_at, effect, effect_ctr_delta, effect_position_delta, "
+                  + "effect_click_delta, effect_method, effect_detail FROM content_change_log "
+                  + "WHERE id = " + id ) ) {
+            assertTrue( rs.next() );
+            assertTrue( rs.getTimestamp( "evaluated_at" ) != null, "evaluated_at must be set" );
+            assertEquals( "positive", rs.getString( "effect" ) );
+            assertEquals( 0.012, rs.getDouble( "effect_ctr_delta" ), 0.0001 );
+            assertEquals( -3.5, rs.getDouble( "effect_position_delta" ), 0.0001 );
+            assertEquals( 8.0, rs.getDouble( "effect_click_delta" ), 0.0001 );
+            assertEquals( "page_rollup", rs.getString( "effect_method" ) );
+            assertEquals( "{\"note\": \"looks good\"}", rs.getString( "effect_detail" ) );
+        }
+    }
+
+    @Test
+    void recordEffectHandlesNullDetailJson() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final long id = store.recordChange( change( "agent_gap", "n", 0.04, 12.5 ) ).orElseThrow();
+
+        final boolean updated = store.recordEffect( id, "no_effect", null, null, null, null, null );
+
+        assertTrue( updated );
+    }
+
+    @Test
+    void recordEffectReturnsFalseForAnUnknownId() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        assertFalse( store.recordEffect( 999999L, "positive", 0.01, -1.0, 5.0, "page_rollup", null ) );
+    }
+
+    // --- verdictCountsByType / calibrationSamples -----------------------------------------
+
+    @Test
+    void verdictCountsByTypeExcludesInsufficientDataAndUnevaluatedRows() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final long evaluated = store.recordChange( change( "agent_gap", "a", 0.04, 12.5 ) ).orElseThrow();
+        final long insufficient = store.recordChange( change( "agent_gap", "b", 0.04, 12.5 ) ).orElseThrow();
+        store.recordChange( change( "agent_gap", "c", 0.04, 12.5 ) ); // left unevaluated
+
+        store.recordEffect( evaluated, "positive", 0.01, -1.0, 5.0, "page_rollup", null );
+        store.recordEffect( insufficient, "insufficient_data", null, null, null, null, null );
+
+        final Map<String, Integer> counts = store.verdictCountsByType();
+
+        assertEquals( Map.of( "agent_gap", 1 ), counts );
+    }
+
+    @Test
+    void calibrationSamplesOnlyReturnsRowsWithBothAPredictionAndAnOutcome() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final long withPrediction =
+                store.recordChange( change( "agent_gap", "a", 0.04, 12.5, 0.75 ) ).orElseThrow();
+        final long withoutPrediction =
+                store.recordChange( change( "agent_gap", "b", 0.04, 12.5, null ) ).orElseThrow();
+
+        store.recordEffect( withPrediction, "positive", 0.01, -1.0, 6.0, "page_rollup", null );
+        store.recordEffect( withoutPrediction, "positive", 0.01, -1.0, 6.0, "page_rollup", null );
+
+        final List<CalibrationSample> samples = store.calibrationSamples();
+
+        assertEquals( 1, samples.size() );
+        assertEquals( "agent_gap", samples.get( 0 ).opportunityType() );
+        assertEquals( 0.75, samples.get( 0 ).predictedPriority(), 0.0001 );
+        assertEquals( 6.0, samples.get( 0 ).realizedClickDelta(), 0.0001 );
+    }
+
+    // --- upsertSeen (content_opportunity_seen, V054) ------------------------------------------
+
+    @Test
+    void upsertSeenPreservesFirstSeenAcrossASecondCallOnALaterDay() throws Exception {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final List<String[]> pairs =
+                List.<String[]>of( new String[] { "agent_gap", "philosophy of mind" } );
+
+        final Map<String, LocalDate> first =
+                store.upsertSeen( pairs, LocalDate.parse( "2026-08-01" ) );
+        assertEquals( LocalDate.parse( "2026-08-01" ), first.get( "agent_gap philosophy of mind" ) );
+
+        final Map<String, LocalDate> second =
+                store.upsertSeen( pairs, LocalDate.parse( "2026-08-16" ) );
+        assertEquals( LocalDate.parse( "2026-08-01" ), second.get( "agent_gap philosophy of mind" ),
+                "first_seen must survive a later upsert, not reset to today" );
+
+        try ( Connection c = ds.getConnection();
+              ResultSet rs = c.createStatement().executeQuery(
+                  "SELECT first_seen, last_seen FROM content_opportunity_seen "
+                  + "WHERE opportunity_type = 'agent_gap' AND target = 'philosophy of mind'" ) ) {
+            assertTrue( rs.next() );
+            assertEquals( LocalDate.parse( "2026-08-01" ), rs.getDate( "first_seen" ).toLocalDate() );
+            assertEquals( LocalDate.parse( "2026-08-16" ), rs.getDate( "last_seen" ).toLocalDate(),
+                    "last_seen must advance to the later call's date" );
+        }
+    }
+
+    @Test
+    void upsertSeenWritesMultiplePairsInOneCall() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final List<String[]> pairs = List.of(
+                new String[] { "agent_gap", "target-a" },
+                new String[] { "engine_divergence", "target-b" } );
+
+        final Map<String, LocalDate> result = store.upsertSeen( pairs, LocalDate.parse( "2026-08-16" ) );
+
+        assertEquals( 2, result.size() );
+        assertEquals( LocalDate.parse( "2026-08-16" ), result.get( "agent_gap target-a" ) );
+        assertEquals( LocalDate.parse( "2026-08-16" ), result.get( "engine_divergence target-b" ) );
+    }
+
+    @Test
+    void upsertSeenReturnsEmptyMapForAnEmptyInput() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        assertTrue( store.upsertSeen( List.of(), LocalDate.parse( "2026-08-16" ) ).isEmpty() );
+    }
+
+    // --- pageWindowNear / siteWindowNear (design §7.4.2/§7.4.3) -------------------------------
+    //
+    // THE CRITICAL SEMANTIC under test: search_visibility_snapshot rows are ALREADY trailing
+    // 28-day aggregates stamped with their window's END date. "The 28 days after a change" is
+    // therefore ONE snapshot nearest the target date, never a sum across snapshot dates. Every
+    // test below gives the candidate snapshots clearly different values so a summing bug cannot
+    // pass by accident.
+
+    private static final LocalDate D = LocalDate.parse( "2026-07-01" );
+
+    @Test
+    void pageWindowNearPicksTheSingleNearestSnapshotNeverSummingAcrossDates() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "google", D.plusDays( 21 ).toString(), 500, 50, 10.0 ),
+                rollup( "google", D.plusDays( 28 ).toString(), 111, 22, 5.0 ),
+                rollup( "google", D.plusDays( 35 ).toString(), 900, 90, 20.0 ) ) );
+
+        final PageWindow window = store.pageWindowNear( "wiki.wikantik.com", "/wiki/A",
+                D.plusDays( 28 ), 7 ).orElseThrow();
+
+        assertEquals( D.plusDays( 28 ), window.snapshotDate() );
+        assertEquals( 111, window.impressions(),
+                "must be the D+28 snapshot alone -- 500+111+900=1511 would mean a summing bug" );
+        assertEquals( 22, window.clicks() );
+        assertEquals( 5.0, window.position(), 0.0001 );
+    }
+
+    @Test
+    void pageWindowNearBreaksATieOnEqualDistanceByPickingTheEarlierDate() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "google", D.plusDays( 26 ).toString(), 100, 10, 8.0 ),
+                rollup( "google", D.plusDays( 30 ).toString(), 200, 20, 9.0 ) ) );
+
+        final PageWindow window = store.pageWindowNear( "wiki.wikantik.com", "/wiki/A",
+                D.plusDays( 28 ), 7 ).orElseThrow();
+
+        assertEquals( D.plusDays( 26 ), window.snapshotDate(),
+                "D+26 and D+30 are equidistant from D+28 -- the earlier date must win" );
+        assertEquals( 100, window.impressions() );
+    }
+
+    @Test
+    void pageWindowNearIsEmptyWhenNoSnapshotFallsInTolerance() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of( rollup( "google", D.plusDays( 40 ).toString(), 100, 10, 8.0 ) ) );
+
+        assertTrue( store.pageWindowNear( "wiki.wikantik.com", "/wiki/A", D.plusDays( 28 ), 7 ).isEmpty(),
+                "D+40 is 12 days from the D+28 target, outside a 7-day tolerance" );
+    }
+
+    @Test
+    void pageWindowNearIsEmptyWhenOnlyAQueryRowExistsInTolerance() {
+        // A query row in range is not a rollup row -- the page has no page-level total there.
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of( new VisibilityRow( D.plusDays( 28 ), 28, "google", "wiki.wikantik.com",
+                "/wiki/A", "some query", 999, 99, 1.0 ) ) );
+
+        assertTrue( store.pageWindowNear( "wiki.wikantik.com", "/wiki/A", D.plusDays( 28 ), 7 ).isEmpty() );
+    }
+
+    @Test
+    void pageWindowNearComputesImpressionWeightedPositionAcrossEngines() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "google", D.toString(), 100, 5, 10.0 ),
+                rollup( "bing", D.toString(), 300, 15, 30.0 ) ) );
+
+        final PageWindow window = store.pageWindowNear( "wiki.wikantik.com", "/wiki/A", D, 3 ).orElseThrow();
+
+        assertEquals( 400, window.impressions() );
+        assertEquals( 20, window.clicks() );
+        assertEquals( 25.0, window.position(), 0.0001,
+                "(100*10 + 300*30) / (100+300) = 25.0" );
+    }
+
+    @Test
+    void pageWindowNearSkipsNullPositionsInTheWeightedAverage() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "google", D.toString(), 100, 5, 10.0 ),
+                // Yandex-shaped: reports impressions/clicks but never a position.
+                rollup( "yandex", D.toString(), 900, 1, null ) ) );
+
+        final PageWindow window = store.pageWindowNear( "wiki.wikantik.com", "/wiki/A", D, 3 ).orElseThrow();
+
+        assertEquals( 1000, window.impressions(), "impressions/clicks still sum across all engines" );
+        assertEquals( 10.0, window.position(), 0.0001,
+                "the null-position engine must be excluded from the average, not averaged as 0" );
+    }
+
+    @Test
+    void siteWindowNearSumsAcrossAllPagesRollupsOnlyIgnoringQueryRows() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "google", D.toString(), 100, 5, 10.0 ),
+                new VisibilityRow( D, 28, "google", "wiki.wikantik.com", "/wiki/B", "", 50, 2, 20.0 ),
+                // a site-level query row (page_path = '') must not be summed into the site total
+                new VisibilityRow( D, 28, "google", "wiki.wikantik.com", "", "some query", 999, 99, 1.0 ) ) );
+
+        final PageWindow window = store.siteWindowNear( "wiki.wikantik.com", D, 3 ).orElseThrow();
+
+        assertEquals( D, window.snapshotDate() );
+        assertEquals( 150, window.impressions(), "the 999-impression query row must not be counted" );
+        assertEquals( 7, window.clicks() );
+    }
+
+    @Test
+    void siteWindowNearIsEmptyForAnUnknownSite() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of( rollup( "google", D.toString(), 100, 5, 10.0 ) ) );
+
+        assertTrue( store.siteWindowNear( "nope.example.com", D, 3 ).isEmpty() );
+    }
+
+    @Test
+    void pageWindowNearAndSiteWindowNearResolveTheirSnapshotDatesIndependently() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                // the target page's own rollup only exists at D+26 ...
+                rollup( "google", D.plusDays( 26 ).toString(), 100, 10, 8.0 ),
+                // ... but a DIFFERENT page's rollup, closer to the D+28 target, exists at D+29.
+                new VisibilityRow( D.plusDays( 29 ), 28, "google", "wiki.wikantik.com",
+                        "/wiki/OtherPage", "", 50, 5, 12.0 ) ) );
+
+        final PageWindow pageWindow = store.pageWindowNear( "wiki.wikantik.com", "/wiki/A",
+                D.plusDays( 28 ), 7 ).orElseThrow();
+        final PageWindow siteWindow = store.siteWindowNear( "wiki.wikantik.com",
+                D.plusDays( 28 ), 7 ).orElseThrow();
+
+        assertEquals( D.plusDays( 26 ), pageWindow.snapshotDate(),
+                "/wiki/A only has a rollup at D+26" );
+        assertEquals( D.plusDays( 29 ), siteWindow.snapshotDate(),
+                "the site-wide resolution must pick its own nearest date (D+29, from /wiki/OtherPage), "
+                + "not reuse /wiki/A's D+26" );
     }
 }

@@ -88,7 +88,10 @@ class OpportunityEngineVocabularyGapTest {
                 defaults.engineDivergenceMinPositionGap(),
                 1, defaults.staleHighTrafficMinImpressions(), defaults.staleDays(),
                 defaults.globalFloorMinImpressions(), defaults.globalFloorMinOccurrences(),
-                defaults.cooldownDays() );
+                defaults.cooldownDays(),
+                defaults.gateImpressions28d(), defaults.divergenceMinImpressionsWeak(),
+                defaults.weightAgentGap(), defaults.weightEngineDivergence(),
+                defaults.weightVocabularyGap(), defaults.weightStaleHighTraffic() );
 
         final List<VisibilityRow> rows = List.of( row( "epistemology", 100, 1 ) );
         assertTrue( engine.evaluateVocabularyGap( rows, NO_OVERLAP, TODAY, misconfigured ).isEmpty(),
@@ -167,6 +170,19 @@ class OpportunityEngineVocabularyGapTest {
                 new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "google", SITE, "", "epistemology", 500, 50, 3.0 ) );
         assertTrue( engine.evaluateVocabularyGap( rows, NO_OVERLAP, TODAY, defaults ).isEmpty(),
                 "rollup rows carry no page-plus-query pair to check vocabulary against" );
+    }
+
+    // --- blank page path is skipped, never treated as a target ("" defect regression) ----------
+
+    @Test
+    void aStoreFullOfBlankPagePathQueryRowsProducesZeroOpportunities() {
+        final List<VisibilityRow> rows = List.of(
+                new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "google", SITE, "", "epistemology", 500, 50, 3.0 ),
+                new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "bing", SITE, "", "dualism", 500, 50, 3.0 ),
+                new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "google", SITE, null, "qualia", 500, 50, 3.0 ) );
+        assertTrue( engine.evaluateVocabularyGap( rows, NO_OVERLAP, TODAY, defaults ).isEmpty(),
+                "rows with no attributed page path must never produce an opportunity targeting "
+                + "the empty string" );
     }
 
     // --- aggregation across multiple rows for the same (page, query) ---------------------------

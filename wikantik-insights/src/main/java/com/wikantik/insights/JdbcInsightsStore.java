@@ -28,11 +28,19 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * JDBC-backed implementation of InsightsStore that upserts search visibility snapshots
@@ -91,8 +99,8 @@ public class JdbcInsightsStore implements InsightsStore {
         INSERT INTO content_change_log
             (page_path, change_type, opportunity_type, applied_by, note,
              baseline_start, baseline_end, baseline_impressions, baseline_clicks,
-             baseline_ctr, baseline_position)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?)
+             baseline_ctr, baseline_position, predicted_priority)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
         RETURNING id
         """;
 
@@ -123,6 +131,161 @@ public class JdbcInsightsStore implements InsightsStore {
         SELECT opportunity_type, target, snoozed_until, reason, snoozed_by
         FROM content_opportunity_snooze
         WHERE snoozed_until >= ?
+        """;
+
+    // Engines poll independently, so "latest" is resolved per engine, not once for the site --
+    // a shared date would silently empty the cross-engine comparison whenever one engine lags.
+    // withinDays then drops any engine whose own latest snapshot trails the newest one seen.
+    // "Latest" is anchored on the page-rollup row (query_text = ''), matching
+    // latestSnapshotDate()'s convention -- see VisibilityRow's javadoc for why the rollup row is
+    // authoritative -- but the final SELECT below returns every row (rollup and query alike) for
+    // that resolved date.
+    private static final String LATEST_ROWS_PER_ENGINE_SQL = """
+        WITH engine_latest AS (
+            SELECT engine, MAX(snapshot_date) AS latest_date
+            FROM search_visibility_snapshot
+            WHERE site_host = ? AND query_text = ''
+            GROUP BY engine
+        ),
+        newest AS (
+            SELECT MAX(latest_date) AS newest_date FROM engine_latest
+        )
+        SELECT s.snapshot_date, s.window_days, s.engine, s.site_host, s.page_path, s.query_text,
+               s.impressions, s.clicks, s.position
+        FROM search_visibility_snapshot s
+        JOIN engine_latest el ON el.engine = s.engine AND el.latest_date = s.snapshot_date
+        CROSS JOIN newest n
+        WHERE s.site_host = ? AND el.latest_date >= n.newest_date - ?
+        ORDER BY s.engine, s.page_path, s.query_text
+        """;
+
+    private static final String SITE_IMPRESSIONS_28D_SQL = """
+        WITH engine_latest AS (
+            SELECT engine, MAX(snapshot_date) AS latest_date
+            FROM search_visibility_snapshot
+            WHERE site_host = ? AND query_text = ''
+            GROUP BY engine
+        )
+        SELECT COALESCE(SUM(s.impressions), 0) AS total
+        FROM search_visibility_snapshot s
+        JOIN engine_latest el ON el.engine = s.engine AND el.latest_date = s.snapshot_date
+        WHERE s.site_host = ? AND s.query_text = ''
+        """;
+
+    // Grouping (distinct sessions, average result count, coverage mode) happens in Java --
+    // content-intelligence data volumes are small (V054), and a categorical mode plus a
+    // DISTINCT-count is simpler to get right in code than in a single SQL pass.
+    private static final String DEMAND_ROWS_SQL = """
+        SELECT query_text, session_hash, result_count, coverage
+        FROM retrieval_query_log
+        WHERE created_at >= ?
+        """;
+
+    private static final String LAST_CHANGE_BY_TARGET_SQL = """
+        SELECT page_path, MAX(applied_at::date) AS last_date
+        FROM content_change_log
+        GROUP BY page_path
+        """;
+
+    private static final String RECORD_EFFECT_SQL = """
+        UPDATE content_change_log
+        SET evaluated_at          = NOW(),
+            effect                = ?,
+            effect_ctr_delta      = ?,
+            effect_position_delta = ?,
+            effect_click_delta    = ?,
+            effect_method         = ?,
+            effect_detail         = CAST(? AS jsonb)
+        WHERE id = ?
+        """;
+
+    // Mirrors idx_ccl_calibration's own filter (evaluated_at IS NOT NULL AND opportunity_type
+    // IS NOT NULL) so this query rides that partial index; effect <> 'insufficient_data' further
+    // restricts to rows with a real verdict, since "insufficient_data" is not a calibratable one.
+    private static final String VERDICT_COUNTS_BY_TYPE_SQL = """
+        SELECT opportunity_type, COUNT(*) AS n
+        FROM content_change_log
+        WHERE evaluated_at IS NOT NULL
+          AND opportunity_type IS NOT NULL
+          AND effect IS NOT NULL
+          AND effect <> 'insufficient_data'
+        GROUP BY opportunity_type
+        """;
+
+    private static final String CALIBRATION_SAMPLES_SQL = """
+        SELECT opportunity_type, predicted_priority, effect_click_delta
+        FROM content_change_log
+        WHERE evaluated_at IS NOT NULL
+          AND opportunity_type IS NOT NULL
+          AND predicted_priority IS NOT NULL
+          AND effect_click_delta IS NOT NULL
+        """;
+
+    // first_seen is bound to `today` for a fresh row and left untouched on conflict (the DO
+    // UPDATE only ever touches last_seen), so RETURNING first_seen always reports the preserved
+    // value. Keying the output map off the RETURNING columns themselves -- rather than assuming
+    // JDBC batch result ordering matches input ordering -- is deliberate; see upsertSeen().
+    private static final String UPSERT_SEEN_SQL = """
+        INSERT INTO content_opportunity_seen (opportunity_type, target, first_seen, last_seen)
+        VALUES (?,?,?,?)
+        ON CONFLICT (opportunity_type, target)
+        DO UPDATE SET last_seen = EXCLUDED.last_seen
+        RETURNING opportunity_type, target, first_seen
+        """;
+
+    // THE CRITICAL SEMANTIC (design §7.4.2): every row here is ALREADY a trailing 28-day
+    // aggregate stamped with its window's END date -- never a daily figure. "The 28 days after a
+    // change" is therefore the SINGLE snapshot nearest the target date, not a SUM over snapshot
+    // dates; summing would count the same underlying days once per overlapping window and inflate
+    // the after-figure several-fold. The `candidate` CTE picks exactly one snapshot_date (nearest
+    // targetDate, ties toward the earlier date via the two-key ORDER BY); the outer SELECT then
+    // aggregates ONLY across engines for that one date. Do not change GROUP BY / add a date range
+    // to the outer SELECT without re-reading §7.4.2 -- that would silently reintroduce the
+    // double-count this method exists to avoid.
+    private static final String PAGE_WINDOW_NEAR_SQL = """
+        WITH candidate AS (
+            SELECT snapshot_date
+            FROM search_visibility_snapshot
+            WHERE site_host = ? AND page_path = ? AND query_text = ''
+              AND snapshot_date BETWEEN ? AND ?
+            ORDER BY ABS( snapshot_date - ? ), snapshot_date ASC
+            LIMIT 1
+        )
+        SELECT s.snapshot_date,
+               SUM( s.impressions )                                        AS impressions,
+               SUM( s.clicks )                                             AS clicks,
+               SUM( s.impressions * s.position ) FILTER ( WHERE s.position IS NOT NULL ) AS weighted_position_sum,
+               SUM( s.impressions )              FILTER ( WHERE s.position IS NOT NULL ) AS weighted_position_denom
+        FROM search_visibility_snapshot s
+        JOIN candidate c ON c.snapshot_date = s.snapshot_date
+        WHERE s.site_host = ? AND s.page_path = ? AND s.query_text = ''
+        GROUP BY s.snapshot_date
+        """;
+
+    // Same nearest-single-snapshot rule as PAGE_WINDOW_NEAR_SQL, totalled across every page's
+    // rollup row instead of one page's -- the difference-in-differences control term (§7.4.3).
+    // page_path <> '' is belt-and-braces alongside query_text = '': a page-rollup row always
+    // carries a real page_path (query_text = '' IS the page-level rollup, per V050's own notes),
+    // so this excludes site-level query rows (page_path = '') even if query_text = '' somehow
+    // co-occurred with page_path = '' in stray data.
+    private static final String SITE_WINDOW_NEAR_SQL = """
+        WITH candidate AS (
+            SELECT snapshot_date
+            FROM search_visibility_snapshot
+            WHERE site_host = ? AND query_text = '' AND page_path <> ''
+              AND snapshot_date BETWEEN ? AND ?
+            ORDER BY ABS( snapshot_date - ? ), snapshot_date ASC
+            LIMIT 1
+        )
+        SELECT s.snapshot_date,
+               SUM( s.impressions )                                        AS impressions,
+               SUM( s.clicks )                                             AS clicks,
+               SUM( s.impressions * s.position ) FILTER ( WHERE s.position IS NOT NULL ) AS weighted_position_sum,
+               SUM( s.impressions )              FILTER ( WHERE s.position IS NOT NULL ) AS weighted_position_denom
+        FROM search_visibility_snapshot s
+        JOIN candidate c ON c.snapshot_date = s.snapshot_date
+        WHERE s.site_host = ? AND s.query_text = '' AND s.page_path <> ''
+        GROUP BY s.snapshot_date
         """;
 
     private final DataSource dataSource;
@@ -258,6 +421,7 @@ public class JdbcInsightsStore implements InsightsStore {
             ps.setInt( 9, change.baselineClicks() );
             setNullableDouble( ps, 10, change.baselineCtr() );
             setNullableDouble( ps, 11, change.baselinePosition() );
+            setNullableDouble( ps, 12, change.predictedPriority() );
 
             try ( ResultSet rs = ps.executeQuery() ) {
                 return rs.next() ? Optional.of( rs.getLong( "id" ) ) : Optional.empty();
@@ -339,6 +503,287 @@ public class JdbcInsightsStore implements InsightsStore {
             throw new IllegalStateException( "active snoozes query failed", e );
         }
         return out;
+    }
+
+    @Override
+    public List<VisibilityRow> latestRowsPerEngine( final String siteHost, final int withinDays ) {
+        final List<VisibilityRow> out = new ArrayList<>();
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( LATEST_ROWS_PER_ENGINE_SQL ) ) {
+            ps.setString( 1, siteHost );
+            ps.setString( 2, siteHost );
+            ps.setInt( 3, withinDays );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) {
+                    final double position = rs.getDouble( "position" );
+                    out.add( new VisibilityRow(
+                            rs.getDate( "snapshot_date" ).toLocalDate(),
+                            rs.getInt( "window_days" ),
+                            rs.getString( "engine" ),
+                            rs.getString( "site_host" ),
+                            rs.getString( "page_path" ),
+                            rs.getString( "query_text" ),
+                            rs.getInt( "impressions" ),
+                            rs.getInt( "clicks" ),
+                            rs.wasNull() ? null : position ) );
+                }
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to read latest visibility rows per engine for site {} within {} days: {}",
+                    siteHost, withinDays, e.getMessage(), e );
+            throw new IllegalStateException( "latest rows per engine query failed", e );
+        }
+        return out;
+    }
+
+    @Override
+    public int siteImpressions28d( final String siteHost ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( SITE_IMPRESSIONS_28D_SQL ) ) {
+            ps.setString( 1, siteHost );
+            ps.setString( 2, siteHost );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() ? rs.getInt( "total" ) : 0;
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to read site impressions for site {}: {}", siteHost, e.getMessage(), e );
+            throw new IllegalStateException( "site impressions query failed", e );
+        }
+    }
+
+    @Override
+    public List<DemandRow> demandRows( final int sinceDays ) {
+        final Instant cutoff = Instant.now().minus( sinceDays, ChronoUnit.DAYS );
+        final Map<String, DemandAggregate> byQuery = new LinkedHashMap<>();
+
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( DEMAND_ROWS_SQL ) ) {
+            ps.setTimestamp( 1, Timestamp.from( cutoff ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) {
+                    final String queryText = rs.getString( "query_text" );
+                    final DemandAggregate agg =
+                            byQuery.computeIfAbsent( queryText, k -> new DemandAggregate() );
+
+                    agg.occurrences++;
+
+                    final String sessionHash = rs.getString( "session_hash" );
+                    if ( sessionHash != null ) {
+                        agg.distinctSessions.add( sessionHash );
+                    }
+
+                    final int resultCount = rs.getInt( "result_count" );
+                    if ( !rs.wasNull() ) {
+                        agg.resultCountSum += resultCount;
+                        agg.resultCountCount++;
+                    }
+
+                    final String coverage = rs.getString( "coverage" );
+                    if ( coverage != null ) {
+                        agg.coverageCounts.merge( coverage, 1, Integer::sum );
+                    }
+                }
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to read demand rows for the last {} days: {}",
+                    sinceDays, e.getMessage(), e );
+            throw new IllegalStateException( "demand rows query failed", e );
+        }
+
+        final List<DemandRow> out = new ArrayList<>();
+        for ( final Map.Entry<String, DemandAggregate> entry : byQuery.entrySet() ) {
+            out.add( entry.getValue().toDemandRow( entry.getKey() ) );
+        }
+        return out;
+    }
+
+    @Override
+    public Map<String, LocalDate> lastChangeByTarget() {
+        final Map<String, LocalDate> out = new HashMap<>();
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( LAST_CHANGE_BY_TARGET_SQL );
+              ResultSet rs = ps.executeQuery() ) {
+            while ( rs.next() ) {
+                out.put( rs.getString( "page_path" ), rs.getDate( "last_date" ).toLocalDate() );
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to read last change by target: {}", e.getMessage(), e );
+            throw new IllegalStateException( "last change by target query failed", e );
+        }
+        return out;
+    }
+
+    @Override
+    public boolean recordEffect( final long changeId, final String verdict, final Double ctrDelta,
+                                 final Double positionDelta, final Double clickDelta,
+                                 final String method, final String detailJson ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( RECORD_EFFECT_SQL ) ) {
+            ps.setString( 1, verdict );
+            setNullableDouble( ps, 2, ctrDelta );
+            setNullableDouble( ps, 3, positionDelta );
+            setNullableDouble( ps, 4, clickDelta );
+            setNullableString( ps, 5, method );
+            setNullableString( ps, 6, detailJson );
+            ps.setLong( 7, changeId );
+            return ps.executeUpdate() > 0;
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to record effect for change {}: {}", changeId, e.getMessage(), e );
+            return false;
+        }
+    }
+
+    @Override
+    public Map<String, Integer> verdictCountsByType() {
+        final Map<String, Integer> out = new HashMap<>();
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( VERDICT_COUNTS_BY_TYPE_SQL );
+              ResultSet rs = ps.executeQuery() ) {
+            while ( rs.next() ) {
+                out.put( rs.getString( "opportunity_type" ), rs.getInt( "n" ) );
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to read verdict counts by type: {}", e.getMessage(), e );
+            throw new IllegalStateException( "verdict counts by type query failed", e );
+        }
+        return out;
+    }
+
+    @Override
+    public List<CalibrationSample> calibrationSamples() {
+        final List<CalibrationSample> out = new ArrayList<>();
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( CALIBRATION_SAMPLES_SQL );
+              ResultSet rs = ps.executeQuery() ) {
+            while ( rs.next() ) {
+                out.add( new CalibrationSample(
+                        rs.getString( "opportunity_type" ),
+                        rs.getDouble( "predicted_priority" ),
+                        rs.getDouble( "effect_click_delta" ) ) );
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to read calibration samples: {}", e.getMessage(), e );
+            throw new IllegalStateException( "calibration samples query failed", e );
+        }
+        return out;
+    }
+
+    @Override
+    public Map<String, LocalDate> upsertSeen( final List<String[]> typeTargetPairs, final LocalDate today ) {
+        final Map<String, LocalDate> out = new HashMap<>();
+        if ( typeTargetPairs.isEmpty() ) {
+            return out;
+        }
+
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( UPSERT_SEEN_SQL, Statement.RETURN_GENERATED_KEYS ) ) {
+            final Date todaySql = Date.valueOf( today );
+            for ( final String[] pair : typeTargetPairs ) {
+                ps.setString( 1, pair[0] );
+                ps.setString( 2, pair[1] );
+                ps.setDate( 3, todaySql );
+                ps.setDate( 4, todaySql );
+                ps.addBatch();
+            }
+            ps.executeBatch();
+
+            try ( ResultSet rs = ps.getGeneratedKeys() ) {
+                while ( rs.next() ) {
+                    out.put( rs.getString( "opportunity_type" ) + " " + rs.getString( "target" ),
+                            rs.getDate( "first_seen" ).toLocalDate() );
+                }
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to upsert {} content-opportunity-seen rows: {}",
+                    typeTargetPairs.size(), e.getMessage(), e );
+            return new HashMap<>();
+        }
+        return out;
+    }
+
+    @Override
+    public Optional<PageWindow> pageWindowNear( final String siteHost, final String pagePath,
+                                                final LocalDate targetDate, final int toleranceDays ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( PAGE_WINDOW_NEAR_SQL ) ) {
+            ps.setString( 1, siteHost );
+            ps.setString( 2, pagePath );
+            ps.setDate( 3, Date.valueOf( targetDate.minusDays( toleranceDays ) ) );
+            ps.setDate( 4, Date.valueOf( targetDate.plusDays( toleranceDays ) ) );
+            ps.setDate( 5, Date.valueOf( targetDate ) );
+            ps.setString( 6, siteHost );
+            ps.setString( 7, pagePath );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() ? Optional.of( readPageWindow( rs ) ) : Optional.empty();
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to resolve page window near {} (+/-{}d) for site {} page {}: {}",
+                    targetDate, toleranceDays, siteHost, pagePath, e.getMessage(), e );
+            throw new IllegalStateException( "page window query failed", e );
+        }
+    }
+
+    @Override
+    public Optional<PageWindow> siteWindowNear( final String siteHost, final LocalDate targetDate,
+                                                final int toleranceDays ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( SITE_WINDOW_NEAR_SQL ) ) {
+            ps.setString( 1, siteHost );
+            ps.setDate( 2, Date.valueOf( targetDate.minusDays( toleranceDays ) ) );
+            ps.setDate( 3, Date.valueOf( targetDate.plusDays( toleranceDays ) ) );
+            ps.setDate( 4, Date.valueOf( targetDate ) );
+            ps.setString( 5, siteHost );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() ? Optional.of( readPageWindow( rs ) ) : Optional.empty();
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to resolve site window near {} (+/-{}d) for site {}: {}",
+                    targetDate, toleranceDays, siteHost, e.getMessage(), e );
+            throw new IllegalStateException( "site window query failed", e );
+        }
+    }
+
+    /** Shared row mapper for {@link #pageWindowNear} and {@link #siteWindowNear}'s identical shape. */
+    private static PageWindow readPageWindow( final ResultSet rs ) throws SQLException {
+        final Double weightedSum = getNullableDouble( rs, "weighted_position_sum" );
+        final Double weightedDenom = getNullableDouble( rs, "weighted_position_denom" );
+        final Double position = ( weightedSum == null || weightedDenom == null || weightedDenom == 0 )
+                ? null
+                : weightedSum / weightedDenom;
+        return new PageWindow( rs.getDate( "snapshot_date" ).toLocalDate(),
+                rs.getInt( "impressions" ), rs.getInt( "clicks" ), position );
+    }
+
+    /** Accumulator for {@link #demandRows}; one instance per distinct {@code query_text}. */
+    private static final class DemandAggregate {
+        private int occurrences;
+        private final Set<String> distinctSessions = new HashSet<>();
+        private long resultCountSum;
+        private int resultCountCount;
+        private final Map<String, Integer> coverageCounts = new LinkedHashMap<>();
+
+        private DemandRow toDemandRow( final String queryText ) {
+            final int avgResultCount = resultCountCount == 0
+                    ? 0
+                    : (int) Math.round( (double) resultCountSum / resultCountCount );
+            return new DemandRow( queryText, topCoverage(), avgResultCount,
+                    occurrences, distinctSessions.size() );
+        }
+
+        /** The most frequent non-null coverage value seen for this query, or {@code null} if none. */
+        private String topCoverage() {
+            String best = null;
+            int bestCount = 0;
+            for ( final Map.Entry<String, Integer> entry : coverageCounts.entrySet() ) {
+                if ( entry.getValue() > bestCount
+                        || ( entry.getValue() == bestCount && best != null
+                             && entry.getKey().compareTo( best ) < 0 ) ) {
+                    best = entry.getKey();
+                    bestCount = entry.getValue();
+                }
+            }
+            return best;
+        }
     }
 
     private static void setNullableString( final PreparedStatement ps, final int index, final String value )

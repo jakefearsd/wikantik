@@ -154,6 +154,10 @@ When `list_content_opportunities` is available on the admin MCP endpoint:
 
 1. **Call it before deciding what to work on.** Do not pick pages by intuition; the backlog is
    ranked by estimated recoverable clicks/answers and carries the evidence that fired each rule.
+2. **Read `suppressed` before concluding there is no work.** An empty `opportunities` list with
+   three entries in `suppressed` means the rules were gated off for lack of traffic — a completely
+   different statement from "everything is fine". Each entry carries the measured value and the
+   value required, so you can see how far off it is.
 2. **Read the `evidence` block, don't just trust `priority`.** Every rule's numbers are exposed
    precisely so a suggestion can be sanity-checked rather than obeyed.
 3. **Weight `calibrated: false` down.** Until a rule type has 20 evaluated outcomes, its priority

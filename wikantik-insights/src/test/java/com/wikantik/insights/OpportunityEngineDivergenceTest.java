@@ -141,6 +141,8 @@ class OpportunityEngineDivergenceTest {
         final OpportunityEngineConfig misconfigured = new OpportunityEngineConfig(
                 defaults.agentGapMinOccurrences(), defaults.agentGapMinDistinctSessions(),
                 5, defaults.engineDivergenceMinSharedQueries(), defaults.engineDivergenceMinPositionGap(),
+                defaults.vocabularyGapMinClicks(), defaults.staleHighTrafficMinImpressions(),
+                defaults.staleDays(),
                 defaults.globalFloorMinImpressions(), defaults.globalFloorMinOccurrences(),
                 defaults.cooldownDays() );
 

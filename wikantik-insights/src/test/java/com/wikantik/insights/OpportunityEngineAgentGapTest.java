@@ -131,6 +131,8 @@ class OpportunityEngineAgentGapTest {
                 1, defaults.agentGapMinDistinctSessions(),
                 defaults.engineDivergenceMinImpressions(), defaults.engineDivergenceMinSharedQueries(),
                 defaults.engineDivergenceMinPositionGap(),
+                defaults.vocabularyGapMinClicks(), defaults.staleHighTrafficMinImpressions(),
+                defaults.staleDays(),
                 defaults.globalFloorMinImpressions(), defaults.globalFloorMinOccurrences(),
                 defaults.cooldownDays() );
 

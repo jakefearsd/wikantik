@@ -21,6 +21,7 @@ package com.wikantik.insights;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -37,6 +38,7 @@ class OpportunityEngineCrossRuleTest {
 
     private static final LocalDate TODAY = LocalDate.of( 2026, 8, 16 );
     private static final String PAGE = "/wiki/PhilosophyOfMind";
+    private static final String SITE = "wiki.wikantik.com";
 
     private final OpportunityEngine engine = new OpportunityEngine();
     private final OpportunityEngineConfig defaults = OpportunityEngineConfig.defaults();
@@ -112,6 +114,91 @@ class OpportunityEngineCrossRuleTest {
         final List<Opportunity> imported = List.of( imported( "ctr_gap", PAGE, "bing" ) );
         final List<Opportunity> merged = engine.suppressDivergenceAffected( List.of(), imported );
         assertEquals( 1, merged.size() );
+    }
+
+    // --- vocabulary-gap suppression (the divergence-asymmetric case) ---------------------------
+
+    private static Opportunity vocabularyGap( final String target ) {
+        return new Opportunity( OpportunityEngine.VOCABULARY_GAP, target, 5.0,
+                Map.of( "queryText", "epistemology" ), "add the term as a tag", TODAY, false );
+    }
+
+    @Test
+    void vocabularyGapOnADivergentPageIsSuppressed() {
+        final List<Opportunity> divergences = List.of( divergence( PAGE, "bing" ) );
+        final List<Opportunity> vocabularyGaps = List.of( vocabularyGap( PAGE ) );
+
+        final List<Opportunity> surviving =
+                engine.suppressVocabularyGapForDivergentPages( divergences, vocabularyGaps );
+
+        assertTrue( surviving.isEmpty(),
+                "a vocabulary gap on a page divergence already diagnosed as a rank problem must be dropped" );
+    }
+
+    @Test
+    void vocabularyGapOnANonDivergentPageIsNotSuppressed() {
+        final List<Opportunity> divergences = List.of( divergence( PAGE, "bing" ) );
+        final List<Opportunity> vocabularyGaps = List.of( vocabularyGap( "/wiki/OtherPage" ) );
+
+        final List<Opportunity> surviving =
+                engine.suppressVocabularyGapForDivergentPages( divergences, vocabularyGaps );
+
+        assertEquals( 1, surviving.size(), "a different page's vocabulary gap is unrelated and must pass through" );
+    }
+
+    @Test
+    void withNoDivergenceVocabularyGapIsNeverSuppressed() {
+        final List<Opportunity> surviving =
+                engine.suppressVocabularyGapForDivergentPages( List.of(), List.of( vocabularyGap( PAGE ) ) );
+        assertEquals( 1, surviving.size() );
+    }
+
+    // --- suppression asymmetry: VOCABULARY_GAP vs. STALE_HIGH_TRAFFIC, through evaluate() ------
+
+    /** Ten shared (google, bing) query rows that make {@code evaluateEngineDivergence} fire for PAGE. */
+    private static List<VisibilityRow> divergenceRows() {
+        final List<VisibilityRow> rows = new ArrayList<>();
+        for ( int i = 0; i < 10; i++ ) {
+            final String query = "query " + i;
+            rows.add( new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "google", SITE, PAGE, query,
+                    20, 5, 3.0 ) );
+            rows.add( new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "bing", SITE, PAGE, query,
+                    3, 1, 20.0 ) );
+        }
+        return rows;
+    }
+
+    @Test
+    void suppressionIsAsymmetricAcrossTheTwoNativeRules() {
+        final List<VisibilityRow> rows = new ArrayList<>( divergenceRows() );
+        // A vocabulary-gap-eligible query on the same page and engine as the weak (bing) side --
+        // the extra row's position matches the other bing rows exactly (20.0) so it does not shift
+        // bing's average position or create a new shared query, leaving the divergence math above
+        // untouched while still giving evaluateVocabularyGap something to fire on.
+        rows.add( new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "bing", SITE, PAGE, "mind uploading",
+                50, 6, 20.0 ) );
+        // A page-level rollup row clearing the STALE_HIGH_TRAFFIC impressions floor.
+        rows.add( new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "google", SITE, PAGE, "",
+                250, 0, null ) );
+
+        // Page facts: vocabulary that matches neither "mind" nor "uploading" (a real gap), and
+        // never verified (a real staleness signal too) -- one PageFact drives both native rules.
+        final PageFacts facts = new MapPageFacts( Map.of( PAGE,
+                new PageFacts.PageFact( PAGE, "Other Topic", null, List.of(), "philosophy", null, null ) ) );
+
+        final List<Opportunity> result = engine.evaluate( List.of(), rows, List.of(), facts,
+                List.of(), Map.of(), TODAY, defaults );
+
+        assertTrue( result.stream().anyMatch( o -> OpportunityEngine.ENGINE_DIVERGENCE.equals( o.type() )
+                        && PAGE.equals( o.target() ) ),
+                "engine divergence itself must still fire" );
+        assertTrue( result.stream().anyMatch( o -> OpportunityEngine.STALE_HIGH_TRAFFIC.equals( o.type() )
+                        && PAGE.equals( o.target() ) ),
+                "staleness is real regardless of rank -- STALE_HIGH_TRAFFIC must survive divergence suppression" );
+        assertFalse( result.stream().anyMatch( o -> OpportunityEngine.VOCABULARY_GAP.equals( o.type() )
+                        && PAGE.equals( o.target() ) ),
+                "a tag will not rescue a page the divergence rule already diagnosed as a rank problem -- "
+                + "VOCABULARY_GAP must be suppressed" );
     }
 
     // --- 60-day cooldown ------------------------------------------------------------------------
@@ -198,7 +285,7 @@ class OpportunityEngineCrossRuleTest {
         final Opportunity ctrGap = imported( "ctr_gap", PAGE, "bing" ); // priority 12.0, unaffected
 
         final List<Opportunity> result = engine.evaluate( List.of( gap ), visibility, List.of( ctrGap ),
-                List.of(), Map.of(), TODAY, defaults );
+                new MapPageFacts( Map.of() ), List.of(), Map.of(), TODAY, defaults );
 
         assertEquals( 2, result.size() );
         assertEquals( "ctr_gap", result.get( 0 ).type(), "higher priority (12.0) sorts first" );
@@ -212,7 +299,7 @@ class OpportunityEngineCrossRuleTest {
                 TODAY, "declined", "jake" );
 
         final List<Opportunity> result = engine.evaluate( List.of( gap ), List.of(), List.of(),
-                List.of( snooze ), Map.of(), TODAY, defaults );
+                new MapPageFacts( Map.of() ), List.of( snooze ), Map.of(), TODAY, defaults );
 
         assertTrue( result.isEmpty(), "a snoozed native-rule opportunity must not survive the full pipeline" );
     }

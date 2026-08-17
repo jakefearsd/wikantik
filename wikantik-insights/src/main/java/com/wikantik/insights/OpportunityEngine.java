@@ -18,7 +18,9 @@
  */
 package com.wikantik.insights;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -28,6 +30,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -54,7 +57,31 @@ public final class OpportunityEngine {
     /** Rule 2 type identifier. */
     public static final String ENGINE_DIVERGENCE = "engine_divergence";
 
+    /** Rule 3 type identifier. */
+    public static final String VOCABULARY_GAP = "vocabulary_gap";
+
+    /** Rule 4 type identifier. */
+    public static final String STALE_HIGH_TRAFFIC = "stale_high_traffic";
+
     private static final Set<String> WEAK_COVERAGE = Set.of( "weak", "unknown" );
+
+    private static final String CONFIDENCE_AUTHORITATIVE = "authoritative";
+
+    /**
+     * Minimal English stopword list for {@link #evaluateVocabularyGap}'s query-vs-frontmatter
+     * comparison. Deliberately small and closed-class (articles, conjunctions, prepositions,
+     * pronouns, auxiliary verbs) rather than a general-purpose NLP stopword corpus -- the failure
+     * mode this guards against is a common word like "the" or "how" trivially "matching" almost
+     * any page's title, which would make the rule silently under-fire on real gaps (see
+     * {@code OpportunityEngineVocabularyGapTest#stopwordOnlyOverlapDoesNotCountAsTermPresent}).
+     */
+    private static final Set<String> STOPWORDS = Set.of(
+            "a", "an", "the", "and", "or", "but", "of", "to", "in", "on", "for", "with",
+            "is", "are", "was", "were", "be", "been", "being", "this", "that", "these", "those",
+            "it", "its", "as", "at", "by", "from", "how", "what", "when", "where", "who", "why",
+            "which", "do", "does", "did", "not", "no", "so", "if", "than", "then", "them",
+            "he", "she", "they", "we", "you", "your", "i", "my", "our", "us", "will", "can",
+            "could", "would", "should", "about", "into", "over", "under", "again" );
 
     /**
      * Imported jakemon types that {@link #evaluateEngineDivergence} can explain away. A page
@@ -248,6 +275,221 @@ public final class OpportunityEngine {
     }
 
     /**
+     * Rule 3 -- {@code VOCABULARY_GAP}: a query with real click support to a page whose content
+     * words the page's own metadata does not mention. Only case (a) from §7.3 rule 3 (Search
+     * Console clicks) is implemented here -- the reformulation-pair case (b) needs
+     * {@code session_hash} pairing that has no reader in this engine yet.
+     *
+     * <p>Rows are grouped by {@code (pagePath, queryText)} -- the per-page-per-query grain, like
+     * {@link #evaluateEngineDivergence} -- and clicks/impressions summed across engines and
+     * snapshots. Page-rollup and query-rollup rows (either dimension blank) carry no
+     * page-plus-query pair to check vocabulary against and are ignored.</p>
+     *
+     * <p><strong>Stopwords never count as "term present."</strong> Before comparing, the query is
+     * reduced to its content words (lowercased, punctuation stripped, {@link #STOPWORDS} removed).
+     * A query that is stopwords-only ({@code "how to"}) carries no content word to check and stays
+     * silent -- there is nothing actionable to add as a tag. Otherwise the rule fires only when
+     * <em>none</em> of the content words appear anywhere in the page's title, summary, or tags; a
+     * single matching content word means the page already covers enough of the reader's
+     * vocabulary and the gap is not real.</p>
+     *
+     * <p><strong>Unknown pages are skipped, not flagged.</strong> {@link PageFacts#lookup} empty
+     * means this engine has no page state to compare against -- treating that as "term absent"
+     * would flag every page {@code pageFacts} doesn't know about (e.g. a non-Wikantik site under
+     * D10) as a vocabulary gap, which is a false positive, not a finding.</p>
+     *
+     * @param rows       visibility rows for the evaluation window
+     * @param pageFacts  the page-state port (title/summary/tags), backed by the live wiki
+     * @param today      the date this evaluation runs, used as {@link Opportunity#firstSeen()}
+     * @param config     thresholds; the global occurrence floor always applies to the click count
+     *                   even if {@link OpportunityEngineConfig#vocabularyGapMinClicks()} is
+     *                   configured lower
+     * @return opportunities for page/query pairs meeting the minimum support
+     */
+    public List<Opportunity> evaluateVocabularyGap( final List<VisibilityRow> rows, final PageFacts pageFacts,
+                                                     final LocalDate today, final OpportunityEngineConfig config ) {
+        final Map<String, Map<String, ClickAccumulator>> byPageThenQuery = new LinkedHashMap<>();
+        for ( final VisibilityRow row : rows ) {
+            if ( row.pagePath() == null || row.pagePath().isBlank()
+                    || row.queryText() == null || row.queryText().isBlank() ) {
+                continue;
+            }
+            byPageThenQuery
+                    .computeIfAbsent( row.pagePath(), key -> new LinkedHashMap<>() )
+                    .computeIfAbsent( row.queryText(), key -> new ClickAccumulator() )
+                    .add( row );
+        }
+
+        final int minClicks = config.effectiveVocabularyGapMinClicks();
+        final List<Opportunity> out = new ArrayList<>();
+
+        for ( final Map.Entry<String, Map<String, ClickAccumulator>> pageEntry : byPageThenQuery.entrySet() ) {
+            final String pagePath = pageEntry.getKey();
+
+            final Optional<PageFacts.PageFact> fact = pageFacts.lookup( pagePath );
+            if ( fact.isEmpty() ) {
+                continue; // unknown page: skipped, never treated as "term absent"
+            }
+            final Set<String> pageVocabulary = pageVocabularyOf( fact.get() );
+
+            for ( final Map.Entry<String, ClickAccumulator> queryEntry : pageEntry.getValue().entrySet() ) {
+                final String queryText = queryEntry.getKey();
+                final ClickAccumulator acc = queryEntry.getValue();
+                if ( acc.clicks < minClicks ) {
+                    continue;
+                }
+
+                final List<String> contentWords = contentWordsOf( queryText );
+                if ( contentWords.isEmpty() ) {
+                    continue; // stopwords-only query: nothing meaningful to check or to add
+                }
+                if ( contentWords.stream().anyMatch( pageVocabulary::contains ) ) {
+                    continue; // at least one content word is already covered -- not a gap
+                }
+
+                final Map<String, Object> evidence = new LinkedHashMap<>();
+                evidence.put( "queryText", queryText );
+                evidence.put( "clicks", acc.clicks );
+                evidence.put( "impressions", acc.impressions );
+                evidence.put( "missingContentWords", contentWords );
+
+                out.add( new Opportunity( VOCABULARY_GAP, pagePath, acc.impressions * 0.05, evidence,
+                        "Add the term as a tag or alias; tighten the summary to include the "
+                        + "reader's vocabulary.", today, false ) );
+            }
+        }
+        return out;
+    }
+
+    /** The page's own vocabulary: every word (stopwords included) across title, summary, tags. */
+    private static Set<String> pageVocabularyOf( final PageFacts.PageFact fact ) {
+        final Set<String> vocabulary = new LinkedHashSet<>();
+        vocabulary.addAll( wordsOf( fact.title() ) );
+        vocabulary.addAll( wordsOf( fact.summary() ) );
+        if ( fact.tags() != null ) {
+            for ( final String tag : fact.tags() ) {
+                vocabulary.addAll( wordsOf( tag ) );
+            }
+        }
+        return vocabulary;
+    }
+
+    /** Lowercased, punctuation-stripped words, stopwords included. */
+    private static Set<String> wordsOf( final String text ) {
+        if ( text == null || text.isBlank() ) {
+            return Set.of();
+        }
+        final Set<String> words = new LinkedHashSet<>();
+        for ( final String token : text.toLowerCase( Locale.ROOT ).split( "[^a-z0-9]+" ) ) {
+            if ( !token.isEmpty() ) {
+                words.add( token );
+            }
+        }
+        return words;
+    }
+
+    /** Lowercased, punctuation-stripped, {@link #STOPWORDS}-filtered words. */
+    private static List<String> contentWordsOf( final String text ) {
+        final List<String> contentWords = new ArrayList<>();
+        for ( final String word : wordsOf( text ) ) {
+            if ( !STOPWORDS.contains( word ) ) {
+                contentWords.add( word );
+            }
+        }
+        return contentWords;
+    }
+
+    /** Per-(page, query) running click/impression totals accumulated while scanning rows. */
+    private static final class ClickAccumulator {
+        private int clicks;
+        private int impressions;
+
+        void add( final VisibilityRow row ) {
+            clicks += row.clicks();
+            impressions += row.impressions();
+        }
+    }
+
+    /**
+     * Rule 4 -- {@code STALE_HIGH_TRAFFIC}: a page with real traffic whose verification has aged
+     * out (or never happened, or was never marked authoritative).
+     *
+     * <p>Impressions are read from the <strong>page-level rollup row</strong> only (real
+     * {@code pagePath}, blank {@code queryText}) -- per-query rows are a lower bound once an
+     * engine's low-volume-query privacy floor is applied, so summing them would undercount a
+     * page's true traffic (see the design doc's "Known limitations" note in §3 and
+     * {@code SnapshotPayloadParser}). A page can appear more than once across engines/snapshots;
+     * rollup impressions are summed across all of them.</p>
+     *
+     * <p>A page unknown to {@code pageFacts} is skipped, not flagged -- there is no verification
+     * state to judge staleness against. Otherwise the three trigger conditions are independent
+     * ORs, matching §7.3 rule 4's literal wording: never verified, verified more than
+     * {@link OpportunityEngineConfig#staleDays()} days ago, or confidence is anything other than
+     * {@code authoritative} (which also catches an explicit non-authoritative override even on an
+     * otherwise-fresh {@code verified_at}).</p>
+     *
+     * @param rows       visibility rows for the evaluation window
+     * @param pageFacts  the page-state port ({@code verified_at}, confidence)
+     * @param today      the date this evaluation runs, used both as
+     *                   {@link Opportunity#firstSeen()} and as the staleness clock
+     * @param config     thresholds; the global impression floor always applies even if
+     *                   {@link OpportunityEngineConfig#staleHighTrafficMinImpressions()} is
+     *                   configured lower
+     * @return opportunities for pages meeting the minimum support
+     */
+    public List<Opportunity> evaluateStaleHighTraffic( final List<VisibilityRow> rows, final PageFacts pageFacts,
+                                                        final LocalDate today, final OpportunityEngineConfig config ) {
+        final Map<String, Long> impressionsByPage = new LinkedHashMap<>();
+        for ( final VisibilityRow row : rows ) {
+            if ( row.pagePath() == null || row.pagePath().isBlank() ) {
+                continue;
+            }
+            if ( row.queryText() != null && !row.queryText().isBlank() ) {
+                continue; // not the page-level rollup row -- per-query rows undercount (D3)
+            }
+            impressionsByPage.merge( row.pagePath(), ( long ) row.impressions(), Long::sum );
+        }
+
+        final int minImpressions = config.effectiveStaleHighTrafficMinImpressions();
+        final Instant todayInstant = today.atStartOfDay( ZoneOffset.UTC ).toInstant();
+        final List<Opportunity> out = new ArrayList<>();
+
+        for ( final Map.Entry<String, Long> entry : impressionsByPage.entrySet() ) {
+            final String pagePath = entry.getKey();
+            final long impressions = entry.getValue();
+            if ( impressions < minImpressions ) {
+                continue;
+            }
+
+            final Optional<PageFacts.PageFact> fact = pageFacts.lookup( pagePath );
+            if ( fact.isEmpty() ) {
+                continue; // unknown page: no verification state to judge staleness against
+            }
+            final PageFacts.PageFact pf = fact.get();
+
+            final Instant verifiedAt = pf.verifiedAt();
+            final boolean neverVerified = verifiedAt == null;
+            final Long daysSinceVerified = neverVerified ? null : ChronoUnit.DAYS.between( verifiedAt, todayInstant );
+            final boolean agedOut = daysSinceVerified != null && daysSinceVerified > config.staleDays();
+            final boolean notAuthoritative = !CONFIDENCE_AUTHORITATIVE.equalsIgnoreCase( pf.confidence() );
+
+            if ( !( neverVerified || agedOut || notAuthoritative ) ) {
+                continue;
+            }
+
+            final Map<String, Object> evidence = new LinkedHashMap<>();
+            evidence.put( "impressions", impressions );
+            evidence.put( "verifiedAt", verifiedAt == null ? null : verifiedAt.toString() );
+            evidence.put( "daysSinceVerified", daysSinceVerified );
+            evidence.put( "confidence", pf.confidence() );
+
+            out.add( new Opportunity( STALE_HIGH_TRAFFIC, pagePath, impressions * 0.02, evidence,
+                    "Re-verify or refresh the page.", today, false ) );
+        }
+        return out;
+    }
+
+    /**
      * Cross-rule constraint: divergence suppression (§7.3). Where {@link #evaluateEngineDivergence}
      * fires for a {@code (page, weakEngine)} pair, the imported {@code ctr_gap} and
      * {@code striking_distance} opportunities for that same pair are dropped -- the weakness is
@@ -288,6 +530,50 @@ public final class OpportunityEngine {
 
     private static String pairKey( final String target, final String engine ) {
         return target + ' ' + engine;
+    }
+
+    /**
+     * Cross-rule constraint: divergence suppression, asymmetric case (design doc section 7.3).
+     * Unlike {@link #suppressDivergenceAffected}, this is keyed on <strong>page only</strong>, not
+     * {@code (page, engine)} -- {@link #evaluateVocabularyGap} aggregates clicks/impressions
+     * across engines per query, so no single engine attribution survives to match against.
+     *
+     * <p><strong>Why {@code VOCABULARY_GAP} is suppressed here but {@code STALE_HIGH_TRAFFIC} is
+     * not</strong> (this asymmetry is deliberate, not an oversight -- see
+     * {@code OpportunityEngineCrossRuleTest#suppressionIsAsymmetricAcrossTheTwoNativeRules}):</p>
+     * <ul>
+     *   <li>{@code VOCABULARY_GAP} is a CTR-shaped fix -- its theory of change is "the reader's
+     *       words aren't on the page, so they bounce off the snippet." On a page ENGINE_DIVERGENCE
+     *       has already diagnosed as an authority problem (ranking ~60th, effectively unseen),
+     *       nobody reaches the snippet to bounce off in the first place; adding a tag cannot move
+     *       a page that isn't being shown. It belongs in the same suppressible family as the
+     *       imported {@code ctr_gap} and {@code striking_distance} types.</li>
+     *   <li>{@code STALE_HIGH_TRAFFIC} is not about rank at all -- its trigger is real traffic
+     *       plus verification age, and a divergence diagnosis says nothing about whether the
+     *       content is still accurate. A stale page stays stale (and worth re-verifying)
+     *       regardless of which engine is delivering its clicks.</li>
+     * </ul>
+     *
+     * @param divergenceOpportunities    the result of {@link #evaluateEngineDivergence}
+     * @param vocabularyGapOpportunities the result of {@link #evaluateVocabularyGap}
+     * @return {@code vocabularyGapOpportunities} with any entry targeting a page that
+     *         {@code divergenceOpportunities} also targets removed
+     */
+    public List<Opportunity> suppressVocabularyGapForDivergentPages(
+            final List<Opportunity> divergenceOpportunities,
+            final List<Opportunity> vocabularyGapOpportunities ) {
+        final Set<String> divergentPages = new HashSet<>();
+        for ( final Opportunity divergence : divergenceOpportunities ) {
+            divergentPages.add( divergence.target() );
+        }
+
+        final List<Opportunity> out = new ArrayList<>();
+        for ( final Opportunity candidate : vocabularyGapOpportunities ) {
+            if ( !divergentPages.contains( candidate.target() ) ) {
+                out.add( candidate );
+            }
+        }
+        return out;
     }
 
     /**
@@ -344,13 +630,18 @@ public final class OpportunityEngine {
     }
 
     /**
-     * Runs the full Phase 2 pipeline: the two native rules, divergence suppression of the
-     * imported backlog, cooldown, snooze filtering, then a descending-priority sort of the merged
-     * result. Each step is also exposed individually above for isolated testing.
+     * Runs the full Phase 2 pipeline: all four native rules, divergence suppression of the
+     * imported backlog and (separately -- see {@link #suppressVocabularyGapForDivergentPages})
+     * of {@code VOCABULARY_GAP}, cooldown, snooze filtering, then a descending-priority sort of
+     * the merged result. Each step is also exposed individually above for isolated testing.
      *
      * @param demandRows            input for {@link #evaluateAgentGap}
-     * @param visibilityRows        input for {@link #evaluateEngineDivergence}
+     * @param visibilityRows        input for {@link #evaluateEngineDivergence},
+     *                              {@link #evaluateVocabularyGap}, and
+     *                              {@link #evaluateStaleHighTraffic}
      * @param importedOpportunities opportunities imported unchanged from jakemon
+     * @param pageFacts             page-state port for {@link #evaluateVocabularyGap} and
+     *                              {@link #evaluateStaleHighTraffic}
      * @param snoozes               active/inactive snooze rows; expiry is checked against {@code today}
      * @param lastChangeByTarget    most recent change date per target, for the cooldown
      * @param today                 the date this evaluation runs
@@ -360,16 +651,24 @@ public final class OpportunityEngine {
     public List<Opportunity> evaluate( final List<DemandRow> demandRows,
                                        final List<VisibilityRow> visibilityRows,
                                        final List<Opportunity> importedOpportunities,
+                                       final PageFacts pageFacts,
                                        final List<OpportunitySnooze> snoozes,
                                        final Map<String, LocalDate> lastChangeByTarget,
                                        final LocalDate today,
                                        final OpportunityEngineConfig config ) {
         final List<Opportunity> agentGap = evaluateAgentGap( demandRows, today, config );
         final List<Opportunity> divergence = evaluateEngineDivergence( visibilityRows, today, config );
-        final List<Opportunity> merged = suppressDivergenceAffected( divergence, importedOpportunities );
+        final List<Opportunity> vocabularyGap = evaluateVocabularyGap( visibilityRows, pageFacts, today, config );
+        final List<Opportunity> staleHighTraffic = evaluateStaleHighTraffic( visibilityRows, pageFacts, today, config );
+
+        final List<Opportunity> mergedImported = suppressDivergenceAffected( divergence, importedOpportunities );
+        final List<Opportunity> survivingVocabularyGap =
+                suppressVocabularyGapForDivergentPages( divergence, vocabularyGap );
 
         final List<Opportunity> all = new ArrayList<>( agentGap );
-        all.addAll( merged );
+        all.addAll( mergedImported );
+        all.addAll( survivingVocabularyGap );
+        all.addAll( staleHighTraffic );
 
         final List<Opportunity> afterCooldown = applyCooldown( all, lastChangeByTarget, today, config.cooldownDays() );
         final List<Opportunity> afterSnooze = filterSnoozed( afterCooldown, snoozes, today );

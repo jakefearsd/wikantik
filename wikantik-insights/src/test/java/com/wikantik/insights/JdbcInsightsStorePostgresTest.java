@@ -50,6 +50,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Testcontainers( disabledWithoutDocker = true )
 class JdbcInsightsStorePostgresTest {
 
+    /** Fixed instants so these assertions never depend on the calendar date the suite runs on.
+     *
+     *  <p>{@code content_change_log.applied_at} defaults to {@code NOW()}, and
+     *  {@code unevaluatedChanges(cutoff)} selects rows at or before the cutoff. Comparing a
+     *  NOW()-stamped row against a hardcoded cutoff makes a test that passes on the day it is
+     *  written and fails every day after — which is exactly what happened here. Pin both sides.</p> */
+    private static final String APPLIED_AT = "2026-07-01T00:00:00Z";
+    private static final LocalDate CUTOFF = LocalDate.parse( "2026-07-15" );
+
+    /** Force every recorded change to {@link #APPLIED_AT}, overriding the NOW() default. */
+    private void pinAppliedAt() {
+        try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
+            st.execute( "UPDATE content_change_log SET applied_at = '" + APPLIED_AT + "'" );
+        } catch ( final Exception e ) {
+            throw new IllegalStateException( "could not pin applied_at", e );
+        }
+    }
+
     @Container
     private static final PostgreSQLContainer CONTAINER = new PostgreSQLContainer(
             DockerImageName.parse( "pgvector/pgvector:pg17" ).asCompatibleSubstituteFor( "postgres" ) )
@@ -320,11 +338,14 @@ class JdbcInsightsStorePostgresTest {
         store.recordChange( change( "agent_gap", "b", 0.05, 11.0 ) );
 
         try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
+            // applied_at defaults to NOW(). Pin it to a fixed past instant so the assertion does
+            // not depend on the calendar date the suite happens to run on.
+            st.execute( "UPDATE content_change_log SET applied_at = '" + APPLIED_AT + "'" );
             st.execute( "UPDATE content_change_log SET evaluated_at = NOW(), effect = 'no_effect' "
                       + "WHERE id = " + evaluatedId );
         }
 
-        final List<PendingChange> pending = store.unevaluatedChanges( LocalDate.parse( "2026-08-16" ) );
+        final List<PendingChange> pending = store.unevaluatedChanges( CUTOFF );
 
         assertEquals( 1, pending.size() );
         assertEquals( "b", pending.get( 0 ).note() );
@@ -340,7 +361,7 @@ class JdbcInsightsStorePostgresTest {
                       + "WHERE id = " + futureId );
         }
 
-        final List<PendingChange> pending = store.unevaluatedChanges( LocalDate.parse( "2026-08-16" ) );
+        final List<PendingChange> pending = store.unevaluatedChanges( CUTOFF );
 
         assertTrue( pending.isEmpty(),
                 "a change applied after the cutoff has not had 28 days to accumulate an after-window" );
@@ -351,7 +372,9 @@ class JdbcInsightsStorePostgresTest {
         final InsightsStore store = new JdbcInsightsStore( ds );
         store.recordChange( change( "engine_divergence", "diagnostic only", 0.031, 22.4 ) );
 
-        final PendingChange pending = store.unevaluatedChanges( LocalDate.parse( "2026-08-16" ) ).get( 0 );
+        pinAppliedAt();
+
+        final PendingChange pending = store.unevaluatedChanges( CUTOFF ).get( 0 );
 
         assertEquals( "/wiki/A", pending.pagePath() );
         assertEquals( "title", pending.changeType() );

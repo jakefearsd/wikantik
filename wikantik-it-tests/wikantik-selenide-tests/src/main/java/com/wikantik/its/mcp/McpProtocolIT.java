@@ -63,7 +63,9 @@ public class McpProtocolIT extends WithMcpTestSetup {
             // Orphan triage — admin-bypass listing of degree-0 KG nodes
             "list_orphaned_kg_nodes",
             // Query-log read surface — retrieval query history across all four agent surfaces
-            "list_retrieval_queries"
+            "list_retrieval_queries",
+            // Content intelligence — the ranked opportunity backlog and its decline path
+            "list_content_opportunities", "snooze_opportunity"
     );
 
     @Test

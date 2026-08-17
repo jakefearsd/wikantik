@@ -24,6 +24,7 @@ import com.wikantik.content.PageRenamer;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.diff.DifferenceManager;
+import com.wikantik.insights.runtime.ContentOpportunityService;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.mcp.tools.*;
 import com.wikantik.mcp.tools.kg.QueryNodesTool;
@@ -161,6 +162,17 @@ public class McpToolRegistry {
         if ( engine instanceof com.wikantik.WikiEngine we && we.queryLogReader() != null ) {
             readOnlyList.add( new ListRetrievalQueriesTool( we.queryLogReader() ) );
         }
+
+        // Content-intelligence backlog. Registered UNCONDITIONALLY, passing null when the
+        // subsystem is absent, so the tools refuse at call time with that reason instead of
+        // vanishing from tools/list. InstructionsRegistryDriftTest, McpInstructionsDriftIT and
+        // McpProtocolIT.EXPECTED_TOOLS all assert the advertised surface exactly, so a tool whose
+        // presence varies with wiring turns those three red in any environment without a
+        // datasource — the same reasoning as rename_cluster above.
+        final ContentOpportunityService opportunityService =
+                engine instanceof com.wikantik.WikiEngine we2 ? we2.contentOpportunityService() : null;
+        readOnlyList.add( new ListContentOpportunitiesTool( opportunityService ) );
+        authorConfigurableList.add( new SnoozeOpportunityTool( opportunityService ) );
 
         readOnly = List.copyOf( readOnlyList );
         authorConfigurable = List.copyOf( authorConfigurableList );

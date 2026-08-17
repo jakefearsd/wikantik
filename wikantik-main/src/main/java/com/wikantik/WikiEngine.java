@@ -1153,6 +1153,10 @@ public class WikiEngine implements Engine {
             this.setQueryLogService( com.wikantik.knowledge.querylog.QueryLogWiring.build( ds, props ) );
             this.setQueryLogReader( com.wikantik.knowledge.querylog.QueryLogWiring.buildReader( ds ) );
 
+            // Wire the content-opportunity engine (content-intelligence design §7.5.1; default on).
+            this.setContentOpportunityService(
+                com.wikantik.insights.runtime.InsightsWiring.build( ds, props, structuralIndex ) );
+
             // Wire the briefing log (S3 telemetry for session-start context briefings; default on).
             this.setBriefingLogService( com.wikantik.knowledge.querylog.BriefingLogWiring.build( ds, props ) );
 
@@ -1450,6 +1454,23 @@ public class WikiEngine implements Engine {
     /** The query-log read side; {@code null} when no datasource is configured. */
     public com.wikantik.api.querylog.QueryLogReader queryLogReader() {
         return queryLogReader;
+    }
+
+    /** Content-opportunity engine facade (content-intelligence design §7.5.1); set at startup,
+     *  read by the read surfaces (MCP tools / admin page) once they exist. Null when disabled or
+     *  not yet wired (callers no-op). A plain field — carries no snapshot machinery, matching
+     *  {@code queryLogReader}'s pattern (DecompositionArchTest R-2: not a manager). */
+    private volatile com.wikantik.insights.runtime.ContentOpportunityService contentOpportunityService;
+
+    /** Called at startup once the persistence DataSource is available. */
+    public void setContentOpportunityService(
+            final com.wikantik.insights.runtime.ContentOpportunityService service ) {
+        this.contentOpportunityService = service;
+    }
+
+    /** The content-opportunity engine facade, or {@code null} if it was not wired. */
+    public com.wikantik.insights.runtime.ContentOpportunityService contentOpportunityService() {
+        return contentOpportunityService;
     }
 
     /** Briefing-request log; set at startup, read by nothing yet (write-only telemetry). Null

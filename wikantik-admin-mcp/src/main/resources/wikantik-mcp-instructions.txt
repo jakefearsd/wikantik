@@ -316,6 +316,43 @@ list_retrieval_queries
                   Output: { queries: [{query, occurrences, avgResultCount,
                   zeroResultCount, lastSeen}], count }.
 
+list_content_opportunities
+                  Read-only. The ranked content-opportunity backlog, with
+                  the evidence that fired each rule. Four native rule types:
+                  agent_gap, engine_divergence, vocabulary_gap,
+                  stale_high_traffic.
+                  Parameters (all optional):
+                    type            one rule type (default: all)
+                    limit           max to return (default 20, max 200)
+                    min_priority    only return >= this score
+                    include_snoozed include snoozed pairs (default false)
+                    site            site host (default: first configured)
+                  Output: { opportunities: [{type, target, priority,
+                  calibrated, suggestedAction, firstSeen, evidence}], count,
+                  suppressed: [{type, reason, measured, required}],
+                  uncalibratedTypes, generatedAt, site }.
+
+                  ALWAYS read 'suppressed' as well as 'opportunities'. Three
+                  of the four rules are driven by search volume and sit
+                  behind a site traffic gate; below it they do not run and
+                  are listed in 'suppressed' with the measured and required
+                  values. An empty list WITH suppressed entries means "not
+                  enough evidence to look", which is not the same as
+                  "nothing to do". Weigh calibrated=false lower: that type's
+                  priority weight is still a guess.
+
+snooze_opportunity
+                  Decline an opportunity so it stops being re-proposed.
+                  Parameters (ALL required):
+                    type            the opportunity type
+                    target          page path, or query text for agent_gap
+                    days            1-365
+                    reason          why it is being declined
+                  Output: { snoozedUntil, previouslySnoozed }.
+                  'reason' is mandatory by design: a declined suggestion
+                  with no recorded reason is indistinguishable from a bug
+                  six months later.
+
 == Concurrency model ==
 
 Edits use optimistic concurrency, not explicit locks. The flow is:

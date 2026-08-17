@@ -6,6 +6,55 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Content Intelligence Phase 2 — the loop closes.** The opportunity engine
+  shipped in 2.4.5 was a library with no consumer: nothing in production
+  constructed it. It is now wired end to end. `ContentOpportunityService`
+  assembles demand, visibility, page facts, snoozes and cooldowns, runs the rule
+  engine, and is reachable from two new admin MCP tools
+  (`list_content_opportunities`, `snooze_opportunity` — the admin surface moves
+  27 → 29), `GET /admin/insights/backlog`, and a Backlog panel on
+  `/admin/insights`.
+- **Effect measurement** (`EffectEvaluator` + a nightly scheduler): recorded
+  content changes get an `improved` / `no_effect` / `regressed` /
+  `insufficient_data` verdict 28 days on, with a difference-in-differences
+  adjustment against the site's own trend.
+- **Self-calibration** (`WeightCalibrator`): once a rule type has enough
+  evaluated outcomes, its priority weight moves toward the observed
+  predicted-vs-realised ratio, damped and clamped. Eligibility counts usable
+  calibration *samples*, not evaluated changes — `insufficient_data` verdicts
+  carry no click delta and would otherwise let a type cross the threshold on
+  rows that teach it nothing.
+- Imported-opportunity ingestion (`V056`): the ingest endpoint accepts jakemon's
+  five detector opportunities and the engine ranks them alongside the native
+  four. Inert until the collector ships them.
+- `V054` opportunity provenance ledger and `V055` calibration columns.
+- All of the design's configuration keys are now real (`wikantik.insights.*`),
+  documented in `ini/wikantik.properties`.
+
+### Changed
+- **The three volume-driven rules now sit behind a site traffic gate**
+  (`wikantik.insights.rules.gate.impressions28d`, default 5000). Measured against
+  production: 479 pages share 2,626 impressions and 10 clicks per 28 days, median
+  page 2 impressions, so the specified thresholds selected 0–1 pages and a page
+  reported at "position 2.0" had been seen once. Below the gate those rules do
+  not run and are reported as `suppressed` with measured-vs-required values, so
+  an empty backlog is distinguishable from an untested one. `AGENT_GAP` is never
+  gated — its denominator is retrieval traffic.
+- `ENGINE_DIVERGENCE` moved onto page-rollup rows and now requires a support
+  floor on **both** engines. It previously required a row carrying both a
+  non-blank page path and a non-blank query, which no row in the store satisfies,
+  so the rule matched zero rows and was silently dead. Its priority is expected-CTR
+  uplift rather than clicks, which at 10 clicks sitewide scored every finding zero.
+
+### Fixed
+- **The MCP retrieval surfaces recorded no bundle coverage.** `assemble_bundle`
+  and `get_briefing` called the four-argument query-log overload while their REST
+  twins passed coverage, so every agent retrieval stored `coverage` NULL. The
+  `AGENT_GAP` rule triggers on `coverage ∈ {weak, unknown}`, and 37 of 52 logged
+  retrievals in a 28-day production window came through that path — the one rule
+  with a live denominator was running on half its designed input.
+
 ## [2.4.5] - 2026-08-16
 
 ## [2.4.4] - 2026-08-16

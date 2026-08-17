@@ -113,6 +113,8 @@ public final class SnapshotPayloadParser {
             int rowsRejected = 0;
             rowsRejected += collect( rows, o.getAsJsonArray( "by_page" ),  date, window, engine, site, true );
             rowsRejected += collect( rows, o.getAsJsonArray( "by_query" ), date, window, engine, site, false );
+            rowsRejected += collectQueryPage( rows, o.getAsJsonArray( "query_page" ),
+                    date, window, engine, site );
             return new ParseResult( rows, rowsRejected );
         } catch ( final RuntimeException e ) {
             LOG.warn( "rejecting malformed visibility snapshot: {}", e.getMessage() );
@@ -152,6 +154,59 @@ public final class SnapshotPayloadParser {
             if ( row == null ) {
                 LOG.warn( "dropping visibility row for engine={} site={} key='{}': blank engine/site "
                         + "at the VisibilityRow.of allowlist guard", engine, site, key );
+                rejected++;
+            } else {
+                out.add( row );
+            }
+        }
+        return rejected;
+    }
+
+    /**
+     * Collects the {@code query_page} cross product -- rows carrying <em>both</em> a page and a
+     * query.
+     *
+     * <p>This is the grain that {@code by_page} and {@code by_query} cannot express. Those two are
+     * <strong>disjoint projections</strong>: a {@code by_page} row has no query and a
+     * {@code by_query} row has no page, so nothing in the store attributes a query to a page.
+     * Three things need that attribution and stay dormant without it -- the shared-query
+     * restriction on {@code ENGINE_DIVERGENCE}, case (a) of {@code VOCABULARY_GAP}, and effect
+     * measurement's {@code query_intersection} mode (design section 12.1, work item J1).</p>
+     *
+     * <p>These rows need no schema change: the fact table's primary key is already
+     * {@code (snapshot_date, engine, site_host, page_path, query_text)}, so a row with both
+     * populated slots in beside the two rollup projections rather than colliding with them.</p>
+     *
+     * <p>Unlike {@link #collect}, the fields are named {@code query} and {@code page} rather than a
+     * single {@code key}, because a cross-product row has two identities and neither is "the" key.
+     * A row missing either one identifies nothing joinable and is rejected rather than stored
+     * against a blank.</p>
+     */
+    private static int collectQueryPage( final List< VisibilityRow > out, final JsonArray arr,
+                                         final LocalDate date, final int window,
+                                         final String engine, final String site ) {
+        if ( arr == null ) {
+            return 0;
+        }
+        int rejected = 0;
+        for ( final JsonElement el : arr ) {
+            final JsonObject r = el.getAsJsonObject();
+            final String query = r.has( "query" ) ? r.get( "query" ).getAsString() : null;
+            final String page  = r.has( "page" )  ? r.get( "page" ).getAsString()  : null;
+            if ( query == null || query.isBlank() || page == null || page.isBlank() ) {
+                LOG.warn( "dropping query_page row for engine={} site={}: needs both 'query' and "
+                        + "'page' (got query='{}', page='{}')", engine, site, query, page );
+                rejected++;
+                continue;
+            }
+            final VisibilityRow row = VisibilityRow.of( date, window, engine, site,
+                    normalisePath( page ), query,
+                    r.has( "impressions" ) ? r.get( "impressions" ).getAsInt() : 0,
+                    r.has( "clicks" ) ? r.get( "clicks" ).getAsInt() : 0,
+                    r.has( "position" ) ? r.get( "position" ).getAsDouble() : null );
+            if ( row == null ) {
+                LOG.warn( "dropping query_page row for engine={} site={} query='{}': blank "
+                        + "engine/site at the VisibilityRow.of allowlist guard", engine, site, query );
                 rejected++;
             } else {
                 out.add( row );

@@ -168,4 +168,63 @@ class SnapshotPayloadParserTest {
         assertEquals( 0, r.rejected() );
         assertEquals( 1, r.rows().size() );
     }
+
+    /**
+     * The cross-product grain (work item J1). by_page and by_query are disjoint projections --
+     * neither attributes a query to a page -- so until these rows arrive, the shared-query
+     * restriction on ENGINE_DIVERGENCE, VOCABULARY_GAP case (a), and effect measurement's
+     * query_intersection mode all have nothing to run on.
+     */
+    @Test
+    void queryPageRowsCarryBothAPageAndAQuery() {
+        final String json = """
+                { "engine": "google", "site": "wiki.wikantik.com",
+                  "snapshot_date": "2026-08-14", "window_days": 28,
+                  "query_page": [ { "query": "deploy locally", "page": "https://wiki.wikantik.com/wiki/DeployGuide",
+                                    "impressions": 40, "clicks": 3, "position": 8.5 } ] }
+                """;
+
+        final SnapshotPayloadParser.ParseResult result =
+                SnapshotPayloadParser.parse( json, Set.of( "*" ), Set.of( "*" ) );
+
+        assertEquals( 0, result.rejected() );
+        assertEquals( 1, result.rows().size() );
+        final VisibilityRow row = result.rows().get( 0 );
+        assertEquals( "/wiki/DeployGuide", row.pagePath(), "host and scheme are stripped" );
+        assertEquals( "deploy locally", row.queryText() );
+        assertEquals( 40, row.impressions() );
+        assertEquals( 3, row.clicks() );
+    }
+
+    @Test
+    void queryPageRowMissingEitherIdentityIsRejected() {
+        final String json = """
+                { "engine": "google", "site": "wiki.wikantik.com",
+                  "snapshot_date": "2026-08-14", "window_days": 28,
+                  "query_page": [ { "query": "no page", "impressions": 5, "clicks": 0 },
+                                  { "page": "/wiki/NoQuery", "impressions": 5, "clicks": 0 },
+                                  { "query": "", "page": "/wiki/Blank", "impressions": 5, "clicks": 0 } ] }
+                """;
+
+        final SnapshotPayloadParser.ParseResult result =
+                SnapshotPayloadParser.parse( json, Set.of( "*" ), Set.of( "*" ) );
+
+        assertEquals( 3, result.rejected(), "a row that identifies nothing joinable is not storable" );
+        assertEquals( 0, result.rows().size() );
+    }
+
+    @Test
+    void anAbsentQueryPageArrayIsNotAnError() {
+        final String json = """
+                { "engine": "google", "site": "wiki.wikantik.com",
+                  "snapshot_date": "2026-08-14", "window_days": 28,
+                  "by_page": [ { "key": "/wiki/A", "impressions": 10, "clicks": 1, "position": 4.0 } ] }
+                """;
+
+        final SnapshotPayloadParser.ParseResult result =
+                SnapshotPayloadParser.parse( json, Set.of( "*" ), Set.of( "*" ) );
+
+        assertEquals( 0, result.rejected() );
+        assertEquals( 1, result.rows().size(), "existing payloads keep parsing unchanged" );
+    }
 }

@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **The expected-CTR curve is now imported from jakemon rather than invented.**
+  `ENGINE_DIVERGENCE` priority is `weak_impressions × (ctr(strong_pos) −
+  ctr(weak_pos))`, so those findings were being priced with a placeholder table
+  while jakemon's measured curve arrived in the ingest payload and was silently
+  discarded. `V057` stores the shipped 1–10 table and
+  `ExpectedCtrCurve.fromTable` mirrors jakemon's lookup exactly — clamp-to-1
+  rounding, table hit, page-2 floor, beyond-20 decay.
+
+  Falls back to the built-in curve when no shipment exists or the latest has
+  gone stale, and both read surfaces (`list_content_opportunities` and
+  `GET /admin/insights/backlog`) now report `ctrCurveSource` —
+  `imported:<date>` or `builtin` — because a shipment going quiet must be
+  visible rather than merely inferable from the numbers looking different.
+
+  **One deliberate coupling:** jakemon ships the table but not `_DEEP_CTR`
+  (0.008) or the beyond-20 decay, so those two scalars are mirrored here as
+  configuration (`wikantik.insights.ctr.deep`, `…deep_max_position`). A parity
+  test names the exact expected values, so a future divergence fails a test
+  rather than quietly mis-pricing opportunities.
+
 ## [2.4.9] - 2026-08-17
 
 ### Fixed

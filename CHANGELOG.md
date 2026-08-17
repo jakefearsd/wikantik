@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.10] - 2026-08-17
+
 ### Added
 - **The expected-CTR curve is now imported from jakemon rather than invented.**
   `ENGINE_DIVERGENCE` priority is `weak_impressions × (ctr(strong_pos) −

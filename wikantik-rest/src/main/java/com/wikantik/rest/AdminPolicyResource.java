@@ -27,6 +27,7 @@ import com.wikantik.audit.AuditService;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.DatabasePolicy;
 import com.wikantik.auth.DefaultAuthorizationManager;
+import com.wikantik.auth.permissions.AdminPermission;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -74,6 +75,9 @@ public class AdminPolicyResource extends RestServletBase {
 
     /** Valid group permission actions. */
     private static final Set< String > GROUP_ACTIONS = Set.of( "view", "edit" );
+
+    /** The only verb an admin-area grant carries today: may reach this area of /admin/* at all. */
+    private static final Set< String > ADMIN_ACTIONS = Set.of( AdminPermission.ACCESS_ACTION );
 
     /** Valid principal types. */
     private static final Set< String > PRINCIPAL_TYPES = Set.of( "role", "user", "group" );
@@ -430,7 +434,7 @@ public class AdminPolicyResource extends RestServletBase {
     /**
      * Validates all grant fields. Returns an error message if validation fails, or null if valid.
      */
-    private String validateGrantFields( final String principalType, final String principalName,
+    String validateGrantFields( final String principalType, final String principalName,
                                          final String permissionType, final String target,
                                          final String actions ) {
         if ( principalType == null || principalType.isBlank() ) {
@@ -506,7 +510,7 @@ public class AdminPolicyResource extends RestServletBase {
      * Validates that each comma-separated action is valid for the given permission type.
      * Returns an error message if invalid, or null if valid.
      */
-    private String validateActions( final String permissionType, final String actions ) {
+    String validateActions( final String permissionType, final String actions ) {
         // Special case: "*" means AllPermission
         if ( "*".equals( actions.trim() ) ) {
             return null;
@@ -516,6 +520,7 @@ public class AdminPolicyResource extends RestServletBase {
             case "page" -> PAGE_ACTIONS;
             case "wiki" -> WIKI_ACTIONS;
             case "group" -> GROUP_ACTIONS;
+            case "admin" -> ADMIN_ACTIONS;
             default -> Set.of();
         };
 

@@ -179,7 +179,31 @@ class GetBriefingToolTest {
 
         tool.execute( Map.of( "prompt", "deploy steps" ) );
 
-        verify( qlog ).log( "deploy steps", ActorType.AGENT, SourceSurface.MCP_GET_BRIEFING, 1 );
+        // Coverage is recorded, and it is the POST-GATE value: BriefingAclGate recounts, and a
+        // STRONG bundle thinned below the 3-section floor becomes PARTIAL.
+        verify( qlog ).log( "deploy steps", ActorType.AGENT, SourceSurface.MCP_GET_BRIEFING, 1,
+                BundleCoverage.PARTIAL, null );
+    }
+
+    /**
+     * The MCP half of the briefing surface must feed AGENT_GAP the same datum its REST twin
+     * (BriefingResource) already does. It previously called the 4-arg log overload, storing a NULL
+     * coverage, so a briefing that covered the prompt poorly was indistinguishable from one that
+     * covered it well.
+     */
+    @Test
+    void execute_recordsBriefingCoverage_soAgentGapHasItsInput() {
+        final ContextBriefing briefing = new ContextBriefing( "prompt", List.of( SECTION_A ),
+                new BundleCoverage( 1, 1, 0.18, BundleCoverage.WEAK ), List.of(), List.of(), 4000, 100 );
+        final BriefingAssemblyService svc = mock( BriefingAssemblyService.class );
+        when( svc.assemble( any( BriefingRequest.class ) ) ).thenReturn( briefing );
+        final QueryLogService qlog = mock( QueryLogService.class );
+        final GetBriefingTool tool = new GetBriefingTool( svc, () -> qlog, () -> null, PageViewGate.ALLOW_ALL );
+
+        tool.execute( Map.of( "prompt", "deploy steps" ) );
+
+        verify( qlog ).log( "deploy steps", ActorType.AGENT, SourceSurface.MCP_GET_BRIEFING, 1,
+                BundleCoverage.WEAK, null );
     }
 
     @Test

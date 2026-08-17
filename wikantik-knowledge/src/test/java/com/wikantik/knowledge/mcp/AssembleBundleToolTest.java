@@ -68,8 +68,31 @@ class AssembleBundleToolTest {
 
         t.execute( Map.of( "query", "deploy" ) );
 
-        // MCP is agent-by-construction; result_count = bundle section count
-        verify( qlog ).log( "deploy", ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, 1 );
+        // MCP is agent-by-construction; result_count = bundle section count. Coverage must be
+        // recorded too -- see below.
+        verify( qlog ).log( "deploy", ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, 1,
+                BundleCoverage.UNKNOWN, null );
+    }
+
+    /**
+     * The AGENT_GAP content-intelligence rule fires on "zero sections OR coverage in
+     * {@code {weak, unknown}}", and MCP is the dominant agent surface. This tool previously called
+     * the 4-arg log overload, so every MCP retrieval stored a NULL coverage and a bundle that
+     * answered the question badly was indistinguishable from one that answered it well. Verified
+     * against production: 37 of 52 logged retrievals in a 28-day window came through this surface,
+     * every one with coverage NULL.
+     */
+    @Test
+    void execute_recordsBundleCoverage_soAgentGapHasItsInput() {
+        final QueryLogService qlog = mock( QueryLogService.class );
+        final ContextBundle weak = new ContextBundle( "deploy", FIXED_BUNDLE.sections(),
+                new BundleCoverage( 1, 1, 0.21, BundleCoverage.WEAK ) );
+        final AssembleBundleTool t = new AssembleBundleTool( query -> weak, () -> qlog );
+
+        t.execute( Map.of( "query", "deploy" ) );
+
+        verify( qlog ).log( "deploy", ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, 1,
+                BundleCoverage.WEAK, null );
     }
 
     @Test

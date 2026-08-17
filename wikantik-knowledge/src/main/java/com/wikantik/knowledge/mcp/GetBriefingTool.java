@@ -145,7 +145,12 @@ public class GetBriefingTool extends AbstractMcpTool {
         final boolean promptPresent = prompt != null && !prompt.isBlank();
         final QueryLogService qlog = queryLog == null ? null : queryLog.get();
         if ( qlog != null && promptPresent ) {
-            qlog.log( prompt, ActorType.AGENT, SourceSurface.MCP_GET_BRIEFING, gated.sections().size() );
+            // Coverage, not just the section count -- same reason as AssembleBundleTool, and the
+            // REST twin (BriefingResource) already records it. Without this the MCP half of the
+            // briefing surface is invisible to the AGENT_GAP rule, which triggers on
+            // coverage in {weak, unknown}.
+            qlog.log( prompt, ActorType.AGENT, SourceSurface.MCP_GET_BRIEFING, gated.sections().size(),
+                    gated.coverage() == null ? null : gated.coverage().confidence(), null );
         }
 
         final BriefingLogService blog = briefingLog == null ? null : briefingLog.get();

@@ -116,7 +116,15 @@ public class AssembleBundleTool extends AbstractMcpTool {
                 com.wikantik.api.bundle.BundleCoverage.recount( bundle.coverage(), filteredSections ) );
         final QueryLogService qlog = queryLog == null ? null : queryLog.get();
         if ( qlog != null ) {
-            qlog.log( query, ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, filteredSections.size() );
+            // Record the POST-GATE coverage, not just the section count. This is the surface the
+            // AGENT_GAP rule actually runs on -- MCP is the dominant agent entry point -- and its
+            // trigger is "zero sections OR coverage in {weak, unknown}". Logging the 4-arg form
+            // here dropped coverage on every MCP retrieval, leaving the rule with only half its
+            // designed input: a non-empty bundle that answers the question badly looked identical
+            // to one that answered it well. Session hash is null by construction; MCP callers
+            // have no browser session (design D8).
+            qlog.log( query, ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, filteredSections.size(),
+                    gated.coverage() == null ? null : gated.coverage().confidence(), null );
         }
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, gated );
     }

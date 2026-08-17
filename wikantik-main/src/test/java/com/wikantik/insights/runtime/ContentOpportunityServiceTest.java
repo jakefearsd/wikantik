@@ -18,12 +18,14 @@
  */
 package com.wikantik.insights.runtime;
 
+import com.wikantik.insights.CtrCurveSnapshot;
 import com.wikantik.insights.DemandRow;
 import com.wikantik.insights.InsightsStore;
 import com.wikantik.insights.Opportunity;
 import com.wikantik.insights.OpportunityEngine;
 import com.wikantik.insights.OpportunitySnooze;
 import com.wikantik.insights.PageFacts;
+import com.wikantik.insights.VisibilityRow;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -343,6 +345,72 @@ class ContentOpportunityServiceTest {
 
         verify( store ).latestImported( "wiki.wikantik.com",
                 InsightsSettings.from( new Properties() ).importedMaxAgeDays() );
+    }
+
+    // -- Expected-CTR curve source (content-intelligence design §7.3 rule 2, V057) ----------------
+
+    @Test
+    void importedCurveActuallyPricesEngineDivergenceDifferentlyFromTheBuiltinCurve() {
+        when( store.siteImpressions28d( anyString() ) ).thenReturn( 6000 ); // clears the 5000 traffic gate
+        when( store.latestRowsPerEngine( anyString(), anyInt() ) ).thenReturn( List.of(
+                new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "google", "wiki.wikantik.com",
+                        "/wiki/PhilosophyOfMind", "", 100, 5, 2.0 ),
+                new VisibilityRow( LocalDate.of( 2026, 8, 1 ), 28, "bing", "wiki.wikantik.com",
+                        "/wiki/PhilosophyOfMind", "", 50, 1, 12.0 ) ) );
+        when( store.latestCtrCurve( anyInt() ) ).thenReturn(
+                Optional.of( new CtrCurveSnapshot( LocalDate.parse( "2026-08-14" ), Map.of( 2, 0.9 ) ) ) );
+
+        final ContentOpportunityService service = serviceWith( enabledSettings() );
+        final ContentOpportunityService.BacklogView view =
+                service.backlog( "wiki.wikantik.com", null, null, 20, false );
+
+        final Opportunity divergence = view.opportunities().stream()
+                .filter( o -> OpportunityEngine.ENGINE_DIVERGENCE.equals( o.type() ) )
+                .findFirst().orElseThrow();
+
+        // Builtin curve: ctrAt(2)=0.15, ctrAt(12)=0.012 -> delta=0.138 -> priority = 50*0.138 = 6.9.
+        // Imported curve: ctrAt(2)=0.9 (table hit), ctrAt(12)=0.008 (deep floor -- the imported
+        // table has no entry for 12) -> delta=0.892 -> priority = 50*0.892 = 44.6. The priority
+        // landing near 44.6, not 6.9, proves the imported curve actually reached the engine's
+        // math -- not just the ctrCurveSource label.
+        assertEquals( 44.6, divergence.priority(), 0.01 );
+        assertEquals( "imported:2026-08-14", view.ctrCurveSource() );
+    }
+
+    @Test
+    void ctrCurveSourceIsBuiltinWhenNoCurveHasEverBeenImported() {
+        // store.latestCtrCurve is unstubbed -- Mockito's default Optional-returning answer is
+        // Optional.empty(), matching "nothing shipped yet". "Latest shipment has gone stale"
+        // surfaces identically as empty from the store's perspective -- the actual cutoff
+        // enforcement is exercised in JdbcInsightsStorePostgresTest, not here.
+        final ContentOpportunityService service = serviceWith( enabledSettings() );
+
+        final ContentOpportunityService.BacklogView view =
+                service.backlog( "wiki.wikantik.com", null, null, 20, false );
+
+        assertEquals( "builtin", view.ctrCurveSource() );
+    }
+
+    @Test
+    void emptyViewFromTheDisabledKillSwitchReportsBuiltinNotNull() {
+        final Properties props = new Properties();
+        props.setProperty( InsightsSettings.KEY_ENABLED, "false" );
+        final ContentOpportunityService service = serviceWith( InsightsSettings.from( props ) );
+
+        final ContentOpportunityService.BacklogView view =
+                service.backlog( "wiki.wikantik.com", null, null, 20, false );
+
+        assertEquals( "builtin", view.ctrCurveSource() );
+    }
+
+    @Test
+    void ctrCurveStalenessCutoffReusesTheConfiguredImportedMaxAgeDays() {
+        when( store.latestCtrCurve( anyInt() ) ).thenReturn( Optional.empty() );
+        final ContentOpportunityService service = serviceWith( enabledSettings() );
+
+        service.backlog( "wiki.wikantik.com", null, null, 20, false );
+
+        verify( store ).latestCtrCurve( InsightsSettings.from( new Properties() ).importedMaxAgeDays() );
     }
 
     // -- Constructor guard ------------------------------------------------------------------------

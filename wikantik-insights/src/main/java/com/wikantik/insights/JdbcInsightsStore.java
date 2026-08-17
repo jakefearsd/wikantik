@@ -317,6 +317,25 @@ public class JdbcInsightsStore implements InsightsStore {
         WHERE io.site_host = ? AND l.max_as_of >= ?
         """;
 
+    private static final String UPSERT_CTR_CURVE_SQL = """
+        INSERT INTO expected_ctr_curve (as_of, position, ctr)
+        VALUES (?,?,?)
+        ON CONFLICT (as_of, position) DO UPDATE SET ctr = EXCLUDED.ctr
+        """;
+
+    // Same "most recent as_of, guarded by a staleness cutoff" shape as LATEST_IMPORTED_SQL, minus
+    // the site_host dimension -- jakemon ships exactly one curve, not one per site (V057).
+    private static final String LATEST_CTR_CURVE_SQL = """
+        WITH latest AS (
+            SELECT MAX(as_of) AS max_as_of
+            FROM expected_ctr_curve
+        )
+        SELECT ecc.as_of, ecc.position, ecc.ctr
+        FROM expected_ctr_curve ecc
+        JOIN latest l ON l.max_as_of = ecc.as_of
+        WHERE l.max_as_of >= ?
+        """;
+
     private static final Gson GSON = new Gson();
 
     private final DataSource dataSource;
@@ -866,6 +885,56 @@ public class JdbcInsightsStore implements InsightsStore {
         return new Opportunity( type, rs.getString( "target" ), rs.getDouble( "expected_uplift" ),
                 evidence, suggestedActionForImportedType( type ),
                 rs.getDate( "as_of" ).toLocalDate(), false );
+    }
+
+    @Override
+    public int upsertCtrCurve( final LocalDate asOf, final Map<Integer, Double> points ) {
+        if ( points.isEmpty() ) {
+            return 0;
+        }
+
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( UPSERT_CTR_CURVE_SQL ) ) {
+
+            for ( final Map.Entry<Integer, Double> point : points.entrySet() ) {
+                ps.setDate( 1, Date.valueOf( asOf ) );
+                ps.setInt( 2, point.getKey() );
+                ps.setDouble( 3, point.getValue() );
+                ps.addBatch();
+            }
+
+            final int[] results = ps.executeBatch();
+            int total = 0;
+            for ( final int result : results ) {
+                total += Math.max( result, 0 );
+            }
+            return total;
+
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to upsert {} expected-CTR curve points for as_of {}: {}",
+                    points.size(), asOf, e.getMessage(), e );
+            return 0;
+        }
+    }
+
+    @Override
+    public Optional<CtrCurveSnapshot> latestCtrCurve( final int maxAgeDays ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( LATEST_CTR_CURVE_SQL ) ) {
+            ps.setDate( 1, Date.valueOf( LocalDate.now().minusDays( maxAgeDays ) ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                LocalDate asOf = null;
+                final Map<Integer, Double> points = new LinkedHashMap<>();
+                while ( rs.next() ) {
+                    asOf = rs.getDate( "as_of" ).toLocalDate();
+                    points.put( rs.getInt( "position" ), rs.getDouble( "ctr" ) );
+                }
+                return asOf == null ? Optional.empty() : Optional.of( new CtrCurveSnapshot( asOf, points ) );
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to read latest expected-CTR curve: {}", e.getMessage(), e );
+            throw new IllegalStateException( "latest expected-CTR curve query failed", e );
+        }
     }
 
     /** One short suggested action per jakemon detector type (design §7.3 "Imported from jakemon"). */

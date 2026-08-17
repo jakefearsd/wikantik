@@ -18,6 +18,8 @@
  */
 package com.wikantik.insights;
 
+import java.util.Map;
+
 /**
  * Estimated click-through rate at a given average search-result position. {@link OpportunityEngine}
  * rule 2 ({@code ENGINE_DIVERGENCE}) uses this to convert a position gap into an expected-clicks
@@ -34,12 +36,66 @@ public interface ExpectedCtrCurve {
     double ctrAt( double position );
 
     /**
+     * Builds a curve from jakemon's real, measured {@code EXPECTED_CTR} table (work item J3,
+     * design §12.1) -- the top-10 points shipped in the ingest payload's {@code expected_ctr} key
+     * (V057) -- plus the two tail-decay numbers jakemon does <strong>not</strong> ship (see
+     * V057's migration comment for why: {@code ship_visibility.py} sends only the table, never
+     * jakemon's {@code _DEEP_CTR} floor or its decay formula).
+     *
+     * <p>Mirrors jakemon's {@code opportunities.expected_ctr()} exactly:</p>
+     * <pre>
+     * position &lt;= 0            -&gt; 0.0
+     * p = max(1, round(position))          # 0.4 -&gt; 1, NOT 0
+     * p in table               -&gt; table[p]
+     * p &lt;= deepMaxPosition     -&gt; deepCtr
+     * otherwise                -&gt; round(deepCtr * (deepMaxPosition / p), 4)
+     * </pre>
+     *
+     * <p>{@code round(position)} here is Java's round-half-up ({@link Math#round(double)}), not
+     * Python's round-half-to-even -- the two differ only on an exact {@code x.5} tie, which an
+     * average search-result position (a continuous, measured value) essentially never lands on
+     * exactly; this is not expected to diverge from jakemon's own output in practice.</p>
+     *
+     * @param table          position -&gt; CTR, keyed by the exact integer positions jakemon shipped
+     *                       (today: 1-10); copied defensively, so later mutation of the caller's
+     *                       map does not change the returned curve
+     * @param deepCtr        the flat floor CTR for positions beyond the table but at or below
+     *                       {@code deepMaxPosition} (jakemon's {@code _DEEP_CTR}, mirrored in
+     *                       config since jakemon does not ship it -- see V057)
+     * @param deepMaxPosition the last position the flat {@code deepCtr} floor applies to; positions
+     *                       deeper than this decay as {@code deepCtr * (deepMaxPosition / p)}
+     *                       (jakemon's hardcoded {@code 20}, mirrored in config for the same reason)
+     * @return a curve backed by {@code table}, falling through to the {@code deepCtr}/
+     *         {@code deepMaxPosition} tail rule for every position the table does not cover
+     */
+    static ExpectedCtrCurve fromTable( final Map<Integer, Double> table, final double deepCtr,
+                                       final int deepMaxPosition ) {
+        final Map<Integer, Double> copy = Map.copyOf( table );
+        return position -> {
+            if ( Double.isNaN( position ) || position <= 0 ) {
+                return 0.0;
+            }
+            final int p = ( int ) Math.max( 1, Math.round( position ) );
+            final Double tableValue = copy.get( p );
+            if ( tableValue != null ) {
+                return tableValue;
+            }
+            if ( p <= deepMaxPosition ) {
+                return deepCtr;
+            }
+            final double decayed = deepCtr * ( deepMaxPosition / ( double ) p );
+            return Math.round( decayed * 10000.0 ) / 10000.0;
+        };
+    }
+
+    /**
      * A documented placeholder step table standing in for jakemon's own {@code EXPECTED_CTR}
      * curve -- the single definition of the CTR model (design §7.3, "Imported from jakemon,
      * unchanged": "jakemon's {@code EXPECTED_CTR} curve stays the single place the CTR model is
-     * defined"). Work item J3 (design §12.1) replaces this table by shipping jakemon's real,
-     * measured curve in the ingest payload; until then, this is Wikantik's best local estimate,
-     * not a ground truth, and every consumer of it should treat it accordingly.
+     * defined"). {@link #fromTable} is the real thing, built from what jakemon actually ships
+     * (work item J3, design §12.1); this table is used only as the fallback when no imported
+     * curve is available at all (subsystem disabled, nothing shipped yet, or the most recent
+     * shipment has gone stale) -- see {@code ContentOpportunityService}.
      *
      * <p>The table (position -&gt; CTR): 1&#8594;0.28, 2&#8594;0.15, 3&#8594;0.11, 4&#8594;0.08,
      * 5&#8594;0.06, 6&#8594;0.05, 7&#8594;0.04, 8&#8594;0.035, 9&#8594;0.03, 10&#8594;0.025,

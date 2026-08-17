@@ -55,6 +55,9 @@ class InsightsSettingsTest {
         assertEquals( 60, settings.changeCooldownDays() );
         assertEquals( 20, settings.calibrationMinVerdicts() );
         assertEquals( 0.5, settings.calibrationDamping() );
+        assertEquals( 7, settings.importedMaxAgeDays() );
+        assertEquals( 0.008, settings.ctrDeep() );
+        assertEquals( 20, settings.ctrDeepMaxPosition() );
     }
 
     @Test
@@ -85,6 +88,9 @@ class InsightsSettingsTest {
         props.setProperty( InsightsSettings.KEY_CHANGE_COOLDOWN_DAYS, "30" );
         props.setProperty( InsightsSettings.KEY_CALIBRATION_MIN_VERDICTS, "10" );
         props.setProperty( InsightsSettings.KEY_CALIBRATION_DAMPING, "0.75" );
+        props.setProperty( InsightsSettings.KEY_IMPORTED_MAX_AGE_DAYS, "3" );
+        props.setProperty( InsightsSettings.KEY_CTR_DEEP, "0.01" );
+        props.setProperty( InsightsSettings.KEY_CTR_DEEP_MAX_POSITION, "25" );
 
         final InsightsSettings settings = InsightsSettings.from( props );
 
@@ -105,6 +111,9 @@ class InsightsSettingsTest {
         assertEquals( 30, settings.changeCooldownDays() );
         assertEquals( 10, settings.calibrationMinVerdicts() );
         assertEquals( 0.75, settings.calibrationDamping() );
+        assertEquals( 3, settings.importedMaxAgeDays() );
+        assertEquals( 0.01, settings.ctrDeep() );
+        assertEquals( 25, settings.ctrDeepMaxPosition() );
     }
 
     @Test
@@ -125,6 +134,26 @@ class InsightsSettingsTest {
         final InsightsSettings settings = assertDoesNotThrow( () -> InsightsSettings.from( props ) );
 
         assertEquals( 0.5, settings.calibrationDamping() );
+    }
+
+    @Test
+    void malformedCtrDeepFallsBackToDefaultWithoutThrowing() {
+        final Properties props = new Properties();
+        props.setProperty( InsightsSettings.KEY_CTR_DEEP, "not-a-number" );
+
+        final InsightsSettings settings = assertDoesNotThrow( () -> InsightsSettings.from( props ) );
+
+        assertEquals( 0.008, settings.ctrDeep() );
+    }
+
+    @Test
+    void malformedCtrDeepMaxPositionFallsBackToDefaultWithoutThrowing() {
+        final Properties props = new Properties();
+        props.setProperty( InsightsSettings.KEY_CTR_DEEP_MAX_POSITION, "not-a-number" );
+
+        final InsightsSettings settings = assertDoesNotThrow( () -> InsightsSettings.from( props ) );
+
+        assertEquals( 20, settings.ctrDeepMaxPosition() );
     }
 
     @Test

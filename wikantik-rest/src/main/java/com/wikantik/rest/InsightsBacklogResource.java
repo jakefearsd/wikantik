@@ -46,6 +46,11 @@ import java.util.Map;
  * described in the design's section 7.3.0: on this corpus the volume-driven rules are gated off,
  * and a panel that rendered only an empty list would say "nothing to do" when the truth is "not
  * enough traffic to tell".</p>
+ *
+ * <p>{@code ctrCurveSource} carries the same visibility for the CTR-by-position curve
+ * {@code engine_divergence} was priced with -- {@code "imported:<as_of>"} vs {@code "builtin"} --
+ * so a jakemon shipment that has quietly gone stale is visible in the panel, not just inferable
+ * from the numbers looking different (design §7.3 rule 2, V057).</p>
  */
 public class InsightsBacklogResource extends RestServletBase {
 
@@ -109,6 +114,7 @@ public class InsightsBacklogResource extends RestServletBase {
         out.put( "count", view.opportunities().size() );
         out.put( "suppressed", renderSuppressed( view.suppressed() ) );
         out.put( "uncalibratedTypes", new ArrayList<>( view.uncalibratedTypes() ) );
+        out.put( "ctrCurveSource", view.ctrCurveSource() );
 
         response.setContentType( "application/json;charset=UTF-8" );
         response.getWriter().write( NULL_SAFE_GSON.toJson( out ) );

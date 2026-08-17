@@ -104,6 +104,19 @@ import java.util.stream.Collectors;
  *                                                  jakemon", §12.1 item J3)
  *                                                  ({@code wikantik.insights.imported.max_age_days},
  *                                                  default {@code 7})
+ * @param ctrDeep                                  the flat CTR floor for positions beyond
+ *                                                  jakemon's shipped 1-10 table but at or below
+ *                                                  {@code ctrDeepMaxPosition} -- mirrors jakemon's
+ *                                                  {@code _DEEP_CTR}, which is not itself shipped
+ *                                                  in the ingest payload (see V057's migration
+ *                                                  comment) ({@code wikantik.insights.ctr.deep},
+ *                                                  default {@code 0.008})
+ * @param ctrDeepMaxPosition                       the last position {@code ctrDeep} applies to
+ *                                                  flat; deeper positions decay -- mirrors
+ *                                                  jakemon's hardcoded {@code 20}, for the same
+ *                                                  reason {@code ctrDeep} is mirrored
+ *                                                  ({@code wikantik.insights.ctr.deep_max_position},
+ *                                                  default {@code 20})
  */
 public record InsightsSettings(
         boolean enabled,
@@ -123,7 +136,9 @@ public record InsightsSettings(
         int changeCooldownDays,
         int calibrationMinVerdicts,
         double calibrationDamping,
-        int importedMaxAgeDays ) {
+        int importedMaxAgeDays,
+        double ctrDeep,
+        int ctrDeepMaxPosition ) {
 
     private static final Logger LOG = LogManager.getLogger( InsightsSettings.class );
 
@@ -146,6 +161,8 @@ public record InsightsSettings(
     public static final String KEY_CALIBRATION_MIN_VERDICTS = "wikantik.insights.calibration.min_verdicts";
     public static final String KEY_CALIBRATION_DAMPING = "wikantik.insights.calibration.damping";
     public static final String KEY_IMPORTED_MAX_AGE_DAYS = "wikantik.insights.imported.max_age_days";
+    public static final String KEY_CTR_DEEP = "wikantik.insights.ctr.deep";
+    public static final String KEY_CTR_DEEP_MAX_POSITION = "wikantik.insights.ctr.deep_max_position";
 
     private static final String DEFAULT_RULES_SITES = "wiki.wikantik.com,wikantik.com";
 
@@ -175,7 +192,9 @@ public record InsightsSettings(
                 parseInt( effective, KEY_CHANGE_COOLDOWN_DAYS, 60 ),
                 parseInt( effective, KEY_CALIBRATION_MIN_VERDICTS, 20 ),
                 parseDouble( effective, KEY_CALIBRATION_DAMPING, 0.5 ),
-                parseInt( effective, KEY_IMPORTED_MAX_AGE_DAYS, 7 ) );
+                parseInt( effective, KEY_IMPORTED_MAX_AGE_DAYS, 7 ),
+                parseDouble( effective, KEY_CTR_DEEP, 0.008 ),
+                parseInt( effective, KEY_CTR_DEEP_MAX_POSITION, 20 ) );
     }
 
     /**

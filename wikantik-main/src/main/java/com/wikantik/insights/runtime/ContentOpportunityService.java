@@ -20,6 +20,7 @@ package com.wikantik.insights.runtime;
 
 import com.wikantik.insights.Backlog;
 import com.wikantik.insights.CalibrationSample;
+import com.wikantik.insights.CtrCurveSnapshot;
 import com.wikantik.insights.DemandRow;
 import com.wikantik.insights.ExpectedCtrCurve;
 import com.wikantik.insights.InsightsStore;
@@ -38,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -96,9 +98,18 @@ public final class ContentOpportunityService {
      *                          default -- an agent should weigh their suggestions less
      * @param generatedAt       the date this view was assembled
      * @param site              the site this view was assembled for
+     * @param ctrCurveSource    which {@link ExpectedCtrCurve} priced {@code ENGINE_DIVERGENCE} for
+     *                          this evaluation -- {@code "imported:<as_of>"} when jakemon's real
+     *                          curve was fresh enough to use, or {@code "builtin"} when it fell
+     *                          back to {@link ExpectedCtrCurve#defaultCurve()} (no shipment yet, or
+     *                          the latest one has gone stale). Deliberately explicit rather than
+     *                          silent: a jakemon shipment quietly going stale must be visible to
+     *                          whoever reads the backlog, not just inferable from the numbers
+     *                          looking different
      */
     public record BacklogView( List<Opportunity> opportunities, List<SuppressedRule> suppressed,
-                               Set<String> uncalibratedTypes, LocalDate generatedAt, String site ) {
+                               Set<String> uncalibratedTypes, LocalDate generatedAt, String site,
+                               String ctrCurveSource ) {
     }
 
     /**
@@ -171,9 +182,23 @@ public final class ContentOpportunityService {
         final OpportunityEngineConfig engineConfig =
                 withCalibratedWeights( settings.toEngineConfig(), calibration.calibratedWeights() );
 
+        // jakemon's real curve (content-intelligence design §7.3 rule 2, V057) when a fresh
+        // shipment exists, else the invented step table -- same staleness window as imported
+        // opportunities (importedMaxAgeDays): both are "how stale can what jakemon shipped be
+        // before we stop trusting it". A store failure here surfaces via the outer try/catch in
+        // backlog(), degrading the whole view to empty like every other gather-block call.
+        final Optional<CtrCurveSnapshot> ctrCurveSnapshot = store.latestCtrCurve( settings.importedMaxAgeDays() );
+        final ExpectedCtrCurve ctrCurve = ctrCurveSnapshot
+                .<ExpectedCtrCurve>map( s -> ExpectedCtrCurve.fromTable( s.points(), settings.ctrDeep(),
+                        settings.ctrDeepMaxPosition() ) )
+                .orElseGet( ExpectedCtrCurve::defaultCurve );
+        final String ctrCurveSource = ctrCurveSnapshot
+                .map( s -> "imported:" + s.asOf() )
+                .orElse( "builtin" );
+
         final Backlog raw = engine.evaluateGated( demandRows, visibilityRows, importedOpportunities, pageFacts,
                 snoozes, lastChangeByTarget, siteImpressions28d, calibration.calibratedTypes(),
-                ExpectedCtrCurve.defaultCurve(), today, engineConfig );
+                ctrCurve, today, engineConfig );
 
         final List<Opportunity> withProvenance = applyFirstSeenLedger( raw.opportunities(), today );
 
@@ -186,7 +211,7 @@ public final class ContentOpportunityService {
         final Set<String> uncalibratedTypes = new LinkedHashSet<>( NATIVE_TYPES );
         uncalibratedTypes.removeAll( calibration.calibratedTypes() );
 
-        return new BacklogView( filtered, raw.suppressed(), uncalibratedTypes, today, site );
+        return new BacklogView( filtered, raw.suppressed(), uncalibratedTypes, today, site, ctrCurveSource );
     }
 
     /**
@@ -265,7 +290,7 @@ public final class ContentOpportunityService {
     }
 
     private static BacklogView emptyView( final String site, final LocalDate today ) {
-        return new BacklogView( List.of(), List.of(), Set.of(), today, site );
+        return new BacklogView( List.of(), List.of(), Set.of(), today, site, "builtin" );
     }
 
     /**

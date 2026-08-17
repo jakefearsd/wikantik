@@ -50,6 +50,11 @@ import java.util.Map;
  * <p>{@code calibrated} is exposed per opportunity for the same reason: until a rule type has
  * accumulated enough evaluated outcomes its priority weight is a guess, and an agent should weigh
  * an uncalibrated suggestion less. The tool says which numbers have been earned.</p>
+ *
+ * <p>{@code ctrCurveSource} says which CTR-by-position curve priced {@code engine_divergence}:
+ * {@code "imported:<as_of>"} when jakemon's real, measured curve was fresh enough to use, or
+ * {@code "builtin"} when it fell back to the invented placeholder table. A jakemon shipment
+ * quietly going stale must be visible here, not just inferable from different-looking numbers.</p>
  */
 public class ListContentOpportunitiesTool extends AbstractMcpTool {
 
@@ -97,7 +102,8 @@ public class ListContentOpportunitiesTool extends AbstractMcpTool {
                 "count", 1,
                 "suppressed", List.of( Map.of( "type", "engine_divergence",
                         "reason", "traffic_gate", "measured", 2626.0, "required", 5000.0 ) ),
-                "uncalibratedTypes", List.of( "agent_gap", "engine_divergence" ) ) ) );
+                "uncalibratedTypes", List.of( "agent_gap", "engine_divergence" ),
+                "ctrCurveSource", "imported:2026-08-14" ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -167,6 +173,7 @@ public class ListContentOpportunitiesTool extends AbstractMcpTool {
         result.put( "uncalibratedTypes", new ArrayList<>( view.uncalibratedTypes() ) );
         result.put( "generatedAt", view.generatedAt() == null ? null : view.generatedAt().toString() );
         result.put( "site", view.site() );
+        result.put( "ctrCurveSource", view.ctrCurveSource() );
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 

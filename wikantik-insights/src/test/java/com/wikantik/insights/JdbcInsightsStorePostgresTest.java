@@ -189,6 +189,16 @@ class JdbcInsightsStorePostgresTest {
                     evidence         JSONB,
                     PRIMARY KEY (as_of, engine, site_host, opportunity_type, target)
                 )""" );
+
+            // V057
+            st.execute( "DROP TABLE IF EXISTS expected_ctr_curve" );
+            st.execute( """
+                CREATE TABLE IF NOT EXISTS expected_ctr_curve (
+                    as_of    DATE     NOT NULL,
+                    position SMALLINT NOT NULL,
+                    ctr      NUMERIC(6,5) NOT NULL,
+                    PRIMARY KEY (as_of, position)
+                )""" );
         }
     }
 
@@ -1051,5 +1061,98 @@ class JdbcInsightsStorePostgresTest {
 
         assertNull( o.evidence().get( "confidence" ) );
         assertEquals( "google", o.evidence().get( "engine" ) );
+    }
+
+    // --- expected_ctr_curve (V057) --------------------------------------------------------------
+
+    @Test
+    void upsertCtrCurveWritesOneRowPerPosition() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final int written = store.upsertCtrCurve( LocalDate.parse( "2026-08-14" ),
+                Map.of( 1, 0.28, 2, 0.15, 3, 0.11 ) );
+        assertEquals( 3, written );
+    }
+
+    @Test
+    void upsertCtrCurveWithEmptyPointsWritesNothing() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        assertEquals( 0, store.upsertCtrCurve( LocalDate.parse( "2026-08-14" ), Map.of() ) );
+    }
+
+    @Test
+    void reUpsertingACtrCurveConvergesInsteadOfDuplicating() throws Exception {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsertCtrCurve( LocalDate.parse( "2026-08-14" ), Map.of( 1, 0.28 ) );
+        store.upsertCtrCurve( LocalDate.parse( "2026-08-14" ), Map.of( 1, 0.30 ) );
+
+        try ( Connection c = ds.getConnection();
+              ResultSet rs = c.createStatement().executeQuery(
+                  "SELECT COUNT(*) n, MAX(ctr) c FROM expected_ctr_curve" ) ) {
+            assertTrue( rs.next() );
+            assertEquals( 1, rs.getInt( "n" ),
+                    "re-shipping a day's curve must converge -- the same idempotency contract as "
+                    + "upsert() and upsertImported()" );
+            assertEquals( 0.30, rs.getDouble( "c" ), 0.00001 );
+        }
+    }
+
+    @Test
+    void latestCtrCurveReturnsOnlyTheNewestAsOf() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final LocalDate today = LocalDate.now();
+        store.upsertCtrCurve( today.minusDays( 5 ), Map.of( 1, 0.20 ) );
+        store.upsertCtrCurve( today, Map.of( 1, 0.28 ) );
+
+        final CtrCurveSnapshot snapshot = store.latestCtrCurve( 7 ).orElseThrow();
+
+        assertEquals( today, snapshot.asOf(), "only the single most recent as_of row set must be returned" );
+        assertEquals( 0.28, snapshot.points().get( 1 ), 0.00001,
+                "the older shipment's value must not leak through" );
+    }
+
+    @Test
+    void latestCtrCurveReturnsEmptyWhenTheNewestAsOfIsOlderThanMaxAgeDays() {
+        // THE STALENESS GUARD under test: a curve jakemon shipped weeks ago must not keep being
+        // treated as current once the collector/shipper stops running. Easy to get backwards --
+        // this must return EMPTY, not the stale curve.
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final LocalDate staleAsOf = LocalDate.now().minusDays( 10 );
+        store.upsertCtrCurve( staleAsOf, Map.of( 1, 0.28 ) );
+
+        final Optional<CtrCurveSnapshot> result = store.latestCtrCurve( 7 );
+
+        assertTrue( result.isEmpty(),
+                "as_of is 10 days old and maxAgeDays is 7 -- this must return empty, not the stale curve" );
+    }
+
+    @Test
+    void latestCtrCurveIncludesACurveExactlyAtTheMaxAgeBoundary() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final LocalDate boundaryAsOf = LocalDate.now().minusDays( 7 );
+        store.upsertCtrCurve( boundaryAsOf, Map.of( 1, 0.28 ) );
+
+        final Optional<CtrCurveSnapshot> result = store.latestCtrCurve( 7 );
+
+        assertTrue( result.isPresent(), "exactly maxAgeDays old must still count as fresh" );
+    }
+
+    @Test
+    void latestCtrCurveIsEmptyWhenNoCurveHasEverBeenShipped() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        assertTrue( store.latestCtrCurve( 7 ).isEmpty() );
+    }
+
+    @Test
+    void latestCtrCurveReturnsEveryPositionForTheLatestAsOf() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final LocalDate today = LocalDate.now();
+        store.upsertCtrCurve( today, Map.of(
+                1, 0.28, 2, 0.15, 3, 0.11, 4, 0.08, 5, 0.06,
+                6, 0.05, 7, 0.04, 8, 0.032, 9, 0.028, 10, 0.025 ) );
+
+        final CtrCurveSnapshot snapshot = store.latestCtrCurve( 7 ).orElseThrow();
+
+        assertEquals( 10, snapshot.points().size() );
+        assertEquals( 0.032, snapshot.points().get( 8 ), 0.00001 );
     }
 }

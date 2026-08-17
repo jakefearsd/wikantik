@@ -282,4 +282,32 @@ public interface InsightsStore {
      *         site has no rows, or its latest {@code as_of} is older than {@code maxAgeDays}
      */
     List<Opportunity> latestImported( String siteHost, int maxAgeDays );
+
+    /**
+     * Upserts jakemon's real {@code EXPECTED_CTR} curve into {@code expected_ctr_curve} (V057),
+     * keyed by {@code (asOf, position)}. Re-sending a day's curve converges instead of
+     * duplicating -- the same idempotency contract as {@link #upsert} and {@link #upsertImported}.
+     *
+     * <p>Unlike those two, there is no {@code siteHost} dimension: jakemon ships exactly one
+     * curve, not one per site (see V057's migration comment).</p>
+     *
+     * @param asOf   the date to stamp this curve shipment with (the payload's {@code snapshot_date})
+     * @param points position -&gt; CTR to upsert
+     * @return the number of rows written; 0 if {@code points} is empty or an error occurred
+     */
+    int upsertCtrCurve( LocalDate asOf, Map<Integer, Double> points );
+
+    /**
+     * The most recent {@code expected_ctr_curve} (V057) row set -- every {@code (position, ctr)}
+     * point from the single newest {@code as_of} -- but <strong>only</strong> if that {@code as_of}
+     * is within {@code maxAgeDays} of today, matching {@link #latestImported}'s staleness contract
+     * for the same reason: without the guard, a curve jakemon shipped weeks ago (collector down,
+     * shipper broken) would keep being treated as current forever.
+     *
+     * @param maxAgeDays how many days old the most recent {@code as_of} may be before it is
+     *                   treated as stale and this returns empty
+     * @return the latest, non-stale curve; empty if no curve has ever been shipped, or the latest
+     *         one shipped is older than {@code maxAgeDays}
+     */
+    Optional<CtrCurveSnapshot> latestCtrCurve( int maxAgeDays );
 }

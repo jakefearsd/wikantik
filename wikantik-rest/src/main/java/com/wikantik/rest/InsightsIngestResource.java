@@ -22,6 +22,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.JndiDataSources;
+import com.wikantik.insights.ExpectedCtrCurveParser;
 import com.wikantik.insights.ImportedOpportunityParser;
 import com.wikantik.insights.InsightsStore;
 import com.wikantik.insights.JdbcInsightsStore;
@@ -58,6 +59,12 @@ import java.util.stream.Collectors;
  * {@code imported_opportunity}. The response gains {@code opportunities_upserted}/
  * {@code opportunities_rejected} only when that key is present, so the response shape stays
  * byte-identical for every request that predates jakemon shipping it.</p>
+ *
+ * <p>It may also carry an optional top-level {@code expected_ctr} object — jakemon's real,
+ * measured {@code EXPECTED_CTR} curve (design §7.3 rule 2, V057), parsed via
+ * {@link ExpectedCtrCurveParser} and upserted into {@code expected_ctr_curve}. Same byte-identical-
+ * response-until-shipped rule: {@code expected_ctr_upserted}/{@code expected_ctr_rejected} are
+ * added only when the key is present.</p>
  *
  * <p>Body is capped at {@link #PROP_MAX_BYTES} (default 4 MiB) so an oversized or runaway
  * shipper request cannot exhaust server memory; the cap is enforced by bounding the read itself
@@ -107,6 +114,7 @@ public class InsightsIngestResource extends RestServletBase {
                     SnapshotPayloadParser.parse( body, engines, sites );
             final ImportedOpportunityParser.ParseResult importedParsed =
                     ImportedOpportunityParser.parse( body, engines, sites );
+            final ExpectedCtrCurveParser.ParseResult ctrParsed = ExpectedCtrCurveParser.parse( body );
 
             final InsightsStore store = buildStore();
             if ( store == null ) {
@@ -129,6 +137,14 @@ public class InsightsIngestResource extends RestServletBase {
                 final int opportunitiesUpserted = store.upsertImported( importedParsed.rows() );
                 responseBody.put( "opportunities_upserted", opportunitiesUpserted );
                 responseBody.put( "opportunities_rejected", importedParsed.rejected() );
+            }
+
+            // Same byte-identical-until-shipped rule as opportunities above (content-intelligence
+            // design §7.3 rule 2, V057) -- jakemon's real EXPECTED_CTR curve.
+            if ( ctrParsed.present() ) {
+                final int ctrUpserted = store.upsertCtrCurve( ctrParsed.asOf(), ctrParsed.points() );
+                responseBody.put( "expected_ctr_upserted", ctrUpserted );
+                responseBody.put( "expected_ctr_rejected", ctrParsed.rejected() );
             }
 
             sendJson( response, responseBody );

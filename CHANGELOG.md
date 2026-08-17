@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.8] - 2026-08-17
+
 ### Added
 - **Scoped `/admin/*` grants.** The admin surface spans 26 functional areas
   behind a single `AllPermission` check, so any credential able to reach one

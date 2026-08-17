@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.6] - 2026-08-17
+
 ### Added
 - **Content Intelligence Phase 2 — the loop closes.** The opportunity engine
   shipped in 2.4.5 was a library with no consumer: nothing in production

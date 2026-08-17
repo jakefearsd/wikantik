@@ -880,6 +880,24 @@ baseline** from `search_visibility_snapshot`.
 A nightly job picks up rows where `applied_at ≤ today − 28` and `evaluated_at IS NULL`, and
 compares the 28 days after against the recorded 28 days before.
 
+**Select a snapshot; never sum snapshots.** Every row in `search_visibility_snapshot` is already a
+trailing 28-day aggregate stamped with its window's *end* date (§6.1), so the "28 days after a
+change applied on D" is the single snapshot whose `snapshot_date` is nearest `D + 28`, within a
+tolerance of a few days. Summing the rows across snapshot dates would count the same impressions
+once per overlapping window and inflate the after-figure several-fold. The chosen `snapshot_date`
+for both windows is recorded in `effect_detail` so any verdict can be re-derived.
+
+**A zero baseline CTR has no relative change.** The ±15% thresholds below are relative to baseline
+CTR, which is undefined when the page had no clicks — the common case on this corpus, where the
+whole site draws 10 clicks per 28 days. The job therefore resolves that case explicitly rather than
+dividing by zero:
+
+| Baseline | After | Verdict |
+|---|---|---|
+| `baseline_ctr = 0` | clicks > 0 | `improved` |
+| `baseline_ctr = 0` | clicks = 0 | `no_effect` |
+| `baseline_ctr > 0` | — | the relative test in §7.4.3 |
+
 To control for query-mix drift — a page can gain CTR purely because it stopped ranking for a bad
 query — the comparison is **restricted to the intersection of queries present in both windows**.
 

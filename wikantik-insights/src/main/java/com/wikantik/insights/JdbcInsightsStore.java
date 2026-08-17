@@ -18,6 +18,8 @@
  */
 package com.wikantik.insights;
 
+import com.google.gson.Gson;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -287,6 +289,35 @@ public class JdbcInsightsStore implements InsightsStore {
         WHERE s.site_host = ? AND s.query_text = '' AND s.page_path <> ''
         GROUP BY s.snapshot_date
         """;
+
+    private static final String UPSERT_IMPORTED_SQL = """
+        INSERT INTO imported_opportunity
+            (as_of, engine, site_host, opportunity_type, target, expected_uplift, confidence, evidence)
+        VALUES (?,?,?,?,?,?,?, CAST(? AS jsonb))
+        ON CONFLICT (as_of, engine, site_host, opportunity_type, target)
+        DO UPDATE SET expected_uplift = EXCLUDED.expected_uplift,
+                      confidence      = EXCLUDED.confidence,
+                      evidence        = EXCLUDED.evidence
+        """;
+
+    // Single-CTE "most recent as_of" resolution, same shape as LATEST_DATE_SQL. The final WHERE's
+    // l.max_as_of >= ? is the staleness guard: if the site's newest as_of is older than the caller's
+    // cutoff (today - maxAgeDays), the JOIN still resolves max_as_of but the WHERE excludes every
+    // row, so this returns empty rather than the stale row set -- see latestImported()'s javadoc.
+    private static final String LATEST_IMPORTED_SQL = """
+        WITH latest AS (
+            SELECT MAX(as_of) AS max_as_of
+            FROM imported_opportunity
+            WHERE site_host = ?
+        )
+        SELECT io.as_of, io.engine, io.site_host, io.opportunity_type, io.target,
+               io.expected_uplift, io.confidence, io.evidence
+        FROM imported_opportunity io
+        JOIN latest l ON l.max_as_of = io.as_of
+        WHERE io.site_host = ? AND l.max_as_of >= ?
+        """;
+
+    private static final Gson GSON = new Gson();
 
     private final DataSource dataSource;
 
@@ -752,6 +783,104 @@ public class JdbcInsightsStore implements InsightsStore {
                 : weightedSum / weightedDenom;
         return new PageWindow( rs.getDate( "snapshot_date" ).toLocalDate(),
                 rs.getInt( "impressions" ), rs.getInt( "clicks" ), position );
+    }
+
+    @Override
+    public int upsertImported( final List<ImportedOpportunityRow> rows ) {
+        if ( rows.isEmpty() ) {
+            return 0;
+        }
+
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( UPSERT_IMPORTED_SQL ) ) {
+
+            for ( final ImportedOpportunityRow row : rows ) {
+                ps.setDate( 1, Date.valueOf( row.asOf() ) );
+                ps.setString( 2, row.engine() );
+                ps.setString( 3, row.siteHost() );
+                ps.setString( 4, row.opportunityType() );
+                ps.setString( 5, row.target() );
+                ps.setDouble( 6, row.expectedUplift() );
+                setNullableDouble( ps, 7, row.confidence() );
+                setNullableString( ps, 8, row.evidenceJson() );
+                ps.addBatch();
+            }
+
+            final int[] results = ps.executeBatch();
+            int total = 0;
+            for ( final int result : results ) {
+                total += Math.max( result, 0 );
+            }
+            return total;
+
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to upsert {} imported opportunity rows: {}", rows.size(), e.getMessage(), e );
+            return 0;
+        }
+    }
+
+    @Override
+    public List<Opportunity> latestImported( final String siteHost, final int maxAgeDays ) {
+        final List<Opportunity> out = new ArrayList<>();
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( LATEST_IMPORTED_SQL ) ) {
+            ps.setString( 1, siteHost );
+            ps.setString( 2, siteHost );
+            ps.setDate( 3, Date.valueOf( LocalDate.now().minusDays( maxAgeDays ) ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) {
+                    out.add( toImportedOpportunity( rs ) );
+                }
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to read latest imported opportunities for site {}: {}",
+                    siteHost, e.getMessage(), e );
+            throw new IllegalStateException( "latest imported opportunities query failed", e );
+        }
+        return out;
+    }
+
+    /**
+     * Maps one {@code imported_opportunity} row to {@link Opportunity}. The evidence map is the
+     * stored JSONB parsed back to a {@code Map}, plus {@code engine} and {@code confidence}
+     * entries -- those two are separate typed columns, not part of {@code evidenceJson}, but
+     * {@link OpportunityEngine#suppressDivergenceAffected} reads an {@code "engine"} evidence key
+     * to match imported {@code ctr_gap}/{@code striking_distance} rows against a divergence
+     * finding, so it has to be re-added here on the read path.
+     */
+    private static Opportunity toImportedOpportunity( final ResultSet rs ) throws SQLException {
+        final Map<String, Object> evidence = new LinkedHashMap<>();
+        final String evidenceJson = rs.getString( "evidence" );
+        if ( evidenceJson != null && !evidenceJson.isBlank() ) {
+            final Map<?, ?> parsed = GSON.fromJson( evidenceJson, Map.class );
+            if ( parsed != null ) {
+                for ( final Map.Entry<?, ?> entry : parsed.entrySet() ) {
+                    evidence.put( String.valueOf( entry.getKey() ), entry.getValue() );
+                }
+            }
+        }
+        evidence.put( "engine", rs.getString( "engine" ) );
+        evidence.put( "confidence", getNullableDouble( rs, "confidence" ) );
+
+        final String type = rs.getString( "opportunity_type" );
+        return new Opportunity( type, rs.getString( "target" ), rs.getDouble( "expected_uplift" ),
+                evidence, suggestedActionForImportedType( type ),
+                rs.getDate( "as_of" ).toLocalDate(), false );
+    }
+
+    /** One short suggested action per jakemon detector type (design §7.3 "Imported from jakemon"). */
+    private static String suggestedActionForImportedType( final String type ) {
+        return switch ( type ) {
+            case "striking_distance" ->
+                    "Page-2 query with real demand -- a small rank push wins the most clicks.";
+            case "ctr_gap" -> "Ranks well but converts badly -- rewrite the title/meta snippet.";
+            case "content_gap" ->
+                    "Demand exists and no strong page covers it -- write or strengthen a page for this query.";
+            case "cannibalization" ->
+                    "Multiple pages split this query's equity -- consolidate or differentiate them.";
+            case "decay" -> "Average position worsened materially against the prior window -- investigate.";
+            default -> "Review this imported opportunity.";
+        };
     }
 
     /** Accumulator for {@link #demandRows}; one instance per distinct {@code query_text}. */

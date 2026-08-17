@@ -96,6 +96,14 @@ import java.util.stream.Collectors;
  *                                                  observed ratio
  *                                                  ({@code wikantik.insights.calibration.damping},
  *                                                  default {@code 0.5})
+ * @param importedMaxAgeDays                       how many days old the most recent imported-
+ *                                                  opportunity {@code as_of} may be before
+ *                                                  {@code InsightsStore.latestImported} treats it
+ *                                                  as stale and returns nothing (content-
+ *                                                  intelligence design §7.3 "Imported from
+ *                                                  jakemon", §12.1 item J3)
+ *                                                  ({@code wikantik.insights.imported.max_age_days},
+ *                                                  default {@code 7})
  */
 public record InsightsSettings(
         boolean enabled,
@@ -114,7 +122,8 @@ public record InsightsSettings(
         int effectMinBaselineImpressions,
         int changeCooldownDays,
         int calibrationMinVerdicts,
-        double calibrationDamping ) {
+        double calibrationDamping,
+        int importedMaxAgeDays ) {
 
     private static final Logger LOG = LogManager.getLogger( InsightsSettings.class );
 
@@ -136,6 +145,7 @@ public record InsightsSettings(
     public static final String KEY_CHANGE_COOLDOWN_DAYS = "wikantik.insights.change.cooldown.days";
     public static final String KEY_CALIBRATION_MIN_VERDICTS = "wikantik.insights.calibration.min_verdicts";
     public static final String KEY_CALIBRATION_DAMPING = "wikantik.insights.calibration.damping";
+    public static final String KEY_IMPORTED_MAX_AGE_DAYS = "wikantik.insights.imported.max_age_days";
 
     private static final String DEFAULT_RULES_SITES = "wiki.wikantik.com,wikantik.com";
 
@@ -164,7 +174,8 @@ public record InsightsSettings(
                 parseInt( effective, KEY_EFFECT_MIN_BASELINE_IMPRESSIONS, 100 ),
                 parseInt( effective, KEY_CHANGE_COOLDOWN_DAYS, 60 ),
                 parseInt( effective, KEY_CALIBRATION_MIN_VERDICTS, 20 ),
-                parseDouble( effective, KEY_CALIBRATION_DAMPING, 0.5 ) );
+                parseDouble( effective, KEY_CALIBRATION_DAMPING, 0.5 ),
+                parseInt( effective, KEY_IMPORTED_MAX_AGE_DAYS, 7 ) );
     }
 
     /**

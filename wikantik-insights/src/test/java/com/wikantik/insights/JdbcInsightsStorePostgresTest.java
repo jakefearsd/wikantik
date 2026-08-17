@@ -38,6 +38,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -172,6 +173,21 @@ class JdbcInsightsStorePostgresTest {
                     session_hash   VARCHAR(16),
                     clicked_rank   INTEGER,
                     coverage       TEXT
+                )""" );
+
+            // V056
+            st.execute( "DROP TABLE IF EXISTS imported_opportunity" );
+            st.execute( """
+                CREATE TABLE IF NOT EXISTS imported_opportunity (
+                    as_of            DATE           NOT NULL,
+                    engine           TEXT           NOT NULL,
+                    site_host        TEXT           NOT NULL,
+                    opportunity_type TEXT           NOT NULL,
+                    target           TEXT           NOT NULL,
+                    expected_uplift  NUMERIC(10,2)  NOT NULL,
+                    confidence       NUMERIC(4,3),
+                    evidence         JSONB,
+                    PRIMARY KEY (as_of, engine, site_host, opportunity_type, target)
                 )""" );
         }
     }
@@ -908,5 +924,132 @@ class JdbcInsightsStorePostgresTest {
         assertEquals( D.plusDays( 29 ), siteWindow.snapshotDate(),
                 "the site-wide resolution must pick its own nearest date (D+29, from /wiki/OtherPage), "
                 + "not reuse /wiki/A's D+26" );
+    }
+
+    // --- imported_opportunity (V056) -----------------------------------------------------------
+
+    private ImportedOpportunityRow importedRow( final String asOf, final String type, final String target,
+                                                final double expectedUplift, final Double confidence,
+                                                final String evidenceJson ) {
+        return new ImportedOpportunityRow( LocalDate.parse( asOf ), "google", "wiki.wikantik.com",
+                type, target, expectedUplift, confidence, evidenceJson );
+    }
+
+    @Test
+    void upsertImportedWritesRows() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final int written = store.upsertImported( List.of(
+                importedRow( "2026-08-14", "ctr_gap", "low latency queue", 12.3, 0.6, "{\"impressions\":240}" ) ) );
+        assertEquals( 1, written );
+    }
+
+    @Test
+    void upsertImportedWithEmptyListWritesNothing() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        assertEquals( 0, store.upsertImported( List.of() ) );
+    }
+
+    @Test
+    void reUpsertingImportedOpportunityConvergesInsteadOfDuplicating() throws Exception {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsertImported( List.of(
+                importedRow( "2026-08-14", "ctr_gap", "low latency queue", 12.3, 0.6, "{\"impressions\":240}" ) ) );
+        store.upsertImported( List.of(
+                importedRow( "2026-08-14", "ctr_gap", "low latency queue", 20.0, 0.8, "{\"impressions\":500}" ) ) );
+
+        try ( Connection c = ds.getConnection();
+              ResultSet rs = c.createStatement().executeQuery(
+                  "SELECT COUNT(*) n, MAX(expected_uplift) u, MAX(confidence) cf FROM imported_opportunity" ) ) {
+            assertTrue( rs.next() );
+            assertEquals( 1, rs.getInt( "n" ),
+                    "re-shipping a detector run must converge -- backfill and the nightly run are the "
+                    + "same code path, matching V050's own re-ingest contract" );
+            assertEquals( 20.0, rs.getDouble( "u" ), 0.001 );
+            assertEquals( 0.8, rs.getDouble( "cf" ), 0.001 );
+        }
+    }
+
+    // --- latestImported (V056) -------------------------------------------------------------------
+
+    @Test
+    void latestImportedReturnsOnlyTheNewestAsOf() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final LocalDate today = LocalDate.now();
+        store.upsertImported( List.of(
+                importedRow( today.minusDays( 5 ).toString(), "ctr_gap", "older query", 5.0, 0.5, null ),
+                importedRow( today.toString(), "ctr_gap", "newer query", 10.0, 0.7, null ) ) );
+
+        final List<Opportunity> result = store.latestImported( "wiki.wikantik.com", 7 );
+
+        assertEquals( 1, result.size(), "only the single most recent as_of row set must be returned" );
+        assertEquals( "newer query", result.get( 0 ).target() );
+    }
+
+    @Test
+    void latestImportedReturnsEmptyWhenTheNewestAsOfIsOlderThanMaxAgeDays() {
+        // THE STALENESS GUARD under test: a detector run jakemon shipped weeks ago must not keep
+        // proposing the same work forever once the collector stops shipping. Easy to get
+        // backwards -- this must return EMPTY, not the stale row.
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final LocalDate staleAsOf = LocalDate.now().minusDays( 10 );
+        store.upsertImported( List.of(
+                importedRow( staleAsOf.toString(), "ctr_gap", "stale query", 5.0, 0.5, null ) ) );
+
+        final List<Opportunity> result = store.latestImported( "wiki.wikantik.com", 7 );
+
+        assertTrue( result.isEmpty(),
+                "as_of is 10 days old and maxAgeDays is 7 -- this must return empty, not the stale row" );
+    }
+
+    @Test
+    void latestImportedIncludesARowExactlyAtTheMaxAgeBoundary() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final LocalDate boundaryAsOf = LocalDate.now().minusDays( 7 );
+        store.upsertImported( List.of(
+                importedRow( boundaryAsOf.toString(), "ctr_gap", "boundary query", 5.0, 0.5, null ) ) );
+
+        final List<Opportunity> result = store.latestImported( "wiki.wikantik.com", 7 );
+
+        assertEquals( 1, result.size(), "exactly maxAgeDays old must still count as fresh" );
+    }
+
+    @Test
+    void latestImportedIsEmptyForASiteWithNoRows() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        assertTrue( store.latestImported( "nope.example.com", 7 ).isEmpty() );
+    }
+
+    @Test
+    void latestImportedMapsFieldsIntoAnOpportunityWithEngineAndConfidenceInEvidence() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final LocalDate today = LocalDate.now();
+        store.upsertImported( List.of(
+                importedRow( today.toString(), "striking_distance", "low latency queue", 12.3, 0.6,
+                        "{\"impressions\":240,\"position\":14.2}" ) ) );
+
+        final Opportunity o = store.latestImported( "wiki.wikantik.com", 7 ).get( 0 );
+
+        assertEquals( "striking_distance", o.type() );
+        assertEquals( "low latency queue", o.target() );
+        assertEquals( 12.3, o.priority(), 0.001 );
+        assertEquals( today, o.firstSeen() );
+        assertFalse( o.calibrated() );
+        assertEquals( "google", o.evidence().get( "engine" ),
+                "OpportunityEngine.suppressDivergenceAffected reads exactly this evidence key" );
+        assertEquals( 0.6, ( ( Number ) o.evidence().get( "confidence" ) ).doubleValue(), 0.001 );
+        assertEquals( 240.0, ( ( Number ) o.evidence().get( "impressions" ) ).doubleValue(), 0.001 );
+    }
+
+    @Test
+    void latestImportedHandlesNullConfidenceAndNullEvidence() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        final LocalDate today = LocalDate.now();
+        store.upsertImported( List.of(
+                importedRow( today.toString(), "content_gap", "graph databases", 3.0, null, null ) ) );
+
+        final Opportunity o = store.latestImported( "wiki.wikantik.com", 7 ).get( 0 );
+
+        assertNull( o.evidence().get( "confidence" ) );
+        assertEquals( "google", o.evidence().get( "engine" ) );
     }
 }

@@ -151,6 +151,11 @@ public final class ContentOpportunityService {
         final List<DemandRow> demandRows = store.demandRows( DEMAND_WINDOW_DAYS );
         final Map<String, LocalDate> lastChangeByTarget = store.lastChangeByTarget();
         final List<OpportunitySnooze> snoozes = includeSnoozed ? List.of() : store.activeSnoozes( today );
+        // The single most recent as_of row set for this site, or empty if it is older than
+        // importedMaxAgeDays (content-intelligence design §7.3 "Imported from jakemon", §12.1 item
+        // J3) -- a store failure here is caught by backlog()'s outer try/catch like every other
+        // gather-block call, degrading the whole view to empty rather than partially populated.
+        final List<Opportunity> importedOpportunities = store.latestImported( site, settings.importedMaxAgeDays() );
         // Calibration eligibility comes from calibrationSamples()'s own per-type group size, which
         // WeightCalibrator compares against minVerdicts directly (design §7.4.4). Deliberately NOT
         // store.verdictCountsByType(): that counts every evaluated change, including the
@@ -166,11 +171,8 @@ public final class ContentOpportunityService {
         final OpportunityEngineConfig engineConfig =
                 withCalibratedWeights( settings.toEngineConfig(), calibration.calibratedWeights() );
 
-        // jakemon does not yet ship its five imported detector types in the ingest payload
-        // (content-intelligence design §12.1 item J3) -- the engine's importedOpportunities
-        // parameter is wired and waiting, but there is nothing to supply it with yet.
-        final Backlog raw = engine.evaluateGated( demandRows, visibilityRows, List.of(), pageFacts, snoozes,
-                lastChangeByTarget, siteImpressions28d, calibration.calibratedTypes(),
+        final Backlog raw = engine.evaluateGated( demandRows, visibilityRows, importedOpportunities, pageFacts,
+                snoozes, lastChangeByTarget, siteImpressions28d, calibration.calibratedTypes(),
                 ExpectedCtrCurve.defaultCurve(), today, engineConfig );
 
         final List<Opportunity> withProvenance = applyFirstSeenLedger( raw.opportunities(), today );

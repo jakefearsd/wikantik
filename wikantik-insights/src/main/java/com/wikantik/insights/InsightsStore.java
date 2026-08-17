@@ -253,4 +253,33 @@ public interface InsightsStore {
      *         tolerance of {@code targetDate}
      */
     Optional<PageWindow> siteWindowNear( String siteHost, LocalDate targetDate, int toleranceDays );
+
+    /**
+     * Batch-upserts imported jakemon detector opportunities into {@code imported_opportunity}
+     * (V056), keyed by {@code (asOf, engine, siteHost, opportunityType, target)}. Re-sending a
+     * day's detector run converges instead of duplicating -- the same idempotency contract as
+     * {@link #upsert}.
+     *
+     * @param rows the imported opportunity rows to upsert
+     * @return the number of rows written; 0 if the list is empty or an error occurred
+     */
+    int upsertImported( List<ImportedOpportunityRow> rows );
+
+    /**
+     * The imported opportunity backlog for one site (content-intelligence design §7.3 "Imported
+     * from jakemon"): every row from the single most recent {@code as_of} for {@code siteHost},
+     * mapped to {@link Opportunity}, but <strong>only</strong> if that {@code as_of} is within
+     * {@code maxAgeDays} of today.
+     *
+     * <p>The staleness guard is deliberate: without it, a detector run jakemon shipped weeks ago
+     * (because the collector stopped, or the shipper broke) would keep proposing the same work
+     * forever. Past {@code maxAgeDays}, this returns empty rather than stale rows.</p>
+     *
+     * @param siteHost   the site to read imported opportunities for
+     * @param maxAgeDays how many days old the most recent {@code as_of} may be before it is
+     *                   treated as stale and this returns empty
+     * @return the imported opportunities for the latest, non-stale {@code as_of}; empty if the
+     *         site has no rows, or its latest {@code as_of} is older than {@code maxAgeDays}
+     */
+    List<Opportunity> latestImported( String siteHost, int maxAgeDays );
 }

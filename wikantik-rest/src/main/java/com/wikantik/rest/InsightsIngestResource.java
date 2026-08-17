@@ -22,6 +22,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.JndiDataSources;
+import com.wikantik.insights.ImportedOpportunityParser;
 import com.wikantik.insights.InsightsStore;
 import com.wikantik.insights.JdbcInsightsStore;
 import com.wikantik.insights.SnapshotPayloadParser;
@@ -37,6 +38,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -49,6 +51,13 @@ import java.util.stream.Collectors;
  * other {@code /admin/*} servlet — no auth logic lives here). Accepts one jakemon visibility
  * snapshot JSON document per request, parses it via {@link SnapshotPayloadParser}, and upserts
  * the resulting rows into {@code search_visibility_snapshot} via {@link InsightsStore}.</p>
+ *
+ * <p>The same document may also carry an optional top-level {@code opportunities} array —
+ * jakemon's five imported detector types (content-intelligence design §7.3 "Imported from
+ * jakemon", §12.1 item J3), parsed via {@link ImportedOpportunityParser} and upserted into
+ * {@code imported_opportunity}. The response gains {@code opportunities_upserted}/
+ * {@code opportunities_rejected} only when that key is present, so the response shape stays
+ * byte-identical for every request that predates jakemon shipping it.</p>
  *
  * <p>Body is capped at {@link #PROP_MAX_BYTES} (default 4 MiB) so an oversized or runaway
  * shipper request cannot exhaust server memory; the cap is enforced by bounding the read itself
@@ -96,6 +105,8 @@ public class InsightsIngestResource extends RestServletBase {
 
             final SnapshotPayloadParser.ParseResult parsed =
                     SnapshotPayloadParser.parse( body, engines, sites );
+            final ImportedOpportunityParser.ParseResult importedParsed =
+                    ImportedOpportunityParser.parse( body, engines, sites );
 
             final InsightsStore store = buildStore();
             if ( store == null ) {
@@ -106,9 +117,21 @@ public class InsightsIngestResource extends RestServletBase {
 
             final int upserted = store.upsert( parsed.rows() );
 
-            sendJson( response, Map.of(
-                    "rows_upserted", upserted,
-                    "rows_rejected", parsed.rejected() ) );
+            final Map<String, Object> responseBody = new LinkedHashMap<>();
+            responseBody.put( "rows_upserted", upserted );
+            responseBody.put( "rows_rejected", parsed.rejected() );
+
+            // Only add these keys when the payload actually carried an `opportunities` array
+            // (content-intelligence design §12.1 item J3) -- until jakemon ships it, the response
+            // shape must stay byte-identical to what it was before this feature existed; this is
+            // a live endpoint fed nightly by a real shipper.
+            if ( importedParsed.present() ) {
+                final int opportunitiesUpserted = store.upsertImported( importedParsed.rows() );
+                responseBody.put( "opportunities_upserted", opportunitiesUpserted );
+                responseBody.put( "opportunities_rejected", importedParsed.rejected() );
+            }
+
+            sendJson( response, responseBody );
         } catch ( final RuntimeException e ) {
             LOG.warn( "visibility snapshot ingest failed: {}", e.getMessage(), e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,

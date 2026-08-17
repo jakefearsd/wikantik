@@ -42,6 +42,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -307,6 +308,41 @@ class ContentOpportunityServiceTest {
         final ContentOpportunityService.SnoozeResult tooHigh =
                 service.snooze( OpportunityEngine.AGENT_GAP, "query-b", 10_000, "reason", "tester" );
         assertEquals( LocalDate.now().plusDays( 365 ), tooHigh.snoozedUntil() );
+    }
+
+    // -- Imported opportunities (content-intelligence design §7.3 "Imported from jakemon", §12.1 J3) --
+
+    @Test
+    void importedOpportunitiesAppearInTheBacklogEvenWhenTheTrafficGateIsClosed() {
+        // siteImpressions28d is unstubbed -- Mockito's default int return is 0, well below the
+        // 5000 default gate, so the three visibility-driven native rules do not run. Imported
+        // opportunities are never gated (design §7.3.0) and must still appear.
+        final Opportunity imported = new Opportunity( "ctr_gap", "low latency queue", 12.3,
+                Map.of( "engine", "google", "confidence", 0.6 ), "Rewrite the title/meta snippet.",
+                LocalDate.now(), false );
+        when( store.latestImported( anyString(), anyInt() ) ).thenReturn( List.of( imported ) );
+
+        final ContentOpportunityService service = serviceWith( enabledSettings() );
+        final ContentOpportunityService.BacklogView view =
+                service.backlog( "wiki.wikantik.com", null, null, 20, false );
+
+        assertTrue( view.opportunities().stream().anyMatch(
+                o -> "ctr_gap".equals( o.type() ) && "low latency queue".equals( o.target() ) ) );
+        assertFalse( view.suppressed().isEmpty(), "the native visibility rules are still gated" );
+        assertTrue( view.suppressed().stream().noneMatch( s -> "ctr_gap".equals( s.type() ) ),
+                "ctr_gap is imported, not one of the three gated native rules -- it must never be "
+                + "reported as suppressed" );
+    }
+
+    @Test
+    void importedOpportunitiesArePassedTheConfiguredMaxAgeDays() {
+        when( store.latestImported( anyString(), anyInt() ) ).thenReturn( List.of() );
+        final ContentOpportunityService service = serviceWith( enabledSettings() );
+
+        service.backlog( "wiki.wikantik.com", null, null, 20, false );
+
+        verify( store ).latestImported( "wiki.wikantik.com",
+                InsightsSettings.from( new Properties() ).importedMaxAgeDays() );
     }
 
     // -- Constructor guard ------------------------------------------------------------------------

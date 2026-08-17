@@ -6,6 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Admin-area grants are now creatable through the policy API.** Adding the
+  permission type to the model was not sufficient: the REST layer validates
+  `permissionType` and `actions` against two *separate* allowlists, and `admin`
+  was missing from the second — so the grant could not be created at all, while
+  every unit test of the permission class itself still passed. The first attempt
+  against a deployed instance returned `Invalid action 'access' for permission
+  type 'admin'. Valid actions: []`.
+
+### Added
+- **Integration coverage for scoped admin grants** (`ScopedAdminGrantIT`): four
+  accounts across the full assertion matrix. The cross-checks carry the proof — a
+  scoped account returning 200 on its own area demonstrates nothing, since a full
+  administrator passes that too, so each scoped account asserts **403 on the
+  other's area**. Also asserts the audit behaviour in both directions: an allowed
+  scoped request must not log `access.denied`, and a genuine denial still must.
+  Verified non-vacuous by mutation.
+
 ## [2.4.8] - 2026-08-17
 
 ### Added

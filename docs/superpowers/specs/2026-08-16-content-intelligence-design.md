@@ -1242,8 +1242,22 @@ because the capability gap they close is invisible from this repository.
 | # | Change | Unblocks | Notes |
 |---|---|---|---|
 | J1 | Add `query_page` to `snapshot_payload()` and to the shipper's request body | Rule 2's shared-query restriction, Rule 3 case (a), and effect measurement's `query_intersection` mode | The exporter **already computes** `query_page_rows` for its own gauges; it is simply not written to the snapshot file. The ingest parser and the `(page_path, query_text)` primary key already accommodate these rows — **no migration and no schema change** |
-| J2 | Raise `top_qp` from 25 | Makes J1 actually sufficient | At 25 rows per engine per site, queries spread across pages yield ~1 per page, well under Rule 2's shared-query floor. The Search Console row limit is 25,000 |
+| J2 | ~~Raise `top_qp` from 25~~ **— withdrawn, was wrong** | — | The claim was that `top_qp` capped the shipped rows. It does not: the snapshot writes the provider's per-site `query_page` result in **full**, and `TOP_QUERY_PAGE` bounds only the Prometheus gauge's cardinality. The two paths never shared a source. Nothing to change |
 | J3 | Ship the five detector opportunities and the `EXPECTED_CTR` curve in the ingest payload | The imported half of the backlog, and a single definition of the CTR model | Wikantik's engine already takes `importedOpportunities`; nothing supplies it. Shipping the curve rather than reimplementing it is what keeps §7.3's "no second implementation of the same arithmetic" true |
+
+**All three shipped upstream 2026-08-17** (jakemon `8ba33fe`). `query_page` is written to the
+snapshot in full and shipped; `opportunities-YYYY-MM-DD.json` is written as a sibling of the
+snapshot and shipped; `expected_ctr` accompanies it.
+
+**One residual coupling, deliberate.** jakemon ships only the 1–10 `EXPECTED_CTR` table, not
+`_DEEP_CTR` (0.008) or the beyond-20 decay (`0.008 × 20/p`). Those two rules are therefore
+*mirrored* in Wikantik as configuration (`wikantik.insights.ctr.deep`,
+`…deep_max_position`) rather than imported — a second implementation of a small piece of the same
+arithmetic, which §7.3 otherwise forbids. It is accepted because the alternative is inventing a
+whole curve, and it is bounded to two scalars. **If jakemon ever changes either value, Wikantik
+must follow**; the parity test in `ExpectedCtrCurveTest` names the numbers explicitly so the
+mismatch surfaces as a test failure rather than as quietly mis-priced opportunities. Shipping the
+tail alongside the table would remove the coupling entirely and is the cleaner long-term answer.
 
 Until J3, the backlog contains only the four native rules, and `suppressDivergenceAffected` has
 nothing to suppress — which is correct behaviour, not a defect.

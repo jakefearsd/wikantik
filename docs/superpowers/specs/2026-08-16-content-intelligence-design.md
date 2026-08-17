@@ -722,6 +722,42 @@ All windows are 28 days unless stated. All thresholds are configuration keys (§
 defaults shown, chosen conservatively — under-firing is recoverable, over-firing trains an
 autonomous agent on noise.
 
+#### 7.3.0 The traffic gate — why three of these rules ship dormant
+
+Measured against the live fact store on 2026-08-17 (`wiki.wikantik.com`, snapshot 2026-08-14):
+
+| Quantity | Value |
+|---|---|
+| Pages with any impressions | 479 |
+| Total impressions / 28 d | 2,626 |
+| Total clicks / 28 d | **10** |
+| Median page impressions | **2** |
+| p90 / p99 / max page impressions | 12 / 53 / 154 |
+| Pages ≥ 200 impressions (`STALE_HIGH_TRAFFIC`) | **0** |
+| Pages ≥ 100 impressions (`ENGINE_DIVERGENCE`) | 1 (0 after the gap test) |
+
+Three of the four native rules are driven by search-visibility volume, and at this traffic level
+none of them can produce a statistically meaningful per-page verdict. A page showing "Bing
+position 2.0" is reporting a **single impression**. Lowering thresholds until the backlog is
+non-empty does not fix that — it manufactures work out of sampling noise and feeds it to an
+autonomous consumer, which §11 names as the primary risk of the whole design.
+
+Therefore the three visibility-driven rules — `ENGINE_DIVERGENCE`, `VOCABULARY_GAP`,
+`STALE_HIGH_TRAFFIC` — sit behind a **site-level traffic gate**
+(`wikantik.insights.rules.gate.impressions28d`, default `5000`, roughly 2× today). Below the gate
+they do not fire at all, and the read surfaces report them in `suppressed_rules` with the measured
+value and the value required, so the silence is legible rather than mysterious.
+
+`AGENT_GAP` is **not** gated: its denominator is MCP retrieval traffic, not search impressions, and
+it is the one rule that works today.
+
+The per-rule thresholds below are set for the traffic level at which the gate opens, not for
+today's. Both are configuration, so the gate can be lowered deliberately for experimentation —
+which is different from having no gate at all.
+
+**Revisit when:** site impressions/28 d clear 5,000, or a rule is wanted for exploratory use, in
+which case lower the gate explicitly and treat everything it emits as provisional.
+
 #### Rule 1 — `AGENT_GAP`   *(needs: MCP traffic)*
 
 | | |
@@ -739,14 +775,31 @@ to jakemon, which cannot see MCP traffic. Build it first.
 
 | | |
 |---|---|
-| **Trigger** | A page ranking materially better on one engine than another across a shared query set. |
-| **Minimum support** | ≥ 100 impressions on the stronger engine in 28 days, ≥ 10 shared queries, position gap ≥ 10. |
-| **Priority** | `strong_engine_clicks × 0.5` |
+| **Trigger** | A page ranking materially better on one engine than another. |
+| **Minimum support** | Gate open; page present on ≥ 2 engines; ≥ 20 impressions on the stronger engine and ≥ 5 on the weaker, both in 28 days; position gap ≥ 10. |
+| **Priority** | `weak_impressions × (expected_ctr(strong_pos) − expected_ctr(weak_pos))` |
 | **Action** | **Diagnostic, usually "change nothing on this page."** |
 | **Resolves when** | The gap closes below 10 positions, or it is snoozed as out of reach. |
 
-This rule is impossible without the fact store — comparing engines requires history, and the
-current pipeline keeps none. It earns its place by **suppressing false work rather than creating
+**Grain correction (2026-08-17).** This rule was specified over a *shared query set per page*.
+That data does not exist in the store: the ingest payload carries `by_page` and `by_query` as two
+**disjoint projections**, so every query row lands with `page_path = ''` and no query is attributed
+to a page. jakemon *does* compute the cross product (`query_page`), but `snapshot_payload()` never
+writes it into the snapshot files the shipper reads. The rule therefore operates on **page rollup
+rows**, comparing each page's per-engine average position directly.
+
+The cost is a real one and is recorded rather than hidden: average position across engines mixes
+different query sets, so a gap can reflect query mix rather than ranking. It is accepted because
+the effect being detected (30+ positions) is far larger than that confound, and because both
+engines' minimum-support floors must be met before the comparison runs. When jakemon ships
+`query_page`, the shared-query restriction becomes available as a refinement — see the two work
+items in §12.1.
+
+Both the weak- and strong-engine floors are required. A one-sided floor was the original
+specification, and it would compare a well-sampled position against one estimated from a single
+impression.
+
+It earns its place by **suppressing false work rather than creating
 it**: Bing-strong / Google-weak points at domain authority and backlinks, not at the page, and
 without it every such page looks like a `ctr_gap` failure in Google's data and gets pointlessly
 rewritten. It therefore runs **before** the imported `ctr_gap` and `striking_distance` rules and
@@ -761,7 +814,7 @@ data-backed answer rather than two people reading two different dashboards.
 | | |
 |---|---|
 | **Trigger** | Either (a) a Search Console query with ≥ 5 clicks to page P whose content words appear in neither P's title, summary, nor tags; or (b) a same-session reformulation pair where the first query returned zero results or no click and the second led to a click on P. |
-| **Minimum support** | (a) 5 clicks. (b) 2 occurrences of the pair, second query within 60 s of the first. |
+| **Minimum support** | (a) gate open, 5 clicks, **and query→page attribution present**. (b) 2 occurrences of the pair, second query within 60 s of the first. |
 | **Priority** | `impressions × 0.05` (a), `occurrences × 3` (b) |
 | **Action** | Add the term as a tag or alias; tighten the summary to include the reader's vocabulary. |
 | **Resolves when** | The term appears in P's frontmatter. |
@@ -769,12 +822,18 @@ data-backed answer rather than two people reading two different dashboards.
 Case (b) is the "our words aren't their words" signal, and it is the reason `session_hash` was
 added in §6.2. Both cases produce the same fix, so they share a rule.
 
+**Case (a) is dormant for the same reason as Rule 2** — it keys a query to a page, and no query row
+in the store carries a page. It must fire only on rows with a non-empty `page_path`, which today is
+none; that is a data condition, not a threshold, so no configuration opens it. Case (b) reads
+`retrieval_query_log` and is unaffected by the search-traffic gate, but has its own thin
+denominator (5 rows in the last 28 days).
+
 #### Rule 4 — `STALE_HIGH_TRAFFIC`   *(needs: verification age)*
 
 | | |
 |---|---|
 | **Trigger** | A page with real traffic whose verification has aged out. |
-| **Minimum support** | ≥ 200 impressions in 28 days **and** `verified_at` older than 180 days (or confidence not `authoritative`). |
+| **Minimum support** | Gate open, ≥ 20 impressions in 28 days **and** `verified_at` older than 180 days (or confidence not `authoritative`). |
 | **Priority** | `impressions × 0.02` |
 | **Action** | Re-verify or refresh. |
 | **Resolves when** | `verified_at` is refreshed. |
@@ -823,6 +882,19 @@ compares the 28 days after against the recorded 28 days before.
 
 To control for query-mix drift — a page can gain CTR purely because it stopped ranking for a bad
 query — the comparison is **restricted to the intersection of queries present in both windows**.
+
+**This control is unavailable today** and the job must not pretend otherwise. It requires queries
+attributed to pages, which the store does not have (see the grain correction under Rule 2). The job
+therefore runs in one of two modes and **records which one it used** in `effect_detail.method`:
+
+| Mode | When | Meaning |
+|---|---|---|
+| `query_intersection` | ≥ 5 queries attributed to the page in both windows | As specified — the confound is controlled |
+| `page_rollup` | otherwise (today: always) | Page totals only; query-mix drift is **not** controlled and the verdict is correspondingly weaker |
+
+A `page_rollup` verdict is not wrong, but it is a weaker claim than a `query_intersection` verdict,
+and anything reading verdicts in aggregate (§7.4.4 calibration especially) must be able to tell
+them apart. That is why the mode is stored per row rather than assumed globally.
 
 #### 7.4.3 Controlling for confounds
 
@@ -1087,11 +1159,15 @@ and prune · behavior columns in the backlog panel.
 | `wikantik.insights.rules.sites` | `wiki.wikantik.com,wikantik.com` | Sites the rule engine **acts on** (D10) |
 | `wikantik.insights.ingest.max_rows` | `50000` | Per-request row cap |
 | `wikantik.insights.ingest.stale.hours` | `12` | Staleness alert threshold on last success |
-| `wikantik.insights.opportunity.min_impressions` | `100` | `ENGINE_DIVERGENCE`, `STALE_HIGH_TRAFFIC` |
+| `wikantik.insights.rules.gate.impressions28d` | `5000` | **Site-level gate** for the three visibility-driven rules (§7.3.0). Below it they are suppressed and reported, not silently empty |
+| `wikantik.insights.opportunity.min_impressions` | `20` | `ENGINE_DIVERGENCE` (stronger engine), `STALE_HIGH_TRAFFIC` |
+| `wikantik.insights.opportunity.divergence.min_impressions_weak` | `5` | `ENGINE_DIVERGENCE`, weaker engine — without it a well-sampled position is compared against a single impression |
 | `wikantik.insights.opportunity.min_occurrences` | `2` | `AGENT_GAP` |
 | `wikantik.insights.opportunity.divergence.min_gap` | `10` | `ENGINE_DIVERGENCE` position gap |
 | `wikantik.insights.opportunity.stale.days` | `180` | `STALE_HIGH_TRAFFIC` |
 | `wikantik.insights.opportunity.weight.<TYPE>` | see §7.3 | Per-type priority weight; overwritten by calibration |
+| `wikantik.insights.calibration.min_verdicts` | `20` | Evaluated changes required before a type reports `calibrated: true` (§7.4.4) |
+| `wikantik.insights.calibration.damping` | `0.5` | Fraction of the way a weight moves toward the observed ratio |
 | `wikantik.insights.effect.window.days` | `28` | Before/after window |
 | `wikantik.insights.effect.min_baseline_impressions` | `100` | Below this → `insufficient_data` |
 | `wikantik.insights.change.cooldown.days` | `60` | Max one auto-change per page per window |
@@ -1106,10 +1182,10 @@ and prune · behavior columns in the backlog panel.
 
 | Risk | Containment |
 |---|---|
-| **Agent acts on statistical noise** — the primary risk, because the consumer is autonomous | Per-rule minimum support, distinct-session requirement, global floor, 60-day cooldown, `calibrated` flag exposed to the agent, and effect measurement that catches a bad change class within a month |
+| **Agent acts on statistical noise** — the primary risk, because the consumer is autonomous | The §7.3.0 **traffic gate** (the strongest control: the three volume-driven rules do not run at all below it), per-rule minimum support on *both* sides of a comparison, distinct-session requirement, global floor, 60-day cooldown, `calibrated` flag exposed to the agent, and effect measurement that catches a bad change class within a month |
 | **CTR optimization degrades accuracy** — titles drift toward clickbait | Title/summary changes must preserve the page's claims; verification status is never silently downgraded; every change is logged and reviewable in the ledger |
 | **GSC query privacy filtering hides most queries** | Page-level rollup rows are authoritative for all thresholds; query rows are used only for vocabulary work, where a lower bound is still useful |
-| **Effect verdicts are confounded** | Difference-in-differences against the site trend, query-intersection restriction, `insufficient_data` as an honest and expected verdict, and aggregate-over-single interpretation stated in §7.4.3 |
+| **Effect verdicts are confounded** | Difference-in-differences against the site trend, query-intersection restriction **where the data supports it** with the mode recorded per verdict (§7.4.2), `insufficient_data` as an honest and expected verdict, and aggregate-over-single interpretation stated in §7.4.3 |
 | **Public write endpoint abused** (Phase 3) | Page-path allowlisting against the real index, typed columns with no free-form JSON, size and rate caps, bot flagging |
 | **Prometheus cardinality explosion** | The D2 invariant, enforced by test |
 | **The subsystem breaks the wiki** | Every path async, fail-open, off the critical path; kill switch; bounded queues that drop rather than block |
@@ -1138,6 +1214,26 @@ Details that will silently break a build or a gate if missed:
   of change that breaks a different module.
 - **Corpus caution.** The privacy page (§8.4) is content and must be published through the live
   wiki, not the repository checkout — the two corpora are not copies of each other.
+
+### 12.1 Upstream work items (jakemon repository)
+
+Three items live in jakemon, not here. Wikantik's side of each is built and inert until the
+upstream half lands; none of them blocks anything else in this design. They are recorded here
+because the capability gap they close is invisible from this repository.
+
+| # | Change | Unblocks | Notes |
+|---|---|---|---|
+| J1 | Add `query_page` to `snapshot_payload()` and to the shipper's request body | Rule 2's shared-query restriction, Rule 3 case (a), and effect measurement's `query_intersection` mode | The exporter **already computes** `query_page_rows` for its own gauges; it is simply not written to the snapshot file. The ingest parser and the `(page_path, query_text)` primary key already accommodate these rows — **no migration and no schema change** |
+| J2 | Raise `top_qp` from 25 | Makes J1 actually sufficient | At 25 rows per engine per site, queries spread across pages yield ~1 per page, well under Rule 2's shared-query floor. The Search Console row limit is 25,000 |
+| J3 | Ship the five detector opportunities and the `EXPECTED_CTR` curve in the ingest payload | The imported half of the backlog, and a single definition of the CTR model | Wikantik's engine already takes `importedOpportunities`; nothing supplies it. Shipping the curve rather than reimplementing it is what keeps §7.3's "no second implementation of the same arithmetic" true |
+
+Until J3, the backlog contains only the four native rules, and `suppressDivergenceAffected` has
+nothing to suppress — which is correct behaviour, not a defect.
+
+Unrelated but adjacent, and worth doing while in that file: jakemon's Google provider derives
+`indexed_pages` from `contents[].indexed` in the Sitemaps API, a field Google deprecated and now
+always returns as `0`. It reported 0 while Search Console showed 988. It should return `None`
+(absent) rather than a structurally valid, meaningless zero.
 
 ---
 

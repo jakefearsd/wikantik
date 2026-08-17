@@ -6,6 +6,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **The ingest parser now reads the `query_page` cross product.** It previously
+  read only `by_page` and `by_query` — two *disjoint* projections, neither of
+  which attributes a query to a page, so nothing in the fact store could say
+  which queries a given page ranks for. Such rows need no schema change (the
+  primary key is already `(snapshot_date, engine, site_host, page_path,
+  query_text)`, so a row with both slots populated sits alongside the two
+  rollups rather than colliding with them), but without the parser reading the
+  array the upstream collector change would have landed with nowhere to go.
+
+  Unblocks, once the collector ships those rows: the shared-query restriction on
+  `ENGINE_DIVERGENCE`, case (a) of `VOCABULARY_GAP`, and effect measurement's
+  `query_intersection` mode — which until then degrades to `page_rollup` and
+  records per verdict that it did.
+
 ## [2.4.6] - 2026-08-17
 
 ### Added

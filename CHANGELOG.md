@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.9] - 2026-08-17
+
 ### Fixed
 - **Admin-area grants are now creatable through the policy API.** Adding the
   permission type to the model was not sufficient: the REST layer validates

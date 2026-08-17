@@ -6,6 +6,33 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Scoped `/admin/*` grants.** The admin surface spans 26 functional areas
+  behind a single `AllPermission` check, so any credential able to reach one
+  could reach all of them — including `connector-credentials` (the encrypted
+  GitHub / Confluence / Drive secret store), `apikeys` (mint credentials), and
+  `policy` (rewrite the permission model itself). An integration that only posts
+  visibility rows should not hold that.
+
+  New `AdminPermission` (`permission_type='admin'`, target = the area, e.g.
+  `insights`) gives `AdminAuthFilter` a second, narrower way to pass. **Strictly
+  additive:** `AllPermission` implies every `AdminPermission`, so no existing
+  administrator's reach changes. The area is *derived* from the first path
+  segment rather than read from a lookup table, so there is no map to drift out
+  of sync — a newly added endpoint gets its own area, nobody holds a grant for
+  it, and it keeps requiring `AllPermission` exactly as before. Grants are
+  creatable at `/admin/security`, carrying the same broad-role guard
+  `AllPermission` has, so `admin:*` cannot be given to `Authenticated`.
+
+  Two failure modes are guarded explicitly, because either would have been
+  silent. `AllPermission.implies()` returns false for any type absent from
+  `PermissionChecks.isJSPWikiPermission`, so omitting the new type there locks
+  **every** administrator out of the **entire** admin surface. And
+  `checkPermission` is the audited call, so testing `AllPermission` first would
+  have emitted `access.denied` for requests that then *succeeded* via a scoped
+  grant — false denials for allowed traffic. The scoped check therefore runs
+  first, through the silent `isPermitted` twin, leaving the audit path unchanged.
+
 ## [2.4.7] - 2026-08-17
 
 ### Added

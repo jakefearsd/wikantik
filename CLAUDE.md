@@ -294,10 +294,23 @@ Wikantik, **jakemon** (`~/source/jakemon`, the observability plane) and **Roller
 `SimpleAgilityStackHub` → `SimpleAgilityObservabilityPlane` (what jakemon owns; push feeds vs pull
 queries; the "do not build this in your backend" list), `SimpleAgilityTelemetryContract` (`/metrics`,
 structured-log envelope + `correlation_id`, `/healthz`), `SimpleAgilityFeedbackLoopPattern`, and
-`SimpleAgilityOnCallAutomation` (escalation ladder; the scoped-admin surfaces products must expose).
+`SimpleAgilityOnCallAutomation` (escalation ladder; the scoped-admin surfaces products must expose),
+and **`SimpleAgilityRoadmap`** — read that one before going looking for a capability, because the
+contracts state intent while the roadmap states what is actually built.
+
 Read the plane page before adding any metrics/log/event store, third-party poller, alerting, or SLO
-computation to Wikantik — those belong to jakemon. Content Intelligence (`wikantik-insights`) is the
-reference implementation of the loop pattern.
+computation to Wikantik — those belong to jakemon. Apply its **"rule that decides where data lives"**
+first: telemetry emitted for *observation* goes to the plane, but data that is a *functional input* to
+Wikantik's own behavior stays a product table — `retrieval_query_log`, `briefing_log`,
+`content_change_log`, `search_visibility_snapshot` and `/admin/audit` are all correct as they are and
+must not be "consolidated" into Loki. Content Intelligence (`wikantik-insights`) is the reference
+implementation of the loop pattern.
+
+Telemetry conformance is machine-checked, not a prose checklist:
+
+```bash
+bin/simple-agility-conformance.sh --base-url http://localhost:8080 --prefix wikantik
+```
 
 Wikantik is a modular Java-based wiki engine built on JEE technologies with the following key characteristics:
 

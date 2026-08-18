@@ -6,6 +6,38 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Merged the two CPU-inference pages, which collided case-insensitively.**
+  `docs/wikantik-pages/` held both `CPUInference.md` and `CpuInference.md` — the
+  only case-collision in the repo. On a case-insensitive filesystem (macOS APFS
+  default) git can materialise only one of the pair, so one page silently
+  vanished from a Mac clone and corpus-walking tests saw a different file set
+  there than on Linux.
+
+  They were two genuinely different pages rather than a stray duplicate —
+  distinct `canonical_id`s, "CPU Inference" (cluster `machine-learning/mlops`)
+  versus "CPU Inference for Large Language Models" (cluster `agentic-ai`) — but
+  heavily overlapping in substance, both covering AVX-512/AMX, quantization,
+  llama.cpp and OpenVINO. They are now one page under the surviving
+  `CPUInference.md` and its `canonical_id`, keeping the LLM-specific material
+  the other page had alone: the memory-bandwidth bottleneck and its quantization
+  mitigation, ARM SME, and the serving-architecture comparison. Tags and
+  `related` are unioned; the three inbound `CpuInference` links (from
+  `OpenSourceLLMs` and `ModelQuantization`) are retargeted.
+
+  **`cluster:` deliberately stays the scalar `machine-learning/mlops` rather
+  than becoming a two-cluster list.** Multi-membership would be the natural fit
+  for a page spanning both, but Knowledge Graph inclusion is fail-closed — an
+  explicit EXCLUDE on *any* membership wins outright — and the policy table is
+  default-exclude and lives in the database, so it cannot be checked from the
+  repo. Adding `agentic-ai` blind risked silently dropping the merged page out
+  of the KG. Worth revisiting deliberately by someone who can read the policy.
+
+  Also dropped a generation artefact from the surviving page: a trailing
+  "Summary of Technical implementation added" section that was meta-commentary
+  about the edit rather than content.
+
+
 ### Fixed
 - **Integration tests failed on macOS because select-all was hard-coded to
   Ctrl+A.** `EditWikiPage.saveText()` clears the editor with a select-all chord

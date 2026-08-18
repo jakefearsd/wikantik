@@ -19,7 +19,7 @@ related:
 - LLMFineTuning
 - ModelQuantization
 - CostEffectiveInference
-- CpuInference
+- CPUInference
 - LlmTokenEconomicsAndPricing
 canonical_id: 01KQEKGDDT00GHX6TY2FARC8PB
 ---
@@ -209,5 +209,5 @@ Two weeks of work; production-grade open-weights serving.
 - [LLMFineTuning]() — adapting open models
 - [ModelQuantization]() — making them cheaper
 - [CostEffectiveInference]() — broader cost optimisation
-- [CpuInference] — when GPUs aren't available
+- [CPUInference] — when GPUs aren't available
 - [LlmTokenEconomicsAndPricing]() — comparison economics

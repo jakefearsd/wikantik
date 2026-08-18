@@ -19,7 +19,7 @@ date: '2026-05-15'
 related:
 - LLMFineTuning
 - CostEffectiveInference
-- CpuInference
+- CPUInference
 - OpenSourceLLMs
 canonical_id: 01KQEKGDD6EWGYTHZ65JHZRK4P
 enables:

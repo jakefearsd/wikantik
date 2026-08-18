@@ -360,14 +360,24 @@ class LuceneSearchProviderTest {
 
     @Test
     void testSearchMetricsIncrementOnHit() throws Exception {
-        final long totalBefore = m_provider.getTotalSearchCount();
-        final long zeroBefore  = m_provider.getZeroResultSearchCount();
-
         m_engine.saveText( "MetricsPage", "quokkatoken content worth finding" );
 
+        // Wait for the index to catch up BEFORE sampling the counters. Indexing is
+        // asynchronous, so this poll issues genuine zero-result searches until it
+        // succeeds — each one legitimately bumps the zero-result counter. Sampling
+        // before the wait therefore measures the polling, not the query under test:
+        // on a fast machine the first poll hits (delta 0, passes), on a slow one it
+        // takes several (delta > 0, fails). Sample after the index is warm instead.
         Awaitility.await( "metricspage indexed" )
                 .atMost( 10, TimeUnit.SECONDS )
                 .until( findsResultsFor( new ArrayList<>(), "quokkatoken" ) );
+
+        final long totalBefore = m_provider.getTotalSearchCount();
+        final long zeroBefore  = m_provider.getZeroResultSearchCount();
+
+        final Collection< SearchResult > hits = new ArrayList<>();
+        Assertions.assertTrue( findsResultsFor( hits, "quokkatoken" ).call(),
+                "Query should return hits once the page is indexed" );
 
         Assertions.assertTrue( m_provider.getTotalSearchCount() > totalBefore,
                 "Total search counter should increment on each non-blank query" );

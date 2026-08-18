@@ -6,6 +6,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **The weekly `unit-tests` CI job is green again.** It had been failing before
+  the 2.4.11 work as well (the 2026-08-17 scheduled run was already red) and went
+  unnoticed because the job is `if: github.event_name != 'push'` — hosted-minute
+  thrift means a normal push never runs the Java suite. Two test-isolation
+  defects, no production code involved, so the 2.4.11 artifact is unaffected.
+
+  `LuceneSearchProviderTest.testSearchMetricsIncrementOnHit` sampled the
+  zero-result counter *before* an Awaitility wait that itself issues searches
+  against a cold index. Each failed poll legitimately bumps the counter the test
+  then asserts is unchanged, so the test measured its own polling: one poll on a
+  fast machine (passes), four on a slower CI runner (`expected: <0> but was: <4>`).
+  The counters are now sampled after the index is warm, around a single query.
+
+  `DefaultPageManagerTest.testLatestGet{,2,3,4}` raced the ontology subsystem's
+  startup self-heal (`OntologyRebuildCoordinator#rebuildIfEmpty`), whose
+  `wikantik-ontology-rebuild` daemon walks pages through `VerySimpleProvider` and
+  overwrites `m_latestReq` between the call under test and the assertion. These
+  tests assert which page the provider was asked for, so they now disable the
+  ontology subsystem outright rather than racing it — which also drops the class
+  from ~35s to ~2s.
+
+
 ## [2.4.11] - 2026-08-18
 
 ### Fixed

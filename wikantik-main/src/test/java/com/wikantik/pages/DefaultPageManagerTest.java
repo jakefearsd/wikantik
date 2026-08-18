@@ -190,6 +190,12 @@ public class DefaultPageManagerTest {
     public void testLatestGet() throws Exception {
         final Properties props = engine.getWikiProperties();
         props.setProperty( "wikantik.pageProvider", "com.wikantik.providers.VerySimpleProvider" );
+        // The ontology subsystem's startup self-heal (OntologyRebuildCoordinator#rebuildIfEmpty)
+        // spawns a "wikantik-ontology-rebuild" daemon on every fresh TestEngine, and its page walk
+        // overwrites VerySimpleProvider#m_latestReq between the getPage/getHTML call below and the
+        // assertion. These tests are about which page the provider was asked for, so keep the
+        // rebuild out of the engine entirely rather than racing it.
+        props.setProperty( "wikantik.ontology.enabled", "false" );
         props.setProperty( "wikantik.cache.enable", "false" );
         final WikiEngine engine = new TestEngine( props );
         final Page p = engine.getManager( PageManager.class ).getPage( "test", -1 );
@@ -204,6 +210,12 @@ public class DefaultPageManagerTest {
     public void testLatestGet2() throws Exception {
         final Properties props = engine.getWikiProperties();
         props.setProperty( "wikantik.pageProvider", "com.wikantik.providers.VerySimpleProvider" );
+        // The ontology subsystem's startup self-heal (OntologyRebuildCoordinator#rebuildIfEmpty)
+        // spawns a "wikantik-ontology-rebuild" daemon on every fresh TestEngine, and its page walk
+        // overwrites VerySimpleProvider#m_latestReq between the getPage/getHTML call below and the
+        // assertion. These tests are about which page the provider was asked for, so keep the
+        // rebuild out of the engine entirely rather than racing it.
+        props.setProperty( "wikantik.ontology.enabled", "false" );
         props.setProperty( "wikantik.cache.enable", "false" );
         final WikiEngine engine = new TestEngine( props );
         final String p = engine.getManager( PageManager.class ).getText( "test", -1 );
@@ -218,6 +230,12 @@ public class DefaultPageManagerTest {
     public void testLatestGet3() throws Exception {
         final Properties props = engine.getWikiProperties();
         props.setProperty( "wikantik.pageProvider", "com.wikantik.providers.VerySimpleProvider" );
+        // The ontology subsystem's startup self-heal (OntologyRebuildCoordinator#rebuildIfEmpty)
+        // spawns a "wikantik-ontology-rebuild" daemon on every fresh TestEngine, and its page walk
+        // overwrites VerySimpleProvider#m_latestReq between the getPage/getHTML call below and the
+        // assertion. These tests are about which page the provider was asked for, so keep the
+        // rebuild out of the engine entirely rather than racing it.
+        props.setProperty( "wikantik.ontology.enabled", "false" );
         props.setProperty( "wikantik.cache.enable", "false" );
         final WikiEngine engine = new TestEngine( props );
         final String p = engine.getManager( RenderingManager.class ).getHTML( "test", -1 );
@@ -232,6 +250,12 @@ public class DefaultPageManagerTest {
     public void testLatestGet4() throws Exception {
         final Properties props = engine.getWikiProperties();
         props.setProperty( "wikantik.pageProvider", "com.wikantik.providers.VerySimpleProvider" );
+        // The ontology subsystem's startup self-heal (OntologyRebuildCoordinator#rebuildIfEmpty)
+        // spawns a "wikantik-ontology-rebuild" daemon on every fresh TestEngine, and its page walk
+        // overwrites VerySimpleProvider#m_latestReq between the getPage/getHTML call below and the
+        // assertion. These tests are about which page the provider was asked for, so keep the
+        // rebuild out of the engine entirely rather than racing it.
+        props.setProperty( "wikantik.ontology.enabled", "false" );
         props.setProperty( "wikantik.cache.enable", "true" );
         final WikiEngine engine = new TestEngine( props );
         final String p = engine.getManager( RenderingManager.class ).getHTML( VerySimpleProvider.PAGENAME, -1 );

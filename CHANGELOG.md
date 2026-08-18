@@ -37,6 +37,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   "Summary of Technical implementation added" section that was meta-commentary
   about the edit rather than content.
 
+  **Live wiki brought in line (2026-08-18).** Prod turned out to hold materially
+  better versions of *both* pages than the repo mirror — prod is authoritative
+  for content and the two corpora had diverged. So the prod merge was redone
+  from the prod bodies, not the repo ones: `CPUInference` (~2,500 words, Roofline
+  model, TCO analysis, five application domains) absorbed the only material
+  `CpuInference` held alone — the memory-bandwidth/token-rate ceiling with its
+  hardware table, and the GGUF K-quant formats — and `CpuInference` was deleted
+  after its four prod backlinks (`AIInfrastructureHub`, `HomeLabInfrastructureHub`,
+  `ModelQuantization`, `OpenSourceLLMs`) were retargeted. Prod had four backlinks
+  where the repo had two, and one of those referrers does not exist in the repo
+  at all. `kg_include: true` was carried over so the merge does not quietly drop
+  the absorbed content out of the Knowledge Graph. The repo copy of the page is
+  now synced to the prod result, which also corrects its `cluster` to the prod
+  value `machine-learning`.
+
+  Two defects in the retired page are worth recording rather than repeating: its
+  body was **truncated** (the intro promised thread pinning and llama.cpp
+  optimizations, then stopped mid-section 2), and its `$$` block was **corrupted**
+  — the stored bytes held control characters where `\approx` and `\frac` should
+  have been. The formula was rewritten cleanly rather than carried across.
+  `verify_pages` reports 0 broken links and no metadata/SEO/retrieval warnings,
+  and an `assemble_bundle` check ranks the new section second for
+  "how many tokens per second can a CPU generate for a quantized 7B LLM".
+
 
 ### Fixed
 - **Integration tests failed on macOS because select-all was hard-coded to

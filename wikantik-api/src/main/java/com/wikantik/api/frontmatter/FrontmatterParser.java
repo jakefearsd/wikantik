@@ -48,6 +48,82 @@ public final class FrontmatterParser {
     private FrontmatterParser() {
     }
 
+    /**
+     * Outcome of splitting page text into a frontmatter YAML block plus body, without any
+     * YAML loading or error policy applied. {@link #parse(String)} and {@link #parseStrict(String)}
+     * share this delimiter-scanning algorithm and diverge only in how they react to each outcome.
+     */
+    private sealed interface SplitResult permits NoFrontmatter, EmptyBlock, Unclosed, Block {
+    }
+
+    /** No opening {@code ---} delimiter at all, or an opened-but-unclosed block that couldn't
+     *  even be salvaged by the no-trailing-newline tolerance (the geometrically degenerate case
+     *  where the salvaged body would start before the YAML block does). Callers treat the whole
+     *  original text as the body. */
+    private record NoFrontmatter() implements SplitResult {
+    }
+
+    /** Opening {@code ---} immediately followed by closing {@code ---} — a zero-content block. */
+    private record EmptyBlock( String body ) implements SplitResult {
+    }
+
+    /** Opened with {@code ---} but never closed, and the text does not end with a bare
+     *  (no-trailing-newline) {@code ---} that could be salvaged as the closing delimiter. */
+    private record Unclosed() implements SplitResult {
+    }
+
+    /** A YAML block (possibly blank) with its trailing body, either delimited normally or
+     *  salvaged from a trailing {@code ---} with no newline after it. */
+    private record Block( String yamlBlock, String body ) implements SplitResult {
+    }
+
+    /**
+     * Scans {@code text} for a {@code ---}-delimited frontmatter block and splits it into a YAML
+     * block plus body, applying no error policy. Callers ({@link #parse(String)} and
+     * {@link #parseStrict(String)}) turn the outcome into a {@link ParsedPage} or an exception
+     * according to their own tolerance for malformed input. {@code text} must be non-null and
+     * non-empty — callers handle that case before calling this method.
+     */
+    private static SplitResult split( final String text ) {
+        final Matcher openMatcher = OPENING.matcher( text );
+        if ( !openMatcher.find() ) {
+            return new NoFrontmatter();
+        }
+
+        final int yamlStart = openMatcher.end(); // position right after "---\n" or "---\r\n"
+
+        // Check for empty frontmatter: closing --- immediately follows opening ---
+        final Matcher immediateMatcher = CLOSING_IMMEDIATE.matcher( text.substring( yamlStart ) );
+        if ( immediateMatcher.find() ) {
+            return new EmptyBlock( text.substring( yamlStart + immediateMatcher.end() ) );
+        }
+
+        final Matcher closeMatcher = CLOSING.matcher( text );
+        if ( !closeMatcher.find( yamlStart ) ) {
+            // No closing delimiter found — check if text ends with \n--- (no trailing newline)
+            if ( text.endsWith( "\n---" ) || text.endsWith( "\r\n---" ) ) {
+                final int lastDelim = text.lastIndexOf( "---" );
+                // Walk back past optional \r
+                int bodyEnd = lastDelim;
+                if ( bodyEnd > 0 && text.charAt( bodyEnd - 1 ) == '\n' ) {
+                    bodyEnd--;
+                }
+                if ( bodyEnd > 0 && text.charAt( bodyEnd - 1 ) == '\r' ) {
+                    bodyEnd--;
+                }
+                if ( bodyEnd >= yamlStart ) {
+                    return new Block( text.substring( yamlStart, bodyEnd ), "" );
+                }
+                return new NoFrontmatter();
+            }
+            return new Unclosed();
+        }
+
+        final String yamlBlock = text.substring( yamlStart, closeMatcher.start() );
+        final String body = text.substring( closeMatcher.end() );
+        return new Block( yamlBlock, body );
+    }
+
     /** Hardened SnakeYAML loader options — bounds frontmatter input against
      *  YAML-bomb / billion-laughs DoS. Applied to every parser instance. */
     private static LoaderOptions hardenedLoaderOptions() {
@@ -85,44 +161,12 @@ public final class FrontmatterParser {
             return new ParsedPage( Map.of(), text == null ? "" : text );
         }
 
-        final Matcher openMatcher = OPENING.matcher( text );
-        if ( !openMatcher.find() ) {
-            return new ParsedPage( Map.of(), text );
-        }
-
-        final int yamlStart = openMatcher.end(); // position right after "---\n" or "---\r\n"
-
-        // Check for empty frontmatter: closing --- immediately follows opening ---
-        final Matcher immediateMatcher = CLOSING_IMMEDIATE.matcher( text.substring( yamlStart ) );
-        if ( immediateMatcher.find() ) {
-            final String body = text.substring( yamlStart + immediateMatcher.end() );
-            return parseYaml( "", body );
-        }
-
-        final Matcher closeMatcher = CLOSING.matcher( text );
-        if ( !closeMatcher.find( yamlStart ) ) {
-            // No closing delimiter found — check if text ends with \n--- (no trailing newline)
-            if ( text.endsWith( "\n---" ) || text.endsWith( "\r\n---" ) ) {
-                final int lastDelim = text.lastIndexOf( "---" );
-                // Walk back past optional \r
-                int bodyEnd = lastDelim;
-                if ( bodyEnd > 0 && text.charAt( bodyEnd - 1 ) == '\n' ) {
-                    bodyEnd--;
-                }
-                if ( bodyEnd > 0 && text.charAt( bodyEnd - 1 ) == '\r' ) {
-                    bodyEnd--;
-                }
-                if ( bodyEnd >= yamlStart ) {
-                    return parseYaml( text.substring( yamlStart, bodyEnd ), "" );
-                }
-            }
-            return new ParsedPage( Map.of(), text );
-        }
-
-        final String yamlBlock = text.substring( yamlStart, closeMatcher.start() );
-        final String body = text.substring( closeMatcher.end() );
-
-        return parseYaml( yamlBlock, body );
+        return switch ( split( text ) ) {
+            case NoFrontmatter() -> new ParsedPage( Map.of(), text );
+            case Unclosed() -> new ParsedPage( Map.of(), text );
+            case EmptyBlock( String body ) -> parseYaml( "", body );
+            case Block( String yamlBlock, String body ) -> parseYaml( yamlBlock, body );
+        };
     }
 
     @SuppressWarnings( "unchecked" )
@@ -173,49 +217,24 @@ public final class FrontmatterParser {
             return new ParsedPage( Map.of(), text == null ? "" : text );
         }
 
-        final Matcher openMatcher = OPENING.matcher( text );
-        if ( !openMatcher.find() ) {
-            return new ParsedPage( Map.of(), text );
-        }
-
-        final int yamlStart = openMatcher.end();
-
-        // Empty frontmatter block — valid, no parsing to do.
-        final Matcher immediateMatcher = CLOSING_IMMEDIATE.matcher( text.substring( yamlStart ) );
-        if ( immediateMatcher.find() ) {
-            return new ParsedPage( Map.of(), text.substring( yamlStart + immediateMatcher.end() ) );
-        }
-
-        final Matcher closeMatcher = CLOSING.matcher( text );
         final String yamlBlock;
         final String body;
-        if ( !closeMatcher.find( yamlStart ) ) {
-            // Tolerate text ending with \n--- (no trailing newline) — same as parse().
-            if ( text.endsWith( "\n---" ) || text.endsWith( "\r\n---" ) ) {
-                final int lastDelim = text.lastIndexOf( "---" );
-                int bodyEnd = lastDelim;
-                if ( bodyEnd > 0 && text.charAt( bodyEnd - 1 ) == '\n' ) {
-                    bodyEnd--;
-                }
-                if ( bodyEnd > 0 && text.charAt( bodyEnd - 1 ) == '\r' ) {
-                    bodyEnd--;
-                }
-                if ( bodyEnd >= yamlStart ) {
-                    yamlBlock = text.substring( yamlStart, bodyEnd );
-                    body = "";
-                } else {
-                    return new ParsedPage( Map.of(), text );
-                }
-            } else {
-                // Opened a block but never closed it. parse() falls back to "no frontmatter";
-                // strict parsing flags this so the agent knows the closing --- is missing.
-                throw new FrontmatterParseException(
-                        "Frontmatter block opened with '---' but no closing '---' found before end of page.",
-                        -1, -1 );
-            }
+        final SplitResult result = split( text );
+        if ( result instanceof NoFrontmatter ) {
+            return new ParsedPage( Map.of(), text );
+        } else if ( result instanceof Unclosed ) {
+            // Opened a block but never closed it. parse() falls back to "no frontmatter";
+            // strict parsing flags this so the agent knows the closing --- is missing.
+            throw new FrontmatterParseException(
+                    "Frontmatter block opened with '---' but no closing '---' found before end of page.",
+                    -1, -1 );
+        } else if ( result instanceof EmptyBlock eb ) {
+            // Empty frontmatter block — valid, no parsing to do.
+            return new ParsedPage( Map.of(), eb.body() );
         } else {
-            yamlBlock = text.substring( yamlStart, closeMatcher.start() );
-            body = text.substring( closeMatcher.end() );
+            final Block block = ( Block ) result;
+            yamlBlock = block.yamlBlock();
+            body = block.body();
         }
 
         if ( yamlBlock.isBlank() ) {

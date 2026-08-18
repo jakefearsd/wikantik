@@ -83,7 +83,7 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
             LOG.info( "crawler '{}': robots-disallowed, skipping {}", connectorId, n.url );
             return new NodeOutcome( Optional.empty(), List.of(), true );
         }
-        sleepPolitely( robots, n.url );
+        WebConnectorSupport.sleepPolitely( robots, n.url, config.respectRobots(), config.delayMs(), sleeper );
 
         final FetchResult r = fetcher.fetch( n.url );      // fetcher is fail-closed (status 0 on error)
         if ( r.status() / 100 != 2 ) {
@@ -97,7 +97,7 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
             }
             return new NodeOutcome( Optional.empty(), List.of(), true );
         }
-        if ( !isHtml( r.contentType() ) ) return new NodeOutcome( Optional.empty(), List.of(), true );
+        if ( !WebConnectorSupport.isHtml( r.contentType() ) ) return new NodeOutcome( Optional.empty(), List.of(), true );
 
         final String finalUrl = r.finalUrl() == null ? n.url : r.finalUrl();
         final String html = new String( r.body(), java.nio.charset.StandardCharsets.UTF_8 );
@@ -120,17 +120,6 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
             LOG.warn( "crawler '{}': could not derive scope for {}: {}", connectorId, url, e.getMessage() );
             return null;
         }
-    }
-
-    private void sleepPolitely( final RobotsPolicy robots, final String url ) {
-        // Only consult robots crawl-delay when robots are respected — otherwise robots.txt is not fetched at all.
-        final long robotsDelay = config.respectRobots() ? robots.crawlDelayMs( url ) : 0L;
-        final long delay = Math.max( config.delayMs(), robotsDelay );
-        if ( delay > 0 ) sleeper.accept( delay );
-    }
-
-    private static boolean isHtml( final String contentType ) {
-        return contentType != null && contentType.toLowerCase( Locale.ROOT ).contains( "text/html" );
     }
 
     private record Node( String url, int depth ) {}

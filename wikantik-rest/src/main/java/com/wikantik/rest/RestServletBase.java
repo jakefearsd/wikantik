@@ -44,7 +44,6 @@ import java.io.IOException;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
-import java.util.Map;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -326,9 +325,7 @@ public abstract class RestServletBase extends HttpServlet {
      * @throws IOException if writing fails
      */
     protected void sendJson( final HttpServletResponse response, final Object object ) throws IOException {
-        response.setContentType( "application/json" );
-        response.setCharacterEncoding( "UTF-8" );
-        response.getWriter().write( GSON.toJson( object ) );
+        RestJson.sendJson( response, object );
     }
 
     /**
@@ -341,14 +338,7 @@ public abstract class RestServletBase extends HttpServlet {
      */
     protected void sendError( final HttpServletResponse response, final int status, final String message )
             throws IOException {
-        response.setStatus( status );
-        response.setContentType( "application/json" );
-        response.setCharacterEncoding( "UTF-8" );
-        response.getWriter().write( GSON.toJson( Map.of(
-                "error", true,
-                "status", status,
-                "message", message
-        ) ) );
+        RestJson.sendError( response, status, message );
     }
 
     /**
@@ -359,7 +349,7 @@ public abstract class RestServletBase extends HttpServlet {
      * @throws IOException if writing fails
      */
     protected void sendNotFound( final HttpServletResponse response, final String message ) throws IOException {
-        sendError( response, HttpServletResponse.SC_NOT_FOUND, message );
+        RestJson.sendNotFound( response, message );
     }
 
     /**
@@ -481,40 +471,16 @@ public abstract class RestServletBase extends HttpServlet {
      */
     protected JsonObject parseJsonBody( final HttpServletRequest request, final HttpServletResponse response )
             throws IOException {
-        try ( BufferedReader reader = request.getReader() ) {
-            return JsonParser.parseReader( reader ).getAsJsonObject();
-        } catch ( final Exception e ) {
-            // D23: do not echo the raw GSON parser message — it can include URLs to the
-            // GSON troubleshooting docs and class names that leak the parser library to
-            // API consumers. Log the full cause server-side and return a sanitized
-            // human-readable summary.
-            LOG.warn( "Rejecting malformed JSON body for {}: {}", request.getRequestURI(), e.getMessage() );
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Invalid JSON body: " + sanitizeParseError( e.getMessage() ) );
-            return null;
-        }
+        return RestJson.parseJsonBody( request, response );
     }
 
     /**
      * D23: returns a short, library-neutral description of the parser failure. Strips
      * any URLs (e.g. links to GSON's documentation) and Java class names, so the
-     * client never sees that we use GSON.
+     * client never sees that we use GSON. Delegates to {@link RestJson#sanitizeParseError}.
      */
     static String sanitizeParseError( final String raw ) {
-        if ( raw == null || raw.isEmpty() ) {
-            return "could not parse body as JSON object";
-        }
-        // Drop URL fragments
-        String s = raw.replaceAll( "https?://\\S+", "" );
-        // Drop fully-qualified class names (com.google.gson.x.y) and com/google/gson references
-        s = s.replaceAll( "(?i)gson", "" );
-        s = s.replaceAll( "[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z][A-Za-z0-9_.]*Exception", "parse error" );
-        // Trim trailing whitespace, collapse runs
-        s = s.replaceAll( "\\s+", " " ).trim();
-        if ( s.isEmpty() ) {
-            return "could not parse body as JSON object";
-        }
-        return s;
+        return RestJson.sanitizeParseError( raw );
     }
 
     /**
@@ -525,10 +491,7 @@ public abstract class RestServletBase extends HttpServlet {
      * a JSON object/array — which otherwise surfaces as a 500 instead of a 400.
      */
     protected String getJsonString( final JsonObject obj, final String key ) {
-        if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
-            return obj.get( key ).getAsString();
-        }
-        return null;
+        return RestJson.getJsonString( obj, key );
     }
 
     /**
@@ -538,14 +501,7 @@ public abstract class RestServletBase extends HttpServlet {
      * a 500).
      */
     protected int getJsonInt( final JsonObject obj, final String key, final int def ) {
-        if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
-            try {
-                return obj.get( key ).getAsInt();
-            } catch ( final NumberFormatException e ) {
-                return def;
-            }
-        }
-        return def;
+        return RestJson.getJsonInt( obj, key, def );
     }
 
     /**
@@ -564,14 +520,7 @@ public abstract class RestServletBase extends HttpServlet {
      * absent, JSON null, or not a parseable number. Never throws on malformed input.
      */
     protected double getJsonDouble( final JsonObject obj, final String key, final double def ) {
-        if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
-            try {
-                return obj.get( key ).getAsDouble();
-            } catch ( final NumberFormatException e ) {
-                return def;
-            }
-        }
-        return def;
+        return RestJson.getJsonDouble( obj, key, def );
     }
 
     /**
@@ -596,15 +545,7 @@ public abstract class RestServletBase extends HttpServlet {
      * @return the parsed integer or the default
      */
     protected int parseIntParam( final HttpServletRequest request, final String paramName, final int defaultValue ) {
-        final String value = request.getParameter( paramName );
-        if ( value == null ) {
-            return defaultValue;
-        }
-        try {
-            return Integer.parseInt( value );
-        } catch ( final NumberFormatException e ) {
-            return defaultValue;
-        }
+        return RestJson.parseIntParam( request, paramName, defaultValue );
     }
 
 }

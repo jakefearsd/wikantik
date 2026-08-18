@@ -666,15 +666,7 @@ public class AuthResource extends RestServletBase {
     // ----- Helper methods -----
 
     private Map< String, Object > profileToMap( final UserProfile profile ) {
-        final Map< String, Object > map = new LinkedHashMap<>();
-        map.put( "loginName", profile.getLoginName() );
-        map.put( "fullName", profile.getFullname() );
-        map.put( "email", profile.getEmail() );
-        map.put( "bio", profile.getBio() );
-        map.put( "wikiName", profile.getWikiName() );
-        map.put( "created", formatDate( profile.getCreated() ) );
-        map.put( "lastModified", formatDate( profile.getLastModified() ) );
-        return map;
+        return UserProfileMapping.coreFields( profile, this::formatDate );
     }
 
 }

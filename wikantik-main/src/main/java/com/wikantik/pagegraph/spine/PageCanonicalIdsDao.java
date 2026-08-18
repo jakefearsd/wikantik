@@ -18,6 +18,7 @@
  */
 package com.wikantik.pagegraph.spine;
 
+import com.wikantik.jdbc.JdbcSupport;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,7 +37,7 @@ import java.util.Optional;
  * All methods are idempotent: {@link #upsert} inserts on miss and updates
  * on hit, emitting a history row whenever the slug actually changes.
  */
-public class PageCanonicalIdsDao extends SpineJdbcSupport {
+public class PageCanonicalIdsDao extends JdbcSupport {
 
     private static final Logger LOG = LogManager.getLogger( PageCanonicalIdsDao.class );
 

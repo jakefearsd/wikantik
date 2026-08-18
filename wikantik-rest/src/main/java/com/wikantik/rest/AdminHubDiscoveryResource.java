@@ -20,7 +20,6 @@ package com.wikantik.rest;
 
 import com.wikantik.knowledge.HubDiscoveryException;
 import com.wikantik.knowledge.HubDiscoveryRepository;
-import com.wikantik.knowledge.HubDiscoveryRepository.DismissedProposal;
 import com.wikantik.knowledge.HubDiscoveryService;
 import com.wikantik.knowledge.HubNameCollisionException;
 import com.wikantik.rest.dto.AcceptProposalRequest;
@@ -266,42 +265,11 @@ public class AdminHubDiscoveryResource extends RestServletBase {
 
     private void handleListProposals( final HttpServletRequest request,
                                        final HttpServletResponse response ) throws IOException {
-        final HubDiscoveryRepository repo = getSubsystems().knowledge().hubDiscoveryRepository();
-        if ( repo == null ) {
-            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                "HubDiscoveryRepository is not available" );
-            return;
-        }
-        int limit = parseIntParam( request, "limit", 50 );
-        if ( limit > MAX_LIMIT ) {
-            limit = MAX_LIMIT;
-        }
-        if ( limit < 1 ) {
-            limit = 1;
-        }
-        final int offset = Math.max( 0, parseIntParam( request, "offset", 0 ) );
-
-        final List< HubDiscoveryRepository.HubDiscoveryProposal > proposals = repo.list( limit, offset );
-        final int total = repo.count();
-
-        final List< Map< String, Object > > serializable = new ArrayList<>();
-        for ( final HubDiscoveryRepository.HubDiscoveryProposal p : proposals ) {
-            final Map< String, Object > m = new LinkedHashMap<>();
-            m.put( "id", p.id() );
-            m.put( "suggestedName", p.suggestedName() );
-            m.put( "exemplarPage", p.exemplarPage() );
-            m.put( "memberPages", p.memberPages() );
-            m.put( "coherenceScore", p.coherenceScore() );
-            m.put( "created", p.created() != null ? p.created().toString() : null );
-            serializable.add( m );
-        }
-
-        final Map< String, Object > result = new LinkedHashMap<>();
-        result.put( "total", total );
-        result.put( "limit", limit );
-        result.put( "offset", offset );
-        result.put( "proposals", serializable );
-        sendJson( response, result );
+        handlePagedList( request, response,
+            ( repo, limit, offset ) -> repo.list( limit, offset ),
+            HubDiscoveryRepository::count,
+            p -> proposalFields( p.id(), p.suggestedName(), p.exemplarPage(), p.memberPages(),
+                p.coherenceScore(), p.created() ) );
     }
 
     private void handleAccept( final int id,
@@ -378,44 +346,16 @@ public class AdminHubDiscoveryResource extends RestServletBase {
 
     private void handleListDismissed( final HttpServletRequest request,
                                        final HttpServletResponse response ) throws IOException {
-        final HubDiscoveryRepository repo = getSubsystems().knowledge().hubDiscoveryRepository();
-        if ( repo == null ) {
-            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                "HubDiscoveryRepository is not available" );
-            return;
-        }
-        int limit = parseIntParam( request, "limit", 50 );
-        if ( limit > MAX_LIMIT ) {
-            limit = MAX_LIMIT;
-        }
-        if ( limit < 1 ) {
-            limit = 1;
-        }
-        final int offset = Math.max( 0, parseIntParam( request, "offset", 0 ) );
-
-        final List< DismissedProposal > rows = repo.listDismissed( limit, offset );
-        final int total = repo.countDismissed();
-
-        final List< Map< String, Object > > serializable = new ArrayList<>();
-        for ( final DismissedProposal p : rows ) {
-            final Map< String, Object > m = new LinkedHashMap<>();
-            m.put( "id", p.id() );
-            m.put( "suggestedName", p.suggestedName() );
-            m.put( "exemplarPage", p.exemplarPage() );
-            m.put( "memberPages", p.memberPages() );
-            m.put( "coherenceScore", p.coherenceScore() );
-            m.put( "created", p.created() != null ? p.created().toString() : null );
-            m.put( "reviewedBy", p.reviewedBy() );
-            m.put( "reviewedAt", p.reviewedAt() != null ? p.reviewedAt().toString() : null );
-            serializable.add( m );
-        }
-
-        final Map< String, Object > result = new LinkedHashMap<>();
-        result.put( "total", total );
-        result.put( "limit", limit );
-        result.put( "offset", offset );
-        result.put( "proposals", serializable );
-        sendJson( response, result );
+        handlePagedList( request, response,
+            ( repo, limit, offset ) -> repo.listDismissed( limit, offset ),
+            HubDiscoveryRepository::countDismissed,
+            p -> {
+                final Map< String, Object > m = proposalFields( p.id(), p.suggestedName(), p.exemplarPage(),
+                    p.memberPages(), p.coherenceScore(), p.created() );
+                m.put( "reviewedBy", p.reviewedBy() );
+                m.put( "reviewedAt", p.reviewedAt() != null ? p.reviewedAt().toString() : null );
+                return m;
+            } );
     }
 
     private void handleDeleteDismissed( final int id, final HttpServletResponse response )
@@ -505,20 +445,10 @@ public class AdminHubDiscoveryResource extends RestServletBase {
     private void handleHubDrilldown( final String path, final HttpServletResponse response )
             throws IOException {
         // path = "/hubs/{encodedName}"
-        final String encoded = path.substring( "/hubs/".length() );
-        if ( encoded.isEmpty() || encoded.contains( "/" ) ) {
-            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
-            return;
-        }
-        final String hubName = java.net.URLDecoder.decode( encoded, java.nio.charset.StandardCharsets.UTF_8 );
-
-        final com.wikantik.knowledge.HubOverviewService svc =
-            getSubsystems().knowledge().hubOverviewService();
-        if ( svc == null ) {
-            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                "HubOverviewService is not available" );
-            return;
-        }
+        final HubTarget target = resolveHubTarget( path, "/hubs/", "", response );
+        if ( target == null ) return;
+        final String hubName = target.hubName();
+        final com.wikantik.knowledge.HubOverviewService svc = target.svc();
 
         try {
             final var d = svc.loadDrilldown( hubName );
@@ -564,22 +494,10 @@ public class AdminHubDiscoveryResource extends RestServletBase {
                                        final HttpServletRequest request,
                                        final HttpServletResponse response ) throws IOException {
         // path = /hubs/{encodedName}/remove-member
-        final String prefix = "/hubs/";
-        final String suffix = "/remove-member";
-        final String encoded = path.substring( prefix.length(), path.length() - suffix.length() );
-        if ( encoded.isEmpty() || encoded.contains( "/" ) ) {
-            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
-            return;
-        }
-        final String hubName = java.net.URLDecoder.decode( encoded, java.nio.charset.StandardCharsets.UTF_8 );
-
-        final com.wikantik.knowledge.HubOverviewService svc =
-            getSubsystems().knowledge().hubOverviewService();
-        if ( svc == null ) {
-            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                "HubOverviewService is not available" );
-            return;
-        }
+        final HubTarget target = resolveHubTarget( path, "/hubs/", "/remove-member", response );
+        if ( target == null ) return;
+        final String hubName = target.hubName();
+        final com.wikantik.knowledge.HubOverviewService svc = target.svc();
 
         final com.wikantik.rest.dto.RemoveHubMemberRequest body;
         try ( BufferedReader reader = request.getReader() ) {
@@ -630,5 +548,105 @@ public class AdminHubDiscoveryResource extends RestServletBase {
     private static String resolveReviewer( final HttpServletRequest request ) {
         final String user = request.getRemoteUser();
         return ( user != null && !user.isEmpty() ) ? user : "admin";
+    }
+
+    // ---- shared paged-list helper (handleListProposals / handleListDismissed) ----
+
+    /** Fetches one page of rows from a resolved {@link HubDiscoveryRepository}. */
+    @FunctionalInterface
+    private interface RepoFetch< T > {
+        List< T > fetch( HubDiscoveryRepository repo, int limit, int offset );
+    }
+
+    /** Reads the total row count from a resolved {@link HubDiscoveryRepository}. */
+    @FunctionalInterface
+    private interface RepoCount {
+        int count( HubDiscoveryRepository repo );
+    }
+
+    /**
+     * Shared handler for {@code GET /proposals} and {@code GET /proposals/dismissed}: resolves
+     * the {@link HubDiscoveryRepository}, clamps {@code limit}/{@code offset}, fetches the page
+     * and total via {@code fetch}/{@code count}, and serializes each row via {@code toMap} into
+     * the same {@code {total, limit, offset, proposals}} envelope both endpoints return. Writes
+     * a 503 itself when the repository is unavailable.
+     */
+    private < T > void handlePagedList( final HttpServletRequest request, final HttpServletResponse response,
+            final RepoFetch< T > fetch, final RepoCount count,
+            final java.util.function.Function< T, Map< String, Object > > toMap ) throws IOException {
+        final HubDiscoveryRepository repo = getSubsystems().knowledge().hubDiscoveryRepository();
+        if ( repo == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "HubDiscoveryRepository is not available" );
+            return;
+        }
+        int limit = parseIntParam( request, "limit", 50 );
+        if ( limit > MAX_LIMIT ) {
+            limit = MAX_LIMIT;
+        }
+        if ( limit < 1 ) {
+            limit = 1;
+        }
+        final int offset = Math.max( 0, parseIntParam( request, "offset", 0 ) );
+
+        final List< T > rows = fetch.fetch( repo, limit, offset );
+        final int total = count.count( repo );
+
+        final List< Map< String, Object > > serializable = new ArrayList<>();
+        for ( final T row : rows ) {
+            serializable.add( toMap.apply( row ) );
+        }
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "total", total );
+        result.put( "limit", limit );
+        result.put( "offset", offset );
+        result.put( "proposals", serializable );
+        sendJson( response, result );
+    }
+
+    /** Common serializable fields shared by {@code HubDiscoveryProposal} and {@code DismissedProposal}. */
+    private static Map< String, Object > proposalFields( final int id, final String suggestedName,
+            final String exemplarPage, final List< String > memberPages, final double coherenceScore,
+            final java.time.Instant created ) {
+        final Map< String, Object > m = new LinkedHashMap<>();
+        m.put( "id", id );
+        m.put( "suggestedName", suggestedName );
+        m.put( "exemplarPage", exemplarPage );
+        m.put( "memberPages", memberPages );
+        m.put( "coherenceScore", coherenceScore );
+        m.put( "created", created != null ? created.toString() : null );
+        return m;
+    }
+
+    // ---- shared hub-name resolution (handleHubDrilldown / handleRemoveMember) ----
+
+    private record HubTarget( String hubName, com.wikantik.knowledge.HubOverviewService svc ) {}
+
+    /**
+     * Shared prologue for the two {@code /hubs/{name}...} handlers: extracts and URL-decodes
+     * the hub name between {@code prefix} and {@code suffix} in {@code path}, validates it is
+     * non-empty and contains no further path segments, then resolves the
+     * {@link com.wikantik.knowledge.HubOverviewService}. Writes the appropriate error response
+     * itself (404 for a malformed path, 503 for an unavailable service) and returns
+     * {@code null} on either failure; callers must return immediately in that case.
+     */
+    private HubTarget resolveHubTarget( final String path, final String prefix, final String suffix,
+                                         final HttpServletResponse response ) throws IOException {
+        final String encoded = path.substring( prefix.length(), path.length() - suffix.length() );
+        if ( encoded.isEmpty() || encoded.contains( "/" ) ) {
+            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
+            return null;
+        }
+        final String hubName = java.net.URLDecoder.decode( encoded, java.nio.charset.StandardCharsets.UTF_8 );
+
+        final com.wikantik.knowledge.HubOverviewService svc =
+            getSubsystems().knowledge().hubOverviewService();
+        if ( svc == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "HubOverviewService is not available" );
+            return null;
+        }
+        return new HubTarget( hubName, svc );
     }
 }

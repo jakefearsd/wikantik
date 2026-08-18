@@ -23,6 +23,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.event.KgChangeEvent;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.kgpolicy.KgInclusionFilter;
+import com.wikantik.knowledge.judge.JudgeRunner;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -841,21 +842,10 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
             throw new IllegalArgumentException( "no proposal: " + proposalId );
         }
         final JudgeVerdict v = judgeService.judge( proposal );
-        proposals.applyMachineVerdict( proposalId, v.verdict(), v.confidence(), v.model() );
-        proposals.recordReview( proposalId, KgProposalReview.REVIEWER_MACHINE, v.model(),
-            v.verdict(), v.confidence(), v.rationale() );
+        JudgeRunner.recordVerdict( proposals, rejections, proposal, v );
         if ( JudgeVerdict.APPROVED.equals( v.verdict() ) && materialization != null ) {
             materialization.materializeMachine( proposal );
             snapshotBuilder.invalidateCache();
-        } else if ( JudgeVerdict.REJECTED.equals( v.verdict() )
-                && "new-edge".equals( proposal.proposalType() ) ) {
-            final var data = proposal.proposedData();
-            final String src = Objects.toString( data.get( "source" ), null );
-            final String tgt = Objects.toString( data.get( "target" ), null );
-            final String rel = Objects.toString( data.get( "relationship" ), null );
-            if ( src != null && tgt != null && rel != null ) {
-                rejections.insertRejection( src, tgt, rel, v.model(), v.rationale() );
-            }
         }
         LOG.info( "judgeNow proposal={} verdict={} triggeredBy={}", proposalId, v.verdict(), triggeredBy );
         return v;

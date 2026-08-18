@@ -6,6 +6,63 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **The CI quality gates are green again.** Two independent failures had been
+  red on every run of `quality-gates.yml` for at least four consecutive pushes.
+
+  *Complexity ratchet:* `wikantik-insights` carried 11 PMD violations and had no
+  entry in the burn-down baseline at all — the module postdates the 2026-07-03
+  baseline generation and was never fenced, so the gate failed the moment the
+  module gained enough logic to trip a rule. Four baseline lines now fence that
+  inherited debt (`ImportedOpportunityParser`, `JdbcInsightsStore`,
+  `OpportunityEngine`, `VisibilityRow`). This is **new debt being fenced, not
+  burned down**, which the baseline's own rules require to be justified: 9 of
+  the 11 are structural (`OpportunityEngine` is a God Class at WMC=88,
+  `JdbcInsightsStore` has a class-total cyclomatic complexity of 118), and
+  decomposing them is real work rather than a mechanical fix. The two cheap ones
+  — `VisibilityRow.of`'s 9-parameter list and `ImportedOpportunityParser.parseRow`
+  — are the first candidates to come back out.
+
+  *OSV scan:* five known vulnerabilities, all in unmanaged transitive Maven
+  dependencies (the npm side was clean). `httpcore5` 5.2.5
+  (GHSA-hf6x-8p5f-cgmf, 7.5 HIGH) and `httpcore5-h2` 5.2.4
+  (GHSA-v3jc-474w-2wm6, 7.5 HIGH) are pinned to 5.4.3; `httpclient5` 5.3.1/5.6.2
+  (GHSA-hjcp-jmpx-g3qm) to 5.6.4; `jsoup` 1.15.4 (GHSA-pmhh-3w7g-xqp8) to
+  1.23.1, the version `wikantik-connectors` already declared directly. All five
+  are `dependencyManagement` pins in the root POM following the existing `sec.*`
+  convention — no code change, and no collision with the two standing holds
+  (Apache parent 39, libthrift 0.23).
+
+- **`wikantik-insights` was missing from the aggregate coverage report.** The
+  module was never added to `wikantik-coverage-report`'s dependency list, so its
+  25 main classes were invisible in every coverage figure the project reported.
+
+### Changed
+- **De-duplication pass across seven modules — 991 lines removed, 538 added.**
+  Every item was identified by PMD CPD and is a behavior-preserving extraction;
+  no test was modified. The largest was a 104-line block duplicated between
+  `KgJdbcSupport` and `SpineJdbcSupport`, which was *deliberate* — the Page Graph
+  copy existed to avoid a knowledge/pagegraph coupling. That rationale no longer
+  holds: both classes live in the same Maven module and no ArchUnit rule enforces
+  the boundary, so the shared Template Method core moved to a neutral
+  `com.wikantik.jdbc.JdbcSupport` and `SpineJdbcSupport` was deleted outright.
+
+  Also extracted: `RestJson` (killing the 8 methods whose own Javadoc read
+  "Verbatim copy of `RestServletBase#…`"), `UserProfileMapping`, `ScimIo`,
+  `ScimUserFields`, `WebConnectorSupport` (a 3-way duplicate, not the 2-way one
+  CPD reported), and `SlugPatternCheck`. `FrontmatterParser.parse()` and
+  `parseStrict()` now share one delimiter-splitting routine and differ only in
+  error policy, and `Release`'s two version comparators share one walk.
+
+  Three CPD findings were deliberately **not** actioned: the MCP tool-builder
+  boilerplate (an idiom repeated across 18 files, not a two-file defect), CLI
+  argument parsing (a fix requires threading a loop index across files), and two
+  hot-path blocks where a holder object would touch more lines than the
+  duplicate. One duplicate turned out to be two *different* operations wearing
+  the same shape — `KgMaterializationService` deletes a rejection where the judge
+  path inserts one — and was left alone.
+
+
 ## [2.4.10] - 2026-08-17
 
 ### Added

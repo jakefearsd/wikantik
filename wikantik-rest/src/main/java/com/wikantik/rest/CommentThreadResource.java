@@ -234,17 +234,9 @@ public class CommentThreadResource extends RestServletBase {
 
     private void editComment( final HttpServletRequest request, final HttpServletResponse response,
                               final String threadIdRaw, final String commentIdRaw ) throws IOException {
-        final ThreadCtx ctx = authorizeThread( request, response, threadIdRaw, "comment" );
-        if ( ctx == null ) return;
-        final UUID commentId = parseUuid( commentIdRaw, response );
-        if ( commentId == null ) return;
-        final Optional< Comment > existing = commentStore().findComment( commentId );
-        if ( existing.isEmpty() ) { sendNotFound( response, "Comment not found" ); return; }
-        if ( !existing.get().threadId().equals( ctx.threadId ) ) {
-            sendNotFound( response, "Comment not found in this thread" );
-            return;
-        }
-        if ( !existing.get().author().equals( currentUser( request ) ) ) {
+        final CommentCtx cc = authorizeComment( request, response, threadIdRaw, commentIdRaw );
+        if ( cc == null ) return;
+        if ( !cc.comment().author().equals( currentUser( request ) ) ) {
             sendError( response, HttpServletResponse.SC_FORBIDDEN,
                     "Only the comment author can edit this comment" );
             return;
@@ -257,7 +249,7 @@ public class CommentThreadResource extends RestServletBase {
             return;
         }
         final Comment updated = commentStore().editComment(
-                commentId, existing.get().body(), text, currentUser( request ), mentionService() )
+                cc.commentId(), cc.comment().body(), text, currentUser( request ), mentionService() )
                 .orElse( null );
         if ( updated == null ) { sendNotFound( response, "Comment not found" ); return; }
         sendJson( response, commentToMap( updated ) );
@@ -265,27 +257,19 @@ public class CommentThreadResource extends RestServletBase {
 
     private void deleteComment( final HttpServletRequest request, final HttpServletResponse response,
                                 final String threadIdRaw, final String commentIdRaw ) throws IOException {
-        final ThreadCtx ctx = authorizeThread( request, response, threadIdRaw, "comment" );
-        if ( ctx == null ) return;
-        final UUID commentId = parseUuid( commentIdRaw, response );
-        if ( commentId == null ) return;
-        final Optional< Comment > existing = commentStore().findComment( commentId );
-        if ( existing.isEmpty() ) { sendNotFound( response, "Comment not found" ); return; }
-        if ( !existing.get().threadId().equals( ctx.threadId ) ) {
-            sendNotFound( response, "Comment not found in this thread" );
-            return;
-        }
-        final boolean isAuthor = existing.get().author().equals( currentUser( request ) );
-        final boolean canModerate = hasPagePermission( request, ctx.slug, "delete" );
+        final CommentCtx cc = authorizeComment( request, response, threadIdRaw, commentIdRaw );
+        if ( cc == null ) return;
+        final boolean isAuthor = cc.comment().author().equals( currentUser( request ) );
+        final boolean canModerate = hasPagePermission( request, cc.threadCtx().slug(), "delete" );
         if ( !isAuthor && !canModerate ) {
             sendError( response, HttpServletResponse.SC_FORBIDDEN,
                     "Only the comment author or a page moderator can delete this comment" );
             return;
         }
-        commentStore().deleteComment( commentId );
+        commentStore().deleteComment( cc.commentId() );
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "deleted", true );
-        result.put( "id", commentId.toString() );
+        result.put( "id", cc.commentId().toString() );
         sendJson( response, result );
     }
 
@@ -302,6 +286,30 @@ public class CommentThreadResource extends RestServletBase {
     }
 
     private record ThreadCtx( UUID threadId, String slug ) {}
+
+    /**
+     * Shared prologue for {@link #editComment} and {@link #deleteComment}: authorizes the
+     * thread (action {@code "comment"} — both callers require it), parses the comment id, and
+     * confirms the comment exists and belongs to the thread. Writes the appropriate error
+     * response itself and returns {@code null} on any failure; callers must return immediately
+     * in that case.
+     */
+    private CommentCtx authorizeComment( final HttpServletRequest request, final HttpServletResponse response,
+                                         final String threadIdRaw, final String commentIdRaw ) throws IOException {
+        final ThreadCtx ctx = authorizeThread( request, response, threadIdRaw, "comment" );
+        if ( ctx == null ) return null;
+        final UUID commentId = parseUuid( commentIdRaw, response );
+        if ( commentId == null ) return null;
+        final Optional< Comment > existing = commentStore().findComment( commentId );
+        if ( existing.isEmpty() ) { sendNotFound( response, "Comment not found" ); return null; }
+        if ( !existing.get().threadId().equals( ctx.threadId ) ) {
+            sendNotFound( response, "Comment not found in this thread" );
+            return null;
+        }
+        return new CommentCtx( ctx, commentId, existing.get() );
+    }
+
+    private record CommentCtx( ThreadCtx threadCtx, UUID commentId, Comment comment ) {}
 
     private UUID parseUuid( final String raw, final HttpServletResponse response ) throws IOException {
         try {

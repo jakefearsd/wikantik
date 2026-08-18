@@ -160,17 +160,7 @@ public final class SchemaDrivenFrontmatterValidator {
                                 + " characters (is " + len + ")." ) );
             }
         }
-        if ( spec.pattern() != null && !val.matches( spec.pattern() ) ) {
-            // Advisory, not blocking: ~15 live clusters are non-kebab (e.g. "Data Structures"), so a
-            // blocking error would 422 every edit to those pages. Warn sternly + suggest the slug.
-            final String suggestion = slugify( val );
-            final String msg = "'" + spec.key() + "' value \"" + val
-                    + "\" is not a valid slug — use lowercase kebab-case"
-                    + ( suggestion.isEmpty() ? "." : ", e.g. '" + suggestion + "'." )
-                    + " Tolerated for now, but it will be rejected once the corpus is normalized.";
-            out.add( new FieldViolation( spec.key(), Severity.WARNING, spec.key() + ".slug.malformed",
-                    msg, suggestion.isEmpty() ? null : suggestion ) );
-        }
+        SlugPatternCheck.check( spec, val, out );
     }
 
     private void validateDate( final FieldSpec spec, final Object raw,
@@ -285,11 +275,5 @@ public final class SchemaDrivenFrontmatterValidator {
             }
         }
         return false;
-    }
-
-    private static String slugify( final String s ) {
-        return s.toLowerCase( Locale.ROOT ).trim()
-                .replaceAll( "[^a-z0-9]+", "-" )
-                .replaceAll( "(^-+|-+$)", "" );
     }
 }

@@ -236,20 +236,9 @@ public class JudgeRunner implements AutoCloseable {
                 }
                 return;
             }
-            proposals.applyMachineVerdict( proposal.id(), v.verdict(), v.confidence(), v.model() );
-            proposals.recordReview( proposal.id(), KgProposalReview.REVIEWER_MACHINE, v.model(),
-                v.verdict(), v.confidence(), v.rationale() );
+            recordVerdict( proposals, rejections, proposal, v );
             if ( JudgeVerdict.APPROVED.equals( v.verdict() ) ) {
                 materialization.materializeMachine( proposal );
-            } else if ( JudgeVerdict.REJECTED.equals( v.verdict() )
-                    && "new-edge".equals( proposal.proposalType() ) ) {
-                final var data = proposal.proposedData();
-                final String src = Objects.toString( data.get( "source" ), null );
-                final String tgt = Objects.toString( data.get( "target" ), null );
-                final String rel = Objects.toString( data.get( "relationship" ), null );
-                if ( src != null && tgt != null && rel != null ) {
-                    rejections.insertRejection( src, tgt, rel, v.model(), v.rationale() );
-                }
             }
             lastRunCompleted.incrementAndGet();
         } catch ( final PoolClosedException e ) {
@@ -257,6 +246,43 @@ public class JudgeRunner implements AutoCloseable {
                 proposal.id() );
         } catch ( final RuntimeException e ) {
             LOG.warn( "judge processing failed for proposal {}: {}", proposal.id(), e.getMessage(), e );
+        }
+    }
+
+    /**
+     * Records a machine judge verdict against a proposal: applies the verdict + writes the
+     * machine review, and — on a hard REJECTED verdict for a {@code new-edge} proposal — inserts
+     * a negative-knowledge rejection so the extractor won't re-propose the same triple.
+     *
+     * <p>Deliberately does not act on an APPROVED verdict: whether/how to materialize differs by
+     * call site. Here, {@code materialization} is a required collaborator and every approval is
+     * materialized unconditionally (see {@link #processOne}). In
+     * {@code DefaultKnowledgeGraphService#judgeNow}, materialization is an optional collaborator
+     * and a successful materialization there also invalidates that class's own graph-snapshot
+     * cache — a side effect with no equivalent here. Each caller therefore drives the APPROVED
+     * branch itself immediately after calling this method, using this method only for the
+     * record-keeping + reject-recording both call sites share verbatim.</p>
+     *
+     * @param proposals  the proposal repository backing {@code applyMachineVerdict}/{@code recordReview}
+     * @param rejections the negative-knowledge repository backing the REJECTED branch
+     * @param proposal   the proposal being judged
+     * @param v          the verdict returned by the judge service
+     */
+    public static void recordVerdict( final KgProposalRepository proposals,
+                                       final KgRejectionRepository rejections,
+                                       final KgProposal proposal, final JudgeVerdict v ) {
+        proposals.applyMachineVerdict( proposal.id(), v.verdict(), v.confidence(), v.model() );
+        proposals.recordReview( proposal.id(), KgProposalReview.REVIEWER_MACHINE, v.model(),
+            v.verdict(), v.confidence(), v.rationale() );
+        if ( JudgeVerdict.REJECTED.equals( v.verdict() )
+                && "new-edge".equals( proposal.proposalType() ) ) {
+            final var data = proposal.proposedData();
+            final String src = Objects.toString( data.get( "source" ), null );
+            final String tgt = Objects.toString( data.get( "target" ), null );
+            final String rel = Objects.toString( data.get( "relationship" ), null );
+            if ( src != null && tgt != null && rel != null ) {
+                rejections.insertRejection( src, tgt, rel, v.model(), v.rationale() );
+            }
         }
     }
 

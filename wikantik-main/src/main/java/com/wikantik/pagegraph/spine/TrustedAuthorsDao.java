@@ -18,6 +18,7 @@
  */
 package com.wikantik.pagegraph.spine;
 
+import com.wikantik.jdbc.JdbcSupport;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -34,7 +35,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * {@link #contains} on every rebuild, so we cache the set in memory and
  * refresh on writes.
  */
-public class TrustedAuthorsDao extends SpineJdbcSupport {
+public class TrustedAuthorsDao extends JdbcSupport {
 
     private static final Logger LOG = LogManager.getLogger( TrustedAuthorsDao.class );
 

@@ -100,21 +100,13 @@ public class ConnectorCredentialsResource extends RestServletBase {
     @Override
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-        final CredentialStore store = resolveStore();
-        if ( store == null || !store.enabled() ) {
-            sendServiceUnavailable( response );
+        final CredentialTarget target = resolveCredentialTarget( request, response );
+        if ( target == null ) {
             return;
         }
-
-        final String path = extractPathParam( request );
-        final String[] segments = path == null || path.isEmpty() ? new String[ 0 ] : path.split( "/" );
-        if ( segments.length != 2 ) {
-            sendNotFound( response, "Unknown connector-credentials endpoint: " + path );
-            return;
-        }
-
-        final String connectorId = segments[ 0 ];
-        final String name = segments[ 1 ];
+        final CredentialStore store = target.store();
+        final String connectorId = target.connectorId();
+        final String name = target.name();
 
         final String rawSecret = readSecret( request );
         if ( rawSecret == null ) {
@@ -147,27 +139,52 @@ public class ConnectorCredentialsResource extends RestServletBase {
     @Override
     protected void doDelete( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-        final CredentialStore store = resolveStore();
-        if ( store == null || !store.enabled() ) {
-            sendServiceUnavailable( response );
+        final CredentialTarget target = resolveCredentialTarget( request, response );
+        if ( target == null ) {
             return;
         }
-
-        final String path = extractPathParam( request );
-        final String[] segments = path == null || path.isEmpty() ? new String[ 0 ] : path.split( "/" );
-        if ( segments.length != 2 ) {
-            sendNotFound( response, "Unknown connector-credentials endpoint: " + path );
-            return;
-        }
-
-        final String connectorId = segments[ 0 ];
-        final String name = segments[ 1 ];
+        final CredentialStore store = target.store();
+        final String connectorId = target.connectorId();
+        final String name = target.name();
 
         store.delete( connectorId, name );
         LOG.info( "ConnectorCredentialsResource: secret '{}' deleted for connector '{}'", name, connectorId );
         recordAudit( "connector.credential.delete", currentLogin( request ), connectorId, name );
         rebuildBestEffort();
         response.setStatus( HttpServletResponse.SC_NO_CONTENT );
+    }
+
+    // -------------------------------------------------------------------------
+    // Shared POST/DELETE path resolution
+    // -------------------------------------------------------------------------
+
+    /** Bundles the resolved {@link CredentialStore} together with the {@code {id}/{name}}
+     *  path segments shared by {@link #doPost} and {@link #doDelete}. */
+    private record CredentialTarget( CredentialStore store, String connectorId, String name ) {}
+
+    /**
+     * Resolves the {@link CredentialStore} and validates the two-segment
+     * {@code {connectorId}/{name}} path shared by {@link #doPost} and {@link #doDelete}.
+     * Writes the appropriate error response itself (503 when the store is unavailable, 404
+     * for a malformed path) and returns {@code null} on either failure; callers must return
+     * immediately in that case.
+     */
+    private CredentialTarget resolveCredentialTarget( final HttpServletRequest request,
+                                                        final HttpServletResponse response ) throws IOException {
+        final CredentialStore store = resolveStore();
+        if ( store == null || !store.enabled() ) {
+            sendServiceUnavailable( response );
+            return null;
+        }
+
+        final String path = extractPathParam( request );
+        final String[] segments = path == null || path.isEmpty() ? new String[ 0 ] : path.split( "/" );
+        if ( segments.length != 2 ) {
+            sendNotFound( response, "Unknown connector-credentials endpoint: " + path );
+            return null;
+        }
+
+        return new CredentialTarget( store, segments[ 0 ], segments[ 1 ] );
     }
 
     // -------------------------------------------------------------------------

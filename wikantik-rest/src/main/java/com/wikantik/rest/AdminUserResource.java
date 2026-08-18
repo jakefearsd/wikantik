@@ -51,7 +51,6 @@ import java.util.Calendar;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -636,14 +635,7 @@ public class AdminUserResource extends RestServletBase {
     }
 
     private Map< String, Object > profileToMap( final UserProfile profile ) {
-        final Map< String, Object > map = new LinkedHashMap<>();
-        map.put( "loginName", profile.getLoginName() );
-        map.put( "fullName", profile.getFullname() );
-        map.put( "email", profile.getEmail() );
-        map.put( "bio", profile.getBio() );
-        map.put( "wikiName", profile.getWikiName() );
-        map.put( "created", formatDate( profile.getCreated() ) );
-        map.put( "lastModified", formatDate( profile.getLastModified() ) );
+        final Map< String, Object > map = UserProfileMapping.coreFields( profile, this::formatDate );
         map.put( "lastLogin", formatDate( profile.getLastLogin() ) );
 
         final Date lockExpiry = profile.getLockExpiry();

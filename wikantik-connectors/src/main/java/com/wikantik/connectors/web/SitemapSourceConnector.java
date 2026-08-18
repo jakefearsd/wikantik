@@ -22,7 +22,6 @@ import com.wikantik.api.connectors.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.LongConsumer;
@@ -76,7 +75,9 @@ public final class SitemapSourceConnector implements SourceConnector {
 
     private Set< String > allowedHosts() {
         final Set< String > allowedHosts = new HashSet<>();
-        for ( final String sm : config.sitemapUrls() ) hostOf( sm ).ifPresent( allowedHosts::add );
+        for ( final String sm : config.sitemapUrls() ) {
+            WebConnectorSupport.hostOf( sm, LOG, "sitemap" ).ifPresent( allowedHosts::add );
+        }
         return allowedHosts;
     }
 
@@ -93,7 +94,7 @@ public final class SitemapSourceConnector implements SourceConnector {
      *  the batch's trust (a non-404/410 failure means enumeration can't be trusted for tombstoning). */
     private UrlFetchOutcome fetchPageItem( final String url, final RobotsPolicy robots,
                                            final Set< String > allowedHosts, final Set< String > visited ) {
-        if ( config.sameHostOnly() && hostOf( url ).map( h -> !allowedHosts.contains( h ) ).orElse( true ) ) {
+        if ( config.sameHostOnly() && WebConnectorSupport.hostOf( url, LOG, "sitemap" ).map( h -> !allowedHosts.contains( h ) ).orElse( true ) ) {
             return UrlFetchOutcome.skip();
         }
         if ( !visited.add( url ) ) return UrlFetchOutcome.skip();
@@ -101,7 +102,7 @@ public final class SitemapSourceConnector implements SourceConnector {
             LOG.info( "sitemap '{}': robots-disallowed, skipping {}", connectorId, url );
             return UrlFetchOutcome.skip();
         }
-        sleepPolitely( robots, url );
+        WebConnectorSupport.sleepPolitely( robots, url, config.respectRobots(), config.delayMs(), sleeper );
         final FetchResult r = fetcher.fetch( url );
         if ( r.status() / 100 != 2 ) {
             // the sitemap still LISTS this page, so it is not absent-at-source. 404/410 = the page
@@ -114,7 +115,7 @@ public final class SitemapSourceConnector implements SourceConnector {
             }
             return UrlFetchOutcome.skip();
         }
-        if ( !isHtml( r.contentType() ) ) return UrlFetchOutcome.skip();
+        if ( !WebConnectorSupport.isHtml( r.contentType() ) ) return UrlFetchOutcome.skip();
         final String finalUrl = r.finalUrl() == null ? url : r.finalUrl();
         return new UrlFetchOutcome( Optional.of( WebFetchItems.toItem( finalUrl, r ) ), true );
     }
@@ -147,7 +148,7 @@ public final class SitemapSourceConnector implements SourceConnector {
                 for ( final String sub : parsed.locs() ) {
                     // don't fetch a foreign-host sub-sitemap when same_host_only — otherwise a hostile
                     // sitemap-index could point us at thousands of GETs to an unrelated site.
-                    if ( config.sameHostOnly() && hostOf( sub ).map( h -> !allowedHosts.contains( h ) ).orElse( true ) ) {
+                    if ( config.sameHostOnly() && WebConnectorSupport.hostOf( sub, LOG, "sitemap" ).map( h -> !allowedHosts.contains( h ) ).orElse( true ) ) {
                         LOG.info( "sitemap '{}': skipping foreign-host sub-sitemap {}", connectorId, sub );
                         continue;
                     }
@@ -160,23 +161,5 @@ public final class SitemapSourceConnector implements SourceConnector {
             out.addAll( parsed.locs() );
         }
         return trusted;
-    }
-
-    private void sleepPolitely( final RobotsPolicy robots, final String url ) {
-        final long robotsDelay = config.respectRobots() ? robots.crawlDelayMs( url ) : 0L;
-        final long delay = Math.max( config.delayMs(), robotsDelay );
-        if ( delay > 0 ) sleeper.accept( delay );
-    }
-
-    private static Optional< String > hostOf( final String url ) {
-        try { return Optional.ofNullable( URI.create( url ).getHost() ); }
-        catch ( final RuntimeException e ) {
-            LOG.warn( "sitemap: could not derive host for {}: {}", url, e.getMessage() );
-            return Optional.empty();
-        }
-    }
-
-    private static boolean isHtml( final String contentType ) {
-        return contentType != null && contentType.toLowerCase( Locale.ROOT ).contains( "text/html" );
     }
 }

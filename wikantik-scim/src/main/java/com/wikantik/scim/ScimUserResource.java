@@ -18,7 +18,6 @@
  */
 package com.wikantik.scim;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
@@ -92,7 +91,7 @@ public class ScimUserResource extends AbstractScimServlet {
 
     @Override
     protected String extractIdentifier( final HttpServletRequest req ) {
-        return extractId( req );
+        return ScimIo.extractPathSegment( req );
     }
 
     // -------------------------------------------------------------------------
@@ -139,13 +138,8 @@ public class ScimUserResource extends AbstractScimServlet {
         try {
             final UserProfile p = db.newProfile();
             p.setLoginName( f.userName() );
-            if ( f.fullName() != null ) p.setFullname( f.fullName() );
-            if ( f.email() != null ) p.setEmail( f.email() );
-            if ( f.displayName() != null ) p.setWikiName( f.displayName() );
             // Stamp sso.subject BEFORE save so the identity link is atomic with creation
-            if ( f.externalId() != null ) {
-                p.getAttributes().put( SSOAutoProvisionService.ATTR_SSO_SUBJECT, f.externalId() );
-            }
+            ScimUserFields.applyCommonCreateFields( p, f );
             // If no password supplied, generate a random one so the account exists but
             // authenticates only via SSO (the random token is never revealed)
             final String password = ( f.password() != null && !f.password().isBlank() )
@@ -239,27 +233,8 @@ public class ScimUserResource extends AbstractScimServlet {
                 matched = listAll( db );
             }
 
-            // Pagination
-            final int total = matched.size();
-            final int from = Math.max( 0, startIndex - 1 ); // SCIM startIndex is 1-based
-            final List<UserProfile> page = matched.subList(
-                    Math.min( from, total ),
-                    Math.min( from + count, total ) );
-
-            final JsonArray resources = new JsonArray();
-            for ( final UserProfile p : page ) {
-                resources.add( ScimUserMapper.toScim( p, usersBaseUrl ) );
-            }
-
-            final JsonObject listResp = new JsonObject();
-            final JsonArray schemas = new JsonArray();
-            schemas.add( "urn:ietf:params:scim:api:messages:2.0:ListResponse" );
-            listResp.add( "schemas", schemas );
-            listResp.addProperty( "totalResults", total );
-            listResp.addProperty( "startIndex", startIndex );
-            listResp.addProperty( "itemsPerPage", page.size() );
-            listResp.add( "Resources", resources );
-
+            final JsonObject listResp = ScimIo.buildListResponse( matched, startIndex, count,
+                    p -> ScimUserMapper.toScim( p, usersBaseUrl ) );
             sendScim( resp, listResp );
 
         } catch ( final ScimFilterParser.UnsupportedFilterException e ) {
@@ -273,29 +248,15 @@ public class ScimUserResource extends AbstractScimServlet {
     @Override
     protected void handleReplace( final String id, final HttpServletRequest req,
                                   final HttpServletResponse resp ) throws IOException {
-        final UserDatabase db = getUserDatabase();
-        if ( db == null ) { sendError( resp, 503, null, "user database unavailable" ); return; }
+        final ReplacePatchContext ctx = loadReplacePatchContext( id, req, resp );
+        if ( ctx == null ) return;
+        final UserDatabase db = ctx.db();
+        UserProfile p = ctx.profile();
 
-        UserProfile p;
-        try {
-            p = db.findByUid( id );
-        } catch ( final NoSuchPrincipalException e ) {
-            sendError( resp, 404, null, "User not found: " + id );
-            return;
-        }
-
-        final JsonObject body = parseBody( req, resp );
-        if ( body == null ) return;
-
-        final ScimUserMapper.CreateFields f = ScimUserMapper.readCreate( body );
+        final ScimUserMapper.CreateFields f = ScimUserMapper.readCreate( ctx.body() );
         try {
             final boolean wasActive = !p.isLocked();
-            if ( f.fullName() != null ) p.setFullname( f.fullName() );
-            if ( f.email() != null ) p.setEmail( f.email() );
-            if ( f.displayName() != null ) p.setWikiName( f.displayName() );
-            if ( f.externalId() != null ) {
-                p.getAttributes().put( SSOAutoProvisionService.ATTR_SSO_SUBJECT, f.externalId() );
-            }
+            ScimUserFields.applyCommonCreateFields( p, f );
             if ( f.password() != null && !f.password().isBlank() ) {
                 p.setPassword( f.password() );
             }
@@ -333,22 +294,13 @@ public class ScimUserResource extends AbstractScimServlet {
     @Override
     protected void handlePatch( final String id, final HttpServletRequest req,
                                 final HttpServletResponse resp ) throws IOException {
-        final UserDatabase db = getUserDatabase();
-        if ( db == null ) { sendError( resp, 503, null, "user database unavailable" ); return; }
-
-        UserProfile p;
-        try {
-            p = db.findByUid( id );
-        } catch ( final NoSuchPrincipalException e ) {
-            sendError( resp, 404, null, "User not found: " + id );
-            return;
-        }
-
-        final JsonObject body = parseBody( req, resp );
-        if ( body == null ) return;
+        final ReplacePatchContext ctx = loadReplacePatchContext( id, req, resp );
+        if ( ctx == null ) return;
+        final UserDatabase db = ctx.db();
+        UserProfile p = ctx.profile();
 
         try {
-            final ScimPatchApplier.Result patch = ScimPatchApplier.apply( body );
+            final ScimPatchApplier.Result patch = ScimPatchApplier.apply( ctx.body() );
 
             // Apply active change via lifecycle
             if ( patch.activeChange() != null ) {
@@ -362,34 +314,7 @@ public class ScimUserResource extends AbstractScimServlet {
             }
 
             // Apply other simple attributes
-            final JsonObject attrs = patch.attributes();
-            boolean dirty = false;
-            if ( attrs.has( "displayName" ) && !attrs.get( "displayName" ).isJsonNull() ) {
-                p.setWikiName( attrs.get( "displayName" ).getAsString() );
-                dirty = true;
-            }
-            if ( attrs.has( "name" ) && attrs.get( "name" ).isJsonObject() ) {
-                final JsonObject n = attrs.getAsJsonObject( "name" );
-                if ( n.has( "formatted" ) && !n.get( "formatted" ).isJsonNull() ) {
-                    p.setFullname( n.get( "formatted" ).getAsString() );
-                    dirty = true;
-                }
-            }
-            if ( attrs.has( "emails" ) && attrs.get( "emails" ).isJsonArray() ) {
-                final var arr = attrs.getAsJsonArray( "emails" );
-                if ( arr.size() > 0 ) {
-                    final JsonObject em = arr.get( 0 ).getAsJsonObject();
-                    if ( em.has( "value" ) && !em.get( "value" ).isJsonNull() ) {
-                        p.setEmail( em.get( "value" ).getAsString() );
-                        dirty = true;
-                    }
-                }
-            }
-            if ( attrs.has( "externalId" ) && !attrs.get( "externalId" ).isJsonNull() ) {
-                p.getAttributes().put( SSOAutoProvisionService.ATTR_SSO_SUBJECT,
-                        attrs.get( "externalId" ).getAsString() );
-                dirty = true;
-            }
+            final boolean dirty = ScimUserFields.applyPatchAttributes( p, patch.attributes() );
             if ( dirty ) {
                 db.save( p );
                 p = db.findByUid( id );
@@ -443,13 +368,32 @@ public class ScimUserResource extends AbstractScimServlet {
     // Helpers
     // -------------------------------------------------------------------------
 
-    /** Extracts the id segment from path-info, e.g. {@code /abc123} → {@code abc123}. */
-    private static String extractId( final HttpServletRequest req ) {
-        final String pi = req.getPathInfo();
-        if ( pi == null || pi.equals( "/" ) || pi.isBlank() ) return null;
-        final String trimmed = pi.startsWith( "/" ) ? pi.substring( 1 ) : pi;
-        return trimmed.isBlank() ? null : trimmed;
+    /**
+     * Loads the {@link UserDatabase}, resolves {@code id} to its {@link UserProfile}, and parses the
+     * request body — the common PUT/PATCH preamble. Returns {@code null} once it has already written
+     * the appropriate error response (503 database unavailable, 404 unresolved id, or a
+     * {@code parseBody}-written 400 on malformed JSON); callers must check for {@code null} and return.
+     */
+    private ReplacePatchContext loadReplacePatchContext( final String id, final HttpServletRequest req,
+                                                          final HttpServletResponse resp ) throws IOException {
+        final UserDatabase db = getUserDatabase();
+        if ( db == null ) { sendError( resp, 503, null, "user database unavailable" ); return null; }
+
+        final UserProfile p;
+        try {
+            p = db.findByUid( id );
+        } catch ( final NoSuchPrincipalException e ) {
+            sendError( resp, 404, null, "User not found: " + id );
+            return null;
+        }
+
+        final JsonObject body = parseBody( req, resp );
+        if ( body == null ) return null;
+
+        return new ReplacePatchContext( db, p, body );
     }
+
+    private record ReplacePatchContext( UserDatabase db, UserProfile profile, JsonObject body ) {}
 
     /** Derives the Users collection URL, e.g. {@code https://host/scim/v2/Users}. */
     private static String usersBaseUrl( final HttpServletRequest req ) {

@@ -21,6 +21,7 @@ package com.wikantik.pagegraph.spine;
 import com.wikantik.api.pagegraph.Audience;
 import com.wikantik.api.pagegraph.Confidence;
 import com.wikantik.api.pagegraph.Verification;
+import com.wikantik.jdbc.JdbcSupport;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -40,7 +41,7 @@ import java.util.Optional;
  * {@link com.wikantik.api.pagegraph.PageDescriptor} and the {@code /for-agent}
  * projection.
  */
-public class PageVerificationDao extends SpineJdbcSupport {
+public class PageVerificationDao extends JdbcSupport {
 
     private static final Logger LOG = LogManager.getLogger( PageVerificationDao.class );
 

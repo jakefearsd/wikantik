@@ -21,11 +21,11 @@ package com.wikantik.rest.knowledge;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.wikantik.rest.RestJson;
 import com.wikantik.rest.RestServletBase;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,7 +34,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Date;
@@ -48,17 +47,16 @@ import java.util.UUID;
  * Small, dependency-free JSON/request helpers shared by the {@code com.wikantik.rest.knowledge}
  * admin handler classes.
  * <p>
- * {@link com.wikantik.rest.RestServletBase} already implements equivalent logic
- * ({@code sendJson}, {@code sendError}, {@code sendNotFound}, {@code parseJsonBody},
- * {@code getJsonString}, {@code getJsonDouble}, {@code parseIntParam}), but those members are
- * {@code protected} and only reachable from {@code com.wikantik.rest} (same package or a
- * subclass). The handler classes in this package are neither, so their bodies — moved verbatim
- * out of {@code AdminKnowledgeResource} — need an equivalent they can actually call. Rather than
- * thread a narrow callback interface through every handler constructor, this class duplicates
- * the handful of small, pure, side-effect-free bodies those handlers need. This is the least
- * invasive option: it changes nothing in {@code RestServletBase} (used by every other REST
- * servlet) and nothing in {@code AdminKnowledgeResource}'s ~40 call sites that stay on the
- * inherited versions.
+ * {@code sendJson}, {@code sendError}, {@code sendNotFound}, {@code parseJsonBody},
+ * {@code getJsonString}, {@code getJsonDouble}, {@code getJsonInt}, and {@code parseIntParam}
+ * below are thin package-private delegations to {@link com.wikantik.rest.RestJson} — the
+ * {@code public static} home for logic that {@link com.wikantik.rest.RestServletBase} also
+ * delegates to for its own {@code protected} instance methods. Both call sites now share exactly
+ * one implementation instead of each carrying a hand-maintained "verbatim copy" that could
+ * silently drift apart. The handler classes in this package keep calling {@code AdminKnowledgeIo}
+ * rather than {@code RestJson} directly, so this class's role narrows from "duplicate
+ * implementation" to "visibility shim" for the six handler classes below, which are neither in
+ * {@code com.wikantik.rest} nor subclasses of {@code RestServletBase}.
  * <p>
  * {@code parseUuid}, {@code actor}, and {@code resolveEdgeNames} are the exceptions: each is
  * genuinely local to the pre-extraction {@code AdminKnowledgeResource} (not inherited from
@@ -101,102 +99,46 @@ final class AdminKnowledgeIo {
         }
     }
 
-    /** Verbatim copy of {@link RestServletBase#sendJson}. */
+    /** Delegates to {@link RestJson#sendJson}. */
     static void sendJson( final HttpServletResponse response, final Object object ) throws IOException {
-        response.setContentType( "application/json" );
-        response.setCharacterEncoding( "UTF-8" );
-        response.getWriter().write( GSON.toJson( object ) );
+        RestJson.sendJson( response, object );
     }
 
-    /** Verbatim copy of {@link RestServletBase#sendError}. */
+    /** Delegates to {@link RestJson#sendError}. */
     static void sendError( final HttpServletResponse response, final int status, final String message )
             throws IOException {
-        response.setStatus( status );
-        response.setContentType( "application/json" );
-        response.setCharacterEncoding( "UTF-8" );
-        response.getWriter().write( GSON.toJson( Map.of(
-                "error", true,
-                "status", status,
-                "message", message
-        ) ) );
+        RestJson.sendError( response, status, message );
     }
 
-    /** Verbatim copy of {@link RestServletBase#sendNotFound}. */
+    /** Delegates to {@link RestJson#sendNotFound}. */
     static void sendNotFound( final HttpServletResponse response, final String message ) throws IOException {
-        sendError( response, HttpServletResponse.SC_NOT_FOUND, message );
+        RestJson.sendNotFound( response, message );
     }
 
-    /** Verbatim copy of {@link RestServletBase#parseJsonBody}. */
+    /** Delegates to {@link RestJson#parseJsonBody}. */
     static JsonObject parseJsonBody( final HttpServletRequest request, final HttpServletResponse response )
             throws IOException {
-        try ( BufferedReader reader = request.getReader() ) {
-            return JsonParser.parseReader( reader ).getAsJsonObject();
-        } catch ( final Exception e ) {
-            LOG.warn( "Rejecting malformed JSON body for {}: {}", request.getRequestURI(), e.getMessage() );
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Invalid JSON body: " + sanitizeParseError( e.getMessage() ) );
-            return null;
-        }
+        return RestJson.parseJsonBody( request, response );
     }
 
-    /** Verbatim copy of {@code RestServletBase#sanitizeParseError}. */
-    private static String sanitizeParseError( final String raw ) {
-        if ( raw == null || raw.isEmpty() ) {
-            return "could not parse body as JSON object";
-        }
-        String s = raw.replaceAll( "https?://\\S+", "" );
-        s = s.replaceAll( "(?i)gson", "" );
-        s = s.replaceAll( "[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z][A-Za-z0-9_.]*Exception", "parse error" );
-        s = s.replaceAll( "\\s+", " " ).trim();
-        if ( s.isEmpty() ) {
-            return "could not parse body as JSON object";
-        }
-        return s;
-    }
-
-    /** Verbatim copy of {@link RestServletBase#getJsonString}. */
+    /** Delegates to {@link RestJson#getJsonString}. */
     static String getJsonString( final JsonObject obj, final String key ) {
-        if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
-            return obj.get( key ).getAsString();
-        }
-        return null;
+        return RestJson.getJsonString( obj, key );
     }
 
-    /** Verbatim copy of {@link RestServletBase#getJsonDouble}. */
+    /** Delegates to {@link RestJson#getJsonDouble}. */
     static double getJsonDouble( final JsonObject obj, final String key, final double def ) {
-        if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
-            try {
-                return obj.get( key ).getAsDouble();
-            } catch ( final NumberFormatException e ) {
-                return def;
-            }
-        }
-        return def;
+        return RestJson.getJsonDouble( obj, key, def );
     }
 
-    /** Verbatim copy of {@link RestServletBase#parseIntParam}. */
+    /** Delegates to {@link RestJson#parseIntParam}. */
     static int parseIntParam( final HttpServletRequest request, final String paramName, final int defaultValue ) {
-        final String value = request.getParameter( paramName );
-        if ( value == null ) {
-            return defaultValue;
-        }
-        try {
-            return Integer.parseInt( value );
-        } catch ( final NumberFormatException e ) {
-            return defaultValue;
-        }
+        return RestJson.parseIntParam( request, paramName, defaultValue );
     }
 
-    /** Verbatim copy of {@link RestServletBase#getJsonInt}. */
+    /** Delegates to {@link RestJson#getJsonInt}. */
     static int getJsonInt( final JsonObject obj, final String key, final int def ) {
-        if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
-            try {
-                return obj.get( key ).getAsInt();
-            } catch ( final NumberFormatException e ) {
-                return def;
-            }
-        }
-        return def;
+        return RestJson.getJsonInt( obj, key, def );
     }
 
     /** Verbatim copy of {@code AdminKnowledgeResource#actor} — genuinely local helper, shared by

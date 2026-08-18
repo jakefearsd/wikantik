@@ -22,7 +22,6 @@ import com.wikantik.api.connectors.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.LongConsumer;
@@ -82,7 +81,9 @@ public final class FeedSourceConnector implements SourceConnector {
 
     private Set< String > allowedHosts() {
         final Set< String > allowedHosts = new HashSet<>();
-        for ( final String feedUrl : config.feedUrls() ) hostOf( feedUrl ).ifPresent( allowedHosts::add );
+        for ( final String feedUrl : config.feedUrls() ) {
+            WebConnectorSupport.hostOf( feedUrl, LOG, "feed" ).ifPresent( allowedHosts::add );
+        }
         return allowedHosts;
     }
 
@@ -116,7 +117,7 @@ public final class FeedSourceConnector implements SourceConnector {
     /** Resolves one feed entry to a {@link SourceItem}, applying the same-host filter and (when
      *  {@code fetchFullArticles}) the article fetch — empty if the entry is filtered out or unfetchable. */
     private Optional< SourceItem > resolveEntryItem( final FeedEntry e, final RobotsPolicy robots, final Set< String > allowedHosts ) {
-        if ( config.sameHostOnly() && hostOf( e.link() ).map( h -> !allowedHosts.contains( h ) ).orElse( true ) ) {
+        if ( config.sameHostOnly() && WebConnectorSupport.hostOf( e.link(), LOG, "feed" ).map( h -> !allowedHosts.contains( h ) ).orElse( true ) ) {
             return Optional.empty();
         }
         if ( config.fetchFullArticles() ) {
@@ -124,32 +125,14 @@ public final class FeedSourceConnector implements SourceConnector {
                 LOG.info( "feed '{}': robots-disallowed article {}", connectorId, e.link() );
                 return Optional.empty();
             }
-            sleepPolitely( robots, e.link() );
+            WebConnectorSupport.sleepPolitely( robots, e.link(), config.respectRobots(), config.delayMs(), sleeper );
             final FetchResult ar = fetcher.fetch( e.link() );
-            if ( ar.status() / 100 != 2 || !isHtml( ar.contentType() ) ) return Optional.empty();
+            if ( ar.status() / 100 != 2 || !WebConnectorSupport.isHtml( ar.contentType() ) ) return Optional.empty();
             final String finalUrl = ar.finalUrl() == null ? e.link() : ar.finalUrl();
             return Optional.of( WebFetchItems.toItem( finalUrl, ar ) );
         }
         if ( e.contentHtml().isBlank() ) return Optional.empty();
         return Optional.of( WebFetchItems.toItemFromContent( e.link(),
             e.contentHtml().getBytes( StandardCharsets.UTF_8 ), e.title() ) );
-    }
-
-    private void sleepPolitely( final RobotsPolicy robots, final String url ) {
-        final long robotsDelay = config.respectRobots() ? robots.crawlDelayMs( url ) : 0L;
-        final long delay = Math.max( config.delayMs(), robotsDelay );
-        if ( delay > 0 ) sleeper.accept( delay );
-    }
-
-    private static Optional< String > hostOf( final String url ) {
-        try { return Optional.ofNullable( URI.create( url ).getHost() ); }
-        catch ( final RuntimeException e ) {
-            LOG.warn( "feed: could not derive host for {}: {}", url, e.getMessage() );
-            return Optional.empty();
-        }
-    }
-
-    private static boolean isHtml( final String contentType ) {
-        return contentType != null && contentType.toLowerCase( Locale.ROOT ).contains( "text/html" );
     }
 }

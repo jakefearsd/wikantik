@@ -18,7 +18,6 @@
  */
 package com.wikantik.scim;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.WikiEngine;
 import com.wikantik.WikiSession;
@@ -95,7 +94,7 @@ public class ScimGroupResource extends AbstractScimServlet {
 
     @Override
     protected String extractIdentifier( final HttpServletRequest req ) {
-        return extractName( req );
+        return ScimIo.extractPathSegment( req );
     }
 
     // -------------------------------------------------------------------------
@@ -219,28 +218,8 @@ public class ScimGroupResource extends AbstractScimServlet {
                 matched = listAllGroups( gm );
             }
 
-            // Pagination (SCIM startIndex is 1-based)
-            final int total = matched.size();
-            final int from = Math.max( 0, startIndex - 1 );
-            final List<Group> page = matched.subList(
-                    Math.min( from, total ),
-                    Math.min( from + count, total ) );
-
-            final JsonArray resources = new JsonArray();
-            for ( final Group g : page ) {
-                resources.add( ScimGroupMapper.toScim( g, usersBase, groupsBase,
-                        login -> loginToUid( login, db ) ) );
-            }
-
-            final JsonObject listResp = new JsonObject();
-            final JsonArray schemas = new JsonArray();
-            schemas.add( "urn:ietf:params:scim:api:messages:2.0:ListResponse" );
-            listResp.add( "schemas", schemas );
-            listResp.addProperty( "totalResults", total );
-            listResp.addProperty( "startIndex", startIndex );
-            listResp.addProperty( "itemsPerPage", page.size() );
-            listResp.add( "Resources", resources );
-
+            final JsonObject listResp = ScimIo.buildListResponse( matched, startIndex, count,
+                    g -> ScimGroupMapper.toScim( g, usersBase, groupsBase, login -> loginToUid( login, db ) ) );
             sendScim( resp, listResp );
 
         } catch ( final ScimFilterParser.UnsupportedFilterException e ) {
@@ -417,14 +396,6 @@ public class ScimGroupResource extends AbstractScimServlet {
             }
         }
         return groups;
-    }
-
-    /** Extracts the group name segment from path-info, e.g. {@code /Engineering} → {@code Engineering}. */
-    private static String extractName( final HttpServletRequest req ) {
-        final String pi = req.getPathInfo();
-        if ( pi == null || pi.equals( "/" ) || pi.isBlank() ) return null;
-        final String trimmed = pi.startsWith( "/" ) ? pi.substring( 1 ) : pi;
-        return trimmed.isBlank() ? null : trimmed;
     }
 
     /** Derives the Users base URL, e.g. {@code https://host/scim/v2/Users}. */

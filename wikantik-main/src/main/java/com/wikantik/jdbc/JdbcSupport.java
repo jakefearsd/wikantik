@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.pagegraph.spine;
+package com.wikantik.jdbc;
 
 import org.apache.logging.log4j.Logger;
 
@@ -30,30 +30,30 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Shared JDBC scaffolding for the Page Graph structural-spine DAOs
- * ({@link PageCanonicalIdsDao}, {@link PageVerificationDao}, {@link TrustedAuthorsDao}),
- * factored out during the GoF Template Method boilerplate consolidation.
+ * Shared JDBC scaffolding for the Knowledge Graph and Page Graph repositories/DAOs
+ * ({@code com.wikantik.knowledge.KgJdbcSupport} and its subclasses; the
+ * {@code com.wikantik.pagegraph.spine} structural-spine DAOs), factored out during
+ * the GoF Template Method boilerplate consolidation into a neutral package so both
+ * subsystems can share it without either depending on the other.
  *
- * <p>This is a package-local twin of {@code com.wikantik.knowledge.KgJdbcSupport}
- * (same connect&rarr;prepare&rarr;bind&rarr;execute&rarr;map primitives) rather than a
- * reuse of that class. The Knowledge Graph and Page Graph are deliberately
- * separate subsystems in this codebase (see {@code PageGraphVsKnowledgeGraph.md})
- * and, before this pass, neither {@code com.wikantik.pagegraph.spine} nor
- * {@code com.wikantik.knowledge} depended on the other. Reusing {@code KgJdbcSupport}
- * here would introduce a brand-new knowledge&rarr;pagegraph coupling for the sake
- * of ~90 lines of generic JDBC ceremony, so a small local helper was kept instead.</p>
+ * <p>Extended in the JDBC-boilerplate Template Method pass with generic
+ * connect&rarr;prepare&rarr;bind&rarr;execute&rarr;map primitives ({@link #query},
+ * {@link #queryOne}, {@link #update}, {@link #inTransaction}). These deliberately
+ * do NOT decide the exception policy (log level, wrap-vs-swallow, message text) —
+ * that varies per call site across the repositories (some log-and-rethrow, some
+ * log-and-return-a-default, some include the stack trace and some don't). Each
+ * primitive declares {@code throws SQLException} and leaves the catch block, log
+ * call, and exception contract entirely to the caller, so a migrated method still
+ * reads as {@code try { return query(sql, binder, mapper); } catch (SQLException e) { ...caller's own policy... }}
+ * — SQL + binding + mapping in the try, nothing else.</p>
  *
- * <p>Like {@code KgJdbcSupport}, these primitives only handle the JDBC mechanics —
- * connection/statement/result-set lifecycle — and declare {@code throws SQLException}.
- * They never decide the exception policy (log level, wrap-vs-swallow, message text);
- * that stays at each call site so every DAO method's original external contract is
- * preserved exactly.</p>
+ * @since 1.0
  */
-abstract class SpineJdbcSupport {
+public abstract class JdbcSupport {
 
     protected final DataSource dataSource;
 
-    protected SpineJdbcSupport( final DataSource dataSource ) {
+    protected JdbcSupport( final DataSource dataSource ) {
         this.dataSource = dataSource;
     }
 
@@ -66,6 +66,17 @@ abstract class SpineJdbcSupport {
 
         /** Shared no-op binder for parameterless statements. */
         SqlBinder NONE = ps -> { };
+
+        /**
+         * Binds {@code params} to {@code ?} placeholders 1..N in order. Factors out the
+         * {@code for (int i = 0; i < params.size(); i++) ps.setObject(i + 1, params.get(i))}
+         * loop repeated at almost every dynamic-filter call site across the KG repositories.
+         */
+        static SqlBinder positional( final List< Object > params ) {
+            return ps -> {
+                for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
+            };
+        }
     }
 
     /** Maps the current row of a positioned {@link ResultSet} to a {@code T}. */
@@ -139,8 +150,16 @@ abstract class SpineJdbcSupport {
      * Runs {@code body} inside a single transaction: autocommit off, commit on
      * normal return, rollback on any failure, autocommit always restored before
      * the connection is released back to the pool. Mirrors the hand-rolled
-     * {@code setAutoCommit(false)/commit/rollback/restore} wrapper every spine
-     * DAO's {@code upsert} previously repeated verbatim.
+     * {@code setAutoCommit(false)/commit/rollback/restore} wrapper previously
+     * duplicated across the KG repositories, chunk repository, and the pagegraph
+     * spine DAOs.
+     *
+     * <p>Rolls back on <em>both</em> {@link SQLException} and unchecked
+     * {@link RuntimeException} — some call sites throw a validation
+     * {@link IllegalArgumentException} mid-transaction (e.g. "row not found")
+     * and their original hand-rolled versions explicitly rolled back before
+     * propagating it. Both branches rethrow the exact exception caught, unwrapped
+     * — this primitive never decides the exception contract, only the rollback.</p>
      */
     protected < T > T inTransaction( final TransactionBody< T > body ) throws SQLException {
         try ( Connection conn = dataSource.getConnection() ) {

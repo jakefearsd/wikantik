@@ -97,6 +97,33 @@ public final class Release {
     }
 
     /**
+     *  Compares the current release version (VERSION.REVISION.MINORREVISION) against a requested
+     *  version string, component by component, most significant first.
+     *
+     *  @param version A version parameter string (a.b.c-something). B and C are optional; missing
+     *      components default to the corresponding current-release component so that comparison
+     *      falls through to the next component (mirrors the original inline logic exactly).
+     *  @return A negative integer, zero, or a positive integer as the current release is older than,
+     *      equal to, or newer than the requested version.
+     *  @throws IllegalArgumentException If the version string could not be parsed.
+     */
+    private static int compareVersions( final String version ) throws IllegalArgumentException {
+        final String[] versionComponents = StringUtils.split( version, VERSION_SEPARATORS );
+        final int versionCompoLength = versionComponents.length;
+        final int reqVersion       = versionCompoLength > 0 ? Integer.parseInt( versionComponents[0] ) : Release.VERSION;
+        final int reqRevision      = versionCompoLength > 1 ? Integer.parseInt( versionComponents[1] ) : Release.REVISION;
+        final int reqMinorRevision = versionCompoLength > 2 ? Integer.parseInt( versionComponents[2] ) : Release.MINORREVISION;
+
+        if( VERSION != reqVersion ) {
+            return Integer.compare( VERSION, reqVersion );
+        }
+        if( REVISION != reqRevision ) {
+            return Integer.compare( REVISION, reqRevision );
+        }
+        return Integer.compare( MINORREVISION, reqMinorRevision );
+    }
+
+    /**
      *  Returns true, if this version of JSPWiki is newer or equal than what is requested.
      *
      *  @param version A version parameter string (a.b.c-something). B and C are optional.
@@ -108,19 +135,7 @@ public final class Release {
         if( version == null ) {
         	return true;
         }
-        final String[] versionComponents = StringUtils.split( version, VERSION_SEPARATORS );
-        final int versionCompoLength = versionComponents.length;
-        final int reqVersion       = versionCompoLength > 0 ? Integer.parseInt( versionComponents[0] ) : Release.VERSION;
-        final int reqRevision      = versionCompoLength > 1 ? Integer.parseInt( versionComponents[1] ) : Release.REVISION;
-        final int reqMinorRevision = versionCompoLength > 2 ? Integer.parseInt( versionComponents[2] ) : Release.MINORREVISION;
-
-        if( VERSION == reqVersion ) {
-            if( REVISION == reqRevision ) {
-                return MINORREVISION == reqMinorRevision || MINORREVISION > reqMinorRevision;
-            }
-            return REVISION > reqRevision;
-        }
-        return VERSION > reqVersion;
+        return compareVersions( version ) >= 0;
     }
 
     /**
@@ -135,20 +150,7 @@ public final class Release {
         if( version == null ) {
         	return true;
         }
-
-        final String[] versionComponents = StringUtils.split( version, VERSION_SEPARATORS );
-        final int versionCompoLength = versionComponents.length;
-        final int reqVersion       = versionCompoLength > 0 ? Integer.parseInt( versionComponents[0] ) : Release.VERSION;
-        final int reqRevision      = versionCompoLength > 1 ? Integer.parseInt( versionComponents[1] ) : Release.REVISION;
-        final int reqMinorRevision = versionCompoLength > 2 ? Integer.parseInt( versionComponents[2] ) : Release.MINORREVISION;
-
-        if( VERSION == reqVersion ) {
-            if( REVISION == reqRevision ) {
-                return MINORREVISION == reqMinorRevision || MINORREVISION < reqMinorRevision;
-            }
-            return REVISION < reqRevision;
-        }
-        return VERSION < reqVersion;
+        return compareVersions( version ) <= 0;
     }
 
     /**

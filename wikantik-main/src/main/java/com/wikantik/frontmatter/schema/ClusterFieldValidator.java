@@ -24,7 +24,6 @@ import com.wikantik.api.frontmatter.schema.Severity;
 import com.wikantik.api.pagegraph.ClusterPath;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -85,17 +84,7 @@ final class ClusterFieldValidator {
     /** The per-entry checks run against each membership. */
     private static void validateEntry( final FieldSpec spec, final String val, final ValidationCtx ctx,
                                        final List< FieldViolation > out ) {
-        if ( spec.pattern() != null && !val.matches( spec.pattern() ) ) {
-            // Advisory, not blocking: ~15 live clusters are non-kebab (e.g. "Data Structures"), so a
-            // blocking error would 422 every edit to those pages. Warn sternly + suggest the slug.
-            final String suggestion = slugify( val );
-            final String msg = "'" + spec.key() + "' value \"" + val
-                    + "\" is not a valid slug — use lowercase kebab-case"
-                    + ( suggestion.isEmpty() ? "." : ", e.g. '" + suggestion + "'." )
-                    + " Tolerated for now, but it will be rejected once the corpus is normalized.";
-            out.add( new FieldViolation( spec.key(), Severity.WARNING, spec.key() + ".slug.malformed",
-                    msg, suggestion.isEmpty() ? null : suggestion ) );
-        }
+        SlugPatternCheck.check( spec, val, out );
         if ( !ctx.clusterIsDeclared().test( val ) ) {
             // A cluster exists only if a hub page declares it. Advisory by design — naming an
             // undeclared cluster must never block the save (the page stays fully retrievable);
@@ -105,11 +94,5 @@ final class ClusterFieldValidator {
                     "cluster '" + val + "' is not declared by any hub page. Create a page with"
                             + " 'type: hub' and 'cluster: " + val + "' to declare it." ) );
         }
-    }
-
-    private static String slugify( final String s ) {
-        return s.toLowerCase( Locale.ROOT ).trim()
-                .replaceAll( "[^a-z0-9]+", "-" )
-                .replaceAll( "(^-+|-+$)", "" );
     }
 }

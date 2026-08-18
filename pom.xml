@@ -138,6 +138,15 @@
                                                                               (dependabot.yml ignores it). -->
     <sec.guava.version>33.6.0-jre</sec.guava.version>                    <!-- via pac4j-oidc/pac4j-saml (opensaml); CVE-2023-2976, CVE-2020-8908 -->
     <sec.okio.version>3.18.1</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
+    <sec.httpclient5.version>5.6.4</sec.httpclient5.version>            <!-- via pac4j-saml->opensaml->shib-networking (5.3.1) + selenide-core
+                                                                              (5.6.2); GHSA-hjcp-jmpx-g3qm / CVE-2026-64607. -->
+    <sec.httpcore5.version>5.4.3</sec.httpcore5.version>                 <!-- same chain; GHSA-hf6x-8p5f-cgmf / CVE-2026-54399 (httpcore5 5.2.5)
+                                                                              and GHSA-v3jc-474w-2wm6 / CVE-2026-54428 (httpcore5-h2 5.2.4).
+                                                                              The 5.6.x client / 5.4.x core pairing is the one selenide already
+                                                                              resolves to across the IT modules. -->
+    <sec.jsoup.version>1.23.1</sec.jsoup.version>                        <!-- via wikantik-ingest -> flexmark-html2md-converter (1.15.4);
+                                                                              GHSA-pmhh-3w7g-xqp8 / CVE-2026-71497. wikantik-connectors already
+                                                                              declares 1.23.1 directly, so this only fixes ingest built alone. -->
 
     <plugin.antrun.version>3.2.0</plugin.antrun.version>
     <plugin.assembly.version>3.8.0</plugin.assembly.version>
@@ -825,6 +834,33 @@
         <groupId>com.squareup.okio</groupId>
         <artifactId>okio-jvm</artifactId>
         <version>${sec.okio.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.httpcomponents.client5</groupId>
+        <artifactId>httpclient5</artifactId>
+        <version>${sec.httpclient5.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents.client5</groupId>
+        <artifactId>httpclient5-cache</artifactId>
+        <version>${sec.httpclient5.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents.core5</groupId>
+        <artifactId>httpcore5</artifactId>
+        <version>${sec.httpcore5.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents.core5</groupId>
+        <artifactId>httpcore5-h2</artifactId>
+        <version>${sec.httpcore5.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.jsoup</groupId>
+        <artifactId>jsoup</artifactId>
+        <version>${sec.jsoup.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

@@ -174,11 +174,14 @@ public class AdminDriftIT {
                             + saveResp.statusCode() + ": " + saveResp.body() );
 
             // 2. Trigger a sweep. A startup/post-rebuild sweep may still be running
-            // (409) — wait briefly and retry once.
-            HttpResponse< String > sweepResp = post( "/admin/drift/sweep", "{}" );
-            if ( sweepResp.statusCode() == 409 ) {
-                Thread.sleep( 3000L );
+            // (409) — poll for a bounded budget rather than a single fixed-delay retry.
+            HttpResponse< String > sweepResp = null;
+            for ( int attempt = 0; attempt < 30; attempt++ ) {
                 sweepResp = post( "/admin/drift/sweep", "{}" );
+                if ( sweepResp.statusCode() != 409 ) {
+                    break;
+                }
+                Thread.sleep( 1000L );
             }
             assertEquals( 202, sweepResp.statusCode(),
                     "POST /admin/drift/sweep must return 202: " + sweepResp.body() );

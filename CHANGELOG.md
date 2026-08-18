@@ -6,6 +6,62 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Integration tests failed on macOS because select-all was hard-coded to
+  Ctrl+A.** `EditWikiPage.saveText()` clears the editor with a select-all chord
+  before typing, but CodeMirror 6 binds select-all to `Mod-a`, and `Mod` resolves
+  to Command on macOS. On a Mac the chord selected nothing, the following single
+  `DELETE` removed about one character, and the next line —
+  `shouldHave( exactText( "" ) )` — failed as an exact-text assertion. It only
+  bit when the editor already had content, which is why a first save to a new
+  empty page passed and a second save to that now-populated page failed.
+  Reported as four failures in `wikantik-it-test-custom-jdbc` (the only module
+  that runs the Selenide browser suite), including
+  `EditIT.createPageAndTestEditPermissions` and `SearchIT.performSearches`.
+
+  New `PlatformKeys.selectAll()` resolves the modifier once from `os.name`;
+  both call sites use it (the other was `StructuredFrontmatterEditorIT`, a plain
+  textarea — still ⌘A on macOS). A sweep of the IT tree found no other
+  platform-sensitive key usage.
+
+  `saveText` also gained the check whose absence let this surface late and
+  confusingly: after typing it now proves the CodeMirror buffer matches what was
+  typed, reading it via `innerText` rather than Selenide's text extraction
+  (which normalises whitespace and would mask a mismatch). The only prior guard
+  was a *contains* check on the preview pane — the file's own comment already
+  noted that could not catch appended content.
+
+- **`PreviewClickHoldsStillIT` flaked roughly one run in three, on Linux.**
+  Measured over repeated runs: `Clicked block moved 2.7 px` against a `<= 2` px
+  tolerance. The comment above the assertion claimed it was "deterministic across
+  runs"; it was not. Both tolerances raised to 8 px — about 3x the observed noise
+  floor, while a genuine scroll echo (the bug this test exists to catch) moves
+  content by hundreds of px, so the gate still cannot miss a real regression.
+  The 2.7 px sample is recorded inline so the number is not re-tightened later.
+
+- **Four admin ITs raced the post-login session-principal binding.**
+  `AdminAuthFilter` is mapped to `/admin/*` and runs before `SpaRoutingFilter`,
+  so it gates the page navigation itself — losing the race 403s the navigation
+  and every later selector times out. `RestSeedHelper.awaitAdminReady()` exists
+  for exactly this and three sibling ITs already called it;
+  `EdgeCurationBrowserIT`, `KnowledgeTabIT`, `HubDiscoveryAdminIT` and
+  `HubOverviewAdminIT` now do too. `JDBCPluginIT`'s own comment records why this
+  matters beyond a timeout: a lost race renders "requires administrator
+  privileges" into the page-render cache, poisoning later tests in the class.
+
+- **Five unconditional `Thread.sleep`-then-assert sites replaced with bounded
+  polls** — `RestApiIT.testSearch` / `testBacklinks` /
+  `testPageGraphSnapshotRendersSeededWikilinks`, `SelfApiKeyLifecycleIT` and
+  `AdminDriftIT`. Each waited on genuinely async work (Lucene indexing, the
+  reference manager, cache invalidation, a startup sweep) with one fixed sleep
+  and no retry. Budgets are 20-30s with failure messages naming what was awaited
+  and the last observed value. `RestApiIT`'s deliberate `@Order` sequence and
+  every assertion are unchanged.
+
+  Validation: the IT phase now passes four consecutive runs (380 tests) where it
+  previously failed one in three, plus 9,174 unit tests and the complexity gate.
+
+
 ### Changed
 - **PMD complexity ratchet burned down: 150 -> 132 baseline entries.** Fifteen
   classes were refactored until PMD stopped flagging them, and their baseline

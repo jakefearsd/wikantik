@@ -319,18 +319,28 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
 
         // --- Primary hard assertion: the preview held still ---
         //
-        // This is the invariant the test is named for and the one that is stable: a
-        // WebDriver click on a lower preview block must not scroll the preview or move
-        // the clicked block. It caught the scroll-echo bug and is deterministic across
-        // runs, so it is the gate.
+        // This is the invariant the test is named for: a WebDriver click on a lower
+        // preview block must not scroll the preview or move the clicked block. The
+        // property this assertion actually catches is a scroll ECHO — a real
+        // regression moves content by hundreds of px (a viewport fraction), not a
+        // handful of px. It is NOT deterministic at a tight tolerance: sub-pixel
+        // layout, font-rasterisation differences, and platform scrollbar width (e.g.
+        // macOS Retina's 0 px overlay scrollbar vs Linux's persistent ~15 px one,
+        // which changes available width and text wrapping) all produce small,
+        // legitimate deltas. Measured on Linux (2026-08-18): one run in three logged
+        // a genuine-noise blockMoveDelta of 2.7 px (before=619.8 after=617.2) with no
+        // scroll-echo bug present. 8 px sits comfortably above that observed noise
+        // floor while staying two orders of magnitude below a real echo — small
+        // deltas are tolerated deliberately; do not tighten this number back down
+        // without a fresh noise-floor measurement.
         final double scrollDelta    = Math.abs( scrollAfter - scrollBefore );
         final double blockMoveDelta = blockTopAfter > 0 ? Math.abs( blockTopAfter - blockTopBefore ) : 0;
 
-        assertTrue( scrollDelta <= 2,
+        assertTrue( scrollDelta <= 8,
             String.format( "Preview scrolled %.1f px after clicking a lower block "
                     + "(scrollBefore=%.1f scrollAfter=%.1f) — the scroll-echo bug is back.",
                 scrollDelta, scrollBefore, scrollAfter ) );
-        assertTrue( blockMoveDelta <= 2,
+        assertTrue( blockMoveDelta <= 8,
             String.format( "Clicked block moved %.1f px (before=%.1f after=%.1f) — "
                     + "the preview did not hold still.",
                 blockMoveDelta, blockTopBefore, blockTopAfter ) );

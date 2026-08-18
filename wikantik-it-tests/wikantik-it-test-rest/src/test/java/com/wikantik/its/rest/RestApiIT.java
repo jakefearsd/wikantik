@@ -41,6 +41,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -281,10 +282,15 @@ public class RestApiIT {
     @Test
     @Order( 6 )
     void testSearch() throws Exception {
-        // Allow a brief pause for the search index to build
-        Thread.sleep( 2000 );
-
-        final HttpResponse< String > resp = get( "/api/search?q=Main" );
+        // Poll the search index rather than trusting a fixed pause for it to build.
+        final HttpResponse< String > resp = pollUntilReady( "search results for query 'Main' to appear", 60, 500L,
+                () -> get( "/api/search?q=Main" ), r -> {
+                    if ( r.statusCode() != 200 ) {
+                        return false;
+                    }
+                    final Object results = parseJson( r.body() ).get( "results" );
+                    return results instanceof List && !( ( List< ? > ) results ).isEmpty();
+                } );
         assertEquals( 200, resp.statusCode(), "GET /api/search?q=Main should return 200" );
 
         final Map< String, Object > json = parseJson( resp.body() );
@@ -330,10 +336,16 @@ public class RestApiIT {
         final String body = GSON.toJson( Map.of( "content", content ) );
         put( "/api/pages/" + linkerPage, body );
 
-        // Give the reference manager a moment to index the new link
-        Thread.sleep( 2000 );
-
-        final HttpResponse< String > resp = get( "/api/backlinks/Main" );
+        // Poll the reference manager rather than trusting a fixed pause for it to
+        // index the new link.
+        final HttpResponse< String > resp = pollUntilReady( "backlinks for Main to include " + linkerPage, 60, 500L,
+                () -> get( "/api/backlinks/Main" ), r -> {
+                    if ( r.statusCode() != 200 ) {
+                        return false;
+                    }
+                    final Object backlinks = parseJson( r.body() ).get( "backlinks" );
+                    return backlinks instanceof List && ( ( List< ? > ) backlinks ).contains( linkerPage );
+                } );
         assertEquals( 200, resp.statusCode(), "GET /api/backlinks/Main should return 200" );
 
         final Map< String, Object > json = parseJson( resp.body() );
@@ -516,6 +528,41 @@ public class RestApiIT {
     }
 
     /**
+     * Functional shape for a single poll attempt in {@link #pollUntilReady}: an
+     * HTTP call that may throw the same checked exceptions as {@link #get} / {@link #put}.
+     */
+    @FunctionalInterface
+    private interface HttpProbe {
+        HttpResponse< String > call() throws IOException, InterruptedException;
+    }
+
+    /**
+     * Generic bounded poll for the handful of endpoints below that don't have a
+     * dedicated readiness probe like {@link #waitForStructuralIndexUp()} — search
+     * indexing, reference-manager backlink indexing, and Page Graph edge indexing
+     * are all best-effort async work with no health endpoint of their own. Repeats
+     * {@code probe} until {@code ready} accepts the response or {@code maxAttempts}
+     * is exhausted, sleeping {@code intervalMillis} between attempts.
+     *
+     * @param what descriptive label used in the timeout failure message
+     */
+    private HttpResponse< String > pollUntilReady( final String what, final int maxAttempts,
+            final long intervalMillis, final HttpProbe probe, final Predicate< HttpResponse< String > > ready )
+            throws IOException, InterruptedException {
+        HttpResponse< String > last = null;
+        for ( int attempt = 0; attempt < maxAttempts; attempt++ ) {
+            last = probe.call();
+            if ( ready.test( last ) ) {
+                return last;
+            }
+            Thread.sleep( intervalMillis );
+        }
+        throw new AssertionError( "Timed out after " + ( maxAttempts * intervalMillis ) + "ms waiting for "
+                + what + "; last response: "
+                + ( last == null ? "<none>" : last.statusCode() + " " + last.body() ) );
+    }
+
+    /**
      * RestServletBase serialises with {@code setPrettyPrinting()}, so JSON keys and
      * values are separated by {@code ": "} rather than {@code ":"}. This helper
      * matches either form so an assertion isn't tied to a particular Gson layout.
@@ -601,12 +648,15 @@ public class RestApiIT {
                 "content", "Page D is an orphan with no inbound or outbound wikilinks." ) ) );
 
             // Reference manager indexes new pages on every save event but the
-            // event dispatch is best-effort async — give the structural index
-            // time to settle, plus a small buffer for the reference manager.
+            // event dispatch is best-effort async — wait for the structural index
+            // to settle, then poll the snapshot itself for the seeded nodes and
+            // edges rather than trusting a fixed buffer for the reference manager.
             waitForStructuralIndexUp();
-            Thread.sleep( 2000 );
-
-            final HttpResponse< String > resp = get( "/api/page-graph/snapshot" );
+            final HttpResponse< String > resp = pollUntilReady(
+                    "page-graph snapshot to include " + prefix + "PageA.." + prefix
+                            + "PageD and their seeded wikilink edges",
+                    60, 500L, () -> get( "/api/page-graph/snapshot" ),
+                    r -> pageGraphSnapshotHasSeededTopology( r, prefix ) );
             assertEquals( 200, resp.statusCode(),
                 "GET /api/page-graph/snapshot should return 200, got " + resp.statusCode()
                     + ": " + resp.body() );
@@ -684,6 +734,50 @@ public class RestApiIT {
         final Object v = node.get( key );
         assertNotNull( v, "field '" + key + "' must be present on node " + node.get( "name" ) );
         return ( ( Number ) v ).intValue();
+    }
+
+    /**
+     * Readiness check for {@link #testPageGraphSnapshotRendersSeededWikilinks()}'s
+     * poll: true once the snapshot carries all four seeded pages as nodes AND the
+     * three seeded wikilinks as edges — i.e. once both page indexing and reference
+     * manager link indexing have caught up, which is exactly what the fixed
+     * {@code Thread.sleep} this replaces was hoping had happened by then.
+     */
+    @SuppressWarnings( "unchecked" )
+    private boolean pageGraphSnapshotHasSeededTopology( final HttpResponse< String > resp, final String prefix ) {
+        if ( resp.statusCode() != 200 ) {
+            return false;
+        }
+        final Map< String, Object > snap = parseJson( resp.body() );
+        final List< Map< String, Object > > nodes = ( List< Map< String, Object > > ) snap.get( "nodes" );
+        final List< Map< String, Object > > edges = ( List< Map< String, Object > > ) snap.get( "edges" );
+        if ( nodes == null || edges == null ) {
+            return false;
+        }
+
+        final Set< String > nodeNames = new HashSet<>();
+        final Map< String, String > idToName = new HashMap<>();
+        for ( final Map< String, Object > n : nodes ) {
+            final String name = ( String ) n.get( "name" );
+            nodeNames.add( name );
+            idToName.put( ( String ) n.get( "id" ), name );
+        }
+        if ( !nodeNames.containsAll( List.of(
+                prefix + "PageA", prefix + "PageB", prefix + "PageC", prefix + "PageD" ) ) ) {
+            return false;
+        }
+
+        final Set< String > edgePairs = new HashSet<>();
+        for ( final Map< String, Object > e : edges ) {
+            final String src = idToName.get( ( String ) e.get( "source" ) );
+            final String tgt = idToName.get( ( String ) e.get( "target" ) );
+            if ( src != null && tgt != null ) {
+                edgePairs.add( src + "->" + tgt );
+            }
+        }
+        return edgePairs.contains( prefix + "PageA->" + prefix + "PageB" )
+                && edgePairs.contains( prefix + "PageA->" + prefix + "PageC" )
+                && edgePairs.contains( prefix + "PageB->" + prefix + "PageC" );
     }
 
 }

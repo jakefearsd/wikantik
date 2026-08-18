@@ -153,12 +153,14 @@ public class StructuredFrontmatterEditorIT extends WithIntegrationTestSetup {
                 + "summary: A test article\n";
 
         // Step 1-2: select-all and replace with the new YAML via keyboard events.
-        // Ctrl+A selects the entire textarea content; then typing replaces it.
-        // sendKeys fires genuine keyboard events that React's onChange picks up,
-        // updating the RawYaml component's local text state correctly.
+        // PlatformKeys.selectAll() selects the entire textarea content (Cmd+A on
+        // macOS, Ctrl+A elsewhere — a hard-coded Ctrl+A silently no-ops on macOS);
+        // then typing replaces it. sendKeys fires genuine keyboard events that
+        // React's onChange picks up, updating the RawYaml component's local text
+        // state correctly.
         rawArea.click();
         rawArea.sendKeys(
-                org.openqa.selenium.Keys.chord( org.openqa.selenium.Keys.CONTROL, "a" ),
+                com.wikantik.its.environment.PlatformKeys.selectAll(),
                 invalidYaml );
 
         // Step 3: click the editor heading to move focus away, triggering the real blur.

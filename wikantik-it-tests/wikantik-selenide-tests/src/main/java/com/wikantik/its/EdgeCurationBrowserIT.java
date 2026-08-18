@@ -69,6 +69,8 @@ public class EdgeCurationBrowserIT extends WithIntegrationTestSetup {
         ViewWikiPage.open( "Main" )
             .clickOnLogin()
             .performLogin( Env.LOGIN_JANNE_USERNAME, Env.LOGIN_JANNE_PASSWORD );
+        // Guard the post-login session-principal binding race before hitting /admin.
+        RestSeedHelper.awaitAdminReady();
     }
 
     @Test

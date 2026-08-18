@@ -361,14 +361,20 @@ public class SelfApiKeyLifecycleIT {
                 .followRedirects( HttpClient.Redirect.NORMAL )
                 .build();
 
-        // First attempt — the service evicts immediately on revoke (verifyCache.invalidate)
-        // but allow one brief retry in case of any race between the DELETE response
-        // and the in-JVM cache invalidation propagating to the tools filter.
-        int statusCode = callToolsWithBearer( bearerClient, mintedToken );
-        if ( statusCode == 200 ) {
-            Thread.sleep( 2_000L );
+        // The service evicts the verify-cache entry immediately on revoke
+        // (verifyCache.invalidate), but poll for a bounded budget rather than a
+        // single fixed-delay retry, in case of any race between the DELETE
+        // response and the in-JVM cache invalidation propagating to the tools filter.
+        final long deadline = System.currentTimeMillis() + 20_000L;
+        int statusCode;
+        do {
             statusCode = callToolsWithBearer( bearerClient, mintedToken );
-        }
+            if ( statusCode == 401 || statusCode == 403 ) {
+                break;
+            }
+            Thread.sleep( 500L );
+        } while ( System.currentTimeMillis() < deadline );
+
         assertTrue( statusCode == 401 || statusCode == 403,
                 "Revoked bearer must be rejected with 401/403 from /tools/openapi.json; got " + statusCode );
     }

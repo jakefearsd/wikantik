@@ -210,7 +210,10 @@ public class OllamaEmbeddingClient implements TextEmbeddingClient {
             } );
     }
 
-    private List< float[] > parseEmbeddings( final String body, final int expectedCount ) {
+    /** Parses and validates the top-level response shape: valid JSON, a JSON object,
+     *  a JSON-array-valued {@code "embeddings"} field, with as many entries as inputs
+     *  sent. Leaves per-vector decoding to the caller. */
+    private static JsonArray extractEmbeddingsArray( final String body, final int expectedCount ) {
         final JsonElement root;
         try {
             root = JsonParser.parseString( body );
@@ -229,6 +232,11 @@ public class OllamaEmbeddingClient implements TextEmbeddingClient {
             throw new EmbeddingException( "Ollama embed returned " + embeddings.size()
                 + " vectors for " + expectedCount + " inputs" );
         }
+        return embeddings;
+    }
+
+    private List< float[] > parseEmbeddings( final String body, final int expectedCount ) {
+        final JsonArray embeddings = extractEmbeddingsArray( body, expectedCount );
         final int dim = dimension();
         final List< float[] > out = new ArrayList<>( embeddings.size() );
         for( int i = 0; i < embeddings.size(); i++ ) {

@@ -279,20 +279,30 @@ public final class QueryEmbedder implements AutoCloseable {
             te2.initCause( ce );
             throw te2;
         } catch( final ExecutionException ee ) {
-            // Unwrap to the underlying failure so logs and tests see the real cause.
-            // CompletionException nesting is common when sendAsync chains .handle().
-            Throwable cause = ee.getCause();
-            while( cause instanceof CompletionException && cause.getCause() != null ) {
-                cause = cause.getCause();
-            }
-            if( cause instanceof Exception ex ) {
-                throw ex; //NOPMD - ex is the unwrapped cause of ee, already preserved
-            }
-            if( cause instanceof Error err ) {
-                throw err; //NOPMD - err is the unwrapped cause of ee, already preserved
-            }
-            throw ee;
+            throw translateExecutionException( ee );
         }
+    }
+
+    /**
+     * Unwraps an {@link ExecutionException} from {@code future.get()} to the underlying
+     * failure so logs and tests see the real cause. {@link CompletionException} nesting is
+     * common when {@code sendAsync} chains {@code .handle()}. The unwrapped cause is rethrown
+     * as-is (never wrapped) — an {@link Error} cause is thrown directly from here (unchecked),
+     * an {@link Exception} cause is returned for the caller to throw, and the defensive
+     * fallback (a {@link Throwable} that is neither) rethrows {@code ee} itself.
+     */
+    private static Exception translateExecutionException( final ExecutionException ee ) {
+        Throwable cause = ee.getCause();
+        while( cause instanceof CompletionException && cause.getCause() != null ) {
+            cause = cause.getCause();
+        }
+        if( cause instanceof Exception ex ) {
+            return ex; //NOPMD - ex is the unwrapped cause of ee, already preserved
+        }
+        if( cause instanceof Error err ) {
+            throw err; //NOPMD - err is the unwrapped cause of ee, already preserved
+        }
+        return ee;
     }
 
     private void noteBreakerOpen( final CircuitState previous ) {

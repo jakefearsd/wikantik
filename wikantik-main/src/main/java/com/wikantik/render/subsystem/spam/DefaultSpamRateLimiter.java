@@ -132,21 +132,13 @@ public class DefaultSpamRateLimiter extends AbstractSpamStrategy implements Spam
                 }
             }
 
-            if( hostCounter >= limitSinglePageChanges ) {
-                final SpamHost host = new SpamHost( addr, null, banTime );
-                temporaryBanList.add( host );
-                final String uid = log( context, 0, REASON_TOO_MANY_MODIFICATIONS, change.change );
-                LOG.info( "SPAM:TooManyModifications ({}). Added host {} to temporary ban list for doing too many modifications/minute", uid, addr );
-                checkStrategy( context, "Herb says you look like a spammer, and I trust Herb! (Incident code " + uid + ")" );
-            }
+            banIfExceeded( context, addr, hostCounter >= limitSinglePageChanges,
+                    REASON_TOO_MANY_MODIFICATIONS, change.change,
+                    "SPAM:TooManyModifications ({}). Added host {} to temporary ban list for doing too many modifications/minute" );
 
-            if( changeCounter >= limitSimilarChanges ) {
-                final SpamHost host = new SpamHost( addr, null, banTime );
-                temporaryBanList.add( host );
-                final String uid = log( context, 0, REASON_SIMILAR_MODIFICATIONS, change.change );
-                LOG.info( "SPAM:SimilarModifications ({}). Added host {} to temporary ban list for doing too many similar modifications", uid, addr );
-                checkStrategy( context, "Herb says you look like a spammer, and I trust Herb! (Incident code " + uid + ")" );
-            }
+            banIfExceeded( context, addr, changeCounter >= limitSimilarChanges,
+                    REASON_SIMILAR_MODIFICATIONS, change.change,
+                    "SPAM:SimilarModifications ({}). Added host {} to temporary ban list for doing too many similar modifications" );
 
             // Calculate the number of links in the addition.
             final String  tstChange  = change.toString();
@@ -156,17 +148,36 @@ public class DefaultSpamRateLimiter extends AbstractSpamStrategy implements Spam
                 urlCounter++;
             }
 
-            if( urlCounter > maxUrls ) {
-                final SpamHost host = new SpamHost( addr, null, banTime );
-                temporaryBanList.add( host );
-                final String uid = log( context, 0, REASON_TOO_MANY_URLS, change.toString() );
-                LOG.info( "SPAM:TooManyUrls ({}). Added host {} to temporary ban list for adding too many URLs", uid, addr );
-                checkStrategy( context, "Herb says you look like a spammer, and I trust Herb! (Incident code " + uid + ")" );
-            }
+            banIfExceeded( context, addr, urlCounter > maxUrls,
+                    REASON_TOO_MANY_URLS, tstChange,
+                    "SPAM:TooManyUrls ({}). Added host {} to temporary ban list for adding too many URLs" );
 
             // NOTE: checkBotTrap, checkUTF8, checkAkismet are called by DefaultSpamPolicy.evaluate after this method.
             lastModifications.add( new SpamHost( addr, change, banTime ) );
         }
+    }
+
+    /**
+     * Shared ban path for the three {@code checkSinglePageChange} limit checks: adds a temporary
+     * ban entry, logs the incident (spam log + LOG.info), and applies the configured strategy
+     * (immediate redirect or score accumulation). A no-op when {@code exceeded} is false.
+     *
+     * <p>Callers compute {@code exceeded} themselves so each check keeps its own exact comparison
+     * operator (the URL check is strictly-greater, the other two are greater-or-equal) and so the
+     * three checks keep running in their original order — order determines which {@code reason} a
+     * banned request is logged under.</p>
+     */
+    private void banIfExceeded( final Context context, final String addr, final boolean exceeded,
+                                final String reason, final String logMessage, final String infoTemplate )
+            throws RedirectException {
+        if( !exceeded ) {
+            return;
+        }
+        final SpamHost host = new SpamHost( addr, null, banTime );
+        temporaryBanList.add( host );
+        final String uid = log( context, 0, reason, logMessage );
+        LOG.info( infoTemplate, uid, addr );
+        checkStrategy( context, "Herb says you look like a spammer, and I trust Herb! (Incident code " + uid + ")" );
     }
 
     @Override

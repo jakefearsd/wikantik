@@ -121,11 +121,47 @@ public final class WikiSecurityEvent extends WikiEvent {
     private final transient java.util.Map<String, String> attributes;
 
     private static final int[] ERROR_EVENTS = { LOGIN_FAILED };
-    
+
     private static final int[] WARN_EVENTS  = { LOGIN_ACCOUNT_EXPIRED, LOGIN_CREDENTIAL_EXPIRED };
-    
+
     private static final int[] INFO_EVENTS  = { LOGIN_AUTHENTICATED, SESSION_EXPIRED, LOGOUT, PROFILE_NAME_CHANGED };
-    
+
+    /** Textual representation of each event type, keyed by the type constant. See {@link #eventName(int)}. */
+    private static final java.util.Map< Integer, String > EVENT_NAMES = java.util.Map.ofEntries(
+            java.util.Map.entry( LOGIN_AUTHENTICATED,      "LOGIN_AUTHENTICATED" ),
+            java.util.Map.entry( LOGIN_ACCOUNT_EXPIRED,    "LOGIN_ACCOUNT_EXPIRED" ),
+            java.util.Map.entry( LOGIN_CREDENTIAL_EXPIRED, "LOGIN_ACCOUNT_EXPIRED" ),
+            java.util.Map.entry( LOGIN_FAILED,             "LOGIN_FAILED" ),
+            java.util.Map.entry( LOGOUT,                   "LOGOUT" ),
+            java.util.Map.entry( PRINCIPAL_ADD,            "PRINCIPAL_ADD" ),
+            java.util.Map.entry( SESSION_EXPIRED,          "SESSION_EXPIRED" ),
+            java.util.Map.entry( GROUP_ADD,                "GROUP_ADD" ),
+            java.util.Map.entry( GROUP_REMOVE,             "GROUP_REMOVE" ),
+            java.util.Map.entry( GROUP_CLEAR_GROUPS,       "GROUP_CLEAR_GROUPS" ),
+            java.util.Map.entry( ACCESS_ALLOWED,           "ACCESS_ALLOWED" ),
+            java.util.Map.entry( ACCESS_DENIED,            "ACCESS_DENIED" ),
+            java.util.Map.entry( PROFILE_NAME_CHANGED,     "PROFILE_NAME_CHANGED" ),
+            java.util.Map.entry( PROFILE_SAVE,             "PROFILE_SAVE" )
+    );
+
+    /** Human-readable description of each event type, keyed by the type constant. See {@link #getTypeDescription()}. */
+    private static final java.util.Map< Integer, String > TYPE_DESCRIPTIONS = java.util.Map.ofEntries(
+            java.util.Map.entry( LOGIN_AUTHENTICATED,      "login authenticated" ),
+            java.util.Map.entry( LOGIN_ACCOUNT_EXPIRED,    "login failed: expired account" ),
+            java.util.Map.entry( LOGIN_CREDENTIAL_EXPIRED, "login failed: credential expired" ),
+            java.util.Map.entry( LOGIN_FAILED,             "login failed" ),
+            java.util.Map.entry( LOGOUT,                   "user logged out" ),
+            java.util.Map.entry( PRINCIPAL_ADD,            "new principal added" ),
+            java.util.Map.entry( SESSION_EXPIRED,          "session expired" ),
+            java.util.Map.entry( GROUP_ADD,                "new group added" ),
+            java.util.Map.entry( GROUP_REMOVE,             "group removed" ),
+            java.util.Map.entry( GROUP_CLEAR_GROUPS,       "all groups cleared" ),
+            java.util.Map.entry( ACCESS_ALLOWED,           "access allowed" ),
+            java.util.Map.entry( ACCESS_DENIED,            "access denied" ),
+            java.util.Map.entry( PROFILE_NAME_CHANGED,     "user profile name changed" ),
+            java.util.Map.entry( PROFILE_SAVE,             "user profile saved" )
+    );
+
     /**
      * Constructs a new instance of this event type, which signals a security event has occurred. The <code>source</code> parameter is
      * required, and may not be <code>null</code>. When the WikiSecurityEvent is constructed, the security logger {@link #LOG} is notified.
@@ -240,23 +276,7 @@ public final class WikiSecurityEvent extends WikiEvent {
      * @return the string representation
      */
     public String eventName( final int type ) {
-        return switch( type ) {
-            case LOGIN_AUTHENTICATED       -> "LOGIN_AUTHENTICATED";
-            case LOGIN_ACCOUNT_EXPIRED     -> "LOGIN_ACCOUNT_EXPIRED";
-            case LOGIN_CREDENTIAL_EXPIRED  -> "LOGIN_ACCOUNT_EXPIRED";
-            case LOGIN_FAILED              -> "LOGIN_FAILED";
-            case LOGOUT                    -> "LOGOUT";
-            case PRINCIPAL_ADD             -> "PRINCIPAL_ADD";
-            case SESSION_EXPIRED           -> "SESSION_EXPIRED";
-            case GROUP_ADD                 -> "GROUP_ADD";
-            case GROUP_REMOVE              -> "GROUP_REMOVE";
-            case GROUP_CLEAR_GROUPS        -> "GROUP_CLEAR_GROUPS";
-            case ACCESS_ALLOWED            -> "ACCESS_ALLOWED";
-            case ACCESS_DENIED             -> "ACCESS_DENIED";
-            case PROFILE_NAME_CHANGED      -> "PROFILE_NAME_CHANGED";
-            case PROFILE_SAVE              -> "PROFILE_SAVE";
-            default                        -> super.eventName();
-        };
+        return EVENT_NAMES.getOrDefault( type, super.eventName() );
     }
 
     /**
@@ -266,23 +286,7 @@ public final class WikiSecurityEvent extends WikiEvent {
      */
     @Override
     public String getTypeDescription() {
-        return switch ( getType() ) {
-            case LOGIN_AUTHENTICATED       -> "login authenticated";
-            case LOGIN_ACCOUNT_EXPIRED     -> "login failed: expired account";
-            case LOGIN_CREDENTIAL_EXPIRED  -> "login failed: credential expired";
-            case LOGIN_FAILED              -> "login failed";
-            case LOGOUT                    -> "user logged out";
-            case PRINCIPAL_ADD             -> "new principal added";
-            case SESSION_EXPIRED           -> "session expired";
-            case GROUP_ADD                 -> "new group added";
-            case GROUP_REMOVE              -> "group removed";
-            case GROUP_CLEAR_GROUPS        -> "all groups cleared";
-            case ACCESS_ALLOWED            -> "access allowed";
-            case ACCESS_DENIED             -> "access denied";
-            case PROFILE_NAME_CHANGED      -> "user profile name changed";
-            case PROFILE_SAVE              -> "user profile saved";
-            default                        -> super.getTypeDescription();
-        };
+        return TYPE_DESCRIPTIONS.getOrDefault( getType(), super.getTypeDescription() );
     }
 
 }

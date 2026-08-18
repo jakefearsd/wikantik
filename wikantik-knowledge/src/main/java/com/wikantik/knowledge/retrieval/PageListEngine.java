@@ -102,33 +102,50 @@ public final class PageListEngine {
     }
 
     public boolean matchesFilter( final Page page, final Map< String, Object > meta, final PageListFilter f ) {
-        // Phase 5: a page matches when ANY membership is the requested cluster or sits beneath
-        // it. Comparing the raw frontmatter value would never match a list-valued `cluster:`.
-        if ( f.cluster() != null
-                && ClusterPath.memberships( meta.get( "cluster" ) ).stream()
-                              .noneMatch( m -> ClusterPath.isSelfOrDescendant( m, f.cluster() ) ) ) {
-            return false;
-        }
-        if ( f.type() != null
-                && !f.type().equals( meta.get( "type" ) ) ) {
-            return false;
-        }
-        if ( f.author() != null && !f.author().equals( page.getAuthor() ) ) {
-            return false;
-        }
+        return clusterMatches( meta, f )
+                && typeMatches( meta, f )
+                && authorMatches( page, f )
+                && tagsMatch( meta, f )
+                && modifiedAfterMatches( page, f )
+                && modifiedBeforeMatches( page, f );
+    }
+
+    /**
+     * Phase 5: a page matches when ANY membership is the requested cluster or sits beneath
+     * it. Comparing the raw frontmatter value would never match a list-valued {@code cluster:}.
+     */
+    private static boolean clusterMatches( final Map< String, Object > meta, final PageListFilter f ) {
+        if ( f.cluster() == null ) return true;
+        return ClusterPath.memberships( meta.get( "cluster" ) ).stream()
+                           .anyMatch( m -> ClusterPath.isSelfOrDescendant( m, f.cluster() ) );
+    }
+
+    private static boolean typeMatches( final Map< String, Object > meta, final PageListFilter f ) {
+        return f.type() == null || f.type().equals( meta.get( "type" ) );
+    }
+
+    private static boolean authorMatches( final Page page, final PageListFilter f ) {
+        return f.author() == null || f.author().equals( page.getAuthor() );
+    }
+
+    private static boolean tagsMatch( final Map< String, Object > meta, final PageListFilter f ) {
         final List< String > tags = stringList( meta.get( "tags" ) );
         for ( final String required : f.tags() ) {
             if ( !tags.contains( required ) ) return false;
         }
-        if ( f.modifiedAfter() != null ) {
-            final Date d = page.getLastModified();
-            if ( d == null || d.toInstant().isBefore( f.modifiedAfter() ) ) return false;
-        }
-        if ( f.modifiedBefore() != null ) {
-            final Date d = page.getLastModified();
-            if ( d == null || d.toInstant().isAfter( f.modifiedBefore() ) ) return false;
-        }
         return true;
+    }
+
+    private static boolean modifiedAfterMatches( final Page page, final PageListFilter f ) {
+        if ( f.modifiedAfter() == null ) return true;
+        final Date d = page.getLastModified();
+        return d != null && !d.toInstant().isBefore( f.modifiedAfter() );
+    }
+
+    private static boolean modifiedBeforeMatches( final Page page, final PageListFilter f ) {
+        if ( f.modifiedBefore() == null ) return true;
+        final Date d = page.getLastModified();
+        return d != null && !d.toInstant().isAfter( f.modifiedBefore() );
     }
 
     /**

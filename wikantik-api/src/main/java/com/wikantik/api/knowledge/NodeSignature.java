@@ -59,6 +59,14 @@ public record NodeSignature(String normalizedName, String normalizedType) {
      * {@code "GitHub"}.
      */
     static String stripEdgeNoise(String s) {
+        int start = findStart(s);
+        int end = findEnd(s, start);
+        return s.substring(start, end);
+    }
+
+    /** Scans forward from the start of {@code s}, skipping wrapper punctuation while
+     *  preserving a leading identifier prefix (.NET, #tag, @user). */
+    private static int findStart(String s) {
         int start = 0;
         int end = s.length();
         while (start < end) {
@@ -73,6 +81,13 @@ public record NodeSignature(String normalizedName, String normalizedType) {
             }
             start++;
         }
+        return start;
+    }
+
+    /** Scans backward from the end of {@code s} to {@code start}, skipping wrapper
+     *  punctuation while preserving a trailing identifier suffix (C++, C#). */
+    private static int findEnd(String s, int start) {
+        int end = s.length();
         while (end > start) {
             char c = s.charAt(end - 1);
             if (Character.isLetterOrDigit(c)) break;
@@ -86,7 +101,7 @@ public record NodeSignature(String normalizedName, String normalizedType) {
             }
             end--;
         }
-        return s.substring(start, end);
+        return end;
     }
 
     static String sha256Hex(String input) {

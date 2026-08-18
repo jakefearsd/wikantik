@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -269,6 +270,12 @@ public abstract class MarkupParser {
         return Collections.unmodifiableList( compiledpatterns );
     }
 
+    /** Regex metacharacters that must be backslash-escaped when a glob character is copied
+     *  through literally (everything except the glob-specific {@code *} and {@code ?}). */
+    private static final Set< Character > REGEX_METACHARACTERS_TO_ESCAPE = Set.of(
+        '.', '(', ')', '[', ']', '{', '}', '^', '$', '|', '\\', '+'
+    );
+
     /**
      * Compiles a glob pattern (like *.jpg) into a Java regex Pattern.
      *
@@ -280,29 +287,14 @@ public abstract class MarkupParser {
         final StringBuilder regex = new StringBuilder();
         for( int i = 0; i < glob.length(); i++ ) {
             final char globChar = glob.charAt( i );
-            switch( globChar ) {
-                case '*':
-                    regex.append( ".*" );
-                    break;
-                case '?':
-                    regex.append( '.' );
-                    break;
-                case '.':
-                case '(':
-                case ')':
-                case '[':
-                case ']':
-                case '{':
-                case '}':
-                case '^':
-                case '$':
-                case '|':
-                case '\\':
-                case '+':
-                    regex.append( '\\' ).append( globChar );
-                    break;
-                default:
-                    regex.append( globChar );
+            if( globChar == '*' ) {
+                regex.append( ".*" );
+            } else if( globChar == '?' ) {
+                regex.append( '.' );
+            } else if( REGEX_METACHARACTERS_TO_ESCAPE.contains( globChar ) ) {
+                regex.append( '\\' ).append( globChar );
+            } else {
+                regex.append( globChar );
             }
         }
         return Pattern.compile( regex.toString(), Pattern.CASE_INSENSITIVE );

@@ -298,33 +298,49 @@ public final class PropertyReader {
         final Enumeration< ? > propertyList = properties.propertyNames();
         while( propertyList.hasMoreElements() ) {
             final String propertyName = ( String )propertyList.nextElement();
-            String propertyValue = properties.getProperty( propertyName );
-            while( propertyValue.contains( "${" ) && propertyValue.contains( "}" ) ) {
-                final int start = propertyValue.indexOf( "${" );
-                final int end = propertyValue.indexOf( '}', start );
-                if( start >= 0 && end >= 0 && end > start ) {
-                    final String substring = propertyValue.substring( start, end ).replace( "${", "" ).replace( "}", "" );
-                    // Handle Log4j2 lookup prefixes like ${sys:property.name} or ${env:VAR_NAME}
-                    final String lookupKey;
-                    if( substring.startsWith( "sys:" ) ) {
-                        lookupKey = substring.substring( 4 );
-                    } else if( substring.startsWith( "env:" ) ) {
-                        lookupKey = substring.substring( 4 );
-                    } else {
-                        lookupKey = substring;
-                    }
-                    final String expansion = Objects.toString( System.getProperty( lookupKey ), System.getenv( lookupKey ) );
-                    if( expansion != null ) {
-                        propertyValue =  propertyValue.replace( "${" + substring + "}", expansion );
-                        properties.setProperty( propertyName, propertyValue );
-                    } else {
-                        LOG.warn( "{} referenced on {} ({}) but not found on System props or env", substring, propertyName, propertyValue );
-                        break;
-                    }
+            expandValue( propertyName, properties.getProperty( propertyName ), properties );
+        }
+    }
+
+    /**
+     * Resolves every {@code ${...}} placeholder in a single property's value against system
+     * properties then environment variables, writing each successful expansion straight back
+     * to {@code properties} (mirroring the original inline loop's side effect). Stops as soon
+     * as a placeholder can't be resolved, leaving the remainder of the value untouched.
+     * Extracted from {@link #propertyExpansion(Properties)} to keep that method a flat loop
+     * over the property names.
+     *
+     * @param propertyName the property whose value is being expanded (used for logging + the write-back)
+     * @param value the property's current value
+     * @param properties the properties object to write resolved values back into
+     */
+    private static void expandValue( final String propertyName, final String value, final Properties properties ) {
+        String propertyValue = value;
+        while( propertyValue.contains( "${" ) && propertyValue.contains( "}" ) ) {
+            final int start = propertyValue.indexOf( "${" );
+            final int end = propertyValue.indexOf( '}', start );
+            if( start >= 0 && end >= 0 && end > start ) {
+                final String substring = propertyValue.substring( start, end ).replace( "${", "" ).replace( "}", "" );
+                // Handle Log4j2 lookup prefixes like ${sys:property.name} or ${env:VAR_NAME}
+                final String lookupKey;
+                if( substring.startsWith( "sys:" ) ) {
+                    lookupKey = substring.substring( 4 );
+                } else if( substring.startsWith( "env:" ) ) {
+                    lookupKey = substring.substring( 4 );
                 } else {
-                    // no more matches or value like foo}${bar
+                    lookupKey = substring;
+                }
+                final String expansion = Objects.toString( System.getProperty( lookupKey ), System.getenv( lookupKey ) );
+                if( expansion != null ) {
+                    propertyValue =  propertyValue.replace( "${" + substring + "}", expansion );
+                    properties.setProperty( propertyName, propertyValue );
+                } else {
+                    LOG.warn( "{} referenced on {} ({}) but not found on System props or env", substring, propertyName, propertyValue );
                     break;
                 }
+            } else {
+                // no more matches or value like foo}${bar
+                break;
             }
         }
     }

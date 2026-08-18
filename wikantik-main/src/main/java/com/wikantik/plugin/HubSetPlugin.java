@@ -115,33 +115,39 @@ public class HubSetPlugin extends AbstractReferralPlugin {
             sb.append( "<div class=\"hub-set-card\">" );
             sb.append( "<h4><a href=\"/" ).append( escapeHtml( pageName ) ).append( "\">" )
                 .append( escapeHtml( pageName ) ).append( "</a></h4>" );
-
-            final Page page = pm.getPage( pageName );
-            if ( page != null ) {
-                final String content = pm.getPureText( page );
-                if ( content != null ) {
-                    final ParsedPage parsed = FrontmatterParser.parse( content );
-                    final Object summary = parsed.metadata().get( "summary" );
-                    if ( summary instanceof String s && !s.isBlank() ) {
-                        sb.append( "<p>" ).append( escapeHtml( s ) ).append( "</p>" );
-                    }
-                    final Object tags = parsed.metadata().get( "tags" );
-                    if ( tags instanceof List< ? > tagList && !tagList.isEmpty() ) {
-                        sb.append( "<div class=\"hub-set-tags\">" );
-                        for ( final Object tag : tagList ) {
-                            sb.append( "<span class=\"hub-set-tag\">" )
-                                .append( escapeHtml( String.valueOf( tag ) ) )
-                                .append( "</span> " );
-                        }
-                        sb.append( "</div>" );
-                    }
-                }
-            }
+            appendCardBody( sb, pageName, pm );
             sb.append( "</div>" );
         }
 
         sb.append( "</div>" );
         return sb.toString();
+    }
+
+    /** Appends the summary paragraph and tag list for {@code pageName}, if the page and content exist. */
+    private static void appendCardBody( final StringBuilder sb, final String pageName, final PageManager pm ) {
+        final Page page = pm.getPage( pageName );
+        if ( page == null ) {
+            return;
+        }
+        final String content = pm.getPureText( page );
+        if ( content == null ) {
+            return;
+        }
+        final ParsedPage parsed = FrontmatterParser.parse( content );
+        final Object summary = parsed.metadata().get( "summary" );
+        if ( summary instanceof String s && !s.isBlank() ) {
+            sb.append( "<p>" ).append( escapeHtml( s ) ).append( "</p>" );
+        }
+        final Object tags = parsed.metadata().get( "tags" );
+        if ( tags instanceof List< ? > tagList && !tagList.isEmpty() ) {
+            sb.append( "<div class=\"hub-set-tags\">" );
+            for ( final Object tag : tagList ) {
+                sb.append( "<span class=\"hub-set-tag\">" )
+                    .append( escapeHtml( String.valueOf( tag ) ) )
+                    .append( "</span> " );
+            }
+            sb.append( "</div>" );
+        }
     }
 
     private static String escapeHtml( final String s ) {

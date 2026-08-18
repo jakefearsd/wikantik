@@ -36,11 +36,21 @@ public record VisibilityRow(
         Double position ) {
 
     /**
-     * Factory method that creates a new VisibilityRow, or returns null if engine or siteHost
-     * is null or blank. Guards the allowlist contract at the type boundary.
+     * The reporting window a snapshot was taken over: the date the snapshot was taken, and the
+     * trailing number of days it aggregates (e.g. a Search-Console-style 28-day rolling window).
+     * Grouped because every {@link #of} caller derives both from the same snapshot document and
+     * passes them together.
      *
      * @param snapshotDate the snapshot date
      * @param windowDays   the reporting window in days
+     */
+    public record SnapshotWindow( LocalDate snapshotDate, int windowDays ) {}
+
+    /**
+     * Factory method that creates a new VisibilityRow, or returns null if engine or siteHost
+     * is null or blank. Guards the allowlist contract at the type boundary.
+     *
+     * @param window       the snapshot date and reporting window in days
      * @param engine       the search engine name; must not be blank
      * @param siteHost     the site host; must not be blank
      * @param pagePath     the page path
@@ -50,7 +60,7 @@ public record VisibilityRow(
      * @param position     the average position (may be null)
      * @return a new VisibilityRow, or null if engine or siteHost is blank
      */
-    public static VisibilityRow of( final LocalDate snapshotDate, final int windowDays,
+    public static VisibilityRow of( final SnapshotWindow window,
                                     final String engine, final String siteHost,
                                     final String pagePath, final String queryText,
                                     final int impressions, final int clicks,
@@ -58,7 +68,7 @@ public record VisibilityRow(
         if ( engine == null || engine.isBlank() || siteHost == null || siteHost.isBlank() ) {
             return null;
         }
-        return new VisibilityRow( snapshotDate, windowDays, engine, siteHost, pagePath,
-                queryText, impressions, clicks, position );
+        return new VisibilityRow( window.snapshotDate(), window.windowDays(), engine, siteHost,
+                pagePath, queryText, impressions, clicks, position );
     }
 }

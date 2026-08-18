@@ -145,7 +145,8 @@ public final class SnapshotPayloadParser {
         for ( final JsonElement el : arr ) {
             final JsonObject r = el.getAsJsonObject();
             final String key = r.get( "key" ).getAsString();
-            final VisibilityRow row = VisibilityRow.of( date, window, engine, site,
+            final VisibilityRow row = VisibilityRow.of(
+                    new VisibilityRow.SnapshotWindow( date, window ), engine, site,
                     isPage ? normalisePath( key ) : "",
                     isPage ? "" : key,
                     r.get( "impressions" ).getAsInt(),
@@ -199,7 +200,8 @@ public final class SnapshotPayloadParser {
                 rejected++;
                 continue;
             }
-            final VisibilityRow row = VisibilityRow.of( date, window, engine, site,
+            final VisibilityRow row = VisibilityRow.of(
+                    new VisibilityRow.SnapshotWindow( date, window ), engine, site,
                     normalisePath( page ), query,
                     r.has( "impressions" ) ? r.get( "impressions" ).getAsInt() : 0,
                     r.has( "clicks" ) ? r.get( "clicks" ).getAsInt() : 0,

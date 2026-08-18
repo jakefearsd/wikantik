@@ -93,9 +93,11 @@ class JdbcInsightsStoreTest {
     @Test
     void rowRejectsBlankEngineAndSite() {
         // Guard the allowlist contract at the type boundary rather than only at parse time.
-        assertNull( VisibilityRow.of( LocalDate.of( 2026, 8, 14 ), 28, "  ", "wiki.wikantik.com",
-                "/wiki/A", "", 1, 0, 1.0 ) );
-        assertNull( VisibilityRow.of( LocalDate.of( 2026, 8, 14 ), 28, "bing", "",
-                "/wiki/A", "", 1, 0, 1.0 ) );
+        assertNull( VisibilityRow.of(
+                new VisibilityRow.SnapshotWindow( LocalDate.of( 2026, 8, 14 ), 28 ),
+                "  ", "wiki.wikantik.com", "/wiki/A", "", 1, 0, 1.0 ) );
+        assertNull( VisibilityRow.of(
+                new VisibilityRow.SnapshotWindow( LocalDate.of( 2026, 8, 14 ), 28 ),
+                "bing", "", "/wiki/A", "", 1, 0, 1.0 ) );
     }
 }

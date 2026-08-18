@@ -241,6 +241,16 @@ public final class FrontmatterParser {
             return new ParsedPage( Map.of(), body );
         }
 
+        return loadStrict( yamlBlock, body );
+    }
+
+    /**
+     * Loads {@code yamlBlock} through the hardened SnakeYAML parser and translates any
+     * failure into {@link FrontmatterParseException}, carrying SnakeYAML's message and
+     * best-effort line/column. Extracted from {@link #parseStrict(String)} so that method
+     * stays a thin policy wrapper around {@link #split(String)} + this load.
+     */
+    private static ParsedPage loadStrict( final String yamlBlock, final String body ) throws FrontmatterParseException {
         try {
             final Yaml yaml = HARDENED_YAML.get();
             final Object parsed = yaml.load( yamlBlock );

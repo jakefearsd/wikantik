@@ -41,37 +41,64 @@ public class MathSpanExtractor {
         final String[] lines = body.split("\n", -1);
 
         int offset = 0;
-        int blockStart = -1;          // offset of opening delimiter line
-        String closer = null;         // "$$" or "```"
-        MathSpan.Kind blockKind = null;
-        final StringBuilder content = new StringBuilder();
+        final BlockState state = new BlockState();
 
         for (final String line : lines) {
             final String trimmed = line.strip();
-            if (closer == null) {
+            if (!state.isOpen()) {
                 if (trimmed.equals("$$")) {
-                    closer = "$$"; blockKind = MathSpan.Kind.DISPLAY_DOLLAR;
-                    blockStart = offset; content.setLength(0);
+                    state.open("$$", MathSpan.Kind.DISPLAY_DOLLAR, offset);
                 } else if (trimmed.equals("```math")) {
-                    closer = "```"; blockKind = MathSpan.Kind.MATH_FENCE;
-                    blockStart = offset; content.setLength(0);
+                    state.open("```", MathSpan.Kind.MATH_FENCE, offset);
                 } else if (!isFullyMasked(code, offset, line.length()) && !trimmed.startsWith("```")
                            && !trimmed.startsWith("~~~")) {
                     extractInline(line, offset, code, spans);
                 }
-            } else if (("$$".equals(closer) && trimmed.equals("$$"))
-                       || ("```".equals(closer) && trimmed.startsWith("```"))) {
-                final String text = content.length() > 0
-                        ? content.substring(0, content.length() - 1) : "";   // drop trailing '\n'
-                spans.add(new MathSpan(blockKind, text,
-                        MathSourceRange.from(body, blockStart, offset + line.length())));
-                closer = null; blockKind = null; content.setLength(0);
+            } else if (state.closesOn(trimmed)) {
+                closeBlock(state, body, offset + line.length(), spans);
             } else {
-                content.append(line).append('\n');
+                state.content.append(line).append('\n');
             }
             offset += line.length() + 1;
         }
         return spans;
+    }
+
+    /** Closes the block in {@code state}, emitting the accumulated {@link MathSpan} and resetting state. */
+    private static void closeBlock(final BlockState state, final String body, final int endOffset,
+                                    final List<MathSpan> spans) {
+        final String text = state.content.length() > 0
+                ? state.content.substring(0, state.content.length() - 1) : "";   // drop trailing '\n'
+        spans.add(new MathSpan(state.kind, text, MathSourceRange.from(body, state.start, endOffset)));
+        state.reset();
+    }
+
+    /** Mutable scan state for the display/fence block currently open, if any. */
+    private static final class BlockState {
+        String closer;                // "$$" or "```", null when no block is open
+        MathSpan.Kind kind;
+        int start = -1;                // offset of the opening delimiter line
+        final StringBuilder content = new StringBuilder();
+
+        boolean isOpen() { return closer != null; }
+
+        void open(final String closer, final MathSpan.Kind kind, final int start) {
+            this.closer = closer;
+            this.kind = kind;
+            this.start = start;
+            this.content.setLength(0);
+        }
+
+        boolean closesOn(final String trimmed) {
+            return ("$$".equals(closer) && trimmed.equals("$$"))
+                   || ("```".equals(closer) && trimmed.startsWith("```"));
+        }
+
+        void reset() {
+            closer = null;
+            kind = null;
+            content.setLength(0);
+        }
     }
 
     private void extractInline(final String line, final int base, final CodeRegions code,

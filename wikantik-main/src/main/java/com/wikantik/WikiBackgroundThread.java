@@ -153,31 +153,8 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
                 backgroundTask();
 
                 // Sleep for the interval we're supposed to, but wake up every POLLING_INTERVAL to see if thread should die
-                boolean interrupted = false;
-                try {
-                    for( int i = 0; i < interval; i++ ) {
-                        Thread.sleep( POLLING_INTERVAL );
-                        if( killMe ) {
-                            interrupted = true;
-                            LOG.info( "Interrupted background thread: {}.", name );
-                            break;
-                        }
-                    }
-                    if( interrupted ) {
-                        break;
-                    }
-                } catch( final InterruptedException ie ) {
-                    // Treat an interrupt as a shutdown signal regardless of killMe state.
-                    // Continuing the loop after interrupt would tight-spin because the
-                    // next Thread.sleep() rethrows immediately on the still-set flag.
-                    Thread.currentThread().interrupt();
-                    LOG.debug( "Background thread {} interrupted; exiting run loop.", name );
+                if( sleepBetweenRuns( name ) ) {
                     break;
-                } catch( final Throwable t ) {
-                    LOG.error( "Background thread error: (stack trace follows)", t );
-                    if ( killMe ) {
-                        break;
-                    }
                 }
             }
 
@@ -199,7 +176,46 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
     }
     
     /**
-     * Executes a task after shutdown signal was detected. By default, this method does nothing; override it 
+     *  Sleeps for {@code interval} seconds between {@link #backgroundTask()} runs, waking every
+     *  {@link #POLLING_INTERVAL} to check whether the thread has been asked to die.
+     *
+     *  <p>An {@link InterruptedException} is treated as a shutdown signal regardless of the
+     *  {@code killMe} flag's state: the thread's interrupt status is re-set (so callers further
+     *  up the stack still observe it) and this method returns {@code true} immediately, rather
+     *  than continuing to sleep — a subsequent {@code Thread.sleep()} would only rethrow right
+     *  away on the still-set flag and tight-spin.
+     *
+     *  @param name the thread's name, used only for logging
+     *  @return {@code true} if the caller should stop looping and proceed to {@link #shutdownTask()};
+     *          {@code false} to run another {@link #backgroundTask()} iteration
+     */
+    @SuppressWarnings( "PMD.AvoidCatchingThrowable" ) // Mirrors run()'s top-level catch: must survive an escaping error from Thread.sleep() without aborting the shutdown path.
+    private boolean sleepBetweenRuns( final String name ) {
+        try {
+            for( int i = 0; i < interval; i++ ) {
+                Thread.sleep( POLLING_INTERVAL );
+                if( killMe ) {
+                    LOG.info( "Interrupted background thread: {}.", name );
+                    return true;
+                }
+            }
+        } catch( final InterruptedException ie ) {
+            // Treat an interrupt as a shutdown signal regardless of killMe state.
+            // Continuing the loop after interrupt would tight-spin because the
+            // next Thread.sleep() rethrows immediately on the still-set flag.
+            Thread.currentThread().interrupt();
+            LOG.debug( "Background thread {} interrupted; exiting run loop.", name );
+            return true;
+        } catch( final Throwable t ) {
+            LOG.error( "Background thread error: (stack trace follows)", t );
+            return killMe;
+        }
+
+        return false;
+    }
+
+    /**
+     * Executes a task after shutdown signal was detected. By default, this method does nothing; override it
      * to implement custom functionality.
      * 
      * @throws Exception Any exception can be thrown.

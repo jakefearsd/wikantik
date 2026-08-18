@@ -70,6 +70,33 @@ public class SearchMatcher {
             return null;
         }
 
+        final int[] scores = scoreContentOccurrences( pageText );
+        if( scores == null ) {
+            // Found something that was forbidden.
+            return null;
+        }
+
+        final int totalscore = applyNameBonusAndRequiredFilter( wikiname, scores );
+        if( totalscore < 0 ) {
+            // A 'required' word had no score after the name bonus was applied.
+            return null;
+        }
+
+        if( totalscore > 0 ) {
+            return new SearchResultImpl( wikiname, totalscore );
+        }
+
+        return null;
+    }
+
+    /**
+     * Scans the page content line by line, counting occurrences of each query word.
+     *
+     * @param pageText The content of the page
+     * @return A per-query score array, or {@code null} if a FORBIDDEN word was found
+     * @throws IOException If reading page content fails
+     */
+    private int[] scoreContentOccurrences( final String pageText ) throws IOException {
         final int[] scores = new int[ queries.length ];
         try ( BufferedReader in = new BufferedReader( new StringReader( pageText ) ) ) {
             String line;
@@ -91,29 +118,37 @@ public class SearchMatcher {
             }
         }
 
-        //  Check that we have all required words.
+        return scores;
+    }
+
+    /**
+     * Applies the page-name match bonus to each query's score, then checks that every
+     * REQUIRED word has a non-zero score.
+     *
+     * @param wikiname The name of the page
+     * @param scores The per-query score array produced by {@link #scoreContentOccurrences(String)}
+     * @return The total score across all queries, or {@code -1} if a REQUIRED word has no score
+     */
+    private int applyNameBonusAndRequiredFilter( final String wikiname, final int[] scores ) {
+        final String lowerWikiname = wikiname.toLowerCase( Locale.ROOT );
         int totalscore = 0;
 
         for( int j = 0; j < scores.length; j++ ) {
             // Give five points for each occurrence of the word in the wiki name.
-            if( wikiname.toLowerCase( Locale.ROOT ).contains( queries[ j ].word ) && queries[j].type != QueryItem.FORBIDDEN ) {
+            if( lowerWikiname.contains( queries[ j ].word ) && queries[j].type != QueryItem.FORBIDDEN ) {
                 scores[j] += 5;
             }
 
             //  Filter out pages if the search word is marked 'required' but they have no score.
             if( queries[j].type == QueryItem.REQUIRED && scores[j] == 0 ) {
-                return null;
+                return -1;
             }
 
             //  Count the total score for this page.
             totalscore += scores[j];
         }
 
-        if( totalscore > 0 ) {
-            return new SearchResultImpl( wikiname, totalscore );
-        }
-
-        return null;
+        return totalscore;
     }
 
     /**

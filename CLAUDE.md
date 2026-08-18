@@ -287,6 +287,18 @@ and while we recognize it is not a perfect measurement, it is one we choose to p
 
 ## Architecture Overview
 
+### Wikantik is one component of the Simple Agility stack
+
+Wikantik, **jakemon** (`~/source/jakemon`, the observability plane) and **Roller** are components of the
+**Simple Agility** stack. The cross-repo contracts live on the wiki (canonical, not mirrored here):
+`SimpleAgilityStackHub` → `SimpleAgilityObservabilityPlane` (what jakemon owns; push feeds vs pull
+queries; the "do not build this in your backend" list), `SimpleAgilityTelemetryContract` (`/metrics`,
+structured-log envelope + `correlation_id`, `/healthz`), `SimpleAgilityFeedbackLoopPattern`, and
+`SimpleAgilityOnCallAutomation` (escalation ladder; the scoped-admin surfaces products must expose).
+Read the plane page before adding any metrics/log/event store, third-party poller, alerting, or SLO
+computation to Wikantik — those belong to jakemon. Content Intelligence (`wikantik-insights`) is the
+reference implementation of the loop pattern.
+
 Wikantik is a modular Java-based wiki engine built on JEE technologies with the following key characteristics:
 
 ### Page Graph vs Knowledge Graph

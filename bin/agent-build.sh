@@ -10,7 +10,7 @@
 # Why this exists: a bare foreground Maven call dies at the agent tool's ~10-minute
 # cap, and a bare `nohup mvn -q ... &` leaves a log where success and a crashed
 # build look identical (-q suppresses the BUILD SUCCESS banner). This wrapper
-# setsids the build into its own session (survives process-group kills) and
+# runs the build in its own session (survives process-group kills) and
 # appends an EXIT=<code> sentinel to the log, so completion is one grep.
 # It also unsets WIKANTIK_* env vars in the child (WikiTest counts them).
 
@@ -23,6 +23,37 @@ mkdir -p "$DIR"
 usage() { grep '^#   ' "$0" | sed 's/^#   //'; exit 2; }
 
 name_ok() { [[ "$1" =~ ^[a-zA-Z0-9._-]+$ ]]; }
+
+# Run "$@" in a new session so a process-group kill aimed at the caller can't
+# reach it. setsid(1) is util-linux and is NOT present on macOS, so fall back to
+# perl's POSIX::setsid (ships with macOS). If neither exists we still run the
+# build — it just stays in the caller's process group.
+# NOTE: this MUST stay an array expanded inline at the call site, not a shell
+# function. Backgrounding a function call forks a subshell that bash cannot
+# exec-optimize away, so $! would record that throwaway subshell instead of the
+# detached build — and a process-group kill would then make status report a
+# false KILLED while the build was still running.
+if command -v setsid >/dev/null 2>&1; then
+  DETACH=(setsid)
+elif command -v perl >/dev/null 2>&1; then
+  DETACH=(perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV or die "exec failed: $!\n";' --)
+else
+  DETACH=()
+fi
+
+# Epoch mtime of a file. GNU (Linux) and BSD (macOS) stat take different flags:
+# GNU wants -c %Y, BSD wants -f %m. Try GNU first, then BSD, and validate that
+# what came back is actually an integer before returning it -- on GNU stat, -f
+# means --file-system, so the BSD-style call "succeeds" far enough to print
+# filesystem text on stdout. Falling back to "now" (elapsed 0) guarantees the
+# caller's arithmetic can never break under set -e.
+file_mtime() {
+  local t
+  t="$(stat -c %Y "$1" 2>/dev/null)" || t=""
+  [[ "$t" =~ ^[0-9]+$ ]] || t="$(stat -f %m "$1" 2>/dev/null)" || t=""
+  [[ "$t" =~ ^[0-9]+$ ]] || t="$(date +%s)"
+  printf '%s\n' "$t"
+}
 
 cmd="${1:-}"
 [[ -n "$cmd" ]] || usage
@@ -43,11 +74,14 @@ case "$cmd" in
     fi
     rm -f "$log" "$pidf"
     { printf 'CMD:'; printf ' %q' "$@"; printf '\n'; } > "$log"
-    LOG="$log" setsid bash -c '
+    # Launcher stdout/stderr go to the LOG, never /dev/null: if the detach helper
+    # itself fails (missing binary, exec error) that message must be visible,
+    # otherwise the build silently never starts and status reports a bogus KILLED.
+    LOG="$log" ${DETACH[@]+"${DETACH[@]}"} bash -c '
       for v in $(compgen -v | grep "^WIKANTIK_" || true); do unset "$v"; done
       "$@" >> "$LOG" 2>&1
       echo "EXIT=$?" >> "$LOG"
-    ' _ "$@" < /dev/null >/dev/null 2>&1 &
+    ' _ "$@" < /dev/null >> "$log" 2>&1 &
     echo $! > "$pidf"
     echo "STARTED name=$name pid=$(cat "$pidf") log=$log"
     ;;
@@ -69,7 +103,7 @@ case "$cmd" in
       exit 0
     fi
     if [[ -f "$pidf" ]] && kill -0 "$(cat "$pidf")" 2>/dev/null; then
-      echo "RUNNING pid=$(cat "$pidf") elapsed=$(( $(date +%s) - $(stat -c %Y "$pidf") ))s log_bytes=$(wc -c < "$log") log=$log"
+      echo "RUNNING pid=$(cat "$pidf") elapsed=$(( $(date +%s) - $(file_mtime "$pidf") ))s log_bytes=$(wc -c < "$log") log=$log"
       exit 0
     fi
     echo "KILLED: process gone with no EXIT sentinel (crashed / OOM-killed / host reboot) log=$log"
@@ -83,10 +117,14 @@ case "$cmd" in
     timeout="${2:-540}"
     deadline=$(( $(date +%s) + timeout ))
     while true; do
-      line="$("$0" status "$name" | head -1)"
+      # Capture the whole status output and split in-shell. Piping into `head -1`
+      # under `set -o pipefail` makes status die of SIGPIPE on its own trailing
+      # log lines, so wait exited 141 instead of the documented 0/1/2.
+      out="$("$0" status "$name" || true)"
+      line="${out%%$'\n'*}"
       case "$line" in
         SUCCESS*)         echo "$line"; exit 0 ;;
-        FAILED*|KILLED*)  "$0" status "$name"; exit 1 ;;
+        FAILED*|KILLED*)  printf '%s\n' "$out"; exit 1 ;;
         UNKNOWN*)         echo "$line"; exit 2 ;;
       esac
       if (( $(date +%s) >= deadline )); then

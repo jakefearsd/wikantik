@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.13] - 2026-08-19
+
 ### Fixed
 - **Search reported an unreadable index as "no results".** Lucene writes
   `pending_segments_N` and only renames it to `segments_N` on commit, so a search

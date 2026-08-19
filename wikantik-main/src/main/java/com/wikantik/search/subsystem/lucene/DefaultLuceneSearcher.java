@@ -228,19 +228,6 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
         return directorySupplier.get();
     }
 
-    /**
-     * True when the index directory holds files but no committed segments — i.e. a
-     * build is in flight (or left a half-written index behind). Only meaningful
-     * after Lucene has already told us there is no {@code segments_*} file by
-     * raising {@link IndexNotFoundException}: at that point ANY file present means
-     * the directory is mid-build rather than untouched, so "not ready" is the
-     * honest answer. An absent or empty directory means nothing was ever indexed,
-     * which is a legitimate zero-result state on a fresh install.
-     */
-    private boolean indexBuildInProgress() {
-        final String[] files = new File( dir() ).list();
-        return files != null && files.length > 0;
-    }
 
     // -------------------------------------------------------------------------
     // LuceneSearcher interface
@@ -385,19 +372,23 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                 }
             }
         } catch ( final IndexNotFoundException e ) {
-            // No committed segments. TWO very different states raise this, and they
-            // must not share a response:
-            //   * nothing has ever been indexed  -> genuinely zero results
-            //   * a writer is mid-build          -> the index is NOT empty, it is NOT
-            //     READY. Lucene writes pending_segments_N and only renames it to
-            //     segments_N on commit, so a search landing in that window used to be
-            //     answered with an empty list — a wrong answer indistinguishable from
-            //     a real one. Callers (and users) deserve to know the difference.
-            if ( indexBuildInProgress() ) {
-                throw new SearchIndexNotReadyException(
-                        "the search index is still being built; retry shortly" );
-            }
-            LOG.info( "Search '{}' ran before anything was indexed - returning no results", query );
+            // No committed segments yet. This is NOT an error and must NOT be thrown
+            // from a best-effort read: two transient/empty states raise it, and both
+            // legitimately have zero results *available right now* —
+            //   * nothing has ever been indexed (a fresh install), and
+            //   * a writer is mid-build (Lucene writes pending_segments_N and only
+            //     renames it to segments_N on commit).
+            // The right contract for a caller waiting on the index (a poller, the
+            // Search plugin, a warm-up probe) is "no results yet, come back" — which
+            // an empty result expresses, and which a retry loop handles naturally.
+            // Throwing a checked/runtime "not ready" here instead was the wrong tool:
+            // it turned a transient state into a hard failure that every caller and
+            // test had to special-case, and it made a genuinely-empty query counted
+            // by the metrics path throw instead. So fall through to the metrics +
+            // empty-result tail. (A genuine I/O fault is a DIFFERENT exception —
+            // IOException below — and that one DOES propagate.)
+            LOG.debug( "Search '{}' ran against an index with no committed segments yet - "
+                       + "returning no results for now", query );
         } catch ( final IOException e ) {
             // Never swallow this into an empty list: a failed search that looks like a
             // successful empty one silently corrupts whatever the caller does next.

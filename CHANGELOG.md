@@ -34,6 +34,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   bytes reach a provider. This also closes the REST/ingest active-content blocklist
   bypass (`.jsp`/`.svg`/`.html` could previously land via those routes).
 
+### Fixed
+- **Search index-not-ready is a transient empty state again, not a hard error.**
+  2.4.13 made `findPages` throw `SearchIndexNotReadyException` when the Lucene index
+  had no committed segments yet, to stop a not-ready index masquerading as
+  authoritative "no results". That distinction was right but the tool was wrong:
+  throwing from a best-effort read turned a transient state into a failure every
+  caller and test had to special-case, and under the `-T 1C` load the release gate
+  runs at, it surfaced as intermittent failures in `PluginCoverageTest` and
+  `LuceneSearchProviderTest` (a genuinely-empty query counted by the metrics path
+  now threw). `IndexNotFoundException` (no committed segments — a fresh install *or*
+  a mid-commit index) is now treated as "no results yet": return empty, and let a
+  waiting caller retry. A genuine `IOException` (corruption, disk fault) still
+  propagates as a `ProviderException` — that was the original 2.4.12 defect and it
+  stays fixed. `SearchIndexNotReadyException` is removed. The flaky
+  `testSearchWithResults` is fixed at its real cause: it now drives its assertion
+  *through* the plugin inside the retry, instead of warming up with one search and
+  then executing the plugin once in a window where the plugin's own search could
+  still hit the not-ready state.
+
 ## [2.4.13] - 2026-08-19
 
 ### Fixed

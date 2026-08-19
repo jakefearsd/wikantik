@@ -32,7 +32,6 @@ import com.wikantik.auth.Users;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.search.SearchManager;
-import com.wikantik.search.subsystem.lucene.SearchIndexNotReadyException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
@@ -615,30 +614,30 @@ class PluginCoverageTest {
             final String uniqueTerm = "zqxwv" + System.currentTimeMillis();
             engine.saveText( "SearchableFoo", "This page contains " + uniqueTerm + " as content." );
 
-            // Wait for the search engine to index the page.
-            //
-            // ignoreExceptions is load-bearing, not defensive padding: until the
-            // indexer commits its first segment there is no readable index, and
-            // findPages now reports that honestly as a ProviderException instead of
-            // quietly returning an empty list (see DefaultLuceneSearcherReadinessTest).
-            // "Not ready yet" is exactly what this poll exists to wait out, so it must
-            // be retried rather than treated as a failure.
+            // Drive the assertion THROUGH the plugin, inside the retry — not a
+            // separate warm-up followed by a one-shot plugin call. The async indexer
+            // commits on its own schedule, and a search that lands before the commit
+            // returns empty (a transient "no results yet" state). The earlier version
+            // warmed up with a direct findPages poll and THEN executed the plugin
+            // once; that left a gap where the plugin's own search could hit the
+            // not-ready window, render the "No results" table, and fail the
+            // page-name assertion (the intermittent failure this test used to show).
+            // Polling the rendered plugin output until the page name appears closes
+            // that gap: the same code path that is asserted is the one being waited on.
+            final Context ctx = contextFor( "SearchableFoo" );
+            final java.util.concurrent.atomic.AtomicReference< String > rendered =
+                    new java.util.concurrent.atomic.AtomicReference<>( "" );
             Awaitility.await( "waiting for search index" )
                     .atMost( 10, TimeUnit.SECONDS )
                     .pollInterval( 200, TimeUnit.MILLISECONDS )
-                    .ignoreExceptionsInstanceOf( SearchIndexNotReadyException.class )
                     .until( () -> {
-                        final Context c = Wiki.context().create( engine,
-                                HttpMockFactory.createHttpRequest(),
-                                ContextEnum.PAGE_EDIT.getRequestContext() );
-                        final var results = searchMgr.findPages( uniqueTerm, c );
-                        return results != null && !results.isEmpty();
+                        final String out = manager.execute( ctx,
+                                "{INSERT com.wikantik.plugin.Search WHERE query='" + uniqueTerm + "'}" );
+                        rendered.set( out );
+                        return out.contains( "SearchableFoo" );
                     } );
 
-            final Context ctx = contextFor( "SearchableFoo" );
-            final String res = manager.execute( ctx,
-                    "{INSERT com.wikantik.plugin.Search WHERE query='" + uniqueTerm + "'}" );
-
+            final String res = rendered.get();
             assertAll(
                     () -> assertTrue( res.contains( "<table" ), "Should produce result table" ),
                     () -> assertTrue( res.contains( "search-result" ), "Should have search-result class" ),

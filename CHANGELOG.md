@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- **JDBCPlugin is disabled by default.** It executes page-authored SQL against the
+  wiki datasource; two review findings hit it — results reach non-admin readers
+  through the principal-less render cache, and the app connects as a high-privilege
+  DB role (`lo_export` arbitrary file write). It ships off behind
+  `wikantik.plugin.jdbc.enabled` (default false), checked before even the admin
+  gate, so page-authored SQL never runs in a default deployment. Enable it
+  deliberately if you accept that exposure.
+
 ## [2.4.15] - 2026-08-19
 
 ### Security

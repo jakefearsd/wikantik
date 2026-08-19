@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.14] - 2026-08-19
+
 ### Security
 - **Unauthenticated admin-data disclosure via the SPA-navigation bypass (CRITICAL).**
   `AdminAuthFilter` waved any `GET` carrying `Accept: text/html` past authentication

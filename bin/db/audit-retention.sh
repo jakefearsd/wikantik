@@ -51,6 +51,36 @@ esac
 psql_q()   { PGPASSWORD="${PGPASSWORD:-}" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$DB_NAME" -At -c "$1"; }
 psql_exec(){ PGPASSWORD="${PGPASSWORD:-}" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -c "$1"; }
 
+# month_shift <YYYY-MM-01> <signed_months> <out_fmt>
+#
+# Portable "add N months to a date" for both GNU date (Linux — what prod
+# runs) and BSD date (macOS — the dev laptop). GNU understands
+# `date -d "<date> <+-N> months"`; BSD has no -d at all (it errors with
+# "illegal option -- d") and instead shifts with `-v<+-N>m`, parsing the
+# fixed-format input via `-j -f %Y-%m-%d` (`-j` stops BSD from also trying
+# to set the system clock). We feature-detect rather than uname-sniff — try
+# the GNU form first and fall back to BSD syntax on failure — so this still
+# works on an odd PATH where "date" isn't the platform's usual binary.
+#
+# THIS IS LOAD-BEARING: cutoff_name below is built straight from this
+# function's stdout and gates which audit_log partitions get DROPPED. A
+# `date` failure must never leak an empty/garbage string into that decision.
+# `set -euo pipefail` does not see failures inside an `if`/command
+# substitution, so both attempts are explicitly guarded and this function
+# returns non-zero (aborting the caller under -e) if neither syntax works.
+month_shift() {
+  local in_date="$1" months="$2" out_fmt="$3" offset
+  offset="$(printf '%+d' "$months")"   # always signed, e.g. +3, -84, +0
+  if date -u -d "${in_date} ${offset} months" +"$out_fmt" 2>/dev/null; then
+    return 0
+  fi
+  if date -u -j -f '%Y-%m-%d' -v"${offset}m" "$in_date" +"$out_fmt" 2>/dev/null; then
+    return 0
+  fi
+  echo "month_shift: failed to compute '${in_date} ${offset} months' (neither GNU nor BSD date syntax worked)" >&2
+  return 1
+}
+
 # Enumerate audit_log partitions from the catalog (robust), filter by name below.
 list_partitions() {
   psql_q "SELECT c.relname FROM pg_inherits i \
@@ -64,7 +94,7 @@ CUR="$(date -u +%Y-%m-01)"   # first of the current month, UTC
 if [ "$STATUS" = 1 ]; then
   echo "audit_log retention: keep ${RETENTION_MONTHS} months; pre-create ${LOOKAHEAD} ahead."
   if [[ "$RETENTION_MONTHS" =~ ^[0-9]+$ ]] && [ "$RETENTION_MONTHS" -ge 1 ]; then
-    echo "Cutoff (drop partitions before): $(date -u -d "$CUR -${RETENTION_MONTHS} months" +%Y_%m)"
+    echo "Cutoff (drop partitions before): $(month_shift "$CUR" "-${RETENTION_MONTHS}" %Y_%m)"
   else
     echo "Cutoff: (drop phase disabled — AUDIT_RETENTION_MONTHS < 1)"
   fi
@@ -75,9 +105,9 @@ fi
 # ---- 1. Pre-create upcoming partitions (idempotent) ----
 echo "Pre-creating partitions (current + ${LOOKAHEAD} months)..."
 for i in $(seq 0 "$LOOKAHEAD"); do
-  start="$(date -u -d "$CUR +${i} months" +%Y-%m-01)"
-  end="$(date -u -d "$CUR +$((i + 1)) months" +%Y-%m-01)"
-  name="audit_log_$(date -u -d "$start" +%Y_%m)"
+  start="$(month_shift "$CUR" "${i}" %Y-%m-01)"
+  end="$(month_shift "$CUR" "$((i + 1))" %Y-%m-01)"
+  name="audit_log_$(month_shift "$start" 0 %Y_%m)"
   sql="CREATE TABLE IF NOT EXISTS ${name} PARTITION OF audit_log FOR VALUES FROM ('${start}') TO ('${end}');"
   if [ "$DRY_RUN" = 1 ]; then echo "[dry-run] ${sql}"; else psql_exec "$sql"; fi
 done
@@ -89,7 +119,7 @@ if ! [[ "$RETENTION_MONTHS" =~ ^[0-9]+$ ]] || [ "$RETENTION_MONTHS" -lt 1 ]; the
 fi
 
 # ---- 2. Archive-then-drop over-age partitions ----
-cutoff_name="audit_log_$(date -u -d "$CUR -${RETENTION_MONTHS} months" +%Y_%m)"
+cutoff_name="audit_log_$(month_shift "$CUR" "-${RETENTION_MONTHS}" %Y_%m)"
 echo "Archiving+dropping partitions strictly before ${cutoff_name}..."
 while IFS= read -r part; do
   [ -z "$part" ] && continue

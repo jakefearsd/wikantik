@@ -20,6 +20,32 @@ trap _cleanup_fake_envs EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
 ok()   { echo "ok: $*"; }
 
+# --- hermetic stand-in for the real docker-compose.yml's `env_file: .env` ---
+#
+# docker-compose.yml declares `env_file: .env` on the wikantik service.
+# `.env` is gitignored and only exists on a machine that has already run
+# `deploy-local.sh` once, so the real `docker compose config` checks below
+# fail on a fresh clone (and in CI) with "env file ... not found". This suite
+# must not depend on that, and must never go near a developer's real `.env`:
+# it holds live secrets (POSTGRES_PASSWORD, etc.).
+#
+# `--env-file` on the CLI does NOT satisfy `env_file:` — it only feeds
+# `${VAR}` substitution inside the YAML. What does work: `env_file:` (like
+# every other relative path in a compose file, and like the `.env` used for
+# variable substitution) resolves against the PROJECT DIRECTORY, not against
+# the directory of the compose file that declares it. So pointing
+# --project-directory at a scratch dir holding a throwaway empty `.env`
+# satisfies it while still validating the REAL compose files in place — no
+# copies, no overlay patching, nothing that could drift from what ships.
+#
+# The one consequence to be aware of: every relative path in the compose file
+# now resolves against that scratch dir, so a declared `context: .` surfaces
+# as ${COMPOSE_TMP}. The build-context assertion below relies on exactly that
+# — see the comment there.
+COMPOSE_TMP="$(mktemp -d)"
+WITH_FAKE_ENV_TMPS+=("${COMPOSE_TMP}")
+: > "${COMPOSE_TMP}/.env"
+
 make_fake_remote_env() {
     local dir="$1"
     cat > "${dir}/remote.env" <<EOF
@@ -55,7 +81,8 @@ with_fake_env() {
 test_prod_pages_bind_mount() {
     local out
     out="$(WIKANTIK_PAGES_DIR=/srv/wikantik/pages BACKUP_DIR=/srv/wikantik/backups \
-           docker compose -f docker-compose.yml -f docker-compose.prod.yml config 2>/dev/null)" \
+           docker compose --project-directory "${COMPOSE_TMP}" \
+           -f docker-compose.yml -f docker-compose.prod.yml config 2>/dev/null)" \
         || fail "docker compose config rejected prod overlay"
     echo "${out}" | grep -E '^\s+source: /srv/wikantik/pages' >/dev/null \
         || fail "prod overlay did not expand WIKANTIK_PAGES_DIR into a bind mount"
@@ -73,10 +100,16 @@ test_prod_pages_bind_mount
 # the build a silent no-op ("No services to build") that ships a stale image.
 test_base_compose_has_wikantik_build() {
     local out
-    out="$(docker compose -f docker-compose.yml config 2>/dev/null)" \
+    # Asserting the context resolves to ${COMPOSE_TMP} is NOT a tautology: the
+    # scratch dir is only the project directory, never written into the compose
+    # file. A relative `context: .` in the real docker-compose.yml is the only
+    # thing that can produce it, so deleting the `build:` block drops the line
+    # entirely and this fails — verified against a build-block-stripped copy.
+    out="$(docker compose --project-directory "${COMPOSE_TMP}" \
+           -f docker-compose.yml config 2>/dev/null)" \
         || fail "docker compose config rejected the base compose"
-    echo "${out}" | grep -q "context: ${REPO_ROOT}" \
-        || fail "base docker-compose.yml has no wikantik build context"
+    echo "${out}" | grep -q "context: ${COMPOSE_TMP}" \
+        || fail "base docker-compose.yml has no relative wikantik build context"
     ok "base compose carries the wikantik build context"
 }
 test_base_compose_has_wikantik_build

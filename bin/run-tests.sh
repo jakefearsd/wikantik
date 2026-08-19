@@ -187,10 +187,28 @@ embed_start() {
   return 1
 }
 
+# STOP, never `down`. `docker compose down` removes the container, and removing
+# the last container that references a named volume leaves that volume DANGLING
+# — which is exactly what `docker volume prune` (and `docker system prune
+# --volumes`) collects. The volume here is ollama-models, holding the ~600 MB
+# qwen3-embedding tag, so an ordinary host cleanup between runs would silently
+# cost a full re-download on the next IT phase — and that re-download presents
+# as a multi-minute hang at "waiting for qwen3-embedding:0.6b", which reads like
+# a broken suite rather than a cache miss.
+#
+# A *stopped* container still counts as using its volume, so prune skips it.
+# Restarting is also cheaper than recreating: `up -d` starts the existing
+# container, and the entrypoint's `ollama pull` is idempotent against the cached
+# blob store. `restart: unless-stopped` does not fight this — an explicit stop
+# is remembered across daemon restarts.
+#
+# To actually remove the container + network (the volume still survives; only a
+# `-v` would take it):
+#   docker compose -p wikantik-embed-test -f docker/docker-compose.embeddings.yml down
 embed_stop() {
   COMPOSE_PROJECT_NAME="${EMBED_PROJECT}" WIKANTIK_EMBEDDING_PORT="${EMBED_PORT}" \
     WIKANTIK_EMBEDDING_MODEL_TAG="${EMBED_MODEL_TAG}" \
-    docker compose -f "${EMBED_COMPOSE}" down >/dev/null 2>&1 || true
+    docker compose -f "${EMBED_COMPOSE}" stop >/dev/null 2>&1 || true
 }
 
 # Sweep a leftover embedder container from a PREVIOUSLY KILLED run before

@@ -69,6 +69,31 @@ run() {  # run the script with the sandbox PATH + a fresh CMDLOG
     PATH="${sb}/bin:$PATH" AUDIT_ARCHIVE_DIR="${sb}/archive" "$SCRIPT" "$@"
 }
 
+# --- Case 0: month_shift portable date-arithmetic helper, pinned values ---
+# Extract just the function body (not the whole script — that would run the
+# live top-level psql logic) and eval it into this shell so we can call it
+# directly. This is what actually exercises the GNU-vs-BSD split on whatever
+# platform the suite runs on (BSD/macOS here, GNU on prod's Linux CI).
+month_shift_src="$(sed -n '/^month_shift()/,/^}/p' "$SCRIPT")"
+[ -n "$month_shift_src" ] || fail "month_shift() function not found in $SCRIPT"
+eval "$month_shift_src"
+
+got="$(month_shift 2026-08-01 -84 %Y_%m)"
+[ "$got" = "2019_08" ] || fail "month_shift 2026-08-01 -84 months: expected 2019_08, got '$got'"
+
+got="$(month_shift 2026-08-01 3 %Y-%m-01)"
+[ "$got" = "2026-11-01" ] || fail "month_shift 2026-08-01 +3 months: expected 2026-11-01, got '$got'"
+
+# Year-boundary case: month arithmetic crossing a year edge is the classic bug.
+got="$(month_shift 2026-01-01 -3 %Y-%m)"
+[ "$got" = "2025-10" ] || fail "month_shift 2026-01-01 -3 months: expected 2025-10, got '$got'"
+
+# Zero offset must still work (used to reformat a date string with no shift).
+got="$(month_shift 2026-08-01 0 %Y_%m)"
+[ "$got" = "2026_08" ] || fail "month_shift 2026-08-01 +0 months: expected 2026_08, got '$got'"
+
+echo "PASS: month_shift pinned values (Case 0)"
+
 # Old partitions (well before any plausible 84-month cutoff) + a near-current one.
 export PARTLIST="audit_log_2000_01 audit_log_2000_02 audit_log_2099_01"
 
@@ -110,4 +135,4 @@ PGRESTORE_RC=1 run "$sb" >/dev/null || true
 grep -q 'pg_dump:.*audit_log_2000_01' "$CMDLOG" || fail "expected pg_dump attempt"
 grep -q 'DROP TABLE audit_log_2000_01' "$CMDLOG" && fail "must not DROP when pg_restore verify fails"
 
-echo "PASS: test-audit-retention.sh (6 cases)"
+echo "PASS: test-audit-retention.sh (7 cases)"

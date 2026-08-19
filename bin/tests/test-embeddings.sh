@@ -329,6 +329,12 @@ RUNTESTS="${REPO_DIR}/bin/run-tests.sh"
 checkf "run-tests starts the shared embedder"                   "$RUNTESTS" 'wikantik-embed-test'
 checkf "run-tests uses the test port 11435"                     "$RUNTESTS" '11435'
 checkf "run-tests tears the embedder down"                      "$RUNTESTS" 'embed_stop'
+checkf "run-tests STOPS the embedder rather than removing it"   "$RUNTESTS" 'docker compose -f "\${EMBED_COMPOSE}" stop'
+if grep -qE 'docker compose -f "\$\{EMBED_COMPOSE\}" down' "$RUNTESTS"; then
+  fail "run-tests.sh 'down's the embedder — orphans the ollama-models volume (600 MB re-download after any docker volume prune)"
+else
+  pass "run-tests.sh never 'down's the embedder compose project"
+fi
 checkf "dense module is in the default gate"                    "$RUNTESTS" 'wikantik-it-test-dense'
 checkf "run-tests sources the shared embeddings lib"             "$RUNTESTS" 'lib/embeddings.sh'
 checkf "run-tests readiness gate calls embeddings_model_ready"   "$RUNTESTS" 'embeddings_model_ready "\${EMBED_URL}"'
@@ -423,10 +429,24 @@ else
   fail "run-tests readiness loop accepted the first (empty-model-list) response — reverted to a bare HTTP-200 probe"
 fi
 
-if [ -f "$RTCALLS" ] && grep -q " down" "$RTCALLS" 2>/dev/null; then
-  pass "run-tests tears the embedder down (docker compose down) on exit"
+# The embedder is STOPPED, never `down`ed. `docker compose down` removes the
+# container, and removing the last container that references a named volume
+# leaves that volume dangling — which is exactly what `docker volume prune`
+# collects. The volume here is ollama-models, holding the ~600 MB
+# qwen3-embedding tag, so a routine host cleanup between runs would silently
+# cost a full re-download on the next IT phase (and the re-download looks like
+# a hang at "waiting for qwen3-embedding:0.6b"). A *stopped* container still
+# counts as using its volume, so prune skips it.
+if [ -f "$RTCALLS" ] && grep -qE ' stop( |$)' "$RTCALLS" 2>/dev/null; then
+  pass "run-tests stops the embedder (docker compose stop) on exit"
 else
-  fail "run-tests never invoked docker compose down on exit"
+  fail "run-tests never invoked docker compose stop on exit"
+fi
+
+if [ -f "$RTCALLS" ] && grep -qE ' down( |$)' "$RTCALLS" 2>/dev/null; then
+  fail "run-tests invoked 'docker compose down' on the embedder — that orphans the ollama-models volume for docker volume prune"
+else
+  pass "run-tests never 'down's the embedder (ollama-models stays referenced, so prune skips it)"
 fi
 
 # The dispatch itself, not just the exit code. `-pl <the dense module>` is the

@@ -22,6 +22,31 @@ ok()   { echo "ok: $*"; }
 TMP="$(mktemp -d)"
 trap 'rm -rf "${TMP}"' EXIT
 
+# --- hermetic stand-in for the real docker-compose.yml's `env_file: .env` ---
+#
+# docker-compose.yml declares `env_file: .env` on the wikantik service.
+# `.env` is gitignored and only exists on a machine that has already run
+# `deploy-local.sh` once, so the real `docker compose config` checks below
+# fail on a fresh clone (and in CI) with "env file ... not found". This suite
+# must not depend on that, and must never go near a developer's real `.env`:
+# it holds live secrets (POSTGRES_PASSWORD, etc.).
+#
+# `--env-file` on the CLI does NOT satisfy `env_file:` — it only feeds
+# `${VAR}` substitution inside the YAML. What does work: `env_file:` (like
+# every other relative path in a compose file, and like the `.env` used for
+# variable substitution) resolves against the PROJECT DIRECTORY, not against
+# the directory of the compose file that declares it. So pointing
+# --project-directory at a scratch dir holding a throwaway empty `.env`
+# satisfies it while still validating the REAL compose files in place — no
+# copies, no overlay patching, nothing that could drift from what ships.
+#
+# The one consequence to be aware of: every relative path in the compose file
+# now resolves against that scratch dir, so a declared `context: .` surfaces
+# as ${COMPOSE_TMP}. The build-context assertion below relies on exactly that
+# — see the comment there.
+COMPOSE_TMP="$(mktemp -d)"
+: > "${COMPOSE_TMP}/.env"
+
 # --- shim: record every docker/curl call (args + WIKANTIK_HOST_PORT), succeed ---
 mkdir -p "${TMP}/shim"
 cat > "${TMP}/shim/docker" <<EOF
@@ -106,6 +131,7 @@ test_env_test_invocation
 test_combined_config_resolves_alt_ports() {
     local out
     out="$(WIKANTIK_HOST_PORT=18080 docker compose -p wikantik-test \
+           --project-directory "${COMPOSE_TMP}" \
            -f docker-compose.yml -f docker-compose.test.yml config 2>/dev/null)" \
         || fail "combined base + test overlay was rejected by docker compose config"
     echo "${out}" | grep -q 'published: "18080"' \

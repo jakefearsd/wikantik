@@ -72,7 +72,15 @@ case "$cmd" in
       echo "REFUSED: build '$name' already RUNNING (pid $(cat "$pidf")) — pick another name or wait"
       exit 2
     fi
-    rm -f "$log" "$pidf"
+    # Rotate rather than delete. Re-running a build under the same name is the
+    # normal way to retry a failure, and `rm -f "$log"` threw away the evidence
+    # of what had just failed at precisely the moment it was wanted. One
+    # generation is kept as <name>.log.prev; `tail`/`status` still read the
+    # live log, so nothing downstream changes.
+    if [[ -f "$log" ]]; then
+      mv -f "$log" "$log.prev"
+    fi
+    rm -f "$pidf"
     { printf 'CMD:'; printf ' %q' "$@"; printf '\n'; } > "$log"
     # Launcher stdout/stderr go to the LOG, never /dev/null: if the detach helper
     # itself fails (missing binary, exec error) that message must be visible,

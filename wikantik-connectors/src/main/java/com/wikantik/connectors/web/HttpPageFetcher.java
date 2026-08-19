@@ -19,6 +19,7 @@
 package com.wikantik.connectors.web;
 
 import com.wikantik.connectors.http.CappedBodySubscriber;
+import com.wikantik.connectors.http.EgressGuard;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -52,8 +53,11 @@ public final class HttpPageFetcher implements PageFetcher {
         this.userAgent = userAgent;
         this.timeout = timeout;
         this.maxBodyBytes = maxBodyBytes;
+        // Redirects are followed MANUALLY (see fetch) so the egress policy re-checks
+        // every hop — an auto-followed 302 to http://169.254.169.254/ is the classic
+        // SSRF bypass. NEVER here is load-bearing, not a style choice.
         this.client = HttpClient.newBuilder()
-            .followRedirects( HttpClient.Redirect.NORMAL )
+            .followRedirects( HttpClient.Redirect.NEVER )
             .connectTimeout( timeout )
             .build();
     }
@@ -61,18 +65,30 @@ public final class HttpPageFetcher implements PageFetcher {
     @Override
     public FetchResult fetch( final String url ) {
         try {
-            final HttpRequest request = HttpRequest.newBuilder( URI.create( url ) )
-                .header( "User-Agent", userAgent )
-                .timeout( timeout )
-                .GET()
-                .build();
-            final HttpResponse< byte[] > response = client.send( request,
-                info -> new CappedBodySubscriber( maxBodyBytes ) );
-            return new FetchResult(
-                response.statusCode(),
-                response.headers().firstValue( "content-type" ).orElse( null ),
-                response.body(),
-                response.uri().toString() );
+            URI target = URI.create( url );
+            for ( int hop = 0; ; hop++ ) {
+                EgressGuard.check( target );   // SSRF guard, re-checked on each redirect
+                final HttpRequest request = HttpRequest.newBuilder( target )
+                    .header( "User-Agent", userAgent )
+                    .timeout( timeout )
+                    .GET()
+                    .build();
+                final HttpResponse< byte[] > response = client.send( request,
+                    info -> new CappedBodySubscriber( maxBodyBytes ) );
+                if ( EgressGuard.isRedirect( response.statusCode() ) && hop < EgressGuard.MAX_REDIRECTS ) {
+                    target = EgressGuard.followsSafely( target,
+                        response.headers().firstValue( "location" ).orElse( null ) );
+                    continue;
+                }
+                return new FetchResult(
+                    response.statusCode(),
+                    response.headers().firstValue( "content-type" ).orElse( null ),
+                    response.body(),
+                    response.uri().toString() );
+            }
+        } catch ( final EgressGuard.EgressBlockedException e ) {
+            LOG.warn( "fetch blocked by egress policy for {}: {}", url, e.getMessage() );
+            return new FetchResult( 0, null, new byte[0], url );
         } catch ( final IOException e ) {
             LOG.warn( "fetch failed for {}: {}", url, e.getMessage() );
             return new FetchResult( 0, null, new byte[0], url );

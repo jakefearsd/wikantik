@@ -99,7 +99,13 @@ final class HttpGithubApi implements GithubApi {
     }
 
     private HttpResponse< byte[] > send( final String url, final String accept ) throws IOException {
-        final HttpRequest req = HttpRequest.newBuilder( URI.create( url ) )
+        final URI target = URI.create( url );
+        try {
+            com.wikantik.connectors.http.EgressGuard.check( target );   // SSRF: apiBase is admin-supplied
+        } catch ( final com.wikantik.connectors.http.EgressGuard.EgressBlockedException e ) {
+            throw new IOException( "GitHub target blocked by egress policy: " + e.getMessage() );
+        }
+        final HttpRequest req = HttpRequest.newBuilder( target )
             .header( "Authorization", "Bearer " + token )
             .header( "Accept", accept )
             .header( "X-GitHub-Api-Version", "2022-11-28" )

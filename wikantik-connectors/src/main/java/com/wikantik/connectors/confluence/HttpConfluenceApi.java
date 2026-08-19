@@ -135,7 +135,13 @@ final class HttpConfluenceApi implements ConfluenceApi {
     }
 
     private JsonObject getJson( final String url ) throws IOException {
-        final HttpRequest req = HttpRequest.newBuilder( URI.create( url ) )
+        final URI target = URI.create( url );
+        try {
+            com.wikantik.connectors.http.EgressGuard.check( target );   // SSRF: base_url is admin-supplied
+        } catch ( final com.wikantik.connectors.http.EgressGuard.EgressBlockedException e ) {
+            throw new IOException( "Confluence target blocked by egress policy: " + e.getMessage() );
+        }
+        final HttpRequest req = HttpRequest.newBuilder( target )
             .header( "Authorization", authHeader )
             .header( "Accept", "application/json" )
             .timeout( TIMEOUT )

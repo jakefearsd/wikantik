@@ -40,6 +40,9 @@ class HttpGithubApiTest {
     private static final Map< String, String > seenAuth = new ConcurrentHashMap<>();
 
     @BeforeAll static void start() throws Exception {
+        // These tests hit a 127.0.0.1 HttpServer; opt out of the egress guard that
+        // (correctly) blocks loopback in production. Cleared in the @AfterAll below.
+        System.setProperty( "wikantik.connectors.egress.allowPrivate", "true" );
         server = HttpServer.create( new InetSocketAddress( "127.0.0.1", 0 ), 0 );
         server.createContext( "/repos/acme/handbook", ex -> {
             seenAuth.put( ex.getRequestURI().getPath(), ex.getRequestHeaders().getFirst( "Authorization" ) );
@@ -67,7 +70,7 @@ class HttpGithubApiTest {
         server.start();
         base = "http://127.0.0.1:" + server.getAddress().getPort();
     }
-    @AfterAll static void stop() { server.stop( 0 ); }
+    @AfterAll static void stop() { System.clearProperty( "wikantik.connectors.egress.allowPrivate" ); server.stop( 0 ); }
 
     private static void respond( final com.sun.net.httpserver.HttpExchange ex, final int code, final String body ) throws IOException {
         byte[] b = body.getBytes( StandardCharsets.UTF_8 );

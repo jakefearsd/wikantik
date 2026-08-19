@@ -41,6 +41,9 @@ class HttpPageFetcherTest {
     private static String base;
 
     @BeforeAll static void startServer() throws Exception {
+        // These tests hit a 127.0.0.1 HttpServer; opt out of the egress guard that
+        // (correctly) blocks loopback in production. Cleared in the @AfterAll below.
+        System.setProperty( "wikantik.connectors.egress.allowPrivate", "true" );
         server = HttpServer.create( new InetSocketAddress( "127.0.0.1", 0 ), 0 );
         server.createContext( "/small", ex -> respond( ex, new byte[512] ) );
         server.createContext( "/big", ex -> respond( ex, new byte[64 * 1024] ) );
@@ -52,7 +55,7 @@ class HttpPageFetcherTest {
         server.start();
         base = "http://127.0.0.1:" + server.getAddress().getPort();
     }
-    @AfterAll static void stopServer() { server.stop( 0 ); }
+    @AfterAll static void stopServer() { System.clearProperty( "wikantik.connectors.egress.allowPrivate" ); server.stop( 0 ); }
 
     private static void respond( final com.sun.net.httpserver.HttpExchange ex, final byte[] body ) throws java.io.IOException {
         ex.getResponseHeaders().add( "Content-Type", "text/html" );

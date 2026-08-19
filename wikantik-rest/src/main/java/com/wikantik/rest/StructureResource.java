@@ -64,14 +64,14 @@ public class StructureResource extends RestServletBase {
             if ( pathInfo.equals( "/clusters" ) || pathInfo.equals( "/clusters/" ) ) {
                 writeClusters( resp, svc );
             } else if ( pathInfo.startsWith( "/clusters/" ) ) {
-                writeCluster( resp, svc, pathInfo.substring( "/clusters/".length() ) );
+                writeCluster( resp, svc, pathInfo.substring( "/clusters/".length() ), req );
             } else if ( pathInfo.equals( "/tags" ) ) {
                 final int min = parseIntOr( req.getParameter( "min_pages" ), 1 );
                 writeTags( resp, svc, min );
             } else if ( pathInfo.equals( "/pages" ) ) {
                 writePages( resp, svc, req );
             } else if ( pathInfo.equals( "/sitemap" ) ) {
-                writeSitemap( resp, svc );
+                writeSitemap( resp, svc, req );
             } else {
                 writeError( resp, 404, "unknown structure path: " + pathInfo );
             }
@@ -99,7 +99,7 @@ public class StructureResource extends RestServletBase {
     }
 
     private void writeCluster( final HttpServletResponse resp, final StructuralIndexService svc,
-                                final String name ) throws IOException {
+                                final String name, final HttpServletRequest req ) throws IOException {
         final Optional< ClusterDetails > d = svc.getCluster( name );
         if ( d.isEmpty() ) {
             writeError( resp, 404, "cluster not found: " + name );
@@ -108,9 +108,12 @@ public class StructureResource extends RestServletBase {
         final ClusterDetails details = d.get();
         final JsonObject data = new JsonObject();
         data.addProperty( "name", details.name() );
-        if ( details.hubPage() != null ) data.add( "hub_page", describe( details.hubPage() ) );
+        // Drop a restricted hub or article from the public cluster view.
+        if ( details.hubPage() != null && !viewableOnly( req, List.of( details.hubPage() ) ).isEmpty() ) {
+            data.add( "hub_page", describe( details.hubPage() ) );
+        }
         final JsonArray articles = new JsonArray();
-        details.articles().forEach( p -> articles.add( describe( p ) ) );
+        viewableOnly( req, details.articles() ).forEach( p -> articles.add( describe( p ) ) );
         data.add( "articles", articles );
         final JsonObject tags = new JsonObject();
         details.tagDistribution().forEach( tags::addProperty );
@@ -146,7 +149,7 @@ public class StructureResource extends RestServletBase {
                 parseIntOr( req.getParameter( "limit" ), 100 ),
                 Optional.ofNullable( req.getParameter( "cursor" ) )
         );
-        final List< PageDescriptor > pages = svc.listPagesByFilter( filter );
+        final List< PageDescriptor > pages = viewableOnly( req, svc.listPagesByFilter( filter ) );
         final JsonArray arr = new JsonArray();
         pages.forEach( p -> arr.add( describe( p ) ) );
         final JsonObject data = new JsonObject();
@@ -155,16 +158,31 @@ public class StructureResource extends RestServletBase {
         writeEnvelope( resp, data );
     }
 
-    private void writeSitemap( final HttpServletResponse resp, final StructuralIndexService svc )
-            throws IOException {
+    private void writeSitemap( final HttpServletResponse resp, final StructuralIndexService svc,
+                               final HttpServletRequest req ) throws IOException {
         final Sitemap s = svc.sitemap();
+        final List< PageDescriptor > pages = viewableOnly( req, s.pages() );
         final JsonArray arr = new JsonArray();
-        s.pages().forEach( p -> arr.add( describe( p ) ) );
+        pages.forEach( p -> arr.add( describe( p ) ) );
         final JsonObject data = new JsonObject();
         data.add( "pages", arr );
-        data.addProperty( "count", s.count() );
+        data.addProperty( "count", pages.size() );
         data.addProperty( "generated_at", s.generatedAt().toString() );
         writeEnvelope( resp, data );
+    }
+
+    /**
+     * Drops descriptors the caller may not {@code view}. This endpoint is public and
+     * unauthenticated, and a descriptor carries the page's title, cluster, tags and
+     * one-line summary — so an ACL-restricted page must not appear in any listing.
+     * Silent (UI-visibility) filter, matching WikiPageFormatFilter's posture.
+     */
+    private List< PageDescriptor > viewableOnly( final HttpServletRequest req, final List< PageDescriptor > pages ) {
+        if ( pages == null || pages.isEmpty() ) {
+            return pages == null ? List.of() : pages;
+        }
+        final java.util.Set< String > ok = filterViewable( req, pages.stream().map( PageDescriptor::slug ).toList() );
+        return pages.stream().filter( p -> ok.contains( p.slug() ) ).toList();
     }
 
     private static JsonObject describe( final PageDescriptor p ) {

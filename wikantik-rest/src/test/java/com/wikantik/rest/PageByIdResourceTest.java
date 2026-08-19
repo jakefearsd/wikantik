@@ -42,14 +42,30 @@ import static org.mockito.Mockito.*;
 class PageByIdResourceTest {
 
     private StructuralIndexService svc;
-    private PageByIdResource resource;
+    private TestablePageByIdResource resource;
+
+    /** ACL seam override — see the note in StructureResourceTest. null = allow all. */
+    static final class TestablePageByIdResource extends PageByIdResource {
+        private static final long serialVersionUID = 1L;
+        transient java.util.Set< String > visible;   // null = allow all
+        @Override
+        protected java.util.Set< String > filterViewable( final HttpServletRequest request,
+                                                           final java.util.Collection< String > pageNames ) {
+            if ( visible == null ) {
+                return new java.util.HashSet<>( pageNames );
+            }
+            final java.util.Set< String > out = new java.util.HashSet<>( pageNames );
+            out.retainAll( visible );
+            return out;
+        }
+    }
 
     @BeforeEach
     void setUp() {
         svc = mock( StructuralIndexService.class );
         final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( StructuralIndexService.class ) ).thenReturn( svc );
-        resource = new PageByIdResource();
+        resource = new TestablePageByIdResource();
         resource.setEngineForTesting( engine );
     }
 
@@ -83,5 +99,30 @@ class PageByIdResourceTest {
         resource.doGet( req, resp );
 
         verify( resp ).setStatus( 404 );
+    }
+
+    /**
+     * SECURITY: a restricted page's canonical_id must be indistinguishable from a
+     * missing one — same 404 — so the endpoint neither confirms the page exists nor
+     * leaks its title/cluster/summary to an unauthenticated caller.
+     */
+    @Test
+    void restricted_id_returns_404_hiding_existence() throws Exception {
+        when( svc.getByCanonicalId( "01A" ) ).thenReturn( Optional.of( new PageDescriptor(
+                "01A", "SecretPage", "Secret", PageType.ARTICLE,
+                "cluster", List.of(), "secret summary", Instant.EPOCH, Optional.empty(), false ) ) );
+        resource.visible = java.util.Set.of();   // caller may view nothing
+
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getPathInfo() ).thenReturn( "/01A" );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        resource.doGet( req, resp );
+
+        verify( resp ).setStatus( 404 );
+        assertFalse( sw.toString().contains( "SecretPage" ), "restricted slug must not leak" );
+        assertFalse( sw.toString().contains( "secret summary" ), "restricted summary must not leak" );
     }
 }

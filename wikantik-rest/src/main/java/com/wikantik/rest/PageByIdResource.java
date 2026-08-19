@@ -60,7 +60,11 @@ public class PageByIdResource extends RestServletBase {
         }
 
         final Optional< PageDescriptor > found = svc.getByCanonicalId( canonicalId );
-        if ( found.isEmpty() ) {
+        // Hide a restricted page's existence: a non-viewable canonical_id is
+        // indistinguishable from a missing one (both 404). This endpoint is public,
+        // and a descriptor leaks title/cluster/tags/summary of the restricted page.
+        if ( found.isEmpty()
+                || filterViewable( req, java.util.List.of( found.get().slug() ) ).isEmpty() ) {
             resp.setStatus( 404 );
             resp.setContentType( "application/json; charset=UTF-8" );
             resp.getWriter().write( "{\"error\":\"no page for canonical_id " + canonicalId + "\"}" );

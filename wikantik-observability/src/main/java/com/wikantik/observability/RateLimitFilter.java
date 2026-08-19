@@ -225,7 +225,14 @@ public class RateLimitFilter implements Filter {
             return;
         }
 
-        final String path = httpReq.getRequestURI();
+        // Classify on the container-normalized path, NOT the raw request URI.
+        // getRequestURI() is left percent-encoded by Tomcat while servlet mapping is
+        // done on the decoded path, so `GET /%73parql` maps to the SPARQL servlet yet
+        // getRequestURI() returns "/%73parql", which does not start with "/sparql" —
+        // dropping the request out of the expensive tier. getServletPath()+getPathInfo()
+        // is the already-decoded, already-normalized path the container matched on.
+        final String path = classificationPath( httpReq );
+        final String rawUri = httpReq.getRequestURI();   // for logging only
         final String ip = httpReq.getRemoteAddr();
         if ( EXEMPT_EXACT_PATH.equals( path ) || isExemptAddress( ip ) ) {
             chain.doFilter( request, response );
@@ -240,7 +247,7 @@ public class RateLimitFilter implements Filter {
         }
 
         SECURITY.warn( "Rate limit exceeded: tier={}, ip={}, path={}",
-                expensive ? "expensive" : "default", ip, path );
+                expensive ? "expensive" : "default", ip, rawUri );
         final Counter counter = expensive ? rejectedExpensive : rejectedDefault;
         if ( counter != null ) {
             counter.increment();
@@ -254,6 +261,22 @@ public class RateLimitFilter implements Filter {
             if ( path.startsWith( prefix ) ) return true;
         }
         return false;
+    }
+
+    /**
+     * The path to classify against the expensive-tier prefixes: the container's
+     * already-decoded, already-normalized servlet path, so a percent-encoded request
+     * (e.g. {@code /%73parql}) is classified on the path the container actually mapped
+     * ({@code /sparql}), not on the raw encoded URI. Falls back to the raw URI only if
+     * the servlet path is unavailable (defensive — should not happen in a container).
+     */
+    private static String classificationPath( final HttpServletRequest req ) {
+        final String servletPath = req.getServletPath();
+        if ( servletPath == null ) {
+            return req.getRequestURI();
+        }
+        final String pathInfo = req.getPathInfo();
+        return pathInfo == null ? servletPath : servletPath + pathInfo;
     }
 
     /**

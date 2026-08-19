@@ -68,8 +68,22 @@ class RateLimitFilterTest {
     }
 
     private static HttpServletRequest request( final String uri, final String ip ) {
+        // In a real container the servlet path is the DECODED, normalized path the
+        // container mapped on; for these tests the (unencoded) uri is that path.
+        return request( uri, uri, null, ip );
+    }
+
+    /**
+     * Full control over the request's raw URI vs. its container-decoded servlet
+     * path — needed to prove that classification uses the decoded path and cannot
+     * be dodged by percent-encoding the raw URI.
+     */
+    private static HttpServletRequest request( final String rawUri, final String servletPath,
+                                               final String pathInfo, final String ip ) {
         final HttpServletRequest req = mock( HttpServletRequest.class );
-        when( req.getRequestURI() ).thenReturn( uri );
+        when( req.getRequestURI() ).thenReturn( rawUri );
+        when( req.getServletPath() ).thenReturn( servletPath );
+        when( req.getPathInfo() ).thenReturn( pathInfo );
         when( req.getRemoteAddr() ).thenReturn( ip );
         return req;
     }
@@ -97,6 +111,29 @@ class RateLimitFilterTest {
         verify( blockedChain, never() ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
         verify( blocked ).setStatus( 429 );
         verify( blocked ).setHeader( "Retry-After", "1" );
+    }
+
+    /**
+     * SECURITY REGRESSION: the expensive tier keyed on the raw request URI, which
+     * Tomcat leaves percent-encoded, while servlet mapping runs on the decoded path.
+     * So GET /%73parql reached the SPARQL servlet but classified as the cheap tier.
+     * Classification now uses the container-decoded servlet path.
+     */
+    @Test
+    void percentEncodedExpensivePathStillHitsExpensiveTier() throws Exception {
+        final RateLimitFilter f = new RateLimitFilter( config( 100, 2, 0, List.of(), ticker ) );
+        f.init( null );
+
+        // Raw URI "/%73parql" (s -> %73) but the container mapped it to the /sparql servlet.
+        final FilterChain chain = mock( FilterChain.class );
+        f.doFilter( request( "/%73parql", "/sparql", null, "8.8.8.8" ), response(), chain );
+        f.doFilter( request( "/%73parql", "/sparql", null, "8.8.8.8" ), response(), chain );
+
+        final HttpServletResponse blocked = response();
+        final FilterChain blockedChain = mock( FilterChain.class );
+        f.doFilter( request( "/%73parql", "/sparql", null, "8.8.8.8" ), blocked, blockedChain );
+        verify( blockedChain, never() ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+        verify( blocked ).setStatus( 429 );
     }
 
     @Test

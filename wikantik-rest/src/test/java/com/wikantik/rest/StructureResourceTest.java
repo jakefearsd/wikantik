@@ -45,14 +45,35 @@ import static org.mockito.Mockito.*;
 class StructureResourceTest {
 
     private StructuralIndexService svc;
-    private StructureResource resource;
+    private TestableStructureResource resource;
+
+    /**
+     * Overrides the ACL seam so these tests can control which slugs are "viewable"
+     * without standing up the whole auth subsystem — that boundary
+     * ({@link com.wikantik.auth.permissions.PermissionFilter}) is tested on its own.
+     * {@code visible == null} means allow all (the pre-ACL-fix serialization tests).
+     */
+    static final class TestableStructureResource extends StructureResource {
+        private static final long serialVersionUID = 1L;
+        transient java.util.Set< String > visible;   // null = allow all
+        @Override
+        protected java.util.Set< String > filterViewable( final HttpServletRequest request,
+                                                           final java.util.Collection< String > pageNames ) {
+            if ( visible == null ) {
+                return new java.util.HashSet<>( pageNames );
+            }
+            final java.util.Set< String > out = new java.util.HashSet<>( pageNames );
+            out.retainAll( visible );
+            return out;
+        }
+    }
 
     @BeforeEach
     void setUp() {
         svc = mock( StructuralIndexService.class );
         final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( StructuralIndexService.class ) ).thenReturn( svc );
-        resource = new StructureResource();
+        resource = new TestableStructureResource();
         resource.setEngineForTesting( engine );
     }
 
@@ -94,6 +115,47 @@ class StructureResourceTest {
     void unknown_path_returns_404() throws Exception {
         final HttpServletResponse resp = callRaw( "/does-not-exist" );
         verify( resp ).setStatus( 404 );
+    }
+
+    /**
+     * SECURITY: /api/structure is public and unauthenticated, and a descriptor
+     * carries the page's title/cluster/tags/summary. A page the caller may not
+     * view must be dropped from every listing.
+     */
+    @Test
+    void sitemap_hides_pages_the_caller_cannot_view() throws Exception {
+        when( svc.sitemap() ).thenReturn( new Sitemap(
+                List.of(
+                        new PageDescriptor( "01A", "PublicPage", "Public", PageType.ARTICLE, null, List.of(),
+                                "public summary", Instant.EPOCH, Optional.empty(), false ),
+                        new PageDescriptor( "01B", "SecretPage", "Secret", PageType.ARTICLE, null, List.of(),
+                                "secret summary", Instant.EPOCH, Optional.empty(), false ) ),
+                2, Instant.EPOCH ) );
+        resource.visible = java.util.Set.of( "PublicPage" );   // SecretPage is ACL-restricted
+
+        final JsonObject body = callGet( "/sitemap" );
+        final var pages = body.getAsJsonObject( "data" ).getAsJsonArray( "pages" );
+        assertEquals( 1, pages.size(), "restricted page must be dropped" );
+        assertEquals( "PublicPage", pages.get( 0 ).getAsJsonObject().get( "slug" ).getAsString() );
+        assertEquals( 1, body.getAsJsonObject( "data" ).get( "count" ).getAsInt(),
+                "count must reflect only viewable pages" );
+        assertFalse( body.toString().contains( "secret summary" ),
+                "the restricted page's summary must not leak anywhere in the payload" );
+    }
+
+    @Test
+    void pages_listing_hides_restricted_pages() throws Exception {
+        when( svc.listPagesByFilter( any() ) ).thenReturn( List.of(
+                new PageDescriptor( "01A", "PublicPage", "Public", PageType.ARTICLE, null, List.of(),
+                        "s", Instant.EPOCH, Optional.empty(), false ),
+                new PageDescriptor( "01B", "SecretPage", "Secret", PageType.ARTICLE, null, List.of(),
+                        "s", Instant.EPOCH, Optional.empty(), false ) ) );
+        resource.visible = java.util.Set.of( "PublicPage" );
+
+        final JsonObject body = callGet( "/pages" );
+        final var pages = body.getAsJsonObject( "data" ).getAsJsonArray( "pages" );
+        assertEquals( 1, pages.size() );
+        assertEquals( "PublicPage", pages.get( 0 ).getAsJsonObject().get( "slug" ).getAsString() );
     }
 
     private JsonObject callGet( final String pathInfo ) throws Exception {

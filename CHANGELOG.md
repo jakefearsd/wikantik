@@ -67,6 +67,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `<pgvector.image>` major). Dry-run by default. It never calls a blanket
   `volume`/`container`/`system prune`, so it cannot reach another project's data
   on a shared dev box — asserted by its own test suite.
+- **`bin/run-tests.sh` now runs that sweep on every invocation**, so simply running
+  the suite keeps the machine clean instead of relying on anyone remembering.
+  The per-module pom sweeps only clean the module about to run, so anything
+  orphaned by a module that is *not* in this invocation used to sit there
+  indefinitely. Dispatched before Phase 1 — so it also runs for `--unit`, and for
+  a run whose Phase 1 fails, which is exactly when the machine is dirtiest — and
+  before the embedder starts, since the sweep tears down the `wikantik-embed-test`
+  compose project and would otherwise kill the embedder the run just started. It
+  can never fail the run: a missing script, absent docker, or an unreachable
+  daemon is reported and stepped over.
 
 ### Changed
 - **CI's `shell-tests` job now globs `bin/tests/test-*.sh`** instead of iterating a

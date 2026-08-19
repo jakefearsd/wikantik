@@ -487,10 +487,15 @@ rt_rc2=0
 PATH="${RTSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${RTLOGDIR}" \
   "$RUNTESTS" --fullloop >"${RTSHIM}/out-fullloop.log" 2>&1 || rt_rc2=$?
 
-if [ ! -s "$RTCALLS" ]; then
+# The assertion is on the embedder specifically, not on docker in general: every
+# run now also issues the leaked-resource sweep (bin/docker-cleanup.sh), which
+# legitimately talks to docker for ANY invocation — and --fullloop is the module
+# that most needs sweeping, since it starts five containers. So this proves the
+# negative the review actually asked for: no compose `up -d` for the embedder.
+if ! grep -q -- ' up -d' "$RTCALLS" 2>/dev/null; then
   pass "run-tests --fullloop (scim-fullloop) does NOT start the embedder — unrelated to embeddings"
 else
-  fail "run-tests --fullloop invoked docker (embedder started for a module that has nothing to do with embeddings): $(cat "$RTCALLS")"
+  fail "run-tests --fullloop started the embedder for a module that has nothing to do with embeddings: $(cat "$RTCALLS")"
 fi
 
 if [ "$rt_rc2" -eq 0 ]; then
@@ -804,6 +809,85 @@ if grep -q "${CZ_THEIRS}" "${CZSHIM}/out.log"; then
   fail "clean_zombies killed a JVM belonging to ANOTHER checkout (${CZ_THEIRS}) — see ${CZSHIM}/out.log"
 else
   pass "clean_zombies leaves another checkout's build alone"
+fi
+
+# =============================================================================
+# Every run sweeps leaked Docker resources.
+#
+# The per-module pom sweeps only ever clean the module that is about to run, so
+# a container or anonymous volume orphaned by a module that is NOT in this
+# invocation sits there indefinitely. run-tests.sh therefore calls
+# bin/docker-cleanup.sh --apply once at startup, so the routine act of running
+# the suite keeps the machine clean.
+#
+# Ordering is load-bearing: the sweep tears down the wikantik-embed-test compose
+# project, so it MUST happen before embed_start, or it would kill the embedder
+# this very run just started.
+#
+# Non-fatal is also load-bearing: a cleanup problem must never turn a green test
+# run red.
+# =============================================================================
+checkf "run-tests invokes the docker-cleanup sweep"      "$RUNTESTS" 'docker-cleanup.sh'
+checkf "run-tests runs the sweep in apply mode"          "$RUNTESTS" '\-\-apply'
+
+# The sweep must be dispatched before the unit phase, so that EVERY invocation
+# reclaims leaked resources first — including --unit, and including a run whose
+# Phase 1 fails (which is exactly when the machine is most likely to be dirty).
+# A source-order check, because the behavioural cases below drive --module dense,
+# which has no unit phase to order against.
+sweep_call_ln="$(grep -n '^sweep_leaked_docker$' "$RUNTESTS" | head -1 | cut -d: -f1 || true)"
+unit_phase_ln="$(grep -n 'Phase 1: unit reactor' "$RUNTESTS" | head -1 | cut -d: -f1 || true)"
+if [ -n "${sweep_call_ln:-}" ] && [ -n "${unit_phase_ln:-}" ] && [ "$sweep_call_ln" -lt "$unit_phase_ln" ]; then
+  pass "the sweep is dispatched before the unit phase, so every run reclaims first"
+else
+  fail "sweep is not dispatched before the unit phase (sweep=${sweep_call_ln:-none} unit=${unit_phase_ln:-none})"
+fi
+
+SWSHIM="${RTSHIM}/sweep"
+mkdir -p "$SWSHIM"
+# docker fails for EVERY call: proves the sweep cannot fail the run, and that a
+# machine with a broken/absent daemon still tests normally.
+cat > "${SWSHIM}/docker" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+chmod +x "${SWSHIM}/docker"
+cat > "${SWSHIM}/curl" <<'EOF'
+#!/usr/bin/env bash
+printf '%s' '{"models":[{"name":"qwen3-embedding:0.6b"}]}'
+exit 0
+EOF
+chmod +x "${SWSHIM}/curl"
+SWMVNARGS="${SWSHIM}/mvn.args"
+cat > "${SWSHIM}/mvn" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "${SWMVNARGS}"
+echo "Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"
+exit 0
+EOF
+chmod +x "${SWSHIM}/mvn"
+
+sw_rc=0
+PATH="${SWSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${SWSHIM}/logs" \
+  "$RUNTESTS" --module dense >"${SWSHIM}/out.log" 2>&1 || sw_rc=$?
+
+if [ "$sw_rc" -eq 0 ] && [ -f "$SWMVNARGS" ]; then
+  pass "a failing docker-cleanup sweep never fails the test run"
+else
+  fail "run-tests exited ${sw_rc} when the sweep could not talk to docker — see ${SWSHIM}/out.log"
+fi
+
+sweep_line="$(grep -n 'Sweeping leaked Docker resources' "${SWSHIM}/out.log" | head -1 | cut -d: -f1 || true)"
+embed_line="$(grep -n 'Starting shared embedder' "${SWSHIM}/out.log" | head -1 | cut -d: -f1 || true)"
+if [ -n "${sweep_line:-}" ]; then
+  pass "run-tests announces the leaked-resource sweep"
+else
+  fail "run-tests never ran the leaked-resource sweep — see ${SWSHIM}/out.log"
+fi
+if [ -n "${sweep_line:-}" ] && [ -n "${embed_line:-}" ] && [ "$sweep_line" -lt "$embed_line" ]; then
+  pass "the sweep runs BEFORE the embedder starts (it would otherwise tear down this run's own embedder)"
+else
+  fail "sweep/embedder ordering wrong (sweep=${sweep_line:-none} embed=${embed_line:-none}) — see ${SWSHIM}/out.log"
 fi
 
 if [ "$fails" -ne 0 ]; then echo "test-embeddings: ${fails} failure(s)"; exit 1; fi

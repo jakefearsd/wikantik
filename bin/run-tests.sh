@@ -326,6 +326,30 @@ clean_zombies() {
   rm -rf wikantik-main/target/test-classes 2>/dev/null || true
 }
 
+# Reclaim what a PREVIOUS crashed run leaked, every time, so the machine stays
+# clean without anyone remembering to do it. Each IT module's pom sweeps its own
+# stale container at `initialize`, but only for the module about to run — a
+# container or anonymous volume orphaned by a module that is not in THIS
+# invocation would otherwise sit there forever. bin/docker-cleanup.sh is the
+# repo-wide sweep; it is allowlisted to this checkout's own resources and can
+# never reach another project's data (see its header).
+#
+# Placed before the embedder block on purpose: the sweep tears down the
+# wikantik-embed-test compose project, so running it afterwards would kill the
+# embedder this run just started.
+#
+# Never fatal. A cleanup problem — no docker, an unreachable daemon, a resource
+# that refuses to go — must not turn a green test run red, so failures are
+# reported and stepped over.
+sweep_leaked_docker() {
+  local sweeper="${REPO_DIR}/bin/docker-cleanup.sh"
+  [ -x "$sweeper" ] || return 0
+  command -v docker >/dev/null 2>&1 || return 0
+  echo ">>> Sweeping leaked Docker resources from previous runs"
+  "$sweeper" --apply 2>&1 | sed 's/^/    /' || echo "    (sweep reported a problem — continuing; run bin/docker-cleanup.sh by hand to see why)"
+}
+sweep_leaked_docker
+
 : > "$REPORT"
 overall_rc=0
 run_start_epoch="$(date +%s)"

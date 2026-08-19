@@ -127,27 +127,32 @@ public class SparqlQueryTool extends AbstractMcpTool {
         try ( QueryExecution qe = QueryExecution.create().query( query ).model( data )
                 .context( com.wikantik.ontology.SparqlQueryGuard.safeContext() )
                 .timeout( TIMEOUT_MS, TimeUnit.MILLISECONDS ).build() ) {
-            if ( compact && query.isSelectType() ) {
-                return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, compactRows( qe.execSelect() ) );
-            }
-            final ByteArrayOutputStream out = new ByteArrayOutputStream();
-            if ( query.isSelectType() ) {
-                ResultSetFormatter.outputAsJSON( out, qe.execSelect() );
-            } else if ( query.isAskType() ) {
-                ResultSetFormatter.outputAsJSON( out, qe.execAsk() );
-            } else if ( query.isConstructType() || query.isDescribeType() ) {
-                final Model m = query.isConstructType() ? qe.execConstruct() : qe.execDescribe();
-                RDFDataMgr.write( out, m, Lang.TURTLE );
-            } else {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "unsupported query form" );
-            }
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( out.toString( StandardCharsets.UTF_8 ) ) ) )
-                    .build();
+            return formatResult( qe, query, compact );
         } catch ( final RuntimeException e ) {
             LOG.warn( "sparql_query execution failed: {}", e.getMessage() );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "query execution failed: " + e.getMessage() );
         }
+    }
+
+    /** Renders a query execution's results by query form (SELECT/ASK/CONSTRUCT/DESCRIBE). */
+    private McpSchema.CallToolResult formatResult( final QueryExecution qe, final Query query, final boolean compact ) {
+        if ( compact && query.isSelectType() ) {
+            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, compactRows( qe.execSelect() ) );
+        }
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        if ( query.isSelectType() ) {
+            ResultSetFormatter.outputAsJSON( out, qe.execSelect() );
+        } else if ( query.isAskType() ) {
+            ResultSetFormatter.outputAsJSON( out, qe.execAsk() );
+        } else if ( query.isConstructType() || query.isDescribeType() ) {
+            final Model m = query.isConstructType() ? qe.execConstruct() : qe.execDescribe();
+            RDFDataMgr.write( out, m, Lang.TURTLE );
+        } else {
+            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "unsupported query form" );
+        }
+        return McpSchema.CallToolResult.builder()
+                .content( List.of( new McpSchema.TextContent( out.toString( StandardCharsets.UTF_8 ) ) ) )
+                .build();
     }
 
     /** Flatten a SELECT result set to {@code [{var: value, …}]} — literals as lexical form, URIs as string. */

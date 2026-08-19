@@ -6,6 +6,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+Second wave of the 2026-08-19 security review — the HIGH/MEDIUM findings after the
+two CRITICALs shipped in 2.4.14.
+- **Unauthenticated SSRF + arbitrary classloading on the public SPARQL surface.**
+  `/sparql` (public) and the knowledge-MCP `sparql_query` tool ran user queries from
+  the server's network position: a `SERVICE` clause fetched an attacker-chosen URL
+  (SSRF into the Docker network / DB / embedder / cloud metadata), and a `java:`
+  function IRI forced `Class.forName` over the whole webapp classpath. New
+  `SparqlQueryGuard` disables `SERVICE` federation engine-wide and per-execution and
+  syntactically rejects `SERVICE`/`java:` before execution.
+- **Public structure endpoints leaked restricted pages' metadata.** `/api/structure/*`
+  and `/api/pages/by-id/*` never filtered by view permission, exposing the title,
+  cluster, tags and summary of ACL-restricted pages (and confirming their existence).
+  Both now filter descriptors through `filterViewable`; by-id 404s a non-viewable
+  canonical_id.
+- **Expensive-tier rate limit bypassable by percent-encoding.** `RateLimitFilter`
+  classified on the raw (still-encoded) request URI while the container maps on the
+  decoded path, so `GET /%73parql` reached the SPARQL servlet in the cheap tier. It
+  now classifies on the decoded `getServletPath()`+`getPathInfo()`.
+- **Wiki markup leaked secrets.** `[{$wikantik.…}]` variable expansion exposed every
+  `wikantik.*` property — OIDC client secret, connector-credential AES key, SCIM
+  token, DB/SAML passwords — to any editor or viewer. Secret-bearing property names
+  are now refused; ordinary config still resolves.
+- **Wiki markup could load and instantiate arbitrary classes.** The plugin name in
+  `[{ClassName …}]` is editor-controlled and was handed to `loadClass`+`newInstance`
+  with no `Plugin`-interface check, so any public no-arg class on the ~250-jar
+  classpath was loaded, initialised and constructed. A non-`Plugin` class is now
+  rejected before instantiation, reported like a missing plugin (no classpath oracle).
+- **Attachment stored-XSS via active-content variants.** Inline-vs-download was decided
+  by an active-content *extension* denylist, which missed `.xht`/`.svgz`/`.mhtml` — served
+  inline with their real content type, they execute script on the wiki origin. Now
+  decided from the resolved MIME type against a safe allowlist, defaulting to
+  attachment.
+- **`/api/convert/markdown-to-html` executed plugins on attacker markup.** The preview
+  path ran the full plugin pipeline for any authenticated caller with no page
+  permission or audit trail. Plugin execution is now disabled on the headless preview
+  context (`VAR_EXECUTE_PLUGINS=FALSE`).
+
 ## [2.4.14] - 2026-08-19
 
 ### Security

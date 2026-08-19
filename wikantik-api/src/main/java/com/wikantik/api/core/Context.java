@@ -45,6 +45,15 @@ public interface Context extends Cloneable, Command {
      */
     String VAR_EXECUTE_PLUGINS = "_PluginContent.execute";
 
+    /**
+     *  Set to {@code Boolean.TRUE} during a render when the output depended on the
+     *  viewer's identity or permissions — a plugin executed (its output can consult
+     *  ACLs, e.g. InsertPage/Search) or a session-dependent variable resolved. The
+     *  rendering manager MUST NOT cache such a render in the shared page/HTML caches
+     *  (which are keyed without a principal), or one user's view is served to another.
+     */
+    String VAR_VIEWER_SENSITIVE = "_Render.viewerSensitive";
+
     /** Name of the variable which is set to Boolean.TRUE or Boolean.FALSE depending on whether WYSIWYG is currently in effect. */
     String VAR_WYSIWYG_EDITOR_MODE = "WYSIWYG_EDITOR_MODE";
 

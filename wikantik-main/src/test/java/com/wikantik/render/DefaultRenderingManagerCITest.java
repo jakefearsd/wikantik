@@ -191,6 +191,26 @@ class DefaultRenderingManagerCITest {
         verify( cachingManager ).put( eq( CachingManager.CACHE_DOCUMENTS ), anyString(), eq( doc ) );
     }
 
+    /**
+     * SECURITY: a render that flagged itself viewer-sensitive (a plugin executed, or
+     * a session-dependent variable resolved) must NOT be written to the shared,
+     * principal-less document cache — otherwise one user's ACL-filtered output (e.g.
+     * InsertPage's included body) is served to another user.
+     */
+    @Test
+    void getRenderedDocumentDoesNotCacheAViewerSensitiveRender() {
+        when( cachingManager.enabled( CachingManager.CACHE_DOCUMENTS ) ).thenReturn( true );
+        when( cachingManager.get( eq( CachingManager.CACHE_DOCUMENTS ), anyString(), any() ) ).thenReturn( null );
+
+        final Context ctx = viewContext( "ViewerSensitivePage", 1 );
+        when( ctx.getVariable( com.wikantik.api.core.Context.VAR_VIEWER_SENSITIVE ) ).thenReturn( Boolean.TRUE );
+
+        final WikiDocument doc = mgr.getRenderedDocument( ctx, "**hi**" );
+
+        assertNotNull( doc, "Should still return the rendered document" );
+        verify( cachingManager, never() ).put( eq( CachingManager.CACHE_DOCUMENTS ), anyString(), any() );
+    }
+
     // ========== getRenderedDocument: cache hit with matching hash ==========
 
     @Test

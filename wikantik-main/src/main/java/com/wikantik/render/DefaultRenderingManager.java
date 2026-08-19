@@ -268,7 +268,11 @@ public class DefaultRenderingManager implements RenderingManager {
             final MarkupParser parser = getParser( context, pagedata );
             final WikiDocument doc = parser.parse();
             doc.setPageData( pagedata );
-            if( useCache( context ) ) {
+            // Skip the SHARED document cache when this render depended on the viewer
+            // (a plugin executed or a session-dependent variable resolved) — plugin
+            // output is baked into the parsed AST here, so caching it would serve one
+            // user's ACL-filtered view to another. The cache is keyed without a principal.
+            if( useCache( context ) && !isViewerSensitive( context ) ) {
                 cachingManager.put( CachingManager.CACHE_DOCUMENTS, pageid, doc );
             }
             return doc;
@@ -306,6 +310,11 @@ public class DefaultRenderingManager implements RenderingManager {
                && ContextEnum.PAGE_VIEW.getRequestContext().equals( context.getRequestContext() );
     }
 
+    /** True once a render has flagged itself viewer-sensitive (see {@link Context#VAR_VIEWER_SENSITIVE}). */
+    private static boolean isViewerSensitive( final Context context ) {
+        return Boolean.TRUE.equals( context.getVariable( Context.VAR_VIEWER_SENSITIVE ) );
+    }
+
     private boolean useHtmlCache( final Context context ) {
         return cachingManager.enabled( CachingManager.CACHE_HTML )
                && ContextEnum.PAGE_VIEW.getRequestContext().equals( context.getRequestContext() );
@@ -336,7 +345,7 @@ public class DefaultRenderingManager implements RenderingManager {
             final WikiDocument doc = getRenderedDocument( context, pagedata );
             final String html = getHTML( context, doc );
 
-            if( useHtmlCache( context ) ) {
+            if( useHtmlCache( context ) && !isViewerSensitive( context ) ) {
                 final String cacheId = htmlCacheId( context );
                 final String contentHash = WikiDocument.hashPageData( pagedata );
                 cachingManager.put( CachingManager.CACHE_HTML, cacheId, new HtmlCacheEntry( html, contentHash ) );

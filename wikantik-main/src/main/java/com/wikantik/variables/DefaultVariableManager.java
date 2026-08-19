@@ -547,11 +547,15 @@ public class DefaultVariableManager implements VariableManager {
         }
 
         public String getLoginstatus() {
+            // Viewer-dependent output — must not be shared through the principal-less render cache.
+            context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
             final Session session = context.getWikiSession();
             return Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE ).getString( "varmgr." + session.getStatus() );
         }
 
         public String getUsername() {
+            // Viewer-dependent output — must not be shared through the principal-less render cache.
+            context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
             final Principal wup = context.getCurrentUser();
             final ResourceBundle rb = Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE );
             return wup != null ? wup.getName() : rb.getString( "varmgr.not.logged.in" );

@@ -163,6 +163,11 @@ public class PluginContent extends Text implements PluginElement {
                     parsedParams.put( e.getKey(), val );
                 }
                 final PluginManager pm = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).pluginManager();
+                // A plugin's output can depend on the viewer (InsertPage emits another
+                // page's body subject to that page's ACL; Search filters by the caller).
+                // Mark the render viewer-sensitive so it is not stored in the shared,
+                // principal-less page/HTML caches and served to a different user.
+                context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
                 result = pm.execute( context, pluginName, parsedParams );
             }
         } catch( final Exception e ) {

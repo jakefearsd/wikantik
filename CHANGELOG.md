@@ -61,6 +61,39 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and an `assemble_bundle` check ranks the new section second for
   "how many tokens per second can a CPU generate for a quantized 7B LLM".
 
+- **PMD complexity ratchet burned down: 150 -> 132 baseline entries.** Fifteen
+  classes were refactored until PMD stopped flagging them, and their baseline
+  lines deleted; three more lines were already stale and simply removed; seven
+  further lines had a rule dropped. Every burn-down target was chosen because it
+  was the class's *only* violation, so clearing it deletes a whole line rather
+  than shrinking one.
+
+  Cleared: `WikiBackgroundThread.run`, `SearchMatcher.matchPageContent`,
+  `PropertyReader.propertyExpansion`, `HubSetPlugin.renderCards`,
+  `DefaultSpamRateLimiter.checkSinglePageChange` (Cognitive); `NodeSignature
+  .stripEdgeNoise`, `FrontmatterParser.parseStrict`, `WikiSecurityEvent`'s two
+  name/description switches, `PageListEngine.matchesFilter`, `MathSpanExtractor
+  .extract`, `JfrProfilingService.start`, `MarkupParser.compileGlobPattern`,
+  `OllamaEmbeddingClient.parseEmbeddings`, `QueryEmbedder.invokeWithTimeout`
+  (Cyclomatic); and `VisibilityRow.of` (ExcessiveParameterList, 9 params -> 8 via
+  a `SnapshotWindow` record) — which retires one of the four `wikantik-insights`
+  lines added earlier the same day, as promised when they were fenced.
+
+  Behaviour-preserving throughout; no test was modified, and the suite is
+  unchanged at 9,174 unit + 380 integration + 1,568 frontend tests.
+
+  Two of the seven trims cost nothing at all: `FrontmatterParser` and
+  `ScimUserResource` stopped tripping `CognitiveComplexity` as a side effect of
+  the de-duplication pass, and the burn-down then cleared `FrontmatterParser`
+  outright.
+
+  **Recorded in the file header so they are not re-derived as easy wins:**
+  `KgEdgeRepository.upsertEdge` looks like a one-over `CyclomaticComplexity` fix
+  but the class also trips a *class-total* cyclomatic of 95 against a threshold
+  of 80 under the same rule name, so the method fix cannot clear the line; and
+  `DefaultContextRetrievalService`'s dead `similarity` constructor argument only
+  takes 11 parameters to 10 against a threshold of 8, clearing nothing while
+  touching a DI composition root.
 
 ### Fixed
 - **Integration tests failed on macOS because select-all was hard-coded to
@@ -117,44 +150,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Validation: the IT phase now passes four consecutive runs (380 tests) where it
   previously failed one in three, plus 9,174 unit tests and the complexity gate.
 
-
-### Changed
-- **PMD complexity ratchet burned down: 150 -> 132 baseline entries.** Fifteen
-  classes were refactored until PMD stopped flagging them, and their baseline
-  lines deleted; three more lines were already stale and simply removed; seven
-  further lines had a rule dropped. Every burn-down target was chosen because it
-  was the class's *only* violation, so clearing it deletes a whole line rather
-  than shrinking one.
-
-  Cleared: `WikiBackgroundThread.run`, `SearchMatcher.matchPageContent`,
-  `PropertyReader.propertyExpansion`, `HubSetPlugin.renderCards`,
-  `DefaultSpamRateLimiter.checkSinglePageChange` (Cognitive); `NodeSignature
-  .stripEdgeNoise`, `FrontmatterParser.parseStrict`, `WikiSecurityEvent`'s two
-  name/description switches, `PageListEngine.matchesFilter`, `MathSpanExtractor
-  .extract`, `JfrProfilingService.start`, `MarkupParser.compileGlobPattern`,
-  `OllamaEmbeddingClient.parseEmbeddings`, `QueryEmbedder.invokeWithTimeout`
-  (Cyclomatic); and `VisibilityRow.of` (ExcessiveParameterList, 9 params -> 8 via
-  a `SnapshotWindow` record) — which retires one of the four `wikantik-insights`
-  lines added earlier the same day, as promised when they were fenced.
-
-  Behaviour-preserving throughout; no test was modified, and the suite is
-  unchanged at 9,174 unit + 380 integration + 1,568 frontend tests.
-
-  Two of the seven trims cost nothing at all: `FrontmatterParser` and
-  `ScimUserResource` stopped tripping `CognitiveComplexity` as a side effect of
-  the de-duplication pass, and the burn-down then cleared `FrontmatterParser`
-  outright.
-
-  **Recorded in the file header so they are not re-derived as easy wins:**
-  `KgEdgeRepository.upsertEdge` looks like a one-over `CyclomaticComplexity` fix
-  but the class also trips a *class-total* cyclomatic of 95 against a threshold
-  of 80 under the same rule name, so the method fix cannot clear the line; and
-  `DefaultContextRetrievalService`'s dead `similarity` constructor argument only
-  takes 11 parameters to 10 against a threshold of 8, clearing nothing while
-  touching a DI composition root.
-
-
-### Fixed
 - **The weekly `unit-tests` CI job is green again.** It had been failing before
   the 2.4.11 work as well (the 2026-08-17 scheduled run was already red) and went
   unnoticed because the job is `if: github.event_name != 'push'` — hosted-minute

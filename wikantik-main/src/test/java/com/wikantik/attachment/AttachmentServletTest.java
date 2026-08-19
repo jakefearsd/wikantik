@@ -264,27 +264,59 @@ class AttachmentServletTest {
         when( att.getFileName() ).thenReturn( "photo.jpg" );
         when( attachmentManager.forceDownload( "photo.jpg" ) ).thenReturn( false );
 
-        final String disposition = servlet.getContentDisposition( att );
+        final String disposition = servlet.getContentDisposition( att, "image/jpeg" );
 
         assertTrue( disposition.startsWith( "inline" ) );
         assertTrue( disposition.contains( "photo.jpg" ) );
     }
 
+    /**
+     * SECURITY: inline is decided from the resolved MIME type against an allowlist,
+     * NOT an active-content extension denylist — so active types that the old
+     * denylist missed ({@code .xht} = application/xhtml+xml, {@code .svgz} =
+     * image/svg+xml, {@code .mhtml}) are served as downloads, closing the stored-XSS
+     * class. Anything not demonstrably safe defaults to attachment.
+     */
     @Test
-    void testGetContentDispositionForcesAttachmentForActiveContentTypes() {
-        final String[] activeContent = { "evil.html", "evil.htm", "evil.xhtml", "evil.svg", "evil.xml",
-                "EVIL.HTML", "Evil.Svg" };
-        for ( final String name : activeContent ) {
+    void testGetContentDispositionForcesAttachmentForActiveMimeTypes() {
+        final String[][] activeContent = {
+                { "evil.html",  "text/html" },
+                { "evil.htm",   "text/html" },
+                { "evil.xhtml", "application/xhtml+xml" },
+                { "evil.xht",   "application/xhtml+xml" },
+                { "evil.svg",   "image/svg+xml" },
+                { "evil.svgz",  "image/svg+xml" },
+                { "evil.xml",   "application/xml" },
+                { "evil.mhtml", "message/rfc822" },
+                { "unknown.bin", "application/octet-stream" },
+                { "no.mime",    null },
+        };
+        for ( final String[] c : activeContent ) {
             final Attachment att = mock( Attachment.class );
-            when( att.getFileName() ).thenReturn( name );
-            // forceDownload NOT configured -- must still be forced by the servlet
-            when( attachmentManager.forceDownload( name ) ).thenReturn( false );
+            when( att.getFileName() ).thenReturn( c[ 0 ] );
+            when( attachmentManager.forceDownload( c[ 0 ] ) ).thenReturn( false );
 
-            final String disposition = servlet.getContentDisposition( att );
+            final String disposition = servlet.getContentDisposition( att, c[ 1 ] );
 
             assertTrue( disposition.startsWith( "attachment" ),
-                    "active content should force attachment disposition: " + name + " -> " + disposition );
-            assertTrue( disposition.contains( name ), "disposition missing filename: " + disposition );
+                    "active/unknown content must force attachment: " + c[ 0 ] + " (" + c[ 1 ] + ") -> " + disposition );
+            assertTrue( disposition.contains( c[ 0 ] ), "disposition missing filename: " + disposition );
+        }
+    }
+
+    @Test
+    void testGetContentDispositionInlineOnlyForSafeMimeTypes() {
+        for ( final String[] c : new String[][] {
+                { "a.png", "image/png" }, { "b.pdf", "application/pdf" },
+                { "c.gif", "image/gif" }, { "d.webp", "image/webp" },
+                { "e.txt", "text/plain; charset=UTF-8" } } ) {
+            final Attachment att = mock( Attachment.class );
+            when( att.getFileName() ).thenReturn( c[ 0 ] );
+            when( attachmentManager.forceDownload( c[ 0 ] ) ).thenReturn( false );
+
+            final String disposition = servlet.getContentDisposition( att, c[ 1 ] );
+            assertTrue( disposition.startsWith( "inline" ),
+                    "safe type must be inline: " + c[ 0 ] + " (" + c[ 1 ] + ") -> " + disposition );
         }
     }
 
@@ -314,7 +346,7 @@ class AttachmentServletTest {
         when( att.getFileName() ).thenReturn( "malware.exe" );
         when( attachmentManager.forceDownload( "malware.exe" ) ).thenReturn( true );
 
-        final String disposition = servlet.getContentDisposition( att );
+        final String disposition = servlet.getContentDisposition( att, "application/octet-stream" );
 
         assertTrue( disposition.startsWith( "attachment" ) );
         assertTrue( disposition.contains( "malware.exe" ) );

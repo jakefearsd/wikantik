@@ -29,6 +29,7 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.commons.fileupload2.core.DiskFileItemFactory;
 import org.apache.commons.fileupload2.core.FileItem;
@@ -288,7 +289,7 @@ public class AttachmentServlet extends HttpServlet {
                 final String mimetype = getMimeType( context, att.getFileName() );
                 res.setContentType( mimetype );
 
-                final String contentDisposition = getContentDisposition( att );
+                final String contentDisposition = getContentDisposition( att, mimetype );
                 res.addHeader( "Content-Disposition", contentDisposition );
                 res.addDateHeader("Last-Modified",att.getLastModified().getTime());
 
@@ -352,15 +353,39 @@ public class AttachmentServlet extends HttpServlet {
         }
     }
 
-    String getContentDisposition( final Attachment att ) {
-        // We use 'inline' instead of 'attachment' so that user agents can try to automatically open the file,
-        // except those cases in which we want to enforce the file download.
-        String contentDisposition = "inline; filename=\"";
-        if( attachmentManager.forceDownload( att.getFileName() ) || isActiveContent( att.getFileName() ) ) {
-            contentDisposition = "attachment; filename=\"";
+    /**
+     * MIME types safe to serve {@code inline} on the wiki's own origin. Everything
+     * else is served as a download. This is an ALLOWLIST on purpose: an active-content
+     * denylist keyed on file extension always misses variants ({@code .xht},
+     * {@code .svgz}, {@code .mhtml}, …), and any such file served inline with its real
+     * content type executes script on the wiki origin (stored XSS). Deciding from the
+     * resolved MIME type and defaulting to attachment closes that whole class.
+     */
+    private static final Set< String > INLINE_SAFE_MIME_TYPES = Set.of(
+            "image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "image/x-icon",
+            "application/pdf", "text/plain",
+            "audio/mpeg", "audio/ogg", "audio/wav",
+            "video/mp4", "video/webm", "video/ogg"
+    );
+
+    String getContentDisposition( final Attachment att, final String mimeType ) {
+        // Inline ONLY for an allowlist of demonstrably non-active types and only when
+        // the attachment is not force-download. Anything else — including SVG, XHTML,
+        // HTML, XML and any unknown/octet-stream type — is served as a download.
+        final boolean inline = !attachmentManager.forceDownload( att.getFileName() )
+                && isInlineSafeType( mimeType );
+        final String base = inline ? "inline; filename=\"" : "attachment; filename=\"";
+        return base + att.getFileName() + "\";";
+    }
+
+    /** True when the resolved MIME type (ignoring any {@code ;charset=…}) is on the inline allowlist. */
+    static boolean isInlineSafeType( final String mimeType ) {
+        if ( mimeType == null ) {
+            return false;
         }
-        contentDisposition += att.getFileName() + "\";";
-        return contentDisposition;
+        final int semi = mimeType.indexOf( ';' );
+        final String base = ( semi >= 0 ? mimeType.substring( 0, semi ) : mimeType ).trim().toLowerCase( Locale.ROOT );
+        return INLINE_SAFE_MIME_TYPES.contains( base );
     }
 
     /**
@@ -368,15 +393,6 @@ public class AttachmentServlet extends HttpServlet {
      * in a browser (HTML, SVG, XML). These must always be served as
      * {@code attachment} rather than {@code inline} to prevent stored XSS.
      */
-    private static boolean isActiveContent( final String fileName ) {
-        if ( fileName == null ) {
-            return false;
-        }
-        final String lower = fileName.toLowerCase( Locale.ROOT );
-        return lower.endsWith( ".html" ) || lower.endsWith( ".htm" )
-                || lower.endsWith( ".xhtml" ) || lower.endsWith( ".svg" )
-                || lower.endsWith( ".xml" );
-    }
 
     void sendError( final HttpServletResponse res, final String message ) throws IOException {
         try {

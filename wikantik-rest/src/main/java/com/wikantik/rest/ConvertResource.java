@@ -109,6 +109,12 @@ public class ConvertResource extends RestServletBase {
             // Headless context — no current page needed for ad-hoc conversion.
             final com.wikantik.api.core.Context ctx =
                     com.wikantik.api.spi.Wiki.context().create( getEngine(), request, (com.wikantik.api.core.Page) null );
+            // SECURITY: this is a preview of attacker-supplied markup for any
+            // authenticated caller. A preview must not EXECUTE plugins — they have
+            // real side effects (search queries, ACL-consulting inserts, expensive
+            // work) and this path has no page permission and no audit trail. Disable
+            // plugin execution; the markup is still rendered, just not run.
+            ctx.setVariable( com.wikantik.api.core.Context.VAR_EXECUTE_PLUGINS, Boolean.FALSE );
             final String html = rm.textToHTML( ctx, content );
 
             final Map< String, Object > responseBody = new LinkedHashMap<>();

@@ -308,7 +308,7 @@ class AttachmentServletCITest2 {
         when( att.getFileName() ).thenReturn( "Makefile" );
         when( attachmentManager.forceDownload( "Makefile" ) ).thenReturn( true );
 
-        final String disposition = servlet.getContentDisposition( att );
+        final String disposition = servlet.getContentDisposition( att, "application/octet-stream" );
 
         assertTrue( disposition.startsWith( "attachment" ), "Files without extension should force download" );
         assertTrue( disposition.contains( "Makefile" ) );

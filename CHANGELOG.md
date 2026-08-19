@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.16] - 2026-08-19
+
 ### Security
 - **JDBCPlugin is disabled by default.** It executes page-authored SQL against the
   wiki datasource; two review findings hit it — results reach non-admin readers

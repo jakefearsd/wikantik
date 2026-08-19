@@ -29,7 +29,6 @@ import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QueryParseException;
-import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.ResultSetFormatter;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.riot.Lang;
@@ -94,25 +93,30 @@ public class OntologySparqlResource extends PublicRdfServletBase {
         try ( QueryExecution qe = QueryExecution.create().query( query ).model( data )
                 .context( com.wikantik.ontology.SparqlQueryGuard.safeContext() )
                 .timeout( TIMEOUT_MS, TimeUnit.MILLISECONDS ).build() ) {
-            final OutputStream out = resp.getOutputStream();
-            if ( query.isSelectType() ) {
-                resp.setContentType( "application/sparql-results+json" );
-                final ResultSet rs = qe.execSelect();
-                ResultSetFormatter.outputAsJSON( out, rs );
-            } else if ( query.isAskType() ) {
-                resp.setContentType( "application/sparql-results+json" );
-                ResultSetFormatter.outputAsJSON( out, qe.execAsk() );
-            } else if ( query.isConstructType() || query.isDescribeType() ) {
-                final Model m = query.isConstructType() ? qe.execConstruct() : qe.execDescribe();
-                final Lang lang = negotiateRdf( req );
-                resp.setContentType( lang == Lang.JSONLD ? "application/ld+json" : "text/turtle" );
-                RDFDataMgr.write( out, m, lang );
-            } else {
-                sendError( resp, HttpServletResponse.SC_BAD_REQUEST, "unsupported query form" );
-            }
+            writeQueryResult( qe, query, req, resp );
         } catch ( final RuntimeException e ) {
             LOG.warn( "SPARQL execution failed: {}", e.getMessage() );
             sendError( resp, HttpServletResponse.SC_BAD_REQUEST, "query execution failed: " + e.getMessage() );
+        }
+    }
+
+    /** Writes a query execution's results to the response by query form. */
+    private void writeQueryResult( final QueryExecution qe, final Query query,
+                                   final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
+        final OutputStream out = resp.getOutputStream();
+        if ( query.isSelectType() ) {
+            resp.setContentType( "application/sparql-results+json" );
+            ResultSetFormatter.outputAsJSON( out, qe.execSelect() );
+        } else if ( query.isAskType() ) {
+            resp.setContentType( "application/sparql-results+json" );
+            ResultSetFormatter.outputAsJSON( out, qe.execAsk() );
+        } else if ( query.isConstructType() || query.isDescribeType() ) {
+            final Model m = query.isConstructType() ? qe.execConstruct() : qe.execDescribe();
+            final Lang lang = negotiateRdf( req );
+            resp.setContentType( lang == Lang.JSONLD ? "application/ld+json" : "text/turtle" );
+            RDFDataMgr.write( out, m, lang );
+        } else {
+            sendError( resp, HttpServletResponse.SC_BAD_REQUEST, "unsupported query form" );
         }
     }
 

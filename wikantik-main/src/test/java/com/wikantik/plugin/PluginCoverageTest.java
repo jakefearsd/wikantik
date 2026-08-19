@@ -32,6 +32,7 @@ import com.wikantik.auth.Users;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.search.SearchManager;
+import com.wikantik.search.subsystem.lucene.SearchIndexNotReadyException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
@@ -614,10 +615,18 @@ class PluginCoverageTest {
             final String uniqueTerm = "zqxwv" + System.currentTimeMillis();
             engine.saveText( "SearchableFoo", "This page contains " + uniqueTerm + " as content." );
 
-            // Wait for the search engine to index the page
+            // Wait for the search engine to index the page.
+            //
+            // ignoreExceptions is load-bearing, not defensive padding: until the
+            // indexer commits its first segment there is no readable index, and
+            // findPages now reports that honestly as a ProviderException instead of
+            // quietly returning an empty list (see DefaultLuceneSearcherReadinessTest).
+            // "Not ready yet" is exactly what this poll exists to wait out, so it must
+            // be retried rather than treated as a failure.
             Awaitility.await( "waiting for search index" )
                     .atMost( 10, TimeUnit.SECONDS )
                     .pollInterval( 200, TimeUnit.MILLISECONDS )
+                    .ignoreExceptionsInstanceOf( SearchIndexNotReadyException.class )
                     .until( () -> {
                         final Context c = Wiki.context().create( engine,
                                 HttpMockFactory.createHttpRequest(),

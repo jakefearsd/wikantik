@@ -23,6 +23,7 @@ import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
+import com.wikantik.search.subsystem.lucene.SearchIndexNotReadyException;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.PageManager;
@@ -86,7 +87,16 @@ class SearchManagerTest {
         return () -> {
             final HttpServletRequest request = HttpMockFactory.createHttpRequest();
             final Context ctx = Wiki.context().create( m_engine, request, ContextEnum.PAGE_EDIT.getRequestContext() );
-            final Collection< SearchResult > search = m_mgr.findPages( text, ctx );
+            final Collection< SearchResult > search;
+            try {
+                search = m_mgr.findPages( text, ctx );
+            } catch ( final SearchIndexNotReadyException e ) {
+                // The index has no committed segment yet. For a poll whose entire
+                // purpose is to wait for indexing to finish, that is "not yet" — not
+                // a failure. It used to be reported as an empty result set, which is
+                // why this poll never had to think about it.
+                return false;
+            }
             if( search != null && search.size() > 0 ) {
                 // debugSearchResults( search );
                 res.addAll( search );

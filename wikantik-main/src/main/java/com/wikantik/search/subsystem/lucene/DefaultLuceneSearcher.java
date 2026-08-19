@@ -24,6 +24,7 @@ import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexNotFoundException;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.ReaderUtil;
@@ -227,6 +228,20 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
         return directorySupplier.get();
     }
 
+    /**
+     * True when the index directory holds files but no committed segments — i.e. a
+     * build is in flight (or left a half-written index behind). Only meaningful
+     * after Lucene has already told us there is no {@code segments_*} file by
+     * raising {@link IndexNotFoundException}: at that point ANY file present means
+     * the directory is mid-build rather than untouched, so "not ready" is the
+     * honest answer. An absent or empty directory means nothing was ever indexed,
+     * which is a legitimate zero-result state on a fresh install.
+     */
+    private boolean indexBuildInProgress() {
+        final String[] files = new File( dir() ).list();
+        return files != null && files.length > 0;
+    }
+
     // -------------------------------------------------------------------------
     // LuceneSearcher interface
     // -------------------------------------------------------------------------
@@ -342,15 +357,53 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                         list.add( new SearchResultImpl( page, score, fragments ) );
                     }
                 } else {
-                    // LOG.error justified: stale index entry; Lucene references a page that no longer exists in the page store.
-                    LOG.error( "Lucene found a result page '{}' that could not be loaded, removing from Lucene cache",
-                               pageName );
-                    indexer.pageRemoved( Wiki.contents().page( engine, pageName ) );
+                    // A null page is AMBIGUOUS: the page may genuinely be gone, or the
+                    // page provider may have failed transiently (an FS race, a closed
+                    // cache). Deleting on that signal lets one bad read permanently
+                    // drop a valid document from the index, and the only symptom the
+                    // user ever sees is fewer results. Confirm the absence explicitly,
+                    // and when the check itself cannot answer, leave the index alone —
+                    // a stale entry is filtered out of results anyway, so keeping it is
+                    // strictly safer than deleting a live one.
+                    boolean confirmedAbsent;
+                    try {
+                        confirmedAbsent = !pm.wikiPageExists( pageName, PageProvider.LATEST_VERSION );
+                    } catch ( final ProviderException e ) {
+                        LOG.warn( "Lucene hit '{}' could not be loaded and its existence could not be confirmed "
+                                  + "({}); leaving the index entry in place", pageName, e.getMessage(), e );
+                        confirmedAbsent = false;
+                    }
+                    if ( confirmedAbsent ) {
+                        // LOG.error justified: stale index entry; Lucene references a page that no longer exists in the page store.
+                        LOG.error( "Lucene found a result page '{}' that no longer exists, removing from Lucene cache",
+                                   pageName );
+                        indexer.pageRemoved( Wiki.contents().page( engine, pageName ) );
+                    } else {
+                        LOG.warn( "Lucene hit '{}' could not be loaded but the page still exists; "
+                                  + "skipping it for this search and leaving the index intact", pageName );
+                    }
                 }
             }
+        } catch ( final IndexNotFoundException e ) {
+            // No committed segments. TWO very different states raise this, and they
+            // must not share a response:
+            //   * nothing has ever been indexed  -> genuinely zero results
+            //   * a writer is mid-build          -> the index is NOT empty, it is NOT
+            //     READY. Lucene writes pending_segments_N and only renames it to
+            //     segments_N on commit, so a search landing in that window used to be
+            //     answered with an empty list — a wrong answer indistinguishable from
+            //     a real one. Callers (and users) deserve to know the difference.
+            if ( indexBuildInProgress() ) {
+                throw new SearchIndexNotReadyException(
+                        "the search index is still being built; retry shortly" );
+            }
+            LOG.info( "Search '{}' ran before anything was indexed - returning no results", query );
         } catch ( final IOException e ) {
-            // LOG.error justified: Lucene index I/O failure during search; results may be empty or incomplete.
+            // Never swallow this into an empty list: a failed search that looks like a
+            // successful empty one silently corrupts whatever the caller does next.
+            // LOG.error justified: Lucene index I/O failure during search.
             LOG.error( "Failed during lucene search", e );
+            throw new ProviderException( "search failed: " + e.getMessage(), e );
         } catch ( final ParseException e ) {
             LOG.warn( "Cannot parse search query: [{}]: {}", query, e.getMessage() );
             throw new ProviderException( "You have entered a query Lucene cannot process [" + query + "]: "

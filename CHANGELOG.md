@@ -7,6 +7,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- **Search reported an unreadable index as "no results".** Lucene writes
+  `pending_segments_N` and only renames it to `segments_N` on commit, so a search
+  landing in that window makes `DirectoryReader.open` raise
+  `IndexNotFoundException`. That is an `IOException`, and
+  `DefaultLuceneSearcher.findPages` caught `IOException`, logged it, and returned
+  its empty accumulator — a wrong answer the caller could not distinguish from a
+  correct one. The Search plugin duly rendered its "No results" table. Captured on
+  a real run as
+  `IndexNotFoundException: no segments* file found in ... files: [pending_segments_1, write.lock]`.
+  Now the two states that share that exception are answered differently: an index
+  that was never built still returns zero results (a fresh install legitimately has
+  nothing indexed), while an index that is mid-build raises the new
+  `SearchIndexNotReadyException`. Every other `IOException` is also propagated as a
+  `ProviderException` instead of being flattened into an empty result — a failed
+  search must never look like a successful empty one. This was the root cause of
+  the intermittent `PluginCoverageTest.testSearchWithResults` failure: under
+  `-T 1C` the machine is loaded, the window widens, and the run lands in it.
+- **A search could delete entries from the index.** When a hit's page failed to
+  load, the *read* path called `indexer.pageRemoved(...)`. A null page is
+  ambiguous — genuinely deleted, or a transient page-provider failure — so a single
+  bad read permanently dropped a valid document, and the only symptom was fewer
+  results. Absence is now confirmed with an explicit `wikiPageExists` check; when
+  that check cannot answer, the hit is skipped for this search and the index is
+  left intact. Self-healing for genuinely deleted pages is retained.
 - **`bin/run-tests.sh` SIGKILLed every Maven process on the machine.** Its
   `clean_zombies` sweep was a single
   `pkill -9 -f "surefire.*booter|plexus.classworlds|org.codehaus.cargo"`, and

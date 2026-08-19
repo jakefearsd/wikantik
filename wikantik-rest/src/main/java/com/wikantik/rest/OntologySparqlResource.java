@@ -78,11 +78,21 @@ public class OntologySparqlResource extends PublicRdfServletBase {
             sendError( resp, HttpServletResponse.SC_BAD_REQUEST, "invalid SPARQL query: " + e.getMessage() );
             return;
         }
+        // This endpoint is PUBLIC and unauthenticated. Reject the two constructs that
+        // reach off-box from the server's network position: SERVICE (SSRF) and java:
+        // function IRIs (classloading). See SparqlQueryGuard.
+        try {
+            com.wikantik.ontology.SparqlQueryGuard.rejectUnsafeConstructs( query );
+        } catch ( final IllegalArgumentException e ) {
+            sendError( resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage() );
+            return;
+        }
         if ( !query.hasLimit() || query.getLimit() > RESULT_CAP ) {
             query.setLimit( RESULT_CAP );
         }
         final Model data = mgr.inferenceSnapshot();   // serve with subClassOf entailment
         try ( QueryExecution qe = QueryExecution.create().query( query ).model( data )
+                .context( com.wikantik.ontology.SparqlQueryGuard.safeContext() )
                 .timeout( TIMEOUT_MS, TimeUnit.MILLISECONDS ).build() ) {
             final OutputStream out = resp.getOutputStream();
             if ( query.isSelectType() ) {

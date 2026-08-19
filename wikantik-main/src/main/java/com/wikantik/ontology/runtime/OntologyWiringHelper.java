@@ -93,6 +93,10 @@ public final class OntologyWiringHelper {
                 true );
 
         engine.setManager( OntologyRebuildCoordinator.class, coordinator );
+        // Disable SPARQL SERVICE federation engine-wide before any public /sparql or
+        // knowledge-MCP query can run — the public endpoint is unauthenticated, so a
+        // SERVICE clause would be SSRF from the server's network position.
+        com.wikantik.ontology.SparqlQueryGuard.install();
         LOG.info( "ontology runtime wired (tdb2 dir={})", dir );
 
         // Event-incremental sync: re-project a page's graph on save/rename, remove on true delete.

@@ -110,6 +110,13 @@ public class SparqlQueryTool extends AbstractMcpTool {
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
                     "invalid SPARQL query (note: UPDATE is not allowed): " + e.getMessage() );
         }
+        // A token grants READ-ONLY retrieval, not network access. Reject SERVICE
+        // (SSRF) and java: function IRIs (classloading), same as the public /sparql.
+        try {
+            com.wikantik.ontology.SparqlQueryGuard.rejectUnsafeConstructs( query );
+        } catch ( final IllegalArgumentException e ) {
+            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
+        }
         if ( !query.hasLimit() || query.getLimit() > RESULT_CAP ) {
             query.setLimit( RESULT_CAP );
         }
@@ -118,6 +125,7 @@ public class SparqlQueryTool extends AbstractMcpTool {
         final boolean compact = "compact".equalsIgnoreCase( McpToolUtils.getString( arguments, "format" ) );
         final Model data = manager.inferenceSnapshot();
         try ( QueryExecution qe = QueryExecution.create().query( query ).model( data )
+                .context( com.wikantik.ontology.SparqlQueryGuard.safeContext() )
                 .timeout( TIMEOUT_MS, TimeUnit.MILLISECONDS ).build() ) {
             if ( compact && query.isSelectType() ) {
                 return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, compactRows( qe.execSelect() ) );

@@ -247,6 +247,18 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
     /** {@inheritDoc} */
     @Override
     public void storeAttachment( final Attachment att, final InputStream in ) throws IOException, ProviderException {
+        // Defense at the chokepoint. EVERY upload route funnels through here, but
+        // only the legacy /attach servlet and the REST `name`-field route sanitize
+        // the filename before building the Attachment. The REST originalFileName
+        // fallback (AttachmentResource) and POST /api/ingest do NOT, so a filename
+        // such as "../../../usr/local/tomcat/webapps/ROOT/x.jsp" reaches
+        // BasicAttachmentProvider, whose mangleName (TextUtil.urlEncode) passes '/'
+        // through UNENCODED — arbitrary file write as the container user, i.e. a
+        // JSP-drop RCE. Validate at the one point all routes share, so none can
+        // bypass it, and reject rather than rewrite: att.getName() was already
+        // built from this filename, so silently rewriting it would desync the two.
+        rejectUnsafeAttachmentName( att.getFileName() );
+
         if( provider == null ) {
             return;
         }
@@ -323,6 +335,34 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
         provider.deleteAttachment( att );
         SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager().pageRemoved( att );
         PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().clearPageEntries( att.getName() );
+    }
+
+    /**
+     * Rejects an attachment filename that a path-building provider cannot be
+     * trusted to neutralise: one carrying a path separator or NUL (traversal), or
+     * a blocked active-content extension. This is the last line before the bytes
+     * hit the filesystem, and it is deliberately a REJECT, not a sanitise — a
+     * legitimate upload has already had its name validated upstream (the
+     * {@code Attachment}'s {@code name} is {@code parent + "/" + fileName}, so
+     * rewriting the filename here would leave {@code getName()} pointing at a
+     * different file). A separator- or NUL-bearing filename is never legitimate.
+     */
+    private static void rejectUnsafeAttachmentName( final String fileName ) throws ProviderException {
+        if ( fileName == null || fileName.isBlank() ) {
+            throw new ProviderException( "attach.empty.file" );
+        }
+        if ( fileName.indexOf( '/' ) >= 0 || fileName.indexOf( '\\' ) >= 0 || fileName.indexOf( '\0' ) >= 0 ) {
+            LOG.warn( "Rejected attachment with a path separator in its name: '{}'", fileName );
+            throw new ProviderException( "attach.invalid.filename" );
+        }
+        final int dot = fileName.lastIndexOf( '.' );
+        if ( dot >= 0 && dot < fileName.length() - 1 ) {
+            final String ext = fileName.substring( dot + 1 ).toLowerCase( Locale.ROOT );
+            if ( com.wikantik.api.managers.AttachmentManager.BLOCKED_UPLOAD_EXTENSIONS.contains( ext ) ) {
+                LOG.warn( "Rejected attachment with a blocked active-content extension '.{}': '{}'", ext, fileName );
+                throw new ProviderException( "attach.unwanted.file" );
+            }
+        }
     }
 
 }

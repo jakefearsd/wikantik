@@ -25,6 +25,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.AttachmentManager;
+import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.api.managers.PageManager;
@@ -262,11 +263,82 @@ class DefaultAttachmentManagerCITest {
     void storeAttachment_doesNothingWhenNoProvider() throws Exception {
         final Attachment att = mock( Attachment.class );
         when( att.getParentName() ).thenReturn( "TestPage" );
+        when( att.getFileName() ).thenReturn( "photo.png" );
         final InputStream in = new ByteArrayInputStream( new byte[0] );
 
         // Should not throw, should not call pageManager
         assertDoesNotThrow( () -> manager.storeAttachment( att, in ) );
         verify( pageManager, never() ).pageExists( anyString() );
+    }
+
+    // ---- storeAttachment filename guard (SECURITY: path traversal + active content) ----
+
+    /**
+     * SECURITY REGRESSION (arbitrary file write → RCE, fixed 2026-08-19).
+     *
+     * The REST originalFileName fallback (AttachmentResource) and POST /api/ingest
+     * build an Attachment straight from the client-supplied multipart filename,
+     * with no sanitisation. BasicAttachmentProvider.mangleName (TextUtil.urlEncode)
+     * passes '/' through UNENCODED, so a name like
+     * "../../../usr/local/tomcat/webapps/ROOT/x.jsp" escapes the attachment store
+     * and writes attacker bytes anywhere the container process can — a JSP-drop RCE.
+     * The chokepoint in storeAttachment must reject any path separator before the
+     * bytes are handed to a provider, i.e. even when provider == null.
+     */
+    @Test
+    void storeAttachment_rejectsPathTraversalInFilename() {
+        final Attachment att = mock( Attachment.class );
+        when( att.getParentName() ).thenReturn( "TestPage" );
+        when( att.getFileName() ).thenReturn( "../../../usr/local/tomcat/webapps/ROOT/x.jsp" );
+        final InputStream in = new ByteArrayInputStream( new byte[0] );
+
+        assertThrows( ProviderException.class, () -> manager.storeAttachment( att, in ),
+                "a filename containing a path separator must be rejected at the chokepoint" );
+    }
+
+    @Test
+    void storeAttachment_rejectsBackslashTraversalInFilename() {
+        final Attachment att = mock( Attachment.class );
+        when( att.getParentName() ).thenReturn( "TestPage" );
+        when( att.getFileName() ).thenReturn( "..\\..\\evil.txt" );
+        final InputStream in = new ByteArrayInputStream( new byte[0] );
+
+        assertThrows( ProviderException.class, () -> manager.storeAttachment( att, in ),
+                "a Windows-style separator must also be rejected" );
+    }
+
+    @Test
+    void storeAttachment_rejectsBlockedActiveContentExtension() {
+        final Attachment att = mock( Attachment.class );
+        when( att.getParentName() ).thenReturn( "TestPage" );
+        when( att.getFileName() ).thenReturn( "payload.jsp" );
+        final InputStream in = new ByteArrayInputStream( new byte[0] );
+
+        assertThrows( ProviderException.class, () -> manager.storeAttachment( att, in ),
+                "a .jsp upload must be rejected at the chokepoint on every route" );
+    }
+
+    @Test
+    void storeAttachment_rejectsSvgActiveContent() {
+        final Attachment att = mock( Attachment.class );
+        when( att.getParentName() ).thenReturn( "TestPage" );
+        when( att.getFileName() ).thenReturn( "logo.svg" );
+        final InputStream in = new ByteArrayInputStream( new byte[0] );
+
+        assertThrows( ProviderException.class, () -> manager.storeAttachment( att, in ),
+                "an .svg upload (stored XSS vector) must be rejected on the REST/ingest routes too" );
+    }
+
+    @Test
+    void storeAttachment_allowsAnOrdinaryFilename() {
+        // A clean filename must still pass the guard and reach the (null) provider
+        // path without throwing — proves the fix did not break legitimate uploads.
+        final Attachment att = mock( Attachment.class );
+        when( att.getParentName() ).thenReturn( "TestPage" );
+        when( att.getFileName() ).thenReturn( "annual-report (final).pdf" );
+        final InputStream in = new ByteArrayInputStream( new byte[0] );
+
+        assertDoesNotThrow( () -> manager.storeAttachment( att, in ) );
     }
 
     // ---- getAttachmentInfoName with ProviderException ----

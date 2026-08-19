@@ -7,26 +7,13 @@
 # reason stops holding (we start using the affected API, or an upgrade path
 # appears), delete the entry and fix the dependency instead.
 
-[[IgnoredVulns]]
-id = "GHSA-qwww-vcr4-c8h2"
-ignoreUntil = 2026-10-27
-reason = """
-react-router RSC-mode CSRF bypass. Not applicable and not currently fixable:
-
-1. Not applicable — the advisory states "This only affects your application if
-   you are using the unstable RSC APIs". Wikantik's frontend is a client-side
-   Vite SPA: it uses BrowserRouter/MemoryRouter, Link, Outlet and the hooks, and
-   imports no `unstable_*` or RSC entry points. There is no server-side router
-   and no RSC render path, so the vulnerable action-dispatch flow does not exist
-   here.
-
-2. No upgrade path — the advisory's only fixed version is react-router 8.3.0.
-   This app depends on react-router-dom, which has published no 8.x release
-   (latest is 7.18.1), and every 7.x from 7.12.0 up is in the affected range.
-   Forcing react-router 8.3.0 underneath react-router-dom 7 mismatches its peer
-   and would mean migrating 78 source files off react-router-dom — a major
-   version jump to remediate a code path the app does not use.
-
-Revisit when react-router-dom ships an 8.x line (or when the SPA adopts any RSC
-API, which invalidates reason 1 immediately).
-"""
+# No active suppressions.
+#
+# The react-router GHSA-qwww-vcr4-c8h2 entry was removed on 2026-08-19: its
+# stated reason ("no upgrade path — the only fixed version is 8.3.0, and
+# react-router-dom's latest is 7.18.1") went stale when upstream backported the
+# fix to the 7.x line. OSV now carries two ranges, [7.12.0 -> 7.18.2] and
+# [8.0.0 -> 8.3.0], and this app is on 7.18.2 in both react-router and
+# react-router-dom, so the advisory no longer matches and osv-scanner reported
+# the entry as an UNUSED ignore. Per the policy above, a suppression whose
+# reason stops holding is deleted rather than left to rot.

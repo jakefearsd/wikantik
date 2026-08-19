@@ -6,6 +6,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- **Unauthenticated admin-data disclosure via the SPA-navigation bypass (CRITICAL).**
+  `AdminAuthFilter` waved any `GET` carrying `Accept: text/html` past authentication
+  so `SpaRoutingFilter` could serve the React shell — but `SpaRoutingFilter` treats
+  any path containing a dot (not ending `.html`) as a *static asset* and forwards it
+  to the servlet instead of the shell. So a browser-shaped request to a dotted admin
+  path skipped auth **and** reached the real admin servlet. Confirmed live:
+  `GET /admin/apikeys/a.b` with `Accept: text/html` returned the API-key inventory
+  (principal logins, labels, ids) to an anonymous caller, and the whole GET surface
+  of `/admin/*` was exposed the same way. The bypass now mirrors `SpaRoutingFilter`'s
+  own static-asset carve-out exactly, so a path can never both skip auth and reach a
+  servlet — the gap between the two filters was the vulnerability.
+- **Arbitrary file write → RCE via unvalidated attachment filename (CRITICAL).** The
+  REST upload route's `originalFileName` fallback (`AttachmentResource`) and
+  `POST /api/ingest` built an `Attachment` straight from the client's multipart
+  filename with no sanitisation. `BasicAttachmentProvider.mangleName` is
+  `TextUtil.urlEncode`, whose switch passes `/` through **unencoded** (the page
+  providers add a `%2F` replacement the attachment provider omits), so a filename like
+  `../../../usr/local/tomcat/webapps/ROOT/x.jsp` escaped the attachment store and
+  wrote attacker bytes anywhere the container process could — a JSP-drop RCE as root
+  in the stock image. Reachable by any authenticated user (`page:*:modify` implies
+  `upload`). The blocklist and path-stripping that protect the legacy `/attach`
+  servlet were wired to that one route only. Fixed at the chokepoint every upload
+  route shares — `DefaultAttachmentManager.storeAttachment` now rejects any filename
+  carrying a path separator or NUL, or a blocked active-content extension, before the
+  bytes reach a provider. This also closes the REST/ingest active-content blocklist
+  bypass (`.jsp`/`.svg`/`.html` could previously land via those routes).
+
 ## [2.4.13] - 2026-08-19
 
 ### Fixed

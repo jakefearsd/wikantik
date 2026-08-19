@@ -133,8 +133,15 @@ jobs:
           java-version: 25
           cache: maven
 
-      - name: Generate CycloneDX SBOM (aggregate, all scopes)
-        run: mvn -B -q -DskipTests org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom -DoutputFormat=json
+      # The step name claimed "all scopes" but the goal defaults to
+      # includeTestScope=false, so mockito/testcontainers/h2/archunit and the rest
+      # of the test tree were never scanned — a blind spot in the one job that
+      # exists to catch vulnerable dependencies. Test-scope code still runs on
+      # developer machines and on this runner, so it is worth seeing. Verified
+      # 2026-08-19: the test-scope BOM is 423 components and OSV-clean, so turning
+      # this on does not make the gate red today.
+      - name: Generate CycloneDX SBOM (aggregate, all scopes incl. test)
+        run: mvn -B -q -DskipTests org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom -DoutputFormat=json -DincludeTestScope=true
 
       - name: Install OSV-Scanner
         run: |

@@ -182,7 +182,36 @@ public class AdminAuthFilter implements Filter {
             return false;
         }
         final String accept = req.getHeader( "Accept" );
-        return accept != null && accept.contains( "text/html" );
+        if ( accept == null || !accept.contains( "text/html" ) ) {
+            return false;
+        }
+        // The bypass is ONLY safe for a path SpaRoutingFilter will answer with the
+        // React shell. SpaRoutingFilter treats any path containing a dot (and not
+        // ending in .html) as a static asset and forwards it to the servlet
+        // (SpaRoutingFilter.doFilter: `path.contains(".") && !path.endsWith(".html")`).
+        // For such a path, passing through here means the admin servlet runs WITH
+        // AUTH ALREADY SKIPPED — an unauthenticated admin-data leak (e.g.
+        // /admin/apikeys/a.b). Mirror that carve-out exactly so a dotted path can
+        // never both skip auth and reach a servlet: the two filters must agree on
+        // what "an SPA navigation" is, or the gap between them is the vulnerability.
+        final String path = servletRelativePath( req );
+        if ( path.contains( "." ) && !path.endsWith( ".html" ) ) {
+            return false;
+        }
+        return true;
+    }
+
+    /** Request path with the context path stripped, matching how SpaRoutingFilter
+     *  computes the path it routes on. Uses getRequestURI() (the raw, undecoded
+     *  URI) deliberately: a %2e-encoded dot must be judged on the same bytes the
+     *  servlet container will use to dispatch, not a decoded form. */
+    private static String servletRelativePath( final HttpServletRequest req ) {
+        final String contextPath = req.getContextPath() != null ? req.getContextPath() : "";
+        final String rawUri = req.getRequestURI();
+        if ( rawUri == null ) {
+            return "";
+        }
+        return rawUri.startsWith( contextPath ) ? rawUri.substring( contextPath.length() ) : rawUri;
     }
 
     /**

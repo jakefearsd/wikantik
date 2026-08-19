@@ -200,6 +200,59 @@ class AdminAuthFilterTest {
     }
 
     /**
+     * SECURITY REGRESSION (unauthenticated admin bypass, fixed 2026-08-19).
+     *
+     * The SPA-navigation pass-through keyed only on GET + Accept: text/html.
+     * SpaRoutingFilter, further down the chain, treats any path containing a dot
+     * (and not ending .html) as a STATIC ASSET and forwards it to the servlet
+     * instead of serving the SPA shell. So a browser-shaped request to a dotted
+     * admin path — e.g. GET /admin/apikeys/a.b with Accept: text/html — skipped
+     * auth here AND fell through to the real admin servlet, which returned live
+     * admin data with no authentication. Confirmed live: /admin/apikeys/a.b
+     * returned the API-key inventory to an anonymous caller.
+     *
+     * The bypass must apply ONLY to paths SpaRoutingFilter will actually answer
+     * with the shell, i.e. never to a dotted non-.html path.
+     */
+    @Test
+    void testDottedAdminPathWithHtmlAcceptIsStillAuthChecked() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/admin/apikeys/a.b" );
+        Mockito.doReturn( "GET" ).when( request ).getMethod();
+        Mockito.doReturn( "text/html,application/xhtml+xml" ).when( request ).getHeader( "Accept" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        filter.doFilter( request, response, chain );
+
+        // A dotted path must never bypass auth: it would reach the servlet, not the shell.
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+    }
+
+    /**
+     * The legitimate SPA route (no dot) must still pass through so the shell is
+     * served — the UX reason the bypass exists. Guards against over-correcting
+     * the security fix into a broken admin SPA.
+     */
+    @Test
+    void testExtensionlessAdminNavigationStillPassesThrough() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/admin/connectors/42" );
+        Mockito.doReturn( "GET" ).when( request ).getMethod();
+        Mockito.doReturn( "text/html,application/xhtml+xml" ).when( request ).getHeader( "Accept" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+        verify( response, never() ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+    }
+
+    /**
      * A non-GET request — even one whose Accept includes text/html — still
      * gets auth-checked. SPA navigation is GET-only.
      */

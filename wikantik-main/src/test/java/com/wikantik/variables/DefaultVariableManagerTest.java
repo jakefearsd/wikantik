@@ -47,6 +47,39 @@ public class DefaultVariableManagerTest {
         Assertions.assertThrows( IllegalArgumentException.class, () -> m_variableManager.parseAndGetValue( m_context, "" ) );
     }
 
+    /**
+     * SECURITY: page markup ([{$wikantik.…}]) must never expand a secret-bearing
+     * property (OIDC secret, connector AES key, SCIM token, DB/SAML passwords).
+     */
+    @Test
+    public void secretBearingPropertyNamesAreRefused() {
+        for ( final String secret : new String[] {
+                "wikantik.connectors.crypto.key",
+                "wikantik.auth.masterpassword",
+                "wikantik.scim.token",
+                "wikantik.sso.saml.keystorePassword",
+                "wikantik.sso.saml.privateKeyPassword",
+                "wikantik.userdatabase.password",
+                "wikantik.sso.oidc.clientSecret",
+                "wikantik.datasource.credential" } ) {
+            Assertions.assertTrue( DefaultVariableManager.isSecretProperty( secret ),
+                    "must be treated as secret: " + secret );
+        }
+    }
+
+    @Test
+    public void ordinaryPropertyNamesAreNotRefused() {
+        for ( final String ok : new String[] {
+                "wikantik.baseURL",
+                "wikantik.applicationName",
+                "wikantik.frontPage",
+                "wikantik.chunker.max_tokens",
+                "wikantik.search.dense.backend" } ) {
+            Assertions.assertFalse( DefaultVariableManager.isSecretProperty( ok ),
+                    "must not be treated as secret: " + ok );
+        }
+    }
+
     @Test
     public void testIllegalInsert2() {
         Assertions.assertThrows( IllegalArgumentException.class, () -> m_variableManager.parseAndGetValue( m_context, "{$" ) );

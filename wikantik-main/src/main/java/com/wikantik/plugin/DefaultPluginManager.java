@@ -673,7 +673,20 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
         WikiPluginInfo pluginInfo = pluginClassMap.get( pluginName );
         try {
             if( pluginInfo == null ) {
-                pluginInfo = WikiPluginInfo.newInstance( findPluginClass( pluginName ) );
+                final Class< ? > clazz = findPluginClass( pluginName );
+                // SECURITY: the plugin NAME comes verbatim from page markup
+                // ([{ClassName ...}]), which any editor controls. Reject a class
+                // that is not actually a Plugin BEFORE it is instantiated — class
+                // initialisation (<clinit>) and the constructor run only at
+                // instantiation, so rejecting here means an arbitrary class named in
+                // page content is never initialised or constructed. Report it exactly
+                // like a missing plugin so a loadable non-plugin class is not an
+                // existence/version oracle over the whole webapp classpath.
+                if( !Plugin.class.isAssignableFrom( clazz ) ) {
+                    LOG.warn( "Refused a non-plugin class named in wiki markup: {}", pluginName );
+                    throw new PluginException( MessageFormat.format( rb.getString( "plugin.error.couldnotfind" ), pluginName ) );
+                }
+                pluginInfo = WikiPluginInfo.newInstance( clazz );
                 registerPlugin( pluginInfo );
             }
 

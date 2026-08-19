@@ -318,6 +318,27 @@ class DefaultPluginManagerCITest {
         assertNotNull( ex );
     }
 
+    /**
+     * SECURITY: the plugin name is verbatim page markup, so an editor can name ANY
+     * fully-qualified class. A class that exists but is not a {@link Plugin} must be
+     * refused BEFORE instantiation (no static-initialiser / constructor side effect),
+     * and reported like a missing plugin so its existence is not an oracle.
+     */
+    @Test
+    void testNewWikiPluginRejectsANonPluginClassWithoutInstantiatingIt() {
+        final java.util.ResourceBundle rb = java.util.ResourceBundle.getBundle(
+                com.wikantik.api.plugin.Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
+
+        // java.util.Random is a real, loadable, public class with a public no-arg
+        // constructor — exactly the shape an attacker would try — but not a Plugin.
+        final PluginException ex = assertThrows( PluginException.class,
+                () -> defaultManager.newWikiPlugin( "java.util.Random", rb ) );
+        assertNotNull( ex );
+        // Same message as a missing plugin — no existence/version oracle over the classpath.
+        assertFalse( ex.getMessage().contains( "java.util" ) && ex.getMessage().toLowerCase().contains( "cast" ),
+                "must not leak a ClassCastException naming the probed class" );
+    }
+
     // ============== getPluginPattern ==============
 
     /**

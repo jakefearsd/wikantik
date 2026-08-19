@@ -212,8 +212,19 @@ public class DefaultVariableManager implements VariableManager {
 
         // 7. Wiki properties — engine.getWikiProperties() (only for "wikantik." prefix).
         //    Uses the original name for property lookup (preserves original casing behavior).
+        //
+        //    SECURITY: page markup like [{$wikantik.connectors.crypto.key}] is authored
+        //    by any editor and rendered for any viewer, so a blanket "wikantik.*" open
+        //    door exposes the OIDC client secret, the connector-credential AES key, the
+        //    SCIM token, the SAML keystore passwords and the DB password to anyone who
+        //    can save or read a page. Deny any secret-bearing property name; everything
+        //    else (base URL, app name, feature flags) still resolves.
         chain.add( ( lowerName, originalName, context ) -> {
             if( originalName.startsWith( "wikantik." ) ) {
+                if ( isSecretProperty( originalName ) ) {
+                    LOG.warn( "Refused to expand a secret-bearing property through wiki markup: {}", originalName );
+                    return null;
+                }
                 final Properties wikiProps = CoreSubsystemBridge.fromLegacyEngine( context.getEngine() ).properties().asProperties();
                 final String propertyValue = wikiProps.getProperty( originalName );
                 if( propertyValue != null ) {
@@ -348,6 +359,39 @@ public class DefaultVariableManager implements VariableManager {
      * Handles Date (ISO format) and List (comma-separated) values that
      * SnakeYAML produces when parsing YAML frontmatter.
      */
+    /**
+     * Substrings that mark a property as secret-bearing. Matched case-insensitively
+     * against the full property name, so a page variable can never expand a secret
+     * regardless of where in the key the sensitive word sits. Deliberately broad: a
+     * false positive only means one config value is not displayable via {@code $var}
+     * markup, whereas a false negative leaks a credential.
+     */
+    private static final String[] SECRET_NAME_MARKERS = {
+        "password", "passwd", "pwd", "secret", "credential",
+        "privatekey", "keystore", "apikey", "salt", "crypto", "encryption"
+    };
+
+    /** True when a property name looks secret-bearing and must never be expanded into rendered content. */
+    static boolean isSecretProperty( final String name ) {
+        if ( name == null ) {
+            return false;
+        }
+        final String lower = name.toLowerCase( Locale.ROOT );
+        for ( final String marker : SECRET_NAME_MARKERS ) {
+            if ( lower.contains( marker ) ) {
+                return true;
+            }
+        }
+        // "token" means an auth token (scim.token, refresh_token) — but NOT the chunker
+        // token-COUNT properties (max_tokens, overlap_tokens), which are plural.
+        if ( lower.contains( "token" ) && !lower.contains( "tokens" ) ) {
+            return true;
+        }
+        // A bare "*.key" (e.g. connectors.crypto.key) — "crypto" already covers that one,
+        // but catch any other "...key" leaf defensively.
+        return lower.endsWith( ".key" ) || lower.contains( ".key." );
+    }
+
     private static String metadataToString( final Object value ) {
         if ( value instanceof Date date ) {
             return new java.text.SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).format( date );

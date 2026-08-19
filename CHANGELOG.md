@@ -6,6 +6,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+Third wave of the 2026-08-19 review — the remaining correctness-favouring fixes.
+- **Viewer-dependent renders are no longer shared through the principal-less cache.**
+  The document and HTML render caches key on page+version only, so a render whose
+  output depends on the viewer — a plugin that consults ACLs (`InsertPage` emits
+  another page's body subject to *its* ACL; `Search` filters by caller) or a
+  session-dependent variable (`$username`/`$loginstatus`) — was cached once and
+  served to every user, bypassing view ACLs and leaking identity across sessions.
+  Such a render now marks itself viewer-sensitive (`Context.VAR_VIEWER_SENSITIVE`)
+  and is skipped by both shared caches; static pages cache and invalidate as before.
+  Per-principal keying was rejected because it would break cache invalidation.
+- **SSRF egress policy on connector fetches.** Connector target URLs are
+  admin-supplied but the server sits on a private Docker/LAN network (DB, embedder,
+  cloud metadata), so an unrestricted fetch is SSRF. A new `EgressGuard` rejects
+  non-http(s) schemes and any host resolving to a loopback/private/link-local (incl.
+  `169.254.169.254`)/multicast/IPv6-ULA address, wired into the web/sitemap/feed
+  fetcher (which now follows redirects manually so every hop is re-validated) and the
+  GitHub/Confluence clients. Default-deny for private networks;
+  `-Dwikantik.connectors.egress.allowPrivate=true` opts a deliberate internal crawl
+  back in. This also blocks the internal-host half of the Confluence
+  caller-controlled-base_url finding; the public-host credential-exfil half (bind the
+  stored token to its endpoint host) remains open, pending the credential-store schema
+  change.
+
 ## [2.4.16] - 2026-08-19
 
 ### Security

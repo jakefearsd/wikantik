@@ -105,13 +105,15 @@ jobs:
         run: cp .env.example .env
 
       - name: Deploy + ops tooling tests
+        # Globbed, not a hardcoded list: the list silently went stale every time
+        # a suite was added (test-docker-cleanup.sh was written and never ran
+        # here), which is the exact failure mode this job exists to prevent.
+        # `sort` keeps the order deterministic across runners.
         run: |
           set -e
-          for suite in test-remote.sh test-container.sh test-backup.sh \
-                       test-audit-retention.sh test-create-migrate-user.sh \
-                       test-embeddings.sh; do
-            echo "::group::${suite}"
-            bash "bin/tests/${suite}"
+          for suite in $(ls bin/tests/test-*.sh | sort); do
+            echo "::group::$(basename "${suite}")"
+            bash "${suite}"
             echo "::endgroup::"
           done
 

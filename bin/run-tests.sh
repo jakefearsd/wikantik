@@ -193,6 +193,47 @@ embed_stop() {
     docker compose -f "${EMBED_COMPOSE}" down >/dev/null 2>&1 || true
 }
 
+# Sweep a leftover embedder container from a PREVIOUSLY KILLED run before
+# starting a fresh one. Every IT module's own pom already runs a
+# pg-cleanup-stale sweep at `initialize` for its pgvector container; nothing
+# equivalent existed for the shared embedder, so a run that was cancelled
+# hard enough to skip embed_stop (e.g. SIGKILL, or a crash before the INT/TERM
+# traps below were even installed) left a `wikantik-embed-test` container
+# running forever, quietly bound to port 11435. `docker compose … down` is
+# idempotent (exits 0 with nothing to remove), so `|| true` here is purely
+# defensive; either way this must never fail the script. Deliberately the
+# SAME invocation as embed_stop — no `-v` — so a previous run's
+# wikantik-embed-test_ollama-models volume (the ~600 MB qwen3-embedding model
+# cache) survives a pre-clean exactly as it survives a normal teardown; -v
+# here would force a multi-minute re-download on every single run.
+embed_preclean() {
+  echo ">>> Sweeping any stale embedder container from a previous run"
+  COMPOSE_PROJECT_NAME="${EMBED_PROJECT}" WIKANTIK_EMBEDDING_PORT="${EMBED_PORT}" \
+    WIKANTIK_EMBEDDING_MODEL_TAG="${EMBED_MODEL_TAG}" \
+    docker compose -f "${EMBED_COMPOSE}" down >/dev/null 2>&1 || true
+}
+
+# Explicit INT/TERM handling for the embedder container. `set -uo pipefail`
+# (deliberately NOT -e, see top of file) installs no signal handling on its
+# own, and a bare `trap embed_stop EXIT` is not sufficient on its own: when
+# this script is not the terminal's own foreground job (backgrounded with
+# `&`, launched by a supervisor, cancelled via `kill $PID`) bash's default
+# disposition for SIGINT specifically on an asynchronous command is SIG_IGN —
+# the cancellation is silently swallowed, the run continues to completion as
+# if nothing happened, and the container leaks until something eventually
+# sends SIGKILL. Trapping INT and TERM explicitly, running teardown, clearing
+# the traps, and re-raising the signal to ourselves restores the conventional
+# 128+signo exit status (130 / 143) instead of either swallowing the signal
+# or reporting some other code. `trap - INT TERM EXIT` before re-raising is
+# what stops the EXIT trap from firing a second, redundant embed_stop on the
+# way down.
+handle_embed_signal() {
+  local sig="$1"
+  trap - INT TERM EXIT
+  embed_stop
+  kill -s "$sig" "$$"
+}
+
 RUN_UNIT=1
 RUN_IT=1
 RUN_FULLLOOP=0
@@ -251,9 +292,37 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-# Kill only OUR stray maven/surefire/cargo JVMs — never the dev Tomcat or app.jar.
+# Kill only OUR stray maven/surefire/cargo JVMs — never the dev Tomcat or app.jar,
+# and never a build that belongs to a DIFFERENT checkout.
+#
+# This used to be a single `pkill -9 -f "surefire.*booter|plexus.classworlds|
+# org.codehaus.cargo"`, which did not do what its comment claimed:
+# `plexus.classworlds` is Maven's launcher class, so it is on the command line
+# of every mvn on the machine. Since run_step calls this before every phase and
+# every module, a run of this suite repeatedly SIGKILLed unrelated builds —
+# another repo's, another checkout of this one, or a concurrent build in this
+# tree (observed 2026-08-19: an `mvn clean install` died exit 137 mid-cyclonedx
+# while the shell suite was exercising `--module dense`).
+#
+# The markers still select candidates, but a candidate is only killed when its
+# own command line also names THIS checkout. All three carry that evidence:
+# maven has -Dmaven.multiModuleProjectDirectory=$REPO_DIR, a surefire booter
+# has the module's target path, cargo has a catalina.base under the repo.
+# Read with `ps -o args=` rather than /proc/<pid>/cmdline — macOS has no /proc.
+# A false negative (leaving a genuine stray alive) is cheap; a false positive
+# destroys someone else's build, so the check fails closed.
 clean_zombies() {
-  pkill -9 -f "surefire.*booter|plexus.classworlds|org.codehaus.cargo" 2>/dev/null || true
+  local pid args
+  for pid in $( pgrep -f "surefire.*booter|plexus.classworlds|org.codehaus.cargo" 2>/dev/null ); do
+    [ "$pid" = "$$" ] && continue
+    args="$( ps -o args= -p "$pid" 2>/dev/null )" || continue
+    case "$args" in
+      *"$REPO_DIR"*)
+        echo "    killing stale JVM $pid from a previous run of this checkout"
+        kill -9 "$pid" 2>/dev/null || true
+        ;;
+    esac
+  done
   rm -rf wikantik-main/target/test-classes 2>/dev/null || true
 }
 
@@ -345,8 +414,11 @@ fi
 # numbered on purpose: this comment previously hard-coded 360s and went stale
 # the moment that budget was raised.
 if [ "$RUN_IT" = 1 ] || [ "$ONE_MODULE" = "$DENSE_MODULE" ]; then
+  embed_preclean         # sweep a leftover container from a previously killed run
   embed_start || true   # the dense module fails loudly on its own if this did not work
   trap embed_stop EXIT
+  trap 'handle_embed_signal INT'  INT
+  trap 'handle_embed_signal TERM' TERM
 fi
 
 if [ "$RUN_IT" = 1 ]; then

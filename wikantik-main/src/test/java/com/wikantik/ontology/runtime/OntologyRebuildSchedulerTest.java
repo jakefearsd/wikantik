@@ -34,14 +34,55 @@ class OntologyRebuildSchedulerTest {
 
     @Test
     void tickTriggersRebuild() {
-        new OntologyRebuildScheduler( coordinator, 24 ).runOnce();
+        new OntologyRebuildScheduler( coordinator, 24, 168 ).runRebuildOnce();
         verify( coordinator ).triggerRebuild();
     }
 
     @Test
-    void tickSwallowsConflict() {
+    void tickSwallowsRebuildConflict() {
         when( coordinator.triggerRebuild() )
                 .thenThrow( new OntologyRebuildCoordinator.ConflictException( "running" ) );
-        assertDoesNotThrow( () -> new OntologyRebuildScheduler( coordinator, 24 ).runOnce() );
+        assertDoesNotThrow( () -> new OntologyRebuildScheduler( coordinator, 24, 168 ).runRebuildOnce() );
+    }
+
+    @Test
+    void tickSwallowsRebuildDisabled() {
+        when( coordinator.triggerRebuild() )
+                .thenThrow( new OntologyRebuildCoordinator.DisabledException() );
+        assertDoesNotThrow( () -> new OntologyRebuildScheduler( coordinator, 24, 168 ).runRebuildOnce() );
+    }
+
+    @Test
+    void tickTriggersCompaction() {
+        new OntologyRebuildScheduler( coordinator, 24, 168 ).runCompactionOnce();
+        verify( coordinator ).triggerCompaction();
+    }
+
+    @Test
+    void tickSwallowsCompactionConflict() {
+        when( coordinator.triggerCompaction() )
+                .thenThrow( new OntologyRebuildCoordinator.ConflictException( "running" ) );
+        assertDoesNotThrow( () -> new OntologyRebuildScheduler( coordinator, 24, 168 ).runCompactionOnce() );
+    }
+
+    @Test
+    void tickSwallowsCompactionDisabled() {
+        when( coordinator.triggerCompaction() )
+                .thenThrow( new OntologyRebuildCoordinator.DisabledException() );
+        assertDoesNotThrow( () -> new OntologyRebuildScheduler( coordinator, 24, 168 ).runCompactionOnce() );
+    }
+
+    @Test
+    void startWithBothIntervalsDisabledDoesNotThrow() {
+        final OntologyRebuildScheduler s = new OntologyRebuildScheduler( coordinator, 0, 0 );
+        assertDoesNotThrow( s::start );
+        s.stop();
+    }
+
+    @Test
+    void startWithOnlyCompactionEnabledDoesNotThrow() {
+        final OntologyRebuildScheduler s = new OntologyRebuildScheduler( coordinator, 0, 168 );
+        assertDoesNotThrow( s::start );
+        s.stop();
     }
 }

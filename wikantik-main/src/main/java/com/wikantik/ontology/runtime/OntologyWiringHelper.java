@@ -135,10 +135,17 @@ public final class OntologyWiringHelper {
             LOG.info( "ontology incremental entity sync disabled (wikantik.ontology.incremental.enabled=false)" );
         }
 
-        // Nightly full-rebuild backstop (catches KG drift + missed events).
-        final long intervalHours = Long.parseLong(
+        // Nightly full-rebuild backstop (catches KG drift + missed events) + periodic TDB2
+        // compaction — copy-on-write B+Trees never shrink on their own, so a store that is
+        // rewritten continuously (nightly rebuild + per-save incremental sync) only ever grows.
+        // Default weekly: measured production growth is ~1.35 GB/day, so daily compaction would
+        // be needlessly aggressive I/O for the space it reclaims. 0 disables, matching the
+        // rebuild interval's own 0=disabled convention.
+        final long rebuildIntervalHours = Long.parseLong(
                 props.getProperty( "wikantik.ontology.rebuild.interval.hours", "24" ) );
-        new OntologyRebuildScheduler( coordinator, intervalHours ).start();
+        final long compactionIntervalHours = Long.parseLong(
+                props.getProperty( "wikantik.ontology.compaction.interval.hours", "168" ) );
+        new OntologyRebuildScheduler( coordinator, rebuildIntervalHours, compactionIntervalHours ).start();
 
         // Startup-if-empty: non-blocking self-heal on first boot.
         coordinator.rebuildIfEmpty();

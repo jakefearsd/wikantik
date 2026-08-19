@@ -25,24 +25,35 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-/** Periodically triggers a full ontology rebuild as the backstop for missed/uneventful changes. */
+/**
+ * Periodically triggers a full ontology rebuild (backstop for missed/uneventful changes) and a
+ * TDB2 compaction (bounds on-disk store size — copy-on-write B+Trees never shrink on their own).
+ * Both ticks run on the same single-thread executor: each just calls a non-blocking
+ * {@code OntologyRebuildCoordinator} trigger method that hands off to its own daemon thread, so
+ * there is no need for a second thread pool.
+ */
 public final class OntologyRebuildScheduler {
 
     private static final Logger LOG = LogManager.getLogger( OntologyRebuildScheduler.class );
 
     private final OntologyRebuildCoordinator coordinator;
-    private final long intervalHours;
+    private final long rebuildIntervalHours;
+    private final long compactionIntervalHours;
     private ScheduledExecutorService executor;
 
-    public OntologyRebuildScheduler( final OntologyRebuildCoordinator coordinator, final long intervalHours ) {
+    public OntologyRebuildScheduler( final OntologyRebuildCoordinator coordinator,
+                                      final long rebuildIntervalHours,
+                                      final long compactionIntervalHours ) {
         this.coordinator = coordinator;
-        this.intervalHours = intervalHours;
+        this.rebuildIntervalHours = rebuildIntervalHours;
+        this.compactionIntervalHours = compactionIntervalHours;
     }
 
-    /** Starts the timer (no-op when intervalHours <= 0). First run is one interval out. */
+    /** Starts the timer(s) (no-op when both intervals are <= 0). First run of each is one interval out. */
     public void start() {
-        if ( intervalHours <= 0 ) {
-            LOG.info( "ontology rebuild scheduler disabled (interval={}h)", intervalHours );
+        if ( rebuildIntervalHours <= 0 && compactionIntervalHours <= 0 ) {
+            LOG.info( "ontology rebuild/compaction scheduler disabled (rebuild={}h, compaction={}h)",
+                    rebuildIntervalHours, compactionIntervalHours );
             return;
         }
         executor = Executors.newSingleThreadScheduledExecutor( r -> {
@@ -50,12 +61,22 @@ public final class OntologyRebuildScheduler {
             t.setDaemon( true );
             return t;
         } );
-        executor.scheduleAtFixedRate( this::runOnce, intervalHours, intervalHours, TimeUnit.HOURS );
-        LOG.info( "ontology rebuild scheduler started (every {}h)", intervalHours );
+        if ( rebuildIntervalHours > 0 ) {
+            executor.scheduleAtFixedRate( this::runRebuildOnce, rebuildIntervalHours, rebuildIntervalHours, TimeUnit.HOURS );
+            LOG.info( "ontology rebuild scheduler started (every {}h)", rebuildIntervalHours );
+        } else {
+            LOG.info( "ontology rebuild scheduler disabled (interval={}h)", rebuildIntervalHours );
+        }
+        if ( compactionIntervalHours > 0 ) {
+            executor.scheduleAtFixedRate( this::runCompactionOnce, compactionIntervalHours, compactionIntervalHours, TimeUnit.HOURS );
+            LOG.info( "ontology compaction scheduler started (every {}h)", compactionIntervalHours );
+        } else {
+            LOG.info( "ontology compaction scheduler disabled (interval={}h)", compactionIntervalHours );
+        }
     }
 
-    /** One scheduled tick — triggers a rebuild, swallowing the "already running" conflict. */
-    void runOnce() {
+    /** One scheduled rebuild tick — triggers a rebuild, swallowing the "already running" conflict. */
+    void runRebuildOnce() {
         try {
             coordinator.triggerRebuild();
             LOG.info( "scheduled ontology rebuild triggered" );
@@ -65,6 +86,21 @@ public final class OntologyRebuildScheduler {
             LOG.info( "scheduled ontology rebuild skipped — disabled" );
         } catch ( final RuntimeException e ) {
             LOG.warn( "scheduled ontology rebuild failed: {}", e.getMessage(), e );
+        }
+    }
+
+    /** One scheduled compaction tick — triggers a compaction, swallowing the "already running" conflict
+     *  (a concurrent rebuild is exactly as valid a reason to skip — see the shared busy guard). */
+    void runCompactionOnce() {
+        try {
+            coordinator.triggerCompaction();
+            LOG.info( "scheduled ontology compaction triggered" );
+        } catch ( final OntologyRebuildCoordinator.ConflictException e ) {
+            LOG.info( "scheduled ontology compaction skipped — rebuild or compaction already running" );
+        } catch ( final OntologyRebuildCoordinator.DisabledException e ) {
+            LOG.info( "scheduled ontology compaction skipped — disabled" );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "scheduled ontology compaction failed: {}", e.getMessage(), e );
         }
     }
 

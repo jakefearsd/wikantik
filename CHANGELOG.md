@@ -6,6 +6,73 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **`bin/run-tests.sh` SIGKILLed every Maven process on the machine.** Its
+  `clean_zombies` sweep was a single
+  `pkill -9 -f "surefire.*booter|plexus.classworlds|org.codehaus.cargo"`, and
+  `plexus.classworlds` is Maven's launcher class — it is on the command line of
+  *every* `mvn`, so the sweep matched another repo's build, another checkout of
+  this one, and any concurrent build in this tree. `run_step` calls it before
+  every phase and every module, so a single run fired it repeatedly. Observed
+  killing an unrelated `mvn clean install` mid-`cyclonedx:makeAggregateBom`
+  (exit 137, no kernel OOM record — the cause of several previously unexplained
+  137s). The markers still select candidates, but a candidate is now killed only
+  when its own command line also names this checkout: Maven carries
+  `-Dmaven.multiModuleProjectDirectory`, a surefire booter carries the module's
+  target path, and Cargo carries a `catalina.base` under the repo. Read with
+  `ps -o args=` rather than `/proc/<pid>/cmdline`, which does not exist on macOS.
+  The check fails closed — leaving a genuine stray alive is cheap, destroying
+  someone else's build is not.
+- **Integration-test containers leaked when a module died before teardown.**
+  `pg-stop` is bound to `post-integration-test`, which Maven never reaches if the
+  build fails earlier (Cargo or Keycloak failing to start, a process kill), so the
+  containers and their anonymous Postgres data volumes survived into the next run.
+  Two modules had no safety net: `wikantik-it-test-sso` redeclares the
+  docker-maven-plugin `<images>` list, which dropped `containerNamePattern` from
+  its pgvector image (leaving it with the plugin's generated `pgvector-N` name,
+  so nothing could sweep it by name) and, by redeclaring `exec-maven-plugin`,
+  dropped the parent's `pg-cleanup-stale` execution entirely; and
+  `wikantik-it-test-scim-fullloop` starts five containers while the inherited
+  sweep targeted only the wiki DB. Both now force-remove every container they
+  start at `initialize`. Evidence of the leak on the dev box: three orphaned
+  anonymous PostgreSQL 17 data volumes from a crashed run.
+- **A killed `run-tests.sh` left the shared embedder running.** Teardown hung off
+  a bare `trap embed_stop EXIT`; bash sets SIGINT to `SIG_IGN` for a
+  non-job-control asynchronous child, so a cancelled run silently ran to
+  completion and left the container bound to port 11435. INT and TERM are now
+  trapped explicitly, tear the embedder down, and re-raise for the conventional
+  128+signo exit. A pre-start sweep also clears an embedder left by an earlier
+  killed run. Neither path passes `-v`, so the ~600 MB cached model volume
+  survives, exactly as before.
+
+### Added
+- **Periodic TDB2 compaction, so the ontology store stops growing without bound.**
+  Jena's B+Trees are copy-on-write and never truncate, while the nightly rebuild
+  and the per-save incremental sync rewrite the store continuously — nothing ever
+  called `DatabaseMgr.compact`. Production reached **94.6 GB** for a store whose
+  actual content is a few hundred MB (the quad indexes were 5–21 GB each and their
+  `.idn` free-block lists 6–8 GB, while the triple indexes were 8 MB), growing
+  ~1.35 GB/day since 2026-06-10. `OntologyModelManager.compact()` uses
+  `DatabaseMgr.compact(dsg, true)` — the 1-arg overload keeps the old generation
+  and would double the problem — driven by
+  `wikantik.ontology.compaction.interval.hours` (default 168 = weekly, `<=0`
+  disables) on `OntologyRebuildScheduler`'s existing executor, and made mutually
+  exclusive with a full rebuild through `OntologyRebuildCoordinator`'s existing
+  state guard (`State.COMPACTING`) rather than a second lock.
+- **`bin/docker-cleanup.sh`** — a strictly allowlisted sweep for what a crashed
+  IT run leaves behind: stale per-module containers (names derived from the IT
+  module directories and each module's own pom, never guessed), a leftover shared
+  embedder, and orphaned anonymous IT database volumes (dangling **and**
+  anonymous-labelled **and** containing a `PG_VERSION` matching the pinned
+  `<pgvector.image>` major). Dry-run by default. It never calls a blanket
+  `volume`/`container`/`system prune`, so it cannot reach another project's data
+  on a shared dev box — asserted by its own test suite.
+
+### Changed
+- **CI's `shell-tests` job now globs `bin/tests/test-*.sh`** instead of iterating a
+  hardcoded suite list. The list had already gone stale, which is precisely the
+  failure this job exists to prevent.
+
 ## [2.4.12] - 2026-08-19
 
 ### Changed

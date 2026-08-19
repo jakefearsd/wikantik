@@ -499,5 +499,312 @@ else
   fail "run-tests --fullloop unexpectedly failed under the shimmed mvn (rc=${rt_rc2}) — see ${RTSHIM}/out-fullloop.log"
 fi
 
+# =============================================================================
+# Fix round 2: stale-embedder pre-clean + explicit SIGINT/SIGTERM handling.
+#
+# Gap 1 — no pre-start sweep. Every IT module's own pom runs a
+# pg-cleanup-stale sweep at `initialize` for its pgvector container; nothing
+# equivalent exists for the shared embedder, so a container left behind by a
+# previously killed run sits on port 11435 forever. run-tests.sh must issue a
+# `docker compose … down` sweep BEFORE `embed_start`'s `up -d`, and that
+# sweep must never fail the script (idempotent: nothing there is a pass, not
+# an error) and must never remove the models volume (-v) — that volume caches
+# the ~600 MB qwen3-embedding model; wiping it forces a multi-minute
+# re-download on the very next run.
+#
+# Gap 2 — only EXIT is trapped. `set -uo pipefail` (no -e) installs no signal
+# handling on its own. Reuses the $RTSHIM/docker/curl shims + WIKANTIK_TEST_SUITE_LOG_DIR
+# redirection already proven above (mvn is swapped per-block below since these
+# cases need a SLOW mvn so a signal can land mid-build).
+# =============================================================================
+
+# --- Static: the source names the pieces this fix adds, so a later edit that
+# silently drops one of them fails loudly here even before the behavioural
+# checks below run.
+checkf "run-tests pre-cleans a stale embedder before starting" "$RUNTESTS" 'embed_preclean'
+checkf "run-tests traps SIGINT explicitly"                     "$RUNTESTS" "trap 'handle_embed_signal INT'  INT"
+checkf "run-tests traps SIGTERM explicitly"                    "$RUNTESTS" "trap 'handle_embed_signal TERM' TERM"
+
+if grep -qE "docker compose[^\n]*down[^\n]*(-v\b|--volumes\b)" "$RUNTESTS"; then
+  fail "run-tests.sh embedder teardown/pre-clean passes -v/--volumes — this would delete the cached qwen3-embedding model volume"
+else
+  pass "run-tests.sh embedder teardown/pre-clean never passes -v/--volumes (models cache preserved)"
+fi
+
+# --- Behavioural: pre-clean runs BEFORE embed_start. Uses its OWN fresh
+# invocation + call log rather than reusing $RTCALLS from the earlier
+# --module dense block above: that file gets truncated (`: > "$RTCALLS"`) by
+# the --fullloop block further up, which deliberately asserts docker is never
+# invoked for it — reusing the same file here would read empty and fail for a
+# reason that has nothing to do with pre-clean ordering.
+ORDERSHIM="${RTSHIM}/order"
+mkdir -p "$ORDERSHIM"
+ORDERCALLS="${ORDERSHIM}/docker.calls"
+cat > "${ORDERSHIM}/docker" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "${ORDERCALLS}"
+exit 0
+EOF
+chmod +x "${ORDERSHIM}/docker"
+cat > "${ORDERSHIM}/curl" <<'EOF'
+#!/usr/bin/env bash
+printf '%s' '{"models":[{"name":"qwen3-embedding:0.6b"}]}'
+exit 0
+EOF
+chmod +x "${ORDERSHIM}/curl"
+cat > "${ORDERSHIM}/mvn" <<'EOF'
+#!/usr/bin/env bash
+echo "Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"
+exit 0
+EOF
+chmod +x "${ORDERSHIM}/mvn"
+
+order_rc=0
+PATH="${ORDERSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${RTLOGDIR}" \
+  "$RUNTESTS" --module dense >"${ORDERSHIM}/out.log" 2>&1 || order_rc=$?
+
+if [ "$order_rc" -eq 0 ] && [ -f "$ORDERCALLS" ]; then
+  down_line="$(grep -n -- ' down$' "$ORDERCALLS" | head -1 | cut -d: -f1 || true)"
+  up_line="$(grep -n -- ' up -d$' "$ORDERCALLS" | head -1 | cut -d: -f1 || true)"
+  if [ -n "${down_line:-}" ] && [ -n "${up_line:-}" ] && [ "$down_line" -lt "$up_line" ]; then
+    pass "run-tests sweeps a stale embedder (docker compose down) BEFORE starting a fresh one (up -d)"
+  else
+    fail "run-tests did not sweep stale state before starting the embedder (down_line=${down_line:-none} up_line=${up_line:-none}): $(cat "$ORDERCALLS")"
+  fi
+else
+  fail "run-tests --module dense (order check) failed (rc=${order_rc}) or never invoked docker — see ${ORDERSHIM}/out.log"
+fi
+
+# --- Behavioural: the pre-clean sweep must be tolerant of "nothing to
+# remove" — simulate that (and any other transient docker failure) by making
+# every `docker … down` call in this isolated shim dir fail, and prove the
+# script still proceeds to dispatch mvn instead of aborting.
+PCSHIM="${RTSHIM}/preclean-fail"
+mkdir -p "$PCSHIM"
+cat > "${PCSHIM}/docker" <<'EOF'
+#!/usr/bin/env bash
+case "$*" in
+  *" down") exit 1 ;;
+  *) exit 0 ;;
+esac
+EOF
+chmod +x "${PCSHIM}/docker"
+cat > "${PCSHIM}/curl" <<'EOF'
+#!/usr/bin/env bash
+printf '%s' '{"models":[{"name":"qwen3-embedding:0.6b"}]}'
+exit 0
+EOF
+chmod +x "${PCSHIM}/curl"
+PCMVNARGS="${PCSHIM}/mvn.args"
+cat > "${PCSHIM}/mvn" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "${PCMVNARGS}"
+echo "Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"
+exit 0
+EOF
+chmod +x "${PCSHIM}/mvn"
+
+pc_rc=0
+PATH="${PCSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${RTLOGDIR}" \
+  "$RUNTESTS" --module dense >"${PCSHIM}/out.log" 2>&1 || pc_rc=$?
+
+if [ "$pc_rc" -eq 0 ] && [ -f "$PCMVNARGS" ]; then
+  pass "run-tests continues (and still dispatches mvn) when the pre-clean sweep finds nothing to remove / fails harmlessly"
+else
+  fail "run-tests aborted when the pre-clean docker call failed (rc=${pc_rc}) — see ${PCSHIM}/out.log"
+fi
+
+# --- Behavioural: SIGINT and SIGTERM sent to a BACKGROUNDED run-tests.sh must
+# (a) actually run embedder teardown and (b) exit with the conventional
+# 128+signo status, not be swallowed. Isolated shim dir + a SLOW mvn (sleeps,
+# recording its own PID first) so the signal can land while run-tests.sh is
+# genuinely blocked inside the mvn step — mirroring where a real IT run would
+# be cancelled. The signal goes to BOTH run-tests.sh's PID and the mvn
+# shim's PID, exactly as a real terminal Ctrl-C (or `kill` of a whole process
+# group) would deliver it to every process in the foreground group at once;
+# bash defers a *trapped* signal until the current foreground child returns,
+# so signalling only the parent would otherwise force this test to wait out
+# the mvn shim's full sleep before the trap could run.
+#
+# `set -m` (job control) below is load-bearing, not decoration. Per the bash
+# manual, "signals ignored upon entry to the shell cannot be trapped or
+# reset" — and when job control is OFF (the default for a non-interactive
+# script, which this test driver is), bash sets SIGINT/SIGQUIT to IGNORED for
+# every `&`-backgrounded child BEFORE it execs, which run-tests.sh's own
+# `trap … INT` can then never override, no matter how correct it is: the
+# signal is silently swallowed and the run finishes normally. That is a
+# property of how *this test* launches the child, not of run-tests.sh's own
+# signal handling — a real interactive terminal's Ctrl-C, or `kill` from
+# another shell, is delivered to a plain foreground job with no such
+# inherited ignore, so the trap fires exactly as intended there. `set -m`
+# makes this driver's own background job behave like that real foreground
+# case (job control shells do not force the async ignore), which is what
+# makes SIGINT genuinely trappable here at all — without it this whole test
+# provably cannot pass (verified: reproduces exit 0 / signal swallowed even
+# though run-tests.sh's trap is correctly installed).
+set -m
+SIGSHIM="${RTSHIM}/sig"
+mkdir -p "$SIGSHIM"
+cat > "${SIGSHIM}/curl" <<'EOF'
+#!/usr/bin/env bash
+printf '%s' '{"models":[{"name":"qwen3-embedding:0.6b"}]}'
+exit 0
+EOF
+chmod +x "${SIGSHIM}/curl"
+
+run_signal_case() {
+  local sig="$1" expected_rc="$2"
+  local sigcalls="${SIGSHIM}/docker.calls.${sig}"
+  local mvnpid="${SIGSHIM}/mvn.pid.${sig}"
+  : > "$sigcalls"
+  rm -f "$mvnpid"
+
+  cat > "${SIGSHIM}/docker" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "${sigcalls}"
+exit 0
+EOF
+  chmod +x "${SIGSHIM}/docker"
+
+  cat > "${SIGSHIM}/mvn" <<EOF
+#!/usr/bin/env bash
+echo "\$\$" > "${mvnpid}"
+sleep 5
+echo "Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"
+exit 0
+EOF
+  chmod +x "${SIGSHIM}/mvn"
+
+  PATH="${SIGSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${RTLOGDIR}" \
+    "$RUNTESTS" --module dense >"${SIGSHIM}/out-${sig}.log" 2>&1 &
+  local rt_pid=$!
+
+  local tries=0
+  while [ ! -s "$mvnpid" ] && [ "$tries" -lt 100 ]; do
+    sleep 0.1
+    tries=$((tries+1))
+  done
+  if [ ! -s "$mvnpid" ]; then
+    fail "run-tests --module dense (SIG${sig}) never reached the mvn step within 10s — see ${SIGSHIM}/out-${sig}.log"
+    kill -9 "$rt_pid" 2>/dev/null || true
+    wait "$rt_pid" 2>/dev/null || true
+    return
+  fi
+  local mvn_pid; mvn_pid="$(cat "$mvnpid")"
+
+  kill -s "$sig" "$rt_pid" "$mvn_pid" 2>/dev/null || true
+  local got_rc=0
+  wait "$rt_pid" || got_rc=$?
+
+  if [ "$got_rc" -eq "$expected_rc" ]; then
+    pass "run-tests --module dense exits ${expected_rc} on SIG${sig} (conventional 128+signo, not swallowed)"
+  else
+    fail "run-tests --module dense exited ${got_rc} on SIG${sig}, expected ${expected_rc} — see ${SIGSHIM}/out-${sig}.log"
+  fi
+
+  if grep -q -- ' down$' "$sigcalls" 2>/dev/null; then
+    pass "SIG${sig} triggers embedder teardown (docker compose down) before exit"
+  else
+    fail "SIG${sig} did NOT trigger embedder teardown: $(cat "$sigcalls" 2>/dev/null || echo '(no docker calls recorded)')"
+  fi
+
+  if grep -Eq -- '(^| )(-v|--volumes)( |$)' "$sigcalls" 2>/dev/null; then
+    fail "SIG${sig} teardown removed the models volume (-v/--volumes present) — forces a re-download next run"
+  else
+    pass "SIG${sig} teardown never passes -v/--volumes (models cache preserved)"
+  fi
+}
+
+run_signal_case INT 130
+run_signal_case TERM 143
+
+# =============================================================================
+# clean_zombies must not kill builds belonging to OTHER checkouts.
+#
+# The original sweep was `pkill -9 -f "surefire.*booter|plexus.classworlds|
+# org.codehaus.cargo"`. `plexus.classworlds` is Maven's launcher class, so that
+# marker is on the command line of EVERY mvn on the machine — another repo's
+# build, another checkout of this one, or a concurrent build in this tree all
+# matched, and run_step calls clean_zombies before every phase and every
+# module. Observed 2026-08-19: it SIGKILLed an unrelated `mvn clean install`
+# mid-`cyclonedx:makeAggregateBom` (exit 137).
+#
+# The marker must still match, but a process is only killed when its own
+# command line ALSO names this checkout. Both fixtures below carry a real
+# marker; only one is inside $REPO_DIR.
+#
+# The stub PIDs are deliberately above kernel.pid_max, so even if the filter
+# regressed and the kill fired, it could not signal a real process.
+# =============================================================================
+CZSHIM="${RTSHIM}/zombies"
+mkdir -p "$CZSHIM"
+CZ_MINE=2147480001      # a maven belonging to THIS checkout — must be killed
+CZ_THEIRS=2147480002    # a maven belonging to another checkout — must survive
+
+cat > "${CZSHIM}/pgrep" <<EOF
+#!/usr/bin/env bash
+printf '%s\n%s\n' "${CZ_MINE}" "${CZ_THEIRS}"
+EOF
+chmod +x "${CZSHIM}/pgrep"
+
+# `ps -o args= -p <pid>` is the portable command-line read (macOS has no /proc).
+cat > "${CZSHIM}/ps" <<EOF
+#!/usr/bin/env bash
+case " \$* " in
+  *" ${CZ_MINE} "*)   echo "/usr/bin/java -Dmaven.multiModuleProjectDirectory=${REPO_DIR} -classpath /opt/maven/boot/plexus-classworlds.jar org.codehaus.plexus.classworlds.launcher.Launcher install" ;;
+  *" ${CZ_THEIRS} "*) echo "/usr/bin/java -Dmaven.multiModuleProjectDirectory=/home/someone/other-repo -classpath /opt/maven/boot/plexus-classworlds.jar org.codehaus.plexus.classworlds.launcher.Launcher install" ;;
+  *) exit 1 ;;
+esac
+EOF
+chmod +x "${CZSHIM}/ps"
+
+cat > "${CZSHIM}/docker" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod +x "${CZSHIM}/docker"
+cat > "${CZSHIM}/curl" <<'EOF'
+#!/usr/bin/env bash
+printf '%s' '{"models":[{"name":"qwen3-embedding:0.6b"}]}'
+exit 0
+EOF
+chmod +x "${CZSHIM}/curl"
+cat > "${CZSHIM}/mvn" <<'EOF'
+#!/usr/bin/env bash
+echo "Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"
+exit 0
+EOF
+chmod +x "${CZSHIM}/mvn"
+
+# A bare `pkill` anywhere in the sweep is the defect itself: it kills by
+# pattern with no per-process check, so it can never be checkout-scoped.
+if grep -qE '^[^#]*\bpkill\b' "$RUNTESTS"; then
+  fail "run-tests.sh still sweeps with pkill — that matches every mvn on the machine, not just this checkout's"
+else
+  pass "run-tests.sh does not sweep stray JVMs with an unscoped pkill"
+fi
+
+# Its OWN log dir, not $RTLOGDIR: .run.lock lives in the log dir and is held via
+# an inherited fd, so the slow `mvn` stub backgrounded by the SIGINT/SIGTERM
+# cases above can still be holding that lock when this block starts — sharing
+# the dir makes this case fail with the lock's exit 3 instead of testing
+# anything.
+cz_rc=0
+PATH="${CZSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${CZSHIM}/logs" \
+  "$RUNTESTS" --module dense >"${CZSHIM}/out.log" 2>&1 || cz_rc=$?
+if [ "$cz_rc" -ne 0 ]; then
+  fail "run-tests --module dense exited ${cz_rc} under the zombie-sweep shims — see ${CZSHIM}/out.log"
+fi
+if grep -q "${CZ_MINE}" "${CZSHIM}/out.log"; then
+  pass "clean_zombies reports killing a stray JVM that belongs to this checkout"
+else
+  fail "clean_zombies did not kill this checkout's own stray JVM (${CZ_MINE}) — see ${CZSHIM}/out.log"
+fi
+if grep -q "${CZ_THEIRS}" "${CZSHIM}/out.log"; then
+  fail "clean_zombies killed a JVM belonging to ANOTHER checkout (${CZ_THEIRS}) — see ${CZSHIM}/out.log"
+else
+  pass "clean_zombies leaves another checkout's build alone"
+fi
+
 if [ "$fails" -ne 0 ]; then echo "test-embeddings: ${fails} failure(s)"; exit 1; fi
 echo "test-embeddings: all passed"

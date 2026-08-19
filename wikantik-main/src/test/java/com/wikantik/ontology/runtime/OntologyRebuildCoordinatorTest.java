@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,8 +34,13 @@ import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.ontology.Iris;
 import com.wikantik.ontology.OntologyModelManager;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.vocabulary.RDF;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class OntologyRebuildCoordinatorTest {
 
@@ -112,5 +118,115 @@ class OntologyRebuildCoordinatorTest {
         assertTrue( secondHookRan.await( 10, TimeUnit.SECONDS ), "second hook should fire despite first hook throwing" );
         Awaitility.await().atMost( 10, TimeUnit.SECONDS ).until( () -> "IDLE".equals( svc.status().state() ) );
         assertNull( svc.status().lastError(), "rebuild must not record an error when only a hook throws" );
+    }
+
+    // ------------------------------------------------------------------ compaction
+
+    private Model triple( final String s, final String o ) {
+        final Model m = ModelFactory.createDefaultModel();
+        m.add( ResourceFactory.createResource( s ), RDF.type, ResourceFactory.createResource( o ) );
+        return m;
+    }
+
+    @Test
+    void compactionRunsAsyncAndReportsShrunkenSize( @TempDir final Path dir ) {
+        final OntologyModelManager mgr = OntologyModelManager.tdb2( dir.toString() );
+        mgr.loadTBox();
+        final String iri = Iris.entity( UUID.fromString( "00000000-0000-0000-0000-0000000000d1" ) );
+        for ( int i = 0; i < 30; i++ ) {
+            mgr.replaceNamedGraph( iri, triple( iri, "urn:o" + i ) );
+        }
+        final long before = mgr.tdb2SizeBytes();
+        assertTrue( before > 0, "TDB2 store should have a nonzero footprint after churn" );
+
+        final OntologyRebuildCoordinator svc =
+                new OntologyRebuildCoordinator( mgr, List::of, List::of, List::of, true );
+        final OntologyRebuildStatus started = svc.triggerCompaction();
+        assertEquals( "COMPACTING", started.state() );
+
+        Awaitility.await().atMost( 10, TimeUnit.SECONDS ).until( () -> "IDLE".equals( svc.status().state() ) );
+
+        final OntologyCompactionStatus cs = svc.compactionStatus();
+        assertNull( cs.lastError() );
+        assertTrue( cs.lastCompactionEpochMillis() > 0 );
+        assertEquals( before, cs.lastSizeBeforeBytes() );
+        assertTrue( cs.lastSizeAfterBytes() < cs.lastSizeBeforeBytes(),
+                "compaction should shrink the store: before=" + cs.lastSizeBeforeBytes()
+                        + " after=" + cs.lastSizeAfterBytes() );
+        mgr.close();
+    }
+
+    @Test
+    void secondCompactionTriggerWhileRunningConflicts( @TempDir final Path dir ) {
+        final OntologyModelManager mgr = OntologyModelManager.tdb2( dir.toString() );
+        mgr.loadTBox();
+        mgr.preCompactTestHook = () -> {
+            try {
+                Thread.sleep( 300 );
+            } catch ( final InterruptedException ignored ) {
+                Thread.currentThread().interrupt();
+            }
+        };
+        final OntologyRebuildCoordinator svc =
+                new OntologyRebuildCoordinator( mgr, List::of, List::of, List::of, true );
+        svc.triggerCompaction();
+        assertThrows( OntologyRebuildCoordinator.ConflictException.class, svc::triggerCompaction );
+        Awaitility.await().atMost( 5, TimeUnit.SECONDS ).until( () -> "IDLE".equals( svc.status().state() ) );
+        mgr.close();
+    }
+
+    @Test
+    void compactionWhileRebuildRunningConflicts() {
+        // A slow rebuild source keeps state RUNNING long enough for a compaction
+        // trigger to observe the shared busy guard — mirrors secondTriggerWhileRunningConflicts.
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final OntologyRebuildCoordinator svc = new OntologyRebuildCoordinator( mgr,
+                () -> {
+                    try {
+                        Thread.sleep( 300 );
+                    } catch ( final InterruptedException ignored ) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return List.of();
+                },
+                List::of, List::of, true );
+        svc.triggerRebuild();
+        assertThrows( OntologyRebuildCoordinator.ConflictException.class, svc::triggerCompaction );
+        Awaitility.await().atMost( 5, TimeUnit.SECONDS ).until( () -> "IDLE".equals( svc.status().state() ) );
+    }
+
+    @Test
+    void disabledCoordinatorRefusesCompaction() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final OntologyRebuildCoordinator svc = coordinator( mgr, false );
+        assertThrows( OntologyRebuildCoordinator.DisabledException.class, svc::triggerCompaction );
+    }
+
+    @Test
+    void compactionOnInMemoryDatasetIsANoOpButStillReportsStatus() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final OntologyRebuildCoordinator svc = coordinator( mgr, true );
+        svc.triggerCompaction();
+        Awaitility.await().atMost( 5, TimeUnit.SECONDS ).until( () -> "IDLE".equals( svc.status().state() ) );
+        final OntologyCompactionStatus cs = svc.compactionStatus();
+        assertNull( cs.lastError() );
+        assertEquals( 0L, cs.lastSizeBeforeBytes() );
+        assertEquals( 0L, cs.lastSizeAfterBytes() );
+    }
+
+    @Test
+    void compactionStatusBeforeAnyRunReportsNeverRun() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final OntologyRebuildCoordinator svc = coordinator( mgr, true );
+        final OntologyCompactionStatus cs = svc.compactionStatus();
+        assertEquals( "IDLE", cs.state() );
+        assertEquals( -1L, cs.lastCompactionEpochMillis() );
+        assertEquals( -1L, cs.lastSizeBeforeBytes() );
+        assertEquals( -1L, cs.lastSizeAfterBytes() );
+        assertNull( cs.lastError() );
     }
 }

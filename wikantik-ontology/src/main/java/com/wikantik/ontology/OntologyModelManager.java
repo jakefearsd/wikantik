@@ -18,9 +18,14 @@
  */
 package com.wikantik.ontology;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.stream.Stream;
 
+import org.apache.jena.dboe.base.file.Location;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.ReadWrite;
@@ -29,6 +34,8 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.sparql.core.DatasetGraph;
+import org.apache.jena.tdb2.DatabaseMgr;
 import org.apache.jena.tdb2.TDB2Factory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -304,5 +311,86 @@ public final class OntologyModelManager {
     /** For Phase 1b shutdown wiring. */
     public void close() {
         dataset.close();
+    }
+
+    /**
+     * Test-only seam: invoked at the start of {@link #compact()}, before the
+     * underlying TDB2 compaction runs, so tests can simulate a slow compaction
+     * (e.g. to exercise concurrent-trigger conflict handling upstream). No-op
+     * in production. Mirrors {@link #postBuildTestHook}.
+     */
+    public Runnable preCompactTestHook = () -> {};
+
+    /** True when backed by an on-disk TDB2 store (false for the in-memory test dataset). */
+    public boolean isTdb2Backed() {
+        return DatabaseMgr.isTDB2( dataset.asDatasetGraph() );
+    }
+
+    /**
+     * Total size in bytes of the current TDB2 generation directory on disk
+     * (recursive). Returns 0 for the in-memory test dataset. A per-file stat
+     * failure (e.g. a file deleted mid-walk by a concurrent compaction) is
+     * logged at WARN and treated as 0 bytes for that file rather than failing
+     * the whole measurement — this is an operator-visible metric, not a
+     * correctness-critical read.
+     */
+    public long tdb2SizeBytes() {
+        if ( !isTdb2Backed() ) {
+            return 0L;
+        }
+        final Location loc = DatabaseMgr.location( dataset.asDatasetGraph() );
+        if ( loc == null || loc.isMem() ) {
+            return 0L;
+        }
+        final Path dir = Path.of( loc.getDirectoryPath() );
+        if ( !Files.isDirectory( dir ) ) {
+            return 0L;
+        }
+        try ( Stream< Path > walk = Files.walk( dir ) ) {
+            return walk.filter( Files::isRegularFile )
+                    .mapToLong( this::sizeOrZero )
+                    .sum();
+        } catch ( final IOException e ) {
+            LOG.warn( "tdb2SizeBytes: could not walk {}: {}", dir, e.getMessage(), e );
+            return 0L;
+        }
+    }
+
+    private long sizeOrZero( final Path p ) {
+        try {
+            return Files.size( p );
+        } catch ( final IOException e ) {
+            LOG.warn( "tdb2SizeBytes: could not stat {}: {}", p, e.getMessage() );
+            return 0L;
+        }
+    }
+
+    /**
+     * Compacts the on-disk TDB2 store in place: merges its copy-on-write B+Tree
+     * generations into a fresh {@code Data-000N+1} directory and removes the
+     * previous generation once the switchover completes ({@code deleteOld=true}
+     * — the 1-arg {@code DatabaseMgr.compact} overload keeps the old generation
+     * on disk, which would defeat the entire purpose of bounding store size: a
+     * store that is never cleaned up would only ever grow with each compaction).
+     * No-op for the in-memory test dataset.
+     *
+     * <p>Concurrency: {@code DatabaseMgr.compact} takes a JVM-wide static lock
+     * (only one compaction runs at a time per JVM; callers must still avoid
+     * overlapping this with a full rebuild themselves — both are heavy I/O
+     * operations against the same store, see {@code OntologyRebuildCoordinator}'s
+     * shared busy-state guard), copies the live dataset into the new generation
+     * while briefly pausing new writers, atomically swaps the switchable pointer
+     * so in-flight readers keep working against the old generation, and only
+     * deletes that old generation once its last reader has finished. Live
+     * {@code /sparql} reads and the per-save incremental sync are therefore
+     * never corrupted, and are blocked for no longer than the copy phase.
+     */
+    public void compact() {
+        final DatasetGraph dsg = dataset.asDatasetGraph();
+        if ( !DatabaseMgr.isTDB2( dsg ) ) {
+            return;
+        }
+        preCompactTestHook.run();
+        DatabaseMgr.compact( dsg, true );
     }
 }

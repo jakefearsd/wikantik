@@ -40,7 +40,7 @@ public final class OntologyRebuildCoordinator {
 
     private static final Logger LOG = LogManager.getLogger( OntologyRebuildCoordinator.class );
 
-    public enum State { IDLE, STARTING, RUNNING }
+    public enum State { IDLE, STARTING, RUNNING, COMPACTING }
 
     public static final class ConflictException extends RuntimeException {
         private static final long serialVersionUID = 1L;
@@ -66,6 +66,11 @@ public final class OntologyRebuildCoordinator {
     private final AtomicReference< State > state = new AtomicReference<>( State.IDLE );
     private volatile long graphCount = -1;
     private volatile String lastError;
+
+    private volatile long lastCompactionAt = -1;
+    private volatile long lastCompactionSizeBeforeBytes = -1;
+    private volatile long lastCompactionSizeAfterBytes = -1;
+    private volatile String lastCompactionError;
 
     public OntologyRebuildCoordinator( final OntologyModelManager manager,
                                        final Supplier< List< KgNode > > nodeSource,
@@ -93,6 +98,57 @@ public final class OntologyRebuildCoordinator {
         t.setDaemon( true );
         t.start();
         return snap;
+    }
+
+    /**
+     * Triggers an asynchronous TDB2 compaction — reclaims the dead space left by copy-on-write
+     * B+Tree generations that a rebuild/incremental-sync churn never frees on its own. Shares the
+     * {@link #state} busy guard with {@link #triggerRebuild()} rather than a separate lock: the two
+     * are both heavy I/O operations against the same {@link OntologyModelManager}, so they must be
+     * mutually exclusive, and reusing the existing CAS + already-running guard is simpler and no
+     * less correct than a second one. Safe to call regardless of backing store —
+     * {@link OntologyModelManager#compact()} is a no-op for the in-memory test dataset.
+     */
+    public synchronized OntologyRebuildStatus triggerCompaction() {
+        if ( !enabled ) {
+            throw new DisabledException();
+        }
+        if ( !state.compareAndSet( State.IDLE, State.COMPACTING ) ) {
+            throw new ConflictException( "ontology compaction already in state " + state.get() );
+        }
+        // Capture the snapshot at the COMPACTING transition, before the daemon thread finishes —
+        // otherwise the returned status races the worker (mirrors triggerRebuild()).
+        final OntologyRebuildStatus snap = status();
+        final Thread t = new Thread( this::runCompaction, "wikantik-ontology-compact" );
+        t.setDaemon( true );
+        t.start();
+        return snap;
+    }
+
+    private void runCompaction() {
+        try {
+            final long before = manager.tdb2SizeBytes();
+            manager.compact();
+            final long after = manager.tdb2SizeBytes();
+            lastCompactionSizeBeforeBytes = before;
+            lastCompactionSizeAfterBytes = after;
+            lastCompactionAt = System.currentTimeMillis();
+            lastCompactionError = null;
+            LOG.info( "ontology compaction complete: {} -> {} bytes ({} freed)",
+                    before, after, before - after );
+        } catch ( final RuntimeException e ) {
+            lastCompactionError = e.getMessage();
+            LOG.warn( "ontology compaction failed: {}", e.getMessage(), e );
+        } finally {
+            state.set( State.IDLE );
+        }
+    }
+
+    /** Immutable snapshot of the compactor's state — separate from {@link #status()} (see
+     *  {@link OntologyCompactionStatus} for why). */
+    public OntologyCompactionStatus compactionStatus() {
+        return new OntologyCompactionStatus( state.get().name(), lastCompactionAt,
+                lastCompactionSizeBeforeBytes, lastCompactionSizeAfterBytes, lastCompactionError );
     }
 
     /** Registers a callback invoked (on the rebuild thread) after each successful full rebuild.

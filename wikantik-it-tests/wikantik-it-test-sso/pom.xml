@@ -124,6 +124,13 @@
               <alias>${it.db.container-alias}</alias>
               <name>${pgvector.image}</name>
               <run>
+                <!-- Name the container after the (per-module) alias, not the
+                     plugin's default pgvector-N, so parallel modules get
+                     distinct names AND the initialize-phase cleanup sweep
+                     below has a deterministic name to target. Every other IT
+                     module inherits this from the parent pom; this module
+                     redeclares <images> wholesale, so it must set it here. -->
+                <containerNamePattern>%a</containerNamePattern>
                 <ports>
                   <port>${it.db.port}:5432</port>
                 </ports>
@@ -191,6 +198,27 @@
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <executions>
+          <!-- Force-remove both containers this module starts, before the run.
+               pg-stop is bound to post-integration-test, which Maven never
+               reaches when the build dies earlier (Cargo or Keycloak failing to
+               start, a process kill) — so without this sweep the containers and
+               their anonymous data volumes survive into the next run. This
+               module redeclares exec-maven-plugin, which drops the parent's
+               pg-cleanup-stale execution entirely, so it is restored here and
+               extended to cover the Keycloak container too. `|| true` keeps the
+               common case (nothing to remove) from failing the build. -->
+          <execution>
+            <id>container-cleanup-stale</id>
+            <phase>initialize</phase>
+            <goals><goal>exec</goal></goals>
+            <configuration>
+              <executable>bash</executable>
+              <arguments>
+                <argument>-c</argument>
+                <argument>for c in "${it.db.container-alias}" "wikantik-kc-${project.artifactId}"; do docker rm -f -v "$c" &gt;/dev/null 2&gt;&amp;1 &amp;&amp; echo "Removed stale container $c" || true; done</argument>
+              </arguments>
+            </configuration>
+          </execution>
           <!-- Generate the SP signing keystore for pac4j's SAML2Client, and DELETE
                any stale sp-metadata.xml first. The SP metadata embeds the dynamic
                Cargo servlet port in its ACS URL; pac4j appends a fresh ACS to the

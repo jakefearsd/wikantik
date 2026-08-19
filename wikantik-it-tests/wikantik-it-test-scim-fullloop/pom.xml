@@ -284,6 +284,29 @@
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
+            <executions>
+              <!-- The inherited pg-cleanup-stale execution sweeps only this
+                   module's wiki pgvector container (${it.db.container-alias}).
+                   This module starts four MORE containers for the Authentik
+                   stack, and pg-stop (post-integration-test) never runs when
+                   the build dies earlier — e.g. Authentik not becoming healthy
+                   inside its readiness budget — so those four, plus the
+                   anonymous data volume of the Authentik Postgres, survive into
+                   the next run. One bash -c loop over the four aliases, using
+                   the parent's exact `docker rm -f -v … || true` mechanism. -->
+              <execution>
+                <id>pg-cleanup-stale-authentik</id>
+                <phase>initialize</phase>
+                <goals><goal>exec</goal></goals>
+                <configuration>
+                  <executable>bash</executable>
+                  <arguments>
+                    <argument>-c</argument>
+                    <argument>for c in "wikantik-authentik-redis-${project.artifactId}" "wikantik-authentik-db-${project.artifactId}" "wikantik-authentik-server-${project.artifactId}" "wikantik-authentik-worker-${project.artifactId}"; do docker rm -f -v "$c" &gt;/dev/null 2&gt;&amp;1 &amp;&amp; echo "Removed stale container $c" || true; done</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
 
           <plugin>

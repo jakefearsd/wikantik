@@ -44,11 +44,37 @@ class JDBCPluginTest {
     @BeforeEach
     void setUp() throws Exception {
         final Properties props = TestEngine.getTestProperties();
+        // The plugin ships disabled (page-authored SQL is a privileged, cache-leaky
+        // operation); these tests exercise it, so opt in explicitly.
+        props.setProperty( JDBCPlugin.PROP_ENABLED, "true" );
         engine = TestEngine.build( props );
         plugin = new JDBCPlugin();
 
         // Create a test page
         engine.saveText( "TestPage", "Test content" );
+    }
+
+    /**
+     * SECURITY: with no explicit opt-in the plugin must refuse to execute — before
+     * even the admin check — so page-authored SQL never runs in a default deployment.
+     */
+    @Test
+    void testDisabledByDefault() throws Exception {
+        final TestEngine off = TestEngine.build( TestEngine.getTestProperties() );  // PROP_ENABLED unset
+        try {
+            off.saveText( "OffPage", "x" );
+            final Page page = off.getManager( PageManager.class ).getPage( "OffPage" );
+            final Context ctx = Wiki.context().create( off, page );
+            final Map< String, String > params = new HashMap<>();
+            params.put( JDBCPlugin.PARAM_SQL, "SELECT 1" );
+
+            final PluginException ex = Assertions.assertThrows( PluginException.class,
+                    () -> plugin.execute( ctx, params ) );
+            Assertions.assertTrue( ex.getMessage().toLowerCase().contains( "disabled" ),
+                    "must refuse as disabled by default: " + ex.getMessage() );
+        } finally {
+            off.stop();
+        }
     }
 
     @AfterEach

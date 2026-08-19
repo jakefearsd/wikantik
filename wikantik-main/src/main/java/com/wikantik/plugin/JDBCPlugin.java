@@ -183,6 +183,15 @@ public class JDBCPlugin implements Plugin {
     }
 
     // Property names for wikantik-custom.properties
+    /**
+     * Kill switch, default OFF. This plugin executes page-authored SQL against the
+     * wiki's own datasource; combined with the render cache (keyed without a
+     * principal) its results can reach non-admin readers, and the app connects as a
+     * high-privilege DB role. It ships disabled and must be turned on deliberately
+     * (`wikantik.plugin.jdbc.enabled=true`) by an operator who accepts that exposure.
+     */
+    static final String PROP_ENABLED = "wikantik.plugin.jdbc.enabled";
+
     private static final String PROP_DRIVER = "jdbc.driver";
     private static final String PROP_URL = "jdbc.url";
     private static final String PROP_USER = "jdbc.user";
@@ -223,13 +232,20 @@ public class JDBCPlugin implements Plugin {
      */
     @Override
     public String execute( final Context context, final Map< String, String > params ) throws PluginException {
+        final Engine engine = context.getEngine();
+        final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
+
+        // Kill switch FIRST — page-authored SQL must not run unless an operator has
+        // explicitly enabled it, regardless of who is viewing. Off by default.
+        if ( !TextUtil.getBooleanProperty( props, PROP_ENABLED, false ) ) {
+            throw new PluginException( "The JDBC plugin is disabled. Set " + PROP_ENABLED
+                    + "=true to enable it (executes page-authored SQL against the wiki datasource)." );
+        }
+
         // Require admin permission — arbitrary SQL execution is a privileged operation
         if ( !context.hasAdminPermissions() ) {
             throw new PluginException( "The JDBC plugin requires administrator privileges." );
         }
-
-        final Engine engine = context.getEngine();
-        final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
 
         // Parse parameters - all local variables for thread safety
         final String source = params.get( PARAM_SOURCE );

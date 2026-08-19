@@ -81,6 +81,7 @@ class JDBCPluginCITest {
     @BeforeEach
     void setUp() throws Exception {
         final Properties props = TestEngine.getTestProperties();
+        props.setProperty( JDBCPlugin.PROP_ENABLED, "true" );   // plugin ships disabled; opt in for these tests
         engine = TestEngine.build( props );
         plugin = new JDBCPlugin();
         engine.saveText( "TestPage", "Test content" );

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.17] - 2026-08-19
+
 ### Security
 Third wave of the 2026-08-19 review — the remaining correctness-favouring fixes.
 - **Viewer-dependent renders are no longer shared through the principal-less cache.**

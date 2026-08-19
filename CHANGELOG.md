@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.15] - 2026-08-19
+
 ### Security
 Second wave of the 2026-08-19 security review — the HIGH/MEDIUM findings after the
 two CRITICALs shipped in 2.4.14.

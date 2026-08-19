@@ -634,7 +634,7 @@ public class LuceneSearchProvider implements SearchProvider {
      * @return recency multiplier in {@code [RECENCY_FLOOR, 1.0]}
      */
     static double recencyFactor( final long lastModifiedMs, final long nowMs ) {
-        return DefaultLuceneSearcher.recencyFactor( lastModifiedMs, nowMs );
+        return com.wikantik.search.subsystem.lucene.LuceneHitSupport.recencyFactor( lastModifiedMs, nowMs );
     }
 
     // -------------------------------------------------------------------------

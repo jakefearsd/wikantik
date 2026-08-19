@@ -22,12 +22,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexNotFoundException;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.index.ReaderUtil;
 import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queries.mlt.MoreLikeThis;
@@ -97,11 +94,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
     /** The maximum number of hits to return from searches. */
     public static final int MAX_SEARCH_HITS = 99_999;
 
-    /** Half-life for recency decay: a page's recency multiplier falls from 1.0 toward 0.5 as it ages. */
-    private static final long RECENCY_HALF_LIFE_MS = 365L * 24 * 60 * 60 * 1000;
 
-    /** Floor for the recency multiplier so that very old pages still rank (just behind fresh ones). */
-    private static final double RECENCY_FLOOR = 0.5;
 
     /**
      * Per-field weights applied to {@link MultiFieldQueryParser}. Order mirrors the
@@ -314,7 +307,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                 final Document doc = needBody ? storedFields.document( hit.doc ) : null;
                 final String pageName = needBody
                     ? doc.get( DefaultLuceneIndexer.LUCENE_ID )
-                    : readPageId( reader, storedFields, hit.doc );
+                    : LuceneHitSupport.readPageId( reader, storedFields, hit.doc, ID_ONLY_FIELDS );
                 final Page page = pm.getPage( pageName, PageProvider.LATEST_VERSION );
 
                 if ( page != null ) {
@@ -330,7 +323,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                     if ( allowed ) {
                         final Date lastModified = page.getLastModified();
                         final double recency = lastModified == null ? 1.0
-                                : recencyFactor( lastModified.getTime(), System.currentTimeMillis() );
+                                : LuceneHitSupport.recencyFactor( lastModified.getTime(), System.currentTimeMillis() );
                         final int score = ( int ) ( hit.score * recency * 100 );
 
                         final String text = doc != null ? doc.get( DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS ) : null;
@@ -451,7 +444,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                 if ( out.size() >= maxResults ) break;
                 // MoreLikeThis only ever needs the page name — never read the body,
                 // so read the id from DocValues and skip the stored-block decompress.
-                final String name = readPageId( reader, storedFields, sd.doc );
+                final String name = LuceneHitSupport.readPageId( reader, storedFields, sd.doc, ID_ONLY_FIELDS );
                 if ( name == null || name.equals( seedDocName ) ) continue;
                 if ( excludes.contains( name ) ) continue;
                 out.add( new MoreLikeThisHit( name, sd.score ) );
@@ -460,49 +453,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Recency scoring (package-private for testability)
-    // -------------------------------------------------------------------------
 
-    /**
-     * Returns a recency multiplier in the range {@code [RECENCY_FLOOR, 1.0]}.
-     * Freshly modified pages get {@code 1.0}; the multiplier decays toward
-     * {@link #RECENCY_FLOOR} on a {@link #RECENCY_HALF_LIFE_MS} half-life.
-     *
-     * @param lastModifiedMs epoch millis of the page's last modification
-     * @param nowMs          epoch millis of "now" (injected for testability)
-     * @return recency multiplier in {@code [RECENCY_FLOOR, 1.0]}
-     */
-    public static double recencyFactor( final long lastModifiedMs, final long nowMs ) {
-        final long ageMs = Math.max( 0L, nowMs - lastModifiedMs );
-        final double decay = Math.pow( 0.5, ( double ) ageMs / RECENCY_HALF_LIFE_MS );
-        return RECENCY_FLOOR + ( 1.0 - RECENCY_FLOOR ) * decay;
-    }
-
-    /**
-     * Reads a hit's page id ({@link DefaultLuceneIndexer#LUCENE_ID}) from columnar
-     * DocValues. Unlike a stored-field read, this needs no per-hit decompression of
-     * the stored-fields block — the dominant search CPU + allocation cost when
-     * highlighting is off (the default read path). The {@code globalDocId} is mapped
-     * to its segment via {@link ReaderUtil#subIndex} and read at the leaf-local
-     * doc id ({@code globalDocId - docBase}).
-     *
-     * <p>Falls back to the stored field for index segments written before the
-     * DocValues field existed, so correctness never depends on a reindex — only the
-     * speedup does (a reindex populates DocValues on every segment).</p>
-     */
-    private static String readPageId( final IndexReader reader,
-                                      final StoredFields storedFields,
-                                      final int globalDocId ) throws IOException {
-        final List< LeafReaderContext > leaves = reader.leaves();
-        final LeafReaderContext leaf = leaves.get( ReaderUtil.subIndex( globalDocId, leaves ) );
-        final BinaryDocValues dv = leaf.reader().getBinaryDocValues( DefaultLuceneIndexer.LUCENE_ID );
-        if ( dv != null && dv.advanceExact( globalDocId - leaf.docBase ) ) {
-            return dv.binaryValue().utf8ToString();
-        }
-        // Pre-DocValues segment — fall back to the stored field.
-        return storedFields.document( globalDocId, ID_ONLY_FIELDS ).get( DefaultLuceneIndexer.LUCENE_ID );
-    }
 
     // -------------------------------------------------------------------------
     // Inner class: SearchResultImpl

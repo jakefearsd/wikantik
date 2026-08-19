@@ -69,15 +69,20 @@ public final class EgressGuard {
         if ( uri == null ) {
             throw new EgressBlockedException( "no target URL" );
         }
-        final String scheme = uri.getScheme();
-        if ( scheme == null
-                || !( scheme.equalsIgnoreCase( "http" ) || scheme.equalsIgnoreCase( "https" ) ) ) {
+        requireHttpScheme( uri.getScheme() );
+        if ( !allowPrivate() ) {
+            requireRoutableHost( uri.getHost() );
+        }
+    }
+
+    private static void requireHttpScheme( final String scheme ) throws EgressBlockedException {
+        final boolean ok = "http".equalsIgnoreCase( scheme ) || "https".equalsIgnoreCase( scheme );
+        if ( !ok ) {
             throw new EgressBlockedException( "scheme not permitted for connector fetch: " + scheme );
         }
-        if ( allowPrivate() ) {
-            return;
-        }
-        final String host = uri.getHost();
+    }
+
+    private static void requireRoutableHost( final String host ) throws EgressBlockedException {
         if ( host == null || host.isBlank() ) {
             throw new EgressBlockedException( "target URL has no host" );
         }

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.12] - 2026-08-19
+
 ### Changed
 - **Merged the two CPU-inference pages, which collided case-insensitively.**
   `docs/wikantik-pages/` held both `CPUInference.md` and `CpuInference.md` — the

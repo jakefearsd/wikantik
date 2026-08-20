@@ -1,5 +1,13 @@
 # Migration Guide: Wikantik 1.0 → 1.1
 
+> **Scope note (2026-08-20):** This guide covers the **1.0 → 1.1** upgrade only, and is kept
+> for operators still making that jump. It is not a description of current behavior — the
+> project is now on **2.4.18**. Properties, defaults and procedures have moved on since 1.1
+> (for example, the XML user/group store referenced here no longer exists; authentication is
+> PostgreSQL-backed). For a current install follow `README.md` and `docs/DatabaseUpdates.md`,
+> and apply schema changes with `bin/db/migrate.sh`, which runs every migration through V057.
+
+
 ## Overview
 
 Wikantik 1.1 is a major update covering security hardening, database-backed permissions, scalability improvements, and full React SPA feature parity with the JSP UI. This guide covers the required migration steps for production deployments.
@@ -41,7 +49,7 @@ The 1.1 code does **not** have backwards compatibility for the old names. If you
 
 All REST API endpoints (`/api/pages/*`, `/api/attachments/*`) now enforce page-level ACL permissions. Previously, the REST API did not check permissions. Any API clients that relied on unauthenticated access to restricted pages will receive 403 responses.
 
-### 5. Session Timeout Changed
+### 6. Session Timeout Changed
 
 HTTP session timeout increased from 10 minutes to 60 minutes.
 

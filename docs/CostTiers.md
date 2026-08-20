@@ -35,7 +35,7 @@ ceiling. The five call sites that do this today:
 | Embedding client | `wikantik.search.hybrid.enabled` | `mode.allowsEmbeddings()` | `EmbeddingConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/search/embedding/EmbeddingConfig.java:94-101`) |
 | KG entity extractor | `wikantik.knowledge.extractor.backend` | `mode.allowsChatInference()` | `EntityExtractorConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/knowledge/extraction/EntityExtractorConfig.java:87-95`) |
 | KG proposal judge | `wikantik.kg.judge.enabled` | `mode.allowsChatInference()` | `KgJudgeConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/knowledge/judge/KgJudgeConfig.java:68-73`) |
-| Bundle LLM reranker | `wikantik.bundle.reranker.enabled` (or an `llm` token in `wikantik.bundle.rerank.chain`) | `mode.allowsChatInference()` | `BundleServiceWiring.rerankerFor`/`buildChain` (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/BundleServiceWiring.java:213-266`) |
+| Bundle LLM reranker | `wikantik.bundle.reranker.enabled` (or an `llm` token in `wikantik.bundle.rerank.chain`) | `mode.allowsChatInference()` | `BundleServiceWiring.rerankerFor`/`buildChain` (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/BundleServiceWiring.java:274-323`) |
 | Bundle query-decomposition planner | `wikantik.bundle.decomposition.enabled` | `mode.allowsChatInference()` | `BundleDecompositionConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/BundleDecompositionConfig.java:57-78`) |
 
 Each of these logs a `WARN` when an explicitly-enabled feature gets
@@ -74,7 +74,7 @@ wikantik.search.hybrid.enabled = false
 > properties override needed. Setting the raw flag explicitly is only necessary
 > if you want the warn logs quiet about a suppressed-but-enabled feature.
 
-Verified against: `docker/entrypoint.sh:236-255`, `wikantik-main/src/main/java/com/wikantik/search/embedding/EmbeddingConfig.java:57,94-101`, `wikantik-main/src/main/resources/ini/wikantik.properties:1216` (default `true`).
+Verified against: `docker/entrypoint.sh:236-255`, `wikantik-main/src/main/java/com/wikantik/search/embedding/EmbeddingConfig.java:57,94-101`, `wikantik-main/src/main/resources/ini/wikantik.properties:1062` (default `true`).
 
 ---
 
@@ -114,9 +114,9 @@ wikantik.search.embedding.base-url = http://<your-embedding-host>:11434
 ```
 
 `wikantik.search.hybrid.enabled` needs no override here — it defaults to
-`true` (`ini/wikantik.properties:1216`) and stays effective under this tier.
+`true` (`ini/wikantik.properties:1062`) and stays effective under this tier.
 
-Verified against: `docker-compose.cloud.yml:31-39,89-98,292,312`, `.env.example:117-130,215-223`, `docker/entrypoint.sh:65-76,236-266`, `wikantik-main/src/main/resources/ini/wikantik.properties:1222,1227` (`wikantik.search.embedding.backend`/`base-url` defaults).
+Verified against: `docker-compose.cloud.yml:31-39,89-98,292,312`, `.env.example:117-130,231-239`, `docker/entrypoint.sh:65-76,236-266`, `wikantik-main/src/main/resources/ini/wikantik.properties:1068,1073` (`wikantik.search.embedding.backend`/`base-url` defaults).
 
 ---
 
@@ -171,7 +171,7 @@ wikantik.knowledge.extractor.backend = ollama
 wikantik.knowledge.extractor.ollama.base_url = http://<your-ollama-host>:11434
 ```
 
-Verified against: `docker-compose.cloud.yml:40-48`, `.env.example:117-140`, `docker/entrypoint.sh:73-80,268-278`, `wikantik-main/src/main/resources/ini/wikantik.properties:1293-1303` (extractor backend/model/base_url defaults), `wikantik-main/src/main/java/com/wikantik/knowledge/extraction/EntityExtractorConfig.java:87-95`.
+Verified against: `docker-compose.cloud.yml:40-48`, `.env.example:117-140`, `docker/entrypoint.sh:73-80,268-278`, `wikantik-main/src/main/resources/ini/wikantik.properties:1147-1157` (extractor backend/model/base_url defaults), `wikantik-main/src/main/java/com/wikantik/knowledge/extraction/EntityExtractorConfig.java:87-95`.
 
 ---
 
@@ -219,7 +219,7 @@ appear if you've separately opted into `wikantik.bundle.reranker.enabled` /
 [caveats](#bundle-llm-levers-stay-off-by-default-the-ceiling-guards-against-accidental-re-enable)).
 
 Gating: the log itself is controlled by `wikantik.llm_activity.enabled`
-(default `true`, `ini/wikantik.properties:1429`). It is a **process-wide
+(default `true`, `ini/wikantik.properties:1259`). It is a **process-wide
 singleton** (`LlmActivityLogHolder`) — created once, on first use, from
 whatever properties were live at that moment. Changing the flag requires a
 restart to take effect, and once a call is disabled, no per-call recording
@@ -296,7 +296,7 @@ protects the always-on request path, not one-off operator tooling.
 ### Bundle LLM levers stay off by default; the ceiling guards against accidental re-enable
 
 `wikantik.bundle.reranker.enabled` and `wikantik.bundle.decomposition.enabled`
-both default to `false` (`ini/wikantik.properties:1445,1525`) — the bundle
+both default to `false` (`ini/wikantik.properties:1275,1355`) — the bundle
 ships dense-ordered/single-pass by default regardless of tier, because the
 2026-06-13 measurement showed the LLM reranker is an ordering lever, not a
 recall lever, at real per-request latency/cost. The `wikantik.genai.mode`

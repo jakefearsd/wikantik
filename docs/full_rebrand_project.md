@@ -1,5 +1,19 @@
 # Rebrand JSPWiki → Wikantik: Full Project Plan
 
+> **Status: COMPLETED — historical record only (annotated 2026-08-20).**
+> The rebrand shipped. Every phase below was executed: main sources are entirely under
+> `com.wikantik` (1,252 files; zero remaining `org.apache.wiki` sources), Maven coordinates,
+> configuration keys (`wikantik.*`), UI assets and deployment configs all carry the new
+> identity. This document is kept for the rationale and the phase-by-phase method, not as
+> work to be done.
+>
+> Two things a reader should not misread as leftovers:
+> - The checkout directory is still named `jspwiki/` — that is a local path, not code.
+> - Pre-rebrand design docs (`docs/FullOAuth.md`, `docs/OAuthImplementation.md`) and
+>   `docs/Sitemap.md` deliberately quote legacy `jspwiki.*` property names when describing
+>   their own historical proposals or documenting a never-implemented legacy key.
+
+
 ## Context
 
 This rebrand breaks from the legacy Apache JSPWiki identity to establish Wikantik as a system built for direct agent engagement and utility. The codebase has **~6,000+ occurrences** of "jspwiki"/"JSPWiki" across **~420 files** (753 Java sources, 23 POMs, 68 JSPs, 73 properties files, 81 JS files, and more). The rename touches every layer: Maven coordinates, Java packages, configuration keys, file names, UI assets, deployment configs, and documentation.

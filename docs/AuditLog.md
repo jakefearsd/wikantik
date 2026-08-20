@@ -14,15 +14,20 @@ The implementation lives in:
 
 ## What gets logged
 
-The `AuditEventListener` translates Wikantik's `WikiEvent` stream into audit
-entries. Events are grouped into five categories (`AuditCategory` enum):
+`AuditEventListener` translates Wikantik's `WikiEvent` stream (login/logout,
+access-denied, page save/delete/rename, group and profile changes) into audit
+entries; other event types — API keys, user lifecycle, policy grants,
+connectors, SCIM, and opt-in page reads — are recorded directly by their
+owning REST/SCIM resource via `AuditService.record()`. Either way, every
+entry lands in one of five categories (`AuditCategory` enum):
 
 | Category | Event types recorded |
 |---|---|
 | `AUTHN` | `login.ok`, `login.failed`, `logout`, `session.expired` |
 | `AUTHZ` | `access.denied` |
-| `CONTENT` | Page save, page delete |
-| `ADMIN` | `group.member.add`, `group.member.remove`, `profile.save`, user lifecycle (lock/unlock), API key issuance (`apikey.issue`), SCIM operations (`scim.user.create`, `scim.user.update`, `scim.group.create`, `scim.group.update`, `scim.group.delete`) |
+| `CONTENT` | `page.save`, `page.delete`, `page.rename` |
+| `ADMIN` | `group.member.add`, `group.member.remove`, `profile.save`, user lifecycle (`user.deactivate`, `user.reactivate`), API key issuance/rotation/revocation (`apikey.issue`, `apikey.rotate`, `apikey.revoke`), policy grant changes (`policy.grant.update`, `policy.grant.delete`), connector mutations (`connector.*`), SCIM operations (`scim.user.create`, `scim.user.update`, `scim.group.create`, `scim.group.update`, `scim.group.delete`) |
+| `READ` | `page.read` — opt-in only (default: not recorded); a page must be flagged for read-auditing via the audit read policy for its views to be logged |
 
 Each audit entry carries: `seq`, `created_at`, `event_time`, `category`,
 `event_type`, `actor_id`, `actor_principal`, `actor_type`, `target_type`,
@@ -82,7 +87,7 @@ Set one or more filters and click **Search**:
 | Filter | Description |
 |---|---|
 | Actor | Login name of the acting user or system (e.g. `admin`, `scim`) |
-| Category | `authn`, `authz`, `content`, `admin`, or blank for all |
+| Category | `authn`, `authz`, `content`, `admin`, `read`, or blank for all |
 | Event type | Exact event type string (e.g. `login.failed`, `apikey.issue`) |
 | Target | Target entity id (e.g. a page name or user login) |
 | Outcome | `success`, `failure`, or `denied` |

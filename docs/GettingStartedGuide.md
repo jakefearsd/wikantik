@@ -217,11 +217,14 @@ After the first setup, the fast redeploy loop is:
 
 ```bash
 mvn clean install -DskipTests -T 1C
-bin/redeploy.sh        # shutdown → swap WAR → startup (no template/migration re-run)
+bin/redeploy.sh        # shutdown → swap WAR → apply pending migrations → startup
 ```
 
-Use `bin/deploy-local.sh` again only when you change `.env`, upgrade Tomcat, or
-need migrations/templates re-applied. Tomcat lifecycle:
+`bin/redeploy.sh` does apply any pending DB migrations (idempotently, via
+`bin/db/migrate.sh` — a no-op when there are none); what it skips is template
+materialisation, Tomcat upgrade logic, secrets validation, and dev-user
+seeding. Use `bin/deploy-local.sh` again only when you change `.env`, upgrade
+Tomcat, or need templates/secrets re-applied. Tomcat lifecycle:
 
 ```bash
 tomcat/tomcat-11/bin/shutdown.sh

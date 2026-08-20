@@ -99,8 +99,11 @@ name.
 ### Every deploy
 
 `bin/redeploy.sh` and `bin/deploy-local.sh` both invoke `migrate.sh` automatically.
-The redeploy path uses `PGUSER=migrate`; if the migrate role is not yet provisioned,
-it falls back to `PGUSER=postgres`.
+Locally, both run it as the app role (`PGUSER=${POSTGRES_USER}` from `.env`,
+default `wikantik`), falling back to `PGUSER=postgres` if that fails — neither
+hardcodes `PGUSER=migrate`; that local setup has no separate `migrate` role.
+The dedicated `migrate` role below is for the manual/production path, where
+`migrate.sh` defaults `PGUSER` to `migrate`.
 
 Manual run:
 

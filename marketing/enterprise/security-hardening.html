@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Security hardening: NIST passwords, CSP, safe deserialization",
     "description": "Wikantik ships hardened by default: NIST 800-63B password validation with a breach blocklist, CSRF/CORS/CSP and security headers, and deserialization filtering on every input stream.",
-    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "datePublished": "2026-06-07", "dateModified": "2026-08-20",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/enterprise/security-hardening.html" }
@@ -154,6 +154,15 @@
           <h2>Access control enforced on the read path — including the agent surface</h2>
           <p>View ACLs are not just a UI concern. Wikantik enforces page view permissions on every read surface: the REST read endpoints (page fetch, diff, history, backlinks, recent-changes, search, and the agent projection) and — critically — the machine surfaces an AI agent uses. The <code>/knowledge-mcp</code> retrieval and Knowledge Graph tools and the <code>/api/bundle</code> context bundle all run candidate results through the same session view gate.</p>
           <p>The practical guarantee: a page a caller is not permitted to see never appears in their search results, their retrieval, or an agent's assembled context bundle — restricted content cannot leak into a RAG pipeline through a side door. Restricted hub descriptors are likewise redacted from cluster listings.</p>
+
+          <h2>Recent hardening (2.4.12–2.4.18)</h2>
+          <p>Security hardening at Wikantik is ongoing, not a one-time checklist. Recent releases closed four gaps:</p>
+          <ul>
+            <li><strong>JDBC plugin disabled by default.</strong> The <code>[{JDBCPlugin}]</code> wiki-markup plugin — which lets a page run a configured SQL query — now ships off (<code>wikantik.plugin.jdbc.enabled</code>), so a compromised or careless editor can't turn page content into a database query surface without an operator opting in first.</li>
+            <li><strong>SSRF protection on connector fetches.</strong> An <code>EgressGuard</code> validates every outbound HTTP(S) request a connector makes: non-http(s) schemes are rejected, and any host resolving to loopback, private, link-local (including the <code>169.254.169.254</code> cloud metadata address), multicast, or IPv6 unique-local addresses is blocked by default — with every redirect hop re-validated, closing the classic "public URL that 302s to an internal address" bypass.</li>
+            <li><strong>Viewer-sensitive renders never shared across users.</strong> Rendered-page caches now skip content whose output depends on the viewer's own permissions, so an ACL-gated render for one user can never be served from cache to another.</li>
+            <li><strong>Scoped MCP API keys.</strong> API keys now carry a scope: <code>mcp_read</code> grants read-only knowledge-base access, while full admin/write access requires the separate <code>mcp</code> scope — so a token meant only for retrieval can no longer be used to write or curate content if it leaks.</li>
+          </ul>
 
           <h2>Defense in depth</h2>
           <p>The hardening described here is one layer of a broader stack. For a complete picture, see:</p>

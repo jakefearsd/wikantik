@@ -30,7 +30,11 @@ Rules enforced by the parser:
 Use a pair of `$$` delimiters on their own lines for centred, block-level
 equations.
 
-```markdown$$\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}$$```
+```markdown
+$$
+\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+$$
+```
 
 Both the opening and closing `$$` must occupy their own line (leading and
 trailing whitespace is tolerated). Inline `$$…$$` inside a paragraph is left
@@ -42,7 +46,11 @@ opening delimiter is preserved on the generated fences, which lets you nest
 display math inside list items:
 
 ```markdown
-1. Solve the Gaussian integral:$$\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}$$2. Now the next step…
+1. Solve the Gaussian integral:
+   $$
+   \int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+   $$
+2. Now the next step…
 ```
 
 ### Fenced math: ```` ```math ````
@@ -60,16 +68,23 @@ need to paste a long expression.
 
 Server-rendered HTML uses the CSS classes configured on the GitLab extension:
 
-- Inline math: `<code class="math-inline">…</code>` (LaTeX source as text)
-- Display math: `<pre class="math-display"><code>…</code></pre>` (LaTeX source
+- Inline math: `<span class="math-inline">…</span>` (LaTeX source as text)
+- Display math: `<div class="math-display"><pre>…</pre></div>` (LaTeX source
   as text)
 
-The React SPA re-processes this output through
+For article content, the React SPA does **not** re-parse this HTML through a
+Markdown-math pipeline. `PageView.jsx` calls `renderMath()`
+(`wikantik-frontend/src/utils/math.js`), which scans the rendered DOM for
+`.math-inline`/`.math-display` elements and calls `katex.render()` on each
+directly, using the element's `textContent` (the raw LaTeX) as input — that is
+what produces the typeset mathematics you see in the browser. Separately, the
+editor's live preview pane (`PageEditor.jsx`) re-parses the raw, un-rendered
+Markdown source client-side with `react-markdown` +
 [`remark-math`](https://github.com/remarkjs/remark-math) +
-[`rehype-katex`](https://github.com/remarkjs/rehype-katex) when rendering
-article content, which is what produces the typeset mathematics you see in the
-browser. KaTeX CSS and fonts are bundled from the `katex` npm package into the
-SPA build — no external CDN is needed.
+[`rehype-katex`](https://github.com/remarkjs/rehype-katex), since that content
+hasn't gone through the server-side Flexmark pipeline yet. KaTeX CSS and fonts
+are bundled from the `katex` npm package into the SPA build — no external CDN
+is needed.
 
 ## Supported LaTeX
 
@@ -100,12 +115,16 @@ For a right triangle,$a^2 + b^2 = c^2$.
 
 Aligned system:
 
-```markdown$$\begin{aligned}
+```markdown
+$$
+\begin{aligned}
 \nabla \cdot \mathbf{E} &= \frac{\rho}{\varepsilon_0} \\
 \nabla \cdot \mathbf{B} &= 0 \\
 \nabla \times \mathbf{E} &= -\frac{\partial \mathbf{B}}{\partial t} \\
 \nabla \times \mathbf{B} &= \mu_0 \mathbf{J} + \mu_0 \varepsilon_0 \frac{\partial \mathbf{E}}{\partial t}
-\end{aligned}$$```
+\end{aligned}
+$$
+```
 
 Matrix:
 
@@ -122,7 +141,9 @@ A = \begin{bmatrix}
 Summation inside a list:
 
 ```markdown
-- The arithmetic series identity:$\sum_{i=1}^{n} i = \tfrac{n(n+1)}{2}$- The geometric series:$\sum_{i=0}^{n} r^{i} = \tfrac{1 - r^{n+1}}{1 - r}$for$r \neq 1$```
+- The arithmetic series identity: $\sum_{i=1}^{n} i = \tfrac{n(n+1)}{2}$
+- The geometric series: $\sum_{i=0}^{n} r^{i} = \tfrac{1 - r^{n+1}}{1 - r}$ for $r \neq 1$
+```
 
 ## Validation on save
 
@@ -186,7 +207,8 @@ Properties go in `wikantik-custom.properties` (in `tomcat/tomcat-11/lib/`).
 | `$$…$$` → ```` ```math ```` preprocessor | `wikantik-main/src/main/java/com/wikantik/markdown/extensions/math/DisplayMathPreProcessor.java` |
 | `$…$` inline parser | `wikantik-main/src/main/java/com/wikantik/markdown/extensions/math/InlineMathParser.java` |
 | Preprocessor tests | `wikantik-main/src/test/java/com/wikantik/markdown/extensions/math/DisplayMathPreProcessorTest.java` |
-| Frontend rendering pipeline | `wikantik-frontend/src/components/PageView.jsx` (uses `remark-math` + `rehype-katex`) |
+| Frontend rendering pipeline (article view) | `wikantik-frontend/src/components/PageView.jsx` calls `renderMath()` in `wikantik-frontend/src/utils/math.js` (direct `katex.render()` on server-rendered `.math-inline`/`.math-display` DOM elements) |
+| Frontend rendering pipeline (editor preview) | `wikantik-frontend/src/components/PageEditor.jsx` (uses `react-markdown` + `remark-math` + `rehype-katex` on raw Markdown source) |
 | Frontend dependencies | `wikantik-frontend/package.json` (`katex`, `remark-math`, `rehype-katex`) |
 
 ## Tips for authors

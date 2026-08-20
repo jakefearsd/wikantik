@@ -5,11 +5,13 @@
 > lighter path — incremental subsystem-factory extraction without an external
 > DI framework. All phases shipped; the design spec was retired once the work
 > landed, and the status now lives in
-> [`ProjectReference.md`](ProjectReference.md). The rules it established are
+> [ADR-0008](adr/0008-late-bound-service-registration.md) (service *storage*
+> moved to `EngineServiceRegistry`; `getManager`/`setManager` stay as thin
+> delegators; no Guice/DI framework adopted). The rules it established are
 > enforced mechanically by `DecompositionArchTest` (R-2 freezes new
 > `WikiEngine#getManager` callers, R-4 bans `getManager` outside the approved
 > wiring classes, R-5 stops `WikiEngine` re-accreting late-bound service
-> state — see [ADR-0008](adr/0008-late-bound-service-registration.md)).
+> state).
 > Treat the diagnosis below as accurate and the Guice prescription as a
 > considered alternative that was not taken.
 

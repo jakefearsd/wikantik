@@ -18,7 +18,11 @@ stream. The canonical record of what shipped is
 
 - **Enterprise hardening** — SSO (OIDC + SAML via pac4j), SCIM 2.0
   provisioning, the tamper-evident hash-chained audit log, off-box
-  backups, and a two-tier per-IP rate limiter.
+  backups, and a two-tier per-IP rate limiter. The 2.4.12–2.4.18
+  security-hardening wave added an SSRF egress guard on connector
+  fetches, `JDBCPlugin` disabled by default, viewer-dependent renders
+  excluded from the shared render caches, and the split `mcp_read` /
+  `mcp` API-key scopes.
 - **RAG-as-a-Service** — the wiki assembles a ranked, de-duplicated,
   version-pinned-cited *context bundle* rather than synthesizing an
   answer ([ADR-0001](docs/adr/0001-rag-returns-context-bundle-not-synthesized-answer.md)),
@@ -59,9 +63,13 @@ stream. The canonical record of what shipped is
 - **Knowledge Graph reviewer ergonomics.** Current admin surface works
   but is dense; planned work to surface evidence-side-by-side and
   bulk-action inverses.
-- **Auth modernisation.** OAuth/OIDC via pac4j shipped; next is
-  fine-grained scopes for MCP tokens (per-tool allowlists rather than
-  global bearer access).
+- **Auth modernisation.** OAuth/OIDC via pac4j shipped; a first cut at
+  fine-grained MCP scopes shipped in 2.4.18 (`mcp_read` vs `mcp`, splitting
+  read-only knowledge access from full admin). Next is a third,
+  intermediate `mcp_content` tier (page/KG read-write, no admin
+  capability) — deferred because it needs per-tool enforcement threaded
+  through the MCP session rather than a request-thread guard, since the
+  SDK dispatches tool calls off-thread.
 - **Observability dashboards.** Prometheus exporters exist and the
   container exposes `/metrics`, but monitoring itself now lives in the
   external **jakemon** stack (Grafana Alloy → Prometheus + Loki +

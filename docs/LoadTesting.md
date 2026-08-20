@@ -109,7 +109,7 @@ TPASS=$(grep test.user.password test.properties | cut -d= -f2)
 # Kick off a 220-second recording labeled for later attribution.
 curl -s -u testbot:"${TPASS}" -X POST http://docker1:8080/admin/profiling/jfr/start \
     -H 'Content-Type: application/json' \
-    -d '{"duration_s":220,"profile":"profile","label":"my-investigation"}' \
+    -d '{"duration_s":220,"label":"my-investigation"}' \
     | python3 -m json.tool
 
 # Run the load test inside the JFR window. 220 s covers a 3-min sustained heat
@@ -121,16 +121,20 @@ curl -s -u testbot:"${TPASS}" -X POST http://docker1:8080/admin/profiling/jfr/st
     -H 'Content-Type: application/json' \
     -d '{"recording_id":"<id-from-start-response>"}'
 
-# Pull the file out of the container and onto your laptop.
-ssh docker1 'docker cp repo-wikantik-1:/var/wikantik/profiling/wikantik-<label>.jfr /tmp/'
-scp docker1:/tmp/wikantik-<label>.jfr /tmp/jfr/
+# Download the recording straight over HTTP — GET /recordings/{id} streams
+# the .jfr as octet-stream, so no ssh/docker cp round-trip is needed.
+curl -s -u testbot:"${TPASS}" \
+    http://docker1:8080/admin/profiling/jfr/recordings/<id-from-start-response> \
+    -o /tmp/jfr/my-investigation.jfr
 
 # Now you can `jfr summary`, `jfr print --events …`, or open it in JMC.
-jfr summary /tmp/jfr/wikantik-<label>.jfr
+jfr summary /tmp/jfr/my-investigation.jfr
 ```
 
-JFR is ~5–10 % overhead at the `profile` setting. RPS will be slightly lower
-under JFR than not — note that when comparing to a non-JFR baseline.
+JFR uses JDK's built-in `default` configuration (~1 % CPU overhead) —
+`JfrProfilingService` hardcodes it; there is no `profile`-config toggle to
+request. RPS will still be slightly lower under JFR than not — note that
+when comparing to a non-JFR baseline.
 
 ### What to look for in the JFR
 

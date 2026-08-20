@@ -5,10 +5,11 @@
 The Lucene search index must be rebuilt when:
 
 1. **Frontmatter or content fields change** — The index includes `tags`,
-   `cluster`, `summary`, `canonical_id`, `type`, and `audience` from
-   YAML frontmatter. Pages indexed before any one of these fields was
-   added have no value in the index, so faceted/structural searches
-   won't find them. (Note: typed `relations:` frontmatter — `links_to`,
+   `cluster`, and `summary` from YAML frontmatter (see the field table
+   below — `canonical_id`, `type`, and `audience` are not Lucene fields;
+   they live in the structural spine index instead). Pages indexed before
+   any one of these fields was added have no value in the index, so
+   faceted/structural searches won't find them. (Note: typed `relations:` frontmatter — `links_to`,
    `mentions`, `part_of` — was retired 2026-05-02 in V023; if you have
    an old index with `relations` fields, a rebuild will drop them and
    that's intentional.)

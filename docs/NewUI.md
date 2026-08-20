@@ -41,8 +41,10 @@ SPA paths to `/index.html` so React Router can take over.
 `SpaRoutingFilter` matches two categories of path:
 
 - **Prefix routes** (anything under): `/wiki/`, `/edit/`, `/diff/`, `/admin/`
-- **Exact routes**: `/admin`, `/search`, `/page-graph`, `/knowledge-graph`,
-  `/preferences`, `/reset-password`, `/login`, `/me/mentions`
+- **Exact routes**: `/admin`, `/admin/insights` (redundant with the `/admin/`
+  prefix, listed explicitly in `SPA_EXACT` anyway), `/search`, `/page-graph`,
+  `/knowledge-graph`, `/preferences`, `/reset-password`, `/login`,
+  `/me/mentions`, `/change-password`
 
 The full route table from `main.jsx`:
 
@@ -60,6 +62,7 @@ The full route table from `main.jsx`:
 | `/me/mentions` | `MentionsPage` | @-mention inbox |
 | `/reset-password` | `ResetPasswordPage` | Password reset flow |
 | `/login` | `LoginPage` | Login (dual-registered in web.xml + SPA_EXACT) |
+| `/change-password` | `ChangePasswordPage` | Forced password change flow |
 | `/admin` (index) | `OverviewDashboard` | Admin overview |
 | `/admin/users` | `AdminUsersPage` | User management |
 | `/admin/content` | `AdminContentPage` | Content & index tools |
@@ -67,12 +70,17 @@ The full route table from `main.jsx`:
 | `/admin/knowledge-graph` | `AdminKnowledgePage` | KG curation |
 | `/admin/apikeys` | `AdminApiKeysPage` | API key management |
 | `/admin/retrieval-quality` | `AdminRetrievalQualityPage` | Retrieval experiment harness |
+| `/admin/drift` | `AdminDriftPage` | Vocabulary/SHACL drift burn-down dashboard |
+| `/admin/insights` | `InsightsPanel` | Search-visibility / content-intelligence panel |
 | `/admin/kg-policy` | `AdminKgPolicyPage` | KG inclusion policy rules |
 | `/admin/kg-policy/explain` | `AdminKgPolicyExplain` | Per-page policy explanation |
 | `/admin/kg-policy/pending` | `AdminKgPolicyPending` | Pages with pending review |
 | `/admin/kg-policy/bootstrap` | `AdminKgPolicyBootstrap` | Bulk bootstrap tooling |
 | `/admin/page-ownership` | `AdminPageOwnershipPage` | Page-owner assignment |
 | `/admin/audit` | `AdminAuditPage` | Tamper-evident audit log; rows are clickable and open a record-detail modal |
+| `/admin/connectors` | `AdminConnectorsPage` | Connector list + detail (settings/authorization/runs/pages tabs) |
+| `/admin/connectors/new` | `AddConnectorWizard` | Guided add-connector wizard |
+| `/admin/connectors/:id` | `ConnectorDetailPage` | Single connector detail |
 
 All `/admin/*` routes are nested under `AdminLayout` (lazy-loaded) and guarded
 server-side by `AdminAuthFilter` (requires `AllPermission`).
@@ -82,7 +90,7 @@ admin routes use `app-content-wide`; wiki article routes use the narrow reading
 column.
 
 The REST API lives under `/api/` and admin endpoints under `/admin/`. Two MCP
-servers — `/wikantik-admin-mcp` (27 write/analytics tools) and `/knowledge-mcp`
+servers — `/wikantik-admin-mcp` (29 write/analytics tools) and `/knowledge-mcp`
 (21 read-only retrieval + KG tools) — plus the OpenAPI tool server at `/tools/*`
 are all serviced by separate backend modules and are not part of the SPA.
 
@@ -202,8 +210,9 @@ by `DefaultKnowledgeGraphService` in `wikantik-knowledge`.
 ## Design System
 
 The CSS design system is intentionally minimal and framework-free. Tokens live
-in `src/styles/globals.css` and drive light and dark themes. The full `:root`
-block (light theme):
+in `src/styles/globals.css` and drive light and dark themes. The key tokens
+from the `:root` block (light theme; spacing, transition, and radius tokens
+omitted for brevity):
 
 ```css
 :root {
@@ -304,11 +313,14 @@ Links are grouped into four sections:
 **Content**
 - Content & Index (`/admin/content`)
 - Page Ownership (`/admin/page-ownership`) — see [docs/PageOwnership.md](PageOwnership.md)
+- Connectors (`/admin/connectors`)
 
 **Knowledge & Search**
-- Knowledge Graph (`/admin/knowledge-graph`)
+- Knowledge Graph (`/admin/knowledge-graph`) — shown only when the `knowledgeGraph` capability is on
 - KG Policy (`/admin/kg-policy`) — see [docs/KgInclusionPolicy.md](KgInclusionPolicy.md)
 - Retrieval Quality (`/admin/retrieval-quality`) — see [docs/RetrievalQuality.md](RetrievalQuality.md)
+- Drift (`/admin/drift`) — vocabulary/SHACL drift burn-down dashboard
+- Search Visibility (`/admin/insights`)
 
 **Observability**
 - Audit (`/admin/audit`) — see [docs/AuditLog.md](AuditLog.md)
@@ -357,29 +369,33 @@ A set of reusable primitives used across both the reader and admin panel:
 | `Badge.jsx` | Inline status/label badge |
 | `Card.jsx` | Content card container |
 | `Chip.jsx` | Removable filter chip |
+| `Combobox.jsx` | Searchable select with typeahead |
 | `EmptyState.jsx` | Zero-results placeholder with icon |
 | `Icon.jsx` | Icon wrapper |
 | `Modal.jsx` | Accessible modal dialog |
+| `Select.jsx` | Styled native-select wrapper |
 | `Skeleton.jsx` | Loading skeleton placeholder |
 | `Spinner.jsx` | Loading spinner |
+| `Tabs.jsx` | Tab bar |
+| `TagInput.jsx` | Freeform multi-tag input |
 | `ToastProvider.jsx` | Toast context + renderer (used by `useToast`) |
 
 ## Hooks (`src/hooks/`)
 
-~16 custom hooks (each paired with a `.test` file). Grouped by concern:
+~21 custom hooks (each paired with a `.test` file). Grouped by concern:
 
-- **Auth & session**: `useAuth.jsx` (login state, current user via `AuthProvider` context)
+- **Auth & session**: `useAuth.jsx` (login state, current user via `AuthProvider` context), `useCapabilities.jsx` (server-advertised feature flags, e.g. `knowledgeGraph`)
 - **Theme**: `useDarkMode.js` (toggle + localStorage persistence)
 - **API / data fetching**: `useApi.js` (fetch + auth header plumbing), `useAttachments.js`, `useMyPages.js`
-- **Editor**: `useEditorDrop.js` (drag-and-drop into editor), `useDraft.js` / `useDrafts.js` (auto-save draft management)
+- **Editor**: `useEditorDrop.js` (drag-and-drop into editor), `useDraft.js` / `useDrafts.js` (auto-save draft management), `useFrontmatterValidation.js` (debounced live frontmatter validation)
 - **Comments / mentions**: `useMentionPicker.js` (debounced `@`-mention autocomplete with caret tracking), `useUnreadMentions.js`
-- **Navigation / UX**: `useGlobalHotkeys.js` (Cmd+K search trigger), `useScrollSpy.js` (ToC active heading), `useScrollLock.js` (modal body lock), `useFocusTrap.js` (modal focus management), `useDocumentTitle.js`
+- **Navigation / UX**: `useGlobalHotkeys.js` (Cmd+K search trigger), `useScrollSpy.js` (ToC active heading), `useScrollLock.js` (modal body lock), `useFocusTrap.js` (modal focus management), `useDocumentTitle.js`, `usePageTrail.js` (per-tab reader breadcrumb trail)
 - **History**: `useRecentSearches.js`, `useRecentlyViewed.js`
 - **Toast**: `useToast.js` (consumes `ToastProvider` context)
 
 ## Utils (`src/utils/`)
 
-~22 utility modules (each paired with a `.test` file). Grouped by concern:
+~21 utility modules (each paired with a `.test` file). Grouped by concern:
 
 - **Markdown / rendering**: `remarkAttachments.js` (custom remark plugin for attachment links), `math.js` (LaTeX helpers), `rehypeSourceLine.js`, `headingAnchors.js`, `headings.js`, `codeCopy.js`, `highlight.js`, `markdownFormat.js`
 - **Page / URL**: `pageUrl.js`, `slugUtils.js`, `frontmatterUtils.js`, `readingTime.js`

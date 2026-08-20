@@ -1,7 +1,7 @@
 # Where content agents should focus
 
 **Audience:** `wiki-content-agent` and any agent doing content or SEO work on this wiki.
-**Status:** current as of 2026-08-16, derived from measured production data.
+**Status:** current as of 2026-08-20; measurements dated 2026-08-16, derived from production data.
 **Source of truth for the mechanism:** [Content Intelligence design](../superpowers/specs/2026-08-16-content-intelligence-design.md).
 
 This document says what to work on and — more importantly — what *not* to. It exists because
@@ -83,6 +83,13 @@ most expensive mistake available.
 jakemon's `content_gap` detector scores uplift as `impressions × expected_ctr(3)` — it assumes a
 page could reach position 3. Applied to 993 Google impressions at position 61, that produced a
 confident "25.7 clicks available" that is almost entirely fictional. Trust the position first.
+
+**Check which CTR curve priced the number (added 2.4.10).** `list_content_opportunities` and
+`GET /admin/insights/backlog` both report `ctrCurveSource`: `imported:<as_of>` means jakemon's
+measured 1–10 curve priced `ENGINE_DIVERGENCE`, `builtin` means no shipment has arrived or the
+latest has gone stale and the built-in fallback curve was used. A `builtin` reading is not wrong,
+but it is *guessed* — weigh those priorities accordingly rather than inferring a problem from the
+numbers merely looking different.
 
 ### Do not trust `indexed_pages` from the visibility pipeline
 

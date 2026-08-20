@@ -2,11 +2,15 @@
 
 > **Status: Historical analysis (2025).** This document was an
 > architectural review identifying GoF refactoring opportunities. Some
-> of the suggested patterns have since been applied (the WikiEngine
-> decomposition and SearchSubsystem extraction are documented in
-> `docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md`)
-> and others have not. Treat this as a snapshot of the design surface at
-> the time of review, not a current roadmap.
+> of the suggested patterns have since been applied — the WikiEngine
+> decomposition (Phases 0-12, concluded 2026-05-14) and SearchSubsystem
+> extraction (`com.wikantik.search.subsystem.SearchSubsystemFactory`)
+> shipped; the original design spec was purged from the repo once the
+> work landed (this project's convention for completed specs), and the
+> resulting architecture is now documented in
+> [ADR-0008](adr/0008-late-bound-service-registration.md) — and others
+> have not. Treat this as a snapshot of the design surface at the time
+> of review, not a current roadmap.
 
 This document outlines practical refactoring opportunities to apply well-known Gang of Four design patterns to improve the Wikantik codebase architecture.
 

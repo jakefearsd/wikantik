@@ -220,7 +220,7 @@ cluster policy yet. The bypass applies to:
 - REST `/admin/knowledge-graph/*` reads (already gated by `AdminAuthFilter`).
 - The MCP tools registered on `/wikantik-admin-mcp` — `list_proposals`,
   `inspect_proposals`, and the admin-bypass copies of `query_nodes`
-  and `search_knowledge` (27 tools total).
+  and `search_knowledge` (29 tools total).
 
 The agent-facing `/knowledge-mcp` server keeps the filter on, so retrieval
 quality is unchanged. See

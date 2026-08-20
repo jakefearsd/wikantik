@@ -22,11 +22,12 @@ What ends up where:
   - `bin/db/migrate.sh` — apply pending schema migrations (rerun every
     deploy)
   - `bin/db/create-migrate-user.sh` — provision the dedicated `migrate`
-    role and grant it the privileges migrations need. **Not optional** if
-    you deploy with `bin/deploy-local.sh` or `bin/redeploy.sh`: both run
-    `migrate.sh` as `PGUSER=migrate`, so an unprovisioned/under-privileged
-    `migrate` role makes the deploy abort mid-migration. See
-    [The `migrate` role](#the-migrate-role-required-for-redeploysh-recommended-for-deploy-localsh).
+    role and grant it the privileges migrations need. **Optional locally**:
+    `bin/deploy-local.sh` and `bin/redeploy.sh` both run `migrate.sh` as the
+    app role (`PGUSER=${POSTGRES_USER}` from `.env`, default `wikantik`),
+    falling back to `PGUSER=postgres` — neither hardcodes `PGUSER=migrate`.
+    The dedicated role matters for the least-privilege production workflow.
+    See [The `migrate` role](#the-migrate-role-optional-for-local-dev-used-by-the-production-workflow).
 - **Configuration templates** in `wikantik-war/src/main/config/tomcat/`
   (git-tracked) are materialised into your Tomcat instance the first time
   `bin/deploy-local.sh` runs and are **write-once — never overwritten
@@ -114,7 +115,7 @@ sudo -u postgres DB_NAME=wikantik DB_APP_USER=wikantik \
     bin/db/install-fresh.sh --no-migrate-role
 ```
 
-This applies every `V*.sql` in `bin/db/migrations/` (currently V001–V049) —
+This applies every `V*.sql` in `bin/db/migrations/` (currently V001–V057) —
 the full relational schema: users/roles/groups, `policy_grants`, the
 Knowledge Graph tables (`kg_*`) and the `vector` extension, the Ollama-backed
 embedding stack (`kg_content_chunks`, `content_chunk_embeddings`,
@@ -268,18 +269,17 @@ See [ProductionDBWorkflow.md](ProductionDBWorkflow.md) for the
 end-state plan that introduces the dedicated `migrate` role and
 extension-pre-install separation.
 
-### The `migrate` role (required for `redeploy.sh`; recommended for `deploy-local.sh`)
+### The `migrate` role (optional for local dev; used by the production workflow)
 
-`bin/redeploy.sh` invokes `migrate.sh` with **`PGUSER=migrate`** (hardcoded), so
-a properly provisioned `migrate` role is required for fast redeployments or the
-deploy aborts mid-migration and Tomcat never starts.
-
-`bin/deploy-local.sh` is more lenient: it calls `migrate.sh` with no explicit
-`PGUSER` on the first attempt (whatever the environment provides — typically the
-`migrate` role if `.pgpass` is configured), and falls back to `PGUSER=postgres`
-if that fails. This means `deploy-local.sh` usually works even without a
-provisioned `migrate` role, but provisioning it is still recommended for a
-consistent setup. The role is created and granted by `bin/db/create-migrate-user.sh`, which
+Neither `bin/redeploy.sh` nor `bin/deploy-local.sh` requires the `migrate` role
+locally. Both source `.env` and run `migrate.sh` as the **app role**
+(`PGUSER=${POSTGRES_USER}`, default `wikantik`), falling back to `PGUSER=postgres`
+if that fails — their own comments note there is no separate `migrate` role in
+the local setup. Provisioning `migrate` is still worthwhile if you want to
+exercise the same least-privilege path used in production — see
+[ProductionDBWorkflow.md](ProductionDBWorkflow.md) — by invoking
+`bin/db/migrate.sh` by hand, where `PGUSER=migrate` is the default. The role is
+created and granted by `bin/db/create-migrate-user.sh`, which
 `install-fresh.sh` runs automatically **when `DB_MIGRATE_PASSWORD` is set**:
 
 ```bash
@@ -391,7 +391,7 @@ how to recreate the user after a database reset.
 | Login fails with correct password | Wrong password hash format in `users` table | Recreate the user with `CryptoUtil --hash` (see CLAUDE.md) |
 | WAR file not found | `mvn clean install` not run yet | Build first |
 | Migration fails midway | Idempotent retry usually safe — re-run `bin/db/migrate.sh` | Inspect the specific `V*.sql` file's error before retrying destructive changes |
-| `permission denied to create role` on V031 (deploy aborts, Tomcat not started) | The `migrate` role lacks `CREATEROLE` | Provision it: `sudo -u postgres … bin/db/create-migrate-user.sh` (grants `CREATEROLE`). See [The `migrate` role](#the-migrate-role-required-for-redeploysh-recommended-for-deploy-localsh). |
+| `permission denied to create role` on V031 (deploy aborts, Tomcat not started) | The role running `migrate.sh` (`migrate`, or the app role on a local deploy) lacks `CREATEROLE` | Provision the `migrate` role: `sudo -u postgres … bin/db/create-migrate-user.sh` (grants `CREATEROLE`). See [The `migrate` role](#the-migrate-role-optional-for-local-dev-used-by-the-production-workflow). |
 | `must have admin option on role "pg_monitor"` on V031 | `migrate` not a `pg_monitor` admin | Same provisioning step (grants `pg_monitor WITH ADMIN OPTION`) |
 | `permission denied for table schema_migrations` after a migration's DDL ran | `migrate` can't write the ledger (table owned by `postgres`, no grant) | Run `create-migrate-user.sh` (its ownership transfer covers `schema_migrations`), or `GRANT INSERT,SELECT,UPDATE,DELETE ON schema_migrations TO migrate;` as superuser |
 | `slug 'X' is already claimed by canonical_id …` (WARN, repeated at boot) | `page_canonical_ids` rows drifted from frontmatter (handled gracefully) | Delete the stale rows so the rebuild re-inserts correct IDs — see `bin/db/one-shots/reconcile_page_canonical_ids.sh` for the pattern |

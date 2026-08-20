@@ -65,7 +65,7 @@
       { "@type": "Question", "name": "Can I query the wiki with SPARQL?",
         "acceptedAnswer": { "@type": "Answer", "text": "Yes. A public, read-only SPARQL endpoint at /sparql accepts SELECT, ASK, and CONSTRUCT queries (updates are rejected, with a result cap and timeout). Individual resources dereference at /id/{type}/{id} as JSON-LD or Turtle, and full dumps are available at /export/ontology.ttl and /export/graph.nt. A public/restricted ACL split guarantees that pages and entities which aren't anonymously viewable never materialise in the public dataset." } },
       { "@type": "Question", "name": "How is the ontology kept correct as humans and AI agents both edit it?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Every curation surface — the structured editor, the page Knowledge tab, the admin panel, and the MCP tools used by AI agents — reads the same server-authoritative schema and passes through the same write-time SHACL gate, provenance stamping, and tamper-evident audit log. A structurally invalid relation is refused at write time. A corpus-wide drift dashboard tracks remaining inconsistencies so they can be burned down to zero." } }
+        "acceptedAnswer": { "@type": "Answer", "text": "Every curation surface — the structured editor, the page Knowledge tab, the admin panel, and the MCP tools used by AI agents — reads the same server-authoritative schema and passes through the same write-time SHACL gate, provenance stamping, and tamper-evident audit log. A relation that violates a SHACL shape is refused at write time, and shape coverage is extended predicate by predicate. A corpus-wide drift dashboard tracks remaining inconsistencies so they can be burned down to zero." } }
     ] }
   </script>
 </head>
@@ -125,7 +125,7 @@
           <p>Most "AI wiki" tools bolt a chatbot onto a document store. Wikantik makes the model itself a <em>shared, governed</em> artifact that humans and agents build together without it drifting between a human convention and an agent's guesses:</p>
           <ul>
             <li><strong>One schema.</strong> The structured frontmatter editor, the page Knowledge tab, the admin panel, and the MCP tools an agent calls all read the <em>same</em> server-authoritative schema and return the same suggestion-bearing validation messages — so an agent self-corrects exactly like a person does.</li>
-            <li><strong>A write-time SHACL gate.</strong> Structurally invalid relations are refused at write time, citing the violated shape — there is no path, human or machine, that bypasses it.</li>
+            <li><strong>A write-time SHACL gate.</strong> Where a predicate carries a shape, a violating relation is refused at write time citing the violated shape — and there is no path, human or machine, that bypasses it. Shape coverage is deliberately incremental: constraints are added predicate by predicate as their semantics are pinned down, so the gate grows stricter over time rather than blocking curation on day one.</li>
             <li><strong>Provenance &amp; audit.</strong> Every entity and edge carries provenance (human-authored, human-curated, AI-inferred, AI-reviewed), and administrative changes land in a tamper-evident, hash-chained audit log.</li>
             <li><strong>A drift burn-down dashboard.</strong> A corpus-wide sweep counts every remaining metadata warning and SHACL non-conformance, with trends and per-item drill-downs — so inconsistency is <em>measurable</em> and can be driven to zero.</li>
           </ul>
@@ -148,7 +148,7 @@
             </details>
             <details>
               <summary>How is the ontology kept correct as humans and AI agents both edit it?</summary>
-              <p>Every curation surface reads the same schema and passes through the same write-time SHACL gate, provenance stamping, and audit log; invalid relations are refused at write time. A corpus-wide drift dashboard tracks any remaining inconsistencies so they can be burned down to zero.</p>
+              <p>Every curation surface reads the same schema and passes through the same write-time SHACL gate, provenance stamping, and audit log; a relation that violates a shape is refused at write time. Shape coverage is added predicate by predicate, so the gate tightens as the model firms up. A corpus-wide drift dashboard tracks any remaining inconsistencies so they can be burned down to zero.</p>
             </details>
           </section>
         </div>

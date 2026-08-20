@@ -1,6 +1,14 @@
 # **Evolutionary Architectures for Personal Knowledge Management: Integrating Semantic Web Ontologies and Agentic AI through the Model Context Protocol**
 
-> **Note:** This document captures aspirational research on semantic wiki capabilities. Some concepts described here (frontmatter metadata, content clusters, MCP integration) have been partially implemented. Others (RDF triplestores, SPARQL endpoints) remain future possibilities.
+> **Note (status refreshed 2026-08-20):** This document captures the original aspirational
+> research that motivated Wikantik's semantic layer. It is kept as a vision/rationale record,
+> not as a description of current behavior. Most of what it anticipates has since shipped:
+> frontmatter metadata, content clusters and MCP integration are in production, and the
+> RDF triplestore and SPARQL endpoint are no longer "future possibilities" — the
+> `wikantik-ontology` module runs an Apache Jena TDB2 store over the `wikantik:` T-Box
+> (`wikantik-ontology/src/main/resources/ontology/wikantik.ttl`) with SHACL shapes, and the
+> public read-only surface is live at `/sparql`, `/id/{type}/{id}` and `/export/*`.
+> See `docs/OntologyManagement.md` and ADR-0006 for the shipped design.
 
 ## **The Paradigm Shift in Cognitive Externalization**
 

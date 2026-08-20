@@ -33,7 +33,7 @@ sudo systemctl enable --now postgresql
 
 `bin/db/install-fresh.sh` creates the `wikantik` database, the `wikantik` application
 role, installs the `pgvector` extension, and runs every migration in
-`bin/db/migrations/` (V001 through V049 as of this writing). Idempotent — safe to
+`bin/db/migrations/` (V001 through V057 as of this writing). Idempotent — safe to
 re-run against an already-bootstrapped database.
 
 ```bash
@@ -168,7 +168,7 @@ Tomcat download and JDBC driver download automatically.
 ## 3. Manual Schema Reference (legacy / advanced)
 
 > **SUPERSEDED for normal use.** The supported path is `bin/db/install-fresh.sh`
-> which runs all migrations (V001 through V049). Use the manual SQL below only for
+> which runs all migrations (V001 through V057). Use the manual SQL below only for
 > external review, adapting to a different RDBMS, or understanding what the schema
 > contains. **Never apply this DDL directly to a Wikantik database** — use
 > `bin/db/install-fresh.sh` so the `schema_migrations` ledger stays in sync.
@@ -378,10 +378,9 @@ full set of DataSource entries used by the application.
 Key properties (excerpt from the template):
 
 ```properties
-# Enable JDBC User Database (instead of default XML)
-wikantik.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
-
-# Enable JDBC Group Database (instead of default XML)
+# Use PostgreSQL JDBC databases for user and group storage (the default —
+# there is no XML user/group store to opt out of; Wikantik is PostgreSQL-only)
+wikantik.userdatabase  = com.wikantik.auth.user.JDBCUserDatabase
 wikantik.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 
 # JNDI DataSource Name — must match the Resource name in ROOT.xml

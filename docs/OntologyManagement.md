@@ -327,10 +327,14 @@ end-to-end loop to clear them — the same one used to take the corpus to zero.
    correction, **not** a versioned migration). Each surface keeps the SHACL gate,
    provenance, and audit log in force for *future* writes.
 
-4. **Re-project.** KG entity/edge edits emit **no incremental ontology events**, so
-   the materialized model stays stale until you rebuild it:
+4. **Re-project.** KG entity/edge edits fire a `KgChangeEvent`, which
+   `OntologyEntitySync` picks up and re-projects (coalesced, async — typically
+   settling within `wikantik.ontology.incremental.coalesce.ms`, default 500ms),
+   so most curation fixes reach the materialized model without a manual step.
+   If you want to force it (or the incremental sync is disabled via
+   `wikantik.ontology.incremental.enabled=false`), rebuild explicitly:
    `POST /admin/ontology/rebuild` (or wait for the nightly reconcile). A
-   drift sweep fires automatically once the rebuild completes.
+   drift sweep fires automatically once a rebuild completes.
 
 5. **Re-sweep & confirm.** If you didn't trigger a rebuild, run
    `POST /admin/drift/sweep` and confirm the `shacl` count dropped to zero.

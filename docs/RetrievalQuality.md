@@ -71,13 +71,16 @@ the next pair.
 
 ## Retrieval modes
 
-Three modes are evaluated, matching `com.wikantik.api.eval.RetrievalMode`:
+Four modes are evaluated (the nightly runner iterates
+`com.wikantik.api.eval.RetrievalMode.values()`), though the two graph-rerank
+variants are retired and both now run as `hybrid` in practice:
 
 | Wire name | Description |
 |-----------|-------------|
 | `bm25` | BM25 full-text only (Lucene). |
-| `hybrid` | BM25 + dense (vector) fusion. |
-| `hybrid_graph` | **RETIRED** — was hybrid + KG graph-proximity rerank. The rerank was deleted in 2026-07 after measuring zero lift (`eval/kg-spike/A1-findings.md`); the label is kept so historical rows parse, and a fresh run of this mode degrades to `hybrid`. |
+| `hybrid` | BM25 + dense (vector) fusion. The production default. |
+| `hybrid_graph` | **RETIRED** — was hybrid + KG entity-co-mention graph rerank. The rerank was deleted in 2026-07 after measuring zero lift even with a Claude-quality knowledge graph (`eval/kg-spike/A1-findings.md`); the label survives only so historical `retrieval_runs.mode` rows still parse, and a fresh run of this mode degrades to `hybrid`. |
+| `hybrid_graph_weighted` | **RETIRED** — was `hybrid_graph` weighting graph traversal by per-edge tier and per-mention confidence. Retained for wire compatibility on the same terms as `hybrid_graph`; also degrades to `hybrid`. |
 
 Each mode is run independently per query set. Dashboard cells are bucketed by
 `(query_set_id, mode)`.
@@ -147,7 +150,7 @@ run_id        BIGSERIAL    PRIMARY KEY
 query_set_id  VARCHAR(64)  NOT NULL REFERENCES retrieval_query_sets(id)
 started_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 finished_at   TIMESTAMPTZ
-mode          VARCHAR(32)  NOT NULL    -- 'bm25' | 'hybrid' | 'hybrid_graph' (retired)
+mode          VARCHAR(32)  NOT NULL    -- 'bm25' | 'hybrid' | 'hybrid_graph' (retired) | 'hybrid_graph_weighted' (retired)
 ndcg_at_5     NUMERIC(5,4)
 ndcg_at_10    NUMERIC(5,4)
 recall_at_20  NUMERIC(5,4)

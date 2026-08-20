@@ -40,6 +40,15 @@ CREATE TABLE IF NOT EXISTS api_keys (
 );
 ```
 
+> **Known gap:** as of 2.4.18 this table's `api_keys_scope_chk` CHECK
+> constraint (from `V010__api_keys.sql`, unchanged since) does **not** list
+> the newer `mcp_read` scope value — only `ApiKeyService.Scope` was extended.
+> No later migration widens the constraint. Minting an `mcp_read` key against
+> a real PostgreSQL-backed deployment fails the INSERT at the database layer;
+> unit tests don't catch this because they don't run against the constrained
+> schema. This is a code/migration gap, not a documentation one — flagged
+> here, not worked around.
+
 ## Admin UI
 
 Navigate to **Admin → API Keys** (`/admin/apikeys` in the React SPA). The page
@@ -54,7 +63,7 @@ Click **+ Generate Key**. A modal prompts for:
 |---|---|---|
 | Principal (login) | Yes | The Wikantik login name the key runs as. Tool calls inherit this identity — page ACLs and JAAS permissions apply exactly as they would for an interactive session. The principal must exist in the user database; unknown logins are rejected with HTTP 400. |
 | Label | No | Free-form note identifying where the key is used (e.g. "OpenWebUI production"). |
-| Scope | Yes | `tools` (OpenAPI only), `mcp` (MCP endpoints only), or `all` (both). |
+| Scope | Yes | `tools` (OpenAPI `/tools/*` only), `mcp_read` (read-only, `/knowledge-mcp` only), `mcp` (full admin — covers both MCP endpoints), or `all` (everything). See [Scope enforcement](#scope-enforcement) for the hierarchy. |
 
 After clicking **Generate**, a second modal displays the **plaintext token**
 once. Copy it now — after closing this dialog only the 12-character fingerprint
@@ -79,14 +88,25 @@ under category `ADMIN`, event type `apikey.issue`.
 
 ## Scope enforcement
 
-Each key is scoped at creation time. The access filter on each endpoint enforces
-the scope:
+Each key is scoped at creation time. `ApiKeyService.Scope` is
+`MCP_READ` / `MCP` / `TOOLS` / `ALL` (wire values `mcp_read` / `mcp` / `tools` /
+`all`). The **MCP family is a rank hierarchy** — `MCP_READ ⊂ MCP` — so a
+higher-privilege key satisfies a lower-privilege requirement, but not the
+reverse: a `mcp` (or `all`) key can call `/knowledge-mcp` too, but an
+`mcp_read` key cannot reach `/wikantik-admin-mcp`. `TOOLS` is orthogonal to
+the MCP family (matches only itself); `ALL` covers everything.
 
-| Endpoint | Required scope |
-|---|---|
-| `/wikantik-admin-mcp` | `mcp` or `all` |
-| `/knowledge-mcp` | `mcp` or `all` |
-| `/tools/*` | `tools` or `all` |
+| Endpoint | Required scope | Keys that satisfy it |
+|---|---|---|
+| `/wikantik-admin-mcp` | `mcp` | `mcp`, `all` |
+| `/knowledge-mcp` | `mcp_read` | `mcp_read`, `mcp`, `all` |
+| `/tools/*` | `tools` | `tools`, `all` |
+
+`mcp` is the historical, pre-2.4.18 broad-admin scope — its wire value stays
+`"mcp"` so keys minted before the `mcp_read`/`mcp` split remain full-admin
+with no migration needed. `mcp_read` was added in **2.4.18** as a narrower,
+read-only scope confined to `/knowledge-mcp`, for integrations that should
+never reach the 29-tool admin write surface.
 
 A key with the wrong scope for the endpoint receives HTTP 403 "Key not
 authorized for MCP" (or the tools-equivalent). The `/api/*` REST surface uses
@@ -278,7 +298,10 @@ active keys are returned, so there is no `revokedAt`/`revokedBy`/`active` field
 to show).
 
 **`POST /api/self/apikeys`** — generate a key. Body: `{"label": "...", "scope":
-"tools"}` (`scope` is one of `mcp`, `tools`, `all`; omitted defaults to `all`).
+"tools"}` (`scope` is one of `mcp_read`, `mcp`, `tools`, `all`; omitted defaults
+to `all`). Note the API's own 400 error text still reads "must be one of mcp,
+tools, all" — it predates the `mcp_read` scope and hasn't been updated, but
+`mcp_read` is accepted by `ApiKeyService.Scope.fromWire` regardless.
 Response (`201`) includes the transient `token` field, shown exactly once:
 
 ```json
@@ -320,8 +343,10 @@ the user first via the admin UI or SCIM (see [ScimProvisioning.md](ScimProvision
 
 **Endpoint returns 403 "Key not authorized for MCP"**
 
-The key's scope (`tools`) does not cover the MCP endpoint. Generate a new key
-with scope `mcp` or `all`.
+The key's scope does not cover the MCP endpoint you called. For
+`/wikantik-admin-mcp` you need scope `mcp` or `all` — `mcp_read` is not
+enough. For `/knowledge-mcp`, `mcp_read`, `mcp`, or `all` all work. Generate
+a new key with a covering scope (see [Scope enforcement](#scope-enforcement)).
 
 **Token stops working after revocation**
 

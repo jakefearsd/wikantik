@@ -82,9 +82,8 @@ structural spine.
 
 | Key | Type | What it is |
 |---|---|---|
-| `cluster` | text (kebab slug) | The article's primary topical cluster. Drives hub membership, faceted navigation, the SKOS topic hierarchy, and the cluster-primary Knowledge-Graph inclusion default. Sub-clusters use `parent/sub` (→ `skos:broader`). Non-kebab values warn. |
+| `cluster` | text (kebab slug) — scalar or list | The article's topical cluster(s). Drives hub membership, faceted navigation, the SKOS topic hierarchy, and the cluster-primary Knowledge-Graph inclusion default. Sub-clusters use `parent/sub` (→ `skos:broader`), one level only. On a **non-hub** page this may be a single value or a YAML list (multi-membership; `ClusterPath.memberships()` resolves scalar-or-list uniformly) — the first entry is the *primary* used for placement (breadcrumbs, embedding prefix, `articleSection`). A **hub** page (`type: hub`) must keep `cluster` scalar; a list-valued hub is a save-time `MULTI_CLUSTER_HUB` **error**. Non-kebab values warn. |
 | `tags` | list | Free tags. Each becomes a `skos:Concept` the page links via `dct:subject`, and a Lucene facet. Non-kebab tags warn. |
-| `hubs` | list | Hub pages this article belongs to (structural-spine hub membership). |
 | `related` | list of page names | Curated "see also" links surfaced in the reader and the structural spine. |
 
 > **Removed — `relations:`.** The typed `relations:` frontmatter field (and its
@@ -92,6 +91,13 @@ structural spine.
 > strictly real wikilinks; curated typed edges between concepts live in the
 > **Knowledge Graph** as admin-approved edges, not in frontmatter. See
 > [StructuralSpineDesign.md](wikantik-pages/StructuralSpineDesign.md).
+
+> **Removed — `hubs:`.** The `hubs:` list field (structural-spine hub
+> membership, ~473 pages at retirement) and `HubSyncFilter` were **removed** by
+> [ClusterDeclarationDesign](wikantik-pages/ClusterDeclarationDesign.md) — it is
+> absent from `FrontmatterSchema` today. A hub's membership is now declared by
+> the *member* page's own `cluster:` value (scalar-or-list, above); a hub's
+> `hasPart` is derived from real membership rather than curated separately.
 
 ### Knowledge Graph
 
@@ -114,7 +120,7 @@ structural spine.
 
 | Key | Type | What it is |
 |---|---|---|
-| `image` | text (path/URL) | Per-page `og:image` / `twitter:image`. Falls back to a bundled default when unset. Read by `SemanticHeadRenderer`. |
+| `image` | text (path/URL) | Per-page `og:image` / `twitter:image`. Falls back to a bundled default when unset. Read by `PageSeoModel` (invoked from `SemanticHeadRenderer`). **Not in `FrontmatterSchema`** — unlike the other fields on this page, it isn't rendered as a structured-editor control; author it via the Raw-YAML tab. |
 
 `type`, `summary`, and `canonical_id` also feed SEO automatically (see
 [ties into other features](#how-frontmatter-ties-into-the-rest-of-the-platform))
@@ -283,9 +289,9 @@ This is the payoff — the same block feeds every layer:
 - **Search & navigation.** `tags`, `cluster`, `summary`, and `type` are indexed in
   Lucene for full-text and **faceted** search and for the structural-spine
   navigation tools (`list_clusters`, `list_tags`, `list_pages_by_filter`).
-- **Page Graph / structural spine.** `cluster`, `hubs`, `related`, and
-  `canonical_id` build the machine-queryable structural index mirrored at
-  `/api/structure/*` and the `knowledge-mcp` navigation tools.
+- **Page Graph / structural spine.** `cluster`, `related`, and `canonical_id`
+  build the machine-queryable structural index mirrored at `/api/structure/*`
+  and the `knowledge-mcp` navigation tools.
 - **Ontology (RDF/OWL).** `type` → the `wk:` content class; `cluster` and each
   `tag` → `skos:Concept`s linked via `dct:subject` (`parent/sub` → `skos:broader`);
   `canonical_id` → the dereferenceable IRI `/id/page/{canonical_id}`. All

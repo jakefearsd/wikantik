@@ -26,6 +26,13 @@ The production Docker environment runs four services defined in `docker-compose.
 - `pgdata`: Named volume holding the PostgreSQL cluster.
 - **Pages + attachments**: Host bind-mount from `WIKANTIK_PAGES_DIR` (e.g. `/srv/wikantik/pages`) — not a named volume; `rsync` is the source of truth for content, independent of container lifecycle.
 - `wikantik-work` & `wikantik-logs`: Named volumes holding the Lucene index and logs. Regeneratable, not backed up.
+  `wikantik-work` also holds the ontology TDB2 store (`${wikantik.workDir}/ontology-tdb2`), which grows
+  unboundedly — copy-on-write B+Trees never shrink on their own, so continuous nightly rebuild +
+  per-save incremental sync only ever adds (measured ~1.35 GB/day in production; it once reached
+  94.6 GB before being cleared). A weekly compaction pass (`wikantik.ontology.compaction.interval.hours`,
+  default 168) reclaims space without a full rebuild. The directory is always safe to delete —
+  `OntologyWiringHelper` calls `coordinator.rebuildIfEmpty()` on every startup, so a missing/empty
+  store self-heals automatically on next boot.
 - `wikantik-profiling`: Named volume (prod overlay) holding JFR profiling recordings at `/var/wikantik/profiling`. Non-critical, not backed up.
 
 **Rollback:**
@@ -366,7 +373,7 @@ The `bin/` directory contains a number of operational tools beyond the main depl
 | `bin/deploy-marketing.sh [--dry-run]` | Publish the static marketing site (`marketing/`) to the nginx docroot on the `cloudflare` host. Prompts for sudo password interactively. | Requires manual confirmation for the privileged copy step. |
 | `bin/db/audit-retention.sh [--status\|--dry-run]` | Enforce `audit_log` retention: pre-create upcoming monthly partitions; archive-then-drop partitions older than `AUDIT_RETENTION_MONTHS` (default 84 = 7 years). | `--dry-run` touches nothing. The drop phase requires `AUDIT_ARCHIVE_DIR` to be set. |
 | `bin/db/audit-retention-install-timer.sh` | Install and enable the `wikantik-audit-retention.timer` systemd timer (monthly). | Idempotent; prompts for sudo. |
-| `bin/db/one-shots/` | Environment-specific one-off data fixups. Each file is a standalone script or SQL file intended to be run once per environment (not migrations). Current scripts: `2026-05-20-backfill-chunk-embeddings.sh` (backfill `content_chunk_embeddings`), `reconcile_page_canonical_ids.sh` (reconcile `page_canonical_ids`), `reset_judge_timeout_abstains.sh`, `reset_node_judge_verdicts.sh`, `backfill-agent-default-owner.sql`. | Review individually before running; most are idempotent but data-modifying. |
+| `bin/db/one-shots/` | Environment-specific one-off data fixups. Each file is a standalone script or SQL file intended to be run once per environment (not migrations). Current scripts: `2026-05-20-backfill-chunk-embeddings.sh` (backfill `content_chunk_embeddings`), `2026-06-08-normalize-kg-node-types.sql` (normalize `kg_nodes.node_type` onto the 9-class entity vocabulary), `reconcile_page_canonical_ids.sh` (reconcile `page_canonical_ids`), `reset_judge_timeout_abstains.sh`, `reset_node_judge_verdicts.sh`, `backfill-agent-default-owner.sql`. | Review individually before running; most are idempotent but data-modifying. |
 | `bin/tests/test-audit-retention.sh` | Pure-filesystem unit tests for `audit-retention.sh` using stubbed `psql`/`pg_dump`/`pg_restore`. No real PostgreSQL required. | Read-only test harness. |
 | `bin/tests/test-backup.sh` | Tests for `backup.sh` and `nas-pull.sh` manifest + metrics emission. Stubbed `pg_dump`/`psql`/`rsync`/`curl` — no real PG or ssh. | Read-only test harness. |
 | `bin/tests/test-remote.sh` | Smoke tests for `bin/remote.sh` in `--dry-run` mode with a fake `remote.env`. No real ssh or docker. | Read-only test harness. |

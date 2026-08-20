@@ -40,7 +40,7 @@ install paths run the identical Tomcat patch.
 | `/api/` | REST API (pages, attachments, search, history, knowledge graph) |
 | `/wiki/{slug}?format=md\|json` | Raw content for crawlers and RAG ingestion |
 | `/api/changes?since=…` | Incremental change feed for sync pipelines |
-| `/wikantik-admin-mcp` | Admin MCP server (writes + analytics + verification stamping + cluster renames) — 27 tools |
+| `/wikantik-admin-mcp` | Admin MCP server (writes + analytics + verification stamping + cluster renames + content-opportunity backlog) — 29 tools |
 | `/knowledge-mcp` | Knowledge MCP server (hybrid retrieval + Knowledge Graph + structural-spine + agent-projection + context bundles/briefings) — 21 tools |
 | `/tools/*` | OpenAPI 3.1 tool server (OpenWebUI-compatible) — 2 tools |
 | `/api/health` | Application health checks |
@@ -192,10 +192,13 @@ remote as `.env`, preferring it over the dev `.env` so a prod deploy never
 disturbs local-dev config.
 
 Knowledge-Graph / hybrid-retrieval backends (Ollama endpoint, model tags) are
-*not* set by the entrypoint — they fall back to the baked-in defaults in
-`ini/wikantik.properties` (`ollama` backend at `inference.jakefear.com:11434`).
-The container needs network reach to that endpoint, or a `wikantik-custom.properties`
-override, only if KG / hybrid retrieval is in use.
+left unset by default — they fall back to the baked-in defaults in
+`ini/wikantik.properties` (`ollama` backend at `inference.jakefear.com:11434`)
+unless overridden via `WIKANTIK_EMBEDDING_BASE_URL` / `WIKANTIK_EXTRACTOR_BACKEND`
+(§1) or a `wikantik-custom.properties` override. The container needs network
+reach to whichever endpoint is in effect, only if KG / hybrid retrieval is in
+use — the prod overlay's bundled `ollama` sidecar (§4) is one such override
+target.
 
 ## 2. Data persistence
 
@@ -244,7 +247,7 @@ Environments (passed via `-e`):
 | Env | Compose files | What it adds |
 |-----|--------------|--------------|
 | `dev` (default) | base + `docker-compose.dev.yml` | DB on host port 15432; JDWP debug port 5005; uses `Dockerfile.dev` for hot-swap (bind-mounts `wikantik-war/target/Wikantik.war` into the container); pages mounted from `docs/wikantik-pages/` |
-| `prod` | base + `docker-compose.prod.yml` | Backup sidecar; host bind-mount for pages (`WIKANTIK_PAGES_DIR`); resource limits (2G); `wikantik-profiling` volume; DB published on `${DB_HOST_BIND:-172.17.0.1}:5432` for jakemon; `start_period 90s` healthcheck |
+| `prod` | base + `docker-compose.prod.yml` | Backup sidecar; CPU-only `ollama` embedding sidecar; host bind-mount for pages (`WIKANTIK_PAGES_DIR`); resource limits (2G); `wikantik-profiling` volume; DB published on `${DB_HOST_BIND:-172.17.0.1}:5432` for jakemon; `start_period 90s` healthcheck |
 | `test` | base + `docker-compose.test.yml`, project `wikantik-test` | Alt ports (wikantik on 18080 via `WIKANTIK_HOST_PORT`, DB on 15432); own namespaced containers + volumes so `down -v` never touches dev/prod state; used by `smoke-test` subcommand |
 | `base` | base only | No overlays — useful for debugging compose variable substitution in isolation |
 
@@ -353,12 +356,16 @@ Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agen
 
 ## 4. External services
 
-The compose stack bundles PostgreSQL + pgvector; everything else is external:
+The base compose stack bundles PostgreSQL + pgvector; the **prod overlay**
+(`docker-compose.prod.yml`) additionally bundles a CPU-only Ollama sidecar
+for embeddings (added 2026-07-21, while the GPU inference host is
+decommissioned) — everything else is external:
 
 | Service | Status | Endpoint |
 |---|---|---|
 | **PostgreSQL + pgvector** | Bundled (`db` service) | `db:5432` (internal) |
-| **Ollama** (embeddings, extraction, judge) | External, optional | `ini/wikantik.properties` default `http://inference.jakefear.com:11434` |
+| **Ollama — embeddings** | Bundled under `-e prod` (`ollama` service, `ollama/ollama:latest`, no `depends_on` — the wiki fails closed to BM25 if unreachable) | `http://ollama:11434` (internal only); point `WIKANTIK_EMBEDDING_BASE_URL` at it. First-time setup pulls the model manually: `docker exec repo-ollama-1 ollama pull qwen3-embedding:0.6b` |
+| **Ollama — extraction / judge** | External, optional | `ini/wikantik.properties` default `http://inference.jakefear.com:11434`, or point `WIKANTIK_EXTRACTOR_BACKEND`/the embedding base URL at the bundled sidecar instead |
 | **Anthropic API** (alternative extractor backend) | External, optional | `ANTHROPIC_API_KEY` env var |
 | **TLS terminator / reverse proxy** | External, optional | `RemoteIpValve` reads the client IP from `PROXY_REMOTE_IP_HEADER` (default `CF-Connecting-IP`; set to `X-Forwarded-For` for Caddy/nginx/ALB/GCLB — see the env-var table in §1) |
 

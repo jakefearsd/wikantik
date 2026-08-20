@@ -7,18 +7,15 @@
 Wikantik routes all logging through Log4j2:
 
 ```
-Application Code → SLF4J API → log4j-slf4j-impl → Log4j2 Core
-                              ↑
-                   log4j-1.2-api (legacy bridge for transitive deps)
+Application Code → SLF4J API → log4j-slf4j2-impl → Log4j2 Core
 ```
 
 The relevant JARs ship in `WEB-INF/lib/` of the deployed WAR; exact
-versions are pinned in `wikantik-bom/pom.xml`:
+versions are pinned in the root `pom.xml`'s `<dependencyManagement>`:
 
 - `slf4j-api` — Facade API
-- `log4j-slf4j-impl` — Routes SLF4J to Log4j2
+- `log4j-slf4j2-impl` — Routes SLF4J 2.x to Log4j2
 - `log4j-api`, `log4j-core` — Log4j2 API + implementation
-- `log4j-1.2-api` — Bridges legacy Log4j 1.x calls from transitive deps
 
 ### Log4j2 configuration file locations
 
@@ -258,7 +255,7 @@ automatically.
 | Logger | Purpose |
 |--------|---------|
 | `com.wikantik` | All Wikantik classes |
-| `com.wikantik.WikiServlet` | Page request handling |
+| `com.wikantik.ui.WikiServletFilter` | Page request handling |
 | `com.wikantik.auth` | Authentication/authorization |
 | `com.wikantik.search` | Lucene search indexing |
 | `com.wikantik.providers` | Page/attachment providers |

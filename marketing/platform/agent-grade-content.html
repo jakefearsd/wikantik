@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Agent-grade content: runbooks, projections and verification",
     "description": "Wikantik serves every page to two readers — humans and machines: token-budgeted projections, runbook types, verification metadata, and derived agent hints for reliable AI answers.",
-    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "datePublished": "2026-06-07", "dateModified": "2026-08-20",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/agent-grade-content.html" }
@@ -145,7 +145,7 @@
           <ul>
             <li><code>verified_at</code> — ISO-8601 timestamp of the last manual audit</li>
             <li><code>verified_by</code> — the login name of the human verifier</li>
-            <li><code>confidence</code> — one of <code>authoritative</code> (verified within 90 days by a trusted expert), <code>provisional</code> (high-quality but awaiting final audit), or <code>stale</code> (over 180 days without re-verification)</li>
+            <li><code>confidence</code> — one of <code>authoritative</code> (verified within the last 90 days by a trusted author), <code>provisional</code> (verified within 90 days but not by a trusted author), or <code>stale</code> (never verified, or over 90 days since the last verification)</li>
           </ul>
           <p>The <code>auto-generated</code> frontmatter flag acts as a technical debt marker: pages marked <code>true</code> are treated as low-confidence stubs. Setting it to <code>false</code> is a declaration that the content has been overhauled to meet the high-density, machine-readable standard.</p>
 

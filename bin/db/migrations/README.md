@@ -8,7 +8,7 @@ safely and repeatably.
 ## Files
 
 The earliest, foundational migrations (illustrative, not the full list — see
-this directory for the current set, currently up to V049):
+this directory for the current set, currently up to V057):
 
 - `V001__schema_migrations.sql` — tracking table used by `migrate.sh`
 - `V002__core_users_groups.sql` — users, roles, groups, group_members + default admin seed

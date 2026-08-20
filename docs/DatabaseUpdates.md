@@ -4,7 +4,7 @@ The Wikantik schema is managed by the migration runner at
 [`bin/db/migrate.sh`](../bin/db/migrate.sh) — all DDL lives in
 [`bin/db/migrations/`](../bin/db/migrations/) and is applied
 idempotently in version order. The legacy DDL scripts under
-`wikantik-war/src/main/config/db/` (`postgresql.ddl`,
+`bin/db/` (`postgresql.ddl`,
 `postgresql-knowledge.ddl`, `postgresql-permissions.ddl`,
 `postgresql-hub.ddl`) are historical reference only and should not be
 applied directly to a new install.
@@ -16,7 +16,7 @@ migration in order).
 ## Migration timeline
 
 The migration directory is the source of truth. As of the latest
-release, schema state runs from **V001 through V049**:
+release, schema state runs from **V001 through V057**:
 
 | Migration | What it adds |
 |-----------|--------------|
@@ -66,6 +66,14 @@ release, schema state runs from **V001 through V049**:
 | V047 | `connector_credentials` — the encrypted (AES-256-GCM) connector secret store |
 | V048 | `connector_configs` — admin-managed connector definitions (hot-applied, no restart) |
 | V049 | `connector_sync_run` — per-run connector sync history, purged on connector delete |
+| V050 | `search_visibility_snapshot` — Content Intelligence: queryable search-visibility facts (trailing-window aggregates) shipped by jakemon and upserted via `POST /admin/insights/ingest` |
+| V051 | `retrieval_query_log` demand-signal columns (`session_hash`, `clicked_rank`, `coverage`) — feeds the AGENT_GAP / VOCABULARY_GAP content-opportunity rules |
+| V052 | `content_change_log` — the effect-measurement ledger for applied content changes (title/summary/tags/body/new_page/internal_links), capturing a 28-day pre-change baseline at write time |
+| V053 | `content_opportunity_snooze` — operator-set snooze window per (opportunity type, target) |
+| V054 | `content_opportunity_seen` — first/last-seen tracking per (opportunity type, target) |
+| V055 | `content_change_log` calibration columns (`predicted_priority`, `effect_click_delta`, `effect_method`) |
+| V056 | `imported_opportunity` — the imported half of the content-opportunity backlog (jakemon's five detectors), keyed by `(as_of, engine, site_host, opportunity_type, target)` |
+| V057 | `expected_ctr_curve` — jakemon's real CTR-by-position curve, dated per import, replacing the locally-invented placeholder curve |
 
 Two follow-up migration policies:
 
@@ -80,7 +88,7 @@ Two follow-up migration policies:
 
 | Surface | Source of truth |
 |---------|------------------|
-| Active migrations | `bin/db/migrations/V001..V037` |
+| Active migrations | `bin/db/migrations/V001..V057` |
 | Migration runner | `bin/db/migrate.sh` (idempotent, single-tx per migration) |
 | Fresh install | `bin/db/install-fresh.sh` (creates DB + role + pgvector + runs migrations) |
 | Legacy reference DDL | `bin/db/postgresql*.ddl` (do not apply directly) |

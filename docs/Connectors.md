@@ -182,7 +182,7 @@ imported returns `409`.
 
 ### Add Connector wizard
 
-Type picker (five creatable types — not `filesystem`, D9) → per-type steps:
+Type picker (six creatable types — not `filesystem`, D9) → per-type steps:
 
 1. **Source.** Connector id/name + type-specific fields (github:
    repo/branch/path/max; confluence: base_url/space/email/max; feed:
@@ -402,6 +402,38 @@ no-op either way). Setting it to `false`:
 Connector configuration CRUD (create/update/delete/import, credential
 set/delete) keeps working even while syncing is disabled — this is meant for
 pausing a read replica or similar, not for locking down configuration.
+
+---
+
+## Egress protection (SSRF guard)
+
+Connector target URLs are admin-supplied, but "admin" is a scoped role and the
+server sits on a private network (DB, embedder, sibling services, cloud
+metadata) — an unrestricted outbound fetch from a connector is a
+forge-a-request-from-the-server primitive. Since 2.4.17, every connector HTTP
+fetch is validated by `EgressGuard`
+(`com.wikantik.connectors.http.EgressGuard`, `wikantik-connectors`):
+
+- Only `http`/`https` schemes are permitted — anything else is rejected.
+- The target host is resolved and rejected if it maps to any loopback,
+  private/site-local (`10/8`, `172.16/12`, `192.168/16`), link-local
+  (`169.254.0.0/16`, which includes the `169.254.169.254` cloud metadata
+  address), multicast, unspecified, or IPv6 unique-local (`fc00::/7`) address.
+- Redirects are followed **manually**, re-validating every hop — a public URL
+  that 302s to an internal address is caught, not just the initial target.
+
+This is wired into the web/sitemap/feed fetcher (`HttpPageFetcher`) and the
+GitHub and Confluence API clients (their `api_base`/`base_url` are also
+admin-supplied). A blocked fetch fails the sync/dry-run with a caller-safe
+message ("target host resolves to a non-routable/internal address: …") that
+never echoes the resolved IP.
+
+An operator who genuinely wants an internal crawl (e.g. an intranet
+webcrawler connector reaching a private wiki mirror) can opt out of the
+private-network check with `-Dwikantik.connectors.egress.allowPrivate=true`
+(`EgressGuard.PROP_ALLOW_PRIVATE`) — the scheme allowlist still applies even
+with this set. This is a JVM system property, not a `wikantik-custom.properties`
+entry.
 
 ---
 

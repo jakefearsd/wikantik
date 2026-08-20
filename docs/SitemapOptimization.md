@@ -262,10 +262,17 @@ xmlns:xhtml="http://www.w3.org/1999/xhtml"
 - Duplicate content
 
 **For Wikantik specifically, exclude:**
-- LeftMenu, RightMenu, TitleBox, PageHeader, PageFooter
-- CSS* pages
-- Login.jsp, UserPreferences.jsp (administrative)
-- Old page versions (only include current/canonical)
+- Every "system page" shipped in `wikantik-wikipages` — `SystemPageRegistry`
+  auto-discovers all `.md` siblings of `About.md` on the classpath (menu
+  fragments like `LeftMenu`/`LeftMenuFooter`, `TitleBox`, CSS theme pages,
+  help pages, etc.); `SitemapServlet.isExcludedPage()` skips every one of
+  them except `Main`, which is deliberately kept in the sitemap
+- Old page versions (only include current/canonical — the servlet reads via
+  `PageProvider.getAllPages()`, which returns latest versions only)
+
+(There is no `Login.jsp`/`UserPreferences.jsp` or `RightMenu`/`PageHeader`/
+`PageFooter` in this fork's shipped content — those names are stale JSPWiki-era
+references and don't correspond to anything `SystemPageRegistry` discovers.)
 
 ---
 
@@ -359,10 +366,18 @@ The shipped `SitemapServlet` (`com.wikantik.ui.SitemapServlet`,
 ```
 
 `<changefreq>` and `<priority>` are **intentionally omitted** — the servlet
-Javadoc notes "changefreq and priority are intentionally omitted as Google
-ignores them" (consistent with Part 1 above). Google image sitemaps are
-included: when a page has image attachments the servlet emits
+carries the inline comment "changefreq and priority are intentionally omitted
+as Google ignores them" (consistent with Part 1 above). Google image sitemaps
+are included: when a page has image attachments the servlet emits
 `<image:image>` / `<image:loc>` entries using the Google Image namespace.
+The servlet also emits the **Google News Sitemap extension** (Part 2.3 above)
+for any page modified within the last `NEWS_CUTOFF_DAYS` (2) days that carries
+frontmatter with a non-empty `tags` list — `<news:news>` with `<news:name>`
+(the wiki's application name), `<news:language>en</news:language>`,
+`<news:publication_date>`, `<news:title>` (the page name), and
+`<news:keywords>` from the frontmatter tags. Pages without frontmatter
+metadata are deliberately excluded — "not curated content" per the servlet's
+own doc comment.
 
 **What it does well:**
 - Excludes menu/template pages (LeftMenu, TitleBox, etc.)
@@ -370,6 +385,7 @@ included: when a page has image attachments the servlet emits
 - Uses accurate `lastmod` from page metadata
 - Proper XML escaping
 - Google Image sitemap extension for attached images
+- Google News sitemap extension for recently-modified, frontmatter-tagged pages
 
 **Remaining opportunities for enhancement:**
 - Add hreflang for multi-language wiki pages
@@ -377,7 +393,7 @@ included: when a page has image attachments the servlet emits
 
 ### 5.2 Recommended Enhancements
 
-**Image sitemaps have already shipped** — see section 5.1.
+**Image and News sitemaps have already shipped** — see section 5.1.
 
 **Priority 2: Add Hreflang for Internationalization**
 ```java

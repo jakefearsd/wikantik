@@ -12,7 +12,7 @@ interactions route through MCP server tools directly.
 > bash — so this skill runs identically under Claude Code and Antigravity. The live bundle check is the
 > `assemble_bundle` MCP tool, never `GET /api/bundle`. Do not add client-specific mechanisms.
 
-> **Tool surface reconciled 2026-08-16 against the live servers** (admin-mcp = 27 tools, knowledge-mcp
+> **Tool surface reconciled 2026-08-20 against the live servers** (admin-mcp = 29 tools, knowledge-mcp
 > = 21 tools). Note that knowledge-mcp registers several tools *conditionally* on what is wired in a
 > given deployment (`find_similar`, `get_page_for_agent`, `assemble_bundle`, `get_briefing`,
 > `get_ontology`/`sparql_query`, `list_stale_citations`), so 21 is the fully-wired count — a leaner
@@ -207,7 +207,7 @@ Frontmatter drives search-engine, social, feed, and news outputs:
   `pagesWithNoBacklinks=[]`, `metadataIssues=[]`, `retrievalIssues=[]`, `seoIssues=[]`.
 - Then run the live `assemble_bundle` check (the static lint passing is not proof of retrievability).
 
-## Available MCP tools (live, reconciled 2026-06-20)
+## Available MCP tools (live, reconciled 2026-08-20)
 
 ### Authoring — admin-mcp
 | Tool | Purpose |
@@ -230,6 +230,8 @@ Frontmatter drives search-engine, social, feed, and news outputs:
 | `get_broken_links` / `get_orphaned_pages` | Wiki-wide link/orphan issues |
 | `get_wiki_stats` / `get_page_history` / `diff_page` | Stats, history, version diff |
 | `ping_search_engines` | IndexNow nudge after a batch |
+| `list_content_opportunities` | Measured content backlog — what to write/fix next, priced from real search-visibility data; reports `ctrCurveSource` (`imported:<date>` = jakemon's measured CTR curve, `builtin` = fallback guess) |
+| `snooze_opportunity` | Suppress a content opportunity you have judged not worth acting on |
 
 ### Discovery + retrieval check — knowledge-mcp
 | Tool | Purpose |

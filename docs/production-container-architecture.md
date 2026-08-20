@@ -31,6 +31,7 @@ The production host runs a Docker Compose stack — `docker-compose.yml` +
 | `db` | `pgvector/pgvector:pg18` | PostgreSQL + pgvector — users, groups, policy grants, Knowledge Graph, embeddings, page metadata, `schema_migrations` |
 | `wikantik` | `wikantik:latest` (the released image) | Tomcat 11 / JDK 25 — the wiki application |
 | `backup` | `postgres:18-alpine` | Scheduled `pg_dump` + page-tree tarball |
+| `ollama` | `ollama/ollama:latest` | CPU-only embedding sidecar added 2026-07-21 while the GPU inference host is decommissioned — serves `qwen3-embedding:0.6b` at `http://ollama:11434` (internal only, no host port); `wikantik` does not `depends_on` it, so `QueryEmbedder` fails closed to BM25 if it's unreachable |
 | *(jakemon)* | external | Grafana Alloy agent on this host scrapes `/metrics` and ships logs to the central Prometheus + Loki + Grafana on host `docker2` — no in-repo observability stack |
 
 The `wikantik` container's `entrypoint.sh` renders `wikantik-custom.properties`,
@@ -46,6 +47,7 @@ runs `migrate.sh` (idempotent) before starting Tomcat.
 | Lucene search index | named volume `wikantik-work` | no | no | yes — rebuilt at startup |
 | Application logs | named volume `wikantik-logs` | no | no | ephemeral |
 | JFR profiling recordings | named volume `wikantik-profiling` (prod overlay) | no | no | non-critical; operator downloads via `/admin/profiling/jfr/recordings/{id}` |
+| Embedding model cache | named volume `ollama-models` (prod overlay) | no | no | yes — `ollama pull qwen3-embedding:0.6b` re-populates it; `OLLAMA_KEEP_ALIVE=-1` just keeps the model resident once loaded |
 | Metrics / log history | external (jakemon) | no | — | scrape target only; state held by jakemon |
 
 The page tree is a **host bind mount** so `rsync` (`bin/remote.sh pages-push`)

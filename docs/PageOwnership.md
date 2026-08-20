@@ -286,9 +286,11 @@ custom-jdbc provider lag can be up to ~20 seconds after startup.
 **Enforcement filter not running**
 
 Check that `wikantik.page_ownership.enforcement.enabled` is not `false` in
-`wikantik-custom.properties`, and that the Knowledge Graph subsystem initialized
-successfully (look for `PageOwnershipSaveFilter: enforcement enabled` in
-`catalina.out`).
+`wikantik-custom.properties`, and that the structural index (Page Graph
+subsystem) initialized successfully — the filter resolves a page's
+`canonical_id` via `StructuralIndexService::resolveCanonicalIdFromSlug`, and a
+failure there is caught and logged at `WARN` rather than blocking the save.
+Look for `PageOwnershipSaveFilter: enforcement enabled` in `catalina.out`.
 
 ## Cross-links
 

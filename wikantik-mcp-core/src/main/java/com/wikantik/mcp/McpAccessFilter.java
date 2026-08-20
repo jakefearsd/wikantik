@@ -42,25 +42,36 @@ import jakarta.servlet.http.HttpServletResponse;
  */
 public class McpAccessFilter extends AbstractApiAccessFilter {
 
-    private static final Surface SURFACE = new Surface(
+    /**
+     * The endpoint's minimum required scope. The admin endpoint passes {@code MCP} (full admin); the knowledge endpoint passes
+     * {@code MCP_READ}. The two share this class but not their required scope.
+     */
+    private static Surface surfaceFor( final ApiKeyService.Scope requiredScope ) {
+        return new Surface(
             "MCP",
             "mcp.access",
-            ApiKeyService.Scope.MCP,
+            requiredScope,
             Outcome.Denied.of( HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                     "{\"error\":\"mcp_access_unconfigured\","
                   + "\"detail\":\"No DB-minted API key, CIDR allowlist, or mcp.access.allowUnrestricted=true. "
                   + "Mint a key at /admin/apikeys, configure mcp.access.allowedCidrs, or set "
-                  + "mcp.access.allowUnrestricted=true in wikantik-custom.properties to enable /wikantik-admin-mcp.\"}",
+                  + "mcp.access.allowUnrestricted=true in wikantik-custom.properties to enable the MCP endpoint.\"}",
                     new Outcome.Header( "Retry-After", "86400" ) ),
             "{\"error\":\"Key not authorized for MCP\"}" );
+    }
 
     public McpAccessFilter( final McpConfig config, final SlidingWindowRateLimiter rateLimiter ) {
-        this( config, rateLimiter, null );
+        this( config, rateLimiter, null, ApiKeyService.Scope.MCP );
     }
 
     public McpAccessFilter( final McpConfig config, final SlidingWindowRateLimiter rateLimiter,
                             final ApiKeyService apiKeyService ) {
-        super( SURFACE, config.allowedCidrs(), config.allowUnrestricted(),
+        this( config, rateLimiter, apiKeyService, ApiKeyService.Scope.MCP );
+    }
+
+    public McpAccessFilter( final McpConfig config, final SlidingWindowRateLimiter rateLimiter,
+                            final ApiKeyService apiKeyService, final ApiKeyService.Scope requiredScope ) {
+        super( surfaceFor( requiredScope ), config.allowedCidrs(), config.allowUnrestricted(),
                 rateLimiter::tryAcquire, apiKeyService );
     }
 }

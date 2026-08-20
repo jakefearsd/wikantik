@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../api/client';
 import RevealedTokenModal from './apikeys/RevealedTokenModal';
 
-const SCOPES = ['tools', 'mcp', 'all'];
+const SCOPES = ['tools', 'mcp_read', 'mcp', 'all'];
 
 export default function MyApiKeys() {
   const [keys, setKeys] = useState([]);

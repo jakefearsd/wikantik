@@ -101,17 +101,54 @@ public class ApiKeyService {
         this.dataSource = dataSource;
     }
 
-    /** Scopes a generated key can be restricted to. */
+    /**
+     * Scopes a generated key can be restricted to.
+     *
+     * <p>The MCP scopes form a hierarchy (via {@link #mcpRank}) so a higher-privilege
+     * key satisfies a lower-privilege requirement: {@code MCP_READ ⊂ MCP}. {@code MCP}
+     * is the historical broad admin scope; its wire value stays {@code "mcp"} so keys
+     * minted before the split remain full-admin. {@code MCP_READ} is confined to the
+     * read-only, ACL-gated {@code /knowledge-mcp} endpoint. {@code TOOLS} (the OpenAPI
+     * {@code /tools/*} surface) is orthogonal and matches only itself; {@code ALL}
+     * matches everything.</p>
+     *
+     * <p>A third, intermediate {@code MCP_CONTENT} tier (page + KG-curation read/write,
+     * no destructive/admin capability) is designed but not yet added: it requires
+     * <em>per-tool</em> enforcement on the shared admin endpoint, which cannot ride a
+     * request-thread ThreadLocal because the MCP SDK dispatches tool calls on a
+     * separate scheduler thread — the scope must be propagated through the MCP session
+     * instead. See the security-audit memory for the full spec.</p>
+     */
     public enum Scope {
-        MCP( "mcp" ),
-        TOOLS( "tools" ),
-        ALL( "all" );
+        /** Knowledge consumer: read + search over ACL-gated content ({@code /knowledge-mcp}). */
+        MCP_READ( "mcp_read", 1 ),
+        /** Full admin MCP surface (historical {@code "mcp"} wire value; pre-split keys stay here). */
+        MCP( "mcp", 3 ),
+        TOOLS( "tools", 0 ),
+        ALL( "all", 0 );
 
         private final String wire;
-        Scope( final String wire ) { this.wire = wire; }
+        /** Rank within the MCP family (1..3); {@code 0} for non-MCP scopes. */
+        private final int mcpRank;
+
+        Scope( final String wire, final int mcpRank ) { this.wire = wire; this.mcpRank = mcpRank; }
         public String wire() { return wire; }
+
+        private boolean isMcpFamily() { return mcpRank > 0; }
+
+        /**
+         * True if a key holding <em>this</em> scope may access a surface/tool that
+         * requires {@code required}. {@code ALL} covers everything; within the MCP
+         * family a higher rank covers a lower one; otherwise the scopes must be equal.
+         */
         public boolean matches( final Scope required ) {
-            return this == ALL || this == required;
+            if ( this == ALL ) {
+                return true;
+            }
+            if ( this.isMcpFamily() && required.isMcpFamily() ) {
+                return this.mcpRank >= required.mcpRank;
+            }
+            return this == required;
         }
         public static Scope fromWire( final String wire ) {
             if ( wire == null ) return ALL;

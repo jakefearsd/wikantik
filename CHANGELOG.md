@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- **MCP API-key scope split: `mcp_read` (knowledge consumer) vs `mcp` (admin).** A single
+  `mcp` scope previously granted BOTH the read-only `/knowledge-mcp` retrieval surface AND
+  the 27-tool admin write surface, so a leaked "read-only knowledge agent" token was in fact
+  a full content-write + KG-curation credential. A new `mcp_read` scope is confined to the
+  ACL-gated `/knowledge-mcp` endpoint; `mcp` remains full admin and existing keys are
+  unchanged (the wire value stayed `"mcp"`). Scope matching is now rank-based
+  (`mcp_read ⊂ mcp`), enforced at the endpoint access filter, and the key-mint UI offers the
+  new scope. (An intermediate `mcp_content` tier — page/KG read-write without admin — is
+  designed but deferred: it needs per-tool enforcement on the shared admin endpoint, which
+  the MCP SDK's off-thread tool dispatch prevents a request-thread guard from doing; it will
+  return with a session-scoped bridge.)
+
 ## [2.4.17] - 2026-08-19
 
 ### Security

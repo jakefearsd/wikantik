@@ -60,6 +60,7 @@ public final class McpEndpointBootstrapper {
     private final String servletName;
     private final int loadOnStartup;
     private final Engine engine;
+    private final com.wikantik.auth.apikeys.ApiKeyService.Scope requiredScope;
 
     private McpEndpointBootstrapper( final Builder b ) {
         this.logTag = b.logTag;
@@ -68,6 +69,7 @@ public final class McpEndpointBootstrapper {
         this.servletName = b.servletName;
         this.loadOnStartup = b.loadOnStartup;
         this.engine = b.engine;
+        this.requiredScope = b.requiredScope;
     }
 
     public static Builder builder() {
@@ -100,7 +102,7 @@ public final class McpEndpointBootstrapper {
             LOG.info( "{}: DB-backed API keys unavailable (no datasource) — legacy property keys only.", logTag );
         }
 
-        final McpAccessFilter accessFilter = new McpAccessFilter( config, rateLimiter, apiKeyService );
+        final McpAccessFilter accessFilter = new McpAccessFilter( config, rateLimiter, apiKeyService, requiredScope );
         final FilterRegistration.Dynamic filterReg =
                 servletContext.addFilter( filterName, accessFilter );
         // isMatchAfter=true: run AFTER web.xml filters (RequestCorrelationFilter,
@@ -136,6 +138,8 @@ public final class McpEndpointBootstrapper {
         private String servletName;
         private int loadOnStartup = 2;
         private Engine engine;
+        private com.wikantik.auth.apikeys.ApiKeyService.Scope requiredScope =
+                com.wikantik.auth.apikeys.ApiKeyService.Scope.MCP;
 
         private Builder() { }
 
@@ -156,6 +160,9 @@ public final class McpEndpointBootstrapper {
 
         /** Engine used to resolve {@link ApiKeyService} from the wiki properties. */
         public Builder engine( final Engine value ) { this.engine = value; return this; }
+
+        /** Minimum API-key scope this endpoint requires (admin: MCP; knowledge: MCP_READ). */
+        public Builder requiredScope( final com.wikantik.auth.apikeys.ApiKeyService.Scope value ) { this.requiredScope = value; return this; }
 
         public McpEndpointBootstrapper build() {
             if ( logTag == null || endpointPath == null || filterName == null

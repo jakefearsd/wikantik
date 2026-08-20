@@ -113,6 +113,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 .logTag( "Knowledge MCP" )
                 .endpointPath( "/knowledge-mcp" )
                 .filterName( "KnowledgeMcpAccessFilter" )
+                .requiredScope( com.wikantik.auth.apikeys.ApiKeyService.Scope.MCP_READ )
                 .servletName( "KnowledgeMcpTransportServlet" )
                 .loadOnStartup( 3 )
                 .engine( engine )

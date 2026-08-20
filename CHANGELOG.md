@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.18] - 2026-08-20
+
 ### Security
 - **MCP API-key scope split: `mcp_read` (knowledge consumer) vs `mcp` (admin).** A single
   `mcp` scope previously granted BOTH the read-only `/knowledge-mcp` retrieval surface AND

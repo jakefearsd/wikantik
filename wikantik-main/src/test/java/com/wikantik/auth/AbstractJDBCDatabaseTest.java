@@ -168,6 +168,57 @@ class AbstractJDBCDatabaseTest {
     }
 
     /**
+     * A failed transaction must be rolled back HERE, not left for the connection pool.
+     *
+     * <p>runInTransaction turned auto-commit off and then, on failure, simply let
+     * try-with-resources close the connection with the transaction still open. Whether that
+     * discards or commits the partial work is pool-defined: DBCP2 (what this app deploys)
+     * defaults to rollbackOnReturn=true and saves us, but nothing in the codebase pins that
+     * setting, and the one production caller is JDBCGroupDatabase.save() — a half-applied
+     * group membership rewrite is a security-relevant partial write.
+     */
+    @Test
+    void testRunInTransactionRollsBackOnFailure() throws Exception {
+        db.setSupportsCommits( true );
+
+        Assertions.assertThrows( WikiSecurityException.class,
+            () -> db.runInTransaction( conn -> { throw new SQLException( "mid-transaction failure" ); } ) );
+
+        verify( mockConn ).rollback();
+        verify( mockConn, never() ).commit();
+    }
+
+    /**
+     * Rolling back a connection that never left auto-commit mode is an error in JDBC, so the
+     * rollback must be gated on the same flag that turned auto-commit off.
+     */
+    @Test
+    void testRunInTransactionDoesNotRollBackWhenTransactionsUnsupported() throws Exception {
+        db.setSupportsCommits( false );
+
+        Assertions.assertThrows( WikiSecurityException.class,
+            () -> db.runInTransaction( conn -> { throw new SQLException( "boom" ); } ) );
+
+        verify( mockConn, never() ).rollback();
+    }
+
+    /**
+     * If the rollback itself fails, the original failure is still what explains the problem
+     * and must not be replaced by the rollback's own exception.
+     */
+    @Test
+    void testRunInTransactionRollbackFailureDoesNotMaskOriginalError() throws Exception {
+        db.setSupportsCommits( true );
+        doThrow( new SQLException( "rollback also failed" ) ).when( mockConn ).rollback();
+
+        final WikiSecurityException ex = Assertions.assertThrows( WikiSecurityException.class,
+            () -> db.runInTransaction( conn -> { throw new SQLException( "the real cause" ); } ) );
+
+        Assertions.assertTrue( ex.getMessage().contains( "the real cause" ),
+            "The original failure must survive a failing rollback, got: " + ex.getMessage() );
+    }
+
+    /**
      * Tests runInTransaction re-throws WikiSecurityException directly.
      */
     @Test
@@ -190,73 +241,9 @@ class AbstractJDBCDatabaseTest {
         Assertions.assertSame( mockConn, conn );
     }
 
-    /**
-     * Tests prepareForTransaction sets autocommit false when commits supported.
-     */
-    @Test
-    void testPrepareForTransactionWithCommits() throws Exception {
-        db.setSupportsCommits( true );
-        db.prepareForTransaction( mockConn );
-        verify( mockConn ).setAutoCommit( false );
-    }
 
-    /**
-     * Tests prepareForTransaction does nothing when commits not supported.
-     */
-    @Test
-    void testPrepareForTransactionWithoutCommits() throws Exception {
-        db.setSupportsCommits( false );
-        db.prepareForTransaction( mockConn );
-        verify( mockConn, never() ).setAutoCommit( false );
-    }
 
-    /**
-     * Tests commitIfSupported commits when supported.
-     */
-    @Test
-    void testCommitIfSupported() throws Exception {
-        db.setSupportsCommits( true );
-        db.commitIfSupported( mockConn );
-        verify( mockConn ).commit();
-    }
 
-    /**
-     * Tests commitIfSupported does nothing when not supported.
-     */
-    @Test
-    void testCommitIfSupportedNoCommits() throws Exception {
-        db.setSupportsCommits( false );
-        db.commitIfSupported( mockConn );
-        verify( mockConn, never() ).commit();
-    }
 
-    /**
-     * Tests detectTransactionSupport sets the flag correctly when transactions are supported.
-     */
-    @Test
-    void testDetectTransactionSupport() throws Exception {
-        final DatabaseMetaData dmd = mock( DatabaseMetaData.class );
-        doReturn( true ).when( dmd ).supportsTransactions();
-        doReturn( dmd ).when( mockConn ).getMetaData();
 
-        db.setSupportsCommits( false );
-        db.detectTransactionSupport();
-
-        Assertions.assertTrue( db.supportsCommits(), "Should detect transaction support" );
-    }
-
-    /**
-     * Tests detectTransactionSupport handles lack of transaction support.
-     */
-    @Test
-    void testDetectTransactionSupportNone() throws Exception {
-        final DatabaseMetaData dmd = mock( DatabaseMetaData.class );
-        doReturn( false ).when( dmd ).supportsTransactions();
-        doReturn( dmd ).when( mockConn ).getMetaData();
-
-        db.setSupportsCommits( false );
-        db.detectTransactionSupport();
-
-        Assertions.assertFalse( db.supportsCommits(), "Should not set commits when unsupported" );
-    }
 }

@@ -44,6 +44,8 @@ import java.io.PrintWriter;
 import java.io.Serializable;
 import java.security.Principal;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
@@ -907,4 +909,46 @@ public class JDBCUserDatabaseTest {
         }
     }
 
+    /**
+     * A user row must never survive a save whose role insert failed.
+     *
+     * <p>{@code save()} writes the {@code users} row and its {@code roles} row in one
+     * transaction, but used to close the connection on failure without rolling back, leaving
+     * the outcome to the pool. An account that exists with no role rows is an account with no
+     * permissions — a security-relevant partial write — so the invariant is pinned here
+     * against a real database rather than trusted to the pool's close() behaviour.
+     */
+    @Test
+    public void testSaveRollsBackWhenTheRoleInsertFails() throws Exception {
+        final String login = "rollbackprobe";
+        try ( final Connection conn = m_ds.getConnection(); final Statement stmt = conn.createStatement() ) {
+            stmt.executeUpdate( "ALTER TABLE roles ADD CONSTRAINT force_role_failure CHECK ( false ) NOT VALID" );
+        }
+        try {
+            final UserProfile profile = m_db.newProfile();
+            profile.setEmail( "rollbackprobe@mailinator.com" );
+            profile.setFullname( "Rollback Probe" );
+            profile.setLoginName( login );
+            profile.setPassword( "aTestPassword1!" );
+
+            Assertions.assertThrows( Exception.class, () -> m_db.save( profile ),
+                "A save whose role insert is rejected must report failure." );
+
+            try ( final Connection conn = m_ds.getConnection();
+                  final PreparedStatement ps = conn.prepareStatement(
+                      "SELECT count(*) FROM users WHERE login_name = ?" ) ) {
+                ps.setString( 1, login );
+                try ( final ResultSet rs = ps.executeQuery() ) {
+                    rs.next();
+                    Assertions.assertEquals( 0, rs.getInt( 1 ),
+                        "The users row must not survive a failed save — an account with no roles "
+                      + "is an account with no permissions." );
+                }
+            }
+        } finally {
+            try ( final Connection conn = m_ds.getConnection(); final Statement stmt = conn.createStatement() ) {
+                stmt.executeUpdate( "ALTER TABLE roles DROP CONSTRAINT IF EXISTS force_role_failure" );
+            }
+        }
+    }
 }

@@ -23,7 +23,6 @@ import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -52,23 +51,6 @@ public abstract class AbstractJDBCDatabase {
     protected boolean supportsCommits;
 
     /**
-     * Detects whether the database supports transactions and sets the supportsCommits flag.
-     */
-    public void detectTransactionSupport() {
-        try( Connection conn = ds.getConnection() ) {
-            final DatabaseMetaData dmd = conn.getMetaData();
-            if( dmd.supportsTransactions() ) {
-                supportsCommits = true;
-                conn.setAutoCommit( false );
-                LOG.info( "{} supports transactions. Good; we will use them.", getClass().getSimpleName() );
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "{} warning: database doesn't seem to support transactions. Reason: {}",
-                    getClass().getSimpleName(), e.getMessage() );
-        }
-    }
-
-    /**
      * Obtains a connection from the DataSource.
      *
      * @return a database connection
@@ -76,31 +58,6 @@ public abstract class AbstractJDBCDatabase {
      */
     public Connection getConnection() throws SQLException {
         return ds.getConnection();
-    }
-
-    /**
-     * Prepares a connection for a transactional operation by disabling auto-commit
-     * if the database supports transactions.
-     *
-     * @param conn the connection to prepare
-     * @throws SQLException if the auto-commit setting fails
-     */
-    public void prepareForTransaction( final Connection conn ) throws SQLException {
-        if( supportsCommits ) {
-            conn.setAutoCommit( false );
-        }
-    }
-
-    /**
-     * Commits the transaction if the database supports transactions.
-     *
-     * @param conn the connection to commit
-     * @throws SQLException if the commit fails
-     */
-    public void commitIfSupported( final Connection conn ) throws SQLException {
-        if( supportsCommits ) {
-            conn.commit();
-        }
     }
 
     /**
@@ -171,16 +128,44 @@ public abstract class AbstractJDBCDatabase {
             if( supportsCommits ) {
                 conn.setAutoCommit( false );
             }
-            final T result = operation.execute( conn );
-            if( supportsCommits ) {
-                conn.commit();
+            try {
+                final T result = operation.execute( conn );
+                if( supportsCommits ) {
+                    conn.commit();
+                }
+                return result;
+            } catch( final Exception e ) {
+                rollbackQuietly( conn, e );
+                throw e;
             }
-            return result;
         } catch( final WikiSecurityException e ) {
             throw e;
         } catch( final Exception e ) {
             throw new WikiSecurityException( "Database operation failed: " + e.getMessage(), e );
         }
+    }
+
+    /**
+     * Rolls back a failed transaction, swallowing any failure of the rollback itself.
+     *
+     * <p>Previously nothing rolled back here: on failure the connection was simply closed with
+     * its transaction still open, leaving the outcome to the pool. DBCP2 — what this
+     * application deploys — happens to default {@code rollbackOnReturn} to true, but that is
+     * not configured anywhere in the repo, and the production caller is
+     * {@code JDBCGroupDatabase.save()}, where a half-applied membership rewrite is a
+     * security-relevant partial write. Rolling back explicitly makes the behaviour ours.
+     *
+     * <p>Gated on {@code supportsCommits} for the same reason the commit is: rolling back a
+     * connection still in auto-commit mode is an error in JDBC.
+     *
+     * <p>A failing rollback is logged, never rethrown — the exception that caused the rollback
+     * is the one that explains the failure, and it must not be replaced.
+     */
+    private void rollbackQuietly( final Connection conn, final Exception cause ) {
+        if( !supportsCommits ) {
+            return;
+        }
+        com.wikantik.jdbc.Transactions.rollbackQuietly( conn, cause, LOG, getClass().getSimpleName() );
     }
 
 }

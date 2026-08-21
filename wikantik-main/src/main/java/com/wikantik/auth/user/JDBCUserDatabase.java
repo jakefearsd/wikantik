@@ -257,17 +257,25 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 conn.setAutoCommit( false );
             }
 
-            // Delete user record
-            ps1.setString( 1, loginNameToDelete );
-            ps1.execute();
+            try {
+                    // Delete user record
+                    ps1.setString( 1, loginNameToDelete );
+                    ps1.execute();
 
-            // Delete role record
-            ps2.setString( 1, loginNameToDelete );
-            ps2.execute();
+                    // Delete role record
+                    ps2.setString( 1, loginNameToDelete );
+                    ps2.execute();
 
-            // Commit and close connection
-            if( supportsCommits ) {
-                conn.commit();
+                    // Commit and close connection
+                    if( supportsCommits ) {
+                        conn.commit();
+                    }
+            } catch( final SQLException e ) {
+                // Deleting the user but not its roles (or vice versa) must not survive.
+                if( supportsCommits ) {
+                    com.wikantik.jdbc.Transactions.rollbackQuietly( conn, e, LOG, "deleteByLoginName(" + loginNameToDelete + ")" );
+                }
+                throw e;
             }
 
             // Evict the now-deleted login so the next lookup goes to the DB.
@@ -433,27 +441,36 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 conn.setAutoCommit( false );
             }
 
-            final Timestamp ts = new Timestamp( System.currentTimeMillis() );
-            final Date modDate = new Date( ts.getTime() );
+            try {
+                final Timestamp ts = new Timestamp( System.currentTimeMillis() );
+                final Date modDate = new Date( ts.getTime() );
 
-            // Change the login ID for the user record
-            ps1.setString( 1, newName );
-            ps1.setTimestamp( 2, ts );
-            ps1.setString( 3, oldLoginName );
-            ps1.execute();
+                // Change the login ID for the user record
+                ps1.setString( 1, newName );
+                ps1.setTimestamp( 2, ts );
+                ps1.setString( 3, oldLoginName );
+                ps1.execute();
 
-            // Change the login ID for the role records
-            ps2.setString( 1, newName );
-            ps2.setString( 2, oldLoginName );
-            ps2.execute();
+                // Change the login ID for the role records
+                ps2.setString( 1, newName );
+                ps2.setString( 2, oldLoginName );
+                ps2.execute();
 
-            // Set the profile name and mod time
-            profile.setLoginName( newName );
-            profile.setLastModified( modDate );
+                // Set the profile name and mod time
+                profile.setLoginName( newName );
+                profile.setLastModified( modDate );
 
-            // Commit and close connection
-            if( supportsCommits ) {
-                conn.commit();
+                // Commit and close connection
+                if( supportsCommits ) {
+                    conn.commit();
+                }
+            } catch( final SQLException e ) {
+                // users.login_name renamed without roles.login_name (or vice versa) splits an
+                // identity from its authorization; that must never be left committed.
+                if( supportsCommits ) {
+                    com.wikantik.jdbc.Transactions.rollbackQuietly( conn, e, LOG, "rename(" + oldLoginName + " -> " + newName + ")" );
+                }
+                throw e;
             }
 
             // A rename changes the login name itself, so evict both the old and new keys.
@@ -509,47 +526,56 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 conn.setAutoCommit( false );
             }
 
-            final Timestamp ts = new Timestamp( System.currentTimeMillis() );
-            final Date modDate = new Date( ts.getTime() );
-            final java.sql.Date lockExpiry = profile.getLockExpiry() == null ? null : new java.sql.Date( profile.getLockExpiry().getTime() );
-            if( existingProfile == null ) {
-                // User is new: insert new user record
-                setProfileParameters( ps1, profile, password, ts );
-                ps1.setTimestamp( 10, ts );
-                ps1.setBoolean( 11, profile.isPasswordMustChange() );
-                ps1.execute();
+            try {
+                final Timestamp ts = new Timestamp( System.currentTimeMillis() );
+                final Date modDate = new Date( ts.getTime() );
+                final java.sql.Date lockExpiry = profile.getLockExpiry() == null ? null : new java.sql.Date( profile.getLockExpiry().getTime() );
+                if( existingProfile == null ) {
+                    // User is new: insert new user record
+                    setProfileParameters( ps1, profile, password, ts );
+                    ps1.setTimestamp( 10, ts );
+                    ps1.setBoolean( 11, profile.isPasswordMustChange() );
+                    ps1.execute();
 
-                // Insert new role record
-                ps2.setString( 1, profile.getLoginName() );
-                int roles = 0;
-                try ( ResultSet rs = ps2.executeQuery() ) {
-                    while ( rs.next() ) {
-                        roles++;
+                    // Insert new role record
+                    ps2.setString( 1, profile.getLoginName() );
+                    int roles = 0;
+                    try ( ResultSet rs = ps2.executeQuery() ) {
+                        while ( rs.next() ) {
+                            roles++;
+                        }
                     }
+
+                    if( roles == 0 ) {
+                        ps3.setString( 1, profile.getLoginName() );
+                        ps3.setString( 2, initialRole );
+                        ps3.execute();
+                    }
+
+                    // Set the profile creation time
+                    profile.setCreated( modDate );
+                } else {
+                    // User exists: modify existing record
+                    setProfileParameters( ps4, profile, password, ts );
+                    ps4.setDate( 10, lockExpiry );
+                    ps4.setBoolean( 11, profile.isPasswordMustChange() );
+                    ps4.setString( 12, profile.getLoginName() );
+                    ps4.execute();
                 }
+                // Set the profile mod time
+                profile.setLastModified( modDate );
 
-                if( roles == 0 ) {
-                    ps3.setString( 1, profile.getLoginName() );
-                    ps3.setString( 2, initialRole );
-                    ps3.execute();
+                // Commit and close connection
+                if( supportsCommits ) {
+                    conn.commit();
                 }
-
-                // Set the profile creation time
-                profile.setCreated( modDate );
-            } else {
-                // User exists: modify existing record
-                setProfileParameters( ps4, profile, password, ts );
-                ps4.setDate( 10, lockExpiry );
-                ps4.setBoolean( 11, profile.isPasswordMustChange() );
-                ps4.setString( 12, profile.getLoginName() );
-                ps4.execute();
-            }
-            // Set the profile mod time
-            profile.setLastModified( modDate );
-
-            // Commit and close connection
-            if( supportsCommits ) {
-                conn.commit();
+            } catch( final SQLException e ) {
+                // A new users row whose role insert failed is an account with no permissions;
+                // discard the whole write rather than leave that committed.
+                if( supportsCommits ) {
+                    com.wikantik.jdbc.Transactions.rollbackQuietly( conn, e, LOG, "save(" + loginName + ")" );
+                }
+                throw e;
             }
 
             // Evict the saved login so the next lookup (e.g. a basic-auth request) sees the

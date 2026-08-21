@@ -35,14 +35,12 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
-import com.wikantik.util.ClassUtil;
 import com.wikantik.util.TextUtil;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
@@ -126,21 +124,8 @@ public class CachingProvider implements PageProvider {
         LOG.info( "All-pages cache TTL set to {} seconds", allPagesTTL );
 
         //  Find and initialize real provider.
-        final String classname;
-        try {
-            classname = TextUtil.getRequiredProperty( properties, PageManager.PROP_PAGEPROVIDER );
-        } catch( final NoSuchElementException e ) {
-            throw new NoRequiredPropertyException( e.getMessage(), PageManager.PROP_PAGEPROVIDER, e );
-        }
-
-        try {
-            provider = ClassUtil.buildInstance( "com.wikantik.providers", classname );
-            LOG.debug( "Initializing real provider class {}", provider );
-            provider.initialize( engine, properties );
-        } catch( final ReflectiveOperationException e ) {
-            LOG.error( "Unable to instantiate provider class {}", classname, e );
-            throw new IllegalArgumentException( "illegal provider class", e );
-        }
+        provider = ProviderBootstrap.resolveAndInitialize(
+            engine, properties, PageManager.PROP_PAGEPROVIDER, null );
 
         // Start filesystem watcher if enabled and the underlying provider is file-based
         final boolean watcherEnabled = TextUtil.getBooleanProperty( properties, PROP_WATCHER_ENABLED, true );

@@ -32,8 +32,6 @@ import com.wikantik.api.search.QueryItem;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.cache.CacheInfo;
 import com.wikantik.cache.CachingManager;
-import com.wikantik.util.ClassUtil;
-import com.wikantik.util.TextUtil;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,7 +40,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -73,21 +70,8 @@ public class CachingAttachmentProvider implements AttachmentProvider {
         cachingManager.registerListener( CachingManager.CACHE_ATTACHMENTS, "expired", allRequested );
 
         // Find and initialize real provider.
-        final String classname;
-        try {
-            classname = TextUtil.getRequiredProperty( properties, AttachmentManager.PROP_PROVIDER, "wikantik.attachmentProvider" );
-        } catch( final NoSuchElementException e ) {
-            throw new NoRequiredPropertyException( e.getMessage(), AttachmentManager.PROP_PROVIDER, e );
-        }
-
-        try {
-            provider = ClassUtil.buildInstance( "com.wikantik.providers", classname );
-            LOG.debug( "Initializing real provider class {}", provider );
-            provider.initialize( engine, properties );
-        } catch( final ReflectiveOperationException e ) {
-            LOG.error( "Unable to instantiate provider class {}", classname, e );
-            throw new IllegalArgumentException( "illegal provider class", e );
-        }
+        provider = ProviderBootstrap.resolveAndInitialize(
+            engine, properties, AttachmentManager.PROP_PROVIDER, "wikantik.attachmentProvider" );
     }
 
     /**

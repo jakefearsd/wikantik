@@ -322,12 +322,15 @@ public final class KgPolicyCli {
                     bindStrings( st, pageNames, 1 );
                     excludedDeleted = st.executeUpdate();
                 }
-                c.commit();
-                out.printf( "Purged %s: chunk_mentions=%d edges=%d nodes=%d excluded_rows=%d%n",
-                        label, mentionsDeleted, edgesDeleted, nodesDeleted, excludedDeleted );
-                // Audit — use a fresh auto-commit connection so we don't leave an open txn
-                try ( Connection ac = ds.getConnection();
-                      PreparedStatement aud = ac.prepareStatement(
+                // Audit inside the SAME transaction as the deletions, on the same connection,
+                // before the commit. A purge and its audit record stand or fall together: this
+                // destructive operation must never be durable without a record of it.
+                //
+                // This used to run on a second, auto-commit connection AFTER c.commit(), yet
+                // still inside the try below — so an audit failure deleted the rows for real,
+                // lost the audit record, and reported "purge rolled back" to the operator. See
+                // KgPolicyCliTest.purgeIsRolledBackWhenItsAuditRecordCannotBeWritten.
+                try ( PreparedStatement aud = c.prepareStatement(
                         "INSERT INTO kg_policy_audit (cluster, old_action, new_action, reason, actor) " +
                         "VALUES (?, NULL, 'purged', ?, ?)" ) ) {
                     aud.setString( 1, label );
@@ -336,10 +339,19 @@ public final class KgPolicyCli {
                     aud.setString( 3, System.getProperty( "user.name", "cli" ) );
                     aud.executeUpdate();
                 }
+                c.commit();
+                out.printf( "Purged %s: chunk_mentions=%d edges=%d nodes=%d excluded_rows=%d%n",
+                        label, mentionsDeleted, edgesDeleted, nodesDeleted, excludedDeleted );
                 return 0;
             } catch ( final SQLException e ) {
                 c.rollback();
                 throw new RuntimeException( "purge rolled back: " + e.getMessage(), e );
+            } catch ( final RuntimeException e ) {
+                // Nothing here throws unchecked today, but this connection has an open
+                // transaction; leaving its fate to the pool's close() behaviour is exactly the
+                // fragility that bit CommentStore. Roll back explicitly and rethrow unchanged.
+                c.rollback();
+                throw e;
             }
         } catch ( final SQLException e ) {
             throw new RuntimeException( "purge failed: " + e.getMessage(), e );

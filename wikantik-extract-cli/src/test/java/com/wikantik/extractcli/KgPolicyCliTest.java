@@ -307,4 +307,87 @@ class KgPolicyCliTest {
         assertEquals( "myuser", pgds.getUser() );
         assertEquals( "mypass", pgds.getPassword() );
     }
+
+    // ------------------------------------------------------------------
+    //  Purge / audit atomicity
+    // ------------------------------------------------------------------
+
+    /** Blocks every INSERT into kg_policy_audit; the table stays readable and deletable. */
+    private void blockAuditWrites() throws Exception {
+        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
+            s.execute( "ALTER TABLE kg_policy_audit ADD CONSTRAINT force_audit_failure CHECK ( false )" );
+        }
+    }
+
+    private void unblockAuditWrites() throws Exception {
+        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
+            s.execute( "ALTER TABLE kg_policy_audit DROP CONSTRAINT IF EXISTS force_audit_failure" );
+        }
+    }
+
+    private int auditRowCount() throws Exception {
+        try ( Connection c = ds.getConnection(); Statement s = c.createStatement();
+              var rs = s.executeQuery( "SELECT count(*) FROM kg_policy_audit" ) ) {
+            rs.next();
+            return rs.getInt( 1 );
+        }
+    }
+
+    /**
+     * The purge and its audit record must stand or fall together.
+     *
+     * <p>The audit row used to be written on a second connection AFTER the purge had already
+     * committed, but still inside the try whose handler says "purge rolled back". So an audit
+     * failure deleted the caller's Knowledge-Graph rows for real, lost the audit record, and
+     * then told the operator the purge had been rolled back — the one message guaranteed to
+     * stop them investigating. This test checks the DATA, not the message, because the message
+     * was the part that lied.
+     */
+    @Test
+    void purgeIsRolledBackWhenItsAuditRecordCannotBeWritten() throws Exception {
+        new KgExcludedPagesRepository( ds ).exclude( "Foo", ExclusionReason.SYSTEM_PAGE );
+        new KgExcludedPagesRepository( ds ).exclude( "Bar", ExclusionReason.SYSTEM_PAGE );
+
+        blockAuditWrites();
+        try {
+            final ByteArrayOutputStream o = new ByteArrayOutputStream();
+            final ByteArrayOutputStream e = new ByteArrayOutputStream();
+            final int rc = new KgPolicyCli( new PrintStream( o ), new PrintStream( e ) )
+                    .runWithDataSource( ds, new String[] {
+                            "purge", "--reason", "system_page", "--confirm" } );
+
+            assertEquals( 1, rc, "A purge whose audit record failed must report failure." );
+
+            assertTrue( new KgExcludedPagesRepository( ds ).findReason( "Foo" ).isPresent(),
+                "The purge must NOT have deleted rows when its audit record could not be written. "
+              + "If this fails, the CLI destroyed data and then reported 'purge rolled back'." );
+            assertTrue( new KgExcludedPagesRepository( ds ).findReason( "Bar" ).isPresent(),
+                "No page may be purged without its audit record." );
+
+            assertEquals( 0, auditRowCount(), "No audit row should have survived either." );
+        } finally {
+            unblockAuditWrites();
+        }
+    }
+
+    /**
+     * The other half of the same invariant: a successful purge must leave exactly one audit
+     * row behind. Without this, "roll back when the audit fails" could be satisfied by never
+     * auditing at all.
+     */
+    @Test
+    void successfulPurgeWritesExactlyOneAuditRow() throws Exception {
+        new KgExcludedPagesRepository( ds ).exclude( "Foo", ExclusionReason.SYSTEM_PAGE );
+
+        final ByteArrayOutputStream o = new ByteArrayOutputStream();
+        final ByteArrayOutputStream e = new ByteArrayOutputStream();
+        final int rc = new KgPolicyCli( new PrintStream( o ), new PrintStream( e ) )
+                .runWithDataSource( ds, new String[] {
+                        "purge", "--reason", "system_page", "--confirm" } );
+
+        assertEquals( 0, rc, "stderr=" + e );
+        assertTrue( new KgExcludedPagesRepository( ds ).findReason( "Foo" ).isEmpty(),
+            "A confirmed purge must delete the excluded row." );
+        assertEquals( 1, auditRowCount(), "A successful purge must leave exactly one audit row." );
+    }
 }

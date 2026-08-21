@@ -18,6 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.api.frontmatter.schema.FrontmatterSchema;
 import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.mcp.tools.PageCheckResult.Severity;
 
@@ -343,8 +344,19 @@ public final class PageChecks {
             "overview", "introduction", "intro", "details", "notes", "misc",
             "miscellaneous", "summary", "background", "more", "other", "info" );
 
+    /**
+     * The cluster-slug rule, compiled from the schema constant that the SAVE path enforces —
+     * not a second copy of it.
+     *
+     * <p>This used to be an independently written regex that differed from
+     * {@link FrontmatterSchema#CLUSTER_SLUG_PATTERN} in one character: it ended {@code (...)*}
+     * where the schema ends {@code (...)?}, so it silently allowed unlimited sub-cluster depth.
+     * A page with {@code cluster: a/b/c} warned on every save while this audit reported it
+     * clean. CLAUDE.md states the depth limit "lives only in CLUSTER_SLUG_PATTERN"; sourcing it
+     * here keeps that true. See {@code ClusterSlugParityTest}.
+     */
     private static final java.util.regex.Pattern KEBAB =
-            java.util.regex.Pattern.compile( "^[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)*$" );
+            java.util.regex.Pattern.compile( FrontmatterSchema.CLUSTER_SLUG_PATTERN );
 
     private static final java.util.regex.Pattern ATX_HEADING =
             java.util.regex.Pattern.compile( "^#{1,6}\\s+(.+?)\\s*#*$" );
@@ -442,7 +454,9 @@ public final class PageChecks {
                 if ( !KEBAB.matcher( cluster ).matches() ) {
                     out.add( new PageCheckResult( ctx.pageName(), PageCheckResult.Severity.WARNING,
                             "retrieval", "cluster_not_kebab",
-                            "Cluster '" + cluster + "' is not kebab-case — use lowercase-hyphenated slugs (e.g. hybrid-retrieval)" ) );
+                            "Cluster '" + cluster + "' is not a valid cluster slug — use lowercase "
+                          + "kebab-case segments, with at most one parent/sub level "
+                          + "(e.g. hybrid-retrieval or retrieval/hybrid)" ) );
                 }
             }
             return out;

@@ -20,10 +20,6 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 
-import com.wikantik.audit.AuditCategory;
-import com.wikantik.audit.AuditEntry;
-import com.wikantik.audit.AuditOutcome;
-import com.wikantik.audit.AuditService;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.DatabasePolicy;
 import com.wikantik.auth.DefaultAuthorizationManager;
@@ -254,9 +250,8 @@ public class AdminPolicyResource extends RestServletBase {
             LOG.info( "Created policy grant: {} {} {} {} {}", gf.principalType, gf.principalName,
                     gf.permissionType, gf.target, gf.actions );
 
-            recordGrantAudit( request,
-                    gf.principalType + ":" + gf.principalName + ":" + gf.permissionType + ":" + gf.target,
-                    gf.actions, "create" );
+            recordGrantAudit( request, "policy.grant.update", String.valueOf( generatedId ),
+                    gf.principalType + ":" + gf.principalName + ":" + gf.permissionType + ":" + gf.target );
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );
@@ -276,34 +271,26 @@ public class AdminPolicyResource extends RestServletBase {
         }
     }
 
-    /** Record a successful policy-grant mutation to the audit log, guarded so a broken
-     *  audit backend never fails the mutation (which already succeeded). Shared by the
-     *  create and update paths; {@code op} ("create"/"update") only tunes the failure log.
-     *  NOTE: the eventType is intentionally left as {@code "policy.grant.update"} for both
-     *  paths to preserve the pre-existing behavior — not changed as part of this dedup. */
-    private void recordGrantAudit( final HttpServletRequest request, final String targetId,
-                                    final String targetLabel, final String op ) {
-        try {
-            final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
-                    ? wikiEngine.getAuditService() : null;
-            if ( audit != null ) {
-                final java.security.Principal p = request.getUserPrincipal();
-                final String actor = p != null ? p.getName() : null;
-                audit.record( AuditEntry.builder()
-                        .eventTime( java.time.Instant.now() )
-                        .category( AuditCategory.ADMIN )
-                        .eventType( "policy.grant.update" )
-                        .outcome( AuditOutcome.SUCCESS )
-                        .actorPrincipal( actor )
-                        .actorType( "user" )
-                        .targetType( "policy" )
-                        .targetId( targetId )
-                        .targetLabel( targetLabel )
-                        .build() );
-            }
-        } catch ( final Exception auditEx ) {
-            LOG.warn( "Failed to record audit entry for policy grant {}: {}", op, auditEx.getMessage(), auditEx );
-        }
+    /**
+     * Records a policy-grant mutation, delegating the audit envelope to
+     * {@link RestAuditSupport#recordAdminAudit} — the same helper the connector and
+     * API-key surfaces use. It is try/catch-wrapped there, so a broken audit backend
+     * never fails a mutation that already succeeded.
+     *
+     * <p>{@code targetId} is ALWAYS the grant id, for create as much as for update and
+     * delete. It used to be the composite descriptor on the create path, which filed the
+     * create event under a different key from the rest of that grant's history and made it
+     * invisible when auditing the grant by id. {@code AdminPolicyAuditTest} pins this.
+     *
+     * <p>NOTE: the create path still reports eventType {@code "policy.grant.update"}. That
+     * predates this change and is preserved deliberately rather than silently altering the
+     * meaning of existing audit rows; see {@code AdminPolicyAuditTest}, which pins it so a
+     * future correction is a deliberate act.
+     */
+    private void recordGrantAudit( final HttpServletRequest request, final String eventType,
+                                    final String targetId, final String targetLabel ) {
+        RestAuditSupport.recordAdminAudit( getEngine(), eventType,
+            RestAuditSupport.currentLogin( request ), "policy", targetId, targetLabel );
     }
 
     private void handleUpdateGrant( final HttpServletRequest request, final HttpServletResponse response,
@@ -349,9 +336,8 @@ public class AdminPolicyResource extends RestServletBase {
             LOG.info( "Updated policy grant {}: {} {} {} {} {}", id, gf.principalType, gf.principalName,
                     gf.permissionType, gf.target, gf.actions );
 
-            recordGrantAudit( request, String.valueOf( id ),
-                    gf.principalType + ":" + gf.principalName + ":" + gf.permissionType + ":" + gf.target,
-                    "update" );
+            recordGrantAudit( request, "policy.grant.update", String.valueOf( id ),
+                    gf.principalType + ":" + gf.principalName + ":" + gf.permissionType + ":" + gf.target );
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );
@@ -402,26 +388,9 @@ public class AdminPolicyResource extends RestServletBase {
 
             LOG.info( "Deleted policy grant: {}", id );
 
-            try {
-                final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
-                        ? wikiEngine.getAuditService() : null;
-                if ( audit != null ) {
-                    final java.security.Principal p = request.getUserPrincipal();
-                    final String actor = p != null ? p.getName() : null;
-                    audit.record( AuditEntry.builder()
-                            .eventTime( java.time.Instant.now() )
-                            .category( AuditCategory.ADMIN )
-                            .eventType( "policy.grant.delete" )
-                            .outcome( AuditOutcome.SUCCESS )
-                            .actorPrincipal( actor )
-                            .actorType( "user" )
-                            .targetType( "policy" )
-                            .targetId( String.valueOf( id ) )
-                            .build() );
-                }
-            } catch ( final Exception auditEx ) {
-                LOG.warn( "Failed to record audit entry for policy grant delete: {}", auditEx.getMessage(), auditEx );
-            }
+            // No label: the DELETE never loads the row, so the descriptor is not available
+            // here. targetId still matches the create/update events for this grant.
+            recordGrantAudit( request, "policy.grant.delete", String.valueOf( id ), null );
 
             sendJson( response, Map.of( "success", true ) );
         } catch ( final SQLException e ) {

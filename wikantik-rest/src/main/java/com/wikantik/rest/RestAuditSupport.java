@@ -32,9 +32,13 @@ import java.security.Principal;
 import java.time.Instant;
 
 /**
- * Shared audit-recording helpers for the connector admin surfaces, extracted from the
- * byte-identical {@code recordAudit}/{@code currentLogin} methods previously duplicated
- * across {@link ConnectorCredentialsResource} and {@code ConnectorAdminWriteHandlers}.
+ * Shared audit-recording helpers for the admin surfaces.
+ *
+ * <p>Originally extracted from the byte-identical {@code recordAudit}/{@code currentLogin}
+ * methods duplicated across {@link ConnectorCredentialsResource} and
+ * {@code ConnectorAdminWriteHandlers}; the same skeleton had since been hand-copied into
+ * the policy-grant and API-key resources too, so {@link #recordAdminAudit} now serves all
+ * of them and {@link #recordConnectorAudit} is a thin alias for the connector target type.
  */
 final class RestAuditSupport {
 
@@ -57,6 +61,29 @@ final class RestAuditSupport {
      */
     static void recordConnectorAudit( final Engine engine, final String eventType, final String actorLogin,
                                       final String connectorId, final String targetLabel ) {
+        recordAdminAudit( engine, eventType, actorLogin, "connector", connectorId, targetLabel );
+    }
+
+    /**
+     * Record a successful admin mutation to the audit log, wrapped in try/catch so a broken
+     * audit backend never fails the mutation itself (the mutation already succeeded by the
+     * time this runs). Only a {@link WikiEngine} exposes an {@link AuditService}; any other
+     * {@link Engine} is a silent no-op.
+     *
+     * <p>Every admin mutation records the same envelope — ADMIN category, SUCCESS outcome,
+     * {@code "user"} actor type, {@code Instant.now()} — so those are fixed here rather than
+     * re-specified (and re-mistyped) at each call site.
+     *
+     * @param engine      the resource's engine (from {@code getEngine()})
+     * @param eventType   audit event type, e.g. {@code "apikey.issue"}
+     * @param actorLogin  acting user login, or {@code null}
+     * @param targetType  the kind of thing mutated, e.g. {@code "policy"}, {@code "apikey"}
+     * @param targetId    stable identifier of the thing mutated — use the SAME identifier
+     *                    for every operation on it, or its events will not group together
+     * @param targetLabel optional human label; recorded only when non-null
+     */
+    static void recordAdminAudit( final Engine engine, final String eventType, final String actorLogin,
+                                  final String targetType, final String targetId, final String targetLabel ) {
         try {
             final AuditService audit = engine instanceof WikiEngine wikiEngine
                     ? wikiEngine.getAuditService() : null;
@@ -68,14 +95,14 @@ final class RestAuditSupport {
                         .outcome( AuditOutcome.SUCCESS )
                         .actorPrincipal( actorLogin )
                         .actorType( "user" )
-                        .targetType( "connector" )
-                        .targetId( connectorId );
+                        .targetType( targetType )
+                        .targetId( targetId );
                 if ( targetLabel != null ) entry.targetLabel( targetLabel );
                 audit.record( entry.build() );
             }
         } catch ( final Exception auditEx ) {
-            LOG.warn( "Failed to record audit entry for connector {} '{}': {}",
-                eventType, connectorId, auditEx.getMessage(), auditEx );
+            LOG.warn( "Failed to record audit entry for {} {} '{}': {}",
+                targetType, eventType, targetId, auditEx.getMessage(), auditEx );
         }
     }
 

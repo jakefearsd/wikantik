@@ -22,10 +22,6 @@ import com.google.gson.JsonObject;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.audit.AuditCategory;
-import com.wikantik.audit.AuditEntry;
-import com.wikantik.audit.AuditOutcome;
-import com.wikantik.audit.AuditService;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import jakarta.servlet.ServletException;
@@ -213,23 +209,8 @@ public class SelfApiKeysResource extends RestServletBase {
     }
 
     private void audit( final String eventType, final int keyId, final String label, final String actor ) {
-        try {
-            final AuditService a = getEngine() instanceof com.wikantik.WikiEngine we ? we.getAuditService() : null;
-            if ( a == null ) return;
-            a.record( AuditEntry.builder()
-                    .eventTime( Instant.now() )
-                    .category( AuditCategory.ADMIN )
-                    .eventType( eventType )
-                    .outcome( AuditOutcome.SUCCESS )
-                    .actorPrincipal( actor )
-                    .actorType( "user" )
-                    .targetType( "apikey" )
-                    .targetId( String.valueOf( keyId ) )
-                    .targetLabel( label != null ? label : String.valueOf( keyId ) )
-                    .build() );
-        } catch ( final Exception e ) {
-            LOG.warn( "Failed to record audit entry for {} (key {}): {}", eventType, keyId, e.getMessage(), e );
-        }
+        RestAuditSupport.recordAdminAudit( getEngine(), eventType, actor, "apikey",
+            String.valueOf( keyId ), label != null ? label : String.valueOf( keyId ) );
     }
 
     /** Returns the id from a "/{id}/rotate" pathInfo, or null if it isn't a rotate path. */

@@ -44,6 +44,23 @@ public final class PageChecks {
     private PageChecks() {
     }
 
+    /**
+     * The composed SEO rule set, shared by every tool that reports SEO readiness.
+     *
+     * <p>Lives here rather than in any one tool because more than one surface answers the
+     * same question: {@code verify_pages}' {@code seo_readiness} check and
+     * {@code preview_structured_data}'s warnings. {@code preview_structured_data} used to
+     * hand-roll its own copy of these five rules and had already drifted from this one —
+     * see {@code SeoWarningParityTest}, which pins the two surfaces together.
+     */
+    public static final List< PageCheck > SEO_CHECKS = List.of(
+            new SummaryCheck( true ),
+            new TagsCheck(),
+            new HubRelatedCheck( true ),
+            new DateCheck(),
+            new ClusterTypeCheck()
+    );
+
     // -----------------------------------------------------------------------
     //  SEO Checks
     // -----------------------------------------------------------------------

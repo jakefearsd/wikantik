@@ -46,14 +46,8 @@ public class VerifyPagesTool extends AbstractMcpTool {
     private static final Set< String > STANDARD_METADATA_FIELDS =
             Set.of( "type", "tags", "summary" );
 
-    /** Composed SEO checks — shared implementations from {@link PageChecks}. */
-    private static final List< PageCheck > SEO_CHECKS = List.of(
-            new PageChecks.SummaryCheck( true ),
-            new PageChecks.TagsCheck(),
-            new PageChecks.HubRelatedCheck( true ),
-            new PageChecks.DateCheck(),
-            new PageChecks.ClusterTypeCheck()
-    );
+    /** Composed SEO checks — shared with every other SEO-reporting surface. */
+    private static final List< PageCheck > SEO_CHECKS = PageChecks.SEO_CHECKS;
 
     /** Composed retrieval-readiness checks — see PageChecks "Retrieval Checks". */
     private static final List< PageCheck > RETRIEVAL_CHECKS = List.of(

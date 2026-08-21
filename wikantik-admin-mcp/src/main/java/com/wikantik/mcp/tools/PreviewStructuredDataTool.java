@@ -157,8 +157,8 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
         // News sitemap eligibility
         result.put( "newsSitemap", buildNewsSitemap( page, tags, metadata ) );
 
-        // Warnings (same checks as seo_readiness)
-        result.put( "warnings", buildWarnings( summary, tags, date, cluster, pageType, related ) );
+        // Warnings — literally the same checks as seo_readiness, not a copy of them.
+        result.put( "warnings", buildWarnings( pageName, metadata, page, summary ) );
 
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
@@ -276,38 +276,36 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
         return news;
     }
 
-    private List< String > buildWarnings( final String summary, final List< String > tags,
-                                            final String date, final String cluster,
-                                            final String pageType, final List< String > related ) {
-        final List< String > warnings = new ArrayList<>();
+    /**
+     * Builds the SEO warning list by running the shared {@link PageChecks#SEO_CHECKS}
+     * strategies — the exact set {@code verify_pages}' {@code seo_readiness} runs.
+     *
+     * <p>This method used to re-implement those five rules inline, and had drifted: a
+     * whitespace-only summary was reported as a 3-character "too short" summary rather
+     * than a missing one, and the no-tags wording had diverged. {@code SeoWarningParityTest}
+     * now holds the two surfaces together.
+     *
+     * <p>The one addition over {@code seo_readiness} is deliberate: {@link PageChecks}
+     * only ever emits problems, but a preview is often opened precisely to confirm a
+     * summary is the right length, so an in-range summary gets a positive line here.
+     */
+    private List< String > buildWarnings( final String pageName, final Map< String, Object > metadata,
+                                          final Page page, final String summary ) {
+        final PageCheckContext ctx =
+            new PageCheckContext( pageName, metadata, "", page, pageManager );
 
-        if ( summary == null ) {
-            warnings.add( "No summary — no meta description for search engines" );
-        } else {
-            final int len = summary.length();
-            if ( len < 50 ) {
-                warnings.add( "Summary too short (" + len + " chars) — aim for 50-160" );
-            } else if ( len > 160 ) {
-                warnings.add( "Summary too long (" + len + " chars) — Google will truncate at ~155" );
-            } else {
-                warnings.add( "Summary is " + len + " chars (good: 50-160 range)" );
+        final List< String > warnings = new ArrayList<>();
+        for ( final PageCheck check : PageChecks.SEO_CHECKS ) {
+            for ( final PageCheckResult result : check.check( ctx ) ) {
+                warnings.add( result.detail() );
             }
         }
 
-        if ( tags.isEmpty() ) {
-            warnings.add( "No tags — not eligible for News Sitemap" );
-        }
-
-        if ( date == null ) {
-            warnings.add( "No date — JSON-LD will lack datePublished" );
-        }
-
-        if ( "hub".equals( pageType ) && related.isEmpty() ) {
-            warnings.add( "Hub page has no related pages — CollectionPage JSON-LD will have empty hasPart" );
-        }
-
-        if ( cluster != null && pageType == null ) {
-            warnings.add( "Has cluster but no type — set type to 'article' or 'hub'" );
+        if ( summary != null ) {
+            final int len = summary.strip().length();
+            if ( len >= 50 && len <= 160 ) {
+                warnings.add( "Summary is " + len + " chars (good: 50-160 range)" );
+            }
         }
 
         return warnings;

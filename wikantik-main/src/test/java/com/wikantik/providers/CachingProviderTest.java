@@ -544,8 +544,8 @@ class CachingProviderTest {
      */
     @Test
     void testGetAllPagesCacheRefreshesAfterTTL() throws Exception {
-        // Use a very short TTL (1 second) for testing
-        engine = buildWithCounterProviderAndShortTTL( 1 );
+        // Short TTL, long enough that the refresh below cannot outrun it
+        engine = buildWithCounterProviderAndShortTTL( 2 );
         final CounterProvider cp = getCounterProvider( engine );
 
         // First getAllPages call happens during init
@@ -554,12 +554,13 @@ class CachingProviderTest {
         // Reset counters
         cp.resetCounters();
 
-        // Immediate call should use cache
-        engine.getManager( PageManager.class ).getAllPages();
-        Assertions.assertEquals( 0, cp.m_getAllPagesCalls, "getAllPages should use cache immediately" );
-
-        // Wait for TTL to expire and cache to refresh
-        Awaitility.await().atMost( 3, java.util.concurrent.TimeUnit.SECONDS )
+        // Let the init-time entry expire and be refreshed BEFORE asserting any cache
+        // hit. The entry the constructor wrote starts ageing the moment the engine is
+        // built, so on a loaded machine it can already be stale by the time the test
+        // body runs — asserting a hit against it raced the expiry and went red in the
+        // parallel gate on 2026-08-21. Everything below therefore reads an entry that
+        // was written moments earlier, which no scheduling delay can invalidate.
+        Awaitility.await().atMost( 10, java.util.concurrent.TimeUnit.SECONDS )
                   .pollInterval( 50, java.util.concurrent.TimeUnit.MILLISECONDS )
                   .until( () -> {
                       engine.getManager( PageManager.class ).getAllPages();
@@ -570,7 +571,7 @@ class CachingProviderTest {
         // Reset counters
         cp.resetCounters();
 
-        // Immediate call should use cache again
+        // Immediate call should use the entry the refresh just wrote
         engine.getManager( PageManager.class ).getAllPages();
         Assertions.assertEquals( 0, cp.m_getAllPagesCalls, "getAllPages should use cache after refresh" );
     }

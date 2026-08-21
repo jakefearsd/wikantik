@@ -54,33 +54,22 @@ public class CommentStore {
                                        final Optional< String > ownerForMention ) {
         final UUID threadId = UUID.randomUUID();
         final UUID commentId = UUID.randomUUID();
-        try ( Connection c = ds.getConnection() ) {
-            c.setAutoCommit( false );
-            try {
-                try ( PreparedStatement ps = c.prepareStatement(
-                        "INSERT INTO comment_threads (id, canonical_id, anchor_exact, anchor_prefix, " +
-                        "anchor_suffix, status, created_by) VALUES (?, ?, ?, ?, ?, 'open', ?)" ) ) {
-                    ps.setObject( 1, threadId );
-                    ps.setString( 2, canonicalId );
-                    ps.setString( 3, anchor.exact() );
-                    ps.setString( 4, anchor.prefix() );
-                    ps.setString( 5, anchor.suffix() );
-                    ps.setString( 6, author );
-                    ps.executeUpdate();
-                }
-                insertComment( c, commentId, threadId, author, body );
-                mentionSvc.recordCreate( c, commentId, author, body, ownerForMention );
-                c.commit();
-            } catch ( final SQLException e ) {
-                c.rollback();
-                throw e;
-            } finally {
-                c.setAutoCommit( true );
+        inTransaction( "comment thread create", "canonicalId=" + canonicalId, c -> {
+            try ( PreparedStatement ps = c.prepareStatement(
+                    "INSERT INTO comment_threads (id, canonical_id, anchor_exact, anchor_prefix, " +
+                    "anchor_suffix, status, created_by) VALUES (?, ?, ?, ?, ?, 'open', ?)" ) ) {
+                ps.setObject( 1, threadId );
+                ps.setString( 2, canonicalId );
+                ps.setString( 3, anchor.exact() );
+                ps.setString( 4, anchor.prefix() );
+                ps.setString( 5, anchor.suffix() );
+                ps.setString( 6, author );
+                ps.executeUpdate();
             }
-        } catch ( final SQLException e ) {
-            LOG.warn( "createThread(canonicalId={}) failed: {}", canonicalId, e.getMessage(), e );
-            throw new RuntimeException( "comment thread create failed", e );
-        }
+            insertComment( c, commentId, threadId, author, body );
+            mentionSvc.recordCreate( c, commentId, author, body, ownerForMention );
+            return null;
+        } );
         return findThread( threadId ).orElseThrow(
                 () -> new RuntimeException( "thread vanished after insert: " + threadId ) );
     }
@@ -88,22 +77,11 @@ public class CommentStore {
     public Comment addComment( final UUID threadId, final String author, final String body,
                                final MentionService mentionSvc ) {
         final UUID commentId = UUID.randomUUID();
-        try ( Connection c = ds.getConnection() ) {
-            c.setAutoCommit( false );
-            try {
-                insertComment( c, commentId, threadId, author, body );
-                mentionSvc.recordReply( c, commentId, author, body );
-                c.commit();
-            } catch ( final SQLException e ) {
-                c.rollback();
-                throw e;
-            } finally {
-                c.setAutoCommit( true );
-            }
-        } catch ( final SQLException e ) {
-            LOG.warn( "addComment(threadId={}) failed: {}", threadId, e.getMessage(), e );
-            throw new RuntimeException( "comment add failed", e );
-        }
+        inTransaction( "comment add", "threadId=" + threadId, c -> {
+            insertComment( c, commentId, threadId, author, body );
+            mentionSvc.recordReply( c, commentId, author, body );
+            return null;
+        } );
         return findComment( commentId ).orElseThrow(
                 () -> new RuntimeException( "comment vanished after insert: " + commentId ) );
     }
@@ -123,31 +101,22 @@ public class CommentStore {
     public Optional< Comment > editComment( final UUID commentId, final String oldBody,
                                             final String newBody, final String mentioningLogin,
                                             final MentionService mentionSvc ) {
-        try ( Connection c = ds.getConnection() ) {
-            c.setAutoCommit( false );
-            try {
-                try ( PreparedStatement ps = c.prepareStatement(
-                        "UPDATE comments SET body = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?" ) ) {
-                    ps.setString( 1, newBody );
-                    ps.setObject( 2, commentId );
-                    if ( ps.executeUpdate() == 0 ) {
-                        c.rollback();
-                        return Optional.empty();
-                    }
+        // A miss (0 rows updated) commits an empty transaction rather than rolling back —
+        // identical in effect, since nothing was written, and it keeps the abort path out
+        // of the shared helper.
+        final Boolean applied = inTransaction( "comment edit", "id=" + commentId, c -> {
+            try ( PreparedStatement ps = c.prepareStatement(
+                    "UPDATE comments SET body = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?" ) ) {
+                ps.setString( 1, newBody );
+                ps.setObject( 2, commentId );
+                if ( ps.executeUpdate() == 0 ) {
+                    return Boolean.FALSE;
                 }
-                mentionSvc.recordEdit( c, commentId, mentioningLogin, oldBody, newBody );
-                c.commit();
-            } catch ( final SQLException e ) {
-                c.rollback();
-                throw e;
-            } finally {
-                c.setAutoCommit( true );
             }
-        } catch ( final SQLException e ) {
-            LOG.warn( "editComment(id={}) failed: {}", commentId, e.getMessage(), e );
-            throw new RuntimeException( "comment edit failed", e );
-        }
-        return findComment( commentId );
+            mentionSvc.recordEdit( c, commentId, mentioningLogin, oldBody, newBody );
+            return Boolean.TRUE;
+        } );
+        return Boolean.TRUE.equals( applied ) ? findComment( commentId ) : Optional.empty();
     }
 
     public boolean deleteComment( final UUID commentId ) {
@@ -182,6 +151,63 @@ public class CommentStore {
         } catch ( final SQLException e ) {
             LOG.warn( "reopen(threadId={}) failed: {}", threadId, e.getMessage(), e );
             throw new RuntimeException( "thread reopen failed", e );
+        }
+    }
+
+    /** One unit of work inside a manual transaction; the helper owns begin/commit/rollback. */
+    @FunctionalInterface
+    private interface TxWork< T > {
+        T run( Connection c ) throws SQLException;
+    }
+
+    /**
+     * Runs {@code work} in a manual transaction, committing on success and rolling back on
+     * ANY failure.
+     *
+     * <p>The three multi-statement writes used to hand-copy this block and catch only
+     * {@link SQLException}. Everything in here also calls {@code MentionService}, so an
+     * unchecked failure there skipped the rollback and reached
+     * {@code finally { setAutoCommit( true ) }} — which, per the JDBC contract, COMMITS the
+     * open transaction. A failed write therefore persisted its partial rows. Catching
+     * {@link RuntimeException} as well is the actual fix; sharing the block is what stops it
+     * regressing in one copy. {@code CommentStoreTransactionTest} pins the invariant.
+     *
+     * <p>The single-statement writes use {@link #executeUpdate} instead — they need no
+     * transaction at all.
+     *
+     * @param op     short operation name; also the wrapped-exception message ("<op> failed").
+     * @param detail context for the failure log, e.g. {@code "threadId=..."}.
+     */
+    private < T > T inTransaction( final String op, final String detail, final TxWork< T > work ) {
+        try ( Connection c = ds.getConnection() ) {
+            c.setAutoCommit( false );
+            try {
+                final T result = work.run( c );
+                c.commit();
+                return result;
+            } catch ( final SQLException | RuntimeException e ) {
+                rollbackQuietly( c, op, e );
+                throw e;
+            } finally {
+                c.setAutoCommit( true );
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "{} ({}) failed: {}", op, detail, e.getMessage(), e );
+            throw new RuntimeException( op + " failed", e );
+        }
+    }
+
+    /**
+     * Rolls back without letting a rollback failure replace the exception that caused it —
+     * the original cause is what explains the failure, and the hand-copied blocks would
+     * have lost it.
+     */
+    private static void rollbackQuietly( final Connection c, final String op, final Exception cause ) {
+        try {
+            c.rollback();
+        } catch ( final SQLException rollbackEx ) {
+            LOG.warn( "{}: rollback failed after {}: {}",
+                op, cause.getMessage(), rollbackEx.getMessage(), rollbackEx );
         }
     }
 

@@ -31,6 +31,7 @@ import com.wikantik.knowledge.SummaryExtractor;
 import com.wikantik.knowledge.TagExtractor;
 import com.wikantik.knowledge.TitleDeriver;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
+import com.wikantik.api.pagegraph.PageType;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -247,7 +248,7 @@ public final class KgMaintenanceAdminHandlers {
                 try {
                     final String content = pm.getPureText( page );
                     final ParsedPage parsed = FrontmatterParser.parse( content != null ? content : "" );
-                    if ( "hub".equals( parsed.metadata().get( "type" ) ) ) {
+                    if ( PageType.fromFrontmatter( parsed.metadata().get( "type" ) ) == PageType.HUB ) {
                         saveHelper.saveText( page.getName(), content, SaveOptions.builder().build() );
                         synced++;
                     }

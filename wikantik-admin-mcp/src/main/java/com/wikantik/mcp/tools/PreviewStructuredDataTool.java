@@ -26,6 +26,7 @@ import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.pagegraph.PageType;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -125,7 +126,7 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
         final String date = getStringField( metadata, "date" );
         final List< String > tags = getListField( metadata, "tags" );
         final List< String > related = getListField( metadata, "related" );
-        final boolean isHub = "hub".equals( pageType );
+        final boolean isHub = PageType.fromFrontmatter( pageType ) == PageType.HUB;
 
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "pageName", pageName );

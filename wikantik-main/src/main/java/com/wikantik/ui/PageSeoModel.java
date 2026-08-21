@@ -21,6 +21,7 @@ package com.wikantik.ui;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.ontology.NodeTypeMapping;
+import com.wikantik.api.pagegraph.PageType;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -148,7 +149,7 @@ record PageSeoModel(
         final String pageDate = dateOrString( meta.get( "date" ) );
         final List< String > tags = stringList( meta.get( "tags" ) );
         final List< String > related = stringList( meta.get( "related" ) );
-        final boolean isHub = "hub".equalsIgnoreCase( pageType );
+        final boolean isHub = PageType.fromFrontmatter( pageType ) == PageType.HUB;
         // schema.org @type re-sourced from the ontology's page-type mapping (Phase 6): the SEO
         // classification and the ontology projection share one source. Upgrade-only.
         final String schemaType = NodeTypeMapping.schemaOrgType( pageType );

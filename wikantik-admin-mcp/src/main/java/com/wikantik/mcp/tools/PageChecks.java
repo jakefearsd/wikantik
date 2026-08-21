@@ -21,6 +21,7 @@ package com.wikantik.mcp.tools;
 import com.wikantik.api.frontmatter.schema.FrontmatterSchema;
 import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.mcp.tools.PageCheckResult.Severity;
+import com.wikantik.api.pagegraph.PageType;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -143,7 +144,7 @@ public final class PageChecks {
         @Override
         @SuppressWarnings( "unchecked" )
         public List< PageCheckResult > check( final PageCheckContext ctx ) {
-            if ( !"hub".equals( ctx.metadata().get( "type" ) ) ) {
+            if ( PageType.fromFrontmatter( ctx.metadata().get( "type" ) ) != PageType.HUB ) {
                 return List.of();
             }
 

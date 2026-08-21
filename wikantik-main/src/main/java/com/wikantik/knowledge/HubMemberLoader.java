@@ -23,6 +23,7 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.api.pagegraph.PageType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -113,7 +114,7 @@ class HubMemberLoader {
                 continue;
             }
             final Map< String, Object > meta = parsed.metadata();
-            if ( meta == null || !"hub".equals( meta.get( "type" ) ) ) continue;
+            if ( meta == null || PageType.fromFrontmatter( meta.get( "type" ) ) != PageType.HUB ) continue;
             final List< String > related = coerceStringList( meta.get( "related" ) );
             hubs.put( name, related );
         }

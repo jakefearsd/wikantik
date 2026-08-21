@@ -26,6 +26,7 @@ import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.util.TextUtil;
+import com.wikantik.api.pagegraph.PageType;
 
 import java.util.List;
 import java.util.Map;
@@ -69,7 +70,7 @@ public class HubSetPlugin extends AbstractReferralPlugin {
         final String hubContent = pm.getPureText( hubPage );
         final ParsedPage parsed = FrontmatterParser.parse( hubContent != null ? hubContent : "" );
 
-        if ( !"hub".equals( parsed.metadata().get( "type" ) ) ) {
+        if ( PageType.fromFrontmatter( parsed.metadata().get( "type" ) ) != PageType.HUB ) {
             return "<div class=\"error\">Page '" + escapeHtml( hubName ) + "' is not a Hub (type != hub).</div>";
         }
 

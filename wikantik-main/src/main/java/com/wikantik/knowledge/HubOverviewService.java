@@ -25,6 +25,7 @@ import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
+import com.wikantik.api.pagegraph.PageType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -362,7 +363,7 @@ public class HubOverviewService {
         // 2. Parse frontmatter and assert type=hub.
         final ParsedPage parsed = FrontmatterParser.parse( text );
         final Map< String, Object > metadata = new LinkedHashMap<>( parsed.metadata() );
-        if ( !"hub".equals( metadata.get( "type" ) ) ) {
+        if ( PageType.fromFrontmatter( metadata.get( "type" ) ) != PageType.HUB ) {
             throw new IllegalArgumentException(
                 "Page '" + hubName + "' is not a hub page (type != 'hub')" );
         }

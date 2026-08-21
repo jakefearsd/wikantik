@@ -32,6 +32,7 @@ import com.wikantik.render.RenderingManager;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.ui.SemanticHeadRenderer;
 import com.wikantik.util.BaseUrlResolver;
+import com.wikantik.api.pagegraph.PageType;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
@@ -128,7 +129,7 @@ public class SpaRoutingFilter implements Filter {
                                                          final ParsedPage parsed,
                                                          final HttpServletRequest req ) {
         final Object type = parsed.metadata().get( "type" );
-        if ( !"hub".equalsIgnoreCase( type == null ? "" : type.toString() ) ) {
+        if ( PageType.fromFrontmatter( type ) != PageType.HUB ) {
             return java.util.List.of();
         }
         // A hub declares exactly one cluster — its primary — even if the page also joins others.

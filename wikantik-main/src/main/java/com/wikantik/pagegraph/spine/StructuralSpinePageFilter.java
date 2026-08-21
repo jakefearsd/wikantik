@@ -31,6 +31,7 @@ import com.wikantik.api.frontmatter.schema.Severity;
 import com.wikantik.api.pagegraph.ClusterDetails;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.wikantik.api.pagegraph.PageType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -171,7 +172,7 @@ public class StructuralSpinePageFilter implements PageFilter {
      */
     private void rejectDuplicateDeclaration( final String pageName, final Map< String, Object > metadata )
             throws FrontmatterValidationException {
-        if ( !"hub".equalsIgnoreCase( str( metadata.get( "type" ) ) ) ) {
+        if ( PageType.fromFrontmatter( metadata.get( "type" ) ) != PageType.HUB ) {
             return;
         }
         final String cluster = str( metadata.get( "cluster" ) );

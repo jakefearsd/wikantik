@@ -78,7 +78,8 @@ final class ClusterFieldValidator {
 
     private static boolean isHub( final Map< String, Object > metadata ) {
         final Object typeRaw = metadata.get( "type" );
-        return typeRaw != null && "hub".equalsIgnoreCase( typeRaw.toString().trim() );
+        return com.wikantik.api.pagegraph.PageType.fromFrontmatter( typeRaw )
+                   == com.wikantik.api.pagegraph.PageType.HUB;
     }
 
     /** The per-entry checks run against each membership. */

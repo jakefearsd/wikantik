@@ -100,7 +100,7 @@ public final class SearchWiringHelper {
      * is independently testable without standing up the rest of the wiring.
      */
     static String resolveDenseBackend( final Properties props ) {
-        return props.getProperty( "wikantik.search.dense.backend", "lucene-hnsw" )
+        return props.getProperty( "wikantik.search.dense.backend", DenseBackends.LUCENE_HNSW )
             .toLowerCase( java.util.Locale.ROOT );
     }
 
@@ -200,7 +200,7 @@ public final class SearchWiringHelper {
         // (Consumer<List<UUID>>). upsertChunks(Collection<UUID>) method refs satisfy it.
         final java.util.function.Consumer< java.util.List< java.util.UUID > > upsertCallback;
         try {
-            if ( "pgvector".equals( denseBackend ) ) {
+            if ( DenseBackends.PGVECTOR.equals( denseBackend ) ) {
                 final int efSearch = Integer.parseInt( props.getProperty(
                     "wikantik.search.dense.pgvector.ef_search", "100" ) );
                 final com.wikantik.search.hybrid.PgVectorChunkVectorIndex pgIndex =
@@ -213,7 +213,7 @@ public final class SearchWiringHelper {
                 indexReloadHook = () -> {};
                 LOG.info( "Dense retrieval backend: pgvector HNSW (model={}, ef_search={})",
                     modelCode, efSearch );
-            } else if ( "lucene-hnsw".equals( denseBackend ) ) {
+            } else if ( DenseBackends.LUCENE_HNSW.equals( denseBackend ) ) {
                 final com.wikantik.search.hybrid.HnswParams params =
                     com.wikantik.search.hybrid.HnswParams.fromProperties( props );
                 final com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex hnswIndex =
@@ -225,7 +225,7 @@ public final class SearchWiringHelper {
                 indexReloadHook = hnswIndex::reload;
                 LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, ef_search={}, size={})",
                     modelCode, params.m(), params.efConstruction(), params.efSearch(), hnswIndex.size() );
-            } else if ( "inmemory".equals( denseBackend ) ) {
+            } else if ( DenseBackends.INMEMORY.equals( denseBackend ) ) {
                 final InMemoryChunkVectorIndex memIndex = new InMemoryChunkVectorIndex( ds, modelCode );
                 vectorIndex = memIndex;
                 upsertCallback = memIndex::upsertChunks;
@@ -234,9 +234,7 @@ public final class SearchWiringHelper {
                 LOG.info( "Dense retrieval backend: in-memory brute-force (model={}, size={})",
                     modelCode, memIndex.size() );
             } else {
-                throw new IllegalArgumentException(
-                    "wikantik.search.dense.backend must be 'inmemory', 'pgvector', or 'lucene-hnsw', got: '"
-                    + denseBackend + "'" );
+                throw DenseBackends.unsupported( denseBackend );
             }
         } catch ( final RuntimeException e ) {
             LOG.warn( "Failed to initialize {} ChunkVectorIndex (model={}); "

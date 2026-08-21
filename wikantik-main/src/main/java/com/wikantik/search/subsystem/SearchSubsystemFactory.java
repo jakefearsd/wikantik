@@ -175,13 +175,32 @@ public final class SearchSubsystemFactory {
      * needs a DataSource, so it is the safest thing to fall back to when properties
      * aren't even available (e.g. a bare mocked Engine in a unit test).</p>
      */
+    /**
+     * Resolves the dense backend for the FALLBACK construction path, defaulting to
+     * {@code inmemory} when the property — or the whole {@link Properties} object — is
+     * absent.
+     *
+     * <p>This deliberately differs from {@link SearchWiringHelper#resolveDenseBackend},
+     * which defaults to {@code lucene-hnsw}. That one runs on the real wiring path and
+     * should match production; this one runs only when nothing was wired, where a
+     * {@code DataSource} is not guaranteed, and {@code inmemory} is the sole backend
+     * that does not need one. Do not "make these consistent" — see
+     * {@code DenseBackendResolutionTest}, which pins both.
+     *
+     * <p>Package-private static so the default is independently testable, mirroring the
+     * seam {@code SearchWiringHelper} already exposes for the same reason.
+     */
+    static String resolveFallbackDenseBackend( final Properties wikiProps ) {
+        return ( wikiProps != null
+            ? wikiProps.getProperty( "wikantik.search.dense.backend", DenseBackends.INMEMORY )
+            : DenseBackends.INMEMORY ).toLowerCase( Locale.ROOT );
+    }
+
     private static ChunkVectorIndex resolveChunkVectorIndex(
             final SearchSubsystem.Deps deps, final Properties wikiProps,
             final ChunkVectorIndex wiredChunkVectorIndex,
             final ChunkVectorIndex inMemoryChunkVectorIndex ) {
-        final String backend = ( wikiProps != null
-            ? wikiProps.getProperty( "wikantik.search.dense.backend", "inmemory" )
-            : "inmemory" ).toLowerCase( Locale.ROOT );
+        final String backend = resolveFallbackDenseBackend( wikiProps );
         final ChunkVectorIndex chunkVectorIndex;
         if ( wiredChunkVectorIndex != null ) {
             chunkVectorIndex = wiredChunkVectorIndex;
@@ -199,15 +218,13 @@ public final class SearchSubsystemFactory {
             final ChunkVectorIndex inMemoryChunkVectorIndex ) {
         final ChunkVectorIndex chunkVectorIndex;
         switch ( backend ) {
-            case "pgvector" -> chunkVectorIndex = buildPgVectorChunkVectorIndex( deps, wikiProps );
-            case "lucene-hnsw" -> chunkVectorIndex = buildLuceneHnswChunkVectorIndex( deps, wikiProps );
-            case "inmemory" -> {
+            case DenseBackends.PGVECTOR -> chunkVectorIndex = buildPgVectorChunkVectorIndex( deps, wikiProps );
+            case DenseBackends.LUCENE_HNSW -> chunkVectorIndex = buildLuceneHnswChunkVectorIndex( deps, wikiProps );
+            case DenseBackends.INMEMORY -> {
                 chunkVectorIndex = inMemoryChunkVectorIndex;
                 LOG.info( "Dense retrieval backend: in-memory brute-force" );
             }
-            default -> throw new IllegalArgumentException(
-                "wikantik.search.dense.backend must be 'inmemory', 'pgvector', or 'lucene-hnsw', got: '"
-              + backend + "'" );
+            default -> throw DenseBackends.unsupported( backend );
         }
         return chunkVectorIndex;
     }

@@ -209,6 +209,15 @@
                        Selenide suite. Override with -Dit-wikantik.config.headless=false
                        when you need to watch a test run. -->
                   <it-wikantik.config.headless>true</it-wikantik.config.headless>
+                  <!-- Selenium's HTTP read timeout, in SECONDS (Selenium default 180).
+                       It bounds every WebDriver command, including the newSession call
+                       that starts the browser. At 180 a start-up stalled by the parallel
+                       gate burned three minutes before failing the class (observed
+                       2026-08-20, SAMLLoginIT). 60 surfaces the stall promptly so
+                       BrowserStartup can retry it, while still leaving 2x headroom over
+                       Selenide's 30 s pageLoadTimeout — no legitimate command runs that
+                       long here. -->
+                  <webdriver.httpclient.readTimeout>60</webdriver.httpclient.readTimeout>
                   <it-wikantik.config.reports-folder>${project.basedir}/target/selenide</it-wikantik.config.reports-folder>
                   <it-wikantik.config.wdm.target-path>${project.basedir}/target/wdm</it-wikantik.config.wdm.target-path>
                   <it-wikantik.login.janne.username>janne</it-wikantik.login.janne.username>

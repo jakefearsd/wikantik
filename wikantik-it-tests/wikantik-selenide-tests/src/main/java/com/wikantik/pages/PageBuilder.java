@@ -19,6 +19,7 @@
 package com.wikantik.pages;
 
 import com.codeborne.selenide.Selenide;
+import com.wikantik.its.environment.BrowserStartup;
 
 
 /**
@@ -48,6 +49,12 @@ public class PageBuilder {
         Configuration.downloadsFolder = Env.TESTS_CONFIG_DOWNLOADS_FOLDER;
         System.setProperty( "wdm.targetPath", Env.TESTS_CONFIG_WDM_TARGET_PATH ); */
         
+        // Make sure a live browser exists before navigating. Selenide would otherwise
+        // create one lazily inside open(), where a start-up stalled by the parallel gate
+        // is an un-retryable failure that kills the test class. Doing it here covers
+        // every page-object navigation, including the classes that deliberately close
+        // the driver in their own @BeforeEach and re-open per test method.
+        BrowserStartup.ensureBrowserStarted();
         Selenide.open( url );
         return page;
     }

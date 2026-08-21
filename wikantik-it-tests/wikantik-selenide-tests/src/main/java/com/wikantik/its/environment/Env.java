@@ -51,6 +51,17 @@ public class Env {
     /** Folder where the WebDriver will be downloaded. Default value is {@code ./target/wdm}. */
     public static final String TESTS_CONFIG_WDM_TARGET_PATH = System.getProperty( "it-wikantik.config.wdm.target-path", "./target/wdm" );
 
+    /** How many times to try starting the browser before failing the test class.
+     *  Default {@code 3}. Under {@code --parallel 4} a contended machine can stall a
+     *  Chrome start-up past Selenium's HTTP read timeout; that stall is transient, so
+     *  it is retried rather than failing the build. Set to {@code 1} to disable. */
+    public static final int TESTS_CONFIG_BROWSER_START_ATTEMPTS =
+        Integer.parseInt( System.getProperty( "it-wikantik.config.browser-start-attempts", "3" ) );
+
+    /** Pause, in milliseconds, between browser start-up attempts. Default {@code 2000}. */
+    public static final long TESTS_CONFIG_BROWSER_START_BACKOFF_MS =
+        Long.parseLong( System.getProperty( "it-wikantik.config.browser-start-backoff-ms", "2000" ) );
+
     /** Janne's username. Default value is {@code janne}. */
     public static final String LOGIN_JANNE_USERNAME = System.getProperty( "it-wikantik.login.janne.username", "janne" );
 

@@ -28,10 +28,10 @@ import com.wikantik.connectors.runtime.ConnectorsDisabledException;
 import com.wikantik.connectors.web.FeedConfig;
 import com.wikantik.connectors.web.SitemapConfig;
 import com.wikantik.connectors.web.WebCrawlerConfig;
-import org.h2.jdbcx.JdbcDataSource;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.Test;
 import javax.sql.DataSource;
-import java.sql.Connection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +39,7 @@ import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
+@RequiresPostgres
 class ConnectorWiringHelperTest {
 
     @Test void parsesWebcrawlerConfigsById() {
@@ -82,19 +83,13 @@ class ConnectorWiringHelperTest {
 
     // ---- full wireConnectors() wiring (Task 9: DB-backed config store, kill-switch default true) ----
 
-    /** Fresh H2 database with the {@code connector_configs} table — every wireConnectors() call now
-     *  reaches the DB (ConnectorConfigService.rebuild() runs unconditionally, even when disabled). */
-    private static DataSource h2WithConnectorConfigsSchema() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:wiring" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;MODE=PostgreSQL" );
-        try ( Connection c = h2.getConnection(); var s = c.createStatement() ) {
-            s.execute( "CREATE TABLE IF NOT EXISTS connector_configs (connector_id VARCHAR PRIMARY KEY,"
-                + " connector_type VARCHAR NOT NULL, enabled BOOLEAN NOT NULL DEFAULT TRUE,"
-                + " sync_interval_hours INT NOT NULL DEFAULT 0, config VARCHAR NOT NULL,"
-                + " cluster VARCHAR, default_tags VARCHAR, page_prefix VARCHAR,"
-                + " created TIMESTAMP WITH TIME ZONE DEFAULT now(), modified TIMESTAMP WITH TIME ZONE DEFAULT now())" );
-        }
-        return h2;
+    /** Postgres {@code connector_configs} table (schema from the real migrations), truncated for
+     *  test isolation — every wireConnectors() call now reaches the DB
+     *  (ConnectorConfigService.rebuild() runs unconditionally, even when disabled). */
+    private static DataSource freshConnectorConfigsDb() {
+        final DataSource ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "connector_configs" );
+        return ds;
     }
 
     @Test void runtimeWiresWithZeroConnectorsByDefault() throws Exception {
@@ -102,7 +97,7 @@ class ConnectorWiringHelperTest {
         // rows means the registry is legitimately empty. wireConnectors() must still return a
         // present ConnectorRuntime (Task 9: runtime is always registered, even with zero connectors).
         final WikiEngine engine = mock( WikiEngine.class );
-        final DataSource ds = h2WithConnectorConfigsSchema();
+        final DataSource ds = freshConnectorConfigsDb();
         final PageManager pm = mock( PageManager.class );
         final AttachmentManager am = mock( AttachmentManager.class );
 
@@ -118,7 +113,7 @@ class ConnectorWiringHelperTest {
         // wikantik.connectors.enabled=false → the runtime is still wired (DB-backed config CRUD
         // keeps working), but syncing itself is refused and the due-tick scheduler never starts.
         final WikiEngine engine = mock( WikiEngine.class );
-        final DataSource ds = h2WithConnectorConfigsSchema();
+        final DataSource ds = freshConnectorConfigsDb();
         final PageManager pm = mock( PageManager.class );
         final AttachmentManager am = mock( AttachmentManager.class );
         final Properties props = new Properties();
@@ -138,7 +133,7 @@ class ConnectorWiringHelperTest {
         // A DB-origin connector row (github) alongside a properties-origin connector (feed) — both
         // must end up in the rebuilt registry, correctly attributed to their origin.
         final WikiEngine engine = mock( WikiEngine.class );
-        final DataSource ds = h2WithConnectorConfigsSchema();
+        final DataSource ds = freshConnectorConfigsDb();
         new JdbcConnectorConfigStore( ds ).upsert( new ConnectorConfigRow(
             "gh", "github", true, 0, "{\"repo\":\"jake/notes\"}", null, null, null ) );
         final PageManager pm = mock( PageManager.class );

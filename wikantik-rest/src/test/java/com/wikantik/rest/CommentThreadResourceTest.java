@@ -26,21 +26,21 @@ import com.wikantik.WikiSubsystems;
 import com.wikantik.comments.CommentStore;
 import com.wikantik.comments.PageOwnerService;
 import com.wikantik.comments.mentions.MentionService;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.pagegraph.subsystem.PageGraphSubsystem;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import javax.sql.DataSource;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.sql.Connection;
-import java.sql.Statement;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +48,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@RequiresPostgres
 class CommentThreadResourceTest {
 
     private final Gson gson = new Gson();
@@ -58,37 +59,13 @@ class CommentThreadResourceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        // Unique DB name per test method so the shared in-memory store does not
-        // leak threads across methods (DB_CLOSE_DELAY=-1 keeps it alive for the
-        // duration of this test's connections).
-        h2.setURL( "jdbc:h2:mem:ctr_" + java.util.UUID.randomUUID().toString().replace( "-", "" )
-                + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1" );
-        try ( Connection c = h2.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( "CREATE TABLE IF NOT EXISTS comment_threads (id UUID PRIMARY KEY, " +
-                "canonical_id TEXT NOT NULL, anchor_exact TEXT NOT NULL, anchor_prefix TEXT, " +
-                "anchor_suffix TEXT, status TEXT NOT NULL DEFAULT 'open', created_by TEXT NOT NULL, " +
-                "created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
-                "resolved_by TEXT, resolved_at TIMESTAMP WITH TIME ZONE)" );
-            s.executeUpdate( "CREATE TABLE IF NOT EXISTS comments (id UUID PRIMARY KEY, " +
-                "thread_id UUID NOT NULL REFERENCES comment_threads(id) ON DELETE CASCADE, " +
-                "author TEXT NOT NULL, body TEXT NOT NULL, " +
-                "created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
-                "edited_at TIMESTAMP WITH TIME ZONE)" );
-            s.executeUpdate( """
-                CREATE TABLE IF NOT EXISTS comment_mentions (
-                    id UUID PRIMARY KEY,
-                    comment_id UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
-                    mentioned_login TEXT NOT NULL, mentioning_login TEXT NOT NULL,
-                    is_owner_mention BOOLEAN NOT NULL DEFAULT FALSE,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    read_at TIMESTAMP WITH TIME ZONE,
-                    CONSTRAINT uq_comment_mentions UNIQUE (comment_id, mentioned_login)
-                )""" );
-        }
-        this.store = new CommentStore( h2 );
+        final DataSource ds = PostgresTestDb.createDataSource();
+        // FK order (comment_mentions -> comments -> comment_threads) doesn't matter to
+        // TRUNCATE ... CASCADE, but is listed leaf-first for readability.
+        PostgresTestDb.truncate( "comment_mentions", "comments", "comment_threads" );
+        this.store = new CommentStore( ds );
         final Set< String > users = new HashSet<>( List.of( "alice", "bob", "carol", "admin" ) );
-        this.mentionService = new MentionService( h2, users::contains );
+        this.mentionService = new MentionService( ds, users::contains );
         this.pageOwnerSvc = Mockito.mock( PageOwnerService.class );
         Mockito.when( pageOwnerSvc.getOwner( "CID1" ) ).thenReturn( "alice" );
 

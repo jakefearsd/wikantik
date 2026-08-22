@@ -34,12 +34,12 @@ import com.wikantik.connectors.gdrive.DriveConfig;
 import com.wikantik.connectors.runtime.ConnectorRegistry;
 import com.wikantik.connectors.runtime.ConnectorRuntime;
 import com.wikantik.connectors.runtime.ConnectorStatusReader;
-import org.h2.jdbcx.JdbcDataSource;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -52,6 +52,7 @@ import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
+@RequiresPostgres
 class ConnectorConfigServiceTest {
 
     private JdbcConnectorConfigStore configStore;
@@ -65,16 +66,8 @@ class ConnectorConfigServiceTest {
     private Properties props;
 
     @BeforeEach void schema() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:svc" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;MODE=PostgreSQL" );
-        final DataSource ds = h2;
-        try ( Connection c = ds.getConnection(); var s = c.createStatement() ) {
-            s.execute( "CREATE TABLE IF NOT EXISTS connector_configs (connector_id VARCHAR PRIMARY KEY,"
-                + " connector_type VARCHAR NOT NULL, enabled BOOLEAN NOT NULL DEFAULT TRUE,"
-                + " sync_interval_hours INT NOT NULL DEFAULT 0, config VARCHAR NOT NULL,"
-                + " cluster VARCHAR, default_tags VARCHAR, page_prefix VARCHAR,"
-                + " created TIMESTAMP WITH TIME ZONE DEFAULT now(), modified TIMESTAMP WITH TIME ZONE DEFAULT now())" );
-        }
+        final DataSource ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "connector_configs" );
         configStore = new JdbcConnectorConfigStore( ds );
         syncState = new FakeSyncStateStore();
         credStore = new FakeCredentialStore();

@@ -20,10 +20,12 @@ package com.wikantik.search.subsystem;
 
 import com.wikantik.TestEngine;
 import com.wikantik.api.bundle.RetrievalMode;
-import org.h2.jdbcx.JdbcDataSource;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.util.Properties;
@@ -36,15 +38,17 @@ import java.util.Properties;
  * {@code setBundleSectionSources}, leaving {@code /api/bundle} returning zero
  * sections although the lexical index was fully available.
  */
+@RequiresPostgres
 class BundleSourcesWithoutEmbedderTest {
 
     @Test
     void bundleLexicalSourcesWiredWhenGenAiModeNone() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:bundlesrc" + System.nanoTime() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1" );
-        try ( Connection c = h2.getConnection(); Statement st = c.createStatement() ) {
-            st.execute( "CREATE TABLE kg_content_chunks ( id uuid PRIMARY KEY, page_name varchar(255), text clob )" );
-            st.execute( "INSERT INTO kg_content_chunks VALUES ( random_uuid(), 'BundlePage', 'ontology layer content' )" );
+        final DataSource pgDs = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "kg_content_chunks" );
+        try ( Connection c = pgDs.getConnection(); Statement st = c.createStatement() ) {
+            st.execute( "INSERT INTO kg_content_chunks "
+                + "(page_name, chunk_index, text, char_count, token_count_estimate, content_hash) "
+                + "VALUES ('BundlePage', 0, 'ontology layer content', 23, 4, 'bundle-src-hash')" );
         }
 
         final Properties props = TestEngine.getTestProperties();
@@ -61,9 +65,9 @@ class BundleSourcesWithoutEmbedderTest {
             Assertions.assertNull( engine.bundleSectionSources(),
                     "precondition: sources cleared, so anything below comes from the call under test" );
 
-            SearchWiringHelper.wireHybridRetrieval( props, h2,
+            SearchWiringHelper.wireHybridRetrieval( props, pgDs,
                     /* chunkProjector */ null,
-                    new com.wikantik.knowledge.chunking.ContentChunkRepository( h2 ),
+                    new com.wikantik.knowledge.chunking.ContentChunkRepository( pgDs ),
                     /* fmCache */ null,
                     /* rebuildService */ null,
                     engine );

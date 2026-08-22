@@ -136,7 +136,7 @@
                                                                               uploaded archives to Tika's RAR parser. Tika 3.3.2 targets
                                                                               7.6.0, so this stays on its line; the 8.x MAJOR remains held
                                                                               (dependabot.yml ignores it). -->
-    <sec.guava.version>33.6.0-jre</sec.guava.version>                    <!-- via pac4j-oidc/pac4j-saml (opensaml); CVE-2023-2976, CVE-2020-8908 -->
+    <sec.guava.version>33.7.1-jre</sec.guava.version>                    <!-- via pac4j-oidc/pac4j-saml (opensaml); CVE-2023-2976, CVE-2020-8908 -->
     <sec.okio.version>3.18.1</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
     <sec.httpclient5.version>5.6.4</sec.httpclient5.version>            <!-- via pac4j-saml->opensaml->shib-networking (5.3.1) + selenide-core
                                                                               (5.6.2); GHSA-hjcp-jmpx-g3qm / CVE-2026-64607. -->

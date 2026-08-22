@@ -19,32 +19,22 @@
 package com.wikantik.connectors.state;
 
 import com.wikantik.connectors.SyncReport;
-import org.h2.jdbcx.JdbcDataSource;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import javax.sql.DataSource;
-import java.sql.Connection;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
+@RequiresPostgres
 class JdbcSyncRunStoreTest {
 
     private DataSource ds;
 
-    @BeforeEach void schema() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:syncrun" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;MODE=PostgreSQL" );
-        this.ds = h2;
-        try ( Connection c = ds.getConnection(); var s = c.createStatement() ) {
-            s.execute( "CREATE TABLE IF NOT EXISTS connector_sync_run (run_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,"
-                + " connector_id VARCHAR NOT NULL, trigger_kind VARCHAR NOT NULL,"
-                + " started TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),"
-                + " finished TIMESTAMP WITH TIME ZONE, status VARCHAR NOT NULL DEFAULT 'running',"
-                + " created INT NOT NULL DEFAULT 0, updated INT NOT NULL DEFAULT 0,"
-                + " unchanged INT NOT NULL DEFAULT 0, deleted INT NOT NULL DEFAULT 0,"
-                + " failed INT NOT NULL DEFAULT 0, error VARCHAR)" );
-            s.execute( "CREATE INDEX IF NOT EXISTS idx_sync_run_connector ON connector_sync_run (connector_id, started DESC)" );
-        }
+    @BeforeEach void schema() {
+        this.ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "connector_sync_run" );
     }
 
     @Test void startFinishListRoundTrip() {

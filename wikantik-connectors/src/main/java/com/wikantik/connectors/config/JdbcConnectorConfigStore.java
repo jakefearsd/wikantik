@@ -18,80 +18,76 @@
  */
 package com.wikantik.connectors.config;
 
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
+
 import javax.sql.DataSource;
-import java.sql.*;
-import java.util.ArrayList;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
-/** PostgreSQL/H2 JDBC store for admin-managed connector configurations. */
+/** PostgreSQL JDBC store for admin-managed connector configurations. */
 public final class JdbcConnectorConfigStore {
 
-    private final DataSource ds;
+    private final Jdbc jdbc;
 
     public JdbcConnectorConfigStore( final DataSource ds ) {
-        this.ds = ds;
+        this.jdbc = new Jdbc( ds );
     }
 
     public List< ConnectorConfigRow > list() {
-        final List< ConnectorConfigRow > out = new ArrayList<>();
-        try ( var c = ds.getConnection(); var ps = c.prepareStatement(
+        try {
+            return jdbc.query(
                 "SELECT connector_id, connector_type, enabled, sync_interval_hours, config, cluster,"
-                + " default_tags, page_prefix FROM connector_configs ORDER BY connector_id" ) ) {
-            try ( var rs = ps.executeQuery() ) {
-                while ( rs.next() ) out.add( rowFrom( rs ) );
-            }
+                + " default_tags, page_prefix FROM connector_configs ORDER BY connector_id",
+                SqlBinder.NONE, JdbcConnectorConfigStore::rowFrom );
         } catch ( final SQLException e ) {
             throw new RuntimeException( "connector_configs list failed: " + e.getMessage(), e );
         }
-        return out;
     }
 
     public Optional< ConnectorConfigRow > get( final String id ) {
-        try ( var c = ds.getConnection(); var ps = c.prepareStatement(
+        try {
+            return jdbc.queryOne(
                 "SELECT connector_id, connector_type, enabled, sync_interval_hours, config, cluster,"
-                + " default_tags, page_prefix FROM connector_configs WHERE connector_id=?" ) ) {
-            ps.setString( 1, id );
-            try ( var rs = ps.executeQuery() ) {
-                if ( rs.next() ) return Optional.of( rowFrom( rs ) );
-            }
+                + " default_tags, page_prefix FROM connector_configs WHERE connector_id=?",
+                ps -> ps.setString( 1, id ), JdbcConnectorConfigStore::rowFrom );
         } catch ( final SQLException e ) {
             throw new RuntimeException( "connector_configs get failed for '" + id + "': " + e.getMessage(), e );
         }
-        return Optional.empty();
     }
 
     public void upsert( final ConnectorConfigRow row ) {
         // Portable upsert: UPDATE first, INSERT only if no row existed. H2 does not support ON CONFLICT ... DO UPDATE.
-        try ( var c = ds.getConnection() ) {
-            int updated;
-            try ( var ps = c.prepareStatement(
-                    "UPDATE connector_configs SET connector_type=?, enabled=?, sync_interval_hours=?,"
-                    + " config=?, cluster=?, default_tags=?, page_prefix=?, modified=now() WHERE connector_id=?" ) ) {
-                ps.setString( 1, row.connectorType() );
-                ps.setBoolean( 2, row.enabled() );
-                ps.setInt( 3, row.syncIntervalHours() );
-                ps.setString( 4, row.configJson() );
-                ps.setString( 5, row.cluster() );
-                ps.setString( 6, row.defaultTags() );
-                ps.setString( 7, row.pagePrefix() );
-                ps.setString( 8, row.connectorId() );
-                updated = ps.executeUpdate();
-            }
+        try {
+            final int updated = jdbc.update(
+                "UPDATE connector_configs SET connector_type=?, enabled=?, sync_interval_hours=?,"
+                + " config=?, cluster=?, default_tags=?, page_prefix=?, modified=now() WHERE connector_id=?",
+                ps -> {
+                    ps.setString( 1, row.connectorType() );
+                    ps.setBoolean( 2, row.enabled() );
+                    ps.setInt( 3, row.syncIntervalHours() );
+                    ps.setString( 4, row.configJson() );
+                    ps.setString( 5, row.cluster() );
+                    ps.setString( 6, row.defaultTags() );
+                    ps.setString( 7, row.pagePrefix() );
+                    ps.setString( 8, row.connectorId() );
+                } );
             if ( updated == 0 ) {
-                try ( var ps = c.prepareStatement(
-                        "INSERT INTO connector_configs (connector_id, connector_type, enabled, sync_interval_hours,"
-                        + " config, cluster, default_tags, page_prefix) VALUES (?,?,?,?,?,?,?,?)" ) ) {
-                    ps.setString( 1, row.connectorId() );
-                    ps.setString( 2, row.connectorType() );
-                    ps.setBoolean( 3, row.enabled() );
-                    ps.setInt( 4, row.syncIntervalHours() );
-                    ps.setString( 5, row.configJson() );
-                    ps.setString( 6, row.cluster() );
-                    ps.setString( 7, row.defaultTags() );
-                    ps.setString( 8, row.pagePrefix() );
-                    ps.executeUpdate();
-                }
+                jdbc.update(
+                    "INSERT INTO connector_configs (connector_id, connector_type, enabled, sync_interval_hours,"
+                    + " config, cluster, default_tags, page_prefix) VALUES (?,?,?,?,?,?,?,?)",
+                    ps -> {
+                        ps.setString( 1, row.connectorId() );
+                        ps.setString( 2, row.connectorType() );
+                        ps.setBoolean( 3, row.enabled() );
+                        ps.setInt( 4, row.syncIntervalHours() );
+                        ps.setString( 5, row.configJson() );
+                        ps.setString( 6, row.cluster() );
+                        ps.setString( 7, row.defaultTags() );
+                        ps.setString( 8, row.pagePrefix() );
+                    } );
             }
         } catch ( final SQLException e ) {
             throw new RuntimeException( "connector_configs upsert failed for '" + row.connectorId() + "': " + e.getMessage(), e );
@@ -99,10 +95,8 @@ public final class JdbcConnectorConfigStore {
     }
 
     public void delete( final String id ) {
-        try ( var c = ds.getConnection(); var ps = c.prepareStatement(
-                "DELETE FROM connector_configs WHERE connector_id=?" ) ) {
-            ps.setString( 1, id );
-            ps.executeUpdate();
+        try {
+            jdbc.update( "DELETE FROM connector_configs WHERE connector_id=?", ps -> ps.setString( 1, id ) );
         } catch ( final SQLException e ) {
             throw new RuntimeException( "connector_configs delete failed for '" + id + "': " + e.getMessage(), e );
         }

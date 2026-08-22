@@ -18,29 +18,22 @@
  */
 package com.wikantik.connectors.config;
 
-import org.h2.jdbcx.JdbcDataSource;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import javax.sql.DataSource;
-import java.sql.Connection;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
+@RequiresPostgres
 class JdbcConnectorConfigStoreTest {
 
     private DataSource ds;
 
-    @BeforeEach void schema() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:connconfig" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;MODE=PostgreSQL" );
-        this.ds = h2;
-        try ( Connection c = ds.getConnection(); var s = c.createStatement() ) {
-            s.execute( "CREATE TABLE IF NOT EXISTS connector_configs (connector_id VARCHAR PRIMARY KEY,"
-                + " connector_type VARCHAR NOT NULL, enabled BOOLEAN NOT NULL DEFAULT TRUE,"
-                + " sync_interval_hours INT NOT NULL DEFAULT 0, config VARCHAR NOT NULL,"
-                + " cluster VARCHAR, default_tags VARCHAR, page_prefix VARCHAR,"
-                + " created TIMESTAMP WITH TIME ZONE DEFAULT now(), modified TIMESTAMP WITH TIME ZONE DEFAULT now())" );
-        }
+    @BeforeEach void schema() {
+        this.ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "connector_configs" );
     }
 
     @Test void upsertGetListDeleteRoundTrip() {

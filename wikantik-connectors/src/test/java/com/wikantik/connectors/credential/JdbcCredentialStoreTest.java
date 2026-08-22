@@ -18,8 +18,9 @@
  */
 package com.wikantik.connectors.credential;
 
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.util.AesGcmCipher;
-import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import javax.crypto.SecretKey;
@@ -30,22 +31,15 @@ import java.util.Base64;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
+@RequiresPostgres
 class JdbcCredentialStoreTest {
 
     private DataSource ds;
     private AesGcmCipher cipher;
 
-    @BeforeEach void schema() throws Exception {
-        JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:creds;DB_CLOSE_DELAY=-1;MODE=PostgreSQL" );
-        ds = h2;
-        try ( Connection c = ds.getConnection(); var s = c.createStatement() ) {
-            s.execute( "DELETE FROM connector_credentials WHERE 1=1" );  // idempotent across methods
-        } catch ( final Exception ignore ) { /* table may not exist yet */ }
-        try ( Connection c = ds.getConnection(); var s = c.createStatement() ) {
-            s.execute( "CREATE TABLE IF NOT EXISTS connector_credentials (connector_id VARCHAR NOT NULL, credential_name VARCHAR NOT NULL, ciphertext VARCHAR NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT now(), updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(), PRIMARY KEY (connector_id, credential_name))" );
-            s.execute( "DELETE FROM connector_credentials" );
-        }
+    @BeforeEach void schema() {
+        ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "connector_credentials" );
         byte[] k = new byte[32]; new SecureRandom().nextBytes( k );
         cipher = new AesGcmCipher( AesGcmCipher.keyFromBase64( Base64.getEncoder().encodeToString( k ) ) );
     }

@@ -20,18 +20,21 @@ package com.wikantik.connectors.state;
 
 import com.wikantik.connectors.SyncReport;
 import com.wikantik.connectors.runtime.RunRecorder;
+import com.wikantik.jdbc.Jdbc;
+
 import javax.sql.DataSource;
-import java.sql.*;
-import java.util.ArrayList;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.List;
 
-/** PostgreSQL/H2 JDBC store for per-run connector sync history. */
+/** PostgreSQL JDBC store for per-run connector sync history. */
 public final class JdbcSyncRunStore implements RunRecorder {
 
-    private final DataSource ds;
+    private final Jdbc jdbc;
 
     public JdbcSyncRunStore( final DataSource ds ) {
-        this.ds = ds;
+        this.jdbc = new Jdbc( ds );
     }
 
     /**
@@ -40,26 +43,15 @@ public final class JdbcSyncRunStore implements RunRecorder {
      */
     @Override
     public long start( final String connectorId, final String trigger ) {
-        try ( var c = ds.getConnection() ) {
-            long id;
-            try ( var ps = c.prepareStatement(
-                    "INSERT INTO connector_sync_run (connector_id, trigger_kind) VALUES (?,?)",
-                    Statement.RETURN_GENERATED_KEYS ) ) {
-                ps.setString( 1, connectorId );
-                ps.setString( 2, trigger );
-                ps.executeUpdate();
-                try ( var keys = ps.getGeneratedKeys() ) {
-                    keys.next();
-                    id = keys.getLong( 1 );
-                }
-            }
-            try ( var prune = c.prepareStatement(
-                    "DELETE FROM connector_sync_run WHERE connector_id=? AND run_id NOT IN ("
-                    + " SELECT run_id FROM connector_sync_run WHERE connector_id=? ORDER BY run_id DESC LIMIT 100)" ) ) {
-                prune.setString( 1, connectorId );
-                prune.setString( 2, connectorId );
-                prune.executeUpdate();
-            }
+        try {
+            final long id = jdbc.insertReturningKey(
+                "INSERT INTO connector_sync_run (connector_id, trigger_kind) VALUES (?,?)",
+                ps -> { ps.setString( 1, connectorId ); ps.setString( 2, trigger ); },
+                rs -> rs.getLong( 1 ) ).orElseThrow();
+            jdbc.update(
+                "DELETE FROM connector_sync_run WHERE connector_id=? AND run_id NOT IN ("
+                + " SELECT run_id FROM connector_sync_run WHERE connector_id=? ORDER BY run_id DESC LIMIT 100)",
+                ps -> { ps.setString( 1, connectorId ); ps.setString( 2, connectorId ); } );
             return id;
         } catch ( final SQLException e ) {
             throw new RuntimeException( "connector_sync_run start failed for '" + connectorId + "': " + e.getMessage(), e );
@@ -71,16 +63,18 @@ public final class JdbcSyncRunStore implements RunRecorder {
      */
     @Override
     public void finish( final long runId, final SyncReport report ) {
-        try ( var c = ds.getConnection(); var ps = c.prepareStatement(
+        try {
+            jdbc.update(
                 "UPDATE connector_sync_run SET finished=now(), status='ok',"
-                + " created=?, updated=?, unchanged=?, deleted=?, failed=? WHERE run_id=?" ) ) {
-            ps.setInt( 1, report.created() );
-            ps.setInt( 2, report.updated() );
-            ps.setInt( 3, report.unchanged() );
-            ps.setInt( 4, report.deleted() );
-            ps.setInt( 5, report.failed() );
-            ps.setLong( 6, runId );
-            ps.executeUpdate();
+                + " created=?, updated=?, unchanged=?, deleted=?, failed=? WHERE run_id=?",
+                ps -> {
+                    ps.setInt( 1, report.created() );
+                    ps.setInt( 2, report.updated() );
+                    ps.setInt( 3, report.unchanged() );
+                    ps.setInt( 4, report.deleted() );
+                    ps.setInt( 5, report.failed() );
+                    ps.setLong( 6, runId );
+                } );
         } catch ( final SQLException e ) {
             throw new RuntimeException( "connector_sync_run finish failed for run_id=" + runId + ": " + e.getMessage(), e );
         }
@@ -91,11 +85,9 @@ public final class JdbcSyncRunStore implements RunRecorder {
      */
     @Override
     public void fail( final long runId, final String error ) {
-        try ( var c = ds.getConnection(); var ps = c.prepareStatement(
-                "UPDATE connector_sync_run SET finished=now(), status='failed', error=? WHERE run_id=?" ) ) {
-            ps.setString( 1, error );
-            ps.setLong( 2, runId );
-            ps.executeUpdate();
+        try {
+            jdbc.update( "UPDATE connector_sync_run SET finished=now(), status='failed', error=? WHERE run_id=?",
+                ps -> { ps.setString( 1, error ); ps.setLong( 2, runId ); } );
         } catch ( final SQLException e ) {
             throw new RuntimeException( "connector_sync_run fail failed for run_id=" + runId + ": " + e.getMessage(), e );
         }
@@ -107,10 +99,8 @@ public final class JdbcSyncRunStore implements RunRecorder {
      * connector's (misleading) runs.
      */
     public void purgeRuns( final String connectorId ) {
-        try ( var c = ds.getConnection(); var ps = c.prepareStatement(
-                "DELETE FROM connector_sync_run WHERE connector_id=?" ) ) {
-            ps.setString( 1, connectorId );
-            ps.executeUpdate();
+        try {
+            jdbc.update( "DELETE FROM connector_sync_run WHERE connector_id=?", ps -> ps.setString( 1, connectorId ) );
         } catch ( final SQLException e ) {
             throw new RuntimeException( "connector_sync_run purge failed for '" + connectorId + "': " + e.getMessage(), e );
         }
@@ -120,20 +110,16 @@ public final class JdbcSyncRunStore implements RunRecorder {
      * List recent sync runs for a connector, newest first, limited to the given count.
      */
     public List< SyncRunRow > list( final String connectorId, final int limit ) {
-        final List< SyncRunRow > out = new ArrayList<>();
-        try ( var c = ds.getConnection(); var ps = c.prepareStatement(
+        try {
+            return jdbc.query(
                 "SELECT run_id, connector_id, trigger_kind, started, finished, status,"
                 + " created, updated, unchanged, deleted, failed, error"
-                + " FROM connector_sync_run WHERE connector_id=? ORDER BY run_id DESC LIMIT ?" ) ) {
-            ps.setString( 1, connectorId );
-            ps.setInt( 2, limit );
-            try ( var rs = ps.executeQuery() ) {
-                while ( rs.next() ) out.add( rowFrom( rs ) );
-            }
+                + " FROM connector_sync_run WHERE connector_id=? ORDER BY run_id DESC LIMIT ?",
+                ps -> { ps.setString( 1, connectorId ); ps.setInt( 2, limit ); },
+                JdbcSyncRunStore::rowFrom );
         } catch ( final SQLException e ) {
             throw new RuntimeException( "connector_sync_run list failed for '" + connectorId + "': " + e.getMessage(), e );
         }
-        return out;
     }
 
     private static SyncRunRow rowFrom( final ResultSet rs ) throws SQLException {

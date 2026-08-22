@@ -20,7 +20,8 @@ package com.wikantik.connectors.state;
 
 import com.wikantik.api.connectors.SyncCursor;
 import com.wikantik.api.connectors.SyncStateStore;
-import org.h2.jdbcx.JdbcDataSource;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import javax.sql.DataSource;
@@ -29,23 +30,14 @@ import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 
+@RequiresPostgres
 class JdbcSyncStateStoreTest {
 
     private DataSource ds;
 
-    @BeforeEach void schema() throws Exception {
-        JdbcDataSource h2 = new JdbcDataSource();
-        // Unique DB name per test method (mirrors ConnectorSyncEndToEndTest): a fixed name shares one
-        // in-memory H2 instance (DB_CLOSE_DELAY=-1 keeps it alive) across every @Test in this class,
-        // so connector-id/URI reuse across tests silently pollutes later assertions.
-        h2.setURL( "jdbc:h2:mem:connstate_" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;MODE=PostgreSQL" );
-        this.ds = h2;
-        try ( Connection c = ds.getConnection(); var s = c.createStatement() ) {
-            s.execute( "CREATE TABLE IF NOT EXISTS connector_sync_state (connector_id VARCHAR PRIMARY KEY, cursor VARCHAR, last_run TIMESTAMP WITH TIME ZONE, status VARCHAR)" );
-            s.execute( "CREATE TABLE IF NOT EXISTS connector_synced_item (connector_id VARCHAR NOT NULL, source_uri VARCHAR NOT NULL, content_hash VARCHAR NOT NULL, page_name VARCHAR NOT NULL, acl_refs VARCHAR NOT NULL DEFAULT '[]', first_synced TIMESTAMP WITH TIME ZONE DEFAULT now(), last_synced TIMESTAMP WITH TIME ZONE DEFAULT now(), PRIMARY KEY (connector_id, source_uri))" );
-            // idempotency mirror of the migration convention: re-running CREATE ... IF NOT EXISTS is a no-op
-            s.execute( "CREATE TABLE IF NOT EXISTS connector_synced_item (connector_id VARCHAR NOT NULL, source_uri VARCHAR NOT NULL, content_hash VARCHAR NOT NULL, page_name VARCHAR NOT NULL, acl_refs VARCHAR NOT NULL DEFAULT '[]', first_synced TIMESTAMP WITH TIME ZONE DEFAULT now(), last_synced TIMESTAMP WITH TIME ZONE DEFAULT now(), PRIMARY KEY (connector_id, source_uri))" );
-        }
+    @BeforeEach void schema() {
+        this.ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "connector_synced_item", "connector_sync_state" );
     }
 
     @Test void cursorRoundTrips() {

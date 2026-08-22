@@ -18,13 +18,12 @@
  */
 package com.wikantik.search.embedding;
 
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.concurrent.ExecutorService;
@@ -109,7 +108,7 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
         }
     }
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
     private final EmbeddingIndexService indexService;
     private final String modelCode;
     private final ExecutorService executor;
@@ -156,7 +155,7 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
             throw new IllegalArgumentException( "modelCode must not be blank" );
         }
         if ( executor == null ) throw new IllegalArgumentException( "executor must not be null" );
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
         this.indexService = indexService;
         this.modelCode = modelCode;
         this.postRunCallback = postRunCallback;
@@ -339,10 +338,8 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
     }
 
     private long countChunks() {
-        try( Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement( COUNT_CHUNKS_SQL );
-             ResultSet rs = ps.executeQuery() ) {
-            return rs.next() ? rs.getLong( 1 ) : 0L;
+        try {
+            return jdbc.queryOne( COUNT_CHUNKS_SQL, SqlBinder.NONE, rs -> rs.getLong( 1 ) ).orElse( 0L );
         } catch( final SQLException e ) {
             LOG.warn( "Bootstrap indexer: count-chunks query failed: {}", e.getMessage(), e );
             return 0L;

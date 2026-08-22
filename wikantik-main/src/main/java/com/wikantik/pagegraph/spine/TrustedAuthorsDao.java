@@ -19,6 +19,7 @@
 package com.wikantik.pagegraph.spine;
 
 import com.wikantik.jdbc.JdbcSupport;
+import com.wikantik.jdbc.SqlBinder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

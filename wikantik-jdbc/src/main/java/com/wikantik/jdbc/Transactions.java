@@ -57,11 +57,14 @@ public final class Transactions {
      * {@code setAutoCommit( false )} in the first place.
      *
      * @param conn    the connection whose transaction should be discarded.
-     * @param cause   the failure that triggered the rollback, for the log line.
+     * @param cause   the failure that triggered the rollback, for the log line. {@link Throwable}
+     *                rather than {@link Exception} so an {@link Error} (e.g. {@code AssertionError}
+     *                from a test) can be logged here too — {@link Jdbc#inTransaction} rolls back on
+     *                both.
      * @param log     the caller's logger, so the message is attributed to the caller.
      * @param context short description of the operation, e.g. {@code "save(profile)"}.
      */
-    public static void rollbackQuietly( final Connection conn, final Exception cause,
+    public static void rollbackQuietly( final Connection conn, final Throwable cause,
                                         final Logger log, final String context ) {
         try {
             conn.rollback();

@@ -221,6 +221,7 @@
   <modules>
     <module>wikantik-wikipages</module>
     <module>wikantik-util</module>
+    <module>wikantik-jdbc</module>
     <module>wikantik-event</module>
     <module>wikantik-api</module>
     <module>wikantik-cache</module>

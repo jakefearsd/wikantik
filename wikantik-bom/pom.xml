@@ -63,6 +63,12 @@
 
       <dependency>
         <groupId>com.wikantik</groupId>
+        <artifactId>wikantik-jdbc</artifactId>
+        <version>${jspwiki.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.wikantik</groupId>
         <artifactId>wikantik-main</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>

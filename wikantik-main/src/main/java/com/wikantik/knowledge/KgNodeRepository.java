@@ -19,6 +19,7 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.api.knowledge.*;
+import com.wikantik.jdbc.SqlBinder;
 import com.wikantik.kgpolicy.KgInclusionFilter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.logging.log4j.LogManager;

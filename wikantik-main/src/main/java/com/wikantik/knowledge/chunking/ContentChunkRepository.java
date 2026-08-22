@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.wikantik.jdbc.SqlBinder;
 import com.wikantik.knowledge.KgJdbcSupport;
 
 import javax.sql.DataSource;

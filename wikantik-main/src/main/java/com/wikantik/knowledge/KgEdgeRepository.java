@@ -19,6 +19,7 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.api.knowledge.*;
+import com.wikantik.jdbc.SqlBinder;
 import com.wikantik.kgpolicy.KgInclusionFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

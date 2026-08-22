@@ -20,22 +20,23 @@ package com.wikantik.citation;
 
 import static org.junit.jupiter.api.Assertions.*;
 import com.wikantik.api.citation.CitationStatus;
-import java.sql.Connection;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import java.util.List;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+@RequiresPostgres
 class CitationRepositoryTest {
 
     private DataSource ds;
     private CitationRepository repo;
 
     @BeforeEach
-    void setUp() throws Exception {
-        // Mirror DriftSnapshotRepositoryTest: build an H2 DataSource and CREATE the table.
-        ds = TestCitationDb.h2DataSource();
-        try ( Connection c = ds.getConnection() ) { TestCitationDb.createSchema( c ); }
+    void setUp() {
+        ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "citations" );
         repo = new CitationRepository( ds );
     }
 

@@ -32,8 +32,8 @@ import com.wikantik.api.pagegraph.StructuralFilter;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.pagegraph.TagSummary;
 import com.wikantik.api.pagegraph.Verification;
-import java.sql.Connection;
-import java.sql.Statement;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,13 +42,8 @@ import java.util.function.Function;
 import javax.sql.DataSource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.postgresql.ds.PGSimpleDataSource;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
-import org.testcontainers.utility.DockerImageName;
 
 /**
  * Integration test for citation edges (Phase 3 — RAG-as-a-Service).
@@ -61,63 +56,17 @@ import org.testcontainers.utility.DockerImageName;
  * controls canonical_id resolution without the &gt;20 s structural-index lag documented
  * for the Cargo IT suite.</p>
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class CitationEdgesIT {
 
     private static final Logger LOG = LogManager.getLogger( CitationEdgesIT.class );
 
-    // --- container -------------------------------------------------------
-    @SuppressWarnings( "resource" )
-    private static final PostgreSQLContainer PG =
-            new PostgreSQLContainer(
-                    DockerImageName.parse( "pgvector/pgvector:pg17" )
-                                   .asCompatibleSubstituteFor( "postgres" ) )
-            .withDatabaseName( "citations_it_test" )
-            .withUsername( "test" )
-            .withPassword( "test" );
-
-    static {
-        PG.start();
-    }
-
     private static DataSource dataSource;
 
-    @BeforeAll
-    static void createSchema() throws Exception {
-        final PGSimpleDataSource ds = new PGSimpleDataSource();
-        ds.setUrl( PG.getJdbcUrl() );
-        ds.setUser( PG.getUsername() );
-        ds.setPassword( PG.getPassword() );
-        dataSource = ds;
-
-        try ( Connection c = dataSource.getConnection(); Statement st = c.createStatement() ) {
-            st.execute( "CREATE TABLE IF NOT EXISTS citations ("
-                    + "    id                    BIGSERIAL   PRIMARY KEY,"
-                    + "    source_canonical_id   TEXT        NOT NULL,"
-                    + "    target_canonical_id   TEXT        NOT NULL,"
-                    + "    target_heading_path   TEXT        NOT NULL DEFAULT '',"
-                    + "    span_text             TEXT        NOT NULL DEFAULT '',"
-                    + "    span_hash             TEXT        NOT NULL,"
-                    + "    claim_text            TEXT,"
-                    + "    ordinal               INT         NOT NULL DEFAULT 0,"
-                    + "    pinned_target_version INT,"
-                    + "    status                TEXT        NOT NULL DEFAULT 'current',"
-                    + "    first_seen            TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-                    + "    last_checked          TIMESTAMPTZ,"
-                    + "    last_status_change    TIMESTAMPTZ,"
-                    + "    CONSTRAINT uq_citation UNIQUE ("
-                    + "        source_canonical_id, target_canonical_id,"
-                    + "        target_heading_path, span_hash, ordinal)"
-                    + ")" );
-        }
-        LOG.info( "citations table created in IT Postgres container" );
-    }
-
     @BeforeEach
-    void truncateCitations() throws Exception {
-        try ( Connection c = dataSource.getConnection(); Statement st = c.createStatement() ) {
-            st.execute( "TRUNCATE citations RESTART IDENTITY" );
-        }
+    void setUp() {
+        dataSource = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "citations" );
     }
 
     // --- stub StructuralIndexService backed by mutable maps --------------

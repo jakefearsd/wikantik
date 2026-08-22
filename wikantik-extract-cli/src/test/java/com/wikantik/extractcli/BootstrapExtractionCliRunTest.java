@@ -18,15 +18,12 @@
  */
 package com.wikantik.extractcli;
 
-import org.junit.jupiter.api.AfterAll;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.postgresql.ds.PGSimpleDataSource;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import javax.sql.DataSource;
 import java.lang.reflect.InvocationTargetException;
@@ -34,7 +31,6 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
-import java.sql.Statement;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,42 +51,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *       service, chunk repo) but never need a live corpus, because the async
  *       indexer fails fast inside {@code warmNodeEmbeddings}/{@code runBatch}
  *       and {@code run()} still returns a clean exit code.</li>
- *   <li>A <b>Testcontainers Postgres</b> with a minimal schema (zero rows)
- *       proves the genuine {@code COMPLETED} / exit-0 happy path, where the
- *       indexer really does finish a (trivially empty) batch.</li>
+ *   <li>The shared {@link PostgresTestDb} instance (real migrated schema,
+ *       zero rows) proves the genuine {@code COMPLETED} / exit-0 happy path,
+ *       where the indexer really does finish a (trivially empty) batch.</li>
  * </ul>
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class BootstrapExtractionCliRunTest {
 
-    private static PostgreSQLContainer pg;
-    private static DataSource ds;
-
-    @BeforeAll
-    static void up() {
-        pg = new PostgreSQLContainer( "postgres:15" )
-                .withDatabaseName( "wikantik_bootstrap_cli" )
-                .withUsername( "test" ).withPassword( "test" )
-                .withInitScript( "bootstrap-extraction-cli-test.sql" );
-        pg.start();
-        final PGSimpleDataSource d = new PGSimpleDataSource();
-        d.setUrl( pg.getJdbcUrl() );
-        d.setUser( pg.getUsername() );
-        d.setPassword( pg.getPassword() );
-        ds = d;
-    }
-
-    @AfterAll
-    static void down() { if ( pg != null ) pg.stop(); }
+    private DataSource ds;
 
     @BeforeEach
     void clean() throws Exception {
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.execute( "DELETE FROM kg_content_chunks" );
-            s.execute( "DELETE FROM kg_nodes" );
-            s.execute( "DELETE FROM kg_excluded_pages" );
-            s.execute( "DELETE FROM kg_node_embeddings" );
-        }
+        ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "kg_content_chunks", "kg_nodes", "kg_excluded_pages", "kg_node_embeddings" );
     }
 
     private static BootstrapExtractionCli.Args baseArgs() {
@@ -112,7 +86,7 @@ class BootstrapExtractionCliRunTest {
         }
     }
 
-    // ---- unreachable-DB branches: no Testcontainers needed, just fast-fail behavior ----
+    // ---- unreachable-DB branches: no live database needed, just fast-fail behavior ----
 
     /**
      * The wait loop must honor a sub-second poll override: with the seconds-granularity
@@ -207,9 +181,9 @@ class BootstrapExtractionCliRunTest {
     @Test
     void runCompletesWithZeroPagesAgainstAnEmptySchema( @TempDir final Path tmp ) throws Exception {
         final BootstrapExtractionCli.Args a = new BootstrapExtractionCli.Args();
-        a.jdbcUrl = pg.getJdbcUrl();
-        a.jdbcUser = pg.getUsername();
-        a.jdbcPassword = pg.getPassword();
+        a.jdbcUrl = PostgresTestDb.getJdbcUrl();
+        a.jdbcUser = PostgresTestDb.getUsername();
+        a.jdbcPassword = PostgresTestDb.getPassword();
         a.pollSeconds = 1;
         a.report = tmp.resolve( "report.json" ).toString();
 
@@ -223,9 +197,9 @@ class BootstrapExtractionCliRunTest {
     @Test
     void runWithRebuildNodeEmbeddingsSucceedsAgainstARealDatabase() throws Exception {
         final BootstrapExtractionCli.Args a = new BootstrapExtractionCli.Args();
-        a.jdbcUrl = pg.getJdbcUrl();
-        a.jdbcUser = pg.getUsername();
-        a.jdbcPassword = pg.getPassword();
+        a.jdbcUrl = PostgresTestDb.getJdbcUrl();
+        a.jdbcUser = PostgresTestDb.getUsername();
+        a.jdbcPassword = PostgresTestDb.getPassword();
         a.pollSeconds = 1;
         a.rebuildNodeEmbeddings = true;
 
@@ -238,9 +212,9 @@ class BootstrapExtractionCliRunTest {
         // invoked over the network — this exercises buildJudge's "ollama" branch
         // and buildExtractor's "ollama" branch inside a real, completed run.
         final BootstrapExtractionCli.Args a = new BootstrapExtractionCli.Args();
-        a.jdbcUrl = pg.getJdbcUrl();
-        a.jdbcUser = pg.getUsername();
-        a.jdbcPassword = pg.getPassword();
+        a.jdbcUrl = PostgresTestDb.getJdbcUrl();
+        a.jdbcUser = PostgresTestDb.getUsername();
+        a.jdbcPassword = PostgresTestDb.getPassword();
         a.pollSeconds = 1;
         a.judge = "ollama";
         a.extractor = "ollama";

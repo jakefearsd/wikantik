@@ -18,17 +18,15 @@
  */
 package com.wikantik.extractcli;
 
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.kgpolicy.ClusterAction;
 import com.wikantik.api.kgpolicy.ExclusionReason;
 import com.wikantik.kgpolicy.KgClusterPolicyRepository;
 import com.wikantik.kgpolicy.KgExcludedPagesRepository;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.postgresql.ds.PGSimpleDataSource;
-import org.testcontainers.postgresql.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.io.ByteArrayOutputStream;
@@ -41,39 +39,16 @@ import java.time.temporal.ChronoUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class KgPolicyCliTest {
 
-    private static PostgreSQLContainer pg;
-    private static DataSource ds;
-
-    @BeforeAll
-    static void up() {
-        pg = new PostgreSQLContainer( "postgres:15" )
-                .withDatabaseName( "wikantik_kgpolicy" )
-                .withUsername( "test" ).withPassword( "test" )
-                .withInitScript( "kgpolicy-cli-test.sql" );
-        pg.start();
-        final PGSimpleDataSource d = new PGSimpleDataSource();
-        d.setUrl( pg.getJdbcUrl() );
-        d.setUser( pg.getUsername() );
-        d.setPassword( pg.getPassword() );
-        ds = d;
-    }
-
-    @AfterAll
-    static void down() { if ( pg != null ) pg.stop(); }
+    private DataSource ds;
 
     @BeforeEach
     void clean() throws Exception {
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.execute( "DELETE FROM chunk_entity_mentions" );
-            s.execute( "DELETE FROM kg_edges" );
-            s.execute( "DELETE FROM kg_nodes" );
-            s.execute( "DELETE FROM kg_cluster_policy" );
-            s.execute( "DELETE FROM kg_policy_audit" );
-            s.execute( "DELETE FROM kg_excluded_pages" );
-        }
+        ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "chunk_entity_mentions", "kg_edges", "kg_nodes",
+                "kg_cluster_policy", "kg_policy_audit", "kg_excluded_pages" );
     }
 
     private String stdoutOf( final String... args ) {
@@ -247,16 +222,16 @@ class KgPolicyCliTest {
     void run_with_jdbc_flags_parses_them_and_dispatches_to_a_real_connection() {
         // Exercises KgPolicyCli.run(String[]) end-to-end: JdbcArgs.parse() strips
         // the --jdbc-* flags, JdbcArgs.dataSource() builds a real PGSimpleDataSource
-        // pointed at the Testcontainers instance, and the remaining "list" args are
-        // dispatched exactly like runWithDataSource would.
+        // pointed at the shared PostgresTestDb instance, and the remaining "list" args
+        // are dispatched exactly like runWithDataSource would.
         new KgClusterPolicyRepository( ds ).upsert( "java", ClusterAction.INCLUDE, "boot", "admin" );
 
         final ByteArrayOutputStream o = new ByteArrayOutputStream();
         final ByteArrayOutputStream e = new ByteArrayOutputStream();
         final int rc = new KgPolicyCli( new PrintStream( o ), new PrintStream( e ) ).run( new String[] {
-                "--jdbc-url", pg.getJdbcUrl(),
-                "--jdbc-user", pg.getUsername(),
-                "--jdbc-password", pg.getPassword(),
+                "--jdbc-url", PostgresTestDb.getJdbcUrl(),
+                "--jdbc-user", PostgresTestDb.getUsername(),
+                "--jdbc-password", PostgresTestDb.getPassword(),
                 "list"
         } );
         assertEquals( 0, rc, "stderr=" + e.toString( StandardCharsets.UTF_8 ) );

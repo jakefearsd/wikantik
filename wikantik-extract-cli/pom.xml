@@ -102,7 +102,18 @@
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Testcontainers PostgreSQL for KgPolicyCliTest -->
+        <!-- PostgresTestDb + MigrationApplier (Task 0.3): the test-jar goal is a separate
+             artifact from the compile-scope wikantik-jdbc dependency pulled in transitively
+             via wikantik-main above. -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>wikantik-jdbc</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Testcontainers PostgreSQL, driven by PostgresTestDb -->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>

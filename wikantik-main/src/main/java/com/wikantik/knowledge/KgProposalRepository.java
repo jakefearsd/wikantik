@@ -36,8 +36,8 @@ import java.util.*;
  * change is introduced.</p>
  *
  * <p>{@link #updateTierByProvenance} touches both {@code kg_nodes} and {@code kg_edges}
- * as a side-effect of proposal application; it keeps its original implementation here
- * with a direct DataSource handle so all three tables stay in a single connection scope.</p>
+ * as a side-effect of proposal application; it runs both UPDATEs inside one
+ * {@link #inTransaction} body so the two tables can never diverge on partial failure.</p>
  *
  * @since 1.0
  */
@@ -384,39 +384,22 @@ public final class KgProposalRepository extends KgJdbcSupport {
     }
 
     /**
-     * Not migrated to {@link #inTransaction}: this method's cleanup is more
-     * defensive than the generic primitive — it restores the connection's
-     * captured {@code prevAutoCommit} value (not a hardcoded {@code true}) and
-     * treats both the rollback and the autocommit-restore as best-effort,
-     * swallowing any {@link SQLException} they throw so a cleanup failure never
-     * masks the original error. That extra defensiveness looks deliberate given
-     * this class's pool-shutdown-race handling elsewhere ({@link #isPoolClosed}
-     * / {@link PoolClosedException}), so it is left as hand-rolled rather than
-     * routed through {@code inTransaction} (which lets rollback/restore
-     * exceptions propagate normally).
+     * The {@code FOR UPDATE SKIP LOCKED} read must run inside an explicit transaction (the
+     * row locks it takes are only meaningful for the transaction's lifetime), so this holds
+     * the read inside {@link #inTransaction} rather than a plain {@link #query}. Previously
+     * hand-rolled its own begin/commit/rollback block, which carried the two defects
+     * {@code com.wikantik.jdbc.Jdbc} exists to make structurally impossible: an unchecked
+     * failure would skip the {@code catch (SQLException)} and fall straight to the
+     * {@code finally} clause restoring auto-commit — implicitly committing whatever the
+     * transaction had done — and a failing rollback was swallowed in an empty catch block.
      */
     public List< KgProposal > getProposalsForJudging( final int batch ) {
         final String sql = "SELECT * FROM kg_proposals " +
             "WHERE status = 'pending' AND machine_status IS NULL " +
             "ORDER BY created ASC " +
             "LIMIT ? FOR UPDATE SKIP LOCKED";
-        try ( Connection c = dataSource.getConnection() ) {
-            final boolean prevAutoCommit = c.getAutoCommit();
-            c.setAutoCommit( false );
-            try ( PreparedStatement ps = c.prepareStatement( sql ) ) {
-                ps.setInt( 1, batch );
-                try ( ResultSet rs = ps.executeQuery() ) {
-                    final List< KgProposal > out = new ArrayList<>();
-                    while ( rs.next() ) out.add( mapProposal( rs ) );
-                    c.commit();
-                    return out;
-                }
-            } catch ( final SQLException e ) {
-                try { c.rollback(); } catch ( final SQLException ignore ) { /* best effort */ }
-                throw e;
-            } finally {
-                try { c.setAutoCommit( prevAutoCommit ); } catch ( final SQLException ignore ) { /* best effort */ }
-            }
+        try {
+            return inTransaction( conn -> query( conn, sql, ps -> ps.setInt( 1, batch ), this::mapProposal ) );
         } catch ( final SQLException e ) {
             if ( isPoolClosed( e ) ) {
                 LOG.debug( "getProposalsForJudging({}) skipped — data source closed during shutdown", batch );
@@ -429,25 +412,29 @@ public final class KgProposalRepository extends KgJdbcSupport {
 
     /**
      * Updates the tier of all kg_nodes and kg_edges rows with a given provenance_proposal_id.
-     * This method touches both node and edge tables; it keeps the original connection scope
-     * to ensure both UPDATEs share the same connection handle.
+     * This method touches both node and edge tables; both UPDATEs run inside one
+     * {@link #inTransaction} body so they either both land or neither does — previously they
+     * shared only a connection (not a transaction), so a failure between the two UPDATEs left
+     * the first one committed under the connection's default auto-commit.
      *
      * @param proposalId the proposal UUID
      * @param newTier    the new tier ('machine' or 'human')
      * @return the total count of updated rows (nodes + edges)
      */
     public int updateTierByProvenance( final UUID proposalId, final String newTier ) {
-        try ( Connection c = dataSource.getConnection() ) {
-            int rows = 0;
-            rows += update( c, "UPDATE kg_nodes SET tier = ? WHERE provenance_proposal_id = ?", ps -> {
-                ps.setString( 1, newTier );
-                ps.setObject( 2, proposalId );
+        try {
+            return inTransaction( c -> {
+                int rows = 0;
+                rows += update( c, "UPDATE kg_nodes SET tier = ? WHERE provenance_proposal_id = ?", ps -> {
+                    ps.setString( 1, newTier );
+                    ps.setObject( 2, proposalId );
+                } );
+                rows += update( c, "UPDATE kg_edges SET tier = ? WHERE provenance_proposal_id = ?", ps -> {
+                    ps.setString( 1, newTier );
+                    ps.setObject( 2, proposalId );
+                } );
+                return rows;
             } );
-            rows += update( c, "UPDATE kg_edges SET tier = ? WHERE provenance_proposal_id = ?", ps -> {
-                ps.setString( 1, newTier );
-                ps.setObject( 2, proposalId );
-            } );
-            return rows;
         } catch ( final SQLException e ) {
             LOG.warn( "updateTierByProvenance({}, {}) failed: {}", proposalId, newTier,
                 e.getMessage(), e );

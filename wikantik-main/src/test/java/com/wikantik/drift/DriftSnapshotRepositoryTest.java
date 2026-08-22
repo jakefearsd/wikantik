@@ -18,13 +18,12 @@
  */
 package com.wikantik.drift;
 
-import org.h2.jdbcx.JdbcDataSource;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.Statement;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -32,36 +31,15 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@RequiresPostgres
 class DriftSnapshotRepositoryTest {
 
-    private DataSource ds;
     private DriftSnapshotRepository repo;
 
     @BeforeEach
-    void setUp() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:drift" + System.nanoTime() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1" );
-        this.ds = h2;
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( """
-                CREATE TABLE drift_sweeps (
-                    id            BIGSERIAL PRIMARY KEY,
-                    swept_at      TIMESTAMP WITH TIME ZONE NOT NULL,
-                    pages_scanned INT     NOT NULL,
-                    duration_ms   BIGINT  NOT NULL,
-                    triggered_by  TEXT    NOT NULL,
-                    shacl_checked BOOLEAN NOT NULL DEFAULT TRUE
-                )""" );
-            s.executeUpdate( """
-                CREATE TABLE drift_snapshot_counts (
-                    sweep_id  BIGINT NOT NULL REFERENCES drift_sweeps(id) ON DELETE CASCADE,
-                    family    TEXT   NOT NULL,
-                    code      TEXT   NOT NULL,
-                    severity  TEXT   NOT NULL,
-                    "count"   INT    NOT NULL,
-                    PRIMARY KEY (sweep_id, family, code, severity)
-                )""" );
-        }
+    void setUp() {
+        PostgresTestDb.truncate( "drift_snapshot_counts", "drift_sweeps" );
+        final DataSource ds = PostgresTestDb.createDataSource();
         this.repo = new DriftSnapshotRepository( ds );
     }
 

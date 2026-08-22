@@ -19,11 +19,11 @@
 package com.wikantik.drift;
 
 import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -31,7 +31,6 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,11 +42,9 @@ public final class DriftSnapshotRepository {
 
     private static final Logger LOG = LogManager.getLogger( DriftSnapshotRepository.class );
 
-    private final DataSource dataSource;
     private final Jdbc jdbc;
 
     public DriftSnapshotRepository( final DataSource dataSource ) {
-        this.dataSource = dataSource;
         this.jdbc = new Jdbc( dataSource );
     }
 
@@ -58,6 +55,10 @@ public final class DriftSnapshotRepository {
         try {
             return jdbc.inTransaction( conn -> {
                 final long sweepId;
+                // Not migrated to Jdbc.update(conn, ...): needs Statement.RETURN_GENERATED_KEYS
+                // plus a getGeneratedKeys() read on the same statement — a different shape than
+                // the plain executeUpdate() the update() primitive wraps. Same documented gap as
+                // KgProposalRepository.insertProposal.
                 try ( PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO drift_sweeps ( swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked ) "
                       + "VALUES ( ?, ?, ?, ?, ? )", Statement.RETURN_GENERATED_KEYS ) ) {
@@ -74,19 +75,17 @@ public final class DriftSnapshotRepository {
                         sweepId = keys.getLong( 1 );
                     }
                 }
-                try ( PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO drift_snapshot_counts ( sweep_id, family, code, severity, \"count\" ) "
-                      + "VALUES ( ?, ?, ?, ?, ? )" ) ) {
-                    for ( final DriftCount c : counts ) {
-                        ps.setLong( 1, sweepId );
-                        ps.setString( 2, c.family() );
-                        ps.setString( 3, c.code() );
-                        ps.setString( 4, c.severity() );
-                        ps.setInt( 5, c.count() );
-                        ps.addBatch();
-                    }
-                    ps.executeBatch();
-                }
+                final List< SqlBinder > countBinders = counts.stream()
+                        .< SqlBinder >map( c -> ps -> {
+                            ps.setLong( 1, sweepId );
+                            ps.setString( 2, c.family() );
+                            ps.setString( 3, c.code() );
+                            ps.setString( 4, c.severity() );
+                            ps.setInt( 5, c.count() );
+                        } )
+                        .toList();
+                jdbc.batch( conn, "INSERT INTO drift_snapshot_counts ( sweep_id, family, code, severity, \"count\" ) "
+                      + "VALUES ( ?, ?, ?, ?, ? )", countBinders );
                 return sweepId;
             } );
         } catch ( final SQLException e ) {
@@ -98,7 +97,7 @@ public final class DriftSnapshotRepository {
     /** The most recent sweep, with counts. */
     public Optional< DriftSweepRecord > latest() {
         return querySingle( "latest", "SELECT id, swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked "
-                          + "FROM drift_sweeps ORDER BY id DESC LIMIT 1", ps -> {} );
+                          + "FROM drift_sweeps ORDER BY id DESC LIMIT 1", SqlBinder.NONE );
     }
 
     /** The sweep immediately before {@code sweepId} (for deltas). */
@@ -111,44 +110,26 @@ public final class DriftSnapshotRepository {
     /** All sweeps in the last {@code days}, oldest first, with counts. */
     public List< DriftSweepRecord > trend( final int days ) {
         final Timestamp cutoff = Timestamp.from( Instant.now().minus( days, ChronoUnit.DAYS ) );
-        final List< DriftSweepRecord > out = new ArrayList<>();
         final String sql = "SELECT id, swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked "
                          + "FROM drift_sweeps WHERE swept_at >= ? ORDER BY id ASC";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setTimestamp( 1, cutoff );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    out.add( rowToRecord( conn, rs ) );
-                }
-            }
+        try {
+            return jdbc.query( sql, ps -> ps.setTimestamp( 1, cutoff ), this::rowToRecord );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read drift trend ({} days): {}", days, e.getMessage(), e );
             throw new IllegalStateException( "drift trend query failed", e );
         }
-        return out;
     }
 
-    @FunctionalInterface
-    private interface Binder { void bind( PreparedStatement ps ) throws SQLException; }
-
-    private Optional< DriftSweepRecord > querySingle( final String description, final String sql, final Binder binder ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            binder.bind( ps );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                if ( !rs.next() ) {
-                    return Optional.empty();
-                }
-                return Optional.of( rowToRecord( conn, rs ) );
-            }
+    private Optional< DriftSweepRecord > querySingle( final String description, final String sql, final SqlBinder binder ) {
+        try {
+            return jdbc.queryOne( sql, binder, this::rowToRecord );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read drift sweep ({}): {}", description, e.getMessage(), e );
             throw new IllegalStateException( "drift sweep query failed", e );
         }
     }
 
-    private DriftSweepRecord rowToRecord( final Connection conn, final ResultSet rs ) throws SQLException {
+    private DriftSweepRecord rowToRecord( final ResultSet rs ) throws SQLException {
         final long id = rs.getLong( "id" );
         return new DriftSweepRecord(
                 id,
@@ -157,22 +138,15 @@ public final class DriftSnapshotRepository {
                 rs.getLong( "duration_ms" ),
                 rs.getString( "triggered_by" ),
                 rs.getBoolean( "shacl_checked" ),
-                countsFor( conn, id ) );
+                countsFor( id ) );
     }
 
-    private List< DriftCount > countsFor( final Connection conn, final long sweepId ) throws SQLException {
-        final List< DriftCount > counts = new ArrayList<>();
-        try ( PreparedStatement ps = conn.prepareStatement(
+    private List< DriftCount > countsFor( final long sweepId ) throws SQLException {
+        return jdbc.query(
                 "SELECT family, code, severity, \"count\" FROM drift_snapshot_counts "
-              + "WHERE sweep_id = ? ORDER BY family, code, severity" ) ) {
-            ps.setLong( 1, sweepId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    counts.add( new DriftCount( rs.getString( "family" ), rs.getString( "code" ),
-                            rs.getString( "severity" ), rs.getInt( "count" ) ) );
-                }
-            }
-        }
-        return counts;
+              + "WHERE sweep_id = ? ORDER BY family, code, severity",
+                ps -> ps.setLong( 1, sweepId ),
+                rs -> new DriftCount( rs.getString( "family" ), rs.getString( "code" ),
+                        rs.getString( "severity" ), rs.getInt( "count" ) ) );
     }
 }

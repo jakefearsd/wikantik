@@ -68,7 +68,16 @@ echo "==> Releasing ${VERSION}; main will continue at ${NEXT_SNAPSHOT}."
 mvn -q versions:set -DnewVersion="${VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
 
 # ---------- 3: CHANGELOG ----------
-sed -i "s/^## \[Unreleased\]$/## [Unreleased]\n\n## [${VERSION}] - ${TODAY}/" CHANGELOG.md
+# Insert the release header directly below "## [Unreleased]", leaving that heading
+# empty for the next cycle. Done with awk rather than `sed -i` because neither half
+# of that is portable: BSD sed (macOS — the dev laptop) requires an argument to -i
+# where GNU sed (Linux — CI) requires none, and BSD sed does not expand \n in the
+# replacement text, so the version header silently landed on one line. Same class of
+# GNU/BSD split already handled in agent-build.sh (stat) and db/audit-retention.sh (date).
+awk -v ver="${VERSION}" -v today="${TODAY}" '
+    { print }
+    /^## \[Unreleased\]$/ && !inserted { print ""; print "## [" ver "] - " today; inserted = 1 }
+' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
 grep -qE "^## \[${VERSION//./\\.}\] - ${TODAY}" CHANGELOG.md \
     || { echo "cut-release.sh: CHANGELOG rewrite failed — is the '## [Unreleased]' header present?" >&2; exit 1; }
 

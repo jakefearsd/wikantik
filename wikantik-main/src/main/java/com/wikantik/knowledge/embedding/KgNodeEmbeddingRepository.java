@@ -20,16 +20,13 @@ package com.wikantik.knowledge.embedding;
 
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Provenance;
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,23 +41,20 @@ public final class KgNodeEmbeddingRepository {
 
     private static final Logger LOG = LogManager.getLogger(KgNodeEmbeddingRepository.class);
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     public KgNodeEmbeddingRepository(final DataSource dataSource) {
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc(dataSource);
     }
 
     public Optional<Cached> findById(final UUID nodeId, final String modelCode) {
         final String sql = "SELECT content_hash, embedding::text FROM kg_node_embeddings"
                          + " WHERE node_id = ? AND model_code = ?";
-        try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, nodeId);
-            ps.setString(2, modelCode);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) return Optional.empty();
-                return Optional.of(new Cached(rs.getString(1), parseVector(rs.getString(2))));
-            }
+        try {
+            return jdbc.queryOne(sql, ps -> {
+                ps.setObject(1, nodeId);
+                ps.setString(2, modelCode);
+            }, rs -> new Cached(rs.getString(1), parseVector(rs.getString(2))));
         } catch (final SQLException e) {
             LOG.warn("findById({}, {}) failed: {}", nodeId, modelCode, e.getMessage());
             throw new RuntimeException(e);
@@ -77,13 +71,13 @@ public final class KgNodeEmbeddingRepository {
                 embedding    = EXCLUDED.embedding,
                 embedded_at  = NOW()
             """;
-        try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, nodeId);
-            ps.setString(2, modelCode);
-            ps.setString(3, contentHash);
-            ps.setString(4, formatVector(embedding));
-            ps.executeUpdate();
+        try {
+            jdbc.update(sql, ps -> {
+                ps.setObject(1, nodeId);
+                ps.setString(2, modelCode);
+                ps.setString(3, contentHash);
+                ps.setString(4, formatVector(embedding));
+            });
         } catch (final SQLException e) {
             LOG.warn("upsert({}, {}) failed: {}", nodeId, modelCode, e.getMessage());
             throw new RuntimeException(e);
@@ -104,29 +98,23 @@ public final class KgNodeEmbeddingRepository {
             ORDER BY ne.embedding <=> ?::vector
             LIMIT ?
             """;
-        try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, modelCode);
-            ps.setString(2, formatVector(pageEmbedding));
-            ps.setInt(3, k);
-            try (ResultSet rs = ps.executeQuery()) {
-                final List<KgNode> out = new ArrayList<>(k);
-                while (rs.next()) {
-                    out.add(new KgNode(
-                        UUID.fromString(rs.getString(1)),
-                        rs.getString(2),
-                        rs.getString(3),
-                        rs.getString(4),
-                        Provenance.fromValue(rs.getString(5)),
-                        Map.of(),
-                        rs.getTimestamp(6) == null ? Instant.now() : rs.getTimestamp(6).toInstant(),
-                        rs.getTimestamp(7) == null ? Instant.now() : rs.getTimestamp(7).toInstant(),
-                        "human",
-                        null
-                    ));
-                }
-                return out;
-            }
+        try {
+            return jdbc.query(sql, ps -> {
+                ps.setString(1, modelCode);
+                ps.setString(2, formatVector(pageEmbedding));
+                ps.setInt(3, k);
+            }, rs -> new KgNode(
+                UUID.fromString(rs.getString(1)),
+                rs.getString(2),
+                rs.getString(3),
+                rs.getString(4),
+                Provenance.fromValue(rs.getString(5)),
+                Map.of(),
+                rs.getTimestamp(6) == null ? Instant.now() : rs.getTimestamp(6).toInstant(),
+                rs.getTimestamp(7) == null ? Instant.now() : rs.getTimestamp(7).toInstant(),
+                "human",
+                null
+            ));
         } catch (final SQLException e) {
             LOG.warn("findTopKByPageEmbedding failed: {}", e.getMessage());
             throw new RuntimeException(e);

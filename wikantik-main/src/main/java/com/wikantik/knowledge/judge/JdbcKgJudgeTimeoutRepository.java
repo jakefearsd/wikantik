@@ -18,18 +18,17 @@
  */
 package com.wikantik.knowledge.judge;
 
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -40,10 +39,10 @@ public class JdbcKgJudgeTimeoutRepository implements KgJudgeTimeoutRepository {
 
     private static final Logger LOG = LogManager.getLogger( JdbcKgJudgeTimeoutRepository.class );
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     public JdbcKgJudgeTimeoutRepository( final DataSource dataSource ) {
-        this.dataSource = Objects.requireNonNull( dataSource, "dataSource" );
+        this.jdbc = new Jdbc( Objects.requireNonNull( dataSource, "dataSource" ) );
     }
 
     @Override
@@ -55,12 +54,9 @@ public class JdbcKgJudgeTimeoutRepository implements KgJudgeTimeoutRepository {
               FROM kg_judge_timeouts
              WHERE proposal_id = ?
             """;
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setObject( 1, proposalId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? Optional.of( map( rs ) ) : Optional.empty();
-            }
+        try {
+            return jdbc.queryOne( sql, ps -> ps.setObject( 1, proposalId ),
+                JdbcKgJudgeTimeoutRepository::map );
         } catch ( final SQLException e ) {
             LOG.warn( "kg_judge_timeouts find failed for {}: {}", proposalId, e.getMessage() );
             return Optional.empty();
@@ -94,17 +90,17 @@ public class JdbcKgJudgeTimeoutRepository implements KgJudgeTimeoutRepository {
                 base_timeout_seconds = EXCLUDED.base_timeout_seconds,
                 last_seen            = NOW()
             """;
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setObject( 1, proposalId );
-            ps.setString( 2, contentSha256 );
-            setNullableString( ps, 3, sourcePage );
-            setNullableString( ps, 4, proposalType );
-            setNullableString( ps, 5, modelName );
-            ps.setInt( 6, contentBytes );
-            setNullableString( ps, 7, truncate( errorExcerpt, 1024 ) );
-            ps.setInt( 8, baseTimeoutSeconds );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> {
+                ps.setObject( 1, proposalId );
+                ps.setString( 2, contentSha256 );
+                setNullableString( ps, 3, sourcePage );
+                setNullableString( ps, 4, proposalType );
+                setNullableString( ps, 5, modelName );
+                ps.setInt( 6, contentBytes );
+                setNullableString( ps, 7, truncate( errorExcerpt, 1024 ) );
+                ps.setInt( 8, baseTimeoutSeconds );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "kg_judge_timeouts upsert failed for {}: {}", proposalId, e.getMessage() );
         }
@@ -112,11 +108,9 @@ public class JdbcKgJudgeTimeoutRepository implements KgJudgeTimeoutRepository {
 
     @Override
     public void clear( final UUID proposalId ) {
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                  "DELETE FROM kg_judge_timeouts WHERE proposal_id = ?" ) ) {
-            ps.setObject( 1, proposalId );
-            ps.executeUpdate();
+        try {
+            jdbc.update( "DELETE FROM kg_judge_timeouts WHERE proposal_id = ?",
+                ps -> ps.setObject( 1, proposalId ) );
         } catch ( final SQLException e ) {
             LOG.warn( "kg_judge_timeouts clear failed for {}: {}", proposalId, e.getMessage() );
         }
@@ -133,17 +127,13 @@ public class JdbcKgJudgeTimeoutRepository implements KgJudgeTimeoutRepository {
              ORDER BY timeout_count DESC, last_seen DESC
              LIMIT ?
             """;
-        final List< TimeoutRow > rows = new ArrayList<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setInt( 1, safeLimit );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) rows.add( map( rs ) );
-            }
+        try {
+            return jdbc.query( sql, ps -> ps.setInt( 1, safeLimit ),
+                JdbcKgJudgeTimeoutRepository::map );
         } catch ( final SQLException e ) {
             LOG.warn( "kg_judge_timeouts listTopChronic failed: {}", e.getMessage() );
+            return List.of();
         }
-        return rows;
     }
 
     private static TimeoutRow map( final ResultSet rs ) throws SQLException {

@@ -18,12 +18,11 @@
  */
 package com.wikantik.knowledge.eval;
 
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 
 /** Fail-safe JDBC writer for {@link BundleEvalRun} rows. A write failure is swallowed with a
  *  {@code LOG.warn} and never propagates — a flaky eval log must never affect the app. */
@@ -36,27 +35,27 @@ public final class BundleEvalRunDao {
         + "recall_similarity, recall_relational, recall_boundary, questions_scored, regression) "
         + "VALUES (?,?,?,?,?,?,?,?)";
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     public BundleEvalRunDao( final DataSource dataSource ) {
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
     }
 
     public void insert( final BundleEvalRun run ) {
         if ( run == null ) {
             return;
         }
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( INSERT_SQL ) ) {
-            ps.setString( 1, run.configId() );
-            ps.setDouble( 2, run.overallRecall() );
-            ps.setDouble( 3, run.overallPrecision() );
-            ps.setDouble( 4, run.recallSimilarity() );
-            ps.setDouble( 5, run.recallRelational() );
-            ps.setDouble( 6, run.recallBoundary() );
-            ps.setInt( 7, run.questionsScored() );
-            ps.setBoolean( 8, run.regression() );
-            ps.executeUpdate();
+        try {
+            jdbc.update( INSERT_SQL, ps -> {
+                ps.setString( 1, run.configId() );
+                ps.setDouble( 2, run.overallRecall() );
+                ps.setDouble( 3, run.overallPrecision() );
+                ps.setDouble( 4, run.recallSimilarity() );
+                ps.setDouble( 5, run.recallRelational() );
+                ps.setDouble( 6, run.recallBoundary() );
+                ps.setInt( 7, run.questionsScored() );
+                ps.setBoolean( 8, run.regression() );
+            } );
         } catch ( final Exception e ) {
             LOG.warn( "bundle_eval_run write failed (configId={}): {}", run.configId(), e.getMessage() );
         }

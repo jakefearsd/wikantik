@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.embedding;
 
+import com.wikantik.jdbc.Jdbc;
 import com.wikantik.kgpolicy.KgInclusionFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -25,9 +26,6 @@ import org.apache.logging.log4j.Logger;
 import javax.sql.DataSource;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -108,7 +106,7 @@ public class NodeMentionSimilarity {
       + "   AND" + KgInclusionFilter.MENTION_FILTER_WHERE
       + " ORDER BY n.name";
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
     private final String modelCode;
 
     public NodeMentionSimilarity( final DataSource dataSource, final String modelCode ) {
@@ -116,7 +114,7 @@ public class NodeMentionSimilarity {
         if ( modelCode == null || modelCode.isBlank() ) {
             throw new IllegalArgumentException( "modelCode must not be blank" );
         }
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
         this.modelCode = modelCode;
     }
 
@@ -125,13 +123,9 @@ public class NodeMentionSimilarity {
      * for the active model, or {@code 0} if no rows exist yet.
      */
     public int dimension() {
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( SELECT_DIM_SQL ) ) {
-            ps.setString( 1, modelCode );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                if ( rs.next() ) return rs.getInt( 1 );
-                return 0;
-            }
+        try {
+            return jdbc.queryOne( SELECT_DIM_SQL, ps -> ps.setString( 1, modelCode ), rs -> rs.getInt( 1 ) )
+                .orElse( 0 );
         } catch ( final SQLException e ) {
             LOG.warn( "NodeMentionSimilarity.dimension query failed (model={}): {}",
                 modelCode, e.getMessage(), e );
@@ -151,24 +145,23 @@ public class NodeMentionSimilarity {
      */
     public Optional< float[] > vectorFor( final String nodeName ) {
         if ( nodeName == null || nodeName.isBlank() ) return Optional.empty();
-        final List< float[] > vectors = new ArrayList<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( SELECT_VECTORS_FOR_NODE_NAME_SQL ) ) {
-            ps.setString( 1, nodeName );
-            ps.setString( 2, modelCode );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final int dim = rs.getInt( 1 );
-                    final byte[] raw = rs.getBytes( 2 );
-                    final float[] v = decodeVector( nodeName, raw, dim );
-                    if ( v != null ) vectors.add( v );
-                }
-            }
+        final List< float[] > rawVectors;
+        try {
+            rawVectors = jdbc.query( SELECT_VECTORS_FOR_NODE_NAME_SQL, ps -> {
+                ps.setString( 1, nodeName );
+                ps.setString( 2, modelCode );
+            }, rs -> {
+                final int dim = rs.getInt( 1 );
+                final byte[] raw = rs.getBytes( 2 );
+                return decodeVector( nodeName, raw, dim );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "NodeMentionSimilarity.vectorFor '{}' failed (model={}): {}",
                 nodeName, modelCode, e.getMessage(), e );
             return Optional.empty();
         }
+        final List< float[] > vectors = new ArrayList<>( rawVectors.size() );
+        for ( final float[] v : rawVectors ) if ( v != null ) vectors.add( v );
         if ( vectors.isEmpty() ) return Optional.empty();
         return Optional.of( centroid( vectors ) );
     }
@@ -186,16 +179,12 @@ public class NodeMentionSimilarity {
 
     /** Names of all nodes with at least one chunk mention. */
     public List< String > mentionedNodeNames() {
-        final List< String > names = new ArrayList<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( SELECT_MENTIONED_NODE_NAMES_SQL );
-              ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) names.add( rs.getString( 1 ) );
+        try {
+            return jdbc.query( SELECT_MENTIONED_NODE_NAMES_SQL, ps -> { }, rs -> rs.getString( 1 ) );
         } catch ( final SQLException e ) {
             LOG.warn( "NodeMentionSimilarity.mentionedNodeNames failed: {}", e.getMessage(), e );
             return List.of();
         }
-        return names;
     }
 
     /**
@@ -242,20 +231,15 @@ public class NodeMentionSimilarity {
 
     private Map< String, float[] > loadAllCentroids() {
         final Map< String, List< float[] > > perNode = new LinkedHashMap<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( SELECT_ALL_NODE_CHUNK_VECTORS_SQL ) ) {
-            ps.setString( 1, modelCode );
-            ps.setFetchSize( 500 );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final String name = rs.getString( 1 );
-                    final int dim = rs.getInt( 2 );
-                    final byte[] raw = rs.getBytes( 3 );
-                    final float[] v = decodeVector( name, raw, dim );
-                    if ( v == null ) continue;
-                    perNode.computeIfAbsent( name, k -> new ArrayList<>() ).add( v );
-                }
-            }
+        try {
+            jdbc.forEachRow( SELECT_ALL_NODE_CHUNK_VECTORS_SQL, ps -> ps.setString( 1, modelCode ), 500, rs -> {
+                final String name = rs.getString( 1 );
+                final int dim = rs.getInt( 2 );
+                final byte[] raw = rs.getBytes( 3 );
+                final float[] v = decodeVector( name, raw, dim );
+                if ( v == null ) return;
+                perNode.computeIfAbsent( name, k -> new ArrayList<>() ).add( v );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "NodeMentionSimilarity.loadAllCentroids failed (model={}): {}",
                 modelCode, e.getMessage(), e );

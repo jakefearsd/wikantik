@@ -20,16 +20,15 @@ package com.wikantik.knowledge.eval;
 
 import com.wikantik.api.eval.RetrievalMode;
 import com.wikantik.api.eval.RetrievalRunResult;
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.sql.Array;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
@@ -52,22 +51,18 @@ public final class RetrievalQualityDao {
     /** A single (query_text, expected_ids) pair from the seed table. */
     public record EvalQuery( String queryId, String queryText, Set< String > expectedIds ) {}
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     public RetrievalQualityDao( final DataSource dataSource ) {
         if ( dataSource == null ) throw new IllegalArgumentException( "dataSource must not be null" );
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
     }
 
     /** Whether the named set exists. */
     public boolean querySetExists( final String querySetId ) {
         final String sql = "SELECT 1 FROM retrieval_query_sets WHERE id = ?";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setString( 1, querySetId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next();
-            }
+        try {
+            return jdbc.queryOne( sql, ps -> ps.setString( 1, querySetId ), rs -> Boolean.TRUE ).isPresent();
         } catch ( final SQLException e ) {
             LOG.warn( "querySetExists({}) failed: {}", querySetId, e.getMessage(), e );
             return false;
@@ -78,22 +73,16 @@ public final class RetrievalQualityDao {
     public List< EvalQuery > loadQueries( final String querySetId ) {
         final String sql = "SELECT query_id, query_text, expected_ids "
             + "FROM retrieval_queries WHERE query_set_id = ? ORDER BY query_id";
-        final List< EvalQuery > out = new ArrayList<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setString( 1, querySetId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final Array arr = rs.getArray( 3 );
-                    final Set< String > expected = arrayToSet( arr );
-                    out.add( new EvalQuery( rs.getString( 1 ), rs.getString( 2 ), expected ) );
-                }
-            }
+        try {
+            return jdbc.query( sql, ps -> ps.setString( 1, querySetId ), rs -> {
+                final Array arr = rs.getArray( 3 );
+                final Set< String > expected = arrayToSet( arr );
+                return new EvalQuery( rs.getString( 1 ), rs.getString( 2 ), expected );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "loadQueries({}) failed: {}", querySetId, e.getMessage(), e );
             return List.of();
         }
-        return out;
     }
 
     /**
@@ -106,24 +95,21 @@ public final class RetrievalQualityDao {
             + "(query_set_id, started_at, finished_at, mode, "
             + " ndcg_at_5, ndcg_at_10, recall_at_20, mrr) "
             + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
-            ps.setString( 1, result.querySetId() );
-            ps.setTimestamp( 2, Timestamp.from( result.startedAt() ) );
-            if ( result.finishedAt() == null ) {
-                ps.setNull( 3, Types.TIMESTAMP );
-            } else {
-                ps.setTimestamp( 3, Timestamp.from( result.finishedAt() ) );
-            }
-            ps.setString( 4, result.mode().wireName() );
-            setNullableDouble( ps, 5, result.ndcgAt5() );
-            setNullableDouble( ps, 6, result.ndcgAt10() );
-            setNullableDouble( ps, 7, result.recallAt20() );
-            setNullableDouble( ps, 8, result.mrr() );
-            ps.executeUpdate();
-            try ( ResultSet keys = ps.getGeneratedKeys() ) {
-                return keys.next() ? keys.getLong( 1 ) : 0L;
-            }
+        try {
+            return jdbc.insertReturningKey( sql, ps -> {
+                ps.setString( 1, result.querySetId() );
+                ps.setTimestamp( 2, Timestamp.from( result.startedAt() ) );
+                if ( result.finishedAt() == null ) {
+                    ps.setNull( 3, Types.TIMESTAMP );
+                } else {
+                    ps.setTimestamp( 3, Timestamp.from( result.finishedAt() ) );
+                }
+                ps.setString( 4, result.mode().wireName() );
+                setNullableDouble( ps, 5, result.ndcgAt5() );
+                setNullableDouble( ps, 6, result.ndcgAt10() );
+                setNullableDouble( ps, 7, result.recallAt20() );
+                setNullableDouble( ps, 8, result.mrr() );
+            }, rs -> rs.getLong( 1 ) ).orElse( 0L );
         } catch ( final SQLException e ) {
             LOG.warn( "insertRun(set={},mode={}) failed: {}",
                 result.querySetId(), result.mode().wireName(), e.getMessage(), e );
@@ -157,25 +143,19 @@ public final class RetrievalQualityDao {
         sql.append( "ORDER BY started_at DESC LIMIT ?" );
         params.add( clamped );
 
-        final List< RetrievalRunResult > out = new ArrayList<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) {
-                final Object p = params.get( i );
-                if ( p instanceof Integer iv ) ps.setInt( i + 1, iv );
-                else                            ps.setString( i + 1, (String) p );
-            }
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    out.add( mapRow( rs ) );
+        try {
+            return jdbc.query( sql.toString(), ps -> {
+                for ( int i = 0; i < params.size(); i++ ) {
+                    final Object p = params.get( i );
+                    if ( p instanceof Integer iv ) ps.setInt( i + 1, iv );
+                    else                            ps.setString( i + 1, (String) p );
                 }
-            }
+            }, RetrievalQualityDao::mapRow );
         } catch ( final SQLException e ) {
             LOG.warn( "recentRuns(set={}, mode={}) failed: {}",
                 querySetId, mode == null ? "*" : mode.wireName(), e.getMessage(), e );
             return List.of();
         }
-        return out;
     }
 
     // ---- internals ----

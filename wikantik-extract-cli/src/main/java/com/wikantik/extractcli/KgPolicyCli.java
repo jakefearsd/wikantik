@@ -22,13 +22,13 @@ import com.wikantik.api.kgpolicy.ClusterAction;
 import com.wikantik.api.kgpolicy.ClusterPolicy;
 import com.wikantik.api.kgpolicy.ExclusionReason;
 import com.wikantik.api.kgpolicy.PolicyAuditEntry;
+import com.wikantik.jdbc.Jdbc;
 import com.wikantik.kgpolicy.KgClusterPolicyRepository;
 import com.wikantik.kgpolicy.KgExcludedPagesRepository;
 import org.postgresql.ds.PGSimpleDataSource;
 
 import javax.sql.DataSource;
 import java.io.PrintStream;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -290,71 +290,55 @@ public final class KgPolicyCli {
             return 0;
         }
         final String inClause = "(" + String.join( ",", pageNames.stream().map( s -> "?" ).toList() ) + ")";
-        try ( Connection c = ds.getConnection() ) {
-            c.setAutoCommit( false );
-            try {
-                final int mentionsDeleted;
-                try ( PreparedStatement st = c.prepareStatement(
+        final Jdbc jdbc = new Jdbc( ds );
+        try {
+            // Audit inside the SAME transaction as the deletions. A purge and its audit record
+            // stand or fall together: this destructive operation must never be durable without a
+            // record of it.
+            //
+            // This used to run on a second, auto-commit connection AFTER the deletions had
+            // already committed, yet still inside a try whose handler said "purge rolled back" —
+            // so an audit failure deleted the rows for real, lost the audit record, and reported
+            // the one message guaranteed to stop an operator investigating. See
+            // KgPolicyCliTest.purgeIsRolledBackWhenItsAuditRecordCannotBeWritten. Jdbc.inTransaction
+            // rolls back on any Throwable (checked, unchecked, or Error), so that fragility can't
+            // recur here.
+            final int[] counts = jdbc.inTransaction( conn -> {
+                final int mentionsDeleted = jdbc.update( conn,
                         "DELETE FROM chunk_entity_mentions WHERE chunk_id IN " +
-                        "(SELECT id FROM kg_content_chunks WHERE page_name IN " + inClause + ")" ) ) {
-                    bindStrings( st, pageNames, 1 );
-                    mentionsDeleted = st.executeUpdate();
-                }
-                final int edgesDeleted;
-                try ( PreparedStatement st = c.prepareStatement(
+                        "(SELECT id FROM kg_content_chunks WHERE page_name IN " + inClause + ")",
+                        st -> bindStrings( st, pageNames, 1 ) );
+                final int edgesDeleted = jdbc.update( conn,
                         "DELETE FROM kg_edges WHERE source_id IN " +
                         "(SELECT id FROM kg_nodes WHERE source_page IN " + inClause + ") " +
                         "OR target_id IN " +
-                        "(SELECT id FROM kg_nodes WHERE source_page IN " + inClause + ")" ) ) {
-                    bindStrings( st, pageNames, 1 );
-                    bindStrings( st, pageNames, 1 + pageNames.size() );
-                    edgesDeleted = st.executeUpdate();
-                }
-                final int nodesDeleted;
-                try ( PreparedStatement st = c.prepareStatement(
-                        "DELETE FROM kg_nodes WHERE source_page IN " + inClause ) ) {
-                    bindStrings( st, pageNames, 1 );
-                    nodesDeleted = st.executeUpdate();
-                }
-                final int excludedDeleted;
-                try ( PreparedStatement st = c.prepareStatement(
-                        "DELETE FROM kg_excluded_pages WHERE page_name IN " + inClause ) ) {
-                    bindStrings( st, pageNames, 1 );
-                    excludedDeleted = st.executeUpdate();
-                }
-                // Audit inside the SAME transaction as the deletions, on the same connection,
-                // before the commit. A purge and its audit record stand or fall together: this
-                // destructive operation must never be durable without a record of it.
-                //
-                // This used to run on a second, auto-commit connection AFTER c.commit(), yet
-                // still inside the try below — so an audit failure deleted the rows for real,
-                // lost the audit record, and reported "purge rolled back" to the operator. See
-                // KgPolicyCliTest.purgeIsRolledBackWhenItsAuditRecordCannotBeWritten.
-                try ( PreparedStatement aud = c.prepareStatement(
+                        "(SELECT id FROM kg_nodes WHERE source_page IN " + inClause + ")",
+                        st -> {
+                            bindStrings( st, pageNames, 1 );
+                            bindStrings( st, pageNames, 1 + pageNames.size() );
+                        } );
+                final int nodesDeleted = jdbc.update( conn,
+                        "DELETE FROM kg_nodes WHERE source_page IN " + inClause,
+                        st -> bindStrings( st, pageNames, 1 ) );
+                final int excludedDeleted = jdbc.update( conn,
+                        "DELETE FROM kg_excluded_pages WHERE page_name IN " + inClause,
+                        st -> bindStrings( st, pageNames, 1 ) );
+                jdbc.update( conn,
                         "INSERT INTO kg_policy_audit (cluster, old_action, new_action, reason, actor) " +
-                        "VALUES (?, NULL, 'purged', ?, ?)" ) ) {
-                    aud.setString( 1, label );
-                    aud.setString( 2, "mentions=" + mentionsDeleted + " edges=" + edgesDeleted +
-                            " nodes=" + nodesDeleted + " excluded=" + excludedDeleted );
-                    aud.setString( 3, System.getProperty( "user.name", "cli" ) );
-                    aud.executeUpdate();
-                }
-                c.commit();
-                out.printf( "Purged %s: chunk_mentions=%d edges=%d nodes=%d excluded_rows=%d%n",
-                        label, mentionsDeleted, edgesDeleted, nodesDeleted, excludedDeleted );
-                return 0;
-            } catch ( final SQLException e ) {
-                c.rollback();
-                throw new RuntimeException( "purge rolled back: " + e.getMessage(), e );
-            } catch ( final RuntimeException e ) {
-                // Nothing here throws unchecked today, but this connection has an open
-                // transaction; leaving its fate to the pool's close() behaviour is exactly the
-                // fragility that bit CommentStore. Roll back explicitly and rethrow unchanged.
-                c.rollback();
-                throw e;
-            }
+                        "VALUES (?, NULL, 'purged', ?, ?)",
+                        st -> {
+                            st.setString( 1, label );
+                            st.setString( 2, "mentions=" + mentionsDeleted + " edges=" + edgesDeleted +
+                                    " nodes=" + nodesDeleted + " excluded=" + excludedDeleted );
+                            st.setString( 3, System.getProperty( "user.name", "cli" ) );
+                        } );
+                return new int[] { mentionsDeleted, edgesDeleted, nodesDeleted, excludedDeleted };
+            } );
+            out.printf( "Purged %s: chunk_mentions=%d edges=%d nodes=%d excluded_rows=%d%n",
+                    label, counts[ 0 ], counts[ 1 ], counts[ 2 ], counts[ 3 ] );
+            return 0;
         } catch ( final SQLException e ) {
-            throw new RuntimeException( "purge failed: " + e.getMessage(), e );
+            throw new RuntimeException( "purge rolled back: " + e.getMessage(), e );
         }
     }
 

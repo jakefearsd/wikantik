@@ -21,12 +21,11 @@ package com.wikantik.knowledge.querylog;
 import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.api.querylog.SourceSurface;
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.Types;
 import java.util.concurrent.Executor;
 
@@ -54,12 +53,12 @@ public final class JdbcQueryLogService implements QueryLogService {
         + "  ORDER BY created_at DESC LIMIT 1"
         + ")";
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
     private final boolean enabled;
     private final Executor executor;
 
     public JdbcQueryLogService( final DataSource dataSource, final boolean enabled, final Executor executor ) {
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
         this.enabled = enabled;
         this.executor = executor;
     }
@@ -99,39 +98,39 @@ public final class JdbcQueryLogService implements QueryLogService {
 
     private void insert( final String query, final ActorType actor, final SourceSurface surface,
                          final Integer resultCount, final String coverage, final String sessionHash ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( INSERT_SQL ) ) {
-            ps.setString( 1, query );
-            ps.setString( 2, actor.wire() );
-            ps.setString( 3, surface.wire() );
-            if ( resultCount == null ) {
-                ps.setNull( 4, Types.INTEGER );
-            } else {
-                ps.setInt( 4, resultCount );
-            }
-            if ( coverage == null ) {
-                ps.setNull( 5, Types.VARCHAR );
-            } else {
-                ps.setString( 5, coverage );
-            }
-            if ( sessionHash == null ) {
-                ps.setNull( 6, Types.VARCHAR );
-            } else {
-                ps.setString( 6, sessionHash );
-            }
-            ps.executeUpdate();
+        try {
+            jdbc.update( INSERT_SQL, ps -> {
+                ps.setString( 1, query );
+                ps.setString( 2, actor.wire() );
+                ps.setString( 3, surface.wire() );
+                if ( resultCount == null ) {
+                    ps.setNull( 4, Types.INTEGER );
+                } else {
+                    ps.setInt( 4, resultCount );
+                }
+                if ( coverage == null ) {
+                    ps.setNull( 5, Types.VARCHAR );
+                } else {
+                    ps.setString( 5, coverage );
+                }
+                if ( sessionHash == null ) {
+                    ps.setNull( 6, Types.VARCHAR );
+                } else {
+                    ps.setString( 6, sessionHash );
+                }
+            } );
         } catch ( final Exception e ) {
             LOG.warn( "Query-log write failed for surface={}: {}", surface, e.getMessage() );
         }
     }
 
     private void updateClickedRank( final String sessionHash, final String queryText, final int rank ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( RECORD_CLICK_SQL ) ) {
-            ps.setInt( 1, rank );
-            ps.setString( 2, sessionHash );
-            ps.setString( 3, queryText );
-            final int updated = ps.executeUpdate();
+        try {
+            final int updated = jdbc.update( RECORD_CLICK_SQL, ps -> {
+                ps.setInt( 1, rank );
+                ps.setString( 2, sessionHash );
+                ps.setString( 3, queryText );
+            } );
             if ( updated == 0 ) {
                 LOG.warn( "Query-log click had no matching row for session={} query='{}'",
                     sessionHash, queryText );

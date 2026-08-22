@@ -19,39 +19,57 @@
 package com.wikantik.knowledge.querylog;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.SourceSurface;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.concurrent.Executor;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Confirms the real {@code retrieval_query_log} DDL (BIGSERIAL id + NOW() default + the wire
- * tokens) accepts the service's insert on actual Postgres — the H2 unit test can't validate
- * the Postgres-specific column types.
+ * tokens) accepts the service's insert/update on actual Postgres — including the dispatch/guard
+ * clauses and the Postgres-specific {@code recordClick} UPDATE-with-scalar-subquery syntax.
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class JdbcQueryLogServicePostgresTest {
+
+    /** Same-thread executor so the fire-and-forget write is deterministic in tests. */
+    private static final Executor INLINE = Runnable::run;
 
     private DataSource ds;
 
     @BeforeEach
     void setUp() {
         ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "retrieval_query_log" );
+    }
+
+    private int count() throws SQLException {
+        try ( Connection c = ds.getConnection(); Statement s = c.createStatement();
+              ResultSet rs = s.executeQuery( "SELECT count(*) FROM retrieval_query_log" ) ) {
+            rs.next();
+            return rs.getInt( 1 );
+        }
     }
 
     @Test
     void log_insertsRow_onRealPostgres() throws Exception {
         final String unique = "pg-rql-" + System.nanoTime();
-        new JdbcQueryLogService( ds, true, Runnable::run )
+        new JdbcQueryLogService( ds, true, INLINE )
             .log( unique, ActorType.AGENT, SourceSurface.TOOLS_SEARCH_WIKI, 7 );
 
         try ( Connection c = ds.getConnection();
@@ -70,9 +88,52 @@ class JdbcQueryLogServicePostgresTest {
     }
 
     @Test
+    void log_isNoOp_whenDisabled() throws Exception {
+        new JdbcQueryLogService( ds, false, INLINE )
+            .log( "q", ActorType.AGENT, SourceSurface.API_SEARCH, 3 );
+        assertEquals( 0, count() );
+    }
+
+    @Test
+    void log_skipsBlankOrNullQuery() throws Exception {
+        final JdbcQueryLogService svc = new JdbcQueryLogService( ds, true, INLINE );
+        svc.log( "   ", ActorType.HUMAN, SourceSurface.API_BUNDLE, 1 );
+        svc.log( null, ActorType.HUMAN, SourceSurface.API_BUNDLE, 1 );
+        assertEquals( 0, count(), "blank/null query text is not logged" );
+    }
+
+    @Test
+    void log_storesNullResultCount() throws Exception {
+        final String unique = "pg-rql-null-" + System.nanoTime();
+        new JdbcQueryLogService( ds, true, INLINE )
+            .log( unique, ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, null );
+        try ( Connection c = ds.getConnection();
+              PreparedStatement ps = c.prepareStatement(
+                  "SELECT result_count FROM retrieval_query_log WHERE query_text = ?" ) ) {
+            ps.setString( 1, unique );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                assertTrue( rs.next() );
+                rs.getInt( "result_count" );
+                assertTrue( rs.wasNull(), "null result_count is stored as SQL NULL" );
+            }
+        }
+    }
+
+    @Test
+    void log_failsOpen_onSqlError() throws Exception {
+        final DataSource broken = mock( DataSource.class );
+        when( broken.getConnection() ).thenThrow( new SQLException( "no connection" ) );
+        assertDoesNotThrow( () -> new JdbcQueryLogService( broken, true, INLINE )
+            .log( "q", ActorType.HUMAN, SourceSurface.API_BUNDLE, 1 ),
+            "a write failure must never propagate to the retrieval path" );
+    }
+
+    // --- 6-arg form: coverage + session_hash (V051) -----------------------------------------
+
+    @Test
     void log_sixArgForm_insertsCoverageAndSessionHash_onRealPostgres() throws Exception {
         final String unique = "pg-rql-cov-" + System.nanoTime();
-        new JdbcQueryLogService( ds, true, Runnable::run )
+        new JdbcQueryLogService( ds, true, INLINE )
             .log( unique, ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, 0, "weak", "sesh-abc123" );
 
         try ( Connection c = ds.getConnection();
@@ -87,9 +148,96 @@ class JdbcQueryLogServicePostgresTest {
         }
     }
 
+    @Test
+    void log_sixArgForm_storesNullCoverageAndSessionHash_whenNotSupplied() throws Exception {
+        final String unique = "pg-rql-cov-null-" + System.nanoTime();
+        new JdbcQueryLogService( ds, true, INLINE )
+            .log( unique, ActorType.HUMAN, SourceSurface.API_SEARCH, 5, null, null );
+
+        try ( Connection c = ds.getConnection();
+              PreparedStatement ps = c.prepareStatement(
+                  "SELECT coverage, session_hash FROM retrieval_query_log WHERE query_text = ?" ) ) {
+            ps.setString( 1, unique );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                assertTrue( rs.next() );
+                rs.getString( "coverage" );
+                assertTrue( rs.wasNull(), "coverage stays SQL NULL when the caller has no bundle" );
+                rs.getString( "session_hash" );
+                assertTrue( rs.wasNull(), "session_hash stays SQL NULL when the caller has no session (agent surfaces)" );
+            }
+        }
+    }
+
+    @Test
+    void log_fourArgForm_stillStoresNullCoverageAndSessionHash() throws Exception {
+        // Old callers (unchanged 4-arg call sites) must keep behaving exactly as before: the two
+        // new columns simply default to NULL, they don't need to know the columns exist.
+        final String unique = "pg-rql-4arg-" + System.nanoTime();
+        new JdbcQueryLogService( ds, true, INLINE )
+            .log( unique, ActorType.HUMAN, SourceSurface.API_BUNDLE, 2 );
+
+        try ( Connection c = ds.getConnection();
+              PreparedStatement ps = c.prepareStatement(
+                  "SELECT query_text, coverage, session_hash FROM retrieval_query_log WHERE query_text = ?" ) ) {
+            ps.setString( 1, unique );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                assertTrue( rs.next() );
+                assertEquals( unique, rs.getString( "query_text" ) );
+                rs.getString( "coverage" );
+                assertTrue( rs.wasNull() );
+                rs.getString( "session_hash" );
+                assertTrue( rs.wasNull() );
+            }
+        }
+    }
+
+    @Test
+    void log_sixArgForm_isNoOp_whenDisabled() throws Exception {
+        new JdbcQueryLogService( ds, false, INLINE )
+            .log( "q", ActorType.AGENT, SourceSurface.API_SEARCH, 3, "strong", "sesh" );
+        assertEquals( 0, count() );
+    }
+
+    @Test
+    void log_sixArgForm_failsOpen_onSqlError() throws Exception {
+        final DataSource broken = mock( DataSource.class );
+        when( broken.getConnection() ).thenThrow( new SQLException( "no connection" ) );
+        assertDoesNotThrow( () -> new JdbcQueryLogService( broken, true, INLINE )
+            .log( "q", ActorType.HUMAN, SourceSurface.API_BUNDLE, 1, "partial", "sesh" ),
+            "a write failure on the 6-arg form must never propagate to the retrieval path" );
+    }
+
     // --- recordClick: the UPDATE-with-scalar-subquery syntax is Postgres-specific enough that it
-    //     needs a real container, not H2 (see JdbcQueryLogServiceTest for the H2-safe dispatch/
-    //     guard-clause coverage). --------------------------------------------------------------
+    //     needs a real container. --------------------------------------------------------------
+
+    @Test
+    void recordClick_isNoOp_whenDisabled() throws Exception {
+        final String query = "pg-rql-click-disabled-" + System.nanoTime();
+        insertRow( query, "sesh1", "2026-08-16T10:00:00Z" );
+        new JdbcQueryLogService( ds, false, INLINE ).recordClick( "sesh1", query, 3 );
+
+        try ( Connection c = ds.getConnection();
+              PreparedStatement ps = c.prepareStatement(
+                  "SELECT clicked_rank FROM retrieval_query_log WHERE query_text = ?" ) ) {
+            ps.setString( 1, query );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                assertTrue( rs.next() );
+                rs.getInt( "clicked_rank" );
+                assertTrue( rs.wasNull(), "disabled service must not touch clicked_rank" );
+            }
+        }
+    }
+
+    @Test
+    void recordClick_isNoOp_onBlankOrNullSessionOrQuery() {
+        final JdbcQueryLogService svc = new JdbcQueryLogService( ds, true, INLINE );
+        assertDoesNotThrow( () -> {
+            svc.recordClick( null, "deploy", 1 );
+            svc.recordClick( "  ", "deploy", 1 );
+            svc.recordClick( "sesh1", null, 1 );
+            svc.recordClick( "sesh1", "  ", 1 );
+        } );
+    }
 
     @Test
     void recordClick_updatesClickedRank_onRealPostgres() throws Exception {
@@ -99,7 +247,7 @@ class JdbcQueryLogServicePostgresTest {
         final String query = "pg-rql-click-" + System.nanoTime();
         insertRow( query, session, "2026-08-16T10:00:00Z" );
 
-        new JdbcQueryLogService( ds, true, Runnable::run ).recordClick( session, query, 4 );
+        new JdbcQueryLogService( ds, true, INLINE ).recordClick( session, query, 4 );
 
         try ( Connection c = ds.getConnection();
               PreparedStatement ps = c.prepareStatement(
@@ -122,7 +270,7 @@ class JdbcQueryLogServicePostgresTest {
         insertRow( query, session, "2026-08-14T09:00:00Z" );   // older
         insertRow( query, session, "2026-08-16T09:00:00Z" );   // newer
 
-        new JdbcQueryLogService( ds, true, Runnable::run ).recordClick( session, query, 2 );
+        new JdbcQueryLogService( ds, true, INLINE ).recordClick( session, query, 2 );
 
         try ( Connection c = ds.getConnection();
               PreparedStatement ps = c.prepareStatement(
@@ -148,7 +296,7 @@ class JdbcQueryLogServicePostgresTest {
         final String unrelatedQuery = "pg-rql-unrelated-" + System.nanoTime();
         insertRow( unrelatedQuery, "other-session", "2026-08-16T09:00:00Z" );
 
-        new JdbcQueryLogService( ds, true, Runnable::run )
+        new JdbcQueryLogService( ds, true, INLINE )
             .recordClick( "no-such-sesh", "no-such-query", 1 );
 
         try ( Connection c = ds.getConnection();

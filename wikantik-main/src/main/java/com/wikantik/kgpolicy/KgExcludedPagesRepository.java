@@ -19,13 +19,11 @@
 package com.wikantik.kgpolicy;
 
 import com.wikantik.api.kgpolicy.ExclusionReason;
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.List;
@@ -53,10 +51,10 @@ public class KgExcludedPagesRepository {
 
     private static final Logger LOG = LogManager.getLogger( KgExcludedPagesRepository.class );
 
-    private final DataSource ds;
+    private final Jdbc jdbc;
 
     public KgExcludedPagesRepository( final DataSource ds ) {
-        this.ds = ds;
+        this.jdbc = new Jdbc( ds );
     }
 
     /**
@@ -68,15 +66,10 @@ public class KgExcludedPagesRepository {
      */
     public Optional< ExclusionReason > findReason( final String pageName ) {
         final String sql = "SELECT reason FROM kg_excluded_pages WHERE page_name = ?";
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, pageName );
-            try( ResultSet rs = ps.executeQuery() ) {
-                if( rs.next() ) {
-                    return ExclusionReason.fromWire( rs.getString( 1 ) );
-                }
-                return Optional.empty();
-            }
+        try {
+            final Optional< Optional< ExclusionReason > > row = jdbc.queryOne(
+                sql, ps -> ps.setString( 1, pageName ), rs -> ExclusionReason.fromWire( rs.getString( 1 ) ) );
+            return row.orElse( Optional.empty() );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to find exclusion reason for page '{}': {}", pageName, e.getMessage(), e );
             throw new RuntimeException( "findReason for " + pageName, e );
@@ -105,11 +98,11 @@ public class KgExcludedPagesRepository {
             "    WHEN EXCLUDED.reason            = 'page_override' THEN EXCLUDED.reason " +
             "    ELSE EXCLUDED.reason " +
             "  END";
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, pageName );
-            ps.setString( 2, reason.wire() );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> {
+                ps.setString( 1, pageName );
+                ps.setString( 2, reason.wire() );
+            } );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to exclude page '{}' with reason '{}': {}", pageName, reason, e.getMessage(), e );
             throw new RuntimeException( "exclude page " + pageName + " reason " + reason, e );
@@ -126,11 +119,11 @@ public class KgExcludedPagesRepository {
      */
     public void release( final String pageName, final ExclusionReason reason ) {
         final String sql = "DELETE FROM kg_excluded_pages WHERE page_name = ? AND reason = ?";
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, pageName );
-            ps.setString( 2, reason.wire() );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> {
+                ps.setString( 1, pageName );
+                ps.setString( 2, reason.wire() );
+            } );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to release page '{}' with reason '{}': {}", pageName, reason, e.getMessage(), e );
             throw new RuntimeException( "release page " + pageName + " reason " + reason, e );
@@ -145,16 +138,10 @@ public class KgExcludedPagesRepository {
      */
     public Set< String > listByReason( final ExclusionReason reason ) {
         final String sql = "SELECT page_name FROM kg_excluded_pages WHERE reason = ?";
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, reason.wire() );
-            try( ResultSet rs = ps.executeQuery() ) {
-                final Set< String > out = new HashSet<>();
-                while( rs.next() ) {
-                    out.add( rs.getString( 1 ) );
-                }
-                return out;
-            }
+        try {
+            final List< String > rows = jdbc.query(
+                sql, ps -> ps.setString( 1, reason.wire() ), rs -> rs.getString( 1 ) );
+            return new HashSet<>( rows );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to list excluded pages for reason '{}': {}", reason, e.getMessage(), e );
             throw new RuntimeException( "listByReason " + reason, e );
@@ -180,12 +167,12 @@ public class KgExcludedPagesRepository {
             sb.append( '?' );
         }
         sb.append( ')' );
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sb.toString() ) ) {
-            for( int i = 0; i < pageNames.size(); i++ ) {
-                ps.setString( i + 1, pageNames.get( i ) );
-            }
-            return ps.executeUpdate();
+        try {
+            return jdbc.update( sb.toString(), ps -> {
+                for( int i = 0; i < pageNames.size(); i++ ) {
+                    ps.setString( i + 1, pageNames.get( i ) );
+                }
+            } );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to removeAll {} pages: {}", pageNames.size(), e.getMessage(), e );
             throw new RuntimeException( "removeAll " + pageNames.size() + " pages", e );

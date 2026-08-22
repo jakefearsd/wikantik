@@ -21,12 +21,12 @@ package com.wikantik.knowledge.querylog;
 import com.wikantik.api.querylog.AggregatedQuery;
 import com.wikantik.api.querylog.QueryLogQuery;
 import com.wikantik.api.querylog.QueryLogReader;
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -43,10 +43,10 @@ public final class JdbcQueryLogReader implements QueryLogReader {
 
     private static final Logger LOG = LogManager.getLogger( JdbcQueryLogReader.class );
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     public JdbcQueryLogReader( final DataSource dataSource ) {
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
     }
 
     @Override
@@ -76,30 +76,24 @@ public final class JdbcQueryLogReader implements QueryLogReader {
         sql.append( " ORDER BY occurrences DESC, last_seen DESC LIMIT ?" );
         params.add( q.limit() );
 
-        final List< AggregatedQuery > out = new ArrayList<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) {
-                ps.setObject( i + 1, params.get( i ) );
-            }
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final long counted = rs.getLong( "counted_results" );
-                    final long sum = rs.getLong( "sum_results" );
-                    final double avg = counted > 0 ? ( double ) sum / counted : 0.0;
-                    final Timestamp ts = rs.getTimestamp( "last_seen" );
-                    out.add( new AggregatedQuery(
-                            rs.getString( "query_text" ),
-                            rs.getLong( "occurrences" ),
-                            avg,
-                            rs.getLong( "zero_results" ),
-                            ts != null ? ts.toInstant() : null ) );
-                }
-            }
+        try {
+            return jdbc.query( sql.toString(), SqlBinder.positional( params ), JdbcQueryLogReader::map );
         } catch ( final SQLException e ) {
             LOG.warn( "Retrieval query-log read failed: {}", e.getMessage() );
             throw new IllegalStateException( "Failed to read retrieval query log", e );
         }
-        return out;
+    }
+
+    private static AggregatedQuery map( final ResultSet rs ) throws SQLException {
+        final long counted = rs.getLong( "counted_results" );
+        final long sum = rs.getLong( "sum_results" );
+        final double avg = counted > 0 ? ( double ) sum / counted : 0.0;
+        final Timestamp ts = rs.getTimestamp( "last_seen" );
+        return new AggregatedQuery(
+                rs.getString( "query_text" ),
+                rs.getLong( "occurrences" ),
+                avg,
+                rs.getLong( "zero_results" ),
+                ts != null ? ts.toInstant() : null );
     }
 }

@@ -21,17 +21,16 @@ package com.wikantik.kgpolicy;
 import com.wikantik.api.kgpolicy.ClusterAction;
 import com.wikantik.api.kgpolicy.ClusterPolicy;
 import com.wikantik.api.kgpolicy.PolicyAuditEntry;
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -50,10 +49,10 @@ public class KgClusterPolicyRepository {
 
     private static final Logger LOG = LogManager.getLogger( KgClusterPolicyRepository.class );
 
-    private final DataSource ds;
+    private final Jdbc jdbc;
 
     public KgClusterPolicyRepository( final DataSource ds ) {
-        this.ds = ds;
+        this.jdbc = new Jdbc( ds );
     }
 
     /**
@@ -65,15 +64,8 @@ public class KgClusterPolicyRepository {
     public Optional< ClusterPolicy > find( final String cluster ) {
         final String sql = "SELECT cluster, action, reason, set_by, set_at, reviewed_at "
                          + "FROM kg_cluster_policy WHERE cluster = ?";
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, cluster );
-            try( ResultSet rs = ps.executeQuery() ) {
-                if( rs.next() ) {
-                    return Optional.of( map( rs ) );
-                }
-                return Optional.empty();
-            }
+        try {
+            return jdbc.queryOne( sql, ps -> ps.setString( 1, cluster ), KgClusterPolicyRepository::map );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to find policy for cluster '{}': {}", cluster, e.getMessage(), e );
             throw new RuntimeException( "find policy for " + cluster, e );
@@ -88,14 +80,8 @@ public class KgClusterPolicyRepository {
     public List< ClusterPolicy > list() {
         final String sql = "SELECT cluster, action, reason, set_by, set_at, reviewed_at "
                          + "FROM kg_cluster_policy ORDER BY cluster";
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql );
-             ResultSet rs = ps.executeQuery() ) {
-            final List< ClusterPolicy > out = new ArrayList<>();
-            while( rs.next() ) {
-                out.add( map( rs ) );
-            }
-            return out;
+        try {
+            return jdbc.query( sql, SqlBinder.NONE, KgClusterPolicyRepository::map );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to list cluster policies: {}", e.getMessage(), e );
             throw new RuntimeException( "list cluster policies", e );
@@ -123,13 +109,13 @@ public class KgClusterPolicyRepository {
                          + "  set_by = EXCLUDED.set_by, "
                          + "  set_at = NOW(), "
                          + "  reviewed_at = NULL";
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, cluster );
-            ps.setString( 2, action.wire() );
-            ps.setString( 3, reason );
-            ps.setString( 4, setBy );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> {
+                ps.setString( 1, cluster );
+                ps.setString( 2, action.wire() );
+                ps.setString( 3, reason );
+                ps.setString( 4, setBy );
+            } );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to upsert policy for cluster '{}': {}", cluster, e.getMessage(), e );
             throw new RuntimeException( "upsert policy for " + cluster, e );
@@ -144,10 +130,8 @@ public class KgClusterPolicyRepository {
      */
     public void delete( final String cluster ) {
         final String sql = "DELETE FROM kg_cluster_policy WHERE cluster = ?";
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, cluster );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> ps.setString( 1, cluster ) );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to delete policy for cluster '{}': {}", cluster, e.getMessage(), e );
             throw new RuntimeException( "delete policy for " + cluster, e );
@@ -162,10 +146,8 @@ public class KgClusterPolicyRepository {
      */
     public void markReviewed( final String cluster ) {
         final String sql = "UPDATE kg_cluster_policy SET reviewed_at = NOW() WHERE cluster = ?";
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, cluster );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> ps.setString( 1, cluster ) );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to mark reviewed for cluster '{}': {}", cluster, e.getMessage(), e );
             throw new RuntimeException( "markReviewed for " + cluster, e );
@@ -186,14 +168,14 @@ public class KgClusterPolicyRepository {
         final String sql = "INSERT INTO kg_policy_audit "
                          + "( cluster, old_action, new_action, reason, actor, changed_at ) "
                          + "VALUES ( ?, ?, ?, ?, ?, NOW() )";
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, cluster );
-            ps.setString( 2, oldAction );
-            ps.setString( 3, newAction );
-            ps.setString( 4, reason );
-            ps.setString( 5, actor );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> {
+                ps.setString( 1, cluster );
+                ps.setString( 2, oldAction );
+                ps.setString( 3, newAction );
+                ps.setString( 4, reason );
+                ps.setString( 5, actor );
+            } );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to append audit for cluster '{}': {}", cluster, e.getMessage(), e );
             throw new RuntimeException( "appendAudit for " + cluster, e );
@@ -214,28 +196,22 @@ public class KgClusterPolicyRepository {
             + "FROM kg_policy_audit WHERE cluster = ? ORDER BY changed_at DESC LIMIT ?"
             : "SELECT id, cluster, old_action, new_action, reason, actor, changed_at "
             + "FROM kg_policy_audit ORDER BY changed_at DESC LIMIT ?";
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            if( filtered ) {
-                ps.setString( 1, cluster.get() );
-                ps.setInt( 2, limit );
-            } else {
-                ps.setInt( 1, limit );
-            }
-            try( ResultSet rs = ps.executeQuery() ) {
-                final List< PolicyAuditEntry > out = new ArrayList<>();
-                while( rs.next() ) {
-                    out.add( new PolicyAuditEntry(
-                        rs.getLong( 1 ),
-                        rs.getString( 2 ),
-                        rs.getString( 3 ),
-                        rs.getString( 4 ),
-                        rs.getString( 5 ),
-                        rs.getString( 6 ),
-                        ts( rs, 7 ) ) );
+        try {
+            return jdbc.query( sql, ps -> {
+                if( filtered ) {
+                    ps.setString( 1, cluster.get() );
+                    ps.setInt( 2, limit );
+                } else {
+                    ps.setInt( 1, limit );
                 }
-                return out;
-            }
+            }, rs -> new PolicyAuditEntry(
+                rs.getLong( 1 ),
+                rs.getString( 2 ),
+                rs.getString( 3 ),
+                rs.getString( 4 ),
+                rs.getString( 5 ),
+                rs.getString( 6 ),
+                ts( rs, 7 ) ) );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to list audit entries (cluster={}): {}", cluster, e.getMessage(), e );
             throw new RuntimeException( "listAudit" + cluster.map( c -> " for " + c ).orElse( "" ), e );

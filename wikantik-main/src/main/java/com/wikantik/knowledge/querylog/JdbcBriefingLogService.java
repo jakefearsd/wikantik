@@ -20,12 +20,11 @@ package com.wikantik.knowledge.querylog;
 
 import com.wikantik.api.briefing.BriefingLogEntry;
 import com.wikantik.api.briefing.BriefingLogService;
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.util.concurrent.Executor;
 
 /**
@@ -46,12 +45,12 @@ public final class JdbcBriefingLogService implements BriefingLogService {
      *  input is anonymous, so a pathological request can't stuff megabytes into a log row. */
     private static final int MAX_TEXT_LEN = 2000;
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
     private final boolean enabled;
     private final Executor executor;
 
     public JdbcBriefingLogService( final DataSource dataSource, final boolean enabled, final Executor executor ) {
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
         this.enabled = enabled;
         this.executor = executor;
     }
@@ -70,18 +69,18 @@ public final class JdbcBriefingLogService implements BriefingLogService {
     }
 
     private void insert( final BriefingLogEntry entry ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( INSERT_SQL ) ) {
-            ps.setString( 1, truncate( entry.pins() ) );
-            ps.setString( 2, truncate( entry.clusters() ) );
-            ps.setBoolean( 3, entry.promptPresent() );
-            ps.setInt( 4, entry.budgetRequested() );
-            ps.setInt( 5, entry.budgetUsed() );
-            ps.setInt( 6, entry.sectionCount() );
-            ps.setInt( 7, entry.pinCount() );
-            ps.setInt( 8, entry.pointerCount() );
-            ps.setString( 9, entry.surface() );
-            ps.executeUpdate();
+        try {
+            jdbc.update( INSERT_SQL, ps -> {
+                ps.setString( 1, truncate( entry.pins() ) );
+                ps.setString( 2, truncate( entry.clusters() ) );
+                ps.setBoolean( 3, entry.promptPresent() );
+                ps.setInt( 4, entry.budgetRequested() );
+                ps.setInt( 5, entry.budgetUsed() );
+                ps.setInt( 6, entry.sectionCount() );
+                ps.setInt( 7, entry.pinCount() );
+                ps.setInt( 8, entry.pointerCount() );
+                ps.setString( 9, entry.surface() );
+            } );
         } catch ( final Exception e ) {
             LOG.warn( "Briefing-log write failed for surface={}: {}", entry.surface(), e.getMessage() );
         }

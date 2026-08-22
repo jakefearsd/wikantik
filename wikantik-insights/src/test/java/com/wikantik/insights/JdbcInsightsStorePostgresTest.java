@@ -724,6 +724,38 @@ class JdbcInsightsStorePostgresTest {
         assertTrue( store.upsertSeen( List.of(), LocalDate.parse( "2026-08-16" ) ).isEmpty() );
     }
 
+    /**
+     * A single batched call over a mix of brand-new and already-seen rows: proves
+     * {@code batchReturningKeys} recovers the RIGHT generated-key row for EACH batched statement
+     * (not just the last one, and not misaligned against the input order) — a brand-new row's
+     * {@code first_seen} is today, while an already-seen row's {@code first_seen} survives from its
+     * earlier call untouched.
+     */
+    @Test
+    void upsertSeenInOneBatchPreservesFirstSeenOnlyForAlreadySeenRows() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+
+        // Seed two rows as already-seen on an earlier date; a third target is left untouched.
+        store.upsertSeen( List.of(
+                new String[] { "agent_gap", "already-seen-a" },
+                new String[] { "engine_divergence", "already-seen-b" }
+        ), LocalDate.parse( "2026-08-01" ) );
+
+        final Map<String, LocalDate> result = store.upsertSeen( List.of(
+                new String[] { "agent_gap", "already-seen-a" },
+                new String[] { "engine_divergence", "already-seen-b" },
+                new String[] { "agent_gap", "brand-new-c" }
+        ), LocalDate.parse( "2026-08-16" ) );
+
+        assertEquals( 3, result.size() );
+        assertEquals( LocalDate.parse( "2026-08-01" ), result.get( "agent_gap already-seen-a" ),
+                "already-seen row keeps its original first_seen" );
+        assertEquals( LocalDate.parse( "2026-08-01" ), result.get( "engine_divergence already-seen-b" ),
+                "already-seen row keeps its original first_seen" );
+        assertEquals( LocalDate.parse( "2026-08-16" ), result.get( "agent_gap brand-new-c" ),
+                "brand-new row is first-seen today" );
+    }
+
     // --- pageWindowNear / siteWindowNear (design §7.4.2/§7.4.3) -------------------------------
     //
     // THE CRITICAL SEMANTIC under test: search_visibility_snapshot rows are ALREADY trailing

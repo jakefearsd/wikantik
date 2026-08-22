@@ -28,6 +28,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -157,6 +158,41 @@ class JdbcTest {
         assertEquals( first.get() + 1, second.get() );
         assertEquals( List.of( "a", "b" ),
             jdbc.query( "SELECT name FROM t3 ORDER BY id", SqlBinder.NONE, rs -> rs.getString( 1 ) ) );
+    }
+
+    @Test
+    void batchReturningKeysYieldsOneKeyPerRowInBatchOrder() throws SQLException {
+        jdbc.execute( "CREATE TABLE t4 (id BIGINT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(50))" );
+
+        final List< Long > keys = jdbc.batchReturningKeys( "INSERT INTO t4 (name) VALUES (?)", List.of(
+            ( PreparedStatement ps ) -> ps.setString( 1, "a" ),
+            ( PreparedStatement ps ) -> ps.setString( 1, "b" ),
+            ( PreparedStatement ps ) -> ps.setString( 1, "c" )
+        ), rs -> rs.getLong( 1 ) );
+
+        // H2 returns one generated-key row per statement in the batch, in batch order — the same
+        // guarantee this primitive documents for PgJDBC. If a driver ever returned only the last
+        // key (permitted by the bare JDBC spec but not by H2 or PgJDBC), this assertion would catch
+        // the regression here rather than surprising a caller in production.
+        assertEquals( 3, keys.size(), "expected one generated key per batched row" );
+        assertEquals( keys.get( 0 ) + 1, keys.get( 1 ) );
+        assertEquals( keys.get( 1 ) + 1, keys.get( 2 ) );
+        assertEquals( List.of( "a", "b", "c" ),
+            jdbc.query( "SELECT name FROM t4 ORDER BY id", SqlBinder.NONE, rs -> rs.getString( 1 ) ) );
+    }
+
+    @Test
+    void batchReturningKeysOnAnAlreadyOpenConnection() throws SQLException {
+        jdbc.execute( "CREATE TABLE t5 (id BIGINT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(50))" );
+
+        try ( Connection conn = realH2.getConnection() ) {
+            final List< Long > keys = jdbc.batchReturningKeys( conn, "INSERT INTO t5 (name) VALUES (?)", List.of(
+                ( PreparedStatement ps ) -> ps.setString( 1, "x" ),
+                ( PreparedStatement ps ) -> ps.setString( 1, "y" )
+            ), rs -> rs.getLong( 1 ) );
+
+            assertEquals( 2, keys.size() );
+        }
     }
 
     @Test

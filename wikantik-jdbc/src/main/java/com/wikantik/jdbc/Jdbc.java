@@ -169,6 +169,42 @@ public final class Jdbc {
     }
 
     /**
+     * Runs one {@code sql} statement as a JDBC batch with {@link Statement#RETURN_GENERATED_KEYS},
+     * one {@link SqlBinder} per row, and maps every generated-key row with {@code keyMapper} — the
+     * batched counterpart of {@link #insertReturningKey}, for the {@code addBatch}/
+     * {@code executeBatch} + {@code getGeneratedKeys} call sites (e.g. a batched insert whose SQL
+     * carries a {@code RETURNING} clause). The returned list is in <strong>batch order</strong>:
+     * this relies on the driver returning one generated-key row per batched statement in the order
+     * the statements were added, which PgJDBC guarantees but the JDBC spec itself does not — do
+     * not use this against a driver that doesn't make that guarantee. Use this instead of rewriting
+     * the SQL — the SQL stays verbatim.
+     */
+    public < K > List< K > batchReturningKeys( final String sql, final List< SqlBinder > binders,
+                                                final RowMapper< K > keyMapper ) throws SQLException {
+        try ( Connection conn = dataSource.getConnection() ) {
+            return batchReturningKeys( conn, sql, binders, keyMapper );
+        }
+    }
+
+    /** {@link #batchReturningKeys(String, List, RowMapper)} on an already-open connection. */
+    public < K > List< K > batchReturningKeys( final Connection conn, final String sql,
+                                                final List< SqlBinder > binders, final RowMapper< K > keyMapper )
+            throws SQLException {
+        try ( PreparedStatement ps = conn.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
+            for ( final SqlBinder binder : binders ) {
+                binder.bind( ps );
+                ps.addBatch();
+            }
+            ps.executeBatch();
+            final List< K > out = new ArrayList<>( binders.size() );
+            try ( ResultSet keys = ps.getGeneratedKeys() ) {
+                while ( keys.next() ) out.add( keyMapper.map( keys ) );
+            }
+            return out;
+        }
+    }
+
+    /**
      * Streams {@code sql}'s result set to {@code consumer} one row at a time instead of
      * collecting it into a {@link List}, for backfills/indexers over tables too large to hold in
      * memory at once. {@code fetchSize} is passed straight to {@link Statement#setFetchSize(int)}

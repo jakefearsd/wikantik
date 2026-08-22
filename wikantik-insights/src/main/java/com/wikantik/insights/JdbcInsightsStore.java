@@ -682,22 +682,23 @@ public class JdbcInsightsStore implements InsightsStore {
         }
 
         final Date todaySql = Date.valueOf( today );
-        try {
-            jdbc.withConnection( conn -> {
-                for ( final String[] pair : typeTargetPairs ) {
-                    final Optional<SeenRow> row = jdbc.insertReturningKey( conn, UPSERT_SEEN_SQL,
-                            ps -> {
-                                ps.setString( 1, pair[0] );
-                                ps.setString( 2, pair[1] );
-                                ps.setDate( 3, todaySql );
-                                ps.setDate( 4, todaySql );
-                            },
-                            rs -> new SeenRow( rs.getString( "opportunity_type" ), rs.getString( "target" ),
-                                    rs.getDate( "first_seen" ).toLocalDate() ) );
-                    row.ifPresent( r -> out.put( r.opportunityType() + " " + r.target(), r.firstSeen() ) );
-                }
-                return null;
+        final List<SqlBinder> binders = new ArrayList<>( typeTargetPairs.size() );
+        for ( final String[] pair : typeTargetPairs ) {
+            binders.add( ps -> {
+                ps.setString( 1, pair[0] );
+                ps.setString( 2, pair[1] );
+                ps.setDate( 3, todaySql );
+                ps.setDate( 4, todaySql );
             } );
+        }
+
+        try {
+            final List<SeenRow> rows = jdbc.batchReturningKeys( UPSERT_SEEN_SQL, binders,
+                    rs -> new SeenRow( rs.getString( "opportunity_type" ), rs.getString( "target" ),
+                            rs.getDate( "first_seen" ).toLocalDate() ) );
+            for ( final SeenRow row : rows ) {
+                out.put( row.opportunityType() + " " + row.target(), row.firstSeen() );
+            }
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to upsert {} content-opportunity-seen rows: {}",
                     typeTargetPairs.size(), e.getMessage(), e );

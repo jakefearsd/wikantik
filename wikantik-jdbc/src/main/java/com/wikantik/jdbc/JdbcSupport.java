@@ -108,6 +108,19 @@ public abstract class JdbcSupport {
         return jdbc.batch( conn, sql, binders );
     }
 
+    /** See {@link Jdbc#batchReturningKeys(String, List, RowMapper)}. */
+    protected < K > List< K > batchReturningKeys( final String sql, final List< SqlBinder > binders,
+                                                   final RowMapper< K > keyMapper ) throws SQLException {
+        return jdbc.batchReturningKeys( sql, binders, keyMapper );
+    }
+
+    /** See {@link Jdbc#batchReturningKeys(Connection, String, List, RowMapper)}. */
+    protected < K > List< K > batchReturningKeys( final Connection conn, final String sql,
+                                                   final List< SqlBinder > binders, final RowMapper< K > keyMapper )
+            throws SQLException {
+        return jdbc.batchReturningKeys( conn, sql, binders, keyMapper );
+    }
+
     protected void forEachRow( final String sql, final SqlBinder binder, final int fetchSize,
                                final RowConsumer consumer ) throws SQLException {
         jdbc.forEachRow( sql, binder, fetchSize, consumer );

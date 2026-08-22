@@ -215,10 +215,14 @@ public class HubProposalService {
         return allHubNames;
     }
 
-    /** Step 1b — group `related` edges by their hub source. */
+    /**
+     * Step 1b — group hub-membership edges by their hub source. "related_to" is the closed
+     * relationship_type vocabulary's marker (bin/db/migrations/V027/V030); the pre-vocabulary
+     * "related" literal can no longer exist in kg_edges.
+     */
     private Map< String, List< String > > groupRelatedEdgesByHub( final Set< String > allHubNames ) {
         final List< Map< String, Object > > relatedEdges =
-            kgEdges.queryEdgesWithNames( "related", null, 100_000, 0 );
+            kgEdges.queryEdgesWithNames( "related_to", null, 100_000, 0 );
         LOG.info( "Hub proposals step 1b: loaded {} 'related' edges", relatedEdges.size() );
 
         final Map< String, List< String > > hubMembers = new LinkedHashMap<>();

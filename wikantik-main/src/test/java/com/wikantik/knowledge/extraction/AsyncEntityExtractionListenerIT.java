@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.extraction;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.EntityExtractor;
 import com.wikantik.api.knowledge.ExtractedMention;
 import com.wikantik.api.knowledge.ExtractionChunk;
@@ -74,7 +74,7 @@ class AsyncEntityExtractionListenerIT {
 
     @BeforeAll
     static void initDataSource() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach

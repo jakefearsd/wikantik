@@ -18,7 +18,7 @@
  */
 package com.wikantik.auth;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,7 +53,7 @@ class PolicyGrantConvergenceMigrationTest
     @BeforeAll
     void setUp() throws Exception
     {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
         migrationSql = Files.readString(
                 repoRoot().resolve( "bin/db/migrations/V043__admin_allpermission_canonical.sql" ) );
     }

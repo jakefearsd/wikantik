@@ -150,8 +150,11 @@ class HubMemberLoader {
         final Map< String, Set< String > > out = new LinkedHashMap<>();
         for ( final String hub : hubNames ) out.put( hub, new HashSet<>() );
 
+        // "related_to" is the closed relationship_type vocabulary's hub-membership marker
+        // (bin/db/migrations/V027/V030); the old free-form "related" literal can no longer
+        // exist in kg_edges at all.
         final List< Map< String, Object > > edges =
-            kgEdges.queryEdgesWithNames( "related", null, 100_000, 0 );
+            kgEdges.queryEdgesWithNames( "related_to", null, 100_000, 0 );
         for ( final Map< String, Object > edge : edges ) {
             final String src = (String) edge.get( "source_name" );
             final String tgt = (String) edge.get( "target_name" );

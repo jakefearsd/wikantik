@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.Provenance;
 import org.junit.jupiter.api.BeforeAll;
@@ -47,7 +47,7 @@ class KgEdgeProvenanceStampingTest {
     private KgNodeRepository nodes;
 
     @BeforeAll
-    static void initDataSource() { dataSource = PostgresTestContainer.createDataSource(); }
+    static void initDataSource() { dataSource = PostgresTestDb.createDataSource(); }
 
     @BeforeEach
     void setUp() throws Exception {
@@ -66,7 +66,7 @@ class KgEdgeProvenanceStampingTest {
         final UUID b = nodes.upsertNode( "StampB", "concept", null,
                 Provenance.HUMAN_AUTHORED, Map.of() ).id();
 
-        final KgEdge e = edges.upsertEdge( a, b, "related",
+        final KgEdge e = edges.upsertEdge( a, b, "related_to",
                 Provenance.HUMAN_CURATED, Map.of( "k", "v" ) );
 
         assertNotNull( e );

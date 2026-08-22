@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.subsystem;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
@@ -90,7 +90,7 @@ class KnowledgeSubsystemFactoryFlagTest {
 
     @BeforeEach
     void setUp() {
-        dataSource         = PostgresTestContainer.createDataSource();
+        dataSource         = PostgresTestDb.createDataSource();
         meterRegistry      = new SimpleMeterRegistry();
         systemPageRegistry = mock( SystemPageRegistry.class );
         pageManager        = mock( PageManager.class );

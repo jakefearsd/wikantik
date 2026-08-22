@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Provenance;
 import org.junit.jupiter.api.BeforeAll;
@@ -53,7 +53,7 @@ class KgNodeRepositoryOrphanedNodesTest {
     private KgEdgeRepository edges;
 
     @BeforeAll
-    static void initDataSource() { dataSource = PostgresTestContainer.createDataSource(); }
+    static void initDataSource() { dataSource = PostgresTestDb.createDataSource(); }
 
     @BeforeEach
     void setUp() throws Exception {
@@ -98,7 +98,7 @@ class KgNodeRepositoryOrphanedNodesTest {
     void aNodeWithAnOutboundEdgeIsNotOrphaned() {
         final UUID a = node( "Source", "concept", "PageA" );
         final UUID b = node( "Target", "concept", "PageB" );
-        edges.upsertEdge( a, b, "related", Provenance.HUMAN_CURATED, Map.of() );
+        edges.upsertEdge( a, b, "related_to", Provenance.HUMAN_CURATED, Map.of() );
 
         assertEquals( 0L, nodes.countOrphanedNodes( null ) );
         assertTrue( nodes.listOrphanedNodes( null, 100, 0 ).isEmpty() );
@@ -109,7 +109,7 @@ class KgNodeRepositoryOrphanedNodesTest {
         final UUID a = node( "Source", "concept", "PageA" );
         final UUID b = node( "Target", "concept", "PageB" );
         final UUID c = node( "Untouched", "concept", "PageC" );
-        edges.upsertEdge( a, b, "related", Provenance.HUMAN_CURATED, Map.of() );
+        edges.upsertEdge( a, b, "related_to", Provenance.HUMAN_CURATED, Map.of() );
 
         // Only the node on neither end of an edge is orphaned.
         assertEquals( List.of( "Untouched" ), names( nodes.listOrphanedNodes( null, 100, 0 ) ) );
@@ -257,7 +257,7 @@ class KgNodeRepositoryOrphanedNodesTest {
     void deletingTheOnlyEdgeTurnsBothEndpointsIntoOrphans() {
         final UUID a = node( "Alpha", "concept", "P" );
         final UUID b = node( "Bravo", "concept", "P" );
-        edges.upsertEdge( a, b, "related", Provenance.HUMAN_CURATED, Map.of() );
+        edges.upsertEdge( a, b, "related_to", Provenance.HUMAN_CURATED, Map.of() );
         assertEquals( 0L, nodes.countOrphanedNodes( null ) );
 
         edges.getAllEdges().forEach( e -> edges.deleteEdge( e.id() ) );

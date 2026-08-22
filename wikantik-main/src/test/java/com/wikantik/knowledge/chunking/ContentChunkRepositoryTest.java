@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.chunking;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import org.junit.jupiter.api.*;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -37,7 +37,7 @@ class ContentChunkRepositoryTest {
 
     @BeforeAll
     static void initDataSource() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach

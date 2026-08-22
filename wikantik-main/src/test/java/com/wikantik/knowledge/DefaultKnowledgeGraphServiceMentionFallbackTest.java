@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.NodeMention;
@@ -64,7 +64,7 @@ class DefaultKnowledgeGraphServiceMentionFallbackTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
         kgNodes      = new KgNodeRepository( ds );
         kgEdges      = new KgEdgeRepository( ds );
         kgProposals  = new KgProposalRepository( ds );

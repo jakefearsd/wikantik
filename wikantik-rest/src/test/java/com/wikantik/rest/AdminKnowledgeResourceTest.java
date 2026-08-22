@@ -23,7 +23,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.TestEngine;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
@@ -66,7 +66,7 @@ class AdminKnowledgeResourceTest {
 
     @BeforeAll
     static void initDataSource() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach
@@ -110,7 +110,7 @@ class AdminKnowledgeResourceTest {
                 Provenance.HUMAN_AUTHORED, Map.of() );
         final var tgtNode = service.upsertNode( "EdgeNameTgt", "article", "EdgeNameTgt.md",
                 Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( srcNode.id(), tgtNode.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( srcNode.id(), tgtNode.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
 
         final String json = doGet( "/nodes/EdgeNameSrc" );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
@@ -132,7 +132,7 @@ class AdminKnowledgeResourceTest {
                 Provenance.HUMAN_AUTHORED, Map.of() );
         final var tgtNode = service.upsertNode( "ListEdgeTgt", "article", "ListEdgeTgt.md",
                 Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( srcNode.id(), tgtNode.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( srcNode.id(), tgtNode.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
 
         final String json = doGetWithParams( "/edges", Map.of( "limit", "50" ) );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
@@ -155,15 +155,15 @@ class AdminKnowledgeResourceTest {
                 Provenance.HUMAN_AUTHORED, Map.of() );
         final var filterTgtB = svc.upsertNode( "FilterTgtB", "article", null,
                 Provenance.HUMAN_AUTHORED, Map.of() );
-        svc.upsertEdge( filterSrc.id(), filterTgtA.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
-        svc.upsertEdge( filterSrc.id(), filterTgtB.id(), "mentions", Provenance.HUMAN_AUTHORED, Map.of() );
+        svc.upsertEdge( filterSrc.id(), filterTgtA.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        svc.upsertEdge( filterSrc.id(), filterTgtB.id(), "applies_to", Provenance.HUMAN_AUTHORED, Map.of() );
 
         final String allJson = doGetWithParams( "/edges", Map.of( "limit", "100" ) );
         final int allCount = gson.fromJson( allJson, JsonObject.class )
                 .getAsJsonArray( "edges" ).size();
 
         final String filteredJson = doGetWithParams( "/edges",
-                Map.of( "relationship_type", "related", "limit", "100" ) );
+                Map.of( "relationship_type", "related_to", "limit", "100" ) );
         final int filteredCount = gson.fromJson( filteredJson, JsonObject.class )
                 .getAsJsonArray( "edges" ).size();
 
@@ -224,7 +224,7 @@ class AdminKnowledgeResourceTest {
                 Provenance.HUMAN_AUTHORED, Map.of() );
         final var newNode = service.upsertNode( "NewNode", "article", "NewNode.md",
                 Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( srcNode.id(), oldNode.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( srcNode.id(), oldNode.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
         assertNotNull( oldNode, "OldNode should exist in the knowledge graph" );
         assertNotNull( newNode, "NewNode should exist in the knowledge graph" );
 
@@ -279,9 +279,9 @@ class AdminKnowledgeResourceTest {
                 Provenance.HUMAN_AUTHORED, Map.of() );
         final var otherNode = service.upsertNode( "OtherNode", "article", null,
                 Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( nodeA.id(), oldNode.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( nodeB.id(), oldNode.id(), "mentions", Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( nodeB.id(), otherNode.id(), "mentions", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( nodeA.id(), oldNode.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( nodeB.id(), oldNode.id(), "applies_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( nodeB.id(), otherNode.id(), "applies_to", Provenance.HUMAN_AUTHORED, Map.of() );
 
         final JsonObject mergeBody = new JsonObject();
         mergeBody.addProperty( "sourceId", oldNode.id().toString() );
@@ -319,7 +319,7 @@ class AdminKnowledgeResourceTest {
                 Provenance.HUMAN_AUTHORED, Map.of() );
         final var newNode = service.upsertNode( "StubNewNode", null, null,
                 Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( stubNode.id(), oldNode.id(), "related",
+        service.upsertEdge( stubNode.id(), oldNode.id(), "related_to",
                 Provenance.HUMAN_AUTHORED, Map.of() );
 
         // Merge should succeed even though the referencing node has no sourcePage

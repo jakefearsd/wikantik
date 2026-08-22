@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.judge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import org.junit.jupiter.api.*;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -37,7 +37,7 @@ class JdbcKgJudgeTimeoutRepositoryTest {
     private JdbcKgJudgeTimeoutRepository repo;
 
     @BeforeAll
-    static void init() { ds = PostgresTestContainer.createDataSource(); }
+    static void init() { ds = PostgresTestDb.createDataSource(); }
 
     @BeforeEach
     void setUp() throws Exception {

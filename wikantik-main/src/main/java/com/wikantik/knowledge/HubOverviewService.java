@@ -169,8 +169,11 @@ public class HubOverviewService {
     private Map< String, Set< String > > computeInboundLinkSources(
             final Map< String, com.wikantik.api.knowledge.KgNode > hubsByName,
             final Map< String, Set< String > > hubMembers ) {
+        // "related_to" is the closed relationship_type vocabulary's marker
+        // (bin/db/migrations/V027/V030); the pre-vocabulary "links_to" literal can no longer
+        // exist in kg_edges.
         final List< Map< String, Object > > linksToEdges =
-            kgEdges.queryEdgesWithNames( "links_to", null, 100_000, 0 );
+            kgEdges.queryEdgesWithNames( "related_to", null, 100_000, 0 );
         final Map< String, Set< String > > inboundByHub = new java.util.HashMap<>();
         for ( final String hubName : hubsByName.keySet() ) inboundByHub.put( hubName, new HashSet<>() );
         for ( final Map< String, Object > edge : linksToEdges ) {

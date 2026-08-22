@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.eval;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.eval.RetrievalMode;
 import com.wikantik.api.eval.RetrievalRunResult;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
@@ -225,7 +225,7 @@ class RetrievalQualitySmokeTest {
 
         @BeforeEach
         void setUp() throws Exception {
-            pgDs = PostgresTestContainer.createDataSource();
+            pgDs = PostgresTestDb.createDataSource();
             applyV032Migration();
             cleanTestRows();
             seedCorpus();

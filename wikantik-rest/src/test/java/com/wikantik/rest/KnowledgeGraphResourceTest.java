@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
@@ -49,7 +49,7 @@ class KnowledgeGraphResourceTest {
 
     @BeforeAll
     static void initDataSource() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach

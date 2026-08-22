@@ -18,7 +18,7 @@
  */
 package com.wikantik.plugin;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
@@ -49,7 +49,7 @@ class RelationshipsPluginTest {
 
     @BeforeAll
     static void setUp() throws Exception {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
 
         engine = TestEngine.build( with( "wikantik.cache.enable", "false" ) );
         service = new DefaultKnowledgeGraphService(
@@ -75,7 +75,7 @@ class RelationshipsPluginTest {
                 Provenance.HUMAN_AUTHORED, Map.of() );
         final var b = service.upsertNode( "KnowledgeGraphCore", "article", "KnowledgeGraphCore.md",
                 Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( a.id(), b.id(), "part-of", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( a.id(), b.id(), "part_of", Provenance.HUMAN_AUTHORED, Map.of() );
 
         final Context ctx = Wiki.context().create( engine,
                 Wiki.contents().page( engine, "GraphProjector" ) );
@@ -93,7 +93,7 @@ class RelationshipsPluginTest {
                 Provenance.HUMAN_AUTHORED, Map.of() );
         final var b = service.upsertNode( "GraphProjector", "article", "GraphProjector.md",
                 Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( b.id(), a.id(), "part-of", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( b.id(), a.id(), "part_of", Provenance.HUMAN_AUTHORED, Map.of() );
 
         final Context ctx = Wiki.context().create( engine,
                 Wiki.contents().page( engine, "KnowledgeGraphCore" ) );

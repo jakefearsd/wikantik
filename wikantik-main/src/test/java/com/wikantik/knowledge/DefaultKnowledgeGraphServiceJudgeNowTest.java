@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.JudgeVerdict;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
@@ -50,7 +50,7 @@ class DefaultKnowledgeGraphServiceJudgeNowTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
         kgNodes      = new KgNodeRepository( ds );
         kgEdges      = new KgEdgeRepository( ds );
         kgProposals  = new KgProposalRepository( ds );
@@ -84,7 +84,7 @@ class DefaultKnowledgeGraphServiceJudgeNowTest {
         final var svc = DefaultKnowledgeGraphService.builder( kgNodes, kgEdges, kgProposals, kgRejections, ds ).materialization( mat ).judgeService( judge ).build();
 
         final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
-            Map.<String, Object>of( "source", "S", "target", "T", "relationship", "now" ),
+            Map.<String, Object>of( "source", "S", "target", "T", "relationship", "related_to" ),
             0.7, "" );
 
         final JudgeVerdict v = svc.judgeNow( p.id(), "alice" );

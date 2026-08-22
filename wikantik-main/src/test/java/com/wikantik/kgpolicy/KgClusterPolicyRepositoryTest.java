@@ -18,7 +18,7 @@
  */
 package com.wikantik.kgpolicy;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.kgpolicy.ClusterAction;
 import com.wikantik.api.kgpolicy.ClusterPolicy;
 import com.wikantik.api.kgpolicy.PolicyAuditEntry;
@@ -43,7 +43,7 @@ class KgClusterPolicyRepositoryTest {
 
     @BeforeAll
     static void up() {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach

@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.judge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.JudgeVerdict;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
@@ -52,7 +52,7 @@ class JudgeRunnerTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
         kgNodes      = new KgNodeRepository( ds );
         kgEdges      = new KgEdgeRepository( ds );
         kgProposals  = new KgProposalRepository( ds );

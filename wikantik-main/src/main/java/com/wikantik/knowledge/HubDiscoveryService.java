@@ -332,9 +332,12 @@ public class HubDiscoveryService {
      * edge from any hub-typed node, AND that have a centroid available ({@code mentionedNames}).
      */
     private List< String > loadCandidatePool( final Set< String > mentionedNames ) {
-        // Load all node names that are targets of 'related' edges (i.e., existing hub members).
+        // Load all node names that are targets of hub-membership edges (i.e., existing hub
+        // members). "related_to" is the closed relationship_type vocabulary's marker
+        // (bin/db/migrations/V027/V030); the pre-vocabulary "related" literal can no longer
+        // exist in kg_edges.
         final List< Map< String, Object > > relatedEdges =
-            kgEdges.queryEdgesWithNames( "related", null, 100_000, 0 );
+            kgEdges.queryEdgesWithNames( "related_to", null, 100_000, 0 );
 
         // Identify hub node names (source_name where the source is hub-typed)
         final List< com.wikantik.api.knowledge.KgNode > allNodes =

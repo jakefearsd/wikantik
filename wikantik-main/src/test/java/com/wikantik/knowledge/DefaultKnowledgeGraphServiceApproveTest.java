@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.Tier;
 import com.wikantik.knowledge.judge.KgMaterializationService;
@@ -46,7 +46,7 @@ class DefaultKnowledgeGraphServiceApproveTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
         kgNodes      = new KgNodeRepository( ds );
         kgEdges      = new KgEdgeRepository( ds );
         kgProposals  = new KgProposalRepository( ds );
@@ -77,7 +77,7 @@ class DefaultKnowledgeGraphServiceApproveTest {
     @Test
     void approveProposal_records_audit_and_promotes_to_human() {
         final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
-            Map.<String, Object>of( "source", "U", "target", "V", "relationship", "owns" ),
+            Map.<String, Object>of( "source", "U", "target", "V", "relationship", "contains" ),
             0.7, "" );
 
         svc.approveProposal( p.id(), "alice" );
@@ -89,7 +89,7 @@ class DefaultKnowledgeGraphServiceApproveTest {
         assertTrue( kgProposals.listReviews( p.id() ).stream()
             .anyMatch( r -> "human".equals( r.reviewerKind() ) && "approved".equals( r.verdict() ) ) );
         assertTrue( kgEdges.getAllEdges( Tier.HUMAN ).stream()
-            .anyMatch( e -> "owns".equals( e.relationshipType() )
+            .anyMatch( e -> "contains".equals( e.relationshipType() )
                 && p.id().equals( e.provenanceProposalId() ) ),
             "human approval must materialise at human tier" );
     }
@@ -97,7 +97,7 @@ class DefaultKnowledgeGraphServiceApproveTest {
     @Test
     void rejectProposal_retracts_materialised_rows_and_writes_kg_rejections() {
         final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
-            Map.<String, Object>of( "source", "Q", "target", "R", "relationship", "delete_me" ),
+            Map.<String, Object>of( "source", "Q", "target", "R", "relationship", "related_to" ),
             0.7, "" );
         mat.materializeMachine( p );
 
@@ -108,7 +108,7 @@ class DefaultKnowledgeGraphServiceApproveTest {
         assertFalse( kgEdges.getAllEdges( Tier.MACHINE ).stream()
             .anyMatch( e -> p.id().equals( e.provenanceProposalId() ) ),
             "rejection must retract machine-tier materialisation" );
-        assertTrue( kgRejections.isRejected( "Q", "R", "delete_me" ),
+        assertTrue( kgRejections.isRejected( "Q", "R", "related_to" ),
             "kg_rejections must record the negative-knowledge entry" );
         assertTrue( kgProposals.listReviews( p.id() ).stream()
             .anyMatch( r -> "human".equals( r.reviewerKind() ) && "rejected".equals( r.verdict() ) ) );

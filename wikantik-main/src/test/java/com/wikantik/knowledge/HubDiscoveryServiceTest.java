@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.knowledge.KgEdgeRepository;
 import com.wikantik.knowledge.KgNodeRepository;
@@ -49,7 +49,7 @@ class HubDiscoveryServiceTest {
 
     @BeforeAll
     static void initDataSource() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach
@@ -104,10 +104,10 @@ class HubDiscoveryServiceTest {
         }
         kgEdges.upsertEdge( techHub.id(),
             kgNodes.upsertNode( "Java", "article", "Java", Provenance.HUMAN_AUTHORED, Map.of() ).id(),
-            "related", Provenance.HUMAN_AUTHORED, Map.of() );
+            "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
         kgEdges.upsertEdge( techHub.id(),
             kgNodes.upsertNode( "Python", "article", "Python", Provenance.HUMAN_AUTHORED, Map.of() ).id(),
-            "related", Provenance.HUMAN_AUTHORED, Map.of() );
+            "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
 
         // Non-members: 3 cooking, 3 sports, and one outlier.
         for ( final String name : COOKING.keySet() ) {

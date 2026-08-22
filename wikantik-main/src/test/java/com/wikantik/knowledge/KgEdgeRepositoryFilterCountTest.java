@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.Provenance;
 import org.junit.jupiter.api.*;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -39,7 +39,7 @@ class KgEdgeRepositoryFilterCountTest {
 
     @BeforeAll
     static void initDataSource() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach
@@ -60,12 +60,12 @@ class KgEdgeRepositoryFilterCountTest {
                 Provenance.HUMAN_AUTHORED, Map.of() ).id();
         final UUID c = nodes.upsertNode( "NodeC", "concept", null,
                 Provenance.HUMAN_AUTHORED, Map.of() ).id();
-        edges.upsertEdge( a, b, "related", Provenance.HUMAN_CURATED, Map.of() );
-        edges.upsertEdge( a, c, "related", Provenance.HUMAN_CURATED, Map.of() );
-        edges.upsertEdge( b, c, "depends_on", Provenance.HUMAN_CURATED, Map.of() );
+        edges.upsertEdge( a, b, "related_to", Provenance.HUMAN_CURATED, Map.of() );
+        edges.upsertEdge( a, c, "related_to", Provenance.HUMAN_CURATED, Map.of() );
+        edges.upsertEdge( b, c, "requires", Provenance.HUMAN_CURATED, Map.of() );
 
-        assertEquals( 2L, edges.countEdgesWithFilter( "related", null ) );
-        assertEquals( 1L, edges.countEdgesWithFilter( "depends_on", null ) );
+        assertEquals( 2L, edges.countEdgesWithFilter( "related_to", null ) );
+        assertEquals( 1L, edges.countEdgesWithFilter( "requires", null ) );
         assertEquals( 3L, edges.countEdgesWithFilter( null, null ) );
         assertEquals( 2L, edges.countEdgesWithFilter( null, "NodeA" ) ); // matches source OR target
     }
@@ -81,7 +81,7 @@ class KgEdgeRepositoryFilterCountTest {
                 Provenance.HUMAN_AUTHORED, Map.of() ).id();
         final UUID b = nodes.upsertNode( "OtherNode", "concept", null,
                 Provenance.HUMAN_AUTHORED, Map.of() ).id();
-        edges.upsertEdge( a, b, "related", Provenance.HUMAN_CURATED, Map.of() );
+        edges.upsertEdge( a, b, "related_to", Provenance.HUMAN_CURATED, Map.of() );
 
         assertEquals( 1L, edges.countEdgesWithFilter( null, "camelcase" ) );
         assertEquals( 1L, edges.countEdgesWithFilter( null, "CAMEL" ) );

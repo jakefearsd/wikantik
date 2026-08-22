@@ -18,7 +18,7 @@
  */
 package com.wikantik.auth;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.TestEngine;
 import com.wikantik.TestJNDIContext;
 import com.wikantik.api.core.Session;
@@ -60,7 +60,7 @@ class DatabasePolicyTest
     @BeforeAll
     void startDatabase() throws Exception
     {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
 
         // Set up the mock JNDI initial context
         TestJNDIContext.initialize();
@@ -128,7 +128,7 @@ class DatabasePolicyTest
     @AfterAll
     void stopDatabase()
     {
-        // Container is managed by PostgresTestContainer singleton
+        // Container is managed by PostgresTestDb singleton
     }
 
     // ---- Test methods ----

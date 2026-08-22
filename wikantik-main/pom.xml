@@ -332,6 +332,16 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- PostgresTestDb + MigrationApplier (Task 0.3): the test-jar goal is a separate
+             artifact from the compile-scope wikantik-jdbc dependency above. -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>wikantik-jdbc</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-postgresql</artifactId>

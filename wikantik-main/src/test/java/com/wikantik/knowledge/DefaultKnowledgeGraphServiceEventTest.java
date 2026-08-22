@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.TestEngine;
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KgNode;
@@ -69,7 +69,7 @@ class DefaultKnowledgeGraphServiceEventTest {
 
     @BeforeAll
     static void initDataSource() throws Exception {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
         final Properties props = TestEngine.getTestProperties();
         engine = new TestEngine( props );
     }
@@ -196,10 +196,10 @@ class DefaultKnowledgeGraphServiceEventTest {
         final KgNode b = service.upsertNode( "EvBulkB", "concept", null, Provenance.HUMAN_CURATED, Map.of() );
         final KgNode c = service.upsertNode( "EvBulkC", "concept", null, Provenance.HUMAN_CURATED, Map.of() );
         final KgNode d = service.upsertNode( "EvBulkD", "concept", null, Provenance.HUMAN_CURATED, Map.of() );
-        service.upsertEdge( a.id(), b.id(), "bulk_test_rel", Provenance.HUMAN_CURATED, Map.of() );
-        service.upsertEdge( c.id(), d.id(), "bulk_test_rel", Provenance.HUMAN_CURATED, Map.of() );
+        service.upsertEdge( a.id(), b.id(), "related_to", Provenance.HUMAN_CURATED, Map.of() );
+        service.upsertEdge( c.id(), d.id(), "related_to", Provenance.HUMAN_CURATED, Map.of() );
         listener.events.clear();
-        service.bulkDeleteEdges( "bulk_test_rel", null, 2 );
+        service.bulkDeleteEdges( "related_to", null, 2 );
         assertEquals( Set.of( a.id(), c.id() ), only().touchedEntityIds() );
         assertTrue( only().removedEntityIds().isEmpty() );
     }

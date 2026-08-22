@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.extraction;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.ConsolidatedProposal;
 import com.wikantik.api.knowledge.SupportEvidence;
 import com.wikantik.knowledge.KgProposalRepository;
@@ -41,7 +41,7 @@ class ProposalUpserterTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
         try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
             st.execute( "DELETE FROM kg_proposals" );
         }

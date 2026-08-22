@@ -17,7 +17,7 @@
     under the License.
  */
 package com.wikantik.auth.authorize;
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.TestEngine;
 import com.wikantik.TestJNDIContext;
 import com.wikantik.WikiEngine;
@@ -60,7 +60,7 @@ public class JDBCGroupDatabaseTest
     @BeforeAll
     void startDatabase() throws Exception
     {
-        m_ds = PostgresTestContainer.createDataSource();
+        m_ds = PostgresTestDb.createDataSource();
         final Properties props = TestEngine.getTestProperties();
         m_engine = new TestEngine( props );
         m_wiki = m_engine.getApplicationName();
@@ -114,7 +114,7 @@ public class JDBCGroupDatabaseTest
     @AfterAll
     void stopDatabase()
     {
-        // Container is managed by PostgresTestContainer singleton
+        // Container is managed by PostgresTestDb singleton
     }
 
     @Test

@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.knowledge.TraversalResult;
 import org.junit.jupiter.api.AfterEach;
@@ -42,7 +42,7 @@ class DefaultKnowledgeGraphServiceTraverseByCoMentionTest {
 
     @BeforeAll
     static void initDs() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach

@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Provenance;
@@ -44,7 +44,7 @@ class JdbcKnowledgeRepositoryTierReadsTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
         nodes    = new KgNodeRepository( ds );
         edgeRepo = new KgEdgeRepository( ds );
         try ( Connection c = ds.getConnection() ) {
@@ -88,20 +88,20 @@ class JdbcKnowledgeRepositoryTierReadsTest {
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute( String.format(
                 "INSERT INTO kg_edges (source_id, target_id, relationship_type, provenance, properties, tier, modified) " +
-                "VALUES ('%s'::uuid, '%s'::uuid, 'human-rel', 'human-authored', '{}'::jsonb, 'human', NOW())",
+                "VALUES ('%s'::uuid, '%s'::uuid, 'related_to', 'human-authored', '{}'::jsonb, 'human', NOW())",
                 a.id(), b.id() ) );
             c.createStatement().execute( String.format(
                 "INSERT INTO kg_edges (source_id, target_id, relationship_type, provenance, properties, tier, modified) " +
-                "VALUES ('%s'::uuid, '%s'::uuid, 'machine-rel', 'human-authored', '{}'::jsonb, 'machine', NOW())",
+                "VALUES ('%s'::uuid, '%s'::uuid, 'requires', 'human-authored', '{}'::jsonb, 'machine', NOW())",
                 a.id(), b.id() ) );
         }
 
         final List< KgEdge > humanOnly = edgeRepo.getAllEdges( Tier.HUMAN );
-        assertTrue( humanOnly.stream().anyMatch( e -> e.relationshipType().equals( "human-rel" ) ) );
-        assertFalse( humanOnly.stream().anyMatch( e -> e.relationshipType().equals( "machine-rel" ) ) );
+        assertTrue( humanOnly.stream().anyMatch( e -> e.relationshipType().equals( "related_to" ) ) );
+        assertFalse( humanOnly.stream().anyMatch( e -> e.relationshipType().equals( "requires" ) ) );
 
         final List< KgEdge > both = edgeRepo.getAllEdges( Tier.MACHINE );
-        assertTrue( both.stream().anyMatch( e -> e.relationshipType().equals( "human-rel" ) ) );
-        assertTrue( both.stream().anyMatch( e -> e.relationshipType().equals( "machine-rel" ) ) );
+        assertTrue( both.stream().anyMatch( e -> e.relationshipType().equals( "related_to" ) ) );
+        assertTrue( both.stream().anyMatch( e -> e.relationshipType().equals( "requires" ) ) );
     }
 }

@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.Provenance;
 import org.junit.jupiter.api.BeforeAll;
@@ -46,7 +46,7 @@ class DefaultKnowledgeGraphServiceEdgeCurationTest {
 
     @BeforeAll
     static void initDataSource() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach
@@ -71,7 +71,7 @@ class DefaultKnowledgeGraphServiceEdgeCurationTest {
     @Test
     void countEdgesDelegatesToRepository() {
         seedEdges();
-        assertEquals( 2L, service.countEdges( "related", null ) );
+        assertEquals( 2L, service.countEdges( "related_to", null ) );
         assertEquals( 3L, service.countEdges( null, null ) );
     }
 
@@ -88,7 +88,7 @@ class DefaultKnowledgeGraphServiceEdgeCurationTest {
     @Test
     void bulkDeleteEdgesRespectsExpectedCount() {
         seedEdges();
-        assertEquals( 2, service.bulkDeleteEdges( "related", null, 2 ) );
+        assertEquals( 2, service.bulkDeleteEdges( "related_to", null, 2 ) );
         assertEquals( 1L, service.countEdges( null, null ) );
     }
 
@@ -96,7 +96,7 @@ class DefaultKnowledgeGraphServiceEdgeCurationTest {
     void bulkDeleteEdgesThrowsOnCountMismatch() {
         seedEdges();
         final IllegalStateException ex = assertThrows( IllegalStateException.class,
-                () -> service.bulkDeleteEdges( "related", null, 99 ) );
+                () -> service.bulkDeleteEdges( "related_to", null, 99 ) );
         assertTrue( ex.getMessage().contains( "expected 99" ) );
         assertTrue( ex.getMessage().contains( "found 2" ) );
         // No deletions happened
@@ -173,9 +173,9 @@ class DefaultKnowledgeGraphServiceEdgeCurationTest {
         final UUID a = nodes.upsertNode( "SvcA", "concept", null, Provenance.HUMAN_AUTHORED, Map.of() ).id();
         final UUID b = nodes.upsertNode( "SvcB", "concept", null, Provenance.HUMAN_AUTHORED, Map.of() ).id();
         final UUID c = nodes.upsertNode( "SvcC", "concept", null, Provenance.HUMAN_AUTHORED, Map.of() ).id();
-        edgeRepo.upsertEdge( a, b, "related", Provenance.HUMAN_CURATED, Map.of() );
-        edgeRepo.upsertEdge( a, c, "related", Provenance.HUMAN_CURATED, Map.of() );
-        edgeRepo.upsertEdge( b, c, "depends_on", Provenance.HUMAN_CURATED, Map.of() );
+        edgeRepo.upsertEdge( a, b, "related_to", Provenance.HUMAN_CURATED, Map.of() );
+        edgeRepo.upsertEdge( a, c, "related_to", Provenance.HUMAN_CURATED, Map.of() );
+        edgeRepo.upsertEdge( b, c, "requires", Provenance.HUMAN_CURATED, Map.of() );
     }
 
     private UUID lookupOneEdgeId() throws Exception {

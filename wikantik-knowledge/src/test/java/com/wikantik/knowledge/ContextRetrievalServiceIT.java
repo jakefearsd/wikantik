@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
@@ -41,7 +41,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * End-to-end test against a PostgresTestContainer with seeded chunks.
+ * End-to-end test against a PostgresTestDb with seeded chunks.
  * Uses real DB-backed ContentChunkRepository + NodeMentionSimilarity;
  * stubs BM25/hybrid/page-manager with test fakes.
  */
@@ -51,7 +51,7 @@ class ContextRetrievalServiceIT {
     private static DataSource dataSource;
 
     @BeforeAll
-    static void init() { dataSource = PostgresTestContainer.createDataSource(); }
+    static void init() { dataSource = PostgresTestDb.createDataSource(); }
 
     @AfterEach
     void cleanUp() throws Exception {

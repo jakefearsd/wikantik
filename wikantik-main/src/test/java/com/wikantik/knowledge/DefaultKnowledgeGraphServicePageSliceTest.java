@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.KgEdgeView;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.PageKnowledgeSlice;
@@ -53,7 +53,7 @@ class DefaultKnowledgeGraphServicePageSliceTest {
 
     @BeforeAll
     static void initDs() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach

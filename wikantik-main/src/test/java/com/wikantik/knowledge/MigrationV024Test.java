@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -34,7 +34,7 @@ class MigrationV024Test {
 
     @Test
     void schema_contains_tier_columns_and_audit_table() throws Exception {
-        final DataSource ds = PostgresTestContainer.createDataSource();
+        final DataSource ds = PostgresTestDb.createDataSource();
         try ( Connection c = ds.getConnection() ) {
             assertColumn( c, "kg_proposals",       "tier",                   "character varying" );
             assertColumn( c, "kg_proposals",       "machine_status",         "character varying" );

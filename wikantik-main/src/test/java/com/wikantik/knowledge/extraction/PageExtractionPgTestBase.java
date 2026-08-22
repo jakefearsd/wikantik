@@ -19,7 +19,7 @@
 package com.wikantik.knowledge.extraction;
 
 import com.sun.net.httpserver.HttpServer;
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
@@ -203,6 +203,6 @@ abstract class PageExtractionPgTestBase {
     }
 
     private static DataSource openLivePg() {
-        return PostgresTestContainer.createDataSource();
+        return PostgresTestDb.createDataSource();
     }
 }

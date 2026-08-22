@@ -18,7 +18,7 @@
  */
 package com.wikantik.kgpolicy;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.kgpolicy.ExclusionReason;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +41,7 @@ class KgExcludedPagesRepositoryTest {
 
     @BeforeAll
     static void up() {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach

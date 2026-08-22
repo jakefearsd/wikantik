@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.KgRejection;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +46,7 @@ class KgRejectionRepositoryTest {
     private KgRejectionRepository repo;
 
     @BeforeAll
-    static void initDataSource() { dataSource = PostgresTestContainer.createDataSource(); }
+    static void initDataSource() { dataSource = PostgresTestDb.createDataSource(); }
 
     @BeforeEach
     void setUp() throws Exception {

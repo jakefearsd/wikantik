@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.extraction;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -40,7 +40,7 @@ class ChunkEntityMentionRepositoryTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
         try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
             st.execute( "DELETE FROM chunk_entity_mentions" );
             st.execute( "DELETE FROM kg_content_chunks" );

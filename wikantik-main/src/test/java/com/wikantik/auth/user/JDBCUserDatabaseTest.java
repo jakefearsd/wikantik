@@ -18,7 +18,7 @@
  */
 package com.wikantik.auth.user;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.TestJNDIContext;
 import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.NoSuchPrincipalException;
@@ -93,7 +93,7 @@ public class JDBCUserDatabaseTest {
 
     @BeforeAll
     void startDatabase() throws Exception {
-        m_ds = PostgresTestContainer.createDataSource();
+        m_ds = PostgresTestDb.createDataSource();
         // Set up the mock JNDI initial context
         TestJNDIContext.initialize();
         final Context initCtx = new InitialContext();
@@ -136,7 +136,7 @@ public class JDBCUserDatabaseTest {
 
     @AfterAll
     void stopDatabase() {
-        // Container is managed by PostgresTestContainer singleton
+        // Container is managed by PostgresTestDb singleton
     }
 
     @Test

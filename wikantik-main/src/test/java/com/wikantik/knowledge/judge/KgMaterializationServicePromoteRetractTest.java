@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.judge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.Tier;
 import com.wikantik.knowledge.KgEdgeRepository;
@@ -48,7 +48,7 @@ class KgMaterializationServicePromoteRetractTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
         kgNodes      = new KgNodeRepository( ds );
         kgEdges      = new KgEdgeRepository( ds );
         kgProposals  = new KgProposalRepository( ds );
@@ -92,13 +92,13 @@ class KgMaterializationServicePromoteRetractTest {
     @Test
     void promoteToHuman_inserts_when_no_machine_rows_exist() {
         final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
-            Map.<String, Object>of( "source", "H1", "target", "H2", "relationship", "owns" ),
+            Map.<String, Object>of( "source", "H1", "target", "H2", "relationship", "contains" ),
             0.8, "" );
 
         svc.promoteToHuman( p );
 
         final var humanEdges = kgEdges.getAllEdges( Tier.HUMAN );
-        assertTrue( humanEdges.stream().anyMatch( e -> "owns".equals( e.relationshipType() )
+        assertTrue( humanEdges.stream().anyMatch( e -> "contains".equals( e.relationshipType() )
             && p.id().equals( e.provenanceProposalId() ) ),
             "new row must land at human tier" );
     }
@@ -106,7 +106,7 @@ class KgMaterializationServicePromoteRetractTest {
     @Test
     void retract_deletes_rows_for_provenance() {
         final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
-            Map.<String, Object>of( "source", "R1", "target", "R2", "relationship", "delete_me" ),
+            Map.<String, Object>of( "source", "R1", "target", "R2", "relationship", "related_to" ),
             0.8, "" );
         svc.materializeMachine( p );
 
@@ -120,14 +120,14 @@ class KgMaterializationServicePromoteRetractTest {
     @Test
     void promoteToHuman_clears_kg_rejections_for_triple() {
         // Simulate: judge previously rejected this triple → kg_rejections row exists.
-        kgRejections.insertRejection( "Z1", "Z2", "judged_no", "gemma4-assist:latest", "low evidence" );
+        kgRejections.insertRejection( "Z1", "Z2", "mitigates", "gemma4-assist:latest", "low evidence" );
         final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
-            Map.<String, Object>of( "source", "Z1", "target", "Z2", "relationship", "judged_no" ),
+            Map.<String, Object>of( "source", "Z1", "target", "Z2", "relationship", "mitigates" ),
             0.8, "" );
 
         svc.promoteToHuman( p );
 
-        assertFalse( kgRejections.isRejected( "Z1", "Z2", "judged_no" ),
+        assertFalse( kgRejections.isRejected( "Z1", "Z2", "mitigates" ),
             "human override must remove the negative-knowledge entry" );
     }
 }

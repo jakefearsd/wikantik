@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.knowledge.Tier;
@@ -43,7 +43,7 @@ class JdbcKnowledgeRepositorySearchTierTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
         repo = new KgNodeRepository( ds );
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute( "DELETE FROM kg_edges" );

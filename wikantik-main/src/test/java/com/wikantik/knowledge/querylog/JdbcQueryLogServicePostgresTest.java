@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.querylog;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.SourceSurface;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +45,7 @@ class JdbcQueryLogServicePostgresTest {
 
     @BeforeEach
     void setUp() {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
     }
 
     @Test

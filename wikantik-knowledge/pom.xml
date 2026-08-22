@@ -107,6 +107,16 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- PostgresTestDb (Task 0.3): test-jar deps are not transitive, so this must be declared
+         here too even though wikantik-main above already depends on it. -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>wikantik-jdbc</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>

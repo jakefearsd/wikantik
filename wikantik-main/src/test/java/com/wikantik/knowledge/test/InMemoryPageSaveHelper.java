@@ -64,7 +64,7 @@ public class InMemoryPageSaveHelper {
                 final String target = String.valueOf( raw );
                 final var targetNode = kgNodes.upsertNode( target, "article", target,
                     Provenance.HUMAN_AUTHORED, Map.of() );
-                kgEdges.upsertEdge( node.id(), targetNode.id(), "related",
+                kgEdges.upsertEdge( node.id(), targetNode.id(), "related_to",
                     Provenance.HUMAN_AUTHORED, Map.of() );
             }
         }

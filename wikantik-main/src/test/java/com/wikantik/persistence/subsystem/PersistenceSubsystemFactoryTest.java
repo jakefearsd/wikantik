@@ -18,7 +18,7 @@
  */
 package com.wikantik.persistence.subsystem;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.core.subsystem.DefaultWikiProperties;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -42,7 +42,7 @@ final class PersistenceSubsystemFactoryTest {
 
     @Test
     void createPopulatesEveryRepositoryField() throws Exception {
-        final DataSource dataSource = PostgresTestContainer.createDataSource();
+        final DataSource dataSource = PostgresTestDb.createDataSource();
 
         final PersistenceSubsystem.Services services = PersistenceSubsystemFactory.create(
             new PersistenceSubsystem.Deps(

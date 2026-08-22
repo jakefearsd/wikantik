@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.Provenance;
 import org.junit.jupiter.api.*;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -39,7 +39,7 @@ class KgEdgeBulkDeleteTest {
 
     @BeforeAll
     static void initDataSource() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach
@@ -61,15 +61,15 @@ class KgEdgeBulkDeleteTest {
                 Provenance.HUMAN_AUTHORED, Map.of() ).id();
         final UUID c = nodes.upsertNode( "BulkC", "concept", null,
                 Provenance.HUMAN_AUTHORED, Map.of() ).id();
-        edges.upsertEdge( a, b, "related", Provenance.HUMAN_CURATED, Map.of() );
-        edges.upsertEdge( a, c, "related", Provenance.HUMAN_CURATED, Map.of() );
-        edges.upsertEdge( b, c, "depends_on", Provenance.HUMAN_CURATED, Map.of() );
+        edges.upsertEdge( a, b, "related_to", Provenance.HUMAN_CURATED, Map.of() );
+        edges.upsertEdge( a, c, "related_to", Provenance.HUMAN_CURATED, Map.of() );
+        edges.upsertEdge( b, c, "requires", Provenance.HUMAN_CURATED, Map.of() );
 
-        final int deleted = edges.bulkDeleteByFilter( "related", null );
+        final int deleted = edges.bulkDeleteByFilter( "related_to", null );
 
         assertEquals( 2, deleted );
         assertEquals( 1L, edges.countEdgesWithFilter( null, null ) );
-        assertEquals( 1L, edges.countEdgesWithFilter( "depends_on", null ) );
+        assertEquals( 1L, edges.countEdgesWithFilter( "requires", null ) );
     }
 
     @Test
@@ -78,23 +78,23 @@ class KgEdgeBulkDeleteTest {
                 Provenance.HUMAN_AUTHORED, Map.of() ).id();
         final UUID b = nodes.upsertNode( "RejB", "concept", null,
                 Provenance.HUMAN_AUTHORED, Map.of() ).id();
-        edges.upsertEdge( a, b, "related", Provenance.HUMAN_CURATED, Map.of() );
-        final UUID edgeId = queryEdgeId( a, b, "related" );
+        edges.upsertEdge( a, b, "related_to", Provenance.HUMAN_CURATED, Map.of() );
+        final UUID edgeId = queryEdgeId( a, b, "related_to" );
 
         edges.deleteEdgeAndRecordRejection( edgeId, "carol", "bad inference" );
 
         // Edge gone
-        assertEquals( 0L, edges.countEdgesWithFilter( "related", null ) );
+        assertEquals( 0L, edges.countEdgesWithFilter( "related_to", null ) );
         // Rejection inserted with correct fields
         try ( Connection conn = dataSource.getConnection();
               Statement st = conn.createStatement();
               ResultSet rs = st.executeQuery(
                   "SELECT proposed_source, proposed_target, proposed_relationship, rejected_by, reason "
-                + "FROM kg_rejections WHERE proposed_relationship = 'related'" ) ) {
+                + "FROM kg_rejections WHERE proposed_relationship = 'related_to'" ) ) {
             assertTrue( rs.next() );
             assertEquals( "RejA", rs.getString( 1 ) );
             assertEquals( "RejB", rs.getString( 2 ) );
-            assertEquals( "related", rs.getString( 3 ) );
+            assertEquals( "related_to", rs.getString( 3 ) );
             assertEquals( "carol", rs.getString( 4 ) );
             assertEquals( "bad inference", rs.getString( 5 ) );
         }
@@ -106,20 +106,20 @@ class KgEdgeBulkDeleteTest {
                 Provenance.HUMAN_AUTHORED, Map.of() ).id();
         final UUID b = nodes.upsertNode( "IdemB", "concept", null,
                 Provenance.HUMAN_AUTHORED, Map.of() ).id();
-        edges.upsertEdge( a, b, "related", Provenance.HUMAN_CURATED, Map.of() );
-        final UUID edgeId = queryEdgeId( a, b, "related" );
+        edges.upsertEdge( a, b, "related_to", Provenance.HUMAN_CURATED, Map.of() );
+        final UUID edgeId = queryEdgeId( a, b, "related_to" );
         edges.deleteEdgeAndRecordRejection( edgeId, "carol", "first" );
 
         // Recreate the edge — admin can override rejection — and reject again
-        edges.upsertEdge( a, b, "related", Provenance.HUMAN_CURATED, Map.of() );
-        final UUID edgeId2 = queryEdgeId( a, b, "related" );
+        edges.upsertEdge( a, b, "related_to", Provenance.HUMAN_CURATED, Map.of() );
+        final UUID edgeId2 = queryEdgeId( a, b, "related_to" );
         assertDoesNotThrow( () -> edges.deleteEdgeAndRecordRejection( edgeId2, "dave", "second" ) );
 
         // Still exactly one rejection row for this triple
         try ( Connection conn = dataSource.getConnection();
               Statement st = conn.createStatement();
               ResultSet rs = st.executeQuery(
-                  "SELECT COUNT(*) FROM kg_rejections WHERE proposed_relationship = 'related'" ) ) {
+                  "SELECT COUNT(*) FROM kg_rejections WHERE proposed_relationship = 'related_to'" ) ) {
             assertTrue( rs.next() );
             assertEquals( 1L, rs.getLong( 1 ) );
         }

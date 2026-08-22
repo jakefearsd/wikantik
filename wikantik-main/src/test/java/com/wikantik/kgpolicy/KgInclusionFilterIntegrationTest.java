@@ -18,7 +18,7 @@
  */
 package com.wikantik.kgpolicy;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.knowledge.KgNodeRepository;
 import org.junit.jupiter.api.BeforeAll;
@@ -49,7 +49,7 @@ class KgInclusionFilterIntegrationTest {
 
     @BeforeAll
     static void initDataSource() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach

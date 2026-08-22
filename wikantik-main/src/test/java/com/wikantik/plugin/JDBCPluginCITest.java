@@ -19,7 +19,7 @@
 package com.wikantik.plugin;
 
 import com.wikantik.HttpMockFactory;
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.TestEngine;
 import com.wikantik.WikiSession;
 import com.wikantik.api.core.Context;
@@ -48,7 +48,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration-style tests for {@link JDBCPlugin} that exercise the JDBC execution path
- * against a real PostgreSQL container (via {@link com.wikantik.PostgresTestContainer}).
+ * against a real PostgreSQL container (via {@link com.wikantik.jdbc.testing.PostgresTestDb}).
  * Covers the ConnectionConfig inner class, SQL result formatting, error-handling
  * paths, and the addResultLimit variants not exercised by the pure-unit JDBCPluginTest.
  */
@@ -64,13 +64,18 @@ class JDBCPluginCITest {
 
     @BeforeAll
     static void setUpDatabase() throws Exception {
-        pgUrl = PostgresTestContainer.getJdbcUrl();
-        pgUser = PostgresTestContainer.getUsername();
-        pgPass = PostgresTestContainer.getPassword();
+        pgUrl = PostgresTestDb.getJdbcUrl();
+        pgUser = PostgresTestDb.getUsername();
+        pgPass = PostgresTestDb.getPassword();
 
-        // employees table created by postgresql-test.sql; seed test data
+        // employees is a fixture table private to this test (page-authored SQL against
+        // arbitrary columns) — not part of the wiki's own schema, so it does not belong in
+        // bin/db/migrations; created here rather than in postgresql-test-seed.sql so that file
+        // stays seed *data* only.
         try ( final Connection conn = DriverManager.getConnection( pgUrl, pgUser, pgPass );
               final Statement stmt = conn.createStatement() ) {
+            stmt.execute( "CREATE TABLE IF NOT EXISTS employees ("
+                + "id INT PRIMARY KEY, name VARCHAR(50) NOT NULL, dept VARCHAR(50))" );
             stmt.execute( "DELETE FROM employees" );
             stmt.execute( "INSERT INTO employees VALUES (1, 'Alice', 'Engineering')" );
             stmt.execute( "INSERT INTO employees VALUES (2, 'Bob', 'Marketing')" );

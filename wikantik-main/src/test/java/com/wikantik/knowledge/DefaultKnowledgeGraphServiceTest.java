@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.TestEngine;
 import com.wikantik.WikiSessionTest;
 import com.wikantik.api.core.Session;
@@ -43,7 +43,7 @@ class DefaultKnowledgeGraphServiceTest {
 
     @BeforeAll
     static void initDataSource() throws Exception {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
         final Properties props = TestEngine.getTestProperties();
         engine = new TestEngine( props );
     }
@@ -116,8 +116,8 @@ class DefaultKnowledgeGraphServiceTest {
         final KgNode order = service.upsertNode( "Order", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );
         final KgNode customer = service.upsertNode( "Customer", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );
         final KgNode address = service.upsertNode( "Address", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( order.id(), customer.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( customer.id(), address.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( order.id(), customer.id(), "requires", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( customer.id(), address.id(), "requires", Provenance.HUMAN_AUTHORED, Map.of() );
         final TraversalResult result = service.traverse( "Order", "outbound",
                 Set.of(), 3, Set.of( Provenance.HUMAN_AUTHORED ) );
         assertEquals( 3, result.nodes().size() );
@@ -129,8 +129,8 @@ class DefaultKnowledgeGraphServiceTest {
         final KgNode a = service.upsertNode( "A", "t", null, Provenance.HUMAN_AUTHORED, Map.of() );
         final KgNode b = service.upsertNode( "B", "t", null, Provenance.HUMAN_AUTHORED, Map.of() );
         final KgNode c = service.upsertNode( "C", "t", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( a.id(), b.id(), "r", Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( b.id(), c.id(), "r", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( a.id(), b.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( b.id(), c.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
         final TraversalResult result = service.traverse( "A", "outbound", Set.of(), 1, null );
         assertEquals( 2, result.nodes().size() ); // A and B only
         assertEquals( 1, result.edges().size() );
@@ -141,10 +141,10 @@ class DefaultKnowledgeGraphServiceTest {
         final KgNode a = service.upsertNode( "A", "t", null, Provenance.HUMAN_AUTHORED, Map.of() );
         final KgNode b = service.upsertNode( "B", "t", null, Provenance.HUMAN_AUTHORED, Map.of() );
         final KgNode c = service.upsertNode( "C", "t", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( a.id(), b.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( a.id(), c.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( a.id(), b.id(), "requires", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( a.id(), c.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
         final TraversalResult result = service.traverse( "A", "outbound",
-                Set.of( "depends-on" ), 5, null );
+                Set.of( "requires" ), 5, null );
         assertEquals( 2, result.nodes().size() ); // A and B only
     }
 
@@ -331,7 +331,7 @@ class DefaultKnowledgeGraphServiceTest {
         for ( int i = 0; i < 12; i++ ) {
             final var target = service.upsertNode( "Target" + i, "page", "Target" + i,
                     Provenance.HUMAN_AUTHORED, Map.of() );
-            service.upsertEdge( hub.id(), target.id(), "links_to",
+            service.upsertEdge( hub.id(), target.id(), "related_to",
                     Provenance.HUMAN_AUTHORED, Map.of() );
         }
         final GraphSnapshot snap = service.snapshotGraph( adminSession() );
@@ -353,7 +353,7 @@ class DefaultKnowledgeGraphServiceTest {
                 Provenance.HUMAN_AUTHORED, Map.of() );
         final var b = service.upsertNode( "B", "page", "B",
                 Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( a.id(), b.id(), "links_to",
+        service.upsertEdge( a.id(), b.id(), "related_to",
                 Provenance.HUMAN_AUTHORED, Map.of() );
 
         final GraphSnapshot snap = service.snapshotGraph( adminSession() );

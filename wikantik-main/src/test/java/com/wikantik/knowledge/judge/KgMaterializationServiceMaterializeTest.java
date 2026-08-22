@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.judge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KgProposal;
@@ -51,7 +51,7 @@ class KgMaterializationServiceMaterializeTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
         kgNodes      = new KgNodeRepository( ds );
         kgEdges      = new KgEdgeRepository( ds );
         kgProposals  = new KgProposalRepository( ds );
@@ -79,7 +79,7 @@ class KgMaterializationServiceMaterializeTest {
     @Test
     void materializeMachine_new_edge_inserts_two_nodes_and_one_edge_at_machine_tier() {
         final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
-            Map.<String, Object>of( "source", "Alpha", "target", "Beta", "relationship", "depends_on" ),
+            Map.<String, Object>of( "source", "Alpha", "target", "Beta", "relationship", "requires" ),
             0.8, "extractor reasoning" );
 
         svc.materializeMachine( p );
@@ -89,7 +89,7 @@ class KgMaterializationServiceMaterializeTest {
         assertTrue( all.stream().anyMatch( n -> n.name().equals( "Beta" ) && "machine".equals( n.tier() ) ) );
 
         final List< KgEdge > edges = kgEdges.getAllEdges( Tier.MACHINE );
-        assertTrue( edges.stream().anyMatch( e -> "depends_on".equals( e.relationshipType() )
+        assertTrue( edges.stream().anyMatch( e -> "requires".equals( e.relationshipType() )
             && p.id().equals( e.provenanceProposalId() )
             && "machine".equals( e.tier() ) ) );
     }
@@ -123,13 +123,13 @@ class KgMaterializationServiceMaterializeTest {
     @Test
     void materializeMachine_skips_ontology_nonconformant_edge_but_keeps_conformant() {
         // 'implements' between two freshly-materialized concept nodes violates wk:ImplementsShape
-        // (subject must be a wk:Technology) — the write-time SHACL gate must skip it. 'depends_on'
+        // (subject must be a wk:Technology) — the write-time SHACL gate must skip it. 'requires'
         // has no shape and must still materialize. Proves the machine path enforces the ontology.
         final KgProposal bad = kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "ConcA", "target", "ConcB", "relationship", "implements" ),
             0.8, "" );
         final KgProposal good = kgProposals.insertProposal( "new-edge", "Page",
-            Map.<String, Object>of( "source", "ConcC", "target", "ConcD", "relationship", "depends_on" ),
+            Map.<String, Object>of( "source", "ConcC", "target", "ConcD", "relationship", "requires" ),
             0.8, "" );
 
         svc.materializeMachine( bad );
@@ -138,8 +138,8 @@ class KgMaterializationServiceMaterializeTest {
         final List< KgEdge > edges = kgEdges.getAllEdges( Tier.MACHINE );
         assertFalse( edges.stream().anyMatch( e -> "implements".equals( e.relationshipType() ) ),
             "non-conformant 'implements' edge must be skipped by the SHACL gate" );
-        assertTrue( edges.stream().anyMatch( e -> "depends_on".equals( e.relationshipType() ) ),
-            "conformant 'depends_on' edge must still be materialized" );
+        assertTrue( edges.stream().anyMatch( e -> "requires".equals( e.relationshipType() ) ),
+            "conformant 'requires' edge must still be materialized" );
         assertEquals( 1L, svc.skippedNonConformantCount(),
             "exactly one edge should have been skipped by the ontology gate" );
     }

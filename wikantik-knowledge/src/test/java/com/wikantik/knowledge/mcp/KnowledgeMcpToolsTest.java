@@ -19,7 +19,7 @@
 package com.wikantik.knowledge.mcp;
 
 import com.google.gson.Gson;
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
 import com.wikantik.knowledge.KgEdgeRepository;
@@ -49,7 +49,7 @@ class KnowledgeMcpToolsTest {
 
     @BeforeAll
     static void initDataSource() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach
@@ -130,13 +130,13 @@ class KnowledgeMcpToolsTest {
         final KgNode order = service.upsertNode( "Order", "domain-model", "Order.md",
                 Provenance.HUMAN_AUTHORED, Map.of( "domain", "billing" ) );
         final KgNode customer = service.upsertNode( "Customer", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( order.id(), customer.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( order.id(), customer.id(), "requires", Provenance.HUMAN_AUTHORED, Map.of() );
         final GetNodeTool tool = new GetNodeTool( service );
         final McpSchema.CallToolResult result = tool.execute( Map.of( "node", "Order" ) );
         final String text = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "Order" ) );
         assertTrue( text.contains( "domain-model" ) );
-        assertTrue( text.contains( "depends-on" ) );
+        assertTrue( text.contains( "requires" ) );
     }
 
     @Test

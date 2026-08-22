@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.embedding;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity.ScoredName;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * JDBC-backed tests for {@link NodeMentionSimilarity}. Uses the shared
- * {@link PostgresTestContainer} so we exercise the real pgvector / BYTEA
+ * {@link com.wikantik.jdbc.testing.PostgresTestDb} so we exercise the real pgvector / BYTEA
  * storage path and catch query / encoding mistakes.
  */
 @Testcontainers( disabledWithoutDocker = true )
@@ -53,7 +53,7 @@ class NodeMentionSimilarityTest {
 
     @BeforeAll
     static void initDataSource() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach

@@ -18,7 +18,7 @@
  */
 package com.wikantik.search.hybrid;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>Run with: {@code mvn -pl wikantik-main test -Dtest=PgVectorChunkVectorIndexPgTest}</p>
  */
-// Requires Docker; uses the shared PostgresTestContainer singleton.
+// Requires Docker; uses the shared PostgresTestDb singleton.
 class PgVectorChunkVectorIndexPgTest {
 
     private static final String MODEL_CODE = "bge-m3";
@@ -52,7 +52,7 @@ class PgVectorChunkVectorIndexPgTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
         applyV032Migration();
         cleanTestRows();
     }

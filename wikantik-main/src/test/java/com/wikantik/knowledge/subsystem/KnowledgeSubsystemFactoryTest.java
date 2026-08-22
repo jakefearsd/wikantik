@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.subsystem;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Provenance;
@@ -99,7 +99,7 @@ class KnowledgeSubsystemFactoryTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
         try ( final Connection c = dataSource.getConnection(); final Statement st = c.createStatement() ) {
             st.execute( "DELETE FROM kg_judge_timeouts" );
             st.execute( "DELETE FROM kg_excluded_pages" );

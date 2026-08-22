@@ -18,7 +18,7 @@
  */
 package com.wikantik.search.embedding;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,7 +57,7 @@ class PgVectorBackfillCliTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
         applyV032Migration();
         cleanTestRows();
     }

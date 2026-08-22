@@ -48,7 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * stay on H2.
  *
  * <p>wikantik-insights deliberately does not depend on wikantik-main, so this class starts its
- * own container rather than reusing {@code com.wikantik.PostgresTestContainer}.</p>
+ * own container rather than reusing {@code com.wikantik.jdbc.testing.PostgresTestDb}.</p>
  */
 @Testcontainers( disabledWithoutDocker = true )
 class JdbcInsightsStorePostgresTest {

@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.embedding;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.KgNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +44,7 @@ class KgNodeEmbeddingRepositoryTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        ds = PostgresTestContainer.createDataSource();
+        ds = PostgresTestDb.createDataSource();
         // Each test gets a clean kg_node_embeddings table; kg_nodes is also reset
         // so anyExistingNodeId() can deterministically insert and find a fixture row.
         try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {

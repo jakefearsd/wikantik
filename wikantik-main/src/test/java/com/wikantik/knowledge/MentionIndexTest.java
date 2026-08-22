@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import org.junit.jupiter.api.*;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -41,7 +41,7 @@ class MentionIndexTest {
     private static DataSource dataSource;
 
     @BeforeAll
-    static void init() { dataSource = PostgresTestContainer.createDataSource(); }
+    static void init() { dataSource = PostgresTestDb.createDataSource(); }
 
     @AfterEach
     void cleanUp() throws Exception {

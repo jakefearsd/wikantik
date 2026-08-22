@@ -39,9 +39,14 @@ import java.util.stream.Collectors;
  */
 public class RelationshipsPlugin implements Plugin {
 
+    // Keys are relationship_type values. bin/db/migrations/V027 (generalized by V030) closed the
+    // vocabulary to underscore-separated names only (see KgEdgeRepository's CHECK constraint) —
+    // "depends-on"/"supersedes"/"related" (hyphenated / no longer in the closed set) are kept as
+    // harmless dead entries rather than deleted, since a future vocabulary addition could revive
+    // the same English label.
     private static final Map< String, String > INVERTED_LABELS = Map.of(
         "depends-on", "Dependency of",
-        "part-of", "Parts",
+        "part_of", "Parts",
         "enables", "Enabled by",
         "supersedes", "Superseded by",
         "related", "Related"
@@ -127,7 +132,9 @@ public class RelationshipsPlugin implements Plugin {
         if( relType == null || relType.isEmpty() ) {
             return "";
         }
-        final String spaced = relType.replace( '-', ' ' );
+        // The closed relationship_type vocabulary (see INVERTED_LABELS comment above) is
+        // underscore-separated; '-' is kept for any pre-vocabulary data still on disk.
+        final String spaced = relType.replace( '-', ' ' ).replace( '_', ' ' );
         return Character.toUpperCase( spaced.charAt( 0 ) ) + spaced.substring( 1 );
     }
 }

@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.knowledge.KgEdgeRepository;
 import com.wikantik.knowledge.KgNodeRepository;
@@ -46,7 +46,7 @@ class HubProposalServiceTest {
 
     @BeforeAll
     static void initDataSource() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach
@@ -87,9 +87,9 @@ class HubProposalServiceTest {
         kgNodes.upsertNode( "Rust",    "article", "Rust",    Provenance.HUMAN_AUTHORED, Map.of() );
         kgNodes.upsertNode( "Cooking", "article", "Cooking", Provenance.HUMAN_AUTHORED, Map.of() );
 
-        kgEdges.upsertEdge( techHub.id(), java.id(),   "related", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgEdges.upsertEdge( techHub.id(), python.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgEdges.upsertEdge( techHub.id(), kotlin.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( techHub.id(), java.id(),   "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( techHub.id(), python.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( techHub.id(), kotlin.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
 
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Java",    JAVA );
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Python",  PYTHON );
@@ -127,8 +127,8 @@ class HubProposalServiceTest {
         final var python = kgNodes.upsertNode( "Python", "article", "Python", Provenance.HUMAN_AUTHORED, Map.of() );
         kgNodes.upsertNode( "Kotlin", "article", "Kotlin", Provenance.HUMAN_AUTHORED, Map.of() );
 
-        kgEdges.upsertEdge( techHub.id(), java.id(),   "related", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgEdges.upsertEdge( techHub.id(), python.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( techHub.id(), java.id(),   "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( techHub.id(), python.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
 
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Java",    JAVA );
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Python",  PYTHON );

@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.Provenance;
 import org.junit.jupiter.api.BeforeAll;
@@ -49,7 +49,7 @@ class KgEdgeMixedEndpointGuardTest {
     private KgNodeRepository nodes;
 
     @BeforeAll
-    static void initDataSource() { dataSource = PostgresTestContainer.createDataSource(); }
+    static void initDataSource() { dataSource = PostgresTestDb.createDataSource(); }
 
     @BeforeEach
     void setUp() throws Exception {

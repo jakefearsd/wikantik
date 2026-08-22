@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.knowledge.KgEdgeRepository;
@@ -59,7 +59,7 @@ class HubOverviewServiceTest {
 
     @BeforeAll
     static void initDataSource() {
-        dataSource = PostgresTestContainer.createDataSource();
+        dataSource = PostgresTestDb.createDataSource();
     }
 
     @BeforeEach
@@ -197,10 +197,10 @@ class HubOverviewServiceTest {
         final var hubNode = kgNodes.upsertNode( "CookingHub", "hub", "CookingHub",
             Provenance.HUMAN_AUTHORED, Map.of( "type", "hub" ) );
 
-        kgEdges.upsertEdge( newsletter.id(),   bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgEdges.upsertEdge( foodBlog.id(),     bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgEdges.upsertEdge( roastingNode.id(), bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgEdges.upsertEdge( hubNode.id(),      bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( newsletter.id(),   bakingNode.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( foodBlog.id(),     bakingNode.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( roastingNode.id(), bakingNode.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( hubNode.id(),      bakingNode.id(), "related_to", Provenance.HUMAN_AUTHORED, Map.of() );
 
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Baking",   BAKING );
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Roasting", ROASTING );
@@ -462,7 +462,7 @@ class HubOverviewServiceTest {
         for ( final String m : members ) {
             final var memberNode = kgNodes.upsertNode( m, "article", m,
                 Provenance.HUMAN_AUTHORED, Map.of() );
-            kgEdges.upsertEdge( hubNode.id(), memberNode.id(), "related",
+            kgEdges.upsertEdge( hubNode.id(), memberNode.id(), "related_to",
                 Provenance.HUMAN_AUTHORED, Map.of() );
         }
     }

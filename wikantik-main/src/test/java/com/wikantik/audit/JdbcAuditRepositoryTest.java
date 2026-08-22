@@ -18,7 +18,7 @@
  */
 package com.wikantik.audit;
 
-import com.wikantik.PostgresTestContainer;
+import com.wikantik.jdbc.testing.PostgresTestDb;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.postgresql.ds.PGSimpleDataSource;
@@ -55,7 +55,7 @@ class JdbcAuditRepositoryTest {
 
     @BeforeAll
     static void setUp() throws Exception {
-        superuserDs = PostgresTestContainer.createDataSource();
+        superuserDs = PostgresTestDb.createDataSource();
 
         // Current month's partition bounds (the code partitions by created_at = now()).
         final ZonedDateTime start = Instant.now().atZone( ZoneOffset.UTC )
@@ -89,7 +89,7 @@ class JdbcAuditRepositoryTest {
         }
 
         final PGSimpleDataSource ds = new PGSimpleDataSource();
-        ds.setUrl( PostgresTestContainer.getJdbcUrl() );
+        ds.setUrl( PostgresTestDb.getJdbcUrl() );
         ds.setUser( APP_ROLE );
         ds.setPassword( APP_PW );
         restrictedDs = ds;

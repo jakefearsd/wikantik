@@ -40,15 +40,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-import javax.sql.DataSource;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.security.Principal;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -76,24 +72,18 @@ class AdminPolicyAuditTest {
     private AdminPolicyResource servlet;
     private AuditService auditService;
     private DatabasePolicy dbPolicy;
-    private PreparedStatement ps;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() throws Exception {
         final Properties props = TestEngine.getTestProperties();
         engine = new TestEngine( props );
-
-        final DataSource dataSource = Mockito.mock( DataSource.class );
-        final Connection connection = Mockito.mock( Connection.class );
-        ps = Mockito.mock( PreparedStatement.class );
-        Mockito.when( dataSource.getConnection() ).thenReturn( connection );
-        Mockito.when( connection.prepareStatement( anyString() ) ).thenReturn( ps );
-        Mockito.when( connection.prepareStatement( anyString(), Mockito.anyInt() ) ).thenReturn( ps );
-
         dbPolicy = Mockito.mock( DatabasePolicy.class );
-        Mockito.when( dbPolicy.getDataSource() ).thenReturn( dataSource );
         Mockito.when( dbPolicy.getTableName() ).thenReturn( "policy_grants" );
+        // The servlet delegates every mutation to DatabasePolicy; grant 7 exists and each write hits one row.
+        Mockito.when( dbPolicy.insertGrant( Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any() ) ).thenReturn( 7 );
+        Mockito.when( dbPolicy.updateGrant( Mockito.eq( 7 ), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any() ) ).thenReturn( 1 );
+        Mockito.when( dbPolicy.deleteGrant( 7 ) ).thenReturn( 1 );
 
         final DefaultAuthorizationManager authMgr = Mockito.mock( DefaultAuthorizationManager.class );
         Mockito.when( authMgr.getDatabasePolicy() ).thenReturn( dbPolicy );
@@ -180,11 +170,6 @@ class AdminPolicyAuditTest {
      */
     @Test
     void createGrant_recordsTheGrantIdAsTargetId() throws Exception {
-        final ResultSet keys = Mockito.mock( ResultSet.class );
-        Mockito.when( ps.getGeneratedKeys() ).thenReturn( keys );
-        Mockito.when( keys.next() ).thenReturn( true );
-        Mockito.when( keys.getInt( 1 ) ).thenReturn( 7 );
-        Mockito.when( ps.executeUpdate() ).thenReturn( 1 );
 
         servlet.doPost( request( null, validBody() ), response() );
 
@@ -199,7 +184,6 @@ class AdminPolicyAuditTest {
 
     @Test
     void updateGrant_recordsTheGrantIdAsTargetId() throws Exception {
-        Mockito.when( ps.executeUpdate() ).thenReturn( 1 );
 
         servlet.doPut( request( "/7", validBody() ), response() );
 
@@ -211,7 +195,6 @@ class AdminPolicyAuditTest {
 
     @Test
     void deleteGrant_recordsTheGrantIdAsTargetId() throws Exception {
-        Mockito.when( ps.executeUpdate() ).thenReturn( 1 );
 
         servlet.doDelete( request( "/7", null ), response() );
 
@@ -227,11 +210,6 @@ class AdminPolicyAuditTest {
      */
     @Test
     void allThreeMutations_fileUnderTheSameTargetKey() throws Exception {
-        final ResultSet keys = Mockito.mock( ResultSet.class );
-        Mockito.when( ps.getGeneratedKeys() ).thenReturn( keys );
-        Mockito.when( keys.next() ).thenReturn( true );
-        Mockito.when( keys.getInt( 1 ) ).thenReturn( 7 );
-        Mockito.when( ps.executeUpdate() ).thenReturn( 1 );
 
         servlet.doPost( request( null, validBody() ), response() );
         servlet.doPut( request( "/7", validBody() ), response() );
@@ -257,11 +235,6 @@ class AdminPolicyAuditTest {
      */
     @Test
     void createGrant_reportsUpdateEventType_knownWartPreservedDeliberately() throws Exception {
-        final ResultSet keys = Mockito.mock( ResultSet.class );
-        Mockito.when( ps.getGeneratedKeys() ).thenReturn( keys );
-        Mockito.when( keys.next() ).thenReturn( true );
-        Mockito.when( keys.getInt( 1 ) ).thenReturn( 7 );
-        Mockito.when( ps.executeUpdate() ).thenReturn( 1 );
 
         servlet.doPost( request( null, validBody() ), response() );
 
@@ -277,7 +250,6 @@ class AdminPolicyAuditTest {
      */
     @Test
     void auditFailureDoesNotFailTheMutation() throws Exception {
-        Mockito.when( ps.executeUpdate() ).thenReturn( 1 );
         Mockito.doThrow( new RuntimeException( "audit backend down" ) )
             .when( auditService ).record( Mockito.any() );
 

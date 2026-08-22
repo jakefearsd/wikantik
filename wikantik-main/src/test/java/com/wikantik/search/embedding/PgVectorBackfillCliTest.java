@@ -122,8 +122,8 @@ class PgVectorBackfillCliTest {
     void run_rollsBackExplicitlyEvenOnAnErrorTheSqlExceptionCatchCannotSee() throws Exception {
         seedRowsWithByteaOnly( 1, MODEL_CODE );
 
-        final com.wikantik.search.RollbackTrackingDataSource tracking =
-            new com.wikantik.search.RollbackTrackingDataSource( dataSource );
+        final com.wikantik.jdbc.testing.FaultInjectingDataSource tracking =
+            new com.wikantik.jdbc.testing.FaultInjectingDataSource( dataSource );
         // 2 statement-creation calls per run(): #1 = sel prepare, #2 = upd prepare.
         // Fail the upd prepare with an Error.
         tracking.failOn( 2, new AssertionError( "simulated invariant violation" ) );
@@ -131,7 +131,7 @@ class PgVectorBackfillCliTest {
         final PgVectorBackfillCli cli = new PgVectorBackfillCli( tracking );
 
         assertThrows( AssertionError.class, () -> cli.run( MODEL_CODE, false ) );
-        assertEquals( 1, tracking.rollbackCount(),
+        assertEquals( 1, tracking.rollbacks(),
             "the transaction must be explicitly rolled back, even for a failure the "
           + "SQLException-only catch cannot see" );
     }

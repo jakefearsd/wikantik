@@ -156,8 +156,8 @@ class PgVectorChunkVectorIndexPgTest {
         cleanTestRows();
         insertChunkAndEmbedding( "IT_PgVec_Page1", 0, unitVector() );
 
-        final com.wikantik.search.RollbackTrackingDataSource tracking =
-            new com.wikantik.search.RollbackTrackingDataSource( dataSource );
+        final com.wikantik.jdbc.testing.FaultInjectingDataSource tracking =
+            new com.wikantik.jdbc.testing.FaultInjectingDataSource( dataSource );
         // 2 statement-creation calls per topKChunks(): #1 = createStatement (SET LOCAL),
         // #2 = prepareStatement (the SELECT). Fail the SELECT prepare with an Error.
         tracking.failOn( 2, new AssertionError( "simulated invariant violation" ) );
@@ -165,7 +165,7 @@ class PgVectorChunkVectorIndexPgTest {
         final PgVectorChunkVectorIndex idx = new PgVectorChunkVectorIndex( tracking, MODEL_CODE, 100 );
 
         assertThrows( AssertionError.class, () -> idx.topKChunks( unitVector(), 3 ) );
-        assertEquals( 1, tracking.rollbackCount(),
+        assertEquals( 1, tracking.rollbacks(),
             "the transaction opened for SET LOCAL + SELECT must be explicitly rolled back, "
           + "even for a failure the SQLException-only catch cannot see" );
     }

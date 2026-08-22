@@ -199,8 +199,8 @@ class EmbeddingIndexServiceTest {
         final List< UUID > ids = seedChunks( 1 );
         stubBatchEmbed( 1, false );
 
-        final com.wikantik.search.RollbackTrackingDataSource tracking =
-            new com.wikantik.search.RollbackTrackingDataSource( dataSource );
+        final com.wikantik.jdbc.testing.FaultInjectingDataSource tracking =
+            new com.wikantik.jdbc.testing.FaultInjectingDataSource( dataSource );
         // 2 statement-creation calls per indexChunks(): #1 = SELECT_BY_IDS_SQL prepare,
         // #2 = UPSERT_SQL prepare (inside the write batch). Fail the UPSERT prepare with an Error.
         tracking.failOn( 2, new AssertionError( "simulated invariant violation" ) );
@@ -209,7 +209,7 @@ class EmbeddingIndexServiceTest {
 
         assertThrows( AssertionError.class, () -> svc.indexChunks( ids, MODEL ) );
         assertEquals( 0, countRows(), "the only write batch never committed — no partial rows" );
-        assertEquals( 1, tracking.rollbackCount(),
+        assertEquals( 1, tracking.rollbacks(),
             "the open transaction must be explicitly rolled back, even for a failure neither "
           + "the SQLException nor the RuntimeException catch can see" );
     }

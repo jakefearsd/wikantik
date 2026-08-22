@@ -130,4 +130,58 @@ class FaultInjectingDataSourceTest {
             conn.commit();
         }
     }
+
+    @Test
+    void failOnThrowableAcceptsAnError() throws SQLException {
+        final AssertionError boom = new AssertionError( "simulated invariant violation" );
+        faulting.failOn( 1, ( Throwable ) boom );
+
+        try ( Connection conn = faulting.getConnection() ) {
+            final AssertionError thrown = assertThrows( AssertionError.class, () -> conn.prepareStatement( "SELECT 1" ) );
+            assertSame( boom, thrown );
+        }
+    }
+
+    @Test
+    void failOnRejectsACheckedException() {
+        final Exception checked = new java.io.IOException( "checked, not allowed" );
+        final IllegalArgumentException thrown = assertThrows( IllegalArgumentException.class,
+            () -> faulting.failOn( 1, checked ) );
+        assertEquals( true, thrown.getMessage().contains( "IOException" ) );
+    }
+
+    @Test
+    void rollbacksAndCommitsAreCountedAcrossEveryConnectionHandedOut() throws SQLException {
+        assertEquals( 0, faulting.rollbacks() );
+        assertEquals( 0, faulting.commits() );
+
+        try ( Connection conn = faulting.getConnection() ) {
+            conn.setAutoCommit( false );
+            conn.commit();
+            conn.commit();
+        }
+        try ( Connection conn2 = faulting.getConnection() ) {
+            conn2.setAutoCommit( false );
+            conn2.rollback();
+        }
+
+        assertEquals( 1, faulting.rollbacks() );
+        assertEquals( 2, faulting.commits() );
+    }
+
+    @Test
+    void resetClearsTheRollbackAndCommitCounters() throws SQLException {
+        try ( Connection conn = faulting.getConnection() ) {
+            conn.setAutoCommit( false );
+            conn.commit();
+            conn.rollback();
+        }
+        assertEquals( 1, faulting.rollbacks() );
+        assertEquals( 1, faulting.commits() );
+
+        faulting.reset();
+
+        assertEquals( 0, faulting.rollbacks() );
+        assertEquals( 0, faulting.commits() );
+    }
 }

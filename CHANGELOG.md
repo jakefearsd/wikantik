@@ -6,6 +6,61 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Read-only MCP API keys can be minted again.** `api_keys_scope_chk` (V010) enumerated
+  `('mcp', 'tools', 'all')` and was never widened when 2.4.18 split off `mcp_read`, so
+  `ApiKeyService.generate(…, MCP_READ, …)` failed the INSERT on every real PostgreSQL database.
+  The unit test ran against a hand-written H2 schema without the CHECK and could not see it.
+  V058 widens the constraint; `ApiKeyServiceTest` now mints every `Scope` against the migrated
+  schema.
+- **Hub discovery, hub proposals and the hub overview read hub-membership edges again.**
+  Five readers (`HubDiscoveryService`, `HubMemberLoader`, `HubOverviewService`,
+  `HubProposalService`, `RelationshipsPlugin`) still queried `kg_edges` for the literals
+  `related` / `links_to`, which the V027/V030 closed `relationship_type` vocabulary made
+  unreachable — they had been returning nothing since those migrations shipped. All five now
+  use `related_to`. Found the first time the test fixture applied the real migrations.
+- **Five more transaction boundaries roll back on unchecked failure.** `CitationRepository.
+  replaceForSource`, `DriftSnapshotRepository.insertSweep`, `KgProposalRepository`
+  (`getProposalsForJudging`, and `updateTierByProvenance`, which ran two UPDATEs with no
+  transaction at all), `JdbcAuditRepository.append` (whose partition DDL survived a failed
+  append), and the three embedding writers (`EmbeddingIndexService`, `PgVectorBackfillCli`,
+  `PgVectorChunkVectorIndex`, which additionally did not roll back on `Error`) all caught only
+  `SQLException` around `rollback()`, so an unchecked exception skipped the rollback and the
+  `finally { setAutoCommit(prev) }` committed the partial work — the same defect class 2.4.19
+  fixed in three other places. Each has a failing-first test that injects a `RuntimeException`
+  mid-transaction (`FaultInjectingDataSource`) and asserts no partial rows.
+
+### Changed
+- **One way to touch the database.** New module `wikantik-jdbc` holds the only data-access
+  primitive, `com.wikantik.jdbc.Jdbc` (`query/queryOne/update/insertReturningKey/batch/
+  forEachRow/execute/ping/withConnection/inTransaction`); `inTransaction` rolls back on any
+  `Throwable` and restores the prior auto-commit state only after commit/rollback.
+  All 53 production classes that executed raw JDBC (four coexisting transaction idioms,
+  13 hand-rolled `setAutoCommit` sites) now go through it, SQL text unchanged; the three
+  redundant helpers (`CommentStore`'s private `inTransaction`, `AbstractJDBCDatabase`'s
+  begin/commit/rollback, `Transactions` call sites) are gone. `AdminPolicyResource`'s four
+  statements moved out of the servlet into `DatabasePolicy`. Enforced by `wikantik-war`
+  `JdbcAccessArchTest` (ArchUnit rule J-1; sole carve-out `JDBCPlugin`). ADR-0010.
+- **The migrations are the only schema definition.** The four legacy `bin/db/postgresql*.ddl`
+  snapshots, the 24-table `postgresql-test.sql`, and the hand-written `CREATE TABLE` blocks in
+  30 test files are gone; `com.wikantik.jdbc.testing.PostgresTestDb` (wikantik-jdbc test-jar)
+  applies `bin/db/migrations/` to a per-JVM pgvector container and every database test runs
+  against it (`TestSchemaSingleSourceTest` forbids test DDL). Schema drift the old fixtures
+  hid: `kg_edges.relationship_type` vocabulary (≈20 tests used invalid literals), FK/NOT NULL
+  constraints on `comments`, `page_owners`, `page_slug_history`, `page_verification`,
+  `kg_content_chunks`, and the two defects under *Fixed*.
+- `wikantik-insights` and `wikantik-connectors` depend on `wikantik-jdbc` (JDBC + log4j-api
+  only; still no `wikantik-api`/`wikantik-main`).
+
+### Tests
+- Database tests are **Postgres-only** and need Docker: `@RequiresPostgres` replaces
+  `@Testcontainers(disabledWithoutDocker = true)`; locally an absent daemon skips with a
+  visible reason, CI (`ci-cd.yml`, `quality-gates.yml`, `staging-deploy.yml`) and
+  `bin/run-tests.sh` pass `-Dwikantik.test.requireDocker=true` so it **fails** instead of
+  silently skipping 70+ tests. H2 survives only inside `wikantik-jdbc`'s own primitive tests.
+- `JudgeRunnerTest` and the extract-cli CLI tests seed vocabulary-valid relationship types and
+  run on `PostgresTestDb` instead of private containers with hand-written init scripts.
+
 ## [2.4.19] - 2026-08-22
 
 ### Fixed

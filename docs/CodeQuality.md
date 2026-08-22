@@ -133,3 +133,17 @@ Worst **cognitive** methods: `ExtractionResponseParser:66` (52),
   `WikiPrompts` 41 → 100% (MCP handler tests); then `scim` 67.5 → 81.4%, `render.subsystem.spam`
   69 → 78.3%, `attachment` 69 → 79.9% (101 error-branch / upload-path unit tests). Combined
   coverage 82.6 → 83.1% (86.0% ex research/CLI), +243 lines.
+
+## Persistence ratchets (2026-08-22)
+
+Two new baseline-and-shrink gates joined the complexity ratchet, both in `wikantik-war`
+(the one module whose test classpath sees every runtime module):
+
+| Gate | What it forbids | State |
+|---|---|---|
+| `JdbcAccessArchTest` (ArchUnit J-1) | `DataSource.getConnection`, `DriverManager.getConnection`, `Connection.{prepareStatement,prepareCall,createStatement,setAutoCommit,commit,rollback}` outside `com.wikantik.jdbc..` (carve-out: `JDBCPlugin`) | **0 violations** — 53 classes at baseline on 2026-08-22, burned down the same day (ADR-0010) |
+| `TestSchemaSingleSourceTest` | `CREATE TABLE` in any `*/src/test` source (the migrations are the only schema; `PostgresTestDb` applies them) | **0 entries** in `test-ddl-baseline.txt` — 33 at baseline |
+
+Run both with `mvn -pl wikantik-war test -Dtest='JdbcAccessArchTest,TestSchemaSingleSourceTest'`.
+Note the gotcha: the war's classpath resolves sibling modules from `~/.m2`, so after changing a
+repository run `mvn install -DskipTests` (or the full build) before trusting the arch test.

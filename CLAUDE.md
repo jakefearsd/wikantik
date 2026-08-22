@@ -39,7 +39,7 @@ uncovers a bug), escalate to the matching skill the moment it stops being mechan
 | Java (JDK) | 25+ | `java -version` |
 | Maven | 3.9+ | `mvn -version` |
 | Node.js + npm | 20.19+ (or 22.12+) | Required by Vite 8 (Rolldown). WAR build runs `npm install` + `vite build` automatically |
-| PostgreSQL | 15+ | For local deployment; unit tests use in-memory H2 |
+| PostgreSQL | 15+ | For local deployment. **Unit tests that touch a database run against a real pgvector container** (`PostgresTestDb`, via Docker) with the migrations applied — there is no H2 schema. Without Docker those tests skip locally with a visible reason; CI passes `-Dwikantik.test.requireDocker=true` so an absent daemon **fails** the run |
 | Docker (+ compose) | any recent | Required by the **IT phase** of `bin/run-tests.sh`: per-module pgvector containers *and* the shared CPU-ollama embedder (`docker/docker-compose.embeddings.yml`, port 11435). Also used by `bin/deploy-local.sh` for a dev embedder on 11434. **First run on a machine pulls the ~600 MB `qwen3-embedding:0.6b` model** — a multi-minute download, not a hang, cached afterwards. The model volume is **per-instance** (compose prefixes it by project: `wikantik-embed-dev_ollama-models` / `wikantik-embed-test_ollama-models`), so a cold machine pays that download once for dev and once for the test suite — deliberate, so two daemons never share one blob store. `WIKANTIK_LOCAL_EMBEDDINGS=false` opts `deploy-local.sh` out; the IT phase does not opt out. |
 | Graphviz (`dot`) | any recent | **Only** for the code-health **site** build (`bin/site.sh`) module-coupling SVG. `apt-get install graphviz`. Optional — without it the site links the raw `.dot` instead. |
 
@@ -365,6 +365,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 - **wikantik-main**: Main implementation — rendering, providers, auth, search, references, entity extraction, math parser
 - **wikantik-event**: Event system for decoupled communication
 - **wikantik-util**: Utility classes and helpers
+- **wikantik-jdbc**: **The one way to touch the database.** `com.wikantik.jdbc.Jdbc` (final, composition) is the only data-access primitive — `query/queryOne/update/insertReturningKey/batch/forEachRow/execute/ping/withConnection/inTransaction`; `inTransaction` rolls back on *any* `Throwable` and restores the prior auto-commit state only after commit/rollback (JDBC commits an open transaction when auto-commit is re-enabled — the 2.4.19 defect class). `JdbcSupport` is the `extends` convenience over it. Depends on JDBC + `log4j-api` only, so `wikantik-insights`/`wikantik-connectors` use it without `wikantik-main`. **Enforced**: `wikantik-war` `JdbcAccessArchTest` (J-1) forbids `DataSource.getConnection`/`DriverManager.getConnection`/`Connection.{prepareStatement,createStatement,setAutoCommit,commit,rollback}` outside `com.wikantik.jdbc..` (sole carve-out: `JDBCPlugin`). Its **test-jar** ships `com.wikantik.jdbc.testing.{PostgresTestDb,@RequiresPostgres,FaultInjectingDataSource,MigrationApplier}` — `PostgresTestDb` is a per-JVM pgvector container with **all of `bin/db/migrations/` applied** (+ `postgresql-test-seed.sql` when on the classpath); there is no H2 schema anywhere (`TestSchemaSingleSourceTest` forbids hand-written `CREATE TABLE` in tests). **Adding a repository:** hold a `Jdbc`, write the migration first, test against `PostgresTestDb`; a multi-statement write gets a `FaultInjectingDataSource` rollback test. ADR-0010.
 - **wikantik-cache**: EhCache-based caching layer (1-hour TTL for render caches, 10K entry capacity)
 - **wikantik-cache-memcached**: Distributed cache adapter for Memcached. **Opt-in, not wired into the WAR** — to use it, override the `com.wikantik.cache.CachingManager` mapping in `classmappings.xml`, put this jar on the container classpath, and set `wikantik.cache.memcached.servers`. Retained deliberately for multi-node deployments; the default single-node path is EhCache (`wikantik-cache`).
 - **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers, SPA routing, `/wiki/{slug}?format=md|json` content filter
@@ -488,6 +489,7 @@ each is recorded in [docs/ProjectReference.md](docs/ProjectReference.md#active-d
 - Integration tests use Selenide for browser automation
 - Test utilities in `com.wikantik.TestEngine`
 - Mock implementations available for most components
+- **Database tests**: `@RequiresPostgres` + `PostgresTestDb.createDataSource()` (wikantik-jdbc test-jar) — one pgvector container per JVM with every migration applied; `PostgresTestDb.truncate(tables…)` in `@BeforeEach` for isolation (the container is shared across test classes — never `DROP`/`ALTER` shared tables). Rollback behaviour is tested with `FaultInjectingDataSource` (throws a `RuntimeException` on the n-th statement; assert no partial rows). Never hand-write `CREATE TABLE` in a test — write the migration.
 
 ### Critical: Integration Test Parallelism
 

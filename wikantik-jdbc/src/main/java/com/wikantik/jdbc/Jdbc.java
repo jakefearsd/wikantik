@@ -129,6 +129,30 @@ public final class Jdbc {
     }
 
     /**
+     * Runs an INSERT with {@link Statement#RETURN_GENERATED_KEYS} and maps the first generated-key
+     * row with {@code keyMapper} (e.g. {@code rs -> rs.getLong(1)}). Empty when the driver returns
+     * no key. Use this instead of rewriting the SQL to {@code RETURNING} — the SQL stays verbatim.
+     */
+    public < K > Optional< K > insertReturningKey( final String sql, final SqlBinder binder,
+                                                    final RowMapper< K > keyMapper ) throws SQLException {
+        try ( Connection conn = dataSource.getConnection() ) {
+            return insertReturningKey( conn, sql, binder, keyMapper );
+        }
+    }
+
+    /** {@link #insertReturningKey(String, SqlBinder, RowMapper)} on an already-open connection. */
+    public < K > Optional< K > insertReturningKey( final Connection conn, final String sql, final SqlBinder binder,
+                                                    final RowMapper< K > keyMapper ) throws SQLException {
+        try ( PreparedStatement ps = conn.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
+            binder.bind( ps );
+            ps.executeUpdate();
+            try ( ResultSet keys = ps.getGeneratedKeys() ) {
+                return keys.next() ? Optional.of( keyMapper.map( keys ) ) : Optional.empty();
+            }
+        }
+    }
+
+    /**
      * Runs one {@code sql} statement as a JDBC batch, one {@link SqlBinder} per row, on an
      * already-open connection — for the {@code addBatch}/{@code executeBatch} bulk-write call
      * sites. Always run inside {@link #inTransaction}: a batch is not itself a transaction.

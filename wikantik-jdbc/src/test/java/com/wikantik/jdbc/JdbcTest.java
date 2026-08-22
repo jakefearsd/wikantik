@@ -144,6 +144,21 @@ class JdbcTest {
         assertEquals( List.of( 42 ), ids );
     }
 
+    @Test
+    void insertReturningKeyYieldsTheGeneratedKey() throws SQLException {
+        jdbc.execute( "CREATE TABLE t3 (id BIGINT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(50))" );
+
+        final Optional< Long > first = jdbc.insertReturningKey( "INSERT INTO t3 (name) VALUES (?)",
+            ps -> ps.setString( 1, "a" ), rs -> rs.getLong( 1 ) );
+        final Optional< Long > second = jdbc.insertReturningKey( "INSERT INTO t3 (name) VALUES (?)",
+            ps -> ps.setString( 1, "b" ), rs -> rs.getLong( 1 ) );
+
+        assertTrue( first.isPresent() && second.isPresent() );
+        assertEquals( first.get() + 1, second.get() );
+        assertEquals( List.of( "a", "b" ),
+            jdbc.query( "SELECT name FROM t3 ORDER BY id", SqlBinder.NONE, rs -> rs.getString( 1 ) ) );
+    }
+
     // ----- ping ------------------------------------------------------------------------------
 
     @Test

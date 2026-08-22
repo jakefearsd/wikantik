@@ -159,6 +159,22 @@ class JdbcTest {
             jdbc.query( "SELECT name FROM t3 ORDER BY id", SqlBinder.NONE, rs -> rs.getString( 1 ) ) );
     }
 
+    @Test
+    void supportsTransactionsReportsTheDriverCapability() {
+        assertTrue( jdbc.supportsTransactions(), "H2 supports transactions" );
+    }
+
+    @Test
+    void withConnectionLendsOneConnectionWithoutATransaction() throws SQLException {
+        final Integer count = jdbc.withConnection( conn -> {
+            jdbc.update( conn, "INSERT INTO t (id, name) VALUES (?, ?)", ps -> { ps.setInt( 1, 7 ); ps.setString( 2, "x" ); } );
+            return jdbc.queryOne( conn, "SELECT COUNT(*) FROM t", SqlBinder.NONE, rs -> rs.getInt( 1 ) ).orElseThrow();
+        } );
+        assertEquals( 1, count );
+        // auto-commit mode: the row is visible on a fresh connection without any commit
+        assertEquals( List.of( "x" ), jdbc.query( "SELECT name FROM t", SqlBinder.NONE, rs -> rs.getString( 1 ) ) );
+    }
+
     // ----- ping ------------------------------------------------------------------------------
 
     @Test

@@ -222,6 +222,34 @@ public final class Jdbc {
     }
 
     /**
+     * Whether the underlying driver reports transaction support
+     * ({@link java.sql.DatabaseMetaData#supportsTransactions()}). A failure to obtain a connection
+     * is reported as {@code false} and logged at WARN — callers use this as a one-time startup
+     * probe and must fail soft.
+     */
+    public boolean supportsTransactions() {
+        try ( Connection conn = dataSource.getConnection() ) {
+            return conn.getMetaData().supportsTransactions();
+        } catch ( final SQLException e ) {
+            LOG.warn( "supportsTransactions: could not probe the datasource: {}", e.getMessage(), e );
+            return false;
+        }
+    }
+
+    /**
+     * Lends one connection to {@code body} for several statements that must share a connection
+     * but deliberately run in the connection's default auto-commit mode — i.e. <em>not</em> as a
+     * transaction. Prefer {@link #inTransaction} whenever the statements must succeed or fail
+     * together; this exists for the rare datasource that reports no transaction support. The
+     * connection is always closed.
+     */
+    public < T > T withConnection( final TransactionBody< T > body ) throws SQLException {
+        try ( Connection conn = dataSource.getConnection() ) {
+            return body.run( conn );
+        }
+    }
+
+    /**
      * Runs {@code body} inside a single transaction: auto-commit off, commit on normal return,
      * rollback on <em>any</em> failure — checked ({@link SQLException}), unchecked
      * ({@link RuntimeException}), or {@link Error} — and the connection's previous auto-commit

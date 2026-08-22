@@ -193,16 +193,11 @@ public class ApiKeyService {
         final String plaintext = newToken();
         final String hash = sha256Hex( plaintext );
         final Instant createdAt = Instant.now();
-        // RETURNING id replaces Statement.RETURN_GENERATED_KEYS, which the Jdbc primitive has no
-        // equivalent for (its surface is query/queryOne/update/batch/forEachRow/execute — none
-        // expose generated-key retrieval). Postgres-only syntax, but this codebase targets
-        // Postgres exclusively (bin/db/migrations use ON CONFLICT/::vector throughout), so this
-        // is not a new dialect dependency.
         final String sql = "INSERT INTO " + TABLE
                 + " (key_hash, principal_login, label, scope, created_at, created_by)"
-                + " VALUES (?, ?, ?, ?, ?, ?) RETURNING id";
+                + " VALUES (?, ?, ?, ?, ?, ?)";
         try {
-            final int id = jdbc.queryOne( sql, ps -> {
+            final int id = jdbc.insertReturningKey( sql, ps -> {
                 ps.setString( 1, hash );
                 ps.setString( 2, principalLogin );
                 ps.setString( 3, label );

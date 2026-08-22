@@ -52,16 +52,6 @@ public abstract class AbstractJDBCDatabase {
     protected boolean supportsCommits;
 
     /**
-     * Obtains a connection from the DataSource.
-     *
-     * @return a database connection
-     * @throws SQLException if a connection cannot be obtained
-     */
-    public Connection getConnection() throws SQLException {
-        return ds.getConnection();
-    }
-
-    /**
      * Quietly closes database resources, ignoring any exceptions.
      * This method is useful for cleanup in finally blocks.
      *
@@ -159,17 +149,13 @@ public abstract class AbstractJDBCDatabase {
     public static <T> T runInTransaction( final DataSource dataSource, final boolean supportsCommits,
                                            final TransactionalOperation<T> operation ) throws WikiSecurityException {
         try {
+            final Jdbc jdbc = new Jdbc( dataSource );
             if( supportsCommits ) {
-                final Jdbc jdbc = new Jdbc( dataSource );
                 return jdbc.inTransaction( conn -> runUnchecked( operation, conn ) );
             }
-            try( Connection conn = dataSource.getConnection() ) {
-                return operation.execute( conn );
-            }
+            return jdbc.withConnection( conn -> runUnchecked( operation, conn ) );
         } catch( final OperationFailure e ) {
             throw unwrap( e );
-        } catch( final WikiSecurityException e ) {
-            throw e;
         } catch( final Exception e ) {
             throw new WikiSecurityException( "Database operation failed: " + e.getMessage(), e );
         }
@@ -219,12 +205,7 @@ public abstract class AbstractJDBCDatabase {
      * @return {@code true} if the datasource reports transaction support
      */
     public static boolean probeSupportsTransactions( final DataSource dataSource ) {
-        try( Connection conn = dataSource.getConnection() ) {
-            return conn.getMetaData().supportsTransactions();
-        } catch( final SQLException e ) {
-            LOG.warn( "Could not determine whether the datasource supports transactions: {}", e.getMessage(), e );
-            return false;
-        }
+        return new Jdbc( dataSource ).supportsTransactions();
     }
 
     /**

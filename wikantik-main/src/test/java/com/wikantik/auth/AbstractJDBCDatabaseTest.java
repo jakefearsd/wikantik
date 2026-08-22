@@ -269,16 +269,6 @@ class AbstractJDBCDatabaseTest {
         verify( mockConn, never() ).commit();
     }
 
-    /**
-     * Tests getConnection returns a connection from the DataSource.
-     */
-    @Test
-    void testGetConnection() throws Exception {
-        final Connection conn = db.getConnection();
-        Assertions.assertNotNull( conn );
-        Assertions.assertSame( mockConn, conn );
-    }
-
 
 
 

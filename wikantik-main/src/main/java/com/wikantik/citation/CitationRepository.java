@@ -19,17 +19,18 @@
 package com.wikantik.citation;
 
 import com.wikantik.api.citation.CitationStatus;
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
+import java.util.AbstractMap;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,10 +49,10 @@ public final class CitationRepository {
 
     private static final Logger LOG = LogManager.getLogger( CitationRepository.class );
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     public CitationRepository( final DataSource dataSource ) {
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
     }
 
     /**
@@ -60,10 +61,8 @@ public final class CitationRepository {
      * delete identities no longer present. Single transaction.
      */
     public void replaceForSource( final String sourceCanonicalId, final List< CitationRow > rows ) {
-        try ( Connection conn = dataSource.getConnection() ) {
-            final boolean prevAutoCommit = conn.getAutoCommit();
-            conn.setAutoCommit( false );
-            try {
+        try {
+            jdbc.inTransaction( conn -> {
                 // Step 2: SELECT existing rows by source -> build identity map
                 final Map< String, CitationRow > existing = loadExisting( conn, sourceCanonicalId );
                 final Set< String > toDelete = new HashSet<>( existing.keySet() );
@@ -90,19 +89,8 @@ public final class CitationRepository {
                     deleteById( conn, ex.id() );
                 }
 
-                conn.commit();
-            } catch ( final SQLException e ) {
-                try {
-                    conn.rollback();
-                } catch ( final SQLException rollbackEx ) {
-                    LOG.warn( "rollback failed after citation replaceForSource error for {}: {}",
-                            sourceCanonicalId, rollbackEx.getMessage(), rollbackEx );
-                }
-                LOG.warn( "citation replaceForSource failed for {}: {}", sourceCanonicalId, e.getMessage(), e );
-                throw new IllegalStateException( "citation replaceForSource failed for " + sourceCanonicalId, e );
-            } finally {
-                conn.setAutoCommit( prevAutoCommit );
-            }
+                return null;
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "citation replaceForSource failed for {}: {}", sourceCanonicalId, e.getMessage(), e );
             throw new IllegalStateException( "citation replaceForSource failed for " + sourceCanonicalId, e );
@@ -125,12 +113,8 @@ public final class CitationRepository {
         final String sql = "SELECT id, source_canonical_id, target_canonical_id, target_heading_path, "
                          + "span_text, span_hash, claim_text, ordinal, pinned_target_version, status, "
                          + "first_seen, last_checked, last_status_change FROM citations ORDER BY id";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql );
-              ResultSet rs = ps.executeQuery() ) {
-            final List< CitationRow > out = new ArrayList<>();
-            while ( rs.next() ) { out.add( rowFrom( rs ) ); }
-            return out;
+        try {
+            return jdbc.query( sql, SqlBinder.NONE, CitationRepository::rowFrom );
         } catch ( final SQLException e ) {
             LOG.warn( "citation findAll failed: {}", e.getMessage(), e );
             throw new IllegalStateException( "citation findAll failed", e );
@@ -140,13 +124,13 @@ public final class CitationRepository {
     public void updateStatus( final long id, final CitationStatus status, final Instant checkedAt ) {
         final String sql = "UPDATE citations SET status = ?, last_checked = ?, "
                          + "last_status_change = ? WHERE id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, status.wire() );
-            ps.setTimestamp( 2, Timestamp.from( checkedAt ) );
-            ps.setTimestamp( 3, Timestamp.from( checkedAt ) );
-            ps.setLong( 4, id );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> {
+                ps.setString( 1, status.wire() );
+                ps.setTimestamp( 2, Timestamp.from( checkedAt ) );
+                ps.setTimestamp( 3, Timestamp.from( checkedAt ) );
+                ps.setLong( 4, id );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "citation updateStatus failed for id={}: {}", id, e.getMessage(), e );
             throw new IllegalStateException( "citation updateStatus failed", e );
@@ -155,11 +139,11 @@ public final class CitationRepository {
 
     public void touchChecked( final long id, final Instant checkedAt ) {
         final String sql = "UPDATE citations SET last_checked = ? WHERE id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setTimestamp( 1, Timestamp.from( checkedAt ) );
-            ps.setLong( 2, id );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> {
+                ps.setTimestamp( 1, Timestamp.from( checkedAt ) );
+                ps.setLong( 2, id );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "citation touchChecked failed for id={}: {}", id, e.getMessage(), e );
             throw new IllegalStateException( "citation touchChecked failed", e );
@@ -168,12 +152,11 @@ public final class CitationRepository {
 
     public Map< CitationStatus, Integer > countsByStatus() {
         final String sql = "SELECT status, COUNT(*) AS cnt FROM citations GROUP BY status";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql );
-              ResultSet rs = ps.executeQuery() ) {
+        try {
             final Map< CitationStatus, Integer > out = new EnumMap<>( CitationStatus.class );
-            while ( rs.next() ) {
-                out.put( CitationStatus.fromWire( rs.getString( "status" ) ), rs.getInt( "cnt" ) );
+            for ( final Map.Entry< CitationStatus, Integer > entry
+                    : jdbc.query( sql, SqlBinder.NONE, CitationRepository::countRowFrom ) ) {
+                out.put( entry.getKey(), entry.getValue() );
             }
             return out;
         } catch ( final SQLException e ) {
@@ -192,15 +175,11 @@ public final class CitationRepository {
                          + "span_text, span_hash, claim_text, ordinal, pinned_target_version, status, "
                          + "first_seen, last_checked, last_status_change "
                          + "FROM citations WHERE source_canonical_id = ?";
+        final List< CitationRow > rows = jdbc.query( conn, sql, ps -> ps.setString( 1, sourceCanonicalId ),
+                CitationRepository::rowFrom );
         final Map< String, CitationRow > map = new HashMap<>();
-        try ( PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, sourceCanonicalId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final CitationRow row = rowFrom( rs );
-                    map.put( row.identity(), row );
-                }
-            }
+        for ( final CitationRow row : rows ) {
+            map.put( row.identity(), row );
         }
         return map;
     }
@@ -210,13 +189,12 @@ public final class CitationRepository {
         final String sql = "UPDATE citations SET claim_text = ?, status = ?, last_checked = NOW(), "
                          + "last_status_change = CASE WHEN status <> ? THEN NOW() ELSE last_status_change END "
                          + "WHERE id = ?";
-        try ( PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        jdbc.update( conn, sql, ps -> {
             ps.setString( 1, claimText );
             ps.setString( 2, status.wire() );
             ps.setString( 3, status.wire() );
             ps.setLong( 4, id );
-            ps.executeUpdate();
-        }
+        } );
     }
 
     private void insertNew( final Connection conn, final String sourceCanonicalId,
@@ -226,7 +204,7 @@ public final class CitationRepository {
                          + " span_hash, claim_text, ordinal, pinned_target_version, status, "
                          + " first_seen, last_checked, last_status_change) "
                          + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW())";
-        try ( PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        jdbc.update( conn, sql, ps -> {
             ps.setString( 1, sourceCanonicalId );
             ps.setString( 2, r.targetCanonicalId() );
             ps.setString( 3, r.targetHeadingPath() );
@@ -236,15 +214,11 @@ public final class CitationRepository {
             ps.setInt( 7, r.ordinal() );
             ps.setObject( 8, r.pinnedTargetVersion() );  // nullable Integer
             ps.setString( 9, r.status().wire() );
-            ps.executeUpdate();
-        }
+        } );
     }
 
     private void deleteById( final Connection conn, final long id ) throws SQLException {
-        try ( PreparedStatement ps = conn.prepareStatement( "DELETE FROM citations WHERE id = ?" ) ) {
-            ps.setLong( 1, id );
-            ps.executeUpdate();
-        }
+        jdbc.update( conn, "DELETE FROM citations WHERE id = ?", ps -> ps.setLong( 1, id ) );
     }
 
     private List< CitationRow > findBy( final String column, final String value ) {
@@ -252,18 +226,17 @@ public final class CitationRepository {
                          + "span_text, span_hash, claim_text, ordinal, pinned_target_version, status, "
                          + "first_seen, last_checked, last_status_change "
                          + "FROM citations WHERE " + column + " = ? ORDER BY id";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, value );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                final List< CitationRow > out = new ArrayList<>();
-                while ( rs.next() ) { out.add( rowFrom( rs ) ); }
-                return out;
-            }
+        try {
+            return jdbc.query( sql, ps -> ps.setString( 1, value ), CitationRepository::rowFrom );
         } catch ( final SQLException e ) {
             LOG.warn( "citation findBy {}={} failed: {}", column, value, e.getMessage(), e );
             throw new IllegalStateException( "citation findBy failed", e );
         }
+    }
+
+    private static Map.Entry< CitationStatus, Integer > countRowFrom( final ResultSet rs ) throws SQLException {
+        return new AbstractMap.SimpleEntry<>(
+                CitationStatus.fromWire( rs.getString( "status" ) ), rs.getInt( "cnt" ) );
     }
 
     private static CitationRow rowFrom( final ResultSet rs ) throws SQLException {

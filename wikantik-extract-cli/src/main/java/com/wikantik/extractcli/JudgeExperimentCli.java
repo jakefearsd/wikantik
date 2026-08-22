@@ -177,20 +177,8 @@ public final class JudgeExperimentCli {
             case "ollama" -> new OllamaProposalJudge(
                 HttpClient.newHttpClient(), a.ollamaUrl, a.judgeModel, a.timeoutMs );
             case "claude" -> {
-                if( !Boolean.parseBoolean(
-                    System.getProperty( "wikantik.kg.judge.allow_claude", "false" ) ) ) {
-                    throw new IllegalStateException(
-                        "--judge claude requires -Dwikantik.kg.judge.allow_claude=true (gated cost guard)." );
-                }
-                if( a.anthropicKeyEnv == null || a.anthropicKeyEnv.isBlank() ) {
-                    throw new IllegalStateException(
-                        "--judge claude requires --anthropic-key-env <VAR> naming the env var." );
-                }
-                final String key = System.getenv( a.anthropicKeyEnv );
-                if( key == null || key.isBlank() ) {
-                    throw new IllegalStateException(
-                        "environment variable '" + a.anthropicKeyEnv + "' is unset or empty." );
-                }
+                final String key = ClaudeCostGuard.resolveKey(
+                    a.anthropicKeyEnv, "wikantik.kg.judge.allow_claude", "--judge claude" );
                 yield new ClaudeProposalJudge( key, a.judgeModel, a.timeoutMs );
             }
             default -> throw new IllegalStateException(

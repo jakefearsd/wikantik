@@ -253,21 +253,7 @@ public final class BootstrapExtractionCli {
      * (e.g. {@code "--extractor claude"}) woven into the messages. Package-private for unit testing.
      */
     static String resolveAnthropicKey( final String keyEnv, final String gateProp, final String contextLabel ) {
-        if( !Boolean.parseBoolean( System.getProperty( gateProp, "false" ) ) ) {
-            throw new IllegalStateException(
-                contextLabel + " requires -D" + gateProp + "=true (gated cost guard)." );
-        }
-        if( keyEnv == null || keyEnv.isBlank() ) {
-            throw new IllegalStateException(
-                contextLabel + " requires --anthropic-key-env <VAR> naming the env var "
-              + "that holds the Anthropic API key." );
-        }
-        final String key = System.getenv( keyEnv );
-        if( key == null || key.isBlank() ) {
-            throw new IllegalStateException(
-                "environment variable '" + keyEnv + "' is unset or empty." );
-        }
-        return key;
+        return ClaudeCostGuard.resolveKey( keyEnv, gateProp, contextLabel );
     }
 
     private static KgNodeEmbeddingService buildEmbeddingService( final Args a,

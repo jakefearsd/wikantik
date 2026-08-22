@@ -29,7 +29,7 @@ import java.lang.annotation.Target;
  * Marks a test class as needing {@link PostgresTestDb} (a Docker-backed Postgres container). The
  * replacement for {@code @Testcontainers(disabledWithoutDocker = true)} on container-managed
  * tests: when Docker is unavailable, the class is disabled with a visible reason locally, or —
- * with {@code -Dwikantik.test.requireDocker=true} — execution fails outright rather than
+ * with {@code -Dtests.requireDocker=true} — execution fails outright rather than
  * silently skipping.
  *
  * @see RequiresPostgresCondition

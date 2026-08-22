@@ -170,7 +170,7 @@ the main test-jar carries the transitive test-jar dep; verify, don't assume).
       (wikantik-main ships it; other modules don't). Same static API as today
       (`createDataSource()/getJdbcUrl()/getUsername()/getPassword()`) plus `truncate(String…
       tables)` (`TRUNCATE … RESTART IDENTITY CASCADE`) for per-test isolation. When Docker is
-      unavailable: if `-Dwikantik.test.requireDocker=true` → throw (CI); else → a JUnit
+      unavailable: if `-Dtests.requireDocker=true` → throw (CI); else → a JUnit
       `TestAbortedException` (local skip with a visible reason).
 - [x] `@RequiresPostgres` — a JUnit 5 extension (in the same testing package) that evaluates the
       above once per JVM. It is the replacement for `@Testcontainers(disabledWithoutDocker = true)`
@@ -313,7 +313,7 @@ state: J-1 store contains only `JDBCPlugin` (allowlisted → actually zero entri
       zero-tolerance. Remove the `h2` test dependency from every pom that no longer uses it
       (`grep -rl 'jdbc:h2'` must be confined to `wikantik-jdbc`).
 - [x] **T3.3** Sweep the 71 `@Testcontainers(disabledWithoutDocker = true)` annotations to
-      `@RequiresPostgres` (sed + compile). CI: add `-Dwikantik.test.requireDocker=true` to the
+      `@RequiresPostgres` (sed + compile). CI: add `-Dtests.requireDocker=true` to the
       `unit-tests` job in `.github/workflows/quality-gates.yml` and to `ci-cd.yml`'s `mvn clean
       test` so an absent Docker daemon **fails** the run instead of silently skipping 70+ tests.
       `bin/run-tests.sh` phase 1 sets it too.

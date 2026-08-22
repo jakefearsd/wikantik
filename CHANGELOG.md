@@ -56,7 +56,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Database tests are **Postgres-only** and need Docker: `@RequiresPostgres` replaces
   `@Testcontainers(disabledWithoutDocker = true)`; locally an absent daemon skips with a
   visible reason, CI (`ci-cd.yml`, `quality-gates.yml`, `staging-deploy.yml`) and
-  `bin/run-tests.sh` pass `-Dwikantik.test.requireDocker=true` so it **fails** instead of
+  `bin/run-tests.sh` pass `-Dtests.requireDocker=true` so it **fails** instead of
   silently skipping 70+ tests. H2 survives only inside `wikantik-jdbc`'s own primitive tests.
 - `JudgeRunnerTest` and the extract-cli CLI tests seed vocabulary-valid relationship types and
   run on `PostgresTestDb` instead of private containers with hand-written init scripts.

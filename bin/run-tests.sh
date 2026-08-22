@@ -425,7 +425,7 @@ unit_phase_rc=0
 if [ "$RUN_UNIT" = 1 ]; then
   # Parallel unit reactor: compile all, run unit tests, install artifacts (incl. WAR).
   run_step "Phase 1: unit reactor (-T ${UNIT_PARALLELISM} -DskipITs)" "${LOG_DIR}/phase1-unit.log" \
-    clean install -T "${UNIT_PARALLELISM}" -DskipITs -Dwikantik.test.requireDocker=true
+    clean install -T "${UNIT_PARALLELISM}" -DskipITs -Dtests.requireDocker=true
   unit_phase_rc="$last_step_rc"
 fi
 

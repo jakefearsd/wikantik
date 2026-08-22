@@ -180,4 +180,4 @@ jobs:
           cache-dependency-path: wikantik-frontend/package-lock.json
 
       - name: Full unit suite
-        run: mvn -B clean install -DskipITs -Dwikantik.test.requireDocker=true
+        run: mvn -B clean install -DskipITs -Dtests.requireDocker=true

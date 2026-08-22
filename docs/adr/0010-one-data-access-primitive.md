@@ -36,7 +36,7 @@ Neither was visible to a test that defined its own tables.
 
 Consequences, accepted deliberately: every database test now needs Docker (one container per
 JVM, migrations applied once, `PostgresTestDb.truncate(...)` for isolation; locally an absent
-daemon skips with a reason, CI passes `-Dwikantik.test.requireDocker=true` so it fails
+daemon skips with a reason, CI passes `-Dtests.requireDocker=true` so it fails
 instead); `wikantik-insights` and `wikantik-connectors` gained a dependency on the JDBC-only
 `wikantik-jdbc` module (no wiki types — their engine-free posture is unchanged); a few
 connection-sharing optimisations are expressed through `withConnection`/`inTransaction`

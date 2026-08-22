@@ -47,13 +47,13 @@ import java.sql.Statement;
  * applied if present (wikantik-main ships one; modules with no seed data simply don't).
  *
  * <p>Use {@link RequiresPostgres} on test classes so tests are gracefully skipped (or, with
- * {@code -Dwikantik.test.requireDocker=true}, fail loudly) when Docker is unavailable.
+ * {@code -Dtests.requireDocker=true}, fail loudly) when Docker is unavailable.
  */
 public final class PostgresTestDb {
 
     private static final Logger LOG = LogManager.getLogger( PostgresTestDb.class );
 
-    private static final String REQUIRE_DOCKER_PROPERTY = "wikantik.test.requireDocker";
+    private static final String REQUIRE_DOCKER_PROPERTY = "tests.requireDocker";
     private static final String SEED_RESOURCE = "postgresql-test-seed.sql";
     private static final String APP_USER = "test";
 
@@ -115,7 +115,7 @@ public final class PostgresTestDb {
     /**
      * Raises the standard "Docker unavailable" response used by both this class and
      * {@link RequiresPostgres}: an {@link IllegalStateException} when the caller opted into
-     * {@code -Dwikantik.test.requireDocker=true} (CI must fail, not silently skip), otherwise a
+     * {@code -Dtests.requireDocker=true} (CI must fail, not silently skip), otherwise a
      * {@link TestAbortedException} so JUnit reports a skip with a visible reason.
      */
     static void failOrAbort( final String reason ) {

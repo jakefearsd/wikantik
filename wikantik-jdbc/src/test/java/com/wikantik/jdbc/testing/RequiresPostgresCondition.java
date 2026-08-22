@@ -27,7 +27,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * {@link PostgresTestDb#checkDockerAvailability()}, is cheap and side-effect-free — it does not
  * start the container). Docker present -&gt; enabled. Docker absent -&gt;
  * {@link org.junit.jupiter.api.extension.ConditionEvaluationResult#disabled disabled} with a
- * visible reason, UNLESS {@code -Dwikantik.test.requireDocker=true}, in which case this throws
+ * visible reason, UNLESS {@code -Dtests.requireDocker=true}, in which case this throws
  * so the run fails rather than silently skips.
  */
 final class RequiresPostgresCondition implements ExecutionCondition {
@@ -38,13 +38,13 @@ final class RequiresPostgresCondition implements ExecutionCondition {
         if ( availability.available() ) {
             return ConditionEvaluationResult.enabled( "Docker is available" );
         }
-        if ( Boolean.getBoolean( "wikantik.test.requireDocker" ) ) {
+        if ( Boolean.getBoolean( "tests.requireDocker" ) ) {
             // Throwing (rather than returning "disabled") makes this a hard failure of the
             // test/container, per the CI contract: an absent Docker daemon must fail the run,
             // not silently skip 70+ Postgres-backed tests.
             throw new IllegalStateException(
                 "Docker not available: " + availability.reason()
-                    + " (-Dwikantik.test.requireDocker=true requires Docker to be present)" );
+                    + " (-Dtests.requireDocker=true requires Docker to be present)" );
         }
         return ConditionEvaluationResult.disabled( "Docker not available: " + availability.reason() );
     }

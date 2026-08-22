@@ -18,6 +18,7 @@
  */
 package com.wikantik.search.hybrid;
 
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.Codec;
@@ -74,8 +75,8 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
     static final String FIELD_CHUNK_ID = "chunk_id";
     static final String FIELD_PAGE     = "page_name";
 
-    private final javax.sql.DataSource dataSource;   // null in the test-only constructor
-    private final String modelCode;                  // null in the test-only constructor
+    private final Jdbc jdbc;         // null in the test-only constructor
+    private final String modelCode;  // null in the test-only constructor
     private int dim;
     private int efSearch;
     private Directory directory;
@@ -105,7 +106,7 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
     }
 
     LuceneHnswChunkVectorIndex( final int dim, final HnswParams params ) {
-        this.dataSource = null;
+        this.jdbc = null;
         this.modelCode = null;
         initMachinery( dim, params );
     }
@@ -123,7 +124,7 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
         if ( modelCode == null || modelCode.isBlank() ) {
             throw new IllegalArgumentException( "modelCode must not be blank" );
         }
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
         this.modelCode = modelCode;
         initMachinery( dim, params );
         reload();
@@ -309,20 +310,15 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
 
     /** Full rebuild from the database. Fail-closed: SQL errors log WARN and leave the prior contents. */
     public void reload() {
-        if ( dataSource == null ) return; // test-only instance
-        try ( java.sql.Connection c = dataSource.getConnection();
-              java.sql.PreparedStatement ps = c.prepareStatement( LOAD_SQL ) ) {
-            ps.setString( 1, modelCode );
-            ps.setFetchSize( 500 );
-            try ( java.sql.ResultSet rs = ps.executeQuery() ) {
-                writer.deleteAll();
-                int loaded = 0;
-                while ( rs.next() ) {
-                    if ( addRow( rs ) ) loaded++;
-                }
-                commitAndRefresh();
-                LOG.info( "Lucene HNSW index loaded: model={} rows={} dim={}", modelCode, loaded, dim );
-            }
+        if ( jdbc == null ) return; // test-only instance
+        try {
+            final int[] loadedHolder = { 0 };
+            writer.deleteAll();
+            jdbc.forEachRow( LOAD_SQL, ps -> ps.setString( 1, modelCode ), 500, rs -> {
+                if ( addRow( rs ) ) loadedHolder[ 0 ]++;
+            } );
+            commitAndRefresh();
+            LOG.info( "Lucene HNSW index loaded: model={} rows={} dim={}", modelCode, loadedHolder[ 0 ], dim );
         } catch ( final java.sql.SQLException | java.io.IOException e ) {
             LOG.warn( "Lucene HNSW reload failed (model={}); prior index contents preserved: {}",
                 modelCode, e.getMessage(), e );
@@ -331,19 +327,24 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
 
     /** Incremental update for a handful of changed chunks (called from the async index listener). */
     public void upsertChunks( final java.util.Collection< java.util.UUID > chunkIds ) {
-        if ( dataSource == null || chunkIds == null || chunkIds.isEmpty() ) return;
+        if ( jdbc == null || chunkIds == null || chunkIds.isEmpty() ) return;
         final java.util.Set< java.util.UUID > targets = new java.util.HashSet<>( chunkIds );
-        try ( java.sql.Connection c = dataSource.getConnection();
-              java.sql.PreparedStatement ps = c.prepareStatement( LOAD_BY_IDS_SQL ) ) {
-            ps.setString( 1, modelCode );
-            ps.setArray( 2, c.createArrayOf( "uuid", targets.toArray( new java.util.UUID[ 0 ] ) ) );
+        final java.util.UUID[] targetArr = targets.toArray( new java.util.UUID[ 0 ] );
+        try {
             final java.util.Set< java.util.UUID > seen = new java.util.HashSet<>();
-            try ( java.sql.ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final java.util.UUID id = rs.getObject( 1, java.util.UUID.class );
-                    if ( addRow( rs ) ) seen.add( id );
-                }
-            }
+            jdbc.withConnection( conn -> {
+                jdbc.forEachRow( conn, LOAD_BY_IDS_SQL,
+                    ps -> {
+                        ps.setString( 1, modelCode );
+                        ps.setArray( 2, conn.createArrayOf( "uuid", targetArr ) );
+                    },
+                    0,
+                    rs -> {
+                        final java.util.UUID id = rs.getObject( 1, java.util.UUID.class );
+                        if ( addRow( rs ) ) seen.add( id );
+                    } );
+                return null;
+            } );
             for ( final java.util.UUID id : targets ) {
                 if ( !seen.contains( id ) ) delete( id );
             }

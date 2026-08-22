@@ -18,13 +18,11 @@
  */
 package com.wikantik.search.hybrid;
 
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -72,7 +70,7 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
       + "JOIN kg_content_chunks c ON c.id = e.chunk_id "
       + "WHERE e.model_code = ? AND e.chunk_id = ANY (?)";
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
     private final String modelCode;
 
     private volatile Snapshot snapshot = Snapshot.EMPTY;
@@ -85,7 +83,7 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
         if ( modelCode == null || modelCode.isBlank() ) {
             throw new IllegalArgumentException( "modelCode must not be blank" );
         }
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
         this.modelCode = modelCode;
         reload();
     }
@@ -305,37 +303,33 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
         final List< UUID > ids = new ArrayList<>();
         final List< String > pages = new ArrayList<>();
         final List< float[] > vecs = new ArrayList<>();
-        int dim = 0;
+        final int[] dimHolder = { 0 };
 
-        try( Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement( LOAD_SQL ) ) {
-            ps.setString( 1, modelCode );
-            ps.setFetchSize( 500 );
-            try( ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
-                    final UUID id = rs.getObject( 1, UUID.class );
-                    final String page = rs.getString( 2 );
-                    final int rowDim = rs.getInt( 3 );
-                    final byte[] raw = rs.getBytes( 4 );
-                    final float[] v = decodeVector( id, raw, rowDim );
-                    if ( v == null ) continue;
-                    if ( dim == 0 ) dim = rowDim;
-                    else if ( rowDim != dim ) {
-                        LOG.warn( "ChunkVectorIndex: chunk {} dim={} differs from index dim={}, skipping",
-                            id, rowDim, dim );
-                        continue;
-                    }
-                    normalizeInPlace( v );
-                    ids.add( id );
-                    pages.add( page );
-                    vecs.add( v );
+        try {
+            jdbc.forEachRow( LOAD_SQL, ps -> ps.setString( 1, modelCode ), 500, rs -> {
+                final UUID id = rs.getObject( 1, UUID.class );
+                final String page = rs.getString( 2 );
+                final int rowDim = rs.getInt( 3 );
+                final byte[] raw = rs.getBytes( 4 );
+                final float[] v = decodeVector( id, raw, rowDim );
+                if ( v == null ) return;
+                if ( dimHolder[ 0 ] == 0 ) dimHolder[ 0 ] = rowDim;
+                else if ( rowDim != dimHolder[ 0 ] ) {
+                    LOG.warn( "ChunkVectorIndex: chunk {} dim={} differs from index dim={}, skipping",
+                        id, rowDim, dimHolder[ 0 ] );
+                    return;
                 }
-            }
+                normalizeInPlace( v );
+                ids.add( id );
+                pages.add( page );
+                vecs.add( v );
+            } );
         } catch( final SQLException e ) {
             LOG.warn( "ChunkVectorIndex load failed (model={}): {}", modelCode, e.getMessage(), e );
             throw new RuntimeException( "ChunkVectorIndex load failed for " + modelCode, e );
         }
 
+        final int dim = dimHolder[ 0 ];
         final int n = ids.size();
         final UUID[] idArr = ids.toArray( new UUID[ 0 ] );
         final String[] pageArr = pages.toArray( new String[ 0 ] );
@@ -352,34 +346,40 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
     private LoadedRows loadRowsByIds( final Set< UUID > ids ) throws SQLException {
         final Map< UUID, float[] > vecs = new HashMap<>( ids.size() * 2 );
         final Map< UUID, String > pages = new HashMap<>( ids.size() * 2 );
-        int dim = 0;
-        try( Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement( LOAD_BY_IDS_SQL ) ) {
-            ps.setString( 1, modelCode );
-            // PostgreSQL ANY(?) array binding — UUID maps to the postgres uuid[] type.
-            final UUID[] arr = ids.toArray( new UUID[ 0 ] );
-            ps.setArray( 2, c.createArrayOf( "uuid", arr ) );
-            try( ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
+        final int[] dimHolder = { 0 };
+        // PostgreSQL ANY(?) array binding — UUID maps to the postgres uuid[] type.
+        // Lent connection so createArrayOf can be built from it, matching the
+        // pattern in EmbeddingIndexService rather than PreparedStatement#getConnection().
+        final UUID[] idArr = ids.toArray( new UUID[ 0 ] );
+        jdbc.withConnection( conn -> {
+            // fetchSize 0 matches the pre-migration code, which never called
+            // setFetchSize on this statement (0 is the JDBC "no hint" default).
+            jdbc.forEachRow( conn, LOAD_BY_IDS_SQL,
+                ps -> {
+                    ps.setString( 1, modelCode );
+                    ps.setArray( 2, conn.createArrayOf( "uuid", idArr ) );
+                },
+                0,
+                rs -> {
                     final UUID id = rs.getObject( 1, UUID.class );
                     final String page = rs.getString( 2 );
                     final int rowDim = rs.getInt( 3 );
                     final byte[] raw = rs.getBytes( 4 );
                     final float[] v = decodeVector( id, raw, rowDim );
-                    if ( v == null ) continue;
-                    if ( dim == 0 ) dim = rowDim;
-                    else if ( rowDim != dim ) {
+                    if ( v == null ) return;
+                    if ( dimHolder[ 0 ] == 0 ) dimHolder[ 0 ] = rowDim;
+                    else if ( rowDim != dimHolder[ 0 ] ) {
                         LOG.warn( "ChunkVectorIndex upsert: chunk {} dim={} differs from batch dim={}, skipping",
-                            id, rowDim, dim );
-                        continue;
+                            id, rowDim, dimHolder[ 0 ] );
+                        return;
                     }
                     normalizeInPlace( v );
                     vecs.put( id, v );
                     pages.put( id, page );
-                }
-            }
-        }
-        return new LoadedRows( vecs, pages, dim );
+                } );
+            return null;
+        } );
+        return new LoadedRows( vecs, pages, dimHolder[ 0 ] );
     }
 
     private static final class LoadedRows {

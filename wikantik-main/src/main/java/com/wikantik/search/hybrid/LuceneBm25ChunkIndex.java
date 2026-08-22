@@ -18,6 +18,7 @@
  */
 package com.wikantik.search.hybrid;
 
+import com.wikantik.jdbc.Jdbc;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.custom.CustomAnalyzer;
@@ -49,11 +50,8 @@ import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -109,7 +107,7 @@ public final class LuceneBm25ChunkIndex {
     public record IndexedChunk( UUID id, String pageName, String text ) {}
 
     private final Analyzer analyzer;
-    private final DataSource dataSource;   // null for the in-list (test) constructors
+    private final Jdbc jdbc;   // null for the in-list (test) constructors
     private final Directory directory;
     private final IndexWriter writer;
     private final SearcherManager searcherManager;
@@ -131,7 +129,7 @@ public final class LuceneBm25ChunkIndex {
 
     private LuceneBm25ChunkIndex( final Analyzer analyzer, final DataSource dataSource ) {
         this.analyzer = analyzer;
-        this.dataSource = dataSource;
+        this.jdbc = dataSource == null ? null : new Jdbc( dataSource );
         this.directory = new ByteBuffersDirectory();
         try {
             final IndexWriterConfig cfg = new IndexWriterConfig( analyzer ).setSimilarity( new BM25Similarity() );
@@ -177,11 +175,11 @@ public final class LuceneBm25ChunkIndex {
      * emptying the lexical half of the fusion mid-flight.</p>
      */
     public void upsertChunks( final Collection< UUID > chunkIds ) {
-        if ( dataSource == null || chunkIds == null || chunkIds.isEmpty() ) return;
+        if ( jdbc == null || chunkIds == null || chunkIds.isEmpty() ) return;
         final Set< UUID > targets = new LinkedHashSet<>( chunkIds );
-        try ( Connection conn = dataSource.getConnection() ) {
-            final Set< String > pages = pagesFor( conn, targets );
-            final List< IndexedChunk > current = pages.isEmpty() ? List.of() : loadByPages( conn, pages );
+        try {
+            final Set< String > pages = pagesFor( targets );
+            final List< IndexedChunk > current = pages.isEmpty() ? List.of() : loadByPages( pages );
 
             // Rewrite each affected page wholesale: delete every doc carrying its
             // page_name, then re-add the chunks the page currently has.
@@ -208,7 +206,7 @@ public final class LuceneBm25ChunkIndex {
      * a load failure leaves the existing index untouched rather than blanking it.
      */
     public void reload() {
-        if ( dataSource == null ) return;   // in-list (test) instance: nothing to reload from
+        if ( jdbc == null ) return;   // in-list (test) instance: nothing to reload from
         final List< IndexedChunk > chunks;
         try {
             chunks = loadAll();
@@ -221,40 +219,28 @@ public final class LuceneBm25ChunkIndex {
     }
 
     private List< IndexedChunk > loadAll() {
-        final List< IndexedChunk > chunks = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              Statement st = conn.createStatement();
-              ResultSet rs = st.executeQuery( LOAD_ALL_SQL ) ) {
-            while ( rs.next() ) {
-                chunks.add( readChunk( rs ) );
-            }
+        try {
+            return jdbc.query( LOAD_ALL_SQL, ps -> { }, LuceneBm25ChunkIndex::readChunk );
         } catch ( final SQLException e ) {
             throw new IllegalStateException( "Failed to load chunks for BM25 index", e );
         }
-        return chunks;
     }
 
-    private static Set< String > pagesFor( final Connection conn, final Set< UUID > ids ) throws SQLException {
-        final Set< String > pages = new LinkedHashSet<>();
-        try ( PreparedStatement ps = conn.prepareStatement( PAGES_FOR_IDS_SQL ) ) {
-            ps.setArray( 1, conn.createArrayOf( "uuid", ids.toArray( new UUID[ 0 ] ) ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) pages.add( rs.getString( 1 ) );
-            }
-        }
-        return pages;
+    private Set< String > pagesFor( final Set< UUID > ids ) throws SQLException {
+        final UUID[] idArr = ids.toArray( new UUID[ 0 ] );
+        return jdbc.withConnection( conn -> {
+            final List< String > pages = jdbc.query( conn, PAGES_FOR_IDS_SQL,
+                ps -> ps.setArray( 1, conn.createArrayOf( "uuid", idArr ) ),
+                rs -> rs.getString( 1 ) );
+            return new LinkedHashSet<>( pages );
+        } );
     }
 
-    private static List< IndexedChunk > loadByPages( final Connection conn, final Set< String > pages )
-            throws SQLException {
-        final List< IndexedChunk > chunks = new ArrayList<>();
-        try ( PreparedStatement ps = conn.prepareStatement( LOAD_BY_PAGES_SQL ) ) {
-            ps.setArray( 1, conn.createArrayOf( "text", pages.toArray( new String[ 0 ] ) ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) chunks.add( readChunk( rs ) );
-            }
-        }
-        return chunks;
+    private List< IndexedChunk > loadByPages( final Set< String > pages ) throws SQLException {
+        final String[] pageArr = pages.toArray( new String[ 0 ] );
+        return jdbc.withConnection( conn -> jdbc.query( conn, LOAD_BY_PAGES_SQL,
+            ps -> ps.setArray( 1, conn.createArrayOf( "text", pageArr ) ),
+            LuceneBm25ChunkIndex::readChunk ) );
     }
 
     private static IndexedChunk readChunk( final ResultSet rs ) throws SQLException {

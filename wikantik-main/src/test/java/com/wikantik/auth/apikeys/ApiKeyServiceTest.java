@@ -22,6 +22,8 @@ import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import javax.sql.DataSource;
 
@@ -313,5 +315,20 @@ class ApiKeyServiceTest {
         assertTrue( service.findById( g.record().id() ).isPresent(),
                 "a revoked key must still be findable by id" );
         assertTrue( service.findById( 999_999 ).isEmpty() );
+    }
+
+    /**
+     * Every {@link ApiKeyService.Scope} wire value must be insertable against the real schema:
+     * {@code api_keys_scope_chk} (V010) enumerated the scopes and did not follow the 2.4.18
+     * {@code mcp_read} split until V058 — the hand-written H2 schema never had the CHECK, so no
+     * test could see it. This pins the migration and the enum together.
+     */
+    @ParameterizedTest
+    @EnumSource( ApiKeyService.Scope.class )
+    void generateAcceptsEveryScopeWireValueAgainstTheMigratedSchema( final ApiKeyService.Scope scope ) {
+        final ApiKeyService.Generated g = service.generate( "erin", "scope-" + scope.wire(), scope, "admin" );
+        final Optional< ApiKeyService.Record > verified = service.verify( g.plaintext() );
+        assertTrue( verified.isPresent(), "key minted with scope " + scope.wire() + " must verify" );
+        assertEquals( scope, verified.get().scope() );
     }
 }

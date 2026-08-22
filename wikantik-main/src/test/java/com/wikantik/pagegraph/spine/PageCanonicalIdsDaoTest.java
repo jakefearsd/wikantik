@@ -18,6 +18,8 @@
  */
 package com.wikantik.pagegraph.spine;
 
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -26,59 +28,27 @@ import org.apache.logging.log4j.core.config.AppenderRef;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.layout.PatternLayout;
-import org.h2.jdbcx.JdbcDataSource;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@RequiresPostgres
 class PageCanonicalIdsDaoTest {
 
     private DataSource ds;
     private PageCanonicalIdsDao dao;
 
     @BeforeEach
-    void setUp() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:pci;MODE=PostgreSQL;DB_CLOSE_DELAY=-1" );
-        this.ds = h2;
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( """
-                CREATE TABLE page_canonical_ids (
-                    canonical_id CHAR(26) PRIMARY KEY,
-                    current_slug VARCHAR(512) NOT NULL UNIQUE,
-                    title VARCHAR(512) NOT NULL,
-                    type VARCHAR(32) NOT NULL,
-                    cluster VARCHAR(128),
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )""" );
-            s.executeUpdate( """
-                CREATE TABLE page_slug_history (
-                    canonical_id CHAR(26) NOT NULL,
-                    previous_slug VARCHAR(512) NOT NULL,
-                    renamed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (canonical_id, previous_slug)
-                )""" );
-        }
+    void setUp() {
+        ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "page_canonical_ids", "page_slug_history" );
         this.dao = new PageCanonicalIdsDao( ds );
-    }
-
-    @AfterEach
-    void tearDown() throws Exception {
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( "DROP TABLE page_slug_history" );
-            s.executeUpdate( "DROP TABLE page_canonical_ids" );
-        }
     }
 
     @Test

@@ -18,43 +18,27 @@
  */
 package com.wikantik.pagegraph.spine;
 
-import org.h2.jdbcx.JdbcDataSource;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.Statement;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@RequiresPostgres
 class TrustedAuthorsDaoTest {
 
     private DataSource ds;
     private TrustedAuthorsDao dao;
 
     @BeforeEach
-    void setUp() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:tad;MODE=PostgreSQL;DB_CLOSE_DELAY=-1" );
-        this.ds = h2;
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( """
-                CREATE TABLE trusted_authors (
-                    login_name VARCHAR(64) PRIMARY KEY,
-                    notes TEXT,
-                    added_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )""" );
-        }
+    void setUp() {
+        ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "trusted_authors" );
         this.dao = new TrustedAuthorsDao( ds );
-    }
-
-    @AfterEach
-    void tearDown() throws Exception {
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( "DROP TABLE trusted_authors" );
-        }
     }
 
     @Test

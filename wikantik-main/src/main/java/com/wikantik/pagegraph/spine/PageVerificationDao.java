@@ -26,12 +26,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -103,26 +101,15 @@ public class PageVerificationDao extends JdbcSupport {
         }
     }
 
-    /**
-     * Not migrated to {@code query()}: on {@link SQLException} mid-iteration this
-     * returns whatever partial {@code out} list had already been accumulated
-     * (logged, not thrown) — the generic primitive discards its in-progress list on
-     * failure instead, which would silently change this method's contract.
-     */
     public List< String > listCanonicalIdsByConfidence( final Confidence confidence ) {
-        final List< String > out = new ArrayList<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "SELECT canonical_id FROM page_verification WHERE confidence = ? " +
-                      "ORDER BY verified_at NULLS FIRST" ) ) {
-            ps.setString( 1, confidence.wireName() );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) out.add( rs.getString( 1 ) );
-            }
+        try {
+            return query( "SELECT canonical_id FROM page_verification WHERE confidence = ? " +
+                    "ORDER BY verified_at NULLS FIRST",
+                    ps -> ps.setString( 1, confidence.wireName() ), rs -> rs.getString( 1 ) );
         } catch ( final SQLException e ) {
             LOG.warn( "listCanonicalIdsByConfidence({}) failed: {}", confidence, e.getMessage() );
+            return List.of();
         }
-        return out;
     }
 
     public void deleteByCanonicalId( final String canonicalId ) {

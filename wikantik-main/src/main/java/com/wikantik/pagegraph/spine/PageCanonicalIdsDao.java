@@ -24,11 +24,9 @@ import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -178,8 +176,10 @@ public class PageCanonicalIdsDao extends JdbcSupport {
     }
 
     public Optional< Row > findByCanonicalId( final String canonicalId ) {
-        try ( Connection c = dataSource.getConnection() ) {
-            return findByCanonicalId( c, canonicalId );
+        try {
+            return queryOne( "SELECT canonical_id, current_slug, title, type, cluster, created_at, updated_at " +
+                    "FROM page_canonical_ids WHERE canonical_id = ?",
+                    ps -> ps.setString( 1, canonicalId ), PageCanonicalIdsDao::readRow );
         } catch ( final SQLException e ) {
             LOG.warn( "findByCanonicalId({}) failed: {}", canonicalId, e.getMessage() );
             return Optional.empty();
@@ -212,45 +212,26 @@ public class PageCanonicalIdsDao extends JdbcSupport {
         }
     }
 
-    /**
-     * Not migrated to {@code query()}: on {@link SQLException} mid-iteration this
-     * returns whatever partial {@code rows} list had already been accumulated
-     * (logged, not thrown) — the generic primitive discards its in-progress list on
-     * failure instead, which would silently change this method's contract.
-     */
     public List< Row > findAll() {
-        final List< Row > rows = new ArrayList<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "SELECT canonical_id, current_slug, title, type, cluster, created_at, updated_at " +
-                      "FROM page_canonical_ids ORDER BY canonical_id" );
-              ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) {
-                rows.add( readRow( rs ) );
-            }
+        try {
+            return query( "SELECT canonical_id, current_slug, title, type, cluster, created_at, updated_at " +
+                    "FROM page_canonical_ids ORDER BY canonical_id",
+                    ps -> {}, PageCanonicalIdsDao::readRow );
         } catch ( final SQLException e ) {
             LOG.warn( "findAll() failed: {}", e.getMessage() );
+            return List.of();
         }
-        return rows;
     }
 
-    /** Not migrated to {@code query()}: same partial-result-on-failure contract as {@link #findAll}. */
     public List< String > slugHistory( final String canonicalId ) {
-        final List< String > history = new ArrayList<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "SELECT previous_slug FROM page_slug_history " +
-                      "WHERE canonical_id = ? ORDER BY renamed_at DESC" ) ) {
-            ps.setString( 1, canonicalId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    history.add( rs.getString( 1 ) );
-                }
-            }
+        try {
+            return query( "SELECT previous_slug FROM page_slug_history " +
+                    "WHERE canonical_id = ? ORDER BY renamed_at DESC",
+                    ps -> ps.setString( 1, canonicalId ), rs -> rs.getString( 1 ) );
         } catch ( final SQLException e ) {
             LOG.warn( "slugHistory({}) failed: {}", canonicalId, e.getMessage() );
+            return List.of();
         }
-        return history;
     }
 
     public void delete( final String canonicalId ) {

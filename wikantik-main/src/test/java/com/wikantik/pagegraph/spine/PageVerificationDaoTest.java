@@ -21,8 +21,8 @@ package com.wikantik.pagegraph.spine;
 import com.wikantik.api.pagegraph.Audience;
 import com.wikantik.api.pagegraph.Confidence;
 import com.wikantik.api.pagegraph.Verification;
-import org.h2.jdbcx.JdbcDataSource;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,6 +35,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@RequiresPostgres
 class PageVerificationDaoTest {
 
     private DataSource ds;
@@ -42,43 +43,18 @@ class PageVerificationDaoTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:pvd;MODE=PostgreSQL;DB_CLOSE_DELAY=-1" );
-        this.ds = h2;
+        ds = PostgresTestDb.createDataSource();
+        // page_verification.canonical_id REFERENCES page_canonical_ids(canonical_id) ON DELETE
+        // CASCADE (bin/db/migrations/V014) — truncating page_canonical_ids CASCADEs into
+        // page_verification too, but both are listed explicitly for clarity.
+        PostgresTestDb.truncate( "page_canonical_ids", "page_verification" );
         try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( """
-                CREATE TABLE page_canonical_ids (
-                    canonical_id CHAR(26) PRIMARY KEY,
-                    current_slug VARCHAR(512) NOT NULL UNIQUE,
-                    title VARCHAR(512) NOT NULL,
-                    type VARCHAR(32) NOT NULL,
-                    cluster VARCHAR(128),
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )""" );
-            s.executeUpdate( """
-                CREATE TABLE page_verification (
-                    canonical_id CHAR(26) PRIMARY KEY REFERENCES page_canonical_ids(canonical_id) ON DELETE CASCADE,
-                    verified_at TIMESTAMP WITH TIME ZONE,
-                    verified_by VARCHAR(64),
-                    confidence VARCHAR(16) NOT NULL DEFAULT 'provisional',
-                    audience VARCHAR(32) NOT NULL DEFAULT 'humans-and-agents',
-                    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )""" );
             s.executeUpdate( "INSERT INTO page_canonical_ids (canonical_id, current_slug, title, type) " +
                 "VALUES ('01AAAAAAAAAAAAAAAAAAAAAAAA', 'A', 'A', 'article')" );
             s.executeUpdate( "INSERT INTO page_canonical_ids (canonical_id, current_slug, title, type) " +
                 "VALUES ('01BBBBBBBBBBBBBBBBBBBBBBBB', 'B', 'B', 'article')" );
         }
         this.dao = new PageVerificationDao( ds );
-    }
-
-    @AfterEach
-    void tearDown() throws Exception {
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( "DROP TABLE page_verification" );
-            s.executeUpdate( "DROP TABLE page_canonical_ids" );
-        }
     }
 
     @Test

@@ -19,17 +19,15 @@
 package com.wikantik.comments.mentions;
 
 import com.wikantik.api.comments.MentionFeedItem;
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,10 +43,10 @@ public class MentionFeedDao {
     private static final int SNIPPET_MAX = 160;
     private static final Logger LOG = LogManager.getLogger( MentionFeedDao.class );
 
-    private final DataSource ds;
+    private final Jdbc jdbc;
 
     public MentionFeedDao( final DataSource ds ) {
-        this.ds = ds;
+        this.jdbc = new Jdbc( ds );
     }
 
     public List< MentionFeedItem > list( final String mentionedLogin, final Status status,
@@ -64,38 +62,35 @@ public class MentionFeedDao {
         if ( before.isPresent() )      sql.append( " AND m.created_at < ?" );
         sql.append( " ORDER BY m.created_at DESC LIMIT ?" );
 
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql.toString() ) ) {
-            int idx = 1;
-            ps.setString( idx++, mentionedLogin );
-            if ( before.isPresent() ) ps.setTimestamp( idx++, Timestamp.from( before.get() ) );
-            ps.setInt( idx, limit );
-
-            final List< MentionFeedItem > out = new ArrayList<>();
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final Timestamp at = rs.getTimestamp( "mentioned_at" );
-                    final Timestamp ra = rs.getTimestamp( "read_at" );
-                    final String body = rs.getString( "body" );
-                    final String snippet = body == null ? ""
-                            : ( body.length() <= SNIPPET_MAX ? body : body.substring( 0, SNIPPET_MAX ) );
-                    out.add( new MentionFeedItem(
-                            (UUID) rs.getObject( "id" ),
-                            (UUID) rs.getObject( "thread_id" ),
-                            (UUID) rs.getObject( "comment_id" ),
-                            rs.getString( "canonical_id" ),
-                            null,
-                            snippet,
-                            rs.getString( "mentioning_login" ),
-                            rs.getBoolean( "is_owner_mention" ),
-                            at == null ? null : at.toInstant(),
-                            ra == null ? null : ra.toInstant() ) );
-                }
-            }
-            return out;
+        try {
+            return jdbc.query( sql.toString(), ps -> {
+                int idx = 1;
+                ps.setString( idx++, mentionedLogin );
+                if ( before.isPresent() ) ps.setTimestamp( idx++, Timestamp.from( before.get() ) );
+                ps.setInt( idx, limit );
+            }, MentionFeedDao::readRow );
         } catch ( final SQLException e ) {
             LOG.warn( "MentionFeedDao.list({}) failed: {}", mentionedLogin, e.getMessage(), e );
             return List.of();
         }
+    }
+
+    private static MentionFeedItem readRow( final ResultSet rs ) throws SQLException {
+        final Timestamp at = rs.getTimestamp( "mentioned_at" );
+        final Timestamp ra = rs.getTimestamp( "read_at" );
+        final String body = rs.getString( "body" );
+        final String snippet = body == null ? ""
+                : ( body.length() <= SNIPPET_MAX ? body : body.substring( 0, SNIPPET_MAX ) );
+        return new MentionFeedItem(
+                (UUID) rs.getObject( "id" ),
+                (UUID) rs.getObject( "thread_id" ),
+                (UUID) rs.getObject( "comment_id" ),
+                rs.getString( "canonical_id" ),
+                null,
+                snippet,
+                rs.getString( "mentioning_login" ),
+                rs.getBoolean( "is_owner_mention" ),
+                at == null ? null : at.toInstant(),
+                ra == null ? null : ra.toInstant() );
     }
 }

@@ -22,20 +22,19 @@ import com.wikantik.api.comments.Comment;
 import com.wikantik.api.comments.CommentThread;
 import com.wikantik.api.comments.TextQuoteSelector;
 import com.wikantik.comments.mentions.MentionService;
-import org.h2.jdbcx.JdbcDataSource;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.Statement;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@RequiresPostgres
 class CommentStoreTest {
 
     private DataSource ds;
@@ -43,58 +42,13 @@ class CommentStoreTest {
     private MentionService mentions;
 
     @BeforeEach
-    void setUp() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:cstore;MODE=PostgreSQL;DB_CLOSE_DELAY=-1" );
-        this.ds = h2;
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( """
-                CREATE TABLE comment_threads (
-                    id UUID PRIMARY KEY,
-                    canonical_id TEXT NOT NULL,
-                    anchor_exact TEXT NOT NULL,
-                    anchor_prefix TEXT,
-                    anchor_suffix TEXT,
-                    status TEXT NOT NULL DEFAULT 'open',
-                    created_by TEXT NOT NULL,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    resolved_by TEXT,
-                    resolved_at TIMESTAMP WITH TIME ZONE
-                )""" );
-            s.executeUpdate( """
-                CREATE TABLE comments (
-                    id UUID PRIMARY KEY,
-                    thread_id UUID NOT NULL REFERENCES comment_threads(id) ON DELETE CASCADE,
-                    author TEXT NOT NULL,
-                    body TEXT NOT NULL,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    edited_at TIMESTAMP WITH TIME ZONE
-                )""" );
-            s.executeUpdate( """
-                CREATE TABLE comment_mentions (
-                    id UUID PRIMARY KEY,
-                    comment_id UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
-                    mentioned_login TEXT NOT NULL,
-                    mentioning_login TEXT NOT NULL,
-                    is_owner_mention BOOLEAN NOT NULL DEFAULT FALSE,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    read_at TIMESTAMP WITH TIME ZONE,
-                    CONSTRAINT uq_comment_mentions UNIQUE (comment_id, mentioned_login)
-                )""" );
-        }
+    void setUp() {
+        this.ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "comment_mentions", "comments", "comment_threads" );
         this.store = new CommentStore( ds );
         // user-exists predicate returns false for everything -> mention writes
         // are effective no-ops, isolating these tests from mention-row noise.
         this.mentions = new MentionService( ds, s -> false );
-    }
-
-    @AfterEach
-    void tearDown() throws Exception {
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( "DROP TABLE comment_mentions" );
-            s.executeUpdate( "DROP TABLE comments" );
-            s.executeUpdate( "DROP TABLE comment_threads" );
-        }
     }
 
     @Test

@@ -69,6 +69,9 @@ class CommentStoreErrorBranchTest {
         // inner try fails, c.rollback() runs, the SQLException is rethrown and caught by
         // the outer catch which wraps it in a RuntimeException.
         final Connection c = mock( Connection.class );
+        // A pooled connection is handed out with auto-commit already true; Jdbc.inTransaction
+        // captures that as the value to restore in `finally`, rather than hard-coding it.
+        when( c.getAutoCommit() ).thenReturn( true );
         doNothing().when( c ).setAutoCommit( anyBoolean() );
         when( c.prepareStatement( anyString() ) ).thenThrow( new SQLException( "insert failed" ) );
         final DataSource ds = mock( DataSource.class );

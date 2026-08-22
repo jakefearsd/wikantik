@@ -18,11 +18,16 @@
  */
 package com.wikantik.comments;
 
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -117,29 +122,31 @@ class PageOwnerServiceErrorBranchTest {
     }
 
     @Test
+    @RequiresPostgres
     void readRow_translates_null_timestamp_to_null_instant() throws Exception {
         // Cover the `at == null ? null : at.toInstant()` branch in readRow via the
-        // listOrphaned success path: an H2 row with NULL assigned_at must yield a
-        // PageOwnership whose assignedAt() is null. Use real H2 here — the failing
-        // datasource above cannot exercise success paths.
-        final org.h2.jdbcx.JdbcDataSource h2 = new org.h2.jdbcx.JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:nullts;MODE=PostgreSQL;DB_CLOSE_DELAY=-1" );
-        try ( java.sql.Connection c = h2.getConnection();
-              java.sql.Statement s = c.createStatement() ) {
-            // assigned_at made nullable for this test only.
-            s.executeUpdate( """
-                CREATE TABLE page_owners (
-                    canonical_id TEXT PRIMARY KEY,
-                    owner_login  TEXT,
-                    assigned_by  TEXT NOT NULL,
-                    assigned_at  TIMESTAMP WITH TIME ZONE
-                )""" );
-            s.executeUpdate( "INSERT INTO page_owners (canonical_id, owner_login, assigned_by) " +
-                    "VALUES ('CID-NULL-TS', NULL, 'admin')" );
+        // listOrphaned success path: a row with NULL assigned_at must yield a
+        // PageOwnership whose assignedAt() is null. The migrated page_owners.assigned_at
+        // is NOT NULL, so the constraint is relaxed for this one row and restored
+        // immediately after — this is a JVM-wide shared container, and other tests'
+        // fixtures may rely on that NOT NULL holding.
+        final DataSource ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "page_owners" );
+        final String canonicalId = "CID-NULL-TS-" + UUID.randomUUID();
+        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
+            s.executeUpdate( "ALTER TABLE page_owners ALTER COLUMN assigned_at DROP NOT NULL" );
+            try {
+                s.executeUpdate( "INSERT INTO page_owners (canonical_id, owner_login, assigned_by, assigned_at) " +
+                        "VALUES ('" + canonicalId + "', NULL, 'admin', NULL)" );
+
+                final PageOwnerService svc = new PageOwnerService( ds, login -> true, cid -> Optional.empty() );
+                final var orphans = svc.listOrphaned( 10, 0 );
+                assertEquals( 1, orphans.size() );
+                assertNull( orphans.get( 0 ).assignedAt(), "NULL assigned_at must translate to null Instant" );
+            } finally {
+                s.executeUpdate( "DELETE FROM page_owners WHERE canonical_id = '" + canonicalId + "'" );
+                s.executeUpdate( "ALTER TABLE page_owners ALTER COLUMN assigned_at SET NOT NULL" );
+            }
         }
-        final PageOwnerService svc = new PageOwnerService( h2, s -> true, cid -> Optional.empty() );
-        final var orphans = svc.listOrphaned( 10, 0 );
-        assertEquals( 1, orphans.size() );
-        assertNull( orphans.get( 0 ).assignedAt(), "NULL assigned_at must translate to null Instant" );
     }
 }

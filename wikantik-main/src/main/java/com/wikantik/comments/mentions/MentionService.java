@@ -19,12 +19,13 @@
 package com.wikantik.comments.mentions;
 
 import com.wikantik.api.comments.Mention;
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -43,11 +44,11 @@ public class MentionService {
 
     private static final Logger LOG = LogManager.getLogger( MentionService.class );
 
-    private final DataSource ds;
+    private final Jdbc jdbc;
     private final Predicate< String > userExists;
 
     public MentionService( final DataSource ds, final Predicate< String > userExists ) {
-        this.ds = ds;
+        this.jdbc = new Jdbc( ds );
         this.userExists = userExists;
     }
 
@@ -86,27 +87,24 @@ public class MentionService {
         final Set< String > removed = new HashSet<>( oldSet ); removed.removeAll( newSet );
         for ( final String m : added ) insertIfAbsent( c, commentId, m, mentioningLogin, false );
         if ( !removed.isEmpty() ) {
-            try ( PreparedStatement ps = c.prepareStatement(
-                    "DELETE FROM comment_mentions WHERE comment_id = ? AND mentioned_login = ? " +
-                    "AND is_owner_mention = FALSE" ) ) {
-                for ( final String m : removed ) {
+            final List< SqlBinder > binders = new ArrayList<>();
+            for ( final String m : removed ) {
+                binders.add( ps -> {
                     ps.setObject( 1, commentId );
                     ps.setString( 2, m );
-                    ps.addBatch();
-                }
-                ps.executeBatch();
+                } );
             }
+            jdbc.batch( c, "DELETE FROM comment_mentions WHERE comment_id = ? AND mentioned_login = ? " +
+                    "AND is_owner_mention = FALSE", binders );
         }
     }
 
     public List< Mention > findByComment( final UUID commentId ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "SELECT id, comment_id, mentioned_login, mentioning_login, is_owner_mention, " +
-                      "created_at, read_at FROM comment_mentions WHERE comment_id = ? " +
-                      "ORDER BY created_at" ) ) {
-            ps.setObject( 1, commentId );
-            return readRows( ps );
+        try {
+            return jdbc.query( "SELECT id, comment_id, mentioned_login, mentioning_login, is_owner_mention, " +
+                    "created_at, read_at FROM comment_mentions WHERE comment_id = ? " +
+                    "ORDER BY created_at",
+                    ps -> ps.setObject( 1, commentId ), MentionService::readRow );
         } catch ( final SQLException e ) {
             LOG.warn( "findByComment({}) failed: {}", commentId, e.getMessage(), e );
             return List.of();
@@ -114,13 +112,13 @@ public class MentionService {
     }
 
     public boolean markRead( final UUID mentionId, final String requester ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "UPDATE comment_mentions SET read_at = CURRENT_TIMESTAMP " +
-                      "WHERE id = ? AND mentioned_login = ? AND read_at IS NULL" ) ) {
-            ps.setObject( 1, mentionId );
-            ps.setString( 2, requester );
-            return ps.executeUpdate() > 0;
+        try {
+            return jdbc.update( "UPDATE comment_mentions SET read_at = CURRENT_TIMESTAMP " +
+                    "WHERE id = ? AND mentioned_login = ? AND read_at IS NULL",
+                    ps -> {
+                        ps.setObject( 1, mentionId );
+                        ps.setString( 2, requester );
+                    } ) > 0;
         } catch ( final SQLException e ) {
             LOG.warn( "markRead({}) failed: {}", mentionId, e.getMessage(), e );
             return false;
@@ -128,12 +126,10 @@ public class MentionService {
     }
 
     public int markAllRead( final String requester ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "UPDATE comment_mentions SET read_at = CURRENT_TIMESTAMP " +
-                      "WHERE mentioned_login = ? AND read_at IS NULL" ) ) {
-            ps.setString( 1, requester );
-            return ps.executeUpdate();
+        try {
+            return jdbc.update( "UPDATE comment_mentions SET read_at = CURRENT_TIMESTAMP " +
+                    "WHERE mentioned_login = ? AND read_at IS NULL",
+                    ps -> ps.setString( 1, requester ) );
         } catch ( final SQLException e ) {
             LOG.warn( "markAllRead({}) failed: {}", requester, e.getMessage(), e );
             return 0;
@@ -141,14 +137,9 @@ public class MentionService {
     }
 
     public int unreadCount( final String mentionedLogin ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "SELECT COUNT(*) FROM comment_mentions WHERE mentioned_login = ? AND read_at IS NULL" ) ) {
-            ps.setString( 1, mentionedLogin );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                rs.next();
-                return rs.getInt( 1 );
-            }
+        try {
+            return jdbc.queryOne( "SELECT COUNT(*) FROM comment_mentions WHERE mentioned_login = ? AND read_at IS NULL",
+                    ps -> ps.setString( 1, mentionedLogin ), rs -> rs.getInt( 1 ) ).orElse( 0 );
         } catch ( final SQLException e ) {
             LOG.warn( "unreadCount({}) failed: {}", mentionedLogin, e.getMessage(), e );
             return 0;
@@ -167,47 +158,37 @@ public class MentionService {
     /** Insert one row; no-op if the (comment_id, mentioned_login) pair already
      *  exists. Uses an explicit SELECT-then-INSERT branch (portable across H2
      *  PostgreSQL mode and PostgreSQL — no MERGE, no ON CONFLICT). */
-    private static void insertIfAbsent( final Connection c, final UUID commentId,
-                                        final String mentionedLogin, final String mentioningLogin,
-                                        final boolean isOwnerMention ) throws SQLException {
-        final boolean exists;
-        try ( PreparedStatement ps = c.prepareStatement(
-                "SELECT 1 FROM comment_mentions WHERE comment_id = ? AND mentioned_login = ?" ) ) {
-            ps.setObject( 1, commentId );
-            ps.setString( 2, mentionedLogin );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                exists = rs.next();
-            }
-        }
+    private void insertIfAbsent( final Connection c, final UUID commentId,
+                                 final String mentionedLogin, final String mentioningLogin,
+                                 final boolean isOwnerMention ) throws SQLException {
+        final boolean exists = jdbc.queryOne( c,
+                "SELECT 1 FROM comment_mentions WHERE comment_id = ? AND mentioned_login = ?",
+                ps -> {
+                    ps.setObject( 1, commentId );
+                    ps.setString( 2, mentionedLogin );
+                }, rs -> Boolean.TRUE ).isPresent();
         if ( exists ) return;
-        try ( PreparedStatement ps = c.prepareStatement(
-                "INSERT INTO comment_mentions (id, comment_id, mentioned_login, mentioning_login, is_owner_mention) " +
-                "VALUES (?, ?, ?, ?, ?)" ) ) {
-            ps.setObject( 1, UUID.randomUUID() );
-            ps.setObject( 2, commentId );
-            ps.setString( 3, mentionedLogin );
-            ps.setString( 4, mentioningLogin );
-            ps.setBoolean( 5, isOwnerMention );
-            ps.executeUpdate();
-        }
+        jdbc.update( c, "INSERT INTO comment_mentions (id, comment_id, mentioned_login, mentioning_login, is_owner_mention) " +
+                "VALUES (?, ?, ?, ?, ?)",
+                ps -> {
+                    ps.setObject( 1, UUID.randomUUID() );
+                    ps.setObject( 2, commentId );
+                    ps.setString( 3, mentionedLogin );
+                    ps.setString( 4, mentioningLogin );
+                    ps.setBoolean( 5, isOwnerMention );
+                } );
     }
 
-    private static List< Mention > readRows( final PreparedStatement ps ) throws SQLException {
-        final List< Mention > out = new ArrayList<>();
-        try ( ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) {
-                final Timestamp createdAt = rs.getTimestamp( "created_at" );
-                final Timestamp readAt    = rs.getTimestamp( "read_at" );
-                out.add( new Mention(
-                        (UUID) rs.getObject( "id" ),
-                        (UUID) rs.getObject( "comment_id" ),
-                        rs.getString( "mentioned_login" ),
-                        rs.getString( "mentioning_login" ),
-                        rs.getBoolean( "is_owner_mention" ),
-                        createdAt == null ? null : createdAt.toInstant(),
-                        readAt    == null ? null : readAt.toInstant() ) );
-            }
-        }
-        return out;
+    private static Mention readRow( final ResultSet rs ) throws SQLException {
+        final Timestamp createdAt = rs.getTimestamp( "created_at" );
+        final Timestamp readAt    = rs.getTimestamp( "read_at" );
+        return new Mention(
+                (UUID) rs.getObject( "id" ),
+                (UUID) rs.getObject( "comment_id" ),
+                rs.getString( "mentioned_login" ),
+                rs.getString( "mentioning_login" ),
+                rs.getBoolean( "is_owner_mention" ),
+                createdAt == null ? null : createdAt.toInstant(),
+                readAt    == null ? null : readAt.toInstant() );
     }
 }

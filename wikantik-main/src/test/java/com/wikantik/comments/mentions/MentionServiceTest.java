@@ -19,8 +19,8 @@
 package com.wikantik.comments.mentions;
 
 import com.wikantik.api.comments.Mention;
-import org.h2.jdbcx.JdbcDataSource;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,48 +35,39 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@RequiresPostgres
 class MentionServiceTest {
 
     private DataSource ds;
     private Set< String > users;
     private MentionService svc;
+    private UUID threadId;
 
     @BeforeEach
     void setUp() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:msvc;MODE=PostgreSQL;DB_CLOSE_DELAY=-1" );
-        this.ds = h2;
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            // Minimal comments + comment_mentions schema for the FK + cascade.
-            s.executeUpdate( "CREATE TABLE comments (id UUID PRIMARY KEY)" );
-            s.executeUpdate( """
-                CREATE TABLE comment_mentions (
-                    id UUID PRIMARY KEY,
-                    comment_id UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
-                    mentioned_login TEXT NOT NULL,
-                    mentioning_login TEXT NOT NULL,
-                    is_owner_mention BOOLEAN NOT NULL DEFAULT FALSE,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    read_at TIMESTAMP WITH TIME ZONE,
-                    CONSTRAINT uq_comment_mentions UNIQUE (comment_id, mentioned_login)
-                )""" );
-        }
+        this.ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "comment_mentions", "comments", "comment_threads" );
         this.users = new HashSet<>( List.of( "alice", "bob", "carol", "admin" ) );
         this.svc = new MentionService( ds, users::contains );
+        this.threadId = seedThread();
     }
 
-    @AfterEach
-    void tearDown() throws Exception {
+    private UUID seedThread() throws Exception {
+        final UUID id = UUID.randomUUID();
         try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( "DROP TABLE comment_mentions" );
-            s.executeUpdate( "DROP TABLE comments" );
+            s.executeUpdate( "INSERT INTO comment_threads (id, canonical_id, anchor_exact, status, created_by) " +
+                    "VALUES ('" + id + "', 'CID-MSVC', 'seed', 'open', 'alice')" );
         }
+        return id;
     }
 
+    /** A real comment row — comment_mentions.comment_id is FK'd to comments(id), and
+     *  comments itself requires a valid thread_id + author + body. */
     private UUID newComment() throws Exception {
         final UUID id = UUID.randomUUID();
         try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( "INSERT INTO comments (id) VALUES ('" + id + "')" );
+            s.executeUpdate( "INSERT INTO comments (id, thread_id, author, body) VALUES ('" + id + "', '" +
+                    threadId + "', 'alice', 'seed')" );
         }
         return id;
     }

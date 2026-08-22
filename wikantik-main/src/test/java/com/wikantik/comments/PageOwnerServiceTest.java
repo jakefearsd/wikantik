@@ -19,14 +19,12 @@
 package com.wikantik.comments;
 
 import com.wikantik.api.comments.PageOwnership;
-import org.h2.jdbcx.JdbcDataSource;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.Statement;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +33,7 @@ import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@RequiresPostgres
 class PageOwnerServiceTest {
 
     private DataSource ds;
@@ -42,28 +41,11 @@ class PageOwnerServiceTest {
     private PageOwnerService svc;
 
     @BeforeEach
-    void setUp() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:pos;MODE=PostgreSQL;DB_CLOSE_DELAY=-1" );
-        this.ds = h2;
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( """
-                CREATE TABLE page_owners (
-                    canonical_id TEXT PRIMARY KEY,
-                    owner_login  TEXT,
-                    assigned_by  TEXT NOT NULL,
-                    assigned_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )""" );
-        }
+    void setUp() {
+        this.ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "page_owners" );
         this.users = new HashSet<>( List.of( "alice", "bob", "admin" ) );
         this.svc = new PageOwnerService( ds, users::contains, defaultAuthorResolver() );
-    }
-
-    @AfterEach
-    void tearDown() throws Exception {
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( "DROP TABLE page_owners" );
-        }
     }
 
     private Function< String, Optional< String > > defaultAuthorResolver() {

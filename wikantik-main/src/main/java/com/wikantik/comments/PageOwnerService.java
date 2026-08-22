@@ -19,12 +19,12 @@
 package com.wikantik.comments;
 
 import com.wikantik.api.comments.PageOwnership;
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -45,7 +45,7 @@ public class PageOwnerService {
 
     private static final Logger LOG = LogManager.getLogger( PageOwnerService.class );
 
-    private final DataSource ds;
+    private final Jdbc jdbc;
     private final Predicate< String > userExists;
     private final Function< String, Optional< String > > authorResolver;
     private final String defaultOwner;
@@ -81,7 +81,7 @@ public class PageOwnerService {
                              final Predicate< String > userExists,
                              final Function< String, Optional< String > > authorResolver,
                              final String defaultOwner ) {
-        this.ds = ds;
+        this.jdbc = new Jdbc( ds );
         this.userExists = userExists;
         this.authorResolver = authorResolver;
         this.defaultOwner = defaultOwner;
@@ -112,15 +112,10 @@ public class PageOwnerService {
 
     /** Raw row (owner_login may be null). Read-only — does not bootstrap. */
     public Optional< PageOwnership > findRaw( final String canonicalId ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "SELECT canonical_id, owner_login, assigned_by, assigned_at " +
-                      "FROM page_owners WHERE canonical_id = ?" ) ) {
-            ps.setString( 1, canonicalId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                if ( !rs.next() ) return Optional.empty();
-                return Optional.of( readRow( rs ) );
-            }
+        try {
+            return jdbc.queryOne( "SELECT canonical_id, owner_login, assigned_by, assigned_at " +
+                    "FROM page_owners WHERE canonical_id = ?",
+                    ps -> ps.setString( 1, canonicalId ), PageOwnerService::readRow );
         } catch ( final SQLException e ) {
             LOG.warn( "PageOwnerService.findRaw({}) failed: {}", canonicalId, e.getMessage(), e );
             return Optional.empty();
@@ -129,8 +124,11 @@ public class PageOwnerService {
 
     /** Upsert (no bootstrap). Pass {@code null} owner to orphan explicitly. */
     public void setOwner( final String canonicalId, final String ownerLogin, final String assignedBy ) {
-        try ( Connection c = ds.getConnection() ) {
-            upsert( c, canonicalId, ownerLogin, assignedBy );
+        try {
+            jdbc.inTransaction( c -> {
+                upsert( jdbc, c, canonicalId, ownerLogin, assignedBy );
+                return null;
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "PageOwnerService.setOwner({}) failed: {}", canonicalId, e.getMessage(), e );
             throw new RuntimeException( "page-owner upsert failed", e );
@@ -138,14 +136,14 @@ public class PageOwnerService {
     }
 
     public int bulkReassign( final String fromOwner, final String toOwner, final String assignedBy ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "UPDATE page_owners SET owner_login = ?, assigned_by = ?, " +
-                      "assigned_at = CURRENT_TIMESTAMP WHERE owner_login = ?" ) ) {
-            ps.setString( 1, toOwner );
-            ps.setString( 2, assignedBy );
-            ps.setString( 3, fromOwner );
-            return ps.executeUpdate();
+        try {
+            return jdbc.update( "UPDATE page_owners SET owner_login = ?, assigned_by = ?, " +
+                    "assigned_at = CURRENT_TIMESTAMP WHERE owner_login = ?",
+                    ps -> {
+                        ps.setString( 1, toOwner );
+                        ps.setString( 2, assignedBy );
+                        ps.setString( 3, fromOwner );
+                    } );
         } catch ( final SQLException e ) {
             LOG.warn( "bulkReassign({}->{}) failed: {}", fromOwner, toOwner, e.getMessage(), e );
             throw new RuntimeException( "bulk reassign failed", e );
@@ -156,13 +154,13 @@ public class PageOwnerService {
      *  Mirrors {@link #bulkReassign}: same audit-stamp semantics, returns the
      *  number of rows updated. */
     public int reassignFromOrphaned( final String toOwner, final String assignedBy ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "UPDATE page_owners SET owner_login = ?, assigned_by = ?, " +
-                      "assigned_at = CURRENT_TIMESTAMP WHERE owner_login IS NULL" ) ) {
-            ps.setString( 1, toOwner );
-            ps.setString( 2, assignedBy );
-            return ps.executeUpdate();
+        try {
+            return jdbc.update( "UPDATE page_owners SET owner_login = ?, assigned_by = ?, " +
+                    "assigned_at = CURRENT_TIMESTAMP WHERE owner_login IS NULL",
+                    ps -> {
+                        ps.setString( 1, toOwner );
+                        ps.setString( 2, assignedBy );
+                    } );
         } catch ( final SQLException e ) {
             LOG.warn( "reassignFromOrphaned({}) failed: {}", toOwner, e.getMessage(), e );
             throw new RuntimeException( "reassignFromOrphaned failed", e );
@@ -170,13 +168,13 @@ public class PageOwnerService {
     }
 
     public int orphanByOwner( final String owner, final String assignedBy ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "UPDATE page_owners SET owner_login = NULL, assigned_by = ?, " +
-                      "assigned_at = CURRENT_TIMESTAMP WHERE owner_login = ?" ) ) {
-            ps.setString( 1, assignedBy );
-            ps.setString( 2, owner );
-            return ps.executeUpdate();
+        try {
+            return jdbc.update( "UPDATE page_owners SET owner_login = NULL, assigned_by = ?, " +
+                    "assigned_at = CURRENT_TIMESTAMP WHERE owner_login = ?",
+                    ps -> {
+                        ps.setString( 1, assignedBy );
+                        ps.setString( 2, owner );
+                    } );
         } catch ( final SQLException e ) {
             LOG.warn( "orphanByOwner({}) failed: {}", owner, e.getMessage(), e );
             throw new RuntimeException( "orphan-by-owner failed", e );
@@ -184,13 +182,13 @@ public class PageOwnerService {
     }
 
     public List< PageOwnership > listOrphaned( final int limit, final int offset ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "SELECT canonical_id, owner_login, assigned_by, assigned_at FROM page_owners " +
-                      "WHERE owner_login IS NULL ORDER BY assigned_at DESC LIMIT ? OFFSET ?" ) ) {
-            ps.setInt( 1, limit );
-            ps.setInt( 2, offset );
-            return readRows( ps );
+        try {
+            return jdbc.query( "SELECT canonical_id, owner_login, assigned_by, assigned_at FROM page_owners " +
+                    "WHERE owner_login IS NULL ORDER BY assigned_at DESC LIMIT ? OFFSET ?",
+                    ps -> {
+                        ps.setInt( 1, limit );
+                        ps.setInt( 2, offset );
+                    }, PageOwnerService::readRow );
         } catch ( final SQLException e ) {
             LOG.warn( "listOrphaned failed: {}", e.getMessage(), e );
             return List.of();
@@ -198,14 +196,14 @@ public class PageOwnerService {
     }
 
     public List< PageOwnership > listByOwner( final String owner, final int limit, final int offset ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "SELECT canonical_id, owner_login, assigned_by, assigned_at FROM page_owners " +
-                      "WHERE owner_login = ? ORDER BY assigned_at DESC LIMIT ? OFFSET ?" ) ) {
-            ps.setString( 1, owner );
-            ps.setInt( 2, limit );
-            ps.setInt( 3, offset );
-            return readRows( ps );
+        try {
+            return jdbc.query( "SELECT canonical_id, owner_login, assigned_by, assigned_at FROM page_owners " +
+                    "WHERE owner_login = ? ORDER BY assigned_at DESC LIMIT ? OFFSET ?",
+                    ps -> {
+                        ps.setString( 1, owner );
+                        ps.setInt( 2, limit );
+                        ps.setInt( 3, offset );
+                    }, PageOwnerService::readRow );
         } catch ( final SQLException e ) {
             LOG.warn( "listByOwner({}) failed: {}", owner, e.getMessage(), e );
             return List.of();
@@ -229,66 +227,51 @@ public class PageOwnerService {
     }
 
     private void insertRow( final String canonicalId, final String ownerLogin, final String assignedBy ) {
-        try ( Connection c = ds.getConnection() ) {
-            upsert( c, canonicalId, ownerLogin, assignedBy );
+        try {
+            jdbc.inTransaction( c -> {
+                upsert( jdbc, c, canonicalId, ownerLogin, assignedBy );
+                return null;
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "PageOwnerService.insertRow({}) failed: {}", canonicalId, e.getMessage(), e );
             // swallow: getOwner still returns the resolved value; next call retries.
         }
     }
 
-    private static void upsert( final Connection c, final String canonicalId,
+    private static void upsert( final Jdbc jdbc, final Connection c, final String canonicalId,
                                 final String ownerLogin, final String assignedBy ) throws SQLException {
         // Portable cross-DB upsert: explicit SELECT then INSERT or UPDATE.
         // Mirrors the established pattern in PageVerificationDao.
-        final boolean exists;
-        try ( PreparedStatement ps = c.prepareStatement(
-                "SELECT 1 FROM page_owners WHERE canonical_id = ?" ) ) {
-            ps.setString( 1, canonicalId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                exists = rs.next();
-            }
-        }
+        final boolean exists = jdbc.queryOne( c, "SELECT 1 FROM page_owners WHERE canonical_id = ?",
+                ps -> ps.setString( 1, canonicalId ), rs -> Boolean.TRUE ).isPresent();
         if ( exists ) {
-            try ( PreparedStatement ps = c.prepareStatement(
-                    "UPDATE page_owners SET owner_login = ?, assigned_by = ?, " +
-                    "assigned_at = CURRENT_TIMESTAMP WHERE canonical_id = ?" ) ) {
-                ps.setString( 1, ownerLogin );
-                ps.setString( 2, assignedBy );
-                ps.setString( 3, canonicalId );
-                ps.executeUpdate();
-            }
+            jdbc.update( c, "UPDATE page_owners SET owner_login = ?, assigned_by = ?, " +
+                    "assigned_at = CURRENT_TIMESTAMP WHERE canonical_id = ?",
+                    ps -> {
+                        ps.setString( 1, ownerLogin );
+                        ps.setString( 2, assignedBy );
+                        ps.setString( 3, canonicalId );
+                    } );
         } else {
-            try ( PreparedStatement ps = c.prepareStatement(
-                    "INSERT INTO page_owners (canonical_id, owner_login, assigned_by) " +
-                    "VALUES (?, ?, ?)" ) ) {
-                ps.setString( 1, canonicalId );
-                ps.setString( 2, ownerLogin );
-                ps.setString( 3, assignedBy );
-                ps.executeUpdate();
-            }
+            jdbc.update( c, "INSERT INTO page_owners (canonical_id, owner_login, assigned_by) " +
+                    "VALUES (?, ?, ?)",
+                    ps -> {
+                        ps.setString( 1, canonicalId );
+                        ps.setString( 2, ownerLogin );
+                        ps.setString( 3, assignedBy );
+                    } );
         }
     }
 
     private int countQuery( final String sql, final String arg ) {
-        try ( Connection c = ds.getConnection(); PreparedStatement ps = c.prepareStatement( sql ) ) {
-            if ( arg != null ) ps.setString( 1, arg );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                rs.next();
-                return rs.getInt( 1 );
-            }
+        try {
+            return jdbc.queryOne( sql, ps -> {
+                if ( arg != null ) ps.setString( 1, arg );
+            }, rs -> rs.getInt( 1 ) ).orElse( 0 );
         } catch ( final SQLException e ) {
             LOG.warn( "PageOwnerService count failed: {}", e.getMessage(), e );
             return 0;
         }
-    }
-
-    private static List< PageOwnership > readRows( final PreparedStatement ps ) throws SQLException {
-        final List< PageOwnership > out = new ArrayList<>();
-        try ( ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) out.add( readRow( rs ) );
-        }
-        return out;
     }
 
     private static PageOwnership readRow( final ResultSet rs ) throws SQLException {

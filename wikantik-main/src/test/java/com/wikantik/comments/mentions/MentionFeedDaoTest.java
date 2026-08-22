@@ -19,8 +19,8 @@
 package com.wikantik.comments.mentions;
 
 import com.wikantik.api.comments.MentionFeedItem;
-import org.h2.jdbcx.JdbcDataSource;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,53 +34,17 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@RequiresPostgres
 class MentionFeedDaoTest {
 
     private DataSource ds;
     private MentionFeedDao dao;
 
     @BeforeEach
-    void setUp() throws Exception {
-        final JdbcDataSource h2 = new JdbcDataSource();
-        h2.setURL( "jdbc:h2:mem:mfd;MODE=PostgreSQL;DB_CLOSE_DELAY=-1" );
-        this.ds = h2;
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( """
-                CREATE TABLE comment_threads (
-                    id UUID PRIMARY KEY, canonical_id TEXT NOT NULL,
-                    anchor_exact TEXT NOT NULL, anchor_prefix TEXT, anchor_suffix TEXT,
-                    status TEXT NOT NULL DEFAULT 'open', created_by TEXT NOT NULL,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    resolved_by TEXT, resolved_at TIMESTAMP WITH TIME ZONE
-                )""" );
-            s.executeUpdate( """
-                CREATE TABLE comments (
-                    id UUID PRIMARY KEY,
-                    thread_id UUID NOT NULL REFERENCES comment_threads(id) ON DELETE CASCADE,
-                    author TEXT NOT NULL, body TEXT NOT NULL,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    edited_at TIMESTAMP WITH TIME ZONE
-                )""" );
-            s.executeUpdate( """
-                CREATE TABLE comment_mentions (
-                    id UUID PRIMARY KEY,
-                    comment_id UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
-                    mentioned_login TEXT NOT NULL, mentioning_login TEXT NOT NULL,
-                    is_owner_mention BOOLEAN NOT NULL DEFAULT FALSE,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    read_at TIMESTAMP WITH TIME ZONE
-                )""" );
-        }
+    void setUp() {
+        this.ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "comment_mentions", "comments", "comment_threads" );
         this.dao = new MentionFeedDao( ds );
-    }
-
-    @AfterEach
-    void tearDown() throws Exception {
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( "DROP TABLE comment_mentions" );
-            s.executeUpdate( "DROP TABLE comments" );
-            s.executeUpdate( "DROP TABLE comment_threads" );
-        }
     }
 
     private UUID seedThread( final String canonicalId ) throws Exception {
@@ -176,22 +140,30 @@ class MentionFeedDaoTest {
     @Test
     void snippet_is_empty_string_when_body_is_null() throws Exception {
         // Production Postgres has body NOT NULL too — but the dao has a defensive
-        // body==null branch that returns "". To exercise it under H2 we relax the
-        // NOT NULL constraint for one row, insert a NULL-body comment, then assert
-        // the snippet is "" rather than tripping a NullPointerException.
+        // body==null branch that returns "". The migrated `comments.body` NOT NULL
+        // constraint is relaxed for this one row and restored immediately after —
+        // this is a JVM-wide shared container, and other tests' fixtures may rely
+        // on that NOT NULL holding.
         try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
             s.executeUpdate( "ALTER TABLE comments ALTER COLUMN body DROP NOT NULL" );
         }
-        final UUID t = seedThread( "CID-NULL-BODY" );
-        final UUID cid = UUID.randomUUID();
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.executeUpdate( "INSERT INTO comments (id, thread_id, author, body) " +
-                    "VALUES ('" + cid + "','" + t + "','alice', NULL)" );
+        try {
+            final UUID t = seedThread( "CID-NULL-BODY" );
+            final UUID cid = UUID.randomUUID();
+            try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
+                s.executeUpdate( "INSERT INTO comments (id, thread_id, author, body) " +
+                        "VALUES ('" + cid + "','" + t + "','alice', NULL)" );
+            }
+            seedMention( cid, "bob", "alice", false );
+            final List< MentionFeedItem > items =
+                    dao.list( "bob", MentionFeedDao.Status.ALL, 1, Optional.empty() );
+            assertEquals( 1, items.size() );
+            assertEquals( "", items.get( 0 ).snippet() );
+        } finally {
+            try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
+                s.executeUpdate( "DELETE FROM comments WHERE body IS NULL" );
+                s.executeUpdate( "ALTER TABLE comments ALTER COLUMN body SET NOT NULL" );
+            }
         }
-        seedMention( cid, "bob", "alice", false );
-        final List< MentionFeedItem > items =
-                dao.list( "bob", MentionFeedDao.Status.ALL, 1, Optional.empty() );
-        assertEquals( 1, items.size() );
-        assertEquals( "", items.get( 0 ).snippet() );
     }
 }

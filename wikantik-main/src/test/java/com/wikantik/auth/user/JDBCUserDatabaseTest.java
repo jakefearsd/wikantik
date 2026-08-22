@@ -951,4 +951,66 @@ public class JDBCUserDatabaseTest {
             }
         }
     }
+
+    /**
+     * Same invariant as {@link #testSaveRollsBackWhenTheRoleInsertFails}, but for the shape of
+     * failure the migration to {@link com.wikantik.jdbc.Jdbc#inTransaction} specifically targets:
+     * an <em>unchecked</em> mid-transaction failure (not a {@link SQLException} from a constraint
+     * violation). {@code save()}'s old hand-rolled transaction caught only {@code SQLException},
+     * so a plain {@code RuntimeException} between the {@code users} insert and the {@code roles}
+     * insert would skip its rollback entirely.
+     */
+    @Test
+    public void testSaveRollsBackOnUncheckedFailureAfterFirstWrite() throws Exception {
+        final com.wikantik.jdbc.testing.FaultInjectingDataSource faulting =
+                new com.wikantik.jdbc.testing.FaultInjectingDataSource( m_ds );
+
+        final Context initCtx = new InitialContext();
+        final Context ctx = ( Context ) initCtx.lookup( "java:comp/env" );
+        final String faultingDsName = "jdbc/FaultingUserDatabase";
+        try {
+            ctx.bind( faultingDsName, faulting );
+        } catch ( final NameAlreadyBoundException e ) {
+            ctx.rebind( faultingDsName, faulting );
+        }
+        final Properties props = new Properties();
+        props.setProperty( AbstractJDBCDatabase.PROP_DATASOURCE, faultingDsName );
+        final JDBCUserDatabase faultingDb = new JDBCUserDatabase();
+        faultingDb.initialize( null, props );
+
+        final String login = "faultprobe" + System.currentTimeMillis();
+        final UserProfile profile = faultingDb.newProfile();
+        profile.setEmail( "faultprobe@mailinator.com" );
+        profile.setFullname( "Fault Probe" );
+        profile.setLoginName( login );
+        profile.setPassword( "aTestPassword1!" );
+
+        // Statement #1 is the pre-transaction FIND_BY_LOGIN_NAME lookup (misses, caught).
+        // Inside the transaction: #2 = INSERT_PROFILE (the first write), #3 = the FIND_ROLES
+        // check that runs right after it — arm the fault there, after the first write commits
+        // nothing yet but has already executed.
+        faulting.failOn( 3, new RuntimeException( "boom: mid-transaction failure" ) );
+
+        Assertions.assertThrows( Exception.class, () -> faultingDb.save( profile ),
+            "A save that fails with an unchecked exception mid-transaction must report failure." );
+
+        // Verify against the real (non-faulting) datasource: no partial users/roles rows.
+        try ( final Connection conn = m_ds.getConnection();
+              final PreparedStatement usersPs = conn.prepareStatement( "SELECT count(*) FROM users WHERE login_name = ?" ) ) {
+            usersPs.setString( 1, login );
+            try ( final ResultSet rs = usersPs.executeQuery() ) {
+                rs.next();
+                Assertions.assertEquals( 0, rs.getInt( 1 ),
+                    "The users row must not survive a save that failed with an unchecked exception mid-transaction." );
+            }
+        }
+        try ( final Connection conn = m_ds.getConnection();
+              final PreparedStatement rolesPs = conn.prepareStatement( "SELECT count(*) FROM roles WHERE login_name = ?" ) ) {
+            rolesPs.setString( 1, login );
+            try ( final ResultSet rs = rolesPs.executeQuery() ) {
+                rs.next();
+                Assertions.assertEquals( 0, rs.getInt( 1 ), "No roles row should exist either." );
+            }
+        }
+    }
 }

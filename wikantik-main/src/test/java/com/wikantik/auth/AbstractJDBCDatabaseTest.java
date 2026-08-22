@@ -61,6 +61,11 @@ class AbstractJDBCDatabaseTest {
         mockDs = mock( DataSource.class );
         mockConn = mock( Connection.class );
         doReturn( mockConn ).when( mockDs ).getConnection();
+        // Realistic JDBC default: a fresh connection is auto-commit=true until told otherwise.
+        // Jdbc#inTransaction restores exactly this value in its finally block, so stubbing it
+        // lets the setAutoCommit(false)-called-once / setAutoCommit(true)-restored-once
+        // assertions below stay meaningful instead of colliding on the same argument twice.
+        doReturn( true ).when( mockConn ).getAutoCommit();
         db.setDataSource( mockDs );
     }
 
@@ -229,6 +234,39 @@ class AbstractJDBCDatabaseTest {
             () -> db.runInTransaction( conn -> { throw new WikiSecurityException( "direct error" ); } ) );
 
         Assertions.assertEquals( "direct error", thrown.getMessage() );
+    }
+
+    /**
+     * Same passthrough contract as {@link #testRunInTransactionWikiSecurityException}, but on
+     * the {@code supportsCommits=true} path — the operation's {@code WikiSecurityException}
+     * crosses {@link com.wikantik.jdbc.Jdbc#inTransaction}'s unchecked-only boundary and must
+     * still come out unwrapped, and the transaction must roll back.
+     */
+    @Test
+    void testRunInTransactionWikiSecurityExceptionWithCommitSupportRollsBackAndUnwraps() throws Exception {
+        db.setSupportsCommits( true );
+
+        final WikiSecurityException thrown = Assertions.assertThrows( WikiSecurityException.class,
+            () -> db.runInTransaction( conn -> { throw new WikiSecurityException( "direct error, tx path" ); } ) );
+
+        Assertions.assertEquals( "direct error, tx path", thrown.getMessage() );
+        verify( mockConn ).rollback();
+        verify( mockConn, never() ).commit();
+    }
+
+    /**
+     * {@link com.wikantik.jdbc.Jdbc#inTransaction} rolls back on any {@link Throwable}, not just
+     * {@link Exception} — an {@code Error} escaping the operation body must roll back too.
+     */
+    @Test
+    void testRunInTransactionRollsBackOnError() throws Exception {
+        db.setSupportsCommits( true );
+
+        Assertions.assertThrows( AssertionError.class,
+            () -> db.runInTransaction( conn -> { throw new AssertionError( "invariant broken" ); } ) );
+
+        verify( mockConn ).rollback();
+        verify( mockConn, never() ).commit();
     }
 
     /**

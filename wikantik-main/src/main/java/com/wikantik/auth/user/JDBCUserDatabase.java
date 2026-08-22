@@ -1,4 +1,4 @@
-/* 
+/*
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -14,7 +14,7 @@
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
-    under the License.  
+    under the License.
  */
 package com.wikantik.auth.user;
 
@@ -26,6 +26,8 @@ import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import com.wikantik.util.Serializer;
 
 import com.github.benmanes.caffeine.cache.Cache;
@@ -35,8 +37,6 @@ import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.Serializable;
 import java.security.Principal;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -56,7 +56,7 @@ import java.util.Set;
  * Implementation of UserDatabase that persists {@link DefaultUserProfile}
  * objects to a JDBC DataSource, as might typically be provided by a web
  * container. This implementation looks up the JDBC DataSource using JNDI. The
- * JNDI name of the datasource, backing table and mapped columns used by this 
+ * JNDI name of the datasource, backing table and mapped columns used by this
  * class can be overridden by adding settings in <code>wikantik.properties</code>.
  * </p>
  * <p>
@@ -167,29 +167,18 @@ import java.util.Set;
  *  &nbsp;...<br/>
  * &lt;/Context&gt;</code></blockquote>
  * <p>
- * To configure JSPWiki to use JDBC support, first create a database 
- * with a structure similar to that provided by the PostgreSQL
- * scripts in src/main/config/db.  If you have different table or column 
- * names you can either alias them with a database view and have JSPWiki
- * use the views, or alter the WEB-INF/wikantik.properties file: the 
- * wikantik.userdatabase.* and wikantik.groupdatabase.* properties change the
- * names of the tables and columns that JSPWiki uses.
- * </p>
- * <p>
- * A JNDI datasource (named jdbc/UserDatabase by default but can be configured 
- * in the wikantik.properties file) will need to be created in your servlet container.
  * JDBC driver JARs should be added, e.g. in Tomcat's <code>lib</code>
  * directory. For more Tomcat JNDI configuration examples, see <a
  * href="http://tomcat.apache.org/tomcat-7.0-doc/jndi-resources-howto.html">
  * http://tomcat.apache.org/tomcat-7.0-doc/jndi-resources-howto.html</a>.
- * Once done, restart JSPWiki in the servlet container for it to read the 
+ * Once done, restart JSPWiki in the servlet container for it to read the
  * new properties and switch to JDBC authentication.
  * </p>
  * <p>
  * JDBCUserDatabase commits changes as transactions if the back-end database
  * supports them. Changes are made immediately (during the {@link #save(UserProfile)} method).
  * </p>
- * 
+ *
  * @since 2.3
  */
 public class JDBCUserDatabase extends AbstractUserDatabase {
@@ -214,6 +203,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     private static final String RENAME_ROLES = "UPDATE roles SET login_name=? WHERE login_name=?";
 
     private DataSource ds;
+
+    private Jdbc jdbc;
 
     private boolean supportsCommits;
 
@@ -240,7 +231,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      * results cannot be partially committed. If the commit fails, it should
      * roll back its state appropriately. Implementing classes that persist to
      * the file system may wish to make this method <code>synchronized</code>.
-     * 
+     *
      * @param newLoginName the login name of the user profile that shall be deleted
      */
     @Override
@@ -248,41 +239,15 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         // Get the existing user; if not found, throws NoSuchPrincipalException
         findByLoginName( loginNameToDelete );
 
-        try( Connection conn = ds.getConnection() ;
-             PreparedStatement ps1 = conn.prepareStatement( DELETE_USER );
-             PreparedStatement ps2 = conn.prepareStatement( DELETE_ROLES ) )
-        {
-            // Open the database connection
-            if( supportsCommits ) {
-                conn.setAutoCommit( false );
-            }
+        // Deleting the user but not its roles (or vice versa) must not survive.
+        AbstractJDBCDatabase.runInTransaction( ds, supportsCommits, conn -> {
+            jdbc.update( conn, DELETE_USER, ps -> ps.setString( 1, loginNameToDelete ) );
+            jdbc.update( conn, DELETE_ROLES, ps -> ps.setString( 1, loginNameToDelete ) );
+            return null;
+        } );
 
-            try {
-                    // Delete user record
-                    ps1.setString( 1, loginNameToDelete );
-                    ps1.execute();
-
-                    // Delete role record
-                    ps2.setString( 1, loginNameToDelete );
-                    ps2.execute();
-
-                    // Commit and close connection
-                    if( supportsCommits ) {
-                        conn.commit();
-                    }
-            } catch( final SQLException e ) {
-                // Deleting the user but not its roles (or vice versa) must not survive.
-                if( supportsCommits ) {
-                    com.wikantik.jdbc.Transactions.rollbackQuietly( conn, e, LOG, "deleteByLoginName(" + loginNameToDelete + ")" );
-                }
-                throw e;
-            }
-
-            // Evict the now-deleted login so the next lookup goes to the DB.
-            byLoginCache.invalidate( loginNameToDelete );
-        } catch( final SQLException e ) {
-            throw new WikiSecurityException( e.getMessage(), e );
-        }
+        // Evict the now-deleted login so the next lookup goes to the DB.
+        byLoginCache.invalidate( loginNameToDelete );
     }
 
     /**
@@ -339,22 +304,16 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      * Returns all WikiNames that are stored in the UserDatabase as an array of
      * WikiPrincipal objects. If the database does not contain any profiles,
      * this method will return a zero-length array.
-     * 
+     *
      * @return the WikiNames
      */
     @Override
     public Principal[] getWikiNames() throws WikiSecurityException {
-        final Set<Principal> principals = new HashSet<>();
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( FIND_ALL );
-             ResultSet rs = ps.executeQuery() ) {
-            while( rs.next() ) {
-                final String wikiNameValue = rs.getString( "wiki_name" );
-                if( StringUtils.isEmpty( wikiNameValue ) ) {
-                    LOG.warn( "Detected null or empty wiki name for {} in JDBCUserDataBase. Check your user database.", rs.getString( "login_name" ) );
-                } else {
-                    final Principal principal = new WikiPrincipal( wikiNameValue, WikiPrincipal.WIKI_NAME );
-                    principals.add( principal );
+        final Set< Principal > principals = new HashSet<>();
+        try {
+            for( final String wikiNameValue : jdbc.query( FIND_ALL, SqlBinder.NONE, this::mapWikiNameOrWarnAndSkip ) ) {
+                if( wikiNameValue != null ) {
+                    principals.add( new WikiPrincipal( wikiNameValue, WikiPrincipal.WIKI_NAME ) );
                 }
             }
         } catch( final SQLException e ) {
@@ -372,13 +331,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public long countLockedUsers() throws WikiSecurityException {
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( COUNT_LOCKED_USERS );
-             ResultSet rs = ps.executeQuery() ) {
-            if( rs.next() ) {
-                return rs.getLong( 1 );
-            }
-            return 0L;
+        try {
+            return jdbc.queryOne( COUNT_LOCKED_USERS, SqlBinder.NONE, rs -> rs.getLong( 1 ) ).orElse( 0L );
         } catch( final SQLException e ) {
             LOG.error( "Could not count locked users. Reason: {}", e.getMessage() );
             throw new WikiSecurityException( e.getMessage(), e );
@@ -389,29 +343,23 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      * @see com.wikantik.auth.user.UserDatabase#initialize(com.wikantik.api.core.Engine, java.util.Properties)
      */
     @Override
-    @SuppressWarnings( "PMD.UnusedLocalVariable" ) // try-with-resources below holds the prepared statement only for its side effect.
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, WikiSecurityException {
         final String jndiName = props.getProperty( AbstractJDBCDatabase.PROP_DATASOURCE, AbstractJDBCDatabase.DEFAULT_DATASOURCE );
         ds = com.wikantik.auth.JndiDataSources.lookup( jndiName, "JDBCUserDatabase", AbstractJDBCDatabase.PROP_DATASOURCE );
+        jdbc = new Jdbc( ds );
 
         // Test connection by doing a quickie select
-        try( Connection conn = ds.getConnection(); PreparedStatement ps = conn.prepareStatement( FIND_ALL ) ) {
-        } catch( final SQLException e ) {
-            LOG.error( "DB connectivity error: {}", e.getMessage() );
-            throw new WikiSecurityException("DB connectivity error: " + e.getMessage(), e );
+        if( !jdbc.ping() ) {
+            final String msg = "DB connectivity error: could not obtain/validate a connection";
+            LOG.error( msg );
+            throw new WikiSecurityException( msg );
         }
         LOG.info( "JDBCUserDatabase initialized from JNDI DataSource: {}", jndiName );
 
         // Determine if the datasource supports commits
-        try( Connection conn = ds.getConnection() ) {
-            final DatabaseMetaData dmd = conn.getMetaData();
-            if( dmd.supportsTransactions() ) {
-                supportsCommits = true;
-                conn.setAutoCommit( false );
-                LOG.info( "JDBCUserDatabase supports transactions. Good; we will use them." );
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "JDBCUserDatabase warning: user database doesn't seem to support transactions. Reason: {}", e.getMessage() );
+        supportsCommits = AbstractJDBCDatabase.probeSupportsTransactions( ds );
+        if( supportsCommits ) {
+            LOG.info( "JDBCUserDatabase supports transactions. Good; we will use them." );
         }
     }
 
@@ -434,51 +382,31 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             // Good! That means it's safe to save using the new name
         }
 
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps1 = conn.prepareStatement( RENAME_PROFILE );
-             PreparedStatement ps2 = conn.prepareStatement( RENAME_ROLES ) ) {
-            if( supportsCommits ) {
-                conn.setAutoCommit( false );
-            }
+        final Timestamp ts = new Timestamp( System.currentTimeMillis() );
+        final Date modDate = new Date( ts.getTime() );
 
-            try {
-                final Timestamp ts = new Timestamp( System.currentTimeMillis() );
-                final Date modDate = new Date( ts.getTime() );
+        // users.login_name renamed without roles.login_name (or vice versa) splits an identity
+        // from its authorization; that must never be left committed.
+        AbstractJDBCDatabase.runInTransaction( ds, supportsCommits, conn -> {
+            jdbc.update( conn, RENAME_PROFILE, ps -> {
+                ps.setString( 1, newName );
+                ps.setTimestamp( 2, ts );
+                ps.setString( 3, oldLoginName );
+            } );
+            jdbc.update( conn, RENAME_ROLES, ps -> {
+                ps.setString( 1, newName );
+                ps.setString( 2, oldLoginName );
+            } );
+            return null;
+        } );
 
-                // Change the login ID for the user record
-                ps1.setString( 1, newName );
-                ps1.setTimestamp( 2, ts );
-                ps1.setString( 3, oldLoginName );
-                ps1.execute();
+        // Set the profile name and mod time
+        profile.setLoginName( newName );
+        profile.setLastModified( modDate );
 
-                // Change the login ID for the role records
-                ps2.setString( 1, newName );
-                ps2.setString( 2, oldLoginName );
-                ps2.execute();
-
-                // Set the profile name and mod time
-                profile.setLoginName( newName );
-                profile.setLastModified( modDate );
-
-                // Commit and close connection
-                if( supportsCommits ) {
-                    conn.commit();
-                }
-            } catch( final SQLException e ) {
-                // users.login_name renamed without roles.login_name (or vice versa) splits an
-                // identity from its authorization; that must never be left committed.
-                if( supportsCommits ) {
-                    com.wikantik.jdbc.Transactions.rollbackQuietly( conn, e, LOG, "rename(" + oldLoginName + " -> " + newName + ")" );
-                }
-                throw e;
-            }
-
-            // A rename changes the login name itself, so evict both the old and new keys.
-            byLoginCache.invalidate( oldLoginName );
-            byLoginCache.invalidate( newName );
-        } catch( final SQLException e ) {
-            throw new WikiSecurityException( e.getMessage(), e );
-        }
+        // A rename changes the login name itself, so evict both the old and new keys.
+        byLoginCache.invalidate( oldLoginName );
+        byLoginCache.invalidate( newName );
     }
 
     /**
@@ -500,11 +428,12 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         } catch( final NoSuchPrincipalException e ) {
             // Existing profile will be null
         }
+        final UserProfile finalExistingProfile = existingProfile;
 
         // Get a clean password from the passed profile.
         // Blank password is the same as null, which means we re-use the existing one.
         String password = profile.getPassword();
-        final String existingPassword = (existingProfile == null) ? null : existingProfile.getPassword();
+        final String existingPassword = (finalExistingProfile == null) ? null : finalExistingProfile.getPassword();
         if( NOTHING.equals( password ) ) {
             password = null;
         }
@@ -516,75 +445,52 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         if( !Strings.CS.equals( password, existingPassword ) ) {
             password = getHash( password );
         }
+        final String finalPassword = password;
 
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps1 = conn.prepareStatement( INSERT_PROFILE );
-             PreparedStatement ps2 = conn.prepareStatement( FIND_ROLES );
-             PreparedStatement ps3 = conn.prepareStatement( INSERT_ROLE );
-             PreparedStatement ps4 = conn.prepareStatement( UPDATE_PROFILE ) ) {
-            if( supportsCommits ) {
-                conn.setAutoCommit( false );
-            }
+        // A new users row whose role insert failed is an account with no permissions; discard
+        // the whole write rather than leave that committed.
+        AbstractJDBCDatabase.runInTransaction( ds, supportsCommits, conn -> {
+            final Timestamp ts = new Timestamp( System.currentTimeMillis() );
+            final Date modDate = new Date( ts.getTime() );
+            final java.sql.Date lockExpiry = profile.getLockExpiry() == null ? null : new java.sql.Date( profile.getLockExpiry().getTime() );
+            if( finalExistingProfile == null ) {
+                // User is new: insert new user record
+                jdbc.update( conn, INSERT_PROFILE, ps -> {
+                    setProfileParameters( ps, profile, finalPassword, ts );
+                    ps.setTimestamp( 10, ts );
+                    ps.setBoolean( 11, profile.isPasswordMustChange() );
+                } );
 
-            try {
-                final Timestamp ts = new Timestamp( System.currentTimeMillis() );
-                final Date modDate = new Date( ts.getTime() );
-                final java.sql.Date lockExpiry = profile.getLockExpiry() == null ? null : new java.sql.Date( profile.getLockExpiry().getTime() );
-                if( existingProfile == null ) {
-                    // User is new: insert new user record
-                    setProfileParameters( ps1, profile, password, ts );
-                    ps1.setTimestamp( 10, ts );
-                    ps1.setBoolean( 11, profile.isPasswordMustChange() );
-                    ps1.execute();
-
-                    // Insert new role record
-                    ps2.setString( 1, profile.getLoginName() );
-                    int roles = 0;
-                    try ( ResultSet rs = ps2.executeQuery() ) {
-                        while ( rs.next() ) {
-                            roles++;
-                        }
-                    }
-
-                    if( roles == 0 ) {
-                        ps3.setString( 1, profile.getLoginName() );
-                        ps3.setString( 2, initialRole );
-                        ps3.execute();
-                    }
-
-                    // Set the profile creation time
-                    profile.setCreated( modDate );
-                } else {
-                    // User exists: modify existing record
-                    setProfileParameters( ps4, profile, password, ts );
-                    ps4.setDate( 10, lockExpiry );
-                    ps4.setBoolean( 11, profile.isPasswordMustChange() );
-                    ps4.setString( 12, profile.getLoginName() );
-                    ps4.execute();
+                // Insert new role record, unless one already exists
+                final boolean hasRoles = !jdbc.query( conn, FIND_ROLES, ps -> ps.setString( 1, profile.getLoginName() ),
+                        rs -> Boolean.TRUE ).isEmpty();
+                if( !hasRoles ) {
+                    jdbc.update( conn, INSERT_ROLE, ps -> {
+                        ps.setString( 1, profile.getLoginName() );
+                        ps.setString( 2, initialRole );
+                    } );
                 }
-                // Set the profile mod time
-                profile.setLastModified( modDate );
 
-                // Commit and close connection
-                if( supportsCommits ) {
-                    conn.commit();
-                }
-            } catch( final SQLException e ) {
-                // A new users row whose role insert failed is an account with no permissions;
-                // discard the whole write rather than leave that committed.
-                if( supportsCommits ) {
-                    com.wikantik.jdbc.Transactions.rollbackQuietly( conn, e, LOG, "save(" + loginName + ")" );
-                }
-                throw e;
+                // Set the profile creation time
+                profile.setCreated( modDate );
+            } else {
+                // User exists: modify existing record
+                jdbc.update( conn, UPDATE_PROFILE, ps -> {
+                    setProfileParameters( ps, profile, finalPassword, ts );
+                    ps.setDate( 10, lockExpiry );
+                    ps.setBoolean( 11, profile.isPasswordMustChange() );
+                    ps.setString( 12, profile.getLoginName() );
+                } );
             }
+            // Set the profile mod time
+            profile.setLastModified( modDate );
+            return null;
+        } );
 
-            // Evict the saved login so the next lookup (e.g. a basic-auth request) sees the
-            // fresh record — critically, an updated password hash on a credential change.
-            if( loginName != null ) {
-                byLoginCache.invalidate( loginName );
-            }
-        } catch( final SQLException e ) {
-            throw new WikiSecurityException( e.getMessage(), e );
+        // Evict the saved login so the next lookup (e.g. a basic-auth request) sees the
+        // fresh record — critically, an updated password hash on a credential change.
+        if( loginName != null ) {
+            byLoginCache.invalidate( loginName );
         }
     }
 
@@ -601,15 +507,35 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         if( loginName == null || when == null ) {
             return;
         }
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( UPDATE_LAST_LOGIN ) ) {
-            ps.setTimestamp( 1, new Timestamp( when.getTime() ) );
-            ps.setString( 2, loginName );
-            ps.executeUpdate();
+        try {
+            jdbc.update( UPDATE_LAST_LOGIN, ps -> {
+                ps.setTimestamp( 1, new Timestamp( when.getTime() ) );
+                ps.setString( 2, loginName );
+            } );
             byLoginCache.invalidate( loginName );
         } catch( final SQLException e ) {
             throw new WikiSecurityException( "Could not record last login for '" + loginName + "': " + e.getMessage(), e );
         }
+    }
+
+    /**
+     * Sets the common profile parameters (1-9) on a PreparedStatement for both insert and update operations.
+     */
+    private void setProfileParameters( final PreparedStatement ps, final UserProfile profile,
+                                        final String password, final Timestamp ts ) throws SQLException {
+        ps.setString( 1, profile.getUid() );
+        ps.setString( 2, profile.getEmail() );
+        ps.setString( 3, profile.getFullname() );
+        ps.setString( 4, password );
+        ps.setString( 5, profile.getWikiName() );
+        ps.setTimestamp( 6, ts );
+        ps.setString( 7, profile.getLoginName() );
+        try {
+            ps.setString( 8, Serializer.serializeToBase64( profile.getAttributes() ) );
+        } catch ( final IOException e ) {
+            throw new SQLException( "Could not save user profile attribute. Reason: " + e.getMessage(), e );
+        }
+        ps.setString( 9, profile.getBio() );
     }
 
     /**
@@ -621,67 +547,30 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      * @return the resolved UserProfile
      * @throws NoSuchPrincipalException problems accessing the database
      */
-    /**
-     * Sets the common profile parameters (1-9) on a PreparedStatement for both insert and update operations.
-     */
-    private void setProfileParameters( final PreparedStatement ps, final UserProfile profile,
-                                        final String password, final Timestamp ts ) throws WikiSecurityException, SQLException {
-        ps.setString( 1, profile.getUid() );
-        ps.setString( 2, profile.getEmail() );
-        ps.setString( 3, profile.getFullname() );
-        ps.setString( 4, password );
-        ps.setString( 5, profile.getWikiName() );
-        ps.setTimestamp( 6, ts );
-        ps.setString( 7, profile.getLoginName() );
-        try {
-            ps.setString( 8, Serializer.serializeToBase64( profile.getAttributes() ) );
-        } catch ( final IOException e ) {
-            throw new WikiSecurityException( "Could not save user profile attribute. Reason: " + e.getMessage(), e );
-        }
-        ps.setString( 9, profile.getBio() );
-    }
-
     private UserProfile findByPreparedStatement( final String sql, final Object index ) throws NoSuchPrincipalException
     {
-        UserProfile profile = null;
-        boolean found = false;
-        boolean unique = true;
-        try( Connection conn = ds.getConnection(); PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            if( supportsCommits ) {
-                conn.setAutoCommit( false );
-            }
-            
-            // Set the parameter to search by
-            if( index instanceof String str ) {
-                ps.setString( 1, str );
-            } else if ( index instanceof Long lng ) {
-                ps.setLong( 1, lng );
-            } else {
-                throw new IllegalArgumentException( "Index type not recognized!" );
-            }
-            
-            // Go and get the record!
-            try( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    if( profile != null ) {
-                        unique = false;
-                        break;
-                    }
-                    profile = mapProfileRow( rs );
-                    found = true;
+        final List< UserProfile > matches;
+        try {
+            matches = jdbc.query( sql, ps -> {
+                if( index instanceof String str ) {
+                    ps.setString( 1, str );
+                } else if ( index instanceof Long lng ) {
+                    ps.setLong( 1, lng );
+                } else {
+                    throw new IllegalArgumentException( "Index type not recognized!" );
                 }
-            }
+            }, this::mapProfileRow );
         } catch( final SQLException e ) {
             throw new NoSuchPrincipalException( e.getMessage(), e );
         }
 
-        if( !found ) {
+        if( matches.isEmpty() ) {
             throw new NoSuchPrincipalException( "Could not find profile in database!" );
         }
-        if( !unique ) {
+        if( matches.size() > 1 ) {
             throw new NoSuchPrincipalException( "More than one profile in database!" );
         }
-        return profile;
+        return matches.get( 0 );
     }
 
     /** Maps the current row of {@code rs} onto a freshly-created {@link UserProfile}. */
@@ -718,6 +607,16 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         return profile;
     }
 
+    /** Maps the current {@code users} row's {@code wiki_name}, or {@code null} (logged) when it is null/empty. */
+    private String mapWikiNameOrWarnAndSkip( final ResultSet rs ) throws SQLException {
+        final String wikiNameValue = rs.getString( "wiki_name" );
+        if( StringUtils.isEmpty( wikiNameValue ) ) {
+            LOG.warn( "Detected null or empty wiki name for {} in JDBCUserDataBase. Check your user database.", rs.getString( "login_name" ) );
+            return null;
+        }
+        return wikiNameValue;
+    }
+
     /**
      * {@inheritDoc}
      * <p>Overrides the interface default with a single {@code SELECT * FROM users}
@@ -731,21 +630,26 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     @Override
     public Collection< UserProfile > findAllProfiles() throws WikiSecurityException {
         final List< UserProfile > profiles = new ArrayList<>();
-        try ( Connection conn = ds.getConnection();
-              PreparedStatement ps = conn.prepareStatement( FIND_ALL );
-              ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) {
-                final String wikiNameValue = rs.getString( "wiki_name" );
-                if ( StringUtils.isEmpty( wikiNameValue ) ) {
-                    LOG.warn( "Detected null or empty wiki name for {} in JDBCUserDataBase. Check your user database.", rs.getString( "login_name" ) );
-                    continue;
+        try {
+            for( final UserProfile profile : jdbc.query( FIND_ALL, SqlBinder.NONE, this::mapProfileRowOrSkipEmptyWikiName ) ) {
+                if( profile != null ) {
+                    profiles.add( profile );
                 }
-                profiles.add( mapProfileRow( rs ) );
             }
         } catch ( final SQLException e ) {
             throw new WikiSecurityException( e.getMessage(), e );
         }
         return profiles;
+    }
+
+    /** {@link #mapProfileRow} unless {@code wiki_name} is null/empty, in which case {@code null} (logged, mirroring {@link #getWikiNames()}). */
+    private UserProfile mapProfileRowOrSkipEmptyWikiName( final ResultSet rs ) throws SQLException {
+        final String wikiNameValue = rs.getString( "wiki_name" );
+        if ( StringUtils.isEmpty( wikiNameValue ) ) {
+            LOG.warn( "Detected null or empty wiki name for {} in JDBCUserDataBase. Check your user database.", rs.getString( "login_name" ) );
+            return null;
+        }
+        return mapProfileRow( rs );
     }
 
 }

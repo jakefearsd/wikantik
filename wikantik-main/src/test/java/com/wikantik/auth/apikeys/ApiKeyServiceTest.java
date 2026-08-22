@@ -18,7 +18,8 @@
  */
 package com.wikantik.auth.apikeys;
 
-import org.h2.jdbcx.JdbcDataSource;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -26,48 +27,26 @@ import javax.sql.DataSource;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Unit tests for {@link ApiKeyService}, backed by an in-memory H2 database
- * configured to speak PostgreSQL dialect so the production SQL runs unchanged.
+ * Unit tests for {@link ApiKeyService}, backed by the real {@code api_keys} schema
+ * ({@code bin/db/migrations/V010__api_keys.sql}) via {@link PostgresTestDb}.
  */
+@RequiresPostgres
 class ApiKeyServiceTest {
 
     private DataSource dataSource;
     private ApiKeyService service;
 
     @BeforeEach
-    void setUp() throws Exception {
-        final JdbcDataSource ds = new JdbcDataSource();
-        ds.setURL( "jdbc:h2:mem:apikeys_" + UUID.randomUUID() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1" );
-        ds.setUser( "sa" );
-        ds.setPassword( "" );
-        this.dataSource = ds;
-
-        try ( final Connection conn = ds.getConnection();
-              final Statement st = conn.createStatement() ) {
-            st.execute( """
-                CREATE TABLE api_keys (
-                    id              SERIAL       PRIMARY KEY,
-                    key_hash        VARCHAR(64)  NOT NULL UNIQUE,
-                    principal_login VARCHAR(100) NOT NULL,
-                    label           VARCHAR(200),
-                    scope           VARCHAR(20)  NOT NULL,
-                    created_at      TIMESTAMP    NOT NULL DEFAULT NOW(),
-                    created_by      VARCHAR(100),
-                    last_used_at    TIMESTAMP,
-                    revoked_at      TIMESTAMP,
-                    revoked_by      VARCHAR(100)
-                )
-                """ );
-        }
+    void setUp() {
+        this.dataSource = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "api_keys" );
         this.service = new ApiKeyService( dataSource );
     }
 

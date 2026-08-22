@@ -298,6 +298,64 @@ public class JDBCGroupDatabaseTest
         Assertions.assertEquals( 2, updated.members().length );
     }
 
+    /**
+     * {@code save()} writes the {@code groups} row and its {@code group_members} rows in one
+     * transaction. Arms an unchecked mid-transaction failure right after the first write (the
+     * {@code groups} insert) and asserts neither table shows a partial write — the same
+     * regression harness used for {@code JDBCUserDatabase} in the sibling migration, proving
+     * {@link com.wikantik.jdbc.Jdbc#inTransaction} rolls back this write path too.
+     */
+    @Test
+    public void testSaveRollsBackOnUncheckedFailureAfterFirstWrite() throws Exception {
+        final com.wikantik.jdbc.testing.FaultInjectingDataSource faulting =
+                new com.wikantik.jdbc.testing.FaultInjectingDataSource( m_ds );
+
+        final Context initCtx = new InitialContext();
+        final Context ctx = ( Context ) initCtx.lookup( "java:comp/env" );
+        final String faultingDsName = "jdbc/FaultingGroupDatabase";
+        try {
+            ctx.bind( faultingDsName, faulting );
+        } catch( final NameAlreadyBoundException e ) {
+            ctx.rebind( faultingDsName, faulting );
+        }
+        final Properties props = new Properties();
+        props.setProperty( AbstractJDBCDatabase.PROP_DATASOURCE, faultingDsName );
+        final JDBCGroupDatabase faultingDb = new JDBCGroupDatabase();
+        faultingDb.initialize( m_engine, props );
+
+        final String name = "FaultProbe" + System.currentTimeMillis();
+        final Group group = new Group( name, m_wiki );
+        group.add( new WikiPrincipal( "Al" ) );
+        group.add( new WikiPrincipal( "Bob" ) );
+
+        // Statement #1: the exists()/findGroup() pre-check (FIND_GROUP, misses, caught).
+        // Inside the transaction: #2 = INSERT_GROUP (the first write). Arm the fault right
+        // after it, on the DELETE_MEMBERS statement that follows (#3).
+        faulting.failOn( 3, new RuntimeException( "boom: mid-transaction failure" ) );
+
+        Assertions.assertThrows( Exception.class, () -> faultingDb.save( group, new WikiPrincipal( "Tester" ) ),
+            "A save that fails with an unchecked exception mid-transaction must report failure." );
+
+        // Verify against the real (non-faulting) datasource: no partial groups/group_members rows.
+        try( final Connection conn = m_ds.getConnection();
+             final java.sql.PreparedStatement ps = conn.prepareStatement( "SELECT count(*) FROM groups WHERE name = ?" ) ) {
+            ps.setString( 1, name );
+            try( final java.sql.ResultSet rs = ps.executeQuery() ) {
+                rs.next();
+                Assertions.assertEquals( 0, rs.getInt( 1 ),
+                    "The groups row must not survive a save that failed with an unchecked exception mid-transaction." );
+            }
+        }
+        try( final Connection conn = m_ds.getConnection();
+             final java.sql.PreparedStatement ps = conn.prepareStatement( "SELECT count(*) FROM group_members WHERE name = ?" ) ) {
+            ps.setString( 1, name );
+            try( final java.sql.ResultSet rs = ps.executeQuery() ) {
+                rs.next();
+                Assertions.assertEquals( 0, rs.getInt( 1 ), "No group_members row should exist either." );
+            }
+        }
+    }
+
     private Group backendGroup( final String name ) throws WikiSecurityException {
         final Group[] groups = m_db.groups();
         for( final Group group : groups ) {

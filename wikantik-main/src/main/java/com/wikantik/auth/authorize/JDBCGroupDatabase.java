@@ -1,4 +1,4 @@
-/* 
+/*
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -14,7 +14,7 @@
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
-    under the License.  
+    under the License.
  */
 package com.wikantik.auth.authorize;
 
@@ -26,20 +26,19 @@ import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.sql.DataSource;
 import java.security.Principal;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
@@ -82,7 +81,7 @@ import java.util.Set;
  * supports them. Changes are made
  * immediately (during the {@link #save(Group, Principal)} method).
  * </p>
- * 
+ *
  * @since 2.3
  */
 public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupDatabase {
@@ -99,13 +98,14 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
     protected static final Logger LOG = LogManager.getLogger( JDBCGroupDatabase.class );
 
     private Engine engine;
+    private Jdbc jdbc;
 
     /**
      * Looks up and deletes a {@link Group} from the group database. If the
      * group database does not contain the supplied Group. this method throws a
      * {@link NoSuchPrincipalException}. The method commits the results of the
      * delete to persistent storage.
-     * 
+     *
      * @param group the group to remove
      * @throws WikiSecurityException if the database does not contain the
      *             supplied group (thrown as {@link NoSuchPrincipalException})
@@ -125,15 +125,8 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         final String groupName = group.getName();
         try {
             runInTransaction( conn -> {
-                try( PreparedStatement ps1 = conn.prepareStatement( DELETE_GROUP ) ) {
-                    ps1.setString( 1, groupName );
-                    ps1.execute();
-                }
-
-                try( PreparedStatement ps2 = conn.prepareStatement( DELETE_MEMBERS ) ) {
-                    ps2.setString( 1, groupName );
-                    ps2.execute();
-                }
+                jdbc.update( conn, DELETE_GROUP, ps -> ps.setString( 1, groupName ) );
+                jdbc.update( conn, DELETE_MEMBERS, ps -> ps.setString( 1, groupName ) );
                 return null;
             } );
         } catch( final WikiSecurityException e ) {
@@ -151,7 +144,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
      * method will return a zero-length array. This method causes back-end
      * storage to load the entire set of group; thus, it should be called
      * infrequently (e.g., at initialization time).
-     * 
+     *
      * @return the wiki groups
      * @throws WikiSecurityException if the groups cannot be returned by the
      *             back-end
@@ -159,25 +152,13 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
     @Override public Group[] groups() throws WikiSecurityException
     {
         final Set<Group> groups = new HashSet<>();
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( FIND_ALL );
-             ResultSet rs = ps.executeQuery() )
+        try
         {
-            while ( rs.next() )
+            final List< Group > rows = jdbc.query( FIND_ALL, SqlBinder.NONE, this::mapGroupRow );
+            for( final Group group : rows )
             {
-                final String groupName = rs.getString( "name" );
-                if( groupName == null )
+                if( group != null )
                 {
-                    LOG.warn( "Detected null group name in JDBCGroupDataBase. Check your group database." );
-                }
-                else
-                {
-                    final Group group = new Group( groupName, engine.getApplicationName() );
-                    group.setCreated( rs.getTimestamp( "created" ) );
-                    group.setCreator( rs.getString( "creator" ) );
-                    group.setLastModified( rs.getTimestamp( "modified" ) );
-                    group.setModifier( rs.getString( "modifier" ) );
-                    populateGroup( group );
                     groups.add( group );
                 }
             }
@@ -197,7 +178,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
      * Admin, Authenticated, etc. The database is responsible for setting
      * create/modify timestamps, upon a successful save, to the Group. The
      * method commits the results of the delete to persistent storage.
-     * 
+     *
      * @param group the Group to save
      * @param modifier the user who saved the Group
      * @throws WikiSecurityException if the Group could not be saved successfully
@@ -221,14 +202,13 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
             if( !exists )
             {
                 // Group is new: insert new group record
-                try( PreparedStatement ps = conn.prepareStatement( INSERT_GROUP ) ) {
+                jdbc.update( conn, INSERT_GROUP, ps -> {
                     ps.setString( 1, group.getName() );
                     ps.setTimestamp( 2, ts );
                     ps.setString( 3, modifier.getName() );
                     ps.setTimestamp( 4, ts );
                     ps.setString( 5, modifier.getName() );
-                    ps.execute();
-                }
+                } );
 
                 // Set the group creation time
                 group.setCreated( modDate );
@@ -237,12 +217,11 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
             else
             {
                 // Modify existing group record
-                try( PreparedStatement ps = conn.prepareStatement( UPDATE_GROUP ) ) {
+                jdbc.update( conn, UPDATE_GROUP, ps -> {
                     ps.setTimestamp( 1, ts );
                     ps.setString( 2, modifier.getName() );
                     ps.setString( 3, group.getName() );
-                    ps.execute();
-                }
+                } );
             }
             // Set the group modified time
             group.setLastModified( modDate );
@@ -251,19 +230,14 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
             // Now, update the group member list
 
             // First, delete all existing member records
-            try( PreparedStatement ps = conn.prepareStatement( DELETE_MEMBERS ) ) {
-                ps.setString( 1, group.getName() );
-                ps.execute();
-            }
+            jdbc.update( conn, DELETE_MEMBERS, ps -> ps.setString( 1, group.getName() ) );
 
             // Insert group member records
-            try( PreparedStatement ps = conn.prepareStatement( INSERT_MEMBERS ) ) {
-                final Principal[] members = group.members();
-                for( final Principal member : members ) {
+            for( final Principal member : group.members() ) {
+                jdbc.update( conn, INSERT_MEMBERS, ps -> {
                     ps.setString( 1, group.getName() );
                     ps.setString( 2, member.getName() );
-                    ps.execute();
-                }
+                } );
             }
             return null;
         } );
@@ -271,7 +245,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
 
     /**
      * Initializes the group database based on values from a Properties object.
-     * 
+     *
      * @param engine the wiki engine
      * @param props the properties used to initialize the group database
      * @throws WikiSecurityException if the database could not be initialized
@@ -279,7 +253,6 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
      * @throws NoRequiredPropertyException if a required property is not present
      */
     @Override
-    @SuppressWarnings( "PMD.UnusedLocalVariable" ) // try-with-resources below holds the prepared statement only for its side effect.
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, WikiSecurityException
     {
         this.engine = engine;
@@ -296,39 +269,28 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
             LOG.error( "JDBCGroupDatabase initialization error: {}", e.toString() );
             throw new NoRequiredPropertyException( PROP_DATASOURCE, "JDBCGroupDatabase initialization error: " + e, e );
         }
+        jdbc = new Jdbc( ds );
 
         // Test connection
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( FIND_ALL ) )
+        if( !jdbc.ping() )
         {
-        }
-        catch( final SQLException e )
-        {
-            LOG.error( "DB connectivity error: {}", e.getMessage() );
-            throw new WikiSecurityException("DB connectivity error: " + e.getMessage(), e );
+            final String msg = "DB connectivity error: could not obtain/validate a connection";
+            LOG.error( msg );
+            throw new WikiSecurityException( msg );
         }
         LOG.info( "JDBCGroupDatabase initialized from JNDI DataSource: {}", jndiName );
 
         // Determine if the datasource supports commits
-        try( Connection conn = ds.getConnection() )
+        supportsCommits = probeSupportsTransactions( ds );
+        if( supportsCommits )
         {
-            final DatabaseMetaData dmd = conn.getMetaData();
-            if( dmd.supportsTransactions() )
-            {
-                supportsCommits = true;
-                conn.setAutoCommit( false );
-                LOG.info( "JDBCGroupDatabase supports transactions. Good; we will use them." );
-            }
-        }
-        catch( final SQLException e )
-        {
-            LOG.warn( "JDBCGroupDatabase warning: group database doesn't seem to support transactions. Reason: {}", e.getMessage() );
+            LOG.info( "JDBCGroupDatabase supports transactions. Good; we will use them." );
         }
     }
 
     /**
      * Returns <code>true</code> if the Group exists in back-end storage.
-     * 
+     *
      * @param group the Group to look for
      * @return the result of the search
      */
@@ -349,78 +311,77 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
     /**
      * Loads and returns a Group from the back-end database matching a supplied
      * name.
-     * 
+     *
      * @param index the name of the Group to find
      * @return the populated Group
      * @throws NoSuchPrincipalException if the Group cannot be found
-     * @throws SQLException if the database query returns an error
      */
     private Group findGroup( final String index ) throws NoSuchPrincipalException
     {
-        Group group = null;
-        boolean found = false;
-        boolean unique = true;
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( FIND_GROUP ) )
+        final List< Group > matches;
+        try
         {
-            ps.setString( 1, index );
-            try( ResultSet rs = ps.executeQuery() )
-            {
-                while ( rs.next() )
-                {
-                    if( group != null )
-                    {
-                        unique = false;
-                        break;
-                    }
-                    group = new Group( index, engine.getApplicationName() );
-                    group.setCreated( rs.getTimestamp( "created" ) );
-                    group.setCreator( rs.getString( "creator" ) );
-                    group.setLastModified( rs.getTimestamp( "modified" ) );
-                    group.setModifier( rs.getString( "modifier" ) );
-                    populateGroup( group );
-                    found = true;
-                }
-            }
+            matches = jdbc.query( FIND_GROUP, ps -> ps.setString( 1, index ), rs -> {
+                final Group group = new Group( index, engine.getApplicationName() );
+                group.setCreated( rs.getTimestamp( "created" ) );
+                group.setCreator( rs.getString( "creator" ) );
+                group.setLastModified( rs.getTimestamp( "modified" ) );
+                group.setModifier( rs.getString( "modifier" ) );
+                populateGroup( group );
+                return group;
+            } );
         }
         catch( final SQLException e )
         {
             throw new NoSuchPrincipalException( e.getMessage(), e );
         }
 
-        if( !found )
+        if( matches.isEmpty() )
         {
             throw new NoSuchPrincipalException( "Could not find group in database!" );
         }
-        if( !unique )
+        if( matches.size() > 1 )
         {
             throw new NoSuchPrincipalException( "More than one group in database!" );
         }
+        return matches.get( 0 );
+    }
+
+    /** Maps the current row of {@code FIND_ALL} onto a populated {@link Group}, or {@code null} (logged) for a row with no name. */
+    private Group mapGroupRow( final java.sql.ResultSet rs ) throws SQLException
+    {
+        final String groupName = rs.getString( "name" );
+        if( groupName == null )
+        {
+            LOG.warn( "Detected null group name in JDBCGroupDataBase. Check your group database." );
+            return null;
+        }
+        final Group group = new Group( groupName, engine.getApplicationName() );
+        group.setCreated( rs.getTimestamp( "created" ) );
+        group.setCreator( rs.getString( "creator" ) );
+        group.setLastModified( rs.getTimestamp( "modified" ) );
+        group.setModifier( rs.getString( "modifier" ) );
+        populateGroup( group );
         return group;
     }
 
     /**
      * Fills a Group with members.
-     * 
+     *
      * @param group the group to populate
      * @return the populated Group
      */
     private Group populateGroup( final Group group )
     {
-        try( Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement( FIND_MEMBERS ) )
+        try
         {
-            ps.setString( 1, group.getName() );
-            try( ResultSet rs = ps.executeQuery() )
+            final List< String > members = jdbc.query( FIND_MEMBERS, ps -> ps.setString( 1, group.getName() ),
+                    rs -> rs.getString( "member" ) );
+            for( final String memberName : members )
             {
-                while ( rs.next() )
+                if( memberName != null )
                 {
-                    final String memberName = rs.getString( "member" );
-                    if( memberName != null )
-                    {
-                        final WikiPrincipal principal = new WikiPrincipal( memberName, WikiPrincipal.UNSPECIFIED );
-                        group.add( principal );
-                    }
+                    group.add( new WikiPrincipal( memberName, WikiPrincipal.UNSPECIFIED ) );
                 }
             }
         }

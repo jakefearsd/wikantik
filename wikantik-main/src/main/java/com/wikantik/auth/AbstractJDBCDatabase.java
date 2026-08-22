@@ -18,6 +18,7 @@
  */
 package com.wikantik.auth;
 
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,13 +37,13 @@ import java.sql.SQLException;
  */
 public abstract class AbstractJDBCDatabase {
 
+    private static final Logger LOG = LogManager.getLogger( AbstractJDBCDatabase.class );
+
     /** Property name for the single shared JNDI DataSource. */
     public static final String PROP_DATASOURCE = "wikantik.datasource";
 
     /** Default JNDI name for the shared DataSource. */
     public static final String DEFAULT_DATASOURCE = "jdbc/WikiDatabase";
-
-    private static final Logger LOG = LogManager.getLogger( AbstractJDBCDatabase.class );
 
     /** The JDBC DataSource obtained via JNDI. */
     protected DataSource ds;
@@ -104,11 +105,15 @@ public abstract class AbstractJDBCDatabase {
     /**
      * Functional interface for a database operation that runs within a transaction.
      *
+     * <p>{@code public} (rather than the narrower access a purely internal helper would get) so
+     * {@link #runInTransaction(DataSource, boolean, TransactionalOperation)} can be called by a
+     * class that cannot extend this one — see that method's Javadoc.
+     *
      * @param <T> the return type of the operation
      * @since 3.0.7
      */
     @FunctionalInterface
-    protected interface TransactionalOperation<T> {
+    public interface TransactionalOperation<T> {
         T execute( Connection conn ) throws Exception;
     }
 
@@ -124,20 +129,45 @@ public abstract class AbstractJDBCDatabase {
      * @since 3.0.7
      */
     protected <T> T runInTransaction( final TransactionalOperation<T> operation ) throws WikiSecurityException {
-        try ( Connection conn = ds.getConnection() ) {
+        return runInTransaction( ds, supportsCommits, operation );
+    }
+
+    /**
+     * Shared implementation of {@link #runInTransaction(TransactionalOperation)}, exposed
+     * {@code static} so a class that cannot extend this one — {@link com.wikantik.auth.user.JDBCUserDatabase}
+     * already extends {@code AbstractUserDatabase} — still gets the exact same transaction
+     * semantics without re-implementing them.
+     *
+     * <p>Delegates to {@link Jdbc#inTransaction} when {@code supportsCommits} is {@code true}
+     * (rollback on any {@link Throwable}, auto-commit restored only after commit/rollback has
+     * run — see its Javadoc). When {@code false}, {@code operation} simply runs on a plain
+     * connection with no transaction control, matching this class's historical behaviour for a
+     * datasource that doesn't support transactions.
+     *
+     * <p>{@code operation} may throw any {@link Exception}, but {@link Jdbc#inTransaction}'s
+     * {@code TransactionBody} may only declare {@link SQLException} — a checked, non-{@code
+     * SQLException} failure (e.g. a directly-thrown {@link WikiSecurityException}) is carried
+     * across that boundary as an internal unchecked {@link OperationFailure} and unwrapped again
+     * on the way out, so the caller never sees it.
+     *
+     * @param dataSource      the DataSource to run against
+     * @param supportsCommits whether the datasource supports transactions
+     * @param operation       the database operation to execute
+     * @return the result of the operation
+     * @throws WikiSecurityException if the operation fails
+     */
+    public static <T> T runInTransaction( final DataSource dataSource, final boolean supportsCommits,
+                                           final TransactionalOperation<T> operation ) throws WikiSecurityException {
+        try {
             if( supportsCommits ) {
-                conn.setAutoCommit( false );
+                final Jdbc jdbc = new Jdbc( dataSource );
+                return jdbc.inTransaction( conn -> runUnchecked( operation, conn ) );
             }
-            try {
-                final T result = operation.execute( conn );
-                if( supportsCommits ) {
-                    conn.commit();
-                }
-                return result;
-            } catch( final Exception e ) {
-                rollbackQuietly( conn, e );
-                throw e;
+            try( Connection conn = dataSource.getConnection() ) {
+                return operation.execute( conn );
             }
+        } catch( final OperationFailure e ) {
+            throw unwrap( e );
         } catch( final WikiSecurityException e ) {
             throw e;
         } catch( final Exception e ) {
@@ -146,26 +176,71 @@ public abstract class AbstractJDBCDatabase {
     }
 
     /**
-     * Rolls back a failed transaction, swallowing any failure of the rollback itself.
-     *
-     * <p>Previously nothing rolled back here: on failure the connection was simply closed with
-     * its transaction still open, leaving the outcome to the pool. DBCP2 — what this
-     * application deploys — happens to default {@code rollbackOnReturn} to true, but that is
-     * not configured anywhere in the repo, and the production caller is
-     * {@code JDBCGroupDatabase.save()}, where a half-applied membership rewrite is a
-     * security-relevant partial write. Rolling back explicitly makes the behaviour ours.
-     *
-     * <p>Gated on {@code supportsCommits} for the same reason the commit is: rolling back a
-     * connection still in auto-commit mode is an error in JDBC.
-     *
-     * <p>A failing rollback is logged, never rethrown — the exception that caused the rollback
-     * is the one that explains the failure, and it must not be replaced.
+     * Runs {@code operation} inside a {@link com.wikantik.jdbc.TransactionBody}, whose functional
+     * method may only throw {@link SQLException}: checked exceptions and runtime exceptions pass
+     * straight through unchanged (both are permitted without a {@code throws} declaration), but
+     * any other checked {@link Exception} is wrapped in an unchecked {@link OperationFailure} so
+     * it can cross the boundary too, to be unwrapped by {@link #unwrap(OperationFailure)}.
      */
-    private void rollbackQuietly( final Connection conn, final Exception cause ) {
-        if( !supportsCommits ) {
-            return;
+    private static <T> T runUnchecked( final TransactionalOperation<T> operation, final Connection conn )
+            throws SQLException {
+        try {
+            return operation.execute( conn );
+        } catch( final SQLException e ) {
+            throw e;
+        } catch( final RuntimeException e ) {
+            throw e;
+        } catch( final Exception e ) {
+            throw new OperationFailure( e );
         }
-        com.wikantik.jdbc.Transactions.rollbackQuietly( conn, cause, LOG, getClass().getSimpleName() );
+    }
+
+    /** Unwraps {@code e}'s checked cause into the same {@link WikiSecurityException} contract {@link #runInTransaction} uses for the non-transactional path. */
+    private static WikiSecurityException unwrap( final OperationFailure e ) {
+        final Exception cause = e.checkedCause();
+        if( cause instanceof WikiSecurityException wse ) {
+            return wse;
+        }
+        return new WikiSecurityException( "Database operation failed: " + cause.getMessage(), cause );
+    }
+
+    /**
+     * Probes whether {@code dataSource} supports transactions, via a throwaway connection's
+     * {@link java.sql.DatabaseMetaData#supportsTransactions()}. Shared by {@code initialize()} in
+     * both {@link com.wikantik.auth.user.JDBCUserDatabase} and
+     * {@link com.wikantik.auth.authorize.JDBCGroupDatabase} so this one-time startup probe — the
+     * only reason either class still needs to see a raw {@link Connection} — isn't duplicated
+     * (neither {@link Jdbc} nor {@link com.wikantik.jdbc.JdbcSupport} exposes connection
+     * metadata; their surface is SQL execution, not introspection). A failure to even obtain a
+     * connection is treated the same as "transactions not supported" and logged at {@code WARN},
+     * matching this method's historical fail-soft behaviour.
+     *
+     * @param dataSource the DataSource to probe
+     * @return {@code true} if the datasource reports transaction support
+     */
+    public static boolean probeSupportsTransactions( final DataSource dataSource ) {
+        try( Connection conn = dataSource.getConnection() ) {
+            return conn.getMetaData().supportsTransactions();
+        } catch( final SQLException e ) {
+            LOG.warn( "Could not determine whether the datasource supports transactions: {}", e.getMessage(), e );
+            return false;
+        }
+    }
+
+    /**
+     * Unchecked carrier for a checked, non-{@link SQLException} failure from a
+     * {@link TransactionalOperation}, so it can cross {@link Jdbc#inTransaction}'s
+     * {@code TransactionBody} boundary (which only permits {@link SQLException}) without losing
+     * its original type or message.
+     */
+    private static final class OperationFailure extends RuntimeException {
+        OperationFailure( final Exception cause ) {
+            super( cause );
+        }
+
+        Exception checkedCause() {
+            return ( Exception ) getCause();
+        }
     }
 
 }

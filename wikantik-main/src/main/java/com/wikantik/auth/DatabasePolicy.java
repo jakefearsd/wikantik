@@ -23,15 +23,14 @@ import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.permissions.GroupPermission;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.permissions.WikiPermission;
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.security.Permission;
 import java.security.Principal;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -61,6 +60,7 @@ public class DatabasePolicy
 
     private final DataSource dataSource;
     private final String tableName;
+    private final Jdbc jdbc;
 
     /** Cache: principal name (case-sensitive) to list of granted Permissions. */
     private volatile Map<String, List<Permission>> grants = Collections.emptyMap();
@@ -77,6 +77,7 @@ public class DatabasePolicy
     {
         this.dataSource = dataSource;
         this.tableName = tableName;
+        this.jdbc = new Jdbc( dataSource );
         refresh();
     }
 
@@ -90,21 +91,14 @@ public class DatabasePolicy
         final Map<String, List<Permission>> newGrants = new HashMap<>();
         final String sql = "SELECT principal_name, permission_type, target, actions FROM " + tableName;
 
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql );
-             ResultSet rs = ps.executeQuery() )
+        try
         {
-            while( rs.next() )
+            for( final PermissionGrant grant : jdbc.query( sql, SqlBinder.NONE, DatabasePolicy::readGrant ) )
             {
-                final String principalName = rs.getString( "principal_name" );
-                final String permType = rs.getString( "permission_type" );
-                final String target = rs.getString( "target" );
-                final String actions = rs.getString( "actions" );
-
-                final Permission perm = buildPermission( permType, target, actions );
+                final Permission perm = buildPermission( grant.permissionType(), grant.target(), grant.actions() );
                 if( perm != null )
                 {
-                    newGrants.computeIfAbsent( principalName, k -> new ArrayList<>() ).add( perm );
+                    newGrants.computeIfAbsent( grant.principalName(), k -> new ArrayList<>() ).add( perm );
                 }
             }
         }
@@ -161,6 +155,17 @@ public class DatabasePolicy
     public String getTableName()
     {
         return tableName;
+    }
+
+    /** One {@code policy_grants} row's raw columns, read verbatim before {@link #buildPermission} interprets them. */
+    private record PermissionGrant( String principalName, String permissionType, String target, String actions ) { }
+
+    private static PermissionGrant readGrant( final java.sql.ResultSet rs ) throws SQLException {
+        return new PermissionGrant(
+                rs.getString( "principal_name" ),
+                rs.getString( "permission_type" ),
+                rs.getString( "target" ),
+                rs.getString( "actions" ) );
     }
 
     /**

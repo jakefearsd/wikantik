@@ -21,6 +21,8 @@ package com.wikantik.auth.apikeys;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -30,11 +32,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -72,6 +71,7 @@ public class ApiKeyService {
     private static final int TOKEN_BYTES = 32;
 
     private final DataSource dataSource;
+    private final Jdbc jdbc;
     private final SecureRandom rng = new SecureRandom();
 
     /** Short TTL: a revoked key keeps working at most this long. (Operator chose short-TTL-only.) */
@@ -99,6 +99,7 @@ public class ApiKeyService {
 
     public ApiKeyService( final DataSource dataSource ) {
         this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
     }
 
     /**
@@ -192,27 +193,26 @@ public class ApiKeyService {
         final String plaintext = newToken();
         final String hash = sha256Hex( plaintext );
         final Instant createdAt = Instant.now();
+        // RETURNING id replaces Statement.RETURN_GENERATED_KEYS, which the Jdbc primitive has no
+        // equivalent for (its surface is query/queryOne/update/batch/forEachRow/execute — none
+        // expose generated-key retrieval). Postgres-only syntax, but this codebase targets
+        // Postgres exclusively (bin/db/migrations use ON CONFLICT/::vector throughout), so this
+        // is not a new dialect dependency.
         final String sql = "INSERT INTO " + TABLE
                 + " (key_hash, principal_login, label, scope, created_at, created_by)"
-                + " VALUES (?, ?, ?, ?, ?, ?)";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
-            ps.setString( 1, hash );
-            ps.setString( 2, principalLogin );
-            ps.setString( 3, label );
-            ps.setString( 4, scope.wire() );
-            ps.setTimestamp( 5, Timestamp.from( createdAt ) );
-            ps.setString( 6, createdBy );
-            ps.executeUpdate();
-            try ( ResultSet rs = ps.getGeneratedKeys() ) {
-                if ( !rs.next() ) {
-                    throw new SQLException( "INSERT yielded no generated key" );
-                }
-                final int id = rs.getInt( 1 );
-                final Record record = new Record( id, hash, principalLogin, label,
-                        scope, createdAt, createdBy, null, null, null );
-                return new Generated( plaintext, record );
-            }
+                + " VALUES (?, ?, ?, ?, ?, ?) RETURNING id";
+        try {
+            final int id = jdbc.queryOne( sql, ps -> {
+                ps.setString( 1, hash );
+                ps.setString( 2, principalLogin );
+                ps.setString( 3, label );
+                ps.setString( 4, scope.wire() );
+                ps.setTimestamp( 5, Timestamp.from( createdAt ) );
+                ps.setString( 6, createdBy );
+            }, rs -> rs.getInt( 1 ) ).orElseThrow( () -> new SQLException( "INSERT yielded no generated key" ) );
+            final Record record = new Record( id, hash, principalLogin, label,
+                    scope, createdAt, createdBy, null, null, null );
+            return new Generated( plaintext, record );
         } catch ( final SQLException e ) {
             // LOG.error justified: key generation failure blocks operator admin work and becomes HTTP 500.
             LOG.error( "Failed to generate API key for {}: {}", principalLogin, e.getMessage() );
@@ -243,17 +243,10 @@ public class ApiKeyService {
         final String sql = "SELECT id, key_hash, principal_login, label, scope,"
                 + " created_at, created_by, last_used_at, revoked_at, revoked_by"
                 + " FROM " + TABLE + " WHERE key_hash = ? AND revoked_at IS NULL";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, hash );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                if ( !rs.next() ) {
-                    return Optional.empty();
-                }
-                final Record record = readRow( rs );
-                idToHash.put( record.id(), hash );
-                return Optional.of( record );
-            }
+        try {
+            final Optional< Record > found = jdbc.queryOne( sql, ps -> ps.setString( 1, hash ), ApiKeyService::readRow );
+            found.ifPresent( record -> idToHash.put( record.id(), hash ) );
+            return found;
         } catch ( final SQLException e ) {
             LOG.warn( "API key verify failed: {}", e.getMessage() );
             return Optional.empty();
@@ -270,17 +263,12 @@ public class ApiKeyService {
         final String sql = "SELECT id, key_hash, principal_login, label, scope,"
                 + " created_at, created_by, last_used_at, revoked_at, revoked_by"
                 + " FROM " + TABLE + " ORDER BY created_at DESC";
-        final List< Record > out = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql );
-              ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) {
-                out.add( readRow( rs ) );
-            }
+        try {
+            return jdbc.query( sql, SqlBinder.NONE, ApiKeyService::readRow );
         } catch ( final SQLException e ) {
             LOG.warn( "API key list failed: {}", e.getMessage() );
+            return new ArrayList<>();
         }
-        return out;
     }
 
     /** Lists a principal's ACTIVE keys, newest first. */
@@ -290,19 +278,12 @@ public class ApiKeyService {
                 + " FROM " + TABLE
                 + " WHERE principal_login = ? AND revoked_at IS NULL"
                 + " ORDER BY created_at DESC";
-        final List< Record > out = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, principalLogin );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    out.add( readRow( rs ) );
-                }
-            }
+        try {
+            return jdbc.query( sql, ps -> ps.setString( 1, principalLogin ), ApiKeyService::readRow );
         } catch ( final SQLException e ) {
             LOG.warn( "API key listByPrincipal failed for '{}': {}", principalLogin, e.getMessage() );
+            return new ArrayList<>();
         }
-        return out;
     }
 
     /** Looks up a key by id (active or revoked); empty if not found. */
@@ -310,12 +291,8 @@ public class ApiKeyService {
         final String sql = "SELECT id, key_hash, principal_login, label, scope,"
                 + " created_at, created_by, last_used_at, revoked_at, revoked_by"
                 + " FROM " + TABLE + " WHERE id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setInt( 1, id );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? Optional.of( readRow( rs ) ) : Optional.empty();
-            }
+        try {
+            return jdbc.queryOne( sql, ps -> ps.setInt( 1, id ), ApiKeyService::readRow );
         } catch ( final SQLException e ) {
             LOG.warn( "API key findById failed for id={}: {}", id, e.getMessage() );
             return Optional.empty();
@@ -332,12 +309,12 @@ public class ApiKeyService {
         final String sql = "UPDATE " + TABLE
                 + " SET revoked_at = ?, revoked_by = ?"
                 + " WHERE id = ? AND revoked_at IS NULL";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setTimestamp( 1, Timestamp.from( Instant.now() ) );
-            ps.setString( 2, revokedBy );
-            ps.setInt( 3, id );
-            final boolean revoked = ps.executeUpdate() > 0;
+        try {
+            final boolean revoked = jdbc.update( sql, ps -> {
+                ps.setTimestamp( 1, Timestamp.from( Instant.now() ) );
+                ps.setString( 2, revokedBy );
+                ps.setInt( 3, id );
+            } ) > 0;
             if ( revoked ) {
                 final String hash = idToHash.remove( id );
                 if ( hash != null ) {
@@ -368,11 +345,11 @@ public class ApiKeyService {
         final String sql = "UPDATE " + TABLE
                 + " SET revoked_at = ?"
                 + " WHERE principal_login = ? AND revoked_at IS NULL";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setTimestamp( 1, Timestamp.from( Instant.now() ) );
-            ps.setString( 2, principalLogin );
-            final int count = ps.executeUpdate();
+        try {
+            final int count = jdbc.update( sql, ps -> {
+                ps.setTimestamp( 1, Timestamp.from( Instant.now() ) );
+                ps.setString( 2, principalLogin );
+            } );
             // Evict any cached verify entries whose id we know so the revocation
             // takes effect without waiting for TTL expiry.
             idToHash.forEach( ( id, hash ) -> verifyCache.invalidate( hash ) );
@@ -411,11 +388,11 @@ public class ApiKeyService {
 
     private void touchLastUsed( final int id ) {
         final String sql = "UPDATE " + TABLE + " SET last_used_at = ? WHERE id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setTimestamp( 1, Timestamp.from( Instant.now() ) );
-            ps.setInt( 2, id );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> {
+                ps.setTimestamp( 1, Timestamp.from( Instant.now() ) );
+                ps.setInt( 2, id );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "Could not update last_used_at for id={}: {}", id, e.getMessage() );
         }

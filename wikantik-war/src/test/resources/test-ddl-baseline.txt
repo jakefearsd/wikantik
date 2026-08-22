@@ -37,6 +37,6 @@ wikantik-main/src/test/java/com/wikantik/knowledge/querylog/JdbcQueryLogServiceT
 wikantik-main/src/test/java/com/wikantik/pagegraph/spine/PageCanonicalIdsDaoTest.java
 wikantik-main/src/test/java/com/wikantik/pagegraph/spine/PageVerificationDaoTest.java
 wikantik-main/src/test/java/com/wikantik/pagegraph/spine/TrustedAuthorsDaoTest.java
+wikantik-main/src/test/java/com/wikantik/plugin/JDBCPluginCITest.java
 wikantik-main/src/test/java/com/wikantik/search/subsystem/BundleSourcesWithoutEmbedderTest.java
-wikantik-main/src/test/resources/postgresql-test.sql
 wikantik-rest/src/test/java/com/wikantik/rest/CommentThreadResourceTest.java

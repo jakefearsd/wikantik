@@ -6,6 +6,79 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **A failed comment write no longer commits its partial rows.** `createThread`,
+  `addComment` and `editComment` each opened a manual transaction and caught only
+  `SQLException`, but all three call `MentionService` inside it. Per the JDBC contract,
+  restoring auto-commit in a `finally` COMMITS an open transaction — so an unchecked failure
+  in the mention work skipped the rollback and persisted the thread and comment without their
+  mentions, while reporting failure to the caller. All three now share one `inTransaction`
+  helper that rolls back on any exception, and a failing rollback no longer replaces the
+  exception that caused it.
+- **`kg-policy purge` no longer reports a committed purge as rolled back.** The audit row was
+  written on a second connection AFTER the deletions had committed, but still inside the try
+  whose handler says "purge rolled back". If that insert failed, `chunk_entity_mentions`,
+  `kg_edges`, `kg_nodes` and `kg_excluded_pages` rows were permanently gone, no audit record
+  existed, and the operator was told the purge had been rolled back. The audit row is now
+  written in the same transaction, so the purge and its record stand or fall together.
+- **Policy-grant creations are now findable in the audit log.** Create filed its audit entry
+  under a composite descriptor (`role:Admin:wiki:*`) while update and delete used the numeric
+  grant id, so auditing "what happened to grant 7" found the update and the delete but never
+  the creation. All three now file under the grant id, with the descriptor in `targetLabel`.
+- **`preview_structured_data` now classifies hub pages the way the renderer does.** Ten places
+  re-derived "is this page a hub" from frontmatter in three different ways. Because a
+  non-canonical enum value is only an advisory warning at save time, a page written
+  `type: Hub` rendered as `CollectionPage` with `hasPart` but previewed as `Article` with a
+  fabricated `isPartOf`, and was simultaneously a hub to the structural spine and not a hub to
+  hub-member loading, hub overview, `HubSetPlugin` and KG maintenance. Every
+  frontmatter-sourced check now resolves through `PageType.fromFrontmatter`.
+- **`preview_structured_data` SEO warnings now run the same checks as `verify_pages`.** The
+  preview re-implemented the five SEO rules `PageChecks` already provides and had drifted from
+  them: a whitespace-only summary was reported as a 3-character "too short" summary rather than
+  a missing one. Both surfaces now run the shared checks.
+- **`verify_pages` no longer passes cluster paths the save path rejects.** The audit's
+  cluster-slug regex was written independently of `FrontmatterSchema.CLUSTER_SLUG_PATTERN` and
+  differed in one character, allowing unlimited sub-cluster depth. A page with
+  `cluster: a/b/c` warned on every save while the audit reported it clean. The check now
+  compiles the schema constant, so the depth limit really does live in one place.
+
+### Security
+- **Failed user and group writes are rolled back explicitly instead of relying on the
+  connection pool.** `AbstractJDBCDatabase.runInTransaction` and the three `JDBCUserDatabase`
+  write paths turned auto-commit off and then, on failure, closed the connection with the
+  transaction still open. What happens then is pool-defined — DBCP2 defaults
+  `rollbackOnReturn` to true, but that is configured nowhere in the repo. The partial writes at
+  stake are security-relevant: a group left half-way through a membership rewrite, a `users`
+  row whose role insert failed (an account with no permissions), or a `login_name` renamed in
+  `users` but not in `roles`. No live defect was observed; this removes the dependency on
+  unpinned pool behaviour.
+- **One implementation of the paid-Anthropic-API cost guard.** `JudgeExperimentCli` carried a
+  hand-copied second copy of the checks gating billable Claude calls. The copies agreed, but a
+  guard on real spend should not depend on two implementations staying in step. `ClaudeCostGuard`
+  now owns them, and new tests pin that each paid path has its own gate, so opting into the
+  extractor never opens the judge.
+
+### Changed
+- Single sources of truth for three values that were previously restated in two places and
+  could drift: the dense-retrieval backend names and their rejection message (`DenseBackends`),
+  the real-provider lookup shared by the caching decorators (`ProviderBootstrap`), and the
+  admin audit-entry envelope (`RestAuditSupport.recordAdminAudit`). Behaviour is unchanged.
+- Removed three `AbstractJDBCDatabase` methods with no production callers, superseded by
+  `runInTransaction`: `detectTransactionSupport`, `prepareForTransaction` and
+  `commitIfSupported`.
+
+### Tests
+- Browser start-up in the parallel IT gate is retried (3 attempts, 2 s backoff, `WebDriverException`
+  only), and Selenium's HTTP read timeout is lowered from 180 s to 60 s so a stalled start is
+  caught in a minute rather than three. A contended machine could previously stall a Chrome
+  start past the timeout and fail an entire test class.
+- Fixed a `CachingProviderTest` case that raced its own cache priming: it asserted a cache hit
+  against an entry written during engine construction, with a 1 s TTL, so a loaded machine
+  outran the TTL and the assertion failed legitimately.
+- New coverage for previously untested paths: `runInTransaction` rollback behaviour, provider
+  bootstrap error branches, the cluster-slug and hub-detection parity contracts, and the
+  cost-guard gates.
+
 ## [2.4.18] - 2026-08-20
 
 ### Security

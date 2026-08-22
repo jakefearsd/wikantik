@@ -7,26 +7,7 @@
 # shared fixture) — never added to paper over a new straggler.
 #
 # Paths are repo-root-relative, sorted.
-wikantik-connectors/src/test/java/com/wikantik/connectors/config/JdbcConnectorConfigStoreTest.java
-wikantik-connectors/src/test/java/com/wikantik/connectors/credential/JdbcCredentialStoreTest.java
-wikantik-connectors/src/test/java/com/wikantik/connectors/runtime/ConnectorStatusReaderTest.java
-wikantik-connectors/src/test/java/com/wikantik/connectors/state/JdbcSyncRunStoreTest.java
-wikantik-connectors/src/test/java/com/wikantik/connectors/state/JdbcSyncStateStoreTest.java
-wikantik-extract-cli/src/test/resources/bootstrap-extraction-cli-test.sql
-wikantik-extract-cli/src/test/resources/kgpolicy-cli-test.sql
-wikantik-insights/src/test/java/com/wikantik/insights/JdbcInsightsStorePostgresTest.java
-wikantik-insights/src/test/java/com/wikantik/insights/JdbcInsightsStoreTest.java
-wikantik-main/src/test/java/com/wikantik/connectors/ConnectorSyncEndToEndTest.java
-wikantik-main/src/test/java/com/wikantik/derived/ConnectorConfigServiceTest.java
-wikantik-main/src/test/java/com/wikantik/derived/ConnectorWiringHelperTest.java
-wikantik-main/src/test/java/com/wikantik/knowledge/eval/DefaultRetrievalQualityRunnerTest.java
-wikantik-main/src/test/java/com/wikantik/knowledge/eval/RetrievalQualityDaoTest.java
-wikantik-main/src/test/java/com/wikantik/knowledge/eval/RetrievalQualitySmokeTest.java
-wikantik-main/src/test/java/com/wikantik/knowledge/querylog/JdbcQueryLogReaderTest.java
-wikantik-main/src/test/java/com/wikantik/knowledge/querylog/JdbcQueryLogServiceTest.java
-wikantik-main/src/test/java/com/wikantik/pagegraph/spine/PageCanonicalIdsDaoTest.java
-wikantik-main/src/test/java/com/wikantik/pagegraph/spine/PageVerificationDaoTest.java
-wikantik-main/src/test/java/com/wikantik/pagegraph/spine/TrustedAuthorsDaoTest.java
+# Permanent, justified entry (mirrors the J-1 JDBCPlugin carve-out): the page-authored-SQL
+# plugin queries arbitrary user tables, so its CI test creates its own `employees` fixture —
+# that is not product schema and has no migration to come from.
 wikantik-main/src/test/java/com/wikantik/plugin/JDBCPluginCITest.java
-wikantik-main/src/test/java/com/wikantik/search/subsystem/BundleSourcesWithoutEmbedderTest.java
-wikantik-rest/src/test/java/com/wikantik/rest/CommentThreadResourceTest.java

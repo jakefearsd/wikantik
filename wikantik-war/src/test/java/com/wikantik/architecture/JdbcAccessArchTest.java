@@ -31,7 +31,6 @@ import com.tngtech.archunit.lang.ArchRule;
 import javax.sql.DataSource;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
-import static com.tngtech.archunit.library.freeze.FreezingArchRule.freeze;
 
 /**
  * Architecture guard for "one way to touch the database" — see
@@ -46,16 +45,10 @@ import static com.tngtech.archunit.library.freeze.FreezingArchRule.freeze;
  * {@code update}/{@code batch}/{@code forEachRow}/{@code execute}/
  * {@code inTransaction} methods instead.</p>
  *
- * <p>The rule is wrapped in {@link FreezingArchRule} so the ~55 existing
- * production call sites are baselined into a violation store (see
- * {@code wikantik-war/src/test/resources/archunit_store/}); new violations
- * fail the build immediately, and the wave-by-wave migration burns the store
- * down to zero (Phase 3 of the plan then converts the rule to a plain,
- * unfrozen {@code ArchRule} once the store is empty).</p>
- *
- * <p>To address an existing violation: migrate the offender onto
- * {@code Jdbc}/{@code JdbcSupport}, run this test, remove the now-stale
- * entry from the store file, commit both.</p>
+ * <p>The rule is <b>unfrozen</b>: it was baselined with 53 violating classes on
+ * 2026-08-22 and burned down to zero the same day (ADR-0010), so any violation
+ * now fails the build outright. There is no store to edit — migrate the offender
+ * onto {@code Jdbc}/{@code JdbcSupport}.</p>
  *
  * <p><b>Why {@code wikantik-war}, not {@code wikantik-main}:</b> this is the
  * one module whose test classpath reaches every other module that touches
@@ -94,19 +87,16 @@ class JdbcAccessArchTest {
      * {@code JDBCPlugin}) may open or directly drive a JDBC connection.
      */
     @ArchTest
-    static final ArchRule only_jdbc_module_touches_connections = freeze(
+    static final ArchRule only_jdbc_module_touches_connections =
         noClasses()
             .that().resideOutsideOfPackage( "com.wikantik.jdbc.." )
             .and().doNotBelongToAnyOf( JDBC_PLUGIN )
             .should().callMethodWhere( OPENS_OR_DRIVES_A_CONNECTION )
-            // The .as() text below is the FreezingArchRule violation-store KEY and
-            // MUST match archunit_store/stored.rules byte-for-byte — do not edit it.
             .as( "J-1: no class outside com.wikantik.jdbc.. (except the allowlisted "
                + "com.wikantik.plugin.JDBCPlugin) may call DataSource#getConnection, "
                + "DriverManager#getConnection, or Connection#{prepareStatement,prepareCall,"
                + "createStatement,setAutoCommit,commit,rollback} — use com.wikantik.jdbc.Jdbc. "
-               + "See docs/superpowers/plans/2026-08-22-one-way-to-touch-the-database.md" )
-    );
+               + "See docs/adr/0010-one-data-access-primitive.md" );
 
     /**
      * Builds a predicate matching calls to a method (or, via {@code |}-separated

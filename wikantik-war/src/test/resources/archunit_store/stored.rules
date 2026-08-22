@@ -1,3 +1,0 @@
-#
-#Sat Aug 22 09:00:15 CEST 2026
-J-1\:\ no\ class\ outside\ com.wikantik.jdbc..\ (except\ the\ allowlisted\ com.wikantik.plugin.JDBCPlugin)\ may\ call\ DataSource\#getConnection,\ DriverManager\#getConnection,\ or\ Connection\#{prepareStatement,prepareCall,createStatement,setAutoCommit,commit,rollback}\ \u2014\ use\ com.wikantik.jdbc.Jdbc.\ See\ docs/superpowers/plans/2026-08-22-one-way-to-touch-the-database.md=a4adc00f-6633-4480-8588-0bc66e956c04

@@ -87,7 +87,7 @@ public abstract class JdbcSupport {
         return jdbc.update( sql, binder );
     }
 
-    /** {@link #update(String, SqlBinder)} on an already-open connection. */
+    /** See {@link Jdbc#insertReturningKey(String, SqlBinder, RowMapper)}. */
     protected < K > Optional< K > insertReturningKey( final String sql, final SqlBinder binder,
                                                        final RowMapper< K > keyMapper ) throws SQLException {
         return jdbc.insertReturningKey( sql, binder, keyMapper );
@@ -99,6 +99,7 @@ public abstract class JdbcSupport {
         return jdbc.insertReturningKey( conn, sql, binder, keyMapper );
     }
 
+    /** {@link #update(String, SqlBinder)} on an already-open connection. */
     protected int update( final Connection conn, final String sql, final SqlBinder binder ) throws SQLException {
         return jdbc.update( conn, sql, binder );
     }

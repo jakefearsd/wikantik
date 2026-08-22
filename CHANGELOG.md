@@ -51,6 +51,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `kg_content_chunks`, and the two defects under *Fixed*.
 - `wikantik-insights` and `wikantik-connectors` depend on `wikantik-jdbc` (JDBC + log4j-api
   only; still no `wikantik-api`/`wikantik-main`).
+- `Jdbc.batchReturningKeys` (batched INSERT with generated keys, one key row per batched
+  statement in batch order) so `JdbcInsightsStore.upsertSeen` is one round-trip again, as it
+  was before the consolidation.
+- The `DevelopingWithPostgresql` and `DatabaseBackedPermissions` wiki pages describe the
+  migrations (`install-fresh.sh` / `migrate.sh`) instead of the retired `postgresql*.ddl`
+  scripts and a stale inline schema.
 
 ### Tests
 - Database tests are **Postgres-only** and need Docker: `@RequiresPostgres` replaces
@@ -60,6 +66,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   silently skipping 70+ tests. H2 survives only inside `wikantik-jdbc`'s own primitive tests.
 - `JudgeRunnerTest` and the extract-cli CLI tests seed vocabulary-valid relationship types and
   run on `PostgresTestDb` instead of private containers with hand-written init scripts.
+- `FaultInjectingDataSource` (wikantik-jdbc test-jar) now injects an `Error` as well as a
+  `RuntimeException` and counts `rollback()`/`commit()` calls — the honest discriminator against a
+  raw, unpooled connection, which discards an open transaction on close regardless of whether
+  the code rolled back. The ad-hoc `RollbackTrackingDataSource` is folded into it.
 
 ## [2.4.19] - 2026-08-22
 

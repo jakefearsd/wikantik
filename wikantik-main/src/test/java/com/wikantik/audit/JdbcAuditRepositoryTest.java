@@ -29,8 +29,6 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,9 +38,14 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
  * Regression test for the audit writer against a <b>least-privilege</b> app role — a role with
  * {@code USAGE} but not {@code CREATE} on schema {@code public}, exactly as the V036 migration's
  * grant model intends (and the PostgreSQL 15+ default). Privileged test/CI roles hid the bug where
- * {@code append()} ran {@code CREATE TABLE … PARTITION OF} on every batch: that DDL fails with
+ * {@code append()} ran a table-creation {@code … PARTITION OF} DDL statement on every batch: it fails with
  * "permission denied for schema public" even when the partition already exists, rolling back the
  * whole batch and silently losing the audit trail.
+ *
+ * <p>Schema comes from the real {@code bin/db/migrations} (V036/V037) via {@link PostgresTestDb} —
+ * not a hand-written copy — so {@code audit_log} is already partitioned exactly as prod is, and
+ * {@code JdbcAuditRepository#ensurePartition}'s DDL-skip path is exercised against the genuine
+ * pre-created current-month partition (migrations pre-create the current + next two months).
  */
 @Testcontainers( disabledWithoutDocker = true )
 class JdbcAuditRepositoryTest {
@@ -50,34 +53,15 @@ class JdbcAuditRepositoryTest {
     private static final String APP_ROLE = "audit_app_lowpriv";
     private static final String APP_PW = "lowpriv_pw";
 
-    private static DataSource superuserDs;   // container default (owns/creates schema)
+    private static DataSource superuserDs;   // migrated-schema owner (container default)
     private static DataSource restrictedDs;  // least-privilege app role
 
     @BeforeAll
     static void setUp() throws Exception {
         superuserDs = PostgresTestDb.createDataSource();
-
-        // Current month's partition bounds (the code partitions by created_at = now()).
-        final ZonedDateTime start = Instant.now().atZone( ZoneOffset.UTC )
-                .withDayOfMonth( 1 ).toLocalDate().atStartOfDay( ZoneOffset.UTC );
-        final ZonedDateTime end = start.plusMonths( 1 );
-        final String partition = String.format( "audit_log_%04d_%02d", start.getYear(), start.getMonthValue() );
+        PostgresTestDb.truncate( "audit_log" );
 
         try ( Connection c = superuserDs.getConnection(); Statement st = c.createStatement() ) {
-            st.execute( "CREATE SEQUENCE IF NOT EXISTS audit_log_seq" );
-            st.execute( "CREATE TABLE IF NOT EXISTS audit_log ("
-                    + "seq BIGINT NOT NULL, created_at TIMESTAMPTZ NOT NULL, event_time TIMESTAMPTZ NOT NULL,"
-                    + "category TEXT NOT NULL, event_type TEXT NOT NULL, actor_id TEXT, actor_principal TEXT,"
-                    + "actor_type TEXT NOT NULL, target_type TEXT, target_id TEXT, target_label TEXT,"
-                    + "outcome TEXT NOT NULL, source_ip TEXT, user_agent TEXT, correlation_id TEXT, detail TEXT,"
-                    + "prev_hash CHAR(64) NOT NULL, row_hash CHAR(64) NOT NULL,"
-                    + "PRIMARY KEY ( seq, created_at ) ) PARTITION BY RANGE ( created_at )" );
-            // Pre-create the current-month partition (mirrors the migration). The bug is that the
-            // writer re-issues this DDL on every append even though it already exists.
-            st.execute( "CREATE TABLE IF NOT EXISTS " + partition + " PARTITION OF audit_log "
-                    + "FOR VALUES FROM ('" + start.toLocalDate() + "') TO ('" + end.toLocalDate() + "')" );
-            st.execute( "TRUNCATE audit_log" );
-
             // Least-privilege role: USAGE but NOT CREATE on public; INSERT/SELECT on the parent only.
             st.execute( "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='" + APP_ROLE + "') "
                     + "THEN CREATE ROLE " + APP_ROLE + " LOGIN PASSWORD '" + APP_PW + "'; END IF; END $$" );
@@ -111,7 +95,7 @@ class JdbcAuditRepositoryTest {
                 .build();
 
         // Before the fix this throws IllegalStateException("audit append failed") because
-        // ensurePartition() runs CREATE TABLE … PARTITION OF, which a no-CREATE role can't execute.
+        // ensurePartition() runs a table-creation … PARTITION OF DDL, which a no-CREATE role can't execute.
         assertDoesNotThrow( () -> repo.append( List.of( entry ) ),
                 "append() must not run DDL when the partition already exists — a least-privilege "
                         + "app role (no CREATE on schema public) must be able to write the audit trail" );

@@ -18,17 +18,20 @@
  */
 package com.wikantik.audit;
 
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -37,20 +40,18 @@ public final class JdbcAuditRepository implements AuditRepository {
 
     private static final Logger LOG = LogManager.getLogger( JdbcAuditRepository.class );
     private static final long CHAIN_LOCK_KEY = 8423971L;
+    private static final String CHAIN_HEAD_SQL = "SELECT seq, row_hash FROM audit_log ORDER BY seq DESC LIMIT 1";
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
 
-    public JdbcAuditRepository( final DataSource dataSource ) { this.dataSource = dataSource; }
+    public JdbcAuditRepository( final DataSource dataSource ) { this.jdbc = new Jdbc( dataSource ); }
 
     @Override
     public ChainHead chainHead() {
-        final String sql = "SELECT seq, row_hash FROM audit_log ORDER BY seq DESC LIMIT 1";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql );
-              ResultSet rs = ps.executeQuery() ) {
-            if ( rs.next() ) return new ChainHead( rs.getLong( 1 ), rs.getString( 2 ) );
-            return new ChainHead( 0L, AuditChainHasher.GENESIS_PREV_HASH );
-        } catch ( final java.sql.SQLException e ) {
+        try {
+            return jdbc.queryOne( CHAIN_HEAD_SQL, SqlBinder.NONE, this::mapChainHead )
+                .orElse( new ChainHead( 0L, AuditChainHasher.GENESIS_PREV_HASH ) );
+        } catch ( final SQLException e ) {
             throw new IllegalStateException( "audit chainHead read failed", e );
         }
     }
@@ -66,26 +67,28 @@ public final class JdbcAuditRepository implements AuditRepository {
             + "event_type, actor_id, actor_principal, actor_type, target_type, target_id, "
             + "target_label, outcome, source_ip, user_agent, correlation_id, detail, prev_hash, "
             + "row_hash ) VALUES ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? )";
-        try ( Connection c = dataSource.getConnection() ) {
-            c.setAutoCommit( false );
-            try {
-                lockChain( c );
-                ensurePartition( c, Instant.now() );
-                final ChainHead head = chainHeadTx( c );
+        try {
+            jdbc.inTransaction( conn -> {
+                lockChain( conn );
+                ensurePartition( conn, Instant.now() );
+                final ChainHead head = chainHeadTx( conn );
                 long seq = head.lastSeq();
                 String prev = head.lastHash();
                 final Timestamp now = Timestamp.from( Instant.now() );
-                try ( PreparedStatement ps = c.prepareStatement( insert ) ) {
-                    for ( final AuditEntry e : entries ) {
-                        seq++;
-                        final String rowHash = AuditChainHasher.hash( prev, e );
-                        // Store event_time at microsecond precision — the same precision
-                        // used in canonical() for hashing — so verifyChain() reads the
-                        // identical truncated value when recomputing hashes.
-                        final java.time.Instant usEventTime =
-                                e.eventTime().truncatedTo( java.time.temporal.ChronoUnit.MICROS );
+                final List<SqlBinder> binders = new ArrayList<>( entries.size() );
+                for ( final AuditEntry e : entries ) {
+                    seq++;
+                    final String rowHash = AuditChainHasher.hash( prev, e );
+                    // Store event_time at microsecond precision — the same precision
+                    // used in canonical() for hashing — so verifyChain() reads the
+                    // identical truncated value when recomputing hashes.
+                    final Instant usEventTime = e.eventTime().truncatedTo( ChronoUnit.MICROS );
+                    final long boundSeq = seq;
+                    final String boundPrev = prev;
+                    final String boundRowHash = rowHash;
+                    binders.add( ps -> {
                         int i = 1;
-                        ps.setLong( i++, seq );
+                        ps.setLong( i++, boundSeq );
                         ps.setTimestamp( i++, now );
                         ps.setTimestamp( i++, Timestamp.from( usEventTime ) );
                         ps.setString( i++, e.category().name() );
@@ -101,44 +104,32 @@ public final class JdbcAuditRepository implements AuditRepository {
                         ps.setString( i++, e.userAgent() );
                         ps.setString( i++, e.correlationId() );
                         ps.setString( i++, e.detail() );
-                        ps.setString( i++, prev );
-                        ps.setString( i++, rowHash );
-                        ps.addBatch();
-                        prev = rowHash;
-                    }
-                    ps.executeBatch();
+                        ps.setString( i++, boundPrev );
+                        ps.setString( i++, boundRowHash );
+                    } );
+                    prev = rowHash;
                 }
-                c.commit();
-            } catch ( final java.sql.SQLException e ) {
-                c.rollback();
-                throw new IllegalStateException( "audit append failed", e );
-            } finally {
-                c.setAutoCommit( true );
-            }
-        } catch ( final java.sql.SQLException e ) {
-            throw new IllegalStateException( "audit append connection failed", e );
+                jdbc.batch( conn, insert, binders );
+                return null;
+            } );
+        } catch ( final SQLException e ) {
+            throw new IllegalStateException( "audit append failed", e );
         }
     }
 
-    private void lockChain( final Connection c ) throws java.sql.SQLException {
-        try ( PreparedStatement ps = c.prepareStatement( "SELECT pg_advisory_xact_lock( ? )" ) ) {
-            ps.setLong( 1, CHAIN_LOCK_KEY );
-            // pg_advisory_xact_lock acquires the transaction-scoped lock as a
-            // side effect of execution; there are no rows to consume. Capturing
-            // the ResultSet in try-with-resources closes it explicitly.
-            try ( ResultSet rs = ps.executeQuery() ) {
-                // lock acquired; intentionally nothing to read
-            }
-        }
+    private void lockChain( final Connection conn ) throws SQLException {
+        // pg_advisory_xact_lock acquires the transaction-scoped lock as a side effect of
+        // execution; there are no rows worth collecting, so the mapper result is discarded.
+        jdbc.<Void>query( conn, "SELECT pg_advisory_xact_lock( ? )", ps -> ps.setLong( 1, CHAIN_LOCK_KEY ), rs -> null );
     }
 
-    private ChainHead chainHeadTx( final Connection c ) throws java.sql.SQLException {
-        try ( PreparedStatement ps = c.prepareStatement(
-                "SELECT seq, row_hash FROM audit_log ORDER BY seq DESC LIMIT 1" );
-              ResultSet rs = ps.executeQuery() ) {
-            if ( rs.next() ) return new ChainHead( rs.getLong( 1 ), rs.getString( 2 ) );
-            return new ChainHead( 0L, AuditChainHasher.GENESIS_PREV_HASH );
-        }
+    private ChainHead chainHeadTx( final Connection conn ) throws SQLException {
+        return jdbc.queryOne( conn, CHAIN_HEAD_SQL, SqlBinder.NONE, this::mapChainHead )
+            .orElse( new ChainHead( 0L, AuditChainHasher.GENESIS_PREV_HASH ) );
+    }
+
+    private ChainHead mapChainHead( final ResultSet rs ) throws SQLException {
+        return new ChainHead( rs.getLong( 1 ), rs.getString( 2 ) );
     }
 
     /** Defensively creates the monthly partition for the given instant.
@@ -150,31 +141,31 @@ public final class JdbcAuditRepository implements AuditRepository {
      *  least-privilege app role (USAGE but not CREATE on schema {@code public} — the correct posture,
      *  and the PostgreSQL 15+ default) would otherwise fail <em>every</em> append with "permission
      *  denied for schema public", rolling back the batch and silently losing the audit trail.</p>
+     *
+     *  <p>Runs inside the same transaction as the row insert ({@link #append}) via
+     *  {@link Jdbc#execute(Connection, String)} — deliberately, not a separate transaction: if the
+     *  partition is created but the subsequent insert then fails, both must roll back together
+     *  rather than leaving a phantom empty partition behind.</p>
      */
-    private void ensurePartition( final Connection c, final Instant when ) throws java.sql.SQLException {
+    private void ensurePartition( final Connection conn, final Instant when ) throws SQLException {
         final ZonedDateTime z = when.atZone( ZoneOffset.UTC );
         final ZonedDateTime start = z.withDayOfMonth( 1 ).toLocalDate().atStartOfDay( ZoneOffset.UTC );
         final ZonedDateTime end = start.plusMonths( 1 );
         final String name = String.format( "audit_log_%04d_%02d", start.getYear(), start.getMonthValue() );
-        if ( partitionExists( c, name ) ) {
+        if ( partitionExists( conn, name ) ) {
             return;
         }
         final String ddl = "CREATE TABLE IF NOT EXISTS " + name + " PARTITION OF audit_log "
             + "FOR VALUES FROM ('" + start.toLocalDate() + "') TO ('" + end.toLocalDate() + "')";
-        try ( PreparedStatement ps = c.prepareStatement( ddl ) ) {
-            ps.execute();
-        }
+        jdbc.execute( conn, ddl );
     }
 
     /** Privilege-free existence check ({@code to_regclass} returns null for an absent/invisible
      *  relation and requires no table or DDL privilege). */
-    private boolean partitionExists( final Connection c, final String name ) throws java.sql.SQLException {
-        try ( PreparedStatement ps = c.prepareStatement( "SELECT to_regclass( ? ) IS NOT NULL" ) ) {
-            ps.setString( 1, name );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() && rs.getBoolean( 1 );
-            }
-        }
+    private boolean partitionExists( final Connection conn, final String name ) throws SQLException {
+        return jdbc.queryOne( conn, "SELECT to_regclass( ? ) IS NOT NULL", ps -> ps.setString( 1, name ),
+                rs -> rs.getBoolean( 1 ) )
+            .orElse( false );
     }
 
     @Override
@@ -195,17 +186,11 @@ public final class JdbcAuditRepository implements AuditRepository {
         sql.append( " ORDER BY seq DESC LIMIT ?" );
         params.add( q.limit() );
 
-        final List<PersistedAuditEntry> out = new ArrayList<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) out.add( mapRow( rs ) );
-            }
-        } catch ( final java.sql.SQLException e ) {
+        try {
+            return jdbc.query( sql.toString(), SqlBinder.positional( params ), this::mapRow );
+        } catch ( final SQLException e ) {
             throw new IllegalStateException( "audit query failed", e );
         }
-        return out;
     }
 
     @Override
@@ -214,34 +199,37 @@ public final class JdbcAuditRepository implements AuditRepository {
           + "actor_type, target_type, target_id, target_label, outcome, source_ip, user_agent, "
           + "correlation_id, detail, prev_hash, row_hash FROM audit_log "
           + "WHERE seq >= ? AND seq <= ? ORDER BY seq ASC";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setLong( 1, fromSeq );
-            ps.setLong( 2, toSeq );
-            String prev = AuditChainHasher.GENESIS_PREV_HASH;
-            boolean first = true;
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final long seq = rs.getLong( "seq" );
-                    if ( first ) { prev = rs.getString( "prev_hash" ); first = false; }
-                    final AuditEntry e = mapEntry( rs );
-                    final String expected = AuditChainHasher.hash( prev, e );
-                    final String stored = rs.getString( "row_hash" );
-                    if ( !expected.equals( stored ) ) {
-                        LOG.warn( "audit chain broken at seq={}: expected={} stored={}",
-                                seq, expected.substring( 0, 8 ), stored.substring( 0, 8 ) );
-                        return Optional.of( seq );
-                    }
-                    prev = stored;
-                }
-            }
-        } catch ( final java.sql.SQLException e ) {
+        final List<VerifyRow> rows;
+        try {
+            rows = jdbc.query( sql, ps -> { ps.setLong( 1, fromSeq ); ps.setLong( 2, toSeq ); }, this::mapVerifyRow );
+        } catch ( final SQLException e ) {
             throw new IllegalStateException( "audit verify failed", e );
+        }
+        String prev = AuditChainHasher.GENESIS_PREV_HASH;
+        boolean first = true;
+        for ( final VerifyRow row : rows ) {
+            if ( first ) { prev = row.prevHash(); first = false; }
+            final String expected = AuditChainHasher.hash( prev, row.entry() );
+            final String stored = row.rowHash();
+            if ( !expected.equals( stored ) ) {
+                LOG.warn( "audit chain broken at seq={}: expected={} stored={}",
+                        row.seq(), expected.substring( 0, 8 ), stored.substring( 0, 8 ) );
+                return Optional.of( row.seq() );
+            }
+            prev = stored;
         }
         return Optional.empty();
     }
 
-    private AuditEntry mapEntry( final ResultSet rs ) throws java.sql.SQLException {
+    private VerifyRow mapVerifyRow( final ResultSet rs ) throws SQLException {
+        return new VerifyRow( rs.getLong( "seq" ), rs.getString( "prev_hash" ), rs.getString( "row_hash" ), mapEntry( rs ) );
+    }
+
+    /** One row of a {@link #verifyChain} scan — just enough to walk the hash chain sequentially. */
+    private record VerifyRow( long seq, String prevHash, String rowHash, AuditEntry entry ) {
+    }
+
+    private AuditEntry mapEntry( final ResultSet rs ) throws SQLException {
         return AuditEntry.builder()
             .eventTime( rs.getTimestamp( "event_time" ).toInstant() )
             .category( AuditCategory.valueOf( rs.getString( "category" ) ) )
@@ -260,7 +248,7 @@ public final class JdbcAuditRepository implements AuditRepository {
             .build();
     }
 
-    private PersistedAuditEntry mapRow( final ResultSet rs ) throws java.sql.SQLException {
+    private PersistedAuditEntry mapRow( final ResultSet rs ) throws SQLException {
         return new PersistedAuditEntry( rs.getLong( "seq" ),
             rs.getTimestamp( "created_at" ).toInstant(),
             rs.getString( "prev_hash" ), rs.getString( "row_hash" ), mapEntry( rs ) );

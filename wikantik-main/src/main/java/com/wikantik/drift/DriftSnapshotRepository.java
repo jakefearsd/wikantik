@@ -24,10 +24,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -54,27 +52,18 @@ public final class DriftSnapshotRepository {
                              final List< DriftCount > counts ) {
         try {
             return jdbc.inTransaction( conn -> {
-                final long sweepId;
-                // Not migrated to Jdbc.update(conn, ...): needs Statement.RETURN_GENERATED_KEYS
-                // plus a getGeneratedKeys() read on the same statement — a different shape than
-                // the plain executeUpdate() the update() primitive wraps. Same documented gap as
-                // KgProposalRepository.insertProposal.
-                try ( PreparedStatement ps = conn.prepareStatement(
+                final long sweepId = jdbc.insertReturningKey( conn,
                         "INSERT INTO drift_sweeps ( swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked ) "
-                      + "VALUES ( ?, ?, ?, ?, ? )", Statement.RETURN_GENERATED_KEYS ) ) {
-                    ps.setTimestamp( 1, Timestamp.from( sweptAt ) );
-                    ps.setInt( 2, pagesScanned );
-                    ps.setLong( 3, durationMs );
-                    ps.setString( 4, triggeredBy );
-                    ps.setBoolean( 5, shaclChecked );
-                    ps.executeUpdate();
-                    try ( ResultSet keys = ps.getGeneratedKeys() ) {
-                        if ( !keys.next() ) {
-                            throw new SQLException( "no generated key for drift_sweeps insert" );
-                        }
-                        sweepId = keys.getLong( 1 );
-                    }
-                }
+                      + "VALUES ( ?, ?, ?, ?, ? )",
+                        ps -> {
+                            ps.setTimestamp( 1, Timestamp.from( sweptAt ) );
+                            ps.setInt( 2, pagesScanned );
+                            ps.setLong( 3, durationMs );
+                            ps.setString( 4, triggeredBy );
+                            ps.setBoolean( 5, shaclChecked );
+                        },
+                        rs -> rs.getLong( 1 ) )
+                    .orElseThrow( () -> new SQLException( "no generated key for drift_sweeps insert" ) );
                 final List< SqlBinder > countBinders = counts.stream()
                         .< SqlBinder >map( c -> ps -> {
                             ps.setLong( 1, sweepId );

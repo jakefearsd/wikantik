@@ -185,6 +185,35 @@ class EmbeddingIndexServiceTest {
           + visibleToOtherConnections );
     }
 
+    /**
+     * {@code indexChunks} already catches both {@code SQLException} and {@code RuntimeException}
+     * around its transaction (rolling back explicitly in both) — but not {@link Error}. An
+     * {@code AssertionError}/OOM anywhere in that transaction bypasses both catches and, in the
+     * pre-{@code Jdbc} code, reaches the end of the try-with-resources block without an explicit
+     * {@code rollback()} ever being called. A raw test connection aborts the open transaction on
+     * close either way, so "no partial rows" can't tell the two code paths apart — counting the
+     * {@code rollback()} calls directly can.
+     */
+    @Test
+    void indexChunks_rollsBackExplicitlyEvenOnAnErrorNeitherExistingCatchCanSee() throws SQLException {
+        final List< UUID > ids = seedChunks( 1 );
+        stubBatchEmbed( 1, false );
+
+        final com.wikantik.search.RollbackTrackingDataSource tracking =
+            new com.wikantik.search.RollbackTrackingDataSource( dataSource );
+        // 2 statement-creation calls per indexChunks(): #1 = SELECT_BY_IDS_SQL prepare,
+        // #2 = UPSERT_SQL prepare (inside the write batch). Fail the UPSERT prepare with an Error.
+        tracking.failOn( 2, new AssertionError( "simulated invariant violation" ) );
+
+        final EmbeddingIndexService svc = new EmbeddingIndexService( tracking, client, 32 );
+
+        assertThrows( AssertionError.class, () -> svc.indexChunks( ids, MODEL ) );
+        assertEquals( 0, countRows(), "the only write batch never committed — no partial rows" );
+        assertEquals( 1, tracking.rollbackCount(),
+            "the open transaction must be explicitly rolled back, even for a failure neither "
+          + "the SQLException nor the RuntimeException catch can see" );
+    }
+
     @Test
     void indexChunks_updatesExistingRowViaOnConflict() throws SQLException {
         final List< UUID > ids = seedChunks( 1 );

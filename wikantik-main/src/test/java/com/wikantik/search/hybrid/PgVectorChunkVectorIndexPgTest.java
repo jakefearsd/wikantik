@@ -32,6 +32,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -139,6 +140,34 @@ class PgVectorChunkVectorIndexPgTest {
         insertChunkAndEmbedding( "IT_PgVec_Page4", 0, perturbAndNormalize( unitVector(), 2, 0.01f ) );
         assertEquals( 3, idx.size(),
             "size() should be cache-stable within the 5-minute TTL" );
+    }
+
+    /**
+     * {@code topKChunks} runs {@code SET LOCAL hnsw.ef_search} and the SELECT inside one
+     * hand-rolled transaction whose only catch is {@code SQLException} — an {@link Error} from
+     * anywhere in that transaction (an invariant violation, an OOM) bypasses it entirely and, in
+     * the pre-{@code Jdbc} code, reaches {@code finally { conn.setAutoCommit(true) }} without an
+     * explicit {@code rollback()} first. A raw test connection aborts the open transaction on
+     * close either way, so "no partial rows" can't tell the two code paths apart — counting the
+     * {@code rollback()} calls directly can.
+     */
+    @Test
+    void topKChunks_rollsBackExplicitlyEvenOnAnErrorTheSqlExceptionCatchCannotSee() throws Exception {
+        cleanTestRows();
+        insertChunkAndEmbedding( "IT_PgVec_Page1", 0, unitVector() );
+
+        final com.wikantik.search.RollbackTrackingDataSource tracking =
+            new com.wikantik.search.RollbackTrackingDataSource( dataSource );
+        // 2 statement-creation calls per topKChunks(): #1 = createStatement (SET LOCAL),
+        // #2 = prepareStatement (the SELECT). Fail the SELECT prepare with an Error.
+        tracking.failOn( 2, new AssertionError( "simulated invariant violation" ) );
+
+        final PgVectorChunkVectorIndex idx = new PgVectorChunkVectorIndex( tracking, MODEL_CODE, 100 );
+
+        assertThrows( AssertionError.class, () -> idx.topKChunks( unitVector(), 3 ) );
+        assertEquals( 1, tracking.rollbackCount(),
+            "the transaction opened for SET LOCAL + SELECT must be explicitly rolled back, "
+          + "even for a failure the SQLException-only catch cannot see" );
     }
 
     // ---- helpers ----

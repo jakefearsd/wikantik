@@ -39,6 +39,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Integration tests for {@link PgVectorBackfillCli} against a live pgvector
@@ -107,6 +108,32 @@ class PgVectorBackfillCliTest {
         final PgVectorBackfillCli cli = new PgVectorBackfillCli( dataSource );
         final int written = cli.run( MODEL_CODE, false );
         assertEquals( 0, written, "corrupt row should be skipped, not crash the run" );
+    }
+
+    /**
+     * {@code run()}'s only catch is {@code SQLException} — an {@link Error} anywhere in the
+     * transaction (an invariant violation, an OOM) bypasses it entirely and, in the
+     * pre-{@code Jdbc} code, reaches {@code finally { c.setAutoCommit(prevAutoCommit) }} without
+     * an explicit {@code rollback()} first. A raw test connection aborts the open transaction on
+     * close either way, so "no partial rows" can't tell the two code paths apart — counting the
+     * {@code rollback()} calls directly can.
+     */
+    @Test
+    void run_rollsBackExplicitlyEvenOnAnErrorTheSqlExceptionCatchCannotSee() throws Exception {
+        seedRowsWithByteaOnly( 1, MODEL_CODE );
+
+        final com.wikantik.search.RollbackTrackingDataSource tracking =
+            new com.wikantik.search.RollbackTrackingDataSource( dataSource );
+        // 2 statement-creation calls per run(): #1 = sel prepare, #2 = upd prepare.
+        // Fail the upd prepare with an Error.
+        tracking.failOn( 2, new AssertionError( "simulated invariant violation" ) );
+
+        final PgVectorBackfillCli cli = new PgVectorBackfillCli( tracking );
+
+        assertThrows( AssertionError.class, () -> cli.run( MODEL_CODE, false ) );
+        assertEquals( 1, tracking.rollbackCount(),
+            "the transaction must be explicitly rolled back, even for a failure the "
+          + "SQLException-only catch cannot see" );
     }
 
     // ---- seed helpers ----

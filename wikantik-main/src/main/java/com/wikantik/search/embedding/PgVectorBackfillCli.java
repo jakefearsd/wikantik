@@ -18,6 +18,7 @@
  */
 package com.wikantik.search.embedding;
 
+import com.wikantik.jdbc.Jdbc;
 import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,9 +27,6 @@ import javax.sql.DataSource;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.UUID;
 
@@ -47,11 +45,11 @@ public final class PgVectorBackfillCli {
 
     private static final Logger LOG = LogManager.getLogger( PgVectorBackfillCli.class );
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     public PgVectorBackfillCli( final DataSource dataSource ) {
         if ( dataSource == null ) throw new IllegalArgumentException( "dataSource must not be null" );
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
     }
 
     /**
@@ -73,59 +71,36 @@ public final class PgVectorBackfillCli {
             "UPDATE content_chunk_embeddings SET embedding = ?::vector "
           + "WHERE chunk_id = ? AND model_code = ?";
 
-        int written = 0;
-        int skipped = 0;
-        try ( Connection c = dataSource.getConnection() ) {
-            final boolean prevAutoCommit = c.getAutoCommit();
-            c.setAutoCommit( false );
-            try {
-                try ( PreparedStatement sel = c.prepareStatement( selectSql );
-                      PreparedStatement upd = c.prepareStatement( updateSql ) ) {
-                    sel.setString( 1, modelCode );
-                    sel.setFetchSize( 500 );
-                    try ( ResultSet rs = sel.executeQuery() ) {
-                        while ( rs.next() ) {
-                            final UUID id = rs.getObject( 1, UUID.class );
-                            final int dim = rs.getInt( 2 );
-                            final byte[] raw = rs.getBytes( 3 );
-                            final float[] decoded = decode( id, raw, dim );
-                            if ( decoded == null ) {
-                                skipped++;
-                                continue;
-                            }
-                            upd.setString( 1, PgVectorChunkVectorIndex.formatVector( decoded ) );
-                            upd.setObject( 2, id );
-                            upd.setString( 3, modelCode );
-                            upd.executeUpdate();
-                            written++;
-                        }
+        final int[] written = { 0 };
+        final int[] skipped = { 0 };
+        try {
+            jdbc.inTransaction( conn -> {
+                jdbc.forEachRow( conn, selectSql, ps -> ps.setString( 1, modelCode ), 500, rs -> {
+                    final UUID id = rs.getObject( 1, UUID.class );
+                    final int dim = rs.getInt( 2 );
+                    final byte[] raw = rs.getBytes( 3 );
+                    final float[] decoded = decode( id, raw, dim );
+                    if ( decoded == null ) {
+                        skipped[ 0 ]++;
+                        return;
                     }
-                }
-                c.commit();
-            } catch ( final SQLException inner ) {
-                try {
-                    c.rollback();
-                } catch ( final SQLException rb ) {
-                    LOG.warn( "PgVectorBackfillCli rollback failed (model={}): {}",
-                        modelCode, rb.getMessage(), rb );
-                }
-                throw inner;
-            } finally {
-                try {
-                    c.setAutoCommit( prevAutoCommit );
-                } catch ( final SQLException acRestore ) {
-                    LOG.warn( "PgVectorBackfillCli autoCommit restore failed (model={}): {}",
-                        modelCode, acRestore.getMessage(), acRestore );
-                }
-            }
+                    jdbc.update( conn, updateSql, ps -> {
+                        ps.setString( 1, PgVectorChunkVectorIndex.formatVector( decoded ) );
+                        ps.setObject( 2, id );
+                        ps.setString( 3, modelCode );
+                    } );
+                    written[ 0 ]++;
+                } );
+                return null;
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "PgVectorBackfillCli failed (model={}, force={}, written-so-far={}): {}",
-                modelCode, force, written, e.getMessage(), e );
+                modelCode, force, written[ 0 ], e.getMessage(), e );
             throw new RuntimeException( "Backfill failed for model " + modelCode, e );
         }
         LOG.info( "PgVectorBackfillCli: model={} force={} wrote={} skipped={}",
-            modelCode, force, written, skipped );
-        return written;
+            modelCode, force, written[ 0 ], skipped[ 0 ] );
+        return written[ 0 ];
     }
 
     private static float[] decode( final UUID id, final byte[] raw, final int dim ) {

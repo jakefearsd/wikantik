@@ -18,6 +18,8 @@
  */
 package com.wikantik.search.embedding;
 
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,15 +28,15 @@ import javax.sql.DataSource;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.Array;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.IntConsumer;
 
@@ -56,6 +58,18 @@ import java.util.function.IntConsumer;
  * {@link TextEmbeddingClient} — no static wiring, no factory lookups. This
  * makes the class trivially testable with a mock client and a live JDBC
  * container.</p>
+ *
+ * <p>All database access goes through {@link Jdbc}. The full-corpus rebuild
+ * ({@link #indexAll}) and stale-reconcile ({@link #indexStale}) paths stream
+ * the candidate set on one long-lived read transaction ({@link
+ * Jdbc#forEachRow} run inside {@link Jdbc#inTransaction} — PostgreSQL only
+ * honours a server-side cursor when auto-commit is off) while writes are
+ * committed periodically: every {@value #DEFAULT_COMMIT_BATCH_SIZE} embedded
+ * rows are flushed through their own short-lived {@link Jdbc#inTransaction}
+ * call (its own connection, its own commit) so an interrupted run keeps
+ * whatever it already finished. {@link #indexChunks} re-embeds a small,
+ * caller-supplied chunk set and commits once, atomically, on a single
+ * connection — no incremental durability needed for a page-save-sized batch.</p>
  */
 public class EmbeddingIndexService {
 
@@ -141,7 +155,7 @@ public class EmbeddingIndexService {
         void sleep( long millis ) throws InterruptedException;
     }
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
     private final TextEmbeddingClient client;
     private final int batchSize;
     /** page_name → frontmatter context for contextual document embeddings; never null. */
@@ -204,7 +218,7 @@ public class EmbeddingIndexService {
         if ( batchSize <= 0 ) {
             throw new IllegalArgumentException( "batchSize must be positive, got " + batchSize );
         }
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
         this.client = client;
         this.batchSize = batchSize;
         this.contextResolver = contextResolver != null
@@ -242,11 +256,12 @@ public class EmbeddingIndexService {
     /**
      * Full-corpus rebuild with batch-level progress callback. Identical to
      * {@link #indexAll(String)} but invokes {@code onBatchFlushed} after every
-     * successful batch with the running upserted total. The callback exists
-     * because {@code conn.commit()} only fires once at the end, so external
-     * observers polling {@code content_chunk_embeddings.row_count} don't see
-     * incremental progress — the rebuild orchestrator needs an in-process hook
-     * to drive the admin progress bar.
+     * successful flush (each full mid-drain {@link #batchSize} chunk and the
+     * final partial one) with the running upserted total. The callback exists
+     * because commits only land periodically (every {@link #commitBatchSize}
+     * rows), so external observers polling {@code content_chunk_embeddings.row_count}
+     * don't see incremental progress — the rebuild orchestrator needs an
+     * in-process hook to drive the admin progress bar.
      *
      * <p>Any exception thrown by the callback is logged at WARN and swallowed —
      * progress reporting is best-effort and must not abort the indexing run.</p>
@@ -258,48 +273,8 @@ public class EmbeddingIndexService {
      */
     public int indexAll( final String modelCode, final IntConsumer onBatchFlushed ) {
         requireModelCode( modelCode );
-        int upserted = 0;
-        // Two connections on purpose: the SELECT streams behind a server-side cursor,
-        // and committing on that same connection would invalidate it mid-drain. The
-        // read connection never writes; the write connection commits every
-        // commitBatchSize rows so an interrupted run keeps its completed work.
-        try( Connection readConn = dataSource.getConnection();
-             Connection writeConn = dataSource.getConnection() ) {
-            readConn.setAutoCommit( false );
-            writeConn.setAutoCommit( false );
-            try( PreparedStatement sel = readConn.prepareStatement( SELECT_ALL_SQL );
-                 PreparedStatement ins = writeConn.prepareStatement( UPSERT_SQL ) ) {
-                sel.setFetchSize( 500 );
-                try( ResultSet rs = sel.executeQuery() ) {
-                    final int[] progressThreshold = { 200 };
-                    upserted += drainToUpserts( writeConn, rs, ins, modelCode, up -> {
-                        fireProgress( onBatchFlushed, up );
-                        if ( up >= progressThreshold[0] ) {
-                            LOG.info( "  embedding indexer: {} rows committed so far (model={})",
-                                up, modelCode );
-                            progressThreshold[0] += 200;
-                        }
-                    } );
-                }
-                writeConn.commit();
-                readConn.rollback();   // read-only txn; release its snapshot
-            } catch( final SQLException e ) {
-                writeConn.rollback();
-                LOG.warn( "indexAll rolled back uncommitted tail (model={}, committed={}): {}",
-                    modelCode, upserted, e.getMessage(), e );
-                throw new RuntimeException( "indexAll failed for " + modelCode, e );
-            } catch( final RuntimeException e ) {
-                writeConn.rollback();   // explicit — do not depend on implicit rollback-on-close
-                LOG.warn( "indexAll rolled back uncommitted tail on runtime error (model={}, committed={}): {}",
-                    modelCode, upserted, e.getMessage(), e );
-                throw e;
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "indexAll connection failed (model={}): {}", modelCode, e.getMessage(), e );
-            throw new RuntimeException( "indexAll failed for " + modelCode, e );
-        }
-        LOG.info( "Embedding indexAll complete: model={} upserted={}", modelCode, upserted );
-        return upserted;
+        return indexRows( modelCode, SELECT_ALL_SQL, SqlBinder.NONE, onBatchFlushed,
+            "indexAll", "embedding indexer" );
     }
 
     /**
@@ -315,47 +290,73 @@ public class EmbeddingIndexService {
      */
     public int indexStale( final String modelCode ) {
         requireModelCode( modelCode );
-        int upserted = 0;
-        // See indexAll: separate read/write connections so periodic commits cannot
-        // invalidate the streaming cursor. This is the startup path — it embeds the
-        // whole corpus when the table is empty, so partial durability matters most here.
-        try( Connection readConn = dataSource.getConnection();
-             Connection writeConn = dataSource.getConnection() ) {
-            readConn.setAutoCommit( false );
-            writeConn.setAutoCommit( false );
-            try( PreparedStatement sel = readConn.prepareStatement( SELECT_STALE_SQL );
-                 PreparedStatement ins = writeConn.prepareStatement( UPSERT_SQL ) ) {
-                sel.setString( 1, modelCode );
-                sel.setFetchSize( 500 );
+        return indexRows( modelCode, SELECT_STALE_SQL, ps -> ps.setString( 1, modelCode ), null,
+            "indexStale", "embedding reconcile" );
+    }
+
+    /**
+     * Shared drain loop for {@link #indexAll} and {@link #indexStale}: streams
+     * {@code selectSql} on one long-lived read transaction (autocommit off is
+     * what lets PostgreSQL honour the server-side cursor — see {@link Jdbc#forEachRow}),
+     * embeds in {@link #batchSize}-sized chunks, and periodically commits the
+     * embedded rows through their own short-lived {@link Jdbc#inTransaction}
+     * call every {@link #commitBatchSize} rows (plus a final flush for whatever
+     * remains) so an interrupted run keeps its completed work. Two connections
+     * are in play at any moment — the read transaction never writes, and each
+     * write transaction opens (and closes) its own connection — for exactly the
+     * reason the two-connection design existed before this migration: a write
+     * commit must never invalidate the read cursor.
+     */
+    private int indexRows( final String modelCode, final String selectSql, final SqlBinder selectBinder,
+                           final IntConsumer onBatchFlushed, final String opName, final String progressLabel ) {
+        final int[] upserted = { 0 };
+        try {
+            jdbc.inTransaction( readConn -> {
+                final List< UUID > batchIds = new ArrayList<>( batchSize );
+                final List< String > batchTexts = new ArrayList<>( batchSize );
+                final Map< String, EmbeddingTextBuilder.PageContext > ctxMemo = new HashMap<>();
+                final List< UUID > pendingIds = new ArrayList<>( commitBatchSize );
+                final List< float[] > pendingVectors = new ArrayList<>( commitBatchSize );
                 final int[] progressThreshold = { 200 };
-                try( ResultSet rs = sel.executeQuery() ) {
-                    upserted += drainToUpserts( writeConn, rs, ins, modelCode, up -> {
-                        if ( up >= progressThreshold[0] ) {
-                            LOG.info( "  embedding reconcile: {} rows committed so far (model={})",
-                                up, modelCode );
-                            progressThreshold[0] += 200;
+
+                jdbc.forEachRow( readConn, selectSql, selectBinder, 500, rs -> {
+                    batchIds.add( rs.getObject( 1, UUID.class ) );
+                    final EmbeddingTextBuilder.PageContext ctx =
+                        ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
+                    batchTexts.add( EmbeddingTextBuilder.forDocument(
+                        ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
+                    if ( batchIds.size() >= batchSize ) {
+                        upserted[ 0 ] += stageEmbeddings( batchIds, batchTexts, pendingIds, pendingVectors );
+                        batchIds.clear();
+                        batchTexts.clear();
+                        fireProgress( onBatchFlushed, upserted[ 0 ] );
+                        maybeLogProgress( progressLabel, modelCode, upserted[ 0 ], progressThreshold );
+                        if ( pendingIds.size() >= commitBatchSize ) {
+                            commitPending( modelCode, pendingIds, pendingVectors );
                         }
-                    } );
+                    }
+                } );
+                if ( !batchIds.isEmpty() ) {
+                    upserted[ 0 ] += stageEmbeddings( batchIds, batchTexts, pendingIds, pendingVectors );
+                    fireProgress( onBatchFlushed, upserted[ 0 ] );
+                    maybeLogProgress( progressLabel, modelCode, upserted[ 0 ], progressThreshold );
                 }
-                writeConn.commit();
-                readConn.rollback();   // read-only txn; release its snapshot
-            } catch( final SQLException e ) {
-                writeConn.rollback();
-                LOG.warn( "indexStale rolled back uncommitted tail (model={}, committed={}): {}",
-                    modelCode, upserted, e.getMessage(), e );
-                throw new RuntimeException( "indexStale failed for " + modelCode, e );
-            } catch( final RuntimeException e ) {
-                writeConn.rollback();   // explicit — do not depend on implicit rollback-on-close
-                LOG.warn( "indexStale rolled back uncommitted tail on runtime error (model={}, committed={}): {}",
-                    modelCode, upserted, e.getMessage(), e );
-                throw e;
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "indexStale connection failed (model={}): {}", modelCode, e.getMessage(), e );
-            throw new RuntimeException( "indexStale failed for " + modelCode, e );
+                if ( !pendingIds.isEmpty() ) {
+                    commitPending( modelCode, pendingIds, pendingVectors );
+                }
+                return null;
+            } );
+        } catch ( final SQLException e ) {
+            LOG.warn( "{} rolled back uncommitted tail (model={}, committed={}): {}",
+                opName, modelCode, upserted[ 0 ], e.getMessage(), e );
+            throw new RuntimeException( opName + " failed for " + modelCode, e );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "{} rolled back uncommitted tail on runtime error (model={}, committed={}): {}",
+                opName, modelCode, upserted[ 0 ], e.getMessage(), e );
+            throw e;
         }
-        LOG.info( "Embedding indexStale complete: model={} upserted={}", modelCode, upserted );
-        return upserted;
+        LOG.info( "Embedding {} complete: model={} upserted={}", opName, modelCode, upserted[ 0 ] );
+        return upserted[ 0 ];
     }
 
     private static void fireProgress( final IntConsumer cb, final int upserted ) {
@@ -369,54 +370,12 @@ public class EmbeddingIndexService {
         }
     }
 
-    /**
-     * Drains {@code rs} into {@code batchSize}-sized upsert batches against {@code ins},
-     * returning the number of rows upserted. Shared by {@link #indexAll}, {@link #indexStale}
-     * and {@link #indexChunks} — the SELECT/binding differs per caller, the batch-drain does not.
-     *
-     * <p>{@code afterFlush} (nullable) is invoked with the running upserted total after every
-     * flush (each full mid-drain batch and the final partial batch). {@code indexAll} uses it
-     * for progress reporting + periodic logging; the reconcile/incremental paths pass {@code null}.
-     */
-    private int drainToUpserts( final Connection writeConn, final ResultSet rs,
-                                final PreparedStatement ins, final String modelCode,
-                                final IntConsumer afterFlush ) throws SQLException {
-        int upserted = 0;
-        int committed = 0;
-        final List< UUID > batchIds = new ArrayList<>( batchSize );
-        final List< String > batchTexts = new ArrayList<>( batchSize );
-        final java.util.Map< String, EmbeddingTextBuilder.PageContext > ctxMemo =
-            new java.util.HashMap<>();
-        while( rs.next() ) {
-            batchIds.add( rs.getObject( 1, UUID.class ) );
-            final EmbeddingTextBuilder.PageContext ctx =
-                ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
-            batchTexts.add( EmbeddingTextBuilder.forDocument(
-                ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
-            if ( batchIds.size() >= batchSize ) {
-                upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
-                batchIds.clear();
-                batchTexts.clear();
-                // Commit completed work so an interruption costs at most one
-                // commit window rather than the whole run. Notify only after the
-                // commit lands, so observers never see progress that a crash
-                // would erase.
-                if ( writeConn != null && upserted - committed >= commitBatchSize ) {
-                    writeConn.commit();
-                    committed = upserted;
-                }
-                if ( afterFlush != null ) {
-                    afterFlush.accept( upserted );
-                }
-            }
+    private static void maybeLogProgress( final String progressLabel, final String modelCode,
+                                          final int upserted, final int[] progressThreshold ) {
+        if ( upserted >= progressThreshold[ 0 ] ) {
+            LOG.info( "  {}: {} rows committed so far (model={})", progressLabel, upserted, modelCode );
+            progressThreshold[ 0 ] += 200;
         }
-        if ( !batchIds.isEmpty() ) {
-            upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
-            if ( afterFlush != null ) {
-                afterFlush.accept( upserted );
-            }
-        }
-        return upserted;
     }
 
     /**
@@ -432,36 +391,50 @@ public class EmbeddingIndexService {
         if ( chunkIds == null || chunkIds.isEmpty() ) {
             return 0;
         }
-        int upserted = 0;
-        try( Connection conn = dataSource.getConnection() ) {
-            conn.setAutoCommit( false );
-            try( PreparedStatement sel = conn.prepareStatement( SELECT_BY_IDS_SQL );
-                 PreparedStatement ins = conn.prepareStatement( UPSERT_SQL ) ) {
+        final int[] upserted = { 0 };
+        try {
+            jdbc.inTransaction( conn -> {
                 final UUID[] idArray = chunkIds.toArray( UUID[]::new );
-                sel.setArray( 1, conn.createArrayOf( "uuid", idArray ) );
-                try( ResultSet rs = sel.executeQuery() ) {
-                    // null writeConn = no mid-drain commits. This path re-embeds one
-                    // page's chunks after a save; all-or-nothing is the right semantic
-                    // and the set is far too small to need incremental durability.
-                    upserted += drainToUpserts( null, rs, ins, modelCode, null );
+                final List< UUID > batchIds = new ArrayList<>( batchSize );
+                final List< String > batchTexts = new ArrayList<>( batchSize );
+                final Map< String, EmbeddingTextBuilder.PageContext > ctxMemo = new HashMap<>();
+                final List< UUID > pendingIds = new ArrayList<>();
+                final List< float[] > pendingVectors = new ArrayList<>();
+
+                // null writeConn-equivalent = no mid-drain commits: this path re-embeds one
+                // page's chunks after a save; all-or-nothing is the right semantic and the
+                // set is far too small to need incremental durability.
+                jdbc.forEachRow( conn, SELECT_BY_IDS_SQL,
+                    ps -> ps.setArray( 1, conn.createArrayOf( "uuid", idArray ) ), 500, rs -> {
+                    batchIds.add( rs.getObject( 1, UUID.class ) );
+                    final EmbeddingTextBuilder.PageContext ctx =
+                        ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
+                    batchTexts.add( EmbeddingTextBuilder.forDocument(
+                        ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
+                    if ( batchIds.size() >= batchSize ) {
+                        upserted[ 0 ] += stageEmbeddings( batchIds, batchTexts, pendingIds, pendingVectors );
+                        batchIds.clear();
+                        batchTexts.clear();
+                    }
+                } );
+                if ( !batchIds.isEmpty() ) {
+                    upserted[ 0 ] += stageEmbeddings( batchIds, batchTexts, pendingIds, pendingVectors );
                 }
-                conn.commit();
-            } catch( final SQLException e ) {
-                conn.rollback();
-                LOG.warn( "indexChunks rolled back (model={}, ids={}): {}",
-                    modelCode, chunkIds.size(), e.getMessage(), e );
-                throw new RuntimeException( "indexChunks failed for " + modelCode, e );
-            } catch( final RuntimeException e ) {
-                conn.rollback();   // explicit — do not depend on implicit rollback-on-close
-                LOG.warn( "indexChunks rolled back on runtime error (model={}, ids={}): {}",
-                    modelCode, chunkIds.size(), e.getMessage(), e );
-                throw e;
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "indexChunks connection failed (model={}): {}", modelCode, e.getMessage(), e );
+                if ( !pendingIds.isEmpty() ) {
+                    jdbc.batch( conn, UPSERT_SQL, buildUpsertBinders( modelCode, pendingIds, pendingVectors ) );
+                }
+                return null;
+            } );
+        } catch ( final SQLException e ) {
+            LOG.warn( "indexChunks rolled back (model={}, ids={}): {}",
+                modelCode, chunkIds.size(), e.getMessage(), e );
             throw new RuntimeException( "indexChunks failed for " + modelCode, e );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "indexChunks rolled back on runtime error (model={}, ids={}): {}",
+                modelCode, chunkIds.size(), e.getMessage(), e );
+            throw e;
         }
-        return upserted;
+        return upserted[ 0 ];
     }
 
     /**
@@ -473,10 +446,8 @@ public class EmbeddingIndexService {
      */
     public int deleteByModel( final String modelCode ) {
         requireModelCode( modelCode );
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( DELETE_BY_MODEL_SQL ) ) {
-            ps.setString( 1, modelCode );
-            final int removed = ps.executeUpdate();
+        try {
+            final int removed = jdbc.update( DELETE_BY_MODEL_SQL, ps -> ps.setString( 1, modelCode ) );
             LOG.info( "Embedding deleteByModel removed {} rows (model={})", removed, modelCode );
             return removed;
         } catch( final SQLException e ) {
@@ -494,18 +465,13 @@ public class EmbeddingIndexService {
         requireModelCode( modelCode );
         final String sql = "SELECT COUNT(*), MAX(dim), MAX(updated) "
                          + "FROM content_chunk_embeddings WHERE model_code = ?";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, modelCode );
-            try( ResultSet rs = ps.executeQuery() ) {
-                if ( !rs.next() ) {
-                    return new Status( modelCode, 0, 0, null );
-                }
+        try {
+            return jdbc.queryOne( sql, ps -> ps.setString( 1, modelCode ), rs -> {
                 final int rows = rs.getInt( 1 );
                 final int dim = rs.getInt( 2 );
                 final Timestamp ts = rs.getTimestamp( 3 );
                 return new Status( modelCode, dim, rows, ts == null ? null : ts.toInstant() );
-            }
+            } ).orElseGet( () -> new Status( modelCode, 0, 0, null ) );
         } catch( final SQLException e ) {
             LOG.warn( "embedding status query failed (model={}): {}", modelCode, e.getMessage(), e );
             throw new RuntimeException( "status failed for " + modelCode, e );
@@ -514,23 +480,58 @@ public class EmbeddingIndexService {
 
     // ---- internals ----
 
-    private int flushBatch( final PreparedStatement ins, final String modelCode,
-                            final List< UUID > ids, final List< String > texts ) throws SQLException {
+    /**
+     * Embeds one {@link #batchSize}-sized chunk of {@code ids}/{@code texts} and stages the
+     * successfully-embedded rows (poisoned ones excluded) into {@code pendingIds}/{@code
+     * pendingVectors} for a later {@link #commitPending} or direct {@link Jdbc#batch} call.
+     *
+     * @return count of rows staged (poisoned chunks excluded)
+     */
+    private int stageEmbeddings( final List< UUID > ids, final List< String > texts,
+                                 final List< UUID > pendingIds, final List< float[] > pendingVectors ) {
         final List< float[] > vectors = embedBatchSkippingPoisoned( ids, texts );
         int staged = 0;
         for( int i = 0; i < ids.size(); i++ ) {
             final float[] v = vectors.get( i );
             if ( v == null ) continue;       // poisoned — upstream already logged the cause
-            ins.setObject( 1, ids.get( i ) );
-            ins.setString( 2, modelCode );
-            ins.setInt( 3, v.length );
-            ins.setBytes( 4, encodeVector( v ) );
-            ins.setString( 5, PgVectorChunkVectorIndex.formatVector( v ) );
-            ins.addBatch();
+            pendingIds.add( ids.get( i ) );
+            pendingVectors.add( v );
             staged++;
         }
-        if ( staged > 0 ) ins.executeBatch();
         return staged;
+    }
+
+    /**
+     * Commits {@code pendingIds}/{@code pendingVectors} in one short-lived transaction — its
+     * own connection, opened and committed by this call alone — then clears both lists. This
+     * is the "one {@link Jdbc#inTransaction} per commit batch" that gives {@link #indexRows}
+     * its periodic-commit durability: the read transaction stays open on a separate connection
+     * throughout, unaffected by this write transaction's commit.
+     */
+    private void commitPending( final String modelCode,
+                                final List< UUID > pendingIds, final List< float[] > pendingVectors )
+            throws SQLException {
+        final List< SqlBinder > binders = buildUpsertBinders( modelCode, pendingIds, pendingVectors );
+        jdbc.inTransaction( conn -> jdbc.batch( conn, UPSERT_SQL, binders ) );
+        pendingIds.clear();
+        pendingVectors.clear();
+    }
+
+    private static List< SqlBinder > buildUpsertBinders( final String modelCode,
+                                                          final List< UUID > ids, final List< float[] > vectors ) {
+        final List< SqlBinder > binders = new ArrayList<>( ids.size() );
+        for( int i = 0; i < ids.size(); i++ ) {
+            final UUID id = ids.get( i );
+            final float[] v = vectors.get( i );
+            binders.add( ps -> {
+                ps.setObject( 1, id );
+                ps.setString( 2, modelCode );
+                ps.setInt( 3, v.length );
+                ps.setBytes( 4, encodeVector( v ) );
+                ps.setString( 5, PgVectorChunkVectorIndex.formatVector( v ) );
+            } );
+        }
+        return binders;
     }
 
     /**

@@ -18,16 +18,12 @@
  */
 package com.wikantik.search.hybrid;
 
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -62,7 +58,7 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
 
     private static final long SIZE_CACHE_MILLIS = 5L * 60L * 1000L;
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
     private final String modelCode;
     private final int efSearch;
 
@@ -77,7 +73,7 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
             throw new IllegalArgumentException( "modelCode must not be blank" );
         }
         if ( efSearch <= 0 ) throw new IllegalArgumentException( "efSearch must be positive, got " + efSearch );
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
         this.modelCode = modelCode;
         this.efSearch = efSearch;
     }
@@ -103,46 +99,19 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
             """;
 
         final String literal = formatVector( queryVec );
-        try ( Connection conn = dataSource.getConnection() ) {
-            final boolean prevAutoCommit = conn.getAutoCommit();
-            conn.setAutoCommit( false );
-            try {
-                try ( Statement st = conn.createStatement() ) {
-                    st.execute( setEf );
-                }
-                try ( PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try {
+            return jdbc.inTransaction( conn -> {
+                jdbc.execute( conn, setEf );
+                return jdbc.query( conn, sql, ps -> {
                     ps.setString( 1, literal );
                     ps.setString( 2, modelCode );
                     ps.setString( 3, literal );
                     ps.setInt( 4, k );
-                    try ( ResultSet rs = ps.executeQuery() ) {
-                        final List< ScoredChunk > out = new ArrayList<>( k );
-                        while ( rs.next() ) {
-                            out.add( new ScoredChunk(
-                                rs.getObject( 1, UUID.class ),
-                                rs.getString( 2 ),
-                                rs.getDouble( 3 ) ) );
-                        }
-                        conn.commit();
-                        return out;
-                    }
-                }
-            } catch ( final SQLException inner ) {
-                try {
-                    conn.rollback();
-                } catch ( final SQLException rb ) {
-                    LOG.warn( "PgVectorChunkVectorIndex.topKChunks rollback failed (model={}, k={}): {}",
-                        modelCode, k, rb.getMessage(), rb );
-                }
-                throw inner;
-            } finally {
-                try {
-                    conn.setAutoCommit( prevAutoCommit );
-                } catch ( final SQLException acRestore ) {
-                    LOG.warn( "PgVectorChunkVectorIndex.topKChunks autoCommit restore failed (model={}): {}",
-                        modelCode, acRestore.getMessage(), acRestore );
-                }
-            }
+                }, rs -> new ScoredChunk(
+                    rs.getObject( 1, UUID.class ),
+                    rs.getString( 2 ),
+                    rs.getDouble( 3 ) ) );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "PgVectorChunkVectorIndex.topKChunks failed (model={}, k={}): {}",
                 modelCode, k, e.getMessage(), e );
@@ -154,12 +123,8 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
     public boolean isReady() {
         final String sql = "SELECT 1 FROM content_chunk_embeddings "
                          + "WHERE model_code = ? AND embedding IS NOT NULL LIMIT 1";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setString( 1, modelCode );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next();
-            }
+        try {
+            return jdbc.queryOne( sql, ps -> ps.setString( 1, modelCode ), rs -> Boolean.TRUE ).isPresent();
         } catch ( final SQLException e ) {
             LOG.warn( "PgVectorChunkVectorIndex.isReady probe failed (model={}): {}",
                 modelCode, e.getMessage(), e );
@@ -179,16 +144,12 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
         if ( now - sizeCachedAt < SIZE_CACHE_MILLIS ) return sizeCachedValue;
         final String sql = "SELECT COUNT(*) FROM content_chunk_embeddings "
                          + "WHERE model_code = ? AND embedding IS NOT NULL";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setString( 1, modelCode );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                if ( rs.next() ) {
-                    sizeCachedValue = rs.getInt( 1 );
-                    sizeCachedAt    = now;
-                }
-                return sizeCachedValue;
-            }
+        try {
+            final int count = jdbc.queryOne( sql, ps -> ps.setString( 1, modelCode ), rs -> rs.getInt( 1 ) )
+                .orElse( sizeCachedValue );
+            sizeCachedValue = count;
+            sizeCachedAt = now;
+            return sizeCachedValue;
         } catch ( final SQLException e ) {
             LOG.warn( "PgVectorChunkVectorIndex.size query failed (model={}): {}",
                 modelCode, e.getMessage(), e );

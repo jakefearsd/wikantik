@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.19] - 2026-08-22
+
 ### Fixed
 - **A failed comment write no longer commits its partial rows.** `createThread`,
   `addComment` and `editComment` each opened a manual transaction and caught only

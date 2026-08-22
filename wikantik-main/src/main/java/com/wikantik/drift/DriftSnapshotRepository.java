@@ -18,6 +18,7 @@
  */
 package com.wikantik.drift;
 
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -43,19 +44,19 @@ public final class DriftSnapshotRepository {
     private static final Logger LOG = LogManager.getLogger( DriftSnapshotRepository.class );
 
     private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     public DriftSnapshotRepository( final DataSource dataSource ) {
         this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
     }
 
     /** Persists one sweep + its counts atomically; returns the new sweep id. */
     public long insertSweep( final Instant sweptAt, final int pagesScanned, final long durationMs,
                              final String triggeredBy, final boolean shaclChecked,
                              final List< DriftCount > counts ) {
-        try ( Connection conn = dataSource.getConnection() ) {
-            final boolean prevAutoCommit = conn.getAutoCommit();
-            conn.setAutoCommit( false );
-            try {
+        try {
+            return jdbc.inTransaction( conn -> {
                 final long sweepId;
                 try ( PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO drift_sweeps ( swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked ) "
@@ -86,19 +87,8 @@ public final class DriftSnapshotRepository {
                     }
                     ps.executeBatch();
                 }
-                conn.commit();
                 return sweepId;
-            } catch ( final SQLException e ) {
-                try {
-                    conn.rollback();
-                } catch ( final SQLException rollbackEx ) {
-                    LOG.warn( "rollback failed after drift sweep insert error: {}",
-                            rollbackEx.getMessage(), rollbackEx );
-                }
-                throw e;
-            } finally {
-                conn.setAutoCommit( prevAutoCommit );
-            }
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to persist drift sweep (triggeredBy={}): {}", triggeredBy, e.getMessage(), e );
             throw new IllegalStateException( "drift sweep persistence failed", e );

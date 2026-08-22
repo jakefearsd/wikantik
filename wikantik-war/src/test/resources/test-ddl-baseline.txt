@@ -1,0 +1,42 @@
+# Test-DDL single-source baseline (TestSchemaSingleSourceTest).
+# See docs/superpowers/plans/2026-08-22-one-way-to-touch-the-database.md
+#
+# Every test file that still hand-rolls its own CREATE TABLE DDL instead of
+# applying the real migrations via com.wikantik.jdbc.testing.PostgresTestDb
+# is listed here. Entries only ever come out (as files are migrated onto the
+# shared fixture) — never added to paper over a new straggler.
+#
+# Paths are repo-root-relative, sorted.
+wikantik-connectors/src/test/java/com/wikantik/connectors/config/JdbcConnectorConfigStoreTest.java
+wikantik-connectors/src/test/java/com/wikantik/connectors/credential/JdbcCredentialStoreTest.java
+wikantik-connectors/src/test/java/com/wikantik/connectors/runtime/ConnectorStatusReaderTest.java
+wikantik-connectors/src/test/java/com/wikantik/connectors/state/JdbcSyncRunStoreTest.java
+wikantik-connectors/src/test/java/com/wikantik/connectors/state/JdbcSyncStateStoreTest.java
+wikantik-extract-cli/src/test/resources/bootstrap-extraction-cli-test.sql
+wikantik-extract-cli/src/test/resources/kgpolicy-cli-test.sql
+wikantik-insights/src/test/java/com/wikantik/insights/JdbcInsightsStorePostgresTest.java
+wikantik-insights/src/test/java/com/wikantik/insights/JdbcInsightsStoreTest.java
+wikantik-main/src/test/java/com/wikantik/audit/JdbcAuditRepositoryTest.java
+wikantik-main/src/test/java/com/wikantik/auth/apikeys/ApiKeyServiceTest.java
+wikantik-main/src/test/java/com/wikantik/citation/CitationEdgesIT.java
+wikantik-main/src/test/java/com/wikantik/citation/TestCitationDb.java
+wikantik-main/src/test/java/com/wikantik/comments/CommentStoreTest.java
+wikantik-main/src/test/java/com/wikantik/comments/PageOwnerServiceErrorBranchTest.java
+wikantik-main/src/test/java/com/wikantik/comments/PageOwnerServiceTest.java
+wikantik-main/src/test/java/com/wikantik/comments/mentions/MentionFeedDaoTest.java
+wikantik-main/src/test/java/com/wikantik/comments/mentions/MentionServiceTest.java
+wikantik-main/src/test/java/com/wikantik/connectors/ConnectorSyncEndToEndTest.java
+wikantik-main/src/test/java/com/wikantik/derived/ConnectorConfigServiceTest.java
+wikantik-main/src/test/java/com/wikantik/derived/ConnectorWiringHelperTest.java
+wikantik-main/src/test/java/com/wikantik/drift/DriftSnapshotRepositoryTest.java
+wikantik-main/src/test/java/com/wikantik/knowledge/eval/DefaultRetrievalQualityRunnerTest.java
+wikantik-main/src/test/java/com/wikantik/knowledge/eval/RetrievalQualityDaoTest.java
+wikantik-main/src/test/java/com/wikantik/knowledge/eval/RetrievalQualitySmokeTest.java
+wikantik-main/src/test/java/com/wikantik/knowledge/querylog/JdbcQueryLogReaderTest.java
+wikantik-main/src/test/java/com/wikantik/knowledge/querylog/JdbcQueryLogServiceTest.java
+wikantik-main/src/test/java/com/wikantik/pagegraph/spine/PageCanonicalIdsDaoTest.java
+wikantik-main/src/test/java/com/wikantik/pagegraph/spine/PageVerificationDaoTest.java
+wikantik-main/src/test/java/com/wikantik/pagegraph/spine/TrustedAuthorsDaoTest.java
+wikantik-main/src/test/java/com/wikantik/search/subsystem/BundleSourcesWithoutEmbedderTest.java
+wikantik-main/src/test/resources/postgresql-test.sql
+wikantik-rest/src/test/java/com/wikantik/rest/CommentThreadResourceTest.java

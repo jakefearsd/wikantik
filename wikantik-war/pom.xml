@@ -137,6 +137,22 @@
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- Architecture guard: J-1 JDBC-access ratchet (JdbcAccessArchTest). -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Its three CLIs (KgPolicyCli, BootstrapExtractionCli, JudgeExperimentCli) are
+             otherwise off the WAR test classpath; JdbcAccessArchTest analyzes com.wikantik.. -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>wikantik-extract-cli</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

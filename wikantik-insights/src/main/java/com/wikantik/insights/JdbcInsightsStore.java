@@ -19,17 +19,17 @@
 package com.wikantik.insights;
 
 import com.google.gson.Gson;
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
@@ -338,7 +338,7 @@ public class JdbcInsightsStore implements InsightsStore {
 
     private static final Gson GSON = new Gson();
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     /**
      * Creates a new JdbcInsightsStore backed by the given DataSource.
@@ -346,7 +346,7 @@ public class JdbcInsightsStore implements InsightsStore {
      * @param dataSource the data source to use for connections
      */
     public JdbcInsightsStore( final DataSource dataSource ) {
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
     }
 
     @Override
@@ -355,10 +355,9 @@ public class JdbcInsightsStore implements InsightsStore {
             return 0;
         }
 
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( INSERT_SQL ) ) {
-
-            for ( final VisibilityRow row : rows ) {
+        final List<SqlBinder> binders = new ArrayList<>( rows.size() );
+        for ( final VisibilityRow row : rows ) {
+            binders.add( ps -> {
                 ps.setDate( 1, Date.valueOf( row.snapshotDate() ) );
                 ps.setInt( 2, row.windowDays() );
                 ps.setString( 3, row.engine() );
@@ -373,18 +372,16 @@ public class JdbcInsightsStore implements InsightsStore {
                 } else {
                     ps.setDouble( 9, row.position() );
                 }
+            } );
+        }
 
-                ps.addBatch();
-            }
-
-            final int[] results = ps.executeBatch();
+        try {
+            final int[] results = jdbc.withConnection( conn -> jdbc.batch( conn, INSERT_SQL, binders ) );
             int total = 0;
             for ( final int result : results ) {
                 total += Math.max( result, 0 );
             }
-
             return total;
-
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to upsert {} visibility rows: {}", rows.size(), e.getMessage(), e );
             return 0;
@@ -393,16 +390,13 @@ public class JdbcInsightsStore implements InsightsStore {
 
     @Override
     public Optional<LocalDate> latestSnapshotDate( final String siteHost ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( LATEST_DATE_SQL ) ) {
-            ps.setString( 1, siteHost );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                if ( !rs.next() ) {
-                    return Optional.empty();
-                }
-                final Date latest = rs.getDate( "latest" );
-                return latest == null ? Optional.empty() : Optional.of( latest.toLocalDate() );
-            }
+        try {
+            final List<LocalDate> rows = jdbc.query( LATEST_DATE_SQL, ps -> ps.setString( 1, siteHost ),
+                    rs -> {
+                        final Date latest = rs.getDate( "latest" );
+                        return latest == null ? null : latest.toLocalDate();
+                    } );
+            return rows.isEmpty() || rows.get( 0 ) == null ? Optional.empty() : Optional.of( rows.get( 0 ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read latest visibility snapshot date for site {}: {}",
                     siteHost, e.getMessage(), e );
@@ -412,70 +406,63 @@ public class JdbcInsightsStore implements InsightsStore {
 
     @Override
     public List<EngineTotal> engineTotals( final String siteHost, final LocalDate snapshotDate ) {
-        final List<EngineTotal> out = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( ENGINE_TOTALS_SQL ) ) {
-            ps.setString( 1, siteHost );
-            ps.setString( 2, PAGE_ROLLUP_QUERY_TEXT );
-            ps.setDate( 3, Date.valueOf( snapshotDate ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final double avgPosition = rs.getDouble( "avg_position" );
-                    final Double position = rs.wasNull() ? null : avgPosition;
-                    out.add( new EngineTotal( rs.getString( "engine" ), rs.getLong( "clicks" ),
-                            rs.getLong( "impressions" ), position ) );
-                }
-            }
+        try {
+            return jdbc.query( ENGINE_TOTALS_SQL,
+                    ps -> {
+                        ps.setString( 1, siteHost );
+                        ps.setString( 2, PAGE_ROLLUP_QUERY_TEXT );
+                        ps.setDate( 3, Date.valueOf( snapshotDate ) );
+                    },
+                    rs -> {
+                        final double avgPosition = rs.getDouble( "avg_position" );
+                        final Double position = rs.wasNull() ? null : avgPosition;
+                        return new EngineTotal( rs.getString( "engine" ), rs.getLong( "clicks" ),
+                                rs.getLong( "impressions" ), position );
+                    } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read visibility engine totals for site {} date {}: {}",
                     siteHost, snapshotDate, e.getMessage(), e );
             throw new IllegalStateException( "visibility engine totals query failed", e );
         }
-        return out;
     }
 
     @Override
     public List<TrendPoint> trend( final String siteHost, final LocalDate since ) {
-        final List<TrendPoint> out = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( TREND_SQL ) ) {
-            ps.setString( 1, siteHost );
-            ps.setString( 2, PAGE_ROLLUP_QUERY_TEXT );
-            ps.setDate( 3, Date.valueOf( since ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    out.add( new TrendPoint( rs.getDate( "snapshot_date" ).toLocalDate(),
+        try {
+            return jdbc.query( TREND_SQL,
+                    ps -> {
+                        ps.setString( 1, siteHost );
+                        ps.setString( 2, PAGE_ROLLUP_QUERY_TEXT );
+                        ps.setDate( 3, Date.valueOf( since ) );
+                    },
+                    rs -> new TrendPoint( rs.getDate( "snapshot_date" ).toLocalDate(),
                             rs.getString( "engine" ), rs.getLong( "clicks" ), rs.getLong( "impressions" ) ) );
-                }
-            }
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read visibility trend for site {} since {}: {}",
                     siteHost, since, e.getMessage(), e );
             throw new IllegalStateException( "visibility trend query failed", e );
         }
-        return out;
     }
 
     @Override
     public Optional<Long> recordChange( final ContentChange change ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( INSERT_CHANGE_SQL ) ) {
-            ps.setString( 1, change.pagePath() );
-            ps.setString( 2, change.changeType() );
-            setNullableString( ps, 3, change.opportunityType() );
-            ps.setString( 4, change.appliedBy() );
-            setNullableString( ps, 5, change.note() );
-            ps.setDate( 6, Date.valueOf( change.baselineStart() ) );
-            ps.setDate( 7, Date.valueOf( change.baselineEnd() ) );
-            ps.setInt( 8, change.baselineImpressions() );
-            ps.setInt( 9, change.baselineClicks() );
-            setNullableDouble( ps, 10, change.baselineCtr() );
-            setNullableDouble( ps, 11, change.baselinePosition() );
-            setNullableDouble( ps, 12, change.predictedPriority() );
-
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? Optional.of( rs.getLong( "id" ) ) : Optional.empty();
-            }
+        try {
+            return jdbc.queryOne( INSERT_CHANGE_SQL,
+                    ps -> {
+                        ps.setString( 1, change.pagePath() );
+                        ps.setString( 2, change.changeType() );
+                        setNullableString( ps, 3, change.opportunityType() );
+                        ps.setString( 4, change.appliedBy() );
+                        setNullableString( ps, 5, change.note() );
+                        ps.setDate( 6, Date.valueOf( change.baselineStart() ) );
+                        ps.setDate( 7, Date.valueOf( change.baselineEnd() ) );
+                        ps.setInt( 8, change.baselineImpressions() );
+                        ps.setInt( 9, change.baselineClicks() );
+                        setNullableDouble( ps, 10, change.baselineCtr() );
+                        setNullableDouble( ps, 11, change.baselinePosition() );
+                        setNullableDouble( ps, 12, change.predictedPriority() );
+                    },
+                    rs -> rs.getLong( "id" ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to record content change for page {}: {}",
                     change.pagePath(), e.getMessage(), e );
@@ -485,13 +472,9 @@ public class JdbcInsightsStore implements InsightsStore {
 
     @Override
     public List<PendingChange> unevaluatedChanges( final LocalDate cutoff ) {
-        final List<PendingChange> out = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( UNEVALUATED_CHANGES_SQL ) ) {
-            ps.setDate( 1, Date.valueOf( cutoff ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    out.add( new PendingChange(
+        try {
+            return jdbc.query( UNEVALUATED_CHANGES_SQL, ps -> ps.setDate( 1, Date.valueOf( cutoff ) ),
+                    rs -> new PendingChange(
                             rs.getLong( "id" ),
                             rs.getString( "page_path" ),
                             rs.getString( "change_type" ),
@@ -505,26 +488,23 @@ public class JdbcInsightsStore implements InsightsStore {
                             rs.getInt( "baseline_clicks" ),
                             getNullableDouble( rs, "baseline_ctr" ),
                             getNullableDouble( rs, "baseline_position" ) ) );
-                }
-            }
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read unevaluated content changes at or before {}: {}",
                     cutoff, e.getMessage(), e );
             throw new IllegalStateException( "unevaluated content changes query failed", e );
         }
-        return out;
     }
 
     @Override
     public boolean snooze( final OpportunitySnooze snooze ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( SNOOZE_UPSERT_SQL ) ) {
-            ps.setString( 1, snooze.opportunityType() );
-            ps.setString( 2, snooze.target() );
-            ps.setDate( 3, Date.valueOf( snooze.snoozedUntil() ) );
-            ps.setString( 4, snooze.reason() );
-            ps.setString( 5, snooze.snoozedBy() );
-            return ps.executeUpdate() > 0;
+        try {
+            return jdbc.update( SNOOZE_UPSERT_SQL, ps -> {
+                ps.setString( 1, snooze.opportunityType() );
+                ps.setString( 2, snooze.target() );
+                ps.setDate( 3, Date.valueOf( snooze.snoozedUntil() ) );
+                ps.setString( 4, snooze.reason() );
+                ps.setString( 5, snooze.snoozedBy() );
+            } ) > 0;
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to write snooze for type={} target={}: {}",
                     snooze.opportunityType(), snooze.target(), e.getMessage(), e );
@@ -534,67 +514,59 @@ public class JdbcInsightsStore implements InsightsStore {
 
     @Override
     public List<OpportunitySnooze> activeSnoozes( final LocalDate today ) {
-        final List<OpportunitySnooze> out = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( ACTIVE_SNOOZES_SQL ) ) {
-            ps.setDate( 1, Date.valueOf( today ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    out.add( new OpportunitySnooze(
+        try {
+            return jdbc.query( ACTIVE_SNOOZES_SQL, ps -> ps.setDate( 1, Date.valueOf( today ) ),
+                    rs -> new OpportunitySnooze(
                             rs.getString( "opportunity_type" ),
                             rs.getString( "target" ),
                             rs.getDate( "snoozed_until" ).toLocalDate(),
                             rs.getString( "reason" ),
                             rs.getString( "snoozed_by" ) ) );
-                }
-            }
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read active snoozes as of {}: {}", today, e.getMessage(), e );
             throw new IllegalStateException( "active snoozes query failed", e );
         }
-        return out;
     }
 
     @Override
     public List<VisibilityRow> latestRowsPerEngine( final String siteHost, final int withinDays ) {
-        final List<VisibilityRow> out = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( LATEST_ROWS_PER_ENGINE_SQL ) ) {
-            ps.setString( 1, siteHost );
-            ps.setString( 2, siteHost );
-            ps.setInt( 3, withinDays );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final double position = rs.getDouble( "position" );
-                    out.add( new VisibilityRow(
-                            rs.getDate( "snapshot_date" ).toLocalDate(),
-                            rs.getInt( "window_days" ),
-                            rs.getString( "engine" ),
-                            rs.getString( "site_host" ),
-                            rs.getString( "page_path" ),
-                            rs.getString( "query_text" ),
-                            rs.getInt( "impressions" ),
-                            rs.getInt( "clicks" ),
-                            rs.wasNull() ? null : position ) );
-                }
-            }
+        try {
+            return jdbc.query( LATEST_ROWS_PER_ENGINE_SQL,
+                    ps -> {
+                        ps.setString( 1, siteHost );
+                        ps.setString( 2, siteHost );
+                        ps.setInt( 3, withinDays );
+                    },
+                    rs -> {
+                        final double position = rs.getDouble( "position" );
+                        return new VisibilityRow(
+                                rs.getDate( "snapshot_date" ).toLocalDate(),
+                                rs.getInt( "window_days" ),
+                                rs.getString( "engine" ),
+                                rs.getString( "site_host" ),
+                                rs.getString( "page_path" ),
+                                rs.getString( "query_text" ),
+                                rs.getInt( "impressions" ),
+                                rs.getInt( "clicks" ),
+                                rs.wasNull() ? null : position );
+                    } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read latest visibility rows per engine for site {} within {} days: {}",
                     siteHost, withinDays, e.getMessage(), e );
             throw new IllegalStateException( "latest rows per engine query failed", e );
         }
-        return out;
     }
 
     @Override
     public int siteImpressions28d( final String siteHost ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( SITE_IMPRESSIONS_28D_SQL ) ) {
-            ps.setString( 1, siteHost );
-            ps.setString( 2, siteHost );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? rs.getInt( "total" ) : 0;
-            }
+        try {
+            final List<Integer> rows = jdbc.query( SITE_IMPRESSIONS_28D_SQL,
+                    ps -> {
+                        ps.setString( 1, siteHost );
+                        ps.setString( 2, siteHost );
+                    },
+                    rs -> rs.getInt( "total" ) );
+            return rows.isEmpty() ? 0 : rows.get( 0 );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read site impressions for site {}: {}", siteHost, e.getMessage(), e );
             throw new IllegalStateException( "site impressions query failed", e );
@@ -606,34 +578,29 @@ public class JdbcInsightsStore implements InsightsStore {
         final Instant cutoff = Instant.now().minus( sinceDays, ChronoUnit.DAYS );
         final Map<String, DemandAggregate> byQuery = new LinkedHashMap<>();
 
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( DEMAND_ROWS_SQL ) ) {
-            ps.setTimestamp( 1, Timestamp.from( cutoff ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final String queryText = rs.getString( "query_text" );
-                    final DemandAggregate agg =
-                            byQuery.computeIfAbsent( queryText, k -> new DemandAggregate() );
+        try {
+            jdbc.forEachRow( DEMAND_ROWS_SQL, ps -> ps.setTimestamp( 1, Timestamp.from( cutoff ) ), 0, rs -> {
+                final String queryText = rs.getString( "query_text" );
+                final DemandAggregate agg = byQuery.computeIfAbsent( queryText, k -> new DemandAggregate() );
 
-                    agg.occurrences++;
+                agg.occurrences++;
 
-                    final String sessionHash = rs.getString( "session_hash" );
-                    if ( sessionHash != null ) {
-                        agg.distinctSessions.add( sessionHash );
-                    }
-
-                    final int resultCount = rs.getInt( "result_count" );
-                    if ( !rs.wasNull() ) {
-                        agg.resultCountSum += resultCount;
-                        agg.resultCountCount++;
-                    }
-
-                    final String coverage = rs.getString( "coverage" );
-                    if ( coverage != null ) {
-                        agg.coverageCounts.merge( coverage, 1, Integer::sum );
-                    }
+                final String sessionHash = rs.getString( "session_hash" );
+                if ( sessionHash != null ) {
+                    agg.distinctSessions.add( sessionHash );
                 }
-            }
+
+                final int resultCount = rs.getInt( "result_count" );
+                if ( !rs.wasNull() ) {
+                    agg.resultCountSum += resultCount;
+                    agg.resultCountCount++;
+                }
+
+                final String coverage = rs.getString( "coverage" );
+                if ( coverage != null ) {
+                    agg.coverageCounts.merge( coverage, 1, Integer::sum );
+                }
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read demand rows for the last {} days: {}",
                     sinceDays, e.getMessage(), e );
@@ -650,12 +617,9 @@ public class JdbcInsightsStore implements InsightsStore {
     @Override
     public Map<String, LocalDate> lastChangeByTarget() {
         final Map<String, LocalDate> out = new HashMap<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( LAST_CHANGE_BY_TARGET_SQL );
-              ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) {
-                out.put( rs.getString( "page_path" ), rs.getDate( "last_date" ).toLocalDate() );
-            }
+        try {
+            jdbc.forEachRow( LAST_CHANGE_BY_TARGET_SQL, SqlBinder.NONE, 0,
+                    rs -> out.put( rs.getString( "page_path" ), rs.getDate( "last_date" ).toLocalDate() ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read last change by target: {}", e.getMessage(), e );
             throw new IllegalStateException( "last change by target query failed", e );
@@ -667,16 +631,16 @@ public class JdbcInsightsStore implements InsightsStore {
     public boolean recordEffect( final long changeId, final String verdict, final Double ctrDelta,
                                  final Double positionDelta, final Double clickDelta,
                                  final String method, final String detailJson ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( RECORD_EFFECT_SQL ) ) {
-            ps.setString( 1, verdict );
-            setNullableDouble( ps, 2, ctrDelta );
-            setNullableDouble( ps, 3, positionDelta );
-            setNullableDouble( ps, 4, clickDelta );
-            setNullableString( ps, 5, method );
-            setNullableString( ps, 6, detailJson );
-            ps.setLong( 7, changeId );
-            return ps.executeUpdate() > 0;
+        try {
+            return jdbc.update( RECORD_EFFECT_SQL, ps -> {
+                ps.setString( 1, verdict );
+                setNullableDouble( ps, 2, ctrDelta );
+                setNullableDouble( ps, 3, positionDelta );
+                setNullableDouble( ps, 4, clickDelta );
+                setNullableString( ps, 5, method );
+                setNullableString( ps, 6, detailJson );
+                ps.setLong( 7, changeId );
+            } ) > 0;
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to record effect for change {}: {}", changeId, e.getMessage(), e );
             return false;
@@ -686,12 +650,9 @@ public class JdbcInsightsStore implements InsightsStore {
     @Override
     public Map<String, Integer> verdictCountsByType() {
         final Map<String, Integer> out = new HashMap<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( VERDICT_COUNTS_BY_TYPE_SQL );
-              ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) {
-                out.put( rs.getString( "opportunity_type" ), rs.getInt( "n" ) );
-            }
+        try {
+            jdbc.forEachRow( VERDICT_COUNTS_BY_TYPE_SQL, SqlBinder.NONE, 0,
+                    rs -> out.put( rs.getString( "opportunity_type" ), rs.getInt( "n" ) ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read verdict counts by type: {}", e.getMessage(), e );
             throw new IllegalStateException( "verdict counts by type query failed", e );
@@ -701,21 +662,16 @@ public class JdbcInsightsStore implements InsightsStore {
 
     @Override
     public List<CalibrationSample> calibrationSamples() {
-        final List<CalibrationSample> out = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( CALIBRATION_SAMPLES_SQL );
-              ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) {
-                out.add( new CalibrationSample(
-                        rs.getString( "opportunity_type" ),
-                        rs.getDouble( "predicted_priority" ),
-                        rs.getDouble( "effect_click_delta" ) ) );
-            }
+        try {
+            return jdbc.query( CALIBRATION_SAMPLES_SQL, SqlBinder.NONE,
+                    rs -> new CalibrationSample(
+                            rs.getString( "opportunity_type" ),
+                            rs.getDouble( "predicted_priority" ),
+                            rs.getDouble( "effect_click_delta" ) ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read calibration samples: {}", e.getMessage(), e );
             throw new IllegalStateException( "calibration samples query failed", e );
         }
-        return out;
     }
 
     @Override
@@ -725,24 +681,23 @@ public class JdbcInsightsStore implements InsightsStore {
             return out;
         }
 
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( UPSERT_SEEN_SQL, Statement.RETURN_GENERATED_KEYS ) ) {
-            final Date todaySql = Date.valueOf( today );
-            for ( final String[] pair : typeTargetPairs ) {
-                ps.setString( 1, pair[0] );
-                ps.setString( 2, pair[1] );
-                ps.setDate( 3, todaySql );
-                ps.setDate( 4, todaySql );
-                ps.addBatch();
-            }
-            ps.executeBatch();
-
-            try ( ResultSet rs = ps.getGeneratedKeys() ) {
-                while ( rs.next() ) {
-                    out.put( rs.getString( "opportunity_type" ) + " " + rs.getString( "target" ),
-                            rs.getDate( "first_seen" ).toLocalDate() );
+        final Date todaySql = Date.valueOf( today );
+        try {
+            jdbc.withConnection( conn -> {
+                for ( final String[] pair : typeTargetPairs ) {
+                    final Optional<SeenRow> row = jdbc.insertReturningKey( conn, UPSERT_SEEN_SQL,
+                            ps -> {
+                                ps.setString( 1, pair[0] );
+                                ps.setString( 2, pair[1] );
+                                ps.setDate( 3, todaySql );
+                                ps.setDate( 4, todaySql );
+                            },
+                            rs -> new SeenRow( rs.getString( "opportunity_type" ), rs.getString( "target" ),
+                                    rs.getDate( "first_seen" ).toLocalDate() ) );
+                    row.ifPresent( r -> out.put( r.opportunityType() + " " + r.target(), r.firstSeen() ) );
                 }
-            }
+                return null;
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to upsert {} content-opportunity-seen rows: {}",
                     typeTargetPairs.size(), e.getMessage(), e );
@@ -754,18 +709,18 @@ public class JdbcInsightsStore implements InsightsStore {
     @Override
     public Optional<PageWindow> pageWindowNear( final String siteHost, final String pagePath,
                                                 final LocalDate targetDate, final int toleranceDays ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( PAGE_WINDOW_NEAR_SQL ) ) {
-            ps.setString( 1, siteHost );
-            ps.setString( 2, pagePath );
-            ps.setDate( 3, Date.valueOf( targetDate.minusDays( toleranceDays ) ) );
-            ps.setDate( 4, Date.valueOf( targetDate.plusDays( toleranceDays ) ) );
-            ps.setDate( 5, Date.valueOf( targetDate ) );
-            ps.setString( 6, siteHost );
-            ps.setString( 7, pagePath );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? Optional.of( readPageWindow( rs ) ) : Optional.empty();
-            }
+        try {
+            return jdbc.queryOne( PAGE_WINDOW_NEAR_SQL,
+                    ps -> {
+                        ps.setString( 1, siteHost );
+                        ps.setString( 2, pagePath );
+                        ps.setDate( 3, Date.valueOf( targetDate.minusDays( toleranceDays ) ) );
+                        ps.setDate( 4, Date.valueOf( targetDate.plusDays( toleranceDays ) ) );
+                        ps.setDate( 5, Date.valueOf( targetDate ) );
+                        ps.setString( 6, siteHost );
+                        ps.setString( 7, pagePath );
+                    },
+                    JdbcInsightsStore::readPageWindow );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to resolve page window near {} (+/-{}d) for site {} page {}: {}",
                     targetDate, toleranceDays, siteHost, pagePath, e.getMessage(), e );
@@ -776,16 +731,16 @@ public class JdbcInsightsStore implements InsightsStore {
     @Override
     public Optional<PageWindow> siteWindowNear( final String siteHost, final LocalDate targetDate,
                                                 final int toleranceDays ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( SITE_WINDOW_NEAR_SQL ) ) {
-            ps.setString( 1, siteHost );
-            ps.setDate( 2, Date.valueOf( targetDate.minusDays( toleranceDays ) ) );
-            ps.setDate( 3, Date.valueOf( targetDate.plusDays( toleranceDays ) ) );
-            ps.setDate( 4, Date.valueOf( targetDate ) );
-            ps.setString( 5, siteHost );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? Optional.of( readPageWindow( rs ) ) : Optional.empty();
-            }
+        try {
+            return jdbc.queryOne( SITE_WINDOW_NEAR_SQL,
+                    ps -> {
+                        ps.setString( 1, siteHost );
+                        ps.setDate( 2, Date.valueOf( targetDate.minusDays( toleranceDays ) ) );
+                        ps.setDate( 3, Date.valueOf( targetDate.plusDays( toleranceDays ) ) );
+                        ps.setDate( 4, Date.valueOf( targetDate ) );
+                        ps.setString( 5, siteHost );
+                    },
+                    JdbcInsightsStore::readPageWindow );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to resolve site window near {} (+/-{}d) for site {}: {}",
                     targetDate, toleranceDays, siteHost, e.getMessage(), e );
@@ -810,10 +765,9 @@ public class JdbcInsightsStore implements InsightsStore {
             return 0;
         }
 
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( UPSERT_IMPORTED_SQL ) ) {
-
-            for ( final ImportedOpportunityRow row : rows ) {
+        final List<SqlBinder> binders = new ArrayList<>( rows.size() );
+        for ( final ImportedOpportunityRow row : rows ) {
+            binders.add( ps -> {
                 ps.setDate( 1, Date.valueOf( row.asOf() ) );
                 ps.setString( 2, row.engine() );
                 ps.setString( 3, row.siteHost() );
@@ -822,16 +776,16 @@ public class JdbcInsightsStore implements InsightsStore {
                 ps.setDouble( 6, row.expectedUplift() );
                 setNullableDouble( ps, 7, row.confidence() );
                 setNullableString( ps, 8, row.evidenceJson() );
-                ps.addBatch();
-            }
+            } );
+        }
 
-            final int[] results = ps.executeBatch();
+        try {
+            final int[] results = jdbc.withConnection( conn -> jdbc.batch( conn, UPSERT_IMPORTED_SQL, binders ) );
             int total = 0;
             for ( final int result : results ) {
                 total += Math.max( result, 0 );
             }
             return total;
-
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to upsert {} imported opportunity rows: {}", rows.size(), e.getMessage(), e );
             return 0;
@@ -840,23 +794,19 @@ public class JdbcInsightsStore implements InsightsStore {
 
     @Override
     public List<Opportunity> latestImported( final String siteHost, final int maxAgeDays ) {
-        final List<Opportunity> out = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( LATEST_IMPORTED_SQL ) ) {
-            ps.setString( 1, siteHost );
-            ps.setString( 2, siteHost );
-            ps.setDate( 3, Date.valueOf( LocalDate.now().minusDays( maxAgeDays ) ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    out.add( toImportedOpportunity( rs ) );
-                }
-            }
+        try {
+            return jdbc.query( LATEST_IMPORTED_SQL,
+                    ps -> {
+                        ps.setString( 1, siteHost );
+                        ps.setString( 2, siteHost );
+                        ps.setDate( 3, Date.valueOf( LocalDate.now().minusDays( maxAgeDays ) ) );
+                    },
+                    JdbcInsightsStore::toImportedOpportunity );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read latest imported opportunities for site {}: {}",
                     siteHost, e.getMessage(), e );
             throw new IllegalStateException( "latest imported opportunities query failed", e );
         }
-        return out;
     }
 
     /**
@@ -893,23 +843,22 @@ public class JdbcInsightsStore implements InsightsStore {
             return 0;
         }
 
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( UPSERT_CTR_CURVE_SQL ) ) {
-
-            for ( final Map.Entry<Integer, Double> point : points.entrySet() ) {
+        final List<SqlBinder> binders = new ArrayList<>( points.size() );
+        for ( final Map.Entry<Integer, Double> point : points.entrySet() ) {
+            binders.add( ps -> {
                 ps.setDate( 1, Date.valueOf( asOf ) );
                 ps.setInt( 2, point.getKey() );
                 ps.setDouble( 3, point.getValue() );
-                ps.addBatch();
-            }
+            } );
+        }
 
-            final int[] results = ps.executeBatch();
+        try {
+            final int[] results = jdbc.withConnection( conn -> jdbc.batch( conn, UPSERT_CTR_CURVE_SQL, binders ) );
             int total = 0;
             for ( final int result : results ) {
                 total += Math.max( result, 0 );
             }
             return total;
-
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to upsert {} expected-CTR curve points for as_of {}: {}",
                     points.size(), asOf, e.getMessage(), e );
@@ -919,22 +868,20 @@ public class JdbcInsightsStore implements InsightsStore {
 
     @Override
     public Optional<CtrCurveSnapshot> latestCtrCurve( final int maxAgeDays ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( LATEST_CTR_CURVE_SQL ) ) {
-            ps.setDate( 1, Date.valueOf( LocalDate.now().minusDays( maxAgeDays ) ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                LocalDate asOf = null;
-                final Map<Integer, Double> points = new LinkedHashMap<>();
-                while ( rs.next() ) {
-                    asOf = rs.getDate( "as_of" ).toLocalDate();
-                    points.put( rs.getInt( "position" ), rs.getDouble( "ctr" ) );
-                }
-                return asOf == null ? Optional.empty() : Optional.of( new CtrCurveSnapshot( asOf, points ) );
-            }
+        final LocalDate[] asOf = { null };
+        final Map<Integer, Double> points = new LinkedHashMap<>();
+        try {
+            jdbc.forEachRow( LATEST_CTR_CURVE_SQL,
+                    ps -> ps.setDate( 1, Date.valueOf( LocalDate.now().minusDays( maxAgeDays ) ) ), 0,
+                    rs -> {
+                        asOf[0] = rs.getDate( "as_of" ).toLocalDate();
+                        points.put( rs.getInt( "position" ), rs.getDouble( "ctr" ) );
+                    } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read latest expected-CTR curve: {}", e.getMessage(), e );
             throw new IllegalStateException( "latest expected-CTR curve query failed", e );
         }
+        return asOf[0] == null ? Optional.empty() : Optional.of( new CtrCurveSnapshot( asOf[0], points ) );
     }
 
     /** One short suggested action per jakemon detector type (design §7.3 "Imported from jakemon"). */
@@ -982,6 +929,10 @@ public class JdbcInsightsStore implements InsightsStore {
             }
             return best;
         }
+    }
+
+    /** One RETURNING row from {@link #UPSERT_SEEN_SQL}; see {@link #upsertSeen} for why this is keyed off it. */
+    private record SeenRow( String opportunityType, String target, LocalDate firstSeen ) {
     }
 
     private static void setNullableString( final PreparedStatement ps, final int index, final String value )

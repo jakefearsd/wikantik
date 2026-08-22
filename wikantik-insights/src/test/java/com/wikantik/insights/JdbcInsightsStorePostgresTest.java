@@ -18,14 +18,13 @@
  */
 package com.wikantik.insights;
 
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import org.postgresql.ds.PGSimpleDataSource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -42,16 +41,21 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Real-PostgreSQL tests for {@link JdbcInsightsStore}'s upsert semantics. H2 does not implement
- * {@code ON CONFLICT}, so these run against an actual PostgreSQL container instead of H2 — see
- * {@link JdbcInsightsStoreTest} for the tests that don't depend on {@code ON CONFLICT} and can
- * stay on H2.
+ * Real-PostgreSQL tests for {@link JdbcInsightsStore} — including its {@code ON CONFLICT} upsert
+ * semantics, which H2 does not implement, and everything else the class does (folded in from the
+ * former H2-backed {@code JdbcInsightsStoreTest}, which existed only because of that H2 gap).
  *
- * <p>wikantik-insights deliberately does not depend on wikantik-main, so this class starts its
- * own container rather than reusing {@code com.wikantik.jdbc.testing.PostgresTestDb}.</p>
+ * <p>wikantik-insights deliberately does not depend on wikantik-main, so schema/DataSource setup
+ * here goes through {@link PostgresTestDb} directly (from wikantik-jdbc's test-jar) rather than
+ * any wikantik-main test fixture.</p>
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class JdbcInsightsStorePostgresTest {
+
+    private static final String[] TABLES = {
+        "search_visibility_snapshot", "content_change_log", "content_opportunity_snooze",
+        "content_opportunity_seen", "retrieval_query_log", "imported_opportunity", "expected_ctr_curve"
+    };
 
     /** Fixed instants so these assertions never depend on the calendar date the suite runs on.
      *
@@ -71,135 +75,31 @@ class JdbcInsightsStorePostgresTest {
         }
     }
 
-    @Container
-    private static final PostgreSQLContainer CONTAINER = new PostgreSQLContainer(
-            DockerImageName.parse( "pgvector/pgvector:pg17" ).asCompatibleSubstituteFor( "postgres" ) )
-            .withDatabaseName( "wikantik_insights_test" )
-            .withUsername( "test" )
-            .withPassword( "test" );
-
     private DataSource ds;
 
     @BeforeEach
-    void setUp() throws Exception {
-        final PGSimpleDataSource pg = new PGSimpleDataSource();
-        pg.setUrl( CONTAINER.getJdbcUrl() );
-        pg.setUser( CONTAINER.getUsername() );
-        pg.setPassword( CONTAINER.getPassword() );
-        this.ds = pg;
+    void setUp() {
+        this.ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( TABLES );
+    }
 
+    /**
+     * A DataSource pointed at a freshly-created, never-migrated schema on the same shared
+     * container — none of {@link #TABLES} exist there. Used to exercise the fail-soft path
+     * ({@link #upsertFailsSoftWhenTheTableIsMissing}) without dropping a table out from under
+     * every other test sharing the one per-JVM container.
+     */
+    private DataSource emptySchemaDataSource() throws Exception {
+        final String schema = "empty_schema_" + System.nanoTime();
         try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
-            st.execute( "DROP TABLE IF EXISTS search_visibility_snapshot" );
-            st.execute( """
-                CREATE TABLE IF NOT EXISTS search_visibility_snapshot (
-                    snapshot_date DATE        NOT NULL,
-                    window_days   SMALLINT    NOT NULL,
-                    engine        TEXT        NOT NULL,
-                    site_host     TEXT        NOT NULL,
-                    page_path     TEXT        NOT NULL,
-                    query_text    TEXT        NOT NULL,
-                    impressions   INTEGER     NOT NULL,
-                    clicks        INTEGER     NOT NULL,
-                    position      NUMERIC(6,2),
-                    ingested_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    PRIMARY KEY (snapshot_date, engine, site_host, page_path, query_text)
-                )""" );
-
-            // V052 / V053, applied verbatim so the ON CONFLICT / RETURNING SQL under test runs
-            // against the real schema rather than a hand-simplified stand-in.
-            st.execute( "DROP TABLE IF EXISTS content_change_log" );
-            st.execute( """
-                CREATE TABLE IF NOT EXISTS content_change_log (
-                    id                    BIGSERIAL   PRIMARY KEY,
-                    page_path             TEXT        NOT NULL,
-                    change_type           TEXT        NOT NULL,
-                    opportunity_type      TEXT,
-                    applied_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    applied_by            TEXT        NOT NULL,
-                    note                  TEXT,
-
-                    baseline_start        DATE        NOT NULL,
-                    baseline_end          DATE        NOT NULL,
-                    baseline_impressions  INTEGER     NOT NULL,
-                    baseline_clicks       INTEGER     NOT NULL,
-                    baseline_ctr          NUMERIC(8,5),
-                    baseline_position     NUMERIC(6,2),
-
-                    evaluated_at          TIMESTAMPTZ,
-                    effect                TEXT,
-                    effect_ctr_delta      NUMERIC(8,5),
-                    effect_position_delta NUMERIC(6,2),
-                    effect_detail         JSONB,
-
-                    -- V055
-                    predicted_priority    NUMERIC(10,4),
-                    effect_click_delta    NUMERIC(10,2),
-                    effect_method         TEXT
-                )""" );
-
-            st.execute( "DROP TABLE IF EXISTS content_opportunity_snooze" );
-            st.execute( """
-                CREATE TABLE IF NOT EXISTS content_opportunity_snooze (
-                    opportunity_type TEXT        NOT NULL,
-                    target           TEXT        NOT NULL,
-                    snoozed_until    DATE        NOT NULL,
-                    reason           TEXT        NOT NULL,
-                    snoozed_by       TEXT        NOT NULL,
-                    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    PRIMARY KEY (opportunity_type, target)
-                )""" );
-
-            // V054
-            st.execute( "DROP TABLE IF EXISTS content_opportunity_seen" );
-            st.execute( """
-                CREATE TABLE IF NOT EXISTS content_opportunity_seen (
-                    opportunity_type TEXT NOT NULL,
-                    target           TEXT NOT NULL,
-                    first_seen       DATE NOT NULL,
-                    last_seen        DATE NOT NULL,
-                    PRIMARY KEY (opportunity_type, target)
-                )""" );
-
-            // V041 + V051, applied verbatim so demandRows() runs against the real schema.
-            st.execute( "DROP TABLE IF EXISTS retrieval_query_log" );
-            st.execute( """
-                CREATE TABLE IF NOT EXISTS retrieval_query_log (
-                    id             BIGSERIAL   PRIMARY KEY,
-                    query_text     TEXT        NOT NULL,
-                    actor_type     TEXT        NOT NULL,
-                    source_surface TEXT        NOT NULL,
-                    result_count   INTEGER,
-                    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    session_hash   VARCHAR(16),
-                    clicked_rank   INTEGER,
-                    coverage       TEXT
-                )""" );
-
-            // V056
-            st.execute( "DROP TABLE IF EXISTS imported_opportunity" );
-            st.execute( """
-                CREATE TABLE IF NOT EXISTS imported_opportunity (
-                    as_of            DATE           NOT NULL,
-                    engine           TEXT           NOT NULL,
-                    site_host        TEXT           NOT NULL,
-                    opportunity_type TEXT           NOT NULL,
-                    target           TEXT           NOT NULL,
-                    expected_uplift  NUMERIC(10,2)  NOT NULL,
-                    confidence       NUMERIC(4,3),
-                    evidence         JSONB,
-                    PRIMARY KEY (as_of, engine, site_host, opportunity_type, target)
-                )""" );
-
-            // V057
-            st.execute( "DROP TABLE IF EXISTS expected_ctr_curve" );
-            st.execute( """
-                CREATE TABLE IF NOT EXISTS expected_ctr_curve (
-                    as_of    DATE     NOT NULL,
-                    position SMALLINT NOT NULL,
-                    ctr      NUMERIC(6,5) NOT NULL,
-                    PRIMARY KEY (as_of, position)
-                )""" );
+            st.execute( "CREATE SCHEMA " + schema );
         }
+        final PGSimpleDataSource empty = new PGSimpleDataSource();
+        empty.setUrl( PostgresTestDb.getJdbcUrl() );
+        empty.setUser( PostgresTestDb.getUsername() );
+        empty.setPassword( PostgresTestDb.getPassword() );
+        empty.setCurrentSchema( schema );
+        return empty;
     }
 
     private VisibilityRow row( final int impressions, final int clicks, final Double position ) {
@@ -211,6 +111,32 @@ class JdbcInsightsStorePostgresTest {
     void upsertWritesRows() {
         final InsightsStore store = new JdbcInsightsStore( ds );
         assertEquals( 1, store.upsert( List.of( row( 100, 4, 5.2 ) ) ) );
+    }
+
+    // --- folded in from the former H2-backed JdbcInsightsStoreTest --------------------------
+
+    @Test
+    void emptyBatchIsANoOp() {
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        assertEquals( 0, store.upsert( List.of() ) );
+    }
+
+    @Test
+    void upsertFailsSoftWhenTheTableIsMissing() throws Exception {
+        // Ingestion must never throw into the request path; a broken store degrades to 0 rows.
+        final InsightsStore store = new JdbcInsightsStore( emptySchemaDataSource() );
+        assertEquals( 0, store.upsert( List.of( row( 1, 1, 1.0 ) ) ) );
+    }
+
+    @Test
+    void rowRejectsBlankEngineAndSite() {
+        // Guard the allowlist contract at the type boundary rather than only at parse time.
+        assertNull( VisibilityRow.of(
+                new VisibilityRow.SnapshotWindow( LocalDate.of( 2026, 8, 14 ), 28 ),
+                "  ", "wiki.wikantik.com", "/wiki/A", "", 1, 0, 1.0 ) );
+        assertNull( VisibilityRow.of(
+                new VisibilityRow.SnapshotWindow( LocalDate.of( 2026, 8, 14 ), 28 ),
+                "bing", "", "/wiki/A", "", 1, 0, 1.0 ) );
     }
 
     @Test

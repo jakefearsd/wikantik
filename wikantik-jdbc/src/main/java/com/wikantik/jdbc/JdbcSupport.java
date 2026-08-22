@@ -103,6 +103,34 @@ public abstract class JdbcSupport {
         return jdbc.update( conn, sql, binder );
     }
 
+    protected int[] batch( final Connection conn, final String sql, final List< SqlBinder > binders )
+            throws SQLException {
+        return jdbc.batch( conn, sql, binders );
+    }
+
+    protected void forEachRow( final String sql, final SqlBinder binder, final int fetchSize,
+                               final RowConsumer consumer ) throws SQLException {
+        jdbc.forEachRow( sql, binder, fetchSize, consumer );
+    }
+
+    protected void forEachRow( final Connection conn, final String sql, final SqlBinder binder,
+                               final int fetchSize, final RowConsumer consumer ) throws SQLException {
+        jdbc.forEachRow( conn, sql, binder, fetchSize, consumer );
+    }
+
+    protected void execute( final String sql ) throws SQLException {
+        jdbc.execute( sql );
+    }
+
+    protected void execute( final Connection conn, final String sql ) throws SQLException {
+        jdbc.execute( conn, sql );
+    }
+
+    /** See {@link Jdbc#withConnection}: one lent connection, no transaction. */
+    protected < T > T withConnection( final TransactionBody< T > body ) throws SQLException {
+        return jdbc.withConnection( body );
+    }
+
     /**
      * Runs {@code body} inside a single transaction. Delegates to {@link Jdbc#inTransaction} —
      * see its Javadoc for the full contract (rollback on any {@link Throwable}, auto-commit

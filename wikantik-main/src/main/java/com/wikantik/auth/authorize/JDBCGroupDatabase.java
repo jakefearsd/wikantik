@@ -53,7 +53,7 @@ import java.util.Set;
  * <p>
  * The only configurable property is the JNDI DataSource name
  * ({@code wikantik.groupdatabase.datasource}). Table and column names are
- * fixed to match the canonical schema in {@code postgresql.ddl}.
+ * fixed to match the canonical schema in {@code bin/db/migrations/V002__core_users_groups.sql}.
  * </p>
  * <p>
  * This class is typically used in conjunction with a web container's JNDI

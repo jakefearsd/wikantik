@@ -454,7 +454,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 - Main configuration: `ini/wikantik.properties` (in JAR)
 - Custom overrides: `wikantik-custom.properties` (in WEB-INF or container lib)
 - Security policy: `policy_grants` table (database-backed) or `WEB-INF/wikantik.policy` (file-based fallback)
-- Permission migration DDL: `bin/db/postgresql-permissions.ddl` (legacy reference; current schema lives in `bin/db/migrations/V003__policy_grants.sql`)
+- Schema: `bin/db/migrations/V*.sql` is the only schema definition (applied by `migrate.sh`; the test fixture `PostgresTestDb` applies the same files). Policy grants: `V003__policy_grants.sql`
 
 ### Extension Points
 

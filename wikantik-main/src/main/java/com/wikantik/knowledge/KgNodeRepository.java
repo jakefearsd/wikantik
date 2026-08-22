@@ -19,7 +19,6 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.api.knowledge.*;
-import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.SqlBinder;
 import com.wikantik.kgpolicy.KgInclusionFilter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -43,11 +42,9 @@ public final class KgNodeRepository extends KgJdbcSupport {
 
     private static final Logger LOG = LogManager.getLogger( KgNodeRepository.class );
 
-    private final Jdbc jdbc;
 
     public KgNodeRepository( final DataSource dataSource ) {
         super( dataSource );
-        this.jdbc = new Jdbc( dataSource );
     }
 
     @Override
@@ -520,7 +517,7 @@ public final class KgNodeRepository extends KgJdbcSupport {
                 + " AND" + KgInclusionFilter.NODE_FILTER_WHERE;
         final Map< UUID, String > result = new HashMap<>();
         try {
-            jdbc.forEachRow( sql, ps -> {
+            forEachRow( sql, ps -> {
                 int idx = 1;
                 for ( final UUID id : ids ) ps.setObject( idx++, id );
             }, 0, rs -> result.put( rs.getObject( "id", UUID.class ), rs.getString( "name" ) ) );

@@ -3,11 +3,9 @@
 The Wikantik schema is managed by the migration runner at
 [`bin/db/migrate.sh`](../bin/db/migrate.sh) — all DDL lives in
 [`bin/db/migrations/`](../bin/db/migrations/) and is applied
-idempotently in version order. The legacy DDL scripts under
-`bin/db/` (`postgresql.ddl`,
-`postgresql-knowledge.ddl`, `postgresql-permissions.ddl`,
-`postgresql-hub.ddl`) are historical reference only and should not be
-applied directly to a new install.
+idempotently in version order. The legacy `postgresql*.ddl` snapshots were retired on
+2026-08-22; the migrations are the only schema definition, and the unit-test fixture
+(`PostgresTestDb`) applies the very same files.
 
 `bin/db/install-fresh.sh` does the right thing for a fresh database
 (creates database, app role, pgvector extension, then runs every
@@ -91,7 +89,6 @@ Two follow-up migration policies:
 | Active migrations | `bin/db/migrations/V001..V057` |
 | Migration runner | `bin/db/migrate.sh` (idempotent, single-tx per migration) |
 | Fresh install | `bin/db/install-fresh.sh` (creates DB + role + pgvector + runs migrations) |
-| Legacy reference DDL | `bin/db/postgresql*.ddl` (do not apply directly) |
 | Migration conventions | [`bin/db/migrations/README.md`](../bin/db/migrations/README.md) |
 
 ## Index notes (Knowledge Graph)

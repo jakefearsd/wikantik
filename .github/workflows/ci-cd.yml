@@ -32,7 +32,7 @@ jobs:
           cache: maven
 
       - name: Unit tests
-        run: mvn clean test -T 1C -B
+        run: mvn clean test -T 1C -B -Dwikantik.test.requireDocker=true
 
       # CI complexity ratchet: fails on any NEW complexity violation (PMD
       # design rules — cyclomatic/cognitive complexity, GodClass, NcssCount,

@@ -87,7 +87,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
     private static final Logger LOG = LogManager.getLogger( DefaultAuthorizationManager.class );
 
-    /** Table name for database-backed policy grants — matches the DDL in postgresql-permissions.ddl. */
+    /** Table name for database-backed policy grants — see {@code bin/db/migrations/V003__policy_grants.sql}. */
     static final String POLICY_TABLE = "policy_grants";
 
     /** Property name for the bootstrap admin override. When set, the named user bypasses all policy checks. */

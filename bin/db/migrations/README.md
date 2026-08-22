@@ -86,19 +86,11 @@ DB_NAME=wikantik_prod PGHOST=db.example.com PGUSER=migrate \
     PGPASSWORD='…' bin/db/migrate.sh
 ```
 
-## Relationship to the legacy `postgresql-*.ddl` files
+## The migrations are the only schema definition
 
-The `postgresql.ddl`, `postgresql-permissions.ddl`,
-`postgresql-knowledge.ddl`, and `postgresql-hub.ddl` files predate this
-migration system and are kept only for historical reference. **Do not
-add new schema there.** New schema goes in a numbered migration in this
-directory.
-
-The equivalence is:
-
-| Legacy file                   | Current migration           |
-|-------------------------------|-----------------------------|
-| `postgresql.ddl`              | `V002__core_users_groups`   |
-| `postgresql-permissions.ddl`  | `V003__policy_grants`       |
-| `postgresql-knowledge.ddl`    | `V004__knowledge_graph`     |
-| `postgresql-hub.ddl`          | `V005__hub_membership`      |
+The legacy `postgresql*.ddl` snapshot files were retired on 2026-08-22. Nothing else
+defines the schema: `migrate.sh` applies this directory to real databases, and the
+test fixture `com.wikantik.jdbc.testing.PostgresTestDb` (wikantik-jdbc test-jar) applies
+the same files to a throwaway container, so a test that needs a table is a reason to
+write the migration first — never a hand-written `CREATE TABLE` in a test
+(`wikantik-war` `TestSchemaSingleSourceTest` enforces this).

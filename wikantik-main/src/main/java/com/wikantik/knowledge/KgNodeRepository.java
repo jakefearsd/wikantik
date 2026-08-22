@@ -19,6 +19,7 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.api.knowledge.*;
+import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.SqlBinder;
 import com.wikantik.kgpolicy.KgInclusionFilter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -42,8 +43,11 @@ public final class KgNodeRepository extends KgJdbcSupport {
 
     private static final Logger LOG = LogManager.getLogger( KgNodeRepository.class );
 
+    private final Jdbc jdbc;
+
     public KgNodeRepository( final DataSource dataSource ) {
         super( dataSource );
+        this.jdbc = new Jdbc( dataSource );
     }
 
     @Override
@@ -499,13 +503,13 @@ public final class KgNodeRepository extends KgJdbcSupport {
     }
 
     /**
-     * Not migrated to the {@code query}/{@code queryOne} template primitives: this method
-     * maps rows into a {@code Map} (not a {@code List}/{@code Optional}) and, uniquely among
-     * the node-lookup methods, swallows {@link SQLException} — logging a WARN (with stack
-     * trace) and returning whatever partial {@code result} map had already been populated,
-     * rather than rethrowing. The generic primitives discard their in-progress accumulator on
-     * failure (the exception propagates before the caller ever sees a partial list), so
-     * reusing them here would silently change this method's external contract.
+     * Uses {@link #forEachRow} rather than the {@code query}/{@code queryOne} list/Optional
+     * primitives: this method maps rows into a {@code Map} and, uniquely among the
+     * node-lookup methods, swallows {@link SQLException} — logging a WARN (with stack trace)
+     * and returning whatever partial {@code result} map had already been populated, rather
+     * than rethrowing. {@code forEachRow}'s consumer mutates {@code result} directly as each
+     * row is visited, so a failure mid-scan leaves exactly the rows already consumed in the
+     * map — the same partial-result contract this method has always had.
      */
     public Map< UUID, String > getNodeNames( final Collection< UUID > ids ) {
         if ( ids == null || ids.isEmpty() ) return Map.of();
@@ -515,15 +519,11 @@ public final class KgNodeRepository extends KgJdbcSupport {
                 + "WHERE n.id IN ( " + placeholders + " )"
                 + " AND" + KgInclusionFilter.NODE_FILTER_WHERE;
         final Map< UUID, String > result = new HashMap<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            int idx = 1;
-            for ( final UUID id : ids ) ps.setObject( idx++, id );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    result.put( rs.getObject( "id", UUID.class ), rs.getString( "name" ) );
-                }
-            }
+        try {
+            jdbc.forEachRow( sql, ps -> {
+                int idx = 1;
+                for ( final UUID id : ids ) ps.setObject( idx++, id );
+            }, 0, rs -> result.put( rs.getObject( "id", UUID.class ), rs.getString( "name" ) ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to resolve node names: {}", e.getMessage(), e );
         }

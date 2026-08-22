@@ -19,16 +19,13 @@
 package com.wikantik.knowledge;
 
 import com.google.gson.Gson;
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,10 +46,10 @@ public final class KgEdgeAuditRepository {
     private static final Logger LOG = LogManager.getLogger( KgEdgeAuditRepository.class );
     private static final Gson GSON = new Gson();
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     public KgEdgeAuditRepository( final DataSource dataSource ) {
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
     }
 
     public void insert( final UUID edgeId, final String action,
@@ -60,15 +57,15 @@ public final class KgEdgeAuditRepository {
                         final String actor, final String reason ) {
         final String sql = "INSERT INTO kg_edge_audit ( edge_id, action, before, after, actor, reason ) "
                          + "VALUES ( ?, ?, ?::jsonb, ?::jsonb, ?, ? )";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, edgeId );
-            ps.setString( 2, action );
-            ps.setString( 3, before == null ? null : GSON.toJson( before ) );
-            ps.setString( 4, after  == null ? null : GSON.toJson( after ) );
-            ps.setString( 5, actor );
-            ps.setString( 6, reason );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> {
+                ps.setObject( 1, edgeId );
+                ps.setString( 2, action );
+                ps.setString( 3, before == null ? null : GSON.toJson( before ) );
+                ps.setString( 4, after  == null ? null : GSON.toJson( after ) );
+                ps.setString( 5, actor );
+                ps.setString( 6, reason );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to insert kg_edge_audit (edge={}, action={}): {}",
                     edgeId, action, e.getMessage(), e );
@@ -79,30 +76,26 @@ public final class KgEdgeAuditRepository {
     public List< Map< String, Object > > findByEdgeId( final UUID edgeId, final int limit ) {
         final String sql = "SELECT id, edge_id, action, before, after, actor, reason, created "
                          + "FROM kg_edge_audit WHERE edge_id = ? ORDER BY created DESC LIMIT ?";
-        final List< Map< String, Object > > rows = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, edgeId );
-            ps.setInt( 2, limit );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final Map< String, Object > m = new LinkedHashMap<>();
-                    m.put( "id", rs.getObject( "id", UUID.class ).toString() );
-                    m.put( "edge_id", rs.getObject( "edge_id", UUID.class ).toString() );
-                    m.put( "action", rs.getString( "action" ) );
-                    m.put( "before", rs.getString( "before" ) );  // raw JSON string; caller decides
-                    m.put( "after",  rs.getString( "after"  ) );
-                    m.put( "actor", rs.getString( "actor" ) );
-                    m.put( "reason", rs.getString( "reason" ) );
-                    final Timestamp ts = rs.getTimestamp( "created" );
-                    m.put( "created", ts != null ? ts.toInstant().toString() : null );
-                    rows.add( m );
-                }
-            }
+        try {
+            return jdbc.query( sql, ps -> {
+                ps.setObject( 1, edgeId );
+                ps.setInt( 2, limit );
+            }, rs -> {
+                final Map< String, Object > m = new LinkedHashMap<>();
+                m.put( "id", rs.getObject( "id", UUID.class ).toString() );
+                m.put( "edge_id", rs.getObject( "edge_id", UUID.class ).toString() );
+                m.put( "action", rs.getString( "action" ) );
+                m.put( "before", rs.getString( "before" ) );  // raw JSON string; caller decides
+                m.put( "after",  rs.getString( "after"  ) );
+                m.put( "actor", rs.getString( "actor" ) );
+                m.put( "reason", rs.getString( "reason" ) );
+                final Timestamp ts = rs.getTimestamp( "created" );
+                m.put( "created", ts != null ? ts.toInstant().toString() : null );
+                return m;
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "findByEdgeId({}) failed: {}", edgeId, e.getMessage(), e );
             throw new RuntimeException( "findByEdgeId failed", e );
         }
-        return rows;
     }
 }

@@ -22,11 +22,9 @@ import com.wikantik.api.knowledge.*;
 import com.wikantik.api.core.Engine;
 import com.wikantik.event.KgChangeEvent;
 import com.wikantik.event.WikiEventManager;
+import com.wikantik.jdbc.Jdbc;
 import com.wikantik.kgpolicy.KgInclusionFilter;
 import com.wikantik.knowledge.judge.JudgeRunner;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import com.wikantik.api.core.Session;
 import org.apache.logging.log4j.LogManager;
@@ -56,6 +54,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     private final KgProposalRepository proposals;
     private final KgRejectionRepository rejections;
     private final javax.sql.DataSource dataSource;
+    private final Jdbc jdbc;
     @SuppressWarnings("PMD.UnusedPrivateField") // Used in setEngine() setter
     private Engine engine;
     private final com.wikantik.knowledge.judge.KgMaterializationService materialization;
@@ -136,6 +135,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         this.proposals       = proposals;
         this.rejections      = rejections;
         this.dataSource      = dataSource;
+        this.jdbc            = new Jdbc( dataSource );
         this.engine          = engine;
         this.materialization = materialization;
         this.judgeService    = judgeService;
@@ -385,16 +385,14 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         // unioned: chunk_entity_mentions (extraction pipeline) and kg_nodes.source_page
         // (manually curated entities).  Both ? parameters bind to pageName.
         final Set< UUID > pageEntityIds = new LinkedHashSet<>();
-        try ( final Connection c = dataSource.getConnection();
-              final PreparedStatement ps = c.prepareStatement( PAGE_SLICE_SQL ) ) {
-            ps.setString( 1, pageName ); // first leg: chunk_entity_mentions
-            ps.setString( 2, pageName ); // second leg: kg_nodes.source_page
-            try ( final ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final UUID id = rs.getObject( 1, UUID.class );
-                    if ( id != null ) pageEntityIds.add( id );
-                }
-            }
+        try {
+            jdbc.forEachRow( PAGE_SLICE_SQL, ps -> {
+                ps.setString( 1, pageName ); // first leg: chunk_entity_mentions
+                ps.setString( 2, pageName ); // second leg: kg_nodes.source_page
+            }, 0, rs -> {
+                final UUID id = rs.getObject( 1, UUID.class );
+                if ( id != null ) pageEntityIds.add( id );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "getPageSlice: failed to load entity ids for page '{}': {}",
                 pageName, e.getMessage(), e );
@@ -805,11 +803,13 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         final String[] tables = {
             "kg_proposal_reviews", "kg_edges", "kg_proposals", "kg_rejections", "kg_nodes"
         };
-        try ( Connection conn = dataSource.getConnection();
-              var stmt = conn.createStatement() ) {
-            for ( final String table : tables ) {
-                stmt.execute( "DELETE FROM " + table );
-            }
+        try {
+            jdbc.withConnection( conn -> {
+                for ( final String table : tables ) {
+                    jdbc.execute( conn, "DELETE FROM " + table );
+                }
+                return null;
+            } );
             LOG.info( "Cleared all knowledge graph data ({} tables)", tables.length );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to clear knowledge graph data: {}", e.getMessage(), e );

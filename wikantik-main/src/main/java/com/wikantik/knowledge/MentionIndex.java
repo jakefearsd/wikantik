@@ -20,15 +20,14 @@ package com.wikantik.knowledge;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import com.wikantik.kgpolicy.KgInclusionFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.sql.Array;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -74,9 +73,28 @@ public class MentionIndex {
       + "   AND kgxm.page_name IS NULL "
       + " GROUP BY m2.node_id";
 
+    private static final String RELATED_PAGES_SQL =
+        "SELECT other_c.page_name, "
+      + "       ARRAY_AGG( DISTINCT n.name ) AS shared_entities, "
+      + "       COUNT( DISTINCT my_m.node_id ) AS shared_count "
+      + "  FROM kg_content_chunks my_c "
+      + "  JOIN chunk_entity_mentions my_m ON my_m.chunk_id = my_c.id "
+      + "  JOIN chunk_entity_mentions other_m ON other_m.node_id = my_m.node_id "
+      + "  JOIN kg_content_chunks other_c ON other_c.id = other_m.chunk_id "
+      + "  JOIN kg_nodes n ON n.id = my_m.node_id "
+      + "  LEFT JOIN kg_excluded_pages kgxm_my    ON my_c.page_name    = kgxm_my.page_name "
+      + "  LEFT JOIN kg_excluded_pages kgxm_other ON other_c.page_name = kgxm_other.page_name "
+      + " WHERE my_c.page_name = ? "
+      + "   AND other_c.page_name <> my_c.page_name "
+      + "   AND kgxm_my.page_name    IS NULL "
+      + "   AND kgxm_other.page_name IS NULL "
+      + " GROUP BY other_c.page_name "
+      + " ORDER BY shared_count DESC, other_c.page_name ASC "
+      + " LIMIT ?";
+
     private static final long RELATED_TTL_SECONDS = 300L;
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     /**
      * Read-through cache for {@link #findRelatedPages} / {@link #findRelatedPagesBatch}.
@@ -91,7 +109,7 @@ public class MentionIndex {
 
     public MentionIndex( final DataSource dataSource ) {
         if ( dataSource == null ) throw new IllegalArgumentException( "dataSource required" );
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
     }
 
     /** Cache key includes the limit so different limits don't alias each other. */
@@ -106,12 +124,8 @@ public class MentionIndex {
 
     public boolean isMentioned( final UUID nodeId ) {
         if ( nodeId == null ) return false;
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( EXISTS_SQL ) ) {
-            ps.setObject( 1, nodeId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next();
-            }
+        try {
+            return jdbc.queryOne( EXISTS_SQL, ps -> ps.setObject( 1, nodeId ), rs -> rs.getInt( 1 ) ).isPresent();
         } catch ( final SQLException e ) {
             LOG.warn( "MentionIndex.isMentioned failed for {}: {}", nodeId, e.getMessage(), e );
             return false;
@@ -119,31 +133,22 @@ public class MentionIndex {
     }
 
     public Set< UUID > getMentionedIds() {
-        final Set< UUID > out = new HashSet<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( ALL_MENTIONED_IDS_SQL );
-              ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) {
-                out.add( rs.getObject( 1, UUID.class ) );
-            }
+        try {
+            final List< UUID > ids = jdbc.query( ALL_MENTIONED_IDS_SQL, SqlBinder.NONE,
+                rs -> rs.getObject( 1, UUID.class ) );
+            return new HashSet<>( ids );
         } catch ( final SQLException e ) {
             LOG.warn( "MentionIndex.getMentionedIds failed: {}", e.getMessage(), e );
             return Set.of();
         }
-        return out;
     }
 
     public Map< UUID, Integer > getCoMentionCounts( final UUID nodeId ) {
         if ( nodeId == null ) return Map.of();
         final Map< UUID, Integer > counts = new HashMap<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( COMENTION_COUNTS_SQL ) ) {
-            ps.setObject( 1, nodeId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    counts.put( rs.getObject( 1, UUID.class ), rs.getInt( 2 ) );
-                }
-            }
+        try {
+            jdbc.forEachRow( COMENTION_COUNTS_SQL, ps -> ps.setObject( 1, nodeId ), 0,
+                rs -> counts.put( rs.getObject( 1, UUID.class ), rs.getInt( 2 ) ) );
         } catch ( final SQLException e ) {
             LOG.warn( "MentionIndex.getCoMentionCounts failed for {}: {}", nodeId, e.getMessage(), e );
             return Map.of();
@@ -215,38 +220,11 @@ public class MentionIndex {
      * list (never null) when there are no rows, which Caffeine will cache.
      */
     private List< RelatedByMention > queryRelatedPages( final String pageName, final int limit ) {
-        final String sql =
-            "SELECT other_c.page_name, "
-          + "       ARRAY_AGG( DISTINCT n.name ) AS shared_entities, "
-          + "       COUNT( DISTINCT my_m.node_id ) AS shared_count "
-          + "  FROM kg_content_chunks my_c "
-          + "  JOIN chunk_entity_mentions my_m ON my_m.chunk_id = my_c.id "
-          + "  JOIN chunk_entity_mentions other_m ON other_m.node_id = my_m.node_id "
-          + "  JOIN kg_content_chunks other_c ON other_c.id = other_m.chunk_id "
-          + "  JOIN kg_nodes n ON n.id = my_m.node_id "
-          + "  LEFT JOIN kg_excluded_pages kgxm_my    ON my_c.page_name    = kgxm_my.page_name "
-          + "  LEFT JOIN kg_excluded_pages kgxm_other ON other_c.page_name = kgxm_other.page_name "
-          + " WHERE my_c.page_name = ? "
-          + "   AND other_c.page_name <> my_c.page_name "
-          + "   AND kgxm_my.page_name    IS NULL "
-          + "   AND kgxm_other.page_name IS NULL "
-          + " GROUP BY other_c.page_name "
-          + " ORDER BY shared_count DESC, other_c.page_name ASC "
-          + " LIMIT ?";
-        final List< RelatedByMention > out = new ArrayList<>();
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setString( 1, pageName );
-            ps.setInt( 2, limit );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final String otherPage = rs.getString( 1 );
-                    final Array arr = rs.getArray( 2 );
-                    final List< String > shared = arrayToStringList( arr );
-                    final int count = rs.getInt( 3 );
-                    out.add( new RelatedByMention( otherPage, shared, count ) );
-                }
-            }
+        try {
+            return jdbc.query( RELATED_PAGES_SQL, ps -> {
+                ps.setString( 1, pageName );
+                ps.setInt( 2, limit );
+            }, MentionIndex::mapRelatedByMention );
         } catch ( final SQLException e ) {
             LOG.warn( "MentionIndex.findRelatedPages failed for '{}': {}",
                 pageName, e.getMessage(), e );
@@ -254,7 +232,6 @@ public class MentionIndex {
             // findRelatedPages catches this and returns an empty (uncached) list to the caller.
             throw new RuntimeException( "MentionIndex query failed for " + pageName, e );
         }
-        return out;
     }
 
     /**
@@ -262,8 +239,8 @@ public class MentionIndex {
      * map keyed by input page name; missing keys (pages with no related
      * matches) map to an empty list. Behaviour per page is identical to a
      * stand-alone {@code findRelatedPages} call — only the I/O shape changes:
-     * one borrowed connection and one prepared statement reused across the
-     * N executions, instead of N connection acquires and N statement preps.
+     * one borrowed connection reused across the N executions (via
+     * {@link Jdbc#withConnection}), instead of N connection acquires.
      *
      * <p>This eliminates the N+1 lookup pattern that
      * {@code DefaultContextRetrievalService} used in its result-building
@@ -279,24 +256,6 @@ public class MentionIndex {
         if ( pageNames == null || pageNames.isEmpty() || limit <= 0 ) {
             return Map.of();
         }
-        final String sql =
-            "SELECT other_c.page_name, "
-          + "       ARRAY_AGG( DISTINCT n.name ) AS shared_entities, "
-          + "       COUNT( DISTINCT my_m.node_id ) AS shared_count "
-          + "  FROM kg_content_chunks my_c "
-          + "  JOIN chunk_entity_mentions my_m ON my_m.chunk_id = my_c.id "
-          + "  JOIN chunk_entity_mentions other_m ON other_m.node_id = my_m.node_id "
-          + "  JOIN kg_content_chunks other_c ON other_c.id = other_m.chunk_id "
-          + "  JOIN kg_nodes n ON n.id = my_m.node_id "
-          + "  LEFT JOIN kg_excluded_pages kgxm_my    ON my_c.page_name    = kgxm_my.page_name "
-          + "  LEFT JOIN kg_excluded_pages kgxm_other ON other_c.page_name = kgxm_other.page_name "
-          + " WHERE my_c.page_name = ? "
-          + "   AND other_c.page_name <> my_c.page_name "
-          + "   AND kgxm_my.page_name    IS NULL "
-          + "   AND kgxm_other.page_name IS NULL "
-          + " GROUP BY other_c.page_name "
-          + " ORDER BY shared_count DESC, other_c.page_name ASC "
-          + " LIMIT ?";
         final Map< String, List< RelatedByMention > > out = new LinkedHashMap<>();
         final List< String > uncached = new ArrayList<>();
         // Pre-seed an empty list for every input name so callers can rely on
@@ -314,28 +273,21 @@ public class MentionIndex {
         }
         if ( out.isEmpty() ) return Map.of();
         if ( uncached.isEmpty() ) return out;
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            for ( final String pageName : uncached ) {
-                ps.setString( 1, pageName );
-                ps.setInt( 2, limit );
-                final List< RelatedByMention > forPage = new ArrayList<>();
-                try ( ResultSet rs = ps.executeQuery() ) {
-                    while ( rs.next() ) {
-                        final String otherPage = rs.getString( 1 );
-                        final Array arr = rs.getArray( 2 );
-                        final List< String > shared = arrayToStringList( arr );
-                        final int count = rs.getInt( 3 );
-                        forPage.add( new RelatedByMention( otherPage, shared, count ) );
-                    }
+        try {
+            jdbc.withConnection( conn -> {
+                for ( final String pageName : uncached ) {
+                    final List< RelatedByMention > forPage = jdbc.query( conn, RELATED_PAGES_SQL, ps -> {
+                        ps.setString( 1, pageName );
+                        ps.setInt( 2, limit );
+                    }, MentionIndex::mapRelatedByMention );
+                    final List< RelatedByMention > result = List.copyOf( forPage );
+                    out.put( pageName, result );
+                    // Negatively cache empty results too, so pages with no shared
+                    // mentions don't re-query on every search.
+                    relatedCache.put( cacheKey( pageName, limit ), result );
                 }
-                ps.clearParameters();
-                final List< RelatedByMention > result = List.copyOf( forPage );
-                out.put( pageName, result );
-                // Negatively cache empty results too, so pages with no shared
-                // mentions don't re-query on every search.
-                relatedCache.put( cacheKey( pageName, limit ), result );
-            }
+                return null;
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "MentionIndex.findRelatedPagesBatch failed for {} pages: {}",
                 pageNames.size(), e.getMessage(), e );
@@ -346,6 +298,14 @@ public class MentionIndex {
             // cached so a subsequent call can retry them.
         }
         return java.util.Collections.unmodifiableMap( out );
+    }
+
+    private static RelatedByMention mapRelatedByMention( final java.sql.ResultSet rs ) throws SQLException {
+        final String otherPage = rs.getString( 1 );
+        final Array arr = rs.getArray( 2 );
+        final List< String > shared = arrayToStringList( arr );
+        final int count = rs.getInt( 3 );
+        return new RelatedByMention( otherPage, shared, count );
     }
 
     private static List< String > arrayToStringList( final Array array ) throws SQLException {

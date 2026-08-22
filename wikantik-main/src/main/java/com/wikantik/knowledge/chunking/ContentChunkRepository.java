@@ -511,10 +511,10 @@ public class ContentChunkRepository extends KgJdbcSupport {
           + "WHERE token_count_estimate > 512 "
           + "ORDER BY token_count_estimate DESC LIMIT 10";
 
-        try( Connection conn = dataSource.getConnection() ) {
-            final List< OutlierEntry > most = query( conn, mostSql, SqlBinder.NONE, ContentChunkRepository::mapOutlierEntry );
-            final List< OutlierEntry > largeSingles = query( conn, largeSql, SqlBinder.NONE, ContentChunkRepository::mapOutlierEntry );
-            final List< OutlierEntry > oversized = query( conn, oversizedSql, SqlBinder.NONE, ContentChunkRepository::mapOutlierEntry );
+        try {
+            final List< OutlierEntry > most = query( mostSql, SqlBinder.NONE, ContentChunkRepository::mapOutlierEntry );
+            final List< OutlierEntry > largeSingles = query( largeSql, SqlBinder.NONE, ContentChunkRepository::mapOutlierEntry );
+            final List< OutlierEntry > oversized = query( oversizedSql, SqlBinder.NONE, ContentChunkRepository::mapOutlierEntry );
             return new OutlierReport( most, largeSingles, oversized );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to compute chunk outliers: {}", e.getMessage(), e );

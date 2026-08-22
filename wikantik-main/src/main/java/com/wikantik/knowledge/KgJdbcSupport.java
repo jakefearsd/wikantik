@@ -21,16 +21,13 @@ package com.wikantik.knowledge;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.wikantik.jdbc.JdbcSupport;
+import com.wikantik.jdbc.SqlBinder;
 
 import javax.sql.DataSource;
 import java.lang.reflect.Type;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -77,23 +74,17 @@ public abstract class KgJdbcSupport extends JdbcSupport {
     }
 
     protected List< String > queryDistinct( final String sql ) {
-        final List< String > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql );
-              ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) results.add( rs.getString( 1 ) );
+        try {
+            return query( sql, SqlBinder.NONE, rs -> rs.getString( 1 ) );
         } catch ( final SQLException e ) {
             log().warn( "Failed to execute distinct query: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
-        return results;
     }
 
     protected long queryCount( final String sql ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql );
-              ResultSet rs = ps.executeQuery() ) {
-            return rs.next() ? rs.getLong( 1 ) : 0;
+        try {
+            return queryOne( sql, SqlBinder.NONE, rs -> rs.getLong( 1 ) ).orElse( 0L );
         } catch ( final SQLException e ) {
             log().warn( "Failed to execute count query: {}", e.getMessage(), e );
             throw new RuntimeException( e );
@@ -101,10 +92,8 @@ public abstract class KgJdbcSupport extends JdbcSupport {
     }
 
     protected int executeDelete( final String sql, final UUID id ) {
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setObject( 1, id );
-            return ps.executeUpdate();
+        try {
+            return update( sql, ps -> ps.setObject( 1, id ) );
         } catch ( final SQLException e ) {
             log().warn( "deleteByProvenance({}) failed: {}", id, e.getMessage(), e );
             throw new RuntimeException( "deleteByProvenance failed: " + e.getMessage(), e );

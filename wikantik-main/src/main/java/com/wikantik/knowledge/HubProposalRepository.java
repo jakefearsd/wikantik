@@ -18,13 +18,14 @@
  */
 package com.wikantik.knowledge;
 
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.*;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -40,10 +41,10 @@ public class HubProposalRepository {
                                 String reviewedBy, Instant reviewedAt,
                                 Instant created ) {}
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     public HubProposalRepository( final DataSource dataSource ) {
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
     }
 
     /**
@@ -57,13 +58,13 @@ public class HubProposalRepository {
                                 final double rawSimilarity, final double percentileScore ) {
         final String sql = "INSERT INTO hub_proposals (hub_name, page_name, raw_similarity, percentile_score) "
             + "VALUES (?, ?, ?, ?) ON CONFLICT (hub_name, page_name) DO NOTHING";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, hubName );
-            ps.setString( 2, pageName );
-            ps.setDouble( 3, rawSimilarity );
-            ps.setDouble( 4, percentileScore );
-            return ps.executeUpdate();
+        try {
+            return jdbc.update( sql, ps -> {
+                ps.setString( 1, hubName );
+                ps.setString( 2, pageName );
+                ps.setDouble( 3, rawSimilarity );
+                ps.setDouble( 4, percentileScore );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to insert hub proposal [{} -> {}]: {}", hubName, pageName, e.getMessage() );
             throw new RuntimeException( "Failed to insert hub proposal [" + hubName + " -> " + pageName + "]", e );
@@ -80,57 +81,45 @@ public class HubProposalRepository {
         }
         sql.append( " ORDER BY percentile_score DESC LIMIT ? OFFSET ?" );
 
-        final List< HubProposal > result = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            int idx = 1;
-            ps.setString( idx++, status );
-            if ( hubName != null ) {
-                ps.setString( idx++, hubName );
-            }
-            ps.setInt( idx++, limit );
-            ps.setInt( idx, offset );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    result.add( mapRow( rs ) );
+        try {
+            return jdbc.query( sql.toString(), ps -> {
+                int idx = 1;
+                ps.setString( idx++, status );
+                if ( hubName != null ) {
+                    ps.setString( idx++, hubName );
                 }
-            }
+                ps.setInt( idx++, limit );
+                ps.setInt( idx, offset );
+            }, HubProposalRepository::mapRow );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to list hub proposals: {}", e.getMessage() );
+            return List.of();
         }
-        return result;
     }
 
     public List< HubProposal > listProposalsAboveThreshold( final double minPercentile ) {
         final String sql = "SELECT id, hub_name, page_name, raw_similarity, percentile_score, status, reason, "
             + "reviewed_by, reviewed_at, created FROM hub_proposals "
             + "WHERE status = 'pending' AND percentile_score >= ? ORDER BY percentile_score DESC";
-        final List< HubProposal > result = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setDouble( 1, minPercentile );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    result.add( mapRow( rs ) );
-                }
-            }
+        try {
+            return jdbc.query( sql, ps -> ps.setDouble( 1, minPercentile ), HubProposalRepository::mapRow );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to list proposals above threshold: {}", e.getMessage() );
+            return List.of();
         }
-        return result;
     }
 
     public void updateStatus( final int id, final String status,
                                final String reviewedBy, final String reason ) {
         final String sql = "UPDATE hub_proposals SET status = ?, reviewed_by = ?, reason = ?, "
             + "reviewed_at = NOW() WHERE id = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, status );
-            ps.setString( 2, reviewedBy );
-            ps.setString( 3, reason );
-            ps.setInt( 4, id );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> {
+                ps.setString( 1, status );
+                ps.setString( 2, reviewedBy );
+                ps.setString( 3, reason );
+                ps.setInt( 4, id );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to update hub proposal {}: {}", id, e.getMessage() );
         }
@@ -144,13 +133,13 @@ public class HubProposalRepository {
         // even though it was safe. = ANY(?) is the idiomatic Postgres equivalent.
         final String sql = "UPDATE hub_proposals SET status = ?, reviewed_by = ?, reason = ?, "
             + "reviewed_at = NOW() WHERE id = ANY(?)";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, status );
-            ps.setString( 2, reviewedBy );
-            ps.setString( 3, reason );
-            ps.setArray( 4, conn.createArrayOf( "integer", ids.toArray( new Integer[ 0 ] ) ) );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> {
+                ps.setString( 1, status );
+                ps.setString( 2, reviewedBy );
+                ps.setString( 3, reason );
+                ps.setArray( 4, ps.getConnection().createArrayOf( "integer", ids.toArray( new Integer[ 0 ] ) ) );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to bulk update hub proposals: {}", e.getMessage() );
         }
@@ -158,13 +147,11 @@ public class HubProposalRepository {
 
     public boolean isRejected( final String hubName, final String pageName ) {
         final String sql = "SELECT 1 FROM hub_proposals WHERE hub_name = ? AND page_name = ? AND status = 'rejected'";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, hubName );
-            ps.setString( 2, pageName );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next();
-            }
+        try {
+            return jdbc.queryOne( sql, ps -> {
+                ps.setString( 1, hubName );
+                ps.setString( 2, pageName );
+            }, rs -> rs.getInt( 1 ) ).isPresent();
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to check rejection for [{} -> {}]: {}", hubName, pageName, e.getMessage() );
             return false;
@@ -173,13 +160,11 @@ public class HubProposalRepository {
 
     public boolean exists( final String hubName, final String pageName ) {
         final String sql = "SELECT 1 FROM hub_proposals WHERE hub_name = ? AND page_name = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, hubName );
-            ps.setString( 2, pageName );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next();
-            }
+        try {
+            return jdbc.queryOne( sql, ps -> {
+                ps.setString( 1, hubName );
+                ps.setString( 2, pageName );
+            }, rs -> rs.getInt( 1 ) ).isPresent();
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to check existence for [{} -> {}]: {}", hubName, pageName, e.getMessage() );
             return false;
@@ -188,12 +173,8 @@ public class HubProposalRepository {
 
     public int countByStatus( final String status ) {
         final String sql = "SELECT COUNT(*) FROM hub_proposals WHERE status = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, status );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? rs.getInt( 1 ) : 0;
-            }
+        try {
+            return jdbc.queryOne( sql, ps -> ps.setString( 1, status ), rs -> rs.getInt( 1 ) ).orElse( 0 );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to count proposals by status '{}': {}", status, e.getMessage() );
             return 0;
@@ -206,13 +187,13 @@ public class HubProposalRepository {
             + "VALUES (?, ?::vector, ?, ?) ON CONFLICT (hub_name) DO UPDATE SET "
             + "centroid = EXCLUDED.centroid, model_version = EXCLUDED.model_version, "
             + "member_count = EXCLUDED.member_count, created = NOW()";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, hubName );
-            ps.setString( 2, vectorToString( centroid ) );
-            ps.setInt( 3, modelVersion );
-            ps.setInt( 4, memberCount );
-            ps.executeUpdate();
+        try {
+            jdbc.update( sql, ps -> {
+                ps.setString( 1, hubName );
+                ps.setString( 2, vectorToString( centroid ) );
+                ps.setInt( 3, modelVersion );
+                ps.setInt( 4, memberCount );
+            } );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to save centroid for hub '{}': {}", hubName, e.getMessage() );
         }
@@ -220,18 +201,13 @@ public class HubProposalRepository {
 
     public float[] loadCentroid( final String hubName ) {
         final String sql = "SELECT centroid::text FROM hub_centroids WHERE hub_name = ?";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, hubName );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                if ( rs.next() ) {
-                    return parseVector( rs.getString( 1 ) );
-                }
-            }
+        try {
+            return jdbc.queryOne( sql, ps -> ps.setString( 1, hubName ),
+                rs -> parseVector( rs.getString( 1 ) ) ).orElse( null );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to load centroid for hub '{}': {}", hubName, e.getMessage() );
+            return null;
         }
-        return null;
     }
 
     private static HubProposal mapRow( final ResultSet rs ) throws SQLException {

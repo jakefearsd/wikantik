@@ -90,7 +90,7 @@ class JudgeRunnerTest {
             new JudgeVerdict( "approved", 0.9, "ok", "gemma4-assist:latest" ) );
 
         final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
-            Map.<String, Object>of( "source", "X", "target", "Y", "relationship", "rel" ),
+            Map.<String, Object>of( "source", "X", "target", "Y", "relationship", "related_to" ),
             0.7, "" );
 
         final JudgeRunner runner = new JudgeRunner( kgProposals, kgRejections, judge, mat, cfg( 3, 1 ) );
@@ -128,7 +128,7 @@ class JudgeRunnerTest {
             new JudgeVerdict( "abstain", 0.0, "judge_unavailable: x", "gemma4-assist:latest" ) );
 
         final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
-            Map.<String, Object>of( "source", "X", "target", "Z", "relationship", "rel" ),
+            Map.<String, Object>of( "source", "X", "target", "Z", "relationship", "related_to" ),
             0.7, "" );
         for ( int i = 0; i < 3; i++ ) {
             kgProposals.recordReview( p.id(), "machine", "gemma", "abstain", 0.0, "boom" );

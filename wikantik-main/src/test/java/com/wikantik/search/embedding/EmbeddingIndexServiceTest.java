@@ -19,13 +19,13 @@
 package com.wikantik.search.embedding;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.invocation.InvocationOnMock;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.nio.ByteBuffer;
@@ -58,7 +58,7 @@ import static org.mockito.Mockito.when;
  * and the incremental update path that relies on {@code ON CONFLICT
  * DO UPDATE}.
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class EmbeddingIndexServiceTest {
 
     private static final String MODEL = "qwen3-embedding-0.6b";

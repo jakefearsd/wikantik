@@ -19,9 +19,9 @@
 package com.wikantik.persistence.subsystem;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.core.subsystem.DefaultWikiProperties;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.util.Properties;
@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * Every {@link PersistenceSubsystem.Services} field is non-null after a
  * successful {@code create()}.</p>
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 final class PersistenceSubsystemFactoryTest {
 
     @Test

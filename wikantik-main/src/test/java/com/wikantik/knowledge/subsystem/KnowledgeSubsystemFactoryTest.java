@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.subsystem;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Provenance;
@@ -34,7 +35,6 @@ import com.wikantik.persistence.subsystem.PersistenceSubsystemFactory;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -67,7 +67,7 @@ import static org.mockito.Mockito.mock;
  * {@link KnowledgeSubsystem.Services} record and that one round-trip
  * (kg-graph upsert/read) flows through the wired services.</p>
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class KnowledgeSubsystemFactoryTest {
 
     private DataSource dataSource;

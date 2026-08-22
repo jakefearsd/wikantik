@@ -19,11 +19,11 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.knowledge.KgProposal;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -48,7 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *       sees them when they explicitly opt in.</li>
  * </ul>
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class KgProposalRepositoryListingTest {
 
     private static DataSource dataSource;

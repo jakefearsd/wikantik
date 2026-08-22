@@ -20,6 +20,7 @@ package com.wikantik.knowledge.mcp;
 
 import com.google.gson.Gson;
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
 import com.wikantik.knowledge.KgEdgeRepository;
@@ -31,7 +32,6 @@ import com.wikantik.mcp.tools.kg.QueryNodesTool;
 import com.wikantik.mcp.tools.kg.SearchKnowledgeTool;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.*;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -41,7 +41,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class KnowledgeMcpToolsTest {
 
     private static DataSource dataSource;

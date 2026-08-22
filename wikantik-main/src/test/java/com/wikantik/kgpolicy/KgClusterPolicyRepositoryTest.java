@@ -19,6 +19,7 @@
 package com.wikantik.kgpolicy;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.kgpolicy.ClusterAction;
 import com.wikantik.api.kgpolicy.ClusterPolicy;
 import com.wikantik.api.kgpolicy.PolicyAuditEntry;
@@ -26,7 +27,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -36,7 +36,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class KgClusterPolicyRepositoryTest {
 
     private static DataSource ds;

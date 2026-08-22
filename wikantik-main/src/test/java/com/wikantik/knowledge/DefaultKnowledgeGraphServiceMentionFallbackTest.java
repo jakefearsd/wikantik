@@ -19,6 +19,7 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.NodeMention;
@@ -29,7 +30,6 @@ import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -51,7 +51,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * context. This is a display-only fallback; no rows are written to
  * {@code chunk_entity_mentions} or {@code kg_content_chunks}.
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class DefaultKnowledgeGraphServiceMentionFallbackTest {
 
     private DataSource ds;

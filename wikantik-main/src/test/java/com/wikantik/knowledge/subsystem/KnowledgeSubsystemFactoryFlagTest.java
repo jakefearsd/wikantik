@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.subsystem;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
@@ -32,7 +33,6 @@ import com.wikantik.persistence.subsystem.PersistenceSubsystemFactory;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.util.Properties;
@@ -53,7 +53,7 @@ import static org.mockito.Mockito.when;
  * absent (the default), everything is built exactly as before (regression
  * guard).</p>
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class KnowledgeSubsystemFactoryFlagTest {
 
     private DataSource dataSource;

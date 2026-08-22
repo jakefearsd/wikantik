@@ -18,10 +18,10 @@
  */
 package com.wikantik.knowledge.extraction;
 
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Instant;
 
@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * (DISTINCT ON dedup by source_page), and must move {@code last_seen_at}
  * forward to prove the merge fired.
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class PageExtractionIdempotencyPgTest extends PageExtractionPgTestBase {
 
     @BeforeEach

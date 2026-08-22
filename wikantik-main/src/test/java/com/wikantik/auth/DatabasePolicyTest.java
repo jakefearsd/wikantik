@@ -19,6 +19,7 @@
 package com.wikantik.auth;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.TestEngine;
 import com.wikantik.TestJNDIContext;
 import com.wikantik.api.core.Session;
@@ -31,7 +32,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
@@ -50,7 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@code policy_grants} database table and provides an
  * {@code implies(Principal, Permission)} method.
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 @TestInstance( TestInstance.Lifecycle.PER_CLASS )
 class DatabasePolicyTest
 {

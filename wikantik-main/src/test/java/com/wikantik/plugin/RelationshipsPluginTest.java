@@ -19,6 +19,7 @@
 package com.wikantik.plugin;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
@@ -30,7 +31,6 @@ import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
 import com.wikantik.knowledge.KgRejectionRepository;
 import org.junit.jupiter.api.*;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -40,7 +40,7 @@ import java.util.UUID;
 import static com.wikantik.TestEngine.with;
 import static org.junit.jupiter.api.Assertions.*;
 
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class RelationshipsPluginTest {
 
     private static DataSource dataSource;

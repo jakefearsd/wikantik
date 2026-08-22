@@ -24,6 +24,7 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.TestEngine;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
@@ -43,7 +44,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.io.BufferedReader;
@@ -56,7 +56,7 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class AdminKnowledgeResourceTest {
 
     private static DataSource dataSource;

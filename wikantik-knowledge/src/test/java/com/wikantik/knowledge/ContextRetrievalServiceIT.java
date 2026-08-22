@@ -19,6 +19,7 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
@@ -30,7 +31,6 @@ import com.wikantik.knowledge.testfakes.FakeSearchManager;
 import com.wikantik.knowledge.testfakes.FakeSearchResult;
 import com.wikantik.search.hybrid.ScoredChunk;
 import org.junit.jupiter.api.*;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -45,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Uses real DB-backed ContentChunkRepository + NodeMentionSimilarity;
  * stubs BM25/hybrid/page-manager with test fakes.
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class ContextRetrievalServiceIT {
 
     private static DataSource dataSource;

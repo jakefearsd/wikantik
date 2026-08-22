@@ -19,10 +19,10 @@
 package com.wikantik.search.hybrid;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -52,7 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * every chunk change is covered separately by {@code AsyncEmbeddingIndexListenerTest}
  * and end to end by {@code DenseBundleIT}.</p>
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class LuceneBm25ChunkIndexRefreshTest {
 
     private static DataSource dataSource;

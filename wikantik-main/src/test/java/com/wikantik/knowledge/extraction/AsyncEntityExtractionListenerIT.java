@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.extraction;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.knowledge.EntityExtractor;
 import com.wikantik.api.knowledge.ExtractedMention;
 import com.wikantik.api.knowledge.ExtractionChunk;
@@ -35,7 +36,6 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -60,7 +60,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * mentions against pre-seeded {@code kg_nodes}, routes edges through
  * rejection checks, and writes to the right tables.
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class AsyncEntityExtractionListenerIT {
 
     private static DataSource dataSource;

@@ -20,6 +20,7 @@ package com.wikantik.plugin;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.TestEngine;
 import com.wikantik.WikiSession;
 import com.wikantik.api.core.Context;
@@ -35,7 +36,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -52,7 +52,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Covers the ConnectionConfig inner class, SQL result formatting, error-handling
  * paths, and the addResultLimit variants not exercised by the pure-unit JDBCPluginTest.
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class JDBCPluginCITest {
 
     private static String pgUrl;

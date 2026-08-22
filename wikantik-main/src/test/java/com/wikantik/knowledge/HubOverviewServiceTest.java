@@ -19,6 +19,7 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.knowledge.KgEdgeRepository;
@@ -27,7 +28,6 @@ import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -43,7 +43,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class HubOverviewServiceTest {
 
     private static final String MODEL = "test-model";

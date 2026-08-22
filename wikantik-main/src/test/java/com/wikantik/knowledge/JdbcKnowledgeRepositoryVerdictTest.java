@@ -19,11 +19,11 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.knowledge.KgProposal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -31,7 +31,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Testcontainers(disabledWithoutDocker = true)
+@RequiresPostgres
 class JdbcKnowledgeRepositoryVerdictTest {
 
     private DataSource ds;

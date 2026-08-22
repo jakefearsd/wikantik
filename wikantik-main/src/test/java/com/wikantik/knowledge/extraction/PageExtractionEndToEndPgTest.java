@@ -18,10 +18,10 @@
  */
 package com.wikantik.knowledge.extraction;
 
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
  * must collapse into one pending {@code kg_proposals} row carrying
  * {@code support_count = 5}.
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class PageExtractionEndToEndPgTest extends PageExtractionPgTestBase {
 
     @BeforeEach

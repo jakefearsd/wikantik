@@ -19,11 +19,11 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.knowledge.KgRejection;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Tests for {@link KgRejectionRepository} — the "negative knowledge" store that
  * stops the extractor re-proposing an edge a curator already turned down.
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class KgRejectionRepositoryTest {
 
     private static DataSource dataSource;

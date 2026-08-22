@@ -19,11 +19,11 @@
 package com.wikantik.auth;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.nio.file.Files;
@@ -43,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * {@code all} (AllPermission) row, conservatively, so a deliberately
  * locked-down install is never re-granted.
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 @TestInstance( TestInstance.Lifecycle.PER_CLASS )
 class PolicyGrantConvergenceMigrationTest
 {

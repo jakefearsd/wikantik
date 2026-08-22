@@ -19,11 +19,11 @@
 package com.wikantik.search.embedding;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.nio.ByteBuffer;
@@ -48,7 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  *
  * <p>Run with: {@code mvn -pl wikantik-main test -Dtest=PgVectorBackfillCliTest}</p>
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class PgVectorBackfillCliTest {
 
     private static final String MODEL_CODE = "backfill-test-model";

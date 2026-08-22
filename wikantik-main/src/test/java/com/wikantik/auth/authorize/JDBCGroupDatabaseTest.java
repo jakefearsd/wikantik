@@ -18,6 +18,7 @@
  */
 package com.wikantik.auth.authorize;
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.TestEngine;
 import com.wikantik.TestJNDIContext;
 import com.wikantik.WikiEngine;
@@ -32,7 +33,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
@@ -46,7 +46,7 @@ import java.util.Properties;
 
 /**
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 @TestInstance( TestInstance.Lifecycle.PER_CLASS )
 public class JDBCGroupDatabaseTest
 {

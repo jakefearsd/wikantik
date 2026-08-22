@@ -19,10 +19,10 @@
 package com.wikantik.audit;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.postgresql.ds.PGSimpleDataSource;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -47,7 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
  * {@code JdbcAuditRepository#ensurePartition}'s DDL-skip path is exercised against the genuine
  * pre-created current-month partition (migrations pre-create the current + next two months).
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class JdbcAuditRepositoryTest {
 
     private static final String APP_ROLE = "audit_app_lowpriv";

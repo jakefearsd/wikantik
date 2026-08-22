@@ -19,11 +19,11 @@
 package com.wikantik.knowledge.embedding;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity.ScoredName;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.nio.ByteBuffer;
@@ -42,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * {@link com.wikantik.jdbc.testing.PostgresTestDb} so we exercise the real pgvector / BYTEA
  * storage path and catch query / encoding mistakes.
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class NodeMentionSimilarityTest {
 
     private static final String MODEL_CODE = "test-model";

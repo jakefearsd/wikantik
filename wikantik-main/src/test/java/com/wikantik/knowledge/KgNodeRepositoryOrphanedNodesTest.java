@@ -19,12 +19,12 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Provenance;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -45,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@code kg_excluded_pages}, and stub nodes (no {@code source_page}) must remain
  * visible from <em>both</em> filter directions because they cannot be classified.</p>
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class KgNodeRepositoryOrphanedNodesTest {
 
     private static DataSource dataSource;

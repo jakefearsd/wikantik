@@ -19,6 +19,7 @@
 package com.wikantik.auth.user;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.TestJNDIContext;
 import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.NoSuchPrincipalException;
@@ -34,7 +35,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
@@ -61,7 +61,7 @@ import java.util.stream.Collectors;
 /**
  *
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 @TestInstance( TestInstance.Lifecycle.PER_CLASS )
 public class JDBCUserDatabaseTest {
     private DataSource m_ds;

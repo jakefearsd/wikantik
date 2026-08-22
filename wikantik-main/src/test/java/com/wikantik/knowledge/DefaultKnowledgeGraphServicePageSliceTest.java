@@ -19,6 +19,7 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.knowledge.KgEdgeView;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.PageKnowledgeSlice;
@@ -27,7 +28,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -45,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * the real SQL join across {@code kg_content_chunks}, {@code chunk_entity_mentions},
  * and {@code kg_edges}.</p>
  */
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class DefaultKnowledgeGraphServicePageSliceTest {
 
     private static DataSource dataSource;

@@ -19,9 +19,9 @@
 package com.wikantik.knowledge.extraction;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -32,7 +32,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
-@Testcontainers( disabledWithoutDocker = true )
+@RequiresPostgres
 class ChunkEntityMentionRepositoryTest {
 
     private DataSource ds;

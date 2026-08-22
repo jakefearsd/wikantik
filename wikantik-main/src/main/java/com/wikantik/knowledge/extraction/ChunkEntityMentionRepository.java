@@ -18,12 +18,12 @@
  */
 package com.wikantik.knowledge.extraction;
 
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
@@ -48,10 +48,10 @@ public class ChunkEntityMentionRepository {
     private static final String DELETE_BY_CHUNK_SQL =
         "DELETE FROM chunk_entity_mentions WHERE chunk_id = ?";
 
-    private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     public ChunkEntityMentionRepository( final DataSource dataSource ) {
-        this.dataSource = dataSource;
+        this.jdbc = new Jdbc( dataSource );
     }
 
     /** A resolved mention ready for insertion. */
@@ -67,30 +67,23 @@ public class ChunkEntityMentionRepository {
         if( rows == null || rows.isEmpty() ) {
             return 0;
         }
-        try( Connection conn = dataSource.getConnection() ) {
-            final boolean prev = conn.getAutoCommit();
-            conn.setAutoCommit( false );
-            try( PreparedStatement ps = conn.prepareStatement( UPSERT_SQL ) ) {
-                for( final Row r : rows ) {
-                    ps.setObject( 1, r.chunkId() );
-                    ps.setObject( 2, r.nodeId() );
-                    ps.setDouble( 3, clamp( r.confidence() ) );
-                    ps.setString( 4, r.extractor() );
-                    ps.addBatch();
-                }
-                final int[] counts = ps.executeBatch();
-                conn.commit();
+        try {
+            return jdbc.inTransaction( conn -> {
+                final List< SqlBinder > binders = rows.stream()
+                    .< SqlBinder >map( r -> ps -> {
+                        ps.setObject( 1, r.chunkId() );
+                        ps.setObject( 2, r.nodeId() );
+                        ps.setDouble( 3, clamp( r.confidence() ) );
+                        ps.setString( 4, r.extractor() );
+                    } )
+                    .toList();
+                final int[] counts = jdbc.batch( conn, UPSERT_SQL, binders );
                 int total = 0;
                 for( final int c : counts ) {
                     total += Math.max( c, 0 );
                 }
                 return total;
-            } catch( final SQLException e ) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit( prev );
-            }
+            } );
         } catch( final SQLException e ) {
             // 23503 = foreign_key_violation. The chunk_entity_mentions FK on
             // chunk_id has ON DELETE CASCADE; if the chunk row was deleted
@@ -111,10 +104,8 @@ public class ChunkEntityMentionRepository {
 
     /** Removes every mention for the given chunk. Used before re-extracting. */
     public int deleteByChunkId( final UUID chunkId ) {
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( DELETE_BY_CHUNK_SQL ) ) {
-            ps.setObject( 1, chunkId );
-            return ps.executeUpdate();
+        try {
+            return jdbc.update( DELETE_BY_CHUNK_SQL, ps -> ps.setObject( 1, chunkId ) );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to delete mentions for chunk {}: {}", chunkId, e.getMessage(), e );
             throw new RuntimeException( "chunk_entity_mentions delete failed", e );

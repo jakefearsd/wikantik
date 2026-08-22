@@ -27,7 +27,7 @@ The legacy JSPWiki security model used a flat XML file (`wikantik.policy`) to de
 
 ## Migration
 
-The `postgresql-permissions.ddl` script creates the `policy_grants` and `groups`/`group_members` tables. Policy is always database-backed when `wikantik.datasource` is configured (the default); there is no file-based fallback.
+Migrations `V002__core_users_groups.sql` (users/roles/groups) and `V003__policy_grants.sql` (the `policy_grants` table) create the tables — `bin/db/migrate.sh` applies them; there is no separate DDL script. Policy is always database-backed when `wikantik.datasource` is configured (the default); there is no file-based fallback.
 
 ## Key Tables
 

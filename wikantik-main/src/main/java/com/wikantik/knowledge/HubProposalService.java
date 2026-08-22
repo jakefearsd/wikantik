@@ -203,6 +203,10 @@ public class HubProposalService {
         LOG.info( "Hub proposals step 1a: loaded {} KG nodes", allNodes.size() );
         final Set< String > allHubNames = new HashSet<>();
         for ( final KgNode node : allNodes ) {
+                // Machine-written value: KG node types are lowercase literals set by
+                // synthesizeHubNode/GraphRoleClassifier, never author frontmatter, so an
+                // exact match is correct here. Do NOT swap in PageType.fromFrontmatter —
+                // that resolves the PAGE-type vocabulary, a different set of values.
             if ( node.properties() != null && "hub".equals( node.properties().get( "type" ) ) ) {
                 allHubNames.add( node.name() );
             }

@@ -70,6 +70,10 @@ class HubMemberLoader {
             kgNodes.queryNodes( null, null, 100_000, 0 );
         final Map< String, com.wikantik.api.knowledge.KgNode > hubsByName = new LinkedHashMap<>();
         for ( final var node : allNodes ) {
+                // Machine-written value: KG node types are lowercase literals set by
+                // synthesizeHubNode/GraphRoleClassifier, never author frontmatter, so an
+                // exact match is correct here. Do NOT swap in PageType.fromFrontmatter —
+                // that resolves the PAGE-type vocabulary, a different set of values.
             if ( node.properties() != null && "hub".equals( node.properties().get( "type" ) ) ) {
                 hubsByName.put( node.name(), node );
             }
@@ -132,6 +136,10 @@ class HubMemberLoader {
             kgNodes.queryNodes( null, null, 100_000, 0 );
         final Set< String > hubNames = new HashSet<>();
         for ( final var node : allNodes ) {
+                // Machine-written value: KG node types are lowercase literals set by
+                // synthesizeHubNode/GraphRoleClassifier, never author frontmatter, so an
+                // exact match is correct here. Do NOT swap in PageType.fromFrontmatter —
+                // that resolves the PAGE-type vocabulary, a different set of values.
             if ( node.properties() != null && "hub".equals( node.properties().get( "type" ) ) ) {
                 hubNames.add( node.name() );
             }

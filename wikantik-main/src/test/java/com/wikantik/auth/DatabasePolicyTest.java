@@ -219,6 +219,68 @@ class DatabasePolicyTest
         }
     }
 
+    // ---- listGrants/insertGrant/updateGrant/deleteGrant (moved here from AdminPolicyResource) ----
+
+    @Test
+    void listGrantsReturnsAllSeededRows() throws Exception
+    {
+        final java.util.List< DatabasePolicy.GrantRecord > rows = policy.listGrants();
+        assertEquals( 6, rows.size(), "the six rows seeded in setUp() should all come back" );
+        assertTrue( rows.stream().anyMatch( r -> "Admin".equals( r.principalName() ) && "*".equals( r.actions() ) ) );
+    }
+
+    @Test
+    void insertGrantReturnsGeneratedIdAndPersistsTheRow() throws Exception
+    {
+        final int id = policy.insertGrant( "role", "Tester", "wiki", "*", "editProfile" );
+        assertTrue( id > 0, "a generated id should come back" );
+
+        final java.util.List< DatabasePolicy.GrantRecord > rows = policy.listGrants();
+        final DatabasePolicy.GrantRecord inserted = rows.stream()
+                .filter( r -> r.id() == id ).findFirst()
+                .orElseThrow( () -> new AssertionError( "inserted row not found by id " + id ) );
+        assertEquals( "Tester", inserted.principalName() );
+        assertEquals( "editProfile", inserted.actions() );
+    }
+
+    @Test
+    void updateGrantModifiesTheRowAndReturnsOneRowAffected() throws Exception
+    {
+        final int id = policy.insertGrant( "role", "Tester", "wiki", "*", "editProfile" );
+
+        final int rows = policy.updateGrant( id, "role", "Tester", "wiki", "*", "login,editProfile" );
+        assertEquals( 1, rows );
+
+        final DatabasePolicy.GrantRecord updated = policy.listGrants().stream()
+                .filter( r -> r.id() == id ).findFirst()
+                .orElseThrow( () -> new AssertionError( "updated row not found by id " + id ) );
+        assertEquals( "login,editProfile", updated.actions() );
+    }
+
+    @Test
+    void updateGrantReturnsZeroWhenNoRowMatches() throws Exception
+    {
+        final int rows = policy.updateGrant( -1, "role", "Nobody", "wiki", "*", "login" );
+        assertEquals( 0, rows );
+    }
+
+    @Test
+    void deleteGrantRemovesTheRowAndReturnsOneRowAffected() throws Exception
+    {
+        final int id = policy.insertGrant( "role", "Tester", "wiki", "*", "editProfile" );
+
+        final int rows = policy.deleteGrant( id );
+        assertEquals( 1, rows );
+        assertTrue( policy.listGrants().stream().noneMatch( r -> r.id() == id ) );
+    }
+
+    @Test
+    void deleteGrantReturnsZeroWhenNoRowMatches() throws Exception
+    {
+        final int rows = policy.deleteGrant( -1 );
+        assertEquals( 0, rows );
+    }
+
     @Test
     void testAllRoleHasViewPermission()
     {

@@ -18,6 +18,8 @@
  */
 package com.wikantik.observability.health;
 
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import org.apache.logging.log4j.LogManager;
@@ -26,9 +28,7 @@ import org.apache.logging.log4j.Logger;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.Statement;
+import java.util.Optional;
 
 /**
  * Checks database connectivity by performing a JNDI DataSource lookup and executing
@@ -74,12 +74,10 @@ public class DatabaseHealthCheck implements HealthCheck {
         final long start = System.currentTimeMillis();
         try {
             final DataSource ds = resolveDataSource();
-            try ( Connection conn = ds.getConnection();
-                  Statement stmt = conn.createStatement();
-                  ResultSet rs = stmt.executeQuery( "SELECT 1" ) ) {
-                if ( !rs.next() ) {
-                    return HealthResult.down( System.currentTimeMillis() - start, "Database returned no rows for SELECT 1" );
-                }
+            final Jdbc jdbc = new Jdbc( ds );
+            final Optional< Integer > row = jdbc.queryOne( "SELECT 1", SqlBinder.NONE, rs -> rs.getInt( 1 ) );
+            if ( row.isEmpty() ) {
+                return HealthResult.down( System.currentTimeMillis() - start, "Database returned no rows for SELECT 1" );
             }
             return HealthResult.up( System.currentTimeMillis() - start );
         } catch ( final Exception e ) {

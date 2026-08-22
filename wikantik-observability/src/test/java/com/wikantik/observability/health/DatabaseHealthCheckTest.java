@@ -25,11 +25,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith( MockitoExtension.class )
@@ -37,15 +38,16 @@ class DatabaseHealthCheckTest {
 
     @Mock private DataSource dataSource;
     @Mock private Connection connection;
-    @Mock private Statement statement;
+    @Mock private PreparedStatement statement;
     @Mock private ResultSet resultSet;
 
     @Test
     void reportsUpWhenQuerySucceeds() throws Exception {
         when( dataSource.getConnection() ).thenReturn( connection );
-        when( connection.createStatement() ).thenReturn( statement );
-        when( statement.executeQuery( "SELECT 1" ) ).thenReturn( resultSet );
+        when( connection.prepareStatement( anyString() ) ).thenReturn( statement );
+        when( statement.executeQuery() ).thenReturn( resultSet );
         when( resultSet.next() ).thenReturn( true );
+        when( resultSet.getInt( 1 ) ).thenReturn( 1 );
 
         final DatabaseHealthCheck check = new DatabaseHealthCheck( dataSource );
         final HealthResult result = check.check();
@@ -69,8 +71,8 @@ class DatabaseHealthCheckTest {
     @Test
     void reportsDownWhenQueryFails() throws Exception {
         when( dataSource.getConnection() ).thenReturn( connection );
-        when( connection.createStatement() ).thenReturn( statement );
-        when( statement.executeQuery( "SELECT 1" ) ).thenThrow( new SQLException( "Query failed" ) );
+        when( connection.prepareStatement( anyString() ) ).thenReturn( statement );
+        when( statement.executeQuery() ).thenThrow( new SQLException( "Query failed" ) );
 
         final DatabaseHealthCheck check = new DatabaseHealthCheck( dataSource );
         final HealthResult result = check.check();
@@ -93,9 +95,10 @@ class DatabaseHealthCheckTest {
     @Test
     void closesResourcesAfterCheck() throws Exception {
         when( dataSource.getConnection() ).thenReturn( connection );
-        when( connection.createStatement() ).thenReturn( statement );
-        when( statement.executeQuery( "SELECT 1" ) ).thenReturn( resultSet );
+        when( connection.prepareStatement( anyString() ) ).thenReturn( statement );
+        when( statement.executeQuery() ).thenReturn( resultSet );
         when( resultSet.next() ).thenReturn( true );
+        when( resultSet.getInt( 1 ) ).thenReturn( 1 );
 
         final DatabaseHealthCheck check = new DatabaseHealthCheck( dataSource );
         check.check();

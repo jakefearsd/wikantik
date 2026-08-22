@@ -32,11 +32,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.sql.DataSource;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -147,24 +143,18 @@ public class AdminPolicyResource extends RestServletBase {
             return;  // intentionally not using requireDatabasePolicy() — different error message
         }
 
-        final DataSource ds = dbPolicy.getDataSource();
-        final String tableName = dbPolicy.getTableName();
-        final String sql = "SELECT id, principal_type, principal_name, permission_type, target, actions FROM "
-                + tableName + " ORDER BY id";
-
-        try ( Connection conn = ds.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql );
-              ResultSet rs = ps.executeQuery() ) {
+        try {
+            final List< DatabasePolicy.GrantRecord > rows = dbPolicy.listGrants();
 
             final List< Map< String, Object > > grants = new ArrayList<>();
-            while ( rs.next() ) {
+            for ( final DatabasePolicy.GrantRecord row : rows ) {
                 final Map< String, Object > grant = new LinkedHashMap<>();
-                grant.put( "id", rs.getInt( "id" ) );
-                grant.put( "principalType", rs.getString( "principal_type" ) );
-                grant.put( "principalName", rs.getString( "principal_name" ) );
-                grant.put( "permissionType", rs.getString( "permission_type" ) );
-                grant.put( "target", rs.getString( "target" ) );
-                grant.put( "actions", rs.getString( "actions" ) );
+                grant.put( "id", row.id() );
+                grant.put( "principalType", row.principalType() );
+                grant.put( "principalName", row.principalName() );
+                grant.put( "permissionType", row.permissionType() );
+                grant.put( "target", row.target() );
+                grant.put( "actions", row.actions() );
                 grants.add( grant );
             }
 
@@ -222,27 +212,9 @@ public class AdminPolicyResource extends RestServletBase {
         final DatabasePolicy dbPolicy = requireDatabasePolicy( response );
         if ( dbPolicy == null ) return;
 
-        final DataSource ds = dbPolicy.getDataSource();
-        final String tableName = dbPolicy.getTableName();
-        final String sql = "INSERT INTO " + tableName
-                + " (principal_type, principal_name, permission_type, target, actions) VALUES (?, ?, ?, ?, ?)";
-
-        try ( Connection conn = ds.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql, PreparedStatement.RETURN_GENERATED_KEYS ) ) {
-
-            ps.setString( 1, gf.principalType );
-            ps.setString( 2, gf.principalName );
-            ps.setString( 3, gf.permissionType );
-            ps.setString( 4, gf.target );
-            ps.setString( 5, gf.actions );
-            ps.executeUpdate();
-
-            int generatedId = -1;
-            try ( ResultSet keys = ps.getGeneratedKeys() ) {
-                if ( keys.next() ) {
-                    generatedId = keys.getInt( 1 );
-                }
-            }
+        try {
+            final int generatedId = dbPolicy.insertGrant(
+                    gf.principalType, gf.principalName, gf.permissionType, gf.target, gf.actions );
 
             // Refresh the in-memory cache
             dbPolicy.refresh();
@@ -309,22 +281,9 @@ public class AdminPolicyResource extends RestServletBase {
         final DatabasePolicy dbPolicy = requireDatabasePolicy( response );
         if ( dbPolicy == null ) return;
 
-        final DataSource ds = dbPolicy.getDataSource();
-        final String tableName = dbPolicy.getTableName();
-        final String sql = "UPDATE " + tableName
-                + " SET principal_type = ?, principal_name = ?, permission_type = ?, target = ?, actions = ? WHERE id = ?";
-
-        try ( Connection conn = ds.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-
-            ps.setString( 1, gf.principalType );
-            ps.setString( 2, gf.principalName );
-            ps.setString( 3, gf.permissionType );
-            ps.setString( 4, gf.target );
-            ps.setString( 5, gf.actions );
-            ps.setInt( 6, id );
-
-            final int rows = ps.executeUpdate();
+        try {
+            final int rows = dbPolicy.updateGrant(
+                    id, gf.principalType, gf.principalName, gf.permissionType, gf.target, gf.actions );
             if ( rows == 0 ) {
                 sendNotFound( response, "Grant not found: " + id );
                 return;
@@ -369,15 +328,8 @@ public class AdminPolicyResource extends RestServletBase {
         final DatabasePolicy dbPolicy = requireDatabasePolicy( response );
         if ( dbPolicy == null ) return;
 
-        final DataSource ds = dbPolicy.getDataSource();
-        final String tableName = dbPolicy.getTableName();
-        final String sql = "DELETE FROM " + tableName + " WHERE id = ?";
-
-        try ( Connection conn = ds.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-
-            ps.setInt( 1, id );
-            final int rows = ps.executeUpdate();
+        try {
+            final int rows = dbPolicy.deleteGrant( id );
             if ( rows == 0 ) {
                 sendNotFound( response, "Grant not found: " + id );
                 return;

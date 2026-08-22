@@ -28,6 +28,7 @@ import com.wikantik.api.knowledge.JudgeContext;
 import com.wikantik.api.knowledge.ProposalJudge;
 import com.wikantik.api.knowledge.SupportEvidence;
 import com.wikantik.api.knowledge.Verdict;
+import com.wikantik.jdbc.Jdbc;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.extraction.ClaudeProposalJudge;
 import com.wikantik.knowledge.extraction.NoOpProposalJudge;
@@ -41,9 +42,6 @@ import java.io.IOException;
 import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -201,21 +199,17 @@ public final class JudgeExperimentCli {
             ORDER BY random()
             LIMIT ?
             """;
+        final Jdbc jdbc = new Jdbc( ds );
         final List< Sampled > out = new ArrayList<>();
-        try( Connection c = ds.getConnection();
-             PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setInt( 1, sample );
-            try( ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
-                    final ConsolidatedProposal p = hydrate(
-                        rs.getString( "signature" ),
-                        rs.getString( "proposal_type" ),
-                        rs.getString( "proposed_data" ),
-                        rs.getString( "support" ),
-                        rs.getString( "source_page" ),
-                        rs.getDouble( "confidence" ) );
-                    if( p != null ) out.add( new Sampled( p ) );
-                }
+        try {
+            for( final ConsolidatedProposal p : jdbc.query( sql, ps -> ps.setInt( 1, sample ), rs -> hydrate(
+                    rs.getString( "signature" ),
+                    rs.getString( "proposal_type" ),
+                    rs.getString( "proposed_data" ),
+                    rs.getString( "support" ),
+                    rs.getString( "source_page" ),
+                    rs.getDouble( "confidence" ) ) ) ) {
+                if( p != null ) out.add( new Sampled( p ) );
             }
         } catch( final SQLException e ) {
             throw new RuntimeException( "sample query failed: " + e.getMessage(), e );

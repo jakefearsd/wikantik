@@ -34,36 +34,34 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import javax.sql.DataSource;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 
 /**
  * Exercises the DB-happy paths of {@link AdminPolicyResource} by installing a
- * mock {@link DefaultAuthorizationManager} that returns a {@link DatabasePolicy}
- * backed by a Mockito-stubbed {@link DataSource}. Complements
- * {@link AdminPolicyResourceTest}, which covers the validation branches that
- * never reach JDBC.
+ * mock {@link DefaultAuthorizationManager} that returns a Mockito-mocked
+ * {@link DatabasePolicy}. The servlet's SQL now lives in
+ * {@code DatabasePolicy.listGrants/insertGrant/updateGrant/deleteGrant} (see
+ * {@code DatabasePolicyTest} for coverage of those methods against a real
+ * database); this test stubs that boundary directly rather than the raw JDBC
+ * calls DatabasePolicy makes underneath it. Complements {@link
+ * AdminPolicyResourceTest}, which covers the validation branches that never
+ * reach {@code DatabasePolicy}.
  */
 class AdminPolicyResourceDbTest {
 
     private TestEngine engine;
     private AdminPolicyResource servlet;
     private DatabasePolicy dbPolicy;
-    private DataSource dataSource;
-    private Connection connection;
-    private PreparedStatement ps;
     private final Gson gson = new Gson();
 
     @BeforeEach
@@ -71,16 +69,7 @@ class AdminPolicyResourceDbTest {
         final Properties props = TestEngine.getTestProperties();
         engine = new TestEngine( props );
 
-        dataSource = Mockito.mock( DataSource.class );
-        connection = Mockito.mock( Connection.class );
-        ps = Mockito.mock( PreparedStatement.class );
-        Mockito.when( dataSource.getConnection() ).thenReturn( connection );
-        Mockito.when( connection.prepareStatement( anyString() ) ).thenReturn( ps );
-        Mockito.when( connection.prepareStatement( anyString(), Mockito.anyInt() ) ).thenReturn( ps );
-
         dbPolicy = Mockito.mock( DatabasePolicy.class );
-        Mockito.when( dbPolicy.getDataSource() ).thenReturn( dataSource );
-        Mockito.when( dbPolicy.getTableName() ).thenReturn( "policy_grants" );
 
         final DefaultAuthorizationManager authMgr = Mockito.mock( DefaultAuthorizationManager.class );
         Mockito.when( authMgr.getDatabasePolicy() ).thenReturn( dbPolicy );
@@ -101,15 +90,8 @@ class AdminPolicyResourceDbTest {
 
     @Test
     void listGrants_returnsRowsFromDataSource() throws Exception {
-        final ResultSet rs = Mockito.mock( ResultSet.class );
-        Mockito.when( ps.executeQuery() ).thenReturn( rs );
-        Mockito.when( rs.next() ).thenReturn( true, false );
-        Mockito.when( rs.getInt( "id" ) ).thenReturn( 42 );
-        Mockito.when( rs.getString( "principal_type" ) ).thenReturn( "role" );
-        Mockito.when( rs.getString( "principal_name" ) ).thenReturn( "Admin" );
-        Mockito.when( rs.getString( "permission_type" ) ).thenReturn( "wiki" );
-        Mockito.when( rs.getString( "target" ) ).thenReturn( "*" );
-        Mockito.when( rs.getString( "actions" ) ).thenReturn( "login" );
+        Mockito.when( dbPolicy.listGrants() ).thenReturn( List.of(
+                new DatabasePolicy.GrantRecord( 42, "role", "Admin", "wiki", "*", "login" ) ) );
 
         final JsonObject obj = doGet();
         assertTrue( obj.has( "grants" ) );
@@ -121,7 +103,7 @@ class AdminPolicyResourceDbTest {
 
     @Test
     void listGrants_returns500OnSqlException() throws Exception {
-        Mockito.when( ps.executeQuery() ).thenThrow( new SQLException( "boom" ) );
+        Mockito.when( dbPolicy.listGrants() ).thenThrow( new SQLException( "boom" ) );
         final JsonObject obj = doGet();
         assertEquals( 500, obj.get( "status" ).getAsInt() );
     }
@@ -140,11 +122,8 @@ class AdminPolicyResourceDbTest {
 
     @Test
     void createGrant_happyPathReturns201WithGeneratedId() throws Exception {
-        final ResultSet keys = Mockito.mock( ResultSet.class );
-        Mockito.when( ps.getGeneratedKeys() ).thenReturn( keys );
-        Mockito.when( keys.next() ).thenReturn( true );
-        Mockito.when( keys.getInt( 1 ) ).thenReturn( 7 );
-        Mockito.when( ps.executeUpdate() ).thenReturn( 1 );
+        Mockito.when( dbPolicy.insertGrant( anyString(), anyString(), anyString(), anyString(), anyString() ) )
+                .thenReturn( 7 );
 
         final JsonObject body = validBody();
         final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
@@ -201,7 +180,8 @@ class AdminPolicyResourceDbTest {
 
     @Test
     void createGrant_returns409OnSqlException() throws Exception {
-        Mockito.when( ps.executeUpdate() ).thenThrow( new SQLException( "dup" ) );
+        Mockito.when( dbPolicy.insertGrant( anyString(), anyString(), anyString(), anyString(), anyString() ) )
+                .thenThrow( new SQLException( "dup" ) );
         final JsonObject obj = doPost( validBody() );
         assertEquals( 409, obj.get( "status" ).getAsInt() );
     }
@@ -230,14 +210,16 @@ class AdminPolicyResourceDbTest {
 
     @Test
     void updateGrant_returns404WhenNoRowUpdated() throws Exception {
-        Mockito.when( ps.executeUpdate() ).thenReturn( 0 );
+        Mockito.when( dbPolicy.updateGrant( anyInt(), anyString(), anyString(), anyString(), anyString(), anyString() ) )
+                .thenReturn( 0 );
         final JsonObject obj = doPut( "/7", validBody() );
         assertEquals( 404, obj.get( "status" ).getAsInt() );
     }
 
     @Test
     void updateGrant_happyPathReturnsShapedResponse() throws Exception {
-        Mockito.when( ps.executeUpdate() ).thenReturn( 1 );
+        Mockito.when( dbPolicy.updateGrant( anyInt(), anyString(), anyString(), anyString(), anyString(), anyString() ) )
+                .thenReturn( 1 );
         final JsonObject obj = doPut( "/7", validBody() );
         assertTrue( obj.get( "success" ).getAsBoolean() );
         assertEquals( 7, obj.get( "id" ).getAsInt() );
@@ -246,7 +228,8 @@ class AdminPolicyResourceDbTest {
 
     @Test
     void updateGrant_returns500OnSqlException() throws Exception {
-        Mockito.when( ps.executeUpdate() ).thenThrow( new SQLException( "boom" ) );
+        Mockito.when( dbPolicy.updateGrant( anyInt(), anyString(), anyString(), anyString(), anyString(), anyString() ) )
+                .thenThrow( new SQLException( "boom" ) );
         final JsonObject obj = doPut( "/7", validBody() );
         assertEquals( 500, obj.get( "status" ).getAsInt() );
     }
@@ -255,7 +238,7 @@ class AdminPolicyResourceDbTest {
 
     @Test
     void deleteGrant_happyPathReturnsSuccess() throws Exception {
-        Mockito.when( ps.executeUpdate() ).thenReturn( 1 );
+        Mockito.when( dbPolicy.deleteGrant( anyInt() ) ).thenReturn( 1 );
         final JsonObject obj = doDelete( "/9" );
         assertTrue( obj.get( "success" ).getAsBoolean() );
         Mockito.verify( dbPolicy ).refresh();
@@ -263,7 +246,7 @@ class AdminPolicyResourceDbTest {
 
     @Test
     void deleteGrant_returns404WhenNoRowDeleted() throws Exception {
-        Mockito.when( ps.executeUpdate() ).thenReturn( 0 );
+        Mockito.when( dbPolicy.deleteGrant( anyInt() ) ).thenReturn( 0 );
         final JsonObject obj = doDelete( "/9" );
         assertEquals( 404, obj.get( "status" ).getAsInt() );
     }
@@ -288,7 +271,7 @@ class AdminPolicyResourceDbTest {
 
     @Test
     void deleteGrant_returns500OnSqlException() throws Exception {
-        Mockito.when( ps.executeUpdate() ).thenThrow( new SQLException( "boom" ) );
+        Mockito.when( dbPolicy.deleteGrant( anyInt() ) ).thenThrow( new SQLException( "boom" ) );
         final JsonObject obj = doDelete( "/9" );
         assertEquals( 500, obj.get( "status" ).getAsInt() );
     }

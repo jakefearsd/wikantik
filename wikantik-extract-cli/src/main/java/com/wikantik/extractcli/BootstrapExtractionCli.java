@@ -47,6 +47,7 @@ import com.wikantik.search.embedding.EmbeddingModel;
 import com.wikantik.search.embedding.OllamaEmbeddingClient;
 import com.wikantik.search.embedding.TextEmbeddingClient;
 
+import com.wikantik.jdbc.Jdbc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.postgresql.ds.PGSimpleDataSource;
@@ -56,8 +57,6 @@ import java.io.IOException;
 import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.Statement;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -338,8 +337,8 @@ public final class BootstrapExtractionCli {
      * intent ({@code --rebuild-node-embeddings} = empty the cache); the
      * underlying SQL choice is an implementation detail. */
     private static void truncateNodeEmbeddings( final DataSource ds ) {
-        try( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
-            st.executeUpdate( "DELETE FROM kg_node_embeddings" );
+        try {
+            new Jdbc( ds ).execute( "DELETE FROM kg_node_embeddings" );
         } catch( final java.sql.SQLException e ) {
             throw new RuntimeException( "wipe kg_node_embeddings failed: " + e.getMessage(), e );
         }

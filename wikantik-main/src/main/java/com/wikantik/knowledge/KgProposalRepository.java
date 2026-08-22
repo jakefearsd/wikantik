@@ -98,34 +98,29 @@ public final class KgProposalRepository extends KgJdbcSupport {
     // ---- Proposal operations ----
 
     /**
-     * Not migrated to {@code update()}: needs {@code Statement.RETURN_GENERATED_KEYS}
-     * plus a {@code getGeneratedKeys()} read on the same statement — a different
-     * shape than the plain {@code executeUpdate()} the {@code update()} primitive wraps.
+     * Uses {@code RETURNING id} + {@link #queryOne} instead of
+     * {@code Statement.RETURN_GENERATED_KEYS} + {@code getGeneratedKeys()} — a shape the
+     * {@code update()} primitive doesn't support. The only SQL-text change made while moving
+     * this class onto {@code Jdbc}: everything else below is verbatim.
      */
     public KgProposal insertProposal( final String proposalType, final String sourcePage,
                                       final Map< String, Object > proposedData,
                                       final double confidence, final String reasoning ) {
         final String sql = "INSERT INTO kg_proposals ( proposal_type, source_page, proposed_data, confidence, reasoning ) "
-                + "VALUES ( ?, ?, ?::jsonb, ?, ? )";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
-            ps.setString( 1, proposalType );
-            ps.setString( 2, sourcePage );
-            ps.setString( 3, GSON.toJson( proposedData != null ? proposedData : Map.of() ) );
-            ps.setDouble( 4, confidence );
-            ps.setString( 5, reasoning );
-            ps.executeUpdate();
-            try ( ResultSet keys = ps.getGeneratedKeys() ) {
-                if ( keys.next() ) {
-                    final UUID id = keys.getObject( 1, UUID.class );
-                    return getProposal( id );
-                }
-            }
+                + "VALUES ( ?, ?, ?::jsonb, ?, ? ) RETURNING id";
+        try {
+            final UUID id = queryOne( sql, ps -> {
+                ps.setString( 1, proposalType );
+                ps.setString( 2, sourcePage );
+                ps.setString( 3, GSON.toJson( proposedData != null ? proposedData : Map.of() ) );
+                ps.setDouble( 4, confidence );
+                ps.setString( 5, reasoning );
+            }, rs -> rs.getObject( "id", UUID.class ) ).orElse( null );
+            return id != null ? getProposal( id ) : null;
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to insert proposal: {}", e.getMessage(), e );
             throw new RuntimeException( "Failed to insert proposal: " + e.getMessage(), e );
         }
-        return null;
     }
 
     public KgProposal getProposal( final UUID id ) {

@@ -6,6 +6,7 @@
  */
 import http from 'k6/http';
 import { check } from 'k6';
+import { pick } from './slugs.js';
 
 const SEARCH_TERMS = [
   'logistics', 'optimization', 'algorithm', 'monitoring', 'latency',
@@ -131,11 +132,13 @@ const KG_TERMS = [
   'optimization', 'latency', 'embedding', 'retrieval', 'cluster',
   'distributed', 'failure', 'queue', 'gradient', 'bayesian',
 ];
-const mcpSessions = {}; // keyed by VU id -> Mcp-Session-Id
+const mcpSessions = {}; // keyed by `${vu}@${path}` -> Mcp-Session-Id
 
-function mcpInit(cfg, vu) {
-  if (mcpSessions[vu]) return mcpSessions[vu];
-  const res = http.post(`${cfg.baseUrl}/wikantik-admin-mcp`,
+function mcpInit(cfg, vu, path) {
+  const endpoint = path || '/wikantik-admin-mcp';
+  const key = `${vu}@${endpoint}`;
+  if (mcpSessions[key]) return mcpSessions[key];
+  const res = http.post(`${cfg.baseUrl}${endpoint}`,
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize',
       params: { protocolVersion: '2024-11-05', capabilities: {},
         clientInfo: { name: 'k6', version: '1' } } }),
@@ -145,13 +148,62 @@ function mcpInit(cfg, vu) {
       tags: { surface: 'mcp_init' },
       responseCallback: http.expectedStatuses({ min: 200, max: 499 }) });
   const sid = res.headers['Mcp-Session-Id'] || res.headers['mcp-session-id'];
-  if (sid) mcpSessions[vu] = sid;
+  if (sid) mcpSessions[key] = sid;
   return sid;
+}
+
+/**
+ * The REAL agent retrieval surface, on /knowledge-mcp.
+ *
+ * Added 2026-08-25 after profiling showed MCP at 0.4% of CPU — not because the
+ * agent surface is cheap, but because this harness was only driving
+ * /wikantik-admin-mcp's read_page + search_knowledge + query_nodes, and
+ * search_knowledge/query_nodes search KNOWLEDGE GRAPH NODES ONLY. On a corpus
+ * with no extracted entities they return `{"results":[]}` in ~3 ms and touch no
+ * retrieval machinery at all. The tool's own response hint says so: "if you
+ * expected page-body matches, call retrieve_context with the same query."
+ *
+ * retrieve_context is the expensive one — measured 9 ms warm but 1801 ms cold,
+ * because a cold call re-fetches and re-parses the pages behind each hit.
+ * assemble_bundle is the RAG-as-a-Service context bundle. read_pages is the
+ * batched markdown read. Weighted so the costly tool dominates, the way a real
+ * coding agent's session actually behaves.
+ */
+const KNOWLEDGE_MCP = '/knowledge-mcp';
+
+export function knowledgeAgentFlow(cfg, vu, slugs) {
+  const sid = mcpInit(cfg, vu, KNOWLEDGE_MCP);
+  const hdr = { 'Content-Type': 'application/json',
+    Accept: 'application/json, text/event-stream',
+    Authorization: `Bearer ${cfg.mcpKey}` };
+  if (sid) hdr['Mcp-Session-Id'] = sid;
+
+  const term = KG_TERMS[Math.floor(Math.random() * KG_TERMS.length)];
+  const r = Math.random();
+  let params;
+  let surface;
+  if (r < 0.55) {
+    params = { name: 'retrieve_context',
+      arguments: { query: term, maxPages: 10, chunksPerPage: 3 } };
+    surface = 'mcp_retrieve_context';
+  } else if (r < 0.85) {
+    params = { name: 'assemble_bundle', arguments: { query: term } };
+    surface = 'mcp_assemble_bundle';
+  } else {
+    params = { name: 'read_pages', arguments: { slugs: [pick(slugs), pick(slugs)] } };
+    surface = 'mcp_read_pages';
+  }
+  const res = http.post(`${cfg.baseUrl}${KNOWLEDGE_MCP}`,
+    JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/call', params }),
+    { headers: hdr, tags: { surface },
+      responseCallback: http.expectedStatuses({ min: 200, max: 499 }) });
+  check(res, { 'knowledge-mcp reached app': (r2) => r2.status !== 0 });
+  return res;
 }
 
 /** Drive a real MCP retrieval tool call (read_page / search_knowledge / query_nodes). */
 export function mcpAgentFlow(cfg, vu, slug) {
-  const sid = mcpInit(cfg, vu);
+  const sid = mcpInit(cfg, vu, '/wikantik-admin-mcp');
   const hdr = { 'Content-Type': 'application/json',
     Accept: 'application/json, text/event-stream',
     Authorization: `Bearer ${cfg.mcpKey}` };
@@ -182,7 +234,7 @@ export function mcpAgentFlow(cfg, vu, slug) {
  * surface AND MathValidationPageFilter under load without a password login.
  */
 export function mcpWriteCycle(cfg, vu, iter) {
-  const sid = mcpInit(cfg, vu);
+  const sid = mcpInit(cfg, vu, '/wikantik-admin-mcp');
   const hdr = { 'Content-Type': 'application/json',
     Accept: 'application/json, text/event-stream',
     Authorization: `Bearer ${cfg.mcpKey}` };

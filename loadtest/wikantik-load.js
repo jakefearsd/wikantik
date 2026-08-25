@@ -12,7 +12,8 @@ import exec from 'k6/execution';
 import { readConfig, buildOptions, verifyTargets } from './lib/config.js';
 import { loadSlugs, pick } from './lib/slugs.js';
 import { viewPage, search, mcpCall, toolsCall, login, writeCycle,
-  mcpAgentFlow, mcpWriteCycle, rawContent, changesFeed } from './lib/endpoints.js';
+  mcpAgentFlow, mcpWriteCycle, rawContent, changesFeed,
+  knowledgeAgentFlow } from './lib/endpoints.js';
 import { parsePromText, buildVerifyReport } from './lib/metrics.js';
 import { adminDashboard, adminDashboardBurst, adminManagement, adminAudit,
   adminPolicyCycle, adminApiKeyCycle, adminClusterRenamePlan,
@@ -44,7 +45,13 @@ export function readScenario() {
   const r = Math.random();
   if (r < 0.40) viewPage(cfg, pick(slugs));
   else if (r < 0.55) search(cfg);
-  else if (r < 0.80) mcpAgentFlow(cfg, exec.vu.idInTest, pick(slugs));   // real tools/call (expensive)
+  // Agent traffic, split across BOTH MCP endpoints. /knowledge-mcp carries the
+  // real retrieval tools (retrieve_context, assemble_bundle, read_pages);
+  // /wikantik-admin-mcp's search_knowledge + query_nodes are KG-node-only and
+  // return empty in ~3ms on a corpus without extracted entities, so driving
+  // only those made the whole agent surface look free (measured 0.4% of CPU).
+  else if (r < 0.70) knowledgeAgentFlow(cfg, exec.vu.idInTest, slugs);   // real retrieval (expensive)
+  else if (r < 0.80) mcpAgentFlow(cfg, exec.vu.idInTest, pick(slugs));   // admin-mcp tools/call
   else if (r < 0.88) rawContent(cfg, pick(slugs));                       // /wiki/{slug}?format=md
   else if (r < 0.93) changesFeed(cfg);                                   // /api/changes feed
   else if (r < 0.97) mcpCall(cfg, Math.random() < 0.5 ? '/knowledge-mcp' : '/wikantik-admin-mcp');

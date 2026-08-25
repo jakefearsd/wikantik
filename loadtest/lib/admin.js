@@ -6,13 +6,23 @@
  * so every optimisation arc in docs/ScalingCharacterization.md was measured
  * against a mix that contained zero admin work.
  *
- * Auth: HTTP Basic on every request (BasicAuthFilter converts it into a real
- * wiki session login; AdminAuthFilter then requires AllPermission). k6's
- * per-VU cookie jar means the first request establishes a session and the rest
- * reuse it, which is what a real admin console does. We deliberately send a
- * JSON Accept header so AdminAuthFilter.isSpaNavigation() does NOT short-
- * circuit the permission check — otherwise the load test would measure a
- * bypass path instead of real authorization.
+ * Auth: HTTP Basic on every request, and DELIBERATELY STATELESS — no session
+ * cookie is carried between requests. That models the expensive real client
+ * class: monitoring pollers, cron jobs, CI scripts and SDK one-shot calls,
+ * which re-present credentials on every call. A cookie-holding admin console is
+ * the cheap case (BasicAuthFilter's session fast path short-circuits it), so
+ * profiling that instead would flatter the numbers. Measured 2026-08-25: the
+ * stateless path costs a full bcrypt verify (cost 12, ~150-250 ms) per request
+ * unless the credential-verification cache is enabled.
+ *
+ * (k6 does not resend the JSESSIONID it receives even though its jar holds it,
+ * so this statelessness is what the harness produces anyway — but it is the
+ * intent, not an accident. Do not "fix" it into cookie reuse without also
+ * keeping a stateless variant.)
+ *
+ * We deliberately send a JSON Accept header so AdminAuthFilter.isSpaNavigation()
+ * does NOT short-circuit the permission check — otherwise the load test would
+ * measure a bypass path instead of real authorization.
  *
  * Three tiers, weighted to mirror how the admin surface is actually used:
  *

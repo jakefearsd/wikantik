@@ -643,6 +643,50 @@ keeps results correct but slow.
 
 ---
 
+---
+
+## 16. Campaign 2026-08-25 — admin traffic enters the mix; auth and docvalues
+
+The first campaign whose load mix contains **`/admin/*` traffic at all**. Every
+prior arc measured a reader+agent mix, so the administrative surface — the one an
+operator, a monitoring poller and a CI job actually hammer — had never been
+profiled. Harness additions: `bin/loadtest.sh --admin/--admin-vus` (a weighted
+4-tier admin workload: dashboard polling, operator management reads, deliberately
+expensive full-corpus audits, reversible policy/apikey writes) and
+`bin/profile-iteration.sh`, which wraps a run in JFR and reduces it to
+CPU-by-application-frame tables so two iterations diff frame-by-frame.
+
+Local bare-metal Tomcat, 10 cores, heap pinned 2 g G1, k6 co-resident (so RPS is
+k6-confounded — the signal is CPU composition and p95, per §15). Corpus 1201
+pages / 1635 chunks / 1635 embeddings, dense retrieval live. 3 min @ 40 read +
+10 admin VUs per iteration.
+
+| # | Finding (JFR) | Fix | Measured |
+|---|---|---|---|
+| 1 | **96% of ALL CPU** was bcrypt (`BCryptOpenBSDProtocol.key` under `CryptoUtil.verifySaltedPassword`). `BasicAuthFilter`'s "session already authenticated" fast path compared the Basic username to `getUserPrincipal()` — which `WikiSession` sets to the **FullName**; the login name lives on `getLoginPrincipal()`. Dead code for every user whose full name differs from their login | compare either principal | session-holding client **312 ms → 1.6 ms** per admin request |
+| 2 | The aggregate did not move: stateless Basic clients (pollers, cron, CI, SDK one-shots) carry no session and so cannot use any session fast path. They re-ran a cost-12 bcrypt (~150-250 ms) **per request** | short-TTL successful-verification cache on `AbstractUserDatabase.validatePassword`, mirroring `ApiKeyService.verifyCache` (§14.2). Key = `login + sha256(password ‖ storedHash)`, so a password change rotates the key and takes effect **immediately**; successes only (a wrong password always pays full price); legacy-migration branch excluded; kill switch `wikantik.auth.password.verifyCache.ttlSeconds=0`. Cannot bypass lockout — `UserDatabaseLoginModule` checks `isLocked()` after `validatePassword()` | stateless admin request **369 ms → 7.4 ms**; on-CPU samples **19,317 → 1,345 (−93%)**; p95 428 → 55 ms |
+| 3 | With bcrypt gone, `LuceneHnswChunkVectorIndex.topKChunks` was 41% of ALL allocation. It called `getSortedDocValues()` **twice per hit** — up to 600 `TermsDict` constructions per query at `bundle.dense.top_k=300`. NOT the stored-field/LZ4 bug of §14.1/§15 (this class already used DocValues) but the adjacent one: re-acquiring the accessor per *document* instead of per *segment* | resolve docvalues in **docid** order (one forward-only iterator per leaf), emit in original **score** order — identical output by construction; batched so work stays O(k) not O(fetch) | topKChunks allocation **37.6% → 4.3%**; `TermsDict.<init>` **gone**; its CPU −48%; max latency 3.35 s → 1.49 s |
+
+### Cumulative
+
+| Metric | Baseline | Final | Δ |
+|---|---|---|---|
+| RPS | 50.5 | 53.6 | +6% |
+| avg | 92.2 ms | 16.8 ms | −82% |
+| p90 | 336.8 ms | 30.2 ms | −91% |
+| p95 | 428.1 ms | 53.7 ms | −87% |
+| **on-CPU samples at equal load** | **19,317** | **1,102** | **−94%** |
+
+**The same offered load costs ~1/18th of the CPU.** Full detail, including the
+remaining profile and ranked follow-ups, in
+`loadtest/results/CAMPAIGN-2026-08-25.md`.
+
+**Lesson.** Two of the three wins were *auth* on the request path, and neither
+was visible to any previous campaign because no previous mix authenticated. A
+load mix that omits a surface does not merely under-measure it — it can leave a
+frame consuming 96% of production CPU entirely unobserved across nine sweeps and
+two optimisation arcs.
+
 ## Raw data
 
 All per-step k6 outputs, curl-probe samples, and jakemon snapshots are in `loadtest/results/sweep{1..9}-<N>vu-{k6,curl,host}.{log,json}` and `loadtest/results/ramp{500,650,800}vu-*`. JFR captures live at `loadtest/results/sweep{3,4,5,7,8,9}-300vu.jfr` for offline analysis with `jfr print` or JMC. The directory is gitignored (raw data is reproducible, not versioned).

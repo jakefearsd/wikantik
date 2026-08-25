@@ -66,6 +66,14 @@ public final class DisplayMathPreProcessor {
         if ( source == null || source.isEmpty() ) {
             return source;
         }
+        // No display-math delimiter anywhere means the DOTALL/MULTILINE regex below
+        // cannot match, and appendTail would hand back `source` verbatim. Most pages
+        // carry no math at all, and this runs on every parse — including once per hit
+        // on the search path — so short-circuit on a plain indexOf instead of a
+        // backtracking scan of the whole body.
+        if ( !source.contains( "$$" ) ) {
+            return source;
+        }
 
         final Matcher matcher = DISPLAY_MATH_BLOCK.matcher( source );
         final StringBuilder result = new StringBuilder();

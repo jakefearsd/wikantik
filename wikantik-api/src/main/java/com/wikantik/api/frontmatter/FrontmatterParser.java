@@ -41,8 +41,7 @@ public final class FrontmatterParser {
     /** Matches the opening --- followed by a newline (LF or CRLF). */
     private static final Pattern OPENING = Pattern.compile( "\\A---\\r?\\n" );
 
-    /** Matches the closing delimiter: either immediately after opening (empty block) or on its own line. */
-    private static final Pattern CLOSING_IMMEDIATE = Pattern.compile( "\\A---\\r?\\n" );
+    /** Matches the closing delimiter on its own line. */
     private static final Pattern CLOSING = Pattern.compile( "\\r?\\n---\\r?\\n" );
 
     private FrontmatterParser() {
@@ -84,6 +83,25 @@ public final class FrontmatterParser {
      * according to their own tolerance for malformed input. {@code text} must be non-null and
      * non-empty — callers handle that case before calling this method.
      */
+    /**
+     * Length of a closing {@code ---} delimiter sitting immediately at {@code from}
+     * (the empty-frontmatter case), or 0 if there is none.
+     *
+     * <p>Checked with {@link String#startsWith(String, int)} rather than a regex over
+     * {@code text.substring(from)}: that substring copied the ENTIRE remaining page body
+     * on every call, for every page, just to test four characters — and then discarded
+     * it. It measured as a top allocator under load (2026-08-25 campaign).</p>
+     */
+    private static int immediateClosingLength( final String text, final int from ) {
+        if ( text.startsWith( "---\n", from ) ) {
+            return 4;
+        }
+        if ( text.startsWith( "---\r\n", from ) ) {
+            return 5;
+        }
+        return 0;
+    }
+
     private static SplitResult split( final String text ) {
         final Matcher openMatcher = OPENING.matcher( text );
         if ( !openMatcher.find() ) {
@@ -93,9 +111,9 @@ public final class FrontmatterParser {
         final int yamlStart = openMatcher.end(); // position right after "---\n" or "---\r\n"
 
         // Check for empty frontmatter: closing --- immediately follows opening ---
-        final Matcher immediateMatcher = CLOSING_IMMEDIATE.matcher( text.substring( yamlStart ) );
-        if ( immediateMatcher.find() ) {
-            return new EmptyBlock( text.substring( yamlStart + immediateMatcher.end() ) );
+        final int immediateLen = immediateClosingLength( text, yamlStart );
+        if ( immediateLen > 0 ) {
+            return new EmptyBlock( text.substring( yamlStart + immediateLen ) );
         }
 
         final Matcher closeMatcher = CLOSING.matcher( text );

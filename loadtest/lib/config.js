@@ -23,6 +23,13 @@ export function readConfig(env) {
     // metrics for --verify); raise it to actually exercise/profile the save +
     // MCP write path under concurrent load.
     writeVus: env.WIKANTIK_WRITE_VUS ? Number(env.WIKANTIK_WRITE_VUS) : 1,
+    // Admin scenario: /admin/* traffic (dashboard polling, operator management
+    // reads, expensive full-corpus audits, and reversible admin writes). Off
+    // by default so existing baselines stay comparable.
+    admin: env.ADMIN === '1',
+    adminVus: env.WIKANTIK_ADMIN_VUS ? Number(env.WIKANTIK_ADMIN_VUS) : 5,
+    // Pre-computed Basic credential; admin.js sends it on every request.
+    adminBasic: env.LOADTEST_ADMIN_BASIC || '',
   };
 }
 
@@ -64,6 +71,13 @@ export function buildOptions(cfg) {
   if (!read) throw new Error(`unknown profile: ${cfg.profile}`);
 
   const scenarios = { read: { ...read, exec: 'readScenario' } };
+  if (cfg.admin) {
+    scenarios.admin = {
+      executor: 'constant-vus', vus: cfg.adminVus,
+      duration: read.duration || '10m',
+      exec: 'adminScenario',
+    };
+  }
   if (cfg.writes) {
     scenarios.writes = {
       executor: 'constant-vus', vus: cfg.writeVus,
@@ -101,6 +115,11 @@ export function verifyTargets(cfg) {
     { label: 'Agent/admin traffic', name: 'http_server_requests_seconds_count',
       match: { uri: /knowledge-mcp|wikantik-admin-mcp/ }, mode: 'increased' },
   ];
+  if (cfg.admin) {
+    targets.push(
+      { label: 'Admin surface traffic', name: 'http_server_requests_seconds_count',
+        match: { uri: /^\/admin/ }, mode: 'increased' });
+  }
   if (cfg.writes) {
     targets.push(
       { label: 'Page edits', name: 'wikantik_page_edits_total', mode: 'increased' },

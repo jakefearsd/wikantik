@@ -13,6 +13,10 @@
 # Options:
 #   --verify        scrape /metrics before+after and gate on per-panel deltas
 #   --writes        add the authenticated create/edit/delete + login cycle
+#   --admin         add the administrative-actions scenario over /admin/*
+#                   (dashboard polling, operator reads, full-corpus audits,
+#                    reversible policy/apikey writes). Needs admin credentials.
+#   --admin-vus N   admin-scenario concurrency (implies --admin; default 5)
 #   --metrics-url U scrape metrics from U instead of BASE_URL/metrics
 #   --duration D    override the run duration (load/stress)
 #   --vus N         override peak VUs (load/stress)
@@ -36,7 +40,7 @@ case "${PROFILE}" in smoke|load|stress) ;; *)
   echo "ERROR: unknown profile '${PROFILE}' (expected smoke|load|stress)" >&2; exit 2 ;;
 esac
 
-VERIFY=0 WRITES=0 DRY_RUN=0 DURATION="" VUS="" WRITE_VUS="" METRICS_URL=""
+VERIFY=0 WRITES=0 ADMIN=0 DRY_RUN=0 DURATION="" VUS="" WRITE_VUS="" ADMIN_VUS="" METRICS_URL=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --verify)      VERIFY=1; shift ;;
@@ -45,6 +49,8 @@ while [[ $# -gt 0 ]]; do
     --duration)    DURATION="$2"; shift 2 ;;
     --vus)         VUS="$2"; shift 2 ;;
     --write-vus)   WRITE_VUS="$2"; WRITES=1; shift 2 ;;
+    --admin)       ADMIN=1; shift ;;
+    --admin-vus)   ADMIN_VUS="$2"; ADMIN=1; shift 2 ;;
     --dry-run)     DRY_RUN=1; shift ;;
     -h|--help)     usage; exit 0 ;;
     *) echo "ERROR: unknown option '$1'" >&2; exit 2 ;;
@@ -72,12 +78,28 @@ if [[ "${WRITES}" == 1 && ( -z "${LOADTEST_ADMIN_USER:-}" || -z "${LOADTEST_ADMI
   echo "       set them in loadtest/loadtest.env or test.properties" >&2
   exit 2
 fi
+if [[ "${ADMIN}" == 1 && ( -z "${LOADTEST_ADMIN_USER:-}" || -z "${LOADTEST_ADMIN_PASS:-}" ) ]]; then
+  echo "ERROR: --admin needs LOADTEST_ADMIN_USER and LOADTEST_ADMIN_PASS" >&2
+  echo "       set them in loadtest/loadtest.env or test.properties" >&2
+  exit 2
+fi
+
+# Pre-compute the Basic credential here rather than in the k6 init context —
+# k6 has no btoa() and pulling in a base64 module for one constant is not worth
+# it. Empty when --admin was not requested.
+LOADTEST_ADMIN_BASIC=""
+if [[ "${ADMIN}" == 1 ]]; then
+  LOADTEST_ADMIN_BASIC=$(printf '%s:%s' "${LOADTEST_ADMIN_USER}" "${LOADTEST_ADMIN_PASS}" \
+    | base64 | tr -d '\n')
+fi
 
 K6_ARGS=(run
   -e "PROFILE=${PROFILE}"
   -e "BASE_URL=${BASE_URL}"
   -e "VERIFY=${VERIFY}"
   -e "WRITES=${WRITES}"
+  -e "ADMIN=${ADMIN}"
+  -e "LOADTEST_ADMIN_BASIC=${LOADTEST_ADMIN_BASIC}"
   -e "LOADTEST_ADMIN_USER=${LOADTEST_ADMIN_USER:-}"
   -e "LOADTEST_ADMIN_PASS=${LOADTEST_ADMIN_PASS:-}"
   -e "LOADTEST_MCP_KEY=${LOADTEST_MCP_KEY:-}"
@@ -90,6 +112,7 @@ K6_ARGS=(run
 [[ -n "${DURATION}" ]] && K6_ARGS+=(-e "WIKANTIK_DURATION=${DURATION}")
 [[ -n "${VUS}" ]] && K6_ARGS+=(-e "WIKANTIK_VUS=${VUS}")
 [[ -n "${WRITE_VUS}" ]] && K6_ARGS+=(-e "WIKANTIK_WRITE_VUS=${WRITE_VUS}")
+[[ -n "${ADMIN_VUS}" ]] && K6_ARGS+=(-e "WIKANTIK_ADMIN_VUS=${ADMIN_VUS}")
 K6_ARGS+=(wikantik-load.js)
 
 # k6 remote-writes its own metrics (offered RPS, VUs, latency) to Prometheus

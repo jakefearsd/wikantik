@@ -14,6 +14,9 @@ import { loadSlugs, pick } from './lib/slugs.js';
 import { viewPage, search, mcpCall, toolsCall, login, writeCycle,
   mcpAgentFlow, mcpWriteCycle, rawContent, changesFeed } from './lib/endpoints.js';
 import { parsePromText, buildVerifyReport } from './lib/metrics.js';
+import { adminDashboard, adminDashboardBurst, adminManagement, adminAudit,
+  adminPolicyCycle, adminApiKeyCycle, adminClusterRenamePlan,
+  adminCacheFlush } from './lib/admin.js';
 
 const cfg = readConfig(__ENV);
 const slugs = loadSlugs(__ENV.SLUGS_FILE);
@@ -46,6 +49,27 @@ export function readScenario() {
   else if (r < 0.93) changesFeed(cfg);                                   // /api/changes feed
   else if (r < 0.97) mcpCall(cfg, Math.random() < 0.5 ? '/knowledge-mcp' : '/wikantik-admin-mcp');
   else toolsCall(cfg);
+  sleep(0.5 + Math.random());
+}
+
+/**
+ * Admin scenario: a heavy administrative workload over /admin/*.
+ *
+ * Weighting models one operator console open and polling continuously, with
+ * periodic management reads, occasional expensive corpus-wide audits, and rare
+ * reversible writes. The audit tier is only 12% of iterations but each of those
+ * endpoints is O(corpus) — so it dominates admin CPU, which is the point.
+ */
+export function adminScenario() {
+  const r = Math.random();
+  if (r < 0.34) adminDashboard(cfg);              // single panel refresh
+  else if (r < 0.46) adminDashboardBurst(cfg);    // console open: batched panels
+  else if (r < 0.80) adminManagement(cfg);        // operator CRUD reads
+  else if (r < 0.92) adminAudit(cfg);             // expensive full-corpus audits
+  else if (r < 0.95) adminPolicyCycle(cfg, exec.vu.idInTest, exec.vu.iterationInScenario);
+  else if (r < 0.97) adminApiKeyCycle(cfg, exec.vu.idInTest, exec.vu.iterationInScenario);
+  else if (r < 0.99) adminClusterRenamePlan(cfg);
+  else adminCacheFlush(cfg);
   sleep(0.5 + Math.random());
 }
 

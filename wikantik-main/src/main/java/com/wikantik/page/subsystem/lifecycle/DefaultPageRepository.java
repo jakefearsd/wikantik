@@ -193,6 +193,21 @@ public class DefaultPageRepository implements PageRepository {
     }
 
     @Override
+    public Page getPageWithoutMetadata( final String pagereq, final int version ) {
+        try {
+            Page p = provider.getPageInfoNoMetadata( pagereq, version );
+            if ( p == null ) {
+                p = getAttachmentManager().getAttachmentInfo( null, pagereq );
+            }
+
+            return p;
+        } catch ( final ProviderException e ) {
+            LOG.warn( "Unable to fetch page info (no metadata) for {} [version {}]: {}", pagereq, version, e.getMessage() );
+            return null;
+        }
+    }
+
+    @Override
     public Page getPageInfo( final String pageName, final int version ) throws ProviderException {
         if ( pageName == null || pageName.isEmpty() ) {
             throw new ProviderException( "Illegal page name '" + pageName + "'" );

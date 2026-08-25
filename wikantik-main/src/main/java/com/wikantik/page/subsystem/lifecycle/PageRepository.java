@@ -62,6 +62,9 @@ public interface PageRepository {
     /** @see com.wikantik.api.managers.PageManager#getPage(String, int) */
     Page getPage( String pagereq, int version );
 
+    /** @see com.wikantik.api.managers.PageManager#getPageWithoutMetadata(String, int) */
+    Page getPageWithoutMetadata( String pagereq, int version );
+
     /** @see com.wikantik.api.managers.PageManager#getPageInfo(String, int) */
     Page getPageInfo( String pageName, int version ) throws ProviderException;
 

@@ -24,6 +24,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.providers.PageProvider;
 import com.wikantik.util.FileUtil;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
@@ -524,6 +525,59 @@ class CachingProviderTest {
         engine.getManager( PageManager.class ).getPage( "Foo" );
         Assertions.assertEquals( afterFirst, cp.m_getPageTextCalls,
                 "Second getPage must NOT call provider.getPageText again (hasMetadata must short-circuit)" );
+    }
+
+    // ============== getPageInfoNoMetadata Tests ==============
+
+    /**
+     * getPageInfoNoMetadata must find the page (provider-native fields populated) but must NOT
+     * trigger the metadata (frontmatter) parse: hasMetadata() stays false and
+     * provider.getPageText — the call refreshMetadata makes to feed the parser — is never
+     * invoked. This is the fix for the JFR-observed per-search-hit re-parse: search only needs
+     * identity/ACL/lastModified from the page, never its parsed frontmatter attributes.
+     */
+    @Test
+    void testGetPageInfoNoMetadata_doesNotTriggerMetadataParse() throws Exception {
+        engine = buildWithCounterProvider();
+        final CachingProvider cp = (CachingProvider) engine.getManager( PageManager.class ).getProvider();
+        final CounterProvider counter = getCounterProvider( engine );
+
+        // putPageText evicts the cached Page and re-populates it with a fresh, unparsed
+        // (hasMetadata==false) Page — see CachingProvider.putPageText. Start from that known
+        // state so this test observes a clean no-metadata lookup, not a page some earlier
+        // call (e.g. startup indexing) already parsed.
+        final Page seed = engine.getManager( PageManager.class ).getPage( "Foo" );
+        cp.putPageText( seed, "v2 content" );
+        counter.resetCounters();
+
+        final Page page = cp.getPageInfoNoMetadata( "Foo", PageProvider.LATEST_VERSION );
+
+        Assertions.assertNotNull( page, "getPageInfoNoMetadata must find the page" );
+        Assertions.assertFalse( page.hasMetadata(), "getPageInfoNoMetadata must NOT populate frontmatter metadata" );
+        Assertions.assertEquals( 0, counter.m_getPageTextCalls,
+                "getPageInfoNoMetadata must not call provider.getPageText (no metadata parse)" );
+    }
+
+    /**
+     * Regression guard: getPageInfo (the pre-existing method) must still refresh metadata as
+     * before — this change must not have altered its behaviour, only added a sibling method.
+     */
+    @Test
+    void testGetPageInfo_stillRefreshesMetadata() throws Exception {
+        engine = buildWithCounterProvider();
+        final CachingProvider cp = (CachingProvider) engine.getManager( PageManager.class ).getProvider();
+        final CounterProvider counter = getCounterProvider( engine );
+
+        final Page seed = engine.getManager( PageManager.class ).getPage( "Foo" );
+        cp.putPageText( seed, "v2 content" );
+        counter.resetCounters();
+
+        final Page page = cp.getPageInfo( "Foo", PageProvider.LATEST_VERSION );
+
+        Assertions.assertNotNull( page, "getPageInfo must find the page" );
+        Assertions.assertTrue( page.hasMetadata(), "getPageInfo must still populate frontmatter metadata" );
+        Assertions.assertEquals( 1, counter.m_getPageTextCalls,
+                "getPageInfo must still call provider.getPageText once to parse metadata" );
     }
 
     // ============== All-Pages Cache TTL Tests ==============

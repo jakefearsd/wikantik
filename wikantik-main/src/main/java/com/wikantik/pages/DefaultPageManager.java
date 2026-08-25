@@ -172,6 +172,7 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
     @Override public void putPageText( final Page p, final String c ) throws ProviderException   { repository.putPageText( p, c ); }
     @Override public Page getPage( final String p )                                              { return repository.getPage( p ); }
     @Override public Page getPage( final String p, final int v )                                 { return repository.getPage( p, v ); }
+    @Override public Page getPageWithoutMetadata( final String p, final int v )                  { return repository.getPageWithoutMetadata( p, v ); }
     @Override public Page getPageInfo( final String n, final int v ) throws ProviderException    { return repository.getPageInfo( n, v ); }
     @Override public <T extends Page> List<T> getVersionHistory( final String n )                { return repository.getVersionHistory( n ); }
     @Override public String getCurrentProvider()                                                 { return repository.getCurrentProvider(); }

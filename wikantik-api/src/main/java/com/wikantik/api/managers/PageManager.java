@@ -217,6 +217,31 @@ public interface PageManager extends WikiEventListener {
     Page getPage( String pagereq, int version );
 
     /**
+     *  Like {@link #getPage(String, int)}, but does NOT guarantee that the returned page's
+     *  frontmatter has been parsed. Provider-native fields (name, version, lastModified, acl)
+     *  are populated as usual, but {@code hasMetadata()} may be {@code false} and
+     *  {@code getAttribute()} may return {@code null} for frontmatter-derived variables
+     *  (e.g. {@code [{SET}]}-style page variables, ALIAS/REDIRECT).
+     *
+     *  <p>Use this only when the caller needs identity/ACL/lastModified and nothing else —
+     *  e.g. filtering search hits for viewability, or bulk viewability checks — where forcing
+     *  a full markup parse just to populate unused attributes would be wasted work. Anything
+     *  that needs page variables must use {@link #getPage(String, int)} instead.</p>
+     *
+     *  <p>The default implementation simply delegates to {@link #getPage(String, int)}, so
+     *  existing implementations and mocks are unaffected until they choose to override this
+     *  method with a cheaper path.</p>
+     *
+     *  @param pageName The name of the page to look for.
+     *  @param version The version number to look for.  May be WikiProvider.LATEST_VERSION.
+     *  @return A WikiPage object, or null, if the page could not be found; or if there
+     *  is no such version of the page.
+     */
+    default Page getPageWithoutMetadata( final String pageName, final int version ) {
+        return getPage( pageName, version );
+    }
+
+    /**
      * Finds a WikiPage object describing a particular page and version.
      *
      * @param pageName The name of the page

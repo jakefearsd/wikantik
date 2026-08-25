@@ -44,6 +44,7 @@ import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiSecurityEvent;
 import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.providers.PageProvider;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.util.ClassUtil;
@@ -185,7 +186,9 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         final boolean blanketView = isPermitted( session,
             new PagePermission( engine.getApplicationName() + ":*", "view" ) );
         for ( final String name : pageNames ) {
-            final Page page = pageManager().getPage( name );
+            // Deliberately skips the frontmatter parse: this page is used only for
+            // ACL/permission checks below, never for page variables.
+            final Page page = pageManager().getPageWithoutMetadata( name, PageProvider.LATEST_VERSION );
             if ( blanketView && page != null ) {
                 final Acl acl = aclManager().getPermissions( page );
                 if ( acl == null || acl.isEmpty() ) {

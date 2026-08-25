@@ -86,6 +86,25 @@ public interface PageProvider extends WikiProvider {
     Page getPageInfo( String page, int version ) throws ProviderException;
 
     /**
+     *  Like {@link #getPageInfo(String, int)}, but does NOT guarantee that the returned page's
+     *  frontmatter has been parsed — only provider-native fields (name, version, lastModified,
+     *  acl) are guaranteed to be populated. Exists so a caching decorator (e.g.
+     *  {@code CachingProvider}) can skip a full markup parse when the caller only needs
+     *  identity/ACL/lastModified.
+     *
+     *  <p>The default implementation simply delegates to {@link #getPageInfo(String, int)}, so
+     *  every existing provider is unaffected until it chooses to override this method.</p>
+     *
+     *  @return A filled WikiPage.
+     *  @param page The page name
+     *  @param version The version number
+     *  @throws ProviderException If something goes wrong.
+     */
+    default Page getPageInfoNoMetadata( String page, int version ) throws ProviderException {
+        return getPageInfo( page, version );
+    }
+
+    /**
      *  Returns all pages.  Each element in the returned Collection should be a WikiPage.
      *  
      *  @return A collection of WikiPages

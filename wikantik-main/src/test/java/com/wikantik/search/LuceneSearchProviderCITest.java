@@ -74,6 +74,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -104,6 +105,12 @@ class LuceneSearchProviderCITest {
     @BeforeEach
     void setUp() throws Exception {
         provider = new LuceneSearchProvider( pageManager, attachmentManager);
+
+        // Mockito intercepts default interface methods, so a mocked PageManager returns
+        // null from getPageWithoutMetadata instead of running its delegating body. Mirror
+        // the production default here so stubbing getPage(...) keeps working.
+        lenient().when( pageManager.getPageWithoutMetadata( anyString(), anyInt() ) )
+            .thenAnswer( inv -> pageManager.getPage( inv.getArgument( 0 ), inv.getArgument( 1 ) ) );
 
         luceneDir = new File( tempDir, "lucene" );
         luceneDir.mkdirs();

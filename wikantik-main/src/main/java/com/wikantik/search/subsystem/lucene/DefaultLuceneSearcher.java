@@ -308,7 +308,9 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                 final String pageName = needBody
                     ? doc.get( DefaultLuceneIndexer.LUCENE_ID )
                     : LuceneHitSupport.readPageId( reader, storedFields, hit.doc, ID_ONLY_FIELDS );
-                final Page page = pm.getPage( pageName, PageProvider.LATEST_VERSION );
+                // Deliberately skips the frontmatter parse: this page is used only for
+                // ACL/permission checks + lastModified below, never for page variables.
+                final Page page = pm.getPageWithoutMetadata( pageName, PageProvider.LATEST_VERSION );
 
                 if ( page != null ) {
                     final Acl acl = aclMgr.getPermissions( page );

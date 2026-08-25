@@ -436,6 +436,30 @@ public class CachingProvider implements PageProvider {
      */
     @Override
     public Page getPageInfo( final String pageName, final int version ) throws ProviderException {
+        final Page page = resolvePageInfo( pageName, version );
+        refreshMetadata( page );
+        return page;
+    }
+
+    /**
+     *  {@inheritDoc}
+     *
+     *  <p>Deliberately skips {@link #refreshMetadata(Page)}: the caller only wants
+     *  identity/ACL/lastModified (e.g. search-hit viewability filtering), so forcing the full
+     *  flexmark parse here just to populate unused frontmatter attributes on every cache hit
+     *  is wasted work — see JFR profiling that motivated this method.</p>
+     */
+    @Override
+    public Page getPageInfoNoMetadata( final String pageName, final int version ) throws ProviderException {
+        return resolvePageInfo( pageName, version );
+    }
+
+    /**
+     *  Shared lookup used by both {@link #getPageInfo(String, int)} and
+     *  {@link #getPageInfoNoMetadata(String, int)} so the two paths cannot drift; the only
+     *  difference between them is whether {@link #refreshMetadata(Page)} runs afterwards.
+     */
+    private Page resolvePageInfo( final String pageName, final int version ) throws ProviderException {
         final Page page;
         final Page cached = getPageInfoFromCache( pageName );
         final int latestcached = ( cached != null ) ? cached.getVersion() : Integer.MIN_VALUE;
@@ -445,7 +469,6 @@ public class CachingProvider implements PageProvider {
             // We do not cache old versions.
             page = provider.getPageInfo( pageName, version );
         }
-        refreshMetadata( page );
         return page;
     }
 

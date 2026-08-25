@@ -48,6 +48,7 @@ import org.apache.lucene.store.Directory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -235,26 +236,80 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
             final KnnFloatVectorQuery query = new KnnFloatVectorQuery( FIELD_VEC, queryVec, fetch );
             final TopDocs hits = searcher.search( query, fetch );
             final List< LeafReaderContext > leaves = searcher.getIndexReader().leaves();
-            final List< ScoredChunk > out = new ArrayList<>( Math.min( k, hits.scoreDocs.length ) );
-            for ( final ScoreDoc sd : hits.scoreDocs ) {
-                if ( out.size() >= k ) break;
-                final LeafReaderContext ctx = leaves.get( ReaderUtil.subIndex( sd.doc, leaves ) );
-                final int localDoc = sd.doc - ctx.docBase;
-                // Fresh SortedDocValues per hit: KNN hits are score-ordered, not
-                // docid-ordered, and advanceExact only seeks forward — a per-hit
-                // iterator avoids "went backwards" errors across non-monotonic docids.
-                final SortedDocValues cidDv = ctx.reader().getSortedDocValues( FIELD_CHUNK_ID );
-                if ( cidDv == null || !cidDv.advanceExact( localDoc ) ) {
-                    LOG.warn( "Lucene HNSW: no chunk_id docvalue for doc {}, skipping", sd.doc );
-                    continue;
+            final int hitCount = hits.scoreDocs.length;
+            final String[] chunkIds = new String[ hitCount ];
+            final String[] pageNames = new String[ hitCount ];
+            final boolean[] resolved = new boolean[ hitCount ];
+
+            // Resolve the docvalues in DOCID order, acquiring SortedDocValues once per
+            // (leaf, field) instead of once per hit.
+            //
+            // getSortedDocValues() is not a cheap accessor — it constructs a fresh
+            // TermsDict with its own block buffers. Called twice per hit at the shipped
+            // k=300 that is up to 600 constructions per query, and it measured as the
+            // single largest allocator in the process (Lucene90DocValuesProducer$TermsDict
+            // .<init> = 11% of ALL allocation samples; topKChunks = 41% overall).
+            //
+            // The previous per-hit acquisition existed because advanceExact is
+            // forward-only while KNN hits arrive in SCORE order, so one shared iterator
+            // would seek backwards. Walking a docid-SORTED batch fixes that properly: a
+            // single iterator per leaf only ever moves forward. Results are then emitted
+            // in the original score order below, so the returned list is byte-identical
+            // to what the per-hit version produced — this is purely an allocation fix and
+            // cannot move the nDCG parity gate.
+            //
+            // Batching by remaining-needed keeps the work O(k), not O(fetch): normally one
+            // batch of k resolves cleanly and the loop exits. Extra batches are only for
+            // the should-never-happen case of a hit with a missing docvalue.
+            int cursor = 0;
+            int resolvedCount = 0;
+            while ( resolvedCount < k && cursor < hitCount ) {
+                final int end = Math.min( hitCount, cursor + ( k - resolvedCount ) );
+                // Pack (docid, scoreDocs index) so one primitive sort orders the batch by
+                // docid while remembering each hit's score-order position. docids are
+                // non-negative, so the packed high bits sort correctly.
+                final long[] byDocId = new long[ end - cursor ];
+                for ( int i = cursor; i < end; i++ ) {
+                    byDocId[ i - cursor ] = ( ( long ) hits.scoreDocs[ i ].doc << 32 ) | ( i & 0xffffffffL );
                 }
-                final String idStr = cidDv.lookupOrd( cidDv.ordValue() ).utf8ToString();
-                final SortedDocValues pgDv = ctx.reader().getSortedDocValues( FIELD_PAGE );
-                final String page = ( pgDv != null && pgDv.advanceExact( localDoc ) )
-                    ? pgDv.lookupOrd( pgDv.ordValue() ).utf8ToString()
-                    : "";
-                final double cosine = 2.0 * sd.score - 1.0;
-                out.add( new ScoredChunk( UUID.fromString( idStr ), page, cosine ) );
+                Arrays.sort( byDocId );
+
+                int leafIndex = -1;
+                LeafReaderContext ctx = null;
+                SortedDocValues cidDv = null;
+                SortedDocValues pgDv = null;
+                for ( final long packed : byDocId ) {
+                    final int doc = ( int ) ( packed >>> 32 );
+                    final int hitIndex = ( int ) ( packed & 0xffffffffL );
+                    final int li = ReaderUtil.subIndex( doc, leaves );
+                    if ( li != leafIndex ) {
+                        leafIndex = li;
+                        ctx = leaves.get( li );
+                        cidDv = ctx.reader().getSortedDocValues( FIELD_CHUNK_ID );
+                        pgDv = ctx.reader().getSortedDocValues( FIELD_PAGE );
+                    }
+                    final int localDoc = doc - ctx.docBase;
+                    if ( cidDv == null || !cidDv.advanceExact( localDoc ) ) {
+                        LOG.warn( "Lucene HNSW: no chunk_id docvalue for doc {}, skipping", doc );
+                        continue;
+                    }
+                    chunkIds[ hitIndex ] = cidDv.lookupOrd( cidDv.ordValue() ).utf8ToString();
+                    pageNames[ hitIndex ] = ( pgDv != null && pgDv.advanceExact( localDoc ) )
+                        ? pgDv.lookupOrd( pgDv.ordValue() ).utf8ToString()
+                        : "";
+                    resolved[ hitIndex ] = true;
+                    resolvedCount++;
+                }
+                cursor = end;
+            }
+
+            // Emit in the original SCORE order, taking the first k that resolved —
+            // exactly the selection the per-hit loop made.
+            final List< ScoredChunk > out = new ArrayList<>( Math.min( k, hitCount ) );
+            for ( int i = 0; i < hitCount && out.size() < k; i++ ) {
+                if ( !resolved[ i ] ) continue;
+                final double cosine = 2.0 * hits.scoreDocs[ i ].score - 1.0;
+                out.add( new ScoredChunk( UUID.fromString( chunkIds[ i ] ), pageNames[ i ], cosine ) );
             }
             return out;
         } catch ( final IOException e ) {

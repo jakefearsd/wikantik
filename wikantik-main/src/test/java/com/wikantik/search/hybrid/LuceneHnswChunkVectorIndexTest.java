@@ -19,6 +19,7 @@
 package com.wikantik.search.hybrid;
 
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
@@ -47,6 +48,82 @@ class LuceneHnswChunkVectorIndexTest {
         assertEquals( "PageA", top.get( 0 ).pageName() );
         assertEquals( 1.0, top.get( 0 ).score(), 1e-4 );
         assertEquals( 0.0, top.get( 1 ).score(), 1e-4 );
+    }
+
+    /**
+     * Pins the exact ordering AND per-hit id/page mapping across many hits whose
+     * docids are deliberately NOT in score order. The per-hit SortedDocValues
+     * acquisition in topKChunks is a large allocator, and the obvious fix —
+     * resolving docvalues in docid order so one iterator per leaf can be reused —
+     * risks silently permuting results or mismatching a chunk id to the wrong
+     * page. This test fails loudly if that happens.
+     */
+    @Test
+    void preservesScoreOrderAndIdPageMappingAcrossManyHits() {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+
+        // Insert in an order that makes docid order the REVERSE of score order:
+        // the first-inserted vector (lowest docid) is the least similar to the query.
+        final int n = 12;
+        final List< UUID > ids = new ArrayList<>();
+        for ( int i = 0; i < n; i++ ) {
+            final UUID id = UUID.randomUUID();
+            ids.add( id );
+            // x grows with i, so similarity to (1,0,0) grows with i => docid order
+            // is ascending while score order is descending.
+            final float x = ( i + 1 ) / ( float ) n;
+            final float y = ( float ) Math.sqrt( Math.max( 0.0, 1.0 - x * x ) );
+            idx.addOrReplace( id, "Page" + i, unit( x, y, 0f ) );
+        }
+        idx.commitAndRefresh();
+        assertEquals( n, idx.size() );
+
+        final List< ScoredChunk > top = idx.topKChunks( unit( 1f, 0f, 0f ), n );
+        assertEquals( n, top.size(), "every indexed chunk should be returned" );
+
+        // 1. Scores must be non-increasing (score order preserved).
+        for ( int i = 1; i < top.size(); i++ ) {
+            assertTrue( top.get( i - 1 ).score() >= top.get( i ).score(),
+                "results must stay in descending score order at index " + i );
+        }
+
+        // 2. The highest-scoring hit must be the LAST-inserted vector (highest docid),
+        //    proving score order is not being replaced by docid order.
+        assertEquals( ids.get( n - 1 ), top.get( 0 ).chunkId() );
+        assertEquals( "Page" + ( n - 1 ), top.get( 0 ).pageName() );
+
+        // 3. Every id must still be paired with its OWN page name — the mapping a
+        //    reordered docvalues walk would be most likely to corrupt.
+        for ( final ScoredChunk sc : top ) {
+            final int expected = ids.indexOf( sc.chunkId() );
+            assertTrue( expected >= 0, "returned an unknown chunk id: " + sc.chunkId() );
+            assertEquals( "Page" + expected, sc.pageName(),
+                "chunk id " + sc.chunkId() + " was mapped to the wrong page" );
+        }
+    }
+
+    /** k smaller than the hit count must return exactly the top-k, still in score order. */
+    @Test
+    void honoursKSmallerThanHitCount() {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        final List< UUID > ids = new ArrayList<>();
+        final int n = 10;
+        for ( int i = 0; i < n; i++ ) {
+            final UUID id = UUID.randomUUID();
+            ids.add( id );
+            final float x = ( i + 1 ) / ( float ) n;
+            final float y = ( float ) Math.sqrt( Math.max( 0.0, 1.0 - x * x ) );
+            idx.addOrReplace( id, "Page" + i, unit( x, y, 0f ) );
+        }
+        idx.commitAndRefresh();
+
+        final List< ScoredChunk > top = idx.topKChunks( unit( 1f, 0f, 0f ), 3 );
+        assertEquals( 3, top.size() );
+        assertEquals( ids.get( n - 1 ), top.get( 0 ).chunkId() );
+        assertEquals( ids.get( n - 2 ), top.get( 1 ).chunkId() );
+        assertEquals( ids.get( n - 3 ), top.get( 2 ).chunkId() );
     }
 
     @Test

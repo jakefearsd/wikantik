@@ -103,7 +103,10 @@ if [[ ! -f "${PROPS_FILE}" ]]; then
     exit 1
 fi
 
-_prop() { grep "^$1=" "${PROPS_FILE}" | head -1 | cut -d= -f2-; }
+# `|| true`: an absent key is not an error — every caller below has a
+# default. Without it, grep's exit 1 trips `set -euo pipefail` and the
+# script dies silently at the first optional key it does not find.
+_prop() { grep "^$1=" "${PROPS_FILE}" | head -1 | cut -d= -f2- || true; }
 
 TESTBOT_LOGIN="$(_prop test.user.login)"
 TESTBOT_PASS="$(_prop test.user.password)"
@@ -126,9 +129,38 @@ if [[ -z "${UTIL_JAR}" ]]; then
     exit 1
 fi
 
+# ── classpath for CryptoUtil ─────────────────────────────────────────────────
+# CryptoUtil's static init needs bcrypt (and its `bytes` dependency) on the
+# classpath — the util jar alone throws NoClassDefFoundError. Prefer the jars
+# from the built WAR (guaranteed version-consistent with UTIL_JAR); fall back
+# to the local Maven repo for a util-only build.
+UTIL_CP="${UTIL_JAR}"
+_war_lib="${REPO_ROOT}/tomcat/tomcat-11/webapps/ROOT/WEB-INF/lib"
+for _dep in bcrypt bytes; do
+    _jar=""
+    if [[ -d "${_war_lib}" ]]; then
+        _jar=$(find "${_war_lib}" -name "${_dep}-*.jar" 2>/dev/null | head -1)
+    fi
+    if [[ -z "${_jar}" ]]; then
+        _jar=$(find "${HOME}/.m2/repository/at/favre/lib/${_dep}" -name "${_dep}-*.jar" \
+                 ! -name "*sources*" ! -name "*javadoc*" 2>/dev/null | head -1)
+    fi
+    if [[ -z "${_jar}" ]]; then
+        echo "ERROR: could not locate the '${_dep}' jar CryptoUtil needs." >&2
+        echo "       Build the WAR (mvn install -DskipTests) or run: mvn -q dependency:go-offline" >&2
+        exit 1
+    fi
+    UTIL_CP="${UTIL_CP}:${_jar}"
+done
+
 # ── hash the testbot password via CryptoUtil {SHA-256} ───────────────────────
 echo "Hashing testbot password..."
-PW_HASH=$(java -cp "${UTIL_JAR}" com.wikantik.util.CryptoUtil --hash "${TESTBOT_PASS}" 2>/dev/null)
+# Do NOT silence stderr here: a classpath/JVM failure must be visible, not
+# reported as the misleading "returned empty hash".
+if ! PW_HASH=$(java -cp "${UTIL_CP}" com.wikantik.util.CryptoUtil --hash "${TESTBOT_PASS}"); then
+    echo "ERROR: CryptoUtil invocation failed (see the Java error above)." >&2
+    exit 1
+fi
 if [[ -z "${PW_HASH}" ]]; then
     echo "ERROR: CryptoUtil returned empty hash." >&2
     exit 1
@@ -189,11 +221,28 @@ VALUES ('${TESTBOT_LOGIN}', 'Admin')
 ON CONFLICT DO NOTHING;
 SQL
 
+# The `roles` row above is NOT what grants admin at runtime: DefaultGroupManager
+# resolves role principals from the database-backed `groups`/`group_members`
+# tables, so a user with only a `roles` row authenticates fine but comes back
+# with roles [All, Authenticated] and gets 403 on every /admin/* endpoint.
+# Ensure the Admin group exists and testbot is a member.
+_psql <<SQL
+INSERT INTO groups (name, created, modified)
+VALUES ('Admin', NOW(), NOW())
+ON CONFLICT (name) DO NOTHING;
+INSERT INTO group_members (name, member)
+VALUES ('Admin', '${TESTBOT_LOGIN}')
+ON CONFLICT DO NOTHING;
+SQL
+
 TESTBOT_STATUS=$(_psql -t -c "SELECT login_name FROM users WHERE login_name='${TESTBOT_LOGIN}'" | tr -d '[:space:]')
-if [[ "${TESTBOT_STATUS}" == "${TESTBOT_LOGIN}" ]]; then
-    echo "  [OK] testbot user exists with Admin role."
+TESTBOT_IN_ADMIN=$(_psql -t -c "SELECT member FROM group_members WHERE name='Admin' AND member='${TESTBOT_LOGIN}'" | tr -d '[:space:]')
+if [[ "${TESTBOT_STATUS}" == "${TESTBOT_LOGIN}" && "${TESTBOT_IN_ADMIN}" == "${TESTBOT_LOGIN}" ]]; then
+    echo "  [OK] testbot user exists and is a member of the Admin group."
+    echo "       NOTE: group membership is read at engine startup — restart the"
+    echo "       app if testbot was added to Admin while it was running."
 else
-    echo "  [WARN] Could not confirm testbot user after insert." >&2
+    echo "  [WARN] Could not confirm testbot user + Admin group membership after insert." >&2
 fi
 
 # ── 2. Upsert MCP/tools API key ───────────────────────────────────────────────

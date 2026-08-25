@@ -203,6 +203,67 @@ class BasicAuthFilterTest {
     }
 
     @Test
+    void doFilter_skipsReLoginWhenSessionAlreadyAuthedAsSameUserByLoginName() throws Exception {
+        // HTTP Basic supplies the LOGIN name ("testbot"), but Session#getUserPrincipal()
+        // holds the FULL NAME ("Test Automation Bot") — the fast path must still match
+        // via the login principal, or every Basic-authed request pays a full bcrypt verify.
+        final String header = "Basic " + Base64.getEncoder().encodeToString( "testbot:whatever".getBytes() );
+        final HttpServletRequest req = requestWithAuth( header );
+        final HttpServletResponse resp = responseWithWriter( new StringWriter() );
+        final FilterChain chain = mock( FilterChain.class );
+
+        final Session session = mock( Session.class );
+        when( session.isAuthenticated() ).thenReturn( true );
+        final Principal userPrincipal = mock( Principal.class );
+        when( userPrincipal.getName() ).thenReturn( "Test Automation Bot" );
+        when( session.getUserPrincipal() ).thenReturn( userPrincipal );
+        final Principal loginPrincipal = mock( Principal.class );
+        when( loginPrincipal.getName() ).thenReturn( "testbot" );
+        when( session.getLoginPrincipal() ).thenReturn( loginPrincipal );
+
+        try ( MockedStatic< Wiki > wiki = mockStatic( Wiki.class, CALLS_REAL_METHODS ) ) {
+            final SessionSPI spi = mock( SessionSPI.class );
+            when( spi.find( eq( engine ), any( HttpServletRequest.class ) ) ).thenReturn( session );
+            wiki.when( Wiki::session ).thenReturn( spi );
+            filter.doFilter( req, resp, chain );
+        }
+
+        verify( chain ).doFilter( req, resp );
+        verify( authMgr, never() ).login( any(), any(), anyString(), anyString() );
+    }
+
+    @Test
+    void doFilter_reLoginsWhenSessionAlreadyAuthedAsADifferentUser() throws Exception {
+        // Session is already authenticated, but as someone else entirely —
+        // neither its login principal nor its user principal matches the
+        // credentials on the wire, so the fast path must not fire.
+        final String header = "Basic " + Base64.getEncoder().encodeToString( "alice:s3cret".getBytes() );
+        final HttpServletRequest req = requestWithAuth( header );
+        final HttpServletResponse resp = responseWithWriter( new StringWriter() );
+        final FilterChain chain = mock( FilterChain.class );
+
+        final Session session = mock( Session.class );
+        when( session.isAuthenticated() ).thenReturn( true );
+        final Principal userPrincipal = mock( Principal.class );
+        when( userPrincipal.getName() ).thenReturn( "Bob Smith" );
+        when( session.getUserPrincipal() ).thenReturn( userPrincipal );
+        final Principal loginPrincipal = mock( Principal.class );
+        when( loginPrincipal.getName() ).thenReturn( "bob" );
+        when( session.getLoginPrincipal() ).thenReturn( loginPrincipal );
+        when( authMgr.login( eq( session ), any(), eq( "alice" ), eq( "s3cret" ) ) ).thenReturn( true );
+
+        try ( MockedStatic< Wiki > wiki = mockStatic( Wiki.class, CALLS_REAL_METHODS ) ) {
+            final SessionSPI spi = mock( SessionSPI.class );
+            when( spi.find( eq( engine ), any( HttpServletRequest.class ) ) ).thenReturn( session );
+            wiki.when( Wiki::session ).thenReturn( spi );
+            filter.doFilter( req, resp, chain );
+        }
+
+        verify( authMgr ).login( eq( session ), any(), eq( "alice" ), eq( "s3cret" ) );
+        verify( chain ).doFilter( req, resp );
+    }
+
+    @Test
     void doFilter_returns401OnWikiSecurityException() throws Exception {
         final String header = "Basic " + Base64.getEncoder().encodeToString( "alice:wrong".getBytes() );
         final HttpServletRequest req = requestWithAuth( header );

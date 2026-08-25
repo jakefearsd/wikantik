@@ -3,3 +3,12 @@
 *.json
 *.jfr
 *-jfr-*.txt
+
+# Per-iteration JFR reductions from bin/profile-iteration.sh — regenerable from
+# the .jfr, which is itself not versioned. The campaign write-up (CAMPAIGN-*.md)
+# carries the conclusions and IS versioned.
+cpu-leaf.txt
+cpu-wikantik.txt
+alloc.txt
+monitor.txt
+summary.txt

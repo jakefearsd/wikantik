@@ -39,6 +39,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.Principal;
 import java.util.Base64;
 
 /**
@@ -117,10 +118,13 @@ public class BasicAuthFilter implements Filter {
 
         final Session session = Wiki.session().find( engine, req );
         // If the session is already authenticated as this user, don't re-login
-        // on every request — saves the JAAS round-trip on chatty automation.
-        if ( session.isAuthenticated()
-                && session.getUserPrincipal() != null
-                && username.equals( session.getUserPrincipal().getName() ) ) {
+        // on every request — saves a full bcrypt verify (~150-250ms at cost
+        // factor 12) on chatty automation. This grants nothing new: a request
+        // carrying only the session cookie and no Authorization header is
+        // already authorized by that cookie alone, so skipping the password
+        // check here is a CPU optimisation over an already-authenticated
+        // session, not a new authentication bypass.
+        if ( session.isAuthenticated() && identifiesSessionUser( session, username ) ) {
             chain.doFilter( request, response );
             return;
         }
@@ -145,6 +149,26 @@ public class BasicAuthFilter implements Filter {
 
     @Override
     public void destroy() {
+    }
+
+    /**
+     * Does {@code username} identify the user this session is already
+     * authenticated as? Basic auth supplies the LOGIN name, which lives on
+     * {@link Session#getLoginPrincipal()}; {@link Session#getUserPrincipal()}
+     * holds the full name (or wiki name) instead, so comparing only against
+     * the latter meant this never matched for any user whose full name
+     * differs from their login name — and every such request paid a full
+     * bcrypt verify. Match against either principal: a caller could
+     * legitimately present the login name (the common case) or, where it
+     * happens to coincide, the display name already matched before.
+     */
+    private static boolean identifiesSessionUser( final Session session, final String username ) {
+        final Principal login = session.getLoginPrincipal();
+        if ( login != null && username.equals( login.getName() ) ) {
+            return true;
+        }
+        final Principal user = session.getUserPrincipal();
+        return user != null && username.equals( user.getName() );
     }
 
     /**

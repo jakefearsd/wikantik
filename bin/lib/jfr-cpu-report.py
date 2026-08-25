@@ -55,18 +55,25 @@ def split_samples(text):
     frames = []
     in_stack = False
     for line in text.splitlines():
-        if line.startswith(('jdk.', 'stackTrace')) and '{' in line:
-            if line.startswith('jdk.') and frames:
+        stripped = line.strip()
+        # New event: flush whatever the previous one collected.
+        if stripped.startswith('jdk.') and stripped.endswith('{'):
+            if frames:
                 yield frames
                 frames = []
-            in_stack = 'stackTrace' in line
+            in_stack = False
+            continue
+        # `jfr print` indents this line, so match on the stripped form.
+        if stripped.startswith('stackTrace') and stripped.endswith('['):
+            in_stack = True
             continue
         if in_stack:
+            if stripped in (']', '}', '...'):
+                in_stack = False
+                continue
             m = FRAME_RE.match(line)
             if m:
                 frames.append(m.group(1))
-            elif line.strip() in ('}', ']') or line.startswith('}'):
-                in_stack = False
     if frames:
         yield frames
 

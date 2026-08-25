@@ -667,15 +667,43 @@ pages / 1635 chunks / 1635 embeddings, dense retrieval live. 3 min @ 40 read +
 | 2 | The aggregate did not move: stateless Basic clients (pollers, cron, CI, SDK one-shots) carry no session and so cannot use any session fast path. They re-ran a cost-12 bcrypt (~150-250 ms) **per request** | short-TTL successful-verification cache on `AbstractUserDatabase.validatePassword`, mirroring `ApiKeyService.verifyCache` (§14.2). Key = `login + sha256(password ‖ storedHash)`, so a password change rotates the key and takes effect **immediately**; successes only (a wrong password always pays full price); legacy-migration branch excluded; kill switch `wikantik.auth.password.verifyCache.ttlSeconds=0`. Cannot bypass lockout — `UserDatabaseLoginModule` checks `isLocked()` after `validatePassword()` | stateless admin request **369 ms → 7.4 ms**; on-CPU samples **19,317 → 1,345 (−93%)**; p95 428 → 55 ms |
 | 3 | With bcrypt gone, `LuceneHnswChunkVectorIndex.topKChunks` was 41% of ALL allocation. It called `getSortedDocValues()` **twice per hit** — up to 600 `TermsDict` constructions per query at `bundle.dense.top_k=300`. NOT the stored-field/LZ4 bug of §14.1/§15 (this class already used DocValues) but the adjacent one: re-acquiring the accessor per *document* instead of per *segment* | resolve docvalues in **docid** order (one forward-only iterator per leaf), emit in original **score** order — identical output by construction; batched so work stays O(k) not O(fetch) | topKChunks allocation **37.6% → 4.3%**; `TermsDict.<init>` **gone**; its CPU −48%; max latency 3.35 s → 1.49 s |
 
+Two further iterations followed, both smaller:
+
+| # | Finding | Fix | Measured |
+|---|---|---|---|
+| 4 | `FrontmatterParser.split` tested for the empty-frontmatter case with `CLOSING_IMMEDIATE.matcher( text.substring( yamlStart ) )` — copying the ENTIRE remaining page body on every call, for every page, to check four characters, then discarding it | `String.startsWith(prefix, offset)`; deleted `CLOSING_IMMEDIATE` (a byte-identical duplicate of `OPENING`). Net less code | `split()` allocation 8.50% → 4.11%. The copy was memory bandwidth, so the win is allocation/GC, not on-CPU samples |
+| 5 | `DisplayMathPreProcessor.transform` ran a DOTALL backtracking regex over every page body even with no math present | `contains("$$")` short-circuit, output-identical | 9 samples — **below the noise floor**; kept as provably-correct work reduction, not a measured win |
+
+### The markdown "render" hotspot is really the SEARCH path
+
+Attributing whole stacks rather than leaf frames: of 164 markdown parse samples,
+**157 (96%) arrive via `DefaultLuceneSearcher.findPages`**; page rendering accounts
+for 3. Search calls `pm.getPage()` per hit, which routes through
+`CachingProvider.refreshMetadata` and does a full extension-laden markdown parse
+(plus a second bare parse in `collectLinks`) purely to populate page metadata —
+guarded by `hasMetadata()`, a flag on the `Page` *instance*, which the 60s
+page-object cache recycles. The search loop only ever uses the page's ACL and
+`lastModified`. Left unfixed deliberately: every `getPage`/`getPageInfo` variant
+funnels through `refreshMetadata`, so a fix means a `PageManager` interface change
+or lazy metadata materialisation (which would move `[{SET}]` semantics app-wide).
+**Now the single largest remaining item at ~13% of CPU.**
+
 ### Cumulative
 
 | Metric | Baseline | Final | Δ |
 |---|---|---|---|
-| RPS | 50.5 | 53.6 | +6% |
-| avg | 92.2 ms | 16.8 ms | −82% |
-| p90 | 336.8 ms | 30.2 ms | −91% |
-| p95 | 428.1 ms | 53.7 ms | −87% |
-| **on-CPU samples at equal load** | **19,317** | **1,102** | **−94%** |
+| RPS | 50.5 | 54.8 | +8.5% |
+| avg | 92.2 ms | 14.4 ms | −84% |
+| p90 | 336.8 ms | 28.1 ms | −92% |
+| p95 | 428.1 ms | 47.0 ms | −89% |
+| **on-CPU samples at equal load** | **19,317** | **971** | **−95%** |
+
+**Gate hygiene:** do NOT run `bin/run-tests.sh` while a profiling stack is live. A
+deployed Tomcat plus the dev ollama on 11434 starved the IT containers, the shared
+test embedder on 11435 and the Selenide browser, producing two failures
+(`OntologyPublicEndpointsIT`, `StructuredFrontmatterEditorIT.rawYamlRoundTrip`)
+that vanished on the same code once the stack was stopped — 4m30s clean vs 6m01s
+failing.
 
 **The same offered load costs ~1/18th of the CPU.** Full detail, including the
 remaining profile and ranked follow-ups, in

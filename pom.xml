@@ -88,7 +88,7 @@
     <mockito.version>5.23.0</mockito.version>
     <nekohtml.version>3.0.4</nekohtml.version>
     <owasp-html-sanitizer.version>20260313.1</owasp-html-sanitizer.version>
-    <pac4j.version>6.5.5</pac4j.version>
+    <pac4j.version>6.5.6</pac4j.version>
     <rome.version>2.1.0</rome.version>
     <selenide.version>7.17.0</selenide.version>
     <selenium.version>4.47.0</selenium.version>

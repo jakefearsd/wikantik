@@ -100,7 +100,7 @@
     <snakeyaml.version>2.6</snakeyaml.version>
     <tribuo.version>4.3.2</tribuo.version>
     <xmemcached.version>2.4.9</xmemcached.version>
-    <micrometer.version>1.17.0</micrometer.version>
+    <micrometer.version>1.17.1</micrometer.version>
     <testcontainers.version>2.0.5</testcontainers.version>
     <caffeine.version>3.2.4</caffeine.version>
     <ulid-creator.version>5.2.4</ulid-creator.version>

@@ -109,12 +109,18 @@ public class JdbcInsightsStore implements InsightsStore {
     // applied_at is TIMESTAMPTZ; cutoff is a caller-supplied LocalDate (the nightly evaluator
     // passes today - 28 days per design §7.4.2), so the comparison casts to date rather than
     // requiring the caller to reason about time-of-day.
+    //
+    // AT TIME ZONE 'UTC' before the ::date cast, and NOT applied_at::date: applied_at is a
+    // TIMESTAMPTZ, so a bare cast resolves against the *session* timezone and silently shifts
+    // the date by a day on any server not running UTC (pgjdbc sets the session zone from the
+    // JVM default). The change dates these queries return line up the before/after windows in
+    // EffectEvaluator, so a one-day shift mis-attributes every measured effect.
     private static final String UNEVALUATED_CHANGES_SQL = """
         SELECT id, page_path, change_type, opportunity_type, applied_at, applied_by, note,
                baseline_start, baseline_end, baseline_impressions, baseline_clicks,
                baseline_ctr, baseline_position
         FROM content_change_log
-        WHERE evaluated_at IS NULL AND applied_at::date <= ?
+        WHERE evaluated_at IS NULL AND (applied_at AT TIME ZONE 'UTC')::date <= ?
         ORDER BY applied_at ASC
         """;
 
@@ -184,7 +190,7 @@ public class JdbcInsightsStore implements InsightsStore {
         """;
 
     private static final String LAST_CHANGE_BY_TARGET_SQL = """
-        SELECT page_path, MAX(applied_at::date) AS last_date
+        SELECT page_path, MAX((applied_at AT TIME ZONE 'UTC')::date) AS last_date
         FROM content_change_log
         GROUP BY page_path
         """;

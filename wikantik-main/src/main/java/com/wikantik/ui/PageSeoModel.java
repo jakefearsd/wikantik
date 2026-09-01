@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 import java.util.Map;
 
 /**
@@ -210,7 +211,7 @@ record PageSeoModel(
             return "";
         }
         if ( value instanceof Date date ) {
-            return new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).format( date );
+            return formatFrontmatterDate( date );
         }
         return value.toString();
     }
@@ -220,9 +221,25 @@ record PageSeoModel(
             return "";
         }
         if ( value instanceof Date date ) {
-            return new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).format( date );
+            return formatFrontmatterDate( date );
         }
         return value.toString();
+    }
+
+    /**
+     * Renders a frontmatter {@code date:} back to the {@code yyyy-MM-dd} the author wrote.
+     *
+     * <p>Formatted in UTC, not the JVM default zone. A bare {@code date: 2026-03-20} is
+     * pre-parsed by SnakeYAML into a {@link Date} at UTC midnight, so formatting it locally
+     * shifts it a day earlier everywhere west of Greenwich — the page's {@code datePublished}
+     * in its JSON-LD, and its {@code article:published_time} meta tag, would both advertise the
+     * wrong day to search engines on any server not running UTC. Both call sites go through
+     * here so the rule cannot be fixed in one and missed in the other.</p>
+     */
+    private static String formatFrontmatterDate( final Date date ) {
+        final SimpleDateFormat fmt = new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT );
+        fmt.setTimeZone( TimeZone.getTimeZone( "UTC" ) );
+        return fmt.format( date );
     }
 
     private static List< String > stringList( final Object value ) {

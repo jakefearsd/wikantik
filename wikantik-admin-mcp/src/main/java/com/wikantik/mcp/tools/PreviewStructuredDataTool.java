@@ -27,7 +27,7 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.PageType;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -319,9 +319,13 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
         if ( val == null ) {
             return null;
         }
-        // SnakeYAML parses ISO dates as java.util.Date — convert back to string
+        // SnakeYAML parses ISO dates as java.util.Date — convert back to string.
+        // ZoneOffset.UTC, not systemDefault(): SnakeYAML anchors a bare `date: 2026-03-15`
+        // at UTC midnight, so reading it back in a zone west of Greenwich reports the
+        // previous day. This preview is what a curator checks their structured data
+        // against, so it must show the same date PageSeoModel will publish.
         if ( val instanceof java.util.Date dateVal ) {
-            return ISO_DATE.format( dateVal.toInstant().atZone( ZoneId.systemDefault() ).toLocalDate() );
+            return ISO_DATE.format( dateVal.toInstant().atZone( ZoneOffset.UTC ).toLocalDate() );
         }
         return val.toString();
     }

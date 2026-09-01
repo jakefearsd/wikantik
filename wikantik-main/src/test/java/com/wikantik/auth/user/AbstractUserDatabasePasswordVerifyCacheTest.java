@@ -21,6 +21,12 @@ package com.wikantik.auth.user;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -107,5 +113,50 @@ public class AbstractUserDatabasePasswordVerifyCacheTest {
 
         assertEquals( 0L, db.passwordVerifyCacheStats().hitCount(),
                 "ttlSeconds<=0 must disable caching entirely" );
+    }
+
+    /**
+     * The TTL expiry must not produce a thundering herd. Profiling a 3-minute load run showed
+     * bcrypt CPU arriving in exactly three bursts — t=0, t=+60s, t=+122s, one per cache TTL —
+     * of roughly sixty simultaneous verifies each, with nothing in between. The cache was
+     * working; every waiting request was simply recomputing the same hash at the same instant.
+     *
+     * <p>Caffeine's {@code get(key, loader)} computes under a per-key lock, so concurrent
+     * callers for one key share a single bcrypt. {@code loadCount()} counts loader invocations,
+     * and the loader body IS the bcrypt verify — so one load for many callers is the assertion
+     * that the herd is gone. A {@code getIfPresent}/{@code put} pair never invokes a loader at
+     * all, so this reads zero there.
+     */
+    @Test
+    void concurrentMissesShareOneBcryptVerify() throws Exception {
+        final InMemoryUserDatabase db = newDbWithBcryptUser();
+
+        final int threads = 16;
+        final ExecutorService pool = Executors.newFixedThreadPool( threads );
+        final CountDownLatch startLine = new CountDownLatch( 1 );
+        final CountDownLatch finished = new CountDownLatch( threads );
+        final AtomicInteger verified = new AtomicInteger();
+        try {
+            for ( int i = 0; i < threads; i++ ) {
+                pool.execute( () -> {
+                    try {
+                        startLine.await();
+                        if ( db.validatePassword( LOGIN, CORRECT_PASSWORD ) ) verified.incrementAndGet();
+                    } catch ( final Exception e ) {
+                        throw new IllegalStateException( e );
+                    } finally {
+                        finished.countDown();
+                    }
+                } );
+            }
+            startLine.countDown();
+            assertTrue( finished.await( 30, TimeUnit.SECONDS ), "all threads should finish" );
+        } finally {
+            pool.shutdownNow();
+        }
+
+        assertEquals( threads, verified.get(), "every concurrent caller must still authenticate" );
+        assertEquals( 1L, db.passwordVerifyCacheStats().loadCount(),
+                threads + " simultaneous callers for one credential must share a single bcrypt verify" );
     }
 }

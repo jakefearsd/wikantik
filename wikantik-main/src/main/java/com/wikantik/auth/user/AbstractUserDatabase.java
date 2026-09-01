@@ -155,6 +155,26 @@ public abstract class AbstractUserDatabase implements UserDatabase {
     }
 
     /**
+     * bcrypt verification for the cache loader. Returns {@link Boolean#TRUE} on success and
+     * {@code null} on failure, because Caffeine does not store a null: a wrong password is
+     * therefore never cached and pays bcrypt's full cost on every attempt. That keeps the
+     * brute-force deterrent intact — the cache key binds the password hash, so each distinct
+     * guess is a distinct key and buys an attacker nothing.
+     *
+     * @return {@code TRUE} if the password matches, {@code null} otherwise
+     */
+    private static Boolean verifyBcrypt( final String password, final String storedPassword ) {
+        try {
+            return CryptoUtil.verifySaltedPassword( password.getBytes( StandardCharsets.UTF_8 ), storedPassword )
+                    ? Boolean.TRUE : null;
+        } catch( final NoSuchAlgorithmException e ) {
+            // Cannot happen for bcrypt, which does not go through MessageDigest at all.
+            LOG.error( "Unsupported algorithm verifying password for a bcrypt hash: {}", e.getMessage(), e );
+            return null;
+        }
+    }
+
+    /**
      * Looks up and returns the first {@link UserProfile} in the user database that whose login name, full name, or wiki name matches the
      * supplied string. This method provides a "forgiving" search algorithm for resolving principal names when the exact profile attribute
      * that supplied the name is unknown.
@@ -307,14 +327,17 @@ public abstract class AbstractUserDatabase implements UserDatabase {
             // storedHash) pair, still within TTL. Only bcrypt-stored entries are eligible — see
             // passwordVerifyCache javadoc for the full contract (why the key binds the stored
             // hash, why only successes are cached, and why this can't bypass account lockout).
-            String cacheKey = null;
+            //
+            // get(key, loader), not getIfPresent + a later put: Caffeine computes the loader
+            // under a per-key lock, so the requests that pile up the instant an entry expires
+            // share ONE bcrypt instead of each recomputing the same hash. Profiling a 3-minute
+            // run showed that herd plainly — all bcrypt CPU arrived in three bursts of ~60
+            // simultaneous verifies, one per 60s TTL, and none in between.
             if( passwordVerifyCache != null && storedPassword.startsWith( BCRYPT_PREFIX ) ) {
-                cacheKey = passwordVerifyCacheKey( loginName, password, storedPassword );
+                final String cacheKey = passwordVerifyCacheKey( loginName, password, storedPassword );
                 if( cacheKey != null ) {
-                    final Boolean cached = passwordVerifyCache.getIfPresent( cacheKey );
-                    if( cached != null ) {
-                        return cached;
-                    }
+                    final String stored = storedPassword;
+                    return passwordVerifyCache.get( cacheKey, k -> verifyBcrypt( password, stored ) ) != null;
                 }
             }
 
@@ -332,14 +355,6 @@ public abstract class AbstractUserDatabase implements UserDatabase {
                 hashedPassword = getShaHash( password );
                 verified = MessageDigest.isEqual( hashedPassword.getBytes( StandardCharsets.UTF_8 ),
                                                   storedPassword.getBytes( StandardCharsets.UTF_8 ) );
-            }
-
-            // Cache only successful verifications against an ALREADY-bcrypt stored hash. Never
-            // cache a failure (bcrypt's cost is a deliberate brute-force deterrent; caching a
-            // negative verdict would blunt it — a wrong password must always pay full price), and
-            // never cache the legacy-migration branch below (it mutates profile.password).
-            if( verified && cacheKey != null ) {
-                passwordVerifyCache.put( cacheKey, Boolean.TRUE );
             }
 
             // Transparent migration: on a successful login against any non-bcrypt (legacy) hash,

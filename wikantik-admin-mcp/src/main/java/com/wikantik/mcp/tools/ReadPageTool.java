@@ -95,7 +95,11 @@ public class ReadPageTool extends AbstractMcpTool {
         }
         final int version = McpToolUtils.getInt( arguments, "version", PageProvider.LATEST_VERSION );
 
-        final Page page = pageManager.getPage( pageName, version );
+        // getPageWithoutMetadata, not getPage: only getVersion()/getLastModified() are read below,
+        // and both come straight off the provider's page info. getPage() would also run the
+        // provider's refreshMetadata(), parsing the page through the markup pipeline for variables
+        // this tool never touches; the returned body comes from getPureText().
+        final Page page = pageManager.getPageWithoutMetadata( pageName, version );
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "pageName", pageName );
         if ( page == null ) {

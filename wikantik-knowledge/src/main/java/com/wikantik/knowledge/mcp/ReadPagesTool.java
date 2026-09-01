@@ -153,7 +153,11 @@ public class ReadPagesTool extends AbstractMcpTool {
                 continue;
             }
             try {
-                final Page page = pageManager.getPage( slug, PageProvider.LATEST_VERSION );
+                // getPageWithoutMetadata, not getPage: this is an existence check only — the body
+                // comes from getPureText below. getPage() would additionally run the provider's
+                // refreshMetadata(), parsing each page through the markup pipeline to populate
+                // variables nothing here reads — up to 20 wasted parses per call.
+                final Page page = pageManager.getPageWithoutMetadata( slug, PageProvider.LATEST_VERSION );
                 if ( page == null ) {
                     entry.put( "content", null );
                     entry.put( "error", "not_found" );

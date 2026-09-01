@@ -83,8 +83,8 @@ class ReadPagesToolTest {
 
     @Test
     void happyPath_returnsContentForEachSlug() throws Exception {
-        when( pageManager.getPage( eq( "PageA" ), anyInt() ) ).thenReturn( mock( Page.class ) );
-        when( pageManager.getPage( eq( "PageB" ), anyInt() ) ).thenReturn( mock( Page.class ) );
+        when( pageManager.getPageWithoutMetadata( eq( "PageA" ), anyInt() ) ).thenReturn( mock( Page.class ) );
+        when( pageManager.getPageWithoutMetadata( eq( "PageB" ), anyInt() ) ).thenReturn( mock( Page.class ) );
         when( pageManager.getPureText( eq( "PageA" ), anyInt() ) ).thenReturn( "body of A" );
         when( pageManager.getPureText( eq( "PageB" ), anyInt() ) ).thenReturn( "body of B" );
 
@@ -98,9 +98,9 @@ class ReadPagesToolTest {
 
     @Test
     void partialFailure_missingSlugReturnsErrorEntryNotCallFailure() throws Exception {
-        when( pageManager.getPage( eq( "PageA" ), anyInt() ) ).thenReturn( mock( Page.class ) );
+        when( pageManager.getPageWithoutMetadata( eq( "PageA" ), anyInt() ) ).thenReturn( mock( Page.class ) );
         when( pageManager.getPureText( eq( "PageA" ), anyInt() ) ).thenReturn( "body of A" );
-        when( pageManager.getPage( eq( "Missing" ), anyInt() ) ).thenReturn( null );
+        when( pageManager.getPageWithoutMetadata( eq( "Missing" ), anyInt() ) ).thenReturn( null );
 
         final var result = tool.execute( Map.of( "slugs", List.of( "PageA", "Missing" ) ) );
 
@@ -112,8 +112,8 @@ class ReadPagesToolTest {
 
     @Test
     void partialFailure_internalErrorOnOnePageStillReturnsOthers() throws Exception {
-        when( pageManager.getPage( eq( "PageA" ), anyInt() ) ).thenThrow( new RuntimeException( "boom" ) );
-        when( pageManager.getPage( eq( "PageB" ), anyInt() ) ).thenReturn( mock( Page.class ) );
+        when( pageManager.getPageWithoutMetadata( eq( "PageA" ), anyInt() ) ).thenThrow( new RuntimeException( "boom" ) );
+        when( pageManager.getPageWithoutMetadata( eq( "PageB" ), anyInt() ) ).thenReturn( mock( Page.class ) );
         when( pageManager.getPureText( eq( "PageB" ), anyInt() ) ).thenReturn( "body of B" );
 
         final var result = tool.execute( Map.of( "slugs", List.of( "PageA", "PageB" ) ) );
@@ -126,12 +126,12 @@ class ReadPagesToolTest {
 
     @Test
     void duplicateSlugsAreDeduplicated() throws Exception {
-        when( pageManager.getPage( eq( "PageA" ), anyInt() ) ).thenReturn( mock( Page.class ) );
+        when( pageManager.getPageWithoutMetadata( eq( "PageA" ), anyInt() ) ).thenReturn( mock( Page.class ) );
         when( pageManager.getPureText( eq( "PageA" ), anyInt() ) ).thenReturn( "body" );
 
         tool.execute( Map.of( "slugs", List.of( "PageA", "PageA", "PageA" ) ) );
 
-        verify( pageManager, times( 1 ) ).getPage( eq( "PageA" ), anyInt() );
+        verify( pageManager, times( 1 ) ).getPageWithoutMetadata( eq( "PageA" ), anyInt() );
     }
 
     @Test
@@ -140,7 +140,7 @@ class ReadPagesToolTest {
         // read or return its body — even though the page exists and PageManager would serve it.
         final PageViewGate gate = slug -> !"Secret".equals( slug );
         final ReadPagesTool gated = new ReadPagesTool( pageManager, null, gate );
-        when( pageManager.getPage( eq( "Secret" ), anyInt() ) ).thenReturn( mock( Page.class ) );
+        when( pageManager.getPageWithoutMetadata( eq( "Secret" ), anyInt() ) ).thenReturn( mock( Page.class ) );
         when( pageManager.getPureText( eq( "Secret" ), anyInt() ) ).thenReturn( "TOP SECRET BODY" );
 
         final var result = gated.execute( Map.of( "slugs", List.of( "Secret" ) ) );
@@ -152,5 +152,20 @@ class ReadPagesToolTest {
         assertTrue( json.contains( "not_found" ),
                 "restricted page should be indistinguishable from a missing page" );
         verify( pageManager, never() ).getPureText( eq( "Secret" ), anyInt() );
+    }
+
+    @Test
+    void usesMetadataFreeAccessor_neverTriggersAFullMarkupParse() throws Exception {
+        // read_pages needs only existence + body text. getPage() runs CachingProvider's
+        // refreshMetadata(), which parses the whole page through the markup pipeline just to
+        // populate page variables this tool never reads — one wasted parse per slug, up to 20
+        // per call. getPageWithoutMetadata() is the same lookup without that step.
+        when( pageManager.getPageWithoutMetadata( eq( "PageA" ), anyInt() ) ).thenReturn( mock( Page.class ) );
+        when( pageManager.getPureText( eq( "PageA" ), anyInt() ) ).thenReturn( "body of A" );
+
+        tool.execute( Map.of( "slugs", List.of( "PageA" ) ) );
+
+        verify( pageManager ).getPageWithoutMetadata( eq( "PageA" ), anyInt() );
+        verify( pageManager, never() ).getPage( eq( "PageA" ), anyInt() );
     }
 }

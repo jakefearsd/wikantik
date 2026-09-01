@@ -28,11 +28,13 @@ import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.KnnFloatVectorField;
+import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.index.ReaderUtil;
 import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.index.Term;
@@ -75,6 +77,14 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
     static final String FIELD_VEC      = "vec";
     static final String FIELD_CHUNK_ID = "chunk_id";
     static final String FIELD_PAGE     = "page_name";
+    // The chunk id is a UUID: unique per document, so a SortedDocValues term dictionary
+    // would have cardinality equal to the doc count and every lookupOrd would binary-search
+    // and LZ4-decompress a dictionary block to rebuild a 36-char string we then parse back
+    // into the same 128 bits. Storing the two halves as plain numeric docvalues makes the
+    // per-hit read a packed-long access instead. Profiling attributed 56% of topKChunks
+    // (about 11% of all application CPU under load) to this docvalue resolution.
+    static final String FIELD_CHUNK_ID_HI = "chunk_id_hi";
+    static final String FIELD_CHUNK_ID_LO = "chunk_id_lo";
 
     private final Jdbc jdbc;         // null in the test-only constructor
     private final String modelCode;  // null in the test-only constructor
@@ -180,8 +190,11 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
             // term still works for upsert/delete.
             doc.add( new StringField( FIELD_CHUNK_ID, chunkId.toString(), Field.Store.NO ) );
             // DocValues for cheap per-hit retrieval — columnar, no stored-field LZ4
-            // block decompression on the query path.
-            doc.add( new SortedDocValuesField( FIELD_CHUNK_ID, new BytesRef( chunkId.toString() ) ) );
+            // block decompression on the query path. The id goes in as two longs (see
+            // FIELD_CHUNK_ID_HI); page_name stays sorted, where the low cardinality makes
+            // a shared term dictionary the right structure.
+            doc.add( new NumericDocValuesField( FIELD_CHUNK_ID_HI, chunkId.getMostSignificantBits() ) );
+            doc.add( new NumericDocValuesField( FIELD_CHUNK_ID_LO, chunkId.getLeastSignificantBits() ) );
             doc.add( new SortedDocValuesField( FIELD_PAGE, new BytesRef( safePage ) ) );
             writer.updateDocument( new Term( FIELD_CHUNK_ID, chunkId.toString() ), doc );
         } catch ( final IOException e ) {
@@ -237,7 +250,8 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
             final TopDocs hits = searcher.search( query, fetch );
             final List< LeafReaderContext > leaves = searcher.getIndexReader().leaves();
             final int hitCount = hits.scoreDocs.length;
-            final String[] chunkIds = new String[ hitCount ];
+            final long[] chunkIdHi = new long[ hitCount ];
+            final long[] chunkIdLo = new long[ hitCount ];
             final String[] pageNames = new String[ hitCount ];
             final boolean[] resolved = new boolean[ hitCount ];
 
@@ -276,7 +290,8 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
 
                 int leafIndex = -1;
                 LeafReaderContext ctx = null;
-                SortedDocValues cidDv = null;
+                NumericDocValues hiDv = null;
+                NumericDocValues loDv = null;
                 SortedDocValues pgDv = null;
                 for ( final long packed : byDocId ) {
                     final int doc = ( int ) ( packed >>> 32 );
@@ -285,15 +300,18 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
                     if ( li != leafIndex ) {
                         leafIndex = li;
                         ctx = leaves.get( li );
-                        cidDv = ctx.reader().getSortedDocValues( FIELD_CHUNK_ID );
+                        hiDv = ctx.reader().getNumericDocValues( FIELD_CHUNK_ID_HI );
+                        loDv = ctx.reader().getNumericDocValues( FIELD_CHUNK_ID_LO );
                         pgDv = ctx.reader().getSortedDocValues( FIELD_PAGE );
                     }
                     final int localDoc = doc - ctx.docBase;
-                    if ( cidDv == null || !cidDv.advanceExact( localDoc ) ) {
+                    if ( hiDv == null || loDv == null
+                            || !hiDv.advanceExact( localDoc ) || !loDv.advanceExact( localDoc ) ) {
                         LOG.warn( "Lucene HNSW: no chunk_id docvalue for doc {}, skipping", doc );
                         continue;
                     }
-                    chunkIds[ hitIndex ] = cidDv.lookupOrd( cidDv.ordValue() ).utf8ToString();
+                    chunkIdHi[ hitIndex ] = hiDv.longValue();
+                    chunkIdLo[ hitIndex ] = loDv.longValue();
                     pageNames[ hitIndex ] = ( pgDv != null && pgDv.advanceExact( localDoc ) )
                         ? pgDv.lookupOrd( pgDv.ordValue() ).utf8ToString()
                         : "";
@@ -309,7 +327,7 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
             for ( int i = 0; i < hitCount && out.size() < k; i++ ) {
                 if ( !resolved[ i ] ) continue;
                 final double cosine = 2.0 * hits.scoreDocs[ i ].score - 1.0;
-                out.add( new ScoredChunk( UUID.fromString( chunkIds[ i ] ), pageNames[ i ], cosine ) );
+                out.add( new ScoredChunk( new UUID( chunkIdHi[ i ], chunkIdLo[ i ] ), pageNames[ i ], cosine ) );
             }
             return out;
         } catch ( final IOException e ) {

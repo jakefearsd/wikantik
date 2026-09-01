@@ -230,4 +230,42 @@ class LuceneHnswChunkVectorIndexTest {
         assertFalse( idx.isReady(), "DB failure leaves an empty, queryable index (BM25 fallback)" );
         assertTrue( idx.topKChunks( new float[]{ 1f, 0f, 0f }, 1 ).isEmpty() );
     }
+
+    /**
+     * Pins chunk-id round-tripping for UUIDs whose 128 bits are hostile to a numeric
+     * encoding: both halves negative, both zero, and the two sign-bit extremes. The index
+     * stores chunk ids as a pair of docvalue longs, so a sign-extension or truncation slip
+     * would hand back a different UUID than the one indexed — and because the id is only
+     * ever used as a database key downstream, the result would be silently-empty
+     * retrieval rather than a crash. Cheap to assert, expensive to debug in production.
+     */
+    @Test
+    void chunkIdsRoundTripForSignBitExtremes() {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+
+        final List< UUID > ids = List.of(
+            new UUID( Long.MIN_VALUE, Long.MIN_VALUE ),
+            new UUID( -1L, -1L ),
+            new UUID( 0L, 0L ),
+            new UUID( Long.MAX_VALUE, Long.MIN_VALUE ),
+            new UUID( Long.MIN_VALUE, Long.MAX_VALUE ) );
+
+        for ( int i = 0; i < ids.size(); i++ ) {
+            final float x = ( i + 1 ) / ( float ) ids.size();
+            final float y = ( float ) Math.sqrt( Math.max( 0.0, 1.0 - x * x ) );
+            idx.addOrReplace( ids.get( i ), "Page" + i, unit( x, y, 0f ) );
+        }
+        idx.commitAndRefresh();
+
+        final List< ScoredChunk > top = idx.topKChunks( unit( 1f, 0f, 0f ), ids.size() );
+        assertEquals( ids.size(), top.size() );
+        for ( final ScoredChunk sc : top ) {
+            final int expected = ids.indexOf( sc.chunkId() );
+            assertTrue( expected >= 0,
+                "chunk id did not survive the index round trip: " + sc.chunkId() );
+            assertEquals( "Page" + expected, sc.pageName(),
+                "chunk id " + sc.chunkId() + " was paired with the wrong page" );
+        }
+    }
 }

@@ -715,6 +715,69 @@ load mix that omits a surface does not merely under-measure it — it can leave 
 frame consuming 96% of production CPU entirely unobserved across nine sweeps and
 two optimisation arcs.
 
+## 17. Campaign 2026-09-01 — profile the *phases*, not the frames
+
+Iteration 8, continuing the 2026-08-25 arc against the same harness invocation
+(`3m @ 40 read / 10 admin VUs`). Both remaining hotspots fell, for reasons the
+frame-level ranking had actively obscured.
+
+| Metric | iter 7 | iter 8 | Δ |
+|---|---:|---:|---|
+| on-CPU samples (total) | 1001 | **781** | **−22%** |
+| `LuceneHnswChunkVectorIndex.topKChunks` | 190 | **68** | **−64%** |
+| `CryptoUtil.verifySaltedPassword` | 141 | **37** | **−74%** |
+| RPS / p90 / p95 | 54.67 / 24.5 / 44.3 | 54.15 / 25.1 / 47.6 | flat |
+
+### The method that mattered: re-attribute *within* a frame
+
+"Deepest `com.wikantik` frame" names the function; it does not say why the function
+is expensive, and twice here the obvious inference was wrong.
+
+**`topKChunks`** was assumed to be dominated by inherent HNSW work plus a
+`UUID.fromString` decode. Re-tallying every sample inside it by what sat *above*
+it: docvalues resolution **56.3%**, HNSW graph search 36.3%, `UUID.fromString`
+**1.6%**. The suspected culprit was a rounding error and the real one was a data
+structure choice — `chunk_id` is a UUID, unique per document, stored in a
+`SortedDocValues` term dictionary whose cardinality therefore equals the doc count.
+Every `lookupOrd` binary-searched and LZ4-decompressed a dictionary block to
+rebuild a 36-char string that was parsed straight back into the same 128 bits.
+Two plain `NumericDocValues` longs made it a packed-long read: that phase went
+56.3% → 4.4%, and the frame is now 82% genuine ANN work.
+
+**`verifySaltedPassword`** looked like a cache that was not working. Clustering the
+141 samples *in time* showed three bursts — t=0, t=+60.5s, t=+122.3s, exactly the
+60s TTL — with nothing between: the cache was working perfectly. Each burst was
+~60 concurrent verifies, every in-flight request recomputing the same hash the
+instant the entry expired. `Caffeine.get(key, loader)` collapses that to one.
+After: same three bursts, ~12 samples each — one bcrypt per expiry.
+
+Neither fix was findable from the ranked frame list. Both were obvious within
+about a minute of splitting the frame by phase.
+
+### Flat latency is the expected shape
+
+Throughput and percentiles did not move, because at 40 VUs the box is not
+CPU-saturated. Removing work buys **headroom**, not speed — which is the actual
+goal when the objective is fitting more traffic onto the same instance, or the
+same traffic onto a smaller one.
+
+### Four pre-existing defects the gate surfaced
+
+All confirmed at `HEAD` with the perf changes stashed; three are date-triggered and
+would not have reproduced a week earlier. The important one: **`audit_log`
+partitions ran out on 2026-09-01**, and because the runtime fallback issues DDL that
+the documented least-privilege app role cannot execute, every audit write on such a
+deployment fails from that date with `permission denied for schema public`. Fixed by
+`V059` (months through 2028-12). The other three were two timezone bugs — a
+`TIMESTAMPTZ::date` cast resolving in the session zone, and frontmatter `date:`
+rendered in the JVM default zone so pages advertised the wrong `datePublished` to
+search engines west of Greenwich — and one known Colima flake. Detail in
+`loadtest/results/CAMPAIGN-2026-08-25.md`.
+
+**Lesson.** A frame is a *place*, not a *cause*. When a frame is worth optimising,
+spend one query splitting it by what calls into it before deciding what to change —
+the ranking will otherwise happily point at the wrong line.
+
 ## Raw data
 
 All per-step k6 outputs, curl-probe samples, and jakemon snapshots are in `loadtest/results/sweep{1..9}-<N>vu-{k6,curl,host}.{log,json}` and `loadtest/results/ramp{500,650,800}vu-*`. JFR captures live at `loadtest/results/sweep{3,4,5,7,8,9}-300vu.jfr` for offline analysis with `jfr print` or JMC. The directory is gitignored (raw data is reproducible, not versioned).

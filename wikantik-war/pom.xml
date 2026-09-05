@@ -38,6 +38,16 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- ConfigSurfaceDriftTest (test-only) parses ini/wikantik.properties via ConfigReference.
+             wikantik-main depends on wikantik-util at compile scope but does not re-export the
+             package to this module's test sources, so it needs to be named directly. -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>wikantik-util</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>wikantik-mcp-core</artifactId>

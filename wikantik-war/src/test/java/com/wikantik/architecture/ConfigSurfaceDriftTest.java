@@ -134,12 +134,6 @@ class ConfigSurfaceDriftTest {
         Map.entry( "tools.ratelimit.perClient", "code default 0 (unlimited) is the no-properties-object fallback, pinned by ToolsConfigTest#rateLimitDefaults; the bundled wikantik-tools.properties always ships 10 and is what production runs with" ),
         Map.entry( "mcp.ratelimit.global", "code default 0 (unlimited) is the no-properties-object fallback, pinned by McpConfigTest#testRateLimitDefaults; the bundled wikantik-mcp.properties always ships 100 and is what production runs with" ),
         Map.entry( "mcp.ratelimit.perClient", "code default 0 (unlimited) is the no-properties-object fallback, pinned by McpConfigTest#testRateLimitDefaults; the bundled wikantik-mcp.properties always ships 10 and is what production runs with" ),
-        // Two genuinely distinct load paths, each pinned by its own test: an empty Properties
-        // object (no classpath resource at all) falls back to the code literal "1.0.0"
-        // (testDefaultsWhenPropertiesEmpty); McpConfig's real no-arg constructor loads the bundled
-        // wikantik-mcp.properties from the classpath, which ships "2.0.0" (testDefaultProperties).
-        // Production always goes through the classpath-loading constructor.
-        Map.entry( "mcp.server.version", "no-arg constructor loads the bundled file (2.0.0, testDefaultProperties); an empty-Properties instance falls back to the code literal 1.0.0 (testDefaultsWhenPropertiesEmpty) — production only ever uses the former" ),
         // wireHybridRetrieval's own getProperty(...,"false") fires only when the key is absent
         // from the Properties object passed in. Production's ini/wikantik.properties has shipped
         // "true" since f979f0d698 (2026-06-18 recall sweep: strict improvement over dense-only,

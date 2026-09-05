@@ -141,10 +141,120 @@ Shipped 2026-07-16 (2.3.7); a real `terraform apply` against a live
 AWS/GCP account had not been run as of that release — see the module
 READMEs' "Validation status" notes.
 
+## Configuration
+
+Three properties files together are the complete configuration surface, and
+each is machine-checked against the code that reads it — see
+`docs/superpowers/specs/2026-09-05-configuration-surface-design.md` for the
+full design.
+
+| File | Prefix(es) | Lives in | Overridden by |
+|---|---|---|---|
+| `wikantik-main/src/main/resources/ini/wikantik.properties` | `wikantik.*` | Bundled in the main JAR | `wikantik-custom.properties` (container lib or `WEB-INF`), cascade files (`wikantik.custom.cascade.*`), then `-D` system properties. Precedence is spelled out in the generated reference below. |
+| `wikantik-admin-mcp/src/main/resources/wikantik-mcp.properties` | `mcp.*` and `wikantik.mcp.*` | Bundled in the `wikantik-admin-mcp` JAR | A same-named `wikantik-mcp.properties` dropped in `tomcat/lib/` overlays the jar-bundled copy. |
+| `wikantik-tools/src/main/resources/wikantik-tools.properties` | `tools.*` (plus one shared read of `wikantik.public.baseURL`) | Bundled in the `wikantik-tools` JAR | A same-named `wikantik-tools.properties` dropped in `tomcat/lib/` overlays the jar-bundled copy. |
+
+### Comment convention
+
+Every key's declaration is machine-parsed, not just human-readable prose. The
+comment block immediately above a key supplies its documentation; a real
+entry from `ini/wikantik.properties`:
+
+```
+#  You can use this to override the default application name.  It affects
+#  the HTML titles and logging, for example.  It can be different from
+#  the actual web name (http://my.com/mywiki) of the application, but usually
+#  it is the same.
+#  Type: string
+wikantik.applicationName = Wikantik
+```
+
+Required: at least one description line and a `Type:` line (one of
+`boolean`, `int`, `long`, `double`, `string`, `path`, `url`, `class`, `list`,
+`enum(a|b|c)`, `secret`). Optional directives: `Blank means:` (**required**
+whenever the value is left blank) and `Source:` (e.g. `system-property` for a
+key such as `wikantik.scim.token` that is never read from the properties
+file at all — the entry is documentation only). A `# [Section Name]` marker
+line groups the entries under it; a section name may repeat further down the
+file and the generated doc merges same-named sections into one heading.
+Commented-out `#key = value` example lines are banned outside a registered
+dynamic-prefix family (below) — a key is either declared live or deleted.
+
+### `ConfigSurfaceDriftTest` violation kinds
+
+`ConfigSurfaceDriftTest` (wikantik-war, next to `TestSchemaSingleSourceTest`)
+scans `wikantik-*/src/main/java` for `"wikantik.…"` / `"mcp.…"` / `"tools.…"`
+literals and reports:
+
+| Kind | Meaning |
+|---|---|
+| `MISSING` | Code reads the key; no file declares it. |
+| `UNREFERENCED` | The file declares the key; nothing in code reads it. |
+| `COMMENTED_OUT` | A `#key = value` example line outside a dynamic prefix. |
+| `DUPLICATE` | The same key is declared more than once in one file. |
+| `NO_SECTION` | The entry has no `# [Section]` marker above it. |
+| `NO_DESCRIPTION` | The entry has no description line. |
+| `NO_TYPE` | The entry has no `Type:` line. |
+| `BAD_TYPE` | The `Type:` value isn't one of the recognized types. |
+| `BAD_VALUE` | The default value doesn't parse for its declared type. |
+| `BLANK_NO_MEANING` | The value is blank without a `Blank means:` line. |
+| `SECRET_HAS_VALUE` | `Type: secret` but the shipped value isn't blank. |
+| `DEFAULT_MISMATCH` | The file's default differs from the literal code default and the key isn't in `KNOWN_DIVERGENT`. |
+| `STALE_NOT_CONFIG` | A `NOT_CONFIG` allow-list entry whose literal no longer appears in source (prune it). |
+
+New violations fail the build immediately (no baseline file exists any more —
+the burn-down reached zero and it was deleted).
+
+### Allow-lists
+
+- **`NOT_CONFIG`** — literals that look like a config key but aren't one
+  (metric names, request/session attributes, cache names, prefix constants).
+  Each entry must still occur in source, or it's flagged `STALE_NOT_CONFIG`
+  and must be pruned.
+- **`DYNAMIC_PREFIXES`** — key families read by prefix at runtime (e.g.
+  `wikantik.sso.claimMapping.`, `wikantik.connectors.`, `wikantik.tools.`).
+  File entries under a registered prefix are treated as documentation
+  examples, exempt from `UNREFERENCED` and from the `COMMENTED_OUT` ban.
+- **`KNOWN_DIVERGENT`** — keys with a genuine, tested reason the file default
+  and the code's literal default differ (e.g. `wikantik.search.dense.backend`
+  — `lucene-hnsw` on the wired path, `inmemory` on the no-`DataSource`
+  fallback, both pinned by `DenseBackendResolutionTest`). Each entry records
+  the reason inline.
+
+### Regenerating and publishing the reference docs
+
+`GenerateConfigReferenceCli` (wikantik-extract-cli) renders
+`docs/ConfigurationReference.md` and the wiki page
+`docs/wikantik-pages/WikantikConfigurationReference.md` from the three files
+above — never hand-edit either generated file; fix the properties file and
+regenerate.
+
+```bash
+bin/config-reference.sh --write   # regenerate both docs (rebuilds the jar if stale)
+bin/config-reference.sh --check   # exit 0 if committed docs match the generator, 1 if stale
+```
+
+`ConfigReferenceRegressionTest` fails the build when the committed docs are
+stale. To push the regenerated wiki page to the live wiki, dry-run first,
+then push for real:
+
+```bash
+bin/remote.sh --dry-run pages-push docs/wikantik-pages
+bin/remote.sh pages-push docs/wikantik-pages
+```
+
+or, when the MCP tunnel is up, the `write_pages` MCP tool against the same
+page.
+
 ## `bin/` script conventions
 
 - Every script under `bin/` and `docker/` responds to `-h` / `--help`
   with its own header docstring. Use it.
+- `bin/config-reference.sh` also builds and invokes a jar
+  (`wikantik-extract-cli`, rebuilt automatically when stale) but is not part
+  of the `--jar-help` family below — its only flags are `--write`/`--check`.
+  `bin/config-inventory.sh` is a pure bash/grep developer aid for the
+  config-surface burn-down with no jar dependency at all.
 - For scripts that pass through to a Java jar (`bin/kg-extract.sh`,
   `bin/kg-judge-experiment.sh`, `bin/kg-policy.sh`,
   `bin/kg-chunker-stats.sh`), the bash `--help` shows wrapper-level docs

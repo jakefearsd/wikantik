@@ -544,6 +544,7 @@ Migrating from a previous Wikantik install? See
 - [GettingStartedGuide.md](docs/GettingStartedGuide.md) — **first-time deployer walkthrough**: both the Docker Compose and bare-metal Tomcat paths, the initial `admin` / `admin123` forced-change login, and a first-build pitfalls table
 - [PostgreSQLLocalDeployment.md](docs/PostgreSQLLocalDeployment.md) — **bare-metal deployment guide** (local PostgreSQL + Tomcat 11): one-time setup, the `migrate` role, deploy/redeploy, performance tuning, troubleshooting
 - [DevelopingWithPostgresql.md](docs/DevelopingWithPostgresql.md) — Full PostgreSQL schema, JDBC, and JNDI configuration
+- [ConfigurationReference.md](docs/ConfigurationReference.md) — generated reference for every `wikantik.*`/`mcp.*`/`tools.*` property: default, type, and description
 - [MvnCheatSheet.md](docs/MvnCheatSheet.md) — Maven build, test, and debug commands
 - [LoggingConfig.md](docs/LoggingConfig.md) — Log4j2 external configuration
 - [IndexRebuild.md](docs/IndexRebuild.md) — Search index rebuild guide for local and Docker deployments

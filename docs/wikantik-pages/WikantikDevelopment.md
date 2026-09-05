@@ -8,6 +8,7 @@ related:
 - TestDrivenDevelopment
 - HexagonalArchitecture
 - ContinuousIntegration
+- WikantikConfigurationReference
 type: hub
 summary: Hub for Wikantik platform development — architecture decisions, TDD mandate,
   CI pipeline, and feature milestones from JSPWiki to 2.0.x.

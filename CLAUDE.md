@@ -452,10 +452,11 @@ Naming convention: the bare word "graph" is a code smell. Always say
 
 ### Important Configuration
 
-- Main configuration: `ini/wikantik.properties` (in JAR)
-- Custom overrides: `wikantik-custom.properties` (in WEB-INF or container lib)
-- Security policy: `policy_grants` table (database-backed) or `WEB-INF/wikantik.policy` (file-based fallback)
-- Schema: `bin/db/migrations/V*.sql` is the only schema definition (applied by `migrate.sh`; the test fixture `PostgresTestDb` applies the same files). Policy grants: `V003__policy_grants.sql`
+- **`ini/wikantik.properties` is the complete reference.** Every `wikantik.*` key production code reads is declared there, uncommented, with its explicit default, a description and a `Type:` line (`mcp.*` keys: `wikantik-mcp.properties`; `tools.*` keys: `wikantik-tools.properties`). `ConfigSurfaceDriftTest` (wikantik-war) fails the build on a key read but not declared (MISSING), declared but not read (UNREFERENCED), commented out (COMMENTED_OUT), declared twice (DUPLICATE), missing a `# [Section]` marker (NO_SECTION), undescribed (NO_DESCRIPTION), untyped (NO_TYPE), an unrecognized `Type:` (BAD_TYPE), a value that doesn't parse for its type (BAD_VALUE), blank without `Blank means:` (BLANK_NO_MEANING), a secret with a value (SECRET_HAS_VALUE), a file default that differs from the code literal (DEFAULT_MISMATCH), or an allow-listed key no longer found in source (STALE_NOT_CONFIG). Spec: `docs/superpowers/specs/2026-09-05-configuration-surface-design.md`.
+- **Adding a key:** declare it in the file first (section, description, `Type:`, explicit default), then read it in code with the same default. If the default is derived, leave the value blank, add `Blank means:`, and make the reader `isBlank()`-safe.
+- **Docs are generated:** `bin/config-reference.sh --write` regenerates `docs/ConfigurationReference.md` and the wiki page `WikantikConfigurationReference`; `ConfigReferenceRegressionTest` fails when they are stale. Never hand-edit them.
+- Overrides: `wikantik-custom.properties` (container lib or WEB-INF), cascade files, `-D` system properties. Precedence is documented in the generated reference.
+- Security policy: `policy_grants` table (database-backed) or `WEB-INF/wikantik.policy` (file-based fallback). Schema: `bin/db/migrations/V*.sql` only.
 
 ### Extension Points
 

@@ -116,7 +116,7 @@ class McpConfigTest {
         final McpConfig config = new McpConfig( props );
         assertEquals( "wikantik-mcp", config.serverName() );
         assertNull( config.serverTitle() );
-        assertEquals( "1.0.0", config.serverVersion() );
+        assertEquals( "2.0.0", config.serverVersion() );
     }
 
     @Test

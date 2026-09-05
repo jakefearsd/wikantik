@@ -93,7 +93,7 @@ public class McpConfig {
     }
 
     public String serverVersion() {
-        return props.getProperty( "mcp.server.version", "1.0.0" );
+        return props.getProperty( "mcp.server.version", "2.0.0" );
     }
 
     /**

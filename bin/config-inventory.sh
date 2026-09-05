@@ -19,15 +19,16 @@ esac
 ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 INI="$ROOT/wikantik-main/src/main/resources/ini/wikantik.properties"
 # Strip // and /* */ comments so javadoc mentions do not count as reads.
+# Two tracked sources are ISO-8859-1, so every grep below uses -a (treat as text).
 strip() { sed -E 's#//.*$##' "$1" | perl -0777 -pe 's{/\*.*?\*/}{}gs'; }
 tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT
 find "$ROOT"/wikantik-*/src/main/java -name '*.java' -print0 | while IFS= read -r -d '' f; do strip "$f"; done > "$tmp"
-grep -oE '"wikantik\.[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*"' "$tmp" | tr -d '"' | sort | uniq -c | awk '{print $2"\t"$1}' |
+grep -aoE '"wikantik\.[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*"' "$tmp" | tr -d '"' | sort | uniq -c | awk '{print $2"\t"$1}' |
 while IFS=$'\t' read -r key refs; do
-  if grep -qE "^${key//./\\.}\s*=" "$INI"; then st=EXPLICIT
-  elif grep -qE "^#\s*${key//./\\.}\s*=" "$INI"; then st=COMMENTED
+  if grep -aqE "^${key//./\\.}\s*=" "$INI"; then st=EXPLICIT
+  elif grep -aqE "^#\s*${key//./\\.}\s*=" "$INI"; then st=COMMENTED
   else st=MISSING; fi
-  defaults=$(grep -oE "Property\(\s*[^,()]*,?\s*\"${key//./\\.}\"\s*,\s*(\"[^\"]*\"|-?[0-9.]+[LlDdFf]?|true|false)\s*\)" "$tmp" \
+  defaults=$( { grep -aoE "Property\(\s*[^,()]*,?\s*\"${key//./\\.}\"\s*,\s*(\"[^\"]*\"|-?[0-9.]+[LlDdFf]?|true|false)\s*\)" "$tmp" || true; } \
              | sed -E 's/.*",\s*//; s/\s*\)$//' | sort -u | paste -sd'|' -)
   [[ -n "$filter" && "$st" != "$filter" ]] && continue
   printf '%s\t%s\t%s\t%s\n' "$key" "$st" "$refs" "$defaults"

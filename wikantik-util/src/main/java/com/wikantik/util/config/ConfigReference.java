@@ -24,7 +24,7 @@ public final class ConfigReference {
 
     private static final Pattern SECTION = Pattern.compile( "^#\\s*\\[(.+?)\\]\\s*$" );
     private static final Pattern KEY_VALUE = Pattern.compile( "^([A-Za-z0-9_.\\-]+)\\s*[=:]\\s*(.*)$" );
-    private static final Pattern COMMENTED_KEY = Pattern.compile( "^#\\s*([A-Za-z0-9_.\\-]+)\\s*=.*$" );
+    private static final Pattern COMMENTED_KEY = Pattern.compile( "^[#!]\\s*([A-Za-z0-9_.\\-]+)\\s*[=:].*$" );
     private static final Pattern DIRECTIVE = Pattern.compile( "^(Type|Blank means|Source):\\s*(.*)$" );
 
     private ConfigReference() {}

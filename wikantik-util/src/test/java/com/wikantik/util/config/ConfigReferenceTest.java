@@ -88,4 +88,29 @@ class ConfigReferenceTest {
         final ConfigReference.Parsed p = ConfigReference.parse( List.of( "log4j.rootLogger = INFO", "wikantik.a = 1" ), "wikantik." );
         assertEquals( 1, p.entries().size() );
     }
+
+    @Test
+    void colon_separated_commented_key_is_reported() {
+        final ConfigReference.Parsed p = ConfigReference.parse( List.of( "#wikantik.old.colon: 5", "wikantik.live = 1" ), "wikantik." );
+        assertEquals( List.of( "wikantik.old.colon" ), p.commentedOutKeys() );
+        final ConfigReference.Entry live = p.entry( "wikantik.live" ).orElseThrow();
+        assertFalse( live.hasDescription() );
+    }
+
+    @Test
+    void bang_prefixed_commented_key_is_reported() {
+        final ConfigReference.Parsed p = ConfigReference.parse( List.of( "!wikantik.old.bang = 5", "wikantik.live = 1" ), "wikantik." );
+        assertEquals( List.of( "wikantik.old.bang" ), p.commentedOutKeys() );
+        final ConfigReference.Entry live = p.entry( "wikantik.live" ).orElseThrow();
+        assertFalse( live.hasDescription() );
+    }
+
+    @Test
+    void directive_like_prose_is_not_a_commented_key() {
+        final ConfigReference.Parsed p = ConfigReference.parse( List.of( "#  Note: keep this.", "#  Type: int", "wikantik.x = 1" ), "wikantik." );
+        assertEquals( List.of(), p.commentedOutKeys() );
+        final ConfigReference.Entry x = p.entry( "wikantik.x" ).orElseThrow();
+        assertEquals( List.of( "Note: keep this." ), x.description() );
+        assertEquals( "int", x.type() );
+    }
 }

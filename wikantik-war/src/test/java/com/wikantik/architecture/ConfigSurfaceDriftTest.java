@@ -57,8 +57,12 @@ class ConfigSurfaceDriftTest {
         Map.entry( "wikantik.runFilters", "Context variable" ),
         Map.entry( "wikantik.policy", "policy file name" ),
         Map.entry( "wikantik.custom.config", "servlet init-param, documented in precedence section" ),
-        Map.entry( "wikantik.ingest.truncated", "response marker" )
+        Map.entry( "wikantik.ingest.truncated", "response marker" ),
+        Map.entry( "mcp.access", "access-surface label" )
     );
+
+    /** Config keys physically declared in {@link #MCP_INI} even though the code reads them with a {@code wikantik.} prefix. */
+    static final String MCP_FILE_WIKANTIK_PREFIX = "wikantik.mcp.";
 
     /** Key families read by prefix; file entries under them are examples and are never UNREFERENCED. */
     static final List<String> DYNAMIC_PREFIXES = List.of(
@@ -126,6 +130,19 @@ class ConfigSurfaceDriftTest {
         assertEquals( Set.of( "wikantik.survives" ), literals( stripComments( src ), "wikantik." ) );
     }
 
+    @Test
+    void wikantik_mcp_prefixed_literals_route_to_the_mcp_set_not_the_wikantik_set() {
+        final String src = "a = props.getProperty( \"wikantik.mcp.rate_limit.max_clients\" );\n"
+            + "b = \"wikantik.other.key\";\n";
+        final Set<String> wikantik = new TreeSet<>( literals( stripComments( src ), "wikantik." ) );
+        final Set<String> mcp = new TreeSet<>();
+
+        routeMcpFileKeys( wikantik, mcp );
+
+        assertEquals( Set.of( "wikantik.other.key" ), wikantik );
+        assertEquals( Set.of( "wikantik.mcp.rate_limit.max_clients" ), mcp );
+    }
+
     // ---------------------------------------------------------------- scanning
 
     static Set<String> computeViolations( final Path root ) throws IOException {
@@ -133,19 +150,46 @@ class ConfigSurfaceDriftTest {
         final String allSource = readStrippedSource( root, null );
         final String mcpSource = readStrippedSource( root, MCP_MODULES );
 
-        final Set<String> wikantikLiterals = literals( allSource, "wikantik." );
-        final Set<String> mcpLiterals = literals( mcpSource, "mcp." );
+        final Set<String> wikantikLiterals = new TreeSet<>( literals( allSource, "wikantik." ) );
+        final Set<String> mcpLiterals = new TreeSet<>( literals( mcpSource, "mcp." ) );
+        routeMcpFileKeys( wikantikLiterals, mcpLiterals );
 
         for( final Map.Entry<String, String> nc : NOT_CONFIG.entrySet() ) {
-            if( !wikantikLiterals.contains( nc.getKey() ) ) {
+            if( !wikantikLiterals.contains( nc.getKey() ) && !mcpLiterals.contains( nc.getKey() ) ) {
                 out.add( nc.getKey() + "\tSTALE_NOT_CONFIG" );   // prune the allow-list
             }
         }
         wikantikLiterals.removeAll( NOT_CONFIG.keySet() );
+        mcpLiterals.removeAll( NOT_CONFIG.keySet() );
 
         checkFile( ConfigReference.parse( root.resolve( INI ), "wikantik." ), wikantikLiterals, out );
-        checkFile( ConfigReference.parse( root.resolve( MCP_INI ), "mcp." ), mcpLiterals, out );
+        checkFile( mergeParsed(
+            ConfigReference.parse( root.resolve( MCP_INI ), "mcp." ),
+            ConfigReference.parse( root.resolve( MCP_INI ), MCP_FILE_WIKANTIK_PREFIX ) ), mcpLiterals, out );
         return out;
+    }
+
+    /** Moves {@code wikantik.mcp.*} literals (declared in {@link #MCP_INI}, not {@link #INI}) from the {@code wikantik.*} set to the {@code mcp.*} set. */
+    static void routeMcpFileKeys( final Set<String> wikantik, final Set<String> mcp ) {
+        final Set<String> toMove = new TreeSet<>();
+        for( final String k : wikantik ) {
+            if( k.startsWith( MCP_FILE_WIKANTIK_PREFIX ) ) {
+                toMove.add( k );
+            }
+        }
+        wikantik.removeAll( toMove );
+        mcp.addAll( toMove );
+    }
+
+    /** Combines two {@link ConfigReference.Parsed} results (same file, different key-prefix filters) into one. */
+    static ConfigReference.Parsed mergeParsed( final ConfigReference.Parsed a, final ConfigReference.Parsed b ) {
+        final List<ConfigReference.Entry> entries = new ArrayList<>( a.entries() );
+        entries.addAll( b.entries() );
+        final List<String> commented = new ArrayList<>( a.commentedOutKeys() );
+        commented.addAll( b.commentedOutKeys() );
+        final List<String> duplicates = new ArrayList<>( a.duplicateKeys() );
+        duplicates.addAll( b.duplicateKeys() );
+        return new ConfigReference.Parsed( List.copyOf( entries ), List.copyOf( commented ), List.copyOf( duplicates ) );
     }
 
     static void checkFile( final ConfigReference.Parsed parsed, final Set<String> codeKeys, final Set<String> out ) {

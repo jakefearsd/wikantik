@@ -1,13 +1,6 @@
 # Config-surface burn-down baseline for ConfigSurfaceDriftTest (wikantik-war).
 # key<TAB>violation. Entries only ever come OUT. Spec:
 # docs/superpowers/specs/2026-09-05-configuration-surface-design.md
-mcp.access	MISSING
-mcp.access.allowUnrestricted	COMMENTED_OUT
-mcp.access.allowUnrestricted	MISSING
-mcp.access.allowedCidrs	COMMENTED_OUT
-mcp.access.allowedCidrs	MISSING
-mcp.instructions.file	COMMENTED_OUT
-mcp.instructions.file	MISSING
 wikantik.admin.bootstrap	MISSING
 wikantik.admin.bootstrap.maxAgeSeconds	MISSING
 wikantik.allowCreationOfEmptyPages	COMMENTED_OUT
@@ -121,8 +114,6 @@ wikantik.lucene.missingPageCheckInterval	MISSING
 wikantik.mail.jndiname	COMMENTED_OUT
 wikantik.mail.jndiname	MISSING
 wikantik.math.enforcement.enabled	MISSING
-wikantik.mcp.kg_curation.bulk_limit	MISSING
-wikantik.mcp.rate_limit.max_clients	MISSING
 wikantik.nofilterencoding	COMMENTED_OUT
 wikantik.nofilterencoding	MISSING
 wikantik.ontology.compaction.interval.hours	MISSING

@@ -106,10 +106,12 @@ public class Preferences extends HashMap< String,String > {
         // see if default locale is set server side
         if( loc == null ) {
             final String locale = CoreSubsystemBridge.fromLegacyEngine( context.getEngine() ).properties().asProperties().getProperty( "wikantik.preferences.default-locale" );
-            try {
-                loc = LocaleUtils.toLocale( locale );
-            } catch( final IllegalArgumentException iae ) {
-                LOG.error( iae.getMessage() );
+            if( locale != null && !locale.isBlank() ) {
+                try {
+                    loc = LocaleUtils.toLocale( locale );
+                } catch( final IllegalArgumentException iae ) {
+                    LOG.error( iae.getMessage() );
+                }
             }
         }
 

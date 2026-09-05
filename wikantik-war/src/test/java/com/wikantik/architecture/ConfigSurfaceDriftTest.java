@@ -67,6 +67,9 @@ class ConfigSurfaceDriftTest {
         Map.entry( "wikantik.renderingCache", "cache name" ),
         Map.entry( "wikantik.htmlCache", "cache name" ),
         Map.entry( "wikantik.forAgentCache", "cache name" ),
+        Map.entry( "wikantik.translatorReader.runPlugins", "dead constant, never consulted" ),
+        Map.entry( "wikantik.translatorReader.useAttachmentImage", "dead constant, never consulted" ),
+        Map.entry( "wikantik.nofilterencoding", "dead constant, never consulted" ),
         Map.entry( "mcp.access", "access-surface label" )
     );
 
@@ -78,16 +81,15 @@ class ConfigSurfaceDriftTest {
         "wikantik.interWikiRef.", "wikantik.specialPage.", "wikantik.loginModule.options.",
         "wikantik.sso.claimMapping.", "wikantik.translatorReader.inlinePattern.", "wikantik.custom.cascade.",
         "wikantik.connectors.", "wikantik.knowledge.extractor.", "wikantik.bundle.reranker.",
-        "wikantik.bundle.decomposition.", "wikantik.briefing.", "wikantik.search.hybrid.embedder.", "wikantik.tools.",
-        // Exact match (startsWith degrades to equals with no trailing dot): Preferences.java reads
-        // this literal, but the hyphen in "default-locale" falls outside KEY_LITERAL's
-        // [a-zA-Z0-9_] class, so it can never be detected as a codeKey.
-        "wikantik.preferences.default-locale"
+        "wikantik.bundle.decomposition.", "wikantik.briefing.", "wikantik.search.hybrid.embedder.", "wikantik.tools."
     );
 
     static final Set<String> TYPES = Set.of( "boolean", "int", "long", "double", "string", "path", "url", "class", "list", "secret" );
     static final Pattern ENUM_TYPE = Pattern.compile( "^enum\\(([^)]+)\\)$" );
-    static final Pattern KEY_LITERAL = Pattern.compile( "\"((?:wikantik|mcp)\\.[a-zA-Z0-9_]+(?:\\.[a-zA-Z0-9_]+)*)\"" );
+    // Both segments include '-' so hyphenated keys (wikantik.preferences.default-locale,
+    // wikantik.search.hybrid.embedder.cache.ttl-seconds, wikantik.search.embedding.base-url, ...)
+    // are detected as codeKeys instead of being invisible to the scanner.
+    static final Pattern KEY_LITERAL = Pattern.compile( "\"((?:wikantik|mcp)\\.[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)*)\"" );
 
     @Test
     void configuration_surface_matches_baseline() throws IOException {

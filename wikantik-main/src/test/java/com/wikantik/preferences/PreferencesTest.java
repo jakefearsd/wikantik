@@ -108,4 +108,17 @@ class PreferencesTest {
         assertNotNull( locale, "getLocale should always return a non-null Locale" );
     }
 
+    @Test
+    void testGetLocaleTreatsBlankDefaultLocalePropertyAsUnset() {
+        // ini/wikantik.properties declares "wikantik.preferences.default-locale =" (blank) as its
+        // shipped default. With commons-lang3 3.20.0, LocaleUtils.toLocale("") returns a non-null
+        // empty Locale rather than throwing, so a naive `loc == null` check never falls through to
+        // the browser/JVM-default branch. Assert the blank property behaves like an absent one.
+        testEngine.getWikiProperties().setProperty( "wikantik.preferences.default-locale", "" );
+
+        final Locale locale = Preferences.getLocale( wikiContext );
+
+        assertEquals( Locale.getDefault(), locale, "blank default-locale should fall through to the JVM default (no HTTP request in this context)" );
+    }
+
 }

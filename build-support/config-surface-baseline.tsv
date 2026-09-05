@@ -38,6 +38,8 @@ wikantik.bundle.rerank.metadata_boost.window	COMMENTED_OUT
 wikantik.bundle.rerank.metadata_boost.window	MISSING
 wikantik.bundle.rerank.mmr.lambda	COMMENTED_OUT
 wikantik.bundle.rerank.mmr.lambda	MISSING
+wikantik.cache.config-file	MISSING
+wikantik.cache.memcached.max-entries	MISSING
 wikantik.cluster_declaration.enforcement.enabled	MISSING
 wikantik.connectors.crypto.key	COMMENTED_OUT
 wikantik.connectors.egress.allowPrivate	MISSING
@@ -105,17 +107,17 @@ wikantik.search.dense.lucene.ef_search	MISSING
 wikantik.search.dense.lucene.m	COMMENTED_OUT
 wikantik.search.dense.lucene.m	MISSING
 wikantik.search.embedding.api-key	COMMENTED_OUT
+wikantik.search.embedding.api-key	MISSING
 wikantik.search.embedding.base-url	NO_TYPE
-wikantik.search.embedding.base-url	UNREFERENCED
 wikantik.search.embedding.batch-size	NO_TYPE
-wikantik.search.embedding.batch-size	UNREFERENCED
 wikantik.search.embedding.commit-batch-size	NO_TYPE
-wikantik.search.embedding.commit-batch-size	UNREFERENCED
 wikantik.search.embedding.ollama-tag	COMMENTED_OUT
+wikantik.search.embedding.ollama-tag	MISSING
 wikantik.search.embedding.timeout-ms	NO_TYPE
-wikantik.search.embedding.timeout-ms	UNREFERENCED
 wikantik.search.highlighter.enabled	MISSING
 wikantik.search.hybrid	MISSING
+wikantik.search.hybrid.dense.chunk-top	MISSING
+wikantik.search.hybrid.dense.page-top	MISSING
 wikantik.search.hybrid.embedder.breaker.cooldown-ms	COMMENTED_OUT
 wikantik.search.hybrid.embedder.breaker.failure-rate	COMMENTED_OUT
 wikantik.search.hybrid.embedder.breaker.min-calls	COMMENTED_OUT
@@ -123,6 +125,9 @@ wikantik.search.hybrid.embedder.breaker.window-size	COMMENTED_OUT
 wikantik.search.hybrid.embedder.cache.max-entries	COMMENTED_OUT
 wikantik.search.hybrid.embedder.cache.ttl-seconds	COMMENTED_OUT
 wikantik.search.hybrid.embedder.timeout-ms	COMMENTED_OUT
+wikantik.search.hybrid.page-aggregation	MISSING
+wikantik.search.hybrid.rrf.bm25-weight	MISSING
+wikantik.search.hybrid.rrf.dense-weight	MISSING
 wikantik.search.hybrid.rrf.k	MISSING
 wikantik.search.hybrid.rrf.truncate	MISSING
 wikantik.search.hybrid.vector_index.size	MISSING
@@ -160,5 +165,6 @@ wikantik.sso.saml.serviceProviderMetadataPath	MISSING
 wikantik.sso.type	COMMENTED_OUT
 wikantik.sso.type	MISSING
 wikantik.structural_spine.enforcement.enabled	MISSING
+wikantik.test.fixture-seam.enabled	MISSING
 wikantik.tools	MISSING
 wikantik.verification.stale_days	MISSING

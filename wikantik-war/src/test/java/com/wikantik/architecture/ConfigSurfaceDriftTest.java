@@ -74,7 +74,15 @@ class ConfigSurfaceDriftTest {
         // Task 7 (Group B): both are literal "wikantik.*" strings caught by KEY_LITERAL
         // that are not, in fact, config read from this file.
         Map.entry( "wikantik.tools", "prefix constant" ),                    // ToolsMetricsBridge.PFX; real meter names are PFX + ".x" concatenations, invisible to KEY_LITERAL
-        Map.entry( "wikantik.passwordMustChange", "session attribute" )      // PasswordChangeGate.SESSION_ATTRIBUTE, not a config property
+        Map.entry( "wikantik.passwordMustChange", "session attribute" ),     // PasswordChangeGate.SESSION_ATTRIBUTE, not a config property
+        // Task 8 (Group C): HybridMetricsBridge.PFX ("wikantik.search.hybrid") is a
+        // Micrometer meter-name prefix, not a config key - real config under the
+        // same string ("wikantik.search.hybrid.enabled", ".rrf.k", ...) is declared
+        // separately and unaffected. ".vector_index.size" is one of the concatenated
+        // gauge names (PFX + ".vector_index.size"), read back by AdminOverviewResource
+        // via MetricReads.gauge(), same pattern as the other "metric" entries above.
+        Map.entry( "wikantik.search.hybrid", "prefix constant" ),            // HybridMetricsBridge.PFX
+        Map.entry( "wikantik.search.hybrid.vector_index.size", "metric" )    // Micrometer gauge name
     );
 
     /** Config keys physically declared in {@link #MCP_INI} even though the code reads them with a {@code wikantik.} prefix. */

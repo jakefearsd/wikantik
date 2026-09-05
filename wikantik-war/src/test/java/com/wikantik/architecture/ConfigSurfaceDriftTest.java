@@ -50,10 +50,12 @@ class ConfigSurfaceDriftTest {
         Map.entry( "wikantik.kg_judge.timeouts", "metric" ),
         Map.entry( "wikantik.kg_judge.short_circuit_total", "metric" ),
         Map.entry( "wikantik.kg_judge.timeout_multiplier_applied", "metric" ),
-        Map.entry( "wikantik.insights.ingest.rows", "metric" ),
-        Map.entry( "wikantik.insights.ingest.sites", "metric" ),
-        Map.entry( "wikantik.insights.ingest.engines", "metric" ),
-        Map.entry( "wikantik.insights.ingest.last_success_timestamp", "metric" ),
+        // Fix round 1 (Task 10 pre-review): .sites/.engines were mislabelled here — they are
+        // real config (InsightsIngestResource.PROP_SITES/PROP_ENGINES), now declared in
+        // ini/wikantik.properties. .rows/.last_success_timestamp really are Micrometer metric
+        // names (InsightsMetrics.java:41-42, ROWS_METRIC/LAST_SUCCESS_METRIC).
+        Map.entry( "wikantik.insights.ingest.rows", "metric (InsightsMetrics.ROWS_METRIC)" ),
+        Map.entry( "wikantik.insights.ingest.last_success_timestamp", "metric (InsightsMetrics.LAST_SUCCESS_METRIC)" ),
         Map.entry( "wikantik.apikey.record", "request attribute" ),
         Map.entry( "wikantik.context", "request attribute" ),
         Map.entry( "wikantik.runFilters", "Context variable" ),

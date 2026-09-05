@@ -218,8 +218,24 @@ public class InsightsIngestResource extends RestServletBase {
     private Set< String > configuredSet( final String key, final String def ) {
         final Engine engine = getEngine();
         final Properties props = engine == null ? null : engine.getWikiProperties();
-        final String raw = props == null ? def : props.getProperty( key, def );
-        return Arrays.stream( raw.split( "," ) )
+        final String raw = props == null ? null : props.getProperty( key );
+        return resolveAllowlist( raw, def );
+    }
+
+    /**
+     * Parses a comma-separated allowlist, treating a blank {@code raw} value the same as an
+     * absent one — a key present in ini/wikantik.properties with no value must fall back to
+     * {@code def} (e.g. the {@code *} wildcard), not collapse to an empty set that rejects every
+     * request ({@code "".split(",")} yields one empty element, which the trim/filter step would
+     * otherwise discard). Package-visible for testing.
+     *
+     * @param raw the raw property value, possibly {@code null} or blank
+     * @param def the comma-separated default to fall back to
+     * @return the parsed, trimmed, non-empty allowlist entries
+     */
+    static Set< String > resolveAllowlist( final String raw, final String def ) {
+        final String effective = ( raw == null || raw.isBlank() ) ? def : raw;
+        return Arrays.stream( effective.split( "," ) )
                 .map( String::trim )
                 .filter( s -> !s.isEmpty() )
                 .collect( Collectors.toUnmodifiableSet() );

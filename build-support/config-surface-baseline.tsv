@@ -1,18 +1,3 @@
 # Config-surface burn-down baseline for ConfigSurfaceDriftTest (wikantik-war).
 # key<TAB>violation. Entries only ever come OUT. Spec:
 # docs/superpowers/specs/2026-09-05-configuration-surface-design.md
-wikantik.attachment.forbidden	COMMENTED_OUT
-wikantik.attachment.forbidden	MISSING
-wikantik.attachment.maxsize	COMMENTED_OUT
-wikantik.attachment.maxsize	MISSING
-wikantik.cache.config-file	MISSING
-wikantik.cache.memcached.max-entries	MISSING
-wikantik.connectors.crypto.key	COMMENTED_OUT
-wikantik.connectors.egress.allowPrivate	MISSING
-wikantik.connectors.enabled	COMMENTED_OUT
-wikantik.connectors.enabled	MISSING
-wikantik.connectors.filesystem.docs.root	COMMENTED_OUT
-wikantik.connectors.sync.interval.hours	COMMENTED_OUT
-wikantik.connectors.sync.interval.hours	MISSING
-wikantik.insights.ingest.max_bytes	MISSING
-wikantik.test.fixture-seam.enabled	MISSING

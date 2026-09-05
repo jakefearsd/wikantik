@@ -36,8 +36,10 @@ class ConfigSurfaceDriftTest {
 
     static final Path INI = Path.of( "wikantik-main/src/main/resources/ini/wikantik.properties" );
     static final Path MCP_INI = Path.of( "wikantik-admin-mcp/src/main/resources/wikantik-mcp.properties" );
+    static final Path TOOLS_INI = Path.of( "wikantik-tools/src/main/resources/wikantik-tools.properties" );
     static final Path BASELINE = Path.of( "build-support/config-surface-baseline.tsv" );
     static final List<String> MCP_MODULES = List.of( "wikantik-mcp-core", "wikantik-admin-mcp", "wikantik-knowledge" );
+    static final List<String> TOOLS_MODULES = List.of( "wikantik-tools" );
 
     /** Literals that look like keys but are not configuration. Each must still occur in source (self-pruning). */
     static final Map<String, String> NOT_CONFIG = Map.ofEntries(
@@ -82,7 +84,10 @@ class ConfigSurfaceDriftTest {
         // gauge names (PFX + ".vector_index.size"), read back by AdminOverviewResource
         // via MetricReads.gauge(), same pattern as the other "metric" entries above.
         Map.entry( "wikantik.search.hybrid", "prefix constant" ),            // HybridMetricsBridge.PFX
-        Map.entry( "wikantik.search.hybrid.vector_index.size", "metric" )    // Micrometer gauge name
+        Map.entry( "wikantik.search.hybrid.vector_index.size", "metric" ),   // Micrometer gauge name
+        // Task 10: ToolsAccessFilter.SURFACE label (same pattern as "mcp.access" above) - not a
+        // config key, the real tools.access.* keys are declared separately.
+        Map.entry( "tools.access", "access-surface label" )
     );
 
     /** Config keys physically declared in {@link #MCP_INI} even though the code reads them with a {@code wikantik.} prefix. */
@@ -100,8 +105,9 @@ class ConfigSurfaceDriftTest {
     static final Pattern ENUM_TYPE = Pattern.compile( "^enum\\(([^)]+)\\)$" );
     // Both segments include '-' so hyphenated keys (wikantik.preferences.default-locale,
     // wikantik.search.hybrid.embedder.cache.ttl-seconds, wikantik.search.embedding.base-url, ...)
-    // are detected as codeKeys instead of being invisible to the scanner.
-    static final Pattern KEY_LITERAL = Pattern.compile( "\"((?:wikantik|mcp)\\.[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)*)\"" );
+    // are detected as codeKeys instead of being invisible to the scanner. "tools" is the third
+    // properties namespace (wikantik-tools.properties), scanned only within TOOLS_MODULES.
+    static final Pattern KEY_LITERAL = Pattern.compile( "\"((?:wikantik|mcp|tools)\\.[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)*)\"" );
 
     @Test
     void configuration_surface_matches_baseline() throws IOException {
@@ -130,7 +136,7 @@ class ConfigSurfaceDriftTest {
     @Test
     void defaults_files_are_pure_ascii() throws IOException {
         final Path root = repoRoot();
-        for( final Path f : List.of( root.resolve( INI ), root.resolve( MCP_INI ) ) ) {
+        for( final Path f : List.of( root.resolve( INI ), root.resolve( MCP_INI ), root.resolve( TOOLS_INI ) ) ) {
             final List<String> lines = Files.readAllLines( f, StandardCharsets.ISO_8859_1 );
             for( int i = 0; i < lines.size(); i++ ) {
                 final String l = lines.get( i );
@@ -170,29 +176,41 @@ class ConfigSurfaceDriftTest {
         assertEquals( Set.of( "wikantik.mcp.rate_limit.max_clients" ), mcp );
     }
 
+    @Test
+    void tools_prefixed_literal_is_collected_by_literals_after_key_literal_widening() {
+        // Third properties namespace (wikantik-tools.properties): KEY_LITERAL must recognise
+        // "tools.*" string literals the same way it already recognises "wikantik.*"/"mcp.*".
+        final String src = "a = props.getProperty( \"tools.x\" );\n";
+        assertEquals( Set.of( "tools.x" ), literals( stripComments( src ), "tools." ) );
+    }
+
     // ---------------------------------------------------------------- scanning
 
     static Set<String> computeViolations( final Path root ) throws IOException {
         final Set<String> out = new TreeSet<>();
         final String allSource = readStrippedSource( root, null );
         final String mcpSource = readStrippedSource( root, MCP_MODULES );
+        final String toolsSource = readStrippedSource( root, TOOLS_MODULES );
 
         final Set<String> wikantikLiterals = new TreeSet<>( literals( allSource, "wikantik." ) );
         final Set<String> mcpLiterals = new TreeSet<>( literals( mcpSource, "mcp." ) );
+        final Set<String> toolsLiterals = new TreeSet<>( literals( toolsSource, "tools." ) );
         routeMcpFileKeys( wikantikLiterals, mcpLiterals );
 
         for( final Map.Entry<String, String> nc : NOT_CONFIG.entrySet() ) {
-            if( !wikantikLiterals.contains( nc.getKey() ) && !mcpLiterals.contains( nc.getKey() ) ) {
+            if( !wikantikLiterals.contains( nc.getKey() ) && !mcpLiterals.contains( nc.getKey() ) && !toolsLiterals.contains( nc.getKey() ) ) {
                 out.add( nc.getKey() + "\tSTALE_NOT_CONFIG" );   // prune the allow-list
             }
         }
         wikantikLiterals.removeAll( NOT_CONFIG.keySet() );
         mcpLiterals.removeAll( NOT_CONFIG.keySet() );
+        toolsLiterals.removeAll( NOT_CONFIG.keySet() );
 
         checkFile( ConfigReference.parse( root.resolve( INI ), "wikantik." ), wikantikLiterals, out );
         checkFile( mergeParsed(
             ConfigReference.parse( root.resolve( MCP_INI ), "mcp." ),
             ConfigReference.parse( root.resolve( MCP_INI ), MCP_FILE_WIKANTIK_PREFIX ) ), mcpLiterals, out );
+        checkFile( ConfigReference.parse( root.resolve( TOOLS_INI ), "tools." ), toolsLiterals, out );
         return out;
     }
 

@@ -65,6 +65,28 @@ public class EhcacheCachingManagerTest {
     }
 
     @Test
+    void testResolveConfLocationAbsentFallsBackToBundledDefault() {
+        Assertions.assertEquals( "/ehcache-wikantik.xml", EhcacheCachingManager.resolveConfLocation( new Properties() ) );
+    }
+
+    @Test
+    void testResolveConfLocationBlankValueFallsBackToBundledDefault() {
+        // ini/wikantik.properties declares "wikantik.cache.config-file =" (blank) as its shipped
+        // default. A blank value must fall back to the bundled resource, not resolve to the
+        // classpath root ("/" + "").
+        final Properties props = new Properties();
+        props.setProperty( CachingManager.PROP_CACHE_CONF_FILE, "" );
+        Assertions.assertEquals( "/ehcache-wikantik.xml", EhcacheCachingManager.resolveConfLocation( props ) );
+    }
+
+    @Test
+    void testResolveConfLocationExplicitValue() {
+        final Properties props = new Properties();
+        props.setProperty( CachingManager.PROP_CACHE_CONF_FILE, "ehcache-wikantik-test.xml" );
+        Assertions.assertEquals( "/ehcache-wikantik-test.xml", EhcacheCachingManager.resolveConfLocation( props ) );
+    }
+
+    @Test
     void testEnabled() {
         Assertions.assertTrue( ecm.enabled( CachingManager.CACHE_PAGES ) );
         Assertions.assertFalse( ecm.enabled( "Trucutru" ) );

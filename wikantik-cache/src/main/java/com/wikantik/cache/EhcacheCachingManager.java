@@ -76,7 +76,7 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
     public void initialize( final Engine engine, final Properties props ) throws WikiException {
         final String cacheEnabled = TextUtil.getStringProperty( props, PROP_CACHE_ENABLE, "true" );
         final boolean useCache = "true".equalsIgnoreCase( cacheEnabled );
-        final String confLocation = "/" + TextUtil.getStringProperty( props, PROP_CACHE_CONF_FILE, "ehcache-wikantik.xml" );
+        final String confLocation = resolveConfLocation( props );
         if( useCache ) {
             final URL location = this.getClass().getResource( confLocation );
             LOG.info( "Reading ehcache configuration file from classpath on {}", location );
@@ -107,6 +107,20 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
             registerCache( CACHE_PAGES_TEXT );
             registerCache( CACHE_FOR_AGENT );
         }
+    }
+
+    /**
+     * Resolves the classpath location of the Ehcache XML configuration, treating a blank
+     * {@link CachingManager#PROP_CACHE_CONF_FILE} value the same as an absent one — the
+     * ini/wikantik.properties shipped default is blank, and it must still load the bundled
+     * {@code ehcache-wikantik.xml}, not the classpath root ({@code "/" + ""}).
+     *
+     * @param props the wiki properties
+     * @return the classpath resource path (leading {@code /}), e.g. {@code /ehcache-wikantik.xml}
+     */
+    static String resolveConfLocation( final Properties props ) {
+        final String raw = TextUtil.getStringProperty( props, PROP_CACHE_CONF_FILE, "" );
+        return "/" + ( raw.isBlank() ? "ehcache-wikantik.xml" : raw );
     }
 
     private org.ehcache.config.CacheConfiguration< Serializable, Object > getDefaultCacheConfig() {

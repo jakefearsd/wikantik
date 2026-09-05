@@ -63,4 +63,14 @@ public class MemcachedCachingManagerUnitTest {
         Assertions.assertFalse( mcm.keyAndCacheAreNotNull( CachingManager.CACHE_PAGES, null ) );
     }
 
+    @Test
+    void testResolveServersTreatsBlankAndNullAsUnset() {
+        // ini/wikantik.properties declares "wikantik.cache.memcached.servers =" (blank) as its
+        // shipped default (the module is opt-in). A blank or absent value must fall back to
+        // localhost:11211, not be passed to AddrUtil as a literal empty server list.
+        Assertions.assertEquals( "localhost:11211", MemcachedCachingManager.resolveServers( "" ) );
+        Assertions.assertEquals( "localhost:11211", MemcachedCachingManager.resolveServers( null ) );
+        Assertions.assertEquals( "cache1:11211,cache2:11211", MemcachedCachingManager.resolveServers( "cache1:11211,cache2:11211" ) );
+    }
+
 }

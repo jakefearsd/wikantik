@@ -910,4 +910,18 @@ public class AuthorizationManagerTest {
         Assertions.assertNotNull( denied.getAttributes().get( "roles" ) );
     }
 
+    @Test
+    public void testBlankPolicyFilePropertyFallsBackToDefaultPolicy() throws Exception {
+        // ini/wikantik.properties declares "wikantik.policy.file =" (blank) as its shipped
+        // default. A blank value must resolve to AuthorizationManager.DEFAULT_POLICY (the
+        // built-in wikantik.policy file), not be looked up as a literal empty filename.
+        final Properties props = TestEngine.getTestProperties();
+        props.put( AuthorizationManager.POLICY, "" );
+
+        final TestEngine engine = new TestEngine( props );
+        final AuthorizationManager auth = engine.getManager( AuthorizationManager.class );
+
+        Assertions.assertNotNull( auth, "AuthorizationManager should initialize using the default policy file" );
+    }
+
 }

@@ -465,7 +465,7 @@ public final class TextUtil {
      */
     public static String getRequiredProperty( final Properties props, final String key, final String deprecatedKey ) throws NoSuchElementException {
         final String value = getStringProperty( props, deprecatedKey, null );
-        if( value == null ) {
+        if( value == null || value.isBlank() ) {
             return getRequiredProperty( props, key );
         }
         LOG.warn( "{} is being deprecated and will be removed on a future version, please consider using {} instead " +
@@ -493,7 +493,7 @@ public final class TextUtil {
             val = props.getProperty( key );
         }
 
-        if( val == null ) {
+        if( val == null || val.isBlank() ) {
             val = defval;
         }
 

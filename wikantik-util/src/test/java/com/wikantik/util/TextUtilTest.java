@@ -252,6 +252,18 @@ public class TextUtilTest {
     }
 
     @Test
+    public void testGetCanonicalFilePathPropertyTreatsBlankValueAsUnset() {
+        // ini/wikantik.properties declares "wikantik.fileSystemProvider.pageDir =" (blank) as its
+        // shipped default. A blank value must fall back to defval, not resolve File("").getCanonicalPath()
+        // (the current working directory).
+        final String defaultValue = System.getProperty( "user.home" ) + File.separator + "wikantik-files";
+        final String[] values = { "wikantik.fileSystemProvider.pageDir", "" };
+        final Properties props = createProperties( values );
+        final String path = TextUtil.getCanonicalFilePathProperty( props, "wikantik.fileSystemProvider.pageDir", defaultValue );
+        Assertions.assertTrue( path.endsWith( "wikantik-files" ), () -> "expected fallback to " + defaultValue + " but was " + path );
+    }
+
+    @Test
     public void testGetRequiredProperty() {
         final String[] vals = { "foo", " this is a property ", "bar", "60" };
         final Properties props = createProperties( vals );
@@ -272,6 +284,15 @@ public class TextUtilTest {
         Assertions.assertEquals( "deprecated", TextUtil.getRequiredProperty( props, "foo", "foo-dep" ) );
         Assertions.assertEquals( "this is a property", TextUtil.getRequiredProperty( props, "foo", "bar-dep" ) );
         Assertions.assertThrows( NoSuchElementException.class, () -> TextUtil.getRequiredProperty( props, "fooo", "bar-dep" ) );
+    }
+
+    @Test
+    public void testGetRequiredPropertyDeprecatedKeyBlankFallsThroughToPrimary() {
+        // A deprecated alias declared but left blank (e.g. "wikantik.attachmentProvider =" in
+        // the defaults file) must be treated as unset, not as an empty configured value.
+        final String[] vals = { "foo", " this is a property ", "foo-dep", "" };
+        final Properties props = createProperties( vals );
+        Assertions.assertEquals( "this is a property", TextUtil.getRequiredProperty( props, "foo", "foo-dep" ) );
     }
 
     @Test

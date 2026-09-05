@@ -361,7 +361,8 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         } else {
             // File-based policy fallback (used by unit tests without JNDI)
             try {
-                final String policyFileName = properties.getProperty( POLICY, DEFAULT_POLICY );
+                final String rawPolicyFileName = properties.getProperty( POLICY );
+                final String policyFileName = ( rawPolicyFileName == null || rawPolicyFileName.isBlank() ) ? DEFAULT_POLICY : rawPolicyFileName;
                 final URL policyURL = engine.findConfigFile( policyFileName );
                 if (policyURL != null) {
                     final File policyFile = new File( policyURL.toURI().getPath() );

@@ -156,6 +156,21 @@ class PropertyReaderTest {
     }
 
     @Test
+    void testSetWorkDirTreatsBlankValueAsUnset() {
+        // ini/wikantik.properties declares "wikantik.workDir =" (blank) as its shipped default.
+        // A blank value must derive the same fallback as an absent key, not be treated as "already set".
+        final Properties properties = new Properties();
+        properties.setProperty( "wikantik.workDir", "" );
+        final ServletContext servletContext = mock( ServletContext.class );
+        final File tmp = new File( "/tmp" );
+        Mockito.when( servletContext.getAttribute( "jakarta.servlet.context.tempdir" ) ).thenReturn( tmp );
+
+        PropertyReader.setWorkDir( servletContext, properties );
+
+        Assertions.assertEquals( tmp.getAbsolutePath(), properties.getProperty( "wikantik.workDir" ) );
+    }
+
+    @Test
     void testSystemPropertyExpansion() {
         try {
             System.setProperty( "FOO", "BAR" );

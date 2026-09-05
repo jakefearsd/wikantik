@@ -157,7 +157,8 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
     private void initialize( final Properties props ) throws WikiException {
         registerFilters();
 
-        final String xmlFile = props.getProperty( PROP_FILTERXML );
+        final String rawXmlFile = props.getProperty( PROP_FILTERXML );
+        final String xmlFile = ( rawXmlFile == null || rawXmlFile.isBlank() ) ? null : rawXmlFile;
         try ( InputStream xmlStream = openFilterConfig( xmlFile ) ) {
             if ( xmlStream == null ) {
                 LOG.info( "Cannot find property file for filters (this is okay, expected to find it as: '{}')", DEFAULT_XMLFILE );

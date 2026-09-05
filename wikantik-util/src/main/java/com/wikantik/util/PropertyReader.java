@@ -498,7 +498,7 @@ public final class PropertyReader {
      */
     static void setWorkDir( final ServletContext servletContext, final Properties properties ) {
         final String workDir = TextUtil.getStringProperty(properties, "wikantik.workDir", null);
-        if (workDir == null) {
+        if (workDir == null || workDir.isBlank()) {
             final File tempDir = (File) servletContext.getAttribute("jakarta.servlet.context.tempdir");
             if (tempDir != null) {
                 properties.setProperty("wikantik.workDir", tempDir.getAbsolutePath());

@@ -82,6 +82,20 @@ public class MemcachedCachingManager implements CachingManager, Initializable {
     /** Reported max-entries for {@link CacheInfo} (does not enforce a cap). Default: 1000. */
     static final String PROP_MAX_ENTRIES = "wikantik.cache.memcached.max-entries";
 
+    /** Default memcached server list, used when {@link #PROP_SERVERS} is absent or blank. */
+    static final String DEFAULT_SERVERS = "localhost:11211";
+
+    /**
+     * Resolves the configured server list, treating a blank value the same as an absent one
+     * (the ini/wikantik.properties shipped default is blank, since this module is opt-in).
+     *
+     * @param raw the raw {@link #PROP_SERVERS} value, possibly {@code null} or blank
+     * @return {@code raw} if non-blank, otherwise {@link #DEFAULT_SERVERS}
+     */
+    static String resolveServers( final String raw ) {
+        return ( raw == null || raw.isBlank() ) ? DEFAULT_SERVERS : raw;
+    }
+
     private MemcachedClient client;
     private int ttlSeconds = DEFAULT_TTL_SECONDS;
     private int maxEntries = DEFAULT_MAX_ENTRIES;
@@ -99,7 +113,7 @@ public class MemcachedCachingManager implements CachingManager, Initializable {
         if( !"true".equalsIgnoreCase( cacheEnabled ) ) {
             return;
         }
-        final String servers = props.getProperty( PROP_SERVERS, "localhost:11211" );
+        final String servers = resolveServers( props.getProperty( PROP_SERVERS ) );
         ttlSeconds = Integer.parseInt( props.getProperty( PROP_TTL, String.valueOf( DEFAULT_TTL_SECONDS ) ) );
         maxEntries = Integer.parseInt( props.getProperty( PROP_MAX_ENTRIES, String.valueOf( DEFAULT_MAX_ENTRIES ) ) );
         try {

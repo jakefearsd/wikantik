@@ -67,4 +67,18 @@ public class DefaultFilterManagerTest {
         Assertions.assertEquals( "5", p.getProperty( "blatblaa" ), "no blatblaa" );
     }
 
+    @Test
+    public void testBlankFilterConfigFallsBackToDefaultClasspathFile() throws Exception {
+        // ini/wikantik.properties declares "wikantik.filterConfig =" (blank) as its shipped
+        // default. A blank value must be treated the same as an absent property (fall back to
+        // the classpath /filters.xml lookup), not attempted as a literal empty filesystem path.
+        final Properties blankConfigProps = new Properties();
+        blankConfigProps.putAll( props );
+        blankConfigProps.setProperty( FilterManager.PROP_FILTERXML, "" );
+
+        final FilterManager m = new DefaultFilterManager( engine, blankConfigProps );
+
+        Assertions.assertEquals( 2, m.getFilterList().size(), "blank wikantik.filterConfig should fall back to the classpath default" );
+    }
+
 }

@@ -58,6 +58,15 @@ class ConfigSurfaceDriftTest {
         Map.entry( "wikantik.policy", "policy file name" ),
         Map.entry( "wikantik.custom.config", "servlet init-param, documented in precedence section" ),
         Map.entry( "wikantik.ingest.truncated", "response marker" ),
+        Map.entry( "wikantik.attachmentsCache", "cache name" ),
+        Map.entry( "wikantik.attachmentCollectionsCache", "cache name" ),
+        Map.entry( "wikantik.dynamicAttachmentCache", "cache name" ),
+        Map.entry( "wikantik.pageCache", "cache name" ),
+        Map.entry( "wikantik.pageTextCache", "cache name" ),
+        Map.entry( "wikantik.pageHistoryCache", "cache name" ),
+        Map.entry( "wikantik.renderingCache", "cache name" ),
+        Map.entry( "wikantik.htmlCache", "cache name" ),
+        Map.entry( "wikantik.forAgentCache", "cache name" ),
         Map.entry( "mcp.access", "access-surface label" )
     );
 
@@ -69,7 +78,11 @@ class ConfigSurfaceDriftTest {
         "wikantik.interWikiRef.", "wikantik.specialPage.", "wikantik.loginModule.options.",
         "wikantik.sso.claimMapping.", "wikantik.translatorReader.inlinePattern.", "wikantik.custom.cascade.",
         "wikantik.connectors.", "wikantik.knowledge.extractor.", "wikantik.bundle.reranker.",
-        "wikantik.bundle.decomposition.", "wikantik.briefing.", "wikantik.search.hybrid.embedder.", "wikantik.tools."
+        "wikantik.bundle.decomposition.", "wikantik.briefing.", "wikantik.search.hybrid.embedder.", "wikantik.tools.",
+        // Exact match (startsWith degrades to equals with no trailing dot): Preferences.java reads
+        // this literal, but the hyphen in "default-locale" falls outside KEY_LITERAL's
+        // [a-zA-Z0-9_] class, so it can never be detected as a codeKey.
+        "wikantik.preferences.default-locale"
     );
 
     static final Set<String> TYPES = Set.of( "boolean", "int", "long", "double", "string", "path", "url", "class", "list", "secret" );

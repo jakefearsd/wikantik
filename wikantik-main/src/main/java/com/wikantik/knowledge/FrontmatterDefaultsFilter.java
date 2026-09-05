@@ -70,10 +70,16 @@ public class FrontmatterDefaultsFilter implements PageFilter {
         final String tagCountProp = props.getProperty( PROP_DEFAULT_TAGS );
         int count = DEFAULT_TAG_COUNT;
         if ( tagCountProp != null ) {
-            try {
-                count = Integer.parseInt( tagCountProp.trim() );
-            } catch ( final NumberFormatException e ) {
-                LOG.warn( "Invalid value for {}: '{}', using default {}", PROP_DEFAULT_TAGS, tagCountProp, DEFAULT_TAG_COUNT );
+            if ( tagCountProp.isBlank() ) {
+                // Explicit blank override: "no default tags are added", distinct from the
+                // property being entirely absent (which uses DEFAULT_TAG_COUNT below).
+                count = 0;
+            } else {
+                try {
+                    count = Integer.parseInt( tagCountProp.trim() );
+                } catch ( final NumberFormatException e ) {
+                    LOG.warn( "Invalid value for {}: '{}', using default {}", PROP_DEFAULT_TAGS, tagCountProp, DEFAULT_TAG_COUNT );
+                }
             }
         }
         this.tagCount = count;

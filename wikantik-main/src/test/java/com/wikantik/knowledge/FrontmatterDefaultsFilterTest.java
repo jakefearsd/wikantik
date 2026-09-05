@@ -85,4 +85,20 @@ class FrontmatterDefaultsFilterTest {
         assertNotNull( tags );
         assertEquals( 1, tags.size(), "Only 1 tag should be extracted when defaultTags=1" );
     }
+
+    @Test
+    void blank_default_tags_means_no_tags_are_added() {
+        final Properties props = new Properties();
+        props.setProperty( FrontmatterDefaultsFilter.PROP_AUTO_DEFAULTS, "true" );
+        props.setProperty( "wikantik.frontmatter.defaultTags", "" );
+        final FrontmatterDefaultsFilter filter = new FrontmatterDefaultsFilter( name -> false, props );
+
+        final String result = filter.applyDefaults( "MyWikiPage", BODY );
+        final Map< String, Object > meta = FrontmatterParser.parse( result ).metadata();
+
+        @SuppressWarnings( "unchecked" )
+        final java.util.List< String > tags = (java.util.List< String >) meta.get( "tags" );
+        assertNotNull( tags, "tags key should still be present" );
+        assertTrue( tags.isEmpty(), "A blank wikantik.frontmatter.defaultTags must mean no tags are added" );
+    }
 }

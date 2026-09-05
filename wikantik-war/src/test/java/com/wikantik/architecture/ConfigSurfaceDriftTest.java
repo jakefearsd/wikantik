@@ -111,6 +111,66 @@ class ConfigSurfaceDriftTest {
     // properties namespace (wikantik-tools.properties), scanned only within TOOLS_MODULES.
     static final Pattern KEY_LITERAL = Pattern.compile( "\"((?:wikantik|mcp|tools)\\.[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)*)\"" );
 
+    /**
+     * Matches a {@code *Property(..., "key", <literal default>)} read site and captures the
+     * key plus the literal default (string, numeric, or boolean). Widened per the Task 11
+     * addendum to include {@code tools.*} keys and hyphenated key segments; a non-literal
+     * default (a constant name such as {@code SOME_CONSTANT}) simply fails to match group 2
+     * and the site is invisible here, which is deliberate — it is not checkable this way.
+     */
+    static final Pattern LITERAL_DEFAULT = Pattern.compile(
+        "Property\\(\\s*[^,()]*,?\\s*\"((?:wikantik|mcp|tools)\\.[a-zA-Z0-9_.-]+)\"\\s*,\\s*(\"([^\"]*)\"|(-?\\d+(?:\\.\\d+)?)[LlDdFf]?|(true|false))\\s*\\)" );
+
+    /** Deliberate code/file divergences, each with the reason an executor needs. */
+    static final Map<String, String> KNOWN_DIVERGENT = Map.ofEntries(
+        Map.entry( "wikantik.search.dense.backend", "fallback path defaults to inmemory (no DataSource); wiring path and file say lucene-hnsw — DenseBackendResolutionTest pins both" ),
+        // ToolsConfig/McpConfig's own literal (0 = unlimited) is a code-level "properties object
+        // has no key at all" fallback, pinned by rateLimitDefaults()/testRateLimitDefaults() for an
+        // empty Properties. Production always loads the bundled wikantik-tools.properties /
+        // wikantik-mcp.properties from the classpath, so the shipped 100/10 rate limits are what
+        // actually governs — the 0 fallback is defense against a missing/corrupt bundled file, not
+        // the intended production value.
+        Map.entry( "tools.ratelimit.global", "code default 0 (unlimited) is the no-properties-object fallback, pinned by ToolsConfigTest#rateLimitDefaults; the bundled wikantik-tools.properties always ships 100 and is what production runs with" ),
+        Map.entry( "tools.ratelimit.perClient", "code default 0 (unlimited) is the no-properties-object fallback, pinned by ToolsConfigTest#rateLimitDefaults; the bundled wikantik-tools.properties always ships 10 and is what production runs with" ),
+        Map.entry( "mcp.ratelimit.global", "code default 0 (unlimited) is the no-properties-object fallback, pinned by McpConfigTest#testRateLimitDefaults; the bundled wikantik-mcp.properties always ships 100 and is what production runs with" ),
+        Map.entry( "mcp.ratelimit.perClient", "code default 0 (unlimited) is the no-properties-object fallback, pinned by McpConfigTest#testRateLimitDefaults; the bundled wikantik-mcp.properties always ships 10 and is what production runs with" ),
+        // Two genuinely distinct load paths, each pinned by its own test: an empty Properties
+        // object (no classpath resource at all) falls back to the code literal "1.0.0"
+        // (testDefaultsWhenPropertiesEmpty); McpConfig's real no-arg constructor loads the bundled
+        // wikantik-mcp.properties from the classpath, which ships "2.0.0" (testDefaultProperties).
+        // Production always goes through the classpath-loading constructor.
+        Map.entry( "mcp.server.version", "no-arg constructor loads the bundled file (2.0.0, testDefaultProperties); an empty-Properties instance falls back to the code literal 1.0.0 (testDefaultsWhenPropertiesEmpty) — production only ever uses the former" ),
+        // wireHybridRetrieval's own getProperty(...,"false") fires only when the key is absent
+        // from the Properties object passed in. Production's ini/wikantik.properties has shipped
+        // "true" since f979f0d698 (2026-06-18 recall sweep: strict improvement over dense-only,
+        // eval/bm25-chunk-spike/findings.md). The per-module test-resource ini/wikantik.properties
+        // fixtures deliberately do NOT declare this key, so ~4000 wikantik-main unit tests that
+        // boot a TestEngine keep building dense-only bundle sources instead of a real Lucene BM25
+        // index against the test Postgres DataSource on every startup — flipping the code literal
+        // to match the shipped file would change that behaviour suite-wide, not just fix a stale
+        // constant. BundleSourcesWithoutEmbedderTest opts a single test in explicitly.
+        Map.entry( "wikantik.bundle.bm25.enabled", "code default false is the property-absent fallback the test-resource ini fixtures rely on to skip a per-test Lucene BM25 build; production's shipped ini has been true since f979f0d698 (2026-06-18 recall sweep)" )
+    );
+
+    /** key -> set of distinct literal defaults seen at read sites. */
+    static Map<String, Set<String>> literalDefaults( final String source ) {
+        final Map<String, Set<String>> out = new java.util.TreeMap<>();
+        final Matcher m = LITERAL_DEFAULT.matcher( source );
+        while( m.find() ) {
+            final String value = m.group( 3 ) != null ? m.group( 3 ) : m.group( 4 ) != null ? m.group( 4 ) : m.group( 5 );
+            out.computeIfAbsent( m.group( 1 ), k -> new TreeSet<>() ).add( value );
+        }
+        return out;
+    }
+
+    static boolean sameValue( final String fileValue, final String codeValue ) {
+        try {
+            return Double.parseDouble( fileValue ) == Double.parseDouble( codeValue );
+        } catch( final NumberFormatException nfe ) {
+            return fileValue.strip().equalsIgnoreCase( codeValue.strip() );
+        }
+    }
+
     @Test
     void configuration_surface_matches_baseline() throws IOException {
         final Path root = repoRoot();
@@ -146,6 +206,61 @@ class ConfigSurfaceDriftTest {
                 assertTrue( l.chars().allMatch( ch -> ch < 128 ), () -> f.getFileName() + ":" + line + " contains a non-ASCII character: " + l );
             }
         }
+    }
+
+    /**
+     * Loads each shipped defaults file with {@link java.util.Properties#load(java.io.InputStream)}
+     * (the SOURCE path, not the classpath — test-resource copies of the same filename shadow the
+     * production file on every module's test classpath, so nothing else proves the shipped file
+     * itself is even well-formed) and asserts its key set matches {@link ConfigReference}'s parse
+     * of the same file. Any disagreement means a malformed line (bad continuation, stray colon,
+     * unescaped character) that {@code ConfigReference}'s line-oriented parser tolerates but the
+     * JDK's stricter parser does not, or vice versa.
+     */
+    @Test
+    void production_defaults_load_as_java_properties() throws IOException {
+        final Path root = repoRoot();
+
+        // ini/wikantik.properties also carries a trailing log4j2 config block (appender.*,
+        // logger.wikantik.*, mail.*, ...) in the same file — real, unrelated keys that must
+        // stay out of the comparison, hence the prefix filter on both sides.
+        assertPropertiesKeysMatch( root.resolve( INI ), "wikantik." );
+        assertPropertiesKeysMatch( root.resolve( TOOLS_INI ), "tools." );
+
+        // MCP_INI declares both "mcp.*" and "wikantik.mcp.*" keys in the one file — union both
+        // ConfigReference prefixes and filter the Properties side to either prefix.
+        final java.util.Properties mcpProps = loadProperties( root.resolve( MCP_INI ) );
+        final Set<String> mcpExpected = new TreeSet<>( ConfigReference.parse( root.resolve( MCP_INI ), "mcp." ).keys() );
+        mcpExpected.addAll( ConfigReference.parse( root.resolve( MCP_INI ), MCP_FILE_WIKANTIK_PREFIX ).keys() );
+        final Set<String> mcpActual = new TreeSet<>();
+        for( final String k : mcpProps.stringPropertyNames() ) {
+            if( k.startsWith( "mcp." ) || k.startsWith( MCP_FILE_WIKANTIK_PREFIX ) ) {
+                mcpActual.add( k );
+            }
+        }
+        assertEquals( mcpExpected, mcpActual,
+            () -> MCP_INI + " does not parse identically under java.util.Properties and ConfigReference" );
+    }
+
+    private static void assertPropertiesKeysMatch( final Path file, final String prefix ) throws IOException {
+        final java.util.Properties props = loadProperties( file );
+        final Set<String> expected = ConfigReference.parse( file, prefix ).keys();
+        final Set<String> actual = new TreeSet<>();
+        for( final String k : props.stringPropertyNames() ) {
+            if( k.startsWith( prefix ) ) {
+                actual.add( k );
+            }
+        }
+        assertEquals( new TreeSet<>( expected ), actual,
+            () -> file + " does not parse identically under java.util.Properties and ConfigReference" );
+    }
+
+    private static java.util.Properties loadProperties( final Path file ) throws IOException {
+        final java.util.Properties props = new java.util.Properties();
+        try( java.io.InputStream is = Files.newInputStream( file ) ) {
+            props.load( is );
+        }
+        return props;
     }
 
     @Test
@@ -186,6 +301,28 @@ class ConfigSurfaceDriftTest {
         assertEquals( Set.of( "tools.x" ), literals( stripComments( src ), "tools." ) );
     }
 
+    @Test
+    void literal_default_extractor_reads_strings_numbers_and_booleans() {
+        final String src = "x = TextUtil.getBooleanProperty( props, \"wikantik.a\", true );\n"
+            + "y = props.getProperty( \"wikantik.b\", \"lucene-hnsw\" );\n"
+            + "z = TextUtil.getIntegerProperty( props, \"wikantik.c\", 300 );\n"
+            + "w = props.getProperty( \"wikantik.d\", SOME_CONSTANT );\n";
+        final Map<String, Set<String>> d = literalDefaults( src );
+        assertEquals( Set.of( "true" ), d.get( "wikantik.a" ) );
+        assertEquals( Set.of( "lucene-hnsw" ), d.get( "wikantik.b" ) );
+        assertEquals( Set.of( "300" ), d.get( "wikantik.c" ) );
+        assertFalse( d.containsKey( "wikantik.d" ), "constant defaults are not checkable here" );
+    }
+
+    @Test
+    void literal_default_extractor_captures_hyphenated_and_tools_prefixed_keys() {
+        final String src = "x = props.getProperty( \"wikantik.preferences.default-locale\", \"en\" );\n"
+            + "y = ToolsConfig.intProperty( \"tools.ratelimit.global\", 0 );\n";
+        final Map<String, Set<String>> d = literalDefaults( src );
+        assertEquals( Set.of( "en" ), d.get( "wikantik.preferences.default-locale" ) );
+        assertEquals( Set.of( "0" ), d.get( "tools.ratelimit.global" ) );
+    }
+
     // ---------------------------------------------------------------- scanning
 
     static Set<String> computeViolations( final Path root ) throws IOException {
@@ -208,11 +345,16 @@ class ConfigSurfaceDriftTest {
         mcpLiterals.removeAll( NOT_CONFIG.keySet() );
         toolsLiterals.removeAll( NOT_CONFIG.keySet() );
 
-        checkFile( ConfigReference.parse( root.resolve( INI ), "wikantik." ), wikantikLiterals, out );
+        final Map<String, Set<String>> wikantikDefaults = new java.util.TreeMap<>( literalDefaults( allSource ) );
+        final Map<String, Set<String>> mcpDefaults = new java.util.TreeMap<>( literalDefaults( mcpSource ) );
+        final Map<String, Set<String>> toolsDefaults = literalDefaults( toolsSource );
+        routeMcpFileKeyDefaults( wikantikDefaults, mcpDefaults );
+
+        checkFile( ConfigReference.parse( root.resolve( INI ), "wikantik." ), wikantikLiterals, wikantikDefaults, out );
         checkFile( mergeParsed(
             ConfigReference.parse( root.resolve( MCP_INI ), "mcp." ),
-            ConfigReference.parse( root.resolve( MCP_INI ), MCP_FILE_WIKANTIK_PREFIX ) ), mcpLiterals, out );
-        checkFile( ConfigReference.parse( root.resolve( TOOLS_INI ), "tools." ), toolsLiterals, out );
+            ConfigReference.parse( root.resolve( MCP_INI ), MCP_FILE_WIKANTIK_PREFIX ) ), mcpLiterals, mcpDefaults, out );
+        checkFile( ConfigReference.parse( root.resolve( TOOLS_INI ), "tools." ), toolsLiterals, toolsDefaults, out );
         return out;
     }
 
@@ -228,6 +370,25 @@ class ConfigSurfaceDriftTest {
         mcp.addAll( toMove );
     }
 
+    /**
+     * Moves {@code wikantik.mcp.*} literal-default entries from the {@code wikantik.*} defaults map to
+     * the {@code mcp.*} one (mirrors {@link #routeMcpFileKeys}), unioning with anything already found
+     * there — {@code allSource} and {@code mcpSource} scan the same MCP-module files, so the same read
+     * sites are normally found in both; the union is defensive, not load-bearing.
+     */
+    static void routeMcpFileKeyDefaults( final Map<String, Set<String>> wikantik, final Map<String, Set<String>> mcp ) {
+        final Set<String> toMove = new TreeSet<>();
+        for( final String k : wikantik.keySet() ) {
+            if( k.startsWith( MCP_FILE_WIKANTIK_PREFIX ) ) {
+                toMove.add( k );
+            }
+        }
+        for( final String k : toMove ) {
+            final Set<String> moved = wikantik.remove( k );
+            mcp.merge( k, moved, ( a, b ) -> { final Set<String> u = new TreeSet<>( a ); u.addAll( b ); return u; } );
+        }
+    }
+
     /** Combines two {@link ConfigReference.Parsed} results (same file, different key-prefix filters) into one. */
     static ConfigReference.Parsed mergeParsed( final ConfigReference.Parsed a, final ConfigReference.Parsed b ) {
         final List<ConfigReference.Entry> entries = new ArrayList<>( a.entries() );
@@ -239,7 +400,8 @@ class ConfigSurfaceDriftTest {
         return new ConfigReference.Parsed( List.copyOf( entries ), List.copyOf( commented ), List.copyOf( duplicates ) );
     }
 
-    static void checkFile( final ConfigReference.Parsed parsed, final Set<String> codeKeys, final Set<String> out ) {
+    static void checkFile( final ConfigReference.Parsed parsed, final Set<String> codeKeys,
+                           final Map<String, Set<String>> defaults, final Set<String> out ) {
         final Set<String> fileKeys = parsed.keys();
         for( final String k : codeKeys ) {
             if( !fileKeys.contains( k ) ) {
@@ -270,6 +432,11 @@ class ConfigSurfaceDriftTest {
             }
             if( "secret".equals( e.type() ) && !e.isBlank() ) {
                 out.add( e.key() + "\tSECRET_HAS_VALUE" );
+            }
+            final Set<String> code = defaults.getOrDefault( e.key(), Set.of() );
+            if( !code.isEmpty() && !KNOWN_DIVERGENT.containsKey( e.key() )
+                && code.stream().noneMatch( c -> sameValue( e.value(), c ) ) ) {
+                out.add( e.key() + "\tDEFAULT_MISMATCH(file=" + e.value() + ", code=" + String.join( "|", code ) + ")" );
             }
         }
     }

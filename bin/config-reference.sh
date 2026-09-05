@@ -14,8 +14,9 @@
 #            interactive/CI use of the same check.)
 #
 # Build behaviour: rebuilds wikantik-extract-cli if the jar is missing or
-# older than any Java source in the module or in wikantik-util's config
-# package (ConfigReference itself).
+# older than any Java source in the module, any .mustache template in the
+# module's resources, or any Java source in wikantik-util's config package
+# (ConfigReference itself).
 
 set -euo pipefail
 
@@ -47,6 +48,8 @@ needs_build=0
 if [[ ! -f "${JAR}" ]]; then
     needs_build=1
 elif find "${ROOT_DIR}/wikantik-extract-cli/src" -name '*.java' -newer "${JAR}" -print -quit | grep -q .; then
+    needs_build=1
+elif find "${ROOT_DIR}/wikantik-extract-cli/src/main/resources" -name '*.mustache' -newer "${JAR}" -print -quit | grep -q .; then
     needs_build=1
 elif find "${ROOT_DIR}/wikantik-util/src/main/java/com/wikantik/util/config" \
         -name '*.java' -newer "${JAR}" -print -quit 2>/dev/null | grep -q .; then

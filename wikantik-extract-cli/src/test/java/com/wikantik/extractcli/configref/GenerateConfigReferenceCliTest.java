@@ -51,6 +51,22 @@ class GenerateConfigReferenceCliTest {
         "mcp.access.allowUnrestricted = false"
     ), "mcp." );
 
+    /** Fix round 1 — IMPORTANT 1: an enum Type value containing `|` must not corrupt the table. */
+    private static final ConfigReference.Parsed ENUM_TYPE = ConfigReference.parse( List.of(
+        "# [Modes]",
+        "#  Example mode used only to test Type-column pipe escaping.",
+        "#  Type: enum(standard|code)",
+        "wikantik.example.mode = standard"
+    ), "wikantik." );
+
+    /** Fix round 1 — MINOR 1: a description containing a literal `|` must render escaped too. */
+    private static final ConfigReference.Parsed PIPE_DESCRIPTION = ConfigReference.parse( List.of(
+        "# [Misc]",
+        "#  Accepts a|b|c style values, pipe-separated.",
+        "#  Type: string",
+        "wikantik.example.piped = a"
+    ), "wikantik." );
+
     /** Two `# [Ontology]` markers in one file, entries appended between/after them (Task 12 addendum). */
     private static final ConfigReference.Parsed DUPLICATE_SECTION = ConfigReference.parse( List.of(
         "# [Ontology]",
@@ -82,8 +98,8 @@ class GenerateConfigReferenceCliTest {
     void renders_one_table_per_section_with_key_type_default_env_and_description() {
         final String md = new GenerateConfigReferenceCli().render( sources(), "ConfigurationReference.md.mustache" );
         assertTrue( md.contains( "## Ontology" ) );
-        assertTrue( md.contains( "| `wikantik.ontology.enabled` | boolean | `true` | `wikantik_ontology_enabled` | Master switch for the ontology layer. |" ), md );
-        assertTrue( md.contains( "| `wikantik.ontology.tdb2.dir` | path | *(blank: <workDir>/ontology-tdb2)* |" ), md );
+        assertTrue( md.contains( "| `wikantik.ontology.enabled` | `boolean` | `true` | `wikantik_ontology_enabled` | Master switch for the ontology layer. |" ), md );
+        assertTrue( md.contains( "| `wikantik.ontology.tdb2.dir` | `path` | *(blank: <workDir>/ontology-tdb2)* |" ), md );
         assertTrue( md.contains( "## MCP access" ) );
         assertTrue( md.contains( "`mcp.access.allowUnrestricted`" ) );
     }
@@ -91,7 +107,36 @@ class GenerateConfigReferenceCliTest {
     @Test
     void system_property_sourced_keys_are_flagged() {
         final String md = new GenerateConfigReferenceCli().render( sources(), "ConfigurationReference.md.mustache" );
-        assertTrue( md.contains( "`wikantik.scim.token` | secret | *(blank)* | `-Dwikantik.scim.token` only |" ), md );
+        assertTrue( md.contains( "`wikantik.scim.token` | `secret` | *(blank)* | `-Dwikantik.scim.token` only |" ), md );
+    }
+
+    @Test
+    void enum_type_pipes_are_escaped_in_the_type_column() {
+        final GenerateConfigReferenceCli cli = new GenerateConfigReferenceCli();
+        final List<GenerateConfigReferenceCli.SourceFile> sources = List.of(
+            new GenerateConfigReferenceCli.SourceFile( "Wikantik core settings",
+                "wikantik-main/src/main/resources/ini/wikantik.properties",
+                "the primary settings surface described above", ENUM_TYPE ) );
+        final String md = cli.render( sources, "ConfigurationReference.md.mustache" );
+        assertTrue( md.contains( "| `enum(standard\\|code)` |" ), md );
+
+        final String row = md.lines()
+            .filter( l -> l.startsWith( "| `wikantik.example.mode`" ) )
+            .findFirst()
+            .orElseThrow( () -> new AssertionError( "row not found in:\n" + md ) );
+        final long unescapedPipes = java.util.regex.Pattern.compile( "(?<!\\\\)\\|" ).matcher( row ).results().count();
+        assertEquals( 6, unescapedPipes, "expected 5 cell separators after the leading one, got row: " + row );
+    }
+
+    @Test
+    void description_containing_a_literal_pipe_is_escaped() {
+        final GenerateConfigReferenceCli cli = new GenerateConfigReferenceCli();
+        final List<GenerateConfigReferenceCli.SourceFile> sources = List.of(
+            new GenerateConfigReferenceCli.SourceFile( "Wikantik core settings",
+                "wikantik-main/src/main/resources/ini/wikantik.properties",
+                "the primary settings surface described above", PIPE_DESCRIPTION ) );
+        final String md = cli.render( sources, "ConfigurationReference.md.mustache" );
+        assertTrue( md.contains( "Accepts a\\|b\\|c style values, pipe-separated." ), md );
     }
 
     @Test

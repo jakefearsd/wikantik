@@ -194,11 +194,22 @@ public final class GenerateConfigReferenceCli {
     private static Map<String, Object> entryModel( final ConfigReference.Entry e ) {
         final Map<String, Object> m = new LinkedHashMap<>();
         m.put( "key", e.key() );
-        m.put( "type", e.type() == null ? "" : e.type() );
+        m.put( "typeCell", typeCell( e ) );
         m.put( "defaultCell", defaultCell( e ) );
         m.put( "overrideCell", overrideCell( e ) );
         m.put( "descriptionCell", descriptionCell( e ) );
         return m;
+    }
+
+    /**
+     * The Type cell, e.g. {@code enum(a|b|c)}, must not corrupt the Markdown table: the {@code |}
+     * separators inside an enum value are indistinguishable from real cell delimiters to a GFM
+     * parser. Backticks alone are not sufficient — not every renderer honours "no special meaning
+     * inside code spans" for table-cell splitting — so the pipe is escaped as well.
+     */
+    static String typeCell( final ConfigReference.Entry e ) {
+        final String type = e.type() == null ? "" : e.type();
+        return "`" + type.replace( "|", "\\|" ) + "`";
     }
 
     static String defaultCell( final ConfigReference.Entry e ) {

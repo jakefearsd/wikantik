@@ -40,6 +40,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * The Phase 3 security centerpiece: the public RDF endpoints (/sparql, /export, /id)
@@ -130,19 +131,76 @@ public class OntologyPublicEndpointsIT {
         post( "/api/auth/logout", "{}" );
     }
 
+    /**
+     * Rebuilds the ontology so it provably contains the pages this test just saved.
+     *
+     * <p>Two orderings have to be forced, and getting either wrong makes the assertions
+     * below test a stale dataset rather than a leak:</p>
+     * <ol>
+     *   <li>A full rebuild projects exactly the rows in {@code page_canonical_ids}, and
+     *       that row is written asynchronously after the save returns. So we wait for
+     *       both pages to surface in the structural index before triggering.</li>
+     *   <li>Another IT class ({@code AdminOntologyRebuildIT}) fires a rebuild and
+     *       deliberately does not wait for it. If that one is still RUNNING, our trigger
+     *       is refused with 409 — and simply polling for IDLE would then observe
+     *       <em>its</em> rebuild finishing, a snapshot taken before our pages existed.
+     *       So we drain first and insist on a trigger that is actually accepted.</li>
+     * </ol>
+     */
     private void rebuildAndAwaitIdle() throws IOException, InterruptedException {
-        final HttpResponse< String > trig = post( "/admin/ontology/rebuild", "{}" );
-        assertTrue( trig.statusCode() == 202 || trig.statusCode() == 409,
-                "rebuild trigger: " + trig.statusCode() + " " + trig.body() );
-        final long deadline = System.currentTimeMillis() + 30_000;
+        awaitIndexed( PUBLIC_PAGE );
+        awaitIndexed( SECRET_PAGE );
+
+        final long deadline = System.currentTimeMillis() + 60_000;
+        HttpResponse< String > trig = null;
+        while ( System.currentTimeMillis() < deadline ) {
+            awaitIdle();
+            trig = post( "/admin/ontology/rebuild", "{}" );
+            if ( trig.statusCode() == 202 ) {
+                break;
+            }
+            assertEquals( 409, trig.statusCode(),
+                    "rebuild trigger: " + trig.statusCode() + " " + trig.body() );
+            Thread.sleep( 250 );
+        }
+        assertTrue( trig != null && trig.statusCode() == 202,
+                "no rebuild was accepted within 60s; last trigger: "
+                        + ( trig == null ? "(none)" : trig.statusCode() + " " + trig.body() ) );
+        awaitIdle();
+    }
+
+    /** Blocks until the ontology rebuild coordinator reports IDLE. */
+    private void awaitIdle() throws IOException, InterruptedException {
+        final long deadline = System.currentTimeMillis() + 60_000;
+        String state = "(never read)";
         while ( System.currentTimeMillis() < deadline ) {
             final HttpResponse< String > st = get( "/admin/ontology/status" );
             final JsonObject body = JsonParser.parseString( st.body() ).getAsJsonObject();
-            if ( "IDLE".equals( body.get( "state" ).getAsString() ) ) {
+            state = body.get( "state" ).getAsString();
+            if ( "IDLE".equals( state ) ) {
                 return;
             }
-            Thread.sleep( 500 );
+            Thread.sleep( 250 );
         }
+        fail( "ontology rebuild did not reach IDLE within 60s; last state=" + state );
+    }
+
+    /**
+     * Blocks until {@code slug} has a canonical-id row, which is what a full rebuild
+     * enumerates. The structural index is seeded asynchronously, so a page saved a
+     * moment ago is not necessarily projectable yet.
+     */
+    private void awaitIndexed( final String slug ) throws IOException, InterruptedException {
+        final long deadline = System.currentTimeMillis() + 60_000;
+        while ( System.currentTimeMillis() < deadline ) {
+            final HttpResponse< String > resp = get( "/api/structure/sitemap" );
+            if ( resp.statusCode() == 200 && resp.body().contains( "\"" + slug + "\"" ) ) {
+                return;
+            }
+            Thread.sleep( 250 );
+        }
+        fail( "page '" + slug + "' never reached the structural index within 60s; "
+                + "a full ontology rebuild would not project it" );
     }
 
     @Test

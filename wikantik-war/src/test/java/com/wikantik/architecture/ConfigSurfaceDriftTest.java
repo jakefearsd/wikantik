@@ -97,6 +97,19 @@ class ConfigSurfaceDriftTest {
     }
 
     @Test
+    void defaults_files_are_pure_ascii() throws IOException {
+        final Path root = repoRoot();
+        for( final Path f : List.of( root.resolve( INI ), root.resolve( MCP_INI ) ) ) {
+            final List<String> lines = Files.readAllLines( f, StandardCharsets.ISO_8859_1 );
+            for( int i = 0; i < lines.size(); i++ ) {
+                final String l = lines.get( i );
+                final int line = i + 1;
+                assertTrue( l.chars().allMatch( ch -> ch < 128 ), () -> f.getFileName() + ":" + line + " contains a non-ASCII character: " + l );
+            }
+        }
+    }
+
+    @Test
     void comment_stripper_ignores_comment_markers_inside_string_literals() {
         final String src = "a = props.getProperty( \"http://x/\", \"wikantik.after.url\" ); // trailing /* not a block\n"
             + "b = \"wikantik.in.string\"; /* real block \"wikantik.in.block\" */ c = \"wikantik.after.block\";\n"

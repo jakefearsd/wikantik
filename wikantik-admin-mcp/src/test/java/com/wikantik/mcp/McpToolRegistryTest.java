@@ -18,17 +18,21 @@
  */
 package com.wikantik.mcp;
 
+import com.google.gson.Gson;
 import com.wikantik.TestEngine;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.PingSearchEnginesTool;
+import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -207,6 +211,39 @@ class McpToolRegistryTest {
             // baseUrl is stored with the trailing slash stripped.
             assertEquals( "https://wiki.example.test", ping.baseUrl(),
                     "ping tool must use configured wikantik.baseURL, not the context path" );
+        } finally {
+            e.stop();
+        }
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void blank_indexnow_key_disables_indexnow() {
+        // Config-surface burn-down (task 7): wikantik.indexnow.apiKey ships as an
+        // explicit blank default rather than being absent from the properties file.
+        // McpToolRegistry must wire that through to PingSearchEnginesTool the same
+        // way it wires an unset key — IndexNow disabled with a clear error, not a
+        // broken client silently registered.
+        final TestEngine e = TestEngine.build(
+                java.util.Map.entry( "wikantik.baseURL", "https://wiki.example.test" ),
+                java.util.Map.entry( "wikantik.indexnow.apiKey", "" ) );
+        try {
+            final McpToolRegistry reg = new McpToolRegistry( e );
+            final PingSearchEnginesTool ping = ( PingSearchEnginesTool ) reg.readOnlyTools().stream()
+                    .filter( t -> t.name().equals( "ping_search_engines" ) )
+                    .findFirst()
+                    .orElseThrow( () -> new AssertionError( "ping_search_engines not registered" ) );
+
+            final Map< String, Object > args = new HashMap<>();
+            args.put( "service", "indexnow" );
+            final McpSchema.CallToolResult result = ping.execute( args );
+            final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+            final Map< String, Object > data = new Gson().fromJson( json, Map.class );
+            final List< Map< String, Object > > results = ( List< Map< String, Object > > ) data.get( "results" );
+
+            assertEquals( false, results.get( 0 ).get( "success" ) );
+            assertTrue( results.get( 0 ).get( "error" ).toString().contains( "apiKey" ),
+                    "blank wikantik.indexnow.apiKey must disable IndexNow with a clear error, not build a broken client" );
         } finally {
             e.stop();
         }

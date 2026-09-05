@@ -70,7 +70,11 @@ class ConfigSurfaceDriftTest {
         Map.entry( "wikantik.translatorReader.runPlugins", "dead constant, never consulted" ),
         Map.entry( "wikantik.translatorReader.useAttachmentImage", "dead constant, never consulted" ),
         Map.entry( "wikantik.nofilterencoding", "dead constant, never consulted" ),
-        Map.entry( "mcp.access", "access-surface label" )
+        Map.entry( "mcp.access", "access-surface label" ),
+        // Task 7 (Group B): both are literal "wikantik.*" strings caught by KEY_LITERAL
+        // that are not, in fact, config read from this file.
+        Map.entry( "wikantik.tools", "prefix constant" ),                    // ToolsMetricsBridge.PFX; real meter names are PFX + ".x" concatenations, invisible to KEY_LITERAL
+        Map.entry( "wikantik.passwordMustChange", "session attribute" )      // PasswordChangeGate.SESSION_ATTRIBUTE, not a config property
     );
 
     /** Config keys physically declared in {@link #MCP_INI} even though the code reads them with a {@code wikantik.} prefix. */

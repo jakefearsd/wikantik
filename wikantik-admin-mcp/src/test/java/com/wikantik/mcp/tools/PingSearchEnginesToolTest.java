@@ -123,6 +123,27 @@ class PingSearchEnginesToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
+    void testIndexNow_blankApiKey() {
+        // Config-surface burn-down (task 7): wikantik.indexnow.apiKey now ships as an
+        // explicit blank default in ini/wikantik.properties rather than being absent, so
+        // McpToolRegistry passes "" (not null) through when the operator hasn't set one.
+        // Must degrade identically to the null case.
+        final PingSearchEnginesTool tool = new PingSearchEnginesTool(
+                "http://wiki.example.com", "", stubClient( 200 ) );
+
+        final Map< String, Object > args = new HashMap<>();
+        args.put( "service", "indexnow" );
+
+        final Map< String, Object > data = executeAndParse( tool, args );
+        final List< Map< String, Object > > results = ( List< Map< String, Object > > ) data.get( "results" );
+        assertEquals( 1, results.size() );
+        assertEquals( "indexnow", results.get( 0 ).get( "service" ) );
+        assertEquals( false, results.get( 0 ).get( "success" ) );
+        assertTrue( results.get( 0 ).get( "error" ).toString().contains( "apiKey" ) );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
     void testAll_services() {
         final PingSearchEnginesTool tool = new PingSearchEnginesTool(
                 "http://wiki.example.com", "my-key", stubClient( 200 ) );

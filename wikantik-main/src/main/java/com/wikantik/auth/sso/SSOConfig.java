@@ -180,7 +180,8 @@ public class SSOConfig {
         final String clientSecret = props.getProperty( PROP_OIDC_CLIENT_SECRET );
         final String scope = props.getProperty( PROP_OIDC_SCOPE, DEFAULT_SCOPE );
 
-        if( discoveryUri == null || clientId == null || clientSecret == null ) {
+        if( discoveryUri == null || discoveryUri.isBlank() || clientId == null || clientId.isBlank()
+                || clientSecret == null || clientSecret.isBlank() ) {
             LOG.error( "OIDC SSO is enabled but missing required properties: {}, {}, {}",
                 PROP_OIDC_DISCOVERY_URI, PROP_OIDC_CLIENT_ID, PROP_OIDC_CLIENT_SECRET );
             return;
@@ -214,7 +215,7 @@ public class SSOConfig {
         final String keystorePassword = props.getProperty( PROP_SAML_KEYSTORE_PASSWORD );
         final String privateKeyPassword = props.getProperty( PROP_SAML_PRIVATE_KEY_PASSWORD );
 
-        if( idpMetadata == null || spEntityId == null ) {
+        if( idpMetadata == null || idpMetadata.isBlank() || spEntityId == null || spEntityId.isBlank() ) {
             LOG.error( "SAML SSO is enabled but missing required properties: {}, {}",
                 PROP_SAML_IDP_METADATA, PROP_SAML_SP_ENTITY_ID );
             return;

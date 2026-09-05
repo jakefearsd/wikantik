@@ -309,7 +309,6 @@ wikantik.kg.judge.timeout_seconds	NO_SECTION
 wikantik.kg.judge.timeout_seconds	NO_TYPE
 wikantik.kg.read.default_min_tier	NO_SECTION
 wikantik.kg.read.default_min_tier	NO_TYPE
-wikantik.kg.read.default_min_tier	UNREFERENCED
 wikantik.kg_policy.bootstrap.exclude	NO_SECTION
 wikantik.kg_policy.bootstrap.exclude	NO_TYPE
 wikantik.kg_policy.bootstrap.exclude	UNREFERENCED

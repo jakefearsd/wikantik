@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Configuration-surface drift gate. Every {@code wikantik.*} literal read by
@@ -71,8 +71,6 @@ class ConfigSurfaceDriftTest {
     static final Set<String> TYPES = Set.of( "boolean", "int", "long", "double", "string", "path", "url", "class", "list", "secret" );
     static final Pattern ENUM_TYPE = Pattern.compile( "^enum\\(([^)]+)\\)$" );
     static final Pattern KEY_LITERAL = Pattern.compile( "\"((?:wikantik|mcp)\\.[a-zA-Z0-9_]+(?:\\.[a-zA-Z0-9_]+)*)\"" );
-    static final Pattern BLOCK_COMMENT = Pattern.compile( "/\\*.*?\\*/", Pattern.DOTALL );
-    static final Pattern LINE_COMMENT = Pattern.compile( "//[^\\n]*" );
 
     @Test
     void configuration_surface_matches_baseline() throws IOException {
@@ -96,6 +94,23 @@ class ConfigSurfaceDriftTest {
             + "with a description and Type:, see the spec):\n  " + String.join( "\n  ", newViolations ) );
         assertTrue( staleBaseline.isEmpty(), () -> "Baseline lines no longer violated — delete them from " + BASELINE + ":\n  "
             + String.join( "\n  ", staleBaseline ) );
+    }
+
+    @Test
+    void comment_stripper_ignores_comment_markers_inside_string_literals() {
+        final String src = "a = props.getProperty( \"http://x/\", \"wikantik.after.url\" ); // trailing /* not a block\n"
+            + "b = \"wikantik.in.string\"; /* real block \"wikantik.in.block\" */ c = \"wikantik.after.block\";\n"
+            + "// line comment with \"wikantik.in.line.comment\"\n"
+            + "d = '\"'; e = \"wikantik.after.char\";\n"
+            + "/** javadoc\n * \"wikantik.in.javadoc\"\n */ f = \"wikantik.after.javadoc\";\n";
+        final Set<String> keys = literals( stripComments( src ), "wikantik." );
+        assertEquals( Set.of( "wikantik.after.url", "wikantik.in.string", "wikantik.after.block", "wikantik.after.char", "wikantik.after.javadoc" ), keys );
+    }
+
+    @Test
+    void line_comment_containing_block_opener_does_not_swallow_following_lines() {
+        final String src = "// D27: match /api/structure/*.\nx = \"wikantik.survives\";\n/** doc */\n";
+        assertEquals( Set.of( "wikantik.survives" ), literals( stripComments( src ), "wikantik." ) );
     }
 
     // ---------------------------------------------------------------- scanning
@@ -169,7 +184,7 @@ class ConfigSurfaceDriftTest {
                 default -> {
                     final Matcher m = ENUM_TYPE.matcher( e.type() );
                     if( m.matches() ) {
-                        return Set.of( m.group( 1 ).split( "\\|" ) ).contains( v );
+                        return java.util.Arrays.asList( m.group( 1 ).split( "\\|" ) ).contains( v );
                     }
                 }
             }
@@ -203,12 +218,50 @@ class ConfigSurfaceDriftTest {
                 try( Stream<Path> files = Files.walk( src ) ) {
                     for( final Path f : files.filter( p -> p.toString().endsWith( ".java" ) ).toList() ) {
                         final String text = Files.readString( f, StandardCharsets.ISO_8859_1 );
-                        sb.append( LINE_COMMENT.matcher( BLOCK_COMMENT.matcher( text ).replaceAll( "" ) ).replaceAll( "" ) ).append( '\n' );
+                        sb.append( stripComments( text ) ).append( '\n' );
                     }
                 }
             }
         }
         return sb.toString();
+    }
+
+    /** Removes line and block comments while leaving string and char literals intact (a comment marker inside a literal is content). */
+    static String stripComments( final String text ) {
+        final StringBuilder out = new StringBuilder( text.length() );
+        final int n = text.length();
+        int i = 0;
+        while( i < n ) {
+            final char c = text.charAt( i );
+            final char next = i + 1 < n ? text.charAt( i + 1 ) : '\0';
+            if( c == '"' || c == '\'' ) {                    // string or char literal: copy verbatim, honouring escapes
+                final char quote = c;
+                out.append( c );
+                i++;
+                while( i < n ) {
+                    final char d = text.charAt( i );
+                    out.append( d );
+                    i++;
+                    if( d == '\\' && i < n ) {
+                        out.append( text.charAt( i ) );
+                        i++;
+                    } else if( d == quote || d == '\n' ) {
+                        break;
+                    }
+                }
+            } else if( c == '/' && next == '/' ) {          // line comment: drop to end of line, keep the newline
+                while( i < n && text.charAt( i ) != '\n' ) {
+                    i++;
+                }
+            } else if( c == '/' && next == '*' ) {          // block comment: drop through the closing */
+                final int end = text.indexOf( "*/", i + 2 );
+                i = end < 0 ? n : end + 2;
+            } else {
+                out.append( c );
+                i++;
+            }
+        }
+        return out.toString();
     }
 
     static Path repoRoot() {

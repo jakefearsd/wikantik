@@ -914,14 +914,22 @@ public class AuthorizationManagerTest {
     public void testBlankPolicyFilePropertyFallsBackToDefaultPolicy() throws Exception {
         // ini/wikantik.properties declares "wikantik.policy.file =" (blank) as its shipped
         // default. A blank value must resolve to AuthorizationManager.DEFAULT_POLICY (the
-        // built-in wikantik.policy file), not be looked up as a literal empty filename.
+        // built-in wikantik.policy file), not be looked up as a literal empty filename — proven
+        // here by an actual permission decision under that policy, not merely that the manager
+        // initialized: the default wikantik.policy grants Role "All" a blanket page view, so an
+        // anonymous session must be able to view a plain, ACL-free page.
         final Properties props = TestEngine.getTestProperties();
         props.put( AuthorizationManager.POLICY, "" );
 
         final TestEngine engine = new TestEngine( props );
         final AuthorizationManager auth = engine.getManager( AuthorizationManager.class );
+        engine.saveText( "BlankPolicyFallbackPage", "Foo" );
 
-        Assertions.assertNotNull( auth, "AuthorizationManager should initialize using the default policy file" );
+        final Session anon = WikiSessionTest.anonymousSession( engine );
+        final Permission view = PermissionFactory.getPagePermission( "*:BlankPolicyFallbackPage", "view" );
+
+        Assertions.assertTrue( auth.checkPermission( anon, view ),
+            "the default wikantik.policy file should have loaded and granted anonymous view" );
     }
 
 }

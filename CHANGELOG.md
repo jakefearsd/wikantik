@@ -29,8 +29,36 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `finally { setAutoCommit(prev) }` committed the partial work — the same defect class 2.4.19
   fixed in three other places. Each has a failing-first test that injects a `RuntimeException`
   mid-transaction (`FaultInjectingDataSource`) and asserts no partial rows.
+- **The shipped Lucene analyzer default resolves again.** `wikantik.lucene.analyzer` named the
+  Lucene 8 class `org.apache.lucene.analysis.standard.ClassicAnalyzer`; Lucene 9 moved it to
+  `org.apache.lucene.analysis.classic.ClassicAnalyzer`, so a deployment that left the default
+  in place failed `Class.forName` at search-provider startup. Fixed alongside two blank-value
+  startup traps found by the same configuration-surface sweep: a blank `wikantik.policy.file`
+  in `DefaultAuthorizationManager` was looked up as a literal empty filename instead of falling
+  back to the built-in `wikantik.policy`, and several other properties readers (blank
+  `wikantik.datasource`, `wikantik.preferences.default-locale`, and others) did not treat a
+  blank value the same as an absent one.
 
 ### Changed
+- **Every configuration key is now declared in `ini/wikantik.properties` with an explicit
+  default.** Production Java read 267 distinct `wikantik.*` keys before this work; the shipped
+  defaults file declared fewer than half of them, the rest only as commented-out examples or
+  not at all. Every key any production module reads (`wikantik.*` in `ini/wikantik.properties`,
+  `mcp.*` in `wikantik-mcp.properties`, `tools.*` in `wikantik-tools.properties`) is now
+  uncommented with its effective default spelled out, documented, and enforced from source by
+  `ConfigSurfaceDriftTest` (`wikantik-war`). See `docs/ConfigurationReference.md`.
+- **`wikantik.datasource` is now declared as `jdbc/WikiDatabase`.** A deployment with no JNDI
+  DataSource configured now fails fast at startup instead of silently degrading to the
+  file-based `WEB-INF/wikantik.policy` fallback — user accounts, groups, database-backed policy
+  grants and API keys have no other storage path in this codebase.
+- **`wikantik.admin.notification.email` no longer ships a default.** Set it explicitly to
+  keep receiving admin notification emails on new-user registration; a blank value now means
+  "no notification is sent," matching every other blank-safe reader.
+- **A blank properties value now consistently means "use the default."** Every reader that
+  goes through `TextUtil.getStringProperty` (and the equivalents for int/long/boolean) treats
+  `key =` the same as the key being entirely absent, rather than as a literal empty string —
+  required once the defaults file started declaring blank values for keys whose default is "no
+  value," instead of leaving them undeclared.
 - **One way to touch the database.** New module `wikantik-jdbc` holds the only data-access
   primitive, `com.wikantik.jdbc.Jdbc` (`query/queryOne/update/insertReturningKey/batch/
   forEachRow/execute/ping/withConnection/inTransaction`); `inTransaction` rolls back on any

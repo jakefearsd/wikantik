@@ -114,7 +114,7 @@ The following settings come from `wikantik-main/src/main/resources/ini/wikantik.
 | Key | Type | Default | Override | Description |
 |---|---|---|---|---|
 | `wikantik.searchProvider` | `class` | `LuceneSearchProvider` | `wikantik_searchProvider` | Search provider used for searching pages and attachments. |
-| `wikantik.lucene.analyzer` | `class` | `org.apache.lucene.analysis.standard.ClassicAnalyzer` | `wikantik_lucene_analyzer` | If your wiki's language is something else than English, you might want to visit lucene.apache.org and download a proper Analyzer for your language. |
+| `wikantik.lucene.analyzer` | `class` | `org.apache.lucene.analysis.classic.ClassicAnalyzer` | `wikantik_lucene_analyzer` | If your wiki's language is something else than English, you might want to visit lucene.apache.org and download a proper Analyzer for your language. |
 | `wikantik.lucene.indexdelay` | `int` | `5` | `wikantik_lucene_indexdelay` | Lucene background updater timing (LuceneSearchProvider.LuceneUpdater). Seconds the updater thread sleeps between drains of the pending-page update queue - the steady-state cadence at which saved pages become searchable. |
 | `wikantik.lucene.initialdelay` | `int` | `60` | `wikantik_lucene_initialdelay` | Seconds the updater waits after startup before its first pass, so the rest of engine startup settles before the index is touched. |
 | `wikantik.lucene.missingPageCheckInterval` | `int` | `300` | `wikantik_lucene_missingPageCheckInterval` | How often, in seconds, the updater checks for pages that exist on disk but are missing from the index (a self-healing sweep). 0 disables the periodic check. |

@@ -344,7 +344,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, WikiSecurityException {
-        final String jndiName = props.getProperty( AbstractJDBCDatabase.PROP_DATASOURCE, AbstractJDBCDatabase.DEFAULT_DATASOURCE );
+        final String jndiName = AbstractJDBCDatabase.datasourceName( props );
         ds = com.wikantik.auth.JndiDataSources.lookup( jndiName, "JDBCUserDatabase", AbstractJDBCDatabase.PROP_DATASOURCE );
         jdbc = new Jdbc( ds );
 

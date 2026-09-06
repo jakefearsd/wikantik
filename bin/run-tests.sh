@@ -447,6 +447,29 @@ if [ "$RUN_IT" = 1 ] && [ "$unit_phase_rc" -ne 0 ]; then
   RUN_IT=0
 fi
 
+# A packaged WAR that silently drops a wikantik module jar (e.g. a stray
+# <scope>test</scope> on an otherwise-transitive compile dependency in
+# wikantik-war/pom.xml, which demotes it out of the WAR via nearest-wins
+# mediation) deploys fine at build time but 404s on every request once Tomcat
+# can't resolve its classes — a whole IT phase of failures for one packaging
+# bug. Catch it here, once, before spending that phase on it.
+if [ "$RUN_IT" = 1 ]; then
+  war_file="$(find "$HOME/.m2/repository/com/wikantik/wikantik-war" -name '*.war' -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2-)"
+  # Listed once into a variable, not piped straight into `grep -q`: with
+  # pipefail, `grep -q` exiting on its first match sends unzip a SIGPIPE, and
+  # pipefail then reports the *pipeline* as failed even though the match was
+  # found — a false "missing jar" on every green run.
+  war_listing="$( [ -n "$war_file" ] && unzip -l "$war_file" 2>/dev/null )"
+  if [ -z "$war_file" ] || ! grep -q 'WEB-INF/lib/wikantik-util-[^/]*\.jar' <<< "$war_listing" \
+      || ! grep -q 'WEB-INF/lib/wikantik-main-[^/]*\.jar' <<< "$war_listing"; then
+    {
+      echo "SKIP  IT phase — WAR is missing a wikantik module jar — check dependency scopes in wikantik-war/pom.xml"
+      echo "        Checked: ${war_file:-<no WAR found under ~/.m2/repository/com/wikantik/wikantik-war>}"
+    } | tee -a "$REPORT"
+    RUN_IT=0
+  fi
+fi
+
 # Only start the shared embedder for a run that actually needs it: the full
 # IT phase, or a single-module run of the dense module specifically. Other
 # --module runs (rest, sso, knowledge-disabled, custom-jdbc, scim-fullloop)

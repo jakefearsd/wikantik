@@ -27,6 +27,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Properties;
 
 /**
  * Abstract base class for JDBC-backed databases (UserDatabase, GroupDatabase).
@@ -44,6 +45,20 @@ public abstract class AbstractJDBCDatabase {
 
     /** Default JNDI name for the shared DataSource. */
     public static final String DEFAULT_DATASOURCE = "jdbc/WikiDatabase";
+
+    /**
+     * Resolves the configured JNDI datasource name from {@code props}, treating a
+     * blank value exactly like an absent one (spec decision 4): both fall back to
+     * {@link #DEFAULT_DATASOURCE}. A non-blank value is returned trimmed.
+     *
+     * @param props the properties to read {@link #PROP_DATASOURCE} from
+     * @return the trimmed configured datasource name, or {@link #DEFAULT_DATASOURCE} when absent or blank
+     */
+    public static String datasourceName( final Properties props ) {
+        final String raw = props.getProperty( PROP_DATASOURCE, DEFAULT_DATASOURCE );
+        final String trimmed = raw == null ? "" : raw.trim();
+        return trimmed.isEmpty() ? DEFAULT_DATASOURCE : trimmed;
+    }
 
     /** The JDBC DataSource obtained via JNDI. */
     protected DataSource ds;

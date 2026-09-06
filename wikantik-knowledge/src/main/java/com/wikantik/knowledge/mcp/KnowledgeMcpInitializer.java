@@ -364,9 +364,8 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
 
     private static MentionIndex resolveMentionIndex( final Engine engine ) {
         try {
-            final String jndiName = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty(
-                AbstractJDBCDatabase.PROP_DATASOURCE,
-                AbstractJDBCDatabase.DEFAULT_DATASOURCE );
+            final String jndiName = AbstractJDBCDatabase.datasourceName(
+                CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties() );
             final javax.naming.Context initCtx = new javax.naming.InitialContext();
             final javax.naming.Context envCtx =
                 ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );

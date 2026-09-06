@@ -317,6 +317,28 @@ class ConfigSurfaceDriftTest {
         assertEquals( Set.of( "0" ), d.get( "tools.ratelimit.global" ) );
     }
 
+    @Test
+    void value_parses_accepts_a_class_value_that_resolves_via_forname() {
+        final ConfigReference.Entry e = new ConfigReference.Entry( "wikantik.k", "java.lang.String",
+            List.of(), "class", null, null, "section", 1 );
+        assertTrue( valueParses( e ) );
+    }
+
+    @Test
+    void value_parses_rejects_a_class_value_that_does_not_resolve() {
+        final ConfigReference.Entry e = new ConfigReference.Entry( "wikantik.k",
+            "org.apache.lucene.analysis.standard.ClassicAnalyzer", List.of(), "class", null, null, "section", 1 );
+        assertFalse( valueParses( e ) );
+    }
+
+    @Test
+    void value_parses_skips_a_short_class_name_without_a_dot() {
+        // Resolved by ClassUtil package search at runtime (e.g. "BasicAttachmentProvider"), not Class.forName.
+        final ConfigReference.Entry e = new ConfigReference.Entry( "wikantik.k", "BasicAttachmentProvider",
+            List.of(), "class", null, null, "section", 1 );
+        assertTrue( valueParses( e ) );
+    }
+
     // ---------------------------------------------------------------- scanning
 
     static Set<String> computeViolations( final Path root ) throws IOException {
@@ -446,6 +468,17 @@ class ConfigSurfaceDriftTest {
                 case "int" -> Integer.parseInt( v );
                 case "long" -> Long.parseLong( v );
                 case "double" -> Double.parseDouble( v );
+                case "class" -> {
+                    // Short names without a dot are resolved by ClassUtil package search at
+                    // runtime (e.g. "BasicAttachmentProvider"), not Class.forName — skip those.
+                    if( v.contains( "." ) ) {
+                        try {
+                            Class.forName( v, false, ConfigSurfaceDriftTest.class.getClassLoader() );
+                        } catch( final ClassNotFoundException cnfe ) {
+                            return false;
+                        }
+                    }
+                }
                 default -> {
                     final Matcher m = ENUM_TYPE.matcher( e.type() );
                     if( m.matches() ) {

@@ -167,8 +167,7 @@ public class InsightsIngestResource extends RestServletBase {
         if ( engine == null ) {
             return null;
         }
-        final String datasourceName = engine.getWikiProperties().getProperty(
-                AbstractJDBCDatabase.PROP_DATASOURCE, AbstractJDBCDatabase.DEFAULT_DATASOURCE );
+        final String datasourceName = AbstractJDBCDatabase.datasourceName( engine.getWikiProperties() );
         try {
             final DataSource ds = JndiDataSources.lookup( datasourceName,
                     "InsightsIngestResource", AbstractJDBCDatabase.PROP_DATASOURCE );

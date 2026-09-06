@@ -257,7 +257,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
     {
         this.engine = engine;
 
-        final String jndiName = props.getProperty( PROP_DATASOURCE, DEFAULT_DATASOURCE );
+        final String jndiName = datasourceName( props );
         try
         {
             final Context initCtx = new InitialContext();

@@ -957,8 +957,7 @@ public class WikiEngine implements Engine {
      * @param props engine properties
      */
     private void initKnowledgeGraph( final Properties props ) {
-        final String datasource = props.getProperty( AbstractJDBCDatabase.PROP_DATASOURCE,
-                AbstractJDBCDatabase.DEFAULT_DATASOURCE );
+        final String datasource = AbstractJDBCDatabase.datasourceName( props );
         try {
             final javax.sql.DataSource ds = resolveConfiguredDataSource( datasource );
 
@@ -1219,8 +1218,7 @@ public class WikiEngine implements Engine {
         // lookup initKnowledgeGraph uses). Null when no datasource is configured.
         javax.sql.DataSource ds = null;
         try {
-            final String datasource = props.getProperty(
-                    AbstractJDBCDatabase.PROP_DATASOURCE, AbstractJDBCDatabase.DEFAULT_DATASOURCE );
+            final String datasource = AbstractJDBCDatabase.datasourceName( props );
             ds = resolveConfiguredDataSource( datasource );
         } catch ( final javax.naming.NamingException e ) {
             LOG.warn( "Audit subsystem: no JNDI DataSource resolved ({}); audit log disabled.",
@@ -1671,8 +1669,7 @@ public class WikiEngine implements Engine {
         // Built only after a successful FIRST install, so a duplicate call cannot leak a scheduler.
         javax.sql.DataSource evalDs = null;
         try {
-            final String datasource = properties.getProperty(
-                    AbstractJDBCDatabase.PROP_DATASOURCE, AbstractJDBCDatabase.DEFAULT_DATASOURCE );
+            final String datasource = AbstractJDBCDatabase.datasourceName( properties );
             final javax.naming.Context initCtx = new javax.naming.InitialContext();
             final javax.naming.Context ctx = ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
             evalDs = ( javax.sql.DataSource ) ctx.lookup( datasource );

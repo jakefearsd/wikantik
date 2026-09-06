@@ -1,6 +1,6 @@
 # Configuration Surface Design
 
-**Status:** accepted 2026-09-05
+**Status:** accepted 2026-09-05; shipped 2026-09-06 (main 1f957173ef..17d587a0f8, 24 commits; gate: bin/run-tests.sh --parallel 4 ALL PASSED)
 **Plan:** `docs/superpowers/plans/2026-09-05-configuration-surface.md`
 
 ## Problem

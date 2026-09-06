@@ -143,16 +143,6 @@ class ConfigSurfaceDriftTest {
         Map.entry( "tools.ratelimit.perClient", "code default 0 (unlimited) is the no-properties-object fallback, pinned by ToolsConfigTest#rateLimitDefaults; the bundled wikantik-tools.properties always ships 10 and is what production runs with" ),
         Map.entry( "mcp.ratelimit.global", "code default 0 (unlimited) is the no-properties-object fallback, pinned by McpConfigTest#testRateLimitDefaults; the bundled wikantik-mcp.properties always ships 100 and is what production runs with" ),
         Map.entry( "mcp.ratelimit.perClient", "code default 0 (unlimited) is the no-properties-object fallback, pinned by McpConfigTest#testRateLimitDefaults; the bundled wikantik-mcp.properties always ships 10 and is what production runs with" ),
-        // wireHybridRetrieval's own getProperty(...,"false") fires only when the key is absent
-        // from the Properties object passed in. Production's ini/wikantik.properties has shipped
-        // "true" since f979f0d698 (2026-06-18 recall sweep: strict improvement over dense-only,
-        // eval/bm25-chunk-spike/findings.md). The per-module test-resource ini/wikantik.properties
-        // fixtures deliberately do NOT declare this key, so ~4000 wikantik-main unit tests that
-        // boot a TestEngine keep building dense-only bundle sources instead of a real Lucene BM25
-        // index against the test Postgres DataSource on every startup — flipping the code literal
-        // to match the shipped file would change that behaviour suite-wide, not just fix a stale
-        // constant. BundleSourcesWithoutEmbedderTest opts a single test in explicitly.
-        Map.entry( "wikantik.bundle.bm25.enabled", "code default false is the property-absent fallback the test-resource ini fixtures rely on to skip a per-test Lucene BM25 build; production's shipped ini has been true since f979f0d698 (2026-06-18 recall sweep)" ),
         // WikiEngine.PROP_URLCONSTRUCTOR's absent-property fallback ("DefaultURLConstructor") is
         // pre-existing and deliberate: the shipped file has always chosen ShortViewURLConstructor
         // (path-like view URLs) as the friendlier default, while the code fallback stays the

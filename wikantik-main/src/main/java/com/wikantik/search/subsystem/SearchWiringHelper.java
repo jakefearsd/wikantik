@@ -360,9 +360,21 @@ public final class SearchWiringHelper {
      * the incremental refresh wired onto {@code AsyncEmbeddingIndexListener}, which is
      * constructed earlier in startup than the bundle sources.</p>
      */
+    /**
+     * Resolves {@code wikantik.bundle.bm25.enabled}: {@code true} (the value the shipped
+     * {@code ini/wikantik.properties} has declared since 2026-06-18) when the property is absent
+     * or blank, otherwise the parsed boolean. Package-private static so the default is
+     * independently testable, mirroring {@link #resolveDenseBackend(Properties)}; unit-test
+     * fixtures that must skip the BM25 build declare {@code false} in the test-jar overlay.
+     */
+    static boolean resolveBm25Enabled( final java.util.Properties props ) {
+        final String raw = props.getProperty( "wikantik.bundle.bm25.enabled" );
+        return raw == null || raw.isBlank() || Boolean.parseBoolean( raw.strip() );
+    }
+
     private static com.wikantik.search.hybrid.LuceneBm25ChunkIndex buildBm25Index(
             final java.util.Properties props, final javax.sql.DataSource ds ) {
-        if ( !Boolean.parseBoolean( props.getProperty( "wikantik.bundle.bm25.enabled", "false" ) ) ) {
+        if ( !resolveBm25Enabled( props ) ) {
             return null;
         }
         try {

@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GenerateConfigReferenceCliTest {
@@ -161,6 +162,35 @@ class GenerateConfigReferenceCliTest {
     void output_is_deterministic() {
         final GenerateConfigReferenceCli cli = new GenerateConfigReferenceCli();
         assertEquals( cli.render( sources(), "ConfigurationReference.md.mustache" ), cli.render( sources(), "ConfigurationReference.md.mustache" ) );
+    }
+
+    /** Fix round 2 (F1/I2): MCP and tools sources load ONLY from the jar-bundled file overlaid by
+     *  a same-named file in tomcat/lib/ (McpConfig/ToolsConfig) — never from env, -D, or
+     *  wikantik-custom.properties — so their rows must not claim an env-override name. */
+    private static final ConfigReference.Parsed TOOLS = ConfigReference.parse( List.of(
+        "# [Rate limiting]",
+        "#  Global request budget across all clients.",
+        "#  Type: int",
+        "tools.ratelimit.global = 100"
+    ), "tools." );
+
+    @Test
+    void mcp_and_tools_sources_render_a_fixed_override_note_instead_of_an_env_var_name() {
+        final GenerateConfigReferenceCli cli = new GenerateConfigReferenceCli();
+        final List<GenerateConfigReferenceCli.SourceFile> sources = List.of(
+            new GenerateConfigReferenceCli.SourceFile( "OpenAPI tools server",
+                "wikantik-tools/src/main/resources/wikantik-tools.properties",
+                "bundled in the wikantik-tools jar, overlaid by a same-named file in `tomcat/lib/`",
+                TOOLS, "`tomcat/lib/wikantik-tools.properties`" ) );
+        final String md = cli.render( sources, "ConfigurationReference.md.mustache" );
+        assertFalse( md.contains( "tools_ratelimit_global" ), md );
+        assertTrue( md.contains( "`tomcat/lib/wikantik-tools.properties`" ), md );
+    }
+
+    @Test
+    void a_source_without_a_fixed_override_note_still_renders_the_env_var_name() {
+        final String md = new GenerateConfigReferenceCli().render( sources(), "ConfigurationReference.md.mustache" );
+        assertTrue( md.contains( "`wikantik_ontology_enabled`" ), md );
     }
 
     @Test

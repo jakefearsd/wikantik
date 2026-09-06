@@ -18,7 +18,18 @@ import java.util.regex.Pattern;
  * immediately above a key (no blank line in between) is that key's
  * documentation: free description lines plus the directives {@code Type:},
  * {@code Blank means:} and {@code Source:}. A {@code # [Section]} line opens a
- * section. See docs/superpowers/specs/2026-09-05-configuration-surface-design.md.
+ * section.
+ *
+ * <p>Directives are written last in the block, immediately before the key.
+ * A comment line that follows a directive, is non-empty, and does not itself
+ * match a directive pattern is treated as that directive's continuation and
+ * joined onto it with a single space — this is how a multi-line
+ * {@code Blank means:} explanation is written. A description line must
+ * therefore <em>precede</em> the directive block; once the first directive is
+ * seen, every following non-directive line belongs to that directive, never
+ * to the description.</p>
+ *
+ * See docs/superpowers/specs/2026-09-05-configuration-surface-design.md.
  */
 public final class ConfigReference {
 
@@ -107,6 +118,7 @@ public final class ConfigReference {
         String type = null;
         String blankMeans = null;
         String source = "properties";
+        String activeDirective = null;   // name of the directive currently being continued, if any
         for( final String c : block ) {
             if( c.isEmpty() ) {
                 continue;
@@ -114,10 +126,20 @@ public final class ConfigReference {
             final Matcher d = DIRECTIVE.matcher( c );
             if( d.matches() ) {
                 final String v = d.group( 2 ).strip();
-                switch( d.group( 1 ) ) {
+                activeDirective = d.group( 1 );
+                switch( activeDirective ) {
                     case "Type" -> type = v;
                     case "Blank means" -> blankMeans = v;
                     default -> source = v;
+                }
+            } else if( activeDirective != null ) {
+                // A non-directive line following a directive is that directive's continuation
+                // (directives are written last in the block, immediately before the key), joined
+                // with a single space rather than becoming a separate description line.
+                switch( activeDirective ) {
+                    case "Type" -> type = type + " " + c;
+                    case "Blank means" -> blankMeans = blankMeans + " " + c;
+                    default -> source = source + " " + c;
                 }
             } else {
                 description.add( c );

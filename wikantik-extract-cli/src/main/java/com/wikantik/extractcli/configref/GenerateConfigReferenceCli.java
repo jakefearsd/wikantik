@@ -58,8 +58,24 @@ public final class GenerateConfigReferenceCli {
 
     public record Result( int exitCode, String summary ) {}
 
-    /** One defaults file feeding the generated docs, with the prose used to introduce it. */
-    public record SourceFile( String label, String pathLabel, String overrideNote, ConfigReference.Parsed parsed ) {}
+    /**
+     * One defaults file feeding the generated docs, with the prose used to introduce it.
+     *
+     * @param fixedOverrideText when non-null, rendered verbatim in every row's Override column
+     *                          instead of the entry's env-var name — for sources such as
+     *                          {@code wikantik-mcp.properties}/{@code wikantik-tools.properties}
+     *                          whose loader (McpConfig/ToolsConfig) reads only the jar-bundled
+     *                          file overlaid by a same-named file in {@code tomcat/lib/}: no
+     *                          environment variable, {@code -D} flag, or
+     *                          {@code wikantik-custom.properties} entry ever reaches it.
+     */
+    public record SourceFile( String label, String pathLabel, String overrideNote, ConfigReference.Parsed parsed,
+                              String fixedOverrideText ) {
+        public SourceFile( final String label, final String pathLabel, final String overrideNote,
+                           final ConfigReference.Parsed parsed ) {
+            this( label, pathLabel, overrideNote, parsed, null );
+        }
+    }
 
     private static final String MAIN_TEMPLATE = "ConfigurationReference.md.mustache";
     private static final String WIKI_TEMPLATE = "WikantikConfigurationReference.md.mustache";
@@ -82,10 +98,12 @@ public final class GenerateConfigReferenceCli {
                         + "overridden via the precedence chain described above", iniParsed ),
                 new SourceFile( "MCP admin server",
                         "wikantik-admin-mcp/src/main/resources/wikantik-mcp.properties",
-                        "bundled in the wikantik-admin-mcp jar, overlaid by a same-named file in `tomcat/lib/`", mcpParsed ),
+                        "bundled in the wikantik-admin-mcp jar, overlaid by a same-named file in `tomcat/lib/`", mcpParsed,
+                        "`tomcat/lib/wikantik-mcp.properties`" ),
                 new SourceFile( "OpenAPI tools server",
                         "wikantik-tools/src/main/resources/wikantik-tools.properties",
-                        "bundled in the wikantik-tools jar, overlaid by a same-named file in `tomcat/lib/`", toolsParsed )
+                        "bundled in the wikantik-tools jar, overlaid by a same-named file in `tomcat/lib/`", toolsParsed,
+                        "`tomcat/lib/wikantik-tools.properties`" )
         );
 
         final String mainMd = render( sources, MAIN_TEMPLATE );
@@ -129,7 +147,7 @@ public final class GenerateConfigReferenceCli {
         for ( final SourceFile sf : sources ) {
             final Map<String, Object> f = new LinkedHashMap<>();
             f.put( "introText", introText( sf ) );
-            f.put( "sections", buildSections( sf.parsed() ) );
+            f.put( "sections", buildSections( sf.parsed(), sf.fixedOverrideText() ) );
             files.add( f );
         }
         root.put( "files", files );
@@ -167,7 +185,7 @@ public final class GenerateConfigReferenceCli {
         return "The following settings come from `" + sf.pathLabel() + "` (" + sf.overrideNote() + ").";
     }
 
-    private static List<Map<String, Object>> buildSections( final ConfigReference.Parsed parsed ) {
+    private static List<Map<String, Object>> buildSections( final ConfigReference.Parsed parsed, final String fixedOverrideText ) {
         final List<ConfigReference.Entry> sorted = new ArrayList<>( parsed.entries() );
         sorted.sort( Comparator.comparingInt( ConfigReference.Entry::line ) );
 
@@ -183,7 +201,7 @@ public final class GenerateConfigReferenceCli {
             sect.put( "name", g.getKey() );
             final List<Map<String, Object>> entries = new ArrayList<>( g.getValue().size() );
             for ( final ConfigReference.Entry e : g.getValue() ) {
-                entries.add( entryModel( e ) );
+                entries.add( entryModel( e, fixedOverrideText ) );
             }
             sect.put( "entries", entries );
             sections.add( sect );
@@ -191,12 +209,12 @@ public final class GenerateConfigReferenceCli {
         return sections;
     }
 
-    private static Map<String, Object> entryModel( final ConfigReference.Entry e ) {
+    private static Map<String, Object> entryModel( final ConfigReference.Entry e, final String fixedOverrideText ) {
         final Map<String, Object> m = new LinkedHashMap<>();
         m.put( "key", e.key() );
         m.put( "typeCell", typeCell( e ) );
         m.put( "defaultCell", defaultCell( e ) );
-        m.put( "overrideCell", overrideCell( e ) );
+        m.put( "overrideCell", overrideCell( e, fixedOverrideText ) );
         m.put( "descriptionCell", descriptionCell( e ) );
         return m;
     }
@@ -225,7 +243,14 @@ public final class GenerateConfigReferenceCli {
         return "*(blank)*";
     }
 
-    static String overrideCell( final ConfigReference.Entry e ) {
+    /**
+     * @param fixedOverrideText when non-null (see {@link SourceFile#fixedOverrideText()}),
+     *                          rendered verbatim instead of the entry's env-var name
+     */
+    static String overrideCell( final ConfigReference.Entry e, final String fixedOverrideText ) {
+        if ( fixedOverrideText != null ) {
+            return fixedOverrideText;
+        }
         if ( "system-property".equals( e.source() ) ) {
             return "`-D" + e.key() + "` only";
         }

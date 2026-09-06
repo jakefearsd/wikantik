@@ -113,4 +113,38 @@ class ConfigReferenceTest {
         assertEquals( List.of( "Note: keep this." ), x.description() );
         assertEquals( "int", x.type() );
     }
+
+    @Test
+    void multi_line_blank_means_directive_is_joined_with_a_single_space() {
+        final List<String> lines = List.of(
+            "#  The public base URL of this wiki instance.",
+            "#  Type: url",
+            "#  Blank means: falls back to the request's own scheme/host/context path",
+            "#  (BaseUrlResolver's 3-tier fallback), or to the context path alone where",
+            "#  no request is available (e.g. SSO callback URL construction).",
+            "wikantik.baseURL ="
+        );
+        final ConfigReference.Entry e = ConfigReference.parse( lines, "wikantik." ).entry( "wikantik.baseURL" ).orElseThrow();
+        assertEquals( List.of( "The public base URL of this wiki instance." ), e.description() );
+        assertEquals( "falls back to the request's own scheme/host/context path "
+            + "(BaseUrlResolver's 3-tier fallback), or to the context path alone where "
+            + "no request is available (e.g. SSO callback URL construction).", e.blankMeans() );
+    }
+
+    @Test
+    void description_line_before_the_directive_block_is_not_folded_into_a_later_directive() {
+        // A description line that precedes Type:/Blank means: stays a description line, even
+        // when a directive later in the same block spans multiple lines.
+        final List<String> lines = List.of(
+            "#  Directory for the TDB2 store.",
+            "#  Type: path",
+            "#  Blank means: <workDir>/ontology-tdb2, or java.io.tmpdir/wikantik-ontology-tdb2",
+            "#  when workDir is unset.",
+            "wikantik.ontology.tdb2.dir ="
+        );
+        final ConfigReference.Entry e = ConfigReference.parse( lines, "wikantik." ).entry( "wikantik.ontology.tdb2.dir" ).orElseThrow();
+        assertEquals( List.of( "Directory for the TDB2 store." ), e.description() );
+        assertEquals( "path", e.type() );
+        assertEquals( "<workDir>/ontology-tdb2, or java.io.tmpdir/wikantik-ontology-tdb2 when workDir is unset.", e.blankMeans() );
+    }
 }

@@ -59,7 +59,7 @@ if [[ ${needs_build} -eq 1 ]]; then
     info "Building wikantik-extract-cli (jar is missing or stale)…"
     (
         cd "${ROOT_DIR}"
-        mvn install -pl wikantik-extract-cli -am -Dmaven.test.skip -q
+        mvn install -pl wikantik-extract-cli -am -DskipTests -q
     ) || die "build failed — run 'mvn install -pl wikantik-extract-cli -am' for details"
 fi
 

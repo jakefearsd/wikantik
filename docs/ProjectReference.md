@@ -177,8 +177,13 @@ key such as `wikantik.scim.token` that is never read from the properties
 file at all — the entry is documentation only). A `# [Section Name]` marker
 line groups the entries under it; a section name may repeat further down the
 file and the generated doc merges same-named sections into one heading.
-Commented-out `#key = value` example lines are banned outside a registered
-dynamic-prefix family (below) — a key is either declared live or deleted.
+Commented-out `#key = value` example lines are banned — a key is either
+declared live or deleted, with no exemption for a dynamic-prefix family
+(below). A dynamic-prefix example that needs a placeholder segment (e.g.
+`wikantik.connectors.webcrawler.<id>.seeds`) sidesteps the ban structurally,
+since `<id>` isn't a character the commented-key pattern can match as part of
+a property key — that is a naming convention in the file, not an allow-listed
+exemption in the drift test.
 
 ### `ConfigSurfaceDriftTest` violation kinds
 
@@ -190,7 +195,7 @@ literals and reports:
 |---|---|
 | `MISSING` | Code reads the key; no file declares it. |
 | `UNREFERENCED` | The file declares the key; nothing in code reads it. |
-| `COMMENTED_OUT` | A `#key = value` example line outside a dynamic prefix. |
+| `COMMENTED_OUT` | A `#key = value` line whose key text still parses as one — dynamic-prefix examples are not exempt; they avoid this by using a `<placeholder>` segment instead. |
 | `DUPLICATE` | The same key is declared more than once in one file. |
 | `NO_SECTION` | The entry has no `# [Section]` marker above it. |
 | `NO_DESCRIPTION` | The entry has no description line. |
@@ -214,7 +219,9 @@ the burn-down reached zero and it was deleted).
 - **`DYNAMIC_PREFIXES`** — key families read by prefix at runtime (e.g.
   `wikantik.sso.claimMapping.`, `wikantik.connectors.`, `wikantik.tools.`).
   File entries under a registered prefix are treated as documentation
-  examples, exempt from `UNREFERENCED` and from the `COMMENTED_OUT` ban.
+  examples, exempt from `UNREFERENCED` only — **not** from the `COMMENTED_OUT`
+  ban. The examples in `ini/wikantik.properties` avoid it by writing a
+  `<placeholder>` segment the commented-key pattern can't parse as a key.
 - **`KNOWN_DIVERGENT`** — keys with a genuine, tested reason the file default
   and the code's literal default differ (e.g. `wikantik.search.dense.backend`
   — `lucene-hnsw` on the wired path, `inmemory` on the no-`DataSource`

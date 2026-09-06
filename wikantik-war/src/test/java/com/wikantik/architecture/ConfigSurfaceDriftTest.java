@@ -17,7 +17,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,11 +24,12 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Configuration-surface drift gate. Every {@code wikantik.*} literal read by
  * production code must be declared, explicitly defaulted and described in
- * {@code ini/wikantik.properties} ({@code mcp.*} in {@code wikantik-mcp.properties}).
- * Violations are burned down through {@code build-support/config-surface-baseline.tsv}:
- * a violation not in the baseline fails, and a baseline line whose violation is
- * gone also fails (the file only shrinks). Regenerate the baseline with
- * {@code -Dwikantik.configSurface.writeBaseline=true} ONLY when landing the gate.
+ * {@code ini/wikantik.properties} ({@code mcp.*} in {@code wikantik-mcp.properties},
+ * {@code tools.*} in {@code wikantik-tools.properties}). There is no baseline
+ * file any more — the burn-down reached zero and it was deleted — so every
+ * violation fails the build immediately; a genuine, tested divergence is
+ * recorded in {@link #KNOWN_DIVERGENT} with its reason, never carried as a
+ * baseline exception.
  * Spec: docs/superpowers/specs/2026-09-05-configuration-surface-design.md
  */
 class ConfigSurfaceDriftTest {
@@ -37,7 +37,6 @@ class ConfigSurfaceDriftTest {
     static final Path INI = Path.of( "wikantik-main/src/main/resources/ini/wikantik.properties" );
     static final Path MCP_INI = Path.of( "wikantik-admin-mcp/src/main/resources/wikantik-mcp.properties" );
     static final Path TOOLS_INI = Path.of( "wikantik-tools/src/main/resources/wikantik-tools.properties" );
-    static final Path BASELINE = Path.of( "build-support/config-surface-baseline.tsv" );
     static final List<String> MCP_MODULES = List.of( "wikantik-mcp-core", "wikantik-admin-mcp", "wikantik-knowledge" );
     static final List<String> TOOLS_MODULES = List.of( "wikantik-tools" );
 
@@ -112,14 +111,24 @@ class ConfigSurfaceDriftTest {
     static final Pattern KEY_LITERAL = Pattern.compile( "\"((?:wikantik|mcp|tools)\\.[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)*)\"" );
 
     /**
-     * Matches a {@code *Property(..., "key", <literal default>)} read site and captures the
-     * key plus the literal default (string, numeric, or boolean). Widened per the Task 11
-     * addendum to include {@code tools.*} keys and hyphenated key segments; a non-literal
-     * default (a constant name such as {@code SOME_CONSTANT}) simply fails to match group 2
-     * and the site is invisible here, which is deliberate — it is not checkable this way.
+     * Matches a read-site call {@code <method>( <args...>, <key>, <default> )} whose method
+     * name ends in {@code Property}, {@code Int}, {@code Long}, {@code Boolean}, {@code Double}
+     * or {@code String} (covers both {@code TextUtil.getXxxProperty} and local helpers such as
+     * {@code getInt}) — ANY number of arguments may precede the key (F3/I4 widening). The
+     * argument list itself must not contain unbalanced parentheses (an earlier argument that is
+     * itself a method call, e.g. {@code engine.getWikiProperties()}, defeats this and the site
+     * is invisible here — deliberate, not checkable this way).
      */
-    static final Pattern LITERAL_DEFAULT = Pattern.compile(
-        "Property\\(\\s*[^,()]*,?\\s*\"((?:wikantik|mcp|tools)\\.[a-zA-Z0-9_.-]+)\"\\s*,\\s*(\"([^\"]*)\"|(-?\\d+(?:\\.\\d+)?)[LlDdFf]?|(true|false))\\s*\\)" );
+    static final Pattern CALL_SITE = Pattern.compile( "([A-Za-zA-Z_][A-Za-zA-Z0-9_]*)\\(([^()]*)\\)" );
+
+    /** Same-file {@code static final String NAME = "wikantik.…"} declarations, resolved as key arguments. */
+    static final Pattern CONSTANT_DECL = Pattern.compile(
+        "static\\s+final\\s+String\\s+([A-Za-zA-Z_][A-Za-zA-Z0-9_]*)\\s*=\\s*\"((?:wikantik|mcp|tools)\\.[a-zA-Z0-9_.-]+)\"\\s*;" );
+
+    static final Pattern QUOTED_KEY = Pattern.compile( "^\"((?:wikantik|mcp|tools)\\.[a-zA-Z0-9_.-]+)\"$" );
+    static final Pattern QUOTED_STRING = Pattern.compile( "^\"([^\"]*)\"$" );
+    static final Pattern NUMERIC_LITERAL = Pattern.compile( "^(-?\\d+(?:\\.\\d+)?)[LlDdFf]?$" );
+    static final Set<String> LITERAL_DEFAULT_METHOD_SUFFIXES = Set.of( "Property", "Int", "Long", "Boolean", "Double", "String" );
 
     /** Deliberate code/file divergences, each with the reason an executor needs. */
     static final Map<String, String> KNOWN_DIVERGENT = Map.ofEntries(
@@ -143,18 +152,97 @@ class ConfigSurfaceDriftTest {
         // index against the test Postgres DataSource on every startup — flipping the code literal
         // to match the shipped file would change that behaviour suite-wide, not just fix a stale
         // constant. BundleSourcesWithoutEmbedderTest opts a single test in explicitly.
-        Map.entry( "wikantik.bundle.bm25.enabled", "code default false is the property-absent fallback the test-resource ini fixtures rely on to skip a per-test Lucene BM25 build; production's shipped ini has been true since f979f0d698 (2026-06-18 recall sweep)" )
+        Map.entry( "wikantik.bundle.bm25.enabled", "code default false is the property-absent fallback the test-resource ini fixtures rely on to skip a per-test Lucene BM25 build; production's shipped ini has been true since f979f0d698 (2026-06-18 recall sweep)" ),
+        // WikiEngine.PROP_URLCONSTRUCTOR's absent-property fallback ("DefaultURLConstructor") is
+        // pre-existing and deliberate: the shipped file has always chosen ShortViewURLConstructor
+        // (path-like view URLs) as the friendlier default, while the code fallback stays the
+        // original JSP-only constructor for a deployment that strips the key entirely. Not
+        // detected by the widened DEFAULT_MISMATCH extractor (F3/I4): PROP_URLCONSTRUCTOR is
+        // declared as an implicit-`public static final` interface field in Engine.java
+        // (wikantik-api), a different file from its WikiEngine.java (wikantik-main) read site —
+        // out of scope for the same-file constant resolution literalDefaults performs.
+        Map.entry( "wikantik.urlConstructor", "code's absent-property fallback is DefaultURLConstructor (WikiEngine.PROP_URLCONSTRUCTOR, declared in Engine.java); the shipped file has always chosen ShortViewURLConstructor as the friendlier default" )
     );
 
-    /** key -> set of distinct literal defaults seen at read sites. */
+    /**
+     * key -> set of distinct literal defaults seen at read sites within {@code source}.
+     * Constant-key resolution (see {@link #CONSTANT_DECL}) is scoped to {@code source} alone —
+     * callers must invoke this once per file and merge the results, never on a multi-file
+     * concatenation, or a constant name shared by two files could resolve to the wrong key.
+     */
     static Map<String, Set<String>> literalDefaults( final String source ) {
+        final Map<String, String> constants = new java.util.HashMap<>();
+        final Matcher cm = CONSTANT_DECL.matcher( source );
+        while( cm.find() ) {
+            constants.put( cm.group( 1 ), cm.group( 2 ) );
+        }
+
         final Map<String, Set<String>> out = new java.util.TreeMap<>();
-        final Matcher m = LITERAL_DEFAULT.matcher( source );
+        final Matcher m = CALL_SITE.matcher( source );
         while( m.find() ) {
-            final String value = m.group( 3 ) != null ? m.group( 3 ) : m.group( 4 ) != null ? m.group( 4 ) : m.group( 5 );
-            out.computeIfAbsent( m.group( 1 ), k -> new TreeSet<>() ).add( value );
+            final String method = m.group( 1 );
+            if( LITERAL_DEFAULT_METHOD_SUFFIXES.stream().noneMatch( method::endsWith ) ) {
+                continue;
+            }
+            final List<String> args = splitArgs( m.group( 2 ) );
+            if( args.size() < 2 ) {
+                continue;
+            }
+            final String key = resolveKey( args.get( args.size() - 2 ).strip(), constants );
+            final String value = resolveLiteral( args.get( args.size() - 1 ).strip() );
+            if( key != null && value != null ) {
+                out.computeIfAbsent( key, k -> new TreeSet<>() ).add( value );
+            }
         }
         return out;
+    }
+
+    /** Splits a call's argument text on top-level commas (outside quoted strings — the surrounding regex already excludes parentheses). */
+    static List<String> splitArgs( final String argsText ) {
+        final List<String> args = new ArrayList<>();
+        final StringBuilder cur = new StringBuilder();
+        boolean inQuotes = false;
+        for( int i = 0; i < argsText.length(); i++ ) {
+            final char c = argsText.charAt( i );
+            if( c == '"' ) {
+                inQuotes = !inQuotes;
+                cur.append( c );
+            } else if( c == ',' && !inQuotes ) {
+                args.add( cur.toString() );
+                cur.setLength( 0 );
+            } else {
+                cur.append( c );
+            }
+        }
+        if( !cur.isEmpty() || !args.isEmpty() ) {
+            args.add( cur.toString() );
+        }
+        return args;
+    }
+
+    /** Resolves a call's key argument: either a quoted {@code wikantik./mcp./tools.} literal, or a same-file constant name. */
+    static String resolveKey( final String keyArg, final Map<String, String> constants ) {
+        final Matcher qm = QUOTED_KEY.matcher( keyArg );
+        if( qm.matches() ) {
+            return qm.group( 1 );
+        }
+        return constants.get( keyArg );
+    }
+
+    /** Resolves a call's default argument to its literal value, or null when it is not a literal (e.g. a constant name). */
+    static String resolveLiteral( final String defaultArg ) {
+        final Matcher sm = QUOTED_STRING.matcher( defaultArg );
+        if( sm.matches() ) {
+            return sm.group( 1 );
+        }
+        final Matcher nm = NUMERIC_LITERAL.matcher( defaultArg );
+        if( nm.matches() ) {
+            return nm.group( 1 );
+        }
+        if( "true".equals( defaultArg ) || "false".equals( defaultArg ) ) {
+            return defaultArg;
+        }
+        return null;
     }
 
     static boolean sameValue( final String fileValue, final String codeValue ) {
@@ -166,27 +254,12 @@ class ConfigSurfaceDriftTest {
     }
 
     @Test
-    void configuration_surface_matches_baseline() throws IOException {
+    void configuration_surface_has_no_violations() throws IOException {
         final Path root = repoRoot();
         final Set<String> violations = computeViolations( root );
 
-        if( Boolean.getBoolean( "wikantik.configSurface.writeBaseline" ) ) {
-            Files.write( root.resolve( BASELINE ), violations, StandardCharsets.UTF_8 );
-            return;
-        }
-        final Set<String> baseline = Files.exists( root.resolve( BASELINE ) )
-            ? Files.readAllLines( root.resolve( BASELINE ) ).stream().map( String::strip ).filter( s -> !s.isEmpty() && !s.startsWith( "#" ) ).collect( Collectors.toCollection( TreeSet::new ) )
-            : new TreeSet<>();
-
-        final Set<String> newViolations = new TreeSet<>( violations );
-        newViolations.removeAll( baseline );
-        final Set<String> staleBaseline = new TreeSet<>( baseline );
-        staleBaseline.removeAll( violations );
-
-        assertTrue( newViolations.isEmpty(), () -> "New configuration-surface violations (declare the key in ini/wikantik.properties "
-            + "with a description and Type:, see the spec):\n  " + String.join( "\n  ", newViolations ) );
-        assertTrue( staleBaseline.isEmpty(), () -> "Baseline lines no longer violated — delete them from " + BASELINE + ":\n  "
-            + String.join( "\n  ", staleBaseline ) );
+        assertTrue( violations.isEmpty(), () -> "Configuration-surface violations (declare the key in ini/wikantik.properties "
+            + "with a description and Type:, see the spec):\n  " + String.join( "\n  ", violations ) );
     }
 
     @Test
@@ -317,6 +390,31 @@ class ConfigSurfaceDriftTest {
         assertEquals( Set.of( "0" ), d.get( "tools.ratelimit.global" ) );
     }
 
+    /** F3 (I4): the key argument may be a same-file {@code static final String} constant instead of a literal. */
+    @Test
+    void literal_default_extractor_resolves_a_same_file_constant_key() {
+        final String src = "private static final String PROP_URLCONSTRUCTOR = \"wikantik.urlConstructor\";\n"
+            + "x = TextUtil.getStringProperty( props, PROP_URLCONSTRUCTOR, \"DefaultURLConstructor\" );\n";
+        final Map<String, Set<String>> d = literalDefaults( src );
+        assertEquals( Set.of( "DefaultURLConstructor" ), d.get( "wikantik.urlConstructor" ) );
+    }
+
+    /** F3 (I4): any number of arguments may precede the key — only the last two positions (key, default) matter. */
+    @Test
+    void literal_default_extractor_handles_two_arguments_before_the_key() {
+        final String src = "x = SomeHelper.readIntProperty( engine, props, \"wikantik.x\", 5 );\n";
+        final Map<String, Set<String>> d = literalDefaults( src );
+        assertEquals( Set.of( "5" ), d.get( "wikantik.x" ) );
+    }
+
+    /** F3 (I4): a local {@code getInt}-style helper (not named {@code ...Property}) is also a read site. */
+    @Test
+    void literal_default_extractor_recognizes_a_get_int_style_helper_method() {
+        final String src = "getInt( p, \"wikantik.kg.judge.concurrency\", 1 )";
+        final Map<String, Set<String>> d = literalDefaults( src );
+        assertEquals( Set.of( "1" ), d.get( "wikantik.kg.judge.concurrency" ) );
+    }
+
     @Test
     void value_parses_accepts_a_class_value_that_resolves_via_forname() {
         final ConfigReference.Entry e = new ConfigReference.Entry( "wikantik.k", "java.lang.String",
@@ -343,9 +441,12 @@ class ConfigSurfaceDriftTest {
 
     static Set<String> computeViolations( final Path root ) throws IOException {
         final Set<String> out = new TreeSet<>();
-        final String allSource = readStrippedSource( root, null );
-        final String mcpSource = readStrippedSource( root, MCP_MODULES );
-        final String toolsSource = readStrippedSource( root, TOOLS_MODULES );
+        final List<String> allFiles = readStrippedSourceFiles( root, null );
+        final List<String> mcpFiles = readStrippedSourceFiles( root, MCP_MODULES );
+        final List<String> toolsFiles = readStrippedSourceFiles( root, TOOLS_MODULES );
+        final String allSource = String.join( "\n", allFiles );
+        final String mcpSource = String.join( "\n", mcpFiles );
+        final String toolsSource = String.join( "\n", toolsFiles );
 
         final Set<String> wikantikLiterals = new TreeSet<>( literals( allSource, "wikantik." ) );
         final Set<String> mcpLiterals = new TreeSet<>( literals( mcpSource, "mcp." ) );
@@ -361,9 +462,10 @@ class ConfigSurfaceDriftTest {
         mcpLiterals.removeAll( NOT_CONFIG.keySet() );
         toolsLiterals.removeAll( NOT_CONFIG.keySet() );
 
-        final Map<String, Set<String>> wikantikDefaults = new java.util.TreeMap<>( literalDefaults( allSource ) );
-        final Map<String, Set<String>> mcpDefaults = new java.util.TreeMap<>( literalDefaults( mcpSource ) );
-        final Map<String, Set<String>> toolsDefaults = literalDefaults( toolsSource );
+        // Per-file, never on the concatenated blob: literalDefaults' constant-key resolution is file-scoped.
+        final Map<String, Set<String>> wikantikDefaults = literalDefaultsAcrossFiles( allFiles );
+        final Map<String, Set<String>> mcpDefaults = literalDefaultsAcrossFiles( mcpFiles );
+        final Map<String, Set<String>> toolsDefaults = literalDefaultsAcrossFiles( toolsFiles );
         routeMcpFileKeyDefaults( wikantikDefaults, mcpDefaults );
 
         checkFile( ConfigReference.parse( root.resolve( INI ), "wikantik." ), wikantikLiterals, wikantikDefaults, out );
@@ -505,6 +607,19 @@ class ConfigSurfaceDriftTest {
 
     static String readStrippedSource( final Path root, final List<String> onlyModules ) throws IOException {
         final StringBuilder sb = new StringBuilder();
+        for( final String fileText : readStrippedSourceFiles( root, onlyModules ) ) {
+            sb.append( fileText ).append( '\n' );
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Same file set as {@link #readStrippedSource}, but one comment-stripped string per {@code
+     * .java} file rather than one concatenated blob — required by {@link #literalDefaults}, whose
+     * constant-key resolution must not cross file boundaries.
+     */
+    static List<String> readStrippedSourceFiles( final Path root, final List<String> onlyModules ) throws IOException {
+        final List<String> out = new ArrayList<>();
         try( Stream<Path> modules = Files.list( root ) ) {
             final List<Path> srcRoots = modules
                 .filter( p -> p.getFileName().toString().startsWith( "wikantik-" ) )
@@ -516,12 +631,22 @@ class ConfigSurfaceDriftTest {
                 try( Stream<Path> files = Files.walk( src ) ) {
                     for( final Path f : files.filter( p -> p.toString().endsWith( ".java" ) ).toList() ) {
                         final String text = Files.readString( f, StandardCharsets.ISO_8859_1 );
-                        sb.append( stripComments( text ) ).append( '\n' );
+                        out.add( stripComments( text ) );
                     }
                 }
             }
         }
-        return sb.toString();
+        return out;
+    }
+
+    /** Runs {@link #literalDefaults} once per file and unions the results — the per-file constant scoping {@link #literalDefaults} requires. */
+    static Map<String, Set<String>> literalDefaultsAcrossFiles( final List<String> files ) {
+        final Map<String, Set<String>> out = new java.util.TreeMap<>();
+        for( final String file : files ) {
+            literalDefaults( file ).forEach( ( key, values ) ->
+                out.computeIfAbsent( key, k -> new TreeSet<>() ).addAll( values ) );
+        }
+        return out;
     }
 
     /** Removes line and block comments while leaving string and char literals intact (a comment marker inside a literal is content). */

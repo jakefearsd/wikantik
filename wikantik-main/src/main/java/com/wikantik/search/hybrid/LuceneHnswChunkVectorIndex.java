@@ -232,6 +232,55 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
         }
     }
 
+    /**
+     * Resolves one docid-SORTED batch of hits, writing each hit's chunk id and page name into
+     * the per-query buffers at its original score-order index, and returns how many it resolved.
+     *
+     * <p>Because the batch is ordered by docid, a single docvalues iterator per leaf only ever
+     * moves forward, which is the whole point of the batching: {@code advanceExact} is
+     * forward-only, so the previous per-hit acquisition had to construct a fresh iterator for
+     * every hit. Extracted from {@link #topKChunks} to keep that method under the
+     * cognitive-complexity ratchet; the logic is unchanged.</p>
+     *
+     * @return the number of hits in this batch whose docvalues resolved
+     */
+    private int resolveBatch( final long[] byDocId, final List< LeafReaderContext > leaves,
+                              final long[] chunkIdHi, final long[] chunkIdLo,
+                              final String[] pageNames, final boolean[] resolved ) throws IOException {
+        int leafIndex = -1;
+        LeafReaderContext ctx = null;
+        NumericDocValues hiDv = null;
+        NumericDocValues loDv = null;
+        SortedDocValues pgDv = null;
+        int count = 0;
+        for ( final long packed : byDocId ) {
+            final int doc = ( int ) ( packed >>> 32 );
+            final int hitIndex = ( int ) ( packed & 0xffffffffL );
+            final int li = ReaderUtil.subIndex( doc, leaves );
+            if ( li != leafIndex ) {
+                leafIndex = li;
+                ctx = leaves.get( li );
+                hiDv = ctx.reader().getNumericDocValues( FIELD_CHUNK_ID_HI );
+                loDv = ctx.reader().getNumericDocValues( FIELD_CHUNK_ID_LO );
+                pgDv = ctx.reader().getSortedDocValues( FIELD_PAGE );
+            }
+            final int localDoc = doc - ctx.docBase;
+            if ( hiDv == null || loDv == null
+                    || !hiDv.advanceExact( localDoc ) || !loDv.advanceExact( localDoc ) ) {
+                LOG.warn( "Lucene HNSW: no chunk_id docvalue for doc {}, skipping", doc );
+                continue;
+            }
+            chunkIdHi[ hitIndex ] = hiDv.longValue();
+            chunkIdLo[ hitIndex ] = loDv.longValue();
+            pageNames[ hitIndex ] = ( pgDv != null && pgDv.advanceExact( localDoc ) )
+                ? pgDv.lookupOrd( pgDv.ordValue() ).utf8ToString()
+                : "";
+            resolved[ hitIndex ] = true;
+            count++;
+        }
+        return count;
+    }
+
     @Override
     public List< ScoredChunk > topKChunks( final float[] queryVec, final int k ) {
         if ( queryVec == null ) throw new IllegalArgumentException( "queryVec must not be null" );
@@ -287,36 +336,7 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
                 }
                 Arrays.sort( byDocId );
 
-                int leafIndex = -1;
-                LeafReaderContext ctx = null;
-                NumericDocValues hiDv = null;
-                NumericDocValues loDv = null;
-                SortedDocValues pgDv = null;
-                for ( final long packed : byDocId ) {
-                    final int doc = ( int ) ( packed >>> 32 );
-                    final int hitIndex = ( int ) ( packed & 0xffffffffL );
-                    final int li = ReaderUtil.subIndex( doc, leaves );
-                    if ( li != leafIndex ) {
-                        leafIndex = li;
-                        ctx = leaves.get( li );
-                        hiDv = ctx.reader().getNumericDocValues( FIELD_CHUNK_ID_HI );
-                        loDv = ctx.reader().getNumericDocValues( FIELD_CHUNK_ID_LO );
-                        pgDv = ctx.reader().getSortedDocValues( FIELD_PAGE );
-                    }
-                    final int localDoc = doc - ctx.docBase;
-                    if ( hiDv == null || loDv == null
-                            || !hiDv.advanceExact( localDoc ) || !loDv.advanceExact( localDoc ) ) {
-                        LOG.warn( "Lucene HNSW: no chunk_id docvalue for doc {}, skipping", doc );
-                        continue;
-                    }
-                    chunkIdHi[ hitIndex ] = hiDv.longValue();
-                    chunkIdLo[ hitIndex ] = loDv.longValue();
-                    pageNames[ hitIndex ] = ( pgDv != null && pgDv.advanceExact( localDoc ) )
-                        ? pgDv.lookupOrd( pgDv.ordValue() ).utf8ToString()
-                        : "";
-                    resolved[ hitIndex ] = true;
-                    resolvedCount++;
-                }
+                resolvedCount += resolveBatch( byDocId, leaves, chunkIdHi, chunkIdLo, pageNames, resolved );
                 cursor = end;
             }
 

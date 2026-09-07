@@ -69,6 +69,7 @@ export default function BulkActionMenu({ actions, selectedRows, onAction }) {
               <button
                 key={action.id}
                 role="menuitem"
+                className={isDanger ? 'bulk-action-danger' : undefined}
                 disabled={isDisabled}
                 title={isDisabled ? disabledReason : undefined}
                 onClick={() => {
@@ -88,7 +89,7 @@ export default function BulkActionMenu({ actions, selectedRows, onAction }) {
                   color: isDisabled
                     ? 'var(--text-muted)'
                     : isDanger
-                    ? '#C44'
+                    ? 'var(--danger, #c0392b)'
                     : 'var(--text)',
                   opacity: isDisabled ? 0.5 : 1,
                 }}

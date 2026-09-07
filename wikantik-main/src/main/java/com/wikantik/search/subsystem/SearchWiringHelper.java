@@ -352,15 +352,6 @@ public final class SearchWiringHelper {
     }
 
     /**
-     * Builds the RAM BM25 chunk index when {@code wikantik.bundle.bm25.enabled} is on.
-     *
-     * <p>Returns {@code null} — never throws — when the feature is off or the build fails, so a
-     * BM25 problem costs the lexical half of the fusion rather than the whole retrieval stack.
-     * Split out of {@code buildBundleSourceMap} because the index now has a second consumer:
-     * the incremental refresh wired onto {@code AsyncEmbeddingIndexListener}, which is
-     * constructed earlier in startup than the bundle sources.</p>
-     */
-    /**
      * Resolves {@code wikantik.bundle.bm25.enabled}: {@code true} (the value the shipped
      * {@code ini/wikantik.properties} has declared since 2026-06-18) when the property is absent
      * or blank, otherwise the parsed boolean. Package-private static so the default is
@@ -372,6 +363,15 @@ public final class SearchWiringHelper {
         return raw == null || raw.isBlank() || Boolean.parseBoolean( raw.strip() );
     }
 
+    /**
+     * Builds the RAM BM25 chunk index when {@code wikantik.bundle.bm25.enabled} is on.
+     *
+     * <p>Returns {@code null} — never throws — when the feature is off or the build fails, so a
+     * BM25 problem costs the lexical half of the fusion rather than the whole retrieval stack.
+     * Split out of {@code buildBundleSourceMap} because the index now has a second consumer:
+     * the incremental refresh wired onto {@code AsyncEmbeddingIndexListener}, which is
+     * constructed earlier in startup than the bundle sources.</p>
+     */
     private static com.wikantik.search.hybrid.LuceneBm25ChunkIndex buildBm25Index(
             final java.util.Properties props, final javax.sql.DataSource ds ) {
         if ( !resolveBm25Enabled( props ) ) {
@@ -526,7 +526,8 @@ public final class SearchWiringHelper {
                 case BM25:
                     return bm25Names;
                 case HYBRID:
-                    return hybridSearch == null ? bm25Names : hybridSearch.rerank( query, bm25Names );
+                    return hybridSearch == null ? bm25Names
+                        : hybridSearch.rerankWithChunks( query, bm25Names ).fusedPageNames();
                 case HYBRID_GRAPH:
                 case HYBRID_GRAPH_WEIGHTED:
                     // Retired modes: the KG page-level graph rerank was deleted after the
@@ -536,7 +537,8 @@ public final class SearchWiringHelper {
                     // run degrades to plain HYBRID rather than silently measuring BM25.
                     LOG.warn( "Retrieval mode {} is retired (graph rerank removed); running HYBRID instead",
                         mode );
-                    return hybridSearch == null ? bm25Names : hybridSearch.rerank( query, bm25Names );
+                    return hybridSearch == null ? bm25Names
+                        : hybridSearch.rerankWithChunks( query, bm25Names ).fusedPageNames();
                 default:
                     return bm25Names;
             }

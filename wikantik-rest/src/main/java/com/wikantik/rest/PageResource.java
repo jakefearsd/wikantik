@@ -534,7 +534,6 @@ public class PageResource extends RestServletBase {
         return "Error saving page: " + msg;
     }
 
-    /** D22: read the configured max-bytes property, falling back to the default. */
     /**
      * Fires a {@link WikiPageEvent#PAGE_REQUESTED} event so observers — notably the
      * Micrometer {@code wikantik.page.views} counter — see reader / agent page reads.
@@ -551,6 +550,7 @@ public class PageResource extends RestServletBase {
         }
     }
 
+    /** D22: read the configured max-bytes property, falling back to the default. */
     static int parseMaxPageBytes( final Engine engine ) {
         if ( engine == null ) {
             return DEFAULT_MAX_PAGE_BYTES;

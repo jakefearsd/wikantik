@@ -332,13 +332,6 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
     }
 
     /**
-     * Resolves the shared JNDI DataSource so MentionIndex can filter and report
-     * coverage statistics. Uses the same property + default as
-     * {@code WikiEngine.initKnowledgeGraph}. If JNDI lookup fails (e.g. in a
-     * lightweight test harness) the KG tools still run — they just skip the
-     * mention-coverage filter/stats.
-     */
-    /**
      * Builds the guest {@link PageViewGate} the retrieval tools use to enforce page view-ACLs.
      * Uses the request-free guest session + {@code PermissionFilter.canAccessQuietly} pattern that
      * the public RDF/ontology surface uses, so only anonymously-viewable pages are returned.
@@ -362,6 +355,13 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         }
     }
 
+    /**
+     * Resolves the shared JNDI DataSource so MentionIndex can filter and report
+     * coverage statistics. Uses the same property + default as
+     * {@code WikiEngine.initKnowledgeGraph}. If JNDI lookup fails (e.g. in a
+     * lightweight test harness) the KG tools still run — they just skip the
+     * mention-coverage filter/stats.
+     */
     private static MentionIndex resolveMentionIndex( final Engine engine ) {
         try {
             final String jndiName = AbstractJDBCDatabase.datasourceName(

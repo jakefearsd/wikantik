@@ -76,7 +76,9 @@ wikantik.frontmatter.autoDefaults = true
 # Every key below is commented out EXCEPT wikantik.search.embedding.base-url,
 # which bin/deploy-local.sh renders live from .env (see its own note below).
 # Otherwise a fresh install runs on the ini defaults from
-# wikantik-main/src/main/resources/ini/wikantik.properties (lines 1228-1302).
+# wikantik-main/src/main/resources/ini/wikantik.properties - see its
+# [Search & hybrid retrieval] and [Knowledge Graph & extraction] sections, or
+# the generated docs/ConfigurationReference.md.
 # Uncomment and adjust to override at runtime. Comments document valid values
 # for each key.
 

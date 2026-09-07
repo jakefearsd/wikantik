@@ -19,3 +19,25 @@ RAG (the primary customer).
   (2 of 21 today), not in a big-bang push.
 - **External reconciliation (`owl:sameAs` to Wikidata/DBpedia): deferred** until a concrete
   linked-data consumer exists.
+
+## Implementation status (2026-09-07)
+
+**The reasoning-level decision above is not implemented.** `OntologyModelManager
+.buildInferenceSnapshot()` (`wikantik-ontology/.../OntologyModelManager.java:280`) builds its
+snapshot with `ModelFactory.createRDFSModel( union )` — plain RDFS, the option this ADR
+explicitly rejected. No OWL-RL rule reasoner exists anywhere in the codebase, and
+`JenaOntologyQueryService` (the only consumer of `inferenceSnapshot()`) sees RDFS entailments
+only.
+
+By this ADR's own argument, that means the `owl:equivalentClass` and `subPropertyOf` axioms
+authored in `wikantik.ttl` — the schema.org equivalences, the SKOS mappings, predicate
+transitivity — are currently **silently inert** at query time. A `sparql_query` caller asking
+for a schema.org type will not match an entity typed only with its `wikantik:` equivalent.
+
+Everything else in this ADR did ship: event-fresh entity sync (`OntologyEntitySync` +
+`KgChangeEvent`, nightly rebuild demoted to a reconciliation backstop), lazy SHACL (2 of 21
+predicates shaped), and deferral of external `owl:sameAs` reconciliation.
+
+The decision is left standing rather than rewritten — switching the snapshot to a Jena OWL-RL
+rule reasoner is a behaviour and performance change that needs its own measurement, not a
+documentation edit.

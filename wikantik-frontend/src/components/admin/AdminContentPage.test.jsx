@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import AdminContentPage from './AdminContentPage';
@@ -148,7 +148,7 @@ describe('AdminContentPage — Orphaned Pages', () => {
     expect(screen.getByText('0 orphaned pages')).toBeTruthy();
   });
 
-  it('bulk-deletes selected pages and reports success', async () => {
+  it('asks for confirmation before bulk-deleting, then deletes and reports success', async () => {
     await openTab();
     await screen.findByText('Lonely');
 
@@ -159,12 +159,32 @@ describe('AdminContentPage — Orphaned Pages', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete 2 Selected' }));
 
+    // Unlike every other bulk delete in the app, this one used to skip
+    // confirmation entirely — assert the dialog actually appears.
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toMatch(/2 orphaned pages/i);
+    expect(api.admin.bulkDeletePages).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Delete$/i }));
+
     await waitFor(() => {
       expect(api.admin.bulkDeletePages).toHaveBeenCalledWith(['Lonely', 'Abandoned']);
     });
     await screen.findByText('Deleted 2 pages');
     // reload after delete
     await waitFor(() => expect(api.admin.getOrphanedPages).toHaveBeenCalledTimes(2));
+  });
+
+  it('cancelling the confirmation does not delete', async () => {
+    await openTab();
+    await screen.findByText('Lonely');
+    const boxes = screen.getAllByRole('checkbox');
+    fireEvent.click(boxes[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete 1 Selected' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Cancel/i }));
+    expect(api.admin.bulkDeletePages).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('select-all toggles every row', async () => {
@@ -175,7 +195,7 @@ describe('AdminContentPage — Orphaned Pages', () => {
     await screen.findByText('Delete 2 Selected');
   });
 
-  it('reports a partial-failure count in the success message', async () => {
+  it('reports a partial-failure count in the success message, correctly pluralized', async () => {
     api.admin.bulkDeletePages.mockResolvedValueOnce({ deleted: ['Lonely'], failed: ['Abandoned'] });
     await openTab();
     await screen.findByText('Lonely');
@@ -183,7 +203,9 @@ describe('AdminContentPage — Orphaned Pages', () => {
     fireEvent.click(boxes[1]);
     fireEvent.click(boxes[2]);
     fireEvent.click(screen.getByRole('button', { name: 'Delete 2 Selected' }));
-    await screen.findByText('Deleted 1 pages, 1 failed');
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Delete$/i }));
+    await screen.findByText('Deleted 1 page, 1 failed');
   });
 
   it('shows an error if bulk delete throws', async () => {
@@ -193,6 +215,8 @@ describe('AdminContentPage — Orphaned Pages', () => {
     const boxes = screen.getAllByRole('checkbox');
     fireEvent.click(boxes[1]);
     fireEvent.click(screen.getByRole('button', { name: 'Delete 1 Selected' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Delete$/i }));
     await screen.findByText('delete boom');
   });
 });
@@ -222,6 +246,14 @@ describe('AdminContentPage — Broken Links', () => {
     await openTab();
     await screen.findByText(/No broken links found/);
     expect(screen.getByText('0 broken links')).toBeTruthy();
+  });
+
+  it('shows an error, not the clean empty state, when the scan fails', async () => {
+    api.admin.getBrokenLinks.mockRejectedValueOnce(new Error('scan boom'));
+    await openTab();
+    await screen.findByText('scan boom');
+    // Must not claim the wiki is clean when the scan never actually ran.
+    expect(screen.queryByText(/No broken links found/)).toBeNull();
   });
 });
 

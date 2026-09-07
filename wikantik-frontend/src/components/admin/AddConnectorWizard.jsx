@@ -312,7 +312,7 @@ function SourceStep({ meta, type, id, setId, idError, sourceErrors, sourceBody, 
             />
             <p className="form-hint">{ID_HELP}</p>
             {idError && (
-              <p className="field-error" role="alert" data-testid="connector-id-error" style={{ color: '#C44', fontSize: '0.8rem', marginTop: 4 }}>
+              <p className="field-error" role="alert" data-testid="connector-id-error" style={{ color: 'var(--danger, #c0392b)', fontSize: '0.8rem', marginTop: 4 }}>
                 {idError}
               </p>
             )}

@@ -70,8 +70,7 @@ Every Wikantik agent surface fronts a servlet filter that checks each request be
 A request is **allowed** if it satisfies any one of:
 
 1. A `Bearer` token that resolves to an active **DB-backed API key** with a matching scope.
-2. A `Bearer` token that exactly matches one of the **legacy property-file keys** (`mcp.access.keys` / `tools.access.keys`).
-3. A source IP inside one of the configured **CIDR allowlist** entries.
+2. A source IP inside one of the configured **CIDR allowlist** entries.
 
 If none match, the response is `403 Access denied`. If *no* keys, no CIDRs, and `*.access.allowUnrestricted` is unset, the filter is **fail-closed** and returns `503 MCP not configured` (a CRITICAL line is also logged at startup). This is intentional: the rewrite preferred safe-by-default over silent open mode.
 
@@ -83,11 +82,12 @@ Available scopes (`ApiKeyService.Scope`):
 
 | Scope | Wire string | Covers |
 |---|---|---|
-| `MCP` | `mcp` | `/wikantik-admin-mcp`, `/knowledge-mcp` |
+| `MCP_READ` | `mcp_read` | `/knowledge-mcp` only (read-only) |
+| `MCP` | `mcp` | `/wikantik-admin-mcp`, `/knowledge-mcp` (historical broad-admin scope; pre-2.4.18 keys stay full-admin) |
 | `TOOLS` | `tools` | `/tools/*` |
 | `ALL` | `all` | All three |
 
-Scope matching uses `Scope.matches()` — `ALL` covers any required scope; `MCP` does **not** cover `TOOLS` and vice versa.
+Scope matching uses `Scope.matches()` — `ALL` covers any required scope; within the MCP family a higher-ranked scope covers a lower one (`MCP_READ ⊂ MCP`); `TOOLS` matches only itself.
 
 Keys are stored as SHA-256 hashes; the plaintext is shown exactly once at creation. Revoke via `DELETE /admin/apikeys/{id}` or the admin UI.
 
@@ -98,17 +98,6 @@ GET    /admin/apikeys             list keys (hash masked, no plaintext)
 POST   /admin/apikeys             generate; response carries one-time plaintext
 DELETE /admin/apikeys/{id}        revoke
 ```
-
-### Legacy keys
-
-For lightweight single-user setups (or environments without a database), comma-separated bearer tokens can be set in properties:
-
-```properties
-mcp.access.keys   = generated-token-1,generated-token-2
-tools.access.keys = different-token-for-openapi-clients
-```
-
-Legacy keys have no principal binding — every call lands as the wiki's default unauthenticated identity. Use only on private/local instances.
 
 ### CIDR allowlists
 
@@ -151,8 +140,6 @@ All keys are picked up from a `wikantik-mcp.properties` (or `wikantik-tools.prop
 | `mcp.server.title` | `Wikantik Knowledge Base` | Human-readable server title. |
 | `mcp.server.version` | `2.0.0` | Reported alongside `Release.getVersionString()` to clients. |
 | `mcp.instructions.file` | `wikantik-mcp-instructions.txt` | Classpath resource read at boot. Replaced by setting `mcp.instructions=...` inline. |
-| `mcp.access.keys` | (empty) | Legacy comma-separated bearer tokens. |
-| `mcp.access.key` | (empty) | Legacy single-token form (prefer `mcp.access.keys`). |
 | `mcp.access.allowedCidrs` | (empty) | Comma-separated CIDR allowlist. |
 | `mcp.access.allowUnrestricted` | `false` | Acknowledges the fail-closed default. |
 | `mcp.ratelimit.global` | `100` | Requests/sec across all clients. |
@@ -164,7 +151,6 @@ The same file feeds both `McpAccessFilter` (admin) and `KnowledgeMcpAccessFilter
 
 | Property | Default | Notes |
 |---|---|---|
-| `tools.access.keys` | (empty) | Legacy comma-separated bearer tokens. |
 | `tools.access.allowedCidrs` | (empty) | Comma-separated CIDR allowlist. |
 | `tools.access.allowUnrestricted` | `false` | Acknowledges the fail-closed default. |
 | `tools.ratelimit.global` | `0` | `0` disables rate limiting. |
@@ -184,7 +170,7 @@ The same file feeds both `McpAccessFilter` (admin) and `KnowledgeMcpAccessFilter
 | `wikantik.verification.stale_days` | Default `90`. After this many days, a verified page reports `confidence: stale`. |
 | `wikantik.retrieval.cron.enabled` | Default `true`. Nightly retrieval-quality CI run. |
 | `wikantik.retrieval.cron.hour_utc` | Default `3`. Hour of day (UTC) for the nightly run. |
-| `wikantik.kg.policy.default` | `exclude`. Cluster-primary KG inclusion policy. Per-page override via `kg_include` frontmatter. |
+| `wikantik.kg_policy.enabled` | Default `true`. Master switch for the cluster-primary KG inclusion policy filter; `false` reverts to legacy behaviour (no cluster filter). The policy itself (per-cluster include/exclude) is DB-backed (`kg_cluster_policy`, managed at `/admin/kg-policy/*`) with a hardcoded default-exclude for clusters with no policy row — not a properties default. Per-page override via `kg_include` frontmatter always wins. See [KgInclusionPolicy](KgInclusionPolicy). |
 
 ## Tool inventory
 

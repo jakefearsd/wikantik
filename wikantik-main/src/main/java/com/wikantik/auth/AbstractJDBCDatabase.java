@@ -24,8 +24,6 @@ import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Properties;
 
@@ -65,38 +63,6 @@ public abstract class AbstractJDBCDatabase {
 
     /** Whether the database supports transactions (commits). */
     protected boolean supportsCommits;
-
-    /**
-     * Quietly closes database resources, ignoring any exceptions.
-     * This method is useful for cleanup in finally blocks.
-     *
-     * @param conn the connection to close (may be null)
-     * @param ps the prepared statement to close (may be null)
-     * @param rs the result set to close (may be null)
-     */
-    public void closeQuietly( final Connection conn, final PreparedStatement ps, final ResultSet rs ) {
-        if( rs != null ) {
-            try {
-                rs.close();
-            } catch( final Exception e ) {
-                // Ignore
-            }
-        }
-        if( ps != null ) {
-            try {
-                ps.close();
-            } catch( final Exception e ) {
-                // Ignore
-            }
-        }
-        if( conn != null ) {
-            try {
-                conn.close();
-            } catch( final Exception e ) {
-                // Ignore
-            }
-        }
-    }
 
     /**
      * Returns whether the database supports transactions.

@@ -6,7 +6,27 @@
     <title>Wikantik</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <script>
+      // Attach the webfont stylesheet only AFTER the window load event.
+      //
+      // As a plain <link> - and also as media="print", and as rel="preload" - it is a
+      // load-blocking resource, so a network that BLACKHOLES the Google font hosts
+      // (privacy blocklists commonly do, and they drop packets rather than refusing the
+      // connection) left every page stuck at document.readyState "interactive" until
+      // Chrome gave up, ~80s. Text was readable throughout - display=swap renders the
+      // fallback stack immediately - but the page never signalled that it had loaded,
+      // which stalls anything waiting on it, browser automation included.
+      //
+      // Injecting after load makes the fonts strictly additive: reachable CDN swaps them
+      // in a moment later, unreachable CDN costs the page nothing at all.
+      addEventListener("load", function () {
+        var l = document.createElement("link");
+        l.rel = "stylesheet";
+        l.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600&display=swap";
+        document.head.appendChild(l);
+      });
+    </script>
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" /></noscript>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <style>
       /* Inline fallback styles — must not depend on external CSS */
@@ -71,6 +91,14 @@
       window.addEventListener('error', function(e) {
         var tag = e.target && e.target.tagName;
         if (tag !== 'SCRIPT' && tag !== 'LINK') return;
+
+        // Only OUR OWN assets can be stale-cached, so only they should trigger the
+        // reload ladder below. A third-party stylesheet that fails (the Google font
+        // CDN is blocked outright on many privacy-filtered networks) is not evidence
+        // of a bad deploy, and reloading twice over it would be a self-inflicted
+        // outage for those users.
+        var src = e.target.src || e.target.href || '';
+        if (src && src.indexOf(window.location.origin) !== 0) return;
 
         var raw = sessionStorage.getItem('__wikantik_reload');
         var state = null;

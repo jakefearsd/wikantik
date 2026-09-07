@@ -38,11 +38,6 @@ public final class ExtractionPromptBuilder {
     private ExtractionPromptBuilder() {}
 
     /**
-     * Stable system prompt: describes the task, the output JSON schema, and
-     * hard constraints. Kept identical across requests so prompt caching on
-     * Claude actually hits.
-     */
-    /**
      * Closed relation-type vocabulary. Delegates to
      * {@link RelationshipTypeVocabulary#CLOSED_VOCAB} so both extractors and the
      * DB CHECK constraint share one source of truth.
@@ -60,6 +55,11 @@ public final class ExtractionPromptBuilder {
                     .map( t -> Character.toUpperCase( t.charAt( 0 ) ) + t.substring( 1 ) )
                     .collect( Collectors.joining( ", " ) );
 
+    /**
+     * Stable system prompt: describes the task, the output JSON schema, and
+     * hard constraints. Kept identical across requests so prompt caching on
+     * Claude actually hits.
+     */
     public static final String SYSTEM_PROMPT =
         "You extract named entities and relationships from wiki content. Output STRICT JSON only — no prose, "
       + "no markdown fence, no commentary. The JSON MUST match this schema exactly:\n"

@@ -61,7 +61,7 @@ describe('KnowledgeGraphView', () => {
   it('shows 401 error variant for unauthorized', async () => {
     api.knowledge.getGraphSnapshot.mockRejectedValue(Object.assign(new Error('Unauthorized'), { status: 401 }));
     render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
-    expect(await screen.findByText('Sign in to view the knowledge graph.')).toBeTruthy();
+    expect(await screen.findByText('Sign in to view the Knowledge Graph.')).toBeTruthy();
   });
 
   it('shows server error for 5xx', async () => {

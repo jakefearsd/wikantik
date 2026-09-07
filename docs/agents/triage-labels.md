@@ -12,13 +12,15 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
-> **Status (verified 2026-08-16 via `gh label list --repo jakefearsd/wikantik`):**
-> only `wontfix` is defined on the repository. The other four are the *intended*
-> vocabulary carried over from the upstream skill defaults, but they have never
-> been created, so applying one fails rather than filing the issue under it. The
-> repo's real labels today are the GitHub defaults (`bug`, `documentation`,
-> `duplicate`, `enhancement`, `good first issue`, `help wanted`, `invalid`,
-> `question`, `wontfix`) plus `dependencies` and `java`.
+> **Status (re-verified 2026-09-07 via `gh label list --repo jakefearsd/wikantik`):**
+> only `wontfix` of the five canonical triage roles is defined on the repository.
+> The other four are the *intended* vocabulary carried over from the upstream
+> skill defaults, but they have never been created, so applying one fails rather
+> than filing the issue under it. The repo's real labels today are the GitHub
+> defaults (`bug`, `documentation`, `duplicate`, `enhancement`, `good first issue`,
+> `help wanted`, `invalid`, `question`, `wontfix`) plus `dependencies`, `java`,
+> `security`, and `javascript` (13 labels total; `security` and `javascript` are
+> new since the 2026-08-16 check).
 >
 > Resolve this one of two ways — do not leave it half-true:
 > ```bash

@@ -20,7 +20,6 @@ package com.wikantik.search.embedding;
 
 import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.jdbc.testing.RequiresPostgres;
-import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

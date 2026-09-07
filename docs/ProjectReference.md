@@ -50,9 +50,12 @@ offered load and host response share a timeline. See `loadtest/README.md`.
   step with the local dev Postgres: a `pg_dump` restores forward across
   versions, not backward.
 - **The deploying OS user must be in the `docker` group** on the target
-  host. `bin/remote.sh bootstrap` only checks that the `docker` binary
-  exists, not that the daemon socket is reachable — so it can pass while
-  the actual deploy later fails with a `docker.sock` permission error.
+  host. `bin/remote.sh bootstrap` checks both — the `docker`/`docker compose`
+  binaries *and* daemon reachability (`docker info`) as `REMOTE_USER` — and on
+  failure prints the exact remediation (`sudo usermod -aG docker <user>`, then
+  a fresh login session) rather than passing and leaving the real deploy to
+  fail later with a `docker.sock` permission error. This check exists because
+  an earlier version only checked for the binary (fixed in `0564942677`).
 - **Initialising the DB from an existing dump is a manual sequence**, not
   something `remote.sh deploy` does (it runs a full `up -d`, and the app
   entrypoint then migrates an empty schema). Bring up `db` alone, restore
@@ -288,12 +291,12 @@ If the pending-proposal queue gets unwieldy and a clean restart is the right
 call, snapshot pending proposals first, then wipe:
 
 ```bash
-PGPASSWORD=… pg_dump -h localhost -U jspwiki -d jspwiki \
+PGPASSWORD=… pg_dump -h localhost -U wikantik -d wikantik \
     --data-only --table=kg_proposals --column-inserts \
     --where="status = 'pending'" \
     > backups/kg_proposals_pending_$(date +%Y%m%d).sql
 
-PGPASSWORD=… psql -h localhost -U jspwiki -d jspwiki -c \
+PGPASSWORD=… psql -h localhost -U wikantik -d wikantik -c \
     "DELETE FROM kg_proposals WHERE status = 'pending';"
 ```
 
@@ -386,7 +389,7 @@ tool-description examples). All six phases shipped 2026-04-25 — design is comp
 
 **`/for-agent` projection is in.** `GET /api/pages/for-agent/{canonical_id}` and the matching `get_page_for_agent` MCP tool on `/knowledge-mcp` return a token-budgeted projection of any page: summary, key facts, headings outline, recent changes, MCP tool hints, and verification state — without the full markdown body. (The `outgoingRelations`/`incomingRelations` fields were removed 2026-05-02 when typed relations were dropped; use `get_outbound_links`/`get_backlinks` on `/wikantik-admin-mcp` for Page Graph traversal.) The service composes four extractors (`HeadingsOutlineExtractor`, `KeyFactsExtractor`, `RecentChangesAdapter`, `McpToolHintsResolver`) with per-field try/catch graceful degradation; failures surface on a `degraded` flag + `missing_fields` list rather than blowing the whole response. Memoised in `wikantik.forAgentCache` (1h TTL, 5K entries) by `(canonical_id, updated_at_millis)`. Response sizes flow into the `wikantik_for_agent_response_bytes` Prometheus histogram. URL deviation: design said `/api/pages/{id}/for-agent` but Servlet API can't tail-segment-pattern; current path mirrors `/api/pages/by-id/{id}`. The projection now also carries derived `agent_hints` — `prefer_tools` (ranked across the page and its cluster hub via `McpToolHintsResolver`) and `prefer_pages` (cluster hub + intra-cluster wikilink centrality, with a verified-authoritative bonus). When the projection's authored hub summary matches the generic "Index of pages on…" pattern, `HubSummarySynthesizer` overlays a Top-3 highlight at projection time and sets `summary_synthesized: true` (the page body is never modified). Both fields are computed at projection time — no author burden.
 
-**Runbook page type is in.** Frontmatter accepting `type: runbook` plus a six-key `runbook:` block (`when_to_use`, `inputs`, `steps`, `pitfalls`, `related_tools`, `references`) — schema-validated by `FrontmatterRunbookValidator`, enforced at save time by `RunbookValidationPageFilter` (priority -1003, gated by `wikantik.runbook.enforcement.enabled`, default `true`). The `/for-agent` projection runs the same validator at read time so corpus drift is graceful — invalid runbooks land with `runbook: null` and `"runbook"` in `missing_fields` rather than poisoning the response. `references:` entries resolve to either canonical_ids (via the structural index) or page titles (via `PageManager.pageExists`); `related_tools:` entries match `/api|knowledge-mcp|wikantik-admin-mcp|tools/*` or a bare snake_case tool name. `RunbookBlock` (in `wikantik-api`) carries snake_case Java field names so default Gson serialisation matches the wire form without a per-instance naming policy.
+**Runbook page type is in.** Frontmatter accepting `type: runbook` plus a six-key `runbook:` block (`when_to_use`, `inputs`, `steps`, `pitfalls`, `related_tools`, `references`) — schema-validated by `FrontmatterRunbookValidator`, enforced at save time by `RunbookValidationPageFilter` (priority -1003, gated by `wikantik.runbook.enforcement.enabled`, default `true`). The `/for-agent` projection runs the same validator at read time so corpus drift is graceful — invalid runbooks land with `runbook: null` and `"runbook"` in `missing_fields` rather than poisoning the response. `references:` entries resolve to either canonical_ids (via the structural index) or page titles (via `PageManager.pageExists`); `related_tools:` entries match `/api|admin|knowledge-mcp|wikantik-admin-mcp|tools/*` or a bare snake_case tool name. `RunbookBlock` (in `wikantik-api`) carries snake_case Java field names so default Gson serialisation matches the wire form without a per-instance naming policy.
 
 **Retrieval-quality CI is in.** `DefaultRetrievalQualityRunner` (in `wikantik-main` under `com.wikantik.knowledge.eval`) executes the curated `core-agent-queries` query set (16 questions seeded from the agent-cookbook runbooks, plus one cross-cluster query) through `BM25`, `HYBRID`, and `HYBRID_GRAPH`, computes per-query nDCG@5/@10 + Recall@20 + MRR, persists aggregates to `retrieval_runs`, and publishes `wikantik_retrieval_ndcg_at_5` / `_at_10` / `_recall_at_20` / `_mrr` gauges keyed by `{set,mode}`. Schedule activates when `wikantik.retrieval.cron.enabled=true` (default; default hour `wikantik.retrieval.cron.hour_utc=3`). Operators triage at `GET /admin/retrieval-quality?limit=N` and trigger ad-hoc runs via `POST /admin/retrieval-quality/run` with `{"query_set_id":"...","mode":"..."}`. The runner depends on narrow `Retriever` / `CanonicalIdResolver` functional seams so `RetrievalQualitySmokeTest` (the pre-merge gate) can drive it deterministically without a live search stack. Threshold tuning is deferred — `nDCG@5 >= 0.5` is the smoke gate; production thresholds calibrate after two weeks of nightly runs.
 

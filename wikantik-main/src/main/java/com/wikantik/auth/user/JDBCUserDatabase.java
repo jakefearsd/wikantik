@@ -55,112 +55,27 @@ import java.util.Set;
  * <p>
  * Implementation of UserDatabase that persists {@link DefaultUserProfile}
  * objects to a JDBC DataSource, as might typically be provided by a web
- * container. This implementation looks up the JDBC DataSource using JNDI. The
- * JNDI name of the datasource, backing table and mapped columns used by this
- * class can be overridden by adding settings in <code>wikantik.properties</code>.
+ * container. This implementation looks up the JDBC DataSource using JNDI.
  * </p>
  * <p>
- * Configurable properties are these:
- * </p>
- * <table>
- * <tr> <thead>
- * <th>Property</th>
- * <th>Default</th>
- * <th>Definition</th>
- * <thead> </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.datasource</code></td>
- * <td><code>jdbc/UserDatabase</code></td>
- * <td>The JNDI name of the DataSource</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.table</code></td>
- * <td><code>users</code></td>
- * <td>The table that stores the user profiles</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.attributes</code></td>
- * <td><code>attributes</code></td>
- * <td>The CLOB column containing the profile's custom attributes, stored as key/value strings, each separated by newline.</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.created</code></td>
- * <td><code>created</code></td>
- * <td>The column containing the profile's creation timestamp</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.email</code></td>
- * <td><code>email</code></td>
- * <td>The column containing the user's e-mail address</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.fullName</code></td>
- * <td><code>full_name</code></td>
- * <td>The column containing the user's full name</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.loginName</code></td>
- * <td><code>login_name</code></td>
- * <td>The column containing the user's login id</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.password</code></td>
- * <td><code>password</code></td>
- * <td>The column containing the user's password</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.modified</code></td>
- * <td><code>modified</code></td>
- * <td>The column containing the profile's last-modified timestamp</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.uid</code></td>
- * <td><code>uid</code></td>
- * <td>The column containing the profile's unique identifier, as a long integer</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.wikiName</code></td>
- * <td><code>wiki_name</code></td>
- * <td>The column containing the user's wiki name</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.lockExpiry</code></td>
- * <td><code>lock_expiry</code></td>
- * <td>The column containing the date/time when the profile, if locked, should be unlocked.</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.roleTable</code></td>
- * <td><code>roles</code></td>
- * <td>The table that stores user roles. When a new user is created, a new
- * record is inserted containing user's initial role. The table will have an ID
- * column whose name and values correspond to the contents of the user table's
- * login name column. It will also contain a role column (see next row).</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.userdatabase.role</code></td>
- * <td><code>role</code></td>
- * <td>The column in the role table that stores user roles. When a new user is
- * created, this column will be populated with the value
- * <code>Authenticated</code>. Once created, JDBCUserDatabase does not use
- * this column again; it is provided strictly for the convenience of
- * container-managed authentication services.</td>
- * </tr>
- * </table>
- * <p>
- * This class hashes passwords using SHA-1. All of the underying SQL commands
- * used by this class are implemented using prepared statements, so it is immune
- * to SQL injection attacks.
+ * The only configurable property is the JNDI DataSource name
+ * ({@code wikantik.datasource}, {@link com.wikantik.auth.AbstractJDBCDatabase#PROP_DATASOURCE};
+ * default {@code jdbc/WikiDatabase}). It is shared with {@code JDBCGroupDatabase} — one
+ * DataSource backs both. The backing table ({@code users}) and every column name are fixed
+ * SQL literals (see the {@code FIND_*}/{@code INSERT_*}/{@code UPDATE_*} statements below);
+ * the schema is owned by the migrations under {@code bin/db/migrations/} (starting with
+ * {@code V002__core_users_groups.sql}), not by properties.
  * </p>
  * <p>
  * This class is typically used in conjunction with a web container's JNDI
- * resource factory. For example, Tomcat provides a basic
- * JNDI factory for registering DataSources. To give JSPWiki access to the JNDI
- * resource named by <code></code>, you would declare the datasource resource
- * similar to this:
+ * resource factory. For example, Tomcat provides a basic JNDI factory for
+ * registering DataSources. To give Wikantik access to the JNDI resource
+ * named by <code>jdbc/WikiDatabase</code>, you would declare the datasource
+ * resource similar to this:
  * </p>
  * <blockquote><code>&lt;Context ...&gt;<br/>
  *  &nbsp;&nbsp;...<br/>
- *  &nbsp;&nbsp;&lt;Resource name="jdbc/UserDatabase" auth="Container"<br/>
+ *  &nbsp;&nbsp;&lt;Resource name="jdbc/WikiDatabase" auth="Container"<br/>
  *  &nbsp;&nbsp;&nbsp;&nbsp;type="javax.sql.DataSource" username="dbusername" password="dbpassword"<br/>
  *  &nbsp;&nbsp;&nbsp;&nbsp;driverClassName="org.postgresql.Driver" url="jdbc:postgresql://localhost:5432/wikantik"<br/>
  *  &nbsp;&nbsp;&nbsp;&nbsp;maxActive="8" maxIdle="4"/&gt;<br/>
@@ -168,11 +83,7 @@ import java.util.Set;
  * &lt;/Context&gt;</code></blockquote>
  * <p>
  * JDBC driver JARs should be added, e.g. in Tomcat's <code>lib</code>
- * directory. For more Tomcat JNDI configuration examples, see <a
- * href="http://tomcat.apache.org/tomcat-7.0-doc/jndi-resources-howto.html">
- * http://tomcat.apache.org/tomcat-7.0-doc/jndi-resources-howto.html</a>.
- * Once done, restart JSPWiki in the servlet container for it to read the
- * new properties and switch to JDBC authentication.
+ * directory.
  * </p>
  * <p>
  * JDBCUserDatabase commits changes as transactions if the back-end database

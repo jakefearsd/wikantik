@@ -38,6 +38,155 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   back to the built-in `wikantik.policy`, and several other properties readers (blank
   `wikantik.datasource`, `wikantik.preferences.default-locale`, and others) did not treat a
   blank value the same as an absent one.
+- **The audit log stops accepting writes on 2026-09-01 on a least-privilege deployment.**
+  V036 pre-created `audit_log` partitions for June–August 2026 only ("current plus two
+  months", written in June). The writer's `ensurePartition()` is meant to cover the gap, but
+  it issues `CREATE TABLE … PARTITION OF`, and the documented least-privilege application role
+  has no `CREATE` on schema `public` — so from 2026-09-01 every audit write failed with
+  *permission denied for schema public* and the tamper-evident trail silently stopped
+  recording. V059 pre-creates every month through 2028-12 in an idempotent `DO` loop. (A
+  `DEFAULT` partition would also have prevented the failure, but would then block attaching
+  any later monthly partition whose rows had already landed in it.)
+- **Stored dates resolve in UTC, not the server's time zone.** Three sites, one bug class,
+  all of them wrong for any deployment west of Greenwich. `JdbcInsightsStore` cast a
+  `TIMESTAMPTZ` with `applied_at::date`, which resolves in the *session* zone that pgjdbc
+  takes from the JVM default — shifting every change date by up to a day and mis-aligning the
+  before/after windows `EffectEvaluator` measures against. `PageSeoModel` and
+  `PreviewStructuredDataTool` formatted the `Date` SnakeYAML parses from a bare
+  `date: 2026-03-20` (UTC midnight) in the JVM default zone, so pages advertised the wrong
+  `datePublished` in their JSON-LD and `article:published_time`, and the curator preview
+  disagreed with what was actually published.
+- **A blocked webfont CDN stopped pages from ever finishing loading.** `index.html` pulled
+  the Google Fonts stylesheet as an ordinary `<link>`, which is a load-blocking resource. On
+  a network that *blackholes* `fonts.googleapis.com` / `fonts.gstatic.com` — privacy
+  blocklists commonly do, and they drop the packets rather than refusing the connection —
+  every page sat at `document.readyState` `"interactive"` with its font faces pending until
+  Chrome gave up, around 80 seconds later. Text was readable the whole time (`display=swap`
+  paints the fallback stack immediately), so this was invisible in casual use, but the page
+  never signalled that it had loaded, which stalls anything waiting on that signal: browser
+  automation, `onload` handlers, and load-timing telemetry. The stylesheet is now injected
+  after the window `load` event, making the webfonts strictly additive — a reachable CDN
+  swaps them in a moment later, an unreachable one costs the page nothing. Measured on one
+  such network, against the same page: `driver.get()` 82.9s → 0.151s, `loadEventEnd` never →
+  77ms. `media="print"`/`rel="preload"` were tried first and are *not* sufficient; both are
+  still load-blocking fetches. Separately, the stale-asset recovery guard in `index.html`
+  now ignores cross-origin failures — a blocked font CDN was previously enough to make it
+  diagnose a bad deploy and reload the page twice.
+- **`MCP_ACCESS_KEYS` was a silent no-op that seven documents told deployers to set.**
+  `mcp.access.keys` / `tools.access.keys` stopped being read when 2.4.18 split the MCP
+  scopes, but `docker/entrypoint.sh` still wrote `mcp.access.keys` into
+  `wikantik-mcp.properties` on every container boot, and `DockerDeployment`, `ApiKeys`,
+  `WikantikOperations`, `production-container-architecture`, `WikantikOnDocker`,
+  `McpIntegration` and `OpenWebUIToolServer` all documented it as the way to authorise an
+  agent client. A deployer who followed them got a 403 and no explanation. The dead writes
+  are gone from the entrypoint and `docker-compose.dev.yml`, and every one of those
+  documents now describes the real mechanism: database-backed keys minted at
+  `/admin/apikeys` (SHA-256 hashed in `api_keys`, rank-based scopes `mcp_read` ⊂ `mcp`), a
+  CIDR allowlist, or an explicit `allowUnrestricted` — otherwise fail-closed 503.
+- **Six live configuration keys were never declared.**
+  `wikantik.knowledge.extractor.prefilter.{enabled,dry_run,skip_pure_code,skip_no_proper_noun,
+  skip_too_short,min_tokens}` are read through `PrefixedProperties`, which hides the full key
+  literal from the configuration-surface scanner — so they escaped the MISSING rule, and
+  `DYNAMIC_PREFIXES` then kept them from tripping UNREFERENCED either. They are now declared
+  with the defaults `EntityExtractorConfig` actually applies.
+- **A stale security warning and a wrong one.** A JSPWiki-era "THIS IS A DANGEROUS OPTION!
+  … ANY sort of malicious JavaScript, or plugin, or ActiveX" block sat in
+  `ini/wikantik.properties` attached to no key at all, 400 lines from the
+  `wikantik.translatorReader.allowHTML` setting it once described — which now routes every
+  rendered page through `WikantikHtmlSanitizer`. The orphan is deleted and the real key's
+  description rewritten from `MarkdownRenderer`. Conversely `wikantik.attachment.maxsize`
+  understated its risk: it and `wikantik.attachment.forbidden` both ship blank, so a fresh
+  install accepts an upload of any size and any type, bounded only by disk.
+- **Documentation that contradicted the code it described.** `JDBCUserDatabase` and
+  `JDBCGroupDatabase` published a Javadoc table advertising fourteen configurable
+  table/column mappings; both classes read exactly one property (`wikantik.datasource`) and
+  hardcode every identifier. `HybridRetrieval` documented a
+  `wikantik.search.hybrid.query.*` family that does not exist (the real prefix is
+  `…hybrid.embedder.`). `KgInclusionPolicy` listed six `wikantik.kg_policy.*` keys of which
+  one is real. `Sitemap` and `McpIntegration` each documented a fabricated key. README
+  claimed "unit tests use in-memory H2" — there has been no H2 schema since the migrations
+  became the only schema definition. ROADMAP listed "more extractor backends" with Ollama
+  as the only one, three months after the Claude backend shipped. All corrected from source.
+- **ADR-0006's decision was never implemented.** It chose OWL-RL reasoning and rejected
+  RDFS-only precisely because "RDFS-only left the `owl:equivalentClass` / `subPropertyOf`
+  axioms silently inert"; `OntologyModelManager.buildInferenceSnapshot()` calls
+  `ModelFactory.createRDFSModel`. By the ADR's own argument the schema.org and SKOS
+  equivalences authored in `wikantik.ttl` do nothing at query time. The decision is left
+  standing with an implementation-status section recording the gap — changing the reasoner
+  is a behaviour and performance change, not a documentation edit.
+- **Javadoc that was never published.** Twenty-three places had two Javadoc blocks stacked
+  with nothing between them, which makes Javadoc silently drop the first. Most were created
+  by a later insertion pushing a member down and away from its own documentation — including
+  two from this release's own performance work (`FrontmatterParser.split`,
+  `RestServletBase`'s date serializer), both of which were left undocumented while an
+  unrelated block sat above them. Two in `SSOLoginModule` documented fields that had been
+  deleted.
+- **A swallowed plugin failure.** `PluginContent` rendered an inline error for the reader
+  when a plugin threw, but its log call was commented out, so an administrator had no trace
+  of it anywhere.
+- **The generated configuration reference was not usable as a document.** 75 of its key
+  descriptions ran past 300 characters inside a Markdown table cell — the worst,
+  `wikantik.loginModule.class`, at 1,925 — because the generator joined a key's entire
+  preceding comment run into one cell, `Example:` lines and all. `wikantik.applicationName`
+  had swallowed the defaults file's whole header preamble ("This is the Wikantik
+  configuration file. You'll need to edit this a bit…"). The generator now summarises in the
+  table and preserves every word beneath it, hoists a section's preamble to its heading,
+  renders `Example:` lines as code, and adds a secrets-to-provision index, per-file tables of
+  contents, and disambiguated anchors for headings that repeat across source files. Longest
+  cell is now 157 characters and none exceed 200.
+
+### Performance
+
+A profiling campaign (JFR, eight iterations, `bin/profile-iteration.sh`) against a load mix
+that for the first time included `/admin/*` traffic. Results are recorded in
+`loadtest/results/CAMPAIGN-2026-08-25.md`.
+
+- **HTTP Basic authentication no longer pays a bcrypt verify per request.** Three defects
+  compounded: `BasicAuthFilter`'s session fast path compared the supplied username against
+  `getUserPrincipal()`, which `WikiSession` sets to the user's *full name* rather than the
+  login name on `getLoginPrincipal()` — so for any user whose full name differs from their
+  login name the fast path was dead code; stateless clients (pollers, cron, CI) that
+  re-present credentials on every request had no cache at all; and once one was added, every
+  in-flight request recomputed the same hash the instant the entry expired. bcrypt at cost 12
+  was 96% of all server CPU under the admin-inclusive mix. Session-holding clients now go
+  312ms → 1.6ms per admin request, stateless clients 369ms → 7.4ms, and concurrent misses
+  collapse onto a single verify under Caffeine's per-key loader (`verifySaltedPassword`
+  −74% of samples). Only *successful* verifications are cached and the key binds the stored
+  hash, so a wrong password always pays full price and a password change takes effect
+  immediately rather than after the TTL; account lockout is unaffected
+  (`UserDatabaseLoginModule` checks `isLocked()` after `validatePassword()`). Kill switch:
+  `wikantik.auth.password.verifyCache.ttlSeconds = 0`.
+- **Search no longer parses every page it is about to filter out.** `DefaultLuceneSearcher.
+  findPages` called `getPage()` per Lucene hit, which routes through
+  `CachingProvider.refreshMetadata` and runs a full flexmark parse purely to populate
+  frontmatter attributes the search path never reads — and `DefaultAuthorizationManager.
+  filterViewable` paid it a second time per result. New `PageManager.getPageWithoutMetadata`
+  / `PageProvider.getPageInfoNoMetadata` default methods delegate to the existing ones, so no
+  provider implementation changes. `findPages` CPU −64%, p90 −19%, p95 −12%, results
+  byte-identical. `DefaultLuceneIndexer` deliberately keeps `getPage()` — it reads the
+  `keywords` attribute at index time and genuinely needs the parse.
+- **The HNSW chunk index resolves docvalues once per leaf instead of twice per hit.**
+  `topKChunks` constructed up to 600 `TermsDict` instances per query at the shipped
+  `top_k = 300`, making it the largest allocator in the process. Docvalues are now resolved in
+  docid order and emitted in the original score order, so the returned list is identical:
+  `topKChunks` allocation 37.6% → 4.3%. Separately, `chunk_id` is a UUID and therefore unique
+  per document, so a sorted term dictionary over it had cardinality equal to the doc count —
+  it is now stored as two `NumericDocValues` halves and read as `new UUID(hi, lo)`, taking
+  `topKChunks` a further −64% in CPU samples. `page_name` stays sorted, where its low
+  cardinality makes a shared dictionary the right structure. No migration: the index is a
+  `ByteBuffersDirectory` rebuilt from `content_chunk_embeddings` at every boot.
+- **`read_page` and `read_pages` stopped parsing pages to read their metadata.** Both needed
+  only existence, version and `lastModified` — all available from the provider's page info —
+  but called `getPage()`, costing up to 20 wasted full-markup parses per `read_pages` call.
+  Bodies still come from `getPureText()`.
+- **`FrontmatterParser.split()` no longer copies the page body to look at four characters.**
+  It ran a regex over `text.substring(yamlStart)` — copying the entire remaining body on every
+  call, for every page, then discarding it — purely to test whether a closing `---`
+  immediately follows the opening one. `String.startsWith(prefix, offset)` allocates nothing
+  and gives the identical answer: `split()` allocation 8.50% → 4.11% of samples.
+- **Display-math preprocessing is skipped on pages with no `$$`.** The DOTALL/MULTILINE
+  backtracking scan ran over every page body on every parse, including the overwhelming
+  majority with no math in them, once per hit on the search path.
 
 ### Changed
 - **Every configuration key is now declared in `ini/wikantik.properties` with an explicit
@@ -98,6 +247,65 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `RuntimeException` and counts `rollback()`/`commit()` calls — the honest discriminator against a
   raw, unpooled connection, which discards an open transaction on close regardless of whether
   the code rolled back. The ad-hoc `RollbackTrackingDataSource` is folded into it.
+- **The load-test harness can drive `/admin/*` and profile itself.** Every optimisation arc
+  before this one was measured against a mix containing zero admin traffic. `bin/loadtest.sh`
+  gains a weighted admin scenario behind `--admin` / `--admin-vus` (dashboard polling,
+  operator management reads, expensive full-corpus audits, reversible policy/API-key writes),
+  the retrieval scenario now drives the real agent tools on `/knowledge-mcp` rather than an
+  approximation of them, and `bin/profile-iteration.sh` wraps a run in JFR and reduces it to
+  CPU-by-application-frame tables.
+- **`loadtest/seed-loadtest-data.sh` seeded nothing, silently.** Its property reader's `grep`
+  tripped `set -euo pipefail` on any absent optional key and killed the script before it wrote
+  a row; `CryptoUtil` needed bcrypt on the classpath and its stderr was being swallowed; and
+  the seeded `testbot` was granted Admin through the legacy `roles` table rather than
+  `group_members`, so it got 403 on every `/admin/*` endpoint. Fixed alongside an unquoted
+  `WIKANTIK_SSO_OIDC_SCOPE` in `.env.example`, which made `set -a; source .env` try to execute
+  `profile` and broke `bin/deploy-local.sh`.
+
+### Admin UI
+
+- **A failed check reported a clean result.** The broken-links tab caught its fetch error
+  with an empty handler and then rendered "No broken links found. All references point to
+  existing pages." — telling an operator the wiki was clean when nothing had been checked.
+  It now distinguishes error from empty. The reader sidebar swallowed its page-list and
+  recent-changes failures the same way and simply stayed blank forever.
+- **Deleting orphaned pages in bulk asked for no confirmation at all**, unlike every other
+  bulk delete in the admin panel. Deleting a Knowledge Graph node had no error handling: a
+  failed delete threw, the refresh callback never ran, and the user saw nothing happen.
+- **One confirmation dialog instead of five.** `ConfirmDialog` was private to the
+  index-status tab and hardcoded to say "Confirm Rebuild", so the remaining destructive
+  actions used bare `confirm()`/`alert()`. It is now `ui/ConfirmDialog` and backs
+  clear-Knowledge-Graph (which now names what it is about to destroy), node delete,
+  KG-policy clear, embedding backfill and the orphaned-page delete above.
+- **Dark mode never applied to any semantic state colour.** Ten custom properties that
+  components style against — `--color-danger`, `--color-danger-text`, `--error`,
+  `--color-error`, `--color-error-bg`, `--color-success`, `--color-success-text`,
+  `--color-success-bg`, `--color-warning`, `--color-warning-bg` — were never defined
+  anywhere, so every rule using them fell through to a hardcoded light-mode fallback. That
+  left four different reds in use for one meaning, none of which changed with the theme.
+  They are now aliases of the real `--danger`/`--success`/`--warning` tokens and track the
+  dark-theme overrides. (The remaining undefined names are structural rather than semantic
+  and are deliberately left alone, with the reason recorded in `globals.css`.)
+- Keyboard and screen-reader fixes: the page-graph legend toggle and the sidebar tab handle
+  were `<div onClick>` and unreachable by keyboard; the mentions dismiss button had a
+  `title` but no accessible name; every admin route rendered two `<h1>`s. Admin pages now
+  show the shared `Spinner` while loading instead of bare text.
+- Copy: "Deleted 1 pages" / "Purged 1 old versions" pluralise correctly, "Knowledge Graph"
+  and "Page Graph" are capitalised consistently in the error states, API-key buttons name
+  one action one way, and the user-side Revoke button is styled as destructive like its
+  admin-side twin.
+
+### Removed
+
+- `AbstractJDBCDatabase.closeQuietly` — the raw close-in-a-finally idiom the `wikantik-jdbc`
+  primitive replaced, kept alive only by its own three unit tests, and carrying three empty
+  catch blocks.
+- The twenty dead `wikantik.userdatabase.*` / `wikantik.groupdatabase.*` per-column keys the
+  Docker entrypoint wrote into every container's live configuration, and the
+  `MCP_ACCESS_KEYS` block beside them. `wikantik.userdatabase`, `wikantik.groupdatabase` and
+  `wikantik.datasource` — the three that are real — are unchanged.
+- Twenty unused imports, two commented-out debug prints, and a `.gitignore` entry matching
+  nothing.
 
 ## [2.4.19] - 2026-08-22
 

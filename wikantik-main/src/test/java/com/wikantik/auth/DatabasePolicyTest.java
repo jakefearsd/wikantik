@@ -76,7 +76,7 @@ class DatabasePolicyTest
         final Context ctx = (Context) initCtx.lookup( "java:comp/env" );
         ctx.bind( "jdbc/PolicyDatabase", ds );
 
-        // policy_grants table already created by postgresql-test.sql init script
+        // policy_grants table already created by the migrations PostgresTestDb applies
     }
 
     @BeforeEach

@@ -34,6 +34,30 @@
   --danger-bg: #faf2f2;
   --warning: #b8860b;
   --warning-bg: #fef8f0;
+
+  /* Legacy aliases for the semantic state colours. Components were written
+     against these names, which were never defined anywhere, so every such rule
+     silently fell through to its hardcoded fallback - four different reds across
+     the app, and none of them changed in dark mode. Aliasing here is enough:
+     custom properties substitute at computed-value time, so these track the
+     dark-theme overrides below without being redeclared there.
+     Only the unambiguous state colours are aliased. The remaining undefined
+     names are structural (--surface, --color-border, --color-muted,
+     --color-accent, --admin-accent, --admin-border, --radius, --bg-hover,
+     --bg-base, --accent-muted, --accent-soft, --color-bg-subtle,
+     --color-surface-alt, --bg-warning-subtle) and their intended shades are not
+     recoverable from the token set, so they are deliberately left resolving to
+     their fallbacks until someone can check them against the rendered UI. */
+  --color-danger: var(--danger);
+  --color-danger-text: var(--danger);
+  --error: var(--danger);
+  --color-error: var(--danger);
+  --color-error-bg: var(--danger-bg);
+  --color-success: var(--success);
+  --color-success-text: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
   --focus-ring: var(--accent);
 
   /* Spacing */
@@ -1304,6 +1328,17 @@ a[data-attachment-missing] {
   }
   /* Show the tap handle in the visible 35px strip */
   .sidebar-tab-handle {
+    /* Reset default <button> chrome — order matters: these must precede the
+       specific overrides below so padding-top/background/border-right/color
+       win the cascade for the sub-properties they target. */
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+    -webkit-appearance: none;
+    appearance: none;
     display: flex;
     position: absolute;
     right: 0;

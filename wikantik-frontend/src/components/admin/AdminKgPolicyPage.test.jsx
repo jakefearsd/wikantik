@@ -51,8 +51,6 @@ function mockApi(clusters = defaultClusters, reconciliation = []) {
 describe('AdminKgPolicyPage', () => {
   beforeEach(() => {
     mockApi();
-    // Default window.confirm to false so Clear calls don't accidentally proceed
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -222,10 +220,9 @@ describe('AdminKgPolicyPage', () => {
     expect(screen.queryByText(/will affect/i)).not.toBeInTheDocument();
   });
 
-  // ---- 5. Clear button calls clearCluster after window.confirm ----
+  // ---- 5. Clear button calls clearCluster after confirming in the dialog ----
 
-  it('Clear button calls clearCluster when window.confirm returns true', async () => {
-    window.confirm.mockReturnValue(true);
+  it('Clear button calls clearCluster when the confirm dialog is confirmed', async () => {
     const clearCluster = vi.spyOn(api.admin.kgPolicy, 'clearCluster').mockResolvedValue({ ok: true });
 
     render(<AdminKgPolicyPage />);
@@ -233,6 +230,10 @@ describe('AdminKgPolicyPage', () => {
 
     const row = screen.getByText('personal-finance').closest('tr');
     fireEvent.click(within(row).getByRole('button', { name: /Clear/i }));
+
+    const confirmDialog = await screen.findByRole('dialog');
+    expect(within(confirmDialog).getByRole('heading', { name: /Clear Policy/i })).toBeInTheDocument();
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: /^Clear$/i }));
 
     await waitFor(() =>
       expect(clearCluster).toHaveBeenCalledWith('personal-finance'),
@@ -240,8 +241,7 @@ describe('AdminKgPolicyPage', () => {
     expect(api.admin.kgPolicy.listClusters).toHaveBeenCalledTimes(2);
   });
 
-  it('Clear button does NOT call clearCluster when window.confirm returns false', async () => {
-    window.confirm.mockReturnValue(false);
+  it('Clear button does NOT call clearCluster when the confirm dialog is cancelled', async () => {
     const clearCluster = vi.spyOn(api.admin.kgPolicy, 'clearCluster').mockResolvedValue({ ok: true });
 
     render(<AdminKgPolicyPage />);
@@ -250,7 +250,11 @@ describe('AdminKgPolicyPage', () => {
     const row = screen.getByText('personal-finance').closest('tr');
     fireEvent.click(within(row).getByRole('button', { name: /Clear/i }));
 
+    const confirmDialog = await screen.findByRole('dialog');
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: /Cancel/i }));
+
     expect(clearCluster).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('Clear button is absent for unset clusters', async () => {

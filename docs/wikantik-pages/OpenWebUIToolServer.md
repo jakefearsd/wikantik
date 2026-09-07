@@ -36,7 +36,6 @@ Tool-server access has two layers:
 
 | Property                                     | Purpose                                               | Default |
 |----------------------------------------------|-------------------------------------------------------|---------|
-| `tools.access.keys`                          | Legacy comma-separated Bearer tokens (no principal binding — avoid in new deployments) | *(none)* |
 | `tools.access.allowedCidrs`                  | Comma-separated CIDR allowlist (e.g. `10.0.0.0/8`)    | *(none)* |
 | `tools.access.allowUnrestricted`             | Explicit opt-in to run with no auth and no CIDR       | `false` |
 | `tools.ratelimit.global`                     | Global requests per second (0 disables)               | `100`   |
@@ -58,8 +57,8 @@ token starts receiving HTTP 403 immediately.
 
 ### Fail-closed semantics
 
-When none of the DB-backed keys, legacy `tools.access.keys`, `tools.access.allowedCidrs`,
-or `tools.access.allowUnrestricted=true` is configured, the server refuses every request
+When neither a DB-backed key, nor `tools.access.allowedCidrs`, nor
+`tools.access.allowUnrestricted=true` is configured, the server refuses every request
 with `503 Service Unavailable` and logs a CRITICAL line at startup. With at least one
 DB-backed key generated via the admin UI, the server accepts Bearer tokens from that
 table — no configuration reload required.
@@ -134,8 +133,9 @@ In OpenWebUI:
   page ACLs and JAAS permissions apply exactly as they would for an interactive
   session. Pick the principal deliberately — the tool caller inherits their view
   permissions, so grant narrowly.
-- Legacy config-file keys (`tools.access.keys`) are unbound and behave like a shared
-  service account that bypasses JAAS. Prefer DB-backed keys for any new deployment
-  and drop the legacy list once all clients have migrated.
+- The legacy `tools.access.keys` / `mcp.access.keys` config-file token lists were
+  removed in 2.4.18 and are no longer read by anything. Setting either is a silent
+  no-op; database-backed keys minted at `/admin/apikeys` are the only token
+  mechanism.
 - Rate limits are sliding-window, 1-second buckets; the `Retry-After: 1` header is
   returned with every 429.

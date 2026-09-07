@@ -158,24 +158,6 @@ public final class SearchSubsystemFactory {
     }
 
     /**
-     * Chunk vector index: reuse the single instance SearchWiringHelper.wireHybridRetrieval
-     * already built and wired (it runs earlier — inside initKnowledgeGraph(), before
-     * buildSearchSubsystem() calls this factory — see WikiEngine.initialize()). Reusing it
-     * is what keeps this Services.chunkVectorIndex() slot (read by
-     * DefaultContextRetrievalService -> ContributingChunkAssembler, the retrieve_context
-     * MCP tool's dense fallback) in sync with the AsyncEmbeddingIndexListener upserts;
-     * constructing a second instance here from the same property would silently drop new
-     * content from that path until restart.
-     *
-     * <p>Only fall back to constructing our own instance when nothing was wired (embeddings
-     * disabled, wireHybridRetrieval failed, or direct factory use in tests) — and even then,
-     * a null DataSource must degrade (matching SearchWiringHelper's own catch-and-warn
-     * behaviour) rather than throw and crash engine boot. "inmemory" stays the fallback
-     * default here (unchanged from before this fix) — it is the one backend that never
-     * needs a DataSource, so it is the safest thing to fall back to when properties
-     * aren't even available (e.g. a bare mocked Engine in a unit test).</p>
-     */
-    /**
      * Resolves the dense backend for the FALLBACK construction path, defaulting to
      * {@code inmemory} when the property — or the whole {@link Properties} object — is
      * absent.
@@ -196,6 +178,24 @@ public final class SearchSubsystemFactory {
             : DenseBackends.INMEMORY ).toLowerCase( Locale.ROOT );
     }
 
+    /**
+     * Chunk vector index: reuse the single instance SearchWiringHelper.wireHybridRetrieval
+     * already built and wired (it runs earlier — inside initKnowledgeGraph(), before
+     * buildSearchSubsystem() calls this factory — see WikiEngine.initialize()). Reusing it
+     * is what keeps this Services.chunkVectorIndex() slot (read by
+     * DefaultContextRetrievalService -> ContributingChunkAssembler, the retrieve_context
+     * MCP tool's dense fallback) in sync with the AsyncEmbeddingIndexListener upserts;
+     * constructing a second instance here from the same property would silently drop new
+     * content from that path until restart.
+     *
+     * <p>Only fall back to constructing our own instance when nothing was wired (embeddings
+     * disabled, wireHybridRetrieval failed, or direct factory use in tests) — and even then,
+     * a null DataSource must degrade (matching SearchWiringHelper's own catch-and-warn
+     * behaviour) rather than throw and crash engine boot. "inmemory" stays the fallback
+     * default here (unchanged from before this fix) — it is the one backend that never
+     * needs a DataSource, so it is the safest thing to fall back to when properties
+     * aren't even available (e.g. a bare mocked Engine in a unit test).</p>
+     */
     private static ChunkVectorIndex resolveChunkVectorIndex(
             final SearchSubsystem.Deps deps, final Properties wikiProps,
             final ChunkVectorIndex wiredChunkVectorIndex,

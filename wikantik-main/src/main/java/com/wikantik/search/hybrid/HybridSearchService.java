@@ -76,16 +76,14 @@ public final class HybridSearchService {
      * only in dense results are appended to the end of the fused order, so the
      * output set is always {@code bm25 ∪ dense}.
      *
+     * <p>Thin forwarder kept for source compatibility.
+     *
      * @param query         user query string — never {@code null}
      * @param bm25PageNames ordered page names from the Lucene/BM25 pass; may be empty
      * @return fused ordered page names (superset of input when dense adds hits)
-     */
-    /**
-     * Thin forwarder kept for source compatibility. New code should use
-     * {@link #rerankWithChunks} so the dense chunks can be reused downstream.
-     *
      * @deprecated since 2026-05-20 (search-path-optimization spec) — use
-     *             {@link #rerankWithChunks}.
+     *             {@link #rerankWithChunks} so the dense chunks can be reused
+     *             downstream instead of being recomputed.
      */
     @Deprecated( since = "2026-05-20" )
     public List< String > rerank( final String query, final List< String > bm25PageNames ) {

@@ -46,6 +46,16 @@ install paths run the identical Tomcat patch.
 | `/api/health` | Application health checks |
 | `/metrics` | Prometheus-compatible metrics (IP-restricted via `InternalNetworkFilter`) |
 
+**Authorizing an MCP/tools client:** the two MCP endpoints and `/tools/*` share a
+fail-closed access filter (`McpAccessFilter` / `ToolsAccessFilter`) — there is no
+environment variable that authorizes a client. Log into the deployed container as
+an admin and mint a DB-backed key at `/admin/apikeys` with scope `mcp`, `mcp_read`,
+`tools`, or `all` (see [ApiKeys.md](ApiKeys.md)); alternatively configure
+`mcp.access.allowedCidrs` / `tools.access.allowedCidrs` in
+`wikantik-mcp.properties` / `wikantik-tools.properties`, or set
+`*.access.allowUnrestricted=true` for trusted local development only. Full detail:
+[McpIntegration.md](wikantik-pages/McpIntegration.md).
+
 ## 1. Configuration — the `.env` file
 
 The stack reads its configuration from a single `.env` file in the deployment
@@ -63,7 +73,6 @@ Copy `.env.example` and fill it in. Key variables:
 | `WIKANTIK_BASE_URL` | External base URL — sitemap, canonical links, IndexNow. |
 | `WIKANTIK_PAGES_DIR` | **Host** path bind-mounted as the page tree (prod overlay). |
 | `BACKUP_DIR` / `BACKUP_RETENTION_DAYS` | Host backup path + retention for the sidecar. |
-| `MCP_ACCESS_KEYS` | Comma-separated MCP bearer keys (DB-backed `api_keys` also work). |
 | `MAIL_SMTP_*` / `MAIL_FROM` | SMTP; leave `MAIL_SMTP_HOST` empty to disable email. |
 | `WIKANTIK_HOST_PORT` | Published host port (default `8080`). |
 
@@ -113,7 +122,6 @@ Defaults below are copied from `docs/ConfigurationReference.md`; that page is au
 | `WIKANTIK_CONNECTORS_CRYPTO_KEY` | *(blank — credential store stays disabled)* | `wikantik.connectors.crypto.key` | Base64-encoded 32-byte AES-256 key for the connector credential store (GitHub token / Confluence API token / Google Drive client secret+refresh token at rest). |
 | `PROXY_REMOTE_IP_HEADER` | `CF-Connecting-IP` | JVM system property `wikantik.proxy.remoteIpHeader`, consumed by `RemoteIpValve` in `docker/config/server.xml` | Reverse-proxy header carrying the real client IP. **Always injected**, unconditionally — Tomcat's `${...}` substitution has no default-value syntax, so an unset property would leave the literal `${wikantik.proxy.remoteIpHeader}` string as the header name and silently break client-IP resolution. Set to `X-Forwarded-For` for Caddy/nginx/ALB/GCLB (e.g. the cloud overlay's `caddy` ingress profile); leave at the default for Cloudflare-fronted deployments (docker1, or the cloud overlay's `cloudflared` profile). Must match `[A-Za-z0-9-]+` — the entrypoint refuses to boot on a violating value. |
 | `WIKANTIK_INDEXNOW_API_KEY` | *(blank — IndexNow disabled)* | `wikantik.indexnow.apiKey` | IndexNow verification key for `ping_search_engines` (Bing/Yandex). The same value must be served publicly at `<baseURL>/<key>.txt`. |
-| `MCP_ACCESS_KEYS` | *(none)* | `mcp.access.keys` in `wikantik-mcp.properties` | Comma-separated MCP bearer keys. DB-backed `api_keys` also work. |
 | `MCP_USERS` | `curator` | *(env only — for compose healthcheck context)* | Informational; records which user accounts are expected MCP callers. |
 | `MCP_RATE_LIMIT_GLOBAL` | `500` | `mcp.ratelimit.global` | Global requests-per-**second** cap across all MCP clients (1-second sliding window in `SlidingWindowRateLimiter`). |
 | `MCP_RATE_LIMIT_PER_CLIENT` | `50` | `mcp.ratelimit.perClient` | Per-client requests-per-**second** cap (same 1-second sliding window). Raised 5x from 10 on 2026-08-08 to unthrottle agent authoring sessions. |

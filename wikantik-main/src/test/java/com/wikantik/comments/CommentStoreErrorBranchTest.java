@@ -21,7 +21,6 @@ package com.wikantik.comments;
 import com.wikantik.api.comments.TextQuoteSelector;
 import com.wikantik.comments.mentions.MentionService;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import javax.sql.DataSource;
 import java.sql.Connection;

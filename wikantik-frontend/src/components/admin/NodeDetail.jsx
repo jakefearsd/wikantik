@@ -3,9 +3,13 @@ import { api } from '../../api/client';
 import ProvenanceBadge from './ProvenanceBadge';
 import PageLink from './PageLink';
 import { MentionsPanel } from './MentionChunks';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 export default function NodeDetail({ node, onNavigate, onDeleted }) {
   const [similar, setSimilar] = useState([]);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   useEffect(() => {
     if (!node?.name) { setSimilar([]); return; }
@@ -14,23 +18,40 @@ export default function NodeDetail({ node, onNavigate, onDeleted }) {
       .catch(() => setSimilar([]));
   }, [node?.name]);
 
+  // Reset delete state when the selected node changes so a stale error/dialog
+  // from a previously inspected node can't bleed into this one.
+  useEffect(() => {
+    setConfirmingDelete(false);
+    setDeleting(false);
+    setDeleteError(null);
+  }, [node?.id]);
+
   if (!node) return null;
 
   const outbound = (node.edges || []).filter(e => e.source_id === node.id);
   const inbound = (node.edges || []).filter(e => e.target_id === node.id);
   const totalEdges = outbound.length + inbound.length;
 
+  const impact = totalEdges > 0
+    ? ` This will also remove ${totalEdges} edge${totalEdges === 1 ? '' : 's'}` +
+      ` (${outbound.length} outbound, ${inbound.length} inbound).`
+    : ' It has no edges to remove.';
+
   const handleDelete = async () => {
-    const impact = totalEdges > 0
-      ? ` This will also remove ${totalEdges} edge${totalEdges === 1 ? '' : 's'}` +
-        ` (${outbound.length} outbound, ${inbound.length} inbound).`
-      : ' It has no edges to remove.';
-    if (!confirm(`Delete node "${node.name}"?${impact}`)) return;
-    await api.knowledge.deleteNode(node.id);
-    // Refresh the parent list in place instead of a full window reload, which
-    // would lose the admin tab state and bounce the user back to the default
-    // (Proposals) tab.
-    if (onDeleted) onDeleted();
+    setConfirmingDelete(false);
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await api.knowledge.deleteNode(node.id);
+      // Refresh the parent list in place instead of a full window reload, which
+      // would lose the admin tab state and bounce the user back to the default
+      // (Proposals) tab.
+      if (onDeleted) onDeleted();
+    } catch (err) {
+      setDeleteError(err.message || 'Failed to delete node');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -43,7 +64,21 @@ export default function NodeDetail({ node, onNavigate, onDeleted }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-sm)', gap: 'var(--space-sm)' }}>
         <h3 style={{ margin: 0 }}>{node.name}</h3>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-          <button className="btn btn-sm btn-danger" onClick={handleDelete}>Delete</button>
+          <button
+            className="btn btn-sm btn-danger"
+            onClick={() => setConfirmingDelete(true)}
+            disabled={deleting}
+          >
+            {deleting ? 'Deleting…' : 'Delete'}
+          </button>
+          {deleteError && (
+            <span
+              role="alert"
+              style={{ fontSize: '0.75em', color: 'var(--danger, #c0392b)' }}
+            >
+              {deleteError}
+            </span>
+          )}
           {totalEdges > 0 && (
             <span
               data-testid="node-delete-impact"
@@ -174,6 +209,16 @@ export default function NodeDetail({ node, onNavigate, onDeleted }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {confirmingDelete && (
+        <ConfirmDialog
+          title="Delete Node"
+          message={`Delete node "${node.name}"?${impact}`}
+          confirmLabel="Delete"
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmingDelete(false)}
+        />
       )}
     </div>
   );

@@ -99,6 +99,9 @@ public final class RestSeedHelper {
         return post( "/admin/knowledge-graph/hub-discovery/run", "" );
     }
 
+    /** How long to wait for the post-login admin session-principal binding. */
+    private static final long ADMIN_READY_BUDGET_MS = 15_000;
+
     /**
      * Polls {@code GET /admin/users} (a cheap, always-wired admin endpoint that
      * passes through {@code AdminAuthFilter}) until it returns 200, with a
@@ -117,9 +120,6 @@ public final class RestSeedHelper {
      * Throws {@link IllegalStateException} if the budget expires without a 200,
      * which signals a real auth misconfiguration rather than a propagation race.
      */
-    /** How long to wait for the post-login admin session-principal binding. */
-    private static final long ADMIN_READY_BUDGET_MS = 15_000;
-
     public static void awaitAdminReady() {
         // Each call is a single-shot fetch that resolves in milliseconds; the
         // retry budget lives in Java rather than a long-running async script, so

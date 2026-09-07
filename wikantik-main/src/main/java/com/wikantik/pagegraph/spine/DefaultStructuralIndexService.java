@@ -251,11 +251,6 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
     }
 
     /**
-     * Re-read the saved page in isolation and splice its descriptor + relations into
-     * a fresh projection — no full corpus re-scan. Authored canonical_ids are
-     * persisted; synthesised ones live in memory only and surface in {@code conflicts}.
-     */
-    /**
      *  Maps a page's frontmatter to its structural descriptor.
      *
      *  <p>Shared by the full rebuild and the incremental update so the two can never disagree
@@ -312,6 +307,11 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         }
     }
 
+    /**
+     * Re-read the saved page in isolation and splice its descriptor + relations into
+     * a fresh projection — no full corpus re-scan. Authored canonical_ids are
+     * persisted; synthesised ones live in memory only and surface in {@code conflicts}.
+     */
     private void applyIncrementalUpdate( final Page page ) {
         final String slug = page.getName();
         final String raw = pageManager.getPureText( page );

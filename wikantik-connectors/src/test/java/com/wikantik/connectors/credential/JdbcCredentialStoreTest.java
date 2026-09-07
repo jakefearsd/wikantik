@@ -23,7 +23,6 @@ import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.util.AesGcmCipher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import javax.crypto.SecretKey;
 import javax.sql.DataSource;
 import java.security.SecureRandom;
 import java.sql.Connection;

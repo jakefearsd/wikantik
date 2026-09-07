@@ -163,29 +163,6 @@ wikantik.cookieAuthentication = ${WIKANTIK_COOKIE_AUTHENTICATION:-false}
 wikantik.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
 wikantik.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 wikantik.datasource = jdbc/WikiDatabase
-
-wikantik.userdatabase.table = users
-wikantik.userdatabase.uid = uid
-wikantik.userdatabase.email = email
-wikantik.userdatabase.fullName = full_name
-wikantik.userdatabase.loginName = login_name
-wikantik.userdatabase.password = password
-wikantik.userdatabase.wikiName = wiki_name
-wikantik.userdatabase.created = created
-wikantik.userdatabase.modified = modified
-wikantik.userdatabase.lockExpiry = lock_expiry
-wikantik.userdatabase.attributes = attributes
-wikantik.userdatabase.roleTable = roles
-wikantik.userdatabase.role = role
-
-wikantik.groupdatabase.table = groups
-wikantik.groupdatabase.membertable = group_members
-wikantik.groupdatabase.name = name
-wikantik.groupdatabase.created = created
-wikantik.groupdatabase.creator = creator
-wikantik.groupdatabase.member = member
-wikantik.groupdatabase.modified = modified
-wikantik.groupdatabase.modifier = modifier
 EOF
 
 # Append SMTP config if host is set
@@ -477,10 +454,6 @@ mcp.instructions.file = wikantik-mcp-instructions.txt
 mcp.ratelimit.global = ${MCP_RATE_LIMIT_GLOBAL:-500}
 mcp.ratelimit.perClient = ${MCP_RATE_LIMIT_PER_CLIENT:-50}
 EOF
-
-if [ -n "${MCP_ACCESS_KEYS:-}" ]; then
-  echo "mcp.access.keys = ${MCP_ACCESS_KEYS}" >> "${CATALINA_HOME}/lib/wikantik-mcp.properties"
-fi
 
 # --- Dev mode: deploy bind-mounted WAR if present ---
 if [ -f /tmp/Wikantik.war ]; then

@@ -47,7 +47,7 @@ describe('PageGraphView', () => {
   it('shows 401 error for unauthorized', async () => {
     api.pageGraph.getSnapshot.mockRejectedValue(Object.assign(new Error('Unauthorized'), { status: 401 }));
     render(<MemoryRouter initialEntries={['/page-graph']}><PageGraphView /></MemoryRouter>);
-    expect(await screen.findByText('Sign in to view the page graph.')).toBeTruthy();
+    expect(await screen.findByText('Sign in to view the Page Graph.')).toBeTruthy();
   });
 
   it('shows server error for 5xx', async () => {

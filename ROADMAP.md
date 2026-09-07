@@ -91,19 +91,23 @@ stream. The canonical record of what shipped is
   authoring model.
 - **Plugin marketplace.** Today Wikantik supports plugins but discovery
   is manual; eventually a curated registry.
-- **More extractor backends.** Currently Ollama is the only
-  Knowledge-Graph extraction LLM provider. Adding Anthropic, OpenAI,
-  and a self-hosted vLLM path so operators can pick their constraint.
+- **More extractor backends.** Knowledge-Graph extraction already has
+  two selectable LLM providers (`EntityExtractorFactory` switches on
+  Ollama and Claude/Anthropic). Still missing: OpenAI, and a
+  self-hosted vLLM path, so operators can pick their constraint.
 
 ## Considering / undecided
 
 These are open questions. If you have an opinion, please weigh in via
 an issue.
 
-- **License direction.** Currently Apache 2.0. AGPL would protect the
-  project from SaaS forks; staying Apache 2.0 maximises adoption. No
-  decision yet; if relicensing happens, contributors will be notified
-  before any change.
+**Settled: license direction.** Wikantik stays Apache 2.0 — permissive
+licensing (fork/embed/relicense derivatives without copyleft) is a
+deliberate part of its market position (see the license comparison in
+[README.md](README.md#why-wikantik)), not an open question. This is no
+longer on the "undecided" list; a past revisiting of AGPL did not lead
+to a change.
+
 - **Hosted offering.** A paid hosted Wikantik (`wiki.example.com`-style
   multi-tenant SaaS) would fund development; no decision yet on
   whether to ship it.

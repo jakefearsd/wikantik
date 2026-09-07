@@ -58,12 +58,6 @@ public abstract class RestServletBase extends HttpServlet {
     private static final Logger LOG = LogManager.getLogger( RestServletBase.class );
 
     /**
-     * Serializer that always emits {@link Date} as ISO 8601 in UTC with a
-     * literal {@code Z} suffix. Gson's {@code setDateFormat(String)} uses the
-     * JVM's default timezone, which produces wrong output (local-time digits
-     * with a {@code Z} suffix that lies about being UTC) on any non-UTC host.
-     */
-    /**
      * Shared, immutable ISO-8601-UTC formatter. {@link DateTimeFormatter} is
      * thread-safe, so one static instance serves every request — unlike the old
      * per-call {@code new SimpleDateFormat(...)} + {@code TimeZone.getTimeZone("UTC")},
@@ -74,6 +68,12 @@ public abstract class RestServletBase extends HttpServlet {
     private static final DateTimeFormatter UTC_ISO_FORMAT =
         DateTimeFormatter.ofPattern( "yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ROOT ).withZone( ZoneOffset.UTC );
 
+    /**
+     * Serializer that always emits {@link Date} as ISO 8601 in UTC with a
+     * literal {@code Z} suffix. Gson's {@code setDateFormat(String)} uses the
+     * JVM's default timezone, which produces wrong output (local-time digits
+     * with a {@code Z} suffix that lies about being UTC) on any non-UTC host.
+     */
     public static final JsonSerializer< Date > UTC_ISO_DATE_SERIALIZER = ( src, typeOfSrc, context ) -> {
         if ( src == null ) {
             return null;

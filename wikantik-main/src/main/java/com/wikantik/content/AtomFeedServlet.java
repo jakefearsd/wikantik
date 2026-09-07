@@ -150,7 +150,7 @@ public class AtomFeedServlet extends HttpServlet {
             try {
                 return Math.min( Math.max( 1, Integer.parseInt( countParam ) ), MAX_COUNT );
             } catch ( final NumberFormatException e ) {
-                // ignore, use default
+                LOG.debug( "Non-numeric count param '{}', using default {}", countParam, DEFAULT_COUNT );
             }
         }
         return DEFAULT_COUNT;

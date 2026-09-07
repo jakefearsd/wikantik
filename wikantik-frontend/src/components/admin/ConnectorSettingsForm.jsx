@@ -48,7 +48,7 @@ function FieldError({ name, errors }) {
       className="field-error"
       data-testid={`field-error-${name}`}
       role="alert"
-      style={{ color: '#C44', fontSize: '0.8rem', marginTop: 4 }}
+      style={{ color: 'var(--danger, #c0392b)', fontSize: '0.8rem', marginTop: 4 }}
     >
       {message}
     </p>
@@ -61,7 +61,7 @@ function TypeField({ field, value, onChange, disabled, errors }) {
     <div className="form-field">
       <label htmlFor={testId}>
         {field.label}
-        {field.required && <span style={{ color: '#C44', marginLeft: 4 }}>*</span>}
+        {field.required && <span style={{ color: 'var(--danger, #c0392b)', marginLeft: 4 }}>*</span>}
       </label>
       {field.type === 'list' && (
         <textarea

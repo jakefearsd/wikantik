@@ -18,7 +18,6 @@
  */
 package com.wikantik.knowledge.mcp;
 
-import com.google.gson.Gson;
 import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.knowledge.*;
@@ -35,7 +34,6 @@ import org.junit.jupiter.api.*;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 

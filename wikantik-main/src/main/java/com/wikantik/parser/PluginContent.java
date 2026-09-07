@@ -174,7 +174,7 @@ public class PluginContent extends Text implements PluginElement {
             if( wysiwygEditorMode ) {
                 result = "";
             } else {
-                // LOG.info("Failed to execute plugin",e);
+                LOG.warn( "Failed to execute plugin '{}' on page '{}': {}", pluginName, context.getRealPage().getName(), e.getMessage(), e );
                 final ResourceBundle rb = Preferences.getBundle( context, Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
                 result = MarkupParser.makeError( MessageFormat.format( rb.getString( "plugin.error.insertionfailed" ), 
                 		                                               context.getRealPage().getWiki(), 

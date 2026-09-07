@@ -20,7 +20,6 @@ package com.wikantik.rest;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.WikiEngine;
-import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.SessionSPI;
 import com.wikantik.api.spi.Wiki;
@@ -34,7 +33,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;

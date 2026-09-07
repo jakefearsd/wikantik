@@ -35,19 +35,51 @@ Readers that go through `TextUtil.get*Property` additionally consult the system 
 
 `tools.*` keys live in a third file: `wikantik-tools.properties` in the wikantik-tools jar, overlaid by a copy in `tomcat/lib/`.
 
+**Neither `mcp.*` nor `tools.*` keys have any environment-variable or `-D` override path at all** — steps 2, 4, 5 and 6 above apply only to `wikantik.*` keys. The only way to change one of them is editing the `tomcat/lib/` overlay copy of its file directly; the Override column for those rows names that file rather than an environment variable, on every row, as a reminder.
+
 Blank values mean "unset"; the **Default** column says what the code derives in that case. `secret` keys never ship a value.
 
+{{#hasSecrets}}
+## Secrets to provision before going live
+
+These keys are `secret`-typed. None of them ship with a value — provision every one of them (via an environment variable, `-D`, `wikantik-custom.properties`, or the file's own overlay mechanism, per the rules above) as part of standing up a new install, and never commit a real value for any of them.
+
+| Key | File | Section |
+|---|---|---|
+{{#secrets}}
+| `{{key}}` | {{fileLabel}} | [{{sectionName}}](#{{sectionAnchor}}) |
+{{/secrets}}
+
+{{/hasSecrets}}
 {{#files}}
 {{introText}}
+
+**Sections in this file:**
+
+{{#toc}}
+- [{{name}}](#{{anchor}})
+{{/toc}}
 
 {{#sections}}
 ## {{name}}
 
+{{#preamble}}
+{{{text}}}
+
+{{/preamble}}
 | Key | Type | Default | Override | Description |
 |---|---|---|---|---|
 {{#entries}}
 | `{{key}}` | {{{typeCell}}} | {{{defaultCell}}} | {{{overrideCell}}} | {{{descriptionCell}}} |
 {{/entries}}
 
+{{#hasFullDescriptions}}
+Full descriptions (truncated above to keep the table scannable):
+
+{{#fullDescriptions}}
+- **`{{key}}`** — {{{full}}}
+{{/fullDescriptions}}
+
+{{/hasFullDescriptions}}
 {{/sections}}
 {{/files}}

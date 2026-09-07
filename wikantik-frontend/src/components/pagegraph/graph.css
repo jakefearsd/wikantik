@@ -72,6 +72,17 @@
 }
 
 .graph-legend-toggle {
+  /* Reset default <button> chrome — order matters: these must precede the
+     specific overrides below so margin-bottom wins for that one side. */
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
   cursor: pointer;
   font-weight: 600;
   margin-bottom: var(--space-xs);

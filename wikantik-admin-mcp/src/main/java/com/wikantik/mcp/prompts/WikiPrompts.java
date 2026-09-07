@@ -39,14 +39,13 @@ public final class WikiPrompts {
     }
 
     private static McpServerFeatures.SyncPromptSpecification createArticle() {
-        final McpSchema.Prompt prompt = new McpSchema.Prompt(
-                "create-article",
-                "Guide structured article creation with proper metadata",
-                List.of(
-                        new McpSchema.PromptArgument( "topic", "The topic or title for the new article", true ),
-                        new McpSchema.PromptArgument( "type", "Article type (e.g. report, reference, note, concept)", false )
-                )
-        );
+        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "create-article" )
+                .description( "Guide structured article creation with proper metadata" )
+                .arguments( List.of(
+                        McpSchema.PromptArgument.builder( "topic" ).description( "The topic or title for the new article" ).required( true ).build(),
+                        McpSchema.PromptArgument.builder( "type" ).description( "Article type (e.g. report, reference, note, concept)" ).required( false ).build()
+                ) )
+                .build();
 
         return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
             final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
@@ -89,22 +88,22 @@ public final class WikiPrompts {
                     Use Markdown `[link text](PageName)` syntax for internal links.""",
                     topic, topic, type, java.time.LocalDate.now().toString() );
 
-            return new McpSchema.GetPromptResult(
-                    "Guide for creating a structured wiki article",
+            return McpSchema.GetPromptResult.builder(
                     List.of( new McpSchema.PromptMessage(
                             McpSchema.Role.USER,
-                            new McpSchema.TextContent( guide ) ) ) );
+                            McpSchema.TextContent.builder( guide ).build() ) ) )
+                    .description( "Guide for creating a structured wiki article" )
+                    .build();
         } );
     }
 
     private static McpServerFeatures.SyncPromptSpecification summarizeTopic() {
-        final McpSchema.Prompt prompt = new McpSchema.Prompt(
-                "summarize-topic",
-                "Guide cross-page research and synthesis on a topic",
-                List.of(
-                        new McpSchema.PromptArgument( "topic", "The topic to research and summarize", true )
-                )
-        );
+        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "summarize-topic" )
+                .description( "Guide cross-page research and synthesis on a topic" )
+                .arguments( List.of(
+                        McpSchema.PromptArgument.builder( "topic" ).description( "The topic to research and summarize" ).required( true ).build()
+                ) )
+                .build();
 
         return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
             final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
@@ -134,22 +133,22 @@ public final class WikiPrompts {
                     then use `import_content` to publish it.""",
                     topic, topic );
 
-            return new McpSchema.GetPromptResult(
-                    "Guide for researching and summarizing a topic across the wiki",
+            return McpSchema.GetPromptResult.builder(
                     List.of( new McpSchema.PromptMessage(
                             McpSchema.Role.USER,
-                            new McpSchema.TextContent( guide ) ) ) );
+                            McpSchema.TextContent.builder( guide ).build() ) ) )
+                    .description( "Guide for researching and summarizing a topic across the wiki" )
+                    .build();
         } );
     }
 
     private static McpServerFeatures.SyncPromptSpecification auditLinks() {
-        final McpSchema.Prompt prompt = new McpSchema.Prompt(
-                "audit-links",
-                "Guide checking page link integrity across the wiki",
-                List.of(
-                        new McpSchema.PromptArgument( "pageName", "The page to audit links for (or 'all' for wiki-wide)", false )
-                )
-        );
+        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "audit-links" )
+                .description( "Guide checking page link integrity across the wiki" )
+                .arguments( List.of(
+                        McpSchema.PromptArgument.builder( "pageName" ).description( "The page to audit links for (or 'all' for wiki-wide)" ).required( false ).build()
+                ) )
+                .build();
 
         return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
             final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
@@ -201,23 +200,23 @@ public final class WikiPrompts {
                         pageName, pageName, pageName, pageName );
             }
 
-            return new McpSchema.GetPromptResult(
-                    "Guide for auditing link integrity",
+            return McpSchema.GetPromptResult.builder(
                     List.of( new McpSchema.PromptMessage(
                             McpSchema.Role.USER,
-                            new McpSchema.TextContent( guide ) ) ) );
+                            McpSchema.TextContent.builder( guide ).build() ) ) )
+                    .description( "Guide for auditing link integrity" )
+                    .build();
         } );
     }
 
     private static McpServerFeatures.SyncPromptSpecification renamePage() {
-        final McpSchema.Prompt prompt = new McpSchema.Prompt(
-                "rename-page",
-                "Guide safe page rename workflow with link updates",
-                List.of(
-                        new McpSchema.PromptArgument( "oldName", "Current page name to rename", true ),
-                        new McpSchema.PromptArgument( "newName", "New page name (CamelCase)", true )
-                )
-        );
+        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "rename-page" )
+                .description( "Guide safe page rename workflow with link updates" )
+                .arguments( List.of(
+                        McpSchema.PromptArgument.builder( "oldName" ).description( "Current page name to rename" ).required( true ).build(),
+                        McpSchema.PromptArgument.builder( "newName" ).description( "New page name (CamelCase)" ).required( true ).build()
+                ) )
+                .build();
 
         return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
             final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
@@ -248,24 +247,24 @@ public final class WikiPrompts {
                     Note: System pages cannot be renamed. The rename operation moves content, attachments, and version history.""",
                     oldName, newName, oldName, newName, oldName, oldName, newName, newName, newName );
 
-            return new McpSchema.GetPromptResult(
-                    "Guide for safely renaming a wiki page",
+            return McpSchema.GetPromptResult.builder(
                     List.of( new McpSchema.PromptMessage(
                             McpSchema.Role.USER,
-                            new McpSchema.TextContent( guide ) ) ) );
+                            McpSchema.TextContent.builder( guide ).build() ) ) )
+                    .description( "Guide for safely renaming a wiki page" )
+                    .build();
         } );
     }
 
     private static McpServerFeatures.SyncPromptSpecification publishCluster() {
-        final McpSchema.Prompt prompt = new McpSchema.Prompt(
-                "publish-cluster",
-                "Guide creation of a complete article cluster with hub and sub-articles",
-                List.of(
-                        new McpSchema.PromptArgument( "topic", "The topic for the article cluster", true ),
-                        new McpSchema.PromptArgument( "pageCount", "Desired number of sub-articles (default: 3-5)", false ),
-                        new McpSchema.PromptArgument( "clusterSlug", "Kebab-case cluster identifier (auto-generated if omitted)", false )
-                )
-        );
+        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "publish-cluster" )
+                .description( "Guide creation of a complete article cluster with hub and sub-articles" )
+                .arguments( List.of(
+                        McpSchema.PromptArgument.builder( "topic" ).description( "The topic for the article cluster" ).required( true ).build(),
+                        McpSchema.PromptArgument.builder( "pageCount" ).description( "Desired number of sub-articles (default: 3-5)" ).required( false ).build(),
+                        McpSchema.PromptArgument.builder( "clusterSlug" ).description( "Kebab-case cluster identifier (auto-generated if omitted)" ).required( false ).build()
+                ) )
+                .build();
 
         return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
             final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
@@ -323,23 +322,23 @@ public final class WikiPrompts {
                     today,
                     clusterSlug.isEmpty() ? "a-kebab-case-slug" : clusterSlug );
 
-            return new McpSchema.GetPromptResult(
-                    "Guide for creating an article cluster with hub and sub-articles",
+            return McpSchema.GetPromptResult.builder(
                     List.of( new McpSchema.PromptMessage(
                             McpSchema.Role.USER,
-                            new McpSchema.TextContent( guide ) ) ) );
+                            McpSchema.TextContent.builder( guide ).build() ) ) )
+                    .description( "Guide for creating an article cluster with hub and sub-articles" )
+                    .build();
         } );
     }
 
     private static McpServerFeatures.SyncPromptSpecification extendCluster() {
-        final McpSchema.Prompt prompt = new McpSchema.Prompt(
-                "extend-cluster",
-                "Guide adding a new article to an existing cluster",
-                List.of(
-                        new McpSchema.PromptArgument( "clusterSlug", "Cluster identifier to extend", true ),
-                        new McpSchema.PromptArgument( "newPageName", "CamelCase name for the new article", true )
-                )
-        );
+        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "extend-cluster" )
+                .description( "Guide adding a new article to an existing cluster" )
+                .arguments( List.of(
+                        McpSchema.PromptArgument.builder( "clusterSlug" ).description( "Cluster identifier to extend" ).required( true ).build(),
+                        McpSchema.PromptArgument.builder( "newPageName" ).description( "CamelCase name for the new article" ).required( true ).build()
+                ) )
+                .build();
 
         return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
             final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
@@ -378,20 +377,20 @@ public final class WikiPrompts {
                     newPageName, clusterSlug, clusterSlug, newPageName,
                     java.time.LocalDate.now().toString(), clusterSlug, newPageName );
 
-            return new McpSchema.GetPromptResult(
-                    "Guide for adding an article to an existing cluster",
+            return McpSchema.GetPromptResult.builder(
                     List.of( new McpSchema.PromptMessage(
                             McpSchema.Role.USER,
-                            new McpSchema.TextContent( guide ) ) ) );
+                            McpSchema.TextContent.builder( guide ).build() ) ) )
+                    .description( "Guide for adding an article to an existing cluster" )
+                    .build();
         } );
     }
 
     private static McpServerFeatures.SyncPromptSpecification wikiHealthCheck() {
-        final McpSchema.Prompt prompt = new McpSchema.Prompt(
-                "wiki-health-check",
-                "Guide comprehensive wiki health assessment",
-                List.of()
-        );
+        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "wiki-health-check" )
+                .description( "Guide comprehensive wiki health assessment" )
+                .arguments( List.of() )
+                .build();
 
         return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
             final String guide = """
@@ -426,22 +425,22 @@ public final class WikiPrompts {
                        - Recommendations for improvement
                        - Quick wins that can be fixed immediately""";
 
-            return new McpSchema.GetPromptResult(
-                    "Guide for comprehensive wiki health assessment",
+            return McpSchema.GetPromptResult.builder(
                     List.of( new McpSchema.PromptMessage(
                             McpSchema.Role.USER,
-                            new McpSchema.TextContent( guide ) ) ) );
+                            McpSchema.TextContent.builder( guide ).build() ) ) )
+                    .description( "Guide for comprehensive wiki health assessment" )
+                    .build();
         } );
     }
 
     private static McpServerFeatures.SyncPromptSpecification seoAudit() {
-        final McpSchema.Prompt prompt = new McpSchema.Prompt(
-                "seo-audit",
-                "Guide SEO readiness assessment across the wiki",
-                List.of(
-                        new McpSchema.PromptArgument( "cluster", "Optional cluster to scope the audit (omit for wiki-wide)", false )
-                )
-        );
+        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "seo-audit" )
+                .description( "Guide SEO readiness assessment across the wiki" )
+                .arguments( List.of(
+                        McpSchema.PromptArgument.builder( "cluster" ).description( "Optional cluster to scope the audit (omit for wiki-wide)" ).required( false ).build()
+                ) )
+                .build();
 
         return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
             final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
@@ -479,11 +478,12 @@ public final class WikiPrompts {
                             : "Use `query_metadata` with field=\"cluster\" and value=\"" + cluster +
                               "\" to find all pages in this cluster." );
 
-            return new McpSchema.GetPromptResult(
-                    "Guide for SEO readiness assessment",
+            return McpSchema.GetPromptResult.builder(
                     List.of( new McpSchema.PromptMessage(
                             McpSchema.Role.USER,
-                            new McpSchema.TextContent( guide ) ) ) );
+                            McpSchema.TextContent.builder( guide ).build() ) ) )
+                    .description( "Guide for SEO readiness assessment" )
+                    .build();
         } );
     }
 }

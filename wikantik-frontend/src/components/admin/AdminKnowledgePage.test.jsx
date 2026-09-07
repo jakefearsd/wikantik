@@ -148,14 +148,10 @@ describe('AdminKnowledgePage tab switching', () => {
 });
 
 describe('AdminKnowledgePage clear-all flow', () => {
-  let confirmSpy;
   let reloadSpy;
-  let alertSpy;
   const originalReload = window.location.reload;
 
   beforeEach(() => {
-    confirmSpy = vi.spyOn(window, 'confirm');
-    alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
     // window.location.reload is non-configurable in jsdom in some setups; replace it.
     reloadSpy = vi.fn();
     Object.defineProperty(window, 'location', {
@@ -165,8 +161,6 @@ describe('AdminKnowledgePage clear-all flow', () => {
   });
 
   afterEach(() => {
-    confirmSpy.mockRestore();
-    alertSpy.mockRestore();
     Object.defineProperty(window, 'location', {
       value: { ...window.location, reload: originalReload },
       writable: true,
@@ -174,26 +168,29 @@ describe('AdminKnowledgePage clear-all flow', () => {
   });
 
   it('does nothing when the confirm dialog is dismissed', () => {
-    confirmSpy.mockReturnValue(false);
     render(<AdminKnowledgePage />);
     fireEvent.click(screen.getByRole('button', { name: /Clear all KG data/i }));
+    // The confirm dialog names what it destroys.
+    expect(screen.getByText(/Delete Knowledge Graph Data/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
     expect(api.knowledge.clearAll).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Delete Knowledge Graph Data/i)).toBeNull();
   });
 
   it('calls clearAll and reloads on confirm', async () => {
-    confirmSpy.mockReturnValue(true);
     render(<AdminKnowledgePage />);
     fireEvent.click(screen.getByRole('button', { name: /Clear all KG data/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Delete All/i }));
     await waitFor(() => expect(api.knowledge.clearAll).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(reloadSpy).toHaveBeenCalled());
   });
 
-  it('alerts and does not reload when clearAll fails', async () => {
-    confirmSpy.mockReturnValue(true);
+  it('shows an inline error and does not reload when clearAll fails', async () => {
     api.knowledge.clearAll.mockRejectedValueOnce(new Error('boom'));
     render(<AdminKnowledgePage />);
     fireEvent.click(screen.getByRole('button', { name: /Clear all KG data/i }));
-    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('boom')));
+    fireEvent.click(screen.getByRole('button', { name: /Delete All/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('boom');
     expect(reloadSpy).not.toHaveBeenCalled();
     // The button re-enables after the failure (clearing reset in finally).
     await waitFor(() =>
@@ -202,11 +199,11 @@ describe('AdminKnowledgePage clear-all flow', () => {
   });
 
   it('shows the disabled "Clearing…" state while the clear is in flight', async () => {
-    confirmSpy.mockReturnValue(true);
     let resolveClear;
     api.knowledge.clearAll.mockReturnValueOnce(new Promise((r) => { resolveClear = r; }));
     render(<AdminKnowledgePage />);
     fireEvent.click(screen.getByRole('button', { name: /Clear all KG data/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Delete All/i }));
     const clearingBtn = await screen.findByRole('button', { name: /Clearing…/i });
     expect(clearingBtn).toBeDisabled();
     resolveClear({});

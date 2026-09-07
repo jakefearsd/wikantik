@@ -8,12 +8,14 @@ This document is the definitive handbook and runbook for Wikantik Administration
 
 Wikantik supports two primary deployment strategies: a bare-metal Tomcat 11 installation and a fully containerized Docker architecture. 
 
-### 1.1 Configuration via `.env`
-Configuration for both bare-metal and container environments relies heavily on environment variables, typically managed via a `.env` file at the project root. Key variables include:
-- `POSTGRES_PASSWORD`: The database access password.
-- `POSTGRES_USER` & `POSTGRES_DB`: (Defaults to `wikantik`).
-- `MCP_ACCESS_KEYS`: Security tokens required for accessing MCP endpoints.
-- `MAIL_SMTP_PASSWORD`: Credentials for email dispatch.
+### 1.1 Configuration
+
+Configuration is documented in full elsewhere — this handbook does not
+duplicate it. For the container `.env` file, every `WIKANTIK_*`/container env
+var, and how each maps to a `wikantik.*` property, see
+[DockerDeployment.md](DockerDeployment.md). For the complete, generated
+reference of every `wikantik.*` property with its default and type, see
+[ConfigurationReference.md](ConfigurationReference.md).
 
 ### 1.2 Containerized Deployment (Recommended for Production)
 The production Docker environment runs four services defined in `docker-compose.yml` and `docker-compose.prod.yml`:

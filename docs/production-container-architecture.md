@@ -104,8 +104,10 @@ index rebuilds itself on first start.
   can reach it via `host.docker.internal:5432`. It is **not** on `0.0.0.0`
   (not LAN-exposed) unless `DB_HOST_BIND` is explicitly overridden.
 - `/metrics` is restricted to RFC 1918 / loopback by `InternalNetworkFilter`; scraped by the external jakemon agent, not exposed publicly.
-- **MCP endpoints** require a bearer token / API key (`MCP_ACCESS_KEYS` plus
-  the DB-backed `api_keys` table).
+- **MCP endpoints** require a bearer token resolving to a DB-backed key in the
+  `api_keys` table (minted at `/admin/apikeys`) or a source IP inside a
+  configured CIDR allowlist — fail-closed (503) otherwise. There is no
+  environment-variable key list; see [ApiKeys.md](ApiKeys.md).
 - Secrets live only in `.env` / `.env.prod` (gitignored) — never committed.
   Back the env file up separately from the repo.
 - **Client IP resolution is parameterized.** `RemoteIpValve`

@@ -10,6 +10,7 @@ import HubDiscoveryTab from './HubDiscoveryTab';
 import ExtractionTab from './ExtractionTab';
 import LlmActivityTab from './LlmActivityTab';
 import PageHeader from './PageHeader';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import '../../styles/admin.css';
 
 const TABS = [
@@ -34,16 +35,19 @@ const TABS = [
 export default function AdminKnowledgePage() {
   const [activeTab, setActiveTab] = useState('proposals');
   const [clearing, setClearing] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
+  const [clearError, setClearError] = useState(null);
   const { capabilities } = useCapabilities();
 
   const handleClearAll = async () => {
-    if (!confirm('Delete ALL knowledge graph data? This removes all nodes, edges, proposals, and embeddings.')) return;
+    setConfirmingClear(false);
     setClearing(true);
+    setClearError(null);
     try {
       await api.knowledge.clearAll();
       window.location.reload();
     } catch (err) {
-      alert('Clear failed: ' + err.message);
+      setClearError(err.message || 'Clear failed');
     } finally {
       setClearing(false);
     }
@@ -88,13 +92,16 @@ export default function AdminKnowledgePage() {
         <button
           className="btn btn-sm"
           style={{ marginLeft: 'auto', color: 'var(--danger)' }}
-          onClick={handleClearAll}
+          onClick={() => setConfirmingClear(true)}
           disabled={clearing}
           title="Destructive: wipes every node, edge, proposal, and embedding in the Knowledge Graph. Does NOT touch wiki pages or the Page Graph."
         >
           {clearing ? 'Clearing…' : 'Clear all KG data'}
         </button>
       </div>
+      {clearError && (
+        <div className="admin-message error" role="alert">{clearError}</div>
+      )}
       <p className="tab-description">
         {TABS.find(t => t.id === activeTab)?.description}
       </p>
@@ -114,6 +121,16 @@ export default function AdminKnowledgePage() {
         {activeTab === 'hub-discovery' && <HubDiscoveryTab />}
         {activeTab === 'llm-activity' && <LlmActivityTab />}
       </div>
+
+      {confirmingClear && (
+        <ConfirmDialog
+          title="Delete Knowledge Graph Data"
+          message="This permanently deletes every node, edge, proposal, and embedding in the Knowledge Graph. It does not touch wiki pages or the Page Graph. This cannot be undone."
+          confirmLabel="Delete All"
+          onConfirm={handleClearAll}
+          onCancel={() => setConfirmingClear(false)}
+        />
+      )}
     </div>
   );
 }

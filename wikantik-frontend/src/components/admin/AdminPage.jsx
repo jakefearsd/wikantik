@@ -6,6 +6,8 @@
 //
 // Pass `className={null}` (or empty string) to skip the outer wrapper — useful
 // for sub-section components that already live inside a page-level wrapper.
+import Spinner from '../ui/Spinner';
+
 export default function AdminPage({
   loading,
   error,
@@ -13,7 +15,7 @@ export default function AdminPage({
   className = 'admin-users page-enter',
   children,
 }) {
-  if (loading) return <div className="admin-loading">{loadingLabel}</div>;
+  if (loading) return <div className="admin-loading"><Spinner label={loadingLabel} /></div>;
   if (error) return <div className="error-banner">{error}</div>;
   if (!className) return <>{children}</>;
   return <div className={className}>{children}</div>;

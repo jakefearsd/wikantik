@@ -143,14 +143,26 @@ Model code must match the one that actually wrote the `page_chunk_embeddings` ro
 
 ### Query embedder
 
+All tunables for `QueryEmbedder` live under the `wikantik.search.hybrid.embedder.`
+prefix (`QueryEmbedderConfig`):
+
 ```
-wikantik.search.hybrid.query.cache-size     = 1024
-wikantik.search.hybrid.query.timeout-ms     = 400
-wikantik.search.hybrid.query.breaker.trip   = 5
-wikantik.search.hybrid.query.breaker.reset-ms = 30000
+wikantik.search.hybrid.embedder.timeout-ms              = 2000
+wikantik.search.hybrid.embedder.cache.ttl-seconds        = 14400
+wikantik.search.hybrid.embedder.cache.max-entries        = 1000
+wikantik.search.hybrid.embedder.breaker.window-size      = 20
+wikantik.search.hybrid.embedder.breaker.min-calls        = 10
+wikantik.search.hybrid.embedder.breaker.failure-rate     = 0.5
+wikantik.search.hybrid.embedder.breaker.cooldown-ms      = 30000
 ```
 
-The breaker trips OPEN after `trip` consecutive failures. After `reset-ms` it transitions to HALF_OPEN and lets a single probe call through; success closes the breaker, failure re-opens it.
+`timeout-ms` is the per-call wall-clock budget for the embed request. `cache.*`
+sizes the Caffeine cache of resolved query vectors. The breaker is a rolling
+window, not a consecutive-failure counter: it tracks the last `breaker.window-size`
+calls in CLOSED state and trips OPEN once at least `breaker.min-calls` of them
+have been observed and the failure ratio reaches `breaker.failure-rate`. After
+`breaker.cooldown-ms` it transitions to HALF_OPEN and admits exactly one probe
+call; success closes the breaker, failure re-opens it.
 
 ## Admin UI
 

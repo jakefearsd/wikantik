@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import IndexStatusTab from './IndexStatusTab';
 import ChunkInspectorTab from './ChunkInspectorTab';
 import PageHeader from './PageHeader';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import '../../styles/admin.css';
 
 const TABS = ['Dashboard', 'Orphaned Pages', 'Broken Links', 'Versions', 'Chunk Inspector', 'Index Status'];
@@ -155,6 +156,7 @@ function OrphanedPagesTab() {
   const [selected, setSelected] = useState(new Set());
   const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState(null);
+  const [confirming, setConfirming] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -188,11 +190,13 @@ function OrphanedPagesTab() {
 
   const handleDelete = async () => {
     if (!selected.size) return;
+    setConfirming(false);
     setDeleting(true);
     setMessage(null);
     try {
       const result = await api.admin.bulkDeletePages([...selected]);
-      setMessage({ type: 'success', text: `Deleted ${result.deleted.length} pages${result.failed.length ? `, ${result.failed.length} failed` : ''}` });
+      const deletedCount = result.deleted.length;
+      setMessage({ type: 'success', text: `Deleted ${deletedCount} page${deletedCount !== 1 ? 's' : ''}${result.failed.length ? `, ${result.failed.length} failed` : ''}` });
       setSelected(new Set());
       await load();
     } catch (err) {
@@ -211,11 +215,21 @@ function OrphanedPagesTab() {
       <div className="admin-toolbar">
         <span className="admin-count">{pages.length} orphaned page{pages.length !== 1 ? 's' : ''}</span>
         {selected.size > 0 && (
-          <button className="btn btn-primary btn-danger" onClick={handleDelete} disabled={deleting}>
+          <button className="btn btn-primary btn-danger" onClick={() => setConfirming(true)} disabled={deleting}>
             {deleting ? 'Deleting…' : `Delete ${selected.size} Selected`}
           </button>
         )}
       </div>
+
+      {confirming && (
+        <ConfirmDialog
+          title="Delete Pages"
+          message={`Delete ${selected.size} orphaned page${selected.size !== 1 ? 's' : ''}? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={handleDelete}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
 
       {pages.length === 0 ? (
         <div className="admin-empty-state">No orphaned pages found. All pages are linked to.</div>
@@ -252,15 +266,17 @@ function OrphanedPagesTab() {
 function BrokenLinksTab() {
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     api.admin.getBrokenLinks()
       .then(data => setLinks(data.links || []))
-      .catch(() => {})
+      .catch((err) => setError(err.message || 'Failed to scan for broken links'))
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="admin-loading">Scanning for broken links…</div>;
+  if (error) return <div className="error-banner">{error}</div>;
 
   return (
     <div>
@@ -328,7 +344,7 @@ function VersionsTab() {
     setMessage(null);
     try {
       const result = await api.admin.purgeVersions(pageName.trim(), keepLatest);
-      setMessage({ type: 'success', text: `Purged ${result.purged} old versions, ${result.remaining} remaining` });
+      setMessage({ type: 'success', text: `Purged ${result.purged} old version${result.purged !== 1 ? 's' : ''}, ${result.remaining} remaining` });
       await loadVersions();
     } catch (err) {
       setMessage({ type: 'error', text: err.message });

@@ -42,21 +42,6 @@ public final class KgEdgeRepository extends KgJdbcSupport {
     private static final Logger LOG = LogManager.getLogger( KgEdgeRepository.class );
 
     /**
-     * Endpoint-kind filter for Edge Explorer queries. The Knowledge Graph stores both
-     * wiki-page nodes (node_type ∈ article/hub/implementation-plan/…) and LLM-extracted
-     * concept nodes (node_type = 'concept'). The admin UI lets operators filter the
-     * edge list to view only one category or the union (default).
-     *
-     * <p>{@code "page"}   — both endpoints are wiki-page-like (node_type != 'concept').<br>
-     * {@code "entity"} — both endpoints are LLM-extracted concepts (node_type = 'concept').<br>
-     * any other / null — no filter; the union is returned.</p>
-     *
-     * <p>Mixed-endpoint edges (one page, one concept) only appear in the no-filter
-     * view; "page" and "entity" filters require <em>both</em> endpoints to match.
-     * Nodes with NULL {@code node_type} (legacy/bugged data) are excluded from both
-     * the "page" and "entity" filters by the SQL semantics of {@code != 'concept'}.</p>
-     */
-    /**
      * Appends the {@code AND ...} filter clauses for {@code kg_edges} to {@code sql}
      * (relationship_type, name LIKE, endpointKind) and binds the corresponding params
      * to {@code params}. Shared between {@link #queryEdgesWithNames},
@@ -81,6 +66,21 @@ public final class KgEdgeRepository extends KgJdbcSupport {
         sql.append( endpointKindClause( endpointKind ) );
     }
 
+    /**
+     * Endpoint-kind filter for Edge Explorer queries. The Knowledge Graph stores both
+     * wiki-page nodes (node_type ∈ article/hub/implementation-plan/…) and LLM-extracted
+     * concept nodes (node_type = 'concept'). The admin UI lets operators filter the
+     * edge list to view only one category or the union (default).
+     *
+     * <p>{@code "page"}   — both endpoints are wiki-page-like (node_type != 'concept').<br>
+     * {@code "entity"} — both endpoints are LLM-extracted concepts (node_type = 'concept').<br>
+     * any other / null — no filter; the union is returned.</p>
+     *
+     * <p>Mixed-endpoint edges (one page, one concept) only appear in the no-filter
+     * view; "page" and "entity" filters require <em>both</em> endpoints to match.
+     * Nodes with NULL {@code node_type} (legacy/bugged data) are excluded from both
+     * the "page" and "entity" filters by the SQL semantics of {@code != 'concept'}.</p>
+     */
     private static String endpointKindClause( final String endpointKind ) {
         if ( endpointKind == null || endpointKind.isBlank() ) return "";
         return switch ( endpointKind ) {
@@ -163,11 +163,6 @@ public final class KgEdgeRepository extends KgJdbcSupport {
     }
 
     /**
-     * Logs a stack-tracing WARN when the guard rejects a mixed edge. The {@code Throwable}
-     * is not thrown — it exists solely to capture the call stack so operators can
-     * trace the offending flow in the catalina logs.
-     */
-    /**
      * Builds the agent-facing message for a {@code kg_edges_relationship_type_check}
      * CHECK-constraint violation. Includes the offending value, the top-3 nearest
      * matches by Levenshtein distance, and the full closed vocabulary so the agent
@@ -186,6 +181,11 @@ public final class KgEdgeRepository extends KgJdbcSupport {
             + String.join( ", ", com.wikantik.api.knowledge.RelationshipTypeVocabulary.CLOSED_VOCAB ) + ".";
     }
 
+    /**
+     * Logs a stack-tracing WARN when the guard rejects a mixed edge. The {@code Throwable}
+     * is not thrown — it exists solely to capture the call stack so operators can
+     * trace the offending flow in the catalina logs.
+     */
     private void warnMixedEdgeRejected( final UUID sourceId, final UUID targetId,
                                          final String relationshipType ) {
         LOG.warn( "Rejected mixed page/entity edge {}->{} [{}]: writes that cross the "

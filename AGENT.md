@@ -1,7 +1,7 @@
 
 ## Math Equation Rules
 Wikantik uses KaTeX for math rendering. Follow these rules to ensure equations render correctly:
-1. **Block Math**: ALWAYS use `$$` with blank lines before and after. DO NOT wrap block math in `<div>` or `<center>` tags, as this bypasses the markdown parser's `math-display` class assignment, causing KaTeX to ignore it. The markdown parser natively handles the `$$` blocks correctly and assigns the required `.math-display` class.
+1. **Block Math**: ALWAYS use `$$` with blank lines before and after. DO NOT wrap block math in `<div>` or `<center>` tags, as this bypasses the markdown parser's `math-display` class assignment, causing KaTeX to ignore it. The markdown parser natively handles the `$$` blocks correctly and assigns the required `.math-display` class. If `$$` is left adjacent to text without blank lines, it falls back to a standard paragraph instead of a math block, which breaks the formula two ways: HTML escaping turns `=` into `&#61;`, and the attribute extension silently swallows bracketed letters (e.g. `\mathbb{E}` becomes `\mathbb`).
     ```markdown
     
     $$

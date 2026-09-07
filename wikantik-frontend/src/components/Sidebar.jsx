@@ -21,15 +21,23 @@ const KNOWN_NAV_PAGES = new Set([
 export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose = () => {}, onMobileOpen = () => {}, onOpenSearch = () => {} }) {
   const { name: activePage } = useParams();
   const [pages, setPages] = useState([]);
+  const [pagesError, setPagesError] = useState(false);
   const [recentChanges, setRecentChanges] = useState([]);
+  const [recentChangesError, setRecentChangesError] = useState(false);
   const [newArticleOpen, setNewArticleOpen] = useState(false);
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [dark, toggleDark] = useDarkMode();
   const { user } = useAuth();
   const { capabilities } = useCapabilities();
   useEffect(() => {
-    api.listPages({ limit: 500 }).then(d => setPages(d.pages || [])).catch(() => {});
-    api.getRecentChanges(20).then(d => setRecentChanges(d.changes || [])).catch(() => {});
+    api.listPages({ limit: 500 }).then(d => setPages(d.pages || [])).catch((e) => {
+      console.warn('Sidebar: failed to load page list', e);
+      setPagesError(true);
+    });
+    api.getRecentChanges(20).then(d => setRecentChanges(d.changes || [])).catch((e) => {
+      console.warn('Sidebar: failed to load recent changes', e);
+      setRecentChangesError(true);
+    });
   }, []);
 
   // Group pages by cluster; clusterless pages (minus system nav pages) fall
@@ -88,9 +96,9 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
   return (
     <>
       <aside className={`app-sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'open' : ''}`}>
-        <div className="sidebar-tab-handle" onClick={onMobileOpen} aria-label="Open navigation">
+        <button type="button" className="sidebar-tab-handle" onClick={onMobileOpen} aria-label="Open navigation">
           <Icon name="chevron" size={18} />
-        </div>
+        </button>
         <div className="sidebar-brand">
           <Link to="/wiki/Main" style={{ color: 'inherit', textDecoration: 'none' }} onClick={onMobileClose}>
             Wik<span>antik</span>
@@ -153,6 +161,12 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
             </Link>
           )}
         </div>
+
+        {recentChangesError && recentChanges.length === 0 && (
+          <div className="sidebar-section">
+            <div className="personal-empty">Couldn't load recent changes.</div>
+          </div>
+        )}
 
         {/* Recent Changes — live feed, capped at 5 until expanded */}
         {recentChanges.length > 0 && (
@@ -220,6 +234,12 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
             )}
             {navLink('/wiki/UnusedPages', 'Unused pages')}
             {navLink('/wiki/UndefinedPages', 'Undefined pages')}
+          </div>
+        )}
+
+        {pagesError && pages.length === 0 && (
+          <div className="sidebar-section">
+            <div className="personal-empty">Couldn't load the page list.</div>
           </div>
         )}
 

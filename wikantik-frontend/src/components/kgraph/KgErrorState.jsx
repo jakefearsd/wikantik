@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
 
 const VARIANTS = {
-  empty:          { message: 'The knowledge graph is empty.', action: 'refresh' },
-  'empty-for-you': { message: "You don't have permission to view any nodes in the knowledge graph.", action: null },
-  unauthorized:   { message: 'Sign in to view the knowledge graph.', action: 'login' },
-  forbidden:      { message: "You don't have permission to view the knowledge graph.", action: null },
-  server:         { message: 'The knowledge graph service is unavailable right now.', action: 'retry' },
-  malformed:      { message: 'Knowledge graph snapshot was invalid. Check server logs.', action: 'retry' },
+  empty:          { message: 'The Knowledge Graph is empty.', action: 'refresh' },
+  'empty-for-you': { message: "You don't have permission to view any nodes in the Knowledge Graph.", action: null },
+  unauthorized:   { message: 'Sign in to view the Knowledge Graph.', action: 'login' },
+  forbidden:      { message: "You don't have permission to view the Knowledge Graph.", action: null },
+  server:         { message: 'The Knowledge Graph service is unavailable right now.', action: 'retry' },
+  malformed:      { message: 'Knowledge Graph snapshot was invalid. Check server logs.', action: 'retry' },
   disabled:       { message: 'The Knowledge Graph is disabled on this deployment.', action: null },
 };
 

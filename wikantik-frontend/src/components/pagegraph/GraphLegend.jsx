@@ -27,9 +27,14 @@ export default function GraphLegend({ hubDegreeThreshold, timestamp, clusters })
 
   return (
     <div className={`graph-legend ${collapsed ? 'collapsed' : ''}`}>
-      <div className="graph-legend-toggle" onClick={() => setCollapsed(!collapsed)}>
+      <button
+        type="button"
+        className="graph-legend-toggle"
+        onClick={() => setCollapsed(!collapsed)}
+        aria-expanded={!collapsed}
+      >
         {collapsed ? 'Legend +' : 'Legend -'}
-      </div>
+      </button>
       {!collapsed && (
         <>
           <div style={{ marginBottom: 'var(--space-xs)' }}>

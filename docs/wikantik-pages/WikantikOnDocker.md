@@ -88,7 +88,6 @@ Then edit `.env` with your values:
 | `WIKANTIK_PAGE_DIR` | `/var/wikantik/pages` | Page storage path inside container |
 | `WIKANTIK_WORK_DIR` | `/var/wikantik/work` | Work directory (Lucene index, caches) |
 | `WIKANTIK_ATTACHMENT_DIR` | `/var/wikantik/pages` | Attachment storage path |
-| `MCP_ACCESS_KEYS` | (empty) | Comma-separated Bearer tokens for MCP API |
 | `MCP_RATE_LIMIT_GLOBAL` | `100` | MCP requests/second (all clients) |
 | `MCP_RATE_LIMIT_PER_CLIENT` | `10` | MCP requests/second (per client) |
 | `MAIL_SMTP_HOST` | (empty) | SMTP server for email notifications |
@@ -99,15 +98,22 @@ Then edit `.env` with your values:
 | `BACKUP_RETENTION_DAYS` | `30` | Days to keep daily backups |
 | `BACKUP_DIR` | `./backups` | Host path for backup files |
 
-**Important:** The `.env` file contains secrets (database password, SMTP credentials, MCP keys). It is excluded from Git by `.gitignore`. Keep a copy of this file somewhere safe outside the repository.
+**Important:** The `.env` file contains secrets (database password, SMTP credentials). It is excluded from Git by `.gitignore`. Keep a copy of this file somewhere safe outside the repository.
+
+**Authorizing an MCP client is not an `.env` setting.** There is no environment
+variable that grants a bearer token — `McpAccessFilter` fails closed (503) unless
+it sees a DB-backed API key or a CIDR allowlist match. Log into the running
+container as an admin and mint a key at `/admin/apikeys` with scope `mcp`,
+`mcp_read`, `tools`, or `all`; see [McpIntegration](McpIntegration) for the
+full authentication and authorization mechanism.
 
 ## How the Entrypoint Works
 
 The `docker/entrypoint.sh` script runs every time the wikantik container starts. It generates three configuration files from environment variables:
 
-1. **`wikantik-custom.properties`** — Wiki settings: base URL, page directory, PostgreSQL JDBC database names, SMTP config, column mappings
+1. **`wikantik-custom.properties`** — Wiki settings: base URL, page directory, PostgreSQL JDBC datasource name, SMTP config
 2. **`ROOT.xml`** — Tomcat context with a single JNDI DataSource (`jdbc/WikiDatabase`) pointing to the PostgreSQL container
-3. **`wikantik-mcp.properties`** — MCP server rate limits and access keys. This single properties file configures **both** MCP endpoints (`/wikantik-admin-mcp` and `/knowledge-mcp`); the filename is retained from the original module name for backward compatibility.
+3. **`wikantik-mcp.properties`** — MCP server name/title/version and rate limits. This single properties file configures **both** MCP endpoints (`/wikantik-admin-mcp` and `/knowledge-mcp`); the filename is retained from the original module name for backward compatibility. It does not carry access keys — MCP authorization is DB-backed (see above), not entrypoint-generated.
 
 This means you never edit config files inside the container. Change an environment variable, restart the container, and the new config takes effect.
 

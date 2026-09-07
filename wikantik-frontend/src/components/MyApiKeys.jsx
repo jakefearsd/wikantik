@@ -115,7 +115,7 @@ export default function MyApiKeys() {
       {formOpen && (
         <div className="modal-overlay" onClick={() => setFormOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Generate API key</h3>
+            <h3>Generate API Key</h3>
             <form onSubmit={generate}>
               <label>Label
                 <input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })}
@@ -128,7 +128,7 @@ export default function MyApiKeys() {
               </label>
               <div className="modal-actions">
                 <button type="button" className="btn btn-ghost" onClick={() => setFormOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={busy}>Generate key</button>
+                <button type="submit" className="btn btn-primary" disabled={busy}>Generate Key</button>
               </div>
             </form>
           </div>
@@ -146,7 +146,7 @@ export default function MyApiKeys() {
             <p>Any client using this key will immediately start receiving HTTP 403.</p>
             <div className="modal-actions">
               <button className="btn btn-ghost" onClick={() => setConfirmRevoke(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => revoke(confirmRevoke.id)} disabled={busy}>Revoke key</button>
+              <button className="btn btn-primary btn-danger" onClick={() => revoke(confirmRevoke.id)} disabled={busy}>Revoke key</button>
             </div>
           </div>
         </div>

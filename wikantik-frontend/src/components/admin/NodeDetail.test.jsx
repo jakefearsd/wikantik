@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import NodeDetail from './NodeDetail';
 
@@ -123,8 +123,7 @@ describe('NodeDetail deletion impact', () => {
     expect(screen.queryByTestId('node-delete-impact')).toBeNull();
   });
 
-  it('cites the edge count in the confirm prompt before deleting', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('cites the edge count in the confirm dialog before deleting', async () => {
     const node = {
       ...baseNode,
       edges: [
@@ -133,8 +132,38 @@ describe('NodeDetail deletion impact', () => {
     };
     render(<NodeDetail node={node} />);
     fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(confirmSpy.mock.calls[0][0]).toMatch(/1\s+edge/i);
-    confirmSpy.mockRestore();
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toMatch(/1\s+edge/i);
+    expect(api.knowledge.deleteNode).not.toHaveBeenCalled();
+  });
+
+  it('cancelling the confirm dialog does not delete', async () => {
+    render(<NodeDetail node={baseNode} />);
+    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Cancel/i }));
+    expect(api.knowledge.deleteNode).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('deletes the node and notifies the parent on confirm', async () => {
+    const onDeleted = vi.fn();
+    render(<NodeDetail node={baseNode} onDeleted={onDeleted} />);
+    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Delete$/i }));
+    await waitFor(() => expect(api.knowledge.deleteNode).toHaveBeenCalledWith(baseNode.id));
+    await waitFor(() => expect(onDeleted).toHaveBeenCalled());
+  });
+
+  it('surfaces an error and does not call onDeleted when the delete call fails', async () => {
+    api.knowledge.deleteNode.mockRejectedValueOnce(new Error('delete failed'));
+    const onDeleted = vi.fn();
+    render(<NodeDetail node={baseNode} onDeleted={onDeleted} />);
+    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Delete$/i }));
+    expect(await screen.findByText('delete failed')).toBeInTheDocument();
+    expect(onDeleted).not.toHaveBeenCalled();
   });
 });

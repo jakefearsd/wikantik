@@ -54,11 +54,6 @@ class ReferringUndefinedPagesPluginTest {
         TestEngine.emptyWorkDir();
     }
 
-	/**
-	 * Plain test without parameters
-	 *
-	 * @throws Exception something went wrong
-	 */
     /**
      * Test that plugin handles no undefined pages without NPE.
      */
@@ -76,6 +71,11 @@ class ReferringUndefinedPagesPluginTest {
         }
     }
 
+	/**
+	 * Plain test without parameters
+	 *
+	 * @throws Exception something went wrong
+	 */
     @Test
 	void testSimple() throws Exception {
 		final String res = manager.execute( context, "{INSERT ReferringUndefinedPagesPlugin}" );

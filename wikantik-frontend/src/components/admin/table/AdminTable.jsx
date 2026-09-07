@@ -44,8 +44,8 @@ function ToastBanner({ message, variant, onRetry, onDismiss }) {
     fontSize: '0.875rem',
     marginBottom: '12px',
     background: isError ? '#FEE' : isSuccess ? 'var(--sage-light)' : 'var(--bg-elevated)',
-    color: isError ? '#C44' : isSuccess ? 'var(--sage)' : 'var(--text)',
-    border: `1px solid ${isError ? '#C44' : isSuccess ? 'var(--sage)' : 'var(--border)'}`,
+    color: isError ? 'var(--danger, #c0392b)' : isSuccess ? 'var(--sage)' : 'var(--text)',
+    border: `1px solid ${isError ? 'var(--danger, #c0392b)' : isSuccess ? 'var(--sage)' : 'var(--border)'}`,
   };
 
   return (
@@ -55,7 +55,7 @@ function ToastBanner({ message, variant, onRetry, onDismiss }) {
         <button
           className="btn btn-ghost btn-sm"
           onClick={onRetry}
-          style={{ color: '#C44', fontSize: '0.8rem' }}
+          style={{ color: 'var(--danger, #c0392b)', fontSize: '0.8rem' }}
         >
           Retry failed
         </button>

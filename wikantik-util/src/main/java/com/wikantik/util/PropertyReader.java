@@ -189,11 +189,11 @@ public final class PropertyReader {
     static InputStream loadCustomPropertiesFile( final ServletContext context, final String propertyFile ) throws IOException {
         final InputStream propertyStream;
         if( propertyFile == null ) {
-            LOG.debug( "No " + PARAM_CUSTOMCONFIG + " defined for this context, looking for custom properties file with default name of: " + CUSTOM_WIKANTIK_CONFIG );
+            LOG.debug( "No {} defined for this context, looking for custom properties file with default name of: {}", PARAM_CUSTOMCONFIG, CUSTOM_WIKANTIK_CONFIG );
             //  Use the custom property file at the default location
             propertyStream =  locateClassPathResource(context, CUSTOM_WIKANTIK_CONFIG);
         } else {
-            LOG.debug( PARAM_CUSTOMCONFIG + " defined, using " + propertyFile + " as the custom properties file." );
+            LOG.debug( "{} defined, using {} as the custom properties file.", PARAM_CUSTOMCONFIG, propertyFile );
             propertyStream = Files.newInputStream( new File(propertyFile).toPath() );
         }
         return propertyStream;

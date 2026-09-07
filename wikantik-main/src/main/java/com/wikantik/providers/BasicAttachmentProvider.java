@@ -462,7 +462,6 @@ public class BasicAttachmentProvider implements AttachmentProvider {
             }
         }
 
-        // System.out.println("Fetching info on version "+version);
         try {
             final Properties props = getPageProperties( att );
             att.setAuthor( props.getProperty( version+".author" ) );

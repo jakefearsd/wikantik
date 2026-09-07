@@ -77,13 +77,6 @@ public final class FrontmatterParser {
     }
 
     /**
-     * Scans {@code text} for a {@code ---}-delimited frontmatter block and splits it into a YAML
-     * block plus body, applying no error policy. Callers ({@link #parse(String)} and
-     * {@link #parseStrict(String)}) turn the outcome into a {@link ParsedPage} or an exception
-     * according to their own tolerance for malformed input. {@code text} must be non-null and
-     * non-empty — callers handle that case before calling this method.
-     */
-    /**
      * Length of a closing {@code ---} delimiter sitting immediately at {@code from}
      * (the empty-frontmatter case), or 0 if there is none.
      *
@@ -102,6 +95,13 @@ public final class FrontmatterParser {
         return 0;
     }
 
+    /**
+     * Scans {@code text} for a {@code ---}-delimited frontmatter block and splits it into a YAML
+     * block plus body, applying no error policy. Callers ({@link #parse(String)} and
+     * {@link #parseStrict(String)}) turn the outcome into a {@link ParsedPage} or an exception
+     * according to their own tolerance for malformed input. {@code text} must be non-null and
+     * non-empty — callers handle that case before calling this method.
+     */
     private static SplitResult split( final String text ) {
         final Matcher openMatcher = OPENING.matcher( text );
         if ( !openMatcher.find() ) {

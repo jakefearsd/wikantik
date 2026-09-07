@@ -181,8 +181,6 @@ public class WikiEngine implements Engine {
     /** The location where the work directory is. */
     private String           workDir;
 
-    /** Each engine has their own application id. */
-
     /** engine is up and running or not */
     private volatile boolean isConfigured;
 

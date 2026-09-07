@@ -55,15 +55,15 @@ import static com.codeborne.selenide.Selenide.open;
 @TestMethodOrder( MethodOrderer.OrderAnnotation.class )
 class KnowledgeGraphNavDisabledIT extends WithIntegrationTestSetup {
 
+    /** Budget for the fail-open /api/capabilities round trip to land and prune
+     *  capability-gated nav. Matches the 15s used elsewhere in this class. */
+    private static final Duration CAPABILITIES_WAIT = Duration.ofSeconds( 15 );
+
     /**
      * Anonymous reader sidebar ("Wiki Tools" section) must not carry a
      * "Knowledge Graph" link when the subsystem is off — that section has no
      * role gate, so this is checkable pre-login.
      */
-    /** Budget for the fail-open /api/capabilities round trip to land and prune
-     *  capability-gated nav. Matches the 15s used elsewhere in this class. */
-    private static final Duration CAPABILITIES_WAIT = Duration.ofSeconds( 15 );
-
     @Test
     @Order( 1 )
     void readerSidebar_hasNoKnowledgeGraphLink() {

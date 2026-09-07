@@ -57,7 +57,7 @@ export default function AdminSidebar() {
   return (
     <aside className="app-sidebar admin-sidebar" data-testid="admin-sidebar">
       <Link to="/wiki/Main" className="admin-sidebar-back" data-testid="admin-back-to-wiki">← Back to wiki</Link>
-      <h1 className="admin-sidebar-title">Administration</h1>
+      <h2 className="admin-sidebar-title">Administration</h2>
       <nav className="admin-sidebar-nav">
         {/* `end` so /admin matches Overview exactly, not every /admin/* child */}
         <NavLink to="/admin" end className={linkClass} data-testid={`admin-nav-${navSlug('/admin')}`}>Overview</NavLink>

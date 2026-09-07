@@ -355,11 +355,6 @@ public class DefaultVariableManager implements VariableManager {
     }
 
     /**
-     * Converts a page metadata value to a string suitable for JSTL/EL use.
-     * Handles Date (ISO format) and List (comma-separated) values that
-     * SnakeYAML produces when parsing YAML frontmatter.
-     */
-    /**
      * Substrings that mark a property as secret-bearing. Matched case-insensitively
      * against the full property name, so a page variable can never expand a secret
      * regardless of where in the key the sensitive word sits. Deliberately broad: a
@@ -392,6 +387,11 @@ public class DefaultVariableManager implements VariableManager {
         return lower.endsWith( ".key" ) || lower.contains( ".key." );
     }
 
+    /**
+     * Converts a page metadata value to a string suitable for JSTL/EL use.
+     * Handles Date (ISO format) and List (comma-separated) values that
+     * SnakeYAML produces when parsing YAML frontmatter.
+     */
     private static String metadataToString( final Object value ) {
         if ( value instanceof Date date ) {
             return new java.text.SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).format( date );

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import ContentEmbeddingsTab from './ContentEmbeddingsTab';
 
@@ -95,13 +95,13 @@ describe('ContentEmbeddingsTab — backfill trigger and polling', () => {
       pages: [{ name: 'Alpha', lastModified: null }],
       total: 1,
     });
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<ContentEmbeddingsTab />);
     await screen.findByText('Backfill Frontmatter');
     fireEvent.click(screen.getByText('Backfill Frontmatter'));
-    expect(confirmSpy).toHaveBeenCalled();
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Cancel/i }));
     expect(api.knowledge.backfillFrontmatter).not.toHaveBeenCalled();
-    confirmSpy.mockRestore();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('confirmed backfill triggers the API and polls status until not running', async () => {
@@ -110,7 +110,6 @@ describe('ContentEmbeddingsTab — backfill trigger and polling', () => {
       pages: [{ name: 'Alpha', lastModified: null }],
       total: 1,
     });
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     // First poll returns running, second returns finished.
     api.knowledge.getBackfillStatus
       .mockResolvedValueOnce({ running: true, processed: 1, total: 3 })
@@ -120,6 +119,8 @@ describe('ContentEmbeddingsTab — backfill trigger and polling', () => {
     await screen.findByText('Backfill Frontmatter');
 
     fireEvent.click(screen.getByText('Backfill Frontmatter'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Continue/i }));
 
     await waitFor(() => expect(api.knowledge.backfillFrontmatter).toHaveBeenCalledTimes(1));
 
@@ -130,7 +131,6 @@ describe('ContentEmbeddingsTab — backfill trigger and polling', () => {
     await waitFor(() => expect(api.knowledge.getBackfillStatus).toHaveBeenCalledTimes(2));
     // On completion loadData runs again — getEmbeddingStatus called twice total (mount + reload).
     await waitFor(() => expect(api.knowledge.getEmbeddingStatus).toHaveBeenCalledTimes(2));
-    confirmSpy.mockRestore();
   });
 
   it('surfaces an error if backfill trigger rejects', async () => {
@@ -138,12 +138,12 @@ describe('ContentEmbeddingsTab — backfill trigger and polling', () => {
       pages: [{ name: 'Alpha', lastModified: null }],
       total: 1,
     });
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     api.knowledge.backfillFrontmatter.mockRejectedValue(new Error('backfill failed'));
     render(<ContentEmbeddingsTab />);
     await screen.findByText('Backfill Frontmatter');
     fireEvent.click(screen.getByText('Backfill Frontmatter'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Continue/i }));
     await screen.findByText('backfill failed');
-    confirmSpy.mockRestore();
   });
 });

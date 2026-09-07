@@ -9,8 +9,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    environment:
-      MCP_ACCESS_KEYS: ""
     volumes:
       - ./docs/wikantik-pages:/var/wikantik/pages
       - wikantik-work:/var/wikantik/work

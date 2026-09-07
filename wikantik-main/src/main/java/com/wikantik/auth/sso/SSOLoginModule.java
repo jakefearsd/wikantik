@@ -91,10 +91,6 @@ public class SSOLoginModule extends AbstractLoginModule {
     /** Default claim name for login name. */
     private static final String DEFAULT_CLAIM_LOGIN = "preferred_username";
 
-    /** Default claim name for full name. */
-
-    /** Default claim name for email. */
-
     /**
      * Attempts to log in by reading a pac4j UserProfile from the HTTP session.
      *

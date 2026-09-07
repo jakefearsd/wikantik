@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../api/client';
 import Badge from '../ui/Badge';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
 import '../../styles/admin.css';
@@ -21,6 +22,7 @@ export default function AdminKgPolicyPage() {
   const [editTarget, setEditTarget] = useState(null);   // { cluster, currentAction }
   const [estimate, setEstimate] = useState(null);        // dry-run preview
   const [reconciliation, setReconciliation] = useState([]);
+  const [clearTarget, setClearTarget] = useState(null);   // cluster pending a Clear confirmation
 
   const reload = useCallback(async () => {
     try {
@@ -90,8 +92,9 @@ export default function AdminKgPolicyPage() {
     }
   };
 
-  const onClear = async (cluster) => {
-    if (!window.confirm(`Clear policy for "${cluster}"? It will revert to default-exclude.`)) return;
+  const onClear = async () => {
+    const cluster = clearTarget;
+    setClearTarget(null);
     try {
       await api.admin.kgPolicy.clearCluster(cluster);
       await reload();
@@ -165,7 +168,7 @@ export default function AdminKgPolicyPage() {
                 key={c.cluster}
                 row={c}
                 onEdit={() => setEditTarget({ cluster: c.cluster, currentAction: c.action })}
-                onClear={() => onClear(c.cluster)}
+                onClear={() => setClearTarget(c.cluster)}
               />
             ))}
           </tbody>
@@ -186,6 +189,16 @@ export default function AdminKgPolicyPage() {
           estimate={estimate}
           onCancel={() => setEstimate(null)}
           onConfirm={onConfirmEstimate}
+        />
+      )}
+
+      {clearTarget && (
+        <ConfirmDialog
+          title="Clear Policy"
+          message={`Clear policy for "${clearTarget}"? It will revert to default-exclude.`}
+          confirmLabel="Clear"
+          onConfirm={onClear}
+          onCancel={() => setClearTarget(null)}
         />
       )}
     </AdminPage>

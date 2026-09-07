@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { api } from '../../api/client';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 const FAST_POLL_MS = 2000;
 const SLOW_POLL_MS = 10000;
@@ -250,6 +251,7 @@ export default function IndexStatusTab() {
 
       {confirming && (
         <ConfirmDialog
+          title="Confirm Rebuild"
           message={`This will (1) wipe the Lucene index and the kg_content_chunks table, (2) rechunk all ${status.pages?.indexable ?? 0} indexable pages, (3) refresh dense-vector embeddings for the new chunks, and (4) drain the Lucene reindex queue. Search and hybrid retrieval will be degraded until every phase completes. Continue?`}
           onConfirm={doRebuild}
           onCancel={() => setConfirming(false)}
@@ -378,23 +380,6 @@ function EmbedderMetrics({ embedder }) {
         <StatCard label="Breaker Close" value={embedder.breaker_close ?? 0} />
         <StatCard label="Half-Open Probe" value={embedder.breaker_half_open_probe ?? 0} />
         <StatCard label="Calls Rejected" value={embedder.breaker_call_rejected ?? 0} />
-      </div>
-    </div>
-  );
-}
-
-function ConfirmDialog({ message, onConfirm, onCancel }) {
-  return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-content admin-modal" role="dialog" onClick={(e) => e.stopPropagation()}>
-        <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: 'var(--space-md)' }}>
-          Confirm Rebuild
-        </h2>
-        <p style={{ marginBottom: 'var(--space-lg)' }}>{message}</p>
-        <div className="admin-actions-row">
-          <button className="btn btn-primary btn-danger" onClick={onConfirm}>Continue</button>
-          <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
-        </div>
       </div>
     </div>
   );

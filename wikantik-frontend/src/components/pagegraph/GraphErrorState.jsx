@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
 
 const VARIANTS = {
-  empty:          { message: 'The page graph is empty.', action: 'refresh' },
-  'empty-for-you': { message: "You don't have permission to view any pages in the page graph.", action: null },
-  unauthorized:   { message: 'Sign in to view the page graph.', action: 'login' },
-  forbidden:      { message: "You don't have permission to view the page graph.", action: null },
-  server:         { message: 'The page graph service is unavailable right now.', action: 'retry' },
-  malformed:      { message: 'Page graph snapshot was invalid. Check server logs.', action: 'retry' },
+  empty:          { message: 'The Page Graph is empty.', action: 'refresh' },
+  'empty-for-you': { message: "You don't have permission to view any pages in the Page Graph.", action: null },
+  unauthorized:   { message: 'Sign in to view the Page Graph.', action: 'login' },
+  forbidden:      { message: "You don't have permission to view the Page Graph.", action: null },
+  server:         { message: 'The Page Graph service is unavailable right now.', action: 'retry' },
+  malformed:      { message: 'Page Graph snapshot was invalid. Check server logs.', action: 'retry' },
 };
 
 export default function GraphErrorState({ variant, onRetry }) {

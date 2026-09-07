@@ -126,8 +126,10 @@ describe('BulkActionMenu', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /More bulk actions/i }));
     const item = screen.getByRole('menuitem', { name: /Action del/i });
-    // jsdom preserves the raw inline color value (#C44), so match the source string.
-    expect(item.style.color.toUpperCase()).toBe('#C44');
+    // The danger colour is the shared --danger token (globals.css) so it tracks the
+    // dark theme, and jsdom drops any var() it cannot resolve from style.color -
+    // assert the semantic marker instead of a hex literal.
+    expect(item).toHaveClass('bulk-action-danger');
   });
 
   it('disabled predicate receives selectedRows', () => {

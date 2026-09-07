@@ -35,7 +35,6 @@ import org.junit.jupiter.api.*;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.util.Map;
-import java.util.UUID;
 
 import static com.wikantik.TestEngine.with;
 import static org.junit.jupiter.api.Assertions.*;

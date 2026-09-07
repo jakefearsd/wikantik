@@ -37,7 +37,7 @@ uncovers a bug), escalate to the matching skill the moment it stops being mechan
 | Tool | Version | Notes |
 |------|---------|-------|
 | Java (JDK) | 25+ | `java -version` |
-| Maven | 3.9+ | `mvn -version` |
+| Maven | 3.9+ (recommended); enforced floor is 3.5 via `requireMavenVersion` | `mvn -version` |
 | Node.js + npm | 20.19+ (or 22.12+) | Required by Vite 8 (Rolldown). WAR build runs `npm install` + `vite build` automatically |
 | PostgreSQL | 15+ | For local deployment. **Unit tests that touch a database run against a real pgvector container** (`PostgresTestDb`, via Docker) with the migrations applied — there is no H2 schema. Without Docker those tests skip locally with a visible reason; CI passes `-Dtests.requireDocker=true` so an absent daemon **fails** the run |
 | Docker (+ compose) | any recent | Required by the **IT phase** of `bin/run-tests.sh`: per-module pgvector containers *and* the shared CPU-ollama embedder (`docker/docker-compose.embeddings.yml`, port 11435). Also used by `bin/deploy-local.sh` for a dev embedder on 11434. **First run on a machine pulls the ~600 MB `qwen3-embedding:0.6b` model** — a multi-minute download, not a hang, cached afterwards. The model volume is **per-instance** (compose prefixes it by project: `wikantik-embed-dev_ollama-models` / `wikantik-embed-test_ollama-models`), so a cold machine pays that download once for dev and once for the test suite — deliberate, so two daemons never share one blob store. `WIKANTIK_LOCAL_EMBEDDINGS=false` opts `deploy-local.sh` out; the IT phase does not opt out. |
@@ -578,8 +578,8 @@ When testing the `sparql_query` or any other tool on the `/knowledge-mcp` endpoi
 
 ### Formatting LaTeX Math
 When writing LaTeX formulas in Wikantik:
-- **Inline Math**: Use standard `$ ... $` syntax. It is safely parsed into `<span class="math-inline">`.
-- **Block Math**: You MUST wrap `$$ ... $$` with blank lines before and after. If you place `$$` adjacent to text without blank lines, the markdown parser will treat it as a standard paragraph. This causes two critical rendering defects:
+- **Inline Math**: Use `$math$` syntax with NO SPACES inside the boundary dollars (e.g. `$x$`, not `$ x $`) — the inline math parser requires content that doesn't start or end with a space, so a spaced form falls back to plain text instead of `<span class="math-inline">`.
+- **Block Math**: You MUST wrap `$$ ... $$` with blank lines before and after, and never wrap the block in `<div>` or `<center>` tags — either bypasses the markdown parser's block-math conversion (the `.math-display` class never gets assigned) and KaTeX silently ignores it. If you place `$$` adjacent to text without blank lines, the markdown parser will treat it as a standard paragraph. This causes two critical rendering defects:
   1. HTML escaping breaks the operators (`=` becomes `&#61;`).
   2. The parser's attribute extension will silently swallow bracketed letters (e.g., `\mathbb{E}` becomes `\mathbb`), destroying the formula.
 

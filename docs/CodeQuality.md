@@ -142,7 +142,7 @@ Two new baseline-and-shrink gates joined the complexity ratchet, both in `wikant
 | Gate | What it forbids | State |
 |---|---|---|
 | `JdbcAccessArchTest` (ArchUnit J-1) | `DataSource.getConnection`, `DriverManager.getConnection`, `Connection.{prepareStatement,prepareCall,createStatement,setAutoCommit,commit,rollback}` outside `com.wikantik.jdbc..` (carve-out: `JDBCPlugin`) | **0 violations** — 53 classes at baseline on 2026-08-22, burned down the same day (ADR-0010) |
-| `TestSchemaSingleSourceTest` | `CREATE TABLE` in any `*/src/test` source (the migrations are the only schema; `PostgresTestDb` applies them) | **0 entries** in `test-ddl-baseline.txt` — 33 at baseline |
+| `TestSchemaSingleSourceTest` | `CREATE TABLE` in any `*/src/test` source (the migrations are the only schema; `PostgresTestDb` applies them) | **1 entry** in `test-ddl-baseline.txt` — a permanent carve-out, not a burn-down remainder: `JDBCPluginCITest` mirrors the J-1 `JDBCPlugin` exception above, hand-rolling its own `employees` fixture because that table is arbitrary page-authored-SQL test scaffolding, not product schema with a migration to come from |
 
 Run both with `mvn -pl wikantik-war test -Dtest='JdbcAccessArchTest,TestSchemaSingleSourceTest'`.
 Note the gotcha: the war's classpath resolves sibling modules from `~/.m2`, so after changing a

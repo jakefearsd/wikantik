@@ -8,6 +8,23 @@ summary: Implementing a Sitemap.xml Servlet for Wikantik
 ---
 # Implementing a Sitemap.xml Servlet for Wikantik
 
+> **Status: IMPLEMENTED.** The sitemap servlet shipped — `SitemapServlet`
+> at `com.wikantik.ui.SitemapServlet` (source:
+> `wikantik-main/src/main/java/com/wikantik/ui/SitemapServlet.java`),
+> serving `/sitemap.xml`. The Atom feed counterpart is `AtomFeedServlet`
+> at `com.wikantik.content.AtomFeedServlet`.
+> This document is preserved as the implementation specification it
+> was written against; treat it as design-of-record rather than a
+> to-do list.
+>
+> **Note on configuration:** The `jspwiki.sitemap.*` properties described
+> in Phase 2 below (enabled, includeAttachments, cacheTimeout, etc.) were
+> never implemented. The **only** real sitemap property is
+> `wikantik.sitemap.baseURL` — set it when the wiki runs behind a reverse
+> proxy or load balancer that would otherwise cause the servlet to derive
+> an incorrect `http://` base URL. Example:
+> `wikantik.sitemap.baseURL = https://wiki.wikantik.com`
+
 ## Overview
 
 A sitemap.xml tells search engines about the pages on your wiki, helping them crawl more efficiently. This document provides a detailed breakdown of what needs to be implemented for Google Search Console compliance.
@@ -318,31 +335,26 @@ private String generateSitemapContent( final HttpServletRequest req ) {
 
 **Note:** You may need to register the cache name in the caching configuration.
 
-#### Step 7: Add Configuration Properties
+#### Step 7: Configuration
 
-**Location:** Add to `wikantik-main/src/main/resources/ini/wikantik.properties`
+The shipped `SitemapServlet` has no enable/disable flag — it is registered
+unconditionally at `/sitemap.xml` in `web.xml` and always generates the
+sitemap. There is also no `includeAttachments`, `cacheTimeout`,
+`excludePatterns`, `defaultChangeFreq`, or `defaultPriority` property; those
+are not read anywhere in the code.
+
+The one real property is an optional base-URL override, for deployments
+behind a reverse proxy that terminates SSL (the incoming-request-derived
+base URL would otherwise resolve to `http://` instead of `https://`):
 
 ```properties
-# Sitemap configuration
-jspwiki.sitemap.enabled = true
-jspwiki.sitemap.includeAttachments = false
-jspwiki.sitemap.cacheTimeout = 3600
-jspwiki.sitemap.excludePatterns = Admin*,Test*
-jspwiki.sitemap.defaultChangeFreq = weekly
-jspwiki.sitemap.defaultPriority = 0.5
+# wikantik-custom.properties
+wikantik.sitemap.baseURL = https://wiki.example.com
 ```
 
-Read configuration in the servlet:
-
-```java
-private boolean isEnabled() {
-    return TextUtil.getBooleanProperty(
-        m_engine.getWikiProperties(),
-        "wikantik.sitemap.enabled",
-        true
-    );
-}
-```
+If unset, `SitemapServlet` derives the base URL from the incoming request,
+which is correct whenever Wikantik (or a proxy that forwards `X-Forwarded-*`
+correctly) terminates SSL itself.
 
 ---
 

@@ -87,7 +87,7 @@ export default function ConfirmBulkModal({
             <label htmlFor="bulk-modal-reason">
               {action.reason.label ?? 'Reason'}
               {action.reason.required && (
-                <span style={{ color: '#C44', marginLeft: 4 }}>*</span>
+                <span style={{ color: 'var(--danger, #c0392b)', marginLeft: 4 }}>*</span>
               )}
             </label>
             <textarea
@@ -101,7 +101,7 @@ export default function ConfirmBulkModal({
               }}
             />
             {reasonError && (
-              <p style={{ color: '#C44', fontSize: '0.8rem', marginTop: 4 }} role="alert">
+              <p style={{ color: 'var(--danger, #c0392b)', fontSize: '0.8rem', marginTop: 4 }} role="alert">
                 {reasonError}
               </p>
             )}

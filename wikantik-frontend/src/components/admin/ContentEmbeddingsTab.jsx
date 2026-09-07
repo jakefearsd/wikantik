@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import PageEditLink from './PageEditLink';
 import EmptyState from './EmptyState';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 const NO_FM_LIMIT = 50;
 
@@ -14,6 +15,7 @@ export default function ContentEmbeddingsTab() {
   const [backfilling, setBackfilling] = useState(false);
   const [backfillStatus, setBackfillStatus] = useState(null);
   const [error, setError] = useState(null);
+  const [confirmingBackfill, setConfirmingBackfill] = useState(false);
 
   const loadNoFmPages = async (currentOffset) => {
     try {
@@ -46,7 +48,7 @@ export default function ContentEmbeddingsTab() {
   }, [noFmOffset]);
 
   const handleBackfill = async () => {
-    if (!confirm('This will generate default frontmatter for all pages that lack it. Continue?')) return;
+    setConfirmingBackfill(false);
     setBackfilling(true);
     setError(null);
     try {
@@ -95,7 +97,7 @@ export default function ContentEmbeddingsTab() {
             <h4 style={{ fontSize: '0.95em', margin: 0 }}>
               Pages Without Frontmatter <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>({noFmTotal})</span>
             </h4>
-            <button className="btn btn-primary btn-sm" onClick={handleBackfill} disabled={backfilling}>
+            <button className="btn btn-primary btn-sm" onClick={() => setConfirmingBackfill(true)} disabled={backfilling}>
               {backfilling ? `Backfilling... ${backfillStatus ? `(${backfillStatus.processed}/${backfillStatus.total})` : ''}` : 'Backfill Frontmatter'}
             </button>
           </div>
@@ -135,6 +137,17 @@ export default function ContentEmbeddingsTab() {
 
       {noFmTotal === 0 && (
         <EmptyState message="Every page has frontmatter — nothing to backfill." />
+      )}
+
+      {confirmingBackfill && (
+        <ConfirmDialog
+          title="Backfill Frontmatter"
+          message="This will generate default frontmatter for all pages that lack it. Continue?"
+          confirmLabel="Continue"
+          danger={false}
+          onConfirm={handleBackfill}
+          onCancel={() => setConfirmingBackfill(false)}
+        />
       )}
     </div>
   );

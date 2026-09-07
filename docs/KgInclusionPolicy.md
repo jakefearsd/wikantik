@@ -53,33 +53,33 @@ Knowledge Graph indexing. Pages not admitted by the policy are recorded in
 
 ## Configuration properties
 
-All properties go in `wikantik-custom.properties`
+Only one property governs this feature. It goes in `wikantik-custom.properties`
 (`tomcat/tomcat-11/lib/wikantik-custom.properties`).
 
 | Property | Default | Effect |
 |----------|---------|--------|
 | `wikantik.kg_policy.enabled` | `true` | Master switch. `false` disables policy filtering entirely, reverting to legacy behaviour (no cluster filter). |
-| `wikantik.kg_policy.reconciliation.eager` | `true` | When `true`, changing a cluster policy via REST or the dashboard triggers an immediate reconciliation run. |
-| `wikantik.kg_policy.review.staleness_days` | `90` | Number of days after which a cluster's `reviewed_at` is considered stale. Stale clusters appear in the pending-review queue. |
-| `wikantik.kg_policy.review.page_count_change_pct` | `20` | (Placeholder — threshold logic not yet implemented.) |
-| `wikantik.kg_policy.bootstrap.include` | 27 cluster names (see below) | Comma-separated list of clusters pre-checked for `include` in the bootstrap wizard. |
-| `wikantik.kg_policy.bootstrap.exclude` | 15 cluster names (see below) | Comma-separated list of clusters pre-checked for `exclude` in the bootstrap wizard. |
 
-Default bootstrap include clusters (from `wikantik.properties`):
-`wikantik-development`, `agentic-ai`, `generative-ai`, `machine-learning`,
-`devops-sre`, `databases`, `software-engineering-practices`, `mathematics`,
-`security`, `distributed-systems`, `software-architecture`, `cloud-platforms`,
-`frontend-development`, `java`, `warehouse-automation`, `data-engineering`,
-`design-patterns`, `agent-cookbook`, `operations-research`, `web-services-and-apis`,
-`data-structures`, `mechanical-engineering`, `networking`,
-`computer-science-foundations`, `retirement-planning`, `index-fund-investing`,
-`personal-finance`.
+Everything else the policy needs is **database-backed, not properties-backed** —
+managed through the `/admin/kg-policy/*` REST surface and admin UI documented
+below, not through `wikantik-custom.properties`:
 
-Default bootstrap exclude clusters: `engineering-leadership`,
-`linux-for-windows-users`, `geopolitics-and-finance`, `van-life`,
-`hobby-woodworking`, `philosophy`, `cooking-and-food`, `emergency-prep`,
-`berlin-history`, `immigration`, `spousal-green-card`, `remote-host-management`,
-`russia-ukraine-war`, `hobbies`, `american-coinage`.
+- **Reconciliation is always eager**, unconditionally — there is no
+  "eager vs. deferred" toggle. `DefaultKgInclusionPolicy.setClusterPolicy` /
+  `clearClusterPolicy` call `ReconciliationHook.onClusterPolicyChange` on every
+  change, which enqueues an async run on `ReconciliationJobRunner`.
+- **The staleness threshold is a hardcoded constant**, not a property:
+  `AdminKgPolicyResource.STALE_DAYS_DEFAULT = 90`. Changing it requires a code
+  change, not a config override.
+- **The recent-page-count-change review category is an unimplemented
+  placeholder** (`AdminKgPolicyResource` always returns an empty array for it)
+  — there is no threshold-percentage property because there is no threshold
+  logic yet.
+- **The bootstrap wizard's pre-checked cluster lists are hardcoded in the
+  frontend**, not read from properties: `DEFAULT_INCLUDE` / `DEFAULT_EXCLUDE`
+  in `AdminKgPolicyBootstrap.jsx` (27 include / 15 exclude cluster names). The
+  wizard lets you adjust the checkboxes before confirming, so the hardcoded
+  list is only a starting point, not a binding default.
 
 ## Admin UI walkthrough
 
@@ -103,8 +103,8 @@ merged with any `kg_cluster_policy` rows. Columns:
 **Edit flow:** Clicking Edit opens a modal. You enter the new action and reason. The
 UI first calls `GET /admin/kg-policy/estimate` to show a page-count preview. After
 reviewing the estimate, confirming calls `PUT /admin/kg-policy/clusters/{cluster}`.
-Eager reconciliation starts immediately if `wikantik.kg_policy.reconciliation.eager`
-is `true`.
+Reconciliation always starts immediately afterward — there is no property to
+defer it.
 
 **Clear:** Removes the row from `kg_cluster_policy`, reverting the cluster to
 default-exclude. Triggers a confirmation prompt before calling
@@ -118,8 +118,8 @@ rows at all), a banner links to `/admin/kg-policy/bootstrap`.
 
 ### Bootstrap wizard — `/admin/kg-policy/bootstrap`
 
-One-time setup wizard. Pre-checks clusters based on
-`wikantik.kg_policy.bootstrap.include` / `wikantik.kg_policy.bootstrap.exclude`.
+One-time setup wizard. Pre-checks clusters based on the hardcoded
+`DEFAULT_INCLUDE` / `DEFAULT_EXCLUDE` lists in `AdminKgPolicyBootstrap.jsx`.
 You scan the lists, adjust checkboxes, enter a shared reason string, and confirm. One
 `POST /admin/kg-policy/bootstrap` transaction inserts all rows atomically, then eager
 reconciliation runs.
@@ -137,8 +137,8 @@ calls `GET /admin/kg-policy/explain/{idOrName}`.
 Surfaces two categories:
 
 - **Unset clusters** — clusters with no policy row; default-exclude is in effect.
-- **Stale reviews** — clusters whose `reviewed_at` is older than
-  `wikantik.kg_policy.review.staleness_days` (default 90) or is null.
+- **Stale reviews** — clusters whose `reviewed_at` is older than the hardcoded
+  90-day threshold (`AdminKgPolicyResource.STALE_DAYS_DEFAULT`) or is null.
 
 The third category (recent page-count changes) is a placeholder and always returns
 an empty array.

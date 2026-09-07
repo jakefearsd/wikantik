@@ -301,7 +301,7 @@ public class McpServerInitializer implements ServletContextListener {
                 final McpSchema.Implementation ci = exchange != null ? exchange.getClientInfo() : null;
                 if ( ci != null && ci.name() != null ) client = ci.name();
             } catch ( final RuntimeException ignored ) {
-                // exchange.getClientInfo can throw before initialize completes
+                LOG.trace( "exchange.getClientInfo threw before initialize completed", ignored );
             }
             final boolean isError = result != null && Boolean.TRUE.equals( result.isError() );
             if ( thrown != null ) {

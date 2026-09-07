@@ -128,10 +128,11 @@ once per cache TTL period) so authentication is low-latency on repeated calls.
 
 Both `McpAccessFilter` (used by `/wikantik-admin-mcp` and `/knowledge-mcp`) and
 `ToolsAccessFilter` (used by `/tools/*`) apply this logic. Either filter also
-accepts legacy static keys (configured via `mcp.access.keys` /
-`tools.access.keys` in `wikantik-custom.properties`) or CIDR allowlist entries
-(`mcp.access.allowedCidrs` / `tools.access.allowedCidrs`) as fallback auth
-methods. DB-backed API keys are the preferred approach for new integrations.
+accepts a source IP inside a configured CIDR allowlist entry
+(`mcp.access.allowedCidrs` in `wikantik-mcp.properties` / `tools.access.allowedCidrs`
+in `wikantik-tools.properties`) as a fallback to a DB-backed key. There is no
+property-file bearer-token list — DB-backed API keys are the only bearer-token
+mechanism.
 
 ## REST endpoint reference
 

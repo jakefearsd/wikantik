@@ -119,6 +119,14 @@ if command -v flock >/dev/null 2>&1 && ! flock -n 9; then
   exit 3
 fi
 
+# Purge the previous run's logs now that we hold the lock. Nothing else prunes
+# this directory, and the IT log names differ between a full sequential run
+# (it-<maven-module>.log, from the module path's basename) and a --module run
+# (it-<short-alias>.log) — so both sets accumulate and a months-old log from the
+# other spelling sits next to a fresh one, indistinguishable except by mtime.
+# A reader looking for "the last run" then reports a result that never happened.
+rm -f "${LOG_DIR}"/phase1-unit.log "${LOG_DIR}"/it-*.log "$REPORT"
+
 # Short --module name for the dense IT module (Task 4 creates
 # wikantik-it-tests/wikantik-it-test-dense). Single source of truth: used to
 # build its IT_MODULES entry below AND to gate the shared embedder further

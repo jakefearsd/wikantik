@@ -25,8 +25,6 @@ import org.junit.jupiter.api.Test;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import static org.mockito.Mockito.doReturn;
@@ -84,48 +82,6 @@ class AbstractJDBCDatabaseTest {
     void testSupportsCommitsTrue() {
         db.setSupportsCommits( true );
         Assertions.assertTrue( db.supportsCommits() );
-    }
-
-    /**
-     * Tests closeQuietly with all null arguments does not throw.
-     */
-    @Test
-    void testCloseQuietlyAllNull() {
-        Assertions.assertDoesNotThrow( () -> db.closeQuietly( null, null, null ),
-                                        "closeQuietly should handle all-null arguments" );
-    }
-
-    /**
-     * Tests closeQuietly with valid resources closes them without throwing.
-     */
-    @Test
-    void testCloseQuietlyWithResources() throws Exception {
-        final Connection conn = mock( Connection.class );
-        final PreparedStatement ps = mock( PreparedStatement.class );
-        final ResultSet rs = mock( ResultSet.class );
-
-        db.closeQuietly( conn, ps, rs );
-
-        verify( conn ).close();
-        verify( ps ).close();
-        verify( rs ).close();
-    }
-
-    /**
-     * Tests closeQuietly when resources throw exceptions on close - should not propagate.
-     */
-    @Test
-    void testCloseQuietlySuppressesExceptions() throws Exception {
-        final Connection conn = mock( Connection.class );
-        final PreparedStatement ps = mock( PreparedStatement.class );
-        final ResultSet rs = mock( ResultSet.class );
-
-        doThrow( new SQLException( "close failed" ) ).when( rs ).close();
-        doThrow( new SQLException( "close failed" ) ).when( ps ).close();
-        doThrow( new SQLException( "close failed" ) ).when( conn ).close();
-
-        Assertions.assertDoesNotThrow( () -> db.closeQuietly( conn, ps, rs ),
-                                        "closeQuietly should suppress exceptions from close" );
     }
 
     /**

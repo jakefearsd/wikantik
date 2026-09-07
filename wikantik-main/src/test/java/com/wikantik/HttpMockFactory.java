@@ -173,12 +173,6 @@ public class HttpMockFactory {
     }
 
     /**
-     * Creates a correctly-instantiated mock HttpServletRequest with an associated
-     * HttpSession and path.
-     * @param path the path relative to the wiki context, for example "/Wiki.jsp"
-     * @return the new request
-     */
-    /**
      * Like {@link #createHttpRequest(String)}, but the request carries a unique session id,
      * so it never resolves to the shared {@link #SHARED_SESSION_ID} WikiSession. Use for
      * tests that must be genuinely anonymous regardless of earlier logins in the class.

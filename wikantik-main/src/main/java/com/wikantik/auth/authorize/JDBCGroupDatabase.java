@@ -46,35 +46,35 @@ import java.util.Set;
  * <p>
  * Implementation of GroupDatabase that persists {@link Group} objects to a JDBC
  * DataSource, as might typically be provided by a web container. This
- * implementation looks up the JDBC DataSource using JNDI. The JNDI name of the
- * datasource, backing table and mapped columns used by this class can be
- * overridden by adding settings in <code>wikantik.properties</code>.
+ * implementation looks up the JDBC DataSource using JNDI.
  * </p>
  * <p>
  * The only configurable property is the JNDI DataSource name
- * ({@code wikantik.groupdatabase.datasource}). Table and column names are
- * fixed to match the canonical schema in {@code bin/db/migrations/V002__core_users_groups.sql}.
+ * ({@code wikantik.datasource}, {@link com.wikantik.auth.AbstractJDBCDatabase#PROP_DATASOURCE};
+ * default {@code jdbc/WikiDatabase}). It is shared with {@code JDBCUserDatabase} — one
+ * DataSource backs both. The backing tables ({@code groups}, {@code group_members}) and
+ * every column name are fixed SQL literals (see the {@code FIND_*}/{@code INSERT_*}
+ * statements below); the schema is owned by the migrations under
+ * {@code bin/db/migrations/} (starting with {@code V002__core_users_groups.sql}), not by
+ * properties.
  * </p>
  * <p>
  * This class is typically used in conjunction with a web container's JNDI
- * resource factory. For example, Tomcat versions 4 and higher provide a basic
- * JNDI factory for registering DataSources. To give JSPWiki access to the JNDI
- * resource named by <code>jdbc/GroupDatabase</code>, you would declare the
- * datasource resource similar to this:
+ * resource factory. For example, Tomcat provides a basic JNDI factory for
+ * registering DataSources. To give Wikantik access to the JNDI resource
+ * named by <code>jdbc/WikiDatabase</code>, you would declare the datasource
+ * resource similar to this:
  * </p>
  * <blockquote><code>&lt;Context ...&gt;<br/>
  *  &nbsp;&nbsp;...<br/>
- *  &nbsp;&nbsp;&lt;Resource name="jdbc/GroupDatabase" auth="Container"<br/>
+ *  &nbsp;&nbsp;&lt;Resource name="jdbc/WikiDatabase" auth="Container"<br/>
  *  &nbsp;&nbsp;&nbsp;&nbsp;type="javax.sql.DataSource" username="dbusername" password="dbpassword"<br/>
  *  &nbsp;&nbsp;&nbsp;&nbsp;driverClassName="org.postgresql.Driver" url="jdbc:postgresql://localhost:5432/wikantik"<br/>
  *  &nbsp;&nbsp;&nbsp;&nbsp;maxActive="8" maxIdle="4"/&gt;<br/>
  *  &nbsp;...<br/>
  * &lt;/Context&gt;</code></blockquote>
  * <p>
- * JDBC driver JARs should be added to Tomcat's <code>common/lib</code>
- * directory. For more Tomcat 5.5 JNDI configuration examples, see <a
- * href="http://tomcat.apache.org/tomcat-5.5-doc/jndi-resources-howto.html">
- * http://tomcat.apache.org/tomcat-5.5-doc/jndi-resources-howto.html</a>.
+ * JDBC driver JARs should be added, e.g. in Tomcat's <code>lib</code> directory.
  * </p>
  * <p>
  * JDBCGroupDatabase commits changes as transactions if the back-end database

@@ -9,7 +9,7 @@ describe('GraphErrorState', () => {
   it('shows empty message with refresh button', () => {
     const onRetry = vi.fn();
     wrap(<GraphErrorState variant="empty" onRetry={onRetry} />);
-    expect(screen.getByText('The page graph is empty.')).toBeTruthy();
+    expect(screen.getByText('The Page Graph is empty.')).toBeTruthy();
     fireEvent.click(screen.getByText('Refresh'));
     expect(onRetry).toHaveBeenCalled();
   });
@@ -22,19 +22,19 @@ describe('GraphErrorState', () => {
 
   it('shows unauthorized with sign-in link', () => {
     wrap(<GraphErrorState variant="unauthorized" />);
-    expect(screen.getByText('Sign in to view the page graph.')).toBeTruthy();
+    expect(screen.getByText('Sign in to view the Page Graph.')).toBeTruthy();
     expect(screen.getByText('Sign in')).toBeTruthy();
   });
 
   it('shows forbidden without action', () => {
     wrap(<GraphErrorState variant="forbidden" />);
-    expect(screen.getByText(/don't have permission to view the page graph/)).toBeTruthy();
+    expect(screen.getByText(/don't have permission to view the Page Graph/)).toBeTruthy();
   });
 
   it('shows server error with retry button', () => {
     const onRetry = vi.fn();
     wrap(<GraphErrorState variant="server" onRetry={onRetry} />);
-    expect(screen.getByText('The page graph service is unavailable right now.')).toBeTruthy();
+    expect(screen.getByText('The Page Graph service is unavailable right now.')).toBeTruthy();
     fireEvent.click(screen.getByText('Try again'));
     expect(onRetry).toHaveBeenCalled();
   });

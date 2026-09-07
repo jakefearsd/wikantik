@@ -43,6 +43,14 @@ describe('GraphLegend', () => {
     expect(screen.getByText('Page link')).toBeTruthy();
   });
 
+  it('is a keyboard-focusable button with aria-expanded reflecting state', () => {
+    render(<GraphLegend {...defaultProps} />);
+    const toggle = screen.getByRole('button', { name: /legend/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('shows timestamp', () => {
     render(<GraphLegend {...defaultProps} />);
     expect(screen.getByText(/14:32:07/)).toBeTruthy();

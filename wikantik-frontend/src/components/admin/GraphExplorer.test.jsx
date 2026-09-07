@@ -175,9 +175,6 @@ describe('GraphExplorer', () => {
   });
 
   it('detail-pane single delete refreshes without window.location.reload', async () => {
-    // Stub confirm() to auto-accept so the delete flow proceeds.
-    const originalConfirm = window.confirm;
-    window.confirm = () => true;
     const reloadSpy = vi.spyOn(window.location, 'reload')
       .mockImplementation(() => {
         throw new Error('window.location.reload() must not be called from GraphExplorer/NodeDetail');
@@ -189,9 +186,12 @@ describe('GraphExplorer', () => {
       await waitFor(() => screen.getByText('Alpha'));
       fireEvent.click(screen.getByText('Alpha'));
 
-      // The detail-pane Delete button renders inside NodeDetail.
+      // The detail-pane Delete button renders inside NodeDetail and opens a
+      // confirm dialog rather than acting immediately.
       const deleteBtn = await screen.findByRole('button', { name: /^delete$/i });
       fireEvent.click(deleteBtn);
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
       // With the ID-based selection flow, selectedNode.id is the row id ('n1').
       await waitFor(() =>
@@ -199,7 +199,6 @@ describe('GraphExplorer', () => {
       );
       expect(reloadSpy).not.toHaveBeenCalled();
     } finally {
-      window.confirm = originalConfirm;
       reloadSpy.mockRestore();
     }
   });

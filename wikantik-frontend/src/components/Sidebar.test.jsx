@@ -293,4 +293,39 @@ describe('Sidebar', () => {
       expect(screen.getAllByRole('link', { name: 'Knowledge Graph' })).toHaveLength(2);
     });
   });
+
+  describe('mobile tab handle', () => {
+    it('is a real keyboard-reachable button', () => {
+      renderSidebar('/wiki/Main');
+      expect(screen.getByRole('button', { name: 'Open navigation' })).toBeInTheDocument();
+    });
+  });
+
+  describe('fetch-failure hints', () => {
+    it('shows an unobtrusive hint (not a banner) when the page list fails to load', async () => {
+      api.listPages.mockRejectedValue(new Error('boom'));
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      renderSidebar('/wiki/Main');
+      await screen.findByText(/couldn't load the page list/i);
+      expect(warnSpy).toHaveBeenCalledWith('Sidebar: failed to load page list', expect.any(Error));
+      warnSpy.mockRestore();
+    });
+
+    it('shows an unobtrusive hint when recent changes fail to load', async () => {
+      api.getRecentChanges.mockRejectedValue(new Error('boom'));
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      renderSidebar('/wiki/Main');
+      await screen.findByText(/couldn't load recent changes/i);
+      expect(warnSpy).toHaveBeenCalledWith('Sidebar: failed to load recent changes', expect.any(Error));
+      warnSpy.mockRestore();
+    });
+
+    it('shows neither hint on a normal, successful load', async () => {
+      api.listPages.mockResolvedValue({ pages: [{ name: 'A' }] });
+      api.getRecentChanges.mockResolvedValue({ changes: [{ name: 'A' }] });
+      renderSidebar('/wiki/Main');
+      await screen.findByText('Recently Modified');
+      expect(screen.queryByText(/couldn't load/i)).not.toBeInTheDocument();
+    });
+  });
 });

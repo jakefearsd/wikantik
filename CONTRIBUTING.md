@@ -29,8 +29,9 @@ for the disclosure process.
 
 ### Prerequisites
 
-- Java 25+, Maven 3.9+, Node 20.19+ (or 22.12+), PostgreSQL 15+ with pgvector 0.5+,
-  Docker (optional but recommended).
+- Java 25+, Maven 3.9+ (recommended; enforced floor is 3.5 via `requireMavenVersion`),
+  Node 20.19+ (or 22.12+), PostgreSQL 15+ with pgvector 0.5+, Docker (optional but
+  recommended).
 
 See [README.md > Prerequisites](README.md#prerequisites) for the
 full per-platform install guide, especially for `pgvector`.

@@ -42,7 +42,8 @@ public final class Release {
 
     /**
      *  This is the default application name.
-     */    public static final String     APPNAME       = "Wikantik";
+     */
+    public static final String     APPNAME       = "Wikantik";
 
     /**
      *  This should be empty when doing a release - otherwise keep it as "-git-" so that whenever someone checks out the code, they know

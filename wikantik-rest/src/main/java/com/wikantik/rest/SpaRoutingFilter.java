@@ -108,12 +108,6 @@ public class SpaRoutingFilter implements Filter {
     }
 
     /**
-     * Lazily resolve the {@link Engine}. The filter may be constructed before
-     * WikiEngine completes initialization (filter {@code init()} runs early in
-     * the servlet context startup sequence), so we defer the lookup until the
-     * first request and cache the result.
-     */
-    /**
      *  Slugs of the pages in this page's cluster, when the page is a hub — used as the
      *  hub's JSON-LD {@code hasPart}.
      *
@@ -161,6 +155,12 @@ public class SpaRoutingFilter implements Filter {
         }
     }
 
+    /**
+     * Lazily resolve the {@link Engine}. The filter may be constructed before
+     * WikiEngine completes initialization (filter {@code init()} runs early in
+     * the servlet context startup sequence), so we defer the lookup until the
+     * first request and cache the result.
+     */
     private Engine resolveEngine() {
         Engine e = engine;
         if ( e == null && servletContext != null ) {
@@ -388,9 +388,10 @@ public class SpaRoutingFilter implements Filter {
         return fp;
     }
 
-    /** Weak ETag for a served /wiki/{page} document: shell build + page version + mtime. */
     /**
-     * A denied caller gets a different response body (the bare SPA shell with a 404)
+     * Weak ETag for a served /wiki/{page} document: shell build + page version + mtime.
+     *
+     * <p>A denied caller gets a different response body (the bare SPA shell with a 404)
      * than a permitted one, so the validator MUST distinguish them: otherwise a browser
      * that cached the permitted body would be handed a 304 for it after the user logs
      * out, re-serving restricted content from its own cache.
@@ -423,15 +424,6 @@ public class SpaRoutingFilter implements Filter {
     }
 
     /**
-     * Load the named page and inject its {@link SemanticHeadRenderer}-generated
-     * semantic {@code <head>} fragment (meta tags, JSON-LD, feed autodiscovery)
-     * and body fallback (no-JS heading + paragraphs) into the SPA index.html.
-     *
-     * <p>If the engine or page is not available, the index.html is returned
-     * unchanged — the React app will still handle the route client-side and
-     * show a 404 for missing pages.
-     */
-    /**
      * Whether the caller may {@code view} {@code pageName}. The server-rendered body,
      * head metadata and JSON data island are all page content, so this path must apply
      * the same view ACL that {@link WikiPageFormatFilter} applies to the raw-content
@@ -463,6 +455,15 @@ public class SpaRoutingFilter implements Filter {
         }
     }
 
+    /**
+     * Load the named page and inject its {@link SemanticHeadRenderer}-generated
+     * semantic {@code <head>} fragment (meta tags, JSON-LD, feed autodiscovery)
+     * and body fallback (no-JS heading + paragraphs) into the SPA index.html.
+     *
+     * <p>If the engine or page is not available, the index.html is returned
+     * unchanged — the React app will still handle the route client-side and
+     * show a 404 for missing pages.
+     */
     private String injectSemantic( final String indexHtml, final HttpServletRequest req,
                                      final HttpServletResponse resp, final String pageName ) {
         final Engine eng = resolveEngine();

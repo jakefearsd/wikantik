@@ -178,9 +178,9 @@ The reader hot path stays in Lucene + the page filesystem; the agent hot path go
 | Tool | Version | Notes |
 |------|---------|-------|
 | Java (JDK) | 25+ | `java -version` |
-| Maven | 3.9+ | `mvn -version` |
+| Maven | 3.9+ (recommended); enforced floor is 3.5 via `requireMavenVersion` | `mvn -version` |
 | Node.js + npm | 20.19+ (or 22.12+) | Required by Vite 8 (Rolldown); WAR build runs `npm install` + `vite build` automatically |
-| PostgreSQL | 15+ | For local deployment; unit tests use in-memory H2 |
+| PostgreSQL | 15+ (local dev/deployment); the pinned container image is `pgvector/pgvector:pg18`, see `docker-compose.yml` | **Unit tests that touch a database run against a real pgvector container** (`PostgresTestDb`, via Docker) with every migration in `bin/db/migrations/` applied — there is no H2 schema. Without Docker those tests skip locally with a visible reason; CI passes `-Dtests.requireDocker=true` so an absent daemon fails the run instead |
 | pgvector | 0.5+ | PostgreSQL extension — required for the Knowledge Graph (see below) |
 | Tomcat | 11.0.22 | Pinned by `bin/deploy-local.sh` and the `Dockerfile`; bare-metal first-time setup downloads it automatically |
 
@@ -334,7 +334,7 @@ bin/redeploy.sh   # shutdown + rotate catalina.out + swap WAR + startup
 ```
 
 Database schema lives in [`bin/db/migrations/`](bin/db/migrations/README.md)
-(currently V001..V057 — applied idempotently via `schema_migrations`).
+(currently V001..V059 — applied idempotently via `schema_migrations`).
 To bring an existing database up to date (including production), run
 `bin/db/migrate.sh` with connection env vars set.
 
@@ -416,6 +416,7 @@ monitoring, and the bare-metal ↔ container migration.
 | `wikantik-main` | Main implementation — Markdown rendering, providers, auth, search, references, math parser, the RAG context-bundle assembly service, citation parsing/staleness, and derived-page ingestion/reflow |
 | `wikantik-event` | Event system for decoupled communication |
 | `wikantik-util` | Utility classes and helpers |
+| `wikantik-jdbc` | The one way to touch the database — `com.wikantik.jdbc.Jdbc` (query/queryOne/update/insertReturningKey/batch/forEachRow/execute/ping/withConnection/inTransaction), `JdbcSupport` as its `extends` convenience. Depends only on JDBC + `log4j-api`. Test-jar ships `PostgresTestDb` (per-JVM pgvector container with every migration applied), `@RequiresPostgres`, and `FaultInjectingDataSource`; enforced by `JdbcAccessArchTest` (ArchUnit), which forbids opening a JDBC connection outside this package |
 | `wikantik-cache` | EhCache-based caching layer |
 | `wikantik-cache-memcached` | Distributed cache adapter for Memcached |
 | `wikantik-http` | Servlet filters — CSRF, CORS, CSP, security headers, SPA routing, backpressure, and the reusable `SlidingWindowRateLimiter` |

@@ -292,13 +292,6 @@ public interface AttachmentManager {
     void deleteAttachment( Attachment att ) throws ProviderException;
 
     /**
-     *  Validates the filename and makes sure it is legal.  It trims and splits and replaces bad characters.
-     *
-     *  @param filename file name to validate.
-     *  @return A validated name with annoying characters replaced.
-     *  @throws WikiException If the filename is not legal (e.g. empty)
-     */
-    /**
      *  Extensions that are forbidden on upload because they can execute
      *  server-side (JSP variants) or render as active content in a browser
      *  (HTML/SVG/XML), which would enable stored XSS against other wiki users.
@@ -309,6 +302,13 @@ public interface AttachmentManager {
             "html", "htm", "xhtml", "svg"
     );
 
+    /**
+     *  Validates the filename and makes sure it is legal.  It trims and splits and replaces bad characters.
+     *
+     *  @param filename file name to validate.
+     *  @return A validated name with annoying characters replaced.
+     *  @throws WikiException If the filename is not legal (e.g. empty)
+     */
     static String validateFileName( String filename ) throws WikiException {
         if( filename == null || filename.isBlank() ) {
             LogManager.getLogger( AttachmentManager.class ).error( "Empty file name given." );

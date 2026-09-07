@@ -117,6 +117,7 @@ export default function MentionsPage() {
                   type="button"
                   className="mentions-item-dismiss"
                   title="Mark read"
+                  aria-label="Mark read"
                   onClick={() => markOne(m.id)}
                 >✕</button>
               )}

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.20] - 2026-09-07
+
 ### Fixed
 - **Read-only MCP API keys can be minted again.** `api_keys_scope_chk` (V010) enumerated
   `('mcp', 'tools', 'all')` and was never widened when 2.4.18 split off `mcp_read`, so

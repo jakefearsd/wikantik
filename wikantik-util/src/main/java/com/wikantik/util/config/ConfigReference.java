@@ -85,13 +85,7 @@ public final class ConfigReference {
                 continue;
             }
             if( line.startsWith( "#" ) || line.startsWith( "!" ) ) {
-                final Matcher ck = COMMENTED_KEY.matcher( line );
-                if( ck.matches() && ck.group( 1 ).startsWith( keyPrefix ) ) {
-                    commented.add( ck.group( 1 ) );
-                    block.clear();
-                } else {
-                    block.add( line.substring( 1 ).strip() );
-                }
+                consumeComment( line, keyPrefix, commented, block );
                 continue;
             }
             final Matcher kv = KEY_VALUE.matcher( line );
@@ -110,6 +104,25 @@ public final class ConfigReference {
             block.clear();
         }
         return new Parsed( List.copyOf( entries ), List.copyOf( commented ), List.copyOf( duplicates ) );
+    }
+
+    /**
+     * Consumes one comment line. A commented-out declaration of an in-scope key is recorded as
+     * such and terminates the current comment block (it documents the key that is commented out,
+     * not the next live one); every other comment line accumulates as description text.
+     *
+     * <p>Extracted from {@link #parse(List, String)} purely to keep that method under the
+     * cognitive-complexity ratchet — the behaviour is unchanged.</p>
+     */
+    private static void consumeComment( final String line, final String keyPrefix,
+                                        final List<String> commented, final List<String> block ) {
+        final Matcher ck = COMMENTED_KEY.matcher( line );
+        if( ck.matches() && ck.group( 1 ).startsWith( keyPrefix ) ) {
+            commented.add( ck.group( 1 ) );
+            block.clear();
+        } else {
+            block.add( line.substring( 1 ).strip() );
+        }
     }
 
     private static Entry toEntry( final String key, final String value, final List<String> block,

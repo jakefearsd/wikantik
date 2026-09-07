@@ -34,7 +34,8 @@
 #      module is discovered by grepping THAT module's own pom.xml for the
 #      literal alias pattern — never assumed.
 #   2. The leftover shared IT embedder: `docker compose -p wikantik-embed-test
-#      -f docker/docker-compose.embeddings.yml down`, WITHOUT -v — the named
+#      -f docker/docker-compose.embeddings.yml stop` — stopped, never removed,
+#      so its volume never becomes prune-eligible. The named
 #      wikantik-embed-test_ollama-models volume caches a ~600 MB model and is
 #      never removed. wikantik-embed-dev (the developer's own running
 #      embedder) is a different compose project and is never referenced
@@ -191,7 +192,11 @@ EMBED_COMPOSE_FILE="docker/docker-compose.embeddings.yml"
 embed_present="$(docker compose -p wikantik-embed-test -f "${EMBED_COMPOSE_FILE}" ps -a -q 2>/dev/null || true)"
 if [[ -n "${embed_present}" ]]; then
     echo "  found: leftover wikantik-embed-test containers"
-    if _run docker compose -p wikantik-embed-test -f "${EMBED_COMPOSE_FILE}" down; then
+    # `stop`, not `down`: `down` removes the container, and removing the last
+    # container that references wikantik-embed-test_ollama-models leaves that
+    # ~600 MB model cache DANGLING for `docker volume prune` — the very cost
+    # this sweep exists to avoid. A stopped container still references it.
+    if _run docker compose -p wikantik-embed-test -f "${EMBED_COMPOSE_FILE}" stop; then
         EMBEDDER_TORN_DOWN=1
     else
         echo "  WARNING: failed to tear down wikantik-embed-test (continuing sweep)" >&2

@@ -225,18 +225,23 @@ embed_stop() {
 # equivalent existed for the shared embedder, so a run that was cancelled
 # hard enough to skip embed_stop (e.g. SIGKILL, or a crash before the INT/TERM
 # traps below were even installed) left a `wikantik-embed-test` container
-# running forever, quietly bound to port 11435. `docker compose … down` is
-# idempotent (exits 0 with nothing to remove), so `|| true` here is purely
-# defensive; either way this must never fail the script. Deliberately the
-# SAME invocation as embed_stop — no `-v` — so a previous run's
-# wikantik-embed-test_ollama-models volume (the ~600 MB qwen3-embedding model
-# cache) survives a pre-clean exactly as it survives a normal teardown; -v
-# here would force a multi-minute re-download on every single run.
+# running forever, quietly bound to port 11435. `docker compose … stop` is
+# idempotent (exits 0 with nothing to stop), so `|| true` here is purely
+# defensive; either way this must never fail the script.
+#
+# Deliberately the SAME invocation as embed_stop. It used to be `down`, which
+# looked equivalent because neither passes `-v` so the ~600 MB
+# wikantik-embed-test_ollama-models cache survives either way — but `down`
+# REMOVES the container, and removing the last container referencing a named
+# volume leaves that volume DANGLING, which is exactly what `docker volume
+# prune` collects. Stopping releases port 11435 just the same while keeping the
+# volume referenced, and the following `up -d` restarts the existing container
+# rather than recreating it.
 embed_preclean() {
   echo ">>> Sweeping any stale embedder container from a previous run"
   COMPOSE_PROJECT_NAME="${EMBED_PROJECT}" WIKANTIK_EMBEDDING_PORT="${EMBED_PORT}" \
     WIKANTIK_EMBEDDING_MODEL_TAG="${EMBED_MODEL_TAG}" \
-    docker compose -f "${EMBED_COMPOSE}" down >/dev/null 2>&1 || true
+    docker compose -f "${EMBED_COMPOSE}" stop >/dev/null 2>&1 || true
 }
 
 # Explicit INT/TERM handling for the embedder container. `set -uo pipefail`

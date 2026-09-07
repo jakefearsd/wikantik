@@ -589,12 +589,14 @@ PATH="${ORDERSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${RTLOGDIR}" \
   "$RUNTESTS" --module dense >"${ORDERSHIM}/out.log" 2>&1 || order_rc=$?
 
 if [ "$order_rc" -eq 0 ] && [ -f "$ORDERCALLS" ]; then
-  down_line="$(grep -n -- ' down$' "$ORDERCALLS" | head -1 | cut -d: -f1 || true)"
+  # The sweep STOPS a stale embedder rather than `down`ing it (see the
+  # stop-never-down assertions above): the first stop must precede `up -d`.
+  stop_line="$(grep -n -- ' stop$' "$ORDERCALLS" | head -1 | cut -d: -f1 || true)"
   up_line="$(grep -n -- ' up -d$' "$ORDERCALLS" | head -1 | cut -d: -f1 || true)"
-  if [ -n "${down_line:-}" ] && [ -n "${up_line:-}" ] && [ "$down_line" -lt "$up_line" ]; then
-    pass "run-tests sweeps a stale embedder (docker compose down) BEFORE starting a fresh one (up -d)"
+  if [ -n "${stop_line:-}" ] && [ -n "${up_line:-}" ] && [ "$stop_line" -lt "$up_line" ]; then
+    pass "run-tests sweeps a stale embedder (docker compose stop) BEFORE starting a fresh one (up -d)"
   else
-    fail "run-tests did not sweep stale state before starting the embedder (down_line=${down_line:-none} up_line=${up_line:-none}): $(cat "$ORDERCALLS")"
+    fail "run-tests did not sweep stale state before starting the embedder (stop_line=${stop_line:-none} up_line=${up_line:-none}): $(cat "$ORDERCALLS")"
   fi
 else
   fail "run-tests --module dense (order check) failed (rc=${order_rc}) or never invoked docker — see ${ORDERSHIM}/out.log"
@@ -727,8 +729,8 @@ EOF
     fail "run-tests --module dense exited ${got_rc} on SIG${sig}, expected ${expected_rc} — see ${SIGSHIM}/out-${sig}.log"
   fi
 
-  if grep -q -- ' down$' "$sigcalls" 2>/dev/null; then
-    pass "SIG${sig} triggers embedder teardown (docker compose down) before exit"
+  if grep -q -- ' stop$' "$sigcalls" 2>/dev/null; then
+    pass "SIG${sig} triggers embedder teardown (docker compose stop) before exit"
   else
     fail "SIG${sig} did NOT trigger embedder teardown: $(cat "$sigcalls" 2>/dev/null || echo '(no docker calls recorded)')"
   fi

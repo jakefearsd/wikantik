@@ -205,13 +205,19 @@ test_ollama_models_and_dev_embedder_untouched() {
     grep -q "volume rm wikantik-embed-test_ollama-models" "${CALLS}" \
         && { fail "removed the ollama-models volume"; return; }
 
-    local down_call
-    down_call="$(grep " down" "${CALLS}" || true)"
-    [[ -n "${down_call}" ]] || { fail "expected embedder compose down was never called"; return; }
-    echo "${down_call}" | grep -q -- "-v" \
-        && { fail "compose down was called WITH -v (would delete the cached model volume): ${down_call}"; return; }
-    echo "${down_call}" | grep -q "wikantik-embed-test" \
-        || { fail "compose down did not target project wikantik-embed-test: ${down_call}"; return; }
+    # The sweep STOPS the leftover embedder; it must never `down` it. `down`
+    # removes the container, and removing the last container referencing
+    # wikantik-embed-test_ollama-models leaves that ~600 MB cache dangling for
+    # `docker volume prune` — the exact cost this sweep exists to avoid.
+    local stop_call
+    stop_call="$(grep " stop" "${CALLS}" || true)"
+    [[ -n "${stop_call}" ]] || { fail "expected embedder compose stop was never called"; return; }
+    grep -q " down" "${CALLS}" \
+        && { fail "the sweep 'down'ed the embedder — that orphans the cached-model volume"; return; }
+    echo "${stop_call}" | grep -q -- "-v" \
+        && { fail "compose stop was called WITH -v (would delete the cached model volume): ${stop_call}"; return; }
+    echo "${stop_call}" | grep -q "wikantik-embed-test" \
+        || { fail "compose stop did not target project wikantik-embed-test: ${stop_call}"; return; }
 
     grep -q "wikantik-embed-dev" "${CALLS}" \
         && { fail "the script talked to wikantik-embed-dev (the developer's own running embedder)"; return; }

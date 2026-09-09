@@ -65,6 +65,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   lines across 3 days, with a confirmed zero-data gap from 2026-08-21 to 2026-09-07 that made
   the Cloudflare incident undiagnosable after the fact. `docker-compose.prod.yml` now pins
   json-file logging with an explicit size and file count for every long-lived service.
+- **The integration gate could deploy code that was not in the tree.** Every IT module builds
+  by overlaying `wikantik-war`, and the war plugin reuses an exploded overlay left in
+  `target/` rather than rebuilding it — but `bin/run-tests.sh` invoked each IT module with a
+  bare `install`. The opt-in Authentik suite duly deployed a WAR carrying a pre-2.4.18
+  `ApiKeyService`, so `KnowledgeMcpInitializer` threw `NoSuchFieldError` on the missing
+  `MCP_READ` constant, the servlet context never started, and every request — Authentik's SCIM
+  sync among them — received Tomcat's HTML 404. The suite then failed 60s later with a
+  provisioning timeout that named none of that. Re-running the same module with `clean` passed
+  in 3.5s. All five IT invocations now run `clean install`, with a regression assertion in
+  `bin/tests/test-embeddings.sh`. The false failure cost an evening; the same staleness can
+  produce a false PASS against code that no longer exists, which is the worse half.
 - **`reconcile_page_canonical_ids.sh` fixed two pages that were no longer the problem.** It
   carried hardcoded slug/id pairs from a previous incident while production was warning about
   22 different ones on every restart. It now parses the recovery hint that

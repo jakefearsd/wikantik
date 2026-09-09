@@ -284,6 +284,17 @@ UNIT_PARALLELISM="${UNIT_PARALLELISM:-1C}"
 # IT-phase parallelism (opt-in). Default 1 = the safe sequential per-module loop
 # (one module at a time). Set via --parallel N (preferred) or the IT_PARALLELISM
 # env var as a fallback default; an explicit --parallel flag wins. N>1 runs a
+# Every IT invocation below runs `clean install`, never a bare `install`. An IT
+# module builds by OVERLAYING wikantik-war, and the war plugin will happily reuse
+# an exploded overlay left in target/ from a previous build instead of rebuilding
+# it. The module then deploys a WAR whose jars are older than the code under test:
+# observed 2026-09-09 on the opt-in Authentik suite, where a pre-2.4.18
+# ApiKeyService (no MCP_READ constant) made KnowledgeMcpInitializer throw
+# NoSuchFieldError at context init. The context never started, so every request —
+# including Authentik's SCIM sync — got Tomcat's HTML 404, and the suite failed
+# 60s later with a timeout that named none of that. Re-running the same module
+# with `clean` passed in 3.5s. A stale overlay can just as easily produce a false
+# PASS against code that is no longer in the tree, which is the worse outcome.
 # SINGLE `mvn install -Pintegration-tests -T N` reactor over all IT modules at
 # once; each module reserves its own free ports + uniquely-named pgvector
 # container (build-helper reserve-network-port), so they no longer collide.
@@ -507,13 +518,13 @@ if [ "$RUN_IT" = 1 ]; then
     # Phase 1), so the ~6000 unit tests are not re-run.
     it_pl="$(IFS=,; echo "${IT_MODULES[*]}")"
     run_step "IT (parallel x${IT_PARALLELISM})" "${LOG_DIR}/it-parallel.log" \
-      install -Pintegration-tests -fae -T "${IT_PARALLELISM}" "${EMBED_MVN_OPT}" -pl "$it_pl"
+      clean install -Pintegration-tests -fae -T "${IT_PARALLELISM}" "${EMBED_MVN_OPT}" -pl "$it_pl"
   else
     for mod in "${IT_MODULES[@]}"; do
       # -pl <module> WITHOUT -am: deps resolve from the Phase-1 install, so unit
       # tests are not re-run. Sequential (default). -fae within the module.
       run_step "IT: ${mod}" "${LOG_DIR}/it-$(basename "$mod").log" \
-        install -Pintegration-tests -fae "${EMBED_MVN_OPT}" -pl "$mod"
+        clean install -Pintegration-tests -fae "${EMBED_MVN_OPT}" -pl "$mod"
     done
   fi
 elif [ -n "$ONE_MODULE" ]; then
@@ -521,10 +532,10 @@ elif [ -n "$ONE_MODULE" ]; then
   [ -d "$mod" ] || { echo "no such IT module: $mod" >&2; exit 2; }
   if [ "$ONE_MODULE" = "scim-fullloop" ]; then
     run_step "IT: ${mod} (full-loop)" "${LOG_DIR}/it-${ONE_MODULE}.log" \
-      install -Pintegration-tests,scim-fullloop -fae -pl "$mod"
+      clean install -Pintegration-tests,scim-fullloop -fae -pl "$mod"
   else
     run_step "IT: ${mod}" "${LOG_DIR}/it-${ONE_MODULE}.log" \
-      install -Pintegration-tests -fae "${EMBED_MVN_OPT}" -pl "$mod"
+      clean install -Pintegration-tests -fae "${EMBED_MVN_OPT}" -pl "$mod"
   fi
 fi
 
@@ -535,7 +546,7 @@ if [ "$RUN_FULLLOOP" = 1 ]; then
   fl_mod="wikantik-it-tests/wikantik-it-test-scim-fullloop"
   if [ -d "$fl_mod" ]; then
     run_step "IT: ${fl_mod} (full-loop)" "${LOG_DIR}/it-scim-fullloop.log" \
-      install -Pintegration-tests,scim-fullloop -fae -pl "$fl_mod"
+      clean install -Pintegration-tests,scim-fullloop -fae -pl "$fl_mod"
   else
     echo "no such IT module: $fl_mod" >&2; overall_rc=1
   fi

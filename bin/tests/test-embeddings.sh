@@ -336,6 +336,19 @@ else
   pass "run-tests.sh never 'down's the embedder compose project"
 fi
 checkf "dense module is in the default gate"                    "$RUNTESTS" 'wikantik-it-test-dense'
+
+# An IT module builds by overlaying wikantik-war, and the war plugin reuses an
+# exploded overlay left in target/ rather than rebuilding it. A bare `install`
+# therefore deploys a WAR whose jars can be older than the code under test —
+# observed 2026-09-09 as a NoSuchFieldError on ApiKeyService$Scope.MCP_READ that
+# stopped the context starting, so every request 404'd as HTML and the Authentik
+# suite timed out 60s later blaming SCIM. Worse, a stale overlay can produce a
+# false PASS. Every IT invocation must therefore be `clean install`.
+if grep -nE '^[[:space:]]*install -Pintegration-tests' "$RUNTESTS" >/dev/null 2>&1; then
+  fail "run-tests.sh has a bare 'install -Pintegration-tests' — an IT module can then deploy a stale war overlay"
+else
+  pass "every IT invocation in run-tests.sh runs 'clean install' (no stale war overlay)"
+fi
 checkf "run-tests sources the shared embeddings lib"             "$RUNTESTS" 'lib/embeddings.sh'
 checkf "run-tests readiness gate calls embeddings_model_ready"   "$RUNTESTS" 'embeddings_model_ready "\${EMBED_URL}"'
 

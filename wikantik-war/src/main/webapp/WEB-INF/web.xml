@@ -307,7 +307,10 @@
         carries an inline stale-asset auto-recovery script AND an inline onclick handler (an
         inline event handler cannot be nonce'd, so a strict script-src would break the app); the
         load-bearing wins here are frame-ancestors 'none' (clickjacking), object-src 'none',
-        base-uri 'self', and the same-origin default-src. style-src/font-src allow Google Fonts;
+        base-uri 'self', and the same-origin default-src. style-src/font-src allow Google Fonts,
+        and font-src additionally allows data: because KaTeX embeds several of its math faces
+        (KaTeX_Size3, the large-delimiter face, among them) as data:font/woff2 inside its own
+        stylesheet - without it, every page with display math loses its big delimiters;
         img-src allows data: + https: for wiki-content images; worker-src allows blob: for
         client-side visualisations. Tune the policy via the CSPValue init-param below. -->
    <filter>
@@ -316,7 +319,7 @@
      <async-supported>true</async-supported>
      <init-param>
        <param-name>CSPValue</param-name>
-       <param-value>default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'</param-value>
+       <param-value>default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'</param-value>
      </init-param>
    </filter>
    <filter-mapping>

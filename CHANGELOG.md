@@ -6,6 +6,72 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Display math lost its large delimiters on every page.** KaTeX embeds several of its faces
+  as `data:font/woff2` inside its own stylesheet — `KaTeX_Size3`, the large-delimiter face,
+  among them — but `font-src` listed only `'self'` and the Google font host, so the browser
+  blocked them and every page with display math fell back to a substitute for its big
+  parentheses, sums and integrals. Found in production by a headless-browser probe reporting
+  a real violation (`blockedURI: "data"`, `violatedDirective: "font-src"`), not by reading the
+  policy.
+- **The stale-asset recovery ladder could redirect forever.** Its two-attempt ceiling was
+  stored only in `sessionStorage`, so a browser that accepts `setItem` but never persists it —
+  private modes, blocked site data, partitioned storage — made every reload look like the
+  first, and the ladder never terminated. Measured against a fixture with exactly that storage
+  shape: **1,069 requests in 8 seconds**, each appending another `_cb` to an ever-growing URL.
+  The attempt counter now travels in the query string, which `location.replace` always
+  preserves, so the ceiling holds with no storage at all; storage access is wrapped for both
+  reads and writes, and the cache-buster is replaced rather than appended. Same fixture after:
+  6 requests, then the fallback error screen. This is the same guard that turned Cloudflare's
+  injected analytics beacon into a redirect loop in production; 2.4.20 stopped the third-party
+  trigger, and this closes the underlying unbounded path.
+- **Every authenticated request from a service account logged a stack trace.**
+  `JDBCUserDatabase.mapProfileRow` guarded only against a null `attributes` column, but an
+  empty string passes that guard, decodes to zero bytes, and makes `ObjectInputStream` throw
+  `EOFException` reading the stream header — so a row written outside `save()` produced an
+  ERROR per request while the login itself succeeded. Blank now degrades quietly like null,
+  and the message for genuinely corrupt data names the affected login instead of leaving an
+  operator to guess. `bin/db/one-shots/null_out_empty_user_attributes.sh` repairs existing
+  rows (a one-shot, not a migration).
+- **The SSO self-check reported an outage that wasn't one.** A single OIDC discovery attempt
+  at boot lost a cold-start network race on 2 of 5 production restarts and logged "SSO login
+  will not work until this is resolved" — while Google SSO worked minutes later. It now
+  retries a bounded number of times before declaring failure, says how many attempts it made,
+  and logs recovery at INFO; startup is still never blocked on it.
+- **The nightly retrieval-quality sweep evaluated two modes that cannot produce a result.**
+  `HYBRID_GRAPH` and `HYBRID_GRAPH_WEIGHTED` are wire-compat labels for a rerank deleted in
+  2026-07, so each nightly run spent two full query sets reproducing the HYBRID row byte for
+  byte (runs 470/471/472 in production share an identical ndcg@5) and logged a warning per
+  query. `RetrievalMode.retired()` now carries that fact on the enum itself, so the sweep
+  skips them and retiring the next mode is one edit; explicitly requesting a retired mode
+  still runs it.
+
+### Operations
+
+- **The Cloudflare deploy gate could pass a looping build.** `cf-probe.py` read chromedriver's
+  response unconditionally, so when a WebDriver call raced an in-flight navigation the returned
+  *error object* was stored into `url_history` as though it were a URL. A page reloading ~120
+  times a second therefore reported `url_change_count: 0`, `loop_detected: false`, and exit 0.
+  Navigation aborts are now counted as evidence of navigation rather than sampled as URLs, a
+  sustained run of them reports a loop, and a run that never obtains a single stable reading
+  fails outright — a gate that cannot see must not report "clean".
+- **`bin/smoke-wiki.sh` could not smoke a public deployment.** It led with `/api/health`, which
+  `InternalNetworkFilter` correctly blocks from external IPs, so against the live site it
+  aborted on a 403 before testing anything. A 403 from a non-local host is now reported as
+  "correctly firewalled" and the run continues; on a loopback/RFC1918/`.lan` host every health
+  failure still fails the smoke, including a 403.
+- **Production logs kept hours, not weeks.** No compose file set a `logging:` block, so
+  retention was whatever the daemon happened to default to — an audit could recover only 3,544
+  lines across 3 days, with a confirmed zero-data gap from 2026-08-21 to 2026-09-07 that made
+  the Cloudflare incident undiagnosable after the fact. `docker-compose.prod.yml` now pins
+  json-file logging with an explicit size and file count for every long-lived service.
+- **`reconcile_page_canonical_ids.sh` fixed two pages that were no longer the problem.** It
+  carried hardcoded slug/id pairs from a previous incident while production was warning about
+  22 different ones on every restart. It now parses the recovery hint that
+  `PageCanonicalIdsDao` already logs, de-duplicates to distinct pairs (which is why 110 raw
+  warnings collapse to 22 pages — the same unfixed row re-warns on every boot), validates each
+  value before it reaches SQL, and keeps the dry-run-by-default, `--apply`-to-commit contract.
+
 ## [2.4.20] - 2026-09-07
 
 ### Fixed

@@ -153,6 +153,25 @@ class SecurityHeaderRegistrationTest {
                 "CSP must set base-uri 'self'; was: " + csp );
     }
 
+    /**
+     * KaTeX ships several of its math faces as {@code data:font/woff2} URIs embedded directly in
+     * its stylesheet (KaTeX_Size3, the large-delimiter face, among them), so a font-src without
+     * {@code data:} silently blocks them and every page with display math renders its big
+     * delimiters and operators in a fallback face. Caught in production by a headless-browser probe
+     * reporting a real CSP violation: blockedURI "data", violatedDirective "font-src".
+     */
+    @Test
+    void csp_fontSrc_allowsTheDataUriFontsKatexShipsInline() throws Exception {
+        final String csp = initParam( webXml(), "CSPFilter", "CSPValue" );
+        assertNotNull( csp, "CSPFilter must declare a CSPValue init-param (the production policy)" );
+        final int fontSrc = csp.indexOf( "font-src" );
+        assertTrue( fontSrc >= 0, "CSP must declare font-src; was: " + csp );
+        final int end = csp.indexOf( ';', fontSrc );
+        final String directive = end < 0 ? csp.substring( fontSrc ) : csp.substring( fontSrc, end );
+        assertTrue( directive.contains( "data:" ),
+                "font-src must allow data: or KaTeX's inline woff2 faces are blocked; was: " + directive );
+    }
+
     @Test
     void securityHeaderFilters_runBeforeChainShortCircuitingContentFilters() throws Exception {
         final Document doc = webXml();

@@ -32,7 +32,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -164,7 +166,7 @@ class DefaultRetrievalQualityRunnerTest {
     }
 
     @Test
-    void runAllForNightly_runsEveryMode_overSeededSet() throws Exception {
+    void runAllForNightly_skipsRetiredModes() throws Exception {
         // Seed the set with the runner's nightly id so runAllForNightly exercises it.
         try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
             s.executeUpdate( "INSERT INTO retrieval_query_sets (id, name) VALUES ('core-agent-queries', 'Core')" );
@@ -173,7 +175,17 @@ class DefaultRetrievalQualityRunnerTest {
         final DefaultRetrievalQualityRunner run = runner( ( m, q ) -> List.of( "CitingAWikiPage" ) );
         run.runAllForNightly();
         final List< RetrievalRunResult > rows = dao.recentRuns( "core-agent-queries", null, 100 );
-        assertEquals( RetrievalMode.values().length, rows.size() );
+
+        // HYBRID_GRAPH / HYBRID_GRAPH_WEIGHTED are retired wire-compat labels only - the KG
+        // page-level graph rerank was deleted, so SearchWiringHelper silently degrades both
+        // to HYBRID. Running them nightly wastes work and writes a byte-identical duplicate
+        // ndcg row (plus a WARN log per query) that adds no signal over the HYBRID row.
+        final Set< RetrievalMode > modesRun = rows.stream()
+            .map( RetrievalRunResult::mode )
+            .collect( Collectors.toSet() );
+        assertEquals( Set.of( RetrievalMode.BM25, RetrievalMode.HYBRID ), modesRun,
+            "nightly run must skip retired modes that can't produce a distinct result" );
+        assertEquals( 2, rows.size(), "exactly one row per non-retired mode" );
     }
 
     @Test

@@ -57,6 +57,16 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.AppenderRef;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 
 /**
  *
@@ -1012,5 +1022,119 @@ public class JDBCUserDatabaseTest {
                 Assertions.assertEquals( 0, rs.getInt( 1 ), "No roles row should exist either." );
             }
         }
+    }
+
+    /**
+     * Runs {@code action}, capturing any log4j events emitted by {@link AbstractUserDatabase}'s
+     * logger during the call. Modeled on the capturing-appender pattern in
+     * {@code PageCanonicalIdsDaoTest}.
+     */
+    private List< org.apache.logging.log4j.core.LogEvent > captureAbstractUserDatabaseLogEvents(
+            final org.junit.jupiter.api.function.Executable action ) throws Throwable {
+        final List< org.apache.logging.log4j.core.LogEvent > captured = new CopyOnWriteArrayList<>();
+        final LoggerContext ctx = ( LoggerContext ) LogManager.getContext( false );
+        final Configuration config = ctx.getConfiguration();
+
+        final AbstractAppender capturingAppender = new AbstractAppender(
+                "CapturingAppender-" + Thread.currentThread().getId(), null,
+                PatternLayout.createDefaultLayout(), true, null ) {
+            @Override
+            public void append( final org.apache.logging.log4j.core.LogEvent event ) {
+                captured.add( event.toImmutable() );
+            }
+        };
+        capturingAppender.start();
+        config.addAppender( capturingAppender );
+
+        final String loggerName = AbstractUserDatabase.class.getName();
+        LoggerConfig loggerConfig = config.getLoggerConfig( loggerName );
+        if ( !loggerConfig.getName().equals( loggerName ) ) {
+            loggerConfig = LoggerConfig.createLogger( false, Level.WARN, loggerName,
+                    "true", new AppenderRef[0], null, config, null );
+            config.addLogger( loggerName, loggerConfig );
+        }
+        loggerConfig.addAppender( capturingAppender, Level.WARN, null );
+        ctx.updateLoggers();
+
+        try {
+            action.execute();
+        } finally {
+            loggerConfig.removeAppender( "CapturingAppender-" + Thread.currentThread().getId() );
+            ctx.updateLoggers();
+            capturingAppender.stop();
+        }
+        return captured;
+    }
+
+    /**
+     * Reproduces the P5 production defect: an empty-string {@code attributes} column
+     * currently passes {@code mapProfileRow}'s null guard, reaches
+     * {@code Serializer.deserializeFromBase64("")}, and blows up with an EOFException that
+     * is logged at ERROR on every single request from an account whose row has this shape
+     * (e.g. a Basic-Auth service account that never had attributes written). The row must
+     * still map to a usable profile with an empty attribute map and no exception should
+     * propagate — but after the fix, no ERROR should be logged either: an empty value is not
+     * a parse failure, it is simply "no attributes".
+     */
+    @Test
+    public void testEmptyStringAttributesDoesNotLogParseError() throws Throwable {
+        final String login = "jakemon-shipper";
+        try ( final Connection conn = m_ds.getConnection();
+              final Statement stmt = conn.createStatement() ) {
+            stmt.executeUpdate( "INSERT INTO users (uid,email,login_name,password,created,attributes) VALUES (" +
+                    "'-1111111111111111111'," + "'jakemon-shipper@mailinator.com'," + "'" + login + "'," +
+                    "'{SHA}457b08e825da547c3b77fbc1ff906a1d00a7daee'," +
+                    "'" + new Timestamp( System.currentTimeMillis() ) + "'," +
+                    "''" + ");" );
+        }
+
+        final UserProfile[] found = new UserProfile[ 1 ];
+        final List< org.apache.logging.log4j.core.LogEvent > events =
+                captureAbstractUserDatabaseLogEvents( () -> found[ 0 ] = m_db.findByLoginName( login ) );
+
+        Assertions.assertNotNull( found[ 0 ], "A row with empty attributes must still map to a profile." );
+        Assertions.assertTrue( found[ 0 ].getAttributes().isEmpty(), "No attributes should have been parsed." );
+
+        final List< org.apache.logging.log4j.core.LogEvent > errors = events.stream()
+                .filter( e -> e.getLevel() == Level.ERROR )
+                .toList();
+        Assertions.assertTrue( errors.isEmpty(),
+                "An empty-string attributes value is not a parse failure and must not log an ERROR; got: " + errors );
+    }
+
+    /**
+     * A non-blank but genuinely corrupt {@code attributes} value must still degrade quietly
+     * (login proceeds with an empty attribute map) but the ERROR it logs must name the
+     * affected login so an operator can tell which account is broken.
+     */
+    @Test
+    public void testMalformedNonBlankAttributesLogsAffectedLoginName() throws Throwable {
+        final String login = "corrupt-attrs-user";
+        try ( final Connection conn = m_ds.getConnection();
+              final Statement stmt = conn.createStatement() ) {
+            // "AAAA" is valid Base64 but decodes to 3 zero bytes - too short to be a real
+            // ObjectInputStream stream header, so deserialization still fails with an
+            // IOException, just like the empty-string case, but the value itself is non-blank.
+            stmt.executeUpdate( "INSERT INTO users (uid,email,login_name,password,created,attributes) VALUES (" +
+                    "'-2222222222222222222'," + "'corrupt-attrs-user@mailinator.com'," + "'" + login + "'," +
+                    "'{SHA}457b08e825da547c3b77fbc1ff906a1d00a7daee'," +
+                    "'" + new Timestamp( System.currentTimeMillis() ) + "'," +
+                    "'AAAA'" + ");" );
+        }
+
+        final UserProfile[] found = new UserProfile[ 1 ];
+        final List< org.apache.logging.log4j.core.LogEvent > events =
+                captureAbstractUserDatabaseLogEvents( () -> found[ 0 ] = m_db.findByLoginName( login ) );
+
+        Assertions.assertNotNull( found[ 0 ], "A row with corrupt attributes must still map to a profile." );
+        Assertions.assertTrue( found[ 0 ].getAttributes().isEmpty(), "No attributes should have been parsed." );
+
+        final List< org.apache.logging.log4j.core.LogEvent > errors = events.stream()
+                .filter( e -> e.getLevel() == Level.ERROR )
+                .toList();
+        Assertions.assertEquals( 1, errors.size(), "Exactly one ERROR should be logged for the corrupt row." );
+        final String message = errors.get( 0 ).getMessage().getFormattedMessage();
+        Assertions.assertTrue( message.contains( login ),
+                "The ERROR must name the affected login so an operator can tell which account is broken; got: " + message );
     }
 }

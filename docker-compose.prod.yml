@@ -1,9 +1,24 @@
 # Prod overrides: resource limits, host bind mounts, backup service
 # Usage: WIKANTIK_PAGES_DIR=/srv/wikantik/pages docker compose \
 #          -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# Explicit log retention (2026-09-08): no compose file in this repo set a
+# `logging:` block, so retention was entirely at the mercy of docker1's
+# daemon default — an audit could recover only 3,544 lines across 3
+# calendar days, with an explicit --since/--until probe confirming ZERO
+# retained data for 2026-08-21..2026-09-07 (a 19-day hole). json-file with
+# these caps keeps weeks of history at this traffic level instead of hours;
+# applied uniformly below to every long-lived service in this file.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "10"
+
 services:
   db:
     restart: always
+    logging: *default-logging
     # Published so the jakemon monitoring agent's Postgres exporter can
     # reach the DB via host.docker.internal:5432. DB_HOST_BIND defaults to
     # the docker0 bridge gateway, keeping the DB off the LAN.
@@ -31,6 +46,7 @@ services:
   wikantik:
     # Build context is inherited from the base docker-compose.yml.
     restart: always
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -63,6 +79,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
+    logging: *default-logging
     environment:
       # Keep the 0.6B model resident (~1 GiB) so queries never pay reload.
       OLLAMA_KEEP_ALIVE: "-1"
@@ -77,6 +94,7 @@ services:
   backup:
     image: postgres:18-alpine
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       db:
         condition: service_healthy

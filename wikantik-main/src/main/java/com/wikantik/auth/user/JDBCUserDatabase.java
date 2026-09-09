@@ -505,17 +505,33 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         profile.setBio( rs.getString( "bio" ) );
         profile.setPasswordMustChange( rs.getBoolean( "password_must_change" ) );
 
-        // Fetch the user attributes
+        // Fetch the user attributes. A blank value (as opposed to a genuinely corrupt one) is
+        // not a parse failure - it just means the row has no attributes - so it is skipped
+        // quietly rather than being handed to the deserializer, which would otherwise blow up
+        // with an EOFException on every single request from an account whose row has this shape.
         final String rawAttributes = rs.getString( "attributes" );
-        if ( rawAttributes != null ) {
+        if ( StringUtils.isNotBlank( rawAttributes ) ) {
             try {
                 final Map<String,? extends Serializable> userAttributes = Serializer.deserializeFromBase64( rawAttributes );
                 profile.getAttributes().putAll( userAttributes );
             } catch ( final IOException e ) {
-                LOG.error( "Could not parse user profile attributes!", e );
+                LOG.error( "Could not parse user profile attributes for login '{}'!", describeLoginNameForLog( rs ), e );
             }
         }
         return profile;
+    }
+
+    /**
+     * Reads {@code login_name} from {@code rs} for use in a diagnostic log message, never
+     * letting a failure to read it (or a null value) throw out of the diagnostic itself.
+     */
+    private static String describeLoginNameForLog( final ResultSet rs ) {
+        try {
+            final String loginName = rs.getString( "login_name" );
+            return loginName != null ? loginName : "<unknown>";
+        } catch ( final SQLException e ) {
+            return "<unknown>";
+        }
     }
 
     /** Maps the current {@code users} row's {@code wiki_name}, or {@code null} (logged) when it is null/empty. */

@@ -30,10 +30,10 @@ import java.util.Optional;
 public enum RetrievalMode {
 
     /** BM25-only — Lucene baseline; no embedding, no graph. */
-    BM25( "bm25" ),
+    BM25( "bm25", false ),
 
     /** BM25 fused with dense embeddings (RRF). The production default. */
-    HYBRID( "hybrid" ),
+    HYBRID( "hybrid", false ),
 
     /**
      * RETIRED — was hybrid plus the entity-co-mention graph rerank step.
@@ -45,23 +45,38 @@ public enum RetrievalMode {
      * survives only so historical {@code retrieval_runs.mode} rows still parse
      * via {@link #fromWire}; a fresh run degrades to {@link #HYBRID}.</p>
      */
-    HYBRID_GRAPH( "hybrid_graph" ),
+    HYBRID_GRAPH( "hybrid_graph", true ),
 
     /**
      * RETIRED — was the {@link #HYBRID_GRAPH} variant weighting graph traversal
      * by per-edge tier and per-mention confidence. Retained for wire
      * compatibility on the same terms as {@link #HYBRID_GRAPH}.
      */
-    HYBRID_GRAPH_WEIGHTED( "hybrid_graph_weighted" );
+    HYBRID_GRAPH_WEIGHTED( "hybrid_graph_weighted", true );
 
     private final String wireName;
+    private final boolean retired;
 
-    RetrievalMode( final String wireName ) {
+    RetrievalMode( final String wireName, final boolean retired ) {
         this.wireName = wireName;
+        this.retired = retired;
     }
 
     public String wireName() {
         return wireName;
+    }
+
+    /**
+     * Whether this mode is kept only so historical {@code retrieval_runs.mode} rows still
+     * parse. A retired mode cannot produce a result distinct from {@link #HYBRID} — the
+     * pipeline it named no longer exists — so evaluating one costs a full query set and
+     * yields a duplicate row plus a warning per query. Sweeps that enumerate
+     * {@link #values()} should skip these; anything that parses stored rows must not.
+     *
+     * <p>Lives here rather than in each caller so retiring the next mode is one edit.</p>
+     */
+    public boolean retired() {
+        return retired;
     }
 
     /** Parses the lowercase / underscore form back into an enum. */

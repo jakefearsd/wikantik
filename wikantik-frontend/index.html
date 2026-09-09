@@ -100,39 +100,68 @@
         var src = e.target.src || e.target.href || '';
         if (src && src.indexOf(window.location.origin) !== 0) return;
 
-        var raw = sessionStorage.getItem('__wikantik_reload');
-        var state = null;
-        try { state = raw ? JSON.parse(raw) : null; } catch (_) {}
+        // Attempt state is read from BOTH sessionStorage and the URL, and the URL is
+        // authoritative for termination. Storage alone is not safe to depend on: a browser
+        // that accepts setItem but never persists it (private modes, blocked site data,
+        // partitioned storage) makes every reload look like attempt 0, so the ladder below
+        // never reaches its ceiling and redirects forever. Measured against a fixture with
+        // exactly that storage shape: 1,069 requests in 8 seconds. Carrying the counter in
+        // the query string removes the dependency entirely - location.replace always
+        // preserves it - so the worst case is two redirects and the fallback error.
+        var attempt = 0;
+        var fromUrl = /[?&]_r=(\d+)/.exec( window.location.search );
+        if ( fromUrl ) { attempt = parseInt( fromUrl[ 1 ], 10 ) || 0; }
+        try {
+          var raw = sessionStorage.getItem( '__wikantik_reload' );
+          if ( raw ) {
+            var st = JSON.parse( raw );
+            if ( st && st.attempt > attempt ) { attempt = st.attempt; }
+          }
+        } catch ( _ ) { /* storage unavailable - the URL counter carries it */ }
 
-        if (!state) {
-          // Attempt 1: cache-busted redirect — appends ?_cb=<timestamp> to defeat proxy caches
-          sessionStorage.setItem('__wikantik_reload', JSON.stringify({ attempt: 1, ts: Date.now() }));
-          var loc = window.location;
-          var url = loc.pathname + (loc.search ? loc.search + '&' : '?') + '_cb=' + Date.now();
-          window.location.replace(url);
+        function remember( n ) {
+          try {
+            sessionStorage.setItem( '__wikantik_reload', JSON.stringify( { attempt: n, ts: Date.now() } ) );
+          } catch ( _ ) { /* best effort; _r in the URL is the durable copy */ }
+        }
+        // Rewrite rather than append: the previous version concatenated a fresh _cb onto the
+        // existing query string every time, so a loop produced an ever-growing URL.
+        function retryUrl( path, n ) {
+          var params = new URLSearchParams( window.location.search );
+          params.set( '_r', String( n ) );
+          params.set( '_cb', String( Date.now() ) );
+          return path + '?' + params.toString();
+        }
+
+        if ( attempt >= 2 ) {
+          // Ladder exhausted - stop redirecting and tell the user.
+          showFallbackError();
           return;
         }
 
-        if (state.attempt === 1) {
-          // Attempt 2: verify staleness via build-version.txt, then redirect to /index.html
-          sessionStorage.setItem('__wikantik_reload', JSON.stringify({ attempt: 2, ts: Date.now() }));
-          fetch('/build-version.txt?_cb=' + Date.now())
-            .then(function(r) { return r.ok ? r.text() : null; })
-            .then(function(serverVer) {
-              var metaEl = document.querySelector('meta[name="build-version"]');
-              var myVer = metaEl ? metaEl.getAttribute('content') : '';
-              if (serverVer && serverVer.trim() !== myVer) {
-                window.location.replace('/index.html?_cb=' + Date.now());
-              } else {
-                showFallbackError();
-              }
-            })
-            .catch(function() { showFallbackError(); });
+        if ( attempt === 0 ) {
+          // Attempt 1: cache-busted redirect - defeats intermediary proxies holding a stale asset.
+          remember( 1 );
+          window.location.replace( retryUrl( window.location.pathname, 1 ) );
           return;
         }
 
-        // Attempts exhausted — show the fallback error
-        showFallbackError();
+        // Attempt 2: only redirect again if the server really is serving a newer build than
+        // the one this document was stamped with; otherwise the assets are not stale and
+        // another reload would achieve nothing.
+        remember( 2 );
+        fetch( '/build-version.txt?_cb=' + Date.now() )
+          .then( function( r ) { return r.ok ? r.text() : null; } )
+          .then( function( serverVer ) {
+            var metaEl = document.querySelector( 'meta[name="build-version"]' );
+            var myVer = metaEl ? metaEl.getAttribute( 'content' ) : '';
+            if ( serverVer && serverVer.trim() !== myVer ) {
+              window.location.replace( retryUrl( '/index.html', 2 ) );
+            } else {
+              showFallbackError();
+            }
+          } )
+          .catch( function() { showFallbackError(); } );
       }, true);
 
       function showFallbackError() {

@@ -140,6 +140,10 @@ public final class DefaultRetrievalQualityRunner implements RetrievalQualityRunn
                     continue;
                 }
                 for ( final RetrievalMode mode : RetrievalMode.values() ) {
+                    if ( mode.retired() ) {
+                        LOG.debug( "Nightly: mode {} is retired; skipping", mode.wireName() );
+                        continue;
+                    }
                     try {
                         runNow( setId, mode );
                     } catch ( final RuntimeException e ) {

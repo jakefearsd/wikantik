@@ -21,6 +21,8 @@ package com.wikantik.auth.sso;
 import org.junit.jupiter.api.Test;
 
 import java.net.SocketTimeoutException;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -67,5 +69,57 @@ class OidcDiscoverySelfCheckTest {
     void nullBodyWith200_isInvalidPayload() {
         assertEquals( OidcDiscoverySelfCheck.Outcome.INVALID_PAYLOAD,
                 check.check( URI, uri -> new OidcDiscoverySelfCheck.FetchResult( 200, null ) ) );
+    }
+
+    // --- Bounded retry (P7): a lost cold-start network race must not be reported as a
+    // startup outage when a later attempt succeeds. ---
+
+    @Test
+    void transientFailureThenSuccess_retriesAndReturnsOk() {
+        // Exactly the production incident: the first attempt loses a cold-start network
+        // race (connect timeout), a later attempt succeeds.
+        final AtomicInteger calls = new AtomicInteger();
+        final OidcDiscoverySelfCheck.Outcome outcome = check.check( URI, uri -> {
+            if( calls.incrementAndGet() == 1 ) {
+                throw new SocketTimeoutException( "Connect timed out" );
+            }
+            return new OidcDiscoverySelfCheck.FetchResult( 200, VALID_BODY );
+        }, 3, Duration.ofMillis( 1 ) );
+
+        assertEquals( OidcDiscoverySelfCheck.Outcome.OK, outcome );
+        assertEquals( 2, calls.get(), "must retry after the first transient failure and succeed on the second" );
+    }
+
+    @Test
+    void persistentFailure_exhaustsEveryConfiguredAttempt() {
+        final AtomicInteger calls = new AtomicInteger();
+        final OidcDiscoverySelfCheck.Outcome outcome = check.check( URI, uri -> {
+            calls.incrementAndGet();
+            throw new SocketTimeoutException( "Connect timed out" );
+        }, 3, Duration.ofMillis( 1 ) );
+
+        assertEquals( OidcDiscoverySelfCheck.Outcome.UNREACHABLE, outcome );
+        assertEquals( 3, calls.get(), "a genuinely unreachable provider must still surface clearly after every attempt fails" );
+    }
+
+    @Test
+    void singleAttemptOverload_doesNotRetry() {
+        // The original two-arg check() used by every test above (and by any other existing
+        // caller) stays single-attempt with no retry delay — only checkAsync's production
+        // path opts into the bounded retry.
+        final AtomicInteger calls = new AtomicInteger();
+        final OidcDiscoverySelfCheck.Outcome outcome = check.check( URI, uri -> {
+            calls.incrementAndGet();
+            throw new SocketTimeoutException( "Connect timed out" );
+        } );
+
+        assertEquals( OidcDiscoverySelfCheck.Outcome.UNREACHABLE, outcome );
+        assertEquals( 1, calls.get() );
+    }
+
+    @Test
+    void maxAttemptsBelowOne_throws() {
+        org.junit.jupiter.api.Assertions.assertThrows( IllegalArgumentException.class,
+                () -> check.check( URI, uri -> new OidcDiscoverySelfCheck.FetchResult( 200, VALID_BODY ), 0, Duration.ZERO ) );
     }
 }

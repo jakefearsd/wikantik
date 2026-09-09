@@ -8,8 +8,9 @@ same protocol Selenium itself sits on top of, without pulling in the package.
 It loads a URL headless, watches it for a fixed settle period, and reports
 (as JSON) whether the page redirect-looped, whether the SPA actually booted,
 and any CSP violations or window errors seen along the way. Exit code is
-non-zero when a loop was detected or the SPA never booted, so this can gate a
-deploy.
+non-zero when a loop was detected, the SPA never booted, or the settle window
+never yielded a single trustworthy URL reading (unstable_reading — see below),
+so this can gate a deploy.
 
 Why polling instead of a hook that fires before the page's own scripts run:
 classic WebDriver (unlike CDP's Page.addScriptToEvaluateOnNewDocument) has no
@@ -19,8 +20,13 @@ and racing to attach listeners in the small window that opens up — good
 enough for diagnostics, but not provably complete, which is why the loop
 signal itself does NOT depend on those listeners: it comes from repeatedly
 reading window.location.href (via the WebDriver "get current URL" command)
-over the whole settle window and counting how many distinct URLs show up.
-That's robust even if every early error event was missed.
+over the whole settle window and counting how many distinct URLs show up —
+plus, since a page looping fast enough aborts that WebDriver call mid-flight
+on every single poll (chromedriver reports a "timeout" / "aborted by
+navigation" error instead of a URL), counting those aborts too. Both count
+as loop evidence; neither is ever stored in url_history as though it were a
+URL. That's robust even if every early error event was missed, and — via
+unstable_reading — even if every poll in the window failed outright.
 
 Dependency-free: Python 3 standard library only (urllib, no selenium).
 """
@@ -225,12 +231,34 @@ def execute(driver_port: int, session_id: str, script: str):
     return result.get("value")
 
 
-def get_url(driver_port: int, session_id: str) -> str | None:
+def get_url(driver_port: int, session_id: str) -> tuple[str | None, bool]:
+    """Return (url, nav_evidence).
+
+    `url` is the current URL as a plain string, or None when no URL sample
+    was obtained. `nav_evidence` is True when the WebDriver call itself
+    failed in a way that is, on its own, proof a navigation was in flight —
+    a low-level timeout/connection failure, or chromedriver's W3C error
+    payload for a call that raced an in-progress navigation (its "value" is
+    then an error object, e.g. {"error": "timeout", "message": "... aborted
+    by navigation: loader has changed while resolving nodes ..."} rather
+    than a URL string). A page reloading fast enough aborts *every* poll
+    this way, so this signal — never the dict itself — is what must reach
+    the loop-detection logic; the dict must never be treated as a URL.
+    """
     try:
         result = _http_json("GET", "http://127.0.0.1:%d/session/%s/url" % (driver_port, session_id), timeout=5)
     except (urllib.error.URLError, OSError):
-        return None
-    return result.get("value")
+        # Local chromedriver connection dropped/timed out mid-call — the
+        # same failure mode the caught HTTPError path below models, just
+        # surfaced as a transport exception instead of an error body.
+        return None, True
+    value = result.get("value")
+    if isinstance(value, str) and value:
+        return value, False
+    if isinstance(value, dict):
+        # A dict here is a WebDriver error payload, never a URL.
+        return None, True
+    return None, False
 
 
 def quit_session(driver_port: int, session_id: str) -> None:
@@ -264,13 +292,23 @@ def run_probe(args: argparse.Namespace) -> dict:
 
         url_history: list[str] = []
         last_url = None
+        total_polls = 0
+        successful_sample_count = 0
+        nav_abort_count = 0
         deadline = time.time() + args.settle
         while time.time() < deadline:
             execute(driver_port, session_id, INSTRUMENT_JS)  # re-attach if a reload wiped it
-            cur = get_url(driver_port, session_id)
-            if cur and cur != last_url:
-                url_history.append(cur)
-                last_url = cur
+            cur, nav_evidence = get_url(driver_port, session_id)
+            total_polls += 1
+            if nav_evidence:
+                # Evidence of navigation, not a sample: never store it as a
+                # URL, just count it. See get_url()'s docstring.
+                nav_abort_count += 1
+            elif cur:
+                successful_sample_count += 1
+                if cur != last_url:
+                    url_history.append(cur)
+                    last_url = cur
             time.sleep(args.poll_interval)
 
         report = execute(driver_port, session_id, REPORT_JS) or {}
@@ -279,14 +317,33 @@ def run_probe(args: argparse.Namespace) -> dict:
         errors = [e for e in events if e.get("type") == "error"]
 
         url_change_count = max(0, len(url_history) - 1)
-        final_url = url_history[-1] if url_history else get_url(driver_port, session_id)
+        final_sample_url, _ = get_url(driver_port, session_id)
+        final_url = url_history[-1] if url_history else final_sample_url
+
+        nav_abort_ratio = (nav_abort_count / total_polls) if total_polls else 0.0
+        # A handful of aborted polls can happen innocently around a single
+        # reload; a sustained run of them across the whole sampling window
+        # is itself the loop signal for a page reloading too fast for
+        # url_history to ever capture two distinct URLs (P4) — every poll
+        # in that window comes back as navigation evidence instead of a URL.
+        nav_abort_loop = nav_abort_count >= 3 and nav_abort_ratio >= 0.3
+        # Zero successful samples across the entire settle window means we
+        # never got a single trustworthy URL reading — a gate that cannot
+        # see the page must not report it clean, regardless of what the
+        # final one-shot report happens to say.
+        unstable_reading = total_polls > 0 and successful_sample_count == 0
 
         return {
             "requested_url": args.url,
             "final_url": final_url,
             "url_history": url_history,
             "url_change_count": url_change_count,
-            "loop_detected": url_change_count > 1,
+            "loop_detected": bool(url_change_count > 1 or nav_abort_loop),
+            "total_polls": total_polls,
+            "successful_sample_count": successful_sample_count,
+            "nav_abort_count": nav_abort_count,
+            "nav_abort_ratio": round(nav_abort_ratio, 3),
+            "unstable_reading": unstable_reading,
             "document_ready_state": report.get("readyState"),
             "root_booted": bool(report.get("rootChildCount", -1) > 0),
             "loading_error_visible": bool(report.get("loadingErrorVisible")),
@@ -354,7 +411,10 @@ def main(argv=None) -> int:
         return 2
 
     print(json.dumps(result, indent=2))
-    return 1 if (result["loop_detected"] or not result["root_booted"]) else 0
+    # unstable_reading (zero trustworthy URL samples all settle window) is its
+    # own failure reason, independent of loop_detected/root_booted: a probe
+    # that couldn't get a stable reading must never report a clean pass.
+    return 1 if (result["loop_detected"] or not result["root_booted"] or result["unstable_reading"]) else 0
 
 
 if __name__ == "__main__":

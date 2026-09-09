@@ -55,6 +55,16 @@ public final class OidcDiscoverySelfCheck {
 
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds( 10 );
 
+    /**
+     * {@link #checkAsync} production retry policy. A cold-start network race (DNS / route
+     * not yet up when this host's own boot sequence reaches the probe) can fail a single
+     * attempt and then work fine moments later — production lost that race on 2 of 5
+     * restarts. A bounded retry absorbs that without masking a genuinely unreachable
+     * provider: only failure across every attempt is reported as an error.
+     */
+    static final int DEFAULT_MAX_ATTEMPTS = 3;
+    static final Duration DEFAULT_RETRY_DELAY = Duration.ofSeconds( 2 );
+
     /** Result of a discovery-document reachability probe. */
     public enum Outcome {
         /** Reachable and returned a valid discovery document. */
@@ -76,40 +86,127 @@ public final class OidcDiscoverySelfCheck {
         FetchResult fetch( String discoveryUri ) throws Exception;
     }
 
+    /** The outcome and human-readable detail of a single fetch attempt. */
+    private record Attempt( Outcome outcome, String detail, Throwable cause ) { }
+
     /**
      * Runs the probe with an injected fetcher, logs a single explicit result,
      * and returns the outcome. Never throws — a diagnostic must not itself break
-     * anything.
+     * anything. Single attempt, no retry — see the {@link #check(String, DiscoveryFetcher, int, Duration)}
+     * overload for the retrying production policy used by {@link #checkAsync}.
      *
      * @param discoveryUri the OIDC discovery document URL
      * @param fetcher      how to fetch it (injected for testing)
      * @return the classified {@link Outcome}
      */
     public Outcome check( final String discoveryUri, final DiscoveryFetcher fetcher ) {
+        return check( discoveryUri, fetcher, 1, Duration.ZERO );
+    }
+
+    /**
+     * Runs the probe with an injected fetcher, retrying up to {@code maxAttempts} times
+     * (sleeping {@code retryDelay} between each) before logging a failure. Never throws.
+     * <p>
+     * A single failed attempt at boot is not proof the provider is unreachable — it can be
+     * a cold-start network race that resolves within seconds — so only a failure that
+     * persists across every attempt is reported, and the resulting message says exactly how
+     * many attempts were made so the log line reflects what was actually observed rather
+     * than declaring an outage from one data point.
+     *
+     * @param discoveryUri the OIDC discovery document URL
+     * @param fetcher      how to fetch it (injected for testing)
+     * @param maxAttempts  total attempts to make (must be {@code >= 1}); 1 means no retry
+     * @param retryDelay   delay between attempts (ignored when {@code maxAttempts <= 1})
+     * @return the classified {@link Outcome} of the last attempt
+     */
+    public Outcome check( final String discoveryUri, final DiscoveryFetcher fetcher,
+                           final int maxAttempts, final Duration retryDelay ) {
+        if( maxAttempts < 1 ) {
+            throw new IllegalArgumentException( "maxAttempts must be >= 1" );
+        }
+        Attempt last = null;
+        for( int attempt = 1; attempt <= maxAttempts; attempt++ ) {
+            last = attemptOnce( discoveryUri, fetcher );
+            if( last.outcome() == Outcome.OK ) {
+                if( attempt == 1 ) {
+                    LOG.info( "OIDC discovery self-check OK: {} is reachable and returned a valid discovery document.",
+                            discoveryUri );
+                } else {
+                    LOG.info( "OIDC discovery self-check OK: {} is reachable and returned a valid discovery document "
+                            + "(attempt {} of {}, after {} earlier failed attempt(s) — likely a transient cold-start race).",
+                            discoveryUri, attempt, maxAttempts, attempt - 1 );
+                }
+                return Outcome.OK;
+            }
+            if( attempt < maxAttempts ) {
+                LOG.debug( "OIDC discovery self-check attempt {} of {} failed for {} ({}); retrying in {}.",
+                        attempt, maxAttempts, discoveryUri, last.detail(), retryDelay );
+                if( !sleepQuietly( retryDelay ) ) {
+                    break;
+                }
+            }
+        }
+        logFailure( discoveryUri, maxAttempts, last );
+        return last.outcome();
+    }
+
+    /** Performs exactly one fetch + classification; never throws. */
+    private Attempt attemptOnce( final String discoveryUri, final DiscoveryFetcher fetcher ) {
         try {
             final FetchResult r = fetcher.fetch( discoveryUri );
             if( r.status() < 200 || r.status() >= 300 ) {
-                // LOG.error justified: fail-loud startup self-check; a bad discovery HTTP status breaks all SSO logins until an operator fixes it.
-                LOG.error( "OIDC discovery self-check FAILED for {}: HTTP {} — the identity provider is reachable but did "
-                        + "not return its discovery document. SSO login will not work until this is resolved.",
-                        discoveryUri, r.status() );
-                return Outcome.HTTP_ERROR;
+                return new Attempt( Outcome.HTTP_ERROR, "HTTP " + r.status(), null );
             }
             if( r.body() == null || !r.body().contains( REQUIRED_FIELD ) ) {
-                // LOG.error justified: fail-loud startup self-check; an invalid discovery payload breaks all SSO logins until an operator fixes it.
-                LOG.error( "OIDC discovery self-check FAILED for {}: HTTP {} but the response is not a valid OIDC discovery "
-                        + "document (no '{}'). SSO login will not work until this is resolved.",
-                        discoveryUri, r.status(), REQUIRED_FIELD );
-                return Outcome.INVALID_PAYLOAD;
+                return new Attempt( Outcome.INVALID_PAYLOAD,
+                        "HTTP " + r.status() + " but response missing '" + REQUIRED_FIELD + "'", null );
             }
-            LOG.info( "OIDC discovery self-check OK: {} is reachable and returned a valid discovery document.", discoveryUri );
-            return Outcome.OK;
+            return new Attempt( Outcome.OK, null, null );
         } catch( final Exception e ) {
-            // LOG.error justified: fail-loud startup self-check; an unreachable identity provider breaks all SSO logins until an operator fixes egress/DNS/TLS.
-            LOG.error( "OIDC discovery self-check FAILED for {}: {} — the identity provider is UNREACHABLE from this host "
-                    + "(check outbound network egress / DNS / TLS). SSO login will not work until this is resolved.",
-                    discoveryUri, e.toString(), e );
-            return Outcome.UNREACHABLE;
+            return new Attempt( Outcome.UNREACHABLE, e.toString(), e );
+        }
+    }
+
+    /** Logs the final, honest failure after every attempt has been exhausted. */
+    private void logFailure( final String discoveryUri, final int attemptsMade, final Attempt last ) {
+        final String attemptsPhrase = attemptsMade == 1 ? "1 attempt" : attemptsMade + " attempts";
+        switch( last.outcome() ) {
+            case HTTP_ERROR ->
+                // LOG.error justified: fail-loud startup self-check; a bad discovery HTTP status on every attempt breaks all SSO logins until an operator fixes it.
+                LOG.error( "OIDC discovery self-check FAILED for {} after {}: {} — the identity provider was reachable "
+                        + "but did not return its discovery document on any attempt. SSO login will not work until this is resolved.",
+                        discoveryUri, attemptsPhrase, last.detail() );
+            case INVALID_PAYLOAD ->
+                // LOG.error justified: fail-loud startup self-check; an invalid discovery payload on every attempt breaks all SSO logins until an operator fixes it.
+                LOG.error( "OIDC discovery self-check FAILED for {} after {}: {} — the response was not a valid OIDC "
+                        + "discovery document on any attempt. SSO login will not work until this is resolved.",
+                        discoveryUri, attemptsPhrase, last.detail() );
+            case UNREACHABLE ->
+                // LOG.error justified: fail-loud startup self-check; a still-unreachable identity provider after every retry breaks all SSO logins until an operator fixes egress/DNS/TLS.
+                LOG.error( "OIDC discovery self-check FAILED for {} after {}: {} — the identity provider was UNREACHABLE "
+                        + "from this host on every attempt (check outbound network egress / DNS / TLS); a single failed "
+                        + "attempt at boot can be a transient cold-start race, but {} did not recover. SSO login will not "
+                        + "work until this is resolved.",
+                        discoveryUri, attemptsPhrase, attemptsPhrase, last.cause() );
+            case OK -> { /* unreachable: OK returns before this is called */ }
+        }
+    }
+
+    /**
+     * Sleeps for {@code delay}, returning {@code false} (and restoring the interrupt flag)
+     * if interrupted, so the caller can stop retrying instead of looping through a shutdown.
+     */
+    private static boolean sleepQuietly( final Duration delay ) {
+        if( delay.isZero() || delay.isNegative() ) {
+            return true;
+        }
+        try {
+            Thread.sleep( delay.toMillis() );
+            return true;
+        } catch( final InterruptedException e ) {
+            LOG.warn( "OIDC discovery self-check retry wait interrupted; giving up on remaining attempts.", e );
+            Thread.currentThread().interrupt();
+            return false;
         }
     }
 
@@ -124,7 +221,8 @@ public final class OidcDiscoverySelfCheck {
         if( discoveryUri == null || discoveryUri.isBlank() ) {
             return;
         }
-        final Thread t = new Thread( () -> check( discoveryUri, httpFetcher( DEFAULT_TIMEOUT ) ),
+        final Thread t = new Thread(
+                () -> check( discoveryUri, httpFetcher( DEFAULT_TIMEOUT ), DEFAULT_MAX_ATTEMPTS, DEFAULT_RETRY_DELAY ),
                 "oidc-discovery-selfcheck" );
         t.setDaemon( true );
         t.start();

@@ -32,6 +32,7 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -54,6 +55,17 @@ import java.util.concurrent.TimeUnit;
 public final class DefaultRetrievalQualityRunner implements RetrievalQualityRunner, AutoCloseable {
 
     private static final Logger LOG = LogManager.getLogger( DefaultRetrievalQualityRunner.class );
+
+    /**
+     * The modes a nightly sweep evaluates: every mode that is not
+     * {@link RetrievalMode#retired()}. A retired mode names a pipeline that no longer exists, so
+     * it can only reproduce {@link RetrievalMode#HYBRID} byte for byte while costing a full query
+     * set and logging a warning per query. Resolved once here rather than branched inside the
+     * sweep, so the loop body stays about running an evaluation.
+     */
+    private static final List< RetrievalMode > NIGHTLY_MODES = Arrays.stream( RetrievalMode.values() )
+        .filter( m -> !m.retired() )
+        .toList();
 
     /** Run a single query through one mode and return ordered page-names. */
     @FunctionalInterface
@@ -139,11 +151,7 @@ public final class DefaultRetrievalQualityRunner implements RetrievalQualityRunn
                     LOG.debug( "Nightly: query set '{}' not present; skipping", setId );
                     continue;
                 }
-                for ( final RetrievalMode mode : RetrievalMode.values() ) {
-                    if ( mode.retired() ) {
-                        LOG.debug( "Nightly: mode {} is retired; skipping", mode.wireName() );
-                        continue;
-                    }
+                for ( final RetrievalMode mode : NIGHTLY_MODES ) {
                     try {
                         runNow( setId, mode );
                     } catch ( final RuntimeException e ) {

@@ -354,6 +354,27 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
                     } )
                     .toList();
 
+            // Always report the comparison, even (especially) when it found nothing. Logging only
+            // inside the branch below made "swept and everything was present" and "compared an
+            // empty page list and therefore could not find anything" produce identical output:
+            // silence. A page that is missing from the index AND absent from the enumeration the
+            // sweep compares against is invisible forever — it is never re-indexed, and the boot
+            // log gives an operator nothing to go on. Observed in production as a 33 KB page that
+            // served fine at /wiki/ while a term unique to it returned zero BM25 matches.
+            if ( allPages.isEmpty() && !indexedPages.isEmpty() ) {
+                LOG.warn( "Lucene missing-page sweep compared an EMPTY page list against {} indexed "
+                        + "documents — the sweep proved nothing and no page can have been found "
+                        + "missing. The page provider likely had not enumerated yet.",
+                    indexedPages.size() );
+            } else {
+                // The document count covers attachments as well as pages, so it is legitimately
+                // larger than the page count — it is here to be compared against ITSELF across
+                // restarts, not against the page count.
+                LOG.info( "Lucene missing-page sweep: {} pages enumerated, {} documents in index "
+                        + "(pages + attachments), {} pages missing",
+                    allPages.size(), indexedPages.size(), missingPages.size() );
+            }
+
             if ( !missingPages.isEmpty() ) {
                 LOG.info( "Found {} pages missing from Lucene index, indexing...", missingPages.size() );
                 try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );

@@ -65,6 +65,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   lines across 3 days, with a confirmed zero-data gap from 2026-08-21 to 2026-09-07 that made
   the Cloudflare incident undiagnosable after the fact. `docker-compose.prod.yml` now pins
   json-file logging with an explicit size and file count for every long-lived service.
+- **A page could be permanently unsearchable and nothing would say so.** The startup
+  missing-page sweep logged only when it found something, so "swept and everything was present"
+  and "compared an empty page list against the index and therefore could not find anything"
+  produced identical output: silence. A page absent from BOTH the index and the enumeration the
+  sweep compares against is invisible forever — never re-indexed, and nothing in the boot log to
+  go on. Found in production, where a 33 KB page served fine at `/wiki/` while a term occurring
+  only in that page returned zero BM25 matches, and the logs could not distinguish a healthy
+  sweep from a vacuous one. The sweep now always reports what it compared — pages enumerated,
+  documents in the index, pages missing — and warns outright when it compared an empty page list
+  against a non-empty index, which proves nothing and must not read as a clean run.
 - **The integration gate could deploy code that was not in the tree.** Every IT module builds
   by overlaying `wikantik-war`, and the war plugin reuses an exploded overlay left in
   `target/` rather than rebuilding it — but `bin/run-tests.sh` invoked each IT module with a

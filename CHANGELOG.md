@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.21] - 2026-09-09
+
 ### Fixed
 - **Display math lost its large delimiters on every page.** KaTeX embeds several of its faces
   as `data:font/woff2` inside its own stylesheet — `KaTeX_Size3`, the large-delimiter face,

@@ -36,6 +36,56 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class HybridFuserTest {
 
     /**
+     * Guards the page-level fusion invariant behind a production defect found on
+     * 2026-09-10. In weighted RRF a page at BM25 rank 1 contributes
+     * {@code bm25Weight/(k+1)}, while the LAST dense page still contributing
+     * (rank {@code truncate}) contributes {@code denseWeight/(k+truncate)}. Unless
+     *
+     * <pre>  bm25Weight / denseWeight  &gt;  (k + 1) / (k + truncate)</pre>
+     *
+     * a page found ONLY by BM25 scores below <em>every</em> contributing dense page.
+     * Because callers cap the page list at or below {@code truncate}
+     * ({@code ContextQuery.MAX_PAGES_CAP} = 20), such a page can never be returned:
+     * the BM25 leg becomes unable to surface a page of its own and can only reorder
+     * pages the dense leg already found.
+     *
+     * <p>The shipped defaults violated this until 2.4.23 (1.0/1.5 at k=60,
+     * truncate=20 gives 0.667 against a required 0.7625). Searching the exact page
+     * name {@code PlanningAMigrationChange} in production ranked that page #1 in
+     * Lucene — score 12.5, and the searcher's ACL filter dropped nothing — yet the
+     * API returned 20 results without it, because it fused at rank 21.</p>
+     */
+    @Test
+    void shippedDefaults_letABm25RankOnePageReachTheResultWindow() {
+        final int k = HybridConfig.DEFAULT_RRF_K;
+        final double bm25Weight = HybridConfig.DEFAULT_BM25_WEIGHT;
+        final double denseWeight = HybridConfig.DEFAULT_DENSE_WEIGHT;
+        final int truncate = HybridConfig.DEFAULT_RRF_TRUNCATE;
+
+        assertTrue( bm25Weight / ( k + 1 ) > denseWeight / ( k + truncate ),
+                "Shipped fusion defaults make a BM25-only page unreachable: "
+                + "bm25Weight/(k+1) = " + ( bm25Weight / ( k + 1 ) )
+                + " must exceed denseWeight/(k+truncate) = " + ( denseWeight / ( k + truncate ) )
+                + " (k=" + k + ", truncate=" + truncate + ")" );
+
+        // Behavioural form of the same invariant: one BM25-only page against a
+        // full dense list (wikantik.search.hybrid.dense.page-top = 100).
+        final HybridFuser fuser = new HybridFuser( k, bm25Weight, denseWeight, truncate );
+        final List< String > dense = new ArrayList<>();
+        for( int i = 1; i <= 100; i++ ) {
+            dense.add( "DensePage" + i );
+        }
+
+        final List< String > fused = fuser.fuse( List.of( "TargetPage" ), dense );
+        final int rank = fused.indexOf( "TargetPage" ) + 1;
+
+        assertTrue( rank >= 1, "TargetPage must appear in the fused union at all" );
+        assertTrue( rank <= truncate,
+                "A page ranked #1 by BM25 but absent from the dense list must still outrank the "
+                + "worst contributing dense page, but it fused at rank " + rank );
+    }
+
+    /**
      * Worked example from the retrieval docs: a single page that appears at
      * BM25 rank 9 (contributes 1/(60+9) = 1/69) and dense rank 3 (contributes
      * 1/(60+3) = 1/63) with equal weights and k=60.

@@ -4,7 +4,7 @@ cluster: wikantik-development
 canonical_id: 01M1S6EHZHT62VAB8JK3ZWM5BX
 type: article
 status: active
-date: '2026-09-09'
+date: '2026-09-10'
 summary: Every configuration key Wikantik reads, with its shipped default, type, override name and description. Generated from ini/wikantik.properties.
 tags:
 - configuration
@@ -269,9 +269,9 @@ Full descriptions (truncated above to keep the table scannable):
 | `wikantik.rebuild.lucene_drain_poll_ms` | `int` | `2000` | `wikantik_rebuild_lucene_drain_poll_ms` | Poll interval, in milliseconds, while waiting for the Lucene writer queue to drain. |
 | `wikantik.search.hybrid.enabled` | `boolean` | `true` | `wikantik_search_hybrid_enabled` | Master flag for the hybrid BM25 + dense retrieval path. … |
 | `wikantik.search.ontologyExpansion.enabled` | `boolean` | `false` | `wikantik_search_ontologyExpansion_enabled` | Whether the ontology-aware query expansion joins hybrid retrieval: when true, a query is expanded via the materialized RDF ontology (broader/ … |
-| `wikantik.search.hybrid.page-aggregation` | `enum(max\|mean_top_3\|sum_top_3\|sum_top_5)` | `sum_top_3` | `wikantik_search_hybrid_page-aggregation` | How a page's per-chunk cosine scores collapse into one page-level score. |
+| `wikantik.search.hybrid.page-aggregation` | `enum(max\|mean_top_3\|sum_top_3\|sum_top_5)` | `mean_top_3` | `wikantik_search_hybrid_page-aggregation` | How a page's per-chunk cosine scores collapse into one page-level score. … |
 | `wikantik.search.hybrid.rrf.k` | `int` | `60` | `wikantik_search_hybrid_rrf_k` | Reciprocal-rank-fusion constant for combining BM25 and dense page rankings. |
-| `wikantik.search.hybrid.rrf.bm25-weight` | `double` | `1.0` | `wikantik_search_hybrid_rrf_bm25-weight` | BM25 side weight in the page-level RRF fusion. |
+| `wikantik.search.hybrid.rrf.bm25-weight` | `double` | `1.5` | `wikantik_search_hybrid_rrf_bm25-weight` | BM25 side weight in the page-level RRF fusion. … |
 | `wikantik.search.hybrid.rrf.dense-weight` | `double` | `1.5` | `wikantik_search_hybrid_rrf_dense-weight` | Dense side weight in the page-level RRF fusion. |
 | `wikantik.search.hybrid.rrf.truncate` | `int` | `20` | `wikantik_search_hybrid_rrf_truncate` | Number of fused page candidates kept after RRF, before returning results. |
 | `wikantik.search.hybrid.dense.chunk-top` | `int` | `500` | `wikantik_search_hybrid_dense_chunk-top` | Chunk fan-out considered per query on the dense side before page aggregation. |
@@ -304,6 +304,8 @@ Full descriptions (truncated above to keep the table scannable):
 - **`wikantik.chunker.enabled`** — Kill-switch for save-time chunking. Disable if a chunker bug is blocking page saves (ChunkProjector is failure-isolated, but this lets ops short out the code path entirely).
 - **`wikantik.search.hybrid.enabled`** — Master flag for the hybrid BM25 + dense retrieval path. When true (the default), /api/search fuses BM25 with dense embedding results. Fails closed to BM25-only if the embedding backend is unreachable or the query embedder circuit trips, so search stays usable regardless. Set to false to disable the dense path entirely (no embedding client is built and no bootstrap is scheduled).
 - **`wikantik.search.ontologyExpansion.enabled`** — Whether the ontology-aware query expansion joins hybrid retrieval: when true, a query is expanded via the materialized RDF ontology (broader/ narrower/related terms) before search, if the ontology model is available. Default off (no expansion) - falls back to plain retrieval whenever the ontology is disabled or not yet built.
+- **`wikantik.search.hybrid.page-aggregation`** — How a page's per-chunk cosine scores collapse into one page-level score. mean_top_3 (default) averages the page's three best chunk similarities, so the score measures how good a page's best sections are. sum_top_3 - the pre-2.4.23 default - ADDS them, which makes chunk count a score multiplier: a 1-chunk page can score at most ~1/3 of a 3-chunk page no matter how relevant it is. That length bias made short pages structurally unreachable (measured 2026-09-10: every gold page with <=2 chunks was absent from the top 20, every page with >=4 chunks was present). Switching to mean_top_3 took nDCG@5 on the core-agent-queries set from 0.4528 to 0.8984, and to 0.9297 paired with the bm25-weight below.
+- **`wikantik.search.hybrid.rrf.bm25-weight`** — BM25 side weight in the page-level RRF fusion. MUST satisfy  bm25-weight / dense-weight > (rrf.k + 1) / (rrf.k + rrf.truncate), or a page found ONLY by BM25 scores below every contributing dense page and can never enter the result window - the BM25 leg is then unable to surface a page of its own and can only reorder pages dense already found. At the pre-2.4.23 values (1.0/1.5, k=60, truncate=20) the ratio was 0.667 against a required 0.7625, so an exact-title BM25 rank-1 match fused at rank 21 and was dropped. HybridFuserTest guards the invariant.
 - **`wikantik.search.embedding.backend`** — Which backend implementation to use. Currently supported: ollama. The client abstraction leaves room for future backends (e.g. Hugging Face TEI, OpenAI-compatible) - swapping is a config change, not a code change at call sites.
 - **`wikantik.search.embedding.base-url`** — Root URL of the embedding server. Defaults to the dedicated inference host at inference.jakefear.com:11434. Override to http://localhost:11434 if you are running Ollama on the same box as the wiki. This host was decommissioned in July 2026 and is not reachable; every deployment must override it (the docker image points it at the bundled CPU embedder).
 - **`wikantik.search.embedding.model`** — Which candidate model to load. The wiki currently experiments with three options, each with its own prefix/dimension characteristics: nomic-embed-v1.5        - dim 768, asymmetric prefixes, Matryoshka bge-m3                  - dim 1024, no prefix, dense + sparse capable qwen3-embedding-0.6b    - dim 1024, Qwen3 instruction prompt on queries

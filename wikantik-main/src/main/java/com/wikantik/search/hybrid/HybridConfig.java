@@ -48,9 +48,9 @@ public record HybridConfig(
     public static final String PROP_DENSE_PAGE_TOP   = "wikantik.search.hybrid.dense.page-top";
 
     public static final boolean         DEFAULT_ENABLED          = false;
-    public static final PageAggregation DEFAULT_PAGE_AGGREGATION = PageAggregation.SUM_TOP_3;
+    public static final PageAggregation DEFAULT_PAGE_AGGREGATION = PageAggregation.MEAN_TOP_3;
     public static final int             DEFAULT_RRF_K            = 60;
-    public static final double          DEFAULT_BM25_WEIGHT      = 1.0;
+    public static final double          DEFAULT_BM25_WEIGHT      = 1.5;
     public static final double          DEFAULT_DENSE_WEIGHT     = 1.5;
     public static final int             DEFAULT_RRF_TRUNCATE     = 20;
     public static final int             DEFAULT_DENSE_CHUNK_TOP  = 500;

@@ -33,9 +33,9 @@ class HybridConfigTest {
     void emptyPropertiesYieldProvenDefaults() {
         final HybridConfig c = HybridConfig.fromProperties( new Properties() );
         assertFalse( c.enabled() );
-        assertEquals( PageAggregation.SUM_TOP_3, c.pageAggregation() );
+        assertEquals( PageAggregation.MEAN_TOP_3, c.pageAggregation() );
         assertEquals( 60, c.rrfK() );
-        assertEquals( 1.0, c.bm25Weight() );
+        assertEquals( 1.5, c.bm25Weight() );
         assertEquals( 1.5, c.denseWeight() );
         assertEquals( 20, c.rrfTruncate() );
         assertEquals( 500, c.denseChunkTop() );
@@ -49,14 +49,14 @@ class HybridConfigTest {
         p.setProperty( HybridConfig.PROP_PAGE_AGGREGATION, "" );
         final HybridConfig c = HybridConfig.fromProperties( p );
         assertFalse( c.enabled() );
-        assertEquals( PageAggregation.SUM_TOP_3, c.pageAggregation() );
+        assertEquals( PageAggregation.MEAN_TOP_3, c.pageAggregation() );
     }
 
     @Test
     void allOverridesApplied() {
         final Properties p = new Properties();
         p.setProperty( HybridConfig.PROP_ENABLED,          "true" );
-        p.setProperty( HybridConfig.PROP_PAGE_AGGREGATION, "mean_top_3" );
+        p.setProperty( HybridConfig.PROP_PAGE_AGGREGATION, "sum_top_5" );
         p.setProperty( HybridConfig.PROP_RRF_K,            "30" );
         p.setProperty( HybridConfig.PROP_RRF_BM25_WEIGHT,  "0.7" );
         p.setProperty( HybridConfig.PROP_RRF_DENSE_WEIGHT, "2.0" );
@@ -66,7 +66,9 @@ class HybridConfigTest {
 
         final HybridConfig c = HybridConfig.fromProperties( p );
         assertTrue( c.enabled() );
-        assertEquals( PageAggregation.MEAN_TOP_3, c.pageAggregation() );
+        // deliberately NOT the shipped default (MEAN_TOP_3), so this asserts the
+        // override was actually read rather than passing on the default
+        assertEquals( PageAggregation.SUM_TOP_5, c.pageAggregation() );
         assertEquals( 30, c.rrfK() );
         assertEquals( 0.7, c.bm25Weight() );
         assertEquals( 2.0, c.denseWeight() );

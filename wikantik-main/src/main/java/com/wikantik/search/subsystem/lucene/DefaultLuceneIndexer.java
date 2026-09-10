@@ -26,10 +26,13 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.TermQuery;
@@ -440,15 +443,27 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         }
         try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
               IndexReader reader = DirectoryReader.open( luceneDir ) ) {
-            final StoredFields storedFields = reader.storedFields();
-            for ( int i = 0; i < reader.maxDoc(); i++ ) {
-                final Document doc = storedFields.document( i );
-                final String pageName = doc.get( LUCENE_ID );
-                if ( pageName != null ) {
-                    indexedPages.add( pageName );
+            // Walk each leaf and honour liveDocs. A deleted document keeps its stored
+            // fields on disk until a merge reclaims the segment, so a reader.maxDoc()
+            // scan still reads back the deleted page's id and reports it as indexed.
+            // The missing-page sweep would then never re-index a page the searcher
+            // (which honours liveDocs) can no longer match — it stays invisible to
+            // search indefinitely while the sweep logs "0 pages missing".
+            for ( final LeafReaderContext leafContext : reader.leaves() ) {
+                final LeafReader leaf = leafContext.reader();
+                final Bits liveDocs = leaf.getLiveDocs();
+                final StoredFields storedFields = leaf.storedFields();
+                for ( int i = 0; i < leaf.maxDoc(); i++ ) {
+                    if ( liveDocs != null && !liveDocs.get( i ) ) {
+                        continue;
+                    }
+                    final String pageName = storedFields.document( i ).get( LUCENE_ID );
+                    if ( pageName != null ) {
+                        indexedPages.add( pageName );
+                    }
                 }
             }
-            LOG.debug( "Found {} pages in Lucene index", indexedPages.size() );
+            LOG.debug( "Found {} live pages in Lucene index", indexedPages.size() );
         } catch ( final IOException e ) {
             LOG.warn( "Could not read Lucene index to get indexed page names", e );
         }

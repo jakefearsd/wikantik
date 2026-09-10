@@ -6,6 +6,51 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Hybrid page fusion could not surface a page the BM25 leg alone had found, and
+  systematically hid short pages.** Two independent defects in
+  `com.wikantik.search.hybrid`, both measured against the two live gold query sets:
+
+  1. *The BM25 leg was inert.* In weighted RRF a page at BM25 rank 1 contributes
+     `bm25Weight/(k+1)`, while the last contributing dense page (rank `truncate`)
+     contributes `denseWeight/(k+truncate)`. At the shipped 1.0/1.5 with `k=60`,
+     `truncate=20` that is 0.016393 against 0.018750 — so a page found *only* by BM25
+     scored below **every** dense page and could never enter the 20-page window
+     (`ContextQuery.MAX_PAGES_CAP`). Searching production for the exact page name
+     `PlanningAMigrationChange` ranked it #1 in Lucene (score 12.5, ACL filter dropped
+     nothing) and the API returned 20 results without it. `bm25-weight` is now 1.5, and
+     `HybridFuserTest` guards the invariant
+     `bm25Weight/denseWeight > (k+1)/(k+truncate)` against the shipped defaults.
+  2. *Page aggregation had a length bias.* `page-aggregation` was `sum_top_3`, which
+     **adds** a page's three best chunk cosines, making chunk count a score multiplier —
+     a 1-chunk page could score at most about a third of a 3-chunk page regardless of
+     relevance. Separation was total: every gold page with <=2 chunks was absent from the
+     top 20, every page with >=4 chunks was present. The default is now `mean_top_3`,
+     which averages instead, so the score measures how good a page's best sections are.
+
+  Measured offline against production's Lucene index and chunk embeddings, exactly
+  reproducing the nightly harness (baseline nDCG@5 0.4528 vs the nightly's 0.4528):
+
+  | set | before | after |
+  |---|---|---|
+  | core-agent-queries | 0.4528 | 0.9297 |
+  | core-agent-queries-expanded | 0.9446 | 0.9262 |
+  | all 36 queries | 0.7260 | 0.9277 |
+  | recall@20 | 0.7639 | 0.9861 |
+
+  Queries returning nothing relevant in the top 5 went from 8 of 36 to none, and the
+  worst per-query nDCG@5 rose from 0.0000 to 0.6131. Two expanded-set queries regress
+  partially (-0.369 each). Both keys remain configurable; only the defaults changed.
+
+- **The Lucene missing-page sweep counted deleted documents as indexed.**
+  `DefaultLuceneIndexer.getIndexedPageNames()` scanned `reader.maxDoc()`, which still
+  reads back the stored id of a document deleted but not yet reclaimed by a merge. A
+  page whose document was deleted and never successfully re-added therefore looked
+  present to the sweep — so it was never re-indexed and stayed unmatchable by search
+  indefinitely, while the sweep logged `0 pages missing` on every pass. The scan now
+  walks each leaf and honours `liveDocs`. Production's index carried 173 deletions
+  across three segments at the time of the fix.
+
 ## [2.4.22] - 2026-09-09
 
 ### Fixed

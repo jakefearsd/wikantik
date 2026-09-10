@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.22] - 2026-09-09
+
 ### Fixed
 - **The embedding batch size could not complete within its own timeout.**
   `wikantik.search.embedding.batch-size` shipped as 32, sized for the GPU inference host

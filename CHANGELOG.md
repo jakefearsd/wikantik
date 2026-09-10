@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.23] - 2026-09-10
+
 ### Fixed
 - **Hybrid page fusion could not surface a page the BM25 leg alone had found, and
   systematically hid short pages.** Two independent defects in

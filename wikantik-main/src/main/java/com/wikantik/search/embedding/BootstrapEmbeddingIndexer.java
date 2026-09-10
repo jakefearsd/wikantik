@@ -25,6 +25,7 @@ import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -61,6 +62,24 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class BootstrapEmbeddingIndexer implements AutoCloseable {
 
     private static final Logger LOG = LogManager.getLogger( BootstrapEmbeddingIndexer.class );
+
+    /**
+     * How many times the startup stale-reconcile will try before giving up, and how long it waits
+     * between tries.
+     *
+     * <p>The embedding backend is a sibling container that is regularly not warm when the wiki has
+     * finished booting, so the first attempt races it and loses. The run is one-shot per process
+     * and never re-arms, and {@link #invokePostRun()} — the dense-index reload — fires only on the
+     * success branch, so one lost race leaves stale rows unembedded until the next restart. In
+     * production that meant five consecutive restarts over 19 days all ending FAILED with
+     * committed=0, and "stale-reconcile COMPLETED" never once appearing. Retrying costs nothing on
+     * a healthy boot: the first attempt succeeds and the delay is never waited.</p>
+     */
+    static final int DEFAULT_STALE_ATTEMPTS = 4;
+    static final Duration DEFAULT_STALE_RETRY_DELAY = Duration.ofSeconds( 45 );
+
+    private int staleAttempts = DEFAULT_STALE_ATTEMPTS;
+    private Duration staleRetryDelay = DEFAULT_STALE_RETRY_DELAY;
 
     private static final String COUNT_CHUNKS_SQL = "SELECT COUNT(*) FROM kg_content_chunks";
 
@@ -141,6 +160,20 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
                                       final Runnable postRunCallback,
                                       final ExecutorService executor ) {
         this( dataSource, indexService, modelCode, postRunCallback, executor, /*ownsExecutor*/ false );
+    }
+
+    /** As above, with the stale-reconcile retry policy overridden so tests need not wait minutes. */
+    BootstrapEmbeddingIndexer( final DataSource dataSource,
+                               final EmbeddingIndexService indexService,
+                               final String modelCode,
+                               final Runnable postRunCallback,
+                               final ExecutorService executor,
+                               final int staleAttempts,
+                               final Duration staleRetryDelay ) {
+        this( dataSource, indexService, modelCode, postRunCallback, executor, /*ownsExecutor*/ false );
+        if ( staleAttempts < 1 ) throw new IllegalArgumentException( "staleAttempts must be >= 1" );
+        this.staleAttempts = staleAttempts;
+        this.staleRetryDelay = staleRetryDelay;
     }
 
     private BootstrapEmbeddingIndexer( final DataSource dataSource,
@@ -292,20 +325,42 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
 
     private void runIndexStale( final long chunkCount, final Instant startedAt ) {
         final long t0 = System.nanoTime();
-        try {
-            final int upserted = indexService.indexStale( modelCode );
-            final long elapsedMs = TimeUnit.NANOSECONDS.toMillis( System.nanoTime() - t0 );
-            LOG.info( "Bootstrap indexer stale-reconcile COMPLETED: model={} upserted={} chunksTotal={} elapsedMs={}",
-                modelCode, upserted, chunkCount, elapsedMs );
-            progress.set( new Progress( State.COMPLETED, chunkCount, startedAt, Instant.now(), null ) );
-            invokePostRun();
-        } catch( final RuntimeException e ) {
-            final long elapsedMs = TimeUnit.NANOSECONDS.toMillis( System.nanoTime() - t0 );
-            LOG.warn( "Bootstrap indexer stale-reconcile FAILED: model={} chunksTotal={} elapsedMs={}: {}",
-                modelCode, chunkCount, elapsedMs, e.getMessage(), e );
-            progress.set( new Progress( State.FAILED, chunkCount, startedAt, Instant.now(),
-                e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage() ) );
+        RuntimeException last = null;
+        for ( int attempt = 1; attempt <= staleAttempts; attempt++ ) {
+            try {
+                final int upserted = indexService.indexStale( modelCode );
+                final long elapsedMs = TimeUnit.NANOSECONDS.toMillis( System.nanoTime() - t0 );
+                LOG.info( "Bootstrap indexer stale-reconcile COMPLETED: model={} upserted={} "
+                        + "chunksTotal={} elapsedMs={} attempt={}/{}",
+                    modelCode, upserted, chunkCount, elapsedMs, attempt, staleAttempts );
+                progress.set( new Progress( State.COMPLETED, chunkCount, startedAt, Instant.now(), null ) );
+                invokePostRun();
+                return;
+            } catch( final RuntimeException e ) {
+                last = e;
+                if ( attempt < staleAttempts ) {
+                    LOG.info( "Bootstrap indexer stale-reconcile attempt {}/{} failed (model={}): {} "
+                            + "— the embedding backend may still be warming; retrying in {}s",
+                        attempt, staleAttempts, modelCode, e.getMessage(), staleRetryDelay.toSeconds() );
+                    try {
+                        Thread.sleep( staleRetryDelay.toMillis() );
+                    } catch ( final InterruptedException ie ) {
+                        Thread.currentThread().interrupt();
+                        LOG.warn( "Bootstrap indexer stale-reconcile interrupted while waiting to retry "
+                                + "(model={}); abandoning this run", modelCode );
+                        break;
+                    }
+                }
+            }
         }
+        final long elapsedMs = TimeUnit.NANOSECONDS.toMillis( System.nanoTime() - t0 );
+        final String detail = last == null ? "interrupted"
+            : ( last.getMessage() == null ? last.getClass().getSimpleName() : last.getMessage() );
+        LOG.warn( "Bootstrap indexer stale-reconcile FAILED after {} attempts: model={} chunksTotal={} "
+                + "elapsedMs={}: {} — the dense index keeps whatever rows it loaded at boot and will "
+                + "not be reloaded until a later run succeeds",
+            staleAttempts, modelCode, chunkCount, elapsedMs, detail, last );
+        progress.set( new Progress( State.FAILED, chunkCount, startedAt, Instant.now(), detail ) );
     }
 
     private void runIndex( final long chunkCount, final Instant startedAt ) {

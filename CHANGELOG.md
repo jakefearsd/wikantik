@@ -65,6 +65,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   lines across 3 days, with a confirmed zero-data gap from 2026-08-21 to 2026-09-07 that made
   the Cloudflare incident undiagnosable after the fact. `docker-compose.prod.yml` now pins
   json-file logging with an explicit size and file count for every long-lived service.
+- **A cold embedding backend permanently disabled the startup reconcile.** The wiki finishes
+  booting before its sibling embedding container is warm, so the first stale-reconcile attempt
+  raced it and lost. The run is one-shot per process and never re-arms, and the dense-index
+  reload hook fires only on the success branch — so one lost race left recently-edited chunks
+  unembedded until somebody restarted the wiki again. Production showed five consecutive
+  restarts across 19 days all ending `stale-reconcile FAILED ... Embedding backend unavailable
+  after 3 retries` with `committed=0`; `stale-reconcile COMPLETED` never appeared once. The
+  reconcile now retries a bounded number of times before declaring failure, since a backend
+  that is merely slow to warm is not a permanent failure, and the failure message now says the
+  dense index keeps whatever it loaded at boot rather than leaving that to be inferred. A
+  healthy boot pays nothing: the first attempt succeeds and no delay is waited.
 - **A page could be permanently unsearchable and nothing would say so.** The startup
   missing-page sweep logged only when it found something, so "swept and everything was present"
   and "compared an empty page list against the index and therefore could not find anything"

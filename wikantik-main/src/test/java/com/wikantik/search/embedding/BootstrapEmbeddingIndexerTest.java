@@ -65,6 +65,48 @@ class BootstrapEmbeddingIndexerTest {
         return ds;
     }
 
+    /**
+     * The sibling embedding container is routinely not warm yet when the wiki finishes booting, so
+     * the very first reconcile attempt races it and loses. The run is one-shot per process and
+     * never re-arms, and the index-reload hook fires only on the success branch — so a single cold
+     * start leaves stale rows unembedded until somebody restarts the wiki again.
+     *
+     * <p>Observed in production across five consecutive restarts spanning 19 days: every one ended
+     * "stale-reconcile FAILED ... Embedding backend unavailable after 3 retries" with committed=0,
+     * and "stale-reconcile COMPLETED" never appeared once. A backend that is merely slow to warm
+     * must not be treated as a permanent failure.</p>
+     */
+    @Test
+    void staleReconcileRetriesWhileTheEmbeddingBackendIsStillWarmingUp() throws Exception {
+        final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
+        // Cold for the first two attempts, warm on the third — a booting Ollama sidecar.
+        when( index.indexStale( MODEL ) )
+            .thenThrow( new IllegalStateException( "Embedding backend unavailable after 3 retries" ) )
+            .thenThrow( new IllegalStateException( "Embedding backend unavailable after 3 retries" ) )
+            .thenReturn( 7 );
+
+        final DataSource ds = stubDataSourceReturningChunkCount( 22001L );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        final java.util.concurrent.atomic.AtomicInteger postRuns =
+            new java.util.concurrent.atomic.AtomicInteger();
+        try {
+            final BootstrapEmbeddingIndexer boot = new BootstrapEmbeddingIndexer(
+                ds, index, MODEL, postRuns::incrementAndGet, ex,
+                /*staleAttempts*/ 3, java.time.Duration.ofMillis( 20 ) );
+            boot.startIfNeeded();
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 10, TimeUnit.SECONDS ) );
+
+            assertEquals( BootstrapEmbeddingIndexer.State.COMPLETED, boot.progress().state(),
+                "a backend that is still warming must not end the run in a terminal FAILED state" );
+            verify( index, times( 3 ) ).indexStale( MODEL );
+            assertEquals( 1, postRuns.get(),
+                "the dense index reload hook must fire once the reconcile finally succeeds" );
+        } finally {
+            if ( !ex.isTerminated() ) ex.shutdownNow();
+        }
+    }
+
     @Test
     void startIfNeeded_runsStaleReconcileEvenWhenAlreadyPopulated() throws Exception {
         // Previously returned SKIPPED_ALREADY_POPULATED — now always reconciles stale rows.
@@ -140,8 +182,11 @@ class BootstrapEmbeddingIndexerTest {
         final AtomicInteger cbCalls = new AtomicInteger();
         final ExecutorService ex = Executors.newSingleThreadExecutor();
         try {
-            final BootstrapEmbeddingIndexer boot =
-                new BootstrapEmbeddingIndexer( ds, index, MODEL, cbCalls::incrementAndGet, ex );
+            // A persistently failing backend must still end in FAILED — the retry policy is
+            // narrowed here only so the test does not sit through the production back-off.
+            final BootstrapEmbeddingIndexer boot = new BootstrapEmbeddingIndexer(
+                ds, index, MODEL, cbCalls::incrementAndGet, ex,
+                /*staleAttempts*/ 2, java.time.Duration.ofMillis( 10 ) );
             boot.startIfNeeded();
             ex.shutdown();
             assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );

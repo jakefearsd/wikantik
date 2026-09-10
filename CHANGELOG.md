@@ -19,6 +19,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   relationship so the next person sizes it against the timeout rather than against throughput.
   Verified in production: batch failures went from immediate-and-repeating to zero.
 
+- **Dependency refresh, patch-level only.** Runtime: `pac4j` 6.5.6, `micrometer` 1.17.1, and
+  the two `sec.*` security override pins that force transitives up for known CVEs —
+  `jackson-databind` 2.22.2 (via pac4j-core and tika-parser-cad) and `guava` 33.7.1-jre (via
+  pac4j-oidc/pac4j-saml's opensaml). Frontend: `@codemirror/view` 6.43.10, `@codemirror/state`
+  6.7.2, `react-router-dom` 7.18.3, `cytoscape` 3.34.2. Build/test only: `vite` 8.2.2,
+  `@vitejs/plugin-react` 6.1.1, `@testing-library/react` 16.3.3, `happy-dom` 20.14.0, `globals`
+  17.12.0, `eslint` 10.10.0 — the eslint bump was checked against the lint gate separately
+  because CI runs `npm run lint` on every push, and it holds at 0 errors.
+  **Deliberately excluded:** Tika 4.0.0. It is a major version sitting under document
+  ingestion (PDFBox/POI), which is not a patch-release change.
 - **`vitest` / `@vitest/mocker` 4.1.11.** Clears GHSA-82fw-gwwq-j7x9 (CVSS 5.9) against
   4.1.10, which `osv-scan` flags on every push. Both are devDependencies — the test runner,
   nothing that reaches the WAR — so no released artifact was affected.

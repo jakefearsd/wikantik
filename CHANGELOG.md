@@ -67,6 +67,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   lines across 3 days, with a confirmed zero-data gap from 2026-08-21 to 2026-09-07 that made
   the Cloudflare incident undiagnosable after the fact. `docker-compose.prod.yml` now pins
   json-file logging with an explicit size and file count for every long-lived service.
+- **The embedding batch size could not complete within its own timeout.**
+  `wikantik.search.embedding.batch-size` shipped as 32, sized for the GPU inference host
+  decommissioned in July. Ollama serves one task per slot, so a batch of N is N *sequential*
+  inferences inside a single HTTP request that must finish within
+  `wikantik.search.embedding.timeout-ms`. On the bundled CPU embedder one inference measures
+  about 1.9s, so 32 needed roughly 61 seconds against a 30 second timeout and could never
+  succeed on any boot, warm or cold — which is the real reason the startup stale-reconcile
+  failed identically on five consecutive restarts across 19 days, always with `committed=0`.
+  The default is now 10 (about 19 seconds, with headroom), and the key documents the
+  relationship so the next person sizes it against the timeout rather than against throughput.
+  Verified in production: batch failures went from immediate-and-repeating to zero.
 - **A cold embedding backend permanently disabled the startup reconcile.** The wiki finishes
   booting before its sibling embedding container is warm, so the first stale-reconcile attempt
   raced it and lost. The run is one-shot per process and never re-arms, and the dense-index

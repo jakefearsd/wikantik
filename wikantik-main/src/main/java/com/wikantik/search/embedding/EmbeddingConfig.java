@@ -71,7 +71,7 @@ public record EmbeddingConfig(
     public static final String  DEFAULT_BASE_URL   = "http://inference.jakefear.com:11434";
     public static final String  DEFAULT_MODEL_CODE = "qwen3-embedding-0.6b";
     public static final int     DEFAULT_TIMEOUT_MS = 30_000;
-    public static final int     DEFAULT_BATCH_SIZE = 32;
+    public static final int     DEFAULT_BATCH_SIZE = 10;
     /** @see EmbeddingIndexService#DEFAULT_COMMIT_BATCH_SIZE */
     public static final int     DEFAULT_COMMIT_BATCH_SIZE =
         EmbeddingIndexService.DEFAULT_COMMIT_BATCH_SIZE;

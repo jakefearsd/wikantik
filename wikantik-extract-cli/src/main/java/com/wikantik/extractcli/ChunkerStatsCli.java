@@ -100,6 +100,30 @@ public final class ChunkerStatsCli {
             dir, a.chunkerMaxTokens, a.chunkerMergeForwardTokens );
 
         final long started = System.nanoTime();
+        final ScanResult scan;
+        try {
+            scan = scanPages( dir, chunker, prefilter );
+        } catch( final IOException ioe ) {
+            System.err.println( "error: walking pages dir failed: " + ioe.getMessage() );
+            return 1;
+        }
+
+        final long elapsedMs = ( System.nanoTime() - started ) / 1_000_000L;
+        if( scan.sizes().isEmpty() ) {
+            LOG.warn( "Chunker-stats: no .md files found under {}", dir );
+            return 0;
+        }
+        reportStats( scan, elapsedMs );
+        return 0;
+    }
+
+    /**
+     * Walks {@code dir} for {@code *.md} files, chunks each one, and runs the
+     * prefilter over every resulting chunk. A single file's read failure is
+     * logged and skipped; only a failure of the walk itself propagates.
+     */
+    private static ScanResult scanPages( final Path dir, final ContentChunker chunker,
+                                          final ChunkExtractionPrefilter prefilter ) throws IOException {
         final List< Integer > sizes = new ArrayList<>();
         final Map< String, Integer > prefilterReasons = new TreeMap<>();
         int pages = 0;
@@ -137,16 +161,12 @@ public final class ChunkerStatsCli {
                     }
                 }
             }
-        } catch( final IOException ioe ) {
-            System.err.println( "error: walking pages dir failed: " + ioe.getMessage() );
-            return 1;
         }
+        return new ScanResult( pages, sizes, prefilterReasons, prefilterKept, prefilterSkipped );
+    }
 
-        final long elapsedMs = ( System.nanoTime() - started ) / 1_000_000L;
-        if( sizes.isEmpty() ) {
-            LOG.warn( "Chunker-stats: no .md files found under {}", dir );
-            return 0;
-        }
+    private static void reportStats( final ScanResult scan, final long elapsedMs ) {
+        final List< Integer > sizes = scan.sizes();
         Collections.sort( sizes );
         final int total = sizes.size();
         final int min = sizes.get( 0 );
@@ -156,10 +176,15 @@ public final class ChunkerStatsCli {
         final int p90 = sizes.get( Math.min( total - 1, (int)( total * 0.90 ) ) );
         final int p99 = sizes.get( Math.min( total - 1, (int)( total * 0.99 ) ) );
 
-        LOG.info( "Chunker-stats: pages={} chunks={} elapsedMs={}", pages, total, elapsedMs );
+        LOG.info( "Chunker-stats: pages={} chunks={} elapsedMs={}", scan.pages(), total, elapsedMs );
         LOG.info( "Tokens per chunk: min={} mean={} p50={} p90={} p99={} max={}",
             min, String.format( Locale.ROOT, "%.0f", mean ), p50, p90, p99, max );
 
+        reportDistribution( sizes, total );
+        reportPrefilter( scan, total );
+    }
+
+    private static void reportDistribution( final List< Integer > sizes, final int total ) {
         final int[] cuts   = { 50, 150, 300, 500, 1000, Integer.MAX_VALUE };
         final String[] lbl = { "  0-50 ", " 51-150", "151-300", "301-500", "501-1k ", "1001+  " };
         final int[] counts = new int[ cuts.length ];
@@ -173,17 +198,22 @@ public final class ChunkerStatsCli {
             final double pct = 100.0 * counts[ i ] / total;
             LOG.info( "  {} : {} ({}%)", lbl[ i ], counts[ i ], String.format( Locale.ROOT, "%.1f", pct ) );
         }
+    }
 
-        final double skipPct = 100.0 * prefilterSkipped / total;
+    private static void reportPrefilter( final ScanResult scan, final int total ) {
+        final double skipPct = 100.0 * scan.prefilterSkipped() / total;
         LOG.info( "Prefilter on these chunks: kept={} skipped={} ({}%)",
-            prefilterKept, prefilterSkipped, String.format( Locale.ROOT, "%.1f", skipPct ) );
-        for( final Map.Entry< String, Integer > e : prefilterReasons.entrySet() ) {
+            scan.prefilterKept(), scan.prefilterSkipped(), String.format( Locale.ROOT, "%.1f", skipPct ) );
+        for( final Map.Entry< String, Integer > e : scan.prefilterReasons().entrySet() ) {
             final double rPct = 100.0 * e.getValue() / total;
             LOG.info( "  reason={} count={} ({}%)", e.getKey(), e.getValue(),
                 String.format( Locale.ROOT, "%.1f", rPct ) );
         }
-        return 0;
     }
+
+    /** Aggregated result of {@link #scanPages}. */
+    private record ScanResult( int pages, List< Integer > sizes, Map< String, Integer > prefilterReasons,
+                                int prefilterKept, int prefilterSkipped ) { }
 
     private static void printUsage() {
         final String usage = """

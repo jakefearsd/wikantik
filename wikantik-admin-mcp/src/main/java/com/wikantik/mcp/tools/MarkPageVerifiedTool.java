@@ -162,58 +162,9 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool {
         int succeeded = 0;
         for ( final Object n : nameList ) {
             final String pageName = n == null ? null : n.toString().trim();
-            final Map< String, Object > result = new LinkedHashMap<>();
-            result.put( "pageName", pageName );
-            if ( pageName == null || pageName.isEmpty() ) {
-                result.put( "ok", false );
-                result.put( "error", "blank page name" );
-                results.add( result );
-                continue;
-            }
-            if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
-                result.put( "ok", false );
-                result.put( "error", "system page — refusing to stamp via MCP" );
-                McpAudit.logWrite( TOOL_NAME, "refused-system-page", pageName, verifier );
-                results.add( result );
-                continue;
-            }
-            try {
-                final Page page = pageManager.getPage( pageName );
-                if ( page == null ) {
-                    result.put( "ok", false );
-                    result.put( "error", "page not found" );
-                    results.add( result );
-                    continue;
-                }
-                final String original = pageManager.getPureText( page );
-                final ParsedPage parsed = FrontmatterParser.parse( original );
-                final Map< String, Object > metadata = new LinkedHashMap<>( parsed.metadata() );
-                metadata.put( "verified_at", now.toString() );
-                metadata.put( "verified_by", verifier );
-                if ( pinned != null ) {
-                    metadata.put( "confidence", pinned.wireName() );
-                }
-                final String rewritten = FrontmatterWriter.write( metadata, parsed.body() );
-
-                saveHelper.saveText( pageName, rewritten,
-                    SaveOptions.builder()
-                        .author( verifier )
-                        .changeNote( changeNote != null && !changeNote.isBlank()
-                            ? changeNote
-                            : "verified by " + verifier )
-                        .build() );
-
-                result.put( "ok", true );
-                result.put( "verifiedAt", now.toString() );
-                result.put( "verifiedBy", verifier );
-                if ( pinned != null ) {
-                    result.put( "confidence", pinned.wireName() );
-                }
+            final Map< String, Object > result = markOnePage( pageName, verifier, pinned, changeNote, now );
+            if ( Boolean.TRUE.equals( result.get( "ok" ) ) ) {
                 succeeded++;
-            } catch ( final Exception perPage ) {
-                LOG.warn( "mark_page_verified failed for {}: {}", pageName, perPage.getMessage() );
-                result.put( "ok", false );
-                result.put( "error", perPage.getMessage() );
             }
             results.add( result );
         }
@@ -223,5 +174,65 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool {
         envelope.put( "succeeded", succeeded );
         envelope.put( "total", results.size() );
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, envelope );
+    }
+
+    /**
+     * Marks a single page verified, returning its per-page result entry.
+     * Never throws — all failures (blank name, system page, missing page,
+     * save failure) are captured as {@code ok=false} entries.
+     */
+    private Map< String, Object > markOnePage( final String pageName, final String verifier,
+                                                final Confidence pinned, final String changeNote,
+                                                final Instant now ) {
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "pageName", pageName );
+        if ( pageName == null || pageName.isEmpty() ) {
+            result.put( "ok", false );
+            result.put( "error", "blank page name" );
+            return result;
+        }
+        if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
+            result.put( "ok", false );
+            result.put( "error", "system page — refusing to stamp via MCP" );
+            McpAudit.logWrite( TOOL_NAME, "refused-system-page", pageName, verifier );
+            return result;
+        }
+        try {
+            final Page page = pageManager.getPage( pageName );
+            if ( page == null ) {
+                result.put( "ok", false );
+                result.put( "error", "page not found" );
+                return result;
+            }
+            final String original = pageManager.getPureText( page );
+            final ParsedPage parsed = FrontmatterParser.parse( original );
+            final Map< String, Object > metadata = new LinkedHashMap<>( parsed.metadata() );
+            metadata.put( "verified_at", now.toString() );
+            metadata.put( "verified_by", verifier );
+            if ( pinned != null ) {
+                metadata.put( "confidence", pinned.wireName() );
+            }
+            final String rewritten = FrontmatterWriter.write( metadata, parsed.body() );
+
+            saveHelper.saveText( pageName, rewritten,
+                SaveOptions.builder()
+                    .author( verifier )
+                    .changeNote( changeNote != null && !changeNote.isBlank()
+                        ? changeNote
+                        : "verified by " + verifier )
+                    .build() );
+
+            result.put( "ok", true );
+            result.put( "verifiedAt", now.toString() );
+            result.put( "verifiedBy", verifier );
+            if ( pinned != null ) {
+                result.put( "confidence", pinned.wireName() );
+            }
+        } catch ( final Exception perPage ) {
+            LOG.warn( "mark_page_verified failed for {}: {}", pageName, perPage.getMessage() );
+            result.put( "ok", false );
+            result.put( "error", perPage.getMessage() );
+        }
+        return result;
     }
 }

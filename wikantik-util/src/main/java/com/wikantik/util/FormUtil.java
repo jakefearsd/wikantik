@@ -147,32 +147,45 @@ public final class FormUtil
         while( en.hasMoreElements() )
         {
             final String param = en.nextElement();
-            
+
             if( param.startsWith( filterPrefix ) )
             {
                 final String realName = param.substring( filterPrefix.length() );
                 final String[] values = req.getParameterValues( param );
-                if( values != null )
-                {
-                    if( values.length == 1 )
-                    {
-                        params.put( realName, values[0] );
-                    }
-                    else
-                    {
-                        for( int i = 0; i < values.length; i++ )
-                        {
-                            if( values[i] != null && !values[i].isEmpty() )
-                            {
-                                params.put( realName + "." + i, values[i] );
-                            }
-                        }
-                    }
-                }
+                putParamValues( params, realName, values );
             }
         }
 
         return params;
+    }
+
+    /**
+     * Stores a single request parameter's values into {@code params}: a lone
+     * value is stored under {@code realName}, multiple values are stored
+     * under {@code realName.0}, {@code realName.1}, ... skipping any blank
+     * or null entries. No-op if {@code values} is null.
+     */
+    private static void putParamValues( final Map< String, String > params, final String realName,
+                                         final String[] values )
+    {
+        if( values == null )
+        {
+            return;
+        }
+        if( values.length == 1 )
+        {
+            params.put( realName, values[0] );
+        }
+        else
+        {
+            for( int i = 0; i < values.length; i++ )
+            {
+                if( values[i] != null && !values[i].isEmpty() )
+                {
+                    params.put( realName + "." + i, values[i] );
+                }
+            }
+        }
     }
 
 }

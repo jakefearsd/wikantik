@@ -111,13 +111,7 @@ public final class HumanComparator implements Comparator< String > {
 
             // If case makes a difference, note the difference the first time
             // it's encountered
-            if( caseComparison == 0 && c1 != c2 && lc1 == lc2 )
-            {
-                if( Character.isLowerCase( c1 ) )
-                    caseComparison = 1;
-                else if( Character.isLowerCase( c2 ) )
-                    caseComparison = -1;
-            }
+            caseComparison = updateCaseComparison( caseComparison, c1, c2, lc1, lc2 );
             // Do the rest of the tests in lower case
             c1 = lc1;
             c2 = lc2;
@@ -125,39 +119,13 @@ public final class HumanComparator implements Comparator< String > {
             // leading zeros are a special case
             if( c1 != c2 || c1 == '0' )
             {
-                // They might be different, now we can do a comparison
-                final CharType type1 = mapCharTypes( c1 );
-                final CharType type2 = mapCharTypes( c2 );
-
-                // Do the character class check
-                int result = compareCharTypes( type1, type2 );
-                if( result != 0 )
+                final CharCompareOutcome outcome = compareAt( s1, s2, len1, len2, idx, c1, c2 );
+                if( outcome.result() != null )
                 {
-                    // different character classes so that's sufficient
-                    return result;
+                    return outcome.result();
                 }
-
-                // If they're not digits, use character to character comparison
-                if( type1 != CharType.TYPE_DIGIT )
-                {
-                    final Character ch1 = c1;
-                    final Character ch2 = c2;
-                    return ch1.compareTo( ch2 );
-                }
-
-                // The only way to get here is both characters are digits
-                assert( type1 == CharType.TYPE_DIGIT && type2 == CharType.TYPE_DIGIT );
-                result = compareDigits( s1, s2, idx - 1 );
-                if( result != 0 )
-                {
-                    // Got a result so return it
-                    return result;
-                }
-
-                // No result yet, spin through the digits and continue trying
-                while ( idx < len1 && idx < len2 && Character.isDigit( s1[idx] ) ) {
-                	idx++;
-                }
+                // No terminal result yet — outcome.idx() has spun past the digits already tried
+                idx = outcome.idx();
             }
         }
 
@@ -169,6 +137,74 @@ public final class HumanComparator implements Comparator< String > {
 
         // Shorter String is less
         return len1 - len2;
+    }
+
+    /**
+     * Notes the first case-only difference encountered between two otherwise
+     * equal characters, deferring it as the final tie-breaker (see
+     * {@link #compare(String, String)}).
+     */
+    private int updateCaseComparison( final int caseComparison, final char c1, final char c2,
+                                       final char lc1, final char lc2 )
+    {
+        if( caseComparison == 0 && c1 != c2 && lc1 == lc2 )
+        {
+            if( Character.isLowerCase( c1 ) )
+                return 1;
+            else if( Character.isLowerCase( c2 ) )
+                return -1;
+        }
+        return caseComparison;
+    }
+
+    /** Terminal comparison result (non-null) and the updated scan index. */
+    private record CharCompareOutcome( Integer result, int idx ) { }
+
+    /**
+     * Compares two (already lower-cased) differing characters at {@code idx}
+     * (the index just past both characters in their respective arrays).
+     * Returns a terminal comparison result, or a null result with the index
+     * advanced past a run of matching digits when both characters are digits
+     * that compare equal and comparison must continue.
+     */
+    private CharCompareOutcome compareAt( final char[] s1, final char[] s2, final int len1, final int len2,
+                                           final int idx, final char c1, final char c2 )
+    {
+        // They might be different, now we can do a comparison
+        final CharType type1 = mapCharTypes( c1 );
+        final CharType type2 = mapCharTypes( c2 );
+
+        // Do the character class check
+        int result = compareCharTypes( type1, type2 );
+        if( result != 0 )
+        {
+            // different character classes so that's sufficient
+            return new CharCompareOutcome( result, idx );
+        }
+
+        // If they're not digits, use character to character comparison
+        if( type1 != CharType.TYPE_DIGIT )
+        {
+            final Character ch1 = c1;
+            final Character ch2 = c2;
+            return new CharCompareOutcome( ch1.compareTo( ch2 ), idx );
+        }
+
+        // The only way to get here is both characters are digits
+        assert( type1 == CharType.TYPE_DIGIT && type2 == CharType.TYPE_DIGIT );
+        result = compareDigits( s1, s2, idx - 1 );
+        if( result != 0 )
+        {
+            // Got a result so return it
+            return new CharCompareOutcome( result, idx );
+        }
+
+        // No result yet, spin through the digits and continue trying
+        int newIdx = idx;
+        while ( newIdx < len1 && newIdx < len2 && Character.isDigit( s1[newIdx] ) ) {
+            newIdx++;
+        }
+        return new CharCompareOutcome( null, newIdx );
     }
 
     /**

@@ -143,49 +143,59 @@ public final class HttpUtil {
         // for a 304 — they want specifically a fresh copy.
         //    pragma: no-cache
         //    cache-control: no-cache
-        if( !"no-cache".equalsIgnoreCase( req.getHeader( "Pragma" ) )
-            && !"no-cache".equalsIgnoreCase( req.getHeader( "cache-control" ) ) ) {
-            //  HTTP 1.1 ETags go first
-            final String thisTag = createETag( pageName, lastModified );
-            final String eTag = req.getHeader( "If-None-Match" );
-            
-            if( eTag != null && eTag.equals(thisTag) ) {
-                return true;
-            }
-            
-            //  Next, try if-modified-since
-            // Use thread-safe DateTimeFormatter instead of SimpleDateFormat
-            final DateTimeFormatter rfcDateFormat = DateTimeFormatter.ofPattern( "EEE, dd MMM yyyy HH:mm:ss z", Locale.US );
-
-            try {
-                final long ifModifiedSince = req.getDateHeader( "If-Modified-Since" );
-
-                if( ifModifiedSince != -1 ) {
-                    final long lastModifiedTime = lastModified.getTime();
-                    if( lastModifiedTime <= ifModifiedSince ) {
-                        return true;
-                    }
-                } else {
-                    try {
-                        final String ifModifiedSinceHeader = req.getHeader("If-Modified-Since");
-                        if( ifModifiedSinceHeader != null ) {
-                            final ZonedDateTime ifModifiedSinceDateTime = ZonedDateTime.parse( ifModifiedSinceHeader, rfcDateFormat );
-                            final Date ifModifiedSinceDate = Date.from( ifModifiedSinceDateTime.toInstant() );
-                            if( lastModified.before( ifModifiedSinceDate ) ) {
-                                return true;
-                            }
-                        }
-                    } catch( final DateTimeParseException e ) {
-                        LOG.warn( e.getLocalizedMessage(), e );
-                    }
-                }
-            } catch( final IllegalArgumentException e ) {
-                // Illegal date/time header format.  We fail quietly, and return false.
-                // FIXME: Should really move to ETags.
-            }
+        if( "no-cache".equalsIgnoreCase( req.getHeader( "Pragma" ) )
+            || "no-cache".equalsIgnoreCase( req.getHeader( "cache-control" ) ) ) {
+            return false;
         }
-         
-        return false;
+
+        //  HTTP 1.1 ETags go first
+        if( matchesETag( req, pageName, lastModified ) ) {
+            return true;
+        }
+
+        //  Next, try if-modified-since
+        return matchesIfModifiedSince( req, lastModified );
+    }
+
+    private static boolean matchesETag( final HttpServletRequest req, final String pageName, final Date lastModified ) {
+        final String thisTag = createETag( pageName, lastModified );
+        final String eTag = req.getHeader( "If-None-Match" );
+        return eTag != null && eTag.equals( thisTag );
+    }
+
+    private static boolean matchesIfModifiedSince( final HttpServletRequest req, final Date lastModified ) {
+        final long ifModifiedSince;
+        try {
+            ifModifiedSince = req.getDateHeader( "If-Modified-Since" );
+        } catch( final IllegalArgumentException e ) {
+            // Illegal date/time header format.  We fail quietly, and return false.
+            // FIXME: Should really move to ETags.
+            return false;
+        }
+
+        if( ifModifiedSince != -1 ) {
+            return lastModified.getTime() <= ifModifiedSince;
+        }
+
+        // Use thread-safe DateTimeFormatter instead of SimpleDateFormat
+        final DateTimeFormatter rfcDateFormat = DateTimeFormatter.ofPattern( "EEE, dd MMM yyyy HH:mm:ss z", Locale.US );
+        return matchesIfModifiedSinceHeader( req, lastModified, rfcDateFormat );
+    }
+
+    private static boolean matchesIfModifiedSinceHeader( final HttpServletRequest req, final Date lastModified,
+                                                           final DateTimeFormatter rfcDateFormat ) {
+        final String ifModifiedSinceHeader = req.getHeader( "If-Modified-Since" );
+        if( ifModifiedSinceHeader == null ) {
+            return false;
+        }
+        try {
+            final ZonedDateTime ifModifiedSinceDateTime = ZonedDateTime.parse( ifModifiedSinceHeader, rfcDateFormat );
+            final Date ifModifiedSinceDate = Date.from( ifModifiedSinceDateTime.toInstant() );
+            return lastModified.before( ifModifiedSinceDate );
+        } catch( final DateTimeParseException e ) {
+            LOG.warn( e.getLocalizedMessage(), e );
+            return false;
+        }
     }
 
     /**

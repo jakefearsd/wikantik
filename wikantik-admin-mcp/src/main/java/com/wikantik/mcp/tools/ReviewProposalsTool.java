@@ -136,60 +136,78 @@ public class ReviewProposalsTool extends AbstractMcpTool implements AuthorConfig
         final Map< String, List< String > > warningsByProposal = new LinkedHashMap<>();
 
         for ( final Object idEl : rawList ) {
-            final String idStr = idEl == null ? null : idEl.toString();
-            // A null array element can't be a UUID; UUID.fromString(null) throws
-            // NullPointerException (not IllegalArgumentException), so guard first
-            // and record it as a per-id failure like any other unparseable id.
-            if ( idStr == null ) {
-                LOG.warn( "review_proposals: null id element in ids array" );
-                final Map< String, Object > f = new LinkedHashMap<>();
-                f.put( "id", null );
-                f.put( "error", "Invalid UUID: null" );
-                failed.add( f );
-                continue;
-            }
-            UUID id;
-            try { id = UUID.fromString( idStr ); }
-            catch ( final IllegalArgumentException e ) {
-                LOG.warn( "review_proposals: invalid UUID '{}': {}", idStr, e.getMessage() );
-                final Map< String, Object > f = new LinkedHashMap<>();
-                f.put( "id", idStr );
-                f.put( "error", "Invalid UUID: " + idStr );
-                failed.add( f );
-                continue;
-            }
-
-            if ( "approve".equals( verdict ) ) {
-                final KgCurationOps.ApproveOutcome o = ops.tryApprove( id, defaultAuthor );
-                if ( o.error().isPresent() ) {
-                    final Map< String, Object > f = new LinkedHashMap<>();
-                    f.put( "id", idStr );
-                    f.put( "error", o.error().get() );
-                    failed.add( f );
-                } else {
-                    succeeded.add( idStr );
-                    if ( !o.warnings().isEmpty() ) {
-                        warningsByProposal.put( idStr, o.warnings() );
-                    }
-                }
-            } else {
-                final Optional< String > err = switch ( verdict ) {
-                    case "reject"  -> ops.tryRejectProposal( id, defaultAuthor, reason );
-                    default        -> ops.tryJudgeProposal( id, defaultAuthor );
-                };
-                if ( err.isEmpty() ) {
-                    succeeded.add( idStr );
-                } else {
-                    final Map< String, Object > f = new LinkedHashMap<>();
-                    f.put( "id", idStr );
-                    f.put( "error", err.get() );
-                    failed.add( f );
-                }
-            }
+            applyVerdictToOne( idEl, verdict, reason, succeeded, failed, warningsByProposal );
         }
 
         McpAudit.logBulkWrite( TOOL_NAME, rawList.size(), succeeded.size(), failed.size(), defaultAuthor );
 
+        return buildResult( verdict, rawList.size(), succeeded, failed, warningsByProposal );
+    }
+
+    /**
+     * Parses one raw id and applies {@code verdict} to it, appending the
+     * outcome into {@code succeeded}/{@code failed}/{@code warningsByProposal}.
+     * Never throws — an unparseable id is recorded as a per-id failure.
+     */
+    private void applyVerdictToOne( final Object idEl, final String verdict, final String reason,
+                                     final List< String > succeeded, final List< Map< String, Object > > failed,
+                                     final Map< String, List< String > > warningsByProposal ) {
+        final String idStr = idEl == null ? null : idEl.toString();
+        // A null array element can't be a UUID; UUID.fromString(null) throws
+        // NullPointerException (not IllegalArgumentException), so guard first
+        // and record it as a per-id failure like any other unparseable id.
+        if ( idStr == null ) {
+            LOG.warn( "review_proposals: null id element in ids array" );
+            final Map< String, Object > f = new LinkedHashMap<>();
+            f.put( "id", null );
+            f.put( "error", "Invalid UUID: null" );
+            failed.add( f );
+            return;
+        }
+        final UUID id;
+        try { id = UUID.fromString( idStr ); }
+        catch ( final IllegalArgumentException e ) {
+            LOG.warn( "review_proposals: invalid UUID '{}': {}", idStr, e.getMessage() );
+            final Map< String, Object > f = new LinkedHashMap<>();
+            f.put( "id", idStr );
+            f.put( "error", "Invalid UUID: " + idStr );
+            failed.add( f );
+            return;
+        }
+
+        if ( "approve".equals( verdict ) ) {
+            final KgCurationOps.ApproveOutcome o = ops.tryApprove( id, defaultAuthor );
+            if ( o.error().isPresent() ) {
+                final Map< String, Object > f = new LinkedHashMap<>();
+                f.put( "id", idStr );
+                f.put( "error", o.error().get() );
+                failed.add( f );
+            } else {
+                succeeded.add( idStr );
+                if ( !o.warnings().isEmpty() ) {
+                    warningsByProposal.put( idStr, o.warnings() );
+                }
+            }
+        } else {
+            final Optional< String > err = switch ( verdict ) {
+                case "reject"  -> ops.tryRejectProposal( id, defaultAuthor, reason );
+                default        -> ops.tryJudgeProposal( id, defaultAuthor );
+            };
+            if ( err.isEmpty() ) {
+                succeeded.add( idStr );
+            } else {
+                final Map< String, Object > f = new LinkedHashMap<>();
+                f.put( "id", idStr );
+                f.put( "error", err.get() );
+                failed.add( f );
+            }
+        }
+    }
+
+    private McpSchema.CallToolResult buildResult( final String verdict, final int requested,
+                                                    final List< String > succeeded,
+                                                    final List< Map< String, Object > > failed,
+                                                    final Map< String, List< String > > warningsByProposal ) {
         final Map< String, Object > out = new LinkedHashMap<>();
         out.put( "status", "completed" );
         out.put( "succeeded", succeeded );
@@ -200,7 +218,7 @@ public class ReviewProposalsTool extends AbstractMcpTool implements AuthorConfig
             case "judge"   -> "judged";
             default        -> verdict + "d";
         };
-        out.put( "message", succeeded.size() + " of " + rawList.size() + " proposals " + verbed );
+        out.put( "message", succeeded.size() + " of " + requested + " proposals " + verbed );
         if ( !warningsByProposal.isEmpty() ) {
             out.put( "warnings_by_proposal", warningsByProposal );
         }

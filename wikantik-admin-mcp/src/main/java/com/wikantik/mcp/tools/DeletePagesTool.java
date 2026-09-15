@@ -149,62 +149,12 @@ public class DeletePagesTool extends AbstractMcpTool {
 
         for ( final Object o : pageNames ) {
             final String pageName = o == null ? null : o.toString().trim();
-            final Map< String, Object > entry = new LinkedHashMap<>();
-            entry.put( "pageName", pageName );
-
-            try {
-                WikiPageNameValidator.requireValid( pageName, "pageName" );
-            } catch ( final IllegalArgumentException iae ) {
-                entry.put( "deleted", false );
-                entry.put( "error", iae.getMessage() );
-                results.add( entry );
-                failedCount++;
-                continue;
-            }
-
-            if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
-                entry.put( "deleted", false );
-                entry.put( "error", "system page — refusing to delete" );
-                results.add( entry );
-                skippedCount++;
-                continue;
-            }
-
-            final Page page = pageManager.getPage( pageName );
-            if ( page == null ) {
-                entry.put( "deleted", false );
-                entry.put( "error", "page not found" );
-                results.add( entry );
-                skippedCount++;
-                continue;
-            }
-
-            if ( !allowWithBacklinks && referenceManager != null ) {
-                final Collection< String > backlinks = referenceManager.findReferrers( pageName );
-                if ( backlinks != null && !backlinks.isEmpty() ) {
-                    entry.put( "deleted", false );
-                    entry.put( "error", "has " + backlinks.size() + " inbound backlinks — "
-                            + "set allowWithBacklinks=true to delete anyway" );
-                    entry.put( "backlinks", new ArrayList<>( backlinks ) );
-                    results.add( entry );
-                    skippedCount++;
-                    continue;
-                }
-            }
-
-            try {
-                pageManager.deletePage( pageName );
-                McpAudit.logWrite( TOOL_NAME, "deleted",
-                        pageName + ( changeNote == null ? "" : " note=" + changeNote ), null );
-                entry.put( "deleted", true );
-                results.add( entry );
-                deletedCount++;
-            } catch ( final Exception e ) {
-                LOG.error( "delete_pages failed for '{}': {}", pageName, e.getMessage(), e );
-                entry.put( "deleted", false );
-                entry.put( "error", e.getMessage() );
-                results.add( entry );
-                failedCount++;
+            final DeleteOutcome outcome = deleteOnePage( pageName, allowWithBacklinks, changeNote );
+            results.add( outcome.entry() );
+            switch ( outcome.status() ) {
+                case DELETED -> deletedCount++;
+                case SKIPPED -> skippedCount++;
+                case FAILED -> failedCount++;
             }
         }
 
@@ -217,5 +167,66 @@ public class DeletePagesTool extends AbstractMcpTool {
         summary.put( "failedCount", failedCount );
         payload.put( "summary", summary );
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, payload );
+    }
+
+    private enum DeleteStatus { DELETED, SKIPPED, FAILED }
+
+    private record DeleteOutcome( Map< String, Object > entry, DeleteStatus status ) { }
+
+    /**
+     * Deletes a single page, returning its per-page result entry plus a
+     * classification used to update the deleted/skipped/failed counters.
+     * Never throws — validation failures, refusals and delete errors are
+     * all captured in the returned entry.
+     */
+    private DeleteOutcome deleteOnePage( final String pageName, final boolean allowWithBacklinks,
+                                          final String changeNote ) {
+        final Map< String, Object > entry = new LinkedHashMap<>();
+        entry.put( "pageName", pageName );
+
+        try {
+            WikiPageNameValidator.requireValid( pageName, "pageName" );
+        } catch ( final IllegalArgumentException iae ) {
+            entry.put( "deleted", false );
+            entry.put( "error", iae.getMessage() );
+            return new DeleteOutcome( entry, DeleteStatus.FAILED );
+        }
+
+        if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
+            entry.put( "deleted", false );
+            entry.put( "error", "system page — refusing to delete" );
+            return new DeleteOutcome( entry, DeleteStatus.SKIPPED );
+        }
+
+        final Page page = pageManager.getPage( pageName );
+        if ( page == null ) {
+            entry.put( "deleted", false );
+            entry.put( "error", "page not found" );
+            return new DeleteOutcome( entry, DeleteStatus.SKIPPED );
+        }
+
+        if ( !allowWithBacklinks && referenceManager != null ) {
+            final Collection< String > backlinks = referenceManager.findReferrers( pageName );
+            if ( backlinks != null && !backlinks.isEmpty() ) {
+                entry.put( "deleted", false );
+                entry.put( "error", "has " + backlinks.size() + " inbound backlinks — "
+                        + "set allowWithBacklinks=true to delete anyway" );
+                entry.put( "backlinks", new ArrayList<>( backlinks ) );
+                return new DeleteOutcome( entry, DeleteStatus.SKIPPED );
+            }
+        }
+
+        try {
+            pageManager.deletePage( pageName );
+            McpAudit.logWrite( TOOL_NAME, "deleted",
+                    pageName + ( changeNote == null ? "" : " note=" + changeNote ), null );
+            entry.put( "deleted", true );
+            return new DeleteOutcome( entry, DeleteStatus.DELETED );
+        } catch ( final Exception e ) {
+            LOG.error( "delete_pages failed for '{}': {}", pageName, e.getMessage(), e );
+            entry.put( "deleted", false );
+            entry.put( "error", e.getMessage() );
+            return new DeleteOutcome( entry, DeleteStatus.FAILED );
+        }
     }
 }

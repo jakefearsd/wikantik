@@ -265,6 +265,13 @@ mvn javadoc:javadoc
 # not already in the burn-down baseline build-support/pmd-complexity-baseline.properties
 # (entries only ever come out)
 mvn pmd:check -Pcomplexity-gate
+
+# Per-module line-coverage ratchet — under -Pcoverage the JaCoCo `check` goal (root pom,
+# coverage-check execution) fails any module whose unit line coverage drops below the
+# <wikantik.coverage.line.minimum> pinned in its own pom. Floors are the measured level
+# rounded DOWN to a whole percent and only ever go UP (cap 0.95); raise a module's floor
+# when you lift its coverage. Runs in bin/site.sh and the weekly CI unit-suite job.
+mvn clean install -Pcoverage -DskipITs
 ```
 
 ```bash

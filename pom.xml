@@ -44,7 +44,7 @@
     <maven.version>3.5</maven.version>
 
     <akismet-java.version>1.0.0</akismet-java.version>
-    <anthropic-java.version>2.54.0</anthropic-java.version>
+    <anthropic-java.version>2.62.0</anthropic-java.version>
     <awaitility.version>4.3.0</awaitility.version>
     <bcrypt.version>0.10.2</bcrypt.version>
     <commons-collections.version>4.6.0</commons-collections.version>
@@ -68,6 +68,12 @@
     <jakarta-xml-bind-api.version>4.0.5</jakarta-xml-bind-api.version>
     <jaxb-runtime.version>4.0.9</jaxb-runtime.version>
     <jacoco-version>0.8.15</jacoco-version>
+    <!-- Default per-module line-coverage floor for the JaCoCo `check` ratchet (see the
+         coverage-check execution in pluginManagement). Every module with production
+         code overrides this with its own measured floor. -->
+    <wikantik.coverage.line.minimum>0.80</wikantik.coverage.line.minimum>
+    <!-- Set to true in modules whose main classes are only exercised by the Cargo ITs (wikantik-it-tests). -->
+    <wikantik.coverage.check.skip>false</wikantik.coverage.check.skip>
     <jamm.version>0.4.0</jamm.version>
     <jaxen.version>2.0.6</jaxen.version>
     <javax-mail.version>1.6.2</javax-mail.version>
@@ -88,16 +94,16 @@
     <mockito.version>5.23.0</mockito.version>
     <nekohtml.version>3.0.4</nekohtml.version>
     <owasp-html-sanitizer.version>20260313.1</owasp-html-sanitizer.version>
-    <pac4j.version>6.5.6</pac4j.version>
+    <pac4j.version>6.5.8</pac4j.version>
     <rome.version>2.1.0</rome.version>
-    <selenide.version>7.17.0</selenide.version>
-    <selenium.version>4.47.0</selenium.version>
-    <slf4j.version>2.0.18</slf4j.version>
+    <selenide.version>7.18.1</selenide.version>
+    <selenium.version>4.49.0</selenium.version>
+    <slf4j.version>2.0.19</slf4j.version>
     <tika.version>3.3.2</tika.version>
     <tomcat.version>11.0.24</tomcat.version>
     <xstream.version>1.4.21</xstream.version>
     <mcp-sdk.version>2.0.0</mcp-sdk.version>
-    <snakeyaml.version>2.6</snakeyaml.version>
+    <snakeyaml.version>2.7</snakeyaml.version>
     <tribuo.version>4.3.2</tribuo.version>
     <xmemcached.version>2.4.9</xmemcached.version>
     <micrometer.version>1.17.1</micrometer.version>
@@ -109,9 +115,9 @@
     <!-- Google Drive connector stack. These move together: google-api-client 2.9.0 requires
          google-http-client 2.x, and the whole http-client family must converge on one version
          (transitives otherwise resolve at a mix via nearest-wins). -->
-    <google-api-client.version>2.9.0</google-api-client.version>
-    <google-auth-library.version>1.50.0</google-auth-library.version>
-    <google-api-services-drive.version>v3-rev20260720-2.0.0</google-api-services-drive.version>
+    <google-api-client.version>2.9.1</google-api-client.version>
+    <google-auth-library.version>1.52.0</google-auth-library.version>
+    <google-api-services-drive.version>v3-rev20260901-2.0.0</google-api-services-drive.version>
     <google-http-client.version>2.2.0</google-http-client.version>
 
     <!-- ============================================================
@@ -121,7 +127,7 @@
          OSV.dev scan of the resolved tree on 2026-06-21. Remove a
          pin once the declaring dependency ships the fix itself.
          ============================================================ -->
-    <sec.bouncycastle.version>1.85</sec.bouncycastle.version>               <!-- via pac4j-saml/oidc + tika-crypto; CVE-2026-5598/-0636/-5588.
+    <sec.bouncycastle.version>1.86</sec.bouncycastle.version>               <!-- via pac4j-saml/oidc + tika-crypto; CVE-2026-5598/-0636/-5588.
                                                                                  HELD at 1.85: versions-plugin reports bcprov-jdk18on 1.85.2, but that
                                                                                  patch was released for bcprov ONLY — bcpkix/bcjmail/bcutil have no
                                                                                  1.85.2 (verified 404 on Central), and this one property drives all
@@ -137,21 +143,21 @@
                                                                               7.6.0, so this stays on its line; the 8.x MAJOR remains held
                                                                               (dependabot.yml ignores it). -->
     <sec.guava.version>33.7.1-jre</sec.guava.version>                    <!-- via pac4j-oidc/pac4j-saml (opensaml); CVE-2023-2976, CVE-2020-8908 -->
-    <sec.okio.version>3.18.1</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
+    <sec.okio.version>3.18.2</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
     <sec.httpclient5.version>5.6.4</sec.httpclient5.version>            <!-- via pac4j-saml->opensaml->shib-networking (5.3.1) + selenide-core
                                                                               (5.6.2); GHSA-hjcp-jmpx-g3qm / CVE-2026-64607. -->
     <sec.httpcore5.version>5.4.3</sec.httpcore5.version>                 <!-- same chain; GHSA-hf6x-8p5f-cgmf / CVE-2026-54399 (httpcore5 5.2.5)
                                                                               and GHSA-v3jc-474w-2wm6 / CVE-2026-54428 (httpcore5-h2 5.2.4).
                                                                               The 5.6.x client / 5.4.x core pairing is the one selenide already
                                                                               resolves to across the IT modules. -->
-    <sec.jsoup.version>1.23.1</sec.jsoup.version>                        <!-- via wikantik-ingest -> flexmark-html2md-converter (1.15.4);
+    <sec.jsoup.version>1.23.2</sec.jsoup.version>                        <!-- via wikantik-ingest -> flexmark-html2md-converter (1.15.4);
                                                                               GHSA-pmhh-3w7g-xqp8 / CVE-2026-71497. wikantik-connectors already
                                                                               declares 1.23.1 directly, so this only fixes ingest built alone. -->
 
     <plugin.antrun.version>3.2.0</plugin.antrun.version>
     <plugin.assembly.version>3.8.0</plugin.assembly.version>
     <plugin.clean.version>3.5.0</plugin.clean.version>
-    <plugin.compiler.version>3.15.0</plugin.compiler.version>
+    <plugin.compiler.version>3.16.0</plugin.compiler.version>
     <plugin.dependency.version>3.11.0</plugin.dependency.version>
     <plugin.enforcer.version>3.6.3</plugin.enforcer.version>
     <plugin.install.version>3.1.4</plugin.install.version>
@@ -163,22 +169,22 @@
     <plugin.remote-resources.version>3.3.0</plugin.remote-resources.version>
     <plugin.resources.version>3.5.0</plugin.resources.version>
     <plugin.source.version>3.4.0</plugin.source.version>
-    <plugin.surefire.version>3.5.6</plugin.surefire.version>
+    <plugin.surefire.version>3.6.0</plugin.surefire.version>
     <plugin.war.version>3.5.1</plugin.war.version>
-    <plugin.build-helper.version>3.6.1</plugin.build-helper.version>
+    <plugin.build-helper.version>3.6.2</plugin.build-helper.version>
     <plugin.checksum.version>1.11</plugin.checksum.version>
     <plugin.cargo.version>1.10.28</plugin.cargo.version>
     <plugin.docker.version>0.49.0</plugin.docker.version>
     <plugin.pmd.version>3.28.0</plugin.pmd.version>
     <plugin.site.version>3.22.0</plugin.site.version>
-    <plugin.spotbugs.version>4.10.3.0</plugin.spotbugs.version>
-    <spotbugs-annotations.version>4.10.3</spotbugs-annotations.version>
+    <plugin.spotbugs.version>4.10.4.1</plugin.spotbugs.version>
+    <spotbugs-annotations.version>4.10.4</spotbugs-annotations.version>
     <findsecbugs.version>1.14.0</findsecbugs.version>
-    <plugin.clirr.version>2.8</plugin.clirr.version>
+    <plugin.clirr.version>2.9</plugin.clirr.version>
     <plugin.wro4j.version>2.1.1</plugin.wro4j.version>
     <plugin.cobertura.version>2.7</plugin.cobertura.version>
     <plugin.cyclonedx.version>2.9.3</plugin.cyclonedx.version>
-    <plugin.sonar.version>5.7.0.6970</plugin.sonar.version>
+    <plugin.sonar.version>5.8.0.7211</plugin.sonar.version>
     <plugin.sonar-report.version>0.1</plugin.sonar-report.version>
     <!-- Override the parent pom's compiler defaults. Since org.apache:apache 39 the
          parent derives ALL THREE of source/target/release from its own ${javaVersion}
@@ -1298,6 +1304,36 @@
                         <goal>report</goal>
                     </goals>
                 </execution>
+                <!-- Per-module line-coverage ratchet. Each module pins its own floor via
+                     <wikantik.coverage.line.minimum> (root default in <properties>); the floor is
+                     the module's measured unit line coverage, rounded DOWN to a whole
+                     percent, at the time it was last ratcheted. Floors only ever go UP:
+                     when a module gains coverage, raise its floor to the new level
+                     (never above 0.95). Enforced under -Pcoverage (bin/site.sh, the
+                     weekly CI unit-suite job); modules without a jacoco.exec skip. -->
+                <execution>
+                    <id>coverage-check</id>
+                    <phase>verify</phase>
+                    <goals>
+                        <goal>check</goal>
+                    </goals>
+                    <configuration>
+                        <skip>${wikantik.coverage.check.skip}</skip>
+                        <haltOnFailure>true</haltOnFailure>
+                        <rules>
+                            <rule>
+                                <element>BUNDLE</element>
+                                <limits>
+                                    <limit>
+                                        <counter>LINE</counter>
+                                        <value>COVEREDRATIO</value>
+                                        <minimum>${wikantik.coverage.line.minimum}</minimum>
+                                    </limit>
+                                </limits>
+                            </rule>
+                        </rules>
+                    </configuration>
+                </execution>
             </executions>
         </plugin>
         <plugin>
@@ -1497,7 +1533,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>taglist-maven-plugin</artifactId>
-        <version>3.2.2</version>
+        <version>3.2.3</version>
         <configuration>
           <aggregate>true</aggregate>
           <tagListOptions>
@@ -1525,7 +1561,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>versions-maven-plugin</artifactId>
-        <version>2.21.0</version>
+        <version>2.22.0</version>
         <reportSets>
           <reportSet>
             <reports>

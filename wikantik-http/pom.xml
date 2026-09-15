@@ -29,6 +29,11 @@
   <artifactId>wikantik-http</artifactId>
   <name>Wikantik http servlet and filters</name>
 
+  <properties>
+    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+    <wikantik.coverage.line.minimum>0.86</wikantik.coverage.line.minimum>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>

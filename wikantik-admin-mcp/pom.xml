@@ -29,6 +29,11 @@
   <artifactId>wikantik-admin-mcp</artifactId>
   <modelVersion>4.0.0</modelVersion>
   <name>Wikantik Admin MCP Server</name>
+
+  <properties>
+    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+    <wikantik.coverage.line.minimum>0.87</wikantik.coverage.line.minimum>
+  </properties>
   <description>Model Context Protocol (MCP) server for Wikantik, enabling AI agents to interact with the wiki as a semantic knowledge base</description>
 
   <dependencyManagement>

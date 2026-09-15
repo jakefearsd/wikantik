@@ -79,9 +79,11 @@ jobs:
         # tree CI verified is byte-identical to the one the WAR build installs.
         run: git diff --exit-code -- package-lock.json
 
-      - name: Frontend unit tests (vitest)
+      # `test:coverage` also enforces the vitest coverage thresholds in
+      # vite.config.js (a floor per metric that only ratchets up).
+      - name: Frontend unit tests + coverage ratchet (vitest)
         working-directory: wikantik-frontend
-        run: npm test
+        run: npm run test:coverage
 
   shell-tests:
     # Deploy/ops tooling suites under bin/tests/. These guard bin/remote.sh,
@@ -179,5 +181,8 @@ jobs:
           cache: npm
           cache-dependency-path: wikantik-frontend/package-lock.json
 
-      - name: Full unit suite
-        run: mvn -B clean install -DskipITs -Dtests.requireDocker=true
+      # -Pcoverage also runs the per-module JaCoCo line-coverage ratchet
+      # (coverage-check in the root pom): a module that drops below its pinned
+      # <wikantik.coverage.line.minimum> fails this job.
+      - name: Full unit suite + coverage ratchet
+        run: mvn -B clean install -DskipITs -Dtests.requireDocker=true -Pcoverage

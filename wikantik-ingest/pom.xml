@@ -29,6 +29,11 @@
   <artifactId>wikantik-ingest</artifactId>
   <name>Wikantik document ingest (Tika extractor)</name>
 
+  <properties>
+    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+    <wikantik.coverage.line.minimum>0.80</wikantik.coverage.line.minimum>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.tika</groupId>

@@ -29,6 +29,11 @@
   <artifactId>wikantik-rest</artifactId>
   <modelVersion>4.0.0</modelVersion>
   <name>Wikantik REST API</name>
+
+  <properties>
+    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+    <wikantik.coverage.line.minimum>0.86</wikantik.coverage.line.minimum>
+  </properties>
   <description>REST/JSON endpoints for the Wikantik wiki engine, enabling alternative frontends and programmatic access</description>
 
   <dependencies>

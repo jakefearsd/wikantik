@@ -30,6 +30,11 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>wikantik-extract-cli</artifactId>
     <name>Wikantik Entity-Extractor CLI</name>
+
+    <properties>
+      <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+      <wikantik.coverage.line.minimum>0.83</wikantik.coverage.line.minimum>
+    </properties>
     <description>
         Standalone command-line driver for the save-time entity extractor
         pipeline. Runs the BootstrapEntityExtractionIndexer against an

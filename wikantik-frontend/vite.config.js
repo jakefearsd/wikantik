@@ -36,6 +36,22 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     setupFiles: ['./src/setupTests.js'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{js,jsx}'],
+      exclude: ['src/**/*.test.{js,jsx}', 'src/setupTests.js', 'src/main.jsx'],
+      reporter: ['text-summary', 'json-summary', 'html'],
+      // Coverage ratchet (enforced by `npm run test:coverage`, which CI runs):
+      // each floor is the measured level rounded DOWN to a whole percent at the
+      // time it was last raised. Floors only ever go UP (cap 95). Raise them
+      // when coverage improves; never lower one to make a red run pass.
+      thresholds: {
+        lines: 85,
+        statements: 83,
+        functions: 81,
+        branches: 74,
+      },
+    },
   },
   base: '/',
   build: {

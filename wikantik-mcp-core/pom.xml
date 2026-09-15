@@ -29,6 +29,11 @@
   <artifactId>wikantik-mcp-core</artifactId>
   <modelVersion>4.0.0</modelVersion>
   <name>Wikantik MCP Core</name>
+
+  <properties>
+    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+    <wikantik.coverage.line.minimum>0.88</wikantik.coverage.line.minimum>
+  </properties>
   <description>Shared MCP server substrate (tool interface, result/argument utilities, audit,
     endpoint bootstrapper, and the KG tools common to both MCP endpoints) so the read-only
     knowledge-mcp server does not depend on the admin-mcp write module.</description>

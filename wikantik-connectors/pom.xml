@@ -29,6 +29,11 @@
   <artifactId>wikantik-connectors</artifactId>
   <name>Wikantik external source connectors</name>
 
+  <properties>
+    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+    <wikantik.coverage.line.minimum>0.83</wikantik.coverage.line.minimum>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -96,7 +101,7 @@
     <dependency>
       <groupId>org.jsoup</groupId>
       <artifactId>jsoup</artifactId>
-      <version>1.23.1</version>
+      <version>${sec.jsoup.version}</version>
     </dependency>
 
     <dependency>

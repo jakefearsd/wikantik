@@ -30,6 +30,11 @@
     <artifactId>wikantik-api</artifactId>
     <name>Wikantik public API</name>
 
+    <properties>
+      <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+      <wikantik.coverage.line.minimum>0.71</wikantik.coverage.line.minimum>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>

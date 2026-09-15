@@ -29,6 +29,11 @@
   <artifactId>wikantik-ontology</artifactId>
   <name>Wikantik ontology (RDF/OWL T-Box + SHACL)</name>
 
+  <properties>
+    <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
+    <wikantik.coverage.line.minimum>0.90</wikantik.coverage.line.minimum>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>

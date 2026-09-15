@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "lint": "eslint ."
   },
@@ -21,9 +22,9 @@
     "cytoscape-cose-bilkent": "^4.1.0",
     "dom-anchor-text-quote": "^4.0.2",
     "katex": "^0.16.47",
-    "react": "^19.2.7",
+    "react": "^19.3.0",
     "react-cytoscapejs": "^2.0.0",
-    "react-dom": "^19.2.7",
+    "react-dom": "^19.3.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.3",
     "rehype-katex": "^7.0.1",
@@ -40,11 +41,11 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-testing-library": "^7.16.2",
     "globals": "^17.12.0",
-    "happy-dom": "^20.14.3",
+    "happy-dom": "^20.14.5",
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.1.0",
-    "vite": "^8.2.2",
+    "vite": "^8.3.0",
     "vitest": "^4.1.11"
   },
   "overrides": {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 // Per-tab navigation trail backing the reader breadcrumb: the last few DISTINCT
 // pages visited, oldest → newest, with the current page LAST. Deliberately
@@ -12,33 +12,60 @@ const CAP = 3;
 // Module-level fan-out so separate live instances converge on the same state.
 // PageView mounts one instance to record; Breadcrumbs mounts another to read.
 // A same-tab write does NOT fire the native `storage` event, so notify directly.
+// sessionStorage is a genuine external store (mutated outside React, and by
+// other tabs), so it's read via useSyncExternalStore rather than an effect
+// that calls setState.
 const listeners = new Set();
 
-function read() {
-  if (typeof sessionStorage === 'undefined') return [];
+function readRaw() {
+  if (typeof sessionStorage === 'undefined') return null;
   try {
-    return JSON.parse(sessionStorage.getItem(KEY)) || [];
+    return sessionStorage.getItem(KEY);
+  } catch {
+    return null;
+  }
+}
+
+function parse(raw) {
+  try {
+    return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-export function usePageTrail() {
-  const [items, setItems] = useState(read);
+function read() {
+  return parse(readRaw());
+}
 
-  // Re-read on mount and whenever another instance records (same tab) or another
-  // tab writes the same key.
-  useEffect(() => {
-    setItems(read());
-    const onChange = () => setItems(read());
-    listeners.add(onChange);
-    const onStorage = (e) => { if (e.key === KEY) onChange(); };
-    window.addEventListener('storage', onStorage);
-    return () => {
-      listeners.delete(onChange);
-      window.removeEventListener('storage', onStorage);
-    };
-  }, []);
+// getSnapshot must return a referentially-stable value when nothing changed
+// (useSyncExternalStore's contract — a fresh array every call would spin into
+// an infinite re-render loop), so cache the parsed array keyed on the raw
+// string and only re-parse when sessionStorage actually changed.
+let cachedRaw;
+let cachedItems = [];
+
+function getSnapshot() {
+  const raw = readRaw();
+  if (raw !== cachedRaw) {
+    cachedRaw = raw;
+    cachedItems = parse(raw);
+  }
+  return cachedItems;
+}
+
+function subscribe(onStoreChange) {
+  listeners.add(onStoreChange);
+  const onStorage = (e) => { if (e.key === KEY) onStoreChange(); };
+  window.addEventListener('storage', onStorage);
+  return () => {
+    listeners.delete(onStoreChange);
+    window.removeEventListener('storage', onStorage);
+  };
+}
+
+export function usePageTrail() {
+  const items = useSyncExternalStore(subscribe, getSnapshot);
 
   const record = useCallback(({ slug, title }) => {
     if (!slug) return;
@@ -51,7 +78,6 @@ export function usePageTrail() {
     } catch (e) {
       console.warn('usePageTrail: failed to persist', e);
     }
-    setItems(next);
     listeners.forEach((fn) => fn());
   }, []);
 

@@ -5,10 +5,18 @@ export function useMyPages({ enabled }) {
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(enabled);
 
+  // Adjust state during render the moment `enabled` changes, instead of via a
+  // synchronous setState inside the effect below.
+  const [wasEnabled, setWasEnabled] = useState(enabled);
+  if (enabled !== wasEnabled) {
+    setWasEnabled(enabled);
+    setLoading(enabled);
+    if (!enabled) setPages([]);
+  }
+
   useEffect(() => {
-    if (!enabled) { setPages([]); setLoading(false); return; }
+    if (!enabled) return undefined;
     let cancelled = false;
-    setLoading(true);
     api.getMyPages()
       .then((d) => { if (!cancelled) setPages(d.pages || []); })
       .catch(() => { if (!cancelled) setPages([]); })

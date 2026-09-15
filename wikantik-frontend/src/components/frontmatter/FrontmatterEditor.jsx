@@ -108,18 +108,18 @@ export default function FrontmatterEditor({
   validateRaw = (payload) => api.validateFrontmatter(payload),
   pageSearch,
 }) {
-  const [schema, setSchema] = useState(schemaProp ?? null);
+  // `schema` is schemaProp when the caller supplies one (no fetch needed — that
+  // case is a pure derivation, not effect-worthy); otherwise it's whatever the
+  // async fetch below has resolved so far (null while loading).
+  const [fetchedSchema, setFetchedSchema] = useState(null);
   const [tab, setTab] = useState('form');
 
   useEffect(() => {
-    if (schemaProp) {
-      setSchema(schemaProp);
-      return undefined;
-    }
+    if (schemaProp) return undefined;
     let alive = true;
     getSchema()
       .then((s) => {
-        if (alive) setSchema(s);
+        if (alive) setFetchedSchema(s);
       })
       .catch(() => {
         /* schema fetch failed; editor stays in loading state — surfaced by the caller's error path */
@@ -128,6 +128,8 @@ export default function FrontmatterEditor({
       alive = false;
     };
   }, [schemaProp]);
+
+  const schema = schemaProp ?? fetchedSchema;
 
   // Partition the schema's fields once per schema: Common (always open), More (collapsible),
   // and the READONLY derived fields (meta strip). Order is preserved from the schema.
@@ -161,9 +163,16 @@ export default function FrontmatterEditor({
       ),
     [moreFields, violations],
   );
-  useEffect(() => {
+  // Adjust state during render (React's sanctioned alternative to an effect here):
+  // force the disclosure open the moment moreHasError is true — on mount or on a
+  // later transition — by comparing against the last value we reacted to; once
+  // reacted-to, moreErrorSeen tracks moreHasError so this doesn't refire while the
+  // user is free to close the disclosure manually.
+  const [moreErrorSeen, setMoreErrorSeen] = useState(false);
+  if (moreHasError !== moreErrorSeen) {
+    setMoreErrorSeen(moreHasError);
     if (moreHasError) setMoreOpen(true);
-  }, [moreHasError]);
+  }
 
   if (!schema) return <div className="fm-editor-loading">Loading editor…</div>;
 

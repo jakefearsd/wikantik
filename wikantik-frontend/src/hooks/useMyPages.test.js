@@ -26,4 +26,30 @@ describe('useMyPages', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.pages).toEqual([]);
   });
+
+  it('clears pages and loading when toggled from enabled to disabled', async () => {
+    api.getMyPages.mockResolvedValue({ pages: [{ slug: 'Foo', title: 'Foo' }] });
+    const { result, rerender } = renderHook(({ enabled }) => useMyPages({ enabled }), {
+      initialProps: { enabled: true },
+    });
+    await waitFor(() => expect(result.current.pages).toHaveLength(1));
+
+    rerender({ enabled: false });
+
+    expect(result.current.pages).toEqual([]);
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('fetches again when toggled from disabled to enabled', async () => {
+    api.getMyPages.mockResolvedValue({ pages: [{ slug: 'Foo', title: 'Foo' }] });
+    const { result, rerender } = renderHook(({ enabled }) => useMyPages({ enabled }), {
+      initialProps: { enabled: false },
+    });
+    expect(api.getMyPages).not.toHaveBeenCalled();
+
+    rerender({ enabled: true });
+
+    await waitFor(() => expect(result.current.pages).toHaveLength(1));
+    expect(api.getMyPages).toHaveBeenCalledTimes(1);
+  });
 });

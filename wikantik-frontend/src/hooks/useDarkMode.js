@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 
 const STORAGE_KEY = 'wikantik-theme';
 
 // Module-level shared state so every useDarkMode() consumer stays in sync.
 // Previously each instance held its own useState, so toggling the theme in the
 // sidebar never updated the editor's instance — CodeMirror kept its old theme
-// until a full refresh re-read localStorage.
+// until a full refresh re-read localStorage. `current` is a genuine external
+// store (mutated outside React, by toggle()), so it's read via
+// useSyncExternalStore rather than an effect that calls setState.
 const listeners = new Set();
 let current = null;
 
@@ -25,24 +27,24 @@ function applyTheme(dark) {
   localStorage.setItem(STORAGE_KEY, dark ? 'dark' : 'light');
 }
 
-export function useDarkMode() {
-  const [dark, setDark] = useState(getCurrent);
+function subscribe(onStoreChange) {
+  listeners.add(onStoreChange);
+  return () => { listeners.delete(onStoreChange); };
+}
 
+export function useDarkMode() {
+  const dark = useSyncExternalStore(subscribe, getCurrent);
+
+  // Reflect the current theme in the DOM/localStorage — an imperative sync to
+  // an external system, not a setState call, so it's fine inside an effect.
   useEffect(() => {
-    // Reflect the current theme in the DOM on mount, and subscribe so a toggle
-    // from any other consumer updates this instance too.
-    applyTheme(getCurrent());
-    if (dark !== current) setDark(current);
-    listeners.add(setDark);
-    return () => { listeners.delete(setDark); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    applyTheme(dark);
+  }, [dark]);
 
   const toggle = () => {
-    const next = !getCurrent();
-    current = next;
-    applyTheme(next);
-    listeners.forEach(notify => notify(next)); // update every mounted consumer
+    current = !getCurrent();
+    applyTheme(current);
+    listeners.forEach(notify => notify()); // update every mounted consumer
   };
 
   return [dark, toggle];

@@ -13,14 +13,21 @@ export function useFrontmatterValidation(metadata, {
   const [validating, setValidating] = useState(false);
   const reqIdRef = useRef(0);
 
-  const yaml = enabled ? metadataToYaml(metadata || {}) : null;
-
-  useEffect(() => {
+  // Adjust state during render (not in the effect below) the moment `enabled`
+  // flips to false, by comparing against the last value reacted to.
+  const [wasEnabled, setWasEnabled] = useState(enabled);
+  if (enabled !== wasEnabled) {
+    setWasEnabled(enabled);
     if (!enabled) {
       setViolations([]);
       setValidating(false);
-      return undefined;
     }
+  }
+
+  const yaml = enabled ? metadataToYaml(metadata || {}) : null;
+
+  useEffect(() => {
+    if (!enabled) return undefined;
     const handle = setTimeout(() => {
       const myId = ++reqIdRef.current;
       setValidating(true);

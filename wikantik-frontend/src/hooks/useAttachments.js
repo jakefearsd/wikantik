@@ -11,28 +11,50 @@ function isImageFile(name) {
 
 export function useAttachments(pageName) {
   const [list, setList] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!pageName);
   const [error, setError] = useState(null);
-
-  const fetchList = useCallback(async () => {
-    if (!pageName) return;
-    setLoading(true);
+  // Tracks the pageName the state above reflects, so a prop change can be
+  // detected and reacted to during render — resetting loading/list for the
+  // new page before paint — instead of via a synchronous setState in an effect.
+  const [trackedPageName, setTrackedPageName] = useState(pageName);
+  if (pageName !== trackedPageName) {
+    setTrackedPageName(pageName);
     setError(null);
-    try {
-      const data = await api.listAttachments(pageName);
-      const attachments = (data.attachments || []).map(att => ({
-        ...att,
-        isImage: isImageFile(att.fileName),
-      }));
-      setList(attachments);
-    } catch (err) {
-      setError(err.message || 'Failed to load attachments');
-    } finally {
-      setLoading(false);
-    }
+    setLoading(!!pageName);
+    if (!pageName) setList([]);
+  }
+
+  // The actual fetch: every setState here happens inside a .then/.catch/.finally
+  // closure, never synchronously, so it's safe to call directly from an effect.
+  const doFetch = useCallback(() => {
+    if (!pageName) return Promise.resolve();
+    return api.listAttachments(pageName)
+      .then((data) => {
+        const attachments = (data.attachments || []).map(att => ({
+          ...att,
+          isImage: isImageFile(att.fileName),
+        }));
+        setList(attachments);
+        setError(null);
+      })
+      .catch((err) => {
+        setError(err.message || 'Failed to load attachments');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [pageName]);
 
-  useEffect(() => { fetchList(); }, [fetchList]);
+  useEffect(() => { doFetch(); }, [doFetch]);
+
+  // Manual reload (upload/rename/delete/reload): an event-driven call, so the
+  // synchronous loading/error prelude here is fine — it's not inside an effect.
+  const fetchList = useCallback(() => {
+    if (!pageName) return Promise.resolve();
+    setLoading(true);
+    setError(null);
+    return doFetch();
+  }, [pageName, doFetch]);
 
   const uploadAttachment = useCallback(async (file, name) => {
     const data = await api.uploadAttachment(pageName, file, name);

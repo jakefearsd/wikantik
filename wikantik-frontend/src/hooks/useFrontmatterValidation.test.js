@@ -39,6 +39,21 @@ describe('useFrontmatterValidation', () => {
     expect(result.current.violations).toEqual(ERR.violations); // stale #1 ignored
   });
 
+  it('clears violations and validating state when disabled', async () => {
+    vi.useRealTimers();
+    const validate = vi.fn().mockResolvedValueOnce(ERR);
+    const { result, rerender } = renderHook(
+      ({ m, enabled }) => useFrontmatterValidation(m, { validate, debounceMs: 5, enabled }),
+      { initialProps: { m: { title: 'a' }, enabled: true } },
+    );
+    await waitFor(() => expect(result.current.violations).toEqual(ERR.violations));
+
+    rerender({ m: { title: 'a' }, enabled: false });
+
+    expect(result.current.violations).toEqual([]);
+    expect(result.current.validating).toBe(false);
+  });
+
   it('fails open: a rejected validate keeps the last violations and never throws', async () => {
     vi.useRealTimers();
     const validate = vi.fn().mockResolvedValueOnce(ERR).mockRejectedValueOnce(new Error('net'));

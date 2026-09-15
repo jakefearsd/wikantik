@@ -2,6 +2,9 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import FrontmatterEditor from './FrontmatterEditor';
+import { getSchema } from './schemaClient';
+
+vi.mock('./schemaClient', () => ({ getSchema: vi.fn() }));
 
 const SCHEMA = {
   fields: [
@@ -20,6 +23,13 @@ const SCHEMA = {
 };
 
 describe('FrontmatterEditor', () => {
+  it('fetches the schema via schemaClient when no schema prop is given', async () => {
+    getSchema.mockResolvedValue(SCHEMA);
+    render(<FrontmatterEditor metadata={{ type: 'article' }} onChange={() => {}} />);
+    expect(screen.getByText('Loading editor…')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Type')).toBeInTheDocument();
+  });
+
   it('renders an open enum as a combobox and a closed enum as a select', () => {
     render(<FrontmatterEditor schema={SCHEMA} metadata={{ type: 'article', audience: 'both' }} onChange={() => {}} />);
     // open enum -> combobox input labeled "Type"

@@ -7,14 +7,17 @@ export function useUnreadMentions({ enabled = true } = {}) {
   const [count, setCount] = useState(0);
   const aliveRef = useRef(true);
 
-  const refresh = useCallback(async () => {
-    if (!enabled) return;
-    try {
-      const res = await api.getMyMentionsUnreadCount();
-      if (aliveRef.current) setCount(typeof res?.count === 'number' ? res.count : 0);
-    } catch {
-      if (aliveRef.current) setCount(0);
-    }
+  // A promise chain (not async/await) so every setState call lives inside a
+  // .then/.catch closure — safe to invoke directly from an effect.
+  const refresh = useCallback(() => {
+    if (!enabled) return Promise.resolve();
+    return api.getMyMentionsUnreadCount()
+      .then((res) => {
+        if (aliveRef.current) setCount(typeof res?.count === 'number' ? res.count : 0);
+      })
+      .catch(() => {
+        if (aliveRef.current) setCount(0);
+      });
   }, [enabled]);
 
   useEffect(() => {

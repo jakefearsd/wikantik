@@ -31,24 +31,27 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [sso, setSso] = useState(readCachedSso);
 
-  const refresh = async () => {
-    try {
-      const data = await api.getUser();
-      setUser(data);
-      // Update the sticky SSO config from the probe when present; never clear it
-      // on a response that happens to omit it.
-      if (data && data.sso) {
-        setSso(data.sso);
-        writeCachedSso(data.sso);
-      }
-    } catch {
-      // A failed probe means an unknown session, not "SSO is gone" — leave the
-      // cached `sso` in place so the login button stays put.
-      setUser({ authenticated: false, username: 'anonymous' });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // A promise chain (not async/await) so every setState call lives inside a
+  // .then/.catch/.finally closure — safe to invoke directly from an effect.
+  const refresh = () =>
+    api.getUser()
+      .then((data) => {
+        setUser(data);
+        // Update the sticky SSO config from the probe when present; never clear it
+        // on a response that happens to omit it.
+        if (data && data.sso) {
+          setSso(data.sso);
+          writeCachedSso(data.sso);
+        }
+      })
+      .catch(() => {
+        // A failed probe means an unknown session, not "SSO is gone" — leave the
+        // cached `sso` in place so the login button stays put.
+        setUser({ authenticated: false, username: 'anonymous' });
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
   useEffect(() => { refresh(); }, []);
 

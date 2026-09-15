@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- **SHA-1 password formats removed.** `{SHA}` (unsalted SHA-1) and `{SSHA}` (salted SHA-1) no longer
+  verify in `AbstractUserDatabase.validatePassword` or `CryptoUtil`, and `CryptoUtil` can no longer
+  produce `{SSHA}`. A read-only count of production on 2026-09-14 found no rows in either format
+  (3 `{bcrypt}`, 2 `{SHA-256}`, 5 SSO accounts with no password). An account still holding one must
+  reset its password. `{SHA-256}` stays verifiable because the canonical admin seed and the
+  `CryptoUtil --hash` CLI still produce it; any legacy hash is re-hashed to bcrypt on the next
+  successful login, as before.
+
 ### Fixed
 - **Plugin `debug=true` could leak raw server stack traces to every viewer.** The
   parameter was page-content-controlled and ungated, so any editor could make a
@@ -26,6 +35,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Visibility races: `ConnectorRuntime.isSchedulerRunning()` read `executor` outside
   the lock; `DefaultReferenceManager`'s unmodifiable views and
   `DefaultRenderingManager.beautifyTitle` are now `volatile`.
+- **Change-password threw a NullPointerException for SSO accounts.** SSO-provisioned users have a
+  NULL stored password, so the SPA's current-password check (and `DefaultUserManager`'s old-password
+  check) returned a 500. `validatePassword` now returns false for a null stored or supplied password.
+- **Custom page-property limits were process-wide.** `AbstractFileProvider.MAX_PROPLIMIT`,
+  `MAX_PROPKEYLENGTH` and `MAX_PROPVALUELENGTH` were static fields written by every engine's
+  `initialize()`, so in a multi-engine JVM the last engine's configuration applied to all of them.
+  They are now per-instance.
+- **CI complexity ratchet hid violations.** With `-fae`, Maven skipped every module downstream of the
+  first failing one; the step now runs `-fn` and passes only on `BUILD SUCCESS`.
+- `DiffViewer` could keep showing a stale diff after re-selecting the same version pair, and
+  `CommentBody` mutated a shared module-level regex's `lastIndex` during render; both fixed with
+  regression tests.
+- `WikiTest` asserted a property count that grew with any exported `WIKANTIK_*` variable; it now
+  asserts the expected keys.
 
 ### Changed
 - **Coverage ratchets.** Every module pins a JaCoCo line-coverage floor
@@ -52,6 +75,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   2.5.250 (test), surefire/failsafe 3.6.0, compiler 3.16.0, spotbugs 4.10.4.1,
   build-helper 3.6.2, exec 3.6.4, properties 1.3.1, sonar 5.8, clirr 2.9;
   frontend react 19.3.0, vite 8.3.0, happy-dom 20.14.5.
+- CI opens one GitHub issue per failing Quality Gates job on main, comments while it stays red, and
+  closes it when the job next passes.
+- Complexity: 33 more near-threshold methods reduced below their thresholds across main, api, rest,
+  scim, ingest, admin-mcp, util and extract-cli, retiring 58 baseline entries (239 -> 181 entries,
+  123 -> 105 classes). New collaborators: `UserProfileValidator`, `UserProfileCreationNotifier`,
+  `PageGraphSnapshotBuilder`. `HumanComparator.compare` and `HttpUtil.checkFor304` were verified
+  against their pre-refactor versions (1.4M comparisons; all 900 conditional-GET header combinations).
+- PMD: fields turned into locals where safe; the audit listener fields stay, documented, because
+  WikiEventManager holds listeners weakly. Defensive copies for `WikiEvent.getArgs`,
+  `PolicyVerifier.policyPrincipals` and `SearchResult.getContexts`.
+- Frontend: tests for the 11 source files no test imported (all 98-100% lines); a first test suite for
+  `useApi`. Coverage now lines 87.9% / statements 85.8% / functions 85.1% / branches 76.8%, and the
+  vitest thresholds were ratcheted to 87 / 85 / 85 / 76. ESLint warnings went from 247 to 0.
+  `react-hooks/set-state-in-effect` and
+  `react-hooks/refs` sites were fixed with promise-chain loaders, render-time derivation and
+  `useSyncExternalStore`, not suppressions.
+- Removed the unused `cobertura-maven-plugin`, whose `com.sun:tools` dependency broke
+  `dependency:resolve-plugins` on JDK 25. `wikantik-ingest`'s coverage floor rose to 0.81.
+
 
 ## [2.4.23] - 2026-09-10
 

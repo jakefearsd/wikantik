@@ -477,7 +477,15 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
         final float[] flatVectors;
         final int dim;
 
-        /** Takes ownership of the arrays — callers must pass freshly-built, never-shared arrays. */
+        /**
+         * Takes ownership of the arrays — callers must pass freshly-built, never-shared arrays.
+         * No defensive copy: {@code flatVectors} can be the entire dense index (N x 1024
+         * floats), so copying it on every snapshot swap would double peak memory. Both
+         * call sites build these arrays fresh right before constructing a Snapshot and
+         * never hold or mutate them afterward, and this class is package-private
+         * ({@code private static final}), so no outside caller can violate that contract.
+         */
+        @SuppressWarnings( "PMD.ArrayIsStoredDirectly" )
         Snapshot( final UUID[] chunkIds, final String[] pageNames,
                   final float[] flatVectors, final int dim ) {
             this.chunkIds = chunkIds;

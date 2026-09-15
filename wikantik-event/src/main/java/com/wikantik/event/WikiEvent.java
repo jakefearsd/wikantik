@@ -114,10 +114,10 @@ public abstract sealed class WikiEvent extends EventObject
     /**
      * Returns the args associated to src, if any.
      *
-     * @return args associated to src, if any.
+     * @return a defensive copy of the args associated to src, if any.
      */
     public Object[] getArgs() {
-        return args;
+        return args.clone();
     }
 
     /**

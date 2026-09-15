@@ -158,18 +158,23 @@ public abstract class AbstractFileProvider implements PageProvider {
     public static final int DEFAULT_MAX_PROPKEYLENGTH = 255;
     public static final int DEFAULT_MAX_PROPVALUELENGTH = 4096;
 
+    // Per-instance (NOT static): several Engine instances can share one JVM (e.g. tests,
+    // or multiple wikis in one container), each initialize()d from its own Properties.
+    // A static here would let the last-initialized instance's limit silently win for
+    // every other instance (SpotBugs ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD).
+
     /** This parameter limits the number of custom page properties allowed on a page */
-    public static int MAX_PROPLIMIT = DEFAULT_MAX_PROPLIMIT;
+    private int maxPropLimit = DEFAULT_MAX_PROPLIMIT;
 
     /**
      * This number limits the length of a custom page property key length. The default value here designed with future JDBC providers in mind.
      */
-    public static int MAX_PROPKEYLENGTH = DEFAULT_MAX_PROPKEYLENGTH;
+    private int maxPropKeyLength = DEFAULT_MAX_PROPKEYLENGTH;
 
     /**
      * This number limits the length of a custom page property value length. The default value here designed with future JDBC providers in mind.
      */
-    public static int MAX_PROPVALUELENGTH = DEFAULT_MAX_PROPVALUELENGTH;
+    private int maxPropValueLength = DEFAULT_MAX_PROPVALUELENGTH;
 
     /** Name of the property that defines where page directories are. */
     public static final String PROP_PAGEDIR = "wikantik.fileSystemProvider.pageDir";
@@ -226,9 +231,9 @@ public abstract class AbstractFileProvider implements PageProvider {
 
         this.engine = engine;
         encoding = properties.getProperty( Engine.PROP_ENCODING, DEFAULT_ENCODING );
-        MAX_PROPLIMIT = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXLIMIT, DEFAULT_MAX_PROPLIMIT );
-        MAX_PROPKEYLENGTH = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXKEYLENGTH, DEFAULT_MAX_PROPKEYLENGTH );
-        MAX_PROPVALUELENGTH = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXVALUELENGTH, DEFAULT_MAX_PROPVALUELENGTH );
+        maxPropLimit = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXLIMIT, DEFAULT_MAX_PROPLIMIT );
+        maxPropKeyLength = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXKEYLENGTH, DEFAULT_MAX_PROPKEYLENGTH );
+        maxPropValueLength = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXVALUELENGTH, DEFAULT_MAX_PROPVALUELENGTH );
 
         LOG.info( "Wikipages are read from '{}'", pageDirectory );
     }
@@ -753,30 +758,53 @@ public abstract class AbstractFileProvider implements PageProvider {
      */
     protected void validateCustomPageProperties( final Properties customProperties ) throws IOException {
     	// Default validation rules
-        if( customProperties != null && !customProperties.isEmpty() ) {
-            if( customProperties.size() > MAX_PROPLIMIT ) {
-                throw new IOException( "Too many custom properties. You are adding " + customProperties.size() + ", but max limit is " + MAX_PROPLIMIT );
-            }
-            final Enumeration< ? > propertyNames = customProperties.propertyNames();
-            while( propertyNames.hasMoreElements() ) {
-                final String key = ( String )propertyNames.nextElement();
-                final String value = ( String )customProperties.get( key );
-                if( key.length() > MAX_PROPKEYLENGTH ) {
-                    throw new IOException( "Custom property key " + key + " is too long. Max allowed length is " + MAX_PROPKEYLENGTH );
-                }
-                if( !StringUtils.isAsciiPrintable( key ) ) {
-                    throw new IOException( "Custom property key " + key + " is not simple ASCII!" );
-                }
-                if( value != null ) {
-                    if( value.length() > MAX_PROPVALUELENGTH ) {
-                        throw new IOException( "Custom property key " + key + " has value that is too long. Value=" + value + ". Max allowed length is " + MAX_PROPVALUELENGTH );
-                    }
-                    if( !StringUtils.isAsciiPrintable( value ) ) {
-                        throw new IOException( "Custom property key " + key + " has value that is not simple ASCII! Value=" + value );
-                    }
-                }
-            }
+        if( customProperties == null || customProperties.isEmpty() ) {
+            return;
         }
+        if( customProperties.size() > maxPropLimit ) {
+            throw new IOException( "Too many custom properties. You are adding " + customProperties.size() + ", but max limit is " + maxPropLimit );
+        }
+        final Enumeration< ? > propertyNames = customProperties.propertyNames();
+        while( propertyNames.hasMoreElements() ) {
+            final String key = ( String )propertyNames.nextElement();
+            final String value = ( String )customProperties.get( key );
+            validateCustomProperty( key, value );
+        }
+    }
+
+    /**
+     * Validates a single custom-property key/value pair: ASCII-printable and within the
+     * configured length limits. Split out of {@link #validateCustomPageProperties(Properties)}
+     * (2026-09, complexity burn-down) so the per-entry checks don't add nesting to the
+     * loop that drives that method's cognitive complexity.
+     */
+    private void validateCustomProperty( final String key, final String value ) throws IOException {
+        if( key.length() > maxPropKeyLength ) {
+            throw new IOException( "Custom property key " + key + " is too long. Max allowed length is " + maxPropKeyLength );
+        }
+        if( !StringUtils.isAsciiPrintable( key ) ) {
+            throw new IOException( "Custom property key " + key + " is not simple ASCII!" );
+        }
+        if( value == null ) {
+            return;
+        }
+        if( value.length() > maxPropValueLength ) {
+            throw new IOException( "Custom property key " + key + " has value that is too long. Value=" + value + ". Max allowed length is " + maxPropValueLength );
+        }
+        if( !StringUtils.isAsciiPrintable( value ) ) {
+            throw new IOException( "Custom property key " + key + " has value that is not simple ASCII! Value=" + value );
+        }
+    }
+
+    /**
+     * Test seam: overrides this instance's custom-property validation limits without
+     * going through {@link #initialize(Engine, Properties)}. Package-private — visible
+     * only to {@code com.wikantik.providers} tests exercising {@link #validateCustomPageProperties}.
+     */
+    void setCustomPropertyLimitsForTesting( final int maxPropLimit, final int maxPropKeyLength, final int maxPropValueLength ) {
+        this.maxPropLimit = maxPropLimit;
+        this.maxPropKeyLength = maxPropKeyLength;
+        this.maxPropValueLength = maxPropValueLength;
     }
 
     /**

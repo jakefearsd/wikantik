@@ -61,6 +61,7 @@ public class McpServerInitializer implements ServletContextListener {
     // to the bridge here so it isn't GC'd between save/delete events. Without this,
     // REST-saved pages never reach the MCP client (mirrors the
     // StructuralIndexEventListener anchor in WikiEngine#initStructuralIndex).
+    @SuppressWarnings( "PMD.SingularField" ) // must stay a field: WikiEventManager keys listeners in a WeakHashMap, so a local would let this get GC'd
     private WikiEventSubscriptionBridge subscriptionBridge;
 
     @Override

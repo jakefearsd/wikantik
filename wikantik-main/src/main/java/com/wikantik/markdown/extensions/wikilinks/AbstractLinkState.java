@@ -30,6 +30,9 @@ import java.util.regex.Pattern;
  * the shared wiki context, link operations helper, and image-inlining
  * configuration that every state implementation needs.
  */
+// Stateful base meant only to be extended by each state implementation; no abstract
+// method is needed since every subclass shares this class's full behavior as-is.
+@SuppressWarnings( "PMD.AbstractClassWithoutAbstractMethod" )
 public abstract class AbstractLinkState {
 
     private final Context wikiContext;

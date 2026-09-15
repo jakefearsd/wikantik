@@ -98,9 +98,9 @@ public final class PolicyVerifier {
         verifyUserDatabase();
     }
 
-    /** Returns the principals found in the security policy file (may be zero-length). */
+    /** Returns a defensive copy of the principals found in the security policy file (may be zero-length). */
     public Principal[] policyPrincipals() {
-        return policyPrincipals;
+        return policyPrincipals.clone();
     }
 
     /** Returns {@code true} if the Java security policy is configured correctly. */

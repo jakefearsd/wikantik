@@ -32,6 +32,10 @@ import java.util.Properties;
  *
  * @since 3.0.7
  */
+// Stateful base meant only to be extended (ds/supportsCommits are per-subclass-instance
+// configuration set during initialize()), not a candidate for an interface or a
+// standalone utility — no abstract methods are needed for it to serve that role.
+@SuppressWarnings( "PMD.AbstractClassWithoutAbstractMethod" )
 public abstract class AbstractJDBCDatabase {
 
     /** Property name for the single shared JNDI DataSource. */
@@ -59,6 +63,10 @@ public abstract class AbstractJDBCDatabase {
 
     /** Whether the database supports transactions (commits). */
     protected boolean supportsCommits;
+
+    protected AbstractJDBCDatabase() {
+        // no-op: state is populated by subclasses during initialize()
+    }
 
     /**
      * Returns whether the database supports transactions.

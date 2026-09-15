@@ -30,6 +30,10 @@ import com.wikantik.api.exceptions.RedirectException;
  * resolution, and the {@link SpamLog} delegate. Keeping them here ensures the
  * three components score and redirect identically.
  */
+// Stateful base meant only to be extended by each DefaultSpam* strategy; no abstract
+// method is needed since every subclass shares this class's checkStrategy/redirect
+// behavior as-is.
+@SuppressWarnings( "PMD.AbstractClassWithoutAbstractMethod" )
 abstract class AbstractSpamStrategy {
 
     /** Request-scoped cumulative spam score, shared across all strategy components. */

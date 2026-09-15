@@ -204,61 +204,107 @@ class AbstractFileProviderTest {
     // -------------------------------------------------------------------------
 
     /**
-     * More than MAX_PROPLIMIT properties must throw IOException.
+     * More than the configured property-count limit must throw IOException.
      */
     @Test
     void testValidateCustomPropertiesExceedsMaxCount() {
-        final int savedLimit = AbstractFileProvider.MAX_PROPLIMIT;
-        AbstractFileProvider.MAX_PROPLIMIT = 2;
-        try {
-            final Properties custom = new Properties();
-            custom.setProperty( "@key1", "v1" );
-            custom.setProperty( "@key2", "v2" );
-            custom.setProperty( "@key3", "v3" ); // one over the limit
+        provider.setCustomPropertyLimitsForTesting( 2,
+            AbstractFileProvider.DEFAULT_MAX_PROPKEYLENGTH, AbstractFileProvider.DEFAULT_MAX_PROPVALUELENGTH );
 
-            Assertions.assertThrows( IOException.class,
-                () -> provider.validateCustomPageProperties( custom ),
-                "should throw IOException when custom property count exceeds limit" );
-        } finally {
-            AbstractFileProvider.MAX_PROPLIMIT = savedLimit;
-        }
+        final Properties custom = new Properties();
+        custom.setProperty( "@key1", "v1" );
+        custom.setProperty( "@key2", "v2" );
+        custom.setProperty( "@key3", "v3" ); // one over the limit
+
+        Assertions.assertThrows( IOException.class,
+            () -> provider.validateCustomPageProperties( custom ),
+            "should throw IOException when custom property count exceeds limit" );
     }
 
     /**
-     * A key that exceeds MAX_PROPKEYLENGTH must throw IOException.
+     * A key that exceeds the configured max key length must throw IOException.
      */
     @Test
     void testValidateCustomPropertiesKeyTooLong() {
-        final int savedLimit = AbstractFileProvider.MAX_PROPKEYLENGTH;
-        AbstractFileProvider.MAX_PROPKEYLENGTH = 5;
-        try {
-            final Properties custom = new Properties();
-            custom.setProperty( "@toolongkey", "value" ); // "@toolongkey" is 11 chars > 5
+        provider.setCustomPropertyLimitsForTesting(
+            AbstractFileProvider.DEFAULT_MAX_PROPLIMIT, 5, AbstractFileProvider.DEFAULT_MAX_PROPVALUELENGTH );
 
-            Assertions.assertThrows( IOException.class,
-                () -> provider.validateCustomPageProperties( custom ),
-                "should throw IOException when key exceeds max length" );
-        } finally {
-            AbstractFileProvider.MAX_PROPKEYLENGTH = savedLimit;
-        }
+        final Properties custom = new Properties();
+        custom.setProperty( "@toolongkey", "value" ); // "@toolongkey" is 11 chars > 5
+
+        Assertions.assertThrows( IOException.class,
+            () -> provider.validateCustomPageProperties( custom ),
+            "should throw IOException when key exceeds max length" );
     }
 
     /**
-     * A value that exceeds MAX_PROPVALUELENGTH must throw IOException.
+     * A value that exceeds the configured max value length must throw IOException.
      */
     @Test
     void testValidateCustomPropertiesValueTooLong() {
-        final int savedLimit = AbstractFileProvider.MAX_PROPVALUELENGTH;
-        AbstractFileProvider.MAX_PROPVALUELENGTH = 5;
+        provider.setCustomPropertyLimitsForTesting(
+            AbstractFileProvider.DEFAULT_MAX_PROPLIMIT, AbstractFileProvider.DEFAULT_MAX_PROPKEYLENGTH, 5 );
+
+        final Properties custom = new Properties();
+        custom.setProperty( "@key", "toolongvalue" ); // 12 chars > 5
+
+        Assertions.assertThrows( IOException.class,
+            () -> provider.validateCustomPageProperties( custom ),
+            "should throw IOException when value exceeds max length" );
+    }
+
+    /**
+     * Custom-property limits must be per-instance, not process-wide static state:
+     * two provider instances initialized with different
+     * {@link AbstractFileProvider#PROP_CUSTOMPROP_MAXLIMIT} values must each
+     * enforce their own configured limit independently.
+     */
+    @Test
+    void testCustomPropertyLimitsArePerInstanceNotProcessWide() throws Exception {
+        final String dirA = "./target/wikantik.proplimit.instanceA";
+        final String dirB = "./target/wikantik.proplimit.instanceB";
+
+        final Properties propsA = TestEngine.getTestProperties();
+        propsA.setProperty( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" );
+        propsA.setProperty( FileSystemProvider.PROP_PAGEDIR, dirA );
+        propsA.setProperty( AbstractFileProvider.PROP_CUSTOMPROP_MAXLIMIT, "2" );
+        final Engine engineA = TestEngine.build(
+            with( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" ),
+            with( FileSystemProvider.PROP_PAGEDIR, dirA ) );
+        final FileSystemProvider providerA = new FileSystemProvider();
+
+        final Properties propsB = TestEngine.getTestProperties();
+        propsB.setProperty( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" );
+        propsB.setProperty( FileSystemProvider.PROP_PAGEDIR, dirB );
+        propsB.setProperty( AbstractFileProvider.PROP_CUSTOMPROP_MAXLIMIT, "200" );
+        final Engine engineB = TestEngine.build(
+            with( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" ),
+            with( FileSystemProvider.PROP_PAGEDIR, dirB ) );
+        final FileSystemProvider providerB = new FileSystemProvider();
+
         try {
+            // Initialize B AFTER A: if the limit were still process-wide static
+            // state, B's init would clobber A's configured limit of 2 with 200.
+            providerA.initialize( engineA, propsA );
+            providerB.initialize( engineB, propsB );
+
             final Properties custom = new Properties();
-            custom.setProperty( "@key", "toolongvalue" ); // 12 chars > 5
+            custom.setProperty( "@key1", "v1" );
+            custom.setProperty( "@key2", "v2" );
+            custom.setProperty( "@key3", "v3" ); // 3 props: over A's limit(2), under B's limit(200)
 
             Assertions.assertThrows( IOException.class,
-                () -> provider.validateCustomPageProperties( custom ),
-                "should throw IOException when value exceeds max length" );
+                () -> providerA.validateCustomPageProperties( custom ),
+                "provider A (limit=2) should reject 3 custom properties on its own configured limit" );
+
+            Assertions.assertDoesNotThrow(
+                () -> providerB.validateCustomPageProperties( custom ),
+                "provider B (limit=200) should accept 3 custom properties regardless of provider A's limit" );
         } finally {
-            AbstractFileProvider.MAX_PROPVALUELENGTH = savedLimit;
+            engineA.stop();
+            engineB.stop();
+            TestEngine.deleteAll( new File( dirA ) );
+            TestEngine.deleteAll( new File( dirB ) );
         }
     }
 

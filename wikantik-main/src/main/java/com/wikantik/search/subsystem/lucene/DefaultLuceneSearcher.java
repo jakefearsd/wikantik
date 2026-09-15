@@ -485,7 +485,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
 
         @Override
         public String[] getContexts() {
-            return contexts;
+            return contexts != null ? contexts.clone() : null;
         }
     }
 }

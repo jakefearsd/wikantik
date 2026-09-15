@@ -329,10 +329,12 @@ public class WikiEngine implements Engine {
     private volatile com.wikantik.audit.AuditWriterThread auditWriter;
     // Strong reference prevents the listener from being garbage-collected out of
     // WikiEventManager's WeakHashMap before we can de-register it on shutdown.
+    @SuppressWarnings( "PMD.SingularField" ) // must stay a field: WikiEventManager keys listeners in a WeakHashMap, so a local would let this get GC'd
     private volatile com.wikantik.audit.AuditEventListener auditEventListener;
 
     // Strong reference (same WeakHashMap concern as auditEventListener): stamps each
     // account's last-login timestamp on LOGIN_AUTHENTICATED.
+    @SuppressWarnings( "PMD.SingularField" ) // must stay a field: WikiEventManager keys listeners in a WeakHashMap, so a local would let this get GC'd
     private volatile com.wikantik.auth.LastLoginEventListener lastLoginEventListener;
 
     /** Citation subsystem wired holder; retains a strong ref to the event listener. */
@@ -1219,14 +1221,7 @@ public class WikiEngine implements Engine {
     private void initAuditSubsystem( final Properties props ) {
         // Resolve the DataSource independently of Knowledge-Graph init (same JNDI
         // lookup initKnowledgeGraph uses). Null when no datasource is configured.
-        javax.sql.DataSource ds = null;
-        try {
-            final String datasource = AbstractJDBCDatabase.datasourceName( props );
-            ds = resolveConfiguredDataSource( datasource );
-        } catch ( final javax.naming.NamingException e ) {
-            LOG.warn( "Audit subsystem: no JNDI DataSource resolved ({}); audit log disabled.",
-                    e.getMessage() );
-        }
+        final javax.sql.DataSource ds = resolveAuditDataSource( props );
         // Resolve the page manager + structural index from the registry (may be null
         // if their subsystems failed to build — read-gating degrades, audit still runs).
         final PageManager pageManager = getManager( PageManager.class );
@@ -1248,7 +1243,56 @@ public class WikiEngine implements Engine {
         // Page providers do not populate Page.FRONTMATTER_METADATA, so we parse
         // the raw page text via FrontmatterParser to extract the frontmatter map.
         final var pmForLookup = getManager( com.wikantik.api.managers.PageManager.class );
-        final java.util.function.Function< String, java.util.Map< String, Object > > frontmatterByPage = pageName -> {
+        final java.util.function.Function< String, java.util.Map< String, Object > > frontmatterByPage =
+                auditFrontmatterLookup( pmForLookup );
+
+        // Cluster lookup — mirrors DefaultKgInclusionPolicy.pageDescriptor: resolve
+        // canonical_id from slug, then the descriptor, then its cluster. Returns
+        // null (read-auditing simply won't trigger by cluster) on any failure.
+        final java.util.function.Function< String, String > clusterByPage =
+                auditClusterLookup( structuralIndex );
+
+        final java.util.Set< String > auditedClusters = parseAuditedClusters(
+            props.getProperty( "wikantik.audit.readClusters", "" ) );
+
+        this.auditReadPolicy =
+            new com.wikantik.audit.AuditReadPolicy( frontmatterByPage, clusterByPage, auditedClusters );
+
+        // Register the event listener against every manager that fires the events
+        // the audit listener consumes: authn/authz/user/group (WikiSecurityEvent)
+        // and the page manager (WikiPageEvent / WikiPageRenameEvent).
+        // Store in a field so the instance is strongly reachable and won't be
+        // evicted from WikiEventManager's WeakHashMap by the garbage collector.
+        this.auditEventListener = new com.wikantik.audit.AuditEventListener( this.auditService );
+        registerAuditEventListeners( pageManager );
+
+        LOG.info( "Audit subsystem initialized (queue=10000)" );
+    }
+
+    /**
+     * Resolves the JNDI DataSource for the audit subsystem, logging and returning
+     * {@code null} on failure. Split out of {@link #initAuditSubsystem(Properties)}
+     * (2026-09, complexity burn-down).
+     */
+    private javax.sql.DataSource resolveAuditDataSource( final Properties props ) {
+        try {
+            final String datasource = AbstractJDBCDatabase.datasourceName( props );
+            return resolveConfiguredDataSource( datasource );
+        } catch ( final javax.naming.NamingException e ) {
+            LOG.warn( "Audit subsystem: no JNDI DataSource resolved ({}); audit log disabled.",
+                    e.getMessage() );
+            return null;
+        }
+    }
+
+    /**
+     * Builds the frontmatter-by-page-name lookup used by {@link com.wikantik.audit.AuditReadPolicy}.
+     * Never throws; returns an empty map on any failure. Split out of
+     * {@link #initAuditSubsystem(Properties)} (2026-09, complexity burn-down).
+     */
+    private java.util.function.Function< String, java.util.Map< String, Object > > auditFrontmatterLookup(
+            final PageManager pmForLookup ) {
+        return pageName -> {
             try {
                 if ( pmForLookup == null ) return java.util.Map.of();
                 final String raw = pmForLookup.getPureText( pageName,
@@ -1263,11 +1307,16 @@ public class WikiEngine implements Engine {
                 return java.util.Map.of();
             }
         };
+    }
 
-        // Cluster lookup — mirrors DefaultKgInclusionPolicy.pageDescriptor: resolve
-        // canonical_id from slug, then the descriptor, then its cluster. Returns
-        // null (read-auditing simply won't trigger by cluster) on any failure.
-        final java.util.function.Function< String, String > clusterByPage = pageName -> {
+    /**
+     * Builds the cluster-by-page-name lookup used by {@link com.wikantik.audit.AuditReadPolicy}.
+     * Returns {@code null} (read-auditing simply won't trigger by cluster) on any failure.
+     * Split out of {@link #initAuditSubsystem(Properties)} (2026-09, complexity burn-down).
+     */
+    private java.util.function.Function< String, String > auditClusterLookup(
+            final com.wikantik.api.pagegraph.StructuralIndexService structuralIndex ) {
+        return pageName -> {
             try {
                 if ( structuralIndex == null ) return null;
                 return structuralIndex.resolveCanonicalIdFromSlug( pageName )
@@ -1279,20 +1328,30 @@ public class WikiEngine implements Engine {
                 return null;
             }
         };
+    }
 
-        final java.util.Set< String > auditedClusters = parseAuditedClusters(
-            props.getProperty( "wikantik.audit.readClusters", "" ) );
+    /**
+     * Registers {@link #auditEventListener} (and, where the user database is
+     * available, {@link #lastLoginEventListener}) against every manager that fires
+     * the events the audit chain consumes. Split out of
+     * {@link #initAuditSubsystem(Properties)} (2026-09, complexity burn-down) — this
+     * sequence of independent null-checks was the main driver of that method's
+     * NPath complexity.
+     */
+    private void registerAuditEventListeners( final PageManager pageManager ) {
+        registerAuthAuditEventListeners();
+        registerContentAuditEventListeners( pageManager );
+    }
 
-        this.auditReadPolicy =
-            new com.wikantik.audit.AuditReadPolicy( frontmatterByPage, clusterByPage, auditedClusters );
-
-        // Register the event listener against every manager that fires the events
-        // the audit listener consumes: authn/authz/user/group (WikiSecurityEvent)
-        // and the page manager (WikiPageEvent / WikiPageRenameEvent).
-        // Store in a field so the instance is strongly reachable and won't be
-        // evicted from WikiEventManager's WeakHashMap by the garbage collector.
-        this.auditEventListener = new com.wikantik.audit.AuditEventListener( this.auditService );
-
+    /**
+     * Registers {@link #auditEventListener} against the authn/authz/user managers
+     * and wires {@link #lastLoginEventListener}. Split out of
+     * {@link #registerAuditEventListeners(PageManager)} (2026-09, complexity
+     * burn-down) — kept separate from {@link #registerContentAuditEventListeners}
+     * so neither half's sequence of independent null-checks pushes NPath over
+     * threshold on its own.
+     */
+    private void registerAuthAuditEventListeners() {
         final AuthenticationManager authnMgr = getManager( AuthenticationManager.class );
         if ( authnMgr != null ) authnMgr.addWikiEventListener( auditEventListener );
         final AuthorizationManager authzMgr = getManager( AuthorizationManager.class );
@@ -1305,6 +1364,15 @@ public class WikiEngine implements Engine {
             this.lastLoginEventListener = new com.wikantik.auth.LastLoginEventListener( userMgr.getUserDatabase() );
             authnMgr.addWikiEventListener( this.lastLoginEventListener );
         }
+    }
+
+    /**
+     * Registers {@link #auditEventListener} against the group manager, the page
+     * manager, and the page renamer. Split out of
+     * {@link #registerAuditEventListeners(PageManager)} (2026-09, complexity
+     * burn-down); see {@link #registerAuthAuditEventListeners()}.
+     */
+    private void registerContentAuditEventListeners( final PageManager pageManager ) {
         final GroupManager groupMgr = getManager( GroupManager.class );
         if ( groupMgr != null ) groupMgr.addWikiEventListener( auditEventListener );
         // PageManager has no addWikiEventListener on its interface; it fires page
@@ -1321,8 +1389,6 @@ public class WikiEngine implements Engine {
         if ( pageRenamer != null ) {
             com.wikantik.event.WikiEventManager.addWikiEventListener( pageRenamer, auditEventListener );
         }
-
-        LOG.info( "Audit subsystem initialized (queue=10000)" );
     }
 
     /** Parse the comma-separated {@code wikantik.audit.readClusters} value into a trimmed, non-empty set. */

@@ -41,18 +41,20 @@ public class Wiki {
     private static final String DEFAULT_PROVIDER_IMPL_ENGINE = "com.wikantik.spi.EngineSPIDefaultImpl";
     private static final String DEFAULT_PROVIDER_IMPL_SESSION = "com.wikantik.spi.SessionSPIDefaultImpl";
 
-    // default values
-    private static Properties properties = PropertyReader.getDefaultProperties();
-    private static AclsSPI aclsSPI = getSPI( AclsSPI.class, properties, PROP_PROVIDER_IMPL_ACLS, DEFAULT_PROVIDER_IMPL_ACLS );
-    private static ContentsSPI contentsSPI = getSPI( ContentsSPI.class, properties, PROP_PROVIDER_IMPL_CONTENTS, DEFAULT_PROVIDER_IMPL_CONTENTS );
-    private static ContextSPI contextSPI = getSPI( ContextSPI.class, properties, PROP_PROVIDER_IMPL_CONTEXT, DEFAULT_PROVIDER_IMPL_CONTEXT );
-    private static EngineSPI engineSPI = getSPI( EngineSPI.class, properties, PROP_PROVIDER_IMPL_ENGINE, DEFAULT_PROVIDER_IMPL_ENGINE );
-    private static SessionSPI sessionSPI = getSPI( SessionSPI.class, properties, PROP_PROVIDER_IMPL_SESSION, DEFAULT_PROVIDER_IMPL_SESSION );
+    // default values — properties is a local, not a field: nothing outside this static
+    // initializer and init() ever reads it (there's no public properties() accessor),
+    // so a field would only be a SingularField (PMD).
+    private static final Properties DEFAULT_PROPERTIES = PropertyReader.getDefaultProperties();
+    private static AclsSPI aclsSPI = getSPI( AclsSPI.class, DEFAULT_PROPERTIES, PROP_PROVIDER_IMPL_ACLS, DEFAULT_PROVIDER_IMPL_ACLS );
+    private static ContentsSPI contentsSPI = getSPI( ContentsSPI.class, DEFAULT_PROPERTIES, PROP_PROVIDER_IMPL_CONTENTS, DEFAULT_PROVIDER_IMPL_CONTENTS );
+    private static ContextSPI contextSPI = getSPI( ContextSPI.class, DEFAULT_PROPERTIES, PROP_PROVIDER_IMPL_CONTEXT, DEFAULT_PROVIDER_IMPL_CONTEXT );
+    private static EngineSPI engineSPI = getSPI( EngineSPI.class, DEFAULT_PROPERTIES, PROP_PROVIDER_IMPL_ENGINE, DEFAULT_PROVIDER_IMPL_ENGINE );
+    private static SessionSPI sessionSPI = getSPI( SessionSPI.class, DEFAULT_PROPERTIES, PROP_PROVIDER_IMPL_SESSION, DEFAULT_PROVIDER_IMPL_SESSION );
 
     @SuppressFBWarnings( value = "MS_EXPOSE_REP",
             justification = "Intentional: init() returns the live shared Properties object so callers can observe subsequent runtime reconfiguration." )
     public static Properties init( final ServletContext context ) {
-        properties = PropertyReader.loadWebAppProps( context );
+        final Properties properties = PropertyReader.loadWebAppProps( context );
         aclsSPI = getSPI( AclsSPI.class, properties, PROP_PROVIDER_IMPL_ACLS, DEFAULT_PROVIDER_IMPL_ACLS );
         contentsSPI = getSPI( ContentsSPI.class, properties, PROP_PROVIDER_IMPL_CONTENTS, DEFAULT_PROVIDER_IMPL_CONTENTS );
         contextSPI = getSPI( ContextSPI.class, properties, PROP_PROVIDER_IMPL_CONTEXT, DEFAULT_PROVIDER_IMPL_CONTEXT );

@@ -89,7 +89,6 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
     private final String modelCode;  // null in the test-only constructor
     private int dim;
     private int efSearch;
-    private Directory directory;
     private IndexWriter writer;
     private SearcherManager searcherManager;
     private volatile long lastRebuildMillis;
@@ -151,7 +150,10 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
         this.dim = dim;
         this.efSearch = params.efSearch();
         try {
-            this.directory = new ByteBuffersDirectory();
+            // In-memory (ByteBuffersDirectory), never closed on shutdown — the writer
+            // and searcherManager fields hold everything callers need; this local isn't
+            // shared (PMD.SingularField).
+            final Directory directory = new ByteBuffersDirectory();
             final IndexWriterConfig cfg = new IndexWriterConfig().setCodec( hnswCodec( params ) );
             this.writer = new IndexWriter( directory, cfg );
             this.writer.commit();

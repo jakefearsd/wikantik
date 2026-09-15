@@ -98,8 +98,6 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
     private RenderingManager renderingManager;
     private SystemPageRegistry systemPageRegistry;
     private int cacheTTL;
-    private int defaultCount;
-    private int defaultExcerptLength;
     private List<Pattern> excludePatterns;
 
     // Simple cache: query hash -> (timestamp, results)
@@ -140,8 +138,8 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         this.renderingManager = RenderingSubsystemBridge.fromLegacyEngine( newEngine ).renderingManager();
         this.systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( newEngine ).systemPageRegistry();
         cacheTTL = TextUtil.getIntegerProperty( props, PROP_CACHE_TTL, DEFAULT_CACHE_TTL );
-        defaultCount = TextUtil.getIntegerProperty( props, PROP_DEFAULT_COUNT, RecentArticlesQuery.DEFAULT_COUNT );
-        defaultExcerptLength = TextUtil.getIntegerProperty( props, PROP_DEFAULT_EXCERPT_LENGTH, RecentArticlesQuery.DEFAULT_EXCERPT_LENGTH );
+        final int defaultCount = TextUtil.getIntegerProperty( props, PROP_DEFAULT_COUNT, RecentArticlesQuery.DEFAULT_COUNT );
+        final int defaultExcerptLength = TextUtil.getIntegerProperty( props, PROP_DEFAULT_EXCERPT_LENGTH, RecentArticlesQuery.DEFAULT_EXCERPT_LENGTH );
 
         // Parse additional exclude patterns from properties
         excludePatterns = new ArrayList<>();

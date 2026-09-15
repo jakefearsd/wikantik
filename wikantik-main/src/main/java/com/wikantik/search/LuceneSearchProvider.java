@@ -100,8 +100,6 @@ public class LuceneSearchProvider implements SearchProvider {
     private static final String PROP_LUCENE_MISSINGPAGECHECK_INTERVAL = "wikantik.lucene.missingPageCheckInterval";
     private static final int DEFAULT_MISSING_PAGE_CHECK_INTERVAL = 300;
 
-    private int missingPageCheckInterval = DEFAULT_MISSING_PAGE_CHECK_INTERVAL;
-
     private String analyzerClass = ClassicAnalyzer.class.getName();
 
     private static final String LUCENE_DIR = "lucene";
@@ -323,7 +321,7 @@ public class LuceneSearchProvider implements SearchProvider {
 
         final int initialDelay = TextUtil.getIntegerProperty( props, PROP_LUCENE_INITIALDELAY, LuceneUpdater.INITIAL_DELAY );
         final int indexDelay   = TextUtil.getIntegerProperty( props, PROP_LUCENE_INDEXDELAY, LuceneUpdater.INDEX_DELAY );
-        missingPageCheckInterval = TextUtil.getIntegerProperty( props, PROP_LUCENE_MISSINGPAGECHECK_INTERVAL, DEFAULT_MISSING_PAGE_CHECK_INTERVAL );
+        final int missingPageCheckInterval = TextUtil.getIntegerProperty( props, PROP_LUCENE_MISSINGPAGECHECK_INTERVAL, DEFAULT_MISSING_PAGE_CHECK_INTERVAL );
 
         analyzerClass = TextUtil.getStringProperty( props, PROP_LUCENE_ANALYZER, analyzerClass );
 

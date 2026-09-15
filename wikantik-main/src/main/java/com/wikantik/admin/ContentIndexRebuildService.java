@@ -137,8 +137,6 @@ public class ContentIndexRebuildService {
     /** Gauge-backed integer: 0=IDLE, 1=STARTING, 2=RUNNING, 3=EMBEDDING, 4=DRAINING_LUCENE. */
     private final AtomicInteger stateMetric = new AtomicInteger( 0 );
     private final Timer durationTimer;
-    /** Error count at the moment this run transitioned to STARTING, for outcome classification. */
-    private volatile int errorsAtRunStart;
 
     public ContentIndexRebuildService( final PageManager pages,
                                        final SystemPageRegistry systemPages,
@@ -308,7 +306,11 @@ public class ContentIndexRebuildService {
      */
     protected void runRebuild() {
         final long startNanos = System.nanoTime();
-        errorsAtRunStart = errors.size();
+        // Error count at the moment this run transitioned to STARTING, for outcome
+        // classification below. Local, not a field: both the write here and the read
+        // in the finally block happen entirely within this method (this thread is the
+        // dedicated "wikantik-rebuild" worker, so nothing else needs cross-thread access).
+        final int errorsAtRunStart = errors.size();
         try {
             setState( State.STARTING );
             try {

@@ -86,7 +86,7 @@ describe('ToastProvider', () => {
     expect(screen.getByText('Dismissable')).toBeTruthy();
 
     const dismissBtn = screen.getByRole('button', { name: 'Dismiss' });
-    act(() => { fireEvent.click(dismissBtn); });
+    fireEvent.click(dismissBtn);
 
     expect(screen.queryByText('Dismissable')).toBeNull();
   });
@@ -101,7 +101,7 @@ describe('ToastProvider', () => {
 
     // clear the error (dismiss it manually via dismiss fn or just add a success)
     const dismissBtn = screen.getByRole('button', { name: 'Dismiss' });
-    act(() => { fireEvent.click(dismissBtn); });
+    fireEvent.click(dismissBtn);
 
     act(() => {
       result.current.success('All good');

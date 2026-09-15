@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import Modal from './Modal';
 import { _resetLockCount } from '../../hooks/useScrollLock';
 
@@ -48,9 +48,7 @@ describe('Modal', () => {
         <span>Content</span>
       </Modal>,
     );
-    act(() => {
-      fireEvent.keyDown(document, { key: 'Escape' });
-    });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledOnce();
   });
 
@@ -64,7 +62,7 @@ describe('Modal', () => {
     // Click the overlay (the portal root child with class modal-overlay)
     const overlay = document.querySelector('.modal-overlay');
     expect(overlay).toBeTruthy();
-    act(() => { fireEvent.click(overlay); });
+    fireEvent.click(overlay);
     expect(onClose).toHaveBeenCalledOnce();
   });
 
@@ -76,7 +74,7 @@ describe('Modal', () => {
       </Modal>,
     );
     const innerBtn = screen.getByText('Inner Button');
-    act(() => { fireEvent.click(innerBtn); });
+    fireEvent.click(innerBtn);
     expect(onClose).not.toHaveBeenCalled();
   });
 

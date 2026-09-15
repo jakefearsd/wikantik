@@ -151,7 +151,6 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  // eslint-disable-next-line testing-library/no-manual-cleanup -- ordering vs the promise flush below is deliberate (see comment above)
   cleanup();
   await act(async () => { await Promise.resolve(); });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { useScrollLock, _resetLockCount } from './useScrollLock';
 
 // Reset the module-level reference count between tests so they are independent.
@@ -29,7 +29,7 @@ describe('useScrollLock', () => {
     expect(document.body.style.overflow).toBe('hidden');
 
     // Deactivate
-    act(() => { rerender({ active: false }); });
+    rerender({ active: false });
 
     // Should be restored to the original inline values
     expect(document.body.style.overflow).toBe('scroll');
@@ -41,7 +41,7 @@ describe('useScrollLock', () => {
     const { rerender } = renderHook(({ active }) => useScrollLock(active), {
       initialProps: { active: true },
     });
-    act(() => { rerender({ active: false }); });
+    rerender({ active: false });
     expect(document.body.style.overflow).toBe('');
     expect(document.body.style.paddingRight).toBe('');
   });
@@ -58,12 +58,12 @@ describe('useScrollLock', () => {
     expect(document.body.style.overflow).toBe('hidden');
 
     // Release first lock
-    act(() => { rerender1({ active: false }); });
+    rerender1({ active: false });
     // Second still active → still locked
     expect(document.body.style.overflow).toBe('hidden');
 
     // Release second lock
-    act(() => { rerender2({ active: false }); });
+    rerender2({ active: false });
     // Both released → unlocked
     expect(document.body.style.overflow).toBe('');
   });

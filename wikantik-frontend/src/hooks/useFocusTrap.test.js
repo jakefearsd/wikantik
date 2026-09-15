@@ -48,9 +48,7 @@ describe('useFocusTrap', () => {
       },
       { initialProps: { active: false } },
     );
-    act(() => {
-      rerender({ active: true });
-    });
+    rerender({ active: true });
     expect(document.activeElement).toBe(buttons[0]);
   });
 
@@ -122,7 +120,7 @@ describe('useFocusTrap', () => {
     );
 
     // Deactivate
-    act(() => { rerender({ active: false }); });
+    rerender({ active: false });
 
     expect(document.activeElement).toBe(outsideBtn);
 

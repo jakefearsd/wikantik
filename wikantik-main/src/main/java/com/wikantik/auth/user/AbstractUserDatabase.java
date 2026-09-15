@@ -18,8 +18,6 @@
  */
 package com.wikantik.auth.user;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.logging.log4j.LogManager;
@@ -36,9 +34,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
-import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HexFormat;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -56,122 +53,17 @@ public abstract class AbstractUserDatabase implements UserDatabase {
     /** Current hash algorithm for new and re-hashed passwords (supersedes salted SHA-256). */
     protected static final String BCRYPT_PREFIX = CryptoUtil.BCRYPT;
 
-    /** System property that overrides {@link #DEFAULT_PASSWORD_VERIFY_CACHE_TTL_SECONDS}. */
-    private static final String PASSWORD_VERIFY_CACHE_TTL_PROPERTY = "wikantik.auth.password.verifyCache.ttlSeconds";
-
-    /** Default TTL, in seconds, for the successful-password-verification cache. */
-    private static final long DEFAULT_PASSWORD_VERIFY_CACHE_TTL_SECONDS = 60L;
-
     /**
-     * Short-TTL cache of successful bcrypt password verifications — mirrors the pattern
-     * established by {@code ApiKeyService.verifyCache}. Reached via {@code BasicAuthFilter} →
-     * {@code DefaultAuthenticationManager.login} → {@code UserDatabaseLoginModule.login} →
-     * {@link #validatePassword}, this is the fast path for stateless HTTP Basic clients
-     * (monitoring pollers, cron jobs, CI scripts) that resend credentials on every request and
-     * would otherwise pay a full ~150-250ms bcrypt key-stretch per call.
-     *
-     * <p><b>Cache key</b> is {@code loginName + ' ' + sha256Hex(password || storedPassword)} —
-     * see {@link #passwordVerifyCacheKey}. Binding the key to the <em>stored hash</em>, not just
-     * the login name, is the load-bearing part: when a password changes, the stored bcrypt hash
-     * (and its salt) changes, so the key changes, so the old cached entry becomes unreachable and
-     * the new credential is verified for real. A password change therefore takes effect
-     * <em>immediately</em>, never waiting out the TTL — every call still fetches the current
-     * profile and recomputes the key from its current stored hash; only the bcrypt verify itself
-     * is skipped on a hit.</p>
-     *
-     * <p><b>Only successes are cached</b> — see {@link #validatePassword}. bcrypt's cost is a
-     * deliberate brute-force deterrent; caching a negative verdict would blunt it, so a wrong
-     * password always pays full price. The legacy-hash transparent-migration branch (which
-     * mutates and saves the profile) is also never cached — only entries whose stored hash was
-     * <em>already</em> bcrypt are eligible, so migration still happens exactly once.</p>
-     *
-     * <p><b>Cannot bypass account lockout</b>: {@code UserDatabaseLoginModule.login()} checks
-     * {@code profile.isLocked()} itself, AFTER calling {@link #validatePassword}, against a
-     * freshly-fetched profile. A cached "password is correct" verdict says nothing about lock
-     * state, so caching here has no bearing on lockout enforcement.</p>
-     *
-     * <p>The cached value is a boolean verdict only; the key is a one-way SHA-256 digest and
-     * holds no reversible credential material — the plaintext password is never stored.</p>
-     *
-     * <p>Configurable via the {@value #PASSWORD_VERIFY_CACHE_TTL_PROPERTY} system property
-     * (default {@value #DEFAULT_PASSWORD_VERIFY_CACHE_TTL_SECONDS}s); a value {@code <= 0}
-     * disables the cache entirely — every call then pays the full bcrypt cost.</p>
+     * Short-TTL cache of successful bcrypt password verifications, absorbing the per-request
+     * bcrypt cost paid by stateless HTTP Basic clients that resend credentials on every call.
+     * See {@link PasswordVerifyCache} for the full contract (cache key derivation, why only
+     * successes are cached, why it cannot bypass account lockout, and its config property).
      */
-    private final Cache< String, Boolean > passwordVerifyCache = buildPasswordVerifyCache();
-
-    private static Cache< String, Boolean > buildPasswordVerifyCache() {
-        final long ttlSeconds = resolvePasswordVerifyCacheTtlSeconds();
-        if( ttlSeconds <= 0 ) {
-            return null;
-        }
-        return Caffeine.newBuilder()
-                .expireAfterWrite( Duration.ofSeconds( ttlSeconds ) )
-                .maximumSize( 10_000 )
-                .recordStats()
-                .build();
-    }
-
-    private static long resolvePasswordVerifyCacheTtlSeconds() {
-        final String raw = System.getProperty( PASSWORD_VERIFY_CACHE_TTL_PROPERTY );
-        if( raw == null || raw.isBlank() ) {
-            return DEFAULT_PASSWORD_VERIFY_CACHE_TTL_SECONDS;
-        }
-        try {
-            return Long.parseLong( raw.trim() );
-        } catch( final NumberFormatException e ) {
-            LOG.warn( "Invalid {}='{}' — using default {}s", PASSWORD_VERIFY_CACHE_TTL_PROPERTY, raw,
-                    DEFAULT_PASSWORD_VERIFY_CACHE_TTL_SECONDS );
-            return DEFAULT_PASSWORD_VERIFY_CACHE_TTL_SECONDS;
-        }
-    }
+    private final PasswordVerifyCache passwordVerifyCache = new PasswordVerifyCache();
 
     /** Test/metrics hook: stats for the password verification cache; empty stats when caching is disabled. */
     public CacheStats passwordVerifyCacheStats() {
-        return passwordVerifyCache != null ? passwordVerifyCache.stats() : CacheStats.empty();
-    }
-
-    /**
-     * Builds the cache key for a (login, password, storedHash) triple: {@code loginName + ' ' +
-     * sha256Hex(password bytes || storedPassword bytes)}. See {@link #passwordVerifyCache} for why
-     * the key is bound to the stored hash. Never stores or logs the plaintext password itself.
-     *
-     * @return the cache key, or {@code null} if SHA-256 is unavailable (never happens in practice —
-     *         it is a JDK-guaranteed {@link MessageDigest} algorithm — but fails closed to "bypass
-     *         the cache" rather than throwing out of {@link #validatePassword}).
-     */
-    private String passwordVerifyCacheKey( final String loginName, final String password, final String storedPassword ) {
-        try {
-            final MessageDigest md = MessageDigest.getInstance( "SHA-256" );
-            md.update( password.getBytes( StandardCharsets.UTF_8 ) );
-            md.update( storedPassword.getBytes( StandardCharsets.UTF_8 ) );
-            // HexFormat, not String.format in a loop: this runs on EVERY call including
-            // cache hits, and 32 String.format invocations is real overhead once the
-            // bcrypt verify it guards is no longer being paid.
-            return loginName + ' ' + HexFormat.of().formatHex( md.digest() );
-        } catch( final NoSuchAlgorithmException e ) {
-            LOG.warn( "SHA-256 unavailable for password verify cache key — bypassing cache: {}", e.getMessage() );
-            return null;
-        }
-    }
-
-    /**
-     * bcrypt verification for the cache loader. Returns {@link Boolean#TRUE} on success and
-     * {@code null} on failure, because Caffeine does not store a null: a wrong password is
-     * therefore never cached and pays bcrypt's full cost on every attempt. That keeps the
-     * brute-force deterrent intact — the cache key binds the password hash, so each distinct
-     * guess is a distinct key and buys an attacker nothing.
-     *
-     * @return {@code TRUE} if the password matches, {@code null} otherwise
-     */
-    private static Boolean verifyBcrypt( final String password, final String storedPassword ) {
-        try {
-            return CryptoUtil.verifySaltedPassword( password.getBytes( StandardCharsets.UTF_8 ), storedPassword )
-                    ? Boolean.TRUE : null;
-        } catch( final NoSuchAlgorithmException e ) {
-            // Cannot happen for bcrypt, which does not go through MessageDigest at all.
-            LOG.error( "Unsupported algorithm verifying password for a bcrypt hash: {}", e.getMessage(), e );
-            return null;
-        }
+        return passwordVerifyCache.stats();
     }
 
     /**
@@ -325,19 +217,14 @@ public abstract class AbstractUserDatabase implements UserDatabase {
 
             // Fast path: a previously-cached successful verification of this EXACT (password,
             // storedHash) pair, still within TTL. Only bcrypt-stored entries are eligible — see
-            // passwordVerifyCache javadoc for the full contract (why the key binds the stored
+            // PasswordVerifyCache's javadoc for the full contract (why the key binds the stored
             // hash, why only successes are cached, and why this can't bypass account lockout).
-            //
-            // get(key, loader), not getIfPresent + a later put: Caffeine computes the loader
-            // under a per-key lock, so the requests that pile up the instant an entry expires
-            // share ONE bcrypt instead of each recomputing the same hash. Profiling a 3-minute
-            // run showed that herd plainly — all bcrypt CPU arrived in three bursts of ~60
-            // simultaneous verifies, one per 60s TTL, and none in between.
-            if( passwordVerifyCache != null && storedPassword.startsWith( BCRYPT_PREFIX ) ) {
-                final String cacheKey = passwordVerifyCacheKey( loginName, password, storedPassword );
-                if( cacheKey != null ) {
-                    final String stored = storedPassword;
-                    return passwordVerifyCache.get( cacheKey, k -> verifyBcrypt( password, stored ) ) != null;
+            // Empty means "not cacheable right now" (disabled, or no SHA-256) — fall through to
+            // the direct verify below exactly as if this cache did not exist.
+            if( storedPassword.startsWith( BCRYPT_PREFIX ) ) {
+                final Optional< Boolean > cached = passwordVerifyCache.tryVerify( loginName, password, storedPassword );
+                if( cached.isPresent() ) {
+                    return cached.get();
                 }
             }
 

@@ -18,7 +18,6 @@
  */
 package com.wikantik.auth.user;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
@@ -28,17 +27,12 @@ import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.SqlBinder;
-import com.wikantik.util.Serializer;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
 import javax.sql.DataSource;
-import java.io.IOException;
-import java.io.Serializable;
 import java.security.Principal;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -47,7 +41,6 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -118,6 +111,9 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     private Jdbc jdbc;
 
     private boolean supportsCommits;
+
+    /** ResultSet-row mapping + PreparedStatement parameter binding, split out for complexity. */
+    private final JdbcUserProfileRowMapper rowMapper = new JdbcUserProfileRowMapper( this );
 
     /**
      * Cookie-less basic-auth re-runs {@code authMgr.login()} per request, which calls
@@ -222,7 +218,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     public Principal[] getWikiNames() throws WikiSecurityException {
         final Set< Principal > principals = new HashSet<>();
         try {
-            for( final String wikiNameValue : jdbc.query( FIND_ALL, SqlBinder.NONE, this::mapWikiNameOrWarnAndSkip ) ) {
+            for( final String wikiNameValue : jdbc.query( FIND_ALL, SqlBinder.NONE, rowMapper::mapWikiNameOrWarnAndSkip ) ) {
                 if( wikiNameValue != null ) {
                     principals.add( new WikiPrincipal( wikiNameValue, WikiPrincipal.WIKI_NAME ) );
                 }
@@ -367,7 +363,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             if( finalExistingProfile == null ) {
                 // User is new: insert new user record
                 jdbc.update( conn, INSERT_PROFILE, ps -> {
-                    setProfileParameters( ps, profile, finalPassword, ts );
+                    rowMapper.setProfileParameters( ps, profile, finalPassword, ts );
                     ps.setTimestamp( 10, ts );
                     ps.setBoolean( 11, profile.isPasswordMustChange() );
                 } );
@@ -387,7 +383,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             } else {
                 // User exists: modify existing record
                 jdbc.update( conn, UPDATE_PROFILE, ps -> {
-                    setProfileParameters( ps, profile, finalPassword, ts );
+                    rowMapper.setProfileParameters( ps, profile, finalPassword, ts );
                     ps.setDate( 10, lockExpiry );
                     ps.setBoolean( 11, profile.isPasswordMustChange() );
                     ps.setString( 12, profile.getLoginName() );
@@ -430,26 +426,6 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     }
 
     /**
-     * Sets the common profile parameters (1-9) on a PreparedStatement for both insert and update operations.
-     */
-    private void setProfileParameters( final PreparedStatement ps, final UserProfile profile,
-                                        final String password, final Timestamp ts ) throws SQLException {
-        ps.setString( 1, profile.getUid() );
-        ps.setString( 2, profile.getEmail() );
-        ps.setString( 3, profile.getFullname() );
-        ps.setString( 4, password );
-        ps.setString( 5, profile.getWikiName() );
-        ps.setTimestamp( 6, ts );
-        ps.setString( 7, profile.getLoginName() );
-        try {
-            ps.setString( 8, Serializer.serializeToBase64( profile.getAttributes() ) );
-        } catch ( final IOException e ) {
-            throw new SQLException( "Could not save user profile attribute. Reason: " + e.getMessage(), e );
-        }
-        ps.setString( 9, profile.getBio() );
-    }
-
-    /**
      * Private method that returns the first {@link UserProfile} matching a
      * named column's value. This method will also set the UID if it has not yet been set.
      * @param sql the SQL statement that should be prepared; it must have one parameter
@@ -470,7 +446,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 } else {
                     throw new IllegalArgumentException( "Index type not recognized!" );
                 }
-            }, this::mapProfileRow );
+            }, rowMapper::mapProfileRow );
         } catch( final SQLException e ) {
             throw new NoSuchPrincipalException( e.getMessage(), e );
         }
@@ -482,66 +458,6 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             throw new NoSuchPrincipalException( "More than one profile in database!" );
         }
         return matches.get( 0 );
-    }
-
-    /** Maps the current row of {@code rs} onto a freshly-created {@link UserProfile}. */
-    private UserProfile mapProfileRow( final ResultSet rs ) throws SQLException {
-        final UserProfile profile = newProfile();
-
-        // Fetch the basic user attributes
-        profile.setUid( rs.getString( "uid" ) );
-        if ( profile.getUid() == null ) {
-            profile.setUid( generateUid( this ) );
-        }
-        profile.setCreated( rs.getTimestamp( "created" ) );
-        profile.setEmail( rs.getString( "email" ) );
-        profile.setFullname( rs.getString( "full_name" ) );
-        profile.setLastModified( rs.getTimestamp( "modified" ) );
-        profile.setLastLogin( rs.getTimestamp( "last_login" ) );
-        final Date lockExpiryDate = rs.getDate( "lock_expiry" );
-        profile.setLockExpiry( rs.wasNull() ? null : lockExpiryDate );
-        profile.setLoginName( rs.getString( "login_name" ) );
-        profile.setPassword( rs.getString( "password" ) );
-        profile.setBio( rs.getString( "bio" ) );
-        profile.setPasswordMustChange( rs.getBoolean( "password_must_change" ) );
-
-        // Fetch the user attributes. A blank value (as opposed to a genuinely corrupt one) is
-        // not a parse failure - it just means the row has no attributes - so it is skipped
-        // quietly rather than being handed to the deserializer, which would otherwise blow up
-        // with an EOFException on every single request from an account whose row has this shape.
-        final String rawAttributes = rs.getString( "attributes" );
-        if ( StringUtils.isNotBlank( rawAttributes ) ) {
-            try {
-                final Map<String,? extends Serializable> userAttributes = Serializer.deserializeFromBase64( rawAttributes );
-                profile.getAttributes().putAll( userAttributes );
-            } catch ( final IOException e ) {
-                LOG.error( "Could not parse user profile attributes for login '{}'!", describeLoginNameForLog( rs ), e );
-            }
-        }
-        return profile;
-    }
-
-    /**
-     * Reads {@code login_name} from {@code rs} for use in a diagnostic log message, never
-     * letting a failure to read it (or a null value) throw out of the diagnostic itself.
-     */
-    private static String describeLoginNameForLog( final ResultSet rs ) {
-        try {
-            final String loginName = rs.getString( "login_name" );
-            return loginName != null ? loginName : "<unknown>";
-        } catch ( final SQLException e ) {
-            return "<unknown>";
-        }
-    }
-
-    /** Maps the current {@code users} row's {@code wiki_name}, or {@code null} (logged) when it is null/empty. */
-    private String mapWikiNameOrWarnAndSkip( final ResultSet rs ) throws SQLException {
-        final String wikiNameValue = rs.getString( "wiki_name" );
-        if( StringUtils.isEmpty( wikiNameValue ) ) {
-            LOG.warn( "Detected null or empty wiki name for {} in JDBCUserDataBase. Check your user database.", rs.getString( "login_name" ) );
-            return null;
-        }
-        return wikiNameValue;
     }
 
     /**
@@ -558,7 +474,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     public Collection< UserProfile > findAllProfiles() throws WikiSecurityException {
         final List< UserProfile > profiles = new ArrayList<>();
         try {
-            for( final UserProfile profile : jdbc.query( FIND_ALL, SqlBinder.NONE, this::mapProfileRowOrSkipEmptyWikiName ) ) {
+            for( final UserProfile profile : jdbc.query( FIND_ALL, SqlBinder.NONE, rowMapper::mapProfileRowOrSkipEmptyWikiName ) ) {
                 if( profile != null ) {
                     profiles.add( profile );
                 }
@@ -567,16 +483,6 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             throw new WikiSecurityException( e.getMessage(), e );
         }
         return profiles;
-    }
-
-    /** {@link #mapProfileRow} unless {@code wiki_name} is null/empty, in which case {@code null} (logged, mirroring {@link #getWikiNames()}). */
-    private UserProfile mapProfileRowOrSkipEmptyWikiName( final ResultSet rs ) throws SQLException {
-        final String wikiNameValue = rs.getString( "wiki_name" );
-        if ( StringUtils.isEmpty( wikiNameValue ) ) {
-            LOG.warn( "Detected null or empty wiki name for {} in JDBCUserDataBase. Check your user database.", rs.getString( "login_name" ) );
-            return null;
-        }
-        return mapProfileRow( rs );
     }
 
 }

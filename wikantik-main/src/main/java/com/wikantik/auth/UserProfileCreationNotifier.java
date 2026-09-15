@@ -82,6 +82,7 @@ final class UserProfileCreationNotifier {
         } catch ( final AddressException e ) {
             LOG.debug( e.getMessage(), e );
         } catch ( final MessagingException me ) {
+            // LOG.error justified: same level it had in DefaultUserManager; a failed send silently leaves the account holder or admin unnotified
             LOG.error( "Could not send registration confirmation e-mail. Is the e-mail server running?", me );
         }
     }
@@ -106,6 +107,7 @@ final class UserProfileCreationNotifier {
         } catch ( final AddressException e ) {
             LOG.debug( e.getMessage(), e );
         } catch ( final MessagingException me ) {
+            // LOG.error justified: same level it had in DefaultUserManager; a failed send silently leaves the account holder or admin unnotified
             LOG.error( "Could not send admin notification e-mail. Is the e-mail server running?", me );
         }
     }

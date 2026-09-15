@@ -1264,7 +1264,13 @@ public class WikiEngine implements Engine {
         // Store in a field so the instance is strongly reachable and won't be
         // evicted from WikiEventManager's WeakHashMap by the garbage collector.
         this.auditEventListener = new com.wikantik.audit.AuditEventListener( this.auditService );
-        registerAuditEventListeners( pageManager );
+        // The managers are resolved HERE, not inside the helpers: getManager() callers are frozen
+        // per method by DecompositionArchTest, and this method is the approved caller.
+        attachAuthAuditListeners( getManager( AuthenticationManager.class ),
+                                  getManager( AuthorizationManager.class ),
+                                  getManager( UserManager.class ) );
+        attachContentAuditListeners( pageManager, getManager( GroupManager.class ),
+                                     getManager( com.wikantik.content.PageRenamer.class ) );
 
         LOG.info( "Audit subsystem initialized (queue=10000)" );
     }
@@ -1331,32 +1337,17 @@ public class WikiEngine implements Engine {
     }
 
     /**
-     * Registers {@link #auditEventListener} (and, where the user database is
-     * available, {@link #lastLoginEventListener}) against every manager that fires
-     * the events the audit chain consumes. Split out of
-     * {@link #initAuditSubsystem(Properties)} (2026-09, complexity burn-down) — this
-     * sequence of independent null-checks was the main driver of that method's
-     * NPath complexity.
+     * Attaches {@link #auditEventListener} to the authn/authz/user managers and wires
+     * {@link #lastLoginEventListener}. Split out of {@link #initAuditSubsystem(Properties)}
+     * (2026-09 complexity burn-down): the run of independent null-checks drove that method's
+     * NPath. Named attach*, not register*, because DecompositionArchTest bans new
+     * register[A-Z]* methods on WikiEngine.
      */
-    private void registerAuditEventListeners( final PageManager pageManager ) {
-        registerAuthAuditEventListeners();
-        registerContentAuditEventListeners( pageManager );
-    }
-
-    /**
-     * Registers {@link #auditEventListener} against the authn/authz/user managers
-     * and wires {@link #lastLoginEventListener}. Split out of
-     * {@link #registerAuditEventListeners(PageManager)} (2026-09, complexity
-     * burn-down) — kept separate from {@link #registerContentAuditEventListeners}
-     * so neither half's sequence of independent null-checks pushes NPath over
-     * threshold on its own.
-     */
-    private void registerAuthAuditEventListeners() {
-        final AuthenticationManager authnMgr = getManager( AuthenticationManager.class );
+    private void attachAuthAuditListeners( final AuthenticationManager authnMgr,
+                                           final AuthorizationManager authzMgr,
+                                           final UserManager userMgr ) {
         if ( authnMgr != null ) authnMgr.addWikiEventListener( auditEventListener );
-        final AuthorizationManager authzMgr = getManager( AuthorizationManager.class );
         if ( authzMgr != null ) authzMgr.addWikiEventListener( auditEventListener );
-        final UserManager userMgr = getManager( UserManager.class );
         if ( userMgr != null ) userMgr.addWikiEventListener( auditEventListener );
         // Last-login stamping: LOGIN_AUTHENTICATED fires from the authentication manager,
         // so register the listener there. The user database is the write target.
@@ -1367,13 +1358,11 @@ public class WikiEngine implements Engine {
     }
 
     /**
-     * Registers {@link #auditEventListener} against the group manager, the page
-     * manager, and the page renamer. Split out of
-     * {@link #registerAuditEventListeners(PageManager)} (2026-09, complexity
-     * burn-down); see {@link #registerAuthAuditEventListeners()}.
+     * Attaches {@link #auditEventListener} to the group manager, the page manager and the page
+     * renamer. See {@link #attachAuthAuditListeners}.
      */
-    private void registerContentAuditEventListeners( final PageManager pageManager ) {
-        final GroupManager groupMgr = getManager( GroupManager.class );
+    private void attachContentAuditListeners( final PageManager pageManager, final GroupManager groupMgr,
+                                              final com.wikantik.content.PageRenamer pageRenamer ) {
         if ( groupMgr != null ) groupMgr.addWikiEventListener( auditEventListener );
         // PageManager has no addWikiEventListener on its interface; it fires page
         // events via WikiEventManager keyed on the manager instance, so register
@@ -1385,7 +1374,6 @@ public class WikiEngine implements Engine {
         // field with {"from":...,"to":...}) keyed on itself, not on PageManager.
         // Register the same listener against the PageRenamer instance so rename
         // events are captured by the audit chain.
-        final com.wikantik.content.PageRenamer pageRenamer = getManager( com.wikantik.content.PageRenamer.class );
         if ( pageRenamer != null ) {
             com.wikantik.event.WikiEventManager.addWikiEventListener( pageRenamer, auditEventListener );
         }

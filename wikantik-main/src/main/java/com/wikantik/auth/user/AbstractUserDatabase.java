@@ -214,10 +214,6 @@ public abstract class AbstractUserDatabase implements UserDatabase {
             // credential), and a caller can pass a null supplied password (e.g. a change-password
             // form's "current password" field on such an account). Neither is an error — fail
             // closed, quietly, before the cache or CryptoUtil ever sees a null.
-            // An SSO-provisioned profile can have a null stored password (never a local
-            // credential), and a caller can pass a null supplied password (e.g. a change-password
-            // form's "current password" field on such an account). Neither is an error — fail
-            // closed, quietly, before the cache or CryptoUtil ever sees a null.
             if( storedPassword == null || password == null ) {
                 LOG.debug( "validatePassword: null stored or supplied password for login '{}' — returning false", loginName );
                 return false;

@@ -36,6 +36,14 @@ export function useApi(fetcher, deps = [], options = {}) {
         setLoading(false);
       }
     }
+    // deps is an intentionally caller-supplied, dynamic-length array — the
+    // whole point of this generic hook's contract (see the doc comment on
+    // usePaginatedQuery's `deps` param below for the sibling case). ESLint
+    // can't statically verify a non-literal dependency list, and `fetcher`
+    // itself is deliberately excluded: callers own memoizing it and folding
+    // whatever it depends on into `deps` (existing convention already
+    // encoded in the ESLint suppressions below on usePaginatedQuery).
+    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/use-memo
   }, deps);
 
   useEffect(() => {
@@ -76,9 +84,13 @@ export function usePaginatedQuery(fetcher, deps = [], options = {}) {
 
   // Stable ref to the fetcher so load's identity depends only on
   // page/search/deps — otherwise every host render creates a new fetcher
-  // closure and we'd thrash the effect.
+  // closure and we'd thrash the effect. Written in an effect (runs after
+  // every render, no dep array) rather than during render, since refs may
+  // not be written synchronously in the render body.
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  });
 
   // Debounce search → debouncedSearch.
   useEffect(() => {
@@ -86,9 +98,17 @@ export function usePaginatedQuery(fetcher, deps = [], options = {}) {
     return () => clearTimeout(t);
   }, [search]);
 
-  // Reset page when debounced search or any external filter changes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setPage(0); }, [debouncedSearch, ...deps]);
+  // Reset page to 0 when the debounced search or any external filter
+  // changes — derived during render (store-previous-and-compare) rather
+  // than a setState call in an effect. `deps` is caller-supplied and may
+  // contain new-identity-but-equal-value arrays/objects each render, so the
+  // comparison is by serialized value, not reference.
+  const resetKey = JSON.stringify([debouncedSearch, ...deps]);
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey);
+    setPage(0);
+  }
 
   const load = useCallback(
     async (currentPage) => {
@@ -107,7 +127,9 @@ export function usePaginatedQuery(fetcher, deps = [], options = {}) {
         setFirstLoad(false);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // deps is caller-supplied and dynamic-length — see the useApi `load`
+    // suppression above for the same rationale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/use-memo
     [pageSize, debouncedSearch, ...deps],
   );
 

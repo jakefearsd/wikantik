@@ -78,7 +78,7 @@ export default function GraphCanvas({
     }, LAYOUT_TIMEOUT_MS);
 
     window.cy = cy;
-  }, [onNodeClick, onBackgroundClick, onReady, onLayoutTimeout]);
+  }, [onNodeClick, onBackgroundClick, onReady, onLayoutTimeout, focusNodeId]);
 
   useEffect(() => {
     if (!cyRef.current) return;

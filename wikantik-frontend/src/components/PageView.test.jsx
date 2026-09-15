@@ -182,7 +182,7 @@ describe('PageView comment integration', () => {
       container.querySelector('mark.comment-highlight[data-thread-id="T1"]'));
 
     await withFakeTimers(async () => {
-      await act(async () => { fireEvent.click(mark); });
+      fireEvent.click(mark);
 
       // Drawer opened: the thread comment body renders.
       expect(screen.getByText(/first comment/)).toBeInTheDocument();
@@ -199,7 +199,7 @@ describe('PageView comment integration', () => {
   it('toggle button opens the drawer showing the loaded thread', async () => {
     await mountAndSettle();
     const toggle = screen.getByTestId('comments-toggle-button');
-    await act(async () => { fireEvent.click(toggle); });
+    fireEvent.click(toggle);
     expect(screen.getByText(/first comment/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
@@ -229,17 +229,17 @@ describe('PageView comment integration', () => {
     };
     vi.spyOn(window, 'getSelection').mockReturnValue(fakeSelection);
 
-    await act(async () => { fireEvent.mouseUp(article); });
+    fireEvent.mouseUp(article);
 
     const floating = await screen.findByTestId('comment-add-floating');
     expect(floating).toBeInTheDocument();
 
     // createThread: floating button opens the composer popover; the user types
     // into the textarea and clicks "Comment". Replaces the old window.prompt flow.
-    await act(async () => { fireEvent.click(floating); });
+    fireEvent.click(floating);
     const textarea = await screen.findByPlaceholderText('Add a comment');
-    await act(async () => { fireEvent.change(textarea, { target: { value: 'a new comment' } }); });
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Comment$/ })); });
+    fireEvent.change(textarea, { target: { value: 'a new comment' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Comment$/ }));
 
     await waitFor(() => expect(api.createCommentThread).toHaveBeenCalledTimes(1));
     const [pageName, payload] = api.createCommentThread.mock.calls[0];
@@ -268,7 +268,7 @@ describe('PageView comment integration', () => {
       removeAllRanges: vi.fn(),
     });
 
-    await act(async () => { fireEvent.mouseUp(article); });
+    fireEvent.mouseUp(article);
 
     expect(screen.getByText(/Can.t comment on math/)).toBeInTheDocument();
     expect(screen.queryByTestId('comment-add-floating')).toBeNull();
@@ -276,17 +276,17 @@ describe('PageView comment integration', () => {
 
   it('drawer Reply and Resolve callbacks call the api then reload threads', async () => {
     await mountAndSettle();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
 
     // Reply.
     const replyInput = screen.getByPlaceholderText('Reply…');
-    await act(async () => { fireEvent.change(replyInput, { target: { value: 'thanks' } }); });
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Reply' })); });
+    fireEvent.change(replyInput, { target: { value: 'thanks' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Reply' }));
     await waitFor(() => expect(api.addCommentReply).toHaveBeenCalledWith('T1', 'thanks'));
 
     // Resolve → api.resolveCommentThread + loadThreads reload (finally block).
     const callsBefore = api.listCommentThreads.mock.calls.length;
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resolve' })); });
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve' }));
     await waitFor(() => expect(api.resolveCommentThread).toHaveBeenCalledWith('T1'));
     await waitFor(() =>
       expect(api.listCommentThreads.mock.calls.length).toBeGreaterThan(callsBefore));
@@ -332,15 +332,13 @@ describe('PageView comment integration', () => {
     api.listCommentThreads.mockResolvedValue({ threads: [{ ...THREAD, status: 'resolved' }] });
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
 
     // Default filter is "open"; switch to "resolved" to reveal the thread + Reopen.
-    await act(async () => {
-      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'resolved' } });
-    });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'resolved' } });
     const reopen = await screen.findByRole('button', { name: 'Reopen' });
     const callsBefore = api.listCommentThreads.mock.calls.length;
-    await act(async () => { fireEvent.click(reopen); });
+    fireEvent.click(reopen);
     await waitFor(() => expect(api.reopenCommentThread).toHaveBeenCalledWith('T1'));
     await waitFor(() =>
       expect(api.listCommentThreads.mock.calls.length).toBeGreaterThan(callsBefore));
@@ -381,12 +379,12 @@ describe('PageView comment integration', () => {
     vi.spyOn(window, 'getSelection').mockReturnValue({
       rangeCount: 1, isCollapsed: false, getRangeAt: () => range, removeAllRanges: vi.fn(),
     });
-    await act(async () => { fireEvent.mouseUp(article); });
+    fireEvent.mouseUp(article);
     const floating = await screen.findByTestId('comment-add-floating');
-    await act(async () => { fireEvent.click(floating); });
+    fireEvent.click(floating);
     const textarea = await screen.findByPlaceholderText('Add a comment');
-    await act(async () => { fireEvent.change(textarea, { target: { value: 'hi' } }); });
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Comment$/ })); });
+    fireEvent.change(textarea, { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Comment$/ }));
     await waitFor(() => expect(warn).toHaveBeenCalledWith('Failed to create comment thread', expect.any(Error)));
     // createThread still reloads + opens the drawer despite the failure.
     expect(await screen.findByText(/first comment/)).toBeInTheDocument();
@@ -397,15 +395,15 @@ describe('PageView comment integration', () => {
     api.addCommentReply.mockRejectedValue(new Error('x'));
     api.resolveCommentThread.mockRejectedValue(new Error('x'));
     await mountAndSettle();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
 
     // Reply failure → warn + finally reload.
-    await act(async () => { fireEvent.change(screen.getByPlaceholderText('Reply…'), { target: { value: 'r' } }); });
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Reply' })); });
+    fireEvent.change(screen.getByPlaceholderText('Reply…'), { target: { value: 'r' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Reply' }));
     await waitFor(() => expect(warn).toHaveBeenCalledWith('Failed to add reply', expect.any(Error)));
 
     // Resolve failure → warn + finally reload.
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resolve' })); });
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve' }));
     await waitFor(() => expect(warn).toHaveBeenCalledWith('Failed to resolve thread', expect.any(Error)));
   }, TEST_TIMEOUT);
 
@@ -416,12 +414,10 @@ describe('PageView comment integration', () => {
     api.listCommentThreads.mockResolvedValue({ threads: [{ ...THREAD, status: 'resolved' }] });
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
-    await act(async () => {
-      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'resolved' } });
-    });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'resolved' } });
     const reopen = await screen.findByRole('button', { name: 'Reopen' });
-    await act(async () => { fireEvent.click(reopen); });
+    fireEvent.click(reopen);
     await waitFor(() => expect(warn).toHaveBeenCalledWith('Failed to reopen thread', expect.any(Error)));
   }, TEST_TIMEOUT);
 
@@ -432,7 +428,7 @@ describe('PageView comment integration', () => {
     api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true } }));
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
     expect(screen.queryByTitle('Delete thread')).toBeNull();
   }, TEST_TIMEOUT);
 
@@ -441,16 +437,16 @@ describe('PageView comment integration', () => {
     api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, delete: true } }));
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
     const callsBefore = api.listCommentThreads.mock.calls.length;
 
     // First click reveals the in-app confirm — api is NOT called yet.
-    await act(async () => { fireEvent.click(screen.getByTitle('Delete thread')); });
+    fireEvent.click(screen.getByTitle('Delete thread'));
     expect(screen.getByText(/delete this thread permanently/i)).toBeInTheDocument();
     expect(api.deleteCommentThread).not.toHaveBeenCalled();
 
     // Second click commits.
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
+    fireEvent.click(screen.getByRole('button', { name: /^Delete$/ }));
     await waitFor(() => expect(api.deleteCommentThread).toHaveBeenCalledWith('T1'));
     // Reload happens in the finally block.
     await waitFor(() =>
@@ -511,9 +507,9 @@ describe('PageView comment integration', () => {
     api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, delete: true } }));
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
-    await act(async () => { fireEvent.click(screen.getByTitle('Delete thread')); });
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
+    fireEvent.click(screen.getByTitle('Delete thread'));
+    fireEvent.click(screen.getByRole('button', { name: /^Delete$/ }));
     await waitFor(() => expect(warn).toHaveBeenCalledWith('Failed to delete thread', expect.any(Error)));
   }, TEST_TIMEOUT);
 
@@ -534,12 +530,12 @@ describe('PageView comment integration', () => {
     vi.spyOn(window, 'getSelection').mockReturnValue({
       rangeCount: 1, isCollapsed: false, getRangeAt: () => range, removeAllRanges: vi.fn(),
     });
-    await act(async () => { fireEvent.mouseUp(article); });
+    fireEvent.mouseUp(article);
     const floating = await screen.findByTestId('comment-add-floating');
-    await act(async () => { fireEvent.click(floating); });
+    fireEvent.click(floating);
     const textarea = await screen.findByPlaceholderText('Add a comment');
-    await act(async () => { fireEvent.change(textarea, { target: { value: 'hi' } }); });
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Comment$/ })); });
+    fireEvent.change(textarea, { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Comment$/ }));
     expect(await screen.findByText(/Couldn't post comment.*server exploded/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
@@ -547,9 +543,9 @@ describe('PageView comment integration', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     api.addCommentReply.mockRejectedValue(new Error('network down'));
     await mountAndSettle();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
-    await act(async () => { fireEvent.change(screen.getByPlaceholderText('Reply…'), { target: { value: 'r' } }); });
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Reply' })); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
+    fireEvent.change(screen.getByPlaceholderText('Reply…'), { target: { value: 'r' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Reply' }));
     expect(await screen.findByText(/Couldn't post reply.*network down/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
@@ -557,8 +553,8 @@ describe('PageView comment integration', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     api.resolveCommentThread.mockRejectedValue(new Error('forbidden'));
     await mountAndSettle();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resolve' })); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve' }));
     expect(await screen.findByText(/Couldn't update thread.*forbidden/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
@@ -570,8 +566,8 @@ describe('PageView comment integration', () => {
       .mockResolvedValueOnce({ threads: [THREAD] })
       .mockResolvedValueOnce({ threads: [{ ...THREAD, status: 'resolved' }] });
     await mountAndSettle();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resolve' })); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve' }));
     expect(await screen.findByText('Thread resolved')).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
@@ -581,9 +577,9 @@ describe('PageView comment integration', () => {
     api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, delete: true } }));
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
-    await act(async () => { fireEvent.click(screen.getByTitle('Delete thread')); });
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
+    fireEvent.click(screen.getByTitle('Delete thread'));
+    fireEvent.click(screen.getByRole('button', { name: /^Delete$/ }));
     expect(await screen.findByText(/Couldn't delete thread.*gone/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
@@ -592,9 +588,9 @@ describe('PageView comment integration', () => {
     api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, delete: true } }));
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
-    await act(async () => { fireEvent.click(screen.getByTitle('Delete thread')); });
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
+    fireEvent.click(screen.getByTitle('Delete thread'));
+    fireEvent.click(screen.getByRole('button', { name: /^Delete$/ }));
     expect(await screen.findByText('Thread deleted')).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
@@ -605,7 +601,7 @@ describe('PageView comment integration', () => {
     let resolveResolve;
     api.resolveCommentThread.mockReturnValue(new Promise((res) => { resolveResolve = res; }));
     await mountAndSettle();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
 
     // Resolve button visible for the open thread.
     const resolveBtn = screen.getByRole('button', { name: 'Resolve' });
@@ -626,10 +622,10 @@ describe('PageView comment integration', () => {
     // First reject, keep threads returning open so revert is visible.
     api.resolveCommentThread.mockRejectedValue(new Error('forbidden'));
     await mountAndSettle();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
 
     const resolveBtn = screen.getByRole('button', { name: 'Resolve' });
-    await act(async () => { fireEvent.click(resolveBtn); });
+    fireEvent.click(resolveBtn);
 
     // After rejection, thread reverts to open → Resolve button is back.
     expect(await screen.findByRole('button', { name: 'Resolve' })).toBeInTheDocument();
@@ -643,11 +639,9 @@ describe('PageView comment integration', () => {
     api.listCommentThreads.mockResolvedValue({ threads: [{ ...THREAD, status: 'resolved' }] });
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    fireEvent.click(screen.getByTestId('comments-toggle-button'));
     // Switch to 'resolved' filter to see the resolved thread.
-    await act(async () => {
-      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'resolved' } });
-    });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'resolved' } });
     const reopenBtn = await screen.findByRole('button', { name: 'Reopen' });
     fireEvent.click(reopenBtn);
 
@@ -705,13 +699,13 @@ describe('PageView comment integration', () => {
     await awaitStableLoaded();
 
     // Open delete modal.
-    await act(async () => { fireEvent.click(screen.getByTestId('delete-page-button')); });
+    fireEvent.click(screen.getByTestId('delete-page-button'));
     const dialog = screen.getByRole('dialog');
     expect(dialog).toBeInTheDocument();
     expect(screen.getByText(/Are you sure you want to delete/)).toBeInTheDocument();
 
     // Esc closes.
-    await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }); });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
   }, TEST_TIMEOUT);
 
@@ -719,9 +713,9 @@ describe('PageView comment integration', () => {
     api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, delete: true } }));
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByTestId('delete-page-button')); });
+    fireEvent.click(screen.getByTestId('delete-page-button'));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
+    fireEvent.click(screen.getByRole('button', { name: /^Delete$/ }));
     await waitFor(() => expect(api.deletePage).toHaveBeenCalledWith('Foo'));
   }, TEST_TIMEOUT);
 
@@ -731,13 +725,13 @@ describe('PageView comment integration', () => {
     await awaitStableLoaded();
 
     // Open rename modal.
-    await act(async () => { fireEvent.click(screen.getByTestId('rename-page-button')); });
+    fireEvent.click(screen.getByTestId('rename-page-button'));
     const dialog = screen.getByRole('dialog');
     expect(dialog).toBeInTheDocument();
     expect(screen.getByLabelText(/New name for/)).toBeInTheDocument();
 
     // Esc closes.
-    await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }); });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
   }, TEST_TIMEOUT);
 
@@ -745,14 +739,14 @@ describe('PageView comment integration', () => {
     api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, rename: true } }));
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByTestId('rename-page-button')); });
+    fireEvent.click(screen.getByTestId('rename-page-button'));
     const dialog = await screen.findByRole('dialog');
     // Query within the modal dialog to avoid clashing with the trigger button.
     const input = dialog.querySelector('input[type="text"]');
-    await act(async () => { fireEvent.change(input, { target: { value: 'NewName' } }); });
+    fireEvent.change(input, { target: { value: 'NewName' } });
     // The submit "Rename" button inside the modal has class btn-primary.
     const submitBtn = dialog.querySelector('.btn-primary');
-    await act(async () => { fireEvent.click(submitBtn); });
+    fireEvent.click(submitBtn);
     await waitFor(() => expect(api.renamePage).toHaveBeenCalledWith('Foo', 'NewName'));
   }, TEST_TIMEOUT);
 });

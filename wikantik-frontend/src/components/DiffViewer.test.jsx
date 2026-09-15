@@ -1,5 +1,5 @@
 import { describe, it, vi, beforeEach, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { api } from '../api/client';
 import DiffViewer from './DiffViewer';
@@ -71,5 +71,16 @@ describe('DiffViewer', () => {
     api.getHistory.mockResolvedValue({ versions: [VERSIONS[0]] });
     renderDiffViewer();
     expect(await screen.findByText(/fewer than two versions/i)).toBeInTheDocument();
+  });
+
+  it('hides a previously-shown diff once the same version is selected on both sides', async () => {
+    api.getHistory.mockResolvedValue({ versions: VERSIONS });
+    api.getDiff.mockResolvedValue({ diffHtml: '<p>diff content</p>' });
+    renderDiffViewer();
+    expect(await screen.findByText(/diff content/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/To version/i), { target: { value: '1' } });
+    expect(screen.queryByText(/diff content/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Select two different versions/i)).toBeInTheDocument();
   });
 });

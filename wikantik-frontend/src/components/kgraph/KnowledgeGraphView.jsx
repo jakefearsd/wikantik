@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { toKgCytoscapeElements } from './kg-graph-data.js';
@@ -21,7 +21,9 @@ import './kg-graph.css';
 
 export default function KnowledgeGraphView() {
   const [searchParams] = useSearchParams();
-  const focusParam = useRef(searchParams.get('focus'));
+  // Captured once on mount: the deep-link focus target shouldn't change as
+  // the URL is later rewritten (filters, tier) by this component itself.
+  const [focusParam] = useState(() => searchParams.get('focus'));
   const { capabilities } = useCapabilities();
 
   const [fetchState, setFetchState] = useState('loading');
@@ -42,30 +44,58 @@ export default function KnowledgeGraphView() {
     window.history.replaceState(null, '', url);
   }, [filterState]);
 
+  // Shared, pure interpretation of a snapshot response/error — used by both
+  // the manual-refresh/tier-change path (fetchSnapshot, an event-handler-only
+  // async function below) and the mount/URL-driven effect's promise chain,
+  // so the branching logic isn't duplicated between them.
+  const interpretSnapshot = (data) => {
+    if (data.nodeCount === 0) return { fetchState: 'error', errorVariant: 'empty' };
+    if (data.nodes.every(n => n.restricted)) return { fetchState: 'error', errorVariant: 'empty-for-you' };
+    return { fetchState: 'ready', errorVariant: null };
+  };
+  const interpretFetchError = (err) => {
+    if (err.status === 401) return 'unauthorized';
+    if (err.status === 403) return 'forbidden';
+    return 'server';
+  };
+
+  // Manual refresh / tier-change path — only ever called from event handlers
+  // (handleTierChange, handleRefresh, the error-state Retry button), so a
+  // synchronous setState at the top is fine.
   const fetchSnapshot = useCallback(async (tier, restoreSelectedName) => {
     setFetchState('loading');
     setErrorVariant(null);
     try {
       const data = await api.knowledge.getGraphSnapshot(tier ? { minTier: tier } : undefined);
       setSnapshot(data);
-      if (data.nodeCount === 0) {
-        setFetchState('error'); setErrorVariant('empty');
-      } else if (data.nodes.every(n => n.restricted)) {
-        setFetchState('error'); setErrorVariant('empty-for-you');
-      } else {
-        setFetchState('ready');
-        if (restoreSelectedName) {
-          const match = data.nodes.find(n => n.name === restoreSelectedName);
-          setSelectedId(match ? match.id : null);
-        }
+      const { fetchState: fs, errorVariant: ev } = interpretSnapshot(data);
+      setFetchState(fs);
+      setErrorVariant(ev);
+      if (fs === 'ready' && restoreSelectedName) {
+        const match = data.nodes.find(n => n.name === restoreSelectedName);
+        setSelectedId(match ? match.id : null);
       }
     } catch (err) {
       setFetchState('error');
-      if (err.status === 401) setErrorVariant('unauthorized');
-      else if (err.status === 403) setErrorVariant('forbidden');
-      else setErrorVariant('server');
+      setErrorVariant(interpretFetchError(err));
     }
   }, []);
+
+  // On first mount, omit the tier so the existing test ("calls getGraphSnapshot
+  // with no minTier on first mount") keeps passing when no tier is in the URL.
+  // Subsequent updates (e.g. browser back/forward — handleTierChange itself
+  // rewrites the URL via history.replaceState, which react-router's
+  // useSearchParams does not observe, so it never re-triggers this effect)
+  // always pass it explicitly.
+  const tierParam = searchParams.get('tier') || undefined;
+
+  // Reset to 'loading' when the URL-driven tier changes — derived during
+  // render (the mount case is already covered by fetchState's initial value).
+  const [prevTierParam, setPrevTierParam] = useState(tierParam);
+  if (tierParam !== prevTierParam) {
+    setPrevTierParam(tierParam);
+    setFetchState('loading');
+  }
 
   useEffect(() => {
     // Once /api/capabilities has resolved knowledgeGraph:false, don't bother
@@ -73,17 +103,28 @@ export default function KnowledgeGraphView() {
     // the disabled panel instead. While capabilities is still loading (the
     // default is fail-open true), this fetches as normal.
     if (capabilities.knowledgeGraph === false) return;
-    // On first mount, omit the tier so the existing test ("calls getGraphSnapshot
-    // with no minTier on first mount") keeps passing when no tier is in the URL.
-    // Subsequent updates always pass it explicitly.
-    fetchSnapshot(searchParams.get('tier') || undefined);
-  }, [fetchSnapshot, searchParams, capabilities.knowledgeGraph]);
+    let ignore = false;
+    api.knowledge.getGraphSnapshot(tierParam ? { minTier: tierParam } : undefined)
+      .then((data) => {
+        if (ignore) return;
+        setSnapshot(data);
+        const { fetchState: fs, errorVariant: ev } = interpretSnapshot(data);
+        setFetchState(fs);
+        setErrorVariant(ev);
+      })
+      .catch((err) => {
+        if (ignore) return;
+        setFetchState('error');
+        setErrorVariant(interpretFetchError(err));
+      });
+    return () => { ignore = true; };
+  }, [tierParam, capabilities.knowledgeGraph]);
 
   const focusNodeId = useMemo(() => {
-    if (!focusParam.current || !snapshot) return null;
-    const match = snapshot.nodes.find(n => n.name === focusParam.current && !n.restricted);
+    if (!focusParam || !snapshot) return null;
+    const match = snapshot.nodes.find(n => n.name === focusParam && !n.restricted);
     return match?.id || null;
-  }, [snapshot]);
+  }, [snapshot, focusParam]);
 
   const filterResult = useMemo(() => {
     if (!snapshot || fetchState !== 'ready') return null;

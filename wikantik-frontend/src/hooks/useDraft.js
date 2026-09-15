@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useState } from 'react';
 import { draftKey } from '../utils/draftKeys';
 
 /**
@@ -9,20 +9,17 @@ export function useDraft({ login, pageId, enabled }) {
   const active = enabled && !!login && !!pageId;
   const key = active ? draftKey(login, pageId) : null;
 
-  // Read once on first render so an open editor can offer restore.
-  const initial = useRef(undefined);
-  if (initial.current === undefined) {
-    if (key) {
-      try {
-        const raw = localStorage.getItem(key);
-        initial.current = raw ? JSON.parse(raw) : null;
-      } catch {
-        initial.current = null;
-      }
-    } else {
-      initial.current = null;
+  // Read once on first render (lazy useState initializer) so an open editor
+  // can offer restore; later `key` changes intentionally don't re-read.
+  const [draft] = useState(() => {
+    if (!key) return null;
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
     }
-  }
+  });
 
   const saveDraft = useCallback((fields) => {
     if (!key) return;
@@ -38,5 +35,5 @@ export function useDraft({ login, pageId, enabled }) {
     if (key) localStorage.removeItem(key);
   }, [key]);
 
-  return { draft: initial.current, saveDraft, clearDraft };
+  return { draft, saveDraft, clearDraft };
 }

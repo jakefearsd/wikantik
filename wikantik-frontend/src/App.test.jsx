@@ -7,9 +7,11 @@ vi.mock('./hooks/useAuth', () => ({ useAuth: vi.fn() }));
 // Sidebar mock captures and exposes the onOpenSearch prop so App tests can
 // fire the sidebar search trigger and verify the single shared overlay opens.
 let capturedOnOpenSearch = null;
+let capturedOnMobileOpen = null;
 vi.mock('./components/Sidebar', () => ({
   default: (props) => {
     capturedOnOpenSearch = props.onOpenSearch;
+    capturedOnMobileOpen = props.onMobileOpen;
     return <div data-testid="sidebar" />;
   },
 }));
@@ -40,7 +42,48 @@ function renderApp(initialPath = '/') {
 beforeEach(() => {
   vi.clearAllMocks();
   capturedOnOpenSearch = null;
+  capturedOnMobileOpen = null;
   useAuth.mockReturnValue({ user: { authenticated: false, roles: [] } });
+});
+
+describe('App — mobile sidebar closes on authentication', () => {
+  it('closes an open mobile sidebar once the user becomes authenticated', () => {
+    useAuth.mockReturnValue({ user: { authenticated: false, roles: [] } });
+    const { rerender } = render(
+      <MemoryRouter initialEntries={['/wiki/Main']}>
+        <Routes><Route path="/*" element={<App />} /></Routes>
+      </MemoryRouter>,
+    );
+    act(() => { capturedOnMobileOpen(); });
+    expect(document.querySelector('.sidebar-backdrop')).toBeInTheDocument();
+
+    useAuth.mockReturnValue({ user: { authenticated: true, roles: [] } });
+    rerender(
+      <MemoryRouter initialEntries={['/wiki/Main']}>
+        <Routes><Route path="/*" element={<App />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect(document.querySelector('.sidebar-backdrop')).not.toBeInTheDocument();
+  });
+
+  it('does not reopen or reclose the sidebar on an unrelated re-render with the same auth state', () => {
+    useAuth.mockReturnValue({ user: { authenticated: false, roles: [] } });
+    const { rerender } = render(
+      <MemoryRouter initialEntries={['/wiki/Main']}>
+        <Routes><Route path="/*" element={<App />} /></Routes>
+      </MemoryRouter>,
+    );
+    act(() => { capturedOnMobileOpen(); });
+    expect(document.querySelector('.sidebar-backdrop')).toBeInTheDocument();
+
+    // Same (unauthenticated) auth state — re-render must not clobber the open sidebar.
+    rerender(
+      <MemoryRouter initialEntries={['/wiki/Main']}>
+        <Routes><Route path="/*" element={<App />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect(document.querySelector('.sidebar-backdrop')).toBeInTheDocument();
+  });
 });
 
 describe('App #23 — single shared SearchOverlay', () => {

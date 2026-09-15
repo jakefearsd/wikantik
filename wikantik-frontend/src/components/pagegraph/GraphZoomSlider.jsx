@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSyncExternalStore, useCallback, useMemo, useRef } from 'react';
 import {
   SLIDER_MIN_ZOOM,
   SLIDER_MAX_ZOOM,
@@ -9,28 +9,38 @@ import {
 
 const NUDGE_STEP = 0.2;
 
+// window.cy (set by GraphCanvas once cytoscape mounts) is a genuine external
+// store: it mutates outside React and emits its own 'zoom' events. Reading
+// its live zoom level is synced via useSyncExternalStore rather than an
+// effect that calls setState, per https://react.dev/reference/react/useSyncExternalStore.
 export default function GraphZoomSlider({ layoutDone }) {
-  const [zoom, setZoom] = useState(1);
-  const [bounds, setBounds] = useState({ min: SLIDER_MIN_ZOOM, max: SLIDER_MAX_ZOOM });
   const rafRef = useRef(null);
 
-  useEffect(() => {
+  const subscribe = useCallback((onStoreChange) => {
     const cy = window.cy;
-    if (!cy || !layoutDone) return;
-
-    setBounds({ min: cy.minZoom(), max: cy.maxZoom() });
-    setZoom(cy.zoom());
-
+    if (!cy || !layoutDone) return () => {};
     const onZoom = () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => setZoom(cy.zoom()));
+      rafRef.current = requestAnimationFrame(onStoreChange);
     };
-
     cy.on('zoom', onZoom);
     return () => {
       cy.off('zoom', onZoom);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
+  }, [layoutDone]);
+
+  const getSnapshot = useCallback(() => {
+    const cy = window.cy;
+    return (cy && layoutDone) ? cy.zoom() : 1;
+  }, [layoutDone]);
+
+  const zoom = useSyncExternalStore(subscribe, getSnapshot);
+
+  const bounds = useMemo(() => {
+    const cy = window.cy;
+    if (!cy || !layoutDone) return { min: SLIDER_MIN_ZOOM, max: SLIDER_MAX_ZOOM };
+    return { min: cy.minZoom(), max: cy.maxZoom() };
   }, [layoutDone]);
 
   const applyZoom = useCallback((level) => {

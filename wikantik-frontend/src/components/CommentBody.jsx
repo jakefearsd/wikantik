@@ -8,9 +8,11 @@ export default function CommentBody({ body }) {
   if (!body) return null;
   const parts = [];
   let lastIndex = 0;
-  let match;
-  TOKEN_RE.lastIndex = 0;
-  while ((match = TOKEN_RE.exec(body)) !== null) {
+  // matchAll clones TOKEN_RE (per spec, RegExp[Symbol.matchAll] constructs a
+  // fresh matcher from it) instead of mutating its shared `lastIndex`, so
+  // concurrent renders of multiple CommentBody instances can't corrupt each
+  // other's scan position.
+  for (const match of body.matchAll(TOKEN_RE)) {
     const login = match[1];
     // The @ position inside the match: if the match starts at 0 and the body
     // starts with @, the @ is at match.index; otherwise the leading char is

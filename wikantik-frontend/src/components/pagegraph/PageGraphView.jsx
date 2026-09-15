@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { formatTime } from '../../utils/datetime';
@@ -21,7 +21,9 @@ import './graph.css';
 export default function PageGraphView() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const focusParam = useRef(searchParams.get('focus'));
+  // Captured once on mount: the deep-link focus target shouldn't change as
+  // the URL is later rewritten (filters, tier) by this component itself.
+  const [focusParam] = useState(() => searchParams.get('focus'));
 
   const [fetchState, setFetchState] = useState('loading');
   const [errorVariant, setErrorVariant] = useState(null);
@@ -37,34 +39,63 @@ export default function PageGraphView() {
     window.history.replaceState(null, '', url);
   }, [filterState]);
 
+  // Shared, pure interpretation of a snapshot response/error — used by both
+  // the manual Retry path (fetchSnapshot, an event-handler-only async
+  // function below) and the mount effect's promise chain, so the branching
+  // logic isn't duplicated between them.
+  const interpretSnapshot = (data) => {
+    if (data.nodeCount === 0) return { fetchState: 'error', errorVariant: 'empty' };
+    if (data.nodes.every(n => n.restricted)) return { fetchState: 'error', errorVariant: 'empty-for-you' };
+    return { fetchState: 'ready', errorVariant: null };
+  };
+  const interpretFetchError = (err) => {
+    if (err.status === 401) return 'unauthorized';
+    if (err.status === 403) return 'forbidden';
+    return 'server';
+  };
+
+  // Manual Retry path — only ever called from the error-state Retry button,
+  // so a synchronous setState at the top is fine.
   const fetchSnapshot = useCallback(async () => {
     setFetchState('loading');
     setErrorVariant(null);
     try {
       const data = await api.pageGraph.getSnapshot();
       setSnapshot(data);
-      if (data.nodeCount === 0) {
-        setFetchState('error'); setErrorVariant('empty');
-      } else if (data.nodes.every(n => n.restricted)) {
-        setFetchState('error'); setErrorVariant('empty-for-you');
-      } else {
-        setFetchState('ready');
-      }
+      const { fetchState: fs, errorVariant: ev } = interpretSnapshot(data);
+      setFetchState(fs);
+      setErrorVariant(ev);
     } catch (err) {
       setFetchState('error');
-      if (err.status === 401) setErrorVariant('unauthorized');
-      else if (err.status === 403) setErrorVariant('forbidden');
-      else setErrorVariant('server');
+      setErrorVariant(interpretFetchError(err));
     }
   }, []);
 
-  useEffect(() => { fetchSnapshot(); }, [fetchSnapshot]);
+  // Mount-only fetch. `fetchState` already starts 'loading', so only the
+  // async continuation (.then/.catch) touches state.
+  useEffect(() => {
+    let ignore = false;
+    api.pageGraph.getSnapshot()
+      .then((data) => {
+        if (ignore) return;
+        setSnapshot(data);
+        const { fetchState: fs, errorVariant: ev } = interpretSnapshot(data);
+        setFetchState(fs);
+        setErrorVariant(ev);
+      })
+      .catch((err) => {
+        if (ignore) return;
+        setFetchState('error');
+        setErrorVariant(interpretFetchError(err));
+      });
+    return () => { ignore = true; };
+  }, []);
 
   const focusNodeId = useMemo(() => {
-    if (!focusParam.current || !snapshot) return null;
-    const match = snapshot.nodes.find(n => n.name === focusParam.current && !n.restricted);
+    if (!focusParam || !snapshot) return null;
+    const match = snapshot.nodes.find(n => n.name === focusParam && !n.restricted);
     return match?.id || null;
-  }, [snapshot]);
+  }, [snapshot, focusParam]);
 
   const filterResult = useMemo(() => {
     if (!snapshot || fetchState !== 'ready') return null;

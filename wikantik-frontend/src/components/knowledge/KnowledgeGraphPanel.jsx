@@ -54,7 +54,8 @@ function provenanceVariant(provenance) {
 export default function KnowledgeGraphPanel({ pageName }) {
   const [entities, setEntities] = useState([]);
   const [edges, setEdges] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Only "loading" if there's a pageName to actually fetch on mount.
+  const [loading, setLoading] = useState(!!pageName);
   const [fetchError, setFetchError] = useState(null);
 
   // Add-entity form state
@@ -86,9 +87,28 @@ export default function KnowledgeGraphPanel({ pageName }) {
     }
   }, [pageName]);
 
+  // Reset loading/error when pageName changes — derived during render (the
+  // mount case is already covered by loading's initial value above).
+  const [prevPageName, setPrevPageName] = useState(pageName);
+  if (pageName !== prevPageName) {
+    setPrevPageName(pageName);
+    setLoading(!!pageName);
+    setFetchError(null);
+  }
+
   useEffect(() => {
-    fetchSlice();
-  }, [fetchSlice]);
+    if (!pageName) return;
+    let ignore = false;
+    api.getPageKnowledge(pageName)
+      .then((data) => {
+        if (ignore) return;
+        setEntities(data.entities || []);
+        setEdges(data.edges || []);
+      })
+      .catch((err) => { if (!ignore) setFetchError(err.message || 'Failed to load knowledge graph'); })
+      .finally(() => { if (!ignore) setLoading(false); });
+    return () => { ignore = true; };
+  }, [pageName]);
 
   const handleTypeChange = useCallback(async (entity, newType) => {
     try {

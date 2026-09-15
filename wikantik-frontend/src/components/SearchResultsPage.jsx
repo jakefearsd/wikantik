@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -30,17 +30,22 @@ export default function SearchResultsPage() {
   const [sinceKey, setSinceKey] = useState(null);
 
   // All hooks must run before any early return, so derive from the (possibly
-  // undefined while loading) response defensively.
-  const results = data?.results || [];
+  // undefined while loading) response defensively. Memoized on its own so a
+  // `data?.results || []` fallback array doesn't change identity — and so
+  // re-trigger the facets/filtered memos below — on every render.
+  const results = useMemo(() => data?.results || [], [data]);
   const facets = useMemo(() => deriveFacets(results), [results]);
   const filtered = useMemo(() => applyFacets(results, selection), [results, selection]);
 
-  // Reset pagination and any active filters when the query changes.
-  useEffect(() => {
+  // Reset pagination and any active filters when the query changes — derived
+  // during render (store-previous-and-compare) rather than an effect.
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (query !== prevQuery) {
+    setPrevQuery(query);
     setVisibleCount(PAGE_SIZE);
     setSelection(EMPTY_SELECTION);
     setSinceKey(null);
-  }, [query]);
+  }
 
   // Set document title via hook — keeps the "Wikantik: " prefix consistent.
   const searchTitle = query ? `Search results for ${query}` : 'Search';

@@ -167,7 +167,17 @@ export default function PageView() {
     }
   }, [name]);
 
-  useEffect(() => { loadThreads(); }, [loadThreads]);
+  // Runs on mount and whenever `name` changes (loadThreads is memoized on
+  // it). Inlined as a promise chain rather than calling loadThreads directly
+  // — loadThreads is kept for the manual-reload call sites below (event
+  // handlers, where a direct call is fine).
+  useEffect(() => {
+    let ignore = false;
+    api.listCommentThreads(name, 'all')
+      .then((res) => { if (!ignore) setThreads(res.threads || []); })
+      .catch((e) => { if (!ignore) console.warn('Failed to load comment threads', e); });
+    return () => { ignore = true; };
+  }, [name]);
 
   // Render LaTeX math expressions via KaTeX after page content is injected.
   // Depend on the `page` object reference (not the contentHtml string) so the
@@ -261,6 +271,18 @@ export default function PageView() {
 
   // Deep-link from the mentions feed: ?thread=<id>&comment=<id> opens the drawer
   // and focuses the thread. Strip the params so a refresh doesn't re-focus.
+  //
+  // This is a genuine one-shot reaction to `threads` arriving asynchronously
+  // (from the loadThreads effect above) combined with imperative DOM work
+  // (scroll retry, history.replaceState) — it doesn't decompose into a
+  // derive-during-render value: gating the state writes on a `dlApplied`
+  // piece of *state* instead of the ref, so the transition could be computed
+  // during render, causes React to discard the triggering render pass
+  // entirely (a setState-during-render on a value that itself flips the
+  // gating condition) and the effect below then never observes the
+  // transient "just unlocked" value — losing the deep link. The ref latch
+  // is the correct tool here per the refs-rule carve-out for imperative
+  // integrations.
   const dlAppliedRef = useRef(false);
   useEffect(() => {
     if (dlAppliedRef.current) return;
@@ -269,6 +291,7 @@ export default function PageView() {
     const exists = threads.some((t) => t.id === threadId);
     if (!exists) return;
     dlAppliedRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot reaction to threads arriving async + a URL param (see comment above), paired with imperative DOM/history work that must run in the same effect.
     setStatusFilter('all');
     setDrawerOpen(true);
     // Focus after the drawer + mark render. The anchoring effect runs in the

@@ -22,9 +22,14 @@ export default function Combobox({
   const [open, setOpen] = useState(false);
   const debounceRef = useRef();
 
-  useEffect(() => {
+  // Resync the editable query from an externally-changed `value` prop without
+  // an effect (which would clobber in-progress typing one render late) — the
+  // "store the previous prop and compare during render" pattern.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     setQuery(value ?? '');
-  }, [value]);
+  }
 
   useEffect(() => () => clearTimeout(debounceRef.current), []);
 

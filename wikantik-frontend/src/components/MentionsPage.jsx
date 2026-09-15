@@ -10,11 +10,14 @@ import Icon from './ui/Icon';
 export default function MentionsPage() {
   const [status, setStatus] = useState('unread');
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const toast = useToast();
   useDocumentTitle('My mentions');
 
+  // Refetching function for manual reload after an action (markOne below) —
+  // synchronously setting `loading` here is fine since it's only ever called
+  // from event handlers, never from the effect below.
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -29,7 +32,23 @@ export default function MentionsPage() {
     }
   }, [status]);
 
-  useEffect(() => { load(); }, [load]);
+  // Reset `loading` when the status filter changes — derived during render
+  // rather than a setState call in the effect below (mount case is already
+  // covered by the `loading` initial value).
+  const [prevStatus, setPrevStatus] = useState(status);
+  if (status !== prevStatus) {
+    setPrevStatus(status);
+    setLoading(true);
+  }
+
+  useEffect(() => {
+    let ignore = false;
+    api.listMyMentions({ status, limit: 50 })
+      .then((res) => { if (!ignore) { setItems(res.mentions || []); setError(null); } })
+      .catch((e) => { if (!ignore) { setError(e.message || String(e)); setItems([]); } })
+      .finally(() => { if (!ignore) setLoading(false); });
+    return () => { ignore = true; };
+  }, [status]);
 
   const markOne = async (id) => {
     // Optimistic update: immediately mark item as read in local state

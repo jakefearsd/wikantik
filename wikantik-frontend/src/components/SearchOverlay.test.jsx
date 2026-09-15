@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 // Hoisted mocks — factory functions must not reference outer variables
@@ -62,27 +62,40 @@ describe('SearchOverlay', () => {
   it('shows no-results message when query has no hits', async () => {
     mockSearch.mockResolvedValue({ results: [] });
     renderOverlay();
-    await act(async () => {
-      fireEvent.change(screen.getByTestId('search-overlay-input'), {
-        target: { value: 'xyz' },
-      });
-      await new Promise((r) => setTimeout(r, 250));
+    fireEvent.change(screen.getByTestId('search-overlay-input'), {
+      target: { value: 'xyz' },
     });
+    await new Promise((r) => setTimeout(r, 250));
     expect(screen.getByText(/No results for/)).toBeInTheDocument();
   });
 
   it('renders result buttons after a search', async () => {
     mockSearch.mockResolvedValue(makeResults(['PageA', 'PageB']));
     renderOverlay();
-    await act(async () => {
-      fireEvent.change(screen.getByTestId('search-overlay-input'), {
-        target: { value: 'hello' },
-      });
-      await new Promise((r) => setTimeout(r, 250));
+    fireEvent.change(screen.getByTestId('search-overlay-input'), {
+      target: { value: 'hello' },
     });
+    await new Promise((r) => setTimeout(r, 250));
     const items = screen.getAllByTestId('search-overlay-result');
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveAttribute('data-page-name', 'PageA');
+  });
+
+  it('clears results immediately (no debounce wait) when the query is cleared', async () => {
+    mockSearch.mockResolvedValue(makeResults(['PageA', 'PageB']));
+    renderOverlay();
+    const input = screen.getByTestId('search-overlay-input');
+    fireEvent.change(input, { target: { value: 'page' } });
+    await new Promise((r) => setTimeout(r, 250));
+    expect(screen.getAllByTestId('search-overlay-result')).toHaveLength(2);
+
+    // Clear the query — results (and the keyboard-nav ref they back) must
+    // reset synchronously, without waiting out the 200ms debounce.
+    fireEvent.change(input, { target: { value: '' } });
+    expect(screen.queryAllByTestId('search-overlay-result')).toHaveLength(0);
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(mockNavigate).not.toHaveBeenCalledWith('/wiki/PageA');
   });
 
   // ── #24: Enter opens focused result ──────────────────────────────────────
@@ -91,14 +104,10 @@ describe('SearchOverlay', () => {
     mockSearch.mockResolvedValue(makeResults(['PageA', 'PageB']));
     renderOverlay();
     const input = screen.getByTestId('search-overlay-input');
-    await act(async () => {
-      fireEvent.change(input, { target: { value: 'page' } });
-      await new Promise((r) => setTimeout(r, 250));
-    });
+    fireEvent.change(input, { target: { value: 'page' } });
+    await new Promise((r) => setTimeout(r, 250));
     // No arrow-key selection -> Enter must land on /search, not open result #0.
-    await act(async () => {
-      fireEvent.keyDown(input, { key: 'Enter' });
-    });
+    fireEvent.keyDown(input, { key: 'Enter' });
     expect(mockNavigate).toHaveBeenCalledWith('/search?q=page');
   });
 
@@ -106,15 +115,11 @@ describe('SearchOverlay', () => {
     mockSearch.mockResolvedValue(makeResults(['PageA', 'PageB']));
     renderOverlay();
     const input = screen.getByTestId('search-overlay-input');
-    await act(async () => {
-      fireEvent.change(input, { target: { value: 'page' } });
-      await new Promise((r) => setTimeout(r, 250));
-    });
+    fireEvent.change(input, { target: { value: 'page' } });
+    await new Promise((r) => setTimeout(r, 250));
     // From the unselected state, one ArrowDown highlights the first result.
-    await act(async () => {
-      fireEvent.keyDown(input, { key: 'ArrowDown' });
-      fireEvent.keyDown(input, { key: 'Enter' });
-    });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
     expect(mockNavigate).toHaveBeenCalledWith('/wiki/PageA');
   });
 
@@ -122,13 +127,9 @@ describe('SearchOverlay', () => {
     mockSearch.mockResolvedValue({ results: [] });
     renderOverlay();
     const input = screen.getByTestId('search-overlay-input');
-    await act(async () => {
-      fireEvent.change(input, { target: { value: 'noresults' } });
-      await new Promise((r) => setTimeout(r, 250));
-    });
-    await act(async () => {
-      fireEvent.keyDown(input, { key: 'Enter' });
-    });
+    fireEvent.change(input, { target: { value: 'noresults' } });
+    await new Promise((r) => setTimeout(r, 250));
+    fireEvent.keyDown(input, { key: 'Enter' });
     expect(mockNavigate).toHaveBeenCalledWith('/search?q=noresults');
   });
 
@@ -138,22 +139,16 @@ describe('SearchOverlay', () => {
     mockSearch.mockResolvedValue(makeResults(['PageA', 'PageB', 'PageC']));
     renderOverlay();
     const input = screen.getByTestId('search-overlay-input');
-    await act(async () => {
-      fireEvent.change(input, { target: { value: 'page' } });
-      await new Promise((r) => setTimeout(r, 250));
-    });
+    fireEvent.change(input, { target: { value: 'page' } });
+    await new Promise((r) => setTimeout(r, 250));
     // From unselected (-1): three ArrowDowns -> index 0,1,2 (last item).
-    await act(async () => {
-      fireEvent.keyDown(input, { key: 'ArrowDown' });
-      fireEvent.keyDown(input, { key: 'ArrowDown' });
-      fireEvent.keyDown(input, { key: 'ArrowDown' });
-    });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
     const items = screen.getAllByTestId('search-overlay-result');
     expect(items[2]).toHaveClass('focused');
     // ArrowDown again should wrap to 0
-    await act(async () => {
-      fireEvent.keyDown(input, { key: 'ArrowDown' });
-    });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
     expect(items[0]).toHaveClass('focused');
     expect(items[2]).not.toHaveClass('focused');
   });
@@ -162,16 +157,12 @@ describe('SearchOverlay', () => {
     mockSearch.mockResolvedValue(makeResults(['PageA', 'PageB', 'PageC']));
     renderOverlay();
     const input = screen.getByTestId('search-overlay-input');
-    await act(async () => {
-      fireEvent.change(input, { target: { value: 'page' } });
-      await new Promise((r) => setTimeout(r, 250));
-    });
+    fireEvent.change(input, { target: { value: 'page' } });
+    await new Promise((r) => setTimeout(r, 250));
     const items = screen.getAllByTestId('search-overlay-result');
     // Nothing is highlighted until the user navigates.
     expect(items[0]).not.toHaveClass('focused');
-    await act(async () => {
-      fireEvent.keyDown(input, { key: 'ArrowUp' });
-    });
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
     expect(items[2]).toHaveClass('focused');
     expect(items[0]).not.toHaveClass('focused');
   });
@@ -198,7 +189,7 @@ describe('SearchOverlay', () => {
     });
     renderOverlay();
     const item = screen.getByTestId('recent-search-item');
-    await act(async () => { fireEvent.click(item); });
+    fireEvent.click(item);
     expect(screen.getByTestId('search-overlay-input')).toHaveValue('my search');
   });
 
@@ -223,15 +214,11 @@ describe('SearchOverlay', () => {
     mockSearch.mockResolvedValue({ results: [] });
     renderOverlay();
     const input = screen.getByTestId('search-overlay-input');
-    await act(async () => {
-      fireEvent.change(input, { target: { value: 'xyz' } });
-      await new Promise((r) => setTimeout(r, 250));
-    });
+    fireEvent.change(input, { target: { value: 'xyz' } });
+    await new Promise((r) => setTimeout(r, 250));
     // Should not throw
-    await act(async () => {
-      fireEvent.keyDown(input, { key: 'ArrowDown' });
-      fireEvent.keyDown(input, { key: 'ArrowUp' });
-    });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
     expect(screen.queryAllByTestId('search-overlay-result')).toHaveLength(0);
   });
 
@@ -241,13 +228,11 @@ describe('SearchOverlay', () => {
     mockSearch.mockResolvedValue(makeResults(['PageA', 'PageB']));
     renderOverlay();
     const input = screen.getByTestId('search-overlay-input');
-    await act(async () => {
-      fireEvent.change(input, { target: { value: 'page' } });
-      await new Promise((r) => setTimeout(r, 250));
-    });
+    fireEvent.change(input, { target: { value: 'page' } });
+    await new Promise((r) => setTimeout(r, 250));
     const viewAll = screen.getByTestId('search-overlay-view-all');
     expect(viewAll).toBeInTheDocument();
-    await act(async () => { fireEvent.click(viewAll); });
+    fireEvent.click(viewAll);
     expect(mockNavigate).toHaveBeenCalledWith('/search?q=page');
   });
 
@@ -255,13 +240,11 @@ describe('SearchOverlay', () => {
     mockSearch.mockResolvedValue({ results: [] });
     renderOverlay();
     const input = screen.getByTestId('search-overlay-input');
-    await act(async () => {
-      fireEvent.change(input, { target: { value: 'obscure' } });
-      await new Promise((r) => setTimeout(r, 250));
-    });
+    fireEvent.change(input, { target: { value: 'obscure' } });
+    await new Promise((r) => setTimeout(r, 250));
     const viewAll = screen.getByTestId('search-overlay-view-all');
     expect(viewAll).toBeInTheDocument();
-    await act(async () => { fireEvent.click(viewAll); });
+    fireEvent.click(viewAll);
     expect(mockNavigate).toHaveBeenCalledWith('/search?q=obscure');
   });
 
@@ -277,12 +260,10 @@ describe('SearchOverlay', () => {
   it('marks the debounced search-as-you-type call as typeahead', async () => {
     mockSearch.mockResolvedValue(makeResults(['PageA']));
     renderOverlay();
-    await act(async () => {
-      fireEvent.change(screen.getByTestId('search-overlay-input'), {
-        target: { value: 'page' },
-      });
-      await new Promise((r) => setTimeout(r, 250));
+    fireEvent.change(screen.getByTestId('search-overlay-input'), {
+      target: { value: 'page' },
     });
+    await new Promise((r) => setTimeout(r, 250));
     expect(mockSearch).toHaveBeenCalledWith('page', 20, { typeahead: true });
   });
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { titleToSlug, isValidSlug } from '../utils/slugUtils';
 import Modal from './ui/Modal';
@@ -11,8 +11,11 @@ export default function NewArticleModal({ isOpen, onClose, existingPageNames, ex
   const [cluster, setCluster] = useState('');
   const [articleType, setArticleType] = useState('article');
 
-  // Reset state when modal opens
-  useEffect(() => {
+  // Reset form fields whenever the modal transitions to open — derived during
+  // render (store-previous-and-compare) rather than an effect.
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
       setTitle('');
       setSlug('');
@@ -20,7 +23,7 @@ export default function NewArticleModal({ isOpen, onClose, existingPageNames, ex
       setCluster('');
       setArticleType('article');
     }
-  }, [isOpen]);
+  }
 
   if (!isOpen) return null;
 

@@ -28,27 +28,27 @@ export default function UserPreferencesPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
 
+  // Mount-only fetch (redirect instead, if the session turns out to be
+  // unauthenticated). `loading` already starts true, so only the async
+  // continuation (.then/.catch/.finally) touches state.
   useEffect(() => {
     if (user && !user.authenticated) {
       navigate('/wiki/Main');
       return;
     }
-    loadProfile();
-  }, [user]);
-
-  const loadProfile = async () => {
-    try {
-      const data = await api.getProfile();
-      setProfile(data);
-      setFullName(data.fullName || '');
-      setEmail(data.email || '');
-      setBio(data.bio || '');
-    } catch (err) {
-      setError(err.message || 'Failed to load profile');
-    } finally {
-      setLoading(false);
-    }
-  };
+    let ignore = false;
+    api.getProfile()
+      .then((data) => {
+        if (ignore) return;
+        setProfile(data);
+        setFullName(data.fullName || '');
+        setEmail(data.email || '');
+        setBio(data.bio || '');
+      })
+      .catch((err) => { if (!ignore) setError(err.message || 'Failed to load profile'); })
+      .finally(() => { if (!ignore) setLoading(false); });
+    return () => { ignore = true; };
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

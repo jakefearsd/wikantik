@@ -98,18 +98,24 @@ export default function PageEditor() {
     enabled: !!login,
   });
   const [restorePrompt, setRestorePrompt] = useState(false);
-  const loadedContentRef = useRef(null);
+  // The dirty-check baseline (reconstructed text as loaded from the server).
+  // State, not a ref, since it's read during render (isDirty below).
+  const [loadedContent, setLoadedContent] = useState(null);
 
   // Full reconstructed text (frontmatter + body) — derived, used for the draft, the dirty baseline,
   // the frontmatter preview card, and clipboard copy on conflict.
   const fullText = useMemo(() => reconstructContent(metadata, body), [metadata, body]);
 
   // #20 — isDirty: true only once the page has loaded and the reconstructed text differs from baseline.
-  const isDirty = loaded && fullText !== loadedContentRef.current;
+  const isDirty = loaded && fullText !== loadedContent;
 
   // Keep the body in a ref so the stable scroll-sync / format callbacks read current text.
+  // Written in an effect (runs after every render) rather than during render,
+  // since refs may not be written synchronously in the render body.
   const bodyRef = useRef(body);
-  bodyRef.current = body;
+  useEffect(() => {
+    bodyRef.current = body;
+  });
 
   // Wraps setBody to also clear stale math violations so they don't persist after the user edits.
   const handleBodyChange = useCallback((newBody) => {
@@ -230,7 +236,7 @@ export default function PageEditor() {
       setMetadata(meta);
       setBody(pageBody);
       const full = reconstructContent(meta, pageBody);
-      loadedContentRef.current = full;
+      setLoadedContent(full);
       if (draft && draft.content && draft.content !== full) {
         setRestorePrompt(true);
       }
@@ -244,7 +250,7 @@ export default function PageEditor() {
         setBody(initialBody);
         setMetadata(initialMeta);
         const full = reconstructContent(initialMeta, initialBody);
-        loadedContentRef.current = full;
+        setLoadedContent(full);
         if (draft && draft.content && draft.content !== full) {
           setRestorePrompt(true);
         }
@@ -255,21 +261,21 @@ export default function PageEditor() {
     }).finally(() => {
       setLoaded(true);
     });
-  }, [name]);
+  }, [name, draft, location.state?.initialContent, location.state?.initialMetadata]);
 
   // Debounced autosave — fires 800 ms after the user stops typing.
   useEffect(() => {
     if (!login) return;
-    if (loadedContentRef.current === null) return;
+    if (loadedContent === null) return;
     const id = setTimeout(() => {
-      if (fullText === loadedContentRef.current) {
+      if (fullText === loadedContent) {
         clearDraft();
       } else {
         saveDraft({ content: fullText, title: name });
       }
     }, 800);
     return () => clearTimeout(id);
-  }, [fullText, name, login, saveDraft, clearDraft]);
+  }, [fullText, name, login, saveDraft, clearDraft, loadedContent]);
 
   useEffect(() => {
     document.title = `Wikantik: ${isNew ? 'Create' : 'Edit'} ${name}`;
@@ -411,7 +417,10 @@ export default function PageEditor() {
     }
   };
 
-  latestSaveRef.current = saveContent;
+  // Written in an effect (runs after every render) rather than during render.
+  useEffect(() => {
+    latestSaveRef.current = saveContent;
+  });
   const save = saveContent;
 
   const restoreDraft = useCallback(async () => {

@@ -27,7 +27,21 @@ export default function MyApiKeys() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  // Mount-only fetch. `loading` already starts true (see useState above), so
+  // there's no need to set it again synchronously here — only the async
+  // continuation (.then/.catch/.finally) touches state, matching the
+  // "sync in an effect" rule's intent. Reuses the same request `load()`
+  // makes, but not `load()` itself, since that unconditionally re-sets
+  // `loading` true — correct for the manual refresh/generate/rotate/revoke
+  // call sites below, but not for this initial mount.
+  useEffect(() => {
+    let ignore = false;
+    api.self.listApiKeys()
+      .then(data => { if (!ignore) { setKeys(data.keys || []); setError(null); } })
+      .catch(err => { if (!ignore) setError(err.message || 'Failed to load API keys'); })
+      .finally(() => { if (!ignore) setLoading(false); });
+    return () => { ignore = true; };
+  }, []);
 
   const generate = async (e) => {
     e?.preventDefault();

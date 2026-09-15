@@ -178,7 +178,6 @@ beforeEach(() => {
 // next test's render. Keeps every assertion meaningful by guaranteeing a clean
 // DOM per test rather than weakening expectations.
 afterEach(async () => {
-  // eslint-disable-next-line testing-library/no-manual-cleanup -- ordering vs the promise flush below is deliberate (see comment above)
   cleanup();
   await act(async () => { await Promise.resolve(); });
 });
@@ -209,10 +208,7 @@ describe('#4 Cmd/Ctrl+S save', () => {
     await waitForEditor();
 
     fireEvent.keyDown(window, { key: 's', metaKey: true });
-    await act(async () => {});
-
     fireEvent.keyDown(window, { key: 's', metaKey: true });
-    await act(async () => {});
 
     expect(api.savePage).toHaveBeenCalledTimes(1);
 
@@ -286,7 +282,7 @@ describe('#20 unsaved-changes guard', () => {
 
     typeInEditor('# Modified');
     fireEvent.click(screen.getByTestId('editor-cancel'));
-    await waitFor(() => screen.getByText(/discard unsaved changes/i));
+    await screen.findByText(/discard unsaved changes/i);
 
     fireEvent.click(screen.getByRole('button', { name: /^discard$/i }));
 
@@ -299,7 +295,7 @@ describe('#20 unsaved-changes guard', () => {
 
     typeInEditor('# Modified');
     fireEvent.click(screen.getByTestId('editor-cancel'));
-    await waitFor(() => screen.getByText(/discard unsaved changes/i));
+    await screen.findByText(/discard unsaved changes/i);
 
     fireEvent.click(screen.getByRole('button', { name: /keep editing/i }));
 
@@ -336,7 +332,7 @@ describe('#21 draft banner relative time and dismiss', () => {
 
     renderEditor();
     await waitForEditor();
-    await waitFor(() => screen.getByRole('status'));
+    await screen.findByRole('status');
 
     fireEvent.click(screen.getByLabelText('Dismiss draft notice'));
 
@@ -355,7 +351,7 @@ describe('#21 draft banner relative time and dismiss', () => {
 
     renderEditor();
     await waitForEditor();
-    await waitFor(() => screen.getByRole('status'));
+    await screen.findByRole('status');
 
     fireEvent.click(screen.getByRole('button', { name: /^Discard$/i }));
 

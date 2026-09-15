@@ -35,6 +35,35 @@ describe('NewArticleModal (#29)', () => {
     expect(props.onClose).toHaveBeenCalled();
   });
 
+  it('resets the form fields when reopened after being closed with typed input', () => {
+    const { rerender } = renderModal({ isOpen: true });
+    const titleInput = screen.getByLabelText('Title');
+    fireEvent.change(titleInput, { target: { value: 'Draft title' } });
+    expect(titleInput.value).toBe('Draft title');
+
+    rerender(
+      <MemoryRouter>
+        <NewArticleModal
+          isOpen={false}
+          onClose={vi.fn()}
+          existingPageNames={new Set()}
+          existingClusters={[]}
+        />
+      </MemoryRouter>,
+    );
+    rerender(
+      <MemoryRouter>
+        <NewArticleModal
+          isOpen={true}
+          onClose={vi.fn()}
+          existingPageNames={new Set()}
+          existingClusters={[]}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByLabelText('Title').value).toBe('');
+  });
+
   it('shows the New Article heading', () => {
     renderModal();
     expect(screen.getByText('New Article')).toBeInTheDocument();

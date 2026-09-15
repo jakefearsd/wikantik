@@ -14,10 +14,20 @@ export default function DiffViewer() {
   const [diffLoading, setDiffLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  // Reset loading/error when `name` changes — derived during render (the
+  // mount case is already covered by loading's initial value above).
+  const [prevName, setPrevName] = useState(name);
+  if (name !== prevName) {
+    setPrevName(name);
     setLoading(true);
+    setError(null);
+  }
+
+  useEffect(() => {
+    let ignore = false;
     api.getHistory(name)
-      .then(data => {
+      .then((data) => {
+        if (ignore) return;
         const vers = data.versions || [];
         setVersions(vers);
         if (vers.length >= 2) {
@@ -28,22 +38,33 @@ export default function DiffViewer() {
           setToVer(vers[0].version);
         }
       })
-      .catch(err => setError(err.message || 'Failed to load version history'))
-      .finally(() => setLoading(false));
+      .catch((err) => { if (!ignore) setError(err.message || 'Failed to load version history'); })
+      .finally(() => { if (!ignore) setLoading(false); });
+    return () => { ignore = true; };
   }, [name]);
 
-  useEffect(() => {
-    if (fromVer == null || toVer == null || fromVer === toVer) {
-      setDiffHtml(null);
-      return;
+  // A valid, distinct version pair to diff — null while unselected/equal.
+  const diffTarget = (fromVer != null && toVer != null && fromVer !== toVer)
+    ? `${name}:${fromVer}:${toVer}`
+    : null;
+  const [prevDiffTarget, setPrevDiffTarget] = useState(diffTarget);
+  if (diffTarget !== prevDiffTarget) {
+    setPrevDiffTarget(diffTarget);
+    if (diffTarget) {
+      setDiffLoading(true);
+      setError(null);
     }
-    setDiffLoading(true);
-    setError(null);
+  }
+
+  useEffect(() => {
+    if (!diffTarget) return;
+    let ignore = false;
     api.getDiff(name, fromVer, toVer)
-      .then(data => setDiffHtml(data.diffHtml || data.diff || ''))
-      .catch(err => setError(err.message || 'Failed to load diff'))
-      .finally(() => setDiffLoading(false));
-  }, [name, fromVer, toVer]);
+      .then((data) => { if (!ignore) setDiffHtml(data.diffHtml || data.diff || ''); })
+      .catch((err) => { if (!ignore) setError(err.message || 'Failed to load diff'); })
+      .finally(() => { if (!ignore) setDiffLoading(false); });
+    return () => { ignore = true; };
+  }, [diffTarget, name, fromVer, toVer]);
 
   if (loading) {
     return (
@@ -150,7 +171,7 @@ export default function DiffViewer() {
             </div>
           )}
 
-          {diffHtml && !diffLoading && (
+          {diffHtml && !diffLoading && fromVer !== toVer && (
             <article
               className="article-prose"
               style={{

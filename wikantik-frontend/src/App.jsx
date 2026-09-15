@@ -30,10 +30,14 @@ export default function App() {
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isGraphRoute = location.pathname === '/page-graph' || location.pathname === '/knowledge-graph';
 
-  // Close mobile sidebar when user successfully authenticates
-  useEffect(() => {
+  // Close mobile sidebar when user successfully authenticates. Derived during
+  // render (store-previous-and-compare) rather than an effect, so the close
+  // happens in the same commit as the auth transition instead of one render late.
+  const [prevAuthenticated, setPrevAuthenticated] = useState(user?.authenticated);
+  if (user?.authenticated !== prevAuthenticated) {
+    setPrevAuthenticated(user?.authenticated);
     if (user?.authenticated) setMobileOpen(false);
-  }, [user?.authenticated]);
+  }
 
   // Mid-session flag: if the server marks the account must-change-password
   // (e.g. after a 403 PASSWORD_CHANGE_REQUIRED fires wikantik:auth-required →

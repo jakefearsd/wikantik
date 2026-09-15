@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 
 vi.mock('../api/client', () => ({
   api: { search: vi.fn() },
@@ -23,6 +23,23 @@ const makeResults = (n) =>
 const renderPage = (search = '') =>
   render(
     <MemoryRouter initialEntries={[`/search${search}`]}>
+      <Routes>
+        <Route path="/search" element={<SearchResultsPage />} />
+      </Routes>
+    </MemoryRouter>
+  );
+
+// For tests that need to change the query on an already-mounted page (MemoryRouter's
+// initialEntries only applies at mount) — a sibling nav button pushes a new URL.
+function NavTo({ to, children }) {
+  const navigate = useNavigate();
+  return <button onClick={() => navigate(to)}>{children}</button>;
+}
+
+const renderPageWithNav = (search = '') =>
+  render(
+    <MemoryRouter initialEntries={[`/search${search}`]}>
+      <NavTo to="/search?q=other">go to other query</NavTo>
       <Routes>
         <Route path="/search" element={<SearchResultsPage />} />
       </Routes>
@@ -96,6 +113,20 @@ describe('SearchResultsPage', () => {
     fireEvent.click(screen.getByTestId('load-more-button'));
     expect(screen.getAllByTestId('search-result-card')).toHaveLength(25);
     expect(screen.queryByTestId('load-more-button')).not.toBeInTheDocument();
+  });
+
+  it('#28 resets pagination to the first page when the query changes', () => {
+    useApi.mockReturnValue({
+      data: { results: makeResults(25) },
+      loading: false,
+      error: null,
+    });
+    renderPageWithNav('?q=page');
+    fireEvent.click(screen.getByTestId('load-more-button'));
+    expect(screen.getAllByTestId('search-result-card')).toHaveLength(25);
+
+    fireEvent.click(screen.getByText('go to other query'));
+    expect(screen.getByTestId('results-count')).toHaveTextContent('Showing 20 of 25');
   });
 
   it('#28 does not show load-more when 20 or fewer results', () => {

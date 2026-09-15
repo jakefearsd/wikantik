@@ -31,10 +31,21 @@ export default function SearchOverlay({ onClose }) {
     setFocused(next);
   };
 
-  const setResultsSync = (val) => {
-    resultsRef.current = val;
-    setResults(val);
-  };
+  // Clear results synchronously (no debounce wait) the moment the query
+  // becomes empty — derived during render (store-previous-and-compare)
+  // rather than as a setState call in the debounce effect below. resultsRef
+  // (read by the keyboard-nav handlers below) is kept in sync by a plain
+  // effect rather than a render-time write, since refs may not be written
+  // during render.
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (query !== prevQuery) {
+    setPrevQuery(query);
+    if (!query.trim()) setResults([]);
+  }
+
+  useEffect(() => {
+    resultsRef.current = results;
+  }, [results]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -51,17 +62,17 @@ export default function SearchOverlay({ onClose }) {
 
   // Debounced search
   useEffect(() => {
-    if (!query.trim()) { setResultsSync([]); return; }
+    if (!query.trim()) return;
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
         // Incremental search-as-you-type — must not be logged as a submitted query (see
         // api.search's `typeahead` option).
         const data = await api.search(query, 20, { typeahead: true });
-        setResultsSync(data.results || []);
+        setResults(data.results || []);
         setFocusedSync(-1);
       } catch {
-        setResultsSync([]);
+        setResults([]);
       } finally {
         setSearching(false);
       }

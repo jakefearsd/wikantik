@@ -168,3 +168,274 @@ describe('SHACL refusal', () => {
     );
   });
 });
+
+describe('guards', () => {
+  it('shows a save-first notice when pageName is falsy', () => {
+    render(<KnowledgeGraphPanel pageName="" />);
+    expect(screen.getByText('Save the page first to manage its knowledge graph.')).toBeInTheDocument();
+    expect(api.getPageKnowledge).not.toHaveBeenCalled();
+  });
+
+  it('shows a loading indicator before the slice resolves', async () => {
+    let resolveSlice;
+    api.getPageKnowledge.mockReturnValue(new Promise((res) => { resolveSlice = res; }));
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    expect(screen.getByText('Loading knowledge graph…')).toBeInTheDocument();
+    resolveSlice(EMPTY_SLICE);
+    await screen.findByText('No entities on this page yet.');
+  });
+
+  it('shows a fetch-error state (with alert role) when loading the slice fails', async () => {
+    api.getPageKnowledge.mockRejectedValue(new Error('server exploded'));
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('server exploded');
+  });
+
+  it('falls back to a generic fetch-error message', async () => {
+    api.getPageKnowledge.mockRejectedValue(new Error());
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load knowledge graph');
+  });
+});
+
+describe('entity confirm / remove', () => {
+  it('Confirm button calls api.confirmEntity then re-fetches', async () => {
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    fireEvent.click(screen.getAllByTitle('Confirm entity')[0]);
+    await waitFor(() => expect(api.confirmEntity).toHaveBeenCalledWith('TestPage', 'id-a'));
+    // fetchSlice is called again on success (initial load + refresh)
+    await waitFor(() => expect(api.getPageKnowledge).toHaveBeenCalledTimes(2));
+  });
+
+  it('a failed confirmEntity surfaces the error banner', async () => {
+    api.confirmEntity.mockRejectedValue(new Error('cannot confirm'));
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    fireEvent.click(screen.getAllByTitle('Confirm entity')[0]);
+    expect(await screen.findByRole('alert')).toHaveTextContent('cannot confirm');
+  });
+
+  it('a failed confirmEntity with no message falls back to a generic message', async () => {
+    api.confirmEntity.mockRejectedValue(new Error());
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    fireEvent.click(screen.getAllByTitle('Confirm entity')[0]);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to confirm entity');
+  });
+
+  it('Remove button calls api.deleteEntity then re-fetches', async () => {
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    fireEvent.click(screen.getByLabelText('Remove entity React'));
+    await waitFor(() => expect(api.deleteEntity).toHaveBeenCalledWith('TestPage', 'id-a'));
+  });
+
+  it('a failed deleteEntity surfaces the error banner', async () => {
+    api.deleteEntity.mockRejectedValue(new Error('cannot remove'));
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    fireEvent.click(screen.getByLabelText('Remove entity React'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('cannot remove');
+  });
+
+  it('a failed deleteEntity with no message falls back to a generic message', async () => {
+    api.deleteEntity.mockRejectedValue(new Error());
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    fireEvent.click(screen.getByLabelText('Remove entity React'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to remove entity');
+  });
+
+  it('a failed type change surfaces the error banner', async () => {
+    api.upsertEntity.mockRejectedValue(new Error('bad type'));
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    const select = screen.getByRole('combobox', { name: /entity type for react/i });
+    fireEvent.change(select, { target: { value: 'concept' } });
+    expect(await screen.findByRole('alert')).toHaveTextContent('bad type');
+  });
+
+  it('a failed type change with no message falls back to a generic message', async () => {
+    api.upsertEntity.mockRejectedValue(new Error());
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    const select = screen.getByRole('combobox', { name: /entity type for react/i });
+    fireEvent.change(select, { target: { value: 'concept' } });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to update entity type');
+  });
+});
+
+describe('add entity form', () => {
+  it('Add button is disabled until a name is typed, and clears the form on success', async () => {
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+
+    const nameInput = screen.getByTestId('kg-add-entity-name');
+    const addBtn = screen.getByTestId('kg-add-entity-btn');
+    expect(addBtn).toBeDisabled();
+
+    fireEvent.change(nameInput, { target: { value: 'Vitest' } });
+    expect(addBtn).not.toBeDisabled();
+
+    fireEvent.click(addBtn);
+    await waitFor(() =>
+      expect(api.upsertEntity).toHaveBeenCalledWith('TestPage', { name: 'Vitest', nodeType: 'concept' }),
+    );
+    await waitFor(() => expect(nameInput).toHaveValue(''));
+  });
+
+  it('a whitespace-only name does not call upsertEntity (button stays disabled)', async () => {
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    const nameInput = screen.getByTestId('kg-add-entity-name');
+    fireEvent.change(nameInput, { target: { value: '   ' } });
+    expect(screen.getByTestId('kg-add-entity-btn')).toBeDisabled();
+  });
+
+  it('a failed add-entity call shows an inline error and keeps the typed name', async () => {
+    api.upsertEntity.mockRejectedValue(new Error('duplicate name'));
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    fireEvent.change(screen.getByTestId('kg-add-entity-name'), { target: { value: 'Vitest' } });
+    fireEvent.click(screen.getByTestId('kg-add-entity-btn'));
+    expect(await screen.findByText('duplicate name')).toBeInTheDocument();
+  });
+
+  it('a failed add-entity call with no message falls back to a generic message', async () => {
+    api.upsertEntity.mockRejectedValue(new Error());
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    fireEvent.change(screen.getByTestId('kg-add-entity-name'), { target: { value: 'Vitest' } });
+    fireEvent.click(screen.getByTestId('kg-add-entity-btn'));
+    expect(await screen.findByText('Failed to add entity')).toBeInTheDocument();
+  });
+
+  it('changing the New entity type Select updates the value used on add', async () => {
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    fireEvent.change(screen.getByRole('combobox', { name: 'New entity type' }), { target: { value: 'person' } });
+    fireEvent.change(screen.getByTestId('kg-add-entity-name'), { target: { value: 'Ada' } });
+    fireEvent.click(screen.getByTestId('kg-add-entity-btn'));
+    await waitFor(() =>
+      expect(api.upsertEntity).toHaveBeenCalledWith('TestPage', { name: 'Ada', nodeType: 'person' }),
+    );
+  });
+});
+
+describe('relation confirm / remove', () => {
+  it('Confirm button calls api.confirmEdge', async () => {
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /relations/i });
+    fireEvent.click(screen.getByTitle('Confirm relation'));
+    await waitFor(() => expect(api.confirmEdge).toHaveBeenCalledWith('TestPage', 'edge-1'));
+  });
+
+  it('a failed confirmEdge surfaces the error banner', async () => {
+    api.confirmEdge.mockRejectedValue(new Error('cannot confirm relation'));
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /relations/i });
+    fireEvent.click(screen.getByTitle('Confirm relation'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('cannot confirm relation');
+  });
+
+  it('a failed confirmEdge with no message falls back to a generic message', async () => {
+    api.confirmEdge.mockRejectedValue(new Error());
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /relations/i });
+    fireEvent.click(screen.getByTitle('Confirm relation'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to confirm relation');
+  });
+
+  it('Remove button calls api.deleteEdge', async () => {
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /relations/i });
+    fireEvent.click(screen.getByLabelText('Remove relation React uses TypeScript'));
+    await waitFor(() => expect(api.deleteEdge).toHaveBeenCalledWith('TestPage', 'edge-1'));
+  });
+
+  it('a failed deleteEdge surfaces the error banner', async () => {
+    api.deleteEdge.mockRejectedValue(new Error('cannot remove relation'));
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /relations/i });
+    fireEvent.click(screen.getByLabelText('Remove relation React uses TypeScript'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('cannot remove relation');
+  });
+
+  it('a failed deleteEdge with no message falls back to a generic message', async () => {
+    api.deleteEdge.mockRejectedValue(new Error());
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /relations/i });
+    fireEvent.click(screen.getByLabelText('Remove relation React uses TypeScript'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to remove relation');
+  });
+});
+
+describe('add relation guards + fallbacks', () => {
+  it('the Add relation button is disabled until source/target/predicate are all chosen', async () => {
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    expect(screen.getByTestId('kg-add-edge-btn')).toBeDisabled();
+  });
+
+  it('refuses a self-loop (same source and target) with an inline error, no API call', async () => {
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    fireEvent.change(screen.getByRole('combobox', { name: /source entity/i }), { target: { value: 'id-a' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /target entity/i }), { target: { value: 'id-a' } });
+    fireEvent.click(screen.getByTestId('kg-add-edge-btn'));
+
+    expect(await screen.findByTestId('edge-add-error')).toHaveTextContent(
+      'Source and target must be different entities (no self-loops).',
+    );
+    expect(api.upsertEdge).not.toHaveBeenCalled();
+  });
+
+  it('a non-422 upsertEdge failure falls back to err.message', async () => {
+    api.upsertEdge.mockRejectedValue(new Error('network blip'));
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    fireEvent.change(screen.getByRole('combobox', { name: /source entity/i }), { target: { value: 'id-a' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /target entity/i }), { target: { value: 'id-b' } });
+    fireEvent.click(screen.getByTestId('kg-add-edge-btn'));
+
+    expect(await screen.findByTestId('edge-add-error')).toHaveTextContent('network blip');
+  });
+
+  it('a 422 with no violations falls back to err.message rather than crashing', async () => {
+    const err = Object.assign(new Error('validation failed'), { status: 422, body: {} });
+    api.upsertEdge.mockRejectedValue(err);
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    fireEvent.change(screen.getByRole('combobox', { name: /source entity/i }), { target: { value: 'id-a' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /target entity/i }), { target: { value: 'id-b' } });
+    fireEvent.click(screen.getByTestId('kg-add-edge-btn'));
+
+    expect(await screen.findByTestId('edge-add-error')).toHaveTextContent('validation failed');
+  });
+
+  it('a rejection with no message at all falls back to the generic add-relation message', async () => {
+    api.upsertEdge.mockRejectedValue(new Error());
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    fireEvent.change(screen.getByRole('combobox', { name: /source entity/i }), { target: { value: 'id-a' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /target entity/i }), { target: { value: 'id-b' } });
+    fireEvent.click(screen.getByTestId('kg-add-edge-btn'));
+
+    expect(await screen.findByTestId('edge-add-error')).toHaveTextContent('Failed to add relation');
+  });
+
+  it('resets the form fields to defaults after a successful add', async () => {
+    render(<KnowledgeGraphPanel pageName="TestPage" />);
+    await screen.findByRole('list', { name: /entities/i });
+    const sourceSelect = screen.getByRole('combobox', { name: /source entity/i });
+    const targetSelect = screen.getByRole('combobox', { name: /target entity/i });
+    fireEvent.change(sourceSelect, { target: { value: 'id-a' } });
+    fireEvent.change(targetSelect, { target: { value: 'id-b' } });
+    fireEvent.click(screen.getByTestId('kg-add-edge-btn'));
+
+    await waitFor(() => expect(api.upsertEdge).toHaveBeenCalled());
+    await waitFor(() => expect(sourceSelect).toHaveValue(''));
+    expect(targetSelect).toHaveValue('');
+  });
+});

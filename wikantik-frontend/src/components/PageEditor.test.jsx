@@ -56,6 +56,7 @@ vi.mock('../api/client', () => ({
   api: {
     getPage: vi.fn(),
     savePage: vi.fn(),
+    convertWikiToMarkdown: vi.fn(),
     listAttachments: vi.fn(),
     listPages: vi.fn(() => Promise.resolve({ pages: [] })),
     getFrontmatterSchema: vi.fn(() => Promise.resolve({ fields: [] })),
@@ -688,4 +689,476 @@ describe('math validation', () => {
       expect(mockToastInfo).toHaveBeenCalledWith('Saved with 1 math warning'),
     );
   });
+});
+
+// ── Version conflict (409) flow ─────────────────────────────────────────────
+describe('version conflict (409) flow', () => {
+  function setupConflict() {
+    api.getPage
+      .mockResolvedValueOnce({ content: PAGE_CONTENT, metadata: {}, version: 1, markupSyntax: 'markdown' })
+      .mockResolvedValueOnce({ content: 'server content wins', metadata: { title: 'ServerTitle' }, version: 7 });
+    api.savePage.mockRejectedValueOnce(Object.assign(new Error('conflict'), { status: 409 }));
+  }
+
+  it('shows the Version Conflict modal when savePage rejects with 409', async () => {
+    setupConflict();
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.click(screen.getByTestId('editor-save'));
+    expect(await screen.findByText('Version Conflict')).toBeInTheDocument();
+  });
+
+  it('shows a fallback error when re-fetching the server version also fails', async () => {
+    api.getPage
+      .mockResolvedValueOnce({ content: PAGE_CONTENT, metadata: {}, version: 1, markupSyntax: 'markdown' })
+      .mockRejectedValueOnce(new Error('fetch failed'));
+    api.savePage.mockRejectedValueOnce(Object.assign(new Error('conflict'), { status: 409 }));
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.click(screen.getByTestId('editor-save'));
+    expect(await screen.findByTestId('editor-error')).toHaveTextContent(
+      'Version conflict, and failed to fetch the current server version.',
+    );
+  });
+
+  it('Overwrite with my version re-saves and navigates away', async () => {
+    setupConflict();
+    renderEditor();
+    await waitForEditor();
+    fireEvent.click(screen.getByTestId('editor-save'));
+    await screen.findByText('Version Conflict');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overwrite with my version' }));
+
+    await waitFor(() => expect(api.savePage).toHaveBeenCalledTimes(2));
+    expect(await screen.findByTestId('wiki-view')).toBeInTheDocument();
+  });
+
+  it('Overwrite failure shows an inline error and re-enables the modal action', async () => {
+    setupConflict();
+    api.savePage.mockRejectedValueOnce(new Error('still conflicting'));
+    renderEditor();
+    await waitForEditor();
+    fireEvent.click(screen.getByTestId('editor-save'));
+    await screen.findByText('Version Conflict');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overwrite with my version' }));
+    expect(await screen.findByTestId('editor-error')).toHaveTextContent('still conflicting');
+  });
+
+  it('Discard my changes loads the server version and closes the modal', async () => {
+    setupConflict();
+    renderEditor();
+    await waitForEditor();
+    fireEvent.click(screen.getByTestId('editor-save'));
+    await screen.findByText('Version Conflict');
+
+    fireEvent.click(screen.getByRole('button', { name: /Discard my changes/ }));
+
+    await waitFor(() => expect(screen.queryByText('Version Conflict')).not.toBeInTheDocument());
+    expect(getEditable()).toHaveValue('server content wins');
+  });
+
+  it('Copy my text to clipboard, then load server version — copies and loads', async () => {
+    setupConflict();
+    const writeText = vi.fn().mockResolvedValue();
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    renderEditor();
+    await waitForEditor();
+    fireEvent.click(screen.getByTestId('editor-save'));
+    await screen.findByText('Version Conflict');
+
+    fireEvent.click(screen.getByRole('button', { name: /Copy my text to clipboard/ }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByText('Version Conflict')).not.toBeInTheDocument());
+    expect(getEditable()).toHaveValue('server content wins');
+  });
+
+  it('Copy-and-load still loads the server version when the clipboard write rejects', async () => {
+    setupConflict();
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValue(new Error('no clipboard access')) },
+      configurable: true,
+    });
+    renderEditor();
+    await waitForEditor();
+    fireEvent.click(screen.getByTestId('editor-save'));
+    await screen.findByText('Version Conflict');
+
+    fireEvent.click(screen.getByRole('button', { name: /Copy my text to clipboard/ }));
+
+    await waitFor(() => expect(screen.queryByText('Version Conflict')).not.toBeInTheDocument());
+    expect(getEditable()).toHaveValue('server content wins');
+  });
+
+  it('clicking the modal overlay dismisses the conflict modal', async () => {
+    setupConflict();
+    const { container } = renderEditor();
+    await waitForEditor();
+    fireEvent.click(screen.getByTestId('editor-save'));
+    await screen.findByText('Version Conflict');
+
+    fireEvent.click(container.querySelector('.modal-overlay'));
+    await waitFor(() => expect(screen.queryByText('Version Conflict')).not.toBeInTheDocument());
+  });
+});
+
+// ── Legacy-wiki-syntax conversion ───────────────────────────────────────────
+describe('convert legacy wiki syntax to Markdown', () => {
+  it('shows the conversion banner when markupSyntax is wiki, and converts on click', async () => {
+    api.getPage.mockResolvedValue({ content: '!!Heading', metadata: {}, version: 1, markupSyntax: 'wiki' });
+    api.convertWikiToMarkdown.mockResolvedValue({ markdown: '# Heading', warnings: ['dropped a plugin'] });
+    renderEditor();
+    await waitForEditor();
+
+    expect(screen.getByText(/legacy wiki syntax/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Convert to Markdown' }));
+
+    expect(await screen.findByText('dropped a plugin')).toBeInTheDocument();
+    expect(getEditable()).toHaveValue('# Heading');
+    // Banner disappears once markupSyntax flips to markdown.
+    expect(screen.queryByText(/legacy wiki syntax/)).not.toBeInTheDocument();
+  });
+
+  it('shows the banner for likely-wiki syntax too', async () => {
+    api.getPage.mockResolvedValue({ content: 'text', metadata: {}, version: 1, markupSyntax: 'likely-wiki' });
+    renderEditor();
+    await waitForEditor();
+    expect(screen.getByText(/legacy wiki syntax/)).toBeInTheDocument();
+  });
+
+  it('shows an error banner when conversion fails', async () => {
+    api.getPage.mockResolvedValue({ content: '!!Heading', metadata: {}, version: 1, markupSyntax: 'wiki' });
+    api.convertWikiToMarkdown.mockRejectedValue(new Error('parser exploded'));
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Convert to Markdown' }));
+    expect(await screen.findByTestId('editor-error')).toHaveTextContent('Conversion failed: parser exploded');
+  });
+
+  it('falls back to "Unknown error" when the conversion rejection has no message', async () => {
+    api.getPage.mockResolvedValue({ content: '!!Heading', metadata: {}, version: 1, markupSyntax: 'wiki' });
+    api.convertWikiToMarkdown.mockRejectedValue(new Error());
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Convert to Markdown' }));
+    expect(await screen.findByTestId('editor-error')).toHaveTextContent('Conversion failed: Unknown error');
+  });
+});
+
+// ── New-page (404) bootstrap + generic load error ───────────────────────────
+describe('page load: new page vs. error', () => {
+  it('a 404 bootstraps a new page with a default heading + body', async () => {
+    api.getPage.mockRejectedValue(Object.assign(new Error('not found'), { status: 404 }));
+    renderEditor('BrandNewPage');
+    await waitForEditor();
+
+    expect(getEditable()).toHaveValue('# BrandNewPage\n\nWrite your content here.');
+    expect(screen.getByTestId('editor-heading')).toHaveTextContent('Create: BrandNewPage');
+  });
+
+  it('a 404 uses location.state initialContent/initialMetadata when provided', async () => {
+    api.getPage.mockRejectedValue(Object.assign(new Error('not found'), { status: 404 }));
+    render(
+      <MemoryRouter initialEntries={[{
+        pathname: '/edit/SeedPage',
+        state: { initialContent: 'Seeded body', initialMetadata: { cluster: 'dev' } },
+      }]}>
+        <Routes>
+          <Route path="/edit/:name" element={<PageEditor />} />
+          <Route path="/wiki/:name" element={<div data-testid="wiki-view">WIKI VIEW</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await waitForEditor();
+    expect(getEditable()).toHaveValue('Seeded body');
+  });
+
+  it('a non-404 load failure shows the error banner instead of bootstrapping', async () => {
+    api.getPage.mockRejectedValue(new Error('server unavailable'));
+    renderEditor('BrokenPage');
+    expect(await screen.findByTestId('editor-error')).toHaveTextContent('server unavailable');
+  });
+});
+
+// ── Attachment panel toggle + rename rewrites body links ────────────────────
+describe('attachment panel + rename', () => {
+  it('the Attach button toggles the attachment panel open class', async () => {
+    const { container } = renderEditor();
+    await waitForEditor();
+    expect(container.querySelector('.page-enter').className).not.toContain('editor-with-panel');
+    fireEvent.click(screen.getByRole('button', { name: 'Attach' }));
+    expect(container.querySelector('.page-enter').className).toContain('editor-with-panel');
+  });
+
+  it('renaming an attachment rewrites image + link markdown references in the body', async () => {
+    const renameAttachment = vi.fn().mockResolvedValue({ ok: true });
+    useAttachments.mockReturnValue({
+      list: [{ fileName: 'old.png', size: 100, isImage: true }],
+      uploadAttachment: vi.fn(),
+      renameAttachment,
+      deleteAttachment: vi.fn(),
+    });
+    api.getPage.mockResolvedValue({
+      content: 'See ![alt](old.png) and [link](old.png) here.',
+      metadata: {}, version: 1, markupSyntax: 'markdown',
+    });
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attach' }));
+    fireEvent.click(screen.getAllByTitle('Rename')[0]);
+    const stemInput = screen.getByDisplayValue('old');
+    fireEvent.change(stemInput, { target: { value: 'new' } });
+    fireEvent.click(screen.getByTitle('Confirm'));
+
+    await waitFor(() => expect(renameAttachment).toHaveBeenCalledWith('old.png', 'new.png'));
+    await waitFor(() =>
+      expect(getEditable()).toHaveValue('See ![alt](new.png) and [link](new.png) here.'),
+    );
+  });
+});
+
+// ── restoreDraft ─────────────────────────────────────────────────────────────
+describe('restoreDraft', () => {
+  it('Restore parses frontmatter from the draft and applies body + metadata', async () => {
+    useDraft.mockReturnValue({
+      draft: { content: '---\ntitle: Draft Title\n---\nDraft body text', savedAt: Date.now() },
+      saveDraft: vi.fn(),
+      clearDraft: vi.fn(),
+    });
+    api.validateFrontmatter.mockResolvedValue({ metadata: { title: 'Draft Title' }, violations: [] });
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
+
+    await waitFor(() => expect(getEditable()).toHaveValue('Draft body text'));
+    expect(api.validateFrontmatter).toHaveBeenCalledWith({ frontmatter: 'title: Draft Title' });
+  });
+
+  it('Restore with no frontmatter block sets empty metadata', async () => {
+    useDraft.mockReturnValue({
+      draft: { content: 'Just a plain draft body, no frontmatter', savedAt: Date.now() },
+      saveDraft: vi.fn(),
+      clearDraft: vi.fn(),
+    });
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
+    await waitFor(() => expect(getEditable()).toHaveValue('Just a plain draft body, no frontmatter'));
+  });
+
+  it('Restore falls back to empty metadata when validateFrontmatter rejects', async () => {
+    useDraft.mockReturnValue({
+      draft: { content: '---\ntitle: X\n---\nBody', savedAt: Date.now() },
+      saveDraft: vi.fn(),
+      clearDraft: vi.fn(),
+    });
+    api.validateFrontmatter.mockRejectedValue(new Error('bad yaml'));
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
+    await waitFor(() => expect(getEditable()).toHaveValue('Body'));
+  });
+});
+
+// ── derived-page banner + misc ──────────────────────────────────────────────
+describe('derived-page banner + misc', () => {
+  it('shows the derived-body banner when metadata.derived_from is set', async () => {
+    api.getPage.mockResolvedValue({
+      content: PAGE_CONTENT, metadata: { derived_from: 'source.pdf' }, version: 1, markupSyntax: 'markdown',
+    });
+    renderEditor();
+    await waitForEditor();
+    expect(await screen.findByTestId('derived-body-banner')).toHaveTextContent('source.pdf');
+  });
+
+  it('non-hotkey keydown does not trigger a save', async () => {
+    renderEditor();
+    await waitForEditor();
+    fireEvent.keyDown(window, { key: 's' }); // no metaKey/ctrlKey
+    await act(async () => { await Promise.resolve(); });
+    expect(api.savePage).not.toHaveBeenCalled();
+  });
+
+  it('a non-"s" key with a modifier does not trigger a save', async () => {
+    renderEditor();
+    await waitForEditor();
+    fireEvent.keyDown(window, { key: 'x', metaKey: true });
+    await act(async () => { await Promise.resolve(); });
+    expect(api.savePage).not.toHaveBeenCalled();
+  });
+
+  it('populates the internal-link autocomplete page list from api.listPages', async () => {
+    api.listPages.mockResolvedValue({ pages: [{ name: 'Alpha' }, { name: 'Beta' }] });
+    renderEditor();
+    await waitForEditor();
+    await waitFor(() => expect(api.listPages).toHaveBeenCalledWith({ limit: 1000 }));
+  });
+});
+
+// ── Remaining formatting toolbar commands ───────────────────────────────────
+describe('formatting toolbar — remaining commands', () => {
+  it('Italic wraps the selection with single asterisks', async () => {
+    renderEditor();
+    await waitForEditor();
+    const editable = getEditable();
+    fireEvent.change(editable, { target: { value: 'hello world' } });
+    editable.focus();
+    editable.setSelectionRange(6, 11);
+    fireEvent.mouseDown(screen.getByTitle(/italic/i));
+    await waitFor(() => expect(getEditable().value).toBe('hello *world*'));
+  });
+
+  it('Heading prefixes the current line with "## "', async () => {
+    renderEditor();
+    await waitForEditor();
+    const editable = getEditable();
+    fireEvent.change(editable, { target: { value: 'Some line' } });
+    editable.focus();
+    editable.setSelectionRange(0, 0);
+    fireEvent.mouseDown(screen.getByTitle(/^heading/i));
+    await waitFor(() => expect(getEditable().value).toBe('## Some line'));
+  });
+
+  it('List prefixes the current line with "- "', async () => {
+    renderEditor();
+    await waitForEditor();
+    const editable = getEditable();
+    fireEvent.change(editable, { target: { value: 'Item one' } });
+    editable.focus();
+    editable.setSelectionRange(0, 0);
+    fireEvent.mouseDown(screen.getByTitle(/^list/i));
+    await waitFor(() => expect(getEditable().value).toBe('- Item one'));
+  });
+
+  it('Inline code wraps the selection with backticks', async () => {
+    renderEditor();
+    await waitForEditor();
+    const editable = getEditable();
+    fireEvent.change(editable, { target: { value: 'const x = 1' } });
+    editable.focus();
+    editable.setSelectionRange(0, 11);
+    fireEvent.mouseDown(screen.getByTitle(/inline code/i));
+    await waitFor(() => expect(getEditable().value).toBe('`const x = 1`'));
+  });
+
+  it('Code block wraps the content in a fenced block', async () => {
+    renderEditor();
+    await waitForEditor();
+    const editable = getEditable();
+    fireEvent.change(editable, { target: { value: '' } });
+    editable.focus();
+    editable.setSelectionRange(0, 0);
+    fireEvent.mouseDown(screen.getByTitle(/code block/i));
+    await waitFor(() => expect(getEditable().value).toContain('```'));
+  });
+
+  it('Table inserts a markdown table skeleton', async () => {
+    renderEditor();
+    await waitForEditor();
+    const editable = getEditable();
+    fireEvent.change(editable, { target: { value: '' } });
+    editable.focus();
+    editable.setSelectionRange(0, 0);
+    fireEvent.mouseDown(screen.getByTitle(/^table/i));
+    await waitFor(() => expect(getEditable().value).toContain('|'));
+  });
+});
+
+// ── Drag-over + change-note input + misc UI wiring ──────────────────────────
+describe('misc UI wiring', () => {
+  it('dragover on the editor pane preventDefaults (allows drop)', async () => {
+    const { container } = renderEditor();
+    await waitForEditor();
+    const pane = container.querySelector('.editor-pane');
+    const event = new Event('dragover', { bubbles: true, cancelable: true });
+    fireEvent(pane, event);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('typing into the change-note field updates its value', async () => {
+    renderEditor();
+    await waitForEditor();
+    const input = screen.getByTestId('editor-change-note');
+    fireEvent.change(input, { target: { value: 'Fixed a typo' } });
+    expect(input).toHaveValue('Fixed a typo');
+  });
+
+  it('the discard-confirm modal overlay dismisses without navigating', async () => {
+    const { container } = renderEditor();
+    await waitForEditor();
+    typeInEditor('# changed content');
+    fireEvent.click(screen.getByTestId('editor-cancel'));
+    await screen.findByText('Discard unsaved changes?');
+
+    fireEvent.click(container.querySelector('.modal-overlay'));
+    await waitFor(() => expect(screen.queryByText('Discard unsaved changes?')).not.toBeInTheDocument());
+    expect(screen.queryByTestId('wiki-view')).not.toBeInTheDocument();
+  });
+
+  it('the Attach panel Close (X) button closes the panel', async () => {
+    const { container } = renderEditor();
+    await waitForEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Attach' }));
+    expect(container.querySelector('.attachment-panel').className).toContain('open');
+
+    fireEvent.click(screen.getByRole('button', { name: 'X' }));
+    await waitFor(() =>
+      expect(container.querySelector('.attachment-panel').className).not.toContain('open'),
+    );
+  });
+});
+
+// ── Plural-count toast branches ─────────────────────────────────────────────
+describe('plural warning-count toasts', () => {
+  it('shows plural "advisory warnings" when more than one is returned', async () => {
+    api.savePage.mockResolvedValueOnce({ success: true, warnings: ['w1', 'w2'] });
+    renderEditor();
+    await waitForEditor();
+    fireEvent.click(screen.getByTestId('editor-save'));
+    await waitFor(() => expect(mockToastInfo).toHaveBeenCalledWith('Saved with 2 advisory warnings'));
+  });
+
+  it('shows plural "math warnings" when more than one is returned', async () => {
+    api.savePage.mockResolvedValueOnce({ success: true, mathWarnings: ['m1', 'm2'] });
+    renderEditor();
+    await waitForEditor();
+    fireEvent.click(screen.getByTestId('editor-save'));
+    await waitFor(() => expect(mockToastInfo).toHaveBeenCalledWith('Saved with 2 math warnings'));
+  });
+});
+
+// ── Autosave debounce (draft save / clear) ──────────────────────────────────
+describe('autosave debounce', () => {
+  it('saves a draft ~800ms after the content diverges from the loaded baseline', async () => {
+    const saveDraft = vi.fn();
+    useDraft.mockReturnValue({ draft: null, saveDraft, clearDraft: vi.fn() });
+    renderEditor();
+    await waitForEditor();
+
+    typeInEditor('# Changed content for autosave');
+    await new Promise((r) => setTimeout(r, 850));
+    expect(saveDraft).toHaveBeenCalledWith({ content: expect.stringContaining('Changed content'), title: 'TestPage' });
+  }, 10000);
+
+  it('clears the draft once the content returns to the loaded baseline', async () => {
+    const clearDraft = vi.fn();
+    useDraft.mockReturnValue({ draft: null, saveDraft: vi.fn(), clearDraft });
+    renderEditor();
+    await waitForEditor();
+
+    typeInEditor('# Changed then reverted');
+    typeInEditor(PAGE_CONTENT);
+    await new Promise((r) => setTimeout(r, 850));
+    expect(clearDraft).toHaveBeenCalled();
+  }, 10000);
 });

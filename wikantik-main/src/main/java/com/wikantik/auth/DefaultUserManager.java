@@ -27,7 +27,6 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.api.exceptions.WikiException;
-import com.wikantik.auth.validate.PasswordValidator;
 import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.auth.user.DummyUserDatabase;
 import com.wikantik.auth.user.DuplicateUserException;
@@ -36,31 +35,17 @@ import com.wikantik.auth.user.UserProfile;
 import com.wikantik.event.WikiEventListener;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiSecurityEvent;
-import com.wikantik.filters.FilterManager;
-import com.wikantik.filters.SpamFilter;
-import com.wikantik.i18n.InternationalizationManager;
-import com.wikantik.api.core.ContextEnum;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
-import com.wikantik.preferences.Preferences;
 import com.wikantik.ui.InputValidator;
 import com.wikantik.util.ClassUtil;
-import com.wikantik.util.HttpUtil;
-import com.wikantik.render.subsystem.RenderingSubsystemBridge;
-import com.wikantik.util.MailUtil;
 import com.wikantik.util.TextUtil;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.AddressException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.Permission;
 import java.security.Principal;
-import java.text.MessageFormat;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
-import java.util.ResourceBundle;
 import java.util.WeakHashMap;
 
 
@@ -88,6 +73,12 @@ public class DefaultUserManager implements UserManager {
 
     /** The user database loads, manages and persists user identities */
     private UserDatabase database;
+
+    /** Validates profiles on save — extracted collaborator, see {@link UserProfileValidator}. */
+    private UserProfileValidator profileValidator;
+
+    /** Sends creation notification e-mails — extracted collaborator, see {@link UserProfileCreationNotifier}. */
+    private UserProfileCreationNotifier profileCreationNotifier;
 
     /** {@inheritDoc} */
     @Override
@@ -184,11 +175,7 @@ public class DefaultUserManager implements UserManager {
     @Override
     public void setUserProfile( final Context context, final UserProfile profile ) throws DuplicateUserException, WikiException {
         final Session session = context.getWikiSession();
-        // Verify user is allowed to save profile!
-        final Permission editProfilePermission = new WikiPermission( engine.getApplicationName(), WikiPermission.EDIT_PROFILE_ACTION );
-        if ( !com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).authorization().checkPermission( session, editProfilePermission ) ) {
-            throw new WikiSecurityException( "You are not allowed to save wiki profiles." );
-        }
+        checkEditProfilePermission( session );
 
         // Check if profile is new, and see if container allows creation
         final boolean newProfile = profile.isNew();
@@ -198,59 +185,62 @@ public class DefaultUserManager implements UserManager {
         final boolean nameChanged = ( oldProfile != null && oldProfile.getFullname() != null ) &&
                                     !( oldProfile.getFullname().equals( profile.getFullname() ) &&
                                     oldProfile.getLoginName().equals( profile.getLoginName() ) );
-        UserProfile otherProfile;
-        try {
-            otherProfile = getUserDatabase().findByLoginName( profile.getLoginName() );
-            if( otherProfile != null && !otherProfile.equals( oldProfile ) ) {
-                throw new DuplicateUserException( "security.error.login.taken", profile.getLoginName() );
-            }
-        } catch( final NoSuchPrincipalException e ) {
-            LOG.debug( "Login name '{}' is available (no existing profile found)", profile.getLoginName() );
-        }
-        try {
-            otherProfile = getUserDatabase().findByFullName( profile.getFullname() );
-            if( otherProfile != null && !otherProfile.equals( oldProfile ) ) {
-                throw new DuplicateUserException( "security.error.fullname.taken", profile.getFullname() );
-            }
-        } catch( final NoSuchPrincipalException e ) {
-            LOG.debug( "Full name '{}' is available (no existing profile found)", profile.getFullname() );
-        }
+        profileValidator().assertNoDuplicate( profile, oldProfile );
 
         // For new accounts, create approval workflow for user profile save.
         if( newProfile && oldProfile != null && oldProfile.isNew() ) {
-            startUserProfileCreationWorkflow( context, profile );
-
-            // If the profile doesn't need approval, then just log the user in
-
-            try {
-                final AuthenticationManager mgr = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).authentication();
-                if( !mgr.isContainerAuthenticated() ) {
-                    mgr.login( session, null, profile.getLoginName(), profile.getPassword() );
-                }
-            } catch( final WikiException e ) {
-                throw new WikiSecurityException( e.getMessage(), e );
-            }
-
-            // Alert all listeners that the profile changed...
-            // ...this will cause credentials to be reloaded in the wiki session
-            fireEvent( WikiSecurityEvent.PROFILE_SAVE, session, profile );
+            saveNewProfile( context, session, profile );
         } else { // For existing accounts, just save the profile
-            // If login name changed, rename it first
-            if( nameChanged && !oldProfile.getLoginName().equals( profile.getLoginName() ) ) {
-                getUserDatabase().rename( oldProfile.getLoginName(), profile.getLoginName() );
-            }
+            saveExistingProfile( session, profile, oldProfile, nameChanged );
+        }
+    }
 
-            // Now, save the profile (userdatabase will take care of timestamps for us)
-            getUserDatabase().save( profile );
+    /** Verifies the current session may save a wiki profile. */
+    private void checkEditProfilePermission( final Session session ) throws WikiSecurityException {
+        final Permission editProfilePermission = new WikiPermission( engine.getApplicationName(), WikiPermission.EDIT_PROFILE_ACTION );
+        if ( !com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).authorization().checkPermission( session, editProfilePermission ) ) {
+            throw new WikiSecurityException( "You are not allowed to save wiki profiles." );
+        }
+    }
 
-            if( nameChanged ) {
-                // Fire an event if the login name or full name changed
-                final UserProfile[] profiles = { oldProfile, profile };
-                fireEvent( WikiSecurityEvent.PROFILE_NAME_CHANGED, session, profiles );
-            } else {
-                // Fire an event that says we have new a new profile (new principals)
-                fireEvent( WikiSecurityEvent.PROFILE_SAVE, session, profile );
+    /** Starts the approval workflow for a brand-new account, logging the user in when no approval is needed. */
+    private void saveNewProfile( final Context context, final Session session, final UserProfile profile )
+            throws WikiException {
+        startUserProfileCreationWorkflow( context, profile );
+
+        // If the profile doesn't need approval, then just log the user in
+        try {
+            final AuthenticationManager mgr = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).authentication();
+            if( !mgr.isContainerAuthenticated() ) {
+                mgr.login( session, null, profile.getLoginName(), profile.getPassword() );
             }
+        } catch( final WikiException e ) {
+            throw new WikiSecurityException( e.getMessage(), e );
+        }
+
+        // Alert all listeners that the profile changed...
+        // ...this will cause credentials to be reloaded in the wiki session
+        fireEvent( WikiSecurityEvent.PROFILE_SAVE, session, profile );
+    }
+
+    /** Saves an existing account's profile, renaming the login first if it changed. */
+    private void saveExistingProfile( final Session session, final UserProfile profile, final UserProfile oldProfile,
+                                       final boolean nameChanged ) throws WikiException {
+        // If login name changed, rename it first
+        if( nameChanged && !oldProfile.getLoginName().equals( profile.getLoginName() ) ) {
+            getUserDatabase().rename( oldProfile.getLoginName(), profile.getLoginName() );
+        }
+
+        // Now, save the profile (userdatabase will take care of timestamps for us)
+        getUserDatabase().save( profile );
+
+        if( nameChanged ) {
+            // Fire an event if the login name or full name changed
+            final UserProfile[] profiles = { oldProfile, profile };
+            fireEvent( WikiSecurityEvent.PROFILE_NAME_CHANGED, session, profiles );
+        } else {
+            // Fire an event that says we have new a new profile (new principals)
+            fireEvent( WikiSecurityEvent.PROFILE_SAVE, session, profile );
         }
     }
 
@@ -259,55 +249,15 @@ public class DefaultUserManager implements UserManager {
     public void startUserProfileCreationWorkflow( final Context context, final UserProfile profile ) throws WikiException {
         // Save the profile directly (userdatabase will take care of timestamps)
         getUserDatabase().save( profile );
+        profileCreationNotifier().notifyProfileCreated( context, profile );
+    }
 
-        // Send welcome e-mail if user supplied an e-mail address
-        if ( profile.getEmail() != null ) {
-            final Locale loc = context.getWikiSession().getLocale();
-            try {
-                final InternationalizationManager i18n = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).i18n();
-                final String app = engine.getApplicationName();
-                final String to = profile.getEmail();
-                final String subject = i18n.get( InternationalizationManager.CORE_BUNDLE, loc,
-                                                 "notification.createUserProfile.accept.subject", app );
-
-                final String loginUrl = engine.getURL( ContextEnum.WIKI_LOGIN.getRequestContext(), null, null );
-                final String absoluteLoginUrl = HttpUtil.getAbsoluteUrl( context.getHttpRequest(), loginUrl );
-
-                final String content = i18n.get( InternationalizationManager.CORE_BUNDLE, loc,
-                                                 "notification.createUserProfile.accept.content", app,
-                                                 profile.getLoginName(),
-                                                 profile.getFullname(),
-                                                 profile.getEmail(),
-                                                 absoluteLoginUrl );
-                MailUtil.sendMessage( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), to, subject, content );
-            } catch ( final AddressException e ) {
-                LOG.debug( e.getMessage(), e );
-            } catch ( final MessagingException me ) {
-                LOG.error( "Could not send registration confirmation e-mail. Is the e-mail server running?", me );
-            }
+    /** Lazily builds the creation notifier — {@link #engine} isn't guaranteed set until {@link #initialize}. */
+    private UserProfileCreationNotifier profileCreationNotifier() {
+        if ( profileCreationNotifier == null ) {
+            profileCreationNotifier = new UserProfileCreationNotifier( engine );
         }
-
-        // Send admin notification email if configured
-        final String adminEmail = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( "wikantik.admin.notification.email" );
-        if ( adminEmail != null && !adminEmail.isBlank() ) {
-            final Locale loc = context.getWikiSession().getLocale();
-            try {
-                final InternationalizationManager i18n = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).i18n();
-                final String app = engine.getApplicationName();
-                final String adminSubject = i18n.get( InternationalizationManager.CORE_BUNDLE, loc,
-                        "notification.createUserProfile.admin.subject", app );
-                final String adminContent = i18n.get( InternationalizationManager.CORE_BUNDLE, loc,
-                        "notification.createUserProfile.admin.content", app,
-                        profile.getLoginName(),
-                        profile.getFullname(),
-                        profile.getEmail() );
-                MailUtil.sendMessage( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), adminEmail, adminSubject, adminContent );
-            } catch ( final AddressException e ) {
-                LOG.debug( e.getMessage(), e );
-            } catch ( final MessagingException me ) {
-                LOG.error( "Could not send admin notification e-mail. Is the e-mail server running?", me );
-            }
-        }
+        return profileCreationNotifier;
     }
 
     /** {@inheritDoc} */
@@ -343,120 +293,15 @@ public class DefaultUserManager implements UserManager {
     /** {@inheritDoc} */
     @Override
     public void validateProfile( final Context context, final UserProfile profile ) {
-        final Session session = context.getWikiSession();
-        final ResourceBundle rb = Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE );
-
-        if( validateSpamFilter( context, session, profile ) ) {
-            return;
-        }
-        validateRequiredFields( context, session, profile, rb );
-        validatePassword( context, session, profile, rb );
-        validateUniqueness( session, profile, rb );
+        profileValidator().validate( context, profile );
     }
 
-    /** Returns {@code true} if the spam filter rejected the profile (caller should stop further validation). */
-    private boolean validateSpamFilter( final Context context, final Session session, final UserProfile profile ) {
-        final FilterManager fm = RenderingSubsystemBridge.fromLegacyEngine( engine ).filterManager();
-        final boolean spamFilterRejects = fm.getFilterList().stream()
-                .filter( SpamFilter.class::isInstance )
-                .map( SpamFilter.class::cast )
-                .findFirst()
-                .map( spamFilter -> !spamFilter.isValidUserProfile( context, profile ) )
-                .orElse( false );
-        if( spamFilterRejects ) {
-            session.addMessage( SESSION_MESSAGES, "Invalid userprofile" );
-            return true;
+    /** Lazily builds the profile validator — {@link #engine} isn't guaranteed set until {@link #initialize}. */
+    private UserProfileValidator profileValidator() {
+        if ( profileValidator == null ) {
+            profileValidator = new UserProfileValidator( engine, this::getUserDatabase );
         }
-        return false;
-    }
-
-    private void validateRequiredFields( final Context context, final Session session, final UserProfile profile, final ResourceBundle rb ) {
-        // If container-managed auth and user not logged in, throw an error
-        if ( com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).authentication().isContainerAuthenticated()
-             && !context.getWikiSession().isAuthenticated() ) {
-            session.addMessage( SESSION_MESSAGES, rb.getString("security.error.createprofilebeforelogin") );
-        }
-
-        final InputValidator validator = new InputValidator( SESSION_MESSAGES, context );
-        validator.validateNotNull( profile.getLoginName(), rb.getString("security.user.loginname") );
-        validator.validateNotNull( profile.getFullname(), rb.getString("security.user.fullname") );
-        validator.validate( profile.getEmail(), rb.getString("security.user.email"), InputValidator.EMAIL );
-    }
-
-    private void validatePassword( final Context context, final Session session, final UserProfile profile, final ResourceBundle rb ) {
-        if( com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).authentication().isContainerAuthenticated() ) {
-            return;
-        }
-
-        // passwords must match and can't be null
-        final String password = profile.getPassword();
-        if( password == null ) {
-            session.addMessage( SESSION_MESSAGES, rb.getString( "security.error.blankpassword" ) );
-        } else {
-            // Password strength validation (NIST 800-63B)
-            final List<String> passwordErrors = PasswordValidator.validate( password, CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties() );
-            for ( final String key : passwordErrors ) {
-                if ( key.contains( "{0}" ) || PasswordValidator.KEY_TOO_SHORT.equals( key ) || PasswordValidator.KEY_TOO_LONG.equals( key ) ) {
-                    final int limit = PasswordValidator.KEY_TOO_SHORT.equals( key )
-                            ? TextUtil.getIntegerProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), PasswordValidator.PROP_MIN_LENGTH, PasswordValidator.DEFAULT_MIN_LENGTH )
-                            : TextUtil.getIntegerProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), PasswordValidator.PROP_MAX_LENGTH, PasswordValidator.DEFAULT_MAX_LENGTH );
-                    session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( key ), limit ) );
-                } else {
-                    session.addMessage( SESSION_MESSAGES, rb.getString( key ) );
-                }
-            }
-
-            final HttpServletRequest request = context.getHttpRequest();
-            final String password0 = ( request == null ) ? null : request.getParameter( "password0" );
-            final String password2 = ( request == null ) ? null : request.getParameter( "password2" );
-            if( !password.equals( password2 ) ) {
-                session.addMessage( SESSION_MESSAGES, rb.getString( "security.error.passwordnomatch" ) );
-            }
-            if( !profile.isNew() && !getUserDatabase().validatePassword( profile.getLoginName(), password0 ) ) {
-                session.addMessage( SESSION_MESSAGES, rb.getString( "security.error.passwordnomatch" ) );
-            }
-        }
-    }
-
-    private void validateUniqueness( final Session session, final UserProfile profile, final ResourceBundle rb ) {
-        final String fullName = profile.getFullname();
-        final String loginName = profile.getLoginName();
-        final String email = profile.getEmail();
-
-        // It's illegal to use as a full name someone else's login name
-        try {
-            final UserProfile otherProfile = getUserDatabase().find( fullName );
-            if( otherProfile != null && !profile.equals( otherProfile ) && !fullName.equals( otherProfile.getFullname() ) ) {
-                final Object[] args = { fullName };
-                session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( "security.error.illegalfullname" ), args ) );
-            }
-        } catch( final NoSuchPrincipalException e ) {
-            LOG.debug( "Full name '{}' does not collide with an existing login name", fullName );
-        }
-
-        // It's illegal to use as a login name someone else's full name
-        try {
-            final UserProfile otherProfile = getUserDatabase().find( loginName );
-            if( otherProfile != null && !profile.equals( otherProfile ) && !loginName.equals( otherProfile.getLoginName() ) ) {
-                final Object[] args = { loginName };
-                session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( "security.error.illegalloginname" ), args ) );
-            }
-        } catch( final NoSuchPrincipalException e ) {
-            LOG.debug( "Login name '{}' does not collide with an existing full name", loginName );
-        }
-
-        // It's illegal to use multiple accounts with the same email
-        try {
-            final UserProfile otherProfile = getUserDatabase().findByEmail( email );
-            if( otherProfile != null && !profile.getUid().equals( otherProfile.getUid() ) // Issue JSPWIKI-1042
-                    && !profile.equals( otherProfile ) && StringUtils.lowerCase( email )
-                    .equals( StringUtils.lowerCase( otherProfile.getEmail() ) ) ) {
-                final Object[] args = { email };
-                session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( "security.error.email.taken" ), args ) );
-            }
-        } catch( final NoSuchPrincipalException e ) {
-            LOG.debug( "Email '{}' is not in use by another account", email );
-        }
+        return profileValidator;
     }
 
     /** {@inheritDoc} */

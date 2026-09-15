@@ -110,52 +110,67 @@ public class StructuralSpinePageFilter implements PageFilter {
         final ParsedPage parsed = FrontmatterParser.parse( content );
         // Mutable working copy — we may inject canonical_id and rewrite.
         final Map< String, Object > metadata = new LinkedHashMap<>( parsed.metadata() );
-        boolean rewritten = false;
 
-        // -- canonical_id auto-assign --
-        final Object canonicalRaw = metadata.get( "canonical_id" );
-        final String existingId = canonicalRaw == null ? null : canonicalRaw.toString().trim();
-        if ( existingId == null || existingId.isEmpty() ) {
-            // Reuse the canonical_id already bound to this slug rather than minting
-            // a new one. Without this, an MCP write that omits canonical_id (or any
-            // save path that strips frontmatter) would orphan the existing DB row
-            // and trip the page_canonical_ids_current_slug_key unique constraint.
-            final String reusedId = pageName == null ? null
-                    : structuralIndex.resolveCanonicalIdFromSlug( pageName ).orElse( null );
-            final String newId = reusedId != null ? reusedId : UlidCreator.getUlid().toString();
-            // Insert canonical_id as the first key for visual stability.
-            final Map< String, Object > reordered = new LinkedHashMap<>( metadata.size() + 1 );
-            reordered.put( "canonical_id", newId );
-            reordered.putAll( metadata );
-            metadata.clear();
-            metadata.putAll( reordered );
-            rewritten = true;
-            if ( reusedId != null ) {
-                LOG.info( "StructuralSpinePageFilter: reused canonical_id={} for '{}' (slug already bound)",
-                          newId, pageName );
-            } else {
-                LOG.info( "StructuralSpinePageFilter: assigned canonical_id={} to '{}'",
-                          newId, pageName );
-            }
-        }
+        final boolean rewritten = assignCanonicalIdIfMissing( pageName, metadata );
 
         // -- duplicate cluster declaration (Phase 2) --
         if ( duplicateDeclarationEnforced ) {
             rejectDuplicateDeclaration( pageName, metadata );
         }
 
-        // -- kg_include validation --
-        final Object kgInclude = metadata.get( "kg_include" );
-        if ( kgInclude != null ) {
-            final String s = kgInclude.toString().trim().toLowerCase( java.util.Locale.ROOT );
-            if ( !"true".equals( s ) && !"false".equals( s ) ) {
-                throw new FilterException(
-                        "Page '" + pageName + "' has invalid kg_include='"
-                        + kgInclude + "' (must be true or false)" );
-            }
-        }
+        validateKgInclude( pageName, metadata );
 
         return rewritten ? FrontmatterWriter.write( metadata, parsed.body() ) : content;
+    }
+
+    /**
+     * Auto-assigns a {@code canonical_id} when the page doesn't have one yet, reusing the id
+     * already bound to this slug when present. Mutates {@code metadata} in place, inserting the
+     * key first for visual stability.
+     *
+     * @return true if metadata was rewritten (a canonical_id was injected)
+     */
+    private boolean assignCanonicalIdIfMissing( final String pageName, final Map< String, Object > metadata ) {
+        final Object canonicalRaw = metadata.get( "canonical_id" );
+        final String existingId = canonicalRaw == null ? null : canonicalRaw.toString().trim();
+        if ( existingId != null && !existingId.isEmpty() ) {
+            return false;
+        }
+        // Reuse the canonical_id already bound to this slug rather than minting
+        // a new one. Without this, an MCP write that omits canonical_id (or any
+        // save path that strips frontmatter) would orphan the existing DB row
+        // and trip the page_canonical_ids_current_slug_key unique constraint.
+        final String reusedId = pageName == null ? null
+                : structuralIndex.resolveCanonicalIdFromSlug( pageName ).orElse( null );
+        final String newId = reusedId != null ? reusedId : UlidCreator.getUlid().toString();
+        final Map< String, Object > reordered = new LinkedHashMap<>( metadata.size() + 1 );
+        reordered.put( "canonical_id", newId );
+        reordered.putAll( metadata );
+        metadata.clear();
+        metadata.putAll( reordered );
+        if ( reusedId != null ) {
+            LOG.info( "StructuralSpinePageFilter: reused canonical_id={} for '{}' (slug already bound)",
+                      newId, pageName );
+        } else {
+            LOG.info( "StructuralSpinePageFilter: assigned canonical_id={} to '{}'",
+                      newId, pageName );
+        }
+        return true;
+    }
+
+    /** Validates that {@code kg_include}, when present, is a boolean literal. */
+    private void validateKgInclude( final String pageName, final Map< String, Object > metadata )
+            throws FilterException {
+        final Object kgInclude = metadata.get( "kg_include" );
+        if ( kgInclude == null ) {
+            return;
+        }
+        final String s = kgInclude.toString().trim().toLowerCase( java.util.Locale.ROOT );
+        if ( !"true".equals( s ) && !"false".equals( s ) ) {
+            throw new FilterException(
+                    "Page '" + pageName + "' has invalid kg_include='"
+                    + kgInclude + "' (must be true or false)" );
+        }
     }
 
     /**

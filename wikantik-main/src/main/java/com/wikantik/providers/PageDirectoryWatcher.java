@@ -159,63 +159,80 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
             return;
         }
 
-        final Set<String> createdOrModified = new HashSet<>();
-        final Set<String> deleted = new HashSet<>();
-
-        // Non-blocking poll for all pending watch keys
-        WatchKey key;
-        while( ( key = watchService.poll() ) != null ) {
-            for( final WatchEvent<?> event : key.pollEvents() ) {
-                final WatchEvent.Kind<?> kind = event.kind();
-
-                if( kind == StandardWatchEventKinds.OVERFLOW ) {
-                    LOG.warn( "WatchService overflow detected, some filesystem events may have been lost" );
-                    continue;
-                }
-
-                @SuppressWarnings( "unchecked" )
-                final WatchEvent<Path> pathEvent = ( WatchEvent<Path> ) event;
-                final String filename = pathEvent.context().toString();
-
-                // Only process wiki page files (.md and .txt)
-                if( !filename.endsWith( AbstractFileProvider.MARKDOWN_EXT )
-                        && !filename.endsWith( AbstractFileProvider.FILE_EXT ) ) {
-                    continue;
-                }
-
-                final String pageName = filenameToPageName( filename );
-                if( pageName == null ) {
-                    continue;
-                }
-
-                // Skip pages recently saved through JSPWiki's own API
-                if( isRecentInternalSave( pageName ) ) {
-                    LOG.debug( "Skipping watcher processing for internally saved page: {}", pageName );
-                    continue;
-                }
-
-                if( kind == StandardWatchEventKinds.ENTRY_DELETE ) {
-                    deleted.add( pageName );
-                } else {
-                    createdOrModified.add( pageName );
-                }
-            }
-            key.reset();
-        }
+        final ChangeSet changes = collectChanges();
 
         // Process collected changes
-        for( final String pageName : createdOrModified ) {
+        for( final String pageName : changes.createdOrModified() ) {
             // If a page was both deleted and re-created in the same batch, treat as modified
-            deleted.remove( pageName );
+            changes.deleted().remove( pageName );
             processCreatedOrModified( pageName );
         }
 
-        for( final String pageName : deleted ) {
+        for( final String pageName : changes.deleted() ) {
             processDeleted( pageName );
         }
 
         // Periodically clean up stale guard entries
         cleanupGuardEntries();
+    }
+
+    /** Filenames created/modified vs. deleted since the last poll, deduplicated. */
+    private record ChangeSet( Set< String > createdOrModified, Set< String > deleted ) {}
+
+    /** Non-blocking poll for all pending watch keys, collapsed into deduplicated filename sets. */
+    private ChangeSet collectChanges() {
+        final Set<String> createdOrModified = new HashSet<>();
+        final Set<String> deleted = new HashSet<>();
+
+        WatchKey key;
+        while( ( key = watchService.poll() ) != null ) {
+            for( final WatchEvent<?> event : key.pollEvents() ) {
+                classifyEvent( event, createdOrModified, deleted );
+            }
+            key.reset();
+        }
+        return new ChangeSet( createdOrModified, deleted );
+    }
+
+    /**
+     * Classifies one watch event into the created/modified or deleted set, applying
+     * the page-file, overflow, and internal-save-guard filters.
+     */
+    private void classifyEvent( final WatchEvent<?> event, final Set<String> createdOrModified,
+                                 final Set<String> deleted ) {
+        final WatchEvent.Kind<?> kind = event.kind();
+
+        if( kind == StandardWatchEventKinds.OVERFLOW ) {
+            LOG.warn( "WatchService overflow detected, some filesystem events may have been lost" );
+            return;
+        }
+
+        @SuppressWarnings( "unchecked" )
+        final WatchEvent<Path> pathEvent = ( WatchEvent<Path> ) event;
+        final String filename = pathEvent.context().toString();
+
+        // Only process wiki page files (.md and .txt)
+        if( !filename.endsWith( AbstractFileProvider.MARKDOWN_EXT )
+                && !filename.endsWith( AbstractFileProvider.FILE_EXT ) ) {
+            return;
+        }
+
+        final String pageName = filenameToPageName( filename );
+        if( pageName == null ) {
+            return;
+        }
+
+        // Skip pages recently saved through JSPWiki's own API
+        if( isRecentInternalSave( pageName ) ) {
+            LOG.debug( "Skipping watcher processing for internally saved page: {}", pageName );
+            return;
+        }
+
+        if( kind == StandardWatchEventKinds.ENTRY_DELETE ) {
+            deleted.add( pageName );
+        } else {
+            createdOrModified.add( pageName );
+        }
     }
 
     /**

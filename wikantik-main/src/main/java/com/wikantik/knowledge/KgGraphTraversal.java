@@ -79,34 +79,44 @@ class KgGraphTraversal {
                 continue;
             }
 
-            final List< KgEdge > nodeEdges = edges.getEdgesForNode( currentId, direction );
-            for ( final KgEdge edge : nodeEdges ) {
-                if ( !effectiveProvenance.contains( edge.provenance() ) ) {
-                    continue;
-                }
-                if ( relationshipTypes != null && !relationshipTypes.isEmpty()
-                        && !relationshipTypes.contains( edge.relationshipType() ) ) {
-                    continue;
-                }
-
-                state.collectedEdges.add( edge );
-
-                final UUID neighborId = edge.sourceId().equals( currentId )
-                        ? edge.targetId()
-                        : edge.sourceId();
-
-                if ( !state.visited.containsKey( neighborId ) ) {
-                    final KgNode neighbor = nodes.getNode( neighborId );
-                    if ( neighbor != null ) {
-                        state.visited.put( neighborId, neighbor );
-                        state.queue.add( neighborId );
-                        state.depthMap.put( neighborId, currentDepth + 1 );
-                    }
-                }
-            }
+            expandTypedEdges( currentId, currentDepth, direction, relationshipTypes, effectiveProvenance, state );
         }
 
         return state.toResult();
+    }
+
+    /**
+     * Expands one node's outgoing/incoming typed edges (filtered by provenance and
+     * relationship type) into {@code state}, enqueuing newly-discovered neighbors.
+     */
+    private void expandTypedEdges( final UUID currentId, final int currentDepth, final String direction,
+                                    final Set< String > relationshipTypes,
+                                    final Set< Provenance > effectiveProvenance, final BfsState state ) {
+        final List< KgEdge > nodeEdges = edges.getEdgesForNode( currentId, direction );
+        for ( final KgEdge edge : nodeEdges ) {
+            if ( !effectiveProvenance.contains( edge.provenance() ) ) {
+                continue;
+            }
+            if ( relationshipTypes != null && !relationshipTypes.isEmpty()
+                    && !relationshipTypes.contains( edge.relationshipType() ) ) {
+                continue;
+            }
+
+            state.collectedEdges.add( edge );
+
+            final UUID neighborId = edge.sourceId().equals( currentId )
+                    ? edge.targetId()
+                    : edge.sourceId();
+
+            if ( !state.visited.containsKey( neighborId ) ) {
+                final KgNode neighbor = nodes.getNode( neighborId );
+                if ( neighbor != null ) {
+                    state.visited.put( neighborId, neighbor );
+                    state.queue.add( neighborId );
+                    state.depthMap.put( neighborId, currentDepth + 1 );
+                }
+            }
+        }
     }
 
     /**

@@ -233,42 +233,47 @@ public abstract class AbstractReferralPlugin implements Plugin {
             if ( !includeSystemPages && spr != null && spr.isSystemPage( pageName ) ) {
                 continue;
             }
-            //
-            //  If include parameter exists, then by default we include only those
-            //  pages in it (excluding the ones in the exclude pattern list).
-            //
-            //  include='*' means the same as no include.
-            //
-            boolean includeThis = include.length == 0;
-
-            if( include.length > 0 ) {
-                includeThis = Arrays.stream(include).anyMatch(pattern -> pattern.matcher(pageName).matches());
+            if( !shouldInclude( pageName ) ) {
+                continue;
             }
 
-            // The inner loop, continue on the next item
-            if( exclude.length > 0
-                    && Arrays.stream( exclude ).anyMatch( pattern -> pattern.matcher( pageName ).matches() ) ) {
-                includeThis = false;
-            }
-
-            if( includeThis ) {
-                result.add( pageName );
-                //  if we want to show the last modified date of the most recently change page, we keep a "high watermark" here:
-                final Page page;
-                if( lastModified ) {
-                    page = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
-                    if( page != null ) {
-                        final Date lastModPage = page.getLastModified();
-                        LOG.debug( "lastModified Date of page {} : {}", pageName, dateLastModified );
-                        if( lastModPage.after( dateLastModified ) ) {
-                            dateLastModified = lastModPage;
-                        }
-                    }
-                }
+            result.add( pageName );
+            //  if we want to show the last modified date of the most recently change page, we keep a "high watermark" here:
+            if( lastModified ) {
+                trackLastModified( pageName );
             }
         }
 
         return result;
+    }
+
+    /**
+     *  If include parameter exists, then by default we include only those
+     *  pages in it (excluding the ones in the exclude pattern list).
+     *
+     *  include='*' means the same as no include.
+     */
+    private boolean shouldInclude( final String pageName ) {
+        boolean includeThis = include.length == 0
+                || Arrays.stream( include ).anyMatch( pattern -> pattern.matcher( pageName ).matches() );
+
+        if( exclude.length > 0
+                && Arrays.stream( exclude ).anyMatch( pattern -> pattern.matcher( pageName ).matches() ) ) {
+            includeThis = false;
+        }
+        return includeThis;
+    }
+
+    /** Advances the "high watermark" most-recently-modified date across included pages. */
+    private void trackLastModified( final String pageName ) {
+        final Page page = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
+        if( page != null ) {
+            final Date lastModPage = page.getLastModified();
+            LOG.debug( "lastModified Date of page {} : {}", pageName, dateLastModified );
+            if( lastModPage.after( dateLastModified ) ) {
+                dateLastModified = lastModPage;
+            }
+        }
     }
 
     /**

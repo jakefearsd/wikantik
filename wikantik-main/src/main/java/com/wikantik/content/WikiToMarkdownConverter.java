@@ -142,60 +142,75 @@ public final class WikiToMarkdownConverter {
             return new ConversionResult( "", List.of() );
         }
 
-        final List<String> warnings = new ArrayList<>();
-        final StringBuilder result = new StringBuilder();
-        final List<String[]> tableBuffer = new ArrayList<>();
-        boolean hasHeaderRow = false;
-        State state = State.NORMAL;
-
+        final ConversionState cs = new ConversionState();
         for( final String line : wikiText.split( "\n", -1 ) ) {
-            // --- Code block handling ---
-            if( state == State.CODE_BLOCK ) {
-                if( "}}}".equals( line.trim() ) ) {
-                    result.append( "```\n" );
-                    state = State.NORMAL;
-                } else {
-                    result.append( line ).append( '\n' );
-                }
-                continue;
-            }
-
-            if( line.trim().startsWith( "{{{" ) ) {
-                hasHeaderRow = flushTableIfNeeded( result, tableBuffer, hasHeaderRow );
-                result.append( "```\n" );
-                final String afterOpen = line.trim().substring( 3 ).trim();
-                if( !afterOpen.isEmpty() ) {
-                    result.append( afterOpen ).append( '\n' );
-                }
-                state = State.CODE_BLOCK;
-                continue;
-            }
-
-            // --- Table row handling ---
-            if( tryAccumulateTable( line, tableBuffer ) ) {
-                hasHeaderRow = hasHeaderRow || TABLE_HEADER.matcher( line ).matches();
-                continue;
-            }
-
-            hasHeaderRow = flushTableIfNeeded( result, tableBuffer, hasHeaderRow );
-
-            // --- Line-by-line conversions ---
-            result.append( convertBlockLine( line ) ).append( '\n' );
+            processLine( line, cs );
         }
 
+        return finishConversion( wikiText, cs );
+    }
+
+    /** Mutable accumulator threaded through {@link #processLine} for one {@link #convert} call. */
+    private static final class ConversionState {
+        private final StringBuilder result = new StringBuilder();
+        private final List<String[]> tableBuffer = new ArrayList<>();
+        private boolean hasHeaderRow;
+        private State state = State.NORMAL;
+    }
+
+    /** Applies code-block, table, or plain-line conversion to a single source line. */
+    private static void processLine( final String line, final ConversionState cs ) {
+        // --- Code block handling ---
+        if( cs.state == State.CODE_BLOCK ) {
+            if( "}}}".equals( line.trim() ) ) {
+                cs.result.append( "```\n" );
+                cs.state = State.NORMAL;
+            } else {
+                cs.result.append( line ).append( '\n' );
+            }
+            return;
+        }
+
+        if( line.trim().startsWith( "{{{" ) ) {
+            cs.hasHeaderRow = flushTableIfNeeded( cs.result, cs.tableBuffer, cs.hasHeaderRow );
+            cs.result.append( "```\n" );
+            final String afterOpen = line.trim().substring( 3 ).trim();
+            if( !afterOpen.isEmpty() ) {
+                cs.result.append( afterOpen ).append( '\n' );
+            }
+            cs.state = State.CODE_BLOCK;
+            return;
+        }
+
+        // --- Table row handling ---
+        if( tryAccumulateTable( line, cs.tableBuffer ) ) {
+            cs.hasHeaderRow = cs.hasHeaderRow || TABLE_HEADER.matcher( line ).matches();
+            return;
+        }
+
+        cs.hasHeaderRow = flushTableIfNeeded( cs.result, cs.tableBuffer, cs.hasHeaderRow );
+
+        // --- Line-by-line conversions ---
+        cs.result.append( convertBlockLine( line ) ).append( '\n' );
+    }
+
+    /** Flushes any pending table/code-block state and trims the trailing newline to match input convention. */
+    private static ConversionResult finishConversion( final String wikiText, final ConversionState cs ) {
+        final List<String> warnings = new ArrayList<>();
+
         // Flush any remaining table
-        if( !tableBuffer.isEmpty() ) {
-            flushTable( result, tableBuffer, hasHeaderRow );
+        if( !cs.tableBuffer.isEmpty() ) {
+            flushTable( cs.result, cs.tableBuffer, cs.hasHeaderRow );
         }
 
         // Flush any unclosed code block
-        if( state == State.CODE_BLOCK ) {
-            result.append( "```\n" );
+        if( cs.state == State.CODE_BLOCK ) {
+            cs.result.append( "```\n" );
             warnings.add( "Unclosed code block ({{{ without matching }}}) was auto-closed" );
         }
 
         // Remove trailing newline to match input convention
-        String markdown = result.toString();
+        String markdown = cs.result.toString();
         if( markdown.endsWith( "\n" ) && !wikiText.endsWith( "\n" ) ) {
             markdown = markdown.substring( 0, markdown.length() - 1 );
         }

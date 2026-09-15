@@ -255,78 +255,104 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
     private RunResult runExtraction( final List< UUID > chunkIds, final boolean bypassRateLimit ) {
         requestsCounter.increment();
         final long started = System.nanoTime();
-        int mentionsWritten = 0;
-        int proposalsFiled = 0;
         try {
-            final List< ContentChunkRepository.MentionableChunk > chunks = chunkRepository.findByIds( chunkIds );
-            if( chunks.isEmpty() ) {
-                return RunResult.EMPTY;
-            }
-            final List< ContentChunkRepository.MentionableChunk > eligible;
-            if( excludedPages == null ) {
-                eligible = chunks;
-            } else {
-                eligible = chunks.stream()
-                    .filter( ch -> excludedPages.findReason( ch.pageName() ).isEmpty() )
-                    .toList();
-                if( LOG.isDebugEnabled() ) {
-                    LOG.debug( "Async extraction: filtered {} excluded chunks of {}",
-                               chunks.size() - eligible.size(), chunks.size() );
-                }
-            }
-            if( eligible.isEmpty() ) {
-                return RunResult.EMPTY;
-            }
-            final String pageName = eligible.get( 0 ).pageName();
-            if( !bypassRateLimit && !passesRateLimit( pageName ) ) {
-                if( LOG.isDebugEnabled() ) {
-                    LOG.debug( "Skipping entity extraction for page '{}': within rate-limit window", pageName );
-                }
-                return RunResult.EMPTY;
-            }
-
-            final List< KgNode > existingNodes = loadExistingNodes();
-            final ExtractionContext ctx = new ExtractionContext( pageName, existingNodes, Map.of() );
-
-            for( final ContentChunkRepository.MentionableChunk c : eligible ) {
-                final ChunkExtractionPrefilter.Decision d = prefilter.evaluate( c.text(), c.headingPath() );
-                if( !d.shouldExtract() ) {
-                    if( LOG.isDebugEnabled() ) {
-                        LOG.debug( "Prefilter dropped chunk {} on page '{}': reason={}",
-                            c.id(), c.pageName(), d.reason() );
-                    }
-                    continue;
-                }
-                final ExtractionChunk ec = new ExtractionChunk(
-                    c.id(), c.pageName(), c.chunkIndex(), c.headingPath(), c.text() );
-                final ExtractionResult result;
-                try {
-                    result = extractor.extract( ec, ctx );
-                } catch( final RuntimeException e ) {
-                    // Interface contract says extractors never throw, but defend anyway.
-                    failuresCounter.increment();
-                    LOG.warn( "Extractor {} threw for chunk {}: {}",
-                              extractor.code(), c.id(), e.getMessage() );
-                    continue;
-                }
-
-                mentionsWritten += persistMentions( c.id(), result.mentions(), existingNodes );
-                proposalsFiled += persistProposals( pageName, result );
-            }
-
-            triplesCounter.increment( (double) ( mentionsWritten + proposalsFiled ) );
-            if( LOG.isDebugEnabled() ) {
-                LOG.debug( "Extraction completed for page '{}': mentions={}, proposals={}",
-                           pageName, mentionsWritten, proposalsFiled );
-            }
+            return doRunExtraction( chunkIds, bypassRateLimit );
         } catch( final RuntimeException e ) {
             failuresCounter.increment();
             LOG.warn( "Async entity extraction failed (chunks={}): {}",
                       chunkIds.size(), e.getMessage(), e );
+            return RunResult.EMPTY;
         } finally {
             latencyTimer.record( System.nanoTime() - started, TimeUnit.NANOSECONDS );
         }
+    }
+
+    private RunResult doRunExtraction( final List< UUID > chunkIds, final boolean bypassRateLimit ) {
+        final List< ContentChunkRepository.MentionableChunk > chunks = chunkRepository.findByIds( chunkIds );
+        if( chunks.isEmpty() ) {
+            return RunResult.EMPTY;
+        }
+        final List< ContentChunkRepository.MentionableChunk > eligible = filterEligibleChunks( chunks );
+        if( eligible.isEmpty() ) {
+            return RunResult.EMPTY;
+        }
+        final String pageName = eligible.get( 0 ).pageName();
+        if( !bypassRateLimit && !passesRateLimit( pageName ) ) {
+            if( LOG.isDebugEnabled() ) {
+                LOG.debug( "Skipping entity extraction for page '{}': within rate-limit window", pageName );
+            }
+            return RunResult.EMPTY;
+        }
+
+        final List< KgNode > existingNodes = loadExistingNodes();
+        final ExtractionContext ctx = new ExtractionContext( pageName, existingNodes, Map.of() );
+
+        int mentionsWritten = 0;
+        int proposalsFiled = 0;
+        for( final ContentChunkRepository.MentionableChunk c : eligible ) {
+            final ChunkOutcome outcome = extractChunk( c, pageName, ctx, existingNodes );
+            mentionsWritten += outcome.mentions();
+            proposalsFiled += outcome.proposals();
+        }
+
+        triplesCounter.increment( (double) ( mentionsWritten + proposalsFiled ) );
+        if( LOG.isDebugEnabled() ) {
+            LOG.debug( "Extraction completed for page '{}': mentions={}, proposals={}",
+                       pageName, mentionsWritten, proposalsFiled );
+        }
         return new RunResult( mentionsWritten, proposalsFiled );
+    }
+
+    /** Applies the exclusion policy to a batch of chunks, logging the drop count. */
+    private List< ContentChunkRepository.MentionableChunk > filterEligibleChunks(
+            final List< ContentChunkRepository.MentionableChunk > chunks ) {
+        if( excludedPages == null ) {
+            return chunks;
+        }
+        final List< ContentChunkRepository.MentionableChunk > eligible = chunks.stream()
+            .filter( ch -> excludedPages.findReason( ch.pageName() ).isEmpty() )
+            .toList();
+        if( LOG.isDebugEnabled() ) {
+            LOG.debug( "Async extraction: filtered {} excluded chunks of {}",
+                       chunks.size() - eligible.size(), chunks.size() );
+        }
+        return eligible;
+    }
+
+    /** Prefilters, extracts and persists one chunk; never throws. */
+    private ChunkOutcome extractChunk( final ContentChunkRepository.MentionableChunk c,
+                                        final String pageName,
+                                        final ExtractionContext ctx,
+                                        final List< KgNode > existingNodes ) {
+        final ChunkExtractionPrefilter.Decision d = prefilter.evaluate( c.text(), c.headingPath() );
+        if( !d.shouldExtract() ) {
+            if( LOG.isDebugEnabled() ) {
+                LOG.debug( "Prefilter dropped chunk {} on page '{}': reason={}",
+                    c.id(), c.pageName(), d.reason() );
+            }
+            return ChunkOutcome.ZERO;
+        }
+        final ExtractionChunk ec = new ExtractionChunk(
+            c.id(), c.pageName(), c.chunkIndex(), c.headingPath(), c.text() );
+        final ExtractionResult result;
+        try {
+            result = extractor.extract( ec, ctx );
+        } catch( final RuntimeException e ) {
+            // Interface contract says extractors never throw, but defend anyway.
+            failuresCounter.increment();
+            LOG.warn( "Extractor {} threw for chunk {}: {}",
+                      extractor.code(), c.id(), e.getMessage() );
+            return ChunkOutcome.ZERO;
+        }
+
+        final int mentions = persistMentions( c.id(), result.mentions(), existingNodes );
+        final int proposals = persistProposals( pageName, result );
+        return new ChunkOutcome( mentions, proposals );
+    }
+
+    /** Per-chunk mention/proposal counts, accumulated into a {@link RunResult}. */
+    private record ChunkOutcome( int mentions, int proposals ) {
+        static final ChunkOutcome ZERO = new ChunkOutcome( 0, 0 );
     }
 
     /** Aggregate result of an extraction run — shared by sync and async paths. */

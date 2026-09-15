@@ -216,12 +216,8 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         if( session == null || permission == null ) {
             return new Decision( false, "no-session" );
         }
-        if ( bootstrapAdmin != null && clock.getAsLong() < bootstrapExpiresAt ) {
-            for ( final Principal p : session.getPrincipals() ) {
-                if ( bootstrapAdmin.equals( p.getName() ) ) {
-                    return new Decision( true, null );
-                }
-            }
+        if ( isBootstrapAdmin( session ) ) {
+            return new Decision( true, null );
         }
         final Permission allPermission = new AllPermission( engine.getApplicationName() );
         if( checkStaticPermission( session, allPermission ) ) {
@@ -239,6 +235,28 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         if( page == null || acl == null || acl.isEmpty() ) {
             return new Decision( true, null );
         }
+        return decideByAcl( session, permission, acl );
+    }
+
+    /** True when the caller is the time-boxed bootstrap admin override (see {@code wikantik.admin.bootstrap}). */
+    private boolean isBootstrapAdmin( final Session session ) {
+        if ( bootstrapAdmin == null || clock.getAsLong() >= bootstrapExpiresAt ) {
+            return false;
+        }
+        for ( final Principal p : session.getPrincipals() ) {
+            if ( bootstrapAdmin.equals( p.getName() ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Evaluates a non-empty page ACL: resolves any still-unresolved principals in place
+     * (an intentional, idempotent side effect preserved from the original logic), then
+     * grants when the session matches any principal the ACL lists for this permission.
+     */
+    private Decision decideByAcl( final Session session, final Permission permission, final Acl acl ) {
         final Principal[] aclPrincipals = acl.findPrincipals( permission );
         for( Principal aclPrincipal : aclPrincipals ) {
             if ( aclPrincipal instanceof UnresolvedPrincipal unresolvedPrincipal ) {
@@ -345,64 +363,79 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         authorizer = getAuthorizerImplementation( properties );
         authorizer.initialize( engine, properties );
 
-        // Initialize security policy — database-backed when wikantik.datasource is configured
+        initializeSecurityPolicy( properties );
+        initializeBootstrapAdmin( properties );
+    }
+
+    /** Initializes database-backed security policy when {@code wikantik.datasource} is configured, else the file-based fallback. */
+    private void initializeSecurityPolicy( final Properties properties ) throws WikiException {
         final String datasource = properties.getProperty( AbstractJDBCDatabase.PROP_DATASOURCE );
         if ( datasource != null && !datasource.isBlank() ) {
-            try {
-                final javax.naming.Context initCtx = new javax.naming.InitialContext();
-                final javax.naming.Context ctx = (javax.naming.Context) initCtx.lookup( "java:comp/env" );
-                final DataSource policyDs = (DataSource) ctx.lookup( datasource );
-                databasePolicy = new DatabasePolicy( policyDs, POLICY_TABLE );
-                LOG.info( "Initialized database-backed security policy from JNDI DataSource: {}", datasource );
-            } catch ( final Exception e ) {
-                LOG.error( "Could not initialize database security policy: {}", e.getMessage() );
-                throw new WikiException( "Could not initialize database security policy: " + e.getMessage(), e );
-            }
+            initializeDatabasePolicy( datasource );
         } else {
-            // File-based policy fallback (used by unit tests without JNDI)
-            try {
-                final String rawPolicyFileName = properties.getProperty( POLICY );
-                final String policyFileName = ( rawPolicyFileName == null || rawPolicyFileName.isBlank() ) ? DEFAULT_POLICY : rawPolicyFileName;
-                final URL policyURL = engine.findConfigFile( policyFileName );
-                if (policyURL != null) {
-                    final File policyFile = new File( policyURL.toURI().getPath() );
-                    LOG.info("We found security policy URL: {} and transformed it to file {}", policyURL, policyFile.getAbsolutePath());
-                    final LocalPolicy newLocalPolicy = new LocalPolicy( policyFile, engine.getContentEncoding().displayName() );
-                    newLocalPolicy.refresh();
-                    localPolicy = newLocalPolicy;
-                    LOG.info( "Initialized default security policy: {} - anonymous access now permitted", policyFile.getAbsolutePath() );
-                } else {
-                    final String sb = "JSPWiki was unable to initialize the default security policy (WEB-INF/wikantik.policy) file. "
-                            + "Please ensure that the wikantik.policy file exists in the default location. "
-                            + "This file should exist regardless of the existance of a global policy file. "
-                            + "The global policy file is identified by the java.security.policy variable. ";
-                    final WikiSecurityException wse = new WikiSecurityException( sb );
-                    LOG.fatal( sb, wse );
-                    throw wse;
-                }
-            } catch ( final Exception e) {
-                LOG.error("Could not initialize local security policy: {}", e.getMessage() );
-                throw new WikiException( "Could not initialize local security policy: " + e.getMessage(), e );
-            }
+            initializeFilePolicy( properties );
         }
+    }
 
-        // Bootstrap admin override
-        final String adminProp = properties.getProperty( PROP_BOOTSTRAP_ADMIN );
-        if ( adminProp != null && !adminProp.isBlank() ) {
-            long maxAgeSeconds = DEFAULT_BOOTSTRAP_MAX_AGE_SECONDS;
-            final String maxAgeStr = properties.getProperty( PROP_BOOTSTRAP_MAX_AGE );
-            if ( maxAgeStr != null ) {
-                try {
-                    maxAgeSeconds = Long.parseLong( maxAgeStr.trim() );
-                } catch ( final NumberFormatException e ) {
-                    LOG.warn( "Invalid {} value '{}', using default {}",
-                            PROP_BOOTSTRAP_MAX_AGE, maxAgeStr, DEFAULT_BOOTSTRAP_MAX_AGE_SECONDS );
-                }
-            }
-            configureBootstrap( adminProp, maxAgeSeconds );
-        } else {
-            bootstrapAdmin = null;  // normalize blank to null
+    private void initializeDatabasePolicy( final String datasource ) throws WikiException {
+        try {
+            final javax.naming.Context initCtx = new javax.naming.InitialContext();
+            final javax.naming.Context ctx = (javax.naming.Context) initCtx.lookup( "java:comp/env" );
+            final DataSource policyDs = (DataSource) ctx.lookup( datasource );
+            databasePolicy = new DatabasePolicy( policyDs, POLICY_TABLE );
+            LOG.info( "Initialized database-backed security policy from JNDI DataSource: {}", datasource );
+        } catch ( final Exception e ) {
+            LOG.error( "Could not initialize database security policy: {}", e.getMessage() );
+            throw new WikiException( "Could not initialize database security policy: " + e.getMessage(), e );
         }
+    }
+
+    /** File-based policy fallback (used by unit tests without JNDI). */
+    private void initializeFilePolicy( final Properties properties ) throws WikiException {
+        try {
+            final String rawPolicyFileName = properties.getProperty( POLICY );
+            final String policyFileName = ( rawPolicyFileName == null || rawPolicyFileName.isBlank() ) ? DEFAULT_POLICY : rawPolicyFileName;
+            final URL policyURL = engine.findConfigFile( policyFileName );
+            if (policyURL != null) {
+                final File policyFile = new File( policyURL.toURI().getPath() );
+                LOG.info("We found security policy URL: {} and transformed it to file {}", policyURL, policyFile.getAbsolutePath());
+                final LocalPolicy newLocalPolicy = new LocalPolicy( policyFile, engine.getContentEncoding().displayName() );
+                newLocalPolicy.refresh();
+                localPolicy = newLocalPolicy;
+                LOG.info( "Initialized default security policy: {} - anonymous access now permitted", policyFile.getAbsolutePath() );
+            } else {
+                final String sb = "JSPWiki was unable to initialize the default security policy (WEB-INF/wikantik.policy) file. "
+                        + "Please ensure that the wikantik.policy file exists in the default location. "
+                        + "This file should exist regardless of the existance of a global policy file. "
+                        + "The global policy file is identified by the java.security.policy variable. ";
+                final WikiSecurityException wse = new WikiSecurityException( sb );
+                LOG.fatal( sb, wse );
+                throw wse;
+            }
+        } catch ( final Exception e) {
+            LOG.error("Could not initialize local security policy: {}", e.getMessage() );
+            throw new WikiException( "Could not initialize local security policy: " + e.getMessage(), e );
+        }
+    }
+
+    /** Applies the bootstrap-admin override from properties, normalizing a blank value to "no override". */
+    private void initializeBootstrapAdmin( final Properties properties ) {
+        final String adminProp = properties.getProperty( PROP_BOOTSTRAP_ADMIN );
+        if ( adminProp == null || adminProp.isBlank() ) {
+            bootstrapAdmin = null;  // normalize blank to null
+            return;
+        }
+        long maxAgeSeconds = DEFAULT_BOOTSTRAP_MAX_AGE_SECONDS;
+        final String maxAgeStr = properties.getProperty( PROP_BOOTSTRAP_MAX_AGE );
+        if ( maxAgeStr != null ) {
+            try {
+                maxAgeSeconds = Long.parseLong( maxAgeStr.trim() );
+            } catch ( final NumberFormatException e ) {
+                LOG.warn( "Invalid {} value '{}', using default {}",
+                        PROP_BOOTSTRAP_MAX_AGE, maxAgeStr, DEFAULT_BOOTSTRAP_MAX_AGE_SECONDS );
+            }
+        }
+        configureBootstrap( adminProp, maxAgeSeconds );
     }
 
     /**

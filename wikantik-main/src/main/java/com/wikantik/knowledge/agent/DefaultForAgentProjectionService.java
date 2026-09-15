@@ -129,7 +129,55 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
         // Verification — falls back to unverified() (provisional + both audiences) when absent.
         final Verification verification = index.verificationOf( d.canonicalId() ).orElseGet( Verification::unverified );
 
-        // Body + frontmatter.
+        final BodyAndFrontmatter bf = loadBodyAndFrontmatter( d, missing );
+        final Map< String, Object > frontmatter = bf.frontmatter();
+        final String body = bf.body();
+
+        final List< HeadingOutline > outline = extractHeadings( body, d, missing );
+        final List< KeyFact > facts = extractKeyFacts( frontmatter, body, d, missing );
+        final List< RecentChange > changes = loadRecentChanges( d, missing );
+        final List< McpToolHint > hints = resolveToolHints( frontmatter, d, missing );
+        final Object runbook = buildRunbook( d, frontmatter, missing );
+
+        // Derived agent_hints — null on whole-block degradation, empty block on no-signal.
+        final AgentHintsBlock agentHints = deriveAgentHints( d, missing );
+
+        // Hub summary overlay — only fires when this page is a cluster hub and the authored
+        // summary matches the generic "Index of pages on…" pattern.
+        final SummaryOverlay overlay = overlayHubSummary( d, agentHints );
+
+        final List< CitationRef > staleCitations = loadStaleCitations( d, missing );
+
+        return new ForAgentProjection(
+                d.canonicalId(),
+                d.slug(),
+                d.title(),
+                d.type() == null ? null : d.type().asFrontmatterValue(),
+                d.cluster(),
+                verification.audience(),
+                verification.confidence(),
+                verification.verifiedAt(),
+                verification.verifiedBy(),
+                d.updated(),
+                overlay.summary(),
+                facts,
+                outline,
+                changes,
+                hints,
+                runbook,
+                agentHints,
+                overlay.synthesized(),
+                "/api/pages/" + d.slug(),
+                "/wiki/" + d.slug() + "?format=md",
+                !missing.isEmpty(),
+                missing,
+                staleCitations );
+    }
+
+    /** Page body + parsed frontmatter, as loaded by {@link #loadBodyAndFrontmatter}. */
+    private record BodyAndFrontmatter( Map< String, Object > frontmatter, String body ) {}
+
+    private BodyAndFrontmatter loadBodyAndFrontmatter( final PageDescriptor d, final List< String > missing ) {
         Map< String, Object > frontmatter = Map.of();
         String body = "";
         try {
@@ -144,92 +192,111 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                     d.slug(), e.getMessage() );
             missing.add( "body" );
         }
+        return new BodyAndFrontmatter( frontmatter, body );
+    }
 
-        // Headings.
-        List< HeadingOutline > outline = List.of();
+    private List< HeadingOutline > extractHeadings( final String body, final PageDescriptor d,
+                                                      final List< String > missing ) {
         try {
-            outline = headings.extract( body );
+            return headings.extract( body );
         } catch ( final Exception e ) {
             LOG.warn( "for-agent: headings extractor threw for {}: {}", d.slug(), e.getMessage() );
             missing.add( "headings_outline" );
+            return List.of();
         }
+    }
 
-        // Key facts.
-        List< KeyFact > facts = List.of();
+    private List< KeyFact > extractKeyFacts( final Map< String, Object > frontmatter, final String body,
+                                              final PageDescriptor d, final List< String > missing ) {
         try {
-            facts = keyFacts.extract( frontmatter, body );
+            return keyFacts.extract( frontmatter, body );
         } catch ( final Exception e ) {
             LOG.warn( "for-agent: key_facts extractor threw for {}: {}", d.slug(), e.getMessage() );
             missing.add( "key_facts" );
+            return List.of();
         }
+    }
 
-        // Recent changes.
-        List< RecentChange > changes;
+    private List< RecentChange > loadRecentChanges( final PageDescriptor d, final List< String > missing ) {
         try {
-            changes = recents.recentChanges( d.slug(), RECENT_CHANGES_LIMIT );
+            return recents.recentChanges( d.slug(), RECENT_CHANGES_LIMIT );
         } catch ( final Exception e ) {
             LOG.warn( "for-agent: recent_changes threw for {}: {}", d.slug(), e.getMessage() );
             missing.add( "recent_changes" );
-            changes = List.of();
+            return List.of();
         }
+    }
 
-        // MCP tool hints.
-        List< McpToolHint > hints = List.of();
+    private List< McpToolHint > resolveToolHints( final Map< String, Object > frontmatter, final PageDescriptor d,
+                                                   final List< String > missing ) {
         try {
-            hints = toolHints.resolve( frontmatter, d.tags(), d.cluster() );
+            return toolHints.resolve( frontmatter, d.tags(), d.cluster() );
         } catch ( final Exception e ) {
             LOG.warn( "for-agent: mcp_tool_hints threw for {}: {}", d.slug(), e.getMessage() );
             missing.add( "mcp_tool_hints" );
+            return List.of();
         }
+    }
 
-        // Runbook block — only when this page declares type: runbook.
-        // Phase 3: re-runs the same validator the save-time filter uses, so
-        // corpus drift (or saves made while enforcement was disabled) doesn't
-        // pollute the projection. Invalid blocks degrade gracefully.
-        Object runbook = null;
-        if ( PageType.RUNBOOK == d.type() ) {
-            try {
-                final FrontmatterRunbookValidator.Result rbResult =
-                        FrontmatterRunbookValidator.validate(
-                                frontmatter,
-                                id   -> index.getByCanonicalId( id ).isPresent(),
-                                name -> {
-                                    try {
-                                        return pageManager.pageExists( name );
-                                    } catch ( final Exception e ) {
-                                        LOG.warn( "for-agent: pageExists({}) threw — treating as unresolved: {}",
-                                                name, e.getMessage() );
-                                        return false;
-                                    }
-                                } );
-                if ( rbResult.valid().isPresent() ) {
-                    runbook = rbResult.valid().get();
-                } else if ( rbResult.hasIssues() ) {
-                    LOG.warn( "for-agent: runbook block invalid for {} — leaving null: {}",
-                            d.slug(), rbResult.issues() );
-                    missing.add( "runbook" );
-                }
-            } catch ( final Exception e ) {
-                LOG.warn( "for-agent: runbook validation threw for {}: {}", d.slug(), e.getMessage() );
+    /**
+     * Runbook block — only when this page declares type: runbook.
+     * Phase 3: re-runs the same validator the save-time filter uses, so
+     * corpus drift (or saves made while enforcement was disabled) doesn't
+     * pollute the projection. Invalid blocks degrade gracefully.
+     */
+    private Object buildRunbook( final PageDescriptor d, final Map< String, Object > frontmatter,
+                                  final List< String > missing ) {
+        if ( PageType.RUNBOOK != d.type() ) {
+            return null;
+        }
+        try {
+            final FrontmatterRunbookValidator.Result rbResult =
+                    FrontmatterRunbookValidator.validate(
+                            frontmatter,
+                            id   -> index.getByCanonicalId( id ).isPresent(),
+                            name -> {
+                                try {
+                                    return pageManager.pageExists( name );
+                                } catch ( final Exception e ) {
+                                    LOG.warn( "for-agent: pageExists({}) threw — treating as unresolved: {}",
+                                            name, e.getMessage() );
+                                    return false;
+                                }
+                            } );
+            if ( rbResult.valid().isPresent() ) {
+                return rbResult.valid().get();
+            }
+            if ( rbResult.hasIssues() ) {
+                LOG.warn( "for-agent: runbook block invalid for {} — leaving null: {}",
+                        d.slug(), rbResult.issues() );
                 missing.add( "runbook" );
             }
+            return null;
+        } catch ( final Exception e ) {
+            LOG.warn( "for-agent: runbook validation threw for {}: {}", d.slug(), e.getMessage() );
+            missing.add( "runbook" );
+            return null;
         }
+    }
 
-        // Derived agent_hints — null on whole-block degradation, empty block on no-signal.
-        AgentHintsBlock agentHints = AgentHintsBlock.empty();
-        if ( hintsDeriver != null ) {
-            try {
-                agentHints = hintsDeriver.derive( d.canonicalId() );
-            } catch ( final Exception e ) {
-                LOG.warn( "for-agent: agent_hints derivation threw for {}: {}", d.slug(), e.getMessage() );
-                missing.add( "agent_hints" );
-                agentHints = null;
-                if ( metrics != null ) metrics.incrementHintsDerivationFailures();
-            }
+    private AgentHintsBlock deriveAgentHints( final PageDescriptor d, final List< String > missing ) {
+        if ( hintsDeriver == null ) {
+            return AgentHintsBlock.empty();
         }
+        try {
+            return hintsDeriver.derive( d.canonicalId() );
+        } catch ( final Exception e ) {
+            LOG.warn( "for-agent: agent_hints derivation threw for {}: {}", d.slug(), e.getMessage() );
+            missing.add( "agent_hints" );
+            if ( metrics != null ) metrics.incrementHintsDerivationFailures();
+            return null;
+        }
+    }
 
-        // Hub summary overlay — only fires when this page is a cluster hub and the authored
-        // summary matches the generic "Index of pages on…" pattern.
+    /** Effective (possibly hub-synthesized) summary, as computed by {@link #overlayHubSummary}. */
+    private record SummaryOverlay( String summary, boolean synthesized ) {}
+
+    private SummaryOverlay overlayHubSummary( final PageDescriptor d, final AgentHintsBlock agentHints ) {
         String effectiveSummary = d.summary();
         boolean summarySynthesized = false;
         if ( agentHints != null && hubSynth != null ) {
@@ -245,46 +312,27 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 LOG.warn( "for-agent: hub summary overlay threw for {}: {}", d.slug(), e.getMessage() );
             }
         }
+        return new SummaryOverlay( effectiveSummary, summarySynthesized );
+    }
 
-        // Stale citations — query CitationRepository filtered to non-CURRENT rows.
-        // When the repository is null (citations disabled), produce an empty list.
-        List< CitationRef > staleCitations = List.of();
-        if ( citationRepository != null ) {
-            try {
-                staleCitations = citationRepository.findBySource( d.canonicalId() ).stream()
-                        .filter( r -> r.status() != CitationStatus.CURRENT )
-                        .map( DefaultForAgentProjectionService::toCitationRef )
-                        .collect( Collectors.toList() );
-            } catch ( final Exception e ) {
-                LOG.warn( "for-agent: stale_citations query failed for {}: {}", d.slug(), e.getMessage() );
-                missing.add( "stale_citations" );
-            }
+    /**
+     * Stale citations — query CitationRepository filtered to non-CURRENT rows.
+     * When the repository is null (citations disabled), produce an empty list.
+     */
+    private List< CitationRef > loadStaleCitations( final PageDescriptor d, final List< String > missing ) {
+        if ( citationRepository == null ) {
+            return List.of();
         }
-
-        return new ForAgentProjection(
-                d.canonicalId(),
-                d.slug(),
-                d.title(),
-                d.type() == null ? null : d.type().asFrontmatterValue(),
-                d.cluster(),
-                verification.audience(),
-                verification.confidence(),
-                verification.verifiedAt(),
-                verification.verifiedBy(),
-                d.updated(),
-                effectiveSummary,
-                facts,
-                outline,
-                changes,
-                hints,
-                runbook,
-                agentHints,
-                summarySynthesized,
-                "/api/pages/" + d.slug(),
-                "/wiki/" + d.slug() + "?format=md",
-                !missing.isEmpty(),
-                missing,
-                staleCitations );
+        try {
+            return citationRepository.findBySource( d.canonicalId() ).stream()
+                    .filter( r -> r.status() != CitationStatus.CURRENT )
+                    .map( DefaultForAgentProjectionService::toCitationRef )
+                    .collect( Collectors.toList() );
+        } catch ( final Exception e ) {
+            LOG.warn( "for-agent: stale_citations query failed for {}: {}", d.slug(), e.getMessage() );
+            missing.add( "stale_citations" );
+            return List.of();
+        }
     }
 
     private static CitationRef toCitationRef( final CitationRow r ) {

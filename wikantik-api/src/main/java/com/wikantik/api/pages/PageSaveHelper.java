@@ -69,6 +69,25 @@ public class PageSaveHelper {
     public Page saveText( final String pageName, final String text, final SaveOptions options ) throws WikiException {
         final PageManager pm = pageManager;
 
+        checkOptimisticLocking( pm, pageName, options );
+
+        final String effectiveText = buildEffectiveText( pm, pageName, text, options );
+
+        // Create page, set attributes, create context, save
+        final Page page = Wiki.contents().page( engine, pageName );
+        applyAttributes( page, options );
+        final Context context = Wiki.context().create( engine, page );
+        pm.saveText( context, effectiveText );
+
+        return pm.getPage( pageName );
+    }
+
+    /**
+     * Enforces the version and content-hash optimistic-locking checks, throwing
+     * {@link VersionConflictException} on a mismatch.
+     */
+    private void checkOptimisticLocking( final PageManager pm, final String pageName, final SaveOptions options )
+            throws VersionConflictException {
         // Optimistic locking: version check
         if( options.expectedVersion() > 0 ) {
             final Page current = pm.getPage( pageName );
@@ -86,21 +105,22 @@ public class PageSaveHelper {
                 throw new VersionConflictException( pageName, -1, -1, true );
             }
         }
+    }
 
-        // Build effective text with frontmatter
-        String effectiveText = text;
-        if( options.metadata() != null ) {
-            final Map< String, Object > effectiveMetadata;
-            if( options.replaceMetadata() ) {
-                effectiveMetadata = options.metadata();
-            } else {
-                effectiveMetadata = mergeMetadata( pm, pageName, options.metadata() );
-            }
-            effectiveText = FrontmatterWriter.write( effectiveMetadata, text );
+    /** Builds the page text to persist, merging/writing frontmatter when metadata is supplied. */
+    private String buildEffectiveText( final PageManager pm, final String pageName, final String text,
+                                        final SaveOptions options ) {
+        if( options.metadata() == null ) {
+            return text;
         }
+        final Map< String, Object > effectiveMetadata = options.replaceMetadata()
+                ? options.metadata()
+                : mergeMetadata( pm, pageName, options.metadata() );
+        return FrontmatterWriter.write( effectiveMetadata, text );
+    }
 
-        // Create page, set attributes, create context, save
-        final Page page = Wiki.contents().page( engine, pageName );
+    /** Applies the optional author/markup-syntax/change-note attributes onto the new page. */
+    private static void applyAttributes( final Page page, final SaveOptions options ) {
         if( options.author() != null ) {
             page.setAuthor( options.author() );
         }
@@ -110,10 +130,6 @@ public class PageSaveHelper {
         if( options.changeNote() != null ) {
             page.setAttribute( Page.CHANGENOTE, options.changeNote() );
         }
-        final Context context = Wiki.context().create( engine, page );
-        pm.saveText( context, effectiveText );
-
-        return pm.getPage( pageName );
     }
 
     /**

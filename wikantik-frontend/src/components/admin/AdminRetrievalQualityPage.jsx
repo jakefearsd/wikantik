@@ -20,27 +20,24 @@ export default function AdminRetrievalQualityPage() {
   const [filterMode, setFilterMode] = useState('');
   const [runningKey, setRunningKey] = useState(null);
 
-  const loadRuns = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const resp = await api.admin.listRetrievalRuns({
-        querySetId: filterSet || undefined,
-        mode: filterMode || undefined,
-        limit: DEFAULT_LIMIT,
-      });
-      return resp?.recent_runs || [];
-    } finally {
-      setLoading(false);
-    }
-  }, [filterSet, filterMode]);
+  // setLoading(true)/setError(null) used to sit synchronously at the top of
+  // this function (the flagged shape). They're now set at the two filter
+  // onChange handlers below — the events that actually trigger a refetch —
+  // and the remaining setState calls all live inside .then/.finally callbacks.
+  const loadRuns = useCallback(() => api.admin.listRetrievalRuns({
+    querySetId: filterSet || undefined,
+    mode: filterMode || undefined,
+    limit: DEFAULT_LIMIT,
+  })
+    .then(resp => resp?.recent_runs || [])
+    .finally(() => setLoading(false)), [filterSet, filterMode]);
 
   useEffect(() => {
-    let cancelled = false;
+    let ignore = false;
     loadRuns()
-      .then(rows => { if (!cancelled) setRuns(rows); })
-      .catch(err => { if (!cancelled) setError(err.message); });
-    return () => { cancelled = true; };
+      .then(rows => { if (!ignore) setRuns(rows); })
+      .catch(err => { if (!ignore) setError(err.message); });
+    return () => { ignore = true; };
   }, [loadRuns]);
 
   const runNow = async (querySetId, mode) => {
@@ -95,13 +92,13 @@ export default function AdminRetrievalQualityPage() {
           <input
             type="text"
             value={filterSet}
-            onChange={e => setFilterSet(e.target.value)}
+            onChange={e => { setLoading(true); setError(null); setFilterSet(e.target.value); }}
             placeholder="(any)"
           />
         </label>
         <label style={{ marginLeft: '12px' }}>
           Mode:{' '}
-          <select value={filterMode} onChange={e => setFilterMode(e.target.value)}>
+          <select value={filterMode} onChange={e => { setLoading(true); setError(null); setFilterMode(e.target.value); }}>
             <option value="">(any)</option>
             {MODES.map(m => (
               <option key={m} value={m}>{m}</option>

@@ -58,17 +58,17 @@ export default function LlmActivityTab() {
   const pollRef = useRef(null);
   const activeRef = useRef(false);
 
-  const fetchActivity = async () => {
-    try {
-      const res = await api.knowledge.getLlmActivity({ limit: 200 });
+  // setState sits inside the async .then/.catch callbacks (not directly in
+  // this function's own body), so calling fetchActivity() synchronously from
+  // the effect is the shape react-hooks/set-state-in-effect allows.
+  const fetchActivity = () => api.knowledge.getLlmActivity({ limit: 200 })
+    .then(res => {
       const data = res || {};
       setSnapshot(data);
       setError(null);
       activeRef.current = (data.inFlight || 0) > 0;
-    } catch (e) {
-      setError(e.message || 'Failed to load LLM activity');
-    }
-  };
+    })
+    .catch(e => setError(e.message || 'Failed to load LLM activity'));
 
   useEffect(() => {
     let cancelled = false;

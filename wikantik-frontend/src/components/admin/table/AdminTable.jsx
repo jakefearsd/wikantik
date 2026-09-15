@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTableSelection } from './useTableSelection';
 import SelectionBar from './SelectionBar';
 import ConfirmBulkModal from './ConfirmBulkModal';
@@ -131,7 +131,10 @@ export default function AdminTable({
   // would only filter the visible page and silently miss matches on other
   // pages. When pagination is active we hide the search input.
   const isPaginated = !!pagination;
-  const searchCfg = !isPaginated && searchable === true ? {} : (!isPaginated && searchable) || null;
+  const searchCfg = useMemo(
+    () => (!isPaginated && searchable === true ? {} : (!isPaginated && searchable) || null),
+    [isPaginated, searchable]
+  );
   const [query, setQuery] = useState('');
 
   const filteredRows = useMemo(() => {
@@ -197,6 +200,8 @@ export default function AdminTable({
 
   const dismissToast = useCallback(() => setToast(null), []);
 
+  const dispatchActionRef = useRef(null);
+
   const dispatchAction = useCallback(
     async (action, overrideKeys = null, reason = undefined) => {
       const targetKeys = overrideKeys ?? [...selected];
@@ -247,7 +252,7 @@ export default function AdminTable({
             variant: 'error',
             onRetry: () => {
               dismissToast();
-              dispatchAction(action, retryKeys);
+              dispatchActionRef.current?.(action, retryKeys);
             },
           });
         } else {
@@ -270,6 +275,10 @@ export default function AdminTable({
     },
     [selected, rows, getRowKey, onBulkAction, clear, toggle, dismissToast]
   );
+
+  useEffect(() => {
+    dispatchActionRef.current = dispatchAction;
+  });
 
   const handleActionClick = useCallback(
     (action) => {

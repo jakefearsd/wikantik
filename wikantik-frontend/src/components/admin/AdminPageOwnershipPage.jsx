@@ -35,39 +35,46 @@ export default function AdminPageOwnershipPage() {
   const [bulkTo, setBulkTo] = useState('');
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res =
-        filter === FILTER_ORPHANED
-          ? await api.admin.pageOwnership.listOrphaned()
-          : await api.admin.pageOwnership.listByOwner(submittedOwner);
-      const pages = res.pages || [];
-      setRows(pages);
-      setTotal(typeof res.total === 'number' ? res.total : pages.length);
-    } catch (err) {
-      setError(err?.message || String(err));
-      setRows([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
+  // setLoading(true)/setError(null) used to sit synchronously at the top of
+  // this function (the flagged shape). They're now set at the two events that
+  // trigger a refetch (switchFilter, onSearch) instead, and every setState
+  // below lives inside the async .then/.catch/.finally callbacks, gated by an
+  // `isStale` check so a superseded in-flight request can't clobber a newer
+  // one's result (the effect below passes one; the two other callers of
+  // load() — after a reassign — don't need it and get the default no-op).
+  const load = useCallback((isStale = () => false) => {
+    const request =
+      filter === FILTER_ORPHANED
+        ? api.admin.pageOwnership.listOrphaned()
+        : api.admin.pageOwnership.listByOwner(submittedOwner);
+    return request
+      .then(res => {
+        if (isStale()) return;
+        const pages = res.pages || [];
+        setRows(pages);
+        setTotal(typeof res.total === 'number' ? res.total : pages.length);
+      })
+      .catch(err => {
+        if (isStale()) return;
+        setError(err?.message || String(err));
+        setRows([]);
+        setTotal(0);
+      })
+      .finally(() => {
+        if (!isStale()) setLoading(false);
+      });
   }, [filter, submittedOwner]);
 
   // Reload whenever the active filter or the submitted owner query changes.
   // We never auto-call listByOwner with an empty string — the operator must
   // explicitly hit Search first, so a blank submittedOwner suppresses the load
-  // on the By-Owner tab (handled inside load() via the empty result fallthrough
-  // — see the by-owner branch below).
+  // on the By-Owner tab (handled by switchFilter/onSearch resetting loading
+  // directly, since there is nothing to fetch yet).
   useEffect(() => {
-    if (filter === FILTER_BY_OWNER && !submittedOwner) {
-      setRows([]);
-      setTotal(0);
-      setLoading(false);
-      return;
-    }
-    load();
+    if (filter === FILTER_BY_OWNER && !submittedOwner) return;
+    let ignore = false;
+    load(() => ignore);
+    return () => { ignore = true; };
   }, [filter, submittedOwner, load]);
 
   const switchFilter = (next) => {
@@ -78,12 +85,22 @@ export default function AdminPageOwnershipPage() {
     if (next === FILTER_ORPHANED) {
       setOwnerQuery('');
       setSubmittedOwner('');
+    } else {
+      // No query submitted yet on the By-Owner tab — nothing to load.
+      setLoading(false);
     }
   };
 
   const onSearch = (e) => {
     e?.preventDefault?.();
-    setSubmittedOwner(ownerQuery.trim());
+    const trimmed = ownerQuery.trim();
+    setSubmittedOwner(trimmed);
+    if (!trimmed) {
+      // Clearing the query back to empty — nothing to load, matches switchFilter.
+      setRows([]);
+      setTotal(0);
+      setLoading(false);
+    }
   };
 
   const openReassign = (row) => {
@@ -107,6 +124,7 @@ export default function AdminPageOwnershipPage() {
       setError(err?.message || String(err));
     }
     closeReassign();
+    setLoading(true);
     await load();
   };
 

@@ -48,16 +48,13 @@ function DashboardTab() {
   const [flushing, setFlushing] = useState(false);
   const [message, setMessage] = useState(null);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      setStats(await api.admin.getContentStats());
-    } catch (err) {
-      setMessage({ type: 'error', text: err.message });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // setState sits inside the async .then/.catch/.finally callbacks (not
+  // directly in this function's own body), so calling load() synchronously
+  // from the mount effect is the shape react-hooks/set-state-in-effect allows.
+  const load = () => api.admin.getContentStats()
+    .then(data => setStats(data))
+    .catch(err => setMessage({ type: 'error', text: err.message }))
+    .finally(() => setLoading(false));
 
   useEffect(() => { load(); }, []);
 
@@ -67,6 +64,10 @@ function DashboardTab() {
     try {
       const result = await api.admin.flushCache();
       setMessage({ type: 'success', text: `Caches flushed: ${result.entriesRemoved} entries removed` });
+      // load() no longer sets loading=true itself (that would be a synchronous
+      // setState in the mount effect) — set it here, at the event that triggers
+      // the refetch, to preserve the "Loading stats…" placeholder during refresh.
+      setLoading(true);
       await load();
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
@@ -158,17 +159,13 @@ function OrphanedPagesTab() {
   const [message, setMessage] = useState(null);
   const [confirming, setConfirming] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const data = await api.admin.getOrphanedPages();
-      setPages(data.pages || []);
-    } catch (err) {
-      setMessage({ type: 'error', text: err.message });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // setState sits inside the async .then/.catch/.finally callbacks (not
+  // directly in this function's own body), so calling load() synchronously
+  // from the mount effect is the shape react-hooks/set-state-in-effect allows.
+  const load = () => api.admin.getOrphanedPages()
+    .then(data => setPages(data.pages || []))
+    .catch(err => setMessage({ type: 'error', text: err.message }))
+    .finally(() => setLoading(false));
 
   useEffect(() => { load(); }, []);
 
@@ -198,6 +195,10 @@ function OrphanedPagesTab() {
       const deletedCount = result.deleted.length;
       setMessage({ type: 'success', text: `Deleted ${deletedCount} page${deletedCount !== 1 ? 's' : ''}${result.failed.length ? `, ${result.failed.length} failed` : ''}` });
       setSelected(new Set());
+      // load() no longer sets loading=true itself (that would be a synchronous
+      // setState in the mount effect) — set it here, at the event that triggers
+      // the refetch, to preserve the "Loading…" placeholder during refresh.
+      setLoading(true);
       await load();
     } catch (err) {
       setMessage({ type: 'error', text: err.message });

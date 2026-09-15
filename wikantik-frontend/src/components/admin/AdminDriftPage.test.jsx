@@ -87,8 +87,10 @@ describe('AdminDriftPage', () => {
         .mockResolvedValue({ ...SUMMARY, sweptAt: '2026-06-10T06:00:00Z' }); // completion check
 
       render(<AdminDriftPage />);
+      // eslint-disable-next-line testing-library/no-unnecessary-act -- required to flush state updates with fake timers
       await act(async () => {});
       fireEvent.click(screen.getByTestId('drift-run-now'));
+      // eslint-disable-next-line testing-library/no-unnecessary-act -- required to flush state updates with fake timers
       await act(async () => {});
 
       expect(screen.getByTestId('drift-progress')).toBeInTheDocument();
@@ -96,6 +98,7 @@ describe('AdminDriftPage', () => {
         .toHaveTextContent('84 / 312 pages — validating frontmatter');
 
       await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+      // eslint-disable-next-line testing-library/no-unnecessary-act -- required to flush state updates after advancing fake timers
       await act(async () => {});
       expect(screen.queryByTestId('drift-progress')).not.toBeInTheDocument();
       expect(screen.getByTestId('drift-run-now')).toBeEnabled();

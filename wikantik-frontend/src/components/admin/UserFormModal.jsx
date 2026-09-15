@@ -1,19 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+
+// Derives the form's field values from a user record (edit mode) or the blank
+// defaults (create mode). Shared by the initial-mount lazy initializer and the
+// render-time prop-change adjustment below, so both paths agree.
+function buildForm(user) {
+  return user
+    ? { loginName: user.loginName, fullName: user.fullName || '', email: user.email || '', bio: user.bio || '', password: '' }
+    : { loginName: '', fullName: '', email: '', bio: '', password: '' };
+}
 
 export default function UserFormModal({ user, isOpen, onClose, onSave }) {
   const isEdit = !!user;
-  const [form, setForm] = useState({ loginName: '', fullName: '', email: '', bio: '', password: '' });
+  const [form, setForm] = useState(() => buildForm(user));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (user) {
-      setForm({ loginName: user.loginName, fullName: user.fullName || '', email: user.email || '', bio: user.bio || '', password: '' });
-    } else {
-      setForm({ loginName: '', fullName: '', email: '', bio: '', password: '' });
-    }
+  const [prevUser, setPrevUser] = useState(user);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (user !== prevUser || isOpen !== prevIsOpen) {
+    setPrevUser(user);
+    setPrevIsOpen(isOpen);
+    setForm(buildForm(user));
     setError(null);
-  }, [user, isOpen]);
+  }
 
   if (!isOpen) return null;
 

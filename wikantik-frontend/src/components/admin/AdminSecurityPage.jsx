@@ -51,16 +51,13 @@ function GroupsSection() {
   const [editingGroup, setEditingGroup] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  const loadGroups = async () => {
-    try {
-      const data = await api.admin.listGroups();
-      setGroups(data.groups || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // setState sits inside the async .then/.catch/.finally callbacks (not
+  // directly in this function's own body), so calling loadGroups() synchronously
+  // from the mount effect is the shape react-hooks/set-state-in-effect allows.
+  const loadGroups = () => api.admin.listGroups()
+    .then(data => setGroups(data.groups || []))
+    .catch(err => setError(err.message))
+    .finally(() => setLoading(false));
 
   useEffect(() => { loadGroups(); }, []);
 
@@ -227,16 +224,13 @@ function GrantsSection() {
   const [editingGrant, setEditingGrant] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  const loadGrants = async () => {
-    try {
-      const data = await api.admin.listPolicyGrants();
-      setGrants(data.grants || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // setState sits inside the async .then/.catch/.finally callbacks (not
+  // directly in this function's own body), so calling loadGrants() synchronously
+  // from the mount effect is the shape react-hooks/set-state-in-effect allows.
+  const loadGrants = () => api.admin.listPolicyGrants()
+    .then(data => setGrants(data.grants || []))
+    .catch(err => setError(err.message))
+    .finally(() => setLoading(false));
 
   useEffect(() => { loadGrants(); }, []);
 

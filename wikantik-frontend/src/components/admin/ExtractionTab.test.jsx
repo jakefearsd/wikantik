@@ -72,7 +72,7 @@ describe('ExtractionTab', () => {
     const start = vi.spyOn(api.knowledge, 'startExtraction').mockResolvedValue(running);
 
     render(<ExtractionTab />);
-    await waitFor(() => screen.getByRole('button', { name: /Extract Mentions/i }));
+    await screen.findByRole('button', { name: /Extract Mentions/i });
     fireEvent.click(screen.getByRole('button', { name: /Extract Mentions/i }));
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByText(/may take a long time/i)).toBeInTheDocument();
@@ -85,7 +85,7 @@ describe('ExtractionTab', () => {
     const start = vi.spyOn(api.knowledge, 'startExtraction').mockResolvedValue(running);
 
     render(<ExtractionTab />);
-    await waitFor(() => screen.getByRole('button', { name: /Extract Mentions/i }));
+    await screen.findByRole('button', { name: /Extract Mentions/i });
     fireEvent.click(screen.getByRole('checkbox', { name: /Force re-extract/i }));
     fireEvent.click(screen.getByRole('button', { name: /Extract Mentions/i }));
     const dialog = screen.getByRole('dialog');
@@ -99,7 +99,7 @@ describe('ExtractionTab', () => {
     const cancel = vi.spyOn(api.knowledge, 'cancelExtraction').mockResolvedValue(running);
 
     render(<ExtractionTab />);
-    await waitFor(() => screen.getByRole('button', { name: /^Cancel$/ }));
+    await screen.findByRole('button', { name: /^Cancel$/ });
     fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }));
     const dialog = screen.getByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: /Continue/i }));
@@ -114,7 +114,7 @@ describe('ExtractionTab', () => {
     vi.spyOn(api.knowledge, 'startExtraction').mockRejectedValue(err);
 
     render(<ExtractionTab />);
-    await waitFor(() => screen.getByRole('button', { name: /Extract Mentions/i }));
+    await screen.findByRole('button', { name: /Extract Mentions/i });
     fireEvent.click(screen.getByRole('button', { name: /Extract Mentions/i }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Continue/i }));
     expect(await screen.findByText(/already in progress/i)).toBeInTheDocument();

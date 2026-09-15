@@ -10,21 +10,29 @@ export default function NodeDetail({ node, onNavigate, onDeleted }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [prevNodeId, setPrevNodeId] = useState(node?.id);
 
   useEffect(() => {
-    if (!node?.name) { setSimilar([]); return; }
-    api.knowledge.getSimilarNodes(node.name, 5)
-      .then(data => setSimilar(data.similar || []))
-      .catch(() => setSimilar([]));
+    let cancelled = false;
+    const fetchSimilar = node?.name
+      ? api.knowledge.getSimilarNodes(node.name, 5).then(data => data.similar || [])
+      : Promise.resolve([]);
+    fetchSimilar
+      .then(result => { if (!cancelled) setSimilar(result); })
+      .catch(() => { if (!cancelled) setSimilar([]); });
+    return () => { cancelled = true; };
   }, [node?.name]);
 
   // Reset delete state when the selected node changes so a stale error/dialog
-  // from a previously inspected node can't bleed into this one.
-  useEffect(() => {
+  // from a previously inspected node can't bleed into this one. Must run on
+  // every render, including when node is null, so the tracked id resets
+  // correctly if the panel is cleared then reused.
+  if (node?.id !== prevNodeId) {
+    setPrevNodeId(node?.id);
     setConfirmingDelete(false);
     setDeleting(false);
     setDeleteError(null);
-  }, [node?.id]);
+  }
 
   if (!node) return null;
 

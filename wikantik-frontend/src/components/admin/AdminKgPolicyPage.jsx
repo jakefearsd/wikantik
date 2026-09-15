@@ -24,25 +24,25 @@ export default function AdminKgPolicyPage() {
   const [reconciliation, setReconciliation] = useState([]);
   const [clearTarget, setClearTarget] = useState(null);   // cluster pending a Clear confirmation
 
-  const reload = useCallback(async () => {
-    try {
-      const data = await api.admin.kgPolicy.listClusters();
-      setClusters(data.clusters || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // setState sits inside the async .then/.catch/.finally callbacks (not
+  // directly in this function's own body), so calling reload() synchronously
+  // from the effect is the shape react-hooks/set-state-in-effect allows.
+  const reload = useCallback(
+    () => api.admin.kgPolicy.listClusters()
+      .then(data => setClusters(data.clusters || []))
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false)),
+    [],
+  );
 
-  const reloadReconciliation = useCallback(async () => {
-    try {
-      const data = await api.admin.kgPolicy.reconciliation();
-      setReconciliation(data.reconciliation || []);
-    } catch {
-      // reconciliation refresh is best-effort; swallow silently
-    }
-  }, []);
+  const reloadReconciliation = useCallback(
+    () => api.admin.kgPolicy.reconciliation()
+      .then(data => setReconciliation(data.reconciliation || []))
+      .catch(() => {
+        // reconciliation refresh is best-effort; swallow silently
+      }),
+    [],
+  );
 
   useEffect(() => {
     reload();
@@ -233,8 +233,9 @@ function ActionBadge({ action }) {
 }
 
 function LastReviewed({ at }) {
+  const [now] = useState(() => Date.now());
   if (!at) return <span style={{ color: 'var(--danger)' }}>never</span>;
-  const days = Math.floor((Date.now() - new Date(at).getTime()) / 86_400_000);
+  const days = Math.floor((now - new Date(at).getTime()) / 86_400_000);
   const label = days < 1 ? 'today' : days === 1 ? '1 day ago' : `${days} days ago`;
   const stale = days > 90;
   return (

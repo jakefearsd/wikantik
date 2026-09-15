@@ -48,11 +48,15 @@ export default function BacklogPanel() {
   const [typeFilter, setTypeFilter] = useState('');
   const [includeSnoozed, setIncludeSnoozed] = useState(false);
 
+  // setLoading(true)/setError(null)/setNotConfigured(false) used to sit
+  // synchronously at the top of this effect (the flagged shape). They're now
+  // set at the two filter controls below — the events that trigger a
+  // refetch — plus the mount case, which starts from loading=true already.
+  // Every setState left in the effect lives inside the async .then/.catch/
+  // .finally callbacks, gated by the `cancelled` flag against a stale
+  // in-flight request from a superseded filter combination.
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    setNotConfigured(false);
     api.admin.getInsightsBacklog({
       site: DEFAULT_SITE,
       type: typeFilter || undefined,
@@ -112,7 +116,7 @@ export default function BacklogPanel() {
           value={typeFilter}
           options={TYPE_OPTIONS}
           placeholder="All types"
-          onChange={setTypeFilter}
+          onChange={(value) => { setLoading(true); setError(null); setNotConfigured(false); setTypeFilter(value); }}
           ariaLabel="Filter by opportunity type"
           data-testid="backlog-type-filter"
         />
@@ -120,7 +124,7 @@ export default function BacklogPanel() {
           <input
             type="checkbox"
             checked={includeSnoozed}
-            onChange={(e) => setIncludeSnoozed(e.target.checked)}
+            onChange={(e) => { setLoading(true); setError(null); setNotConfigured(false); setIncludeSnoozed(e.target.checked); }}
             data-testid="backlog-include-snoozed"
           />
           {' '}Include snoozed

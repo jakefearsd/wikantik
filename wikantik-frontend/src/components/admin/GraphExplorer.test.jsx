@@ -70,13 +70,13 @@ describe('GraphExplorer', () => {
     expect(screen.queryByText('Alpha')).toBeNull();
 
     resolve({ nodes: [node('n1', 'Alpha', 'article')], total: 1 });
-    await waitFor(() => screen.getByText('Alpha'));
+    await screen.findByText('Alpha');
     expect(screen.queryByText(/Loading knowledge graph/i)).toBeNull();
   });
 
   it('shows the total node count in the header', async () => {
     render(<GraphExplorer />);
-    await waitFor(() => screen.getByText('Alpha'));
+    await screen.findByText('Alpha');
     expect(screen.getByText(/1,234 total/)).toBeInTheDocument();
   });
 
@@ -103,7 +103,7 @@ describe('GraphExplorer', () => {
 
   it('Stub column header is replaced with the plainer "No wiki page"', async () => {
     render(<GraphExplorer />);
-    await waitFor(() => screen.getByText('Alpha'));
+    await screen.findByText('Alpha');
     expect(screen.queryByRole('columnheader', { name: /^Stub$/ })).toBeNull();
     expect(
       screen.getByRole('columnheader', { name: /No wiki page/i }),
@@ -112,7 +112,7 @@ describe('GraphExplorer', () => {
 
   it('Status column header carries a tooltip explaining the frontmatter source', async () => {
     render(<GraphExplorer />);
-    await waitFor(() => screen.getByText('Alpha'));
+    await screen.findByText('Alpha');
     const status = screen.getByRole('columnheader', { name: /^Status$/ });
     expect(status.getAttribute('title')).toMatch(/frontmatter|page.*status/i);
   });
@@ -142,7 +142,7 @@ describe('GraphExplorer', () => {
 
   it('clicking a name button opens the detail pane via ID-based lookup', async () => {
     render(<GraphExplorer />);
-    await waitFor(() => screen.getByText('Alpha'));
+    await screen.findByText('Alpha');
     fireEvent.click(screen.getByText('Alpha'));
     // Use the slash-safe by-id lookup, not by-name (Tomcat 400s on encoded "/"
     // — node names like "Foo (Bar/Baz)" must not go through path segments).
@@ -155,7 +155,7 @@ describe('GraphExplorer', () => {
   it('AdminTable bulk delete fans out per-row deleteNode calls', async () => {
     api.knowledge.deleteNode.mockResolvedValue({ deleted: true });
     render(<GraphExplorer />);
-    await waitFor(() => screen.getByText('Alpha'));
+    await screen.findByText('Alpha');
 
     const checks = screen.getAllByRole('checkbox');
     // Header checkbox at [0], rows follow.
@@ -183,7 +183,7 @@ describe('GraphExplorer', () => {
 
     try {
       render(<GraphExplorer />);
-      await waitFor(() => screen.getByText('Alpha'));
+      await screen.findByText('Alpha');
       fireEvent.click(screen.getByText('Alpha'));
 
       // The detail-pane Delete button renders inside NodeDetail and opens a

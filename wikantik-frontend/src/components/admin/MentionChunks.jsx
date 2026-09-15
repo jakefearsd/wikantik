@@ -162,20 +162,20 @@ export function MentionsPanel({ label, node, limit = 3 }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!node?.id) {
-      setMentions(null);
-      return;
-    }
     let cancelled = false;
-    setMentions(null);
-    setError(null);
-    api.knowledge
-      .getNodeMentions(node.id, limit)
-      .then((data) => {
-        if (!cancelled) setMentions(data.mentions || []);
+    const fetchMentions = node?.id
+      ? api.knowledge.getNodeMentions(node.id, limit).then(data => ({ mentions: data.mentions || [], error: null }))
+      : Promise.resolve({ mentions: null, error: null });
+    fetchMentions
+      .then(({ mentions, error }) => {
+        if (cancelled) return;
+        setMentions(mentions);
+        setError(error);
       })
       .catch((e) => {
-        if (!cancelled) setError(e?.message || 'Failed to load mentions');
+        if (cancelled) return;
+        setMentions(null);
+        setError(e?.message || 'Failed to load mentions');
       });
     return () => {
       cancelled = true;

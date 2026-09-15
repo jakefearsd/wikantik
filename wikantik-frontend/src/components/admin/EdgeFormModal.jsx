@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { api } from '../../api/client';
 
 function NodeAutocomplete({ label, value, onSelect, disabled }) {
@@ -7,9 +7,14 @@ function NodeAutocomplete({ label, value, onSelect, disabled }) {
   const [open, setOpen] = useState(false);
   const debounceRef = useRef(null);
 
-  useEffect(() => {
+  // Adjusting state when a prop changes (react.dev/learn/you-might-not-need-an-effect):
+  // compare against the previous prop during render instead of syncing in an effect,
+  // so the query text updates in the same render pass as the prop change.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     setQuery(value?.name || '');
-  }, [value]);
+  }
 
   const onChange = (e) => {
     const v = e.target.value;

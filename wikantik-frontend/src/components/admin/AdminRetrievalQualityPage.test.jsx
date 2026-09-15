@@ -43,7 +43,7 @@ describe('AdminRetrievalQualityPage', () => {
 
   it('renders one row per (set, mode) bucket with the latest value + sparkline', async () => {
     render(<AdminRetrievalQualityPage />);
-    await waitFor(() => screen.getByText('core-agent-queries'));
+    await screen.findByText('core-agent-queries');
     // 'hybrid' appears twice: once in the mode <option>, once in the table cell.
     expect(screen.getAllByText('hybrid').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('0.420')).toBeInTheDocument();
@@ -53,18 +53,18 @@ describe('AdminRetrievalQualityPage', () => {
   it('renders the empty state when no runs exist', async () => {
     listSpy.mockResolvedValueOnce({ recent_runs: [], count: 0 });
     render(<AdminRetrievalQualityPage />);
-    await waitFor(() => screen.getByText(/No runs yet\./));
+    await screen.findByText(/No runs yet\./);
   });
 
   it('renders the error banner when the list call rejects', async () => {
     listSpy.mockRejectedValueOnce(new Error('upstream is down'));
     render(<AdminRetrievalQualityPage />);
-    await waitFor(() => screen.getByText('upstream is down'));
+    await screen.findByText('upstream is down');
   });
 
   it('clicking Run now POSTs with the row coordinates and re-fetches', async () => {
     render(<AdminRetrievalQualityPage />);
-    await waitFor(() => screen.getByText('core-agent-queries'));
+    await screen.findByText('core-agent-queries');
     expect(listSpy).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('button', { name: /Run now/ }));
@@ -75,7 +75,7 @@ describe('AdminRetrievalQualityPage', () => {
 
   it('changing the mode filter re-issues the list call with the mode parameter', async () => {
     render(<AdminRetrievalQualityPage />);
-    await waitFor(() => screen.getByText('core-agent-queries'));
+    await screen.findByText('core-agent-queries');
     expect(listSpy).toHaveBeenLastCalledWith({
       querySetId: undefined, mode: undefined, limit: 30,
     });

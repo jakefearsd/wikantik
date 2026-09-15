@@ -14,22 +14,24 @@ export default function ExtractionTab() {
   const pollRef = useRef(null);
   const stateRef = useRef('IDLE');
 
-  const fetchStatus = async () => {
-    try {
-      const s = await api.knowledge.getExtractionStatus();
+  // setState sits inside the async .then/.catch callbacks (not directly in
+  // this function's own body), so calling fetchStatus() synchronously from
+  // the effect is the shape react-hooks/set-state-in-effect allows.
+  const fetchStatus = () => api.knowledge.getExtractionStatus()
+    .then(s => {
       setStatus(s);
       setDisabled(false);
       stateRef.current = s?.state || 'IDLE';
       if ((s?.state || 'IDLE') !== 'RUNNING') setCancelRequested(false);
-    } catch (e) {
+    })
+    .catch(e => {
       if (e.status === 503) {
         setDisabled(true);
         stateRef.current = 'IDLE';
       } else {
         setError(e.message || 'Failed to fetch status');
       }
-    }
-  };
+    });
 
   useEffect(() => {
     let cancelled = false;

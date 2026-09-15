@@ -24,7 +24,7 @@ import ExistingHubsPanel from './ExistingHubsPanel';
 export default function HubDiscoveryTab() {
   const [proposals, setProposals] = useState([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -43,18 +43,14 @@ export default function HubDiscoveryTab() {
   // dismisses multiple cards in quick succession.
   const dismissedRequestIdRef = useRef(0);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const resp = await api.knowledge.listHubDiscoveryProposals(50, 0);
-      setProposals(resp.proposals || []);
-      setTotal(resp.total || 0);
-    } catch (err) {
-      setToast({ kind: 'error', message: err.message || 'Load failed' });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // setLoading(true) used to sit synchronously at the top of this function
+  // (the flagged shape). loading now starts true (mount case), and callers
+  // that re-invoke load() for a refresh set it at the event that triggers
+  // the refetch; every setState below lives inside .then/.catch/.finally.
+  const load = () => api.knowledge.listHubDiscoveryProposals(50, 0)
+    .then(resp => { setProposals(resp.proposals || []); setTotal(resp.total || 0); })
+    .catch(err => setToast({ kind: 'error', message: err.message || 'Load failed' }))
+    .finally(() => setLoading(false));
 
   // Loads the dismissed-proposals list. Pass `{ silent: true }` to reconcile
   // in the background without flashing the "Loading…" state — used by the
@@ -97,6 +93,7 @@ export default function HubDiscoveryTab() {
         kind: 'success',
         message: `Discovery complete: ${resp.proposalsCreated} proposals from ${resp.candidatePoolSize} candidates (${resp.noisePages} noise, ${skipped} skipped as previously dismissed) in ${resp.durationMs} ms`,
       });
+      setLoading(true);
       await load();
       if (dismissedLoaded) {
         await loadDismissed();
@@ -162,6 +159,7 @@ export default function HubDiscoveryTab() {
   const reloadAfterDelete = async () => {
     setSelected(new Set());
     await loadDismissed();
+    setLoading(true);
     await load();
   };
 

@@ -16,17 +16,17 @@ export default function IndexStatusTab() {
   const hasErrorsRef = useRef(false);
   const bootstrapStateRef = useRef('IDLE');
 
-  const fetchStatus = async () => {
-    try {
-      const s = await api.admin.getIndexStatus();
+  // setState sits inside the async .then/.catch callbacks (not directly in
+  // this function's own body), so calling fetchStatus() synchronously from
+  // the effect is the shape react-hooks/set-state-in-effect allows.
+  const fetchStatus = () => api.admin.getIndexStatus()
+    .then(s => {
       setStatus(s);
       stateRef.current = s.rebuild?.state || 'IDLE';
       hasErrorsRef.current = (s.rebuild?.errors?.length || 0) > 0;
       bootstrapStateRef.current = s.embeddings?.bootstrap?.state || 'IDLE';
-    } catch (e) {
-      setError(e.message || 'Failed to fetch status');
-    }
-  };
+    })
+    .catch(e => setError(e.message || 'Failed to fetch status'));
 
   useEffect(() => {
     let cancelled = false;

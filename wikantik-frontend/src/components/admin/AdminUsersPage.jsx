@@ -49,16 +49,13 @@ export default function AdminUsersPage() {
   const [pendingBulkRows, setPendingBulkRows] = useState(null);
   const [pendingBulkResolve, setPendingBulkResolve] = useState(null);
 
-  const loadUsers = async () => {
-    try {
-      const data = await api.admin.listUsers();
-      setUsers(data.users || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // setState sits inside the async .then/.catch/.finally callbacks (not
+  // directly in this function's own body), so calling loadUsers() synchronously
+  // from the mount effect is the shape react-hooks/set-state-in-effect allows.
+  const loadUsers = () => api.admin.listUsers()
+    .then(data => setUsers(data.users || []))
+    .catch(err => setError(err.message))
+    .finally(() => setLoading(false));
 
   useEffect(() => {
     loadUsers();

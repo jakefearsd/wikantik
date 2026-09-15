@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../api/client';
 import PageLink from './PageLink';
 
@@ -18,19 +18,18 @@ export default function HubProposalsTab() {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
 
-  const loadData = async () => {
-    try {
-      const result = await api.knowledge.listHubProposals('pending', hubFilter || null, PAGE_SIZE, offset);
-      setProposals(result.proposals || []);
-      setTotal(result.total || 0);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // setState sits inside the async .then/.catch/.finally callbacks (not
+  // directly in this function's own body), so calling loadData() synchronously
+  // from the effect is the shape react-hooks/set-state-in-effect allows.
+  const loadData = useCallback(
+    () => api.knowledge.listHubProposals('pending', hubFilter || null, PAGE_SIZE, offset)
+      .then(result => { setProposals(result.proposals || []); setTotal(result.total || 0); })
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false)),
+    [hubFilter, offset],
+  );
 
-  useEffect(() => { loadData(); }, [offset, hubFilter]);
+  useEffect(() => { loadData(); }, [offset, hubFilter, loadData]);
 
   // Derived during render (not effect-set state): keeps the count in the same
   // render pass as the proposals table, so there is no one-render lag.

@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+
+const UNSET = Symbol('unset');
 
 export default function GroupFormModal({ group, isOpen, onClose, onSave }) {
   const isEdit = !!group;
@@ -7,7 +9,11 @@ export default function GroupFormModal({ group, isOpen, onClose, onSave }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const [prevGroup, setPrevGroup] = useState(UNSET);
+  const [prevIsOpen, setPrevIsOpen] = useState(UNSET);
+  if (group !== prevGroup || isOpen !== prevIsOpen) {
+    setPrevGroup(group);
+    setPrevIsOpen(isOpen);
     if (group) {
       setForm({ name: group.name, members: [...(group.members || [])] });
     } else {
@@ -15,7 +21,7 @@ export default function GroupFormModal({ group, isOpen, onClose, onSave }) {
     }
     setNewMember('');
     setError(null);
-  }, [group, isOpen]);
+  }
 
   if (!isOpen) return null;
 

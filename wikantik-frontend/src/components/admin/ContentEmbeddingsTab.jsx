@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../api/client';
 import PageEditLink from './PageEditLink';
 import EmptyState from './EmptyState';
@@ -17,35 +17,31 @@ export default function ContentEmbeddingsTab() {
   const [error, setError] = useState(null);
   const [confirmingBackfill, setConfirmingBackfill] = useState(false);
 
-  const loadNoFmPages = async (currentOffset) => {
-    try {
-      const fmResult = await api.knowledge.getPagesWithoutFrontmatter(NO_FM_LIMIT, currentOffset);
-      setNoFmPages(fmResult.pages || []);
-      setNoFmTotal(fmResult.total || 0);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+  // setState sits inside the async .then/.catch callbacks (not directly in
+  // this function's own body), so calling loadNoFmPages() synchronously from
+  // an effect is the shape react-hooks/set-state-in-effect allows.
+  const loadNoFmPages = useCallback(
+    (currentOffset) => api.knowledge.getPagesWithoutFrontmatter(NO_FM_LIMIT, currentOffset)
+      .then(fmResult => { setNoFmPages(fmResult.pages || []); setNoFmTotal(fmResult.total || 0); })
+      .catch(err => setError(err.message)),
+    [],
+  );
 
-  const loadData = async () => {
-    try {
-      const s = await api.knowledge.getEmbeddingStatus();
-      setStatus(s);
-      await loadNoFmPages(0);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadData = useCallback(
+    () => api.knowledge.getEmbeddingStatus()
+      .then(s => { setStatus(s); return loadNoFmPages(0); })
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false)),
+    [loadNoFmPages],
+  );
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
     if (noFmOffset > 0) {
       loadNoFmPages(noFmOffset);
     }
-  }, [noFmOffset]);
+  }, [noFmOffset, loadNoFmPages]);
 
   const handleBackfill = async () => {
     setConfirmingBackfill(false);

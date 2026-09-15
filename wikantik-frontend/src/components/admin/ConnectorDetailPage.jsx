@@ -57,17 +57,16 @@ export default function ConnectorDetailPage() {
   const [error, setError] = useState(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      const data = await api.connectors.get(id);
-      setDetail(data);
-      setError(null);
-    } catch (err) {
-      setError(errorMessage(err, 'Failed to load connector'));
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+  // setState sits inside the async .then/.catch/.finally callbacks (not
+  // directly in this function's own body), so calling load() synchronously
+  // from the effect is the shape react-hooks/set-state-in-effect allows.
+  const load = useCallback(
+    () => api.connectors.get(id)
+      .then(data => { setDetail(data); setError(null); })
+      .catch(err => setError(errorMessage(err, 'Failed to load connector')))
+      .finally(() => setLoading(false)),
+    [id],
+  );
 
   useEffect(() => { load(); }, [load]);
 
@@ -154,15 +153,15 @@ function OverviewTab({ id, detail, onReload }) {
   const [testing, setTesting] = useState(false);
   const [testMessage, setTestMessage] = useState(null);
 
-  const loadRuns = useCallback(async () => {
-    try {
-      const data = await api.connectors.runs(id);
-      setRuns(data.runs || []);
-      setRunsError(null);
-    } catch (err) {
-      setRunsError(errorMessage(err, 'Failed to load run history'));
-    }
-  }, [id]);
+  // setState sits inside the async .then/.catch callbacks (not directly in
+  // this function's own body), so calling loadRuns() synchronously from the
+  // effect is the shape react-hooks/set-state-in-effect allows.
+  const loadRuns = useCallback(
+    () => api.connectors.runs(id)
+      .then(data => { setRuns(data.runs || []); setRunsError(null); })
+      .catch(err => setRunsError(errorMessage(err, 'Failed to load run history'))),
+    [id],
+  );
 
   useEffect(() => { loadRuns(); }, [loadRuns]);
 

@@ -67,7 +67,7 @@ describe('IndexStatusTab', () => {
                 rebuild: { ...idleStatus.rebuild, state: 'STARTING' } });
         render(<IndexStatusTab />);
 
-        await waitFor(() => screen.getByRole('button', { name: /Rebuild Indexes/i }));
+        await screen.findByRole('button', { name: /Rebuild Indexes/i });
         fireEvent.click(screen.getByRole('button', { name: /Rebuild Indexes/i }));
         // Confirm dialog must spell out the four-phase reprocess so operators
         // know the rebuild rechunks + re-embeds, not just clears Lucene.
@@ -127,7 +127,7 @@ describe('IndexStatusTab', () => {
             Object.assign(new Error('A rebuild is already in flight'),
                 { status: 409, code: 'rebuild_in_flight' }));
         render(<IndexStatusTab />);
-        await waitFor(() => screen.getByRole('button', { name: /Rebuild Indexes/i }));
+        await screen.findByRole('button', { name: /Rebuild Indexes/i });
         fireEvent.click(screen.getByRole('button', { name: /Rebuild Indexes/i }));
         fireEvent.click(screen.getByRole('button', { name: /Continue/i }));
         expect(
@@ -138,7 +138,7 @@ describe('IndexStatusTab', () => {
 
     it('hides the Embeddings section entirely when no model_code is reported', async () => {
         render(<IndexStatusTab />);
-        await waitFor(() => screen.getByText(/Lucene Queue Depth/));
+        await screen.findByText(/Lucene Queue Depth/);
         expect(screen.queryByRole('button', { name: /Reindex Embeddings/i }))
             .not.toBeInTheDocument();
         expect(screen.queryByText(/Circuit:/)).not.toBeInTheDocument();
@@ -148,7 +148,7 @@ describe('IndexStatusTab', () => {
     it('renders embeddings stat card, bootstrap progress, and embedder metrics when enabled', async () => {
         vi.spyOn(api.admin, 'getIndexStatus').mockResolvedValue(embeddingsEnabledStatus);
         render(<IndexStatusTab />);
-        await waitFor(() => screen.getByRole('button', { name: /Reindex Embeddings/i }));
+        await screen.findByRole('button', { name: /Reindex Embeddings/i });
         // Stat card subtitle proves the section rendered with model details.
         expect(screen.getByText(/qwen3-embedding-0\.6b · dim 768/)).toBeInTheDocument();
         // The section header h3 also reads "Embeddings".
@@ -201,7 +201,7 @@ describe('IndexStatusTab', () => {
             },
         });
         render(<IndexStatusTab />);
-        await waitFor(() => screen.getByRole('alert'));
+        await screen.findByRole('alert');
         expect(screen.getByRole('alert'))
             .toHaveTextContent(/connection refused: ollama backend down/);
     });
@@ -211,7 +211,7 @@ describe('IndexStatusTab', () => {
         const reindex = vi.spyOn(api.admin, 'reindexEmbeddings')
             .mockResolvedValue({ state: 'RUNNING', model_code: 'qwen3-embedding-0.6b' });
         render(<IndexStatusTab />);
-        await waitFor(() => screen.getByRole('button', { name: /Reindex Embeddings/i }));
+        await screen.findByRole('button', { name: /Reindex Embeddings/i });
         fireEvent.click(screen.getByRole('button', { name: /Reindex Embeddings/i }));
         await waitFor(() => expect(reindex).toHaveBeenCalled());
         expect(await screen.findByText(/Embedding reindex dispatched.*RUNNING/i))
@@ -224,7 +224,7 @@ describe('IndexStatusTab', () => {
         const reindex = vi.spyOn(api.admin, 'reindex')
             .mockResolvedValue({ started: true, pagesQueued: 1237 });
         render(<IndexStatusTab />);
-        await waitFor(() => screen.getByRole('button', { name: /Reindex Search \(Lucene\)/i }));
+        await screen.findByRole('button', { name: /Reindex Search \(Lucene\)/i });
         fireEvent.click(screen.getByRole('button', { name: /Reindex Search \(Lucene\)/i }));
         await waitFor(() => expect(reindex).toHaveBeenCalled());
         expect(await screen.findByText(/Lucene reindex queued \(1237 pages\)/i))
@@ -237,7 +237,7 @@ describe('IndexStatusTab', () => {
             Object.assign(new Error('Embedding bootstrap already running'),
                 { status: 409, code: 'embedding_bootstrap_running' }));
         render(<IndexStatusTab />);
-        await waitFor(() => screen.getByRole('button', { name: /Reindex Embeddings/i }));
+        await screen.findByRole('button', { name: /Reindex Embeddings/i });
         fireEvent.click(screen.getByRole('button', { name: /Reindex Embeddings/i }));
         expect(await screen.findByText(/embedding bootstrap is already running/i))
                 .toBeInTheDocument();
@@ -249,7 +249,7 @@ describe('IndexStatusTab', () => {
             Object.assign(new Error('Hybrid disabled'),
                 { status: 503, code: 'hybrid_disabled' }));
         render(<IndexStatusTab />);
-        await waitFor(() => screen.getByRole('button', { name: /Reindex Embeddings/i }));
+        await screen.findByRole('button', { name: /Reindex Embeddings/i });
         fireEvent.click(screen.getByRole('button', { name: /Reindex Embeddings/i }));
         expect(await screen.findByText(/Hybrid search disabled/i)).toBeInTheDocument();
     });

@@ -8,11 +8,16 @@ export default function AdminKgPolicyPending() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const reload = useCallback(async () => {
-    try { setData(await api.admin.kgPolicy.pending()); }
-    catch (err) { setError(err.message); }
-    finally { setLoading(false); }
-  }, []);
+  // setState sits inside the async .then/.catch/.finally callbacks (not
+  // directly in this function's own body), so calling reload() synchronously
+  // from the effect is the shape react-hooks/set-state-in-effect allows.
+  const reload = useCallback(
+    () => api.admin.kgPolicy.pending()
+      .then(d => setData(d))
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false)),
+    [],
+  );
 
   useEffect(() => { reload(); }, [reload]);
 

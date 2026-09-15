@@ -6,6 +6,8 @@ import { AdminTable } from './table';
 import RevealedTokenModal from '../apikeys/RevealedTokenModal';
 import '../../styles/admin.css';
 
+const UNSET = Symbol('unset');
+
 const SCOPE_OPTIONS = [
   { value: 'tools', label: 'Tools (OpenAPI)' },
   { value: 'mcp_read', label: 'MCP read (knowledge consumer)' },
@@ -73,16 +75,10 @@ export default function AdminApiKeysPage() {
   const [revealed, setRevealed] = useState(null); // { token, record }
   const [confirmRevoke, setConfirmRevoke] = useState(null);
 
-  const loadKeys = async () => {
-    try {
-      const data = await api.admin.listApiKeys();
-      setKeys(data.keys || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadKeys = () => api.admin.listApiKeys()
+    .then(data => setKeys(data.keys || []))
+    .catch(err => setError(err.message))
+    .finally(() => setLoading(false));
 
   useEffect(() => { loadKeys(); }, []);
 
@@ -210,12 +206,17 @@ function ApiKeyFormModal({ isOpen, onClose, onSave }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  // Adjusting state when a prop changes (react.dev/learn/you-might-not-need-an-effect):
+  // compare against the previous isOpen during render instead of syncing in an effect,
+  // so the form resets in the same render pass the modal opens in.
+  const [prevIsOpen, setPrevIsOpen] = useState(UNSET);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
       setForm({ principalLogin: '', label: '', scope: 'tools' });
       setError(null);
     }
-  }, [isOpen]);
+  }
 
   if (!isOpen) return null;
 

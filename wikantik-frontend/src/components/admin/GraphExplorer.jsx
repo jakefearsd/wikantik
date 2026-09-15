@@ -44,14 +44,15 @@ export default function GraphExplorer() {
     reload: reloadNodes,
   } = usePaginatedQuery(fetchNodes, [typeFilter, statusFilter], { pageSize: PAGE_SIZE });
 
-  const loadSchema = useCallback(async () => {
-    try {
-      const schemaData = await api.knowledge.getSchema();
-      setSchema(schemaData);
-    } catch (err) {
-      setSchemaError(err.message);
-    }
-  }, []);
+  // setState sits inside the async .then/.catch callbacks (not directly in
+  // this function's own body), so calling loadSchema() synchronously from
+  // the effect is the shape react-hooks/set-state-in-effect allows.
+  const loadSchema = useCallback(
+    () => api.knowledge.getSchema()
+      .then(schemaData => setSchema(schemaData))
+      .catch(err => setSchemaError(err.message)),
+    [],
+  );
 
   useEffect(() => {
     loadSchema();
@@ -61,7 +62,7 @@ export default function GraphExplorer() {
   // lookup) or a bare name (legacy callers like NodeDetail's navigate). Tomcat
   // rejects encoded slashes in path segments, so for names with "/" the
   // by-name lookup 400s and the detail pane shows empty.
-  const handleNodeClick = async (nodeOrName) => {
+  const handleNodeClick = useCallback(async (nodeOrName) => {
     try {
       const data =
         typeof nodeOrName === 'object' && nodeOrName?.id
@@ -71,7 +72,7 @@ export default function GraphExplorer() {
     } catch (err) {
       setError(err.message);
     }
-  };
+  }, [setError]);
 
   // Refresh after a single-node delete from the detail pane. The previous
   // window.location.reload() lost the tab state and kicked the user back to
@@ -132,7 +133,7 @@ export default function GraphExplorer() {
         render: (n) => (n.is_stub ? 'Yes' : ''),
       },
     ],
-    [],
+    [handleNodeClick],
   );
 
   const bulkActions = useMemo(

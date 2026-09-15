@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import ChunkInspectorTab from './ChunkInspectorTab';
@@ -63,7 +63,7 @@ describe('ChunkInspectorTab', () => {
       ],
     });
     renderWithRouter(<ChunkInspectorTab />);
-    await waitFor(() => screen.getByText('BigPage'));
+    await screen.findByText('BigPage');
 
     fireEvent.change(screen.getByLabelText(/Page Name/i), { target: { value: 'PageA' } });
     fireEvent.click(screen.getByRole('button', { name: /Load/i }));
@@ -79,7 +79,7 @@ describe('ChunkInspectorTab', () => {
       Object.assign(new Error('page not found'), { status: 404, code: 'page_not_found' }),
     );
     renderWithRouter(<ChunkInspectorTab />);
-    await waitFor(() => screen.getByText('BigPage'));
+    await screen.findByText('BigPage');
 
     fireEvent.change(screen.getByLabelText(/Page Name/i), { target: { value: 'Ghost' } });
     fireEvent.click(screen.getByRole('button', { name: /Load/i }));
@@ -104,12 +104,12 @@ describe('ChunkInspectorTab', () => {
       }],
     });
     renderWithRouter(<ChunkInspectorTab />);
-    await waitFor(() => screen.getByText('BigPage'));
+    await screen.findByText('BigPage');
 
     fireEvent.change(screen.getByLabelText(/Page Name/i), { target: { value: 'PageB' } });
     fireEvent.click(screen.getByRole('button', { name: /Load/i }));
 
-    await waitFor(() => screen.getByRole('button', { name: /Show full/i }));
+    await screen.findByRole('button', { name: /Show full/i });
     // Truncated preview: 200 chars of 'x' + ellipsis — full text not yet fully rendered
     // in a <pre>. After clicking Show full, the <pre> appears.
     expect(screen.queryByTestId('chunk-full-text-0')).toBeNull();

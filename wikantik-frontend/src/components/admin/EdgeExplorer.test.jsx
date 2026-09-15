@@ -55,12 +55,12 @@ describe('EdgeExplorer', () => {
 
   it('shows total edge count in the header', async () => {
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText(/950 total/i));
+    await screen.findByText(/950 total/i);
   });
 
   it('endpoint-kind dropdown threads through to queryEdges as endpoint_kind', async () => {
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText('A'));
+    await screen.findByText('A');
     api.knowledge.queryEdges.mockClear();
     fireEvent.change(screen.getByLabelText(/endpoint kind/i), { target: { value: 'page' } });
     await waitFor(() =>
@@ -72,16 +72,16 @@ describe('EdgeExplorer', () => {
 
   it('shows New edge button that opens the modal', async () => {
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText('A'));
+    await screen.findByText('A');
     fireEvent.click(screen.getByRole('button', { name: /new edge/i }));
     expect(screen.getByRole('dialog', { name: /new edge/i })).toBeInTheDocument();
   });
 
   it('clicking a source-name button opens the detail pane with action buttons', async () => {
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText('A'));
+    await screen.findByText('A');
     fireEvent.click(screen.getByText('A'));
-    await waitFor(() => screen.getByRole('button', { name: /^edit$/i }));
+    await screen.findByRole('button', { name: /^edit$/i });
     expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /delete \+ prevent/i })).toBeInTheDocument();
   });
@@ -89,9 +89,9 @@ describe('EdgeExplorer', () => {
   it('detail-pane delete uses ConfirmModal and calls deleteEdge', async () => {
     api.knowledge.deleteEdge.mockResolvedValue({ deleted: true });
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText('A'));
+    await screen.findByText('A');
     fireEvent.click(screen.getByText('A'));
-    await waitFor(() => screen.getByRole('button', { name: /^delete$/i }));
+    await screen.findByRole('button', { name: /^delete$/i });
     fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
     // The detail pane also has a "Confirm" button (in-place elevate); scope
     // the confirm click to the dialog so we hit the modal's Confirm.
@@ -103,9 +103,9 @@ describe('EdgeExplorer', () => {
   it('detail-pane delete + prevent captures reason and calls deleteAndRejectEdge', async () => {
     api.knowledge.deleteAndRejectEdge.mockResolvedValue({ deleted: true, rejected: true });
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText('A'));
+    await screen.findByText('A');
     fireEvent.click(screen.getByText('A'));
-    await waitFor(() => screen.getByRole('button', { name: /delete \+ prevent/i }));
+    await screen.findByRole('button', { name: /delete \+ prevent/i });
     fireEvent.click(screen.getByRole('button', { name: /delete \+ prevent/i }));
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText(/reason/i), {
@@ -120,7 +120,7 @@ describe('EdgeExplorer', () => {
   it('AdminTable bulk delete fans out per-row deleteEdge calls', async () => {
     api.knowledge.deleteEdge.mockResolvedValue({ deleted: true });
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText('A'));
+    await screen.findByText('A');
 
     // Select both rows via their checkboxes (AdminTable labels each one "Select row N").
     const checks = screen.getAllByRole('checkbox');
@@ -145,7 +145,7 @@ describe('EdgeExplorer', () => {
   it('AdminTable bulk reject passes the typed reason per-row', async () => {
     api.knowledge.deleteAndRejectEdge.mockResolvedValue({ deleted: true, rejected: true });
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText('A'));
+    await screen.findByText('A');
 
     const checks = screen.getAllByRole('checkbox');
     fireEvent.click(checks[1]);
@@ -209,7 +209,7 @@ describe('EdgeExplorer', () => {
     });
 
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText(/Automated Storage and Retrieval System/));
+    await screen.findByText(/Automated Storage and Retrieval System/);
     fireEvent.click(screen.getByText(/Automated Storage and Retrieval System/));
 
     // Wait for the detail pane action row to appear.
@@ -240,7 +240,7 @@ describe('EdgeExplorer', () => {
     });
 
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText('A'));
+    await screen.findByText('A');
     fireEvent.click(screen.getByText('A'));
 
     const confirm = await screen.findByRole('button', { name: /^confirm$/i });
@@ -264,7 +264,7 @@ describe('EdgeExplorer', () => {
     });
 
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText('A'));
+    await screen.findByText('A');
     fireEvent.click(screen.getByText('A'));
 
     const confirm = await screen.findByRole('button', { name: /^confirm$/i });
@@ -296,7 +296,7 @@ describe('EdgeExplorer', () => {
     });
 
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText('A'));
+    await screen.findByText('A');
     fireEvent.click(screen.getByText('A'));
     await screen.findByRole('button', { name: /^edit$/i });
 
@@ -338,7 +338,7 @@ describe('EdgeExplorer', () => {
     });
 
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText('A'));
+    await screen.findByText('A');
     fireEvent.click(screen.getByText('A'));
     await screen.findByRole('button', { name: /^edit$/i });
 
@@ -412,13 +412,13 @@ describe('EdgeExplorer', () => {
     });
 
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText('A'));
+    await screen.findByText('A');
     fireEvent.click(screen.getByText('A'));
     // Wait for the detail pane to load by selecting the Edit button.
     await screen.findByRole('button', { name: /^edit$/i });
 
     // The mentions section names both endpoints.
-    await waitFor(() => screen.getByText(/source mentions/i));
+    await screen.findByText(/source mentions/i);
     expect(screen.getByText(/target mentions/i)).toBeInTheDocument();
 
     // Page-name links open in a new tab — defence in depth so a curator
@@ -443,9 +443,9 @@ describe('EdgeExplorer', () => {
       ],
     });
     render(<EdgeExplorer />);
-    await waitFor(() => screen.getByText('A'));
+    await screen.findByText('A');
     fireEvent.click(screen.getByText('A'));
-    await waitFor(() => screen.getByRole('button', { name: /history/i }));
+    await screen.findByRole('button', { name: /history/i });
     fireEvent.click(screen.getByRole('button', { name: /history/i }));
     expect(await screen.findByText(/alice/)).toBeInTheDocument();
   });

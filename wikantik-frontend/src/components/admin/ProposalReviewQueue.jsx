@@ -268,7 +268,15 @@ export default function ProposalReviewQueue() {
   const [reviewsCache, setReviewsCache] = useState({});
   // Server-driven pagination state. currentPage is 0-indexed.
   const [currentPage, setCurrentPage] = useState(0);
+  const [prevFilter, setPrevFilter] = useState(filter);
   const [totalCount, setTotalCount] = useState(0);
+
+  // Filter changes always snap back to page 0 — the row counts of the next
+  // filter aren't related to the current page boundary.
+  if (filter !== prevFilter) {
+    setPrevFilter(filter);
+    setCurrentPage(0);
+  }
   // Generation counter so out-of-order list-fetch responses (e.g. an in-flight
   // page-2 fetch resolving after a page-3 fetch the operator just kicked off)
   // can't overwrite newer state. Each call increments; only the latest gen
@@ -290,74 +298,76 @@ export default function ProposalReviewQueue() {
     }
   }, [reviewsCache]);
 
-  const loadProposals = useCallback(async () => {
+  // setLoading(true)/setError(null) used to sit synchronously at the top of
+  // this function (the flagged shape). They're now set at the events that
+  // change filter/currentPage (the filter <select> and the pagination
+  // footer below) instead, and every setState here lives inside the async
+  // .then/.catch/.finally callbacks; the existing `gen` request-generation
+  // check already guards against a stale response clobbering a newer one.
+  const loadProposals = useCallback(() => {
     const gen = ++requestGen.current;
-    setLoading(true);
-    setError(null);
-    try {
-      // Push every filter to the server so pagination counts are accurate.
-      // Mixing client-side filtering with server pagination would let the
-      // operator land on a "Page 5 of 60" header where every page shows
-      // wildly variable row counts after client-side culling.
-      //
-      // - 'all'       → all pending (incl. machine-rejected stragglers)
-      // - 'awaiting'  → pending AND machine_status IS NULL (sentinel "(null)")
-      // - 'approved'  → pending AND machine_status='approved'
-      // - 'rejected'  → status='rejected', machine_status='rejected'
-      //                 (auto-promoted; needs includeMachineRejected to bypass
-      //                  the backend's default-off rejected-exclusion clause)
-      // - 'abstained' → pending AND machine_status='abstain'
-      const baseOpts = (() => {
-        switch (filter) {
-          case 'rejected':  return { status: 'rejected', machineStatus: 'rejected', includeMachineRejected: true };
-          case 'awaiting':  return { status: 'pending', machineStatus: '(null)' };
-          case 'approved':  return { status: 'pending', machineStatus: 'approved' };
-          case 'abstained': return { status: 'pending', machineStatus: 'abstain' };
-          case 'all':
-          default:          return { status: 'pending', includeMachineRejected: true };
-        }
-      })();
-      const opts = {
-        ...baseOpts,
-        limit: PAGE_SIZE,
-        offset: currentPage * PAGE_SIZE,
-      };
-      const data = await api.knowledge.listProposalsFiltered(opts);
-      // Newer request superseded us — drop this result on the floor.
-      if (gen !== requestGen.current) return;
-      setProposals(data.proposals || []);
-      const newTotal = typeof data.total_count === 'number' ? data.total_count : 0;
-      setTotalCount(newTotal);
-      // Defensive: if the operator was on page N but the server now says total
-      // is too small for that page (e.g. a bulk-reject just emptied the tail),
-      // step back to a valid page. setCurrentPage re-triggers loadProposals.
-      const lastValidPage = Math.max(0, Math.ceil(newTotal / PAGE_SIZE) - 1);
-      if (currentPage > lastValidPage) {
-        setCurrentPage(lastValidPage);
+    // Push every filter to the server so pagination counts are accurate.
+    // Mixing client-side filtering with server pagination would let the
+    // operator land on a "Page 5 of 60" header where every page shows
+    // wildly variable row counts after client-side culling.
+    //
+    // - 'all'       → all pending (incl. machine-rejected stragglers)
+    // - 'awaiting'  → pending AND machine_status IS NULL (sentinel "(null)")
+    // - 'approved'  → pending AND machine_status='approved'
+    // - 'rejected'  → status='rejected', machine_status='rejected'
+    //                 (auto-promoted; needs includeMachineRejected to bypass
+    //                  the backend's default-off rejected-exclusion clause)
+    // - 'abstained' → pending AND machine_status='abstain'
+    const baseOpts = (() => {
+      switch (filter) {
+        case 'rejected':  return { status: 'rejected', machineStatus: 'rejected', includeMachineRejected: true };
+        case 'awaiting':  return { status: 'pending', machineStatus: '(null)' };
+        case 'approved':  return { status: 'pending', machineStatus: 'approved' };
+        case 'abstained': return { status: 'pending', machineStatus: 'abstain' };
+        case 'all':
+        default:          return { status: 'pending', includeMachineRejected: true };
       }
-    } catch (err) {
-      if (gen !== requestGen.current) return;
-      setError(err.message);
-    } finally {
-      if (gen === requestGen.current) setLoading(false);
-    }
+    })();
+    const opts = {
+      ...baseOpts,
+      limit: PAGE_SIZE,
+      offset: currentPage * PAGE_SIZE,
+    };
+    return api.knowledge.listProposalsFiltered(opts)
+      .then(data => {
+        // Newer request superseded us — drop this result on the floor.
+        if (gen !== requestGen.current) return;
+        setProposals(data.proposals || []);
+        const newTotal = typeof data.total_count === 'number' ? data.total_count : 0;
+        setTotalCount(newTotal);
+        // Defensive: if the operator was on page N but the server now says total
+        // is too small for that page (e.g. a bulk-reject just emptied the tail),
+        // step back to a valid page. setCurrentPage re-triggers loadProposals.
+        const lastValidPage = Math.max(0, Math.ceil(newTotal / PAGE_SIZE) - 1);
+        if (currentPage > lastValidPage) {
+          setCurrentPage(lastValidPage);
+        }
+      })
+      .catch(err => {
+        if (gen !== requestGen.current) return;
+        setError(err.message);
+      })
+      .finally(() => {
+        if (gen === requestGen.current) setLoading(false);
+      });
   }, [filter, currentPage]);
 
-  // Filter changes always snap back to page 0 — the row counts of the next
-  // filter aren't related to the current page boundary.
+  const fetchJudgeStatus = useCallback(
+    () => api.knowledge.judgeStatus()
+      .then(s => { setJudgeStatus(s); return s; })
+      .catch(() => null),
+    [],
+  );
+
   useEffect(() => {
-    setCurrentPage(0);
-  }, [filter]);
-
-  const fetchJudgeStatus = useCallback(async () => {
-    try {
-      const s = await api.knowledge.judgeStatus();
-      setJudgeStatus(s);
-      return s;
-    } catch { return null; }
-  }, []);
-
-  useEffect(() => { loadProposals(); fetchJudgeStatus(); }, [loadProposals, fetchJudgeStatus]);
+    loadProposals();
+    fetchJudgeStatus();
+  }, [loadProposals, fetchJudgeStatus]);
 
   useEffect(() => {
     if (!polling) return;
@@ -524,7 +534,11 @@ export default function ProposalReviewQueue() {
         </h3>
         <label>
           Filter:
-          <select value={filter} onChange={e => setFilter(e.target.value)} style={{ marginLeft: '6px' }}>
+          <select
+            value={filter}
+            onChange={e => { setLoading(true); setError(null); setFilter(e.target.value); }}
+            style={{ marginLeft: '6px' }}
+          >
             {FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
           </select>
         </label>
@@ -546,7 +560,7 @@ export default function ProposalReviewQueue() {
           pageSize: PAGE_SIZE,
           totalCount,
           currentPage,
-          onPageChange: setCurrentPage,
+          onPageChange: (page) => { setLoading(true); setError(null); setCurrentPage(page); },
         }}
       />
     </div>

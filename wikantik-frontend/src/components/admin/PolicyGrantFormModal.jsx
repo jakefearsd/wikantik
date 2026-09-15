@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+
+const UNSET = Symbol('unset');
 
 const ACTION_OPTIONS = {
   page: ['view', 'comment', 'edit', 'modify', 'upload', 'rename', 'delete'],
@@ -21,7 +23,11 @@ export default function PolicyGrantFormModal({ grant, isOpen, onClose, onSave })
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const [prevGrant, setPrevGrant] = useState(UNSET);
+  const [prevIsOpen, setPrevIsOpen] = useState(UNSET);
+  if (grant !== prevGrant || isOpen !== prevIsOpen) {
+    setPrevGrant(grant);
+    setPrevIsOpen(isOpen);
     if (grant) {
       const actions = (grant.actions || '').split(',').map(a => a.trim()).filter(Boolean);
       const isAll = actions.includes('*') || grant.permissionType === 'all';
@@ -44,7 +50,7 @@ export default function PolicyGrantFormModal({ grant, isOpen, onClose, onSave })
       });
     }
     setError(null);
-  }, [grant, isOpen]);
+  }
 
   if (!isOpen) return null;
 

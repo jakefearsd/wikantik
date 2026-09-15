@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.24] - 2026-09-15
+
 ### Security
 - **SHA-1 password formats removed.** `{SHA}` (unsalted SHA-1) and `{SSHA}` (salted SHA-1) no longer
   verify in `AbstractUserDatabase.validatePassword` or `CryptoUtil`, and `CryptoUtil` can no longer

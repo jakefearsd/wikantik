@@ -300,14 +300,14 @@ class GenerateConfigReferenceCliTest {
      *  survive the new summarise/full split unchanged. */
     @Test
     void a_key_with_no_description_still_renders_an_empty_cell() {
-        assertEquals( "", GenerateConfigReferenceCli.renderDescription( List.of() ).summary() );
-        assertFalse( GenerateConfigReferenceCli.renderDescription( List.of() ).truncated() );
+        assertEquals( "", DescriptionRenderer.renderDescription( List.of() ).summary() );
+        assertFalse( DescriptionRenderer.renderDescription( List.of() ).truncated() );
     }
 
     @Test
     void a_short_description_is_not_truncated_and_matches_the_full_text() {
-        final GenerateConfigReferenceCli.DescriptionRender dr =
-            GenerateConfigReferenceCli.renderDescription( List.of( "Master switch for the ontology layer." ) );
+        final DescriptionRenderer.DescriptionRender dr =
+            DescriptionRenderer.renderDescription( List.of( "Master switch for the ontology layer." ) );
         assertEquals( "Master switch for the ontology layer.", dr.summary() );
         assertEquals( dr.summary(), dr.full() );
         assertFalse( dr.truncated() );
@@ -318,8 +318,8 @@ class GenerateConfigReferenceCliTest {
         final String longSentence = "This is a single very long run-on description with no punctuation "
             + "at all that just keeps going and going well past the summary length cap so the "
             + "word boundary fallback has to kick in instead of the sentence detector";
-        final GenerateConfigReferenceCli.DescriptionRender dr =
-            GenerateConfigReferenceCli.renderDescription( List.of( longSentence ) );
+        final DescriptionRenderer.DescriptionRender dr =
+            DescriptionRenderer.renderDescription( List.of( longSentence ) );
         assertTrue( dr.truncated(), dr.summary() );
         assertTrue( dr.summary().endsWith( " …" ), dr.summary() );
         assertTrue( dr.summary().length() <= 160, dr.summary() );
@@ -404,8 +404,8 @@ class GenerateConfigReferenceCliTest {
 
     @Test
     void slug_matches_githubs_heading_anchor_convention_including_ampersands() {
-        assertEquals( "rest-api-mcp--agent-surfaces", GenerateConfigReferenceCli.slug( "REST API, MCP & agent surfaces" ) );
-        assertEquals( "sso", GenerateConfigReferenceCli.slug( "SSO" ) );
-        assertEquals( "page-storage", GenerateConfigReferenceCli.slug( "Page storage" ) );
+        assertEquals( "rest-api-mcp--agent-surfaces", AnchorSlugger.slug( "REST API, MCP & agent surfaces" ) );
+        assertEquals( "sso", AnchorSlugger.slug( "SSO" ) );
+        assertEquals( "page-storage", AnchorSlugger.slug( "Page storage" ) );
     }
 }

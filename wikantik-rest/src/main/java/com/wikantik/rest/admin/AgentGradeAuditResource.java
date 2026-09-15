@@ -114,7 +114,18 @@ public final class AgentGradeAuditResource {
         // no_cluster — frontmatter cluster absent.
         if ( p.cluster() == null || p.cluster().isBlank() ) flags.add( "no_cluster" );
 
-        // Hub-aware checks (need cluster lookup).
+        final ClusterContext ctx = resolveClusterContext( p );
+        addInboundClusterLinksFlag( p, ctx, flags );
+        addGenericHubSummaryFlag( p, ctx, flags );
+        addVerificationFlags( p, flags );
+
+        return flags;
+    }
+
+    /** Cluster lookup + hub determination shared by the hub-aware flag checks below. */
+    private record ClusterContext( Optional< ClusterDetails > cluster, boolean isHub ) {}
+
+    private ClusterContext resolveClusterContext( final PageDescriptor p ) {
         Optional< ClusterDetails > cluster = Optional.empty();
         boolean isHub = false;
         if ( p.cluster() != null && !p.cluster().isBlank() ) {
@@ -128,29 +139,37 @@ public final class AgentGradeAuditResource {
                         p.slug(), p.cluster(), e.toString() );
             }
         }
+        return new ClusterContext( cluster, isHub );
+    }
 
-        // no_inbound_cluster_links — non-hubs only.
-        if ( !isHub && cluster.isPresent() ) {
-            try {
-                final Set< String > clusterSlugs = cluster.get().articles().stream()
-                        .map( PageDescriptor::slug )
-                        .collect( Collectors.toSet() );
-                final Set< String > referrers = refs.findReferrers( p.slug() );
-                final boolean hasIntra = referrers != null && referrers.stream().anyMatch( clusterSlugs::contains );
-                if ( !hasIntra ) flags.add( "no_inbound_cluster_links" );
-            } catch ( final Exception e ) {
-                // omit flag on lookup failure rather than mis-flagging
-                LOG.warn( "referrer lookup failed for page {}; omitting no_inbound_cluster_links flag: {}",
-                        p.slug(), e.toString() );
-            }
+    // no_inbound_cluster_links — non-hubs only.
+    private void addInboundClusterLinksFlag( final PageDescriptor p, final ClusterContext ctx,
+                                              final List< String > flags ) {
+        if ( ctx.isHub() || ctx.cluster().isEmpty() ) return;
+        try {
+            final Set< String > clusterSlugs = ctx.cluster().get().articles().stream()
+                    .map( PageDescriptor::slug )
+                    .collect( Collectors.toSet() );
+            final Set< String > referrers = refs.findReferrers( p.slug() );
+            final boolean hasIntra = referrers != null && referrers.stream().anyMatch( clusterSlugs::contains );
+            if ( !hasIntra ) flags.add( "no_inbound_cluster_links" );
+        } catch ( final Exception e ) {
+            // omit flag on lookup failure rather than mis-flagging
+            LOG.warn( "referrer lookup failed for page {}; omitting no_inbound_cluster_links flag: {}",
+                    p.slug(), e.toString() );
         }
+    }
 
-        // generic_hub_summary — hubs whose authored summary matches the generic pattern.
-        if ( isHub && p.summary() != null && GENERIC.matcher( p.summary() ).find() ) {
+    // generic_hub_summary — hubs whose authored summary matches the generic pattern.
+    private void addGenericHubSummaryFlag( final PageDescriptor p, final ClusterContext ctx,
+                                            final List< String > flags ) {
+        if ( ctx.isHub() && p.summary() != null && GENERIC.matcher( p.summary() ).find() ) {
             flags.add( "generic_hub_summary" );
         }
+    }
 
-        // no_verified_at + stale_verification — checked separately to avoid double-flagging.
+    // no_verified_at + stale_verification — checked separately to avoid double-flagging.
+    private void addVerificationFlags( final PageDescriptor p, final List< String > flags ) {
         try {
             final Optional< Verification > v = index.verificationOf( p.canonicalId() );
             if ( v.isEmpty() || v.get().verifiedAt() == null ) {
@@ -167,7 +186,5 @@ public final class AgentGradeAuditResource {
             LOG.warn( "verification lookup failed for page {}; omitting verification flags: {}",
                     p.canonicalId(), e.toString() );
         }
-
-        return flags;
     }
 }

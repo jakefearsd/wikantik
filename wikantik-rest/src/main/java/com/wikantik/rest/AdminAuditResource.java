@@ -81,63 +81,75 @@ public class AdminAuditResource extends RestServletBase {
         }
     }
 
+    /** Signals a validated-but-invalid query parameter; caught once in {@link #doList} to send the 400. */
+    private static final class BadAuditQueryException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        BadAuditQueryException( final String message ) { super( message ); }
+    }
+
     private void doList( final AuditService audit,
                          final HttpServletRequest request,
                          final HttpServletResponse response ) throws IOException {
+        final AuditQuery q;
+        try {
+            q = parseAuditQuery( request );
+        } catch ( final BadAuditQueryException e ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, e.getMessage() );
+            return;
+        }
+        final List<PersistedAuditEntry> rows = audit.query( q );
+        final JsonArray arr = new JsonArray();
+        for ( final PersistedAuditEntry r : rows ) {
+            arr.add( toJson( r ) );
+        }
+        sendJson( response, arr );
+    }
+
+    /** Parses and validates every {@code /admin/audit} query parameter. Throws {@link BadAuditQueryException}
+     *  (carrying the exact 400 message) on the first invalid one. */
+    private AuditQuery parseAuditQuery( final HttpServletRequest request ) {
         final String actor     = request.getParameter( "actor" );
-        final String category  = request.getParameter( "category" );
         final String eventType = request.getParameter( "eventType" );
         final String target    = request.getParameter( "target" );
-        final String outcome   = request.getParameter( "outcome" );
-        final String from      = request.getParameter( "from" );
-        final String to        = request.getParameter( "to" );
-        final String beforeSeqRaw = request.getParameter( "beforeSeq" );
-        final String limitRaw  = request.getParameter( "limit" );
 
-        AuditCategory cat = null;
-        if ( category != null && !category.isBlank() ) {
-            try {
-                cat = AuditCategory.valueOf( category.toUpperCase( Locale.ROOT ) );
-            } catch ( final IllegalArgumentException e ) {
-                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                        "Unknown category: " + category );
-                return;
-            }
+        final AuditCategory cat = parseCategory( request.getParameter( "category" ) );
+        final AuditOutcome out = parseOutcome( request.getParameter( "outcome" ) );
+        final Instant fromInstant = parseInstantParam( "from", request.getParameter( "from" ) );
+        final Instant toInstant = parseInstantParam( "to", request.getParameter( "to" ) );
+        final int limit = parseLimit( request.getParameter( "limit" ) );
+        final long beforeSeq = parseBeforeSeq( request.getParameter( "beforeSeq" ) );
+
+        return new AuditQuery( actor, cat, eventType, target, fromInstant, toInstant, out, limit, beforeSeq );
+    }
+
+    private AuditCategory parseCategory( final String category ) {
+        if ( category == null || category.isBlank() ) return null;
+        try {
+            return AuditCategory.valueOf( category.toUpperCase( Locale.ROOT ) );
+        } catch ( final IllegalArgumentException e ) {
+            throw new BadAuditQueryException( "Unknown category: " + category );
         }
+    }
 
-        AuditOutcome out = null;
-        if ( outcome != null && !outcome.isBlank() ) {
-            try {
-                out = AuditOutcome.valueOf( outcome.toUpperCase( Locale.ROOT ) );
-            } catch ( final IllegalArgumentException e ) {
-                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                        "Unknown outcome: " + outcome );
-                return;
-            }
+    private AuditOutcome parseOutcome( final String outcome ) {
+        if ( outcome == null || outcome.isBlank() ) return null;
+        try {
+            return AuditOutcome.valueOf( outcome.toUpperCase( Locale.ROOT ) );
+        } catch ( final IllegalArgumentException e ) {
+            throw new BadAuditQueryException( "Unknown outcome: " + outcome );
         }
+    }
 
-        Instant fromInstant = null;
-        if ( from != null && !from.isBlank() ) {
-            try {
-                fromInstant = Instant.parse( from );
-            } catch ( final Exception e ) {
-                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                        "Invalid 'from' timestamp: " + from );
-                return;
-            }
+    private Instant parseInstantParam( final String label, final String value ) {
+        if ( value == null || value.isBlank() ) return null;
+        try {
+            return Instant.parse( value );
+        } catch ( final Exception e ) {
+            throw new BadAuditQueryException( "Invalid '" + label + "' timestamp: " + value );
         }
+    }
 
-        Instant toInstant = null;
-        if ( to != null && !to.isBlank() ) {
-            try {
-                toInstant = Instant.parse( to );
-            } catch ( final Exception e ) {
-                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                        "Invalid 'to' timestamp: " + to );
-                return;
-            }
-        }
-
+    private int parseLimit( final String limitRaw ) {
         int limit = DEFAULT_LIMIT;
         if ( limitRaw != null && !limitRaw.isBlank() ) {
             try {
@@ -146,28 +158,16 @@ public class AdminAuditResource extends RestServletBase {
                 LOG.warn( "Invalid 'limit' query parameter '{}', using default {}", limitRaw, DEFAULT_LIMIT );
             }
         }
-        limit = Math.min( Math.max( 1, limit ), MAX_LIMIT );
+        return Math.min( Math.max( 1, limit ), MAX_LIMIT );
+    }
 
-        long beforeSeq = Long.MAX_VALUE;
-        if ( beforeSeqRaw != null && !beforeSeqRaw.isBlank() ) {
-            try {
-                beforeSeq = Long.parseLong( beforeSeqRaw.trim() );
-            } catch ( final NumberFormatException e ) {
-                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                        "Invalid 'beforeSeq': " + beforeSeqRaw );
-                return;
-            }
+    private long parseBeforeSeq( final String beforeSeqRaw ) {
+        if ( beforeSeqRaw == null || beforeSeqRaw.isBlank() ) return Long.MAX_VALUE;
+        try {
+            return Long.parseLong( beforeSeqRaw.trim() );
+        } catch ( final NumberFormatException e ) {
+            throw new BadAuditQueryException( "Invalid 'beforeSeq': " + beforeSeqRaw );
         }
-
-        final AuditQuery q = new AuditQuery(
-                actor, cat, eventType, target,
-                fromInstant, toInstant, out, limit, beforeSeq );
-        final List<PersistedAuditEntry> rows = audit.query( q );
-        final JsonArray arr = new JsonArray();
-        for ( final PersistedAuditEntry r : rows ) {
-            arr.add( toJson( r ) );
-        }
-        sendJson( response, arr );
     }
 
     private void doVerify( final AuditService audit,

@@ -169,35 +169,13 @@ public final class KgEdgeAdminHandlers {
                 ? AdminKnowledgeIo.GSON.fromJson( body.get( "properties" ), AdminKnowledgeIo.MAP_TYPE ) : Map.of();
 
         // Capture before-state for audit (find existing edge at this triple, if any)
-        Map< String, Object > before = null;
-        try {
-            final List< KgEdge > outbound = service.getEdgesForNode( sourceId, "outbound" );
-            for ( final KgEdge e : outbound ) {
-                if ( e.targetId().equals( targetId ) && relType.equals( e.relationshipType() ) ) {
-                    before = KnowledgeJsonMapper.edgeToMap( e );
-                    break;
-                }
-            }
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "handlePostEdgeUpsert: failed to fetch before-state for audit (src={}, tgt={}, rel={}): {}",
-                sourceId, targetId, relType, e.getMessage() );
-        }
+        final Map< String, Object > before = captureUpsertBeforeState( service, sourceId, targetId, relType );
 
         // Always stamps HUMAN_CURATED regardless of any provenance value in the body
         final KgCurationOps.EdgeResult result = curationOps.get().tryUpsertEdge(
                 sourceId, targetId, relType, properties, AdminKnowledgeIo.actor( request ) );
         if ( result.error().isPresent() ) {
-            final String msg = result.error().get();
-            if ( msg != null && msg.toLowerCase( java.util.Locale.ROOT ).contains( "duplicate" ) ) {
-                LOG.warn( "handlePostEdgeUpsert: duplicate key for ({}, {}, {}): {}",
-                    sourceId, targetId, relType, msg );
-                AdminKnowledgeIo.sendError( response, HttpServletResponse.SC_CONFLICT,
-                    "Edge already exists: " + sourceId + " -[" + relType + "]-> " + targetId );
-            } else {
-                LOG.warn( "handlePostEdgeUpsert: failed for ({}, {}, {}): {}",
-                    sourceId, targetId, relType, msg );
-                AdminKnowledgeIo.sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, msg );
-            }
+            sendUpsertError( response, sourceId, targetId, relType, result.error().get() );
             return;
         }
 
@@ -210,19 +188,55 @@ public final class KgEdgeAdminHandlers {
             return;
         }
 
+        writeUpsertAuditRow( service, edge, before, AdminKnowledgeIo.actor( request ) );
+
+        AdminKnowledgeIo.sendJson( response, KnowledgeJsonMapper.edgeToMap( edge ) );
+    }
+
+    private Map< String, Object > captureUpsertBeforeState( final KnowledgeGraphService service,
+                                                             final UUID sourceId, final UUID targetId,
+                                                             final String relType ) {
+        try {
+            final List< KgEdge > outbound = service.getEdgesForNode( sourceId, "outbound" );
+            for ( final KgEdge e : outbound ) {
+                if ( e.targetId().equals( targetId ) && relType.equals( e.relationshipType() ) ) {
+                    return KnowledgeJsonMapper.edgeToMap( e );
+                }
+            }
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "handlePostEdgeUpsert: failed to fetch before-state for audit (src={}, tgt={}, rel={}): {}",
+                sourceId, targetId, relType, e.getMessage() );
+        }
+        return null;
+    }
+
+    private void sendUpsertError( final HttpServletResponse response, final UUID sourceId, final UUID targetId,
+                                  final String relType, final String msg ) throws IOException {
+        if ( msg != null && msg.toLowerCase( java.util.Locale.ROOT ).contains( "duplicate" ) ) {
+            LOG.warn( "handlePostEdgeUpsert: duplicate key for ({}, {}, {}): {}",
+                sourceId, targetId, relType, msg );
+            AdminKnowledgeIo.sendError( response, HttpServletResponse.SC_CONFLICT,
+                "Edge already exists: " + sourceId + " -[" + relType + "]-> " + targetId );
+        } else {
+            LOG.warn( "handlePostEdgeUpsert: failed for ({}, {}, {}): {}",
+                sourceId, targetId, relType, msg );
+            AdminKnowledgeIo.sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, msg );
+        }
+    }
+
+    private void writeUpsertAuditRow( final KnowledgeGraphService service, final KgEdge edge,
+                                      final Map< String, Object > before, final String actorVal ) {
         // Write audit row (best-effort)
         final var audit = getAuditRepo( service );
         if ( audit != null ) {
             final String action = before == null ? "CREATE" : "UPDATE";
             final Map< String, Object > after = KnowledgeJsonMapper.edgeToMap( edge );
             try {
-                audit.insert( edge.id(), action, before, after, AdminKnowledgeIo.actor( request ), null );
+                audit.insert( edge.id(), action, before, after, actorVal, null );
             } catch ( final RuntimeException e ) {
                 LOG.warn( "handlePostEdgeUpsert: audit insert failed for edge {}: {}", edge.id(), e.getMessage() );
             }
         }
-
-        AdminKnowledgeIo.sendJson( response, KnowledgeJsonMapper.edgeToMap( edge ) );
     }
 
     private void handlePostEdgeBulkDelete( final KnowledgeGraphService service,

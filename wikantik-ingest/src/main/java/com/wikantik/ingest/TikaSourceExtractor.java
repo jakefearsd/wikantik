@@ -128,6 +128,26 @@ public class TikaSourceExtractor implements SourceExtractor {
             md.set( HttpHeaders.CONTENT_TYPE, contentType );
         }
 
+        final boolean truncated = parseWithTimeout( parser, source, bounded, md, filename, contentType );
+
+        // xhtml.toString() returns whatever was written before truncation (or the full content).
+        final String rawXhtml = xhtml.toString();
+        final String markdown  = FlexmarkHtmlConverter.builder().build().convert( rawXhtml ).strip();
+        final String title     = md.get( TikaCoreProperties.TITLE );
+
+        final Map< String, String > meta = truncated
+            ? Map.of( "wikantik.ingest.truncated", "true" )
+            : Map.of();
+
+        return new ExtractionResult( markdown, title, meta );
+    }
+
+    /** Runs the bounded Tika parse on a dedicated thread, enforcing {@link #timeoutSeconds}.
+     *  Returns {@code true} iff the write-limit truncated the output. */
+    private boolean parseWithTimeout( final AutoDetectParser parser, final InputStream source,
+                                      final WriteOutContentHandler bounded, final Metadata md,
+                                      final String filename, final String contentType )
+            throws ExtractionException {
         boolean truncated = false;
 
         final ExecutorService exec = Executors.newSingleThreadExecutor();
@@ -148,27 +168,7 @@ public class TikaSourceExtractor implements SourceExtractor {
                 throw new ExtractionException(
                     "extraction timed out after " + timeoutSeconds + "s for '" + filename + "'" );
             } catch ( final ExecutionException e ) {
-                final Throwable cause = e.getCause();
-                // WriteLimitReachedException is a SAXException — detect it before re-throwing
-                if ( WriteLimitReachedException.isWriteLimitReached( cause ) ) {
-                    truncated = true;
-                    LOG.warn( "Tika write limit ({} chars) reached for '{}' (type={}): returning truncated content",
-                        writeLimitChars, filename, contentType );
-                } else if ( cause instanceof IOException ioe ) {
-                    LOG.warn( "Tika parse failed (IO) for '{}' (type={}): {}", filename, contentType, ioe.getMessage() );
-                    throw new ExtractionException( "Failed to parse document '" + filename + "': " + ioe.getMessage(), ioe );
-                } else if ( cause instanceof SAXException saxe ) {
-                    LOG.warn( "Tika parse failed (SAX) for '{}' (type={}): {}", filename, contentType, saxe.getMessage() );
-                    throw new ExtractionException( "Failed to parse document '" + filename + "': " + saxe.getMessage(), saxe );
-                } else if ( cause instanceof TikaException te ) {
-                    LOG.warn( "Tika parse failed for '{}' (type={}): {}", filename, contentType, te.getMessage() );
-                    throw new ExtractionException( "Failed to parse document '" + filename + "': " + te.getMessage(), te );
-                } else {
-                    final String msg = cause != null ? cause.getMessage() : e.getMessage();
-                    LOG.warn( "Tika parse failed (unexpected) for '{}' (type={}): {}", filename, contentType, msg );
-                    throw new ExtractionException( "Failed to parse document '" + filename + "': " + msg,
-                        cause != null ? cause : e );
-                }
+                truncated = handleParseExecutionException( e, filename, contentType );
             } catch ( final InterruptedException e ) {
                 Thread.currentThread().interrupt();
                 throw new ExtractionException( "Extraction interrupted for '" + filename + "'", e );
@@ -176,16 +176,35 @@ public class TikaSourceExtractor implements SourceExtractor {
         } finally {
             exec.shutdownNow();
         }
+        return truncated;
+    }
 
-        // xhtml.toString() returns whatever was written before truncation (or the full content).
-        final String rawXhtml = xhtml.toString();
-        final String markdown  = FlexmarkHtmlConverter.builder().build().convert( rawXhtml ).strip();
-        final String title     = md.get( TikaCoreProperties.TITLE );
-
-        final Map< String, String > meta = truncated
-            ? Map.of( "wikantik.ingest.truncated", "true" )
-            : Map.of();
-
-        return new ExtractionResult( markdown, title, meta );
+    /** Classifies the cause of a failed parse. Returns {@code true} (truncated, no throw) only for the
+     *  write-limit case; every other cause is rethrown wrapped in an {@link ExtractionException}. */
+    private boolean handleParseExecutionException( final ExecutionException e, final String filename,
+                                                    final String contentType ) throws ExtractionException {
+        final Throwable cause = e.getCause();
+        // WriteLimitReachedException is a SAXException — detect it before re-throwing
+        if ( WriteLimitReachedException.isWriteLimitReached( cause ) ) {
+            LOG.warn( "Tika write limit ({} chars) reached for '{}' (type={}): returning truncated content",
+                writeLimitChars, filename, contentType );
+            return true;
+        }
+        if ( cause instanceof IOException ioe ) {
+            LOG.warn( "Tika parse failed (IO) for '{}' (type={}): {}", filename, contentType, ioe.getMessage() );
+            throw new ExtractionException( "Failed to parse document '" + filename + "': " + ioe.getMessage(), ioe );
+        }
+        if ( cause instanceof SAXException saxe ) {
+            LOG.warn( "Tika parse failed (SAX) for '{}' (type={}): {}", filename, contentType, saxe.getMessage() );
+            throw new ExtractionException( "Failed to parse document '" + filename + "': " + saxe.getMessage(), saxe );
+        }
+        if ( cause instanceof TikaException te ) {
+            LOG.warn( "Tika parse failed for '{}' (type={}): {}", filename, contentType, te.getMessage() );
+            throw new ExtractionException( "Failed to parse document '" + filename + "': " + te.getMessage(), te );
+        }
+        final String msg = cause != null ? cause.getMessage() : e.getMessage();
+        LOG.warn( "Tika parse failed (unexpected) for '{}' (type={}): {}", filename, contentType, msg );
+        throw new ExtractionException( "Failed to parse document '" + filename + "': " + msg,
+            cause != null ? cause : e );
     }
 }

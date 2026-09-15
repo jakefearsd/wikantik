@@ -236,36 +236,41 @@ public class AdminApiKeysResource extends RestServletBase {
         final BulkActionResult result = new BulkActionResult();
 
         for ( final JsonElement idEl : idsArr ) {
-            final String idStr = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
-            if ( idStr == null || idStr.isBlank() ) {
-                result.fail( idEl.toString(), "id must be a non-blank string or integer" );
-                continue;
-            }
-            final int id;
-            try {
-                id = Integer.parseInt( idStr );
-            } catch ( final NumberFormatException e ) {
-                result.fail( idStr, "id must be numeric; got '" + idStr + "'" );
-                continue;
-            }
-            try {
-                final boolean revoked = svc.revoke( id, actor );
-                if ( revoked ) {
-                    result.succeed( idStr );
-                } else {
-                    result.fail( idStr, "Key not found or already revoked" );
-                }
-            } catch ( final Exception e ) {
-                LOG.warn( "bulk-revoke: error revoking key id={} actor={}: {}",
-                        id, actor, e.getMessage(), e );
-                result.fail( idStr, e.getMessage() != null ? e.getMessage() : "Internal error" );
-            }
+            revokeOneBulkId( idEl, svc, actor, result );
         }
 
         LOG.info( "bulk action=revoke resource=apikeys actor={} attempted={} succeeded={} failed={}",
                 actor, idsArr.size(), result.succeededCount(), result.failedCount() );
 
         sendJson( response, result.toResponseBody( idsArr.size(), "keys revoked" ) );
+    }
+
+    private void revokeOneBulkId( final JsonElement idEl, final ApiKeyService svc,
+                                  final String actor, final BulkActionResult result ) {
+        final String idStr = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
+        if ( idStr == null || idStr.isBlank() ) {
+            result.fail( idEl.toString(), "id must be a non-blank string or integer" );
+            return;
+        }
+        final int id;
+        try {
+            id = Integer.parseInt( idStr );
+        } catch ( final NumberFormatException e ) {
+            result.fail( idStr, "id must be numeric; got '" + idStr + "'" );
+            return;
+        }
+        try {
+            final boolean revoked = svc.revoke( id, actor );
+            if ( revoked ) {
+                result.succeed( idStr );
+            } else {
+                result.fail( idStr, "Key not found or already revoked" );
+            }
+        } catch ( final Exception e ) {
+            LOG.warn( "bulk-revoke: error revoking key id={} actor={}: {}",
+                    id, actor, e.getMessage(), e );
+            result.fail( idStr, e.getMessage() != null ? e.getMessage() : "Internal error" );
+        }
     }
 
     private static String currentLogin( final HttpServletRequest request ) {

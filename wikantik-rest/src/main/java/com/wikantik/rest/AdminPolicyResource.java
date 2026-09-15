@@ -358,21 +358,8 @@ public class AdminPolicyResource extends RestServletBase {
     String validateGrantFields( final String principalType, final String principalName,
                                          final String permissionType, final String target,
                                          final String actions ) {
-        if ( principalType == null || principalType.isBlank() ) {
-            return "principalType is required";
-        }
-        if ( principalName == null || principalName.isBlank() ) {
-            return "principalName is required";
-        }
-        if ( permissionType == null || permissionType.isBlank() ) {
-            return "permissionType is required";
-        }
-        if ( target == null || target.isBlank() ) {
-            return "target is required";
-        }
-        if ( actions == null || actions.isBlank() ) {
-            return "actions is required";
-        }
+        final String requiredError = validateRequiredGrantFields( principalType, principalName, permissionType, target, actions );
+        if ( requiredError != null ) return requiredError;
 
         // Validate principal type
         if ( !PRINCIPAL_TYPES.contains( principalType ) ) {
@@ -382,22 +369,7 @@ public class AdminPolicyResource extends RestServletBase {
         // 'all' is the canonical AllPermission type (omnipotent). It is accepted in addition to the
         // scoped types, but under strict restrictions.
         if ( "all".equals( permissionType ) ) {
-            // R1: AllPermission must pin target='*' and actions='*'. A scoped target would be a
-            // silently-partial "AllPermission" (its target is the wiki scope), and a specific
-            // action is meaningless for an omnipotent grant.
-            if ( !"*".equals( target ) ) {
-                return "The 'all' permission type (AllPermission) requires target '*'.";
-            }
-            if ( !"*".equals( actions ) ) {
-                return "The 'all' permission type (AllPermission) requires actions '*'.";
-            }
-            // R3: AllPermission must never be granted to the built-in broad roles — that would make
-            // the whole population (or every anonymous visitor) an administrator.
-            if ( "role".equals( principalType )
-                    && BROAD_ROLES.stream().anyMatch( r -> r.equalsIgnoreCase( principalName ) ) ) {
-                return "AllPermission cannot be granted to the built-in role '" + principalName + "'.";
-            }
-            return null;
+            return validateAllPermissionGrant( principalType, principalName, target, actions );
         }
 
         // 'admin' scopes access to ONE /admin/* functional area. It is far narrower than
@@ -425,6 +397,49 @@ public class AdminPolicyResource extends RestServletBase {
 
         // Validate actions
         return validateActions( permissionType, actions );
+    }
+
+    /** Checks the five grant fields are all present and non-blank. Returns an error message, or null. */
+    private String validateRequiredGrantFields( final String principalType, final String principalName,
+                                                final String permissionType, final String target,
+                                                final String actions ) {
+        if ( principalType == null || principalType.isBlank() ) {
+            return "principalType is required";
+        }
+        if ( principalName == null || principalName.isBlank() ) {
+            return "principalName is required";
+        }
+        if ( permissionType == null || permissionType.isBlank() ) {
+            return "permissionType is required";
+        }
+        if ( target == null || target.isBlank() ) {
+            return "target is required";
+        }
+        if ( actions == null || actions.isBlank() ) {
+            return "actions is required";
+        }
+        return null;
+    }
+
+    /** Validates the 'all' (AllPermission) permission type's strict target/actions/broad-role rules. */
+    private String validateAllPermissionGrant( final String principalType, final String principalName,
+                                               final String target, final String actions ) {
+        // R1: AllPermission must pin target='*' and actions='*'. A scoped target would be a
+        // silently-partial "AllPermission" (its target is the wiki scope), and a specific
+        // action is meaningless for an omnipotent grant.
+        if ( !"*".equals( target ) ) {
+            return "The 'all' permission type (AllPermission) requires target '*'.";
+        }
+        if ( !"*".equals( actions ) ) {
+            return "The 'all' permission type (AllPermission) requires actions '*'.";
+        }
+        // R3: AllPermission must never be granted to the built-in broad roles — that would make
+        // the whole population (or every anonymous visitor) an administrator.
+        if ( "role".equals( principalType )
+                && BROAD_ROLES.stream().anyMatch( r -> r.equalsIgnoreCase( principalName ) ) ) {
+            return "AllPermission cannot be granted to the built-in role '" + principalName + "'.";
+        }
+        return null;
     }
 
     /**

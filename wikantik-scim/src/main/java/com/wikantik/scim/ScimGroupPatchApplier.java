@@ -55,35 +55,42 @@ public final class ScimGroupPatchApplier {
             throw new UnsupportedGroupPatchException( "PatchOp missing Operations array" );
         }
         for ( final JsonElement opEl : patchOp.getAsJsonArray( "Operations" ) ) {
-            final JsonObject op = opEl.getAsJsonObject();
-            final String operation = op.has( "op" ) ? op.get( "op" ).getAsString().toLowerCase( Locale.ROOT ) : "";
-            final String path = ( op.has( "path" ) && !op.get( "path" ).isJsonNull() )
-                    ? op.get( "path" ).getAsString() : null;
-            switch ( operation ) {
-                case "add" -> members.addAll( extractMemberValues( op, path ) );
-                case "replace" -> {
-                    if ( path == null || "members".equals( path ) ) {
-                        members.clear();
-                        members.addAll( extractMemberValues( op, path ) );
-                    } else {
-                        throw new UnsupportedGroupPatchException( "replace path not supported: " + path );
-                    }
-                }
-                case "remove" -> {
-                    if ( "members".equals( path ) ) {
-                        members.clear();
-                    } else if ( path != null ) {
-                        final Matcher mt = MEMBER_VALUE_PATH.matcher( path );
-                        if ( mt.matches() ) members.remove( mt.group( 1 ) );
-                        else throw new UnsupportedGroupPatchException( "remove path not supported: " + path );
-                    } else {
-                        throw new UnsupportedGroupPatchException( "remove requires a path" );
-                    }
-                }
-                default -> throw new UnsupportedGroupPatchException( "Unsupported op: " + operation );
-            }
+            applyOperation( opEl.getAsJsonObject(), members );
         }
         return members;
+    }
+
+    private static void applyOperation( final JsonObject op, final LinkedHashSet<String> members ) {
+        final String operation = op.has( "op" ) ? op.get( "op" ).getAsString().toLowerCase( Locale.ROOT ) : "";
+        final String path = ( op.has( "path" ) && !op.get( "path" ).isJsonNull() )
+                ? op.get( "path" ).getAsString() : null;
+        switch ( operation ) {
+            case "add" -> members.addAll( extractMemberValues( op, path ) );
+            case "replace" -> applyReplace( op, path, members );
+            case "remove" -> applyRemove( path, members );
+            default -> throw new UnsupportedGroupPatchException( "Unsupported op: " + operation );
+        }
+    }
+
+    private static void applyReplace( final JsonObject op, final String path, final LinkedHashSet<String> members ) {
+        if ( path == null || "members".equals( path ) ) {
+            members.clear();
+            members.addAll( extractMemberValues( op, path ) );
+        } else {
+            throw new UnsupportedGroupPatchException( "replace path not supported: " + path );
+        }
+    }
+
+    private static void applyRemove( final String path, final LinkedHashSet<String> members ) {
+        if ( "members".equals( path ) ) {
+            members.clear();
+        } else if ( path != null ) {
+            final Matcher mt = MEMBER_VALUE_PATH.matcher( path );
+            if ( mt.matches() ) members.remove( mt.group( 1 ) );
+            else throw new UnsupportedGroupPatchException( "remove path not supported: " + path );
+        } else {
+            throw new UnsupportedGroupPatchException( "remove requires a path" );
+        }
     }
 
     /** Member uids from an op's value: an array of {value:…}, or a path-less value

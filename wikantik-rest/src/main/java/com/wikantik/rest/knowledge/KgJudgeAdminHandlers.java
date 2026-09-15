@@ -136,50 +136,59 @@ public final class KgJudgeAdminHandlers {
 
         final List< Map< String, Object > > out = new ArrayList<>( rows.size() );
         for ( final var r : rows ) {
-            final Map< String, Object > m = new LinkedHashMap<>();
-            m.put( "proposal_id", r.proposalId().toString() );
-            m.put( "content_sha256", r.contentSha256() );
-            m.put( "source_page", r.sourcePage() != null ? r.sourcePage() : "" );
-            m.put( "proposal_type", r.proposalType() != null ? r.proposalType() : "" );
-            m.put( "model_name", r.modelName() != null ? r.modelName() : "" );
-            m.put( "content_bytes", r.contentBytes() );
-            m.put( "timeout_count", r.timeoutCount() );
-            m.put( "last_error_excerpt", r.lastErrorExcerpt() != null ? r.lastErrorExcerpt() : "" );
-            m.put( "base_timeout_seconds", r.baseTimeoutSeconds() );
-            m.put( "first_seen", r.firstSeen() != null ? r.firstSeen().toString() : "" );
-            m.put( "last_seen",  r.lastSeen()  != null ? r.lastSeen().toString()  : "" );
-            // Effective timeout that would be applied on next attempt — surfaces
-            // the multiplier admin has been seeing.
-            final int multiplier = Math.min( 1 + r.timeoutCount(),
-                DefaultKgProposalJudgeService.MAX_TIMEOUT_MULTIPLIER );
-            m.put( "next_effective_timeout_seconds", r.baseTimeoutSeconds() * multiplier );
-            // Enrich with proposal triple if the proposal still exists. Pending
-            // proposals are the actionable ones; if approved/rejected/deleted
-            // we still emit the row so the admin has the trail.
-            try {
-                final com.wikantik.api.knowledge.KgProposal p = svc.getProposal( r.proposalId() );
-                if ( p != null ) {
-                    final Map< String, Object > pd = p.proposedData();
-                    final Map< String, Object > triple = new LinkedHashMap<>();
-                    triple.put( "source", pd.get( "source" ) );
-                    triple.put( "target", pd.get( "target" ) );
-                    triple.put( "relationship", pd.get( "relationship" ) );
-                    m.put( "proposal", Map.of(
-                        "status", p.status() != null ? p.status() : "",
-                        "tier", p.tier() != null ? p.tier() : "",
-                        "confidence", p.confidence(),
-                        "triple", triple ) );
-                } else {
-                    m.put( "proposal", Map.of( "status", "missing" ) );
-                }
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "judge-timeouts: proposal lookup failed for {}: {}",
-                    r.proposalId(), e.getMessage() );
-                m.put( "proposal", Map.of( "status", "lookup_error" ) );
-            }
-            out.add( m );
+            out.add( buildTimeoutRow( r, svc ) );
         }
         AdminKnowledgeIo.sendJson( response, Map.of( "timeouts", out ) );
+    }
+
+    private Map< String, Object > buildTimeoutRow( final KgJudgeTimeoutRepository.TimeoutRow r,
+                                                    final KnowledgeGraphService svc ) {
+        final Map< String, Object > m = new LinkedHashMap<>();
+        m.put( "proposal_id", r.proposalId().toString() );
+        m.put( "content_sha256", r.contentSha256() );
+        m.put( "source_page", r.sourcePage() != null ? r.sourcePage() : "" );
+        m.put( "proposal_type", r.proposalType() != null ? r.proposalType() : "" );
+        m.put( "model_name", r.modelName() != null ? r.modelName() : "" );
+        m.put( "content_bytes", r.contentBytes() );
+        m.put( "timeout_count", r.timeoutCount() );
+        m.put( "last_error_excerpt", r.lastErrorExcerpt() != null ? r.lastErrorExcerpt() : "" );
+        m.put( "base_timeout_seconds", r.baseTimeoutSeconds() );
+        m.put( "first_seen", r.firstSeen() != null ? r.firstSeen().toString() : "" );
+        m.put( "last_seen",  r.lastSeen()  != null ? r.lastSeen().toString()  : "" );
+        // Effective timeout that would be applied on next attempt — surfaces
+        // the multiplier admin has been seeing.
+        final int multiplier = Math.min( 1 + r.timeoutCount(),
+            DefaultKgProposalJudgeService.MAX_TIMEOUT_MULTIPLIER );
+        m.put( "next_effective_timeout_seconds", r.baseTimeoutSeconds() * multiplier );
+        m.put( "proposal", buildTimeoutProposalSummary( r, svc ) );
+        return m;
+    }
+
+    // Enrich with proposal triple if the proposal still exists. Pending
+    // proposals are the actionable ones; if approved/rejected/deleted
+    // we still emit the row so the admin has the trail.
+    private Map< String, Object > buildTimeoutProposalSummary( final KgJudgeTimeoutRepository.TimeoutRow r,
+                                                                final KnowledgeGraphService svc ) {
+        try {
+            final com.wikantik.api.knowledge.KgProposal p = svc.getProposal( r.proposalId() );
+            if ( p != null ) {
+                final Map< String, Object > pd = p.proposedData();
+                final Map< String, Object > triple = new LinkedHashMap<>();
+                triple.put( "source", pd.get( "source" ) );
+                triple.put( "target", pd.get( "target" ) );
+                triple.put( "relationship", pd.get( "relationship" ) );
+                return Map.of(
+                    "status", p.status() != null ? p.status() : "",
+                    "tier", p.tier() != null ? p.tier() : "",
+                    "confidence", p.confidence(),
+                    "triple", triple );
+            }
+            return Map.of( "status", "missing" );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "judge-timeouts: proposal lookup failed for {}: {}",
+                r.proposalId(), e.getMessage() );
+            return Map.of( "status", "lookup_error" );
+        }
     }
 
     /**

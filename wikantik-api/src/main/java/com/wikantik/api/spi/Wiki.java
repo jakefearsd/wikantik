@@ -51,8 +51,6 @@ public class Wiki {
     private static EngineSPI engineSPI = getSPI( EngineSPI.class, DEFAULT_PROPERTIES, PROP_PROVIDER_IMPL_ENGINE, DEFAULT_PROVIDER_IMPL_ENGINE );
     private static SessionSPI sessionSPI = getSPI( SessionSPI.class, DEFAULT_PROPERTIES, PROP_PROVIDER_IMPL_SESSION, DEFAULT_PROVIDER_IMPL_SESSION );
 
-    @SuppressFBWarnings( value = "MS_EXPOSE_REP",
-            justification = "Intentional: init() returns the live shared Properties object so callers can observe subsequent runtime reconfiguration." )
     public static Properties init( final ServletContext context ) {
         final Properties properties = PropertyReader.loadWebAppProps( context );
         aclsSPI = getSPI( AclsSPI.class, properties, PROP_PROVIDER_IMPL_ACLS, DEFAULT_PROVIDER_IMPL_ACLS );

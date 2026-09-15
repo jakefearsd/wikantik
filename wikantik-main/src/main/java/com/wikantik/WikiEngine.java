@@ -329,7 +329,6 @@ public class WikiEngine implements Engine {
     private volatile com.wikantik.audit.AuditWriterThread auditWriter;
     // Strong reference prevents the listener from being garbage-collected out of
     // WikiEventManager's WeakHashMap before we can de-register it on shutdown.
-    @SuppressWarnings( "PMD.SingularField" ) // must stay a field: WikiEventManager keys listeners in a WeakHashMap, so a local would let this get GC'd
     private volatile com.wikantik.audit.AuditEventListener auditEventListener;
 
     // Strong reference (same WeakHashMap concern as auditEventListener): stamps each

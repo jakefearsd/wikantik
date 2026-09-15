@@ -28,6 +28,7 @@ package com.wikantik.extractcli;
  * can drive {@code parse(String[])} directly without reflection, and public fields
  * declared here are still accessible through them.
  */
+@SuppressWarnings( "PMD.AbstractClassWithoutAbstractMethod" ) // stateful base (the shared flag fields), only ever extended
 abstract class CommonCliArgs {
 
     public boolean showHelp = false;
@@ -35,6 +36,10 @@ abstract class CommonCliArgs {
     public String  jdbcUser     = "jspwiki";
     public String  jdbcPassword = "";
     public String  ollamaUrl    = "http://inference.jakefear.com:11434";
+
+    protected CommonCliArgs() {
+        // defaults are the field initializers above
+    }
 
     /**
      * Consumes {@code argv[i]} (and, for value-taking flags, {@code argv[i + 1]})

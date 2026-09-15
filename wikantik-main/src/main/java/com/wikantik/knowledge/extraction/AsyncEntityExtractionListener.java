@@ -98,6 +98,7 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
      *  enclosing-instance state (it only calls its own inherited {@code size()}).
      */
     private static final class BoundedLastExtractedMap extends LinkedHashMap< String, Long > {
+        private static final long serialVersionUID = 1L;
         private static final int MAX_ENTRIES = 1024;
 
         BoundedLastExtractedMap() {

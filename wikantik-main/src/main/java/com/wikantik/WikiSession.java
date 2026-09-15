@@ -634,7 +634,7 @@ public final class WikiSession implements Session {
         // possibly from a stopped engine) to engine B. Cross-engine leakage made
         // permission filters silently drop rows and session lookups fail on the
         // wrong engine in multi-engine hosts and forked test JVMs.
-        if( session == null || !( session instanceof WikiSession ws ) || ws.engine != engine ) {
+        if( !( session instanceof WikiSession ws ) || ws.engine != engine ) {
             session = guestSession( engine );
             guestSession.set( session );
         }

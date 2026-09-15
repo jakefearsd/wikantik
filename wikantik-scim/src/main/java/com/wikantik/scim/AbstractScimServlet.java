@@ -43,6 +43,8 @@ import java.io.Reader;
  */
 abstract class AbstractScimServlet extends HttpServlet {
 
+    private static final long serialVersionUID = 1L;
+
     protected static final String CONTENT_TYPE = "application/scim+json";
     protected static final Gson GSON = new Gson();
 
@@ -159,7 +161,7 @@ abstract class AbstractScimServlet extends HttpServlet {
      */
     protected static JsonObject parseBody( final HttpServletRequest req,
                                            final HttpServletResponse resp ) throws IOException {
-        try ( final Reader r = req.getReader() ) {
+        try ( Reader r = req.getReader() ) {
             return JsonParser.parseReader( r ).getAsJsonObject();
         } catch ( final Exception e ) {
             sendError( resp, 400, "invalidSyntax", "Could not parse JSON body: " + e.getMessage() );

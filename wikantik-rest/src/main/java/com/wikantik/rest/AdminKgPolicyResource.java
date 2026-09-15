@@ -326,7 +326,7 @@ public class AdminKgPolicyResource extends RestServletBase {
     protected void doPost( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
         final String path = req.getPathInfo() == null ? "" : req.getPathInfo();
         try {
-            if ( path.equals( "/bootstrap" ) ) {
+            if ( "/bootstrap".equals( path ) ) {
                 doBootstrap( req, resp );
             } else if ( path.endsWith( "/review" ) && path.startsWith( "/clusters/" ) ) {
                 final String cluster = path.substring( "/clusters/".length(), path.length() - "/review".length() );

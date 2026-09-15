@@ -22,7 +22,6 @@ import org.apache.commons.lang3.LocaleUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.InternalWikiException;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Context;
 import com.wikantik.i18n.InternationalizationManager;
@@ -154,30 +153,21 @@ public class Preferences extends HashMap< String,String > {
         final InternationalizationManager imgr = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( context.getEngine() ).i18n();
         final Locale clientLocale = getLocale( context );
         final String prefTimeZone = getPreference( context, "TimeZone" );
-        String prefDateFormat;
 
         LOG.debug("Checking for preferences...");
-        switch( tf ) {
-            case DATETIME:
-                prefDateFormat = getPreference( context, "DateFormat" );
-                LOG.debug("Preferences fmt = {}", prefDateFormat);
-                if( prefDateFormat == null ) {
-                    prefDateFormat = imgr.get( InternationalizationManager.CORE_BUNDLE, clientLocale,"common.datetimeformat" );
-                    LOG.debug("Using locale-format = {}", prefDateFormat);
+        final String prefDateFormat = switch( tf ) {
+            case DATETIME -> {
+                String fmt = getPreference( context, "DateFormat" );
+                LOG.debug("Preferences fmt = {}", fmt);
+                if( fmt == null ) {
+                    fmt = imgr.get( InternationalizationManager.CORE_BUNDLE, clientLocale,"common.datetimeformat" );
+                    LOG.debug("Using locale-format = {}", fmt);
                 }
-                break;
-
-            case TIME:
-                prefDateFormat = imgr.get( "common.timeformat" );
-                break;
-
-            case DATE:
-                prefDateFormat = imgr.get( "common.dateformat" );
-                break;
-
-            default:
-                throw new InternalWikiException( "Got a TimeFormat for which we have no value!" );
-        }
+                yield fmt;
+            }
+            case TIME -> imgr.get( "common.timeformat" );
+            case DATE -> imgr.get( "common.dateformat" );
+        };
 
         try {
             final SimpleDateFormat fmt = new SimpleDateFormat( prefDateFormat, clientLocale );

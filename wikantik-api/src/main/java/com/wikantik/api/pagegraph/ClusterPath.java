@@ -56,14 +56,12 @@ public final class ClusterPath {
         if ( candidate == null || ancestor == null ) {
             return false;
         }
-        if ( candidate.equals( ancestor ) ) {
-            return true;
-        }
         // The character immediately after the ancestor must be the separator, or this
         // is a sibling that merely shares a string prefix.
-        return candidate.length() > ancestor.length()
-                && candidate.charAt( ancestor.length() ) == SEPARATOR
-                && candidate.startsWith( ancestor );
+        return candidate.equals( ancestor )
+                || ( candidate.length() > ancestor.length()
+                        && candidate.charAt( ancestor.length() ) == SEPARATOR
+                        && candidate.startsWith( ancestor ) );
     }
 
     /**

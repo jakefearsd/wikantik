@@ -133,10 +133,7 @@ public final class Release {
      *  @throws IllegalArgumentException If the version string could not be parsed.
      */
     public static boolean isNewerOrEqual( final String version ) throws IllegalArgumentException {
-        if( version == null ) {
-        	return true;
-        }
-        return compareVersions( version ) >= 0;
+        return version == null || compareVersions( version ) >= 0;
     }
 
     /**
@@ -148,10 +145,7 @@ public final class Release {
      *  @throws IllegalArgumentException If the version string could not be parsed.
      */
     public static boolean isOlderOrEqual( final String version ) throws IllegalArgumentException {
-        if( version == null ) {
-        	return true;
-        }
-        return compareVersions( version ) <= 0;
+        return version == null || compareVersions( version ) <= 0;
     }
 
     /**

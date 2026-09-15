@@ -102,7 +102,7 @@ public class AdminRetrievalQualityResource extends RestServletBase {
     protected void doPost( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
         // Only /run is supported under POST.
         final String path = req.getPathInfo();
-        if ( path == null || !path.equals( "/run" ) ) {
+        if ( path == null || !"/run".equals( path ) ) {
             sendError( resp, HttpServletResponse.SC_NOT_FOUND, "Not found: " + path );
             return;
         }

@@ -182,7 +182,7 @@ public class AdminOverviewResource extends RestServletBase {
             final var snap = com.wikantik.llm.activity.LlmActivityLogHolder.get().snapshot( 8, null, null );
             final JsonArray items = new JsonArray();
             for ( final var v : snap.calls() ) {
-                items.add( String.valueOf( v.operation() ) + " " + String.valueOf( v.subsystem() ) );
+                items.add( v.operation() + " " + v.subsystem() );
             }
             final JsonObject o = new JsonObject();
             o.add( "items", items );

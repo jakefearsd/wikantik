@@ -212,7 +212,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
             return;
         }
         final com.google.gson.JsonObject body;
-        try ( final BufferedReader reader = request.getReader() ) {
+        try ( BufferedReader reader = request.getReader() ) {
             body = com.google.gson.JsonParser.parseReader( reader ).getAsJsonObject();
         } catch ( final RuntimeException e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "invalid JSON: " + e.getMessage() );

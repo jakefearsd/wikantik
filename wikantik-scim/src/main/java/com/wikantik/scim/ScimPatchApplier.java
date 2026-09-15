@@ -33,6 +33,8 @@ import java.util.Locale;
 public final class ScimPatchApplier {
 
     public static final class UnsupportedPatchException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         public UnsupportedPatchException( final String m ) { super( m ); }
     }
 

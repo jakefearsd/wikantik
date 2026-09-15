@@ -229,6 +229,7 @@ public final class QueryEmbedder implements AutoCloseable {
      * a dedicated timeout pool. Async I/O is now driven by the embedding client's
      * own non-blocking transport, so there is nothing for this class to shut down.
      */
+    @Override
     public void close() {
         // intentionally empty
     }
@@ -297,10 +298,10 @@ public final class QueryEmbedder implements AutoCloseable {
             cause = cause.getCause();
         }
         if( cause instanceof Exception ex ) {
-            return ex; //NOPMD - ex is the unwrapped cause of ee, already preserved
+            return ex; // ex is the unwrapped cause of ee, already preserved
         }
         if( cause instanceof Error err ) {
-            throw err; //NOPMD - err is the unwrapped cause of ee, already preserved
+            throw err; // err is the unwrapped cause of ee, already preserved
         }
         return ee;
     }

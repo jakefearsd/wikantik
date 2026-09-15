@@ -30,6 +30,8 @@ public final class ScimFilterParser {
     public record Eq( String attribute, String value ) {}
 
     public static final class UnsupportedFilterException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         public UnsupportedFilterException( final String m ) { super( m ); }
     }
 

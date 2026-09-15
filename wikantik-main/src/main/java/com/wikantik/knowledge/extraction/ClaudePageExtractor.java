@@ -153,8 +153,8 @@ public final class ClaudePageExtractor implements PageExtractor {
                 inString = true;
             } else if( c == '{' ) {
                 depth++;
-            } else if( c == '}' ) {
-                if( --depth == 0 ) return i;
+            } else if( c == '}' && --depth == 0 ) {
+                return i;
             }
         }
         return -1;   // unbalanced — truncated output

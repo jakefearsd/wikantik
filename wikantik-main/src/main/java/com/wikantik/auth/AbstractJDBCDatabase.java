@@ -19,8 +19,6 @@
 package com.wikantik.auth;
 
 import com.wikantik.jdbc.Jdbc;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -35,8 +33,6 @@ import java.util.Properties;
  * @since 3.0.7
  */
 public abstract class AbstractJDBCDatabase {
-
-    private static final Logger LOG = LogManager.getLogger( AbstractJDBCDatabase.class );
 
     /** Property name for the single shared JNDI DataSource. */
     public static final String PROP_DATASOURCE = "wikantik.datasource";
@@ -196,6 +192,8 @@ public abstract class AbstractJDBCDatabase {
      * its original type or message.
      */
     private static final class OperationFailure extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         OperationFailure( final Exception cause ) {
             super( cause );
         }

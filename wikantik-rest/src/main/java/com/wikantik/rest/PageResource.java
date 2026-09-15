@@ -569,10 +569,7 @@ public class PageResource extends RestServletBase {
 
     /** D20: read the strict-mode property; defaults to false. */
     static boolean isExpectedVersionRequired( final Engine engine ) {
-        if ( engine == null ) {
-            return false;
-        }
-        return Boolean.parseBoolean(
+        return engine != null && Boolean.parseBoolean(
                 com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( PROP_REQUIRE_EXPECTED_VERSION, "false" ).trim() );
     }
 

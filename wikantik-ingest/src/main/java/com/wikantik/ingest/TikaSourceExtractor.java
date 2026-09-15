@@ -107,8 +107,7 @@ public class TikaSourceExtractor implements SourceExtractor {
 
     @Override
     public boolean supports( final String contentType ) {
-        if ( contentType == null ) { return false; }
-        return SUPPORTED_TYPES.contains( contentType.toLowerCase( Locale.ROOT ) );
+        return contentType != null && SUPPORTED_TYPES.contains( contentType.toLowerCase( Locale.ROOT ) );
     }
 
     @Override

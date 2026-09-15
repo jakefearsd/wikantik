@@ -32,6 +32,8 @@ import java.util.stream.Collectors;
  */
 public class ContentValidationException extends FilterException {
 
+    private static final long serialVersionUID = 1L;
+
     private final transient List< ContentViolation > violations;
 
     public ContentValidationException( final List< ContentViolation > violations ) {

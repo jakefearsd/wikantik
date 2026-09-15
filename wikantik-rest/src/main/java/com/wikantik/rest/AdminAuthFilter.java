@@ -195,10 +195,7 @@ public class AdminAuthFilter implements Filter {
         // never both skip auth and reach a servlet: the two filters must agree on
         // what "an SPA navigation" is, or the gap between them is the vulnerability.
         final String path = servletRelativePath( req );
-        if ( path.contains( "." ) && !path.endsWith( ".html" ) ) {
-            return false;
-        }
-        return true;
+        return !( path.contains( "." ) && !path.endsWith( ".html" ) );
     }
 
     /** Request path with the context path stripped, matching how SpaRoutingFilter

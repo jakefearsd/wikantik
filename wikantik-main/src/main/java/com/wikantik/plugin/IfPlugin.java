@@ -222,10 +222,7 @@ public class IfPlugin implements Plugin {
     }
 
     private static boolean checkGroup( final Context context, final String group ) {
-        if( group == null ) {
-            return false;
-        }
-        return matchesAny( group, gname -> {
+        return group != null && matchesAny( group, gname -> {
             final Principal groupPrincipal = AuthSubsystemBridge.fromLegacyEngine( context.getEngine() ).authorization().resolvePrincipal( gname );
             return AuthSubsystemBridge.fromLegacyEngine( context.getEngine() ).authorization().isUserInRole( context.getWikiSession(), groupPrincipal );
         } );

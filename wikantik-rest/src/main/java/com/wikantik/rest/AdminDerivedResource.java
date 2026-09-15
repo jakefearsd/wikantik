@@ -212,7 +212,7 @@ public class AdminDerivedResource extends RestServletBase {
                     throw new java.io.FileNotFoundException(
                         "Attachment not found: " + pageName + "/" + filename );
                 }
-                try ( final var is = am.getAttachmentStream( att ) ) {
+                try ( var is = am.getAttachmentStream( att ) ) {
                     return is.readAllBytes();
                 }
             };

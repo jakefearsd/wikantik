@@ -46,9 +46,9 @@ public class MathSpanExtractor {
         for (final String line : lines) {
             final String trimmed = line.strip();
             if (!state.isOpen()) {
-                if (trimmed.equals("$$")) {
+                if ("$$".equals(trimmed)) {
                     state.open("$$", MathSpan.Kind.DISPLAY_DOLLAR, offset);
-                } else if (trimmed.equals("```math")) {
+                } else if ("```math".equals(trimmed)) {
                     state.open("```", MathSpan.Kind.MATH_FENCE, offset);
                 } else if (!isFullyMasked(code, offset, line.length()) && !trimmed.startsWith("```")
                            && !trimmed.startsWith("~~~")) {
@@ -90,7 +90,7 @@ public class MathSpanExtractor {
         }
 
         boolean closesOn(final String trimmed) {
-            return ("$$".equals(closer) && trimmed.equals("$$"))
+            return ("$$".equals(closer) && "$$".equals(trimmed))
                    || ("```".equals(closer) && trimmed.startsWith("```"));
         }
 

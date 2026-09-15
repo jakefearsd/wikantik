@@ -20,6 +20,8 @@ package com.wikantik.ingest;
 
 /** Thrown when a source document cannot be parsed/extracted. */
 public class ExtractionException extends Exception {
+    private static final long serialVersionUID = 1L;
+
     public ExtractionException( final String message, final Throwable cause ) {
         super( message, cause );
     }

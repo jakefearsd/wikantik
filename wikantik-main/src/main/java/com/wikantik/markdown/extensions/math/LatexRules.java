@@ -49,7 +49,7 @@ public final class LatexRules {
             final char c = s.charAt(i);
             if (c == '\\') { i++; continue; }
             if (c == '{') { depth++; }
-            else if (c == '}') { if (--depth < 0) { return true; } }
+            else if (c == '}' && --depth < 0) { return true; }
         }
         return depth != 0;
     }

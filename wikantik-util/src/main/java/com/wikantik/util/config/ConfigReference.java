@@ -128,9 +128,9 @@ public final class ConfigReference {
     private static Entry toEntry( final String key, final String value, final List<String> block,
                                   final String section, final int line ) {
         final List<String> description = new ArrayList<>();
-        String type = null;
-        String blankMeans = null;
-        String source = "properties";
+        StringBuilder type = null;
+        StringBuilder blankMeans = null;
+        final StringBuilder source = new StringBuilder( "properties" );
         String activeDirective = null;   // name of the directive currently being continued, if any
         for( final String c : block ) {
             if( c.isEmpty() ) {
@@ -141,23 +141,24 @@ public final class ConfigReference {
                 final String v = d.group( 2 ).strip();
                 activeDirective = d.group( 1 );
                 switch( activeDirective ) {
-                    case "Type" -> type = v;
-                    case "Blank means" -> blankMeans = v;
-                    default -> source = v;
+                    case "Type" -> type = new StringBuilder( v );
+                    case "Blank means" -> blankMeans = new StringBuilder( v );
+                    default -> { source.setLength( 0 ); source.append( v ); }
                 }
             } else if( activeDirective != null ) {
                 // A non-directive line following a directive is that directive's continuation
                 // (directives are written last in the block, immediately before the key), joined
                 // with a single space rather than becoming a separate description line.
                 switch( activeDirective ) {
-                    case "Type" -> type = type + " " + c;
-                    case "Blank means" -> blankMeans = blankMeans + " " + c;
-                    default -> source = source + " " + c;
+                    case "Type" -> type.append( ' ' ).append( c );
+                    case "Blank means" -> blankMeans.append( ' ' ).append( c );
+                    default -> source.append( ' ' ).append( c );
                 }
             } else {
                 description.add( c );
             }
         }
-        return new Entry( key, value, List.copyOf( description ), type, blankMeans, source, section, line );
+        return new Entry( key, value, List.copyOf( description ), type == null ? null : type.toString(),
+                          blankMeans == null ? null : blankMeans.toString(), source.toString(), section, line );
     }
 }

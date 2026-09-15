@@ -104,10 +104,7 @@ public class MustChangePasswordFilter implements Filter {
                 // DELETE /api/auth/* (account self-deletion) is NOT exempt — a flagged
                 // user (or a hijacked flagged session) must change the password before
                 // it can delete the account.
-                if ( "DELETE".equalsIgnoreCase( req.getMethod() ) && path.startsWith( "/api/auth/" ) ) {
-                    return false;
-                }
-                return true;
+                return !( "DELETE".equalsIgnoreCase( req.getMethod() ) && path.startsWith( "/api/auth/" ) );
             }
         }
         return false;

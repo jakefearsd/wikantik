@@ -115,9 +115,9 @@ public final class PageListEngine {
      * it. Comparing the raw frontmatter value would never match a list-valued {@code cluster:}.
      */
     private static boolean clusterMatches( final Map< String, Object > meta, final PageListFilter f ) {
-        if ( f.cluster() == null ) return true;
-        return ClusterPath.memberships( meta.get( "cluster" ) ).stream()
-                           .anyMatch( m -> ClusterPath.isSelfOrDescendant( m, f.cluster() ) );
+        return f.cluster() == null
+                || ClusterPath.memberships( meta.get( "cluster" ) ).stream()
+                              .anyMatch( m -> ClusterPath.isSelfOrDescendant( m, f.cluster() ) );
     }
 
     private static boolean typeMatches( final Map< String, Object > meta, final PageListFilter f ) {

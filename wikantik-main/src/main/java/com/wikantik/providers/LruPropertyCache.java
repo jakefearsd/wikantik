@@ -47,7 +47,6 @@ public class LruPropertyCache implements PropertyCacheStrategy {
     /** Default cache size if not specified. */
     public static final int DEFAULT_SIZE = 100;
 
-    private final int maxSize;
     private final Cache< String, CachedEntry > cache;
 
     /** Holds a cached property file entry. */
@@ -67,7 +66,6 @@ public class LruPropertyCache implements PropertyCacheStrategy {
         if ( maxSize < 1 ) {
             throw new IllegalArgumentException( "Cache size must be at least 1" );
         }
-        this.maxSize = maxSize;
         this.cache = Caffeine.newBuilder()
             .maximumSize( maxSize )
             .recordStats()

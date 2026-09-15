@@ -61,16 +61,16 @@ public class StructureResource extends RestServletBase {
         }
 
         try {
-            if ( pathInfo.equals( "/clusters" ) || pathInfo.equals( "/clusters/" ) ) {
+            if ( "/clusters".equals( pathInfo ) || "/clusters/".equals( pathInfo ) ) {
                 writeClusters( resp, svc );
             } else if ( pathInfo.startsWith( "/clusters/" ) ) {
                 writeCluster( resp, svc, pathInfo.substring( "/clusters/".length() ), req );
-            } else if ( pathInfo.equals( "/tags" ) ) {
+            } else if ( "/tags".equals( pathInfo ) ) {
                 final int min = parseIntOr( req.getParameter( "min_pages" ), 1 );
                 writeTags( resp, svc, min );
-            } else if ( pathInfo.equals( "/pages" ) ) {
+            } else if ( "/pages".equals( pathInfo ) ) {
                 writePages( resp, svc, req );
-            } else if ( pathInfo.equals( "/sitemap" ) ) {
+            } else if ( "/sitemap".equals( pathInfo ) ) {
                 writeSitemap( resp, svc, req );
             } else {
                 writeError( resp, 404, "unknown structure path: " + pathInfo );

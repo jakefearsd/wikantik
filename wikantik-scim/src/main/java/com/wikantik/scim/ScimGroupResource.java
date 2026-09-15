@@ -368,6 +368,8 @@ public class ScimGroupResource extends AbstractScimServlet {
 
     /** Signals that a member uid could not be resolved — maps to HTTP 400 invalidValue. */
     private static final class InvalidMemberException extends Exception {
+        private static final long serialVersionUID = 1L;
+
         InvalidMemberException( final String m ) { super( m ); }
     }
 

@@ -49,7 +49,6 @@ public final class AuditReadPolicy {
 
     private static boolean asBool( final Object o ) {
         if ( o instanceof Boolean b ) return b;
-        if ( o instanceof String s ) return Boolean.parseBoolean( s.trim() );
-        return false;
+        return o instanceof String s && Boolean.parseBoolean( s.trim() );
     }
 }

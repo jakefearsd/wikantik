@@ -131,7 +131,7 @@ public class McpConfig {
                 LOG.debug( "mcp.instructions.file={} is not an absolute path; ignoring it and "
                         + "serving the bundled instructions.", overridePath );
             } else {
-                try ( final java.io.InputStream in = java.nio.file.Files.newInputStream( path ) ) {
+                try ( java.io.InputStream in = java.nio.file.Files.newInputStream( path ) ) {
                     return new String( in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8 );
                 } catch ( final java.io.IOException e ) {
                     LOG.warn( "mcp.instructions.file={} is configured but unreadable; "
@@ -141,7 +141,7 @@ public class McpConfig {
                 }
             }
         }
-        try ( final java.io.InputStream in = McpConfig.class.getResourceAsStream(
+        try ( java.io.InputStream in = McpConfig.class.getResourceAsStream(
                 "/wikantik-mcp-instructions.txt" ) ) {
             if ( in != null ) {
                 return new String( in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8 );

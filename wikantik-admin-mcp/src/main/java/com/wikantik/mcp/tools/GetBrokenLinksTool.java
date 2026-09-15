@@ -124,10 +124,7 @@ public class GetBrokenLinksTool extends AbstractMcpTool {
         }
         // schemes (http://, https://, file://) — already excluded by the slash check,
         // but explicitly exclude file extensions that would never be a wiki page.
-        if ( target.endsWith( ".java" ) || target.endsWith( ".sql" )
-                || target.endsWith( ".xml" ) || target.endsWith( ".html" ) ) {
-            return true;
-        }
-        return false;
+        return target.endsWith( ".java" ) || target.endsWith( ".sql" )
+                || target.endsWith( ".xml" ) || target.endsWith( ".html" );
     }
 }

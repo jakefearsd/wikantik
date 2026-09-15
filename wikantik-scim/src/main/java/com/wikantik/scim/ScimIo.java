@@ -70,7 +70,7 @@ final class ScimIo {
      */
     static String extractPathSegment( final HttpServletRequest req ) {
         final String pi = req.getPathInfo();
-        if ( pi == null || pi.equals( "/" ) || pi.isBlank() ) return null;
+        if ( pi == null || "/".equals( pi ) || pi.isBlank() ) return null;
         final String trimmed = pi.startsWith( "/" ) ? pi.substring( 1 ) : pi;
         return trimmed.isBlank() ? null : trimmed;
     }

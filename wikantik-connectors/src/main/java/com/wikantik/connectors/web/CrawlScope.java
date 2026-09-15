@@ -38,7 +38,7 @@ final class CrawlScope {
         try {
             final URI u = URI.create( url );
             final String scheme = u.getScheme();
-            if ( scheme == null || !( scheme.equals( "http" ) || scheme.equals( "https" ) ) ) return false;
+            if ( scheme == null || !( "http".equals( scheme ) || "https".equals( scheme ) ) ) return false;
             if ( sameHostOnly && ( u.getHost() == null || !u.getHost().equalsIgnoreCase( seedHost ) ) ) return false;
             if ( pathPrefix != null ) {
                 final String path = u.getPath() == null ? "" : u.getPath();

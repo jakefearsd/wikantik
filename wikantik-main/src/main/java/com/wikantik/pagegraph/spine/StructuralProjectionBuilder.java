@@ -57,26 +57,24 @@ public final class StructuralProjectionBuilder {
             byCluster.computeIfAbsent( membership, k -> new ArrayList<>() ).add( page );
         }
 
-        if ( page.cluster() != null ) {
-            if ( page.type() == PageType.HUB ) {
-                // Two hubs declaring one cluster is a defect (Phase 2 blocks it at save
-                // time, and the rebuild reports it as DUPLICATE_CLUSTER_DECLARATION). Until
-                // then the winner must at least be STABLE: pages arrive in unsorted
-                // filesystem order from listFiles(), so a plain put() made list_clusters
-                // report a different hub run to run. Lowest slug wins — deterministic and
-                // predictable to a human reading the conflict report.
-                hubByCluster.merge( page.cluster(), page, ( existing, candidate ) -> {
-                    final PageDescriptor winner =
-                            candidate.slug().compareTo( existing.slug() ) < 0 ? candidate : existing;
-                    final PageDescriptor loser = winner == candidate ? existing : candidate;
-                    duplicateDeclarations.add( new StructuralConflict(
-                            loser.slug(), loser.canonicalId(),
-                            StructuralConflict.Kind.DUPLICATE_CLUSTER_DECLARATION,
-                            "cluster '" + page.cluster() + "' is already declared by '" + winner.slug()
-                                    + "'; exactly one hub may declare a cluster" ) );
-                    return winner;
-                } );
-            }
+        if ( page.cluster() != null && page.type() == PageType.HUB ) {
+            // Two hubs declaring one cluster is a defect (Phase 2 blocks it at save
+            // time, and the rebuild reports it as DUPLICATE_CLUSTER_DECLARATION). Until
+            // then the winner must at least be STABLE: pages arrive in unsorted
+            // filesystem order from listFiles(), so a plain put() made list_clusters
+            // report a different hub run to run. Lowest slug wins — deterministic and
+            // predictable to a human reading the conflict report.
+            hubByCluster.merge( page.cluster(), page, ( existing, candidate ) -> {
+                final PageDescriptor winner =
+                        candidate.slug().compareTo( existing.slug() ) < 0 ? candidate : existing;
+                final PageDescriptor loser = winner == candidate ? existing : candidate;
+                duplicateDeclarations.add( new StructuralConflict(
+                        loser.slug(), loser.canonicalId(),
+                        StructuralConflict.Kind.DUPLICATE_CLUSTER_DECLARATION,
+                        "cluster '" + page.cluster() + "' is already declared by '" + winner.slug()
+                                + "'; exactly one hub may declare a cluster" ) );
+                return winner;
+            } );
         }
 
         for ( final String tag : page.tags() ) {

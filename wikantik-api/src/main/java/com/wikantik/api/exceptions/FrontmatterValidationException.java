@@ -31,6 +31,8 @@ import java.util.stream.Collectors;
  */
 public class FrontmatterValidationException extends FilterException {
 
+    private static final long serialVersionUID = 1L;
+
     private final transient List< FieldViolation > violations;
 
     public FrontmatterValidationException( final List< FieldViolation > violations ) {

@@ -132,6 +132,8 @@ public final class ConnectorConfigService {
     /** Thrown for mutations (update/delete) against a properties-origin connector id that has
      *  never been imported into the DB. The REST layer maps this to HTTP 409. */
     public static final class PropertiesOriginException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         private final String connectorId;
 
         public PropertiesOriginException( final String connectorId ) {

@@ -22,7 +22,6 @@ import com.wikantik.api.frontmatter.schema.FieldSpec;
 import com.wikantik.api.frontmatter.schema.FieldViolation;
 import com.wikantik.api.frontmatter.schema.FrontmatterSchema;
 import com.wikantik.api.frontmatter.schema.Severity;
-import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.knowledge.agent.FrontmatterRunbookValidator;
 
 import java.time.Instant;

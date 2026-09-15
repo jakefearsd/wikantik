@@ -53,7 +53,6 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     private final KgEdgeRepository edges;
     private final KgProposalRepository proposals;
     private final KgRejectionRepository rejections;
-    private final javax.sql.DataSource dataSource;
     private final Jdbc jdbc;
     @SuppressWarnings("PMD.UnusedPrivateField") // Used in setEngine() setter
     private Engine engine;
@@ -134,7 +133,6 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         this.edges           = edges;
         this.proposals       = proposals;
         this.rejections      = rejections;
-        this.dataSource      = dataSource;
         this.jdbc            = new Jdbc( dataSource );
         this.engine          = engine;
         this.materialization = materialization;

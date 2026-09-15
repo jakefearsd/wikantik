@@ -70,7 +70,6 @@ public class ApiKeyService {
     private static final String TABLE = "api_keys";
     private static final int TOKEN_BYTES = 32;
 
-    private final DataSource dataSource;
     private final Jdbc jdbc;
     private final SecureRandom rng = new SecureRandom();
 
@@ -98,7 +97,6 @@ public class ApiKeyService {
     private final ConcurrentHashMap< Integer, String > idToHash = new ConcurrentHashMap<>();
 
     public ApiKeyService( final DataSource dataSource ) {
-        this.dataSource = dataSource;
         this.jdbc = new Jdbc( dataSource );
     }
 

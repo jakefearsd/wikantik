@@ -19,9 +19,6 @@
 package com.wikantik.url;
 
 import com.wikantik.api.core.ContextEnum;
-import com.wikantik.api.core.Engine;
-
-import java.util.Properties;
 
 /**
  *  A specific URL constructor that returns easy-to-grok URLs for VIEW and ATTACH contexts, but delegates to the default constructor otherwise.
@@ -30,13 +27,6 @@ import java.util.Properties;
  */
 public class ShortViewURLConstructor extends ShortURLConstructor {
 
-    /**
-     *  {@inheritDoc}
-     */
-    @Override public void initialize( final Engine engine, final Properties properties ) {
-        super.initialize( engine, properties );
-    }
-    
     private String makeURL( final String context, final String name ) {
         final String viewurl = "%p" + urlPrefix + "%n";
         if( context.equals( ContextEnum.PAGE_VIEW.getRequestContext() ) ) {

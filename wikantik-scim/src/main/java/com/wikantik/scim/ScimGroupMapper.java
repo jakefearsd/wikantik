@@ -86,6 +86,8 @@ public final class ScimGroupMapper {
     }
 
     public static final class NestedGroupUnsupportedException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         public NestedGroupUnsupportedException( final String m ) { super( m ); }
     }
 }

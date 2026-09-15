@@ -66,10 +66,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.http.HttpClient;
-import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -385,7 +383,7 @@ public final class KnowledgeWiringHelper {
                 getenv.apply( "ANTHROPIC_API_KEY" ), extractorCfg.claudeModel(),
                 extractorCfg.timeoutMs(), parser );
         }
-        @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to OllamaPageExtractor
+        // ownership transferred to OllamaPageExtractor
         final HttpClient http = HttpClient.newHttpClient();
         return new OllamaPageExtractor(
             http, extractorCfg.ollamaBaseUrl(), extractorCfg.ollamaModel(),

@@ -38,6 +38,8 @@ import java.util.regex.Pattern;
 public final class ScimGroupPatchApplier {
 
     public static final class UnsupportedGroupPatchException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         public UnsupportedGroupPatchException( final String m ) { super( m ); }
     }
 

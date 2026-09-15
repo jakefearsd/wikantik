@@ -529,9 +529,8 @@ public final class BootstrapExtractionCli {
                     default -> throw new IllegalArgumentException( "unknown argument: " + k );
                 }
             }
+            a.requireJdbcCoordinates();
             if( !a.showHelp ) {
-                if( a.jdbcUrl.isBlank() ) throw new IllegalArgumentException( "--jdbc-url is required" );
-                if( a.jdbcUser.isBlank() ) throw new IllegalArgumentException( "--jdbc-user is required" );
                 if( a.pollSeconds < 1 ) throw new IllegalArgumentException( "--poll-seconds must be >= 1" );
                 if( a.maxPages < 0 ) throw new IllegalArgumentException( "--max-pages must be >= 0 (0 = unlimited)" );
                 if( a.maxEntitiesPerPage < 1 ) throw new IllegalArgumentException( "--max-entities-per-page must be >= 1" );

@@ -176,7 +176,7 @@ final class PasswordVerifyCache {
             return CryptoUtil.verifySaltedPassword( password.getBytes( StandardCharsets.UTF_8 ), storedPassword )
                     ? Boolean.TRUE : null;
         } catch( final NoSuchAlgorithmException e ) {
-            // Cannot happen for bcrypt, which does not go through MessageDigest at all.
+            // LOG.error justified: cannot happen for bcrypt (no MessageDigest involved), so reaching it means the JVM crypto provider set is broken
             AbstractUserDatabase.LOG.error( "Unsupported algorithm verifying password for a bcrypt hash: {}",
                     e.getMessage(), e );
             return null;

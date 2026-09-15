@@ -6,6 +6,53 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Plugin `debug=true` could leak raw server stack traces to every viewer.** The
+  parameter was page-content-controlled and ungated, so any editor could make a
+  failing plugin render its full stack trace (internal class/package names) to
+  anonymous readers. Debug rendering now also requires admin permissions
+  (`DefaultPluginManager`).
+- **Two `int * 60 * 1000` overflows** in `DefaultPageLockService.lockPage` and
+  `SpamHost` produced expiry timestamps in the past for large durations; both now
+  multiply in `long`.
+- Complexity ratchet restored to green: the CI static gate had been red since
+  2026-09-10 on three classes (`AbstractUserDatabase`, `JDBCUserDatabase`,
+  `GenerateConfigReferenceCli`), each decomposed into collaborators
+  (`PasswordVerifyCache`, `JdbcUserProfileRowMapper`, `configref.*`) rather than
+  baselined.
+- `WikiSessionTest` was order-dependent through the shared mock HttpSession; the three
+  container-principal/cookie tests now use isolated sessions (surfaced by surefire
+  3.6.0, which shuffles JUnit 5 methods under `runOrder=random`).
+- Visibility races: `ConnectorRuntime.isSchedulerRunning()` read `executor` outside
+  the lock; `DefaultReferenceManager`'s unmodifiable views and
+  `DefaultRenderingManager.beautifyTitle` are now `volatile`.
+
+### Changed
+- **Coverage ratchets.** Every module pins a JaCoCo line-coverage floor
+  (`wikantik.coverage.line.minimum`, enforced by `jacoco:check` under `-Pcoverage`,
+  run by `bin/site.sh` and the weekly CI unit-suite job); the frontend pins vitest
+  thresholds (`npm run test:coverage`, now the CI step). Floors are the measured
+  level rounded down and only ever go up (cap 95%). Reactor unit line coverage
+  84.3% -> 85.5%; frontend lines 81.3% -> 85.1% (measured over all `src/` files,
+  including the 11 never-imported ones).
+- Coverage: `wikantik-mcp-core` gains its first test suite (0% -> 88.5%); Content
+  Intelligence admin surfaces (`Insights*Resource`, `ListContentOpportunitiesTool`,
+  `SnoozeOpportunityTool`) 0-33% -> 88-100%; `AbstractApiAccessFilter`,
+  `PropertyReader`, `AttachmentManager`, `PageSaveHelper`, `Engine` covered directly;
+  frontend `api/client.js` 22% -> 100%.
+- PMD complexity baseline burned down (near-threshold entries cleared by local
+  extractions); PMD CPD duplication at zero blocks (>=100 tokens); mechanical PMD
+  cleanups across 46 files; the dead `FileUtil.runSimpleCommand` (find-sec-bugs
+  COMMAND_INJECTION) deleted.
+- Dependencies (patch/minor only; no CVEs justified a major bump, so Tika 4, junrar 8,
+  katex 0.18 and vitest 5 stay): pac4j 6.5.8, bouncycastle 1.86, snakeyaml 2.7,
+  slf4j 2.0.19, jsoup 1.23.2 (connectors now use the shared `sec.jsoup.version`
+  pin), okio 3.18.2, anthropic-java 2.62.0, google-api-client 2.9.1 /
+  auth-library 1.52.0 / drive rev20260901, selenide 7.18.1, selenium 4.49.0, h2
+  2.5.250 (test), surefire/failsafe 3.6.0, compiler 3.16.0, spotbugs 4.10.4.1,
+  build-helper 3.6.2, exec 3.6.4, properties 1.3.1, sonar 5.8, clirr 2.9;
+  frontend react 19.3.0, vite 8.3.0, happy-dom 20.14.5.
+
 ## [2.4.23] - 2026-09-10
 
 ### Fixed

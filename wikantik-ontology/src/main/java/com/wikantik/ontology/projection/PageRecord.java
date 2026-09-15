@@ -75,6 +75,8 @@ public record PageRecord(
     // The parameter list is the record's own component list minus `clusters`; PMD cannot see
     // that a record's canonical constructor already carries it. Dropping this overload would
     // force every single-cluster call site to spell out a redundant derived argument.
+    // (Targets the -Pcomplexity-gate ruleset; the default bug ruleset reports it as unnecessary — keep it.)
+    @SuppressWarnings( "PMD.ExcessiveParameterList" )
     public PageRecord( final String canonicalId, final String slug, final String title, final String type,
             final String cluster, final List< String > tags, final String summary, final String isoDate,
             final String author ) {

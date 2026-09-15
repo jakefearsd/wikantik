@@ -79,6 +79,7 @@ final class JdbcUserProfileRowMapper {
                 final Map<String,? extends Serializable> userAttributes = Serializer.deserializeFromBase64( rawAttributes );
                 profile.getAttributes().putAll( userAttributes );
             } catch ( final IOException e ) {
+                // LOG.error justified: a corrupt attributes column silently drops profile data for that account (was allowlisted in JDBCUserDatabase before extraction)
                 AbstractUserDatabase.LOG.error( "Could not parse user profile attributes for login '{}'!",
                         describeLoginNameForLog( rs ), e );
             }

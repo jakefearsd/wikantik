@@ -54,6 +54,13 @@ abstract class CommonCliArgs {
         }
     }
 
+    /** Fails fast when the JDBC coordinates are blank (skipped when only help was requested). */
+    final void requireJdbcCoordinates() {
+        if ( showHelp ) return;
+        if ( jdbcUrl.isBlank() ) throw new IllegalArgumentException( "--jdbc-url is required" );
+        if ( jdbcUser.isBlank() ) throw new IllegalArgumentException( "--jdbc-user is required" );
+    }
+
     static String req( final String[] argv, final int i, final String flag ) {
         if ( i >= argv.length ) throw new IllegalArgumentException( flag + " requires a value" );
         return argv[ i ];

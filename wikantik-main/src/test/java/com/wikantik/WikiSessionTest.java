@@ -104,13 +104,18 @@ public class WikiSessionTest {
         Assertions.assertTrue(  ArrayUtils.contains( principals, Role.AUTHENTICATED ) );
     }
 
+    // The three container-principal/cookie tests below use ISOLATED requests (their own
+    // HttpSession id): every other test in this class shares HttpMockFactory's
+    // "mock-session" WikiSession, and a shared session that is already authenticated (e.g.
+    // as Administrator by testRoles) short-circuits login(), so these assertions became
+    // order-dependent once surefire 3.6.0 started shuffling JUnit 5 methods under runOrder=random.
     @Test
     void testIPAddress() throws ServletException, IOException {
         final HttpServletRequest request;
         final Session wikiSession;
 
         // A naked HTTP request without userPrincipal/remoteUser should be anonymous
-        request = HttpMockFactory.createHttpRequest();
+        request = HttpMockFactory.createIsolatedHttpRequest( "/wiki/" );
         Mockito.doReturn( null ).when( request ).getUserPrincipal();
         runSecurityFilter( m_engine, request );
         wikiSession = Wiki.session().find( m_engine, request );
@@ -123,7 +128,7 @@ public class WikiSessionTest {
         final Session wikiSession;
 
         // Changing the UserPrincipal value should cause the user to be authenticated...
-        request = HttpMockFactory.createHttpRequest();
+        request = HttpMockFactory.createIsolatedHttpRequest( "/wiki/" );
         Mockito.doReturn( new WikiPrincipal( "Fred Flintstone") ).when( request ).getUserPrincipal();
         runSecurityFilter( m_engine, request );
         wikiSession = Wiki.session().find( m_engine, request );
@@ -137,7 +142,7 @@ public class WikiSessionTest {
         final Session wikiSession;
 
         // Adding the magic "assertion cookie" should  set asserted status.
-        request = HttpMockFactory.createHttpRequest();
+        request = HttpMockFactory.createIsolatedHttpRequest( "/wiki/" );
         Mockito.doReturn( null ).when( request ).getUserPrincipal();
         final String cookieName = CookieAssertionLoginModule.PREFS_COOKIE_NAME;
         Mockito.doReturn( new Cookie[] { new Cookie( cookieName, "FredFlintstone" ) } ).when( request ).getCookies();

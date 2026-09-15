@@ -1,0 +1,1 @@
+Test-fixture MCP instructions for wikantik-mcp-core unit tests.

@@ -22,15 +22,23 @@ package com.wikantik.util;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
 
 import jakarta.servlet.ServletContext;
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 
 /**
@@ -286,6 +294,208 @@ class PropertyReaderTest {
         PropertyReader.expandVars( p );
         // $undefinedVar has no matching var.undefinedVar, so it stays
         Assertions.assertEquals( "$undefinedVar/path", p.getProperty( "wikantik.test" ) );
+    }
+
+    // --- locateClassPathResource --------------------------------------------------
+
+    @Test
+    void testLocateClassPathResourceEmptyNameReturnsNullImmediately() {
+        final ServletContext context = mock( ServletContext.class );
+        Assertions.assertNull( PropertyReader.locateClassPathResource( context, "" ) );
+        Mockito.verifyNoInteractions( context );
+    }
+
+    @Test
+    void testLocateClassPathResourceFoundViaServletContext() throws IOException {
+        final ServletContext context = mock( ServletContext.class );
+        final InputStream fromServletContext = new ByteArrayInputStream( "from-servlet-context".getBytes( StandardCharsets.UTF_8 ) );
+        when( context.getResourceAsStream( "/WEB-INF/classes/some.properties" ) ).thenReturn( fromServletContext );
+
+        try ( InputStream result = PropertyReader.locateClassPathResource( context, "some.properties" ) ) {
+            Assertions.assertNotNull( result );
+            Assertions.assertEquals( "from-servlet-context", new String( result.readAllBytes(), StandardCharsets.UTF_8 ) );
+        }
+    }
+
+    @Test
+    void testLocateClassPathResourceFallsBackToClassLoaderWhenServletContextMisses() throws IOException {
+        // ServletContext lookup misses at every path; PropertyReader's own classloader
+        // then finds this real test-classpath resource (wikantik-util/src/test/resources/test.properties).
+        final ServletContext context = mock( ServletContext.class );
+        when( context.getResourceAsStream( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( null );
+
+        try ( InputStream result = PropertyReader.locateClassPathResource( context, "/test.properties" ) ) {
+            Assertions.assertNotNull( result, "expected classloader fallback to find /test.properties on the test classpath" );
+            final String content = new String( result.readAllBytes(), StandardCharsets.UTF_8 );
+            Assertions.assertTrue( content.contains( "testProp1=Foo" ), content );
+        }
+    }
+
+    @Test
+    void testLocateClassPathResourceReturnsNullWhenNotFoundAnywhere() {
+        final ServletContext context = mock( ServletContext.class );
+        when( context.getResourceAsStream( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( null );
+
+        final InputStream result = PropertyReader.locateClassPathResource( context, "/does-not-exist-anywhere.properties" );
+
+        Assertions.assertNull( result );
+    }
+
+    // --- loadCustomPropertiesFile ---------------------------------------------------
+
+    @Test
+    void testLoadCustomPropertiesFileWithExplicitPathLoadsGivenFile( @TempDir final Path tempDir ) throws IOException {
+        final Path customFile = tempDir.resolve( "explicit-custom.properties" );
+        Files.writeString( customFile, "wikantik.explicit=yes", StandardCharsets.UTF_8 );
+        final ServletContext context = mock( ServletContext.class );
+
+        try ( InputStream in = PropertyReader.loadCustomPropertiesFile( context, customFile.toAbsolutePath().toString() ) ) {
+            Assertions.assertNotNull( in );
+            final Properties props = new Properties();
+            props.load( in );
+            Assertions.assertEquals( "yes", props.getProperty( "wikantik.explicit" ) );
+        }
+        Mockito.verifyNoInteractions( context );
+    }
+
+    @Test
+    void testLoadCustomPropertiesFileWithExplicitMissingPathThrows() {
+        final ServletContext context = mock( ServletContext.class );
+        Assertions.assertThrows( IOException.class, () ->
+                PropertyReader.loadCustomPropertiesFile( context, "/does/not/exist/custom.properties" ) );
+    }
+
+    @Test
+    void testLoadCustomPropertiesFileWithNullPropertyFileUsesClasspathLookup() throws IOException {
+        // wikantik-util/src/test/resources/wikantik-custom.properties is on the test classpath
+        // at the default CUSTOM_WIKANTIK_CONFIG location, reachable via classloader fallback.
+        final ServletContext context = mock( ServletContext.class );
+        when( context.getResourceAsStream( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( null );
+
+        try ( InputStream in = PropertyReader.loadCustomPropertiesFile( context, null ) ) {
+            Assertions.assertNotNull( in );
+            final Properties props = new Properties();
+            props.load( in );
+            Assertions.assertEquals( "LuceneSearchProvider", props.getProperty( "wikantik.searchProvider" ) );
+        }
+    }
+
+    // --- loadWebAppProps (integration of cascade, custom file, expansion, workDir) ---
+
+    @Test
+    void testLoadWebAppPropsWithNoOverridesLoadsDefaultTestClasspathCustomFile() {
+        final ServletContext context = mock( ServletContext.class );
+        when( context.getInitParameter( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( null );
+        when( context.getResourceAsStream( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( null );
+
+        final Properties props = PropertyReader.loadWebAppProps( context );
+
+        Assertions.assertNotNull( props );
+        // Comes from wikantik-util/src/test/resources/wikantik-custom.properties, picked up
+        // via the classpath fallback in loadCustomPropertiesFile/locateClassPathResource.
+        Assertions.assertEquals( "LuceneSearchProvider", props.getProperty( "wikantik.searchProvider" ) );
+        // setWorkDir must not overwrite a workDir already present in the custom file.
+        Assertions.assertEquals( "target/test-classes/testworkdir", props.getProperty( "wikantik.workDir" ) );
+    }
+
+    @Test
+    void testLoadWebAppPropsAppliesSingleCascadeFile( @TempDir final Path tempDir ) throws IOException {
+        final Path cascadeFile = tempDir.resolve( "cascade1.properties" );
+        Files.writeString( cascadeFile, "wikantik.cascadeTest=cascaded", StandardCharsets.UTF_8 );
+
+        final ServletContext context = mock( ServletContext.class );
+        when( context.getInitParameter( PropertyReader.PARAM_CUSTOMCONFIG ) ).thenReturn( null );
+        when( context.getInitParameter( PropertyReader.PARAM_CUSTOMCONFIG_CASCADEPREFIX + "1" ) )
+                .thenReturn( cascadeFile.toAbsolutePath().toString() );
+        when( context.getInitParameter( PropertyReader.PARAM_CUSTOMCONFIG_CASCADEPREFIX + "2" ) ).thenReturn( null );
+        when( context.getResourceAsStream( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( null );
+
+        final Properties props = PropertyReader.loadWebAppProps( context );
+
+        Assertions.assertNotNull( props );
+        Assertions.assertEquals( "cascaded", props.getProperty( "wikantik.cascadeTest" ) );
+    }
+
+    @Test
+    void testLoadWebAppPropsCascadeSkipsMissingFileButContinues( @TempDir final Path tempDir ) throws IOException {
+        final Path secondCascade = tempDir.resolve( "cascade2.properties" );
+        Files.writeString( secondCascade, "wikantik.secondCascade=applied", StandardCharsets.UTF_8 );
+
+        final ServletContext context = mock( ServletContext.class );
+        when( context.getInitParameter( PropertyReader.PARAM_CUSTOMCONFIG ) ).thenReturn( null );
+        when( context.getInitParameter( PropertyReader.PARAM_CUSTOMCONFIG_CASCADEPREFIX + "1" ) )
+                .thenReturn( "/does/not/exist/cascade1.properties" );
+        when( context.getInitParameter( PropertyReader.PARAM_CUSTOMCONFIG_CASCADEPREFIX + "2" ) )
+                .thenReturn( secondCascade.toAbsolutePath().toString() );
+        when( context.getInitParameter( PropertyReader.PARAM_CUSTOMCONFIG_CASCADEPREFIX + "3" ) ).thenReturn( null );
+        when( context.getResourceAsStream( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( null );
+
+        final Properties props = PropertyReader.loadWebAppProps( context );
+
+        Assertions.assertNotNull( props, "a missing cascade file must be logged and skipped, not fail the whole load" );
+        Assertions.assertEquals( "applied", props.getProperty( "wikantik.secondCascade" ),
+                "cascade depth 2 must still be applied after depth 1 failed" );
+    }
+
+    @Test
+    void testLoadWebAppPropsWithNoCascadeConfiguredSkipsCascadeLoop() {
+        final ServletContext context = mock( ServletContext.class );
+        when( context.getInitParameter( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( null );
+        when( context.getResourceAsStream( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( null );
+
+        final Properties props = PropertyReader.loadWebAppProps( context );
+
+        Assertions.assertNotNull( props );
+        Mockito.verify( context, Mockito.never() )
+                .getInitParameter( PropertyReader.PARAM_CUSTOMCONFIG_CASCADEPREFIX + "2" );
+    }
+
+    @Test
+    void testLoadWebAppPropsUsesExplicitPropertyFileFromInitParameter( @TempDir final Path tempDir ) throws IOException {
+        final Path explicitFile = tempDir.resolve( "explicit-webapp.properties" );
+        Files.writeString( explicitFile, "wikantik.explicitLoaded=yes", StandardCharsets.UTF_8 );
+
+        final ServletContext context = mock( ServletContext.class );
+        when( context.getInitParameter( PropertyReader.PARAM_CUSTOMCONFIG ) )
+                .thenReturn( explicitFile.toAbsolutePath().toString() );
+        when( context.getInitParameter( PropertyReader.PARAM_CUSTOMCONFIG_CASCADEPREFIX + "1" ) ).thenReturn( null );
+
+        final Properties props = PropertyReader.loadWebAppProps( context );
+
+        Assertions.assertNotNull( props );
+        Assertions.assertEquals( "yes", props.getProperty( "wikantik.explicitLoaded" ) );
+    }
+
+    @Test
+    void testLoadWebAppPropsReturnsNullWhenExplicitPropertyFileUnreadable() {
+        // Files.newInputStream on a directory (not a regular file) throws IOException,
+        // which propagates out of loadCustomPropertiesFile and is caught by the outer
+        // catch(Exception) in loadWebAppProps, yielding null rather than a thrown exception.
+        final ServletContext context = mock( ServletContext.class );
+        when( context.getInitParameter( PropertyReader.PARAM_CUSTOMCONFIG ) )
+                .thenReturn( System.getProperty( "java.io.tmpdir" ) );
+
+        final Properties props = PropertyReader.loadWebAppProps( context );
+
+        Assertions.assertNull( props );
+    }
+
+    @Test
+    void testLoadWebAppPropsFallsBackToSystemPropertyWhenInitParameterAbsent( @TempDir final Path tempDir ) throws IOException {
+        final Path explicitFile = tempDir.resolve( "sysprop-webapp.properties" );
+        Files.writeString( explicitFile, "wikantik.viaSysProp=yes", StandardCharsets.UTF_8 );
+        final ServletContext context = mock( ServletContext.class );
+        when( context.getInitParameter( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( null );
+
+        try {
+            System.setProperty( PropertyReader.PARAM_CUSTOMCONFIG, explicitFile.toAbsolutePath().toString() );
+            final Properties props = PropertyReader.loadWebAppProps( context );
+
+            Assertions.assertNotNull( props );
+            Assertions.assertEquals( "yes", props.getProperty( "wikantik.viaSysProp" ) );
+        } finally {
+            System.clearProperty( PropertyReader.PARAM_CUSTOMCONFIG );
+        }
     }
 
 }

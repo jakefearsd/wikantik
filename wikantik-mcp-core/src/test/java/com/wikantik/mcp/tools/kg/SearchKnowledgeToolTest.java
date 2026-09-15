@@ -1,0 +1,238 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.mcp.tools.kg;
+
+import com.wikantik.mcp.ToolSchemas;
+
+import com.wikantik.api.knowledge.KgNode;
+import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.wikantik.api.knowledge.Provenance;
+import com.wikantik.knowledge.MentionIndex;
+import com.wikantik.mcp.tools.McpToolUtils;
+import io.modelcontextprotocol.spec.McpSchema;
+import org.junit.jupiter.api.Test;
+
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+/**
+ * Mirrors {@code com.wikantik.mcp.tools.kg.SearchKnowledgeToolTest} in wikantik-admin-mcp
+ * so this module's own JaCoCo report attributes coverage for {@link SearchKnowledgeTool},
+ * which lives here in wikantik-mcp-core.
+ */
+class SearchKnowledgeToolTest {
+
+    private static KgNode node( final String name, final UUID id ) {
+        return new KgNode( id, name, "Concept", name + "Page",
+            Provenance.HUMAN_AUTHORED, Map.of(),
+            Instant.parse( "2026-04-24T08:00:00Z" ),
+            Instant.parse( "2026-04-24T08:00:00Z" ), "human", null );
+    }
+
+    @Test
+    void name_isSearchKnowledge() {
+        assertEquals( "search_knowledge",
+            new SearchKnowledgeTool( mock( KnowledgeGraphService.class ) ).name() );
+    }
+
+    @Test
+    void definition_requiresQuery() {
+        assertTrue( ToolSchemas.required( new SearchKnowledgeTool( mock( KnowledgeGraphService.class ) )
+            .definition().inputSchema() ).contains( "query" ) );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void definition_carriesWorkedExamples() throws Exception {
+        final McpSchema.Tool def = new SearchKnowledgeTool( mock( KnowledgeGraphService.class ) ).definition();
+
+        final Map< String, Object > queryProp = (Map< String, Object >) ToolSchemas.properties( def.inputSchema() ).get( "query" );
+        assertTrue( queryProp.containsKey( "examples" ),
+                "input property 'query' must advertise examples" );
+        final List< ? > queryExamples = (List< ? >) queryProp.get( "examples" );
+        assertFalse( queryExamples.isEmpty() );
+
+        assertNotNull( def.outputSchema(), "outputSchema must be populated" );
+        assertTrue( def.outputSchema().containsKey( "examples" ) );
+        final List< ? > outExamples = (List< ? >) def.outputSchema().get( "examples" );
+        assertFalse( outExamples.isEmpty() );
+
+        final String inputJson  = McpToolUtils.KG_GSON.toJson( ToolSchemas.properties( def.inputSchema() ) );
+        final String outputJson = McpToolUtils.KG_GSON.toJson( def.outputSchema() );
+        assertTrue( inputJson.contains( "\"examples\"" ),
+                "input schema JSON must carry the 'examples' keyword for agents — got: " + inputJson );
+        assertTrue( outputJson.contains( "\"examples\"" ),
+                "output schema JSON must carry the 'examples' keyword for agents — got: " + outputJson );
+        assertTrue( inputJson.contains( "hybrid retrieval" ),
+                "input schema JSON must include the design-doc canonical example value 'hybrid retrieval'" );
+    }
+
+    @Test
+    void execute_returnsUnfilteredWhenMentionIndexAbsent() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        final KgNode a = node( "Alpha", UUID.randomUUID() );
+        when( svc.searchKnowledge( eq( "alph" ), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) )
+            .thenReturn( List.of( a ) );
+
+        final McpSchema.CallToolResult result =
+            new SearchKnowledgeTool( svc ).execute( Map.of( "query", "alph" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "\"name\":\"Alpha\"" ) );
+    }
+
+    @Test
+    void execute_filtersOutUnmentionedNodesWhenIndexPresent() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        final UUID aId = UUID.randomUUID();
+        final UUID bId = UUID.randomUUID();
+        when( svc.searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) ).thenReturn(
+            List.of( node( "Alpha", aId ), node( "Beta", bId ) ) );
+        final MentionIndex idx = mock( MentionIndex.class );
+        when( idx.isMentioned( aId ) ).thenReturn( false );
+        when( idx.isMentioned( bId ) ).thenReturn( true );
+
+        final McpSchema.CallToolResult result = new SearchKnowledgeTool( svc, idx )
+            .execute( Map.of( "query", "q" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertFalse( text.contains( "Alpha" ) );
+        assertTrue( text.contains( "Beta" ) );
+    }
+
+    @Test
+    void execute_passesLimitAndProvenanceFilter() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        when( svc.searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) ).thenReturn( List.of() );
+
+        final Map< String, Object > args = new HashMap<>();
+        args.put( "query", "q" );
+        args.put( "provenance_filter", List.of( "ai-reviewed" ) );
+        args.put( "limit", 7 );
+        new SearchKnowledgeTool( svc ).execute( args );
+        verify( svc ).searchKnowledge( eq( "q" ), eq( Set.of( Provenance.AI_REVIEWED ) ), eq( 7 ),
+            any( com.wikantik.api.knowledge.Tier.class ) );
+    }
+
+    @Test
+    void execute_appliesDefaultLimitWhenAbsent() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        when( svc.searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) ).thenReturn( List.of() );
+        new SearchKnowledgeTool( svc ).execute( Map.of( "query", "q" ) );
+        verify( svc ).searchKnowledge( eq( "q" ), isNull(), eq( 20 ),
+            any( com.wikantik.api.knowledge.Tier.class ) );
+    }
+
+    @Test
+    void execute_returnsErrorOnServiceFailure() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        when( svc.searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) )
+            .thenThrow( new RuntimeException( "DB offline" ) );
+        final McpSchema.CallToolResult result = new SearchKnowledgeTool( svc )
+            .execute( Map.of( "query", "q" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "DB offline" ) );
+    }
+
+    @Test
+    void execute_returnsErrorForInvalidMinTier() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        final McpSchema.CallToolResult result = new SearchKnowledgeTool( svc )
+            .execute( Map.of( "query", "q", "min_tier", "bogus" ) );
+        assertTrue( result.isError() );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "min_tier must be" ) );
+    }
+
+    @Test
+    void executePassesAdminBypassFlagWhenSet() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        when( svc.searchKnowledge( any(), any(), anyInt(), eq( true ) ) )
+                .thenReturn( List.of() );
+
+        new SearchKnowledgeTool( svc, null, true ).execute( Map.of( "query", "q" ) );
+
+        verify( svc ).searchKnowledge( any(), any(), anyInt(), eq( true ) );
+    }
+
+    @Test
+    void executeDefaultsToBypassFalse() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        when( svc.searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) ).thenReturn( List.of() );
+
+        new SearchKnowledgeTool( svc ).execute( Map.of( "query", "q" ) );
+
+        // adminBypass=false → Tier-based overload is called, not the boolean bypass overload
+        verify( svc, org.mockito.Mockito.never() ).searchKnowledge(
+                any(), any(), anyInt(), eq( false ) );
+        verify( svc ).searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) );
+    }
+
+    @Test
+    void execute_emptyResultsIncludeRetrieveContextHint() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        when( svc.searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) ).thenReturn( List.of() );
+
+        final McpSchema.CallToolResult result = new SearchKnowledgeTool( svc ).execute( Map.of( "query", "q" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "retrieve_context" ), text );
+    }
+
+    @Test
+    void execute_sourcePageGateFiltersRestrictedNodes() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        final UUID secretId = UUID.randomUUID();
+        final UUID publicId = UUID.randomUUID();
+        // Node with sourcePage "SecretPage" — must be filtered out by the gate.
+        final KgNode secretNode = new KgNode( secretId, "SecretEntity", "Concept", "SecretPage",
+            Provenance.HUMAN_AUTHORED, Map.of(),
+            Instant.parse( "2026-04-24T08:00:00Z" ),
+            Instant.parse( "2026-04-24T08:00:00Z" ), "human", null );
+        // Node with sourcePage "PublicPage" — must remain visible.
+        final KgNode publicNode = new KgNode( publicId, "PublicEntity", "Concept", "PublicPage",
+            Provenance.HUMAN_AUTHORED, Map.of(),
+            Instant.parse( "2026-04-24T08:00:00Z" ),
+            Instant.parse( "2026-04-24T08:00:00Z" ), "human", null );
+        when( svc.searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) )
+            .thenReturn( List.of( secretNode, publicNode ) );
+
+        // Gate that denies SecretPage only.
+        final java.util.function.Predicate< String > gate = s -> !"SecretPage".equals( s );
+        final McpSchema.CallToolResult result =
+            new SearchKnowledgeTool( svc, null, false, gate ).execute( Map.of( "query", "q" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertFalse( text.contains( "SecretEntity" ), "restricted node must be absent" );
+        assertTrue( text.contains( "PublicEntity" ), "public node must be present" );
+    }
+}

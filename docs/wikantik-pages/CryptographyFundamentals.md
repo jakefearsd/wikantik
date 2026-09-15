@@ -25,10 +25,14 @@ Wikantik prioritizes the security of user data and system integrity through robu
 Wikantik uses salted password hashing to protect user credentials. When a user creates or updates a password, the system generates a random salt, combines it with the password, and hashes the result.
 
 ### Supported Algorithms
-The system supports two primary hashing formats, prefixed for identification:
+The system supports two hashing formats, prefixed for identification:
 
-1. **`{SHA256}` (Recommended):** The modern standard for Wikantik. It uses SHA-256 with a salt, providing strong resistance against collision and pre-image attacks.
-2. **`{SSHA}` (Legacy):** Salted SHA-1. This is maintained primarily for backward compatibility with legacy JSPWiki installations but is deprecated for new user accounts.
+1. **`{bcrypt}` (Current default):** Used for new and re-hashed passwords. A legacy hash is transparently re-hashed to bcrypt on the owner's next successful login.
+2. **`{SHA-256}` (Legacy, still verifiable):** Salted SHA-256, kept working so existing accounts migrate transparently rather than being locked out.
+
+Salted SHA-1 (`{SSHA}`) and unsalted SHA-1 (`{SHA}`) are **no longer supported** — a
+stored value in either format never verifies, and it is left untouched (not
+migrated) on a failed attempt.
 
 ### Storage Format
 Hashed passwords are stored as Base64-encoded strings of the combined hash and salt. The algorithm prefix allows `CryptoUtil.verifySaltedPassword` to dynamically choose the correct extraction and verification logic.

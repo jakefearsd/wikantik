@@ -68,6 +68,8 @@ public class CryptoUtilTest {
 
     @Test
     public void testCommandLineNoVerify() throws Exception {
+        final String digest = CryptoUtil.getSaltedPassword( "testing123".getBytes( StandardCharsets.UTF_8 ), "{SHA-256}" );
+
         // Save old printstream
         final PrintStream oldOut = System.out;
 
@@ -75,7 +77,7 @@ public class CryptoUtilTest {
         final OutputStream out = new ByteArrayOutputStream();
         System.setOut( new PrintStream( out ) );
         // Supply a bogus password
-        CryptoUtil.main( new String[]{ "--verify", "password", "{SSHA}yfT8SRT/WoOuNuA6KbJeF10OznZmb28=" } );
+        CryptoUtil.main( new String[]{ "--verify", "wrongpassword", digest } );
         final String output = out.toString();
 
         // Restore old printstream
@@ -93,13 +95,15 @@ public class CryptoUtilTest {
 
     @Test
     public void testCommandLineVerify() throws Exception {
+        final String digest = CryptoUtil.getSaltedPassword( "testing123".getBytes( StandardCharsets.UTF_8 ), "{SHA-256}" );
+
         // Save old printstream
         final PrintStream oldOut = System.out;
 
         // Swallow System out and get command output
         final OutputStream out = new ByteArrayOutputStream();
         System.setOut( new PrintStream( out ) );
-        CryptoUtil.main( new String[]{ "--verify", "testing123", "{SSHA}yfT8SRT/WoOuNuA6KbJeF10OznZmb28=" } );
+        CryptoUtil.main( new String[]{ "--verify", "testing123", digest } );
         final String output = out.toString();
 
         // Restore old printstream
@@ -124,56 +128,42 @@ public class CryptoUtilTest {
     }
 
     @Test
-    public void testGetSaltedPassword() throws Exception {
-        byte[] password;
+    public void testGetSaltedPasswordSha256RoundTrips() throws Exception {
+        final byte[] password = "testing123".getBytes( StandardCharsets.UTF_8 );
+        final String hash = CryptoUtil.getSaltedPassword( password, "foo".getBytes( StandardCharsets.UTF_8 ), "{SHA-256}" );
 
-        // Generate a hash with a known password and salt
-        password = "testing123".getBytes();
-        Assertions.assertEquals( "{SSHA}yfT8SRT/WoOuNuA6KbJeF10OznZmb28=", CryptoUtil.getSaltedPassword( password, "foo".getBytes(), "{SSHA}" ) );
-
-        // Generate two hashes with a known password and 2 different salts
-        password = "password".getBytes();
-        Assertions.assertEquals( "{SSHA}tAVisOOQGAeVyP8UMFQY9qi83lxsb09e", CryptoUtil.getSaltedPassword( password, "loO^".getBytes(), "{SSHA}" ) );
-        Assertions.assertEquals( "{SSHA}BZaDYvB8czmNW3MjR2j7/mklODV0ZXN0eQ==", CryptoUtil.getSaltedPassword( password, "testy".getBytes(), "{SSHA}" ) );
+        Assertions.assertTrue( hash.startsWith( "{SHA-256}" ) );
+        Assertions.assertTrue( CryptoUtil.verifySaltedPassword( password, hash ) );
+        Assertions.assertFalse( CryptoUtil.verifySaltedPassword( "wrongpassword".getBytes( StandardCharsets.UTF_8 ), hash ) );
     }
 
     @Test
     public void testMultipleHashes() throws Exception {
-        final String p1 = CryptoUtil.getSaltedPassword( "password".getBytes(), "{SSHA}" );
-        final String p2 = CryptoUtil.getSaltedPassword( "password".getBytes(), "{SSHA}" );
-        final String p3 = CryptoUtil.getSaltedPassword( "password".getBytes(), "{SSHA}" );
+        final String p1 = CryptoUtil.getSaltedPassword( "password".getBytes(), "{SHA-256}" );
+        final String p2 = CryptoUtil.getSaltedPassword( "password".getBytes(), "{SHA-256}" );
+        final String p3 = CryptoUtil.getSaltedPassword( "password".getBytes(), "{SHA-256}" );
         Assertions.assertNotSame( p1, p2 );
         Assertions.assertNotSame( p2, p3 );
         Assertions.assertNotSame( p1, p3 );
     }
 
-    @Test
-    public void testSaltedPasswordLength() throws Exception {
-        // Generate a hash with a known password and salt
-        final byte[] password = "mySooperRandomPassword".getBytes();
-        final String hash = CryptoUtil.getSaltedPassword( password, "salt".getBytes(), "{SSHA}" );
+    // --- {SSHA} (salted SHA-1) is no longer supported — both entry points reject it ---
 
-        // slappasswd says that a 4-byte salt should give us 6 chars for prefix
-        // + 20 chars for the hash + 12 for salt (38 total)
-        Assertions.assertEquals( 38, hash.length() );
+    @Test
+    public void verifySaltedPasswordRejectsSSHA() {
+        final byte[] password = "testing123".getBytes( StandardCharsets.UTF_8 );
+        // A real-looking legacy {SSHA} entry must not verify — it is rejected the same way any
+        // entry lacking a recognized algorithm marker is: IllegalArgumentException, never a
+        // silent false and never a crash.
+        final IllegalArgumentException ex = Assertions.assertThrows( IllegalArgumentException.class,
+                () -> CryptoUtil.verifySaltedPassword( password, "{SSHA}yfT8SRT/WoOuNuA6KbJeF10OznZmb28=" ) );
+        Assertions.assertTrue( ex.getMessage().contains( "algorithm" ), "unexpected message: " + ex.getMessage() );
     }
 
     @Test
-    public void verifySaltedPassword() throws Exception {
-        // Verify with a known digest
-        byte[] password = "testing123".getBytes( StandardCharsets.UTF_8 );
-        Assertions.assertTrue( CryptoUtil.verifySaltedPassword( password, "{SSHA}yfT8SRT/WoOuNuA6KbJeF10OznZmb28=" ) );
-
-        // Verify with two more known digests
-        password = "password".getBytes();
-        Assertions.assertTrue( CryptoUtil.verifySaltedPassword( password, "{SSHA}tAVisOOQGAeVyP8UMFQY9qi83lxsb09e" ) );
-        Assertions.assertTrue( CryptoUtil.verifySaltedPassword( password, "{SSHA}BZaDYvB8czmNW3MjR2j7/mklODV0ZXN0eQ==" ) );
-
-        // Verify with three consecutive random generations (based on slappasswd)
-        password = "testPassword".getBytes();
-        Assertions.assertTrue( CryptoUtil.verifySaltedPassword( password, "{SSHA}t2tfJHm/QZYUh0OZ8tkm05l2LLbuc3ZF" ) );
-        Assertions.assertTrue( CryptoUtil.verifySaltedPassword( password, "{SSHA}0FKV9iM2cA5bAMws7mSgwg+zik/GT+wy" ) );
-        Assertions.assertTrue( CryptoUtil.verifySaltedPassword( password, "{SSHA}/0Dzvh+8+w0YO673Qr7vqEOmdeMSrbGG" ) );
+    public void getSaltedPasswordRejectsSSHA() {
+        Assertions.assertThrows( IllegalArgumentException.class,
+                () -> CryptoUtil.getSaltedPassword( "testing123".getBytes( StandardCharsets.UTF_8 ), "{SSHA}" ) );
     }
 
 }

@@ -34,9 +34,13 @@ import static org.junit.jupiter.api.Assertions.*;
  *   <li>{@code find()} falling through all three tries before throwing</li>
  *   <li>{@code find()} succeeding on each individual path (fullname, wikiname, loginname)</li>
  *   <li>{@code getPrincipals()} with partial and complete profile data</li>
- *   <li>{@code validatePassword()} with a stored SHA-1 prefix ({SHA}) — covers the legacy
- *       upgrade branch</li>
- *   <li>{@code getShaHash()} via {@code validatePassword()} with a SHA-prefixed password</li>
+ *   <li>{@code validatePassword()} against a legacy salted {@code {SHA-256}} hash — covers the
+ *       transparent bcrypt-migration branch</li>
+ *   <li>{@code validatePassword()} against a stored {@code {SHA}} or {@code {SSHA}} hash — both
+ *       formats were removed; a stored value in either format must never verify and must be
+ *       left untouched (no crash, no silent rewrite)</li>
+ *   <li>{@code validatePassword()} with a null stored or null supplied password (e.g. an
+ *       SSO-provisioned account with no local credential) — must return false, never throw</li>
  * </ul>
  */
 class AbstractUserDatabaseCITest {
@@ -147,34 +151,68 @@ class AbstractUserDatabaseCITest {
                     "the same password must verify against the upgraded bcrypt hash" );
     }
 
-    // --- validatePassword() with legacy SHA prefix — covers getShaHash() branch ---
+    // --- {SHA} (unsalted SHA-1) support was removed — a stored {SHA} hash must never verify ---
 
     @Test
-    void testValidatePasswordWithLegacyShaPrefix() {
-        // Seed a user whose stored credential is a {SHA}-prefixed hash, verbatim, so the
-        // legacy upgrade branch in AbstractUserDatabase.validatePassword() is exercised.
+    void testValidatePasswordWithLegacyShaPrefixNeverVerifies() throws NoSuchPrincipalException {
+        // Seed a user whose stored credential is a {SHA}-prefixed hash, verbatim. This format is
+        // no longer supported: AbstractUserDatabase.validatePassword() must return false — even
+        // for the CORRECT password — never throw, and never rewrite the stored value (only a
+        // successful verification triggers the bcrypt migration branch).
         final String shaHash = computeSha1Hex( "legacypass" );
         final InMemoryUserDatabase legacyDb = new InMemoryUserDatabase();
         legacyDb.putRaw( "legacyuser", "Legacy User", "LegacyUser", "legacy@example.com",
                          "{SHA}" + shaHash, "uid-legacy-1" );
 
-        assertTrue( legacyDb.validatePassword( "legacyuser", "legacypass" ),
-                    "Legacy {SHA} password should validate correctly" );
+        assertFalse( legacyDb.validatePassword( "legacyuser", "legacypass" ),
+                     "A stored {SHA} hash must no longer verify, even with the correct password" );
+        assertFalse( legacyDb.validatePassword( "legacyuser", "wrongpass" ),
+                     "A stored {SHA} hash must not verify a wrong password either" );
+
+        assertEquals( "{SHA}" + shaHash, legacyDb.findByLoginName( "legacyuser" ).getPassword(),
+                      "A rejected {SHA} hash must be left untouched — no migration on failure" );
     }
 
-    // --- validatePassword() with legacy {SHA} rejects wrong password ---
+    // --- {SSHA} (salted SHA-1) support was removed — a stored {SSHA} hash must never verify ---
 
     @Test
-    void testValidatePasswordWithLegacyShaPrefixRejectsWrongPassword() {
-        final String shaHash = computeSha1Hex( "legacypass" );
+    void testValidatePasswordWithLegacySshaPrefixNeverVerifies() throws NoSuchPrincipalException {
+        // Build a real {SSHA} value with a small local SHA-1 helper (CryptoUtil no longer
+        // produces this format) and seed it verbatim.
+        final String sshaHash = computeSsha( "legacypass", "salt1234".getBytes( java.nio.charset.StandardCharsets.UTF_8 ) );
         final InMemoryUserDatabase legacyDb = new InMemoryUserDatabase();
-        legacyDb.putRaw( "legacybaduser", "Legacy Bad User", "LegacyBadUser", "legacybad@example.com",
-                         "{SHA}" + shaHash, "uid-legacy-2" );
+        legacyDb.putRaw( "legacysshauser", "Legacy SSHA User", "LegacySshaUser", "legacyssha@example.com",
+                         sshaHash, "uid-legacy-3" );
 
-        assertFalse( legacyDb.validatePassword( "legacybaduser", "wrongpass" ),
-                     "Legacy {SHA} validation must reject a completely different password" );
-        assertFalse( legacyDb.validatePassword( "legacybaduser", "legacypasx" ),
-                     "Legacy {SHA} validation must reject a single-character-mutated password" );
+        assertFalse( legacyDb.validatePassword( "legacysshauser", "legacypass" ),
+                     "A stored {SSHA} hash must no longer verify, even with the correct password" );
+        assertFalse( legacyDb.validatePassword( "legacysshauser", "wrongpass" ),
+                     "A stored {SSHA} hash must not verify a wrong password either" );
+
+        assertEquals( sshaHash, legacyDb.findByLoginName( "legacysshauser" ).getPassword(),
+                      "A rejected {SSHA} hash must be left untouched — no migration on failure" );
+    }
+
+    // --- validatePassword() must fail closed, never throw, on a null stored or supplied password ---
+
+    @Test
+    void testValidatePasswordReturnsFalseForNullStoredPassword() {
+        // Mirrors an SSO-provisioned profile: no local credential, so the stored password column
+        // is null. A caller (e.g. a change-password form's "current password" check) must get a
+        // clean false, never an NPE.
+        final InMemoryUserDatabase ssoDb = new InMemoryUserDatabase();
+        ssoDb.putRaw( "ssouser", "SSO User", "SsoUser", "sso@example.com", null, "uid-sso-1" );
+
+        assertFalse( ssoDb.validatePassword( "ssouser", "anything" ),
+                     "A null stored password must fail closed, not throw" );
+    }
+
+    @Test
+    void testValidatePasswordReturnsFalseForNullSuppliedPassword() {
+        // janne has a normal bcrypt-eligible (legacy {SHA-256}, pre-migration) stored password;
+        // a null SUPPLIED password must still fail closed rather than reach CryptoUtil/the cache.
+        assertFalse( db.validatePassword( "janne", null ),
+                     "A null supplied password must fail closed, not throw" );
     }
 
     // --- newProfile() returns a profile with a non-null uid ---
@@ -198,6 +236,23 @@ class AbstractUserDatabaseCITest {
                 sb.append( String.format( "%02x", b ) );
             }
             return sb.toString();
+        } catch ( final java.security.NoSuchAlgorithmException e ) {
+            throw new RuntimeException( e );
+        }
+    }
+
+    // --- Helper: build a real {SSHA} value (RFC 2307 salted SHA-1) — CryptoUtil no longer
+    // produces this format, so tests that need one to prove it is rejected build it by hand. ---
+
+    private static String computeSsha( final String text, final byte[] salt ) {
+        try {
+            final java.security.MessageDigest md = java.security.MessageDigest.getInstance( "SHA" );
+            md.update( text.getBytes( java.nio.charset.StandardCharsets.UTF_8 ) );
+            final byte[] hash = md.digest( salt );
+            final byte[] all = new byte[ hash.length + salt.length ];
+            System.arraycopy( hash, 0, all, 0, hash.length );
+            System.arraycopy( salt, 0, all, hash.length, salt.length );
+            return "{SSHA}" + java.util.Base64.getEncoder().encodeToString( all );
         } catch ( final java.security.NoSuchAlgorithmException e ) {
             throw new RuntimeException( e );
         }

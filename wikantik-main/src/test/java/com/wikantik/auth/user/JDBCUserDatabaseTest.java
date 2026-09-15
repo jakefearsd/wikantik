@@ -87,10 +87,12 @@ public class JDBCUserDatabaseTest {
 
     private static final String TEST_ATTRIBUTES = "rO0ABXNyABFqYXZhLnV0aWwuSGFzaE1hcAUH2sHDFmDRAwACRgAKbG9hZEZhY3RvckkACXRocmVzaG9sZHhwP0AAAAAAAAx3CAAAABAAAAACdAAKYXR0cmlidXRlMXQAEXNvbWUgcmFuZG9tIHZhbHVldAAKYXR0cmlidXRlMnQADWFub3RoZXIgdmFsdWV4";
 
+    // {SHA-256} (salted SHA-256) of janne's / "user"'s (== Users.ALICE_PASS) test password —
+    // {SHA} (unsalted SHA-1) is no longer a supported hash format.
     private static final String INSERT_JANNE = "INSERT INTO users (" +
             "uid,email,full_name,login_name,password,wiki_name,created,attributes) VALUES (" +
             "'-7739839977499061014'," + "'janne@ecyrd.com'," + "'Janne Jalkanen'," + "'janne'," +
-            "'{SHA}457b08e825da547c3b77fbc1ff906a1d00a7daee'," +
+            "'{SHA-256}AeJQgAgYDAf2WZiqPJ2l6cGdGC/PgWmkjZmkjrBEV6SW/HlclZGlIg=='," +
             "'JanneJalkanen'," +
             "'" + new Timestamp( new Timestamp( System.currentTimeMillis() ).getTime() ) + "'," +
             "'" + TEST_ATTRIBUTES + "'" + ");";
@@ -98,7 +100,7 @@ public class JDBCUserDatabaseTest {
     private static final String INSERT_USER = "INSERT INTO users (" +
             "uid,email,login_name,password,created) VALUES (" +
             "'-8629747547991531672'," + "'wikantik.tests@mailinator.com'," + "'user'," +
-            "'{SHA}5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8'," +
+            "'{SHA-256}oh3QYZxKrfdUDZJoLExwa5kWG2WlqVWX0X7vKIucZyVtlgLJPZYQKA=='," +
             "'" + new Timestamp( new Timestamp( System.currentTimeMillis() ).getTime() ) + "'" + ");";
 
     @BeforeAll
@@ -214,7 +216,7 @@ public class JDBCUserDatabaseTest {
             Assertions.assertEquals( "janne", profile.getLoginName() );
             Assertions.assertEquals( "Janne Jalkanen", profile.getFullname() );
             Assertions.assertEquals( "JanneJalkanen", profile.getWikiName() );
-            Assertions.assertEquals( "{SHA}457b08e825da547c3b77fbc1ff906a1d00a7daee", profile.getPassword() );
+            Assertions.assertEquals( "{SHA-256}AeJQgAgYDAf2WZiqPJ2l6cGdGC/PgWmkjZmkjrBEV6SW/HlclZGlIg==", profile.getPassword() );
             Assertions.assertEquals( "janne@ecyrd.com", profile.getEmail() );
             Assertions.assertNotNull( profile.getCreated() );
             Assertions.assertNull( profile.getLastModified() );
@@ -238,7 +240,7 @@ public class JDBCUserDatabaseTest {
             Assertions.assertEquals( "janne", profile.getLoginName() );
             Assertions.assertEquals( "Janne Jalkanen", profile.getFullname() );
             Assertions.assertEquals( "JanneJalkanen", profile.getWikiName() );
-            Assertions.assertEquals( "{SHA}457b08e825da547c3b77fbc1ff906a1d00a7daee", profile.getPassword() );
+            Assertions.assertEquals( "{SHA-256}AeJQgAgYDAf2WZiqPJ2l6cGdGC/PgWmkjZmkjrBEV6SW/HlclZGlIg==", profile.getPassword() );
             Assertions.assertEquals( "janne@ecyrd.com", profile.getEmail() );
             Assertions.assertNotNull( profile.getCreated() );
             Assertions.assertNull( profile.getLastModified() );
@@ -262,7 +264,7 @@ public class JDBCUserDatabaseTest {
             Assertions.assertEquals( "janne", profile.getLoginName() );
             Assertions.assertEquals( "Janne Jalkanen", profile.getFullname() );
             Assertions.assertEquals( "JanneJalkanen", profile.getWikiName() );
-            Assertions.assertEquals( "{SHA}457b08e825da547c3b77fbc1ff906a1d00a7daee", profile.getPassword() );
+            Assertions.assertEquals( "{SHA-256}AeJQgAgYDAf2WZiqPJ2l6cGdGC/PgWmkjZmkjrBEV6SW/HlclZGlIg==", profile.getPassword() );
             Assertions.assertEquals( "janne@ecyrd.com", profile.getEmail() );
             Assertions.assertNotNull( profile.getCreated() );
             Assertions.assertNull( profile.getLastModified() );
@@ -286,7 +288,7 @@ public class JDBCUserDatabaseTest {
             Assertions.assertEquals( "janne", profile.getLoginName() );
             Assertions.assertEquals( "Janne Jalkanen", profile.getFullname() );
             Assertions.assertEquals( "JanneJalkanen", profile.getWikiName() );
-            Assertions.assertEquals( "{SHA}457b08e825da547c3b77fbc1ff906a1d00a7daee", profile.getPassword() );
+            Assertions.assertEquals( "{SHA-256}AeJQgAgYDAf2WZiqPJ2l6cGdGC/PgWmkjZmkjrBEV6SW/HlclZGlIg==", profile.getPassword() );
             Assertions.assertEquals( "janne@ecyrd.com", profile.getEmail() );
             Assertions.assertNotNull( profile.getCreated() );
             Assertions.assertNull( profile.getLastModified() );
@@ -310,7 +312,7 @@ public class JDBCUserDatabaseTest {
             Assertions.assertEquals( "janne", profile.getLoginName() );
             Assertions.assertEquals( "Janne Jalkanen", profile.getFullname() );
             Assertions.assertEquals( "JanneJalkanen", profile.getWikiName() );
-            Assertions.assertEquals( "{SHA}457b08e825da547c3b77fbc1ff906a1d00a7daee", profile.getPassword() );
+            Assertions.assertEquals( "{SHA-256}AeJQgAgYDAf2WZiqPJ2l6cGdGC/PgWmkjZmkjrBEV6SW/HlclZGlIg==", profile.getPassword() );
             Assertions.assertEquals( "janne@ecyrd.com", profile.getEmail() );
             Assertions.assertNotNull( profile.getCreated() );
             Assertions.assertNull( profile.getLastModified() );
@@ -1083,7 +1085,7 @@ public class JDBCUserDatabaseTest {
               final Statement stmt = conn.createStatement() ) {
             stmt.executeUpdate( "INSERT INTO users (uid,email,login_name,password,created,attributes) VALUES (" +
                     "'-1111111111111111111'," + "'jakemon-shipper@mailinator.com'," + "'" + login + "'," +
-                    "'{SHA}457b08e825da547c3b77fbc1ff906a1d00a7daee'," +
+                    "'{SHA-256}AeJQgAgYDAf2WZiqPJ2l6cGdGC/PgWmkjZmkjrBEV6SW/HlclZGlIg=='," +
                     "'" + new Timestamp( System.currentTimeMillis() ) + "'," +
                     "''" + ");" );
         }
@@ -1117,7 +1119,7 @@ public class JDBCUserDatabaseTest {
             // IOException, just like the empty-string case, but the value itself is non-blank.
             stmt.executeUpdate( "INSERT INTO users (uid,email,login_name,password,created,attributes) VALUES (" +
                     "'-2222222222222222222'," + "'corrupt-attrs-user@mailinator.com'," + "'" + login + "'," +
-                    "'{SHA}457b08e825da547c3b77fbc1ff906a1d00a7daee'," +
+                    "'{SHA-256}AeJQgAgYDAf2WZiqPJ2l6cGdGC/PgWmkjZmkjrBEV6SW/HlclZGlIg=='," +
                     "'" + new Timestamp( System.currentTimeMillis() ) + "'," +
                     "'AAAA'" + ");" );
         }

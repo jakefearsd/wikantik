@@ -21,9 +21,11 @@
 -- before this file runs — a second unconditional INSERT for 'admin' would violate that primary
 -- key. No PG-backed test depended on the old fixture's specific admin password hash or its
 -- 'admin@locahost' (typo) email, so that row is dropped here in favour of V002's seed.
+-- {SHA-256} (salted SHA-256) of janne's test-users.properties password — {SSHA} (salted SHA-1)
+-- is no longer a supported hash format.
 INSERT INTO users (uid, email, full_name, login_name, password, wiki_name, attributes)
 VALUES ('-7739839977499061014', 'janne@ecyrd.com', 'Janne Jalkanen', 'janne',
-        '{SSHA}1WFv9OV11pD5IySgVH3sFa2VlCyYjbLrcVT/qw==', 'JanneJalkanen',
+        '{SHA-256}AeJQgAgYDAf2WZiqPJ2l6cGdGC/PgWmkjZmkjrBEV6SW/HlclZGlIg==', 'JanneJalkanen',
         'attribute1=some random value' || chr(10) || 'attribute2=another value');
 
 -- Roles

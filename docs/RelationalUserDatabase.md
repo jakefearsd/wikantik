@@ -124,7 +124,7 @@ Key points:
 
 - **Primary key is `login_name`**, not `uid`. `uid` is a legacy opaque string
   identifier but is not the PK.
-- `password` stores the password hash. New and re-hashed passwords use bcrypt (`{bcrypt}$2a$…`). Legacy SHA-256 (`{SHA-256}`) and SHA-1 (`{SSHA}`) hashes are verifiable and transparently migrated to bcrypt on first login (since 2.1.4).
+- `password` stores the password hash. New and re-hashed passwords use bcrypt (`{bcrypt}$2a$…`). Legacy SHA-256 (`{SHA-256}`) hashes are verifiable and transparently migrated to bcrypt on first login (since 2.1.4). Salted SHA-1 (`{SSHA}`) is no longer supported — a stored `{SSHA}` hash never verifies.
 - `lock_expiry` is `NULL` when the account is unlocked; a future timestamp
   means the account is locked until that time. `lock_expiry` and `bio` were
   added after the original baseline by the `ADD COLUMN IF NOT EXISTS` guards in

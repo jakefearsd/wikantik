@@ -83,7 +83,7 @@ This guide focuses on using **PostgreSQL** as the relational database backend, w
 From the source code (`JDBCUserDatabase.java` and `JDBCGroupDatabase.java`):
 
 - **JNDI Lookup**: Wikantik uses JNDI to look up DataSources, not direct JDBC connections
-- **Password Hashing**: Passwords are stored using salted SHA-1 (`{SSHA}`) or SHA-256 (`{SHA-256}`) format
+- **Password Hashing**: Passwords are stored as bcrypt (`{bcrypt}`); legacy salted SHA-256 (`{SHA-256}`) hashes remain verifiable and transparently migrate to bcrypt on next login. Salted SHA-1 (`{SSHA}`) is no longer supported.
 - **Transaction Support**: Automatic detection and use of database transactions
 - **Prepared Statements**: All SQL uses prepared statements (immune to SQL injection)
 - **User Attributes**: Custom attributes are serialized as Base64-encoded Java objects
@@ -849,10 +849,14 @@ AND now() - pg_stat_activity.query_start > interval '5 seconds';
 
 ### A.1 Password Format
 
-Wikantik stores passwords using RFC 2307-compliant salted hashing:
+Wikantik stores passwords as bcrypt, with one legacy RFC 2307-compliant salted
+format retained for verification only:
 
-- **{SSHA}**: Salted SHA-1 (legacy, still supported)
-- **{SHA-256}**: Salted SHA-256 (recommended)
+- **{bcrypt}**: bcrypt (current default for new and re-hashed passwords)
+- **{SHA-256}**: Salted SHA-256 (legacy; transparently re-hashed to bcrypt on next login)
+
+Salted SHA-1 (`{SSHA}`) and unsalted SHA-1 (`{SHA}`) are no longer supported — a
+stored value in either format never verifies.
 
 Format: `{ALGORITHM}Base64(hash + salt)`
 
@@ -866,11 +870,8 @@ cd /home/jakefear/source/jspwiki
 # Build the project first
 mvn clean install -Dmaven.test.skip
 
-# Generate a SHA-256 hash (recommended)
+# Generate a SHA-256 hash (accepted at login and auto-upgraded to bcrypt on first use)
 java -cp wikantik-util/target/classes com.wikantik.util.CryptoUtil --hash "mypassword" "{SHA-256}"
-
-# Generate a SSHA hash (legacy)
-java -cp wikantik-util/target/classes com.wikantik.util.CryptoUtil --hash "mypassword" "{SSHA}"
 
 # Verify a password against a hash
 java -cp wikantik-util/target/classes com.wikantik.util.CryptoUtil --verify "mypassword" "{SHA-256}xyz123..."

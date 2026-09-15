@@ -27,11 +27,9 @@ import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
-import com.wikantik.util.ByteUtils;
 import com.wikantik.util.CryptoUtil;
 
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.util.ArrayList;
@@ -47,8 +45,6 @@ import java.util.UUID;
 public abstract class AbstractUserDatabase implements UserDatabase {
 
     protected static final Logger LOG = LogManager.getLogger( AbstractUserDatabase.class );
-    protected static final String SHA_PREFIX = "{SHA}";
-    protected static final String SSHA_PREFIX = "{SSHA}";
     protected static final String SHA256_PREFIX = "{SHA-256}";
     /** Current hash algorithm for new and re-hashed passwords (supersedes salted SHA-256). */
     protected static final String BCRYPT_PREFIX = CryptoUtil.BCRYPT;
@@ -199,8 +195,8 @@ public abstract class AbstractUserDatabase implements UserDatabase {
 
     /**
      * Validates the password for a given user. If the user does not exist in the user database, this method always returns
-     * <code>false</code>. If the user exists, the supplied password is compared to the stored password. Note that if the stored password's
-     * value starts with <code>{SHA}</code>, the supplied password is hashed prior to the comparison.
+     * <code>false</code>. If the user exists, the supplied password is compared to the stored password, dispatching to whichever
+     * algorithm the stored password's prefix declares (bcrypt or legacy salted {@code {SHA-256}}).
      *
      * @param loginName the user's login name
      * @param password the user's password (obtained from user input, e.g., a web form)
@@ -209,11 +205,23 @@ public abstract class AbstractUserDatabase implements UserDatabase {
      */
     @Override
     public boolean validatePassword( final String loginName, final String password ) {
-        final String hashedPassword;
         try {
             final UserProfile profile = findByLoginName( loginName );
-            String storedPassword = profile.getPassword();
+            final String storedPassword = profile.getPassword();
             boolean verified = false;
+
+            // An SSO-provisioned profile can have a null stored password (never a local
+            // credential), and a caller can pass a null supplied password (e.g. a change-password
+            // form's "current password" field on such an account). Neither is an error — fail
+            // closed, quietly, before the cache or CryptoUtil ever sees a null.
+            // An SSO-provisioned profile can have a null stored password (never a local
+            // credential), and a caller can pass a null supplied password (e.g. a change-password
+            // form's "current password" field on such an account). Neither is an error — fail
+            // closed, quietly, before the cache or CryptoUtil ever sees a null.
+            if( storedPassword == null || password == null ) {
+                LOG.debug( "validatePassword: null stored or supplied password for login '{}' — returning false", loginName );
+                return false;
+            }
 
             // Fast path: a previously-cached successful verification of this EXACT (password,
             // storedHash) pair, still within TTL. Only bcrypt-stored entries are eligible — see
@@ -229,19 +237,9 @@ public abstract class AbstractUserDatabase implements UserDatabase {
             }
 
             // Verify against whichever algorithm the stored hash declares. CryptoUtil dispatches
-            // bcrypt ({bcrypt}) and the legacy salted SHA-256 / SHA-1 ({SSHA}) formats.
-            if( storedPassword.startsWith( BCRYPT_PREFIX )
-                    || storedPassword.startsWith( SHA256_PREFIX )
-                    || storedPassword.startsWith( SSHA_PREFIX ) ) {
+            // bcrypt ({bcrypt}) and the legacy salted SHA-256 ({SHA-256}) format.
+            if( storedPassword.startsWith( BCRYPT_PREFIX ) || storedPassword.startsWith( SHA256_PREFIX ) ) {
                 verified = CryptoUtil.verifySaltedPassword( password.getBytes( StandardCharsets.UTF_8 ), storedPassword );
-            }
-
-            // Use older verification algorithm if password is stored as legacy unsalted {SHA}
-            if( storedPassword.startsWith( SHA_PREFIX ) ) {
-                storedPassword = storedPassword.substring( SHA_PREFIX.length() );
-                hashedPassword = getShaHash( password );
-                verified = MessageDigest.isEqual( hashedPassword.getBytes( StandardCharsets.UTF_8 ),
-                                                  storedPassword.getBytes( StandardCharsets.UTF_8 ) );
             }
 
             // Transparent migration: on a successful login against any non-bcrypt (legacy) hash,
@@ -258,7 +256,7 @@ public abstract class AbstractUserDatabase implements UserDatabase {
         } catch( final NoSuchAlgorithmException e ) {
             LOG.error( "Unsupported algorithm: {}", e.getMessage() );
         } catch( final WikiSecurityException e ) {
-            LOG.error( "Could not upgrade SHA password to SSHA because profile could not be saved. Reason: {}", e.getMessage(), e );
+            LOG.error( "Could not re-hash legacy password to bcrypt because profile could not be saved. Reason: {}", e.getMessage(), e );
         }
         return false;
     }
@@ -289,26 +287,14 @@ public abstract class AbstractUserDatabase implements UserDatabase {
     
     /**
      * Hashes a password for storage. New and changed passwords are hashed with bcrypt (prefix
-     * {@code {bcrypt}}); legacy SHA hashes are migrated to this format on the owner's next login
-     * (see {@link #validatePassword}).
+     * {@code {bcrypt}}); legacy {@code {SHA-256}} hashes are migrated to this format on the
+     * owner's next login (see {@link #validatePassword}).
      *
      * @param text the text to hash
      * @return the result hash
      */
     protected String getHash( final String text ) {
         return CryptoUtil.getBcryptHash( text.getBytes( StandardCharsets.UTF_8 ) );
-    }
-
-    private String getShaHash(final String text ) {
-        try {
-            final MessageDigest md = MessageDigest.getInstance( "SHA" );
-            md.update( text.getBytes( StandardCharsets.UTF_8 ) );
-            final byte[] digestedBytes = md.digest();
-            return ByteUtils.bytes2hex( digestedBytes );
-        } catch( final NoSuchAlgorithmException e ) {
-            LOG.error( "Error creating SHA password hash:{}", e.getMessage() );
-            return text;
-        }
     }
 
     /**

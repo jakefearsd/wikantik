@@ -150,7 +150,7 @@ and wiki metadata in PostgreSQL. The database and schema are fully managed by
 ### Key Implementation Details
 
 - **JNDI Lookup**: Wikantik uses JNDI to look up DataSources, not direct JDBC connections
-- **Password Hashing**: Passwords are stored as bcrypt (`{bcrypt}`, since 2.1.4). Legacy salted SHA-256 (`{SHA-256}`) and SHA-1 (`{SSHA}`) hashes remain verifiable and are transparently re-hashed to bcrypt on the owner's next login.
+- **Password Hashing**: Passwords are stored as bcrypt (`{bcrypt}`, since 2.1.4). Legacy salted SHA-256 (`{SHA-256}`) hashes remain verifiable and are transparently re-hashed to bcrypt on the owner's next login. Salted SHA-1 (`{SSHA}`) is no longer supported — a stored `{SSHA}` hash never verifies.
 - **Transaction Support**: Automatic detection and use of database transactions
 - **Prepared Statements**: All SQL uses prepared statements (immune to SQL injection)
 - **Context file**: `conf/Catalina/localhost/ROOT.xml` with `path="/"` (root context)
@@ -610,8 +610,10 @@ java.net.ConnectException: Connection refused
 ### Password format
 
 Wikantik stores passwords as bcrypt (`{bcrypt}`, since 2.1.4). Older salted
-SHA-256 (`{SHA-256}`) and SHA-1 (`{SSHA}`) hashes remain verifiable and are
-transparently re-hashed to bcrypt on the account owner's next successful login.
+SHA-256 (`{SHA-256}`) hashes remain verifiable and are transparently re-hashed to
+bcrypt on the account owner's next successful login. Salted SHA-1 (`{SSHA}`) and
+unsalted SHA-1 (`{SHA}`) are no longer supported — a stored value in either format
+never verifies.
 
 ### Generating password hashes
 

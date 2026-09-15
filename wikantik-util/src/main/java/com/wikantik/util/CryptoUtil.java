@@ -32,14 +32,14 @@ import java.util.Random;
 
 /**
  * Hashes and verifies passwords. New and re-hashed passwords use bcrypt (prefix {@link #BCRYPT});
- * legacy salted SHA-256 ({@code {SHA-256}}) and SHA-1 ({@code {SSHA}}) hashes remain verifiable
- * (RFC 2307-compliant) so existing accounts keep working and migrate transparently on next login.
+ * legacy salted SHA-256 ({@code {SHA-256}}) hashes remain verifiable (RFC 2307-compliant) so
+ * existing accounts keep working and migrate transparently on next login. Salted SHA-1
+ * ({@code {SSHA}}) is no longer supported: an {@code {SSHA}} entry is rejected.
  */
 public final class CryptoUtil {
 
+    /** No longer a supported hash algorithm — retained only so it can be recognized and rejected. */
     private static final String SSHA = "{SSHA}";
-
-    private static final String SHA1 = "{SHA-1}";
 
     private static final String SHA256 = "{SHA-256}";
 
@@ -97,14 +97,14 @@ public final class CryptoUtil {
 
     /**
      * <p>
-     * Convenience method for hashing and verifying salted SHA-1 or SHA-256 passwords from
+     * Convenience method for hashing and verifying salted SHA-256 passwords from
      * the command line. This method requires <code>commons-codec-1.3.jar</code>
      * (or a newer version) to be on the classpath. Command line arguments are
      * as follows:
      * </p>
      * <ul>
-     * <li><code>--hash <var>password</var> SSHA</code> - hashes <var>password</var></code>
-     * and prints a password digest that looks like this: <blockquote><code>{SSHA}yfT8SRT/WoOuNuA6KbJeF10OznZmb28=</code></blockquote></li>
+     * <li><code>--hash <var>password</var> SHA-256</code> - hashes <var>password</var></code>
+     * and prints a password digest that looks like this: <blockquote><code>{SHA-256}yfT8SRT/WoOuNuA6KbJeF10OznZmb28=</code></blockquote></li>
      * <li><code>--verify <var>password</var> <var>digest</var></code> -
      * verifies <var>password</var> by extracting the salt from <var>digest</var>
      * (which is identical to what is printed by <code>--hash</code>) and
@@ -126,7 +126,7 @@ public final class CryptoUtil {
             System.out.println( "Usage: CryptoUtil [options] " );
             System.out.println( "   --hash   password algorithm             create hash for password" );
             System.out.println( "   --verify password digest algorithm      verify password for digest" );
-            System.out.println( "Valid algorithm options are {SSHA} and {SHA-256}. If no algorithm is specified or an unsupported algorithm is specified, SHA-256 is used." );
+            System.out.println( "Valid algorithm options are {SHA-256}. If no algorithm is specified or an unsupported algorithm is specified, SHA-256 is used." );
         }
 
         if( HASH.equals( args[0] ) ) {
@@ -154,11 +154,11 @@ public final class CryptoUtil {
 
     /**
      * <p>
-     * Creates an RFC 2307-compliant salted, hashed password with the SHA1 or SHA-256
-     * MessageDigest algorithm. After the password is digested, the first 20 or 32
+     * Creates an RFC 2307-compliant salted, hashed password with the SHA-256
+     * MessageDigest algorithm. After the password is digested, the first 32
      * bytes of the digest will be the actual password hash; the remaining bytes
      * will be a randomly generated salt of length {@link #DEFAULT_SALT_SIZE},
-     * for example: <blockquote><code>{SSHA}3cGWem65NCEkF5Ew5AEk45ak8LHUWAwPVXAyyw==</code></blockquote>
+     * for example: <blockquote><code>{SHA-256}3cGWem65NCEkF5Ew5AEk45ak8LHUWAwPVXAyyw==</code></blockquote>
      * </p>
      * <p>
      * In layman's terms, the formula is
@@ -168,11 +168,11 @@ public final class CryptoUtil {
      * Note that successive invocations of this method with the same password
      * will result in different hashes! (This, of course, is exactly the point.)
      * </p>
-     * 
+     *
      * @param password the password to be digested
-     * @return the Base64-encoded password hash, prepended by
-     *         <code>{SSHA}</code> or <code>{SHA256}</code>.
+     * @return the Base64-encoded password hash, prepended by <code>{SHA-256}</code>.
      * @throws NoSuchAlgorithmException If your JVM does not supply the necessary algorithm. Should not happen.
+     * @throws IllegalArgumentException if {@code algorithm} is {@code {SSHA}} — salted SHA-1 is no longer supported.
      */
     public static String getSaltedPassword( final byte[] password, final String algorithm ) throws NoSuchAlgorithmException {
         final byte[] salt = new byte[ DEFAULT_SALT_SIZE ];
@@ -183,28 +183,28 @@ public final class CryptoUtil {
 
     /**
      * <p>
-     * Helper method that creates an RFC 2307-compliant salted, hashed password with the SHA1 or SHA256
-     * MessageDigest algorithm. After the password is digested, the first 20 or 32
+     * Helper method that creates an RFC 2307-compliant salted, hashed password with the SHA-256
+     * MessageDigest algorithm. After the password is digested, the first 32
      * bytes of the digest will be the actual password hash; the remaining bytes
      * will be the salt. Thus, supplying a password <code>testing123</code>
-     * and a random salt <code>foo</code> produces the hash when using SHA1:
+     * and a random salt <code>foo</code> produces a hash of the form:
      * </p>
-     * <blockquote><code>{SSHA}yfT8SRT/WoOuNuA6KbJeF10OznZmb28=</code></blockquote>
+     * <blockquote><code>{SHA-256}yfT8SRT/WoOuNuA6KbJeF10OznZmb28=</code></blockquote>
      * <p>
      * In layman's terms, the formula is
      * <code>digest( secret + salt ) + salt</code>. The resulting digest is Base64-encoded.</p>
-     * 
+     *
      * @param password the password to be digested
      * @param salt the random salt
-     * @return the Base64-encoded password hash, prepended by <code>{SSHA}</code> or <code>{SHA256}</code>.
+     * @return the Base64-encoded password hash, prepended by <code>{SHA-256}</code>.
      * @throws NoSuchAlgorithmException If your JVM does not supply the necessary algorithm. Should not happen.
+     * @throws IllegalArgumentException if {@code algorithm} is {@code {SSHA}} — salted SHA-1 is no longer supported.
      */
     static String getSaltedPassword( final byte[] password, final byte[] salt, final String algorithm ) throws NoSuchAlgorithmException {
-        //The term SSHA is used as a password prefix for backwards compatibility, but we use SHA-1 when fetching an instance
-        //of MessageDigest, as it is the guaranteed option. We also need to remove curly braces surrounding the string for
-        //backwards compatibility.
-        final String algorithmToUse = SSHA.equals(algorithm) ? SHA1 : algorithm;
-        final MessageDigest digest = MessageDigest.getInstance( algorithmToUse.substring( 1, algorithmToUse.length() -1 ) );
+        if( SSHA.equals( algorithm ) ) {
+            throw new IllegalArgumentException( "{SSHA} (salted SHA-1) is no longer a supported hash algorithm; use {SHA-256}." );
+        }
+        final MessageDigest digest = MessageDigest.getInstance( algorithm.substring( 1, algorithm.length() - 1 ) );
         digest.update( password );
         final byte[] hash = digest.digest( salt );
 
@@ -235,7 +235,9 @@ public final class CryptoUtil {
 
     /**
      *  Compares a password to a given entry and returns true, if it matches. Handles bcrypt
-     *  ({@link #BCRYPT}) as well as the legacy salted SHA-256 / SHA-1 ({SSHA}) formats.
+     *  ({@link #BCRYPT}) as well as the legacy salted SHA-256 ({@code {SHA-256}}) format. An entry
+     *  prefixed {@code {SSHA}} (salted SHA-1) is no longer supported and — like any entry not
+     *  prefixed by a recognized algorithm marker — is rejected with {@link IllegalArgumentException}.
      *
      *  @param password The password in bytes.
      *  @param entry The password entry, prefixed with the algorithm marker.
@@ -251,22 +253,17 @@ public final class CryptoUtil {
                 Arrays.fill( chars, '\0' );
             }
         }
-        if( !entry.startsWith( SSHA ) && !entry.startsWith( SHA256 ) ) {
+        if( !entry.startsWith( SHA256 ) ) {
             throw new IllegalArgumentException( "Hash not prefixed by expected algorithm; is it really a salted hash?" );
         }
-        final String algorithm = entry.startsWith( SSHA ) ? SSHA : SHA256;
-        final byte[] challenge = Base64.getDecoder().decode( entry.substring( algorithm.length() ).getBytes( StandardCharsets.UTF_8 ) );
+        final byte[] challenge = Base64.getDecoder().decode( entry.substring( SHA256.length() ).getBytes( StandardCharsets.UTF_8 ) );
 
         // Extract the password hash and salt
-        final byte[] passwordHash = extractPasswordHash( challenge, SSHA.equals( algorithm ) ? 20 : 32 );
-        final byte[] salt = extractSalt( challenge, SSHA.equals( algorithm ) ? 20 : 32  );
+        final byte[] passwordHash = extractPasswordHash( challenge, 32 );
+        final byte[] salt = extractSalt( challenge, 32 );
 
         // Re-create the hash using the password and the extracted salt
-        // The term SSHA is used as a password prefix for backwards compatibility, but we use SHA-1 when fetching an instance
-        // of MessageDigest, as it is the guaranteed option. We also need to remove curly braces surrounding the string for
-        // backwards compatibility.
-        final String algorithmToUse = SSHA.equals( algorithm ) ? SHA1 : algorithm;
-        final MessageDigest digest = MessageDigest.getInstance( algorithmToUse.substring( 1, algorithmToUse.length() -1 ) );
+        final MessageDigest digest = MessageDigest.getInstance( SHA256.substring( 1, SHA256.length() - 1 ) );
         digest.update( password );
         final byte[] hash = digest.digest( salt );
 

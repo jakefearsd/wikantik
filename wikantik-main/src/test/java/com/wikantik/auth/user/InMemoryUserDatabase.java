@@ -41,10 +41,10 @@ import java.util.TreeSet;
  * <p>It extends {@link AbstractUserDatabase} so password validation, {@code find()},
  * {@code getPrincipals()} and {@code newProfile()} are exercised exactly as in production. The
  * persistence seams are backed by a {@link Map}. Crucially — like the old XML store — the
- * {@code find*} methods return <em>fresh copies</em> of the stored profile, so the SSHA
- * password-upgrade round-trip in {@link AbstractUserDatabase#validatePassword} (which mutates a
- * found profile then calls {@link #save}) compares the supplied plaintext against the stored hash
- * and re-hashes correctly, rather than comparing a value against itself.</p>
+ * {@code find*} methods return <em>fresh copies</em> of the stored profile, so the legacy
+ * {@code {SHA-256}} password-upgrade round-trip in {@link AbstractUserDatabase#validatePassword}
+ * (which mutates a found profile then calls {@link #save}) compares the supplied plaintext
+ * against the stored hash and re-hashes correctly, rather than comparing a value against itself.</p>
  */
 public class InMemoryUserDatabase extends AbstractUserDatabase {
 
@@ -58,14 +58,17 @@ public class InMemoryUserDatabase extends AbstractUserDatabase {
     /** Seeds the fixture users. Idempotent — re-seeding only fills in absent entries. */
     private void seed() {
         // login,             wikiName,         fullName,            email,                {hash}password
+        // {SHA-256} hashes below are salted SHA-256 of the SAME plaintext test-users.properties
+        // declares (janne/admin => myP@5sw0rd, user/Alice/Bob/Charlie/Fred/Biff => password) —
+        // {SSHA} (salted SHA-1) is no longer a supported hash format.
         put( "janne",   "JanneJalkanen",  "Janne Jalkanen",    "janne@ecyrd.com",    "{SHA-256}AeJQgAgYDAf2WZiqPJ2l6cGdGC/PgWmkjZmkjrBEV6SW/HlclZGlIg==", "-7739839977499061014" );
-        put( "user",    "",               "",                  "user@example.com",   "{SSHA}iQWmcKE8PyO965jh4+VNLYbxagaDdS0nC9GmuQ==",                   "-8629747547991531672" );
-        put( "admin",   "Administrator",  "Administrator",     "admin@locahost",     "{SSHA}6YNKYMwXICUf5pMvYUZumgbFCxZMT2njtUQtJw==",                   null );
-        put( "Alice",   "Alice",          "Alice",             "alice@example.com",  "{SSHA}3V4zI5W6mT+x5NIHKI2KFQIYBdnAYKNOE9Aj+Q==",                   null );
-        put( "Bob",     "Bob",            "Bob",               "bob@example.com",    "{SSHA}NP3aAmiwK0gHywTe4qbY6klKDqnZ+F9ym9YiLg==",                   null );
-        put( "Charlie", "Charlie",        "Charlie",           "charlie@example.com","{SSHA}wn81B14F9axtTVYsipQKC2OWQHlc6EcpMSe58Q==",                   null );
-        put( "Fred",    "FredFlintstone", "Fred Flintstone",   "fred@example.com",   "{SSHA}iDeE9dysPUE28SWd6yeIqiIj9sIVyiMM7VnMKQ==",                   null );
-        put( "Biff",    "Biff",           "Biff",              "biff@example.com",   "{SSHA}xKAIienaZZHhKTGCNv5Li6lzeemaSs6ZYXTHFQ==",                   null );
+        put( "user",    "",               "",                  "user@example.com",   "{SHA-256}oh3QYZxKrfdUDZJoLExwa5kWG2WlqVWX0X7vKIucZyVtlgLJPZYQKA==", "-8629747547991531672" );
+        put( "admin",   "Administrator",  "Administrator",     "admin@locahost",     "{SHA-256}3JzWs93jAnOokIcSber0D24nIClDNO+0eRm3r+r9sCGP4f/Ja4uvEw==", null );
+        put( "Alice",   "Alice",          "Alice",             "alice@example.com",  "{SHA-256}oh3QYZxKrfdUDZJoLExwa5kWG2WlqVWX0X7vKIucZyVtlgLJPZYQKA==", null );
+        put( "Bob",     "Bob",            "Bob",               "bob@example.com",    "{SHA-256}oh3QYZxKrfdUDZJoLExwa5kWG2WlqVWX0X7vKIucZyVtlgLJPZYQKA==", null );
+        put( "Charlie", "Charlie",        "Charlie",           "charlie@example.com","{SHA-256}oh3QYZxKrfdUDZJoLExwa5kWG2WlqVWX0X7vKIucZyVtlgLJPZYQKA==", null );
+        put( "Fred",    "FredFlintstone", "Fred Flintstone",   "fred@example.com",   "{SHA-256}oh3QYZxKrfdUDZJoLExwa5kWG2WlqVWX0X7vKIucZyVtlgLJPZYQKA==", null );
+        put( "Biff",    "Biff",           "Biff",              "biff@example.com",   "{SHA-256}oh3QYZxKrfdUDZJoLExwa5kWG2WlqVWX0X7vKIucZyVtlgLJPZYQKA==", null );
     }
 
     private void put( final String login, final String wikiName, final String fullName,
@@ -79,8 +82,9 @@ public class InMemoryUserDatabase extends AbstractUserDatabase {
     /**
      * Inserts a user with the password value stored <em>verbatim</em> (no hashing). Mirrors loading
      * such a record from the old XML store, which kept the password exactly as written. Tests use it
-     * to inject pre-hashed or legacy-format ({@code {SHA}}) credentials that exercise
-     * {@link AbstractUserDatabase#validatePassword}'s legacy-upgrade branch.
+     * to inject pre-hashed credentials — legacy {@code {SHA-256}} to exercise
+     * {@link AbstractUserDatabase#validatePassword}'s bcrypt-migration branch, or the removed
+     * {@code {SHA}} / {@code {SSHA}} formats and {@code null} to prove they now fail closed.
      */
     public void putRaw( final String login, final String fullName, final String wikiName,
                         final String email, final String rawPassword, final String uid ) {

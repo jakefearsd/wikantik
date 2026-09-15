@@ -182,7 +182,6 @@
     <findsecbugs.version>1.14.0</findsecbugs.version>
     <plugin.clirr.version>2.9</plugin.clirr.version>
     <plugin.wro4j.version>2.1.1</plugin.wro4j.version>
-    <plugin.cobertura.version>2.7</plugin.cobertura.version>
     <plugin.cyclonedx.version>2.9.3</plugin.cyclonedx.version>
     <plugin.sonar.version>5.8.0.7211</plugin.sonar.version>
     <plugin.sonar-report.version>0.1</plugin.sonar-report.version>
@@ -1254,18 +1253,6 @@
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>clirr-maven-plugin</artifactId>
           <version>${plugin.clirr.version}</version>
-        </plugin>
-
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>cobertura-maven-plugin</artifactId>
-          <version>${plugin.cobertura.version}</version>
-          <configuration>
-            <formats>
-              <format>html</format>
-              <format>xml</format>
-            </formats>
-          </configuration>
         </plugin>
 
         <plugin>

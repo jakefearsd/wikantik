@@ -40,8 +40,15 @@ jobs:
       # Burn down debt by shrinking/decomposing a class until it clears its
       # rule(s), then delete that rule (or the whole line) from the baseline.
       # Adding a NEW baseline line requires justification in the PR/commit.
+      # -fn so every module's violations are reported (see quality-gates.yml).
       - name: Complexity ratchet
-        run: mvn -B -T 1C pmd:check -Pcomplexity-gate
+        run: |
+          mvn -B -T 1C -fn pmd:check -Pcomplexity-gate | tee pmd-gate.log
+          if ! grep -q 'BUILD SUCCESS' pmd-gate.log; then
+            echo '::error::Complexity ratchet failed. New violations across all modules:'
+            grep 'PMD Failure' pmd-gate.log || true
+            exit 1
+          fi
 
       - name: Build Docker image
         run: docker build -t $IMAGE_NAME:$IMAGE_TAG .

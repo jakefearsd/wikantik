@@ -46,8 +46,19 @@ jobs:
       # shrinking/decomposing a class until it clears its rule(s), then delete
       # that rule (or the whole line) from the baseline. Adding a NEW baseline
       # line requires justification in the commit message.
+      #
+      # -fn, not -fae: -fae skips every module downstream of the first failing one,
+      # which hid a second new violation in September 2026. -fn checks every module but
+      # always exits 0, so the step passes only if the reactor printed BUILD SUCCESS
+      # (a crash that never reaches the summary fails too).
       - name: Complexity ratchet
-        run: mvn -B pmd:check -Pcomplexity-gate
+        run: |
+          mvn -B -fn pmd:check -Pcomplexity-gate | tee pmd-gate.log
+          if ! grep -q 'BUILD SUCCESS' pmd-gate.log; then
+            echo '::error::Complexity ratchet failed. New violations across all modules:'
+            grep 'PMD Failure' pmd-gate.log || true
+            exit 1
+          fi
 
       - name: Frontend lint (ESLint)
         working-directory: wikantik-frontend
@@ -186,3 +197,53 @@ jobs:
       # <wikantik.coverage.line.minimum> fails this job.
       - name: Full unit suite + coverage ratchet
         run: mvn -B clean install -DskipITs -Dtests.requireDocker=true -Pcoverage
+
+  report-failures:
+    # A red gate must reach the owner's inbox, not sit in the Actions tab: the static
+    # gate stayed red for four days in September 2026 before anyone noticed. This opens
+    # one issue per failing job (repo watchers get the email), comments on it while the
+    # job stays red, and closes it the next time that job passes. A job skipped by this
+    # event (unit-tests on push, the static gates on the weekly schedule) leaves its issue
+    # untouched, so a green weekly run can never close a push-gate failure.
+    needs: [ static-gates, shell-tests, osv-scan, unit-tests ]
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open, update or close one issue per gate job
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NEEDS: ${{ toJSON(needs) }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          for job in $(jq -r 'keys[]' <<<"${NEEDS}"); do
+            result=$(jq -r --arg j "${job}" '.[$j].result' <<<"${NEEDS}")
+            title="Quality Gates: ${job} failing on main"
+            existing=$(gh issue list --state open --limit 100 --json number,title \
+                         --jq ".[] | select(.title == \"${title}\") | .number" | head -n1)
+            case "${result}" in
+              failure|cancelled)
+                body=$(printf '`%s` finished **%s** on `%s` at %s.\n\nRun: %s' \
+                         "${job}" "${result}" "${EVENT}" "${SHA}" "${RUN_URL}")
+                if [ -n "${existing}" ]; then
+                  gh issue comment "${existing}" --body "${body}"
+                else
+                  gh issue create --title "${title}" --body "${body}"
+                fi
+                ;;
+              success)
+                if [ -n "${existing}" ]; then
+                  gh issue close "${existing}" --comment "Green again at ${SHA}: ${RUN_URL}"
+                fi
+                ;;
+              *)
+                echo "${job}: ${result} (not run by this event), issue left as-is"
+                ;;
+            esac
+          done

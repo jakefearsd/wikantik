@@ -51,6 +51,6 @@ under the License.
 | Maven Command                                           | Description                                                                                         |
 |---------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
 | mvn apache-rat:check                                    | creates an Apache RAT report. See: http://creadur.apache.org/rat/apache-rat-plugin/plugin-info.html |
-| mvn clean install -Pcoverage                             | generates the live JaCoCo coverage report (aggregated cross-module in `wikantik-coverage-report`); the `cobertura-maven-plugin` is declared in `pluginManagement` but is not the tool actually used for coverage here |
+| mvn clean install -Pcoverage                             | generates the JaCoCo coverage report (aggregated cross-module in `wikantik-coverage-report`) and enforces each module's `wikantik.coverage.line.minimum` floor |
 | mvn javadoc:javadoc                                     | creates javadocs adding some UML class/package level diagrams                                       |
 | mvn sonar:sonar                                         | generates a Sonar report. Expects a Sonar server running at http://localhost:9000/                  |

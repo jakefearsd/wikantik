@@ -41,6 +41,6 @@ cluster: wikantik-development
 | Maven Command                                           | Description                                                                                         |
 |---------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
 | mvn apache-rat:check                                    | creates an Apache RAT report. See: http://creadur.apache.org/rat/apache-rat-plugin/plugin-info.html |
-| mvn cobertura:cobertura                                 | generates a cobertura maven report. See: http://mojo.codehaus.org/cobertura-maven-plugin/usage.html |
+| mvn clean install -Pcoverage                            | generates the JaCoCo coverage report (aggregated in wikantik-coverage-report) and enforces each module's line-coverage floor |
 | mvn javadoc:javadoc                                     | creates javadocs adding some UML class/package level diagrams                                       |
 | mvn sonar:sonar                                         | generates a Sonar report. Expects a Sonar server running at http://localhost:9000/                  |

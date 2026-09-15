@@ -89,13 +89,26 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
     private final Counter triplesCounter;
     private final Timer latencyTimer;
 
-    private final Map< String, Long > lastExtractedAtMillis = Collections.synchronizedMap(
-        new LinkedHashMap<>( 128, 0.75f, true ) {
-            @Override
-            protected boolean removeEldestEntry( final Map.Entry< String, Long > eldest ) {
-                return size() > 1024;
-            }
-        } );
+    private final Map< String, Long > lastExtractedAtMillis =
+        Collections.synchronizedMap( new BoundedLastExtractedMap() );
+
+    /**
+     *  A capped LRU (access-order) map of the last-extraction timestamp per page.
+     *  Named/static rather than an anonymous inner class since it captures no
+     *  enclosing-instance state (it only calls its own inherited {@code size()}).
+     */
+    private static final class BoundedLastExtractedMap extends LinkedHashMap< String, Long > {
+        private static final int MAX_ENTRIES = 1024;
+
+        BoundedLastExtractedMap() {
+            super( 128, 0.75f, true );
+        }
+
+        @Override
+        protected boolean removeEldestEntry( final Map.Entry< String, Long > eldest ) {
+            return size() > MAX_ENTRIES;
+        }
+    }
 
     public AsyncEntityExtractionListener( final EntityExtractor extractor,
                                           final EntityExtractorConfig config,

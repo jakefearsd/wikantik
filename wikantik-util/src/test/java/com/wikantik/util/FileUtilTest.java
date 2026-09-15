@@ -212,20 +212,6 @@ public class FileUtilTest
         assertEquals( "", result );
     }
 
-    // --- runSimpleCommand tests ---
-
-    @Test
-    public void testRunSimpleCommand() throws Exception {
-        final String result = FileUtil.runSimpleCommand( "echo hello", "/tmp" );
-        assertEquals( "hello\n", result );
-    }
-
-    @Test
-    public void testRunSimpleCommandMultipleWords() throws Exception {
-        final String result = FileUtil.runSimpleCommand( "echo foo bar", "/tmp" );
-        assertEquals( "foo bar\n", result );
-    }
-
     // --- newTmpFile tests ---
 
     @Test

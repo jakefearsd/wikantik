@@ -18,8 +18,6 @@
  */
 package com.wikantik.api.exceptions;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
 
 /**
  *  Provides a generic PluginException.  This is the kind of an exception that the plugins should throw.
@@ -43,8 +41,6 @@ public class PluginException  extends WikiException {
      *  @param message exception message.
      *  @param original The original exception.
      */
-    @SuppressFBWarnings( value = "EI_EXPOSE_REP2",
-            justification = "Wrapping the caller's Throwable is the explicit purpose of this exception; defensive-copying a Throwable is impractical and would discard state." )
     public PluginException( final String message, final Throwable original ) {
         super( message, original );
     }

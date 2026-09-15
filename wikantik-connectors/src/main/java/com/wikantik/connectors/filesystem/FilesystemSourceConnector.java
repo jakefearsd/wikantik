@@ -70,12 +70,29 @@ public final class FilesystemSourceConnector implements SourceConnector {
             md.put( "path", relStr );
             md.put( "size", content.length );
             md.put( "modified", Files.getLastModifiedTime( file ).toString() );
-            final List< String > acl = rel.getParent() == null
-                ? List.of() : List.of( rel.getParent().getFileName().toString() );
-            items.add( new SourceItem( "file:" + relStr, content, contentType( relStr ), md, acl, ItemDigest.sha256Hex( content ) ) );
+            items.add( new SourceItem( "file:" + relStr, content, contentType( relStr ), md, parentDirAcl( rel, file ), ItemDigest.sha256Hex( content ) ) );
         } catch ( final IOException e ) {
             LOG.warn( "Filesystem connector '{}' could not read {}: {}", connectorId, file, e.getMessage() );
         }
+    }
+
+    /**
+     * The single-segment ACL derived from the immediate parent directory name, or an
+     * empty list when the item sits directly under {@code root} (no parent) or when the
+     * parent path unexpectedly has no file-name component (an empty/root-like relative
+     * path) — {@link Path#getFileName()} is nullable and must not be dereferenced blindly.
+     */
+    private List< String > parentDirAcl( final Path rel, final Path file ) {
+        final Path parent = rel.getParent();
+        if ( parent == null ) {
+            return List.of();
+        }
+        final Path parentFileName = parent.getFileName();
+        if ( parentFileName == null ) {
+            LOG.warn( "Filesystem connector '{}': parent path of {} has no file-name component; skipping ACL", connectorId, file );
+            return List.of();
+        }
+        return List.of( parentFileName.toString() );
     }
 
     private static String contentType( final String path ) {

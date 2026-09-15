@@ -87,7 +87,7 @@ public class DefaultPageLockService implements PageLockService {
 
         fireEvent( WikiPageEvent.PAGE_LOCK, page.getName() );
         final Date lockTime = new Date();
-        final PageLock newLock = new PageLock( page, user, lockTime, new Date( lockTime.getTime() + expiryTime * 60 * 1000L ) );
+        final PageLock newLock = new PageLock( page, user, lockTime, new Date( lockTime.getTime() + expiryTime * 60_000L ) );
         final PageLock existing = pageLocks.putIfAbsent( page.getName(), newLock );
 
         if ( existing == null ) {

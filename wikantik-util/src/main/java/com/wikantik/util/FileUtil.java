@@ -21,14 +21,12 @@ package com.wikantik.util;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
@@ -91,52 +89,6 @@ public final class FileUtil {
      */
     public static File newTmpFile( final String content ) throws IOException {
         return newTmpFile( content, StandardCharsets.ISO_8859_1 );
-    }
-
-    /**
-     *  Runs a simple command in given directory. The environment is inherited from the parent process (e.g. the
-     *  one in which this Java VM runs).
-     *
-     *  @return Standard output from the command.
-     *  @param  command The command to run
-     *  @param  directory The working directory to run the command in
-     *  @throws IOException If the command failed
-     *  @throws InterruptedException If the command was halted
-     */
-    public static String runSimpleCommand( final String command, final String directory ) throws IOException, InterruptedException {
-        LOG.info( "Running simple command " + command + " in " + directory );
-        final StringBuilder result = new StringBuilder();
-
-        // Use ProcessBuilder instead of deprecated Runtime.exec()
-        final ProcessBuilder pb = new ProcessBuilder( command.split( "\\s+" ) );
-        pb.directory( new File( directory ) );
-        final Process process = pb.start();
-
-        // stdout/stderr readers close the underlying process streams; process.getOutputStream() is also closed
-        // so the child can't block on writes that we will never consume. See JDK-4784692 for the original issue.
-        try( OutputStream stdin = process.getOutputStream();
-             BufferedReader stdout = new BufferedReader( new InputStreamReader( process.getInputStream(), StandardCharsets.UTF_8 ) );
-             BufferedReader stderr = new BufferedReader( new InputStreamReader( process.getErrorStream(), StandardCharsets.UTF_8 ) ) ) {
-            stdin.close();
-            String line;
-
-            while( (line = stdout.readLine()) != null ) {
-                result.append( line ).append('\n');
-            }
-
-            final StringBuilder error = new StringBuilder();
-            while( (line = stderr.readLine()) != null ) {
-                error.append( line ).append('\n');
-            }
-
-            if( error.length() > 0 ) {
-                LOG.error("Command failed, error stream is: "+error);
-            }
-
-            process.waitFor();
-        }
-
-        return result.toString();
     }
 
 

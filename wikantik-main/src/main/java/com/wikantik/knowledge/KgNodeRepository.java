@@ -21,7 +21,6 @@ package com.wikantik.knowledge;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.jdbc.SqlBinder;
 import com.wikantik.kgpolicy.KgInclusionFilter;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -217,8 +216,6 @@ public final class KgNodeRepository extends KgJdbcSupport {
         return queryNodes( filters, provenanceFilter, limit, offset, false );
     }
 
-    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
-            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     public List< KgNode > queryNodes( final Map< String, Object > filters,
                                       final Set< Provenance > provenanceFilter,
                                       final int limit, final int offset,
@@ -242,8 +239,6 @@ public final class KgNodeRepository extends KgJdbcSupport {
         return searchNodes( query, provenanceFilter, limit, false );
     }
 
-    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
-            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     public List< KgNode > searchNodes( final String query, final Set< Provenance > provenanceFilter,
                                        final int limit, final boolean adminBypass ) {
         final String sql = buildSearchNodesSql( provenanceFilter, adminBypass );
@@ -266,8 +261,6 @@ public final class KgNodeRepository extends KgJdbcSupport {
         }
     }
 
-    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
-            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     public List< KgNode > searchNodes( final String query, final Set< Provenance > provenanceFilter,
                                        final int limit, final Tier minTier ) {
         final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )
@@ -433,8 +426,6 @@ public final class KgNodeRepository extends KgJdbcSupport {
      *       for the full spec.</li>
      * </ul>
      */
-    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
-            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     public List< KgNode > listOrphanedNodes( final Map< String, Object > filters,
                                               final int limit, final int offset ) {
         final List< Object > params = new ArrayList<>();
@@ -452,8 +443,6 @@ public final class KgNodeRepository extends KgJdbcSupport {
     }
 
     /** Counts orphaned nodes matching the same filters as {@link #listOrphanedNodes}. */
-    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
-            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     public long countOrphanedNodes( final Map< String, Object > filters ) {
         final List< Object > params = new ArrayList<>();
         final String sql = buildOrphanedNodesSql( filters, true, params );

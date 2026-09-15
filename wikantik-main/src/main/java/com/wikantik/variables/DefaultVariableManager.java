@@ -572,7 +572,7 @@ public class DefaultVariableManager implements VariableManager {
             final StringBuilder sb = new StringBuilder();
             for( final PageFilter pf : filters ) {
                 final String filterClassName = pf.getClass().getName();
-                if( pf instanceof InternalModule im ) {
+                if( pf instanceof InternalModule ) {
                     continue;
                 }
 

@@ -28,6 +28,6 @@ public record SpamHost( String address, SpamChange change, long addedTime, long 
 
     public SpamHost( final String address, final SpamChange change, final int banTimeMinutes ) {
         this( address, change, System.currentTimeMillis(),
-              System.currentTimeMillis() + banTimeMinutes * 60 * 1000L );
+              System.currentTimeMillis() + banTimeMinutes * 60_000L );
     }
 }

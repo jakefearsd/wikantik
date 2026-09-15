@@ -60,32 +60,12 @@ public class CurateNodesTool extends AbstractMcpTool implements AuthorConfigurab
                 "items", Map.of( "type", "object" )
         ) );
 
-        // Concrete worked example — the model reads this before assembling arguments and
-        // first-call success rate jumps materially when the shape is shown verbatim.
-        // Mirrors what fixed the recurring "node_type='concept,tag:promote-X-Y'" failures.
-        final Map< String, Object > exampleIn = Map.of(
-                "operations", List.of(
-                        Map.of(
-                                "action", "upsert",
-                                "tag", "promote-meta-439",
-                                "name", "Metaheuristic Optimization",
-                                "node_type", "concept",
-                                "source_page", "OptimizationAlgorithms"
-                        )
-                )
-        );
         final Map< String, Object > exampleOut = Map.of(
                 "status", "completed",
                 "succeeded", List.of( Map.of( "tag", "promote-meta-439", "action", "upsert",
                         "id", "8f3c2a1b-..." ) ),
                 "failed", List.of(),
                 "message", "1 of 1 node operations applied" );
-        final Map< String, Object > inputSchemaMap = new LinkedHashMap<>();
-        inputSchemaMap.put( "type", "object" );
-        inputSchemaMap.put( "properties", properties );
-        inputSchemaMap.put( "required", List.of( "operations" ) );
-        inputSchemaMap.put( "examples", List.of( exampleIn ) );
-
         final Map< String, Object > outputSchema = new LinkedHashMap<>();
         outputSchema.put( "type", "object" );
         outputSchema.put( "examples", List.of( exampleOut ) );

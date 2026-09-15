@@ -64,6 +64,10 @@ public class AdminStructuralConflictsResource extends RestServletBase {
             switch ( c.kind() ) {
                 case MISSING_CANONICAL_ID -> missingIds++;
                 case RELATION_ISSUE       -> relationIssues++;
+                // Other StructuralConflict.Kind values (cluster-taxonomy conflicts) are
+                // included in the "conflicts" array and "count" below but are not tallied
+                // by either of these two legacy dedicated counters.
+                default -> { }
             }
             final JsonObject o = new JsonObject();
             o.addProperty( "slug", c.slug() );

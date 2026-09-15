@@ -293,7 +293,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
      *  @param fm its parsed frontmatter, read for the verification stamp
      */
     private void persistCanonicalId( final PageDescriptor pd, final Map< String, Object > fm ) {
-        PageCanonicalIdsDao.UpsertResult upsertResult = PageCanonicalIdsDao.UpsertResult.WRITTEN;
+        PageCanonicalIdsDao.UpsertResult upsertResult = null;
         try {
             upsertResult = dao.upsert( pd.canonicalId(), pd.slug(), pd.title(),
                                        pd.type().asFrontmatterValue(), pd.cluster() );

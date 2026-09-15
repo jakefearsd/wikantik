@@ -116,8 +116,8 @@ public class ReadPagesTool extends AbstractMcpTool {
     protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         // Input validation. Canonical key is `slugs`; accept synonyms an agent may carry over from
         // other tools (e.g. admin MCP `pageNames`) so a reasonable call doesn't hard-fail.
-        final Object raw = McpToolUtils.pageSlugs( arguments );
-        if ( !( raw instanceof List< ? > rawList ) || rawList.isEmpty() ) {
+        final List< ? > rawList = McpToolUtils.pageSlugs( arguments );
+        if ( rawList == null || rawList.isEmpty() ) {
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
                     "a page-id list is required and must contain at least one entry (one of: slugs, pageNames, names)" );
         }

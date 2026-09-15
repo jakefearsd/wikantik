@@ -118,14 +118,18 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
      *  names of non-existing pages.
      */
     private Map< String, Collection< String > > refersTo;
-    private Map< String, Collection< String > > unmutableRefersTo;
+    /** Reassigned only under the {@code synchronized} constructor/{@code unserializeFromDisk()} paths, but
+     *  read from {@link #findRefersTo} without a lock; volatile so a reassignment (e.g. a deserialize-reload)
+     *  is visible to unsynchronized readers rather than risking a stale reference. */
+    private volatile Map< String, Collection< String > > unmutableRefersTo;
 
     /**
      *  Maps page wikiname to a Set of referring pages. The Set must contain Strings. Non-existing pages (a reference exists, but
      *  not a file for the page contents) may have an empty Set in referredBy.
      */
     private Map< String, Set< String > > referredBy;
-    private Map< String, Set< String > > unmutableReferredBy;
+    /** See {@link #unmutableRefersTo} — same reassign-under-lock / read-without-lock shape. */
+    private volatile Map< String, Set< String > > unmutableReferredBy;
 
     private final boolean matchEnglishPlurals;
 

@@ -21,6 +21,9 @@ package com.wikantik.extractcli.mainpage;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -41,6 +44,8 @@ import java.util.stream.Stream;
  * authority for both, so the offline path produces equivalent output.</p>
  */
 public final class MainPageDataLoader {
+
+    private static final Logger LOG = LogManager.getLogger( MainPageDataLoader.class );
 
     /** A row in the canonical_id → frontmatter index. */
     record FrontmatterIndex( Map< String, Resolved > byCanonicalId ) {}
@@ -100,10 +105,18 @@ public final class MainPageDataLoader {
         try ( Stream< Path > stream = Files.list( pagesDir ) ) {
             final List< Path > mdFiles = stream
                     .filter( Files::isRegularFile )
-                    .filter( p -> p.getFileName().toString().endsWith( ".md" ) )
+                    .filter( p -> {
+                        final Path fileName = p.getFileName();
+                        return fileName != null && fileName.toString().endsWith( ".md" );
+                    } )
                     .toList();
             for ( final Path file : mdFiles ) {
-                final String slug = stripMdExtension( file.getFileName().toString() );
+                final Path fileNamePath = file.getFileName();
+                if ( fileNamePath == null ) {
+                    LOG.warn( "Skipping {}: no file-name component", file );
+                    continue;
+                }
+                final String slug = stripMdExtension( fileNamePath.toString() );
                 final ParsedPage parsed = FrontmatterParser.parse( Files.readString( file ) );
                 final Map< String, Object > fm = parsed.metadata();
                 final String canonicalId = stringOrNull( fm.get( "canonical_id" ) );

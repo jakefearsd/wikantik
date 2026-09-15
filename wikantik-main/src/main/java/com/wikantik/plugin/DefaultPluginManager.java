@@ -254,7 +254,12 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
         }
 
         final ResourceBundle rb = Preferences.getBundle( context, Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
-        final boolean debug = TextUtil.isPositive( params.get( PARAM_DEBUG ) );
+        // debug=true is a page-content-controlled parameter — any editor can set it on any
+        // plugin invocation. Without an admin check here, that would let a page author force
+        // every viewer (including anonymous ones) to see the raw server-side stack trace
+        // (internal class/package names, etc.) for any exception the plugin throws. Only
+        // render it for a viewer who already has AllPermission.
+        final boolean debug = TextUtil.isPositive( params.get( PARAM_DEBUG ) ) && context.hasAdminPermissions();
         try {
             //   Create...
             final Plugin plugin = newWikiPlugin( classname, rb );

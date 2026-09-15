@@ -137,8 +137,8 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool {
     @Override
     @SuppressWarnings( "unchecked" )
     protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
-        final Object rawNames = McpToolUtils.pageSlugs( arguments );
-        if ( !( rawNames instanceof List< ? > nameList ) || nameList.isEmpty() ) {
+        final List< ? > nameList = McpToolUtils.pageSlugs( arguments );
+        if ( nameList == null || nameList.isEmpty() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                 "pageNames must be a non-empty array" );
         }

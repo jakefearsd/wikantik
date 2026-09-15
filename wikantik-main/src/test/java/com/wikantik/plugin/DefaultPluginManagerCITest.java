@@ -18,13 +18,19 @@
 */
 package com.wikantik.plugin;
 
+import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.WikiSession;
 import com.wikantik.api.core.Context;
+import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.auth.AuthenticationManager;
+import com.wikantik.auth.Users;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.modules.WikiModuleInfo;
 import com.wikantik.api.managers.PageManager;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -166,7 +172,9 @@ class DefaultPluginManagerCITest {
 
     /**
      * When {@code debug=true} and the plugin's execute() throws a PluginException,
-     * the result should be HTML (stack-trace div) rather than re-throwing.
+     * the result should be HTML (stack-trace div) rather than re-throwing — but only
+     * for a viewer with admin permissions (see
+     * {@link #testDebugModeIsIgnoredForNonAdminViewer} for the info-exposure guard).
      */
     @Test
     void testDebugModeWithPluginExceptionReturnsHtml() throws Exception {
@@ -174,14 +182,42 @@ class DefaultPluginManagerCITest {
         final Map<String, String> params = new HashMap<>();
         params.put( PluginManager.PARAM_DEBUG, "true" );
 
-        // Use execute(context, classname, params) with full class name of ThrowingPlugin
-        final String result = defaultManager.execute( context,
+        // Use execute(context, classname, params) with full class name of ThrowingPlugin,
+        // as an admin — debug output is gated on the viewer having AllPermission (a page
+        // author can set debug=true on any plugin invocation, so it must not leak a raw
+        // stack trace to every viewer of the page).
+        final String result = defaultManager.execute( adminContext(),
                 ThrowingPlugin.class.getName(), params );
 
         // With debug=true and a PluginException, the output should be the stack-trace HTML
         assertTrue( result.contains( "debug" ) || result.contains( "class" ),
                     "Debug output should be an HTML div, got: " + result );
         assertFalse( result.isEmpty(), "Debug output must not be empty" );
+    }
+
+    /**
+     * Regression test for the INFORMATION_EXPOSURE_THROUGH_AN_ERROR_MESSAGE finding:
+     * {@code debug=true} is a page-content-controlled parameter (any page author can set
+     * it on any plugin invocation), so it must not hand a raw server-side stack trace to
+     * a non-admin viewer. The default {@link #context} here is an unauthenticated/guest
+     * session, so a PluginException must be re-thrown (the normal non-debug behaviour)
+     * rather than rendered as HTML.
+     */
+    @Test
+    void testDebugModeIsIgnoredForNonAdminViewer() {
+        final Map<String, String> params = new HashMap<>();
+        params.put( PluginManager.PARAM_DEBUG, "true" );
+
+        final PluginException ex = assertThrows( PluginException.class,
+                () -> defaultManager.execute( context, ThrowingPlugin.class.getName(), params ) );
+        assertNotNull( ex );
+    }
+
+    private Context adminContext() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        final Session session = WikiSession.getWikiSession( engine, request );
+        engine.getManager( AuthenticationManager.class ).login( session, request, Users.ADMIN, Users.ADMIN_PASS );
+        return Wiki.context().create( engine, request, Wiki.contents().page( engine, "Testpage" ) );
     }
 
     // ============== execute(commandline) returns commandline when no match ==============

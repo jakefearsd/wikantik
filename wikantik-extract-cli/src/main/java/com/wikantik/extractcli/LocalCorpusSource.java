@@ -64,7 +64,7 @@ public final class LocalCorpusSource {
         }
 
         try ( Stream< Path > files = Files.list( directory ) ) {
-            files.filter( p -> p.getFileName().toString().endsWith( MARKDOWN_EXT ) )
+            files.filter( p -> isMarkdownFile( p, errors ) )
                  .sorted()
                  .forEach( p -> readInto( p, pages, errors ) );
         } catch ( final IOException | UncheckedIOException e ) {
@@ -73,9 +73,25 @@ public final class LocalCorpusSource {
         return new CorpusSnapshot( "repo", pages, errors );
     }
 
+    /** True when {@code p} has a file name ending in {@value #MARKDOWN_EXT}; a path with no
+     *  file-name component (root-like) is excluded and logged rather than dereferenced. */
+    private static boolean isMarkdownFile( final Path p, final List< String > errors ) {
+        final Path fileName = p.getFileName();
+        if ( fileName == null ) {
+            errors.add( "skipping entry with no file-name component: " + p );
+            return false;
+        }
+        return fileName.toString().endsWith( MARKDOWN_EXT );
+    }
+
     private void readInto( final Path file, final Map< String, PageFacts > pages,
                             final List< String > errors ) {
-        final String slug = unmangle( file.getFileName().toString() );
+        final Path fileNamePath = file.getFileName();
+        if ( fileNamePath == null ) {
+            errors.add( "skipping " + file + ": no file-name component" );
+            return;
+        }
+        final String slug = unmangle( fileNamePath.toString() );
         try {
             final var parsed = FrontmatterParser.parse( Files.readString( file ) );
             final Map< String, Object > meta = parsed.metadata();

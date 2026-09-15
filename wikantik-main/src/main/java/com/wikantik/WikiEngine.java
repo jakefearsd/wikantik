@@ -761,13 +761,18 @@ public class WikiEngine implements Engine {
 
         final File workDirFile = new File( workDir );
         try {
-            workDirFile.mkdirs();
+            final boolean created = workDirFile.mkdirs();
+            if( !created && !workDirFile.exists() ) {
+                LOG.warn( "mkdirs() reported failure and the working directory still does not exist: {}", workDir );
+            }
         } catch( final SecurityException e ) {
             LOG.fatal( "Unable to find or create the working directory: {}", workDir, e );
             throw new WikiException( "Unable to find or create the working dir: " + workDir, e );
         }
 
-        //  A bunch of sanity checks
+        //  A bunch of sanity checks — this is the authoritative check for whether the
+        //  directory actually exists now (mkdirs() can return false for a directory
+        //  that already existed, which is not itself a failure).
         checkWorkingDirectory( !workDirFile.exists(), "Work directory does not exist: " + workDir );
         checkWorkingDirectory( !workDirFile.canRead(), "No permission to read work directory: " + workDir );
         checkWorkingDirectory( !workDirFile.canWrite(), "No permission to write to work directory: " + workDir );

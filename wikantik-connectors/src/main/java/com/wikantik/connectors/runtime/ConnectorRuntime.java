@@ -200,7 +200,7 @@ public final class ConnectorRuntime {
         }
     }
 
-    public boolean isSchedulerRunning() { return executor != null && !executor.isShutdown(); }
+    public synchronized boolean isSchedulerRunning() { return executor != null && !executor.isShutdown(); }
 
     public synchronized void stop() {
         if ( executor != null ) {

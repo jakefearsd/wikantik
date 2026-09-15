@@ -127,8 +127,8 @@ public class DeletePagesTool extends AbstractMcpTool {
     @Override
     @SuppressWarnings( "unchecked" )
     protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
-        final Object raw = McpToolUtils.pageSlugs( arguments );
-        if ( !( raw instanceof List< ? > ) || ( (List< ? >) raw ).isEmpty() ) {
+        final List< ? > raw = McpToolUtils.pageSlugs( arguments );
+        if ( raw == null || raw.isEmpty() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "pageNames must be a non-empty array of strings" );
         }

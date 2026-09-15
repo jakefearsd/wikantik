@@ -308,13 +308,6 @@ public final class WikiEventManager {
     // private and utility methods .............................................
 
     /**
-     *  Return the client-to-delegate Map.
-     */
-    private Map< Object, WikiEventDelegate > getDelegates() {
-        return delegates;
-    }
-
-    /**
      *  Returns a WikiEventDelegate for the provided client Object. If the parameter is a class reference, will generate and return a
      *  client-less WikiEventDelegate. If the parameter is not a Class and the delegate cache contains any objects matching the Class
      *  of any delegates in the cache, the first Class-matching delegate will be used in preference to creating a new delegate.

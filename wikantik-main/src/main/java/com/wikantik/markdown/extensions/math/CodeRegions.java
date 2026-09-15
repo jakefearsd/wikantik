@@ -81,19 +81,18 @@ public final class CodeRegions {
             int n = 0;
             while (i < line.length() && line.charAt(i) == '`') { i++; n++; }
             int j = i;
-            boolean closed = false;
             while (j < line.length()) {
                 if (line.charAt(j) == '`') {
                     int k = j, m = 0;
                     while (k < line.length() && line.charAt(k) == '`') { k++; m++; }
                     if (m == n) {
                         for (int p = base + runStart; p < base + k && p < masked.length; p++) { masked[p] = true; }
-                        i = k; closed = true; break;
+                        i = k; break;
                     }
                     j = k;
                 } else { j++; }
             }
-            if (!closed) { /* unterminated run: leave unmasked, scan continues past opener */ }
+            // unterminated run: leave unmasked, scan continues past opener
         }
     }
 }

@@ -85,8 +85,10 @@ public class DefaultRenderingManager implements RenderingManager {
     private AttachmentManager attachmentManager;
     private VariableManager variableManager;
 
-    /** If true, all titles will be cleaned. */
-    private boolean beautifyTitle;
+    /** If true, all titles will be cleaned. Written during {@code initialize()} on one thread and
+     *  read from request-handling threads thereafter; volatile ensures the write is visible without
+     *  requiring a happens-before edge through some other synchronized access. */
+    private volatile boolean beautifyTitle;
 
     /** Rendering mode name for standard (non-WYSIWYG) output. */
     private static final String MODE_STANDARD = "standard";

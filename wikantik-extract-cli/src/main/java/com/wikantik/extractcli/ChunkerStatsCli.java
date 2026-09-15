@@ -108,7 +108,12 @@ public final class ChunkerStatsCli {
         try( Stream< Path > walk = Files.walk( dir ) ) {
             for( final Path p : (Iterable< Path >) walk::iterator ) {
                 if( !Files.isRegularFile( p ) ) continue;
-                final String name = p.getFileName().toString();
+                final Path fileName = p.getFileName();
+                if( fileName == null ) {
+                    LOG.warn( "Skipping {}: no file-name component", p );
+                    continue;
+                }
+                final String name = fileName.toString();
                 if( !name.endsWith( ".md" ) ) continue;
                 final String text;
                 try {

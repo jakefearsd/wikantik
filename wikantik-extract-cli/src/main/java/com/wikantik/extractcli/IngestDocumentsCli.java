@@ -148,12 +148,19 @@ public final class IngestDocumentsCli {
         final List<Path> files = new ArrayList<>();
         try ( final var stream = Files.walk( dir ) ) {
             stream.filter( Files::isRegularFile )
-                  .filter( p -> isSupportedExtension( p.getFileName().toString() ) )
+                  .filter( p -> isSupportedExtension( fileNameOrNull( p ) ) )
                   .forEach( files::add );
         }
 
         for ( final Path file : files ) {
-            final String name = file.getFileName().toString();
+            final Path fileNamePath = file.getFileName();
+            if ( fileNamePath == null ) {
+                failed++;
+                LOG.warn( "Ingest-CLI: skipping {}: no file-name component", file );
+                System.out.printf( "  [FAILED]    %s — no file-name component%n", file );
+                continue;
+            }
+            final String name = fileNamePath.toString();
             try {
                 final String status = poster.post( file );
                 switch ( status.toLowerCase( Locale.ROOT ) ) {
@@ -182,12 +189,22 @@ public final class IngestDocumentsCli {
         return SUPPORTED_EXTENSIONS.contains( filename.substring( dot ).toLowerCase( Locale.ROOT ) );
     }
 
+    /** {@link Path#getFileName()} is nullable (root-like paths); returns null rather than throwing. */
+    private static String fileNameOrNull( final Path p ) {
+        final Path fileName = p.getFileName();
+        return fileName == null ? null : fileName.toString();
+    }
+
     // ---- HTTP multipart poster ----
 
     private static FilePoster buildHttpPoster( final HttpClient http, final Args a ) {
         return file -> {
             final byte[] fileBytes = Files.readAllBytes( file );
-            final String filename  = file.getFileName().toString();
+            final Path fileNamePath = file.getFileName();
+            if ( fileNamePath == null ) {
+                throw new IOException( "Cannot determine file name for " + file );
+            }
+            final String filename  = fileNamePath.toString();
             final String boundary  = "WikiantikIngestBoundary-" + Long.toHexString( System.nanoTime() );
 
             final byte[] body = buildMultipartBody( boundary, filename, fileBytes, a.force );

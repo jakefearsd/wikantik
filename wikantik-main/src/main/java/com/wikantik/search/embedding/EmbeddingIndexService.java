@@ -320,15 +320,10 @@ public class EmbeddingIndexService {
                 final int[] progressThreshold = { 200 };
 
                 jdbc.forEachRow( readConn, selectSql, selectBinder, 500, rs -> {
-                    batchIds.add( rs.getObject( 1, UUID.class ) );
-                    final EmbeddingTextBuilder.PageContext ctx =
-                        ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
-                    batchTexts.add( EmbeddingTextBuilder.forDocument(
-                        ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
-                    if ( batchIds.size() >= batchSize ) {
-                        upserted[ 0 ] += stageEmbeddings( batchIds, batchTexts, pendingIds, pendingVectors );
-                        batchIds.clear();
-                        batchTexts.clear();
+                    final int staged = mapRowAndMaybeStage( rs, ctxMemo, batchIds, batchTexts,
+                        pendingIds, pendingVectors );
+                    if ( staged > 0 ) {
+                        upserted[ 0 ] += staged;
                         fireProgress( onBatchFlushed, upserted[ 0 ] );
                         maybeLogProgress( progressLabel, modelCode, upserted[ 0 ], progressThreshold );
                         if ( pendingIds.size() >= commitBatchSize ) {
@@ -406,16 +401,8 @@ public class EmbeddingIndexService {
                 // set is far too small to need incremental durability.
                 jdbc.forEachRow( conn, SELECT_BY_IDS_SQL,
                     ps -> ps.setArray( 1, conn.createArrayOf( "uuid", idArray ) ), 500, rs -> {
-                    batchIds.add( rs.getObject( 1, UUID.class ) );
-                    final EmbeddingTextBuilder.PageContext ctx =
-                        ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
-                    batchTexts.add( EmbeddingTextBuilder.forDocument(
-                        ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
-                    if ( batchIds.size() >= batchSize ) {
-                        upserted[ 0 ] += stageEmbeddings( batchIds, batchTexts, pendingIds, pendingVectors );
-                        batchIds.clear();
-                        batchTexts.clear();
-                    }
+                    upserted[ 0 ] += mapRowAndMaybeStage( rs, ctxMemo, batchIds, batchTexts,
+                        pendingIds, pendingVectors );
                 } );
                 if ( !batchIds.isEmpty() ) {
                     upserted[ 0 ] += stageEmbeddings( batchIds, batchTexts, pendingIds, pendingVectors );
@@ -479,6 +466,34 @@ public class EmbeddingIndexService {
     }
 
     // ---- internals ----
+
+    /**
+     * Maps one selected chunk row into {@code batchIds}/{@code batchTexts} and, once the
+     * batch reaches {@link #batchSize}, stages it into {@code pendingIds}/{@code pendingVectors}
+     * via {@link #stageEmbeddings} (clearing the batch lists) — the row-mapping + batch-flush
+     * trigger shared by {@link #indexRows} and {@link #indexChunks}, which differ only in what
+     * happens around a full batch (progress callbacks + mid-drain commits for {@code indexRows};
+     * nothing extra for {@code indexChunks}).
+     *
+     * @return the number of rows staged by this call (0 unless the batch was just flushed)
+     */
+    private int mapRowAndMaybeStage( final ResultSet rs, final Map< String, EmbeddingTextBuilder.PageContext > ctxMemo,
+                                     final List< UUID > batchIds, final List< String > batchTexts,
+                                     final List< UUID > pendingIds, final List< float[] > pendingVectors )
+            throws SQLException {
+        batchIds.add( rs.getObject( 1, UUID.class ) );
+        final EmbeddingTextBuilder.PageContext ctx =
+            ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
+        batchTexts.add( EmbeddingTextBuilder.forDocument(
+            ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
+        if ( batchIds.size() < batchSize ) {
+            return 0;
+        }
+        final int staged = stageEmbeddings( batchIds, batchTexts, pendingIds, pendingVectors );
+        batchIds.clear();
+        batchTexts.clear();
+        return staged;
+    }
 
     /**
      * Embeds one {@link #batchSize}-sized chunk of {@code ids}/{@code texts} and stages the

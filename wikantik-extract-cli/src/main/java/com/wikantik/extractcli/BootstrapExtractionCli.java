@@ -467,11 +467,7 @@ public final class BootstrapExtractionCli {
      * CLI argument bag. Made {@code public} so {@link BootstrapExtractionCliArgsTest}
      * can drive {@link #parse(String[])} directly without reflection.
      */
-    public static final class Args {
-        public String jdbcUrl              = "jdbc:postgresql://localhost:5432/jspwiki";
-        public String jdbcUser             = "jspwiki";
-        public String jdbcPassword         = "";
-        public String ollamaUrl            = "http://inference.jakefear.com:11434";
+    public static final class Args extends CommonCliArgs {
         public String ollamaModel          = "gemma4-assist:latest";
         public String extractor            = "ollama";   // ollama | claude
         public String extractorModel       = null;        // claude model id (claude only); null → DEFAULT_CLAUDE_EXTRACTOR_MODEL
@@ -481,7 +477,6 @@ public final class BootstrapExtractionCli {
         public int    pollSeconds          = 30;
         /** Sub-second poll override for tests; 0 (the default) keeps the CLI's pollSeconds cadence. Not CLI-parseable. */
         public long   pollMillis           = 0;
-        public boolean showHelp            = false;
         public int    maxPages             = 0;
 
         // ---- new per-page pipeline knobs ----
@@ -504,13 +499,12 @@ public final class BootstrapExtractionCli {
             final Args a = new Args();
             for( int i = 0; i < argv.length; i++ ) {
                 final String k = argv[ i ];
+                final int consumed = a.applyCommonFlag( k, argv, i );
+                if ( consumed >= 0 ) {
+                    i = consumed;
+                    continue;
+                }
                 switch( k ) {
-                    case "-h", "--help"              -> a.showHelp = true;
-                    case "--jdbc-url"                -> a.jdbcUrl = req( argv, ++i, k );
-                    case "--jdbc-user"               -> a.jdbcUser = req( argv, ++i, k );
-                    case "--jdbc-password"           -> a.jdbcPassword = req( argv, ++i, k );
-                    case "--jdbc-password-env"       -> a.jdbcPassword = env( req( argv, ++i, k ) );
-                    case "--ollama-url"              -> a.ollamaUrl = req( argv, ++i, k );
                     case "--ollama-model"            -> a.ollamaModel = req( argv, ++i, k );
                     case "--extractor"               -> a.extractor = req( argv, ++i, k ).toLowerCase( Locale.ROOT );
                     case "--extractor-model"         -> a.extractorModel = req( argv, ++i, k );
@@ -558,19 +552,6 @@ public final class BootstrapExtractionCli {
                 // backend even if a typo gets past the operator.
             }
             return a;
-        }
-
-        private static String req( final String[] argv, final int i, final String flag ) {
-            if( i >= argv.length ) throw new IllegalArgumentException( flag + " requires a value" );
-            return argv[ i ];
-        }
-
-        private static String env( final String name ) {
-            final String v = System.getenv( name );
-            if( v == null || v.isEmpty() ) {
-                throw new IllegalArgumentException( "environment variable '" + name + "' is unset or empty" );
-            }
-            return v;
         }
 
         private static int clamp( final int v, final int lo, final int hi ) {

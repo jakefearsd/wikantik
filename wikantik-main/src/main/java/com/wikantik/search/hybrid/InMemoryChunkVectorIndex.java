@@ -311,15 +311,8 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
                 final String page = rs.getString( 2 );
                 final int rowDim = rs.getInt( 3 );
                 final byte[] raw = rs.getBytes( 4 );
-                final float[] v = decodeVector( id, raw, rowDim );
+                final float[] v = decodeAndCheckDim( id, raw, rowDim, dimHolder, "", "index" );
                 if ( v == null ) return;
-                if ( dimHolder[ 0 ] == 0 ) dimHolder[ 0 ] = rowDim;
-                else if ( rowDim != dimHolder[ 0 ] ) {
-                    LOG.warn( "ChunkVectorIndex: chunk {} dim={} differs from index dim={}, skipping",
-                        id, rowDim, dimHolder[ 0 ] );
-                    return;
-                }
-                normalizeInPlace( v );
                 ids.add( id );
                 pages.add( page );
                 vecs.add( v );
@@ -365,15 +358,8 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
                     final String page = rs.getString( 2 );
                     final int rowDim = rs.getInt( 3 );
                     final byte[] raw = rs.getBytes( 4 );
-                    final float[] v = decodeVector( id, raw, rowDim );
+                    final float[] v = decodeAndCheckDim( id, raw, rowDim, dimHolder, " upsert", "batch" );
                     if ( v == null ) return;
-                    if ( dimHolder[ 0 ] == 0 ) dimHolder[ 0 ] = rowDim;
-                    else if ( rowDim != dimHolder[ 0 ] ) {
-                        LOG.warn( "ChunkVectorIndex upsert: chunk {} dim={} differs from batch dim={}, skipping",
-                            id, rowDim, dimHolder[ 0 ] );
-                        return;
-                    }
-                    normalizeInPlace( v );
                     vecs.put( id, v );
                     pages.put( id, page );
                 } );
@@ -395,6 +381,34 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
 
     private static float[] decodeVector( final UUID id, final byte[] raw, final int dim ) {
         return ChunkVectorBytes.decode( id, raw, dim );
+    }
+
+    /**
+     * Decodes one row's vector, folding its dimension into {@code dimHolder}
+     * (a single-element mutable holder shared across the whole result-set walk)
+     * and normalizing it in place. Shared by {@link #loadFromDatabase()} and
+     * {@link #loadRowsByIds}, which differ only in the wording of the warning
+     * logged on a dimension mismatch — {@code warnPrefix} (e.g. {@code " upsert"})
+     * and {@code dimLabel} (e.g. {@code "batch"}) supply that difference.
+     *
+     * @return the decoded, normalized vector, or {@code null} if the row is
+     *         undecodable or its dimension doesn't match the rest of the batch
+     *         (already logged in that case).
+     */
+    private static float[] decodeAndCheckDim( final UUID id, final byte[] raw, final int rowDim,
+                                               final int[] dimHolder, final String warnPrefix,
+                                               final String dimLabel ) {
+        final float[] v = decodeVector( id, raw, rowDim );
+        if ( v == null ) return null;
+        if ( dimHolder[ 0 ] == 0 ) {
+            dimHolder[ 0 ] = rowDim;
+        } else if ( rowDim != dimHolder[ 0 ] ) {
+            LOG.warn( "ChunkVectorIndex{}: chunk {} dim={} differs from {} dim={}, skipping",
+                warnPrefix, id, rowDim, dimLabel, dimHolder[ 0 ] );
+            return null;
+        }
+        normalizeInPlace( v );
+        return v;
     }
 
     private static void normalizeInPlace( final float[] v ) {

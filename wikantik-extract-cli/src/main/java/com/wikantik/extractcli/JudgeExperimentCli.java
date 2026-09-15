@@ -453,32 +453,26 @@ public final class JudgeExperimentCli {
     }
 
     /** CLI argument bag, parseable in tests. */
-    public static final class Args {
-        public String jdbcUrl       = "jdbc:postgresql://localhost:5432/jspwiki";
-        public String jdbcUser      = "jspwiki";
-        public String jdbcPassword  = "";
+    public static final class Args extends CommonCliArgs {
         public String judge         = null;
         public String judgeModel    = "gemma4-assist:latest";
-        public String ollamaUrl     = "http://inference.jakefear.com:11434";
         public String anthropicKeyEnv = null;
         public int    sample        = 100;
         public long   timeoutMs     = 60_000L;
         public String output        = null;
-        public boolean showHelp     = false;
 
         public static Args parse( final String[] argv ) {
             final Args a = new Args();
             for( int i = 0; i < argv.length; i++ ) {
                 final String k = argv[ i ];
+                final int consumed = a.applyCommonFlag( k, argv, i );
+                if ( consumed >= 0 ) {
+                    i = consumed;
+                    continue;
+                }
                 switch( k ) {
-                    case "-h", "--help"        -> a.showHelp = true;
-                    case "--jdbc-url"          -> a.jdbcUrl = req( argv, ++i, k );
-                    case "--jdbc-user"         -> a.jdbcUser = req( argv, ++i, k );
-                    case "--jdbc-password"     -> a.jdbcPassword = req( argv, ++i, k );
-                    case "--jdbc-password-env" -> a.jdbcPassword = env( req( argv, ++i, k ) );
                     case "--judge"             -> a.judge = req( argv, ++i, k ).toLowerCase( Locale.ROOT );
                     case "--judge-model"       -> a.judgeModel = req( argv, ++i, k );
-                    case "--ollama-url"        -> a.ollamaUrl = req( argv, ++i, k );
                     case "--anthropic-key-env" -> a.anthropicKeyEnv = req( argv, ++i, k );
                     case "--sample"            -> a.sample = parseInt( req( argv, ++i, k ), k );
                     case "--timeout-ms"        -> a.timeoutMs = parseLong( req( argv, ++i, k ), k );
@@ -498,19 +492,6 @@ public final class JudgeExperimentCli {
                 if( a.timeoutMs < 1_000L ) throw new IllegalArgumentException( "--timeout-ms must be >= 1000" );
             }
             return a;
-        }
-
-        private static String req( final String[] argv, final int i, final String flag ) {
-            if( i >= argv.length ) throw new IllegalArgumentException( flag + " requires a value" );
-            return argv[ i ];
-        }
-
-        private static String env( final String name ) {
-            final String v = System.getenv( name );
-            if( v == null || v.isEmpty() ) {
-                throw new IllegalArgumentException( "environment variable '" + name + "' is unset or empty" );
-            }
-            return v;
         }
 
         private static int parseInt( final String s, final String flag ) {

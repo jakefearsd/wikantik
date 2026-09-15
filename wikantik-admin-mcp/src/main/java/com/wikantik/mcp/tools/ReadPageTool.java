@@ -74,24 +74,18 @@ public class ReadPageTool extends AbstractMcpTool {
                 "lastModified", "2026-04-25T14:30:00Z"
         ) ) );
 
-        return McpSchema.Tool.builder()
-                .name( TOOL_NAME )
-                .description( "Read the raw Markdown body (including YAML frontmatter) of a page. " +
+        return SlugToolSupport.singleSlugToolDefinition( TOOL_NAME, properties,
+                "Read the raw Markdown body (including YAML frontmatter) of a page. " +
                         "Returns {exists, pageName, content, contentHash, version, lastModified}. " +
-                        "Pass the contentHash back to update_page as expectedContentHash to edit the page." )
-                .inputSchema( new McpSchema.JsonSchema( "object", properties,
-                        List.of( "slug" ), null, null, null ) )
-                .outputSchema( outputSchema )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
-                .build();
+                        "Pass the contentHash back to update_page as expectedContentHash to edit the page.",
+                outputSchema );
     }
 
     @Override
     protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final String pageName = McpToolUtils.pageSlug( arguments );
         if ( pageName == null || pageName.isBlank() ) {
-            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                    "pageName must not be blank" );
+            return SlugToolSupport.blankSlugError( "pageName must not be blank" );
         }
         final int version = McpToolUtils.getInt( arguments, "version", PageProvider.LATEST_VERSION );
 

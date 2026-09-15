@@ -69,18 +69,11 @@ class KgGraphTraversal {
                         ? DEFAULT_PROVENANCE_FILTER
                         : provenanceFilter;
 
-        final Map< UUID, KgNode > visited = new LinkedHashMap<>();
-        final List< KgEdge > collectedEdges = new ArrayList<>();
-        final Queue< UUID > queue = new ArrayDeque<>();
-        final Map< UUID, Integer > depthMap = new HashMap<>();
+        final BfsState state = new BfsState( startNode );
 
-        visited.put( startNode.id(), startNode );
-        queue.add( startNode.id() );
-        depthMap.put( startNode.id(), 0 );
-
-        while ( !queue.isEmpty() ) {
-            final UUID currentId = queue.poll();
-            final int currentDepth = depthMap.get( currentId );
+        while ( !state.queue.isEmpty() ) {
+            final UUID currentId = state.queue.poll();
+            final int currentDepth = state.depthMap.get( currentId );
 
             if ( currentDepth >= maxDepth ) {
                 continue;
@@ -96,24 +89,24 @@ class KgGraphTraversal {
                     continue;
                 }
 
-                collectedEdges.add( edge );
+                state.collectedEdges.add( edge );
 
                 final UUID neighborId = edge.sourceId().equals( currentId )
                         ? edge.targetId()
                         : edge.sourceId();
 
-                if ( !visited.containsKey( neighborId ) ) {
+                if ( !state.visited.containsKey( neighborId ) ) {
                     final KgNode neighbor = nodes.getNode( neighborId );
                     if ( neighbor != null ) {
-                        visited.put( neighborId, neighbor );
-                        queue.add( neighborId );
-                        depthMap.put( neighborId, currentDepth + 1 );
+                        state.visited.put( neighborId, neighbor );
+                        state.queue.add( neighborId );
+                        state.depthMap.put( neighborId, currentDepth + 1 );
                     }
                 }
             }
         }
 
-        return new TraversalResult( new ArrayList<>( visited.values() ), collectedEdges );
+        return state.toResult();
     }
 
     /**
@@ -132,18 +125,11 @@ class KgGraphTraversal {
         }
         final int effectiveMin = Math.max( 1, minSharedChunks );
 
-        final Map< UUID, KgNode > visited = new LinkedHashMap<>();
-        final List< KgEdge > collectedEdges = new ArrayList<>();
-        final Queue< UUID > queue = new ArrayDeque<>();
-        final Map< UUID, Integer > depthMap = new HashMap<>();
+        final BfsState state = new BfsState( startNode );
 
-        visited.put( startNode.id(), startNode );
-        queue.add( startNode.id() );
-        depthMap.put( startNode.id(), 0 );
-
-        while ( !queue.isEmpty() ) {
-            final UUID currentId = queue.poll();
-            final int currentDepth = depthMap.get( currentId );
+        while ( !state.queue.isEmpty() ) {
+            final UUID currentId = state.queue.poll();
+            final int currentDepth = state.depthMap.get( currentId );
             if ( currentDepth >= maxDepth ) continue;
 
             final Map< UUID, Integer > neighbors = mentionIndex.getCoMentionCounts( currentId );
@@ -152,17 +138,17 @@ class KgGraphTraversal {
                 final UUID neighborId = e.getKey();
                 final int shared = e.getValue();
 
-                if ( !visited.containsKey( neighborId ) ) {
+                if ( !state.visited.containsKey( neighborId ) ) {
                     final KgNode neighbor = nodes.getNode( neighborId );
                     if ( neighbor == null || !minTier.includes( neighbor.tier() ) ) {
                         continue;
                     }
-                    visited.put( neighborId, neighbor );
-                    queue.add( neighborId );
-                    depthMap.put( neighborId, currentDepth + 1 );
+                    state.visited.put( neighborId, neighbor );
+                    state.queue.add( neighborId );
+                    state.depthMap.put( neighborId, currentDepth + 1 );
                 }
 
-                collectedEdges.add( new KgEdge(
+                state.collectedEdges.add( new KgEdge(
                     UUID.randomUUID(),
                     currentId, neighborId,
                     "co-mentions",
@@ -175,6 +161,28 @@ class KgGraphTraversal {
             }
         }
 
-        return new TraversalResult( new ArrayList<>( visited.values() ), collectedEdges );
+        return state.toResult();
+    }
+
+    /**
+     * Mutable BFS bookkeeping shared by {@link #traverse} and
+     * {@link #traverseByCoMention} — seeds the frontier at {@code startNode}
+     * and accumulates visited nodes + traversed edges as the caller walks it.
+     */
+    private static final class BfsState {
+        final Map< UUID, KgNode > visited = new LinkedHashMap<>();
+        final List< KgEdge > collectedEdges = new ArrayList<>();
+        final Queue< UUID > queue = new ArrayDeque<>();
+        final Map< UUID, Integer > depthMap = new HashMap<>();
+
+        BfsState( final KgNode startNode ) {
+            visited.put( startNode.id(), startNode );
+            queue.add( startNode.id() );
+            depthMap.put( startNode.id(), 0 );
+        }
+
+        TraversalResult toResult() {
+            return new TraversalResult( new ArrayList<>( visited.values() ), collectedEdges );
+        }
     }
 }

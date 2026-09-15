@@ -362,37 +362,52 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         if( attachments != null ) {
             //  We now have a list of all potential attachments in the directory.
             for( final String attachment : attachments ) {
-                final File f = new File( dir, attachment );
-                if( f.isDirectory() ) {
-                    String attachmentName = unmangleName( attachment );
-
-                    //  Is it a new-stylea attachment directory?  If yes, we'll just deduce the name.  If not, however,
-                    //  we'll check if there's a suitable property file in the directory.
-                    if( attachmentName.endsWith( ATTDIR_EXTENSION ) ) {
-                        attachmentName = attachmentName.substring( 0, attachmentName.length() - ATTDIR_EXTENSION.length() );
-                    } else {
-                        final File propFile = new File( f, PROPERTY_FILE );
-                        if( !propFile.exists() ) {
-                            //  This is not obviously a JSPWiki attachment, so let's just skip it.
-                            continue;
-                        }
-                    }
-
-                    final Attachment att = getAttachmentInfo( page, attachmentName, WikiProvider.LATEST_VERSION );
-                    //  Sanity check - shouldn't really be happening, unless you mess with the repository directly.
-                    if( att == null ) {
-                        LOG.error( "Attachment disappeared while reading information:"
-                                + " if you did not touch the repository, there is a serious bug somewhere or perhaps it"
-                                + " was deleted by antivirus software, etc. " + "Attachment = " + attachment
-                                + ", decoded = " + attachmentName );
-                    } else {
-                        result.add( att );
-                    }
+                final Attachment att = resolveAttachmentEntry( page, dir, attachment );
+                if( att != null ) {
+                    result.add( att );
                 }
             }
         }
 
         return result;
+    }
+
+    /**
+     *  Resolves a single directory entry under a page's attachment directory into an
+     *  {@link Attachment}, or {@code null} if the entry isn't an attachment directory
+     *  (or, for a legacy-style directory, has no property file — not obviously an
+     *  attachment). Logs and returns {@code null} if the entry's info has disappeared
+     *  since the directory listing was taken. Split out of {@link #listAttachments(Page)}
+     *  to keep that method's complexity in check.
+     */
+    private Attachment resolveAttachmentEntry( final Page page, final File dir, final String attachment ) throws ProviderException {
+        final File f = new File( dir, attachment );
+        if( !f.isDirectory() ) {
+            return null;
+        }
+        String attachmentName = unmangleName( attachment );
+
+        //  Is it a new-stylea attachment directory?  If yes, we'll just deduce the name.  If not, however,
+        //  we'll check if there's a suitable property file in the directory.
+        if( attachmentName.endsWith( ATTDIR_EXTENSION ) ) {
+            attachmentName = attachmentName.substring( 0, attachmentName.length() - ATTDIR_EXTENSION.length() );
+        } else {
+            final File propFile = new File( f, PROPERTY_FILE );
+            if( !propFile.exists() ) {
+                //  This is not obviously a JSPWiki attachment, so let's just skip it.
+                return null;
+            }
+        }
+
+        final Attachment att = getAttachmentInfo( page, attachmentName, WikiProvider.LATEST_VERSION );
+        //  Sanity check - shouldn't really be happening, unless you mess with the repository directly.
+        if( att == null ) {
+            LOG.error( "Attachment disappeared while reading information:"
+                    + " if you did not touch the repository, there is a serious bug somewhere or perhaps it"
+                    + " was deleted by antivirus software, etc. " + "Attachment = " + attachment
+                    + ", decoded = " + attachmentName );
+        }
+        return att;
     }
 
     /**

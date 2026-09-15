@@ -197,52 +197,17 @@ public class AdminUserResource extends RestServletBase {
         Group targetGroup = null;
         Session session = null;
         if ( "add-to-group".equals( action ) ) {
-            final String groupName = getJsonString( body, "group" );
-            if ( groupName == null || groupName.isBlank() ) {
-                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                        "group is required for action 'add-to-group'" );
-                return;
-            }
-            try {
-                targetGroup = getSubsystems().auth().groups().getGroup( groupName );
-                session = Wiki.session().find( getEngine(), request );
-            } catch ( final NoSuchPrincipalException e ) {
-                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                        "Group not found: " + groupName );
-                return;
-            } catch ( final Exception e ) {
-                LOG.warn( "bulk add-to-group: could not resolve group actor={}: {}",
-                        currentLogin( request ), e.getMessage(), e );
-                sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                        "Failed to resolve group" );
-                return;
-            }
+            final GroupResolution resolution = resolveGroupForBulkAdd( request, body, response );
+            if ( resolution == null ) return;
+            targetGroup = resolution.group;
+            session = resolution.session;
         }
 
         final String actor = currentLogin( request );
         final BulkActionResult result = new BulkActionResult();
 
         for ( final JsonElement idEl : idsArr ) {
-            final String loginName = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
-            if ( loginName == null || loginName.isBlank() ) {
-                result.fail( idEl.toString(), "id must be a non-blank string" );
-                continue;
-            }
-
-            final Optional< String > err;
-            switch ( action ) {
-                case "lock"   -> err = tryLockUser( loginName, actor );
-                case "unlock" -> err = tryUnlockUser( loginName, actor );
-                case "delete" -> err = tryDeleteUser( loginName, actor );
-                case "add-to-group" -> err = tryAddToGroup( loginName, targetGroup, session, actor );
-                default -> err = Optional.of( "Unknown action" );  // unreachable
-            }
-
-            if ( err.isEmpty() ) {
-                result.succeed( loginName );
-            } else {
-                result.fail( loginName, err.get() );
-            }
+            applyBulkAction( action, idEl, targetGroup, session, actor, result );
         }
 
         final String suffix = "add-to-group".equals( action )
@@ -252,6 +217,73 @@ public class AdminUserResource extends RestServletBase {
                 action, actor, idsArr.size(), result.succeededCount(), result.failedCount(), suffix );
 
         sendJson( response, result.toResponseBody( idsArr.size(), "users " + actionPastTense( action ) ) );
+    }
+
+    /** Applies {@code action} to one bulk-request id, recording success/failure on
+     *  {@code result}. Split out of {@link #doBulkAction} — the per-id switch dispatch was the
+     *  dominant contributor to that method's NPath complexity once nested inside the loop. */
+    private void applyBulkAction( final String action, final JsonElement idEl, final Group targetGroup,
+            final Session session, final String actor, final BulkActionResult result ) {
+        final String loginName = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
+        if ( loginName == null || loginName.isBlank() ) {
+            result.fail( idEl.toString(), "id must be a non-blank string" );
+            return;
+        }
+
+        final Optional< String > err;
+        switch ( action ) {
+            case "lock"   -> err = tryLockUser( loginName, actor );
+            case "unlock" -> err = tryUnlockUser( loginName, actor );
+            case "delete" -> err = tryDeleteUser( loginName, actor );
+            case "add-to-group" -> err = tryAddToGroup( loginName, targetGroup, session, actor );
+            default -> err = Optional.of( "Unknown action" );  // unreachable
+        }
+
+        if ( err.isEmpty() ) {
+            result.succeed( loginName );
+        } else {
+            result.fail( loginName, err.get() );
+        }
+    }
+
+    /** Holds the group + acting session resolved for a bulk {@code add-to-group} request. */
+    private static final class GroupResolution {
+        private final Group group;
+        private final Session session;
+
+        private GroupResolution( final Group group, final Session session ) {
+            this.group = group;
+            this.session = session;
+        }
+    }
+
+    /**
+     * Resolves the target group (and acting session) for a bulk {@code add-to-group} request.
+     * On failure, sends the appropriate error response itself and returns {@code null}.
+     */
+    private GroupResolution resolveGroupForBulkAdd( final HttpServletRequest request, final JsonObject body,
+            final HttpServletResponse response ) throws IOException {
+        final String groupName = getJsonString( body, "group" );
+        if ( groupName == null || groupName.isBlank() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "group is required for action 'add-to-group'" );
+            return null;
+        }
+        try {
+            final Group targetGroup = getSubsystems().auth().groups().getGroup( groupName );
+            final Session session = Wiki.session().find( getEngine(), request );
+            return new GroupResolution( targetGroup, session );
+        } catch ( final NoSuchPrincipalException e ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "Group not found: " + groupName );
+            return null;
+        } catch ( final Exception e ) {
+            LOG.warn( "bulk add-to-group: could not resolve group actor={}: {}",
+                    currentLogin( request ), e.getMessage(), e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Failed to resolve group" );
+            return null;
+        }
     }
 
     private static String actionPastTense( final String action ) {

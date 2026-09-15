@@ -167,6 +167,16 @@ public final class KgProposalAdminHandlers {
         final String action = segments[2];
         final String reviewedBy = request.getRemoteUser() != null ? request.getRemoteUser() : "admin";
 
+        dispatchProposalAction( service, request, response, proposalId, action, reviewedBy );
+    }
+
+    /**
+     * Dispatches a single-proposal action ({@code approve}/{@code reject}/{@code judge}) requested
+     * via {@code POST /admin/knowledge-graph/proposals/{id}/{action}}.
+     */
+    private void dispatchProposalAction( final KnowledgeGraphService service, final HttpServletRequest request,
+                                          final HttpServletResponse response, final UUID proposalId,
+                                          final String action, final String reviewedBy ) throws IOException {
         final KgCurationOps ops = curationOps.get();
         switch ( action ) {
             case "approve" -> {
@@ -278,41 +288,7 @@ public final class KgProposalAdminHandlers {
         final Map< String, List< String > > warningsByProposal = new LinkedHashMap<>();
 
         for ( final JsonElement idEl : idsArr ) {
-            final String idStr = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
-            if ( idStr == null || idStr.isBlank() ) {
-                result.fail( idEl.toString(), "id must be a non-blank string" );
-                continue;
-            }
-            final UUID proposalId;
-            try {
-                proposalId = UUID.fromString( idStr );
-            } catch ( final IllegalArgumentException e ) {
-                result.fail( idStr, "Invalid UUID: " + idStr );
-                continue;
-            }
-
-            if ( "approve".equals( action ) ) {
-                final KgCurationOps.ApproveOutcome outcome = ops.tryApprove( proposalId, actor );
-                if ( outcome.error().isPresent() ) {
-                    result.fail( idStr, outcome.error().get() );
-                } else {
-                    result.succeed( idStr );
-                    if ( !outcome.warnings().isEmpty() ) {
-                        warningsByProposal.put( idStr, outcome.warnings() );
-                    }
-                }
-            } else {
-                final java.util.Optional< String > err;
-                switch ( action ) {
-                    case "reject"  -> err = ops.tryRejectProposal( proposalId, actor, reason );
-                    default        -> err = ops.tryJudgeProposal( proposalId, actor );
-                }
-                if ( err.isEmpty() ) {
-                    result.succeed( idStr );
-                } else {
-                    result.fail( idStr, err.get() );
-                }
-            }
+            applyBulkProposalAction( ops, action, reason, actor, idEl, result, warningsByProposal );
         }
 
         LOG.info( "bulk action={} resource=kg-proposals actor={} attempted={} succeeded={} failed={}",
@@ -323,6 +299,52 @@ public final class KgProposalAdminHandlers {
             body2.put( "warnings_by_proposal", warningsByProposal );
         }
         AdminKnowledgeIo.sendJson( response, body2 );
+    }
+
+    /**
+     * Applies one bulk {@code approve}/{@code reject}/{@code judge} action to a single proposal id,
+     * recording the outcome into {@code result} (and, for a warned approval, into
+     * {@code warningsByProposal}). Never throws — malformed/unknown ids are recorded as failures.
+     */
+    private void applyBulkProposalAction( final KgCurationOps ops, final String action, final String reason,
+                                           final String actor, final JsonElement idEl,
+                                           final com.wikantik.rest.BulkActionResult result,
+                                           final Map< String, List< String > > warningsByProposal ) {
+        final String idStr = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
+        if ( idStr == null || idStr.isBlank() ) {
+            result.fail( idEl.toString(), "id must be a non-blank string" );
+            return;
+        }
+        final UUID proposalId;
+        try {
+            proposalId = UUID.fromString( idStr );
+        } catch ( final IllegalArgumentException e ) {
+            result.fail( idStr, "Invalid UUID: " + idStr );
+            return;
+        }
+
+        if ( "approve".equals( action ) ) {
+            final KgCurationOps.ApproveOutcome outcome = ops.tryApprove( proposalId, actor );
+            if ( outcome.error().isPresent() ) {
+                result.fail( idStr, outcome.error().get() );
+            } else {
+                result.succeed( idStr );
+                if ( !outcome.warnings().isEmpty() ) {
+                    warningsByProposal.put( idStr, outcome.warnings() );
+                }
+            }
+        } else {
+            final java.util.Optional< String > err;
+            switch ( action ) {
+                case "reject"  -> err = ops.tryRejectProposal( proposalId, actor, reason );
+                default        -> err = ops.tryJudgeProposal( proposalId, actor );
+            }
+            if ( err.isEmpty() ) {
+                result.succeed( idStr );
+            } else {
+                result.fail( idStr, err.get() );
+            }
+        }
     }
 
     /**

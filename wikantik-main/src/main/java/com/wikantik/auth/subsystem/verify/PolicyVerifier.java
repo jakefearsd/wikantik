@@ -32,10 +32,6 @@ import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupDatabase;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.authorize.Role;
-import com.wikantik.auth.permissions.AllPermission;
-import com.wikantik.auth.permissions.GroupPermission;
-import com.wikantik.auth.permissions.PermissionFactory;
-import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.auth.user.DummyUserDatabase;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
@@ -45,7 +41,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.security.KeyStore;
-import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
@@ -63,9 +58,6 @@ import java.util.Set;
  * monolith did.</p>
  */
 public final class PolicyVerifier {
-
-    private static final String BG_GREEN = "bgcolor=\"#c0ffc0\"";
-    private static final String BG_RED   = "bgcolor=\"#ffc0c0\"";
 
     private final Engine               engine;
     private final Session              session;
@@ -118,137 +110,14 @@ public final class PolicyVerifier {
 
     /**
      * Formats and returns an HTML table containing sample permissions and what
-     * roles are allowed to have them.
+     * roles are allowed to have them. Delegates to {@link PolicyRoleTable} — split out
+     * (2026-09, complexity burn-down) so the table-rendering helpers don't count against this
+     * class's own WMC/cohesion.
      *
      * @return the formatted HTML table
      */
     public String policyRoleTable() {
-        final Principal[] roles = policyPrincipals;
-        final String wiki = engine.getApplicationName();
-
-        final String[] pages = { "Main", "Index", "GroupTest", "GroupAdmin" };
-        final String[] pageActions = { "view", "edit", "modify", "rename", "delete" };
-
-        final String[] groups = { "Admin", "TestGroup", "Foo" };
-        final String[] groupActions = { "view", "edit", null, null, "delete" };
-
-        final int rolesLength = roles.length;
-        final int pageActionsLength = pageActions.length;
-        final String colWidth;
-        if( rolesLength > 0 ) {
-            colWidth = ( 67f / ( pageActionsLength * rolesLength ) ) + "%";
-        } else {
-            colWidth = "67%";
-        }
-
-        final StringBuilder table = new StringBuilder();
-
-        table.append( "<table class=\"wikitable\" border=\"1\">\n" );
-        table.append( "  <colgroup span=\"1\" width=\"33%\"/>\n" );
-        table.append( "  <colgroup span=\"" ).append( pageActionsLength * rolesLength ).append( "\" width=\"" ).append( colWidth ).append( "\" align=\"center\"/>\n" );
-        table.append( "  <tr>\n" );
-        table.append( "    <th rowspan=\"2\" valign=\"bottom\">Permission</th>\n" );
-        for( final Principal principal : roles ) {
-            table.append( "    <th colspan=\"" ).append( pageActionsLength ).append( "\" title=\"" ).append( principal.getClass().getName() ).append( "\">" ).append( principal.getName() ).append( "</th>\n" );
-        }
-        table.append( "  </tr>\n" );
-
-        table.append( "  <tr>\n" );
-        for( int i = 0; i < rolesLength; i++ ) {
-            for( final String pageAction : pageActions ) {
-                final String action = pageAction.substring( 0, 1 );
-                table.append( "    <th title=\"" ).append( pageAction ).append( "\">" ).append( action ).append( "</th>\n" );
-            }
-        }
-        table.append( "  </tr>\n" );
-
-        for( final String page : pages ) {
-            table.append( "  <tr>\n" );
-            table.append( "    <td>PagePermission \"" ).append( wiki ).append( ':' ).append( page ).append( "\"</td>\n" );
-            for( final Principal role : roles ) {
-                for( final String pageAction : pageActions ) {
-                    final Permission permission = PermissionFactory.getPagePermission( wiki + ":" + page, pageAction );
-                    table.append( printPermissionTest( permission, role, 1 ) );
-                }
-            }
-            table.append( "  </tr>\n" );
-        }
-
-        for( final String group : groups ) {
-            table.append( "  <tr>\n" );
-            table.append( "    <td>GroupPermission \"" ).append( wiki ).append( ':' ).append( group ).append( "\"</td>\n" );
-            for( final Principal role : roles ) {
-                for( final String groupAction : groupActions ) {
-                    Permission permission = null;
-                    if( groupAction != null ) {
-                        permission = new GroupPermission( wiki + ":" + group, groupAction );
-                    }
-                    table.append( printPermissionTest( permission, role, 1 ) );
-                }
-            }
-            table.append( "  </tr>\n" );
-        }
-
-        final String[] wikiPerms = { "createGroups", "createPages", "login", "editPreferences", "editProfile" };
-        for( final String wikiPerm : wikiPerms ) {
-            table.append( "  <tr>\n" );
-            table.append( "    <td>WikiPermission \"" ).append( wiki ).append( "\",\"" ).append( wikiPerm ).append( "\"</td>\n" );
-            for( final Principal role : roles ) {
-                final Permission permission = new WikiPermission( wiki, wikiPerm );
-                table.append( printPermissionTest( permission, role, pageActionsLength ) );
-            }
-            table.append( "  </tr>\n" );
-        }
-
-        table.append( "  <tr>\n" );
-        table.append( "    <td>AllPermission \"" ).append( wiki ).append( "\"</td>\n" );
-        for( final Principal role : roles ) {
-            final Permission permission = new AllPermission( wiki );
-            table.append( printPermissionTest( permission, role, pageActionsLength ) );
-        }
-        table.append( "  </tr>\n" );
-
-        table.append( "</table>" );
-        return table.toString();
-    }
-
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
-
-    private String printPermissionTest( final Permission permission, final Principal principal, final int cols ) {
-        final StringBuilder cell = new StringBuilder();
-        if( permission == null ) {
-            cell.append( "    <td colspan=\"" ).append( cols ).append( "\" align=\"center\" title=\"N/A\">" );
-            cell.append( "&nbsp;</td>\n" );
-        } else {
-            final boolean allowed = verifyStaticPermission( principal, permission );
-            cell.append( "    <td colspan=\"" ).append( cols ).append( "\" align=\"center\" title=\"" );
-            cell.append( allowed ? "ALLOW: " : "DENY: " );
-            cell.append( permission.getClass().getName() );
-            cell.append( " &quot;" );
-            cell.append( permission.getName() );
-            cell.append( "&quot;" );
-            if( permission.getName() != null ) {
-                cell.append( ",&quot;" );
-                cell.append( permission.getActions() );
-                cell.append( "&quot;" );
-            }
-            cell.append( ' ' );
-            cell.append( principal.getClass().getName() );
-            cell.append( " &quot;" );
-            cell.append( principal.getName() );
-            cell.append( "&quot;" );
-            cell.append( '"' );
-            cell.append( allowed ? BG_GREEN + ">" : BG_RED + ">" );
-            cell.append( "&nbsp;</td>\n" );
-        }
-        return cell.toString();
-    }
-
-    private boolean verifyStaticPermission( final Principal principal, final Permission permission ) {
-        final Principal[] principals = { principal };
-        return authorizationManager.allowedByLocalPolicy( principals, permission );
+        return new PolicyRoleTable( authorizationManager ).render( policyPrincipals, engine.getApplicationName() );
     }
 
     // -------------------------------------------------------------------------

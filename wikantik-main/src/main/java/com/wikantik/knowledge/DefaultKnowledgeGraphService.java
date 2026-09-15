@@ -382,6 +382,32 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         // Step 1 — collect distinct node ids for this page.  Two sources are
         // unioned: chunk_entity_mentions (extraction pipeline) and kg_nodes.source_page
         // (manually curated entities).  Both ? parameters bind to pageName.
+        final Set< UUID > pageEntityIds = collectPageEntityIds( pageName );
+        if ( pageEntityIds == null || pageEntityIds.isEmpty() ) {
+            return new PageKnowledgeSlice( List.of(), List.of() );
+        }
+
+        // Step 2 — load each KgNode; skip any that no longer resolve.
+        final List< KgNode > entities = resolveEntities( pageEntityIds, pageName );
+
+        // Steps 3–4 — edge collection + name resolution; degrade gracefully on repository failure.
+        try {
+            final List< KgEdgeView > edgeViews = collectIntraPageEdgeViews( pageEntityIds );
+            // Step 5 — return the slice (compact constructor copies to immutable lists).
+            return new PageKnowledgeSlice( entities, edgeViews );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "getPageSlice: edge resolution failed for page '{}': {}", pageName, e.getMessage() );
+            return new PageKnowledgeSlice( entities, List.of() );
+        }
+    }
+
+    /**
+     *  Runs the {@link #PAGE_SLICE_SQL} union query, returning the distinct entity ids
+     *  mentioned on (or curated onto) {@code pageName}, or {@code null} if the query failed
+     *  (already logged). Split out of {@link #getPageSlice(String)} to keep that method's
+     *  complexity in check.
+     */
+    private Set< UUID > collectPageEntityIds( final String pageName ) {
         final Set< UUID > pageEntityIds = new LinkedHashSet<>();
         try {
             jdbc.forEachRow( PAGE_SLICE_SQL, ps -> {
@@ -394,14 +420,13 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         } catch ( final SQLException e ) {
             LOG.warn( "getPageSlice: failed to load entity ids for page '{}': {}",
                 pageName, e.getMessage(), e );
-            return new PageKnowledgeSlice( List.of(), List.of() );
+            return null;
         }
+        return pageEntityIds;
+    }
 
-        if ( pageEntityIds.isEmpty() ) {
-            return new PageKnowledgeSlice( List.of(), List.of() );
-        }
-
-        // Step 2 — load each KgNode; skip any that no longer resolve.
+    /** Loads each {@link KgNode} for {@code pageEntityIds}, skipping (and logging) any that no longer resolve. */
+    private List< KgNode > resolveEntities( final Set< UUID > pageEntityIds, final String pageName ) {
         final List< KgNode > entities = new ArrayList<>( pageEntityIds.size() );
         for ( final UUID id : pageEntityIds ) {
             final KgNode node = nodes.getNode( id );
@@ -412,52 +437,51 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                 entities.add( node );
             }
         }
+        return entities;
+    }
 
-        // Steps 3–4 — edge collection + name resolution; degrade gracefully on repository failure.
-        try {
-            // Step 3 — collect intra-page edges (both endpoints must be in pageEntityIds).
-            // Issues one query per entity — acceptable at page scale; collapse into a single
-            // = ANY(?) batch if this becomes a hotspot.
-            final Map< UUID, KgEdge > seenEdges = new LinkedHashMap<>();
-            for ( final UUID entityId : pageEntityIds ) {
-                for ( final KgEdge edge : edges.getEdgesForNode( entityId, "both" ) ) {
-                    if ( pageEntityIds.contains( edge.sourceId() )
-                         && pageEntityIds.contains( edge.targetId() )
-                         && !seenEdges.containsKey( edge.id() ) ) {
-                        seenEdges.put( edge.id(), edge );
-                    }
+    /**
+     *  Collects the intra-page edges (both endpoints in {@code pageEntityIds}) and resolves
+     *  their endpoint names into {@link KgEdgeView}s. Split out of {@link #getPageSlice(String)}.
+     */
+    private List< KgEdgeView > collectIntraPageEdgeViews( final Set< UUID > pageEntityIds ) {
+        // Step 3 — collect intra-page edges (both endpoints must be in pageEntityIds).
+        // Issues one query per entity — acceptable at page scale; collapse into a single
+        // = ANY(?) batch if this becomes a hotspot.
+        final Map< UUID, KgEdge > seenEdges = new LinkedHashMap<>();
+        for ( final UUID entityId : pageEntityIds ) {
+            for ( final KgEdge edge : edges.getEdgesForNode( entityId, "both" ) ) {
+                if ( pageEntityIds.contains( edge.sourceId() )
+                     && pageEntityIds.contains( edge.targetId() )
+                     && !seenEdges.containsKey( edge.id() ) ) {
+                    seenEdges.put( edge.id(), edge );
                 }
             }
-
-            // Step 4 — resolve endpoint names and build KgEdgeView list.
-            final Set< UUID > endpointIds = new HashSet<>();
-            for ( final KgEdge edge : seenEdges.values() ) {
-                endpointIds.add( edge.sourceId() );
-                endpointIds.add( edge.targetId() );
-            }
-            final Map< UUID, String > nameMap = endpointIds.isEmpty()
-                ? Map.of()
-                : nodes.getNodeNames( endpointIds );
-
-            final List< KgEdgeView > edgeViews = new ArrayList<>( seenEdges.size() );
-            for ( final KgEdge edge : seenEdges.values() ) {
-                edgeViews.add( new KgEdgeView(
-                    edge.id(),
-                    edge.sourceId(),
-                    edge.targetId(),
-                    nameMap.getOrDefault( edge.sourceId(), "" ),
-                    nameMap.getOrDefault( edge.targetId(), "" ),
-                    edge.relationshipType(),
-                    edge.provenance()
-                ) );
-            }
-
-            // Step 5 — return the slice (compact constructor copies to immutable lists).
-            return new PageKnowledgeSlice( entities, edgeViews );
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "getPageSlice: edge resolution failed for page '{}': {}", pageName, e.getMessage() );
-            return new PageKnowledgeSlice( entities, List.of() );
         }
+
+        // Step 4 — resolve endpoint names and build KgEdgeView list.
+        final Set< UUID > endpointIds = new HashSet<>();
+        for ( final KgEdge edge : seenEdges.values() ) {
+            endpointIds.add( edge.sourceId() );
+            endpointIds.add( edge.targetId() );
+        }
+        final Map< UUID, String > nameMap = endpointIds.isEmpty()
+            ? Map.of()
+            : nodes.getNodeNames( endpointIds );
+
+        final List< KgEdgeView > edgeViews = new ArrayList<>( seenEdges.size() );
+        for ( final KgEdge edge : seenEdges.values() ) {
+            edgeViews.add( new KgEdgeView(
+                edge.id(),
+                edge.sourceId(),
+                edge.targetId(),
+                nameMap.getOrDefault( edge.sourceId(), "" ),
+                nameMap.getOrDefault( edge.targetId(), "" ),
+                edge.relationshipType(),
+                edge.provenance()
+            ) );
+        }
+        return edgeViews;
     }
 
     // --- Edge operations ---

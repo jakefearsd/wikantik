@@ -91,21 +91,8 @@ public class MathStructureValidator {
     private List<MathViolation> checkInlineProse(final String body, final CodeRegions code,
                                                  final List<Integer> displayMarks) {
         final List<MathViolation> out = new ArrayList<>();
-        // Mask positions covered by paired $$…$$ display blocks.
-        final boolean[] inDisplay = new boolean[body.length()];
-        for (int k = 0; k + 1 < displayMarks.size(); k += 2) {
-            final int end = Math.min(displayMarks.get(k + 1) + 2, body.length());
-            for (int i = displayMarks.get(k); i < end; i++) { inDisplay[i] = true; }
-        }
-        // Collect true single-$ offsets (not code-masked, not in display, not escaped, not part of $$).
-        final List<Integer> singles = new ArrayList<>();
-        for (int i = 0; i < body.length(); i++) {
-            if (body.charAt(i) != '$' || code.isMasked(i) || inDisplay[i]) { continue; }
-            if (i > 0 && body.charAt(i - 1) == '\\') { continue; }                 // escaped \$
-            if ((i > 0 && body.charAt(i - 1) == '$')
-                    || (i + 1 < body.length() && body.charAt(i + 1) == '$')) { continue; }  // part of $$
-            singles.add(i);
-        }
+        final boolean[] inDisplay = computeDisplayMask(body, displayMarks);
+        final List<Integer> singles = collectInlineDollarOffsets(body, code, inDisplay);
         // Pair left-to-right (renderer order); flag pairs whose content is prose.
         for (int k = 0; k + 1 < singles.size(); k += 2) {
             final int open = singles.get(k);
@@ -119,6 +106,36 @@ public class MathStructureValidator {
             }
         }
         return out;
+    }
+
+    /**
+     * Marks positions covered by paired {@code $$…$$} display blocks. Split out of
+     * {@link #checkInlineProse(String, CodeRegions, List)} to keep that method's complexity in check.
+     */
+    private static boolean[] computeDisplayMask(final String body, final List<Integer> displayMarks) {
+        final boolean[] inDisplay = new boolean[body.length()];
+        for (int k = 0; k + 1 < displayMarks.size(); k += 2) {
+            final int end = Math.min(displayMarks.get(k + 1) + 2, body.length());
+            for (int i = displayMarks.get(k); i < end; i++) { inDisplay[i] = true; }
+        }
+        return inDisplay;
+    }
+
+    /**
+     * Collects true single-{@code $} offsets: not code-masked, not in a display block, not
+     * escaped, and not part of a {@code $$} pair. Split out of
+     * {@link #checkInlineProse(String, CodeRegions, List)} to keep that method's complexity in check.
+     */
+    private static List<Integer> collectInlineDollarOffsets(final String body, final CodeRegions code, final boolean[] inDisplay) {
+        final List<Integer> singles = new ArrayList<>();
+        for (int i = 0; i < body.length(); i++) {
+            if (body.charAt(i) != '$' || code.isMasked(i) || inDisplay[i]) { continue; }
+            if (i > 0 && body.charAt(i - 1) == '\\') { continue; }                 // escaped \$
+            if ((i > 0 && body.charAt(i - 1) == '$')
+                    || (i + 1 < body.length() && body.charAt(i + 1) == '$')) { continue; }  // part of $$
+            singles.add(i);
+        }
+        return singles;
     }
 
     private static String snippet(final String s) {

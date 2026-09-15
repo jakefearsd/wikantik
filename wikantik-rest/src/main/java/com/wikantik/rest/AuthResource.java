@@ -385,33 +385,8 @@ public class AuthResource extends RestServletBase {
 
             // Handle password change if requested
             final String newPassword = getJsonString( body, "newPassword" );
-            if ( newPassword != null && !newPassword.isBlank() ) {
-                final String currentPassword = getJsonString( body, "currentPassword" );
-                if ( currentPassword == null || currentPassword.isBlank() ) {
-                    sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                            "Current password is required to set a new password" );
-                    return;
-                }
-
-                // Verify current password
-                if ( !db.validatePassword( loginName, currentPassword ) ) {
-                    sendError( response, HttpServletResponse.SC_FORBIDDEN, "Current password is incorrect" );
-                    return;
-                }
-
-                // Validate new password strength
-                final List< String > passwordErrors =
-                        PasswordValidator.validate( newPassword, com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties() );
-                if ( !passwordErrors.isEmpty() ) {
-                    sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                            passwordErrors.stream()
-                                    .map( PasswordValidator::describeError )
-                                    .collect( Collectors.joining( "; " ) ) );
-                    return;
-                }
-
-                profile.setPassword( newPassword );
-                profile.setPasswordMustChange( false );
+            if ( !applyPasswordChangeIfRequested( body, newPassword, db, loginName, profile, engine, response ) ) {
+                return;
             }
 
             db.save( profile );
@@ -429,6 +404,48 @@ public class AuthResource extends RestServletBase {
             LOG.error( "Failed to update profile: {}", e.getMessage() );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to update profile" );
         }
+    }
+
+    /**
+     * Validates and applies a requested password change onto {@code profile}. A blank/missing
+     * {@code newPassword} is a no-op. Returns {@code false} (having already sent an error response)
+     * when the change should be rejected.
+     */
+    private boolean applyPasswordChangeIfRequested( final JsonObject body, final String newPassword,
+            final UserDatabase db, final String loginName, final UserProfile profile, final Engine engine,
+            final HttpServletResponse response ) throws IOException {
+
+        if ( newPassword == null || newPassword.isBlank() ) {
+            return true;
+        }
+
+        final String currentPassword = getJsonString( body, "currentPassword" );
+        if ( currentPassword == null || currentPassword.isBlank() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "Current password is required to set a new password" );
+            return false;
+        }
+
+        // Verify current password
+        if ( !db.validatePassword( loginName, currentPassword ) ) {
+            sendError( response, HttpServletResponse.SC_FORBIDDEN, "Current password is incorrect" );
+            return false;
+        }
+
+        // Validate new password strength
+        final List< String > passwordErrors =
+                PasswordValidator.validate( newPassword, com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties() );
+        if ( !passwordErrors.isEmpty() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    passwordErrors.stream()
+                            .map( PasswordValidator::describeError )
+                            .collect( Collectors.joining( "; " ) ) );
+            return false;
+        }
+
+        profile.setPassword( newPassword );
+        profile.setPasswordMustChange( false );
+        return true;
     }
 
     /**

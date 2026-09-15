@@ -279,37 +279,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
 
                 final Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
                 try ( IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
-                    long pagesIndexed = 0L;
-                    long systemPagesSkipped = 0L;
-                    final Collection<Page> allPages = pageManager.getAllPages();
-                    for ( final Page page : allPages ) {
-                        if ( isSystemPageExcluded( page.getName() ) ) {
-                            systemPagesSkipped++;
-                            continue;
-                        }
-                        try {
-                            final String text = pageManager.getPageText(
-                                    page.getName(), WikiProvider.LATEST_VERSION );
-                            luceneIndexPage( page, text, writer );
-                            pagesIndexed++;
-                        } catch ( final IOException e ) {
-                            LOG.warn( "Unable to index page {}, continuing to next ", page.getName(), e );
-                        }
-                    }
-                    LOG.info( "Indexed {} pages ({} system pages skipped)", pagesIndexed, systemPagesSkipped );
-
-                    long attachmentsIndexed = 0L;
-                    final Collection<Attachment> allAttachments = attachmentManager.getAllAttachments();
-                    for ( final Attachment att : allAttachments ) {
-                        try {
-                            final String text = getAttachmentContent( att.getName(), WikiProvider.LATEST_VERSION );
-                            luceneIndexPage( att, text, writer );
-                            attachmentsIndexed++;
-                        } catch ( final IOException e ) {
-                            LOG.warn( "Unable to index attachment {}, continuing to next", att.getName(), e );
-                        }
-                    }
-                    LOG.info( "Indexed {} attachments", attachmentsIndexed );
+                    indexAllPagesAndAttachments( writer );
                 }
 
                 final Date end = new Date();
@@ -332,6 +302,45 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         }
     }
 
+    /**
+     *  Indexes every page and attachment from scratch into {@code writer} (the empty-directory
+     *  path of a full reindex). Split out of {@link #doFullLuceneReindex()} to keep that
+     *  method's complexity in check.
+     */
+    private void indexAllPagesAndAttachments( final IndexWriter writer ) throws ProviderException {
+        long pagesIndexed = 0L;
+        long systemPagesSkipped = 0L;
+        final Collection<Page> allPages = pageManager.getAllPages();
+        for ( final Page page : allPages ) {
+            if ( isSystemPageExcluded( page.getName() ) ) {
+                systemPagesSkipped++;
+                continue;
+            }
+            try {
+                final String text = pageManager.getPageText(
+                        page.getName(), WikiProvider.LATEST_VERSION );
+                luceneIndexPage( page, text, writer );
+                pagesIndexed++;
+            } catch ( final IOException e ) {
+                LOG.warn( "Unable to index page {}, continuing to next ", page.getName(), e );
+            }
+        }
+        LOG.info( "Indexed {} pages ({} system pages skipped)", pagesIndexed, systemPagesSkipped );
+
+        long attachmentsIndexed = 0L;
+        final Collection<Attachment> allAttachments = attachmentManager.getAllAttachments();
+        for ( final Attachment att : allAttachments ) {
+            try {
+                final String text = getAttachmentContent( att.getName(), WikiProvider.LATEST_VERSION );
+                luceneIndexPage( att, text, writer );
+                attachmentsIndexed++;
+            } catch ( final IOException e ) {
+                LOG.warn( "Unable to index attachment {}, continuing to next", att.getName(), e );
+            }
+        }
+        LOG.info( "Indexed {} attachments", attachmentsIndexed );
+    }
+
     @Override
     public int indexMissingPages() {
         final File dirFile = new File( dir() );
@@ -345,56 +354,13 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         try {
             final Set<String> indexedPages = getIndexedPageNames();
             final Collection<Page> allPages = pageManager.getAllPages();
+            final List<Page> missingPages = computeMissingPages( allPages, indexedPages );
 
-            final List<Page> missingPages = allPages.stream()
-                    .filter( page -> !indexedPages.contains( page.getName() ) )
-                    .filter( page -> {
-                        if ( isSystemPageExcluded( page.getName() ) ) {
-                            LOG.debug( "Skipping system page '{}' during missing-page sweep", page.getName() );
-                            return false;
-                        }
-                        return true;
-                    } )
-                    .toList();
-
-            // Always report the comparison, even (especially) when it found nothing. Logging only
-            // inside the branch below made "swept and everything was present" and "compared an
-            // empty page list and therefore could not find anything" produce identical output:
-            // silence. A page that is missing from the index AND absent from the enumeration the
-            // sweep compares against is invisible forever — it is never re-indexed, and the boot
-            // log gives an operator nothing to go on. Observed in production as a 33 KB page that
-            // served fine at /wiki/ while a term unique to it returned zero BM25 matches.
-            if ( allPages.isEmpty() && !indexedPages.isEmpty() ) {
-                LOG.warn( "Lucene missing-page sweep compared an EMPTY page list against {} indexed "
-                        + "documents — the sweep proved nothing and no page can have been found "
-                        + "missing. The page provider likely had not enumerated yet.",
-                    indexedPages.size() );
-            } else {
-                // The document count covers attachments as well as pages, so it is legitimately
-                // larger than the page count — it is here to be compared against ITSELF across
-                // restarts, not against the page count.
-                LOG.info( "Lucene missing-page sweep: {} pages enumerated, {} documents in index "
-                        + "(pages + attachments), {} pages missing",
-                    allPages.size(), indexedPages.size(), missingPages.size() );
-            }
+            logMissingPageSweepResult( allPages, indexedPages, missingPages );
 
             if ( !missingPages.isEmpty() ) {
                 LOG.info( "Found {} pages missing from Lucene index, indexing...", missingPages.size() );
-                try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
-                      IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
-                    for ( final Page page : missingPages ) {
-                        try {
-                            final String text = pageManager.getPageText(
-                                    page.getName(), WikiProvider.LATEST_VERSION );
-                            luceneIndexPage( page, text, writer );
-                            pagesIndexed++;
-                            LOG.debug( "Indexed missing page: {}", page.getName() );
-                        } catch ( final IOException e ) {
-                            LOG.warn( "Unable to index missing page {}", page.getName(), e );
-                        }
-                    }
-                }
-                LOG.info( "Indexed {} missing pages", pagesIndexed );
+                pagesIndexed = indexMissingPagesToDisk( dirFile, missingPages );
             }
 
             final Collection<Attachment> allAttachments = attachmentManager.getAllAttachments();
@@ -405,22 +371,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
             if ( !missingAttachments.isEmpty() ) {
                 LOG.info( "Found {} attachments missing from Lucene index, indexing...",
                           missingAttachments.size() );
-                try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
-                      IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
-                    int attachmentsIndexed = 0;
-                    for ( final Attachment att : missingAttachments ) {
-                        try {
-                            final String text = getAttachmentContent(
-                                    att.getName(), WikiProvider.LATEST_VERSION );
-                            luceneIndexPage( att, text, writer );
-                            attachmentsIndexed++;
-                            LOG.debug( "Indexed missing attachment: {}", att.getName() );
-                        } catch ( final IOException e ) {
-                            LOG.warn( "Unable to index missing attachment {}", att.getName(), e );
-                        }
-                    }
-                    LOG.info( "Indexed {} missing attachments", attachmentsIndexed );
-                }
+                indexMissingAttachmentsToDisk( dirFile, missingAttachments );
             }
         } catch ( final ProviderException e ) {
             // LOG.error justified: page provider failure during missing-page sweep; index may be incomplete.
@@ -431,6 +382,87 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         }
 
         return pagesIndexed;
+    }
+
+    /** Filters {@code allPages} down to those absent from {@code indexedPages}, excluding system pages. */
+    private List<Page> computeMissingPages( final Collection<Page> allPages, final Set<String> indexedPages ) {
+        return allPages.stream()
+                .filter( page -> !indexedPages.contains( page.getName() ) )
+                .filter( page -> {
+                    if ( isSystemPageExcluded( page.getName() ) ) {
+                        LOG.debug( "Skipping system page '{}' during missing-page sweep", page.getName() );
+                        return false;
+                    }
+                    return true;
+                } )
+                .toList();
+    }
+
+    /**
+     *  Logs the outcome of a missing-page sweep. Always reports the comparison, even
+     *  (especially) when it found nothing. Logging only in the "found something" case made
+     *  "swept and everything was present" and "compared an empty page list and therefore
+     *  could not find anything" produce identical output: silence. A page that is missing
+     *  from the index AND absent from the enumeration the sweep compares against is invisible
+     *  forever — it is never re-indexed, and the boot log gives an operator nothing to go on.
+     *  Observed in production as a 33 KB page that served fine at /wiki/ while a term unique
+     *  to it returned zero BM25 matches.
+     */
+    private void logMissingPageSweepResult( final Collection<Page> allPages, final Set<String> indexedPages, final List<Page> missingPages ) {
+        if ( allPages.isEmpty() && !indexedPages.isEmpty() ) {
+            LOG.warn( "Lucene missing-page sweep compared an EMPTY page list against {} indexed "
+                    + "documents — the sweep proved nothing and no page can have been found "
+                    + "missing. The page provider likely had not enumerated yet.",
+                indexedPages.size() );
+        } else {
+            // The document count covers attachments as well as pages, so it is legitimately
+            // larger than the page count — it is here to be compared against ITSELF across
+            // restarts, not against the page count.
+            LOG.info( "Lucene missing-page sweep: {} pages enumerated, {} documents in index "
+                    + "(pages + attachments), {} pages missing",
+                allPages.size(), indexedPages.size(), missingPages.size() );
+        }
+    }
+
+    /** Opens a writer and indexes {@code missingPages} into it, returning the count actually indexed. */
+    private int indexMissingPagesToDisk( final File dirFile, final List<Page> missingPages ) throws IOException, ProviderException {
+        int pagesIndexed = 0;
+        try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
+              IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
+            for ( final Page page : missingPages ) {
+                try {
+                    final String text = pageManager.getPageText(
+                            page.getName(), WikiProvider.LATEST_VERSION );
+                    luceneIndexPage( page, text, writer );
+                    pagesIndexed++;
+                    LOG.debug( "Indexed missing page: {}", page.getName() );
+                } catch ( final IOException e ) {
+                    LOG.warn( "Unable to index missing page {}", page.getName(), e );
+                }
+            }
+        }
+        LOG.info( "Indexed {} missing pages", pagesIndexed );
+        return pagesIndexed;
+    }
+
+    /** Opens a writer and indexes {@code missingAttachments} into it. */
+    private void indexMissingAttachmentsToDisk( final File dirFile, final List<Attachment> missingAttachments ) throws IOException {
+        try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
+              IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
+            int attachmentsIndexed = 0;
+            for ( final Attachment att : missingAttachments ) {
+                try {
+                    final String text = getAttachmentContent(
+                            att.getName(), WikiProvider.LATEST_VERSION );
+                    luceneIndexPage( att, text, writer );
+                    attachmentsIndexed++;
+                    LOG.debug( "Indexed missing attachment: {}", att.getName() );
+                } catch ( final IOException e ) {
+                    LOG.warn( "Unable to index missing attachment {}", att.getName(), e );
+                }
+            }
+            LOG.info( "Indexed {} missing attachments", attachmentsIndexed );
+        }
     }
 
     @Override

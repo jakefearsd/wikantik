@@ -273,22 +273,33 @@ public class DefaultSpamPatternMatcher extends AbstractSpamStrategy implements S
             try ( BufferedReader in = new BufferedReader( new StringReader( list ) ) ) {
                 String line;
                 while( ( line = in.readLine() ) != null ) {
-                    line = line.trim();
-                    if( line.isEmpty() ) continue;
-                    if( line.startsWith( "#" ) ) continue;
-                    int ws = line.indexOf( ' ' );
-                    if( ws == -1 ) ws = line.indexOf( '\t' );
-                    if( ws != -1 ) line = line.substring( 0, ws );
-                    try {
-                        compiledpatterns.add( Pattern.compile( line ) );
-                    } catch( final PatternSyntaxException e ) {
-                        LOG.debug( "Malformed spam filter pattern {}", line );
-                    }
+                    addBlacklistPattern( compiledpatterns, line );
                 }
             } catch( final IOException e ) {
                 LOG.info( "Could not read patterns; returning what I got", e );
             }
         }
         return compiledpatterns;
+    }
+
+    /**
+     *  Trims a single blacklist line, strips a trailing comment/argument after the first
+     *  whitespace, and compiles it into {@code compiledpatterns} if it isn't blank or a
+     *  {@code #} comment. Split out of {@link #parseBlacklist(String)} to keep that
+     *  method's complexity in check.
+     */
+    private void addBlacklistPattern( final Collection<Pattern> compiledpatterns, final String rawLine ) {
+        String line = rawLine.trim();
+        if( line.isEmpty() || line.startsWith( "#" ) ) {
+            return;
+        }
+        int ws = line.indexOf( ' ' );
+        if( ws == -1 ) ws = line.indexOf( '\t' );
+        if( ws != -1 ) line = line.substring( 0, ws );
+        try {
+            compiledpatterns.add( Pattern.compile( line ) );
+        } catch( final PatternSyntaxException e ) {
+            LOG.debug( "Malformed spam filter pattern {}", line );
+        }
     }
 }

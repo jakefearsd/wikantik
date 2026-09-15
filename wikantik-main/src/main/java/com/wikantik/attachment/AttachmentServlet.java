@@ -266,61 +266,7 @@ public class AttachmentServlet extends HttpServlet {
 
             final Attachment att = mgr.getAttachmentInfo( page, ver );
             if( att != null ) {
-                //
-                //  Check if the user has permission for this attachment
-                //
-
-                final Permission permission = PermissionFactory.getPagePermission( att, "view" );
-                if( !authmgr.checkPermission( context.getWikiSession(), permission ) ) {
-                    LOG.debug("User does not have permission for this");
-                    res.sendError( HttpServletResponse.SC_FORBIDDEN );
-                    return;
-                }
-
-                //
-                //  Check if the client already has a version of this attachment.
-                //
-                if( HttpUtil.checkFor304( req, att.getName(), att.getLastModified() ) ) {
-                    LOG.debug( "Client has latest version already, sending 304..." );
-                    res.sendError( HttpServletResponse.SC_NOT_MODIFIED );
-                    return;
-                }
-
-                final String mimetype = getMimeType( context, att.getFileName() );
-                res.setContentType( mimetype );
-
-                final String contentDisposition = getContentDisposition( att, mimetype );
-                res.addHeader( "Content-Disposition", contentDisposition );
-                res.addDateHeader("Last-Modified",att.getLastModified().getTime());
-
-                if( !att.isCacheable() ) {
-                    res.addHeader( "Pragma", "no-cache" );
-                    res.addHeader( "Cache-control", "no-cache" );
-                }
-
-                // If a size is provided by the provider, report it.
-                if( att.getSize() >= 0 ) {
-                    res.setContentLength( (int)att.getSize() );
-                }
-
-                try( InputStream  in = mgr.getAttachmentStream( context, att ) ) {
-                    int read;
-                    final byte[] buffer = new byte[ BUFFER_SIZE ];
-
-                    while( ( read = in.read( buffer ) ) > -1 ) {
-                        out.write( buffer, 0, read );
-                    }
-                }
-                LOG.debug( "Attachment {} sent to {} on {}", att.getFileName(), req.getRemoteUser(), HttpUtil.getRemoteAddress(req) );
-                if( nextPage != null ) {
-                    res.sendRedirect(
-                        validateNextPage(
-                            TextUtil.urlEncodeUTF8(nextPage),
-                            engine.getURL( ContextEnum.WIKI_ERROR.getRequestContext(), "", null )
-                        )
-                    );
-                }
-
+                serveExistingAttachment( context, req, res, out, mgr, authmgr, att, nextPage );
             } else {
                 final String msg = "Attachment '" + page + "', version " + ver + " does not exist.";
                 LOG.info( msg );
@@ -350,6 +296,70 @@ public class AttachmentServlet extends HttpServlet {
             //
             LOG.debug( "I/O exception during download", ioe );
             sendError( res, "Error: " + ioe.getMessage() );
+        }
+    }
+
+    /**
+     *  Checks permission and freshness for an existing attachment, then streams it to the
+     *  client (or redirects to {@code nextPage} once the transfer is done). Split out of
+     *  {@link #doGet(HttpServletRequest, HttpServletResponse)} to keep that method's
+     *  complexity in check.
+     */
+    private void serveExistingAttachment( final Context context, final HttpServletRequest req, final HttpServletResponse res,
+                                           final OutputStream out, final AttachmentManager mgr, final AuthorizationManager authmgr,
+                                           final Attachment att, final String nextPage ) throws IOException, ProviderException {
+        //
+        //  Check if the user has permission for this attachment
+        //
+        final Permission permission = PermissionFactory.getPagePermission( att, "view" );
+        if( !authmgr.checkPermission( context.getWikiSession(), permission ) ) {
+            LOG.debug("User does not have permission for this");
+            res.sendError( HttpServletResponse.SC_FORBIDDEN );
+            return;
+        }
+
+        //
+        //  Check if the client already has a version of this attachment.
+        //
+        if( HttpUtil.checkFor304( req, att.getName(), att.getLastModified() ) ) {
+            LOG.debug( "Client has latest version already, sending 304..." );
+            res.sendError( HttpServletResponse.SC_NOT_MODIFIED );
+            return;
+        }
+
+        final String mimetype = getMimeType( context, att.getFileName() );
+        res.setContentType( mimetype );
+
+        final String contentDisposition = getContentDisposition( att, mimetype );
+        res.addHeader( "Content-Disposition", contentDisposition );
+        res.addDateHeader("Last-Modified",att.getLastModified().getTime());
+
+        if( !att.isCacheable() ) {
+            res.addHeader( "Pragma", "no-cache" );
+            res.addHeader( "Cache-control", "no-cache" );
+        }
+
+        // If a size is provided by the provider, report it.
+        if( att.getSize() >= 0 ) {
+            res.setContentLength( (int)att.getSize() );
+        }
+
+        try( InputStream  in = mgr.getAttachmentStream( context, att ) ) {
+            int read;
+            final byte[] buffer = new byte[ BUFFER_SIZE ];
+
+            while( ( read = in.read( buffer ) ) > -1 ) {
+                out.write( buffer, 0, read );
+            }
+        }
+        LOG.debug( "Attachment {} sent to {} on {}", att.getFileName(), req.getRemoteUser(), HttpUtil.getRemoteAddress(req) );
+        if( nextPage != null ) {
+            res.sendRedirect(
+                validateNextPage(
+                    TextUtil.urlEncodeUTF8(nextPage),
+                    engine.getURL( ContextEnum.WIKI_ERROR.getRequestContext(), "", null )
+                )
+            );
         }
     }
 

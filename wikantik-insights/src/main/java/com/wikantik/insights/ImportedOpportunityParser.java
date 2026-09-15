@@ -169,15 +169,8 @@ public final class ImportedOpportunityParser {
             return null;
         }
 
-        if ( !r.has( "expected_uplift" ) || r.get( "expected_uplift" ).isJsonNull() ) {
-            LOG.warn( "rejecting imported opportunity type={}: missing expected_uplift", type );
-            return null;
-        }
-        final double expectedUplift;
-        try {
-            expectedUplift = r.get( "expected_uplift" ).getAsDouble();
-        } catch ( final NumberFormatException | UnsupportedOperationException e ) {
-            LOG.warn( "rejecting imported opportunity type={}: non-numeric expected_uplift", type );
+        final Double expectedUplift = parseExpectedUplift( r, type );
+        if ( expectedUplift == null ) {
             return null;
         }
 
@@ -203,6 +196,22 @@ public final class ImportedOpportunityParser {
 
         return new ImportedOpportunityRow( asOf, engine, site, type, target, expectedUplift,
                 confidence, evidence.toString() );
+    }
+
+    /** @return the row's {@code expected_uplift} as a boxed double, or {@code null} if it is
+     *          missing/null or non-numeric -- both rejection reasons are logged here so
+     *          {@link #parseRow} only needs a single null check. */
+    private static Double parseExpectedUplift( final JsonObject r, final String type ) {
+        if ( !r.has( "expected_uplift" ) || r.get( "expected_uplift" ).isJsonNull() ) {
+            LOG.warn( "rejecting imported opportunity type={}: missing expected_uplift", type );
+            return null;
+        }
+        try {
+            return r.get( "expected_uplift" ).getAsDouble();
+        } catch ( final NumberFormatException | UnsupportedOperationException e ) {
+            LOG.warn( "rejecting imported opportunity type={}: non-numeric expected_uplift", type );
+            return null;
+        }
     }
 
     private static String optString( final JsonObject r, final String key ) {

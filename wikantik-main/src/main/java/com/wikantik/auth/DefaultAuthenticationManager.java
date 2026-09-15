@@ -190,32 +190,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         if ( !session.isAuthenticated() ) {
             // Create a callback handler
             handler = new WebContainerCallbackHandler( engine, request );
-
-            // Try SSO login first if SSO is enabled
-            final SSOConfig ssoConfig = SSOConfigHolder.getConfig( engine );
-            Set< Principal > principals = NO_PRINCIPALS;
-            if( ssoConfig != null && ssoConfig.isEnabled() ) {
-                principals = authenticationMgr.doJAASLogin( SSOLoginModule.class, handler, loginModuleOptions );
-            }
-
-            // Execute the container login module, then (if that fails) the cookie auth module
-            if( principals.isEmpty() ) {
-                principals = authenticationMgr.doJAASLogin( WebContainerLoginModule.class, handler, options );
-            }
-            if (principals.isEmpty() && authenticationMgr.allowsCookieAuthentication() ) {
-                principals = authenticationMgr.doJAASLogin( CookieAuthenticationLoginModule.class, handler, options );
-            }
-
-            // If the container logged the user in successfully, tell the Session (and add all the Principals)
-            if (!principals.isEmpty()) {
-                fireEvent( WikiSecurityEvent.LOGIN_AUTHENTICATED, getLoginPrincipal( principals ), session );
-                for( final Principal principal : principals ) {
-                    fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
-                }
-
-                    // Add all appropriate Authorizer roles
-                injectAuthorizerRoles( session, authorizationMgr.getAuthorizer(), request );
-            }
+            attemptContainerOrSsoLogin( session, request, handler, authenticationMgr, authorizationMgr, options );
         }
 
         // If user still not authenticated, check if assertion cookie was supplied
@@ -238,6 +213,42 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 
         // If by some unusual turn of events the Anonymous login module doesn't work, login failed!
         return false;
+    }
+
+    /**
+     *  Tries SSO, then container, then cookie-authentication login modules in turn, and — if
+     *  any succeeds — tells the {@link Session} about the resulting principals and injects the
+     *  authorizer's roles. Split out of {@link #login(HttpServletRequest)} to keep that
+     *  method's complexity in check.
+     */
+    private void attemptContainerOrSsoLogin( final Session session, final HttpServletRequest request, final CallbackHandler handler,
+                                              final AuthenticationManager authenticationMgr, final AuthorizationManager authorizationMgr,
+                                              final Map< String, String > options ) throws WikiSecurityException {
+        // Try SSO login first if SSO is enabled
+        final SSOConfig ssoConfig = SSOConfigHolder.getConfig( engine );
+        Set< Principal > principals = NO_PRINCIPALS;
+        if( ssoConfig != null && ssoConfig.isEnabled() ) {
+            principals = authenticationMgr.doJAASLogin( SSOLoginModule.class, handler, loginModuleOptions );
+        }
+
+        // Execute the container login module, then (if that fails) the cookie auth module
+        if( principals.isEmpty() ) {
+            principals = authenticationMgr.doJAASLogin( WebContainerLoginModule.class, handler, options );
+        }
+        if (principals.isEmpty() && authenticationMgr.allowsCookieAuthentication() ) {
+            principals = authenticationMgr.doJAASLogin( CookieAuthenticationLoginModule.class, handler, options );
+        }
+
+        // If the container logged the user in successfully, tell the Session (and add all the Principals)
+        if (!principals.isEmpty()) {
+            fireEvent( WikiSecurityEvent.LOGIN_AUTHENTICATED, getLoginPrincipal( principals ), session );
+            for( final Principal principal : principals ) {
+                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
+            }
+
+            // Add all appropriate Authorizer roles
+            injectAuthorizerRoles( session, authorizationMgr.getAuthorizer(), request );
+        }
     }
 
     /**

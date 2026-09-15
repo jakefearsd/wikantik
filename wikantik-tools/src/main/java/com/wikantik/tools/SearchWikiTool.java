@@ -72,85 +72,102 @@ class SearchWikiTool {
         final ContextRetrievalService ctxService =
                 KnowledgeSubsystemBridge.fromLegacyEngine( engine ).contextRetrievalService();
         if ( ctxService == null ) {
-            final Map< String, Object > error = ResultShaper.orderedMap();
-            error.put( "query", query );
-            error.put( "results", List.of() );
-            error.put( "total", 0 );
-            error.put( "error", "ContextRetrievalService not configured" );
-            return error;
+            return errorResult( query, "ContextRetrievalService not configured" );
         }
         final RetrievalResult retrieval;
         try {
             retrieval = ctxService.retrieve( new ContextQuery( query, Math.min( clamped, 20 ), 3, null ) );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Tool-server search failed for query '{}': {}", query, e.getMessage() );
-            final Map< String, Object > error = ResultShaper.orderedMap();
-            error.put( "query", query );
-            error.put( "results", List.of() );
-            error.put( "total", 0 );
-            error.put( "error", "search failed: " + e.getMessage() );
-            return error;
+            return errorResult( query, "search failed: " + e.getMessage() );
         }
 
         final String publicBaseUrl = config.publicBaseUrl();
         final List< Map< String, Object > > shaped = new ArrayList<>();
         for ( final RetrievedPage p : retrieval.pages() ) {
             if ( shaped.size() >= clamped ) break;
-            final Map< String, Object > entry = ResultShaper.orderedMap();
-            entry.put( "name", p.name() );
-            entry.put( "url", ResultShaper.citationUrl( p.name(), request, publicBaseUrl ) );
-            entry.put( "score", p.score() );
-            if ( !p.summary().isEmpty() ) entry.put( "summary", p.summary() );
-            if ( !p.tags().isEmpty() ) entry.put( "tags", p.tags() );
-            if ( p.cluster() != null ) entry.put( "cluster", p.cluster() );
-            if ( !p.contributingChunks().isEmpty() ) {
-                // Rich array for new consumers — matches MCP retrieve_context shape.
-                final List< Map< String, Object > > chunksOut = new ArrayList<>( p.contributingChunks().size() );
-                for ( final RetrievedChunk c : p.contributingChunks() ) {
-                    final Map< String, Object > chunkEntry = ResultShaper.orderedMap();
-                    chunkEntry.put( "headingPath", c.headingPath() );
-                    chunkEntry.put( "text", c.text() );
-                    chunkEntry.put( "chunkScore", c.chunkScore() );
-                    chunksOut.add( chunkEntry );
-                }
-                entry.put( "contributingChunks", chunksOut );
-
-                // Back-compat: single snippet from the top chunk, truncated to 320 chars.
-                final RetrievedChunk c0 = p.contributingChunks().get( 0 );
-                final String snippet = c0.text().length() > 320
-                    ? c0.text().substring( 0, 320 ) + "…"
-                    : c0.text();
-                entry.put( "snippet", snippet );
-            }
-
-            if ( !p.relatedPages().isEmpty() ) {
-                final List< Map< String, Object > > relatedOut = new ArrayList<>( p.relatedPages().size() );
-                for ( final RelatedPage r : p.relatedPages() ) {
-                    final Map< String, Object > rEntry = ResultShaper.orderedMap();
-                    rEntry.put( "name", r.name() );
-                    rEntry.put( "reason", r.reason() );
-                    relatedOut.add( rEntry );
-                }
-                entry.put( "relatedPages", relatedOut );
-            }
-
-            if ( p.lastModified() != null ) {
-                entry.put( "lastModified", p.lastModified().toInstant().toString() );
-            }
-            if ( p.author() != null ) entry.put( "author", p.author() );
-            shaped.add( entry );
+            shaped.add( buildEntry( p, request, publicBaseUrl ) );
         }
         final Map< String, Object > out = ResultShaper.orderedMap();
         out.put( "query", query );
         out.put( "results", shaped );
         out.put( "total", shaped.size() );
 
-        // Harvest the query for corpus-grounding (async + fail-open). Agent-by-construction surface.
+        logQuery( query, retrieval );
+        return out;
+    }
+
+    /** Builds the fixed-error-shape response body shared by both {@link #execute} failure paths. */
+    private static Map< String, Object > errorResult( final String query, final String message ) {
+        final Map< String, Object > error = ResultShaper.orderedMap();
+        error.put( "query", query );
+        error.put( "results", List.of() );
+        error.put( "total", 0 );
+        error.put( "error", message );
+        return error;
+    }
+
+    /** Shapes one {@link RetrievedPage} into its LLM-facing JSON entry. */
+    private static Map< String, Object > buildEntry( final RetrievedPage p, final HttpServletRequest request,
+                                                      final String publicBaseUrl ) {
+        final Map< String, Object > entry = ResultShaper.orderedMap();
+        entry.put( "name", p.name() );
+        entry.put( "url", ResultShaper.citationUrl( p.name(), request, publicBaseUrl ) );
+        entry.put( "score", p.score() );
+        if ( !p.summary().isEmpty() ) entry.put( "summary", p.summary() );
+        if ( !p.tags().isEmpty() ) entry.put( "tags", p.tags() );
+        if ( p.cluster() != null ) entry.put( "cluster", p.cluster() );
+        appendChunks( entry, p.contributingChunks() );
+        appendRelatedPages( entry, p.relatedPages() );
+        if ( p.lastModified() != null ) {
+            entry.put( "lastModified", p.lastModified().toInstant().toString() );
+        }
+        if ( p.author() != null ) entry.put( "author", p.author() );
+        return entry;
+    }
+
+    /** No-op when {@code chunks} is empty; otherwise adds the rich {@code contributingChunks}
+     *  array plus the back-compat top-chunk {@code snippet}. */
+    private static void appendChunks( final Map< String, Object > entry, final List< RetrievedChunk > chunks ) {
+        if ( chunks.isEmpty() ) return;
+        // Rich array for new consumers — matches MCP retrieve_context shape.
+        final List< Map< String, Object > > chunksOut = new ArrayList<>( chunks.size() );
+        for ( final RetrievedChunk c : chunks ) {
+            final Map< String, Object > chunkEntry = ResultShaper.orderedMap();
+            chunkEntry.put( "headingPath", c.headingPath() );
+            chunkEntry.put( "text", c.text() );
+            chunkEntry.put( "chunkScore", c.chunkScore() );
+            chunksOut.add( chunkEntry );
+        }
+        entry.put( "contributingChunks", chunksOut );
+
+        // Back-compat: single snippet from the top chunk, truncated to 320 chars.
+        final RetrievedChunk c0 = chunks.get( 0 );
+        final String snippet = c0.text().length() > 320
+            ? c0.text().substring( 0, 320 ) + "…"
+            : c0.text();
+        entry.put( "snippet", snippet );
+    }
+
+    /** No-op when {@code related} is empty; otherwise adds the {@code relatedPages} array. */
+    private static void appendRelatedPages( final Map< String, Object > entry, final List< RelatedPage > related ) {
+        if ( related.isEmpty() ) return;
+        final List< Map< String, Object > > relatedOut = new ArrayList<>( related.size() );
+        for ( final RelatedPage r : related ) {
+            final Map< String, Object > rEntry = ResultShaper.orderedMap();
+            rEntry.put( "name", r.name() );
+            rEntry.put( "reason", r.reason() );
+            relatedOut.add( rEntry );
+        }
+        entry.put( "relatedPages", relatedOut );
+    }
+
+    /** Harvests the query for corpus-grounding (async + fail-open). Agent-by-construction surface. */
+    private void logQuery( final String query, final RetrievalResult retrieval ) {
         final QueryLogService qlog = engine instanceof WikiEngine we ? we.queryLogService() : null;
         if ( qlog != null ) {
             qlog.log( query, ActorType.AGENT, SourceSurface.TOOLS_SEARCH_WIKI, retrieval.pages().size() );
         }
-        return out;
     }
 
     private static int clampLimit( final int requested ) {

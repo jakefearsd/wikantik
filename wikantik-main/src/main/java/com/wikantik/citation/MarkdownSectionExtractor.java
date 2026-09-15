@@ -37,8 +37,7 @@ public final class MarkdownSectionExtractor {
     public Optional< String > sectionText( final String rawBody, final String headingPath ) {
         final String body = FrontmatterParser.parse( rawBody == null ? "" : rawBody ).body();
         if ( headingPath == null || headingPath.isBlank() ) { return Optional.of( body ); }
-        final String[] want = headingPath.split( " > " );
-        for ( int i = 0; i < want.length; i++ ) { want[ i ] = Spans.normalize( want[ i ] ); }
+        final String[] want = normalizeWantPath( headingPath );
 
         final String[] lines = body.split( "\n", -1 );
         final Deque< String > path = new ArrayDeque<>();   // titles, shallow->deep
@@ -53,7 +52,7 @@ public final class MarkdownSectionExtractor {
                 if ( capture != null && level <= captureLevel ) {
                     return Optional.of( capture.toString() );      // section ended
                 }
-                while ( !levels.isEmpty() && levels.peekLast() >= level ) { levels.removeLast(); path.removeLast(); }
+                closeDeeperHeadings( path, levels, level );
                 levels.addLast( level );
                 path.addLast( Spans.normalize( m.group( 2 ) ) );
                 if ( capture == null && pathMatches( path, want ) ) {
@@ -65,6 +64,18 @@ public final class MarkdownSectionExtractor {
             }
         }
         return capture == null ? Optional.empty() : Optional.of( capture.toString() );
+    }
+
+    /** Splits and normalizes a " &gt; "-joined heading path into its comparable segments. */
+    private static String[] normalizeWantPath( final String headingPath ) {
+        final String[] want = headingPath.split( " > " );
+        for ( int i = 0; i < want.length; i++ ) { want[ i ] = Spans.normalize( want[ i ] ); }
+        return want;
+    }
+
+    /** Pops any tracked heading at or deeper than {@code level} off the shallow-&gt;deep path/levels stacks. */
+    private static void closeDeeperHeadings( final Deque< String > path, final Deque< Integer > levels, final int level ) {
+        while ( !levels.isEmpty() && levels.peekLast() >= level ) { levels.removeLast(); path.removeLast(); }
     }
 
     private static boolean pathMatches( final Deque< String > path, final String[] want ) {

@@ -27,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
+import java.util.List;
 import java.util.Properties;
 
 
@@ -43,7 +44,15 @@ public class WikiTest {
     public void testWikiInit() {
         Mockito.doReturn( sc ).when( conf ).getServletContext();
         final Properties properties = Wiki.init( sc );
-        Assertions.assertEquals( 6, properties.size() );
+        // The five SPI provider keys from src/test/resources/ini/wikantik.properties, plus the
+        // wikantik.workDir that PropertyReader always sets. Asserted by key rather than by a total
+        // count: loadWebAppProps also folds in every wikantik* environment variable and system
+        // property, so a count failed in any shell that exports WIKANTIK_* (expected 6, got 9).
+        for( final String key : List.of( "wikantik.provider.impl.acls", "wikantik.provider.impl.contents",
+                                         "wikantik.provider.impl.context", "wikantik.provider.impl.engine",
+                                         "wikantik.provider.impl.session", "wikantik.workDir" ) ) {
+            Assertions.assertTrue( properties.containsKey( key ), "missing property " + key );
+        }
 
         // verify SPIs are initialized and can be invoked
         Assertions.assertNull( Wiki.acls().acl() );

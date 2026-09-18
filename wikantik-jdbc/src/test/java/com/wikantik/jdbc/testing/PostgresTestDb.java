@@ -149,7 +149,7 @@ public final class PostgresTestDb {
             }
 
             final PostgreSQLContainer started = new PostgreSQLContainer(
-                DockerImageName.parse( "pgvector/pgvector:pg17" )
+                DockerImageName.parse( "pgvector/pgvector:pg18" )
                     .asCompatibleSubstituteFor( "postgres" ) )
                 .withDatabaseName( "wikantik_test" )
                 .withUsername( APP_USER )

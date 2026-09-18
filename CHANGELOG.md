@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.25] - 2026-09-18
+
 ### Changed
 - Test containers run `pgvector/pgvector:pg18`, matching production and the development workstation,
   which both run PostgreSQL 18. The full gate passes against 18.6: unit reactor, all five default IT

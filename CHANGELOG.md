@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Test containers run `pgvector/pgvector:pg18`, matching production and the development workstation,
+  which both run PostgreSQL 18. The full gate passes against 18.6: unit reactor, all five default IT
+  modules, and the Authentik SCIM full-loop.
+- Production was refreshed to PostgreSQL 18.6 with pgvector 0.8.6, in two independent steps. Pulling
+  the database image moves the server binaries, while the database keeps its registered extension
+  version until an explicit `ALTER EXTENSION vector UPDATE`. Application deploys never touch the
+  database container, so neither step is tied to a release.
+
 ## [2.4.24] - 2026-09-15
 
 ### Security

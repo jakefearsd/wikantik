@@ -102,7 +102,7 @@
     <tika.version>3.3.2</tika.version>
     <tomcat.version>11.0.24</tomcat.version>
     <xstream.version>1.4.21</xstream.version>
-    <mcp-sdk.version>2.0.0</mcp-sdk.version>
+    <mcp-sdk.version>2.0.1</mcp-sdk.version>
     <snakeyaml.version>2.7</snakeyaml.version>
     <tribuo.version>4.3.2</tribuo.version>
     <xmemcached.version>2.4.9</xmemcached.version>

@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- The connector endpoint/credential host rule moved out of `ConnectorConfigService` into
+  `ConnectorEndpointBinding`. Inlining it had pushed the service's class-total cyclomatic
+  complexity to 82 against the ratchet's limit of 80; the rule now has direct unit coverage, and
+  the credential lookup stays lazy (consulted only when the host actually changes).
+
 ## [2.4.26] - 2026-09-20
 
 ### Security

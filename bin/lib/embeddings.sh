@@ -25,13 +25,6 @@
 # Callers must have print_status()/print_warning() defined (deploy-local.sh
 # defines both before sourcing this file; the test provides trivial stubs).
 
-# The ini-bundle default (wikantik-main/src/main/resources/ini/wikantik.properties,
-# ~line 1227) — the shared inference host it names was decommissioned. This is
-# the ONLY value repair_embedding_base_url() will silently rewrite: nobody
-# could be deliberately relying on a host that is provably, permanently dead.
-# Any other existing value is left untouched — see repair_embedding_base_url.
-WIKANTIK_KNOWN_DEAD_EMBEDDING_URL="http://inference.jakefear.com:11434"
-
 # Splits an embedding base URL into "<host> <port>" on stdout.
 #
 # This lives here, as a function, rather than inline in deploy-local.sh because
@@ -84,16 +77,12 @@ embeddings_model_ready() {
 }
 
 # Ensures ${1} (an ALREADY-EXISTING wikantik-custom.properties file) doesn't
-# silently keep a stale embedding base-url. Three cases, checked in order:
+# silently keep a stale embedding base-url. Two cases, checked in order:
 #
 #   1. Key entirely absent       -> append it. First time this setting has
 #                                    ever existed on this install; nothing to
 #                                    preserve.
-#   2. Key = the known-dead URL  -> rewrite it to ${2}, and say so. Safe to
-#                                    do without asking: that host is provably
-#                                    decommissioned, so no one can be
-#                                    deliberately depending on it.
-#   3. Key = anything else       -> NEVER rewritten — a developer may have
+#   2. Key = anything else       -> NEVER rewritten — a developer may have
 #                                    deliberately pointed this at their own
 #                                    endpoint. If it isn't currently serving
 #                                    ${3}, warn loudly (name the configured
@@ -123,13 +112,6 @@ repair_embedding_base_url() {
     fi
 
     existing_url="$(printf '%s\n' "${existing_line}" | sed -E 's/^[^=]*=[[:space:]]*//')"
-
-    if [[ "${existing_url}" == "${WIKANTIK_KNOWN_DEAD_EMBEDDING_URL}" ]]; then
-        sed -i.bak -E "s|^(wikantik\.search\.embedding\.base-url[[:space:]]*=[[:space:]]*).*|\\1${desired_url}|" "${props_file}"
-        rm -f "${props_file}.bak"
-        print_warning "${props_file}: base-url was the decommissioned ${WIKANTIK_KNOWN_DEAD_EMBEDDING_URL} — corrected to ${desired_url}"
-        return 0
-    fi
 
     if [[ "${existing_url}" != "${desired_url}" ]] && ! embeddings_model_ready "${existing_url}" "${model_tag}"; then
         print_warning "${props_file}: embedding base-url is ${existing_url}, which is not currently serving ${model_tag}."

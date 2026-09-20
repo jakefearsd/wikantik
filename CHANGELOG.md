@@ -11,6 +11,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `ConnectorEndpointBinding`. Inlining it had pushed the service's class-total cyclomatic
   complexity to 82 against the ratchet's limit of 80; the rule now has direct unit coverage, and
   the credential lookup stays lazy (consulted only when the host actually changes).
+- `bin/lib/embeddings.sh` no longer silently rewrites a configured
+  `wikantik.search.embedding.base-url`. It special-cased the shared inference host on the
+  grounds that "no one can be deliberately depending on it" because that host was "provably,
+  permanently dead" — a premise that expired when the host came back online, leaving a guard
+  that would clobber a deployment deliberately pointing at it. No host is special-cased now:
+  every configured value follows the same contract it already applied to custom endpoints —
+  warn when it is not serving the expected model, never overwrite.
+- The shared inference host is reachable again, so the configuration reference no longer tells
+  operators that `wikantik.search.embedding.base-url`, the KG extractor/judge endpoint and the
+  (default-off) reranker/decomposition endpoints point at a decommissioned host every deployment
+  must override. Each now says what the endpoint actually has to serve. The docker deployment
+  still keeps embeddings on its bundled sidecar deliberately, so the retrieval hot path does not
+  depend on a host outside the stack.
+
+### Added
+- `WIKANTIK_EXTRACTOR_BASE_URL` and `WIKANTIK_EXTRACTOR_MODEL` entrypoint passthroughs, so a
+  container deployment can name the KG extractor's Ollama endpoint and model explicitly instead
+  of relying on the ini default. The KG judge follows both unless
+  `wikantik.kg.judge.{endpoint,model}` are set. Neither has any effect unless
+  `WIKANTIK_GENAI_MODE=full` — an embeddings-only ceiling blocks chat inference regardless.
 
 ## [2.4.26] - 2026-09-20
 

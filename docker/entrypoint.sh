@@ -82,6 +82,9 @@
 #                                http://embedding-sidecar:11434 (default: ini bundle default,
 #                                the shared inference host — unreachable from some networks)
 #   WIKANTIK_EXTRACTOR_BACKEND   KG entity-extractor backend: ollama | claude | disabled
+#   WIKANTIK_EXTRACTOR_BASE_URL  Ollama endpoint for KG extraction (and, absent a dedicated
+#                                override, the KG judge too)
+#   WIKANTIK_EXTRACTOR_MODEL     Ollama model tag for KG extraction (and the judge)
 #                                (default: ini bundle default = ollama). When "claude", also
 #                                set ANTHROPIC_API_KEY.
 #   ANTHROPIC_API_KEY            Anthropic API key, required when WIKANTIK_EXTRACTOR_BACKEND=
@@ -301,6 +304,30 @@ if [ -n "${WIKANTIK_EXTRACTOR_BACKEND:-}" ]; then
 
 # KG entity-extractor backend override (entrypoint-injected from env).
 wikantik.knowledge.extractor.backend = ${WIKANTIK_EXTRACTOR_BACKEND}
+EOF
+fi
+
+# Optional: KG extractor/judge Ollama endpoint and model overrides.
+#   WIKANTIK_EXTRACTOR_BASE_URL — e.g. http://inference-host:11434 (default: ini bundle
+#   default). KgJudgeConfig falls back to this same property, so the judge follows the
+#   extractor unless wikantik.kg.judge.endpoint is set explicitly.
+#   WIKANTIK_EXTRACTOR_MODEL — Ollama model tag (default: ini bundle default,
+#   gemma4-graph:12b); the judge likewise falls back to it. Both require a chat-capable
+#   model AND wikantik.genai.mode = full — an embeddings-only ceiling blocks chat
+#   inference no matter what these point at.
+if [ -n "${WIKANTIK_EXTRACTOR_BASE_URL:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# KG extractor/judge Ollama endpoint (entrypoint-injected from env).
+wikantik.knowledge.extractor.ollama.base_url = ${WIKANTIK_EXTRACTOR_BASE_URL}
+EOF
+fi
+
+if [ -n "${WIKANTIK_EXTRACTOR_MODEL:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# KG extractor/judge Ollama model (entrypoint-injected from env).
+wikantik.knowledge.extractor.ollama.model = ${WIKANTIK_EXTRACTOR_MODEL}
 EOF
 fi
 

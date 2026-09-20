@@ -31,7 +31,7 @@ The production host runs a Docker Compose stack — `docker-compose.yml` +
 | `db` | `pgvector/pgvector:pg18` | PostgreSQL + pgvector — users, groups, policy grants, Knowledge Graph, embeddings, page metadata, `schema_migrations` |
 | `wikantik` | `wikantik:latest` (the released image) | Tomcat 11 / JDK 25 — the wiki application |
 | `backup` | `postgres:18-alpine` | Scheduled `pg_dump` + page-tree tarball |
-| `ollama` | `ollama/ollama:latest` | CPU-only embedding sidecar added 2026-07-21 while the GPU inference host is decommissioned — serves `qwen3-embedding:0.6b` at `http://ollama:11434` (internal only, no host port); `wikantik` does not `depends_on` it, so `QueryEmbedder` fails closed to BM25 if it's unreachable |
+| `ollama` | `ollama/ollama:latest` | CPU-only embedding sidecar added 2026-07-21 when the GPU inference host went away, and kept deliberately after it returned — serves `qwen3-embedding:0.6b` at `http://ollama:11434` (internal only, no host port); `wikantik` does not `depends_on` it, so `QueryEmbedder` fails closed to BM25 if it's unreachable |
 | *(jakemon)* | external | Grafana Alloy agent on this host scrapes `/metrics` and ships logs to the central Prometheus + Loki + Grafana on host `docker2` — no in-repo observability stack |
 
 The `wikantik` container's `entrypoint.sh` renders `wikantik-custom.properties`,

@@ -55,7 +55,7 @@ checkf "deploy-local can be opted out"             "$DEPLOY"   'WIKANTIK_LOCAL_E
 checkf "deploy-local sources the embeddings lib"     "$DEPLOY"  'lib/embeddings.sh'
 checkf "deploy-local wires up the repair call"       "$DEPLOY"  'repair_embedding_base_url'
 checkf "lib knows the deployed property key"         "$LIBFILE" 'wikantik.search.embedding.base-url'
-checkf "lib guards the one known-dead host, not a blind overwrite" "$LIBFILE" 'WIKANTIK_KNOWN_DEAD_EMBEDDING_URL'
+checkf "lib never silently overwrites a configured base-url" "$LIBFILE" 'NEVER rewritten'
 checkf ".env.example documents the base url"       "$ENVEX"    'WIKANTIK_EMBEDDING_BASE_URL'
 checkf ".env.example documents the opt-out"        "$ENVEX"    'WIKANTIK_LOCAL_EMBEDDINGS'
 
@@ -155,16 +155,20 @@ else
 fi
 rm -f "$PROPSFILE"
 
-# State 3a: stale value = the ONE known-dead host -> auto-corrected, and says so.
+# State 3a: the shared inference host. It was once special-cased as "provably
+# dead" and silently rewritten; it came back online 2026-09-20, so it is now an
+# ordinary configured value — warned about when it is not serving the tag, but
+# NEVER rewritten. No host gets special-cased any more.
 PROPSFILE="$(mktemp)"
 printf 'wikantik.search.embedding.base-url   = http://inference.jakefear.com:11434\n' > "$PROPSFILE"
 : > "$MSGLOG"
-repair_embedding_base_url "$PROPSFILE" "http://localhost:11434" "qwen3-embedding:0.6b"
-if grep -qE '^wikantik\.search\.embedding\.base-url[[:space:]]*=[[:space:]]*http://localhost:11434$' "$PROPSFILE" \
-   && grep -q "inference.jakefear.com:11434" "$MSGLOG"; then
-  pass "repair auto-corrects the known-dead inference host and names it"
+CURL_STUB_RC=0 CURL_STUB_BODY='{"models":[]}' \
+  repair_embedding_base_url "$PROPSFILE" "http://localhost:11434" "qwen3-embedding:0.6b"
+if grep -qE '^wikantik\.search\.embedding\.base-url[[:space:]]*=[[:space:]]*http://inference\.jakefear\.com:11434$' "$PROPSFILE" \
+   && grep -q "WARNING" "$MSGLOG" && grep -q "inference.jakefear.com:11434" "$MSGLOG"; then
+  pass "repair warns about, but never rewrites, the shared inference host"
 else
-  fail "repair did not auto-correct the known-dead host"
+  fail "repair rewrote a value it should only have warned about: $(cat "$PROPSFILE")"
 fi
 rm -f "$PROPSFILE"
 
@@ -285,18 +289,21 @@ fi
 checkf "deploy-local refuses to containerise a remote base-url" "$DEPLOY" 'embedding_host_is_local'
 
 # --- repair_embedding_base_url() on a file that already carries the key TWICE.
-# An unfiltered grep returns both lines, so `existing_line` is multi-line, both
-# [[ == ]] comparisons fall through, and the function emits a nonsense
-# multi-line warning instead of repairing anything.
+# An unfiltered grep returns both lines, so `existing_line` would be multi-line,
+# the comparison would fall through, and the function would emit a nonsense
+# multi-line warning. It takes the LAST occurrence (java.util.Properties is
+# last-wins) so the warning names the value actually in effect — exactly once.
 PROPSFILE="$(mktemp)"
 : > "$MSGLOG"
 printf 'wikantik.search.embedding.base-url = http://inference.jakefear.com:11434\nwikantik.applicationName = Wikantik\nwikantik.search.embedding.base-url = http://inference.jakefear.com:11434\n' > "$PROPSFILE"
-repair_embedding_base_url "$PROPSFILE" "http://localhost:11434" "qwen3-embedding:0.6b"
-if [ "$(grep -c 'inference.jakefear.com' "$PROPSFILE" || true)" -eq 0 ] \
-   && [ "$(grep -c 'http://localhost:11434' "$PROPSFILE" || true)" -eq 2 ]; then
-  pass "repair rewrites EVERY duplicate of the known-dead URL"
+CURL_STUB_RC=0 CURL_STUB_BODY='{"models":[]}' \
+  repair_embedding_base_url "$PROPSFILE" "http://localhost:11434" "qwen3-embedding:0.6b"
+if [ "$(grep -c 'inference.jakefear.com' "$PROPSFILE" || true)" -eq 2 ] \
+   && [ "$(grep -c 'http://localhost:11434' "$PROPSFILE" || true)" -eq 0 ] \
+   && [ "$(grep -c 'WARNING' "$MSGLOG" || true)" -eq 1 ]; then
+  pass "repair leaves duplicates untouched and warns once about the effective value"
 else
-  fail "repair left a duplicate known-dead URL behind: $(cat "$PROPSFILE")"
+  fail "repair mishandled duplicates: $(cat "$PROPSFILE") / $(cat "$MSGLOG")"
 fi
 rm -f "$PROPSFILE"
 

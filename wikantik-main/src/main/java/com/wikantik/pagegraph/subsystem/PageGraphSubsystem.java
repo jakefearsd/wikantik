@@ -29,6 +29,7 @@ import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.core.subsystem.CoreSubsystem;
 import com.wikantik.drift.DriftSweepService;
 import com.wikantik.page.subsystem.PageSubsystem;
+import com.wikantik.pagegraph.spine.ConfidenceComputer;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 
 /**
@@ -81,7 +82,10 @@ public final class PageGraphSubsystem {
      * is null when the content-index rebuild pipeline is unavailable.
      * {@code driftSweepService}, {@code citationRepository}, and
      * {@code citationSync} are null when the engine boots without a
-     * datasource.</p>
+     * datasource. {@code confidenceComputer} carries the operator-configured
+     * verification staleness window ({@code wikantik.verification.stale_days})
+     * and the trusted-author predicate; it is null on datasource-less boots,
+     * so consumers must fall back to a default computer.</p>
      */
     public record Services(
         StructuralIndexService       structuralIndexService,
@@ -91,6 +95,7 @@ public final class PageGraphSubsystem {
         OntologyRebuildCoordinator   ontologyRebuildCoordinator,
         DriftSweepService            driftSweepService,
         CitationRepository           citationRepository,
-        CitationSync                 citationSync
+        CitationSync                 citationSync,
+        ConfidenceComputer           confidenceComputer
     ) {}
 }

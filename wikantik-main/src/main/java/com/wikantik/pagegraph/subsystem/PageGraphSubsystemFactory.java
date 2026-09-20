@@ -23,6 +23,8 @@ import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.PageGraphService;
 import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.wikantik.pagegraph.spine.ConfidenceComputer;
+import com.wikantik.pagegraph.spine.DefaultStructuralIndexService;
 
 import java.util.Objects;
 
@@ -79,6 +81,13 @@ public final class PageGraphSubsystemFactory {
         final com.wikantik.citation.CitationSync citationSync =
             engine.getManager( com.wikantik.citation.CitationSync.class );
 
+        // Sourced from the structural index, which already holds it, rather than from the
+        // manager registry: a getManager call here would spend the frozen service-locator
+        // budget (DecompositionArchTest R-2) on a collaborator we can reach directly.
+        final ConfidenceComputer confidenceComputer =
+            structuralIndexService instanceof DefaultStructuralIndexService dsi
+                ? dsi.confidenceComputer() : null;
+
         return new PageGraphSubsystem.Services(
             structuralIndexService,
             pageGraphService,
@@ -87,6 +96,7 @@ public final class PageGraphSubsystemFactory {
             ontologyRebuildCoordinator,
             driftSweepService,
             citationRepository,
-            citationSync );
+            citationSync,
+            confidenceComputer );
     }
 }

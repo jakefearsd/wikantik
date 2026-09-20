@@ -37,7 +37,6 @@ public final class FakeHybridSearch {
     public static HybridSearchService enabledReturning( final List< String > rerankOrder ) {
         final HybridSearchService mocked = mock( HybridSearchService.class );
         when( mocked.isEnabled() ).thenReturn( true );
-        when( mocked.rerank( anyString(), anyList() ) ).thenReturn( rerankOrder );
         // The post-2026-05-20 path calls rerankWithChunks; default outcome
         // surfaces no dense chunks, so reusable-chunk callers fall through to
         // the second topKChunks scan (current behaviour preserved).

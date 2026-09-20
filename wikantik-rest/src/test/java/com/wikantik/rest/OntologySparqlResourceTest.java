@@ -95,7 +95,7 @@ class OntologySparqlResourceTest {
 
         engine = mock( WikiEngine.class );
         when( engine.getPageGraphSubsystem() ).thenReturn(
-                new PageGraphSubsystem.Services( null, null, null, null, coordinator, null, null, null ) );
+                new PageGraphSubsystem.Services( null, null, null, null, coordinator, null, null, null, null ) );
 
         resource = new OntologySparqlResource();
         resource.setEngine( engine );
@@ -151,7 +151,7 @@ class OntologySparqlResourceTest {
     void ontologyUnavailable_returns503() throws Exception {
         when( req.getParameter( "query" ) ).thenReturn( "SELECT * WHERE { ?s ?p ?o }" );
         when( engine.getPageGraphSubsystem() ).thenReturn(
-                new PageGraphSubsystem.Services( null, null, null, null, null, null, null, null ) );
+                new PageGraphSubsystem.Services( null, null, null, null, null, null, null, null, null ) );
 
         resource.doGet( req, resp );
 

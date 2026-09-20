@@ -35,6 +35,7 @@ import com.wikantik.connectors.runtime.ConnectorRuntime;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -229,6 +230,8 @@ public final class ConnectorConfigService {
         final String type = existing.get().connectorType();
         final ConnectorConfigCodec.Validation v = ConnectorConfigCodec.validate( type, config );
         if ( !v.ok() ) return v;
+        final Map< String, String > hostErrors = endpointHostErrors( id, existing.get(), config );
+        if ( !hostErrors.isEmpty() ) return new ConnectorConfigCodec.Validation( hostErrors );
 
         configStore.upsert( new ConnectorConfigRow( id, type, enabled, syncIntervalHours,
             config.toString(), cluster, defaultTags, pagePrefix ) );
@@ -414,6 +417,50 @@ public final class ConnectorConfigService {
             }
         }
         return errors;
+    }
+
+    /** Config key naming the endpoint a stored credential is transmitted to. */
+    private static final String ENDPOINT_URL_KEY = "base_url";
+
+    /**
+     * Refuses an update that moves a credential-bearing connector to a different endpoint host.
+     * A stored secret (e.g. a Confluence {@code api_token}) is sent as HTTP Basic to whatever host
+     * {@code base_url} names, so a scoped admin could otherwise repoint the connector at a host
+     * they control and harvest the token. Changing the host means deleting the stored credentials
+     * first and re-entering them against the new host. Connectors with no caller-controlled
+     * endpoint (github targets api.github.com; gdrive targets Google) have no such key and are
+     * unaffected.
+     */
+    private Map< String, String > endpointHostErrors( final String id, final ConnectorConfigRow existing,
+            final JsonObject incoming ) {
+        final String oldHost = hostOf( parseConfigJson( existing.configJson() ) );
+        final String newHost = hostOf( incoming );
+        if ( oldHost == null || newHost == null || oldHost.equals( newHost ) ) return Map.of();
+        if ( credStore.list( id ).isEmpty() ) return Map.of();
+        return Map.of( ENDPOINT_URL_KEY,
+            "cannot change the endpoint host while credentials are stored for this connector; "
+          + "delete the stored credentials first, then re-enter them for the new host" );
+    }
+
+    private static JsonObject parseConfigJson( final String json ) {
+        try {
+            return JsonParser.parseString( json ).getAsJsonObject();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "stored connector config JSON unparseable during endpoint-host check: {}", e.getMessage() );
+            return null;
+        }
+    }
+
+    /** Lowercased host of the config's endpoint URL, or null when absent/unparseable. */
+    private static String hostOf( final JsonObject config ) {
+        if ( config == null || isAbsent( config, ENDPOINT_URL_KEY ) ) return null;
+        try {
+            final String host = URI.create( config.get( ENDPOINT_URL_KEY ).getAsString().trim() ).getHost();
+            return host == null ? null : host.toLowerCase( Locale.ROOT );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "connector {} unparseable during endpoint-host check: {}", ENDPOINT_URL_KEY, e.getMessage() );
+            return null;
+        }
     }
 
     private static boolean isAbsent( final JsonObject config, final String key ) {

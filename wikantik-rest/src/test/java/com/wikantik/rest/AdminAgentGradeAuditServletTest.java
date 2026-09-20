@@ -23,8 +23,11 @@ import com.google.gson.JsonParser;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.PageType;
+import com.wikantik.api.pagegraph.Verification;
 import com.wikantik.api.pagegraph.StructuralFilter;
 import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.wikantik.pagegraph.spine.ConfidenceComputer;
 import com.wikantik.pagegraph.subsystem.PageGraphSubsystem;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -33,7 +36,10 @@ import org.junit.jupiter.api.Test;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -79,8 +85,13 @@ class AdminAgentGradeAuditServletTest {
     }
 
     private void wire( final StructuralIndexService svc, final ReferenceManager refMgr ) {
+        wire( svc, refMgr, null );
+    }
+
+    private void wire( final StructuralIndexService svc, final ReferenceManager refMgr,
+                       final ConfidenceComputer computer ) {
         when( engine.getPageGraphSubsystem() ).thenReturn(
-                new PageGraphSubsystem.Services( svc, null, refMgr, null, null, null, null, null ) );
+                new PageGraphSubsystem.Services( svc, null, refMgr, null, null, null, null, null, computer ) );
     }
 
     private JsonObject json() {
@@ -219,5 +230,28 @@ class AdminAgentGradeAuditServletTest {
         servlet.doGet( req, resp );
 
         assertEquals( 0, json().get( "offset" ).getAsInt() );
+    }
+
+    // ------------------------------------------------------- confidence wiring
+
+    @Test
+    void usesTheStaleWindowOfTheSubsystemSuppliedConfidenceComputer() throws Exception {
+        // A page verified 30 days ago. Under the hardcoded 90-day default this
+        // is still fresh; under an operator-configured 7-day window
+        // ( wikantik.verification.stale_days ) it is stale. The servlet must
+        // honour the ConfidenceComputer handed to it by the subsystem bridge.
+        final PageDescriptor p = new PageDescriptor( "p1", "P1", "P1", PageType.UNKNOWN, null,
+                List.of(), null, Instant.parse( "2026-05-10T00:00:00Z" ), Optional.empty(), false );
+        when( index.listPagesByFilter( any( StructuralFilter.class ) ) ).thenReturn( List.of( p ) );
+        when( index.verificationOf( "p1" ) ).thenReturn( Optional.of(
+                new Verification( Instant.now().minus( Duration.ofDays( 30 ) ), "alice", null, null ) ) );
+
+        wire( index, refs, new ConfidenceComputer( name -> false, 7 ) );
+
+        servlet.doGet( req, resp );
+
+        assertTrue( body.toString().contains( "stale_verification" ),
+                "servlet must use the bridge-supplied ConfidenceComputer (7-day window) rather "
+                        + "than a hardcoded 90-day default; body was: " + body );
     }
 }

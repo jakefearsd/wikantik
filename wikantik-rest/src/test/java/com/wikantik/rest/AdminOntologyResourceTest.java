@@ -71,7 +71,7 @@ class AdminOntologyResourceTest {
     /** Publishes {@code svc} through the page-graph subsystem snapshot the resource reads. */
     private void wireCoordinator( final OntologyRebuildCoordinator svc ) {
         when( engine.getPageGraphSubsystem() ).thenReturn(
-                new PageGraphSubsystem.Services( null, null, null, null, svc, null, null, null ) );
+                new PageGraphSubsystem.Services( null, null, null, null, svc, null, null, null, null ) );
     }
 
     private JsonObject json() {

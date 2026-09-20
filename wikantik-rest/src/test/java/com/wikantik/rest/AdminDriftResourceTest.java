@@ -64,7 +64,7 @@ class AdminDriftResourceTest {
         @Override protected WikiSubsystems getSubsystems() {
             final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
             final PageGraphSubsystem.Services pg = new PageGraphSubsystem.Services(
-                    null, null, null, null, null, service, citationRepo, null );
+                    null, null, null, null, null, service, citationRepo, null, null );
             when( subs.pageGraph() ).thenReturn( pg );
             return subs;
         }

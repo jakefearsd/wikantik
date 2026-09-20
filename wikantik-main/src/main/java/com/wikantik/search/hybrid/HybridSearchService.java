@@ -70,34 +70,13 @@ public final class HybridSearchService {
     }
 
     /**
-     * Rerank the {@code bm25PageNames} using a fused BM25 + dense score. When
-     * hybrid retrieval is disabled, the embedder fails, or the dense index is
-     * not ready, returns {@code bm25PageNames} unchanged. Pages that appeared
-     * only in dense results are appended to the end of the fused order, so the
-     * output set is always {@code bm25 ∪ dense}.
-     *
-     * <p>Thin forwarder kept for source compatibility.
-     *
-     * @param query         user query string — never {@code null}
-     * @param bm25PageNames ordered page names from the Lucene/BM25 pass; may be empty
-     * @return fused ordered page names (superset of input when dense adds hits)
-     * @deprecated since 2026-05-20 (search-path-optimization spec) — use
-     *             {@link #rerankWithChunks} so the dense chunks can be reused
-     *             downstream instead of being recomputed.
-     */
-    @Deprecated( since = "2026-05-20" )
-    public List< String > rerank( final String query, final List< String > bm25PageNames ) {
-        return rerankWithChunks( query, bm25PageNames ).fusedPageNames();
-    }
-
-    /**
      * Rerank the BM25 page-name list using a fused BM25 + dense score, and
      * return the dense chunks alongside the fused names. Callers that need
      * contributing chunks (e.g. retrieval services that show per-page
      * snippets) can reuse {@link RerankOutcome#denseChunks()} to skip a
      * second full-corpus scan.
      *
-     * <p>Fallback semantics mirror {@link #rerank}: any failure or disabled
+     * <p>Fallback semantics: any failure or disabled
      * service yields BM25-only with empty {@code denseChunks}.</p>
      */
     public RerankOutcome rerankWithChunks( final String query, final List< String > bm25PageNames ) {
@@ -181,7 +160,7 @@ public final class HybridSearchService {
      * Rerank using a pre-computed query embedding (typically obtained from
      * {@link #prefetchQueryEmbedding}). Skips the embedding call entirely so the
      * BM25 path can overlap with the embedding RPC. Same fallback semantics as
-     * {@link #rerank}: empty embedding or disabled service returns BM25 verbatim.
+     * {@link #rerankWithChunks}: empty embedding or disabled service returns BM25 verbatim.
      */
     public List< String > rerankWith( final String query,
                                       final List< String > bm25PageNames,

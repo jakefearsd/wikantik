@@ -26,26 +26,47 @@ import java.util.stream.Collectors;
 
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KgNode;
+import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.ontology.projection.PageRecord;
 
 /**
  * Pure ACL split: selects the resources that may appear in the PUBLIC ontology dataset.
- * A page is public iff isPublic(slug); a node iff it is a stub (no source page) or its
- * source page is public; an edge iff both endpoints are public; a page-record iff its
- * slug is public. No auth here — the caller supplies the anonymous-view predicate.
+ * A page is public iff isPublic(slug); a node iff it records a source page that is itself
+ * public, or — carrying no source page — it was authored by a human rather than extracted
+ * by a machine; an edge iff both endpoints are public; a page-record iff its slug is
+ * public. No auth here — the caller supplies the anonymous-view predicate.
  */
 public final class PublicProjectionFilter {
 
     private PublicProjectionFilter() {}
 
     /**
-     * The single authority for the node-level ACL rule: a node is public iff it is a stub
-     * (no source page) or its source page is anonymously viewable. Both the full-rebuild
-     * path ({@link #publicNodes}) and the incremental path ({@code OntologyEntitySync})
-     * must route through this predicate.
+     * The single authority for the node-level ACL rule. A node that records a source page is
+     * public iff that page is anonymously viewable. A node with NO source page is public only
+     * when it was authored by a human: a curator creating an entity by hand is an explicit act
+     * of publication with no page body behind it, whereas a machine-derived entity without
+     * provenance was extracted from some page we can no longer identify — possibly a restricted
+     * one — so it FAILS CLOSED. Unknown/absent provenance is treated as machine-derived.
+     *
+     * <p>This is what kept LLM-extracted entities from ACL-restricted pages out of the
+     * anonymous ontology; the companion half of the fix records provenance at materialisation
+     * so those nodes are tested against their real source page instead.</p>
+     *
+     * <p>Both the full-rebuild path ({@link #publicNodes}) and the incremental path
+     * ({@code OntologyEntitySync}) must route through this predicate.</p>
      */
     public static boolean isNodePublic( final KgNode node, final Predicate< String > isPublic ) {
-        return node.sourcePage() == null || isPublic.test( node.sourcePage() );
+        if ( node.sourcePage() != null ) {
+            return isPublic.test( node.sourcePage() );
+        }
+        return !isMachineDerived( node.provenance() );
+    }
+
+    /** True for machine-produced provenance, and for unknown/absent provenance (fail closed). */
+    private static boolean isMachineDerived( final Provenance provenance ) {
+        return provenance == null
+            || provenance == Provenance.AI_INFERRED
+            || provenance == Provenance.AI_REVIEWED;
     }
 
     public static List< KgNode > publicNodes( final List< KgNode > nodes, final Predicate< String > isPublic ) {

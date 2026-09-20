@@ -71,7 +71,7 @@ class HybridSearchServiceTest {
         final DenseRetriever dense = denseFromChunks( List.of() );
         final HybridSearchService svc =
             new HybridSearchService( embedder, dense, defaultFuser(), /*enabled*/ false );
-        assertEquals( List.of( "A", "B", "C" ), svc.rerank( "q", List.of( "A", "B", "C" ) ) );
+        assertEquals( List.of( "A", "B", "C" ), svc.rerankWithChunks( "q", List.of( "A", "B", "C" ) ).fusedPageNames() );
         verifyNoInteractions( embedder );
     }
 
@@ -83,7 +83,7 @@ class HybridSearchServiceTest {
         final HybridSearchService svc =
             new HybridSearchService( embedder, dense, defaultFuser(), true );
         final List< String > input = List.of( "A", "B", "C" );
-        assertEquals( input, svc.rerank( "q", input ) );
+        assertEquals( input, svc.rerankWithChunks( "q", input ).fusedPageNames() );
     }
 
     @Test
@@ -93,7 +93,7 @@ class HybridSearchServiceTest {
         final DenseRetriever dense = denseFromChunks( List.of() );
         final HybridSearchService svc =
             new HybridSearchService( embedder, dense, defaultFuser(), true );
-        assertEquals( List.of( "A", "B" ), svc.rerank( "q", List.of( "A", "B" ) ) );
+        assertEquals( List.of( "A", "B" ), svc.rerankWithChunks( "q", List.of( "A", "B" ) ).fusedPageNames() );
     }
 
     @Test
@@ -109,7 +109,7 @@ class HybridSearchServiceTest {
         final DenseRetriever dense = denseFromChunks( chunks );
         final HybridSearchService svc =
             new HybridSearchService( embedder, dense, defaultFuser(), true );
-        final List< String > fused = svc.rerank( "q", List.of( "A", "B" ) );
+        final List< String > fused = svc.rerankWithChunks( "q", List.of( "A", "B" ) ).fusedPageNames();
         assertTrue( fused.contains( "A" ), "BM25 hits must remain" );
         assertTrue( fused.contains( "B" ) );
         assertTrue( fused.contains( "X" ), "dense-only hit must be surfaced" );
@@ -126,7 +126,7 @@ class HybridSearchServiceTest {
         final DenseRetriever dense = denseFromChunks( chunks );
         final HybridSearchService svc =
             new HybridSearchService( embedder, dense, defaultFuser(), true );
-        final List< String > fused = svc.rerank( "q", List.of() );
+        final List< String > fused = svc.rerankWithChunks( "q", List.of() ).fusedPageNames();
         assertEquals( List.of( "P1", "P2" ), fused );
     }
 
@@ -137,9 +137,9 @@ class HybridSearchServiceTest {
         final HybridSearchService svc =
             new HybridSearchService( embedder, dense, defaultFuser(), true );
         final List< String > bm25 = List.of( "A", "B" );
-        assertSame( bm25, svc.rerank( null, bm25 ) );
-        assertSame( bm25, svc.rerank( "   ", bm25 ) );
-        assertEquals( List.of(), svc.rerank( null, null ) );
+        assertSame( bm25, svc.rerankWithChunks( null, bm25 ).fusedPageNames() );
+        assertSame( bm25, svc.rerankWithChunks( "   ", bm25 ).fusedPageNames() );
+        assertEquals( List.of(), svc.rerankWithChunks( null, null ).fusedPageNames() );
     }
 
     @Test
@@ -151,7 +151,7 @@ class HybridSearchServiceTest {
             new DenseRetriever( fixedIndex( List.of(), false ), PageAggregation.SUM_TOP_3, 100, 100 );
         final HybridSearchService svc =
             new HybridSearchService( embedder, dense, defaultFuser(), true );
-        assertEquals( List.of( "A", "B" ), svc.rerank( "q", List.of( "A", "B" ) ) );
+        assertEquals( List.of( "A", "B" ), svc.rerankWithChunks( "q", List.of( "A", "B" ) ).fusedPageNames() );
     }
 
     @Test

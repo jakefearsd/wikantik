@@ -6,6 +6,45 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- **Knowledge-Graph entities extracted from ACL-restricted pages no longer reach the anonymous
+  ontology.** `KgMaterializationService` wrote every materialized node with a null `source_page`,
+  so `PublicProjectionFilter.isNodePublic` had no provenance to test and passed the node through to
+  the unauthenticated `/sparql`, `/id/*` and `/export/*` surfaces — exposing entity names and the
+  typed relations between them. Materialization now carries `proposal.sourcePage()` onto both edge
+  endpoints (which also restores the `prov:wasDerivedFrom` triple `EntityProjector` could not emit),
+  and the filter **fails closed** for a machine-derived node (`ai-inferred`/`ai-reviewed`, or
+  unrecognised provenance) that records no source page — such a node was extracted from a page we
+  can no longer identify, possibly a restricted one. A node a curator created by hand is an
+  explicit act of publication with no page body behind it, so human-authored/curated nodes without
+  a source page stay public and keep syncing as before. Page bodies never leaked; `PageProjector`
+  was already ACL-filtered. **Operator note:** existing machine-derived `kg_nodes` rows carry
+  `source_page = NULL` and are therefore withheld from the public ontology until a KG
+  re-materialization repopulates their provenance — run one and confirm the public entity count
+  recovers.
+- **Connector credentials are bound to the endpoint host they were issued against.** A Confluence
+  connector's `base_url` was fully caller-controlled on update, while the stored `api_token` is sent
+  to whatever host it names as HTTP Basic — so a scoped admin could repoint the connector at a host
+  they control and harvest the token. `ConnectorConfigService.update` now refuses the change (an
+  error on `base_url`) whenever it would move a credential-bearing connector to a different host;
+  delete the stored credentials and re-enter them for the new host. The internal-host half was
+  already closed by `EgressGuard` in 2.4.17. GitHub needs no equivalent guard:
+  `HttpGithubApiFactory` targets `api.github.com` and `GithubConfig` exposes no caller-controlled
+  host.
+
+### Fixed
+- **`/admin/agent-grade-audit` now honours the configured verification staleness window.** The
+  servlet constructed its own `ConfidenceComputer( name -> false )`, which also pinned the stale
+  window to the 90-day default — so a deployment setting `wikantik.verification.stale_days` lower
+  than that under-reported stale pages. The computer is now supplied by the Page Graph subsystem
+  bridge, carrying both the configured window and the real trusted-author predicate from
+  `TrustedAuthorsDao`.
+
+### Removed
+- `HybridSearchService.rerank()`, the deprecated (2026-05-20) forwarder that had no production
+  callers left. Its twelve test call sites moved to `rerankWithChunks( … ).fusedPageNames()`, so
+  the fusion, tail-preservation and immutability contracts stay covered.
+
 ## [2.4.25] - 2026-09-18
 
 ### Changed

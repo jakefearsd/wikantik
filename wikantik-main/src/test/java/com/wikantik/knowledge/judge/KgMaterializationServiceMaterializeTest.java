@@ -153,4 +153,24 @@ class KgMaterializationServiceMaterializeTest {
 
         assertEquals( 0, kgNodes.getAllNodes( Tier.MACHINE ).size() );
     }
+
+    @Test
+    void materializeMachine_carries_the_proposal_source_page_onto_both_nodes() {
+        // Provenance is what PublicProjectionFilter tests to keep entities extracted
+        // from ACL-restricted pages out of the anonymous ontology. A node written
+        // with a null source page is indistinguishable from a stub, so it leaks.
+        final KgProposal p = kgProposals.insertProposal( "new-edge", "RestrictedPage",
+            Map.<String, Object>of( "source", "Epsilon", "target", "Zeta", "relationship", "requires" ),
+            0.8, "" );
+
+        svc.materializeMachine( p );
+
+        final List< KgNode > all = kgNodes.getAllNodes( Tier.MACHINE );
+        assertEquals( "RestrictedPage",
+            all.stream().filter( n -> "Epsilon".equals( n.name() ) ).findFirst().orElseThrow().sourcePage(),
+            "materialized source node must carry the proposal's source page" );
+        assertEquals( "RestrictedPage",
+            all.stream().filter( n -> "Zeta".equals( n.name() ) ).findFirst().orElseThrow().sourcePage(),
+            "materialized target node must carry the proposal's source page" );
+    }
 }

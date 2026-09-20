@@ -67,6 +67,12 @@ class OntologyEntitySyncTest {
             Map.of(), Instant.now(), Instant.now(), "human", null );
     }
 
+    /** A machine-extracted node — must fail closed when it records no source page. */
+    private static KgNode machineNode( final UUID id, final String name, final String sourcePage ) {
+        return new KgNode( id, name, "concept", sourcePage, Provenance.AI_INFERRED,
+            Map.of(), Instant.now(), Instant.now(), "machine", null );
+    }
+
     private static KgEdge edge( final UUID source, final UUID target ) {
         return new KgEdge( UUID.randomUUID(), source, target, "related_to", Provenance.HUMAN_CURATED,
             Map.of(), Instant.now(), Instant.now(), "human", null );
@@ -168,5 +174,17 @@ class OntologyEntitySyncTest {
         sync.drainNow(); // must not throw
         assertTrue( manager.namedGraphExists( Iris.entity( good ) ),
             "the good entity must still be projected after the bad one failed" );
+    }
+
+    @Test
+    void unprovenancedEntityIsNotProjected() {
+        // Fail closed: a machine-extracted node recording no source page came from a page we
+        // can no longer identify, so the incremental path must withhold it even when every
+        // page is anonymously viewable. A human-curated node with no source page still syncs.
+        final UUID id = UUID.randomUUID();
+        when( nodes.getNode( id ) ).thenReturn( machineNode( id, "NoProvenance", null ) );
+        sync.mark( Set.of( id ), Set.of() );
+        sync.drainNow();
+        assertFalse( manager.namedGraphExists( Iris.entity( id ) ) );
     }
 }

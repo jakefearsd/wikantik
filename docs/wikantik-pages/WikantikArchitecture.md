@@ -145,7 +145,7 @@ Above the KG sits a formal **RDF/OWL ontology** (`wikantik-ontology`, Apache Jen
 - A hand-authored T-Box (`wikantik.ttl`): 9 entity + 5 content classes, the 21 KG predicates with domain/range, public mappings to schema.org / SKOS / Dublin Core / PROV-O, and a SKOS concept scheme — plus SHACL shapes.
 - Postgres→RDF **projectors** (Entity / Edge / Page / Concept) materialize an A-Box into a TDB2 store, kept fresh by an event-incremental sync (re-project a page's graph on save/rename, remove on a true delete, reconcile entity graphs nightly).
 - A **write-time SHACL gate** refuses or skips non-conformant KG edges at the two write chokepoints (narrow: only the shaped predicates today).
-- A **public/restricted ACL split** ensures only anonymously-viewable pages/entities are ever materialized, so the public SPARQL/JSON-LD/dump endpoints cannot leak restricted content.
+- A **public/restricted ACL split** ensures only anonymously-viewable pages/entities are ever materialized — and a *machine-extracted* entity that records no source page **fails closed**, since it came from a page that can no longer be identified — so the public SPARQL/JSON-LD/dump endpoints cannot leak restricted content. A hand-curated entity without a source page is an explicit act of publication and stays public.
 
 The ontology is, in effect, a *projection* of the same knowledge the KG holds — the SEO JSON-LD `@type` on each page is even re-sourced from the ontology's inferred schema.org type, with a test asserting the two faces can't silently drift.
 
@@ -192,7 +192,7 @@ The same content is served three ways: rendered HTML for browsers (with an SSR h
 - **Database-backed policy grants** (the `policy_grants` table, admin-managed) as the default authorization source, with a file-policy fallback and a bootstrap-admin override for first setup.
 - Fine-grained page permissions (`view`/`comment`/`edit`/`modify`/`upload`/`rename`/`delete`) and wiki permissions (`createPages`/`createGroups`/`editPreferences`/…), enforced uniformly across REST, MCP, and the UI; inline `[{ALLOW view Admin}]` ACLs in page bodies.
 - **Deserialization filtering** (`ObjectInputFilter` allowlists), NIST 800-63B password rules with a common-password blocklist, SameSite=Lax auth cookies with a remember-me re-auth filter, and session rotation on SSO login (fixation defense).
-- The **public/restricted ACL split** on the RDF surface: a request-free guest-session view check keeps restricted pages/entities/edges out of the materialized public dataset entirely.
+- The **public/restricted ACL split** on the RDF surface: a request-free guest-session view check keeps restricted pages/entities/edges out of the materialized public dataset entirely, and a machine-extracted entity carrying no source page is withheld on the same fail-closed rule.
 
 ## 10. Strengths
 

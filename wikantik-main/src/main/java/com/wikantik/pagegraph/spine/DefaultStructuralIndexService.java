@@ -87,6 +87,16 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         this.metrics            = metrics == null ? new StructuralIndexMetrics() : metrics;
     }
 
+    /**
+     * The confidence computer this index scores verification with — carrying the operator's
+     * {@code wikantik.verification.stale_days} window and trusted-author predicate. Never null.
+     * Exposed so the subsystem factory can publish it on {@code PageGraphSubsystem.Services}
+     * without a manager-registry lookup.
+     */
+    public ConfidenceComputer confidenceComputer() {
+        return confidenceComputer;
+    }
+
     /** Three-arg ctor without explicit metrics. */
     public DefaultStructuralIndexService( final PageManager pageManager,
                                           final PageCanonicalIdsDao dao,

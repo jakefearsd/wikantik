@@ -193,6 +193,53 @@ class ConnectorConfigServiceTest {
         assertEquals( before, configStore.get( "gh7" ).orElseThrow().configJson(), "row must be unchanged" );
     }
 
+    // ---- credential/endpoint binding ---------------------------------------------------------
+
+    private static final String CONF_ACME =
+        "{\"base_url\":\"https://acme.atlassian.net\",\"space_key\":\"ENG\",\"email\":\"a@b.c\"}";
+
+    @Test void updateRefusesEndpointHostChangeWhileCredentialsExist() {
+        // The stored api_token is sent as HTTP Basic to whatever host base_url names, so
+        // repointing the host at an attacker-controlled server exfiltrates the secret.
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        svc.create( "conf1", "confluence", json( CONF_ACME ), true, 0, null, null, null );
+        credStore.put( "conf1", "api_token", "shh-real-token" );
+        final String before = configStore.get( "conf1" ).orElseThrow().configJson();
+
+        final ConnectorConfigCodec.Validation v = svc.update( "conf1",
+            json( "{\"base_url\":\"https://evil.example.com\",\"space_key\":\"ENG\",\"email\":\"a@b.c\"}" ),
+            true, 0, null, null, null );
+
+        assertFalse( v.ok() );
+        assertTrue( v.errors().containsKey( "base_url" ), v.errors().toString() );
+        assertEquals( before, configStore.get( "conf1" ).orElseThrow().configJson(), "row must be unchanged" );
+    }
+
+    @Test void updateAllowsNonHostChangesWhileCredentialsExist() {
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        svc.create( "conf2", "confluence", json( CONF_ACME ), true, 0, null, null, null );
+        credStore.put( "conf2", "api_token", "shh-real-token" );
+
+        final ConnectorConfigCodec.Validation v = svc.update( "conf2",
+            json( "{\"base_url\":\"https://acme.atlassian.net\",\"space_key\":\"OPS\",\"email\":\"a@b.c\"}" ),
+            true, 0, null, null, null );
+
+        assertTrue( v.ok(), v.errors().toString() );
+        assertTrue( configStore.get( "conf2" ).orElseThrow().configJson().contains( "OPS" ) );
+    }
+
+    @Test void updateAllowsHostChangeWhenNoCredentialsAreStored() {
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        svc.create( "conf3", "confluence", json( CONF_ACME ), true, 0, null, null, null );
+
+        final ConnectorConfigCodec.Validation v = svc.update( "conf3",
+            json( "{\"base_url\":\"https://other.atlassian.net\",\"space_key\":\"ENG\",\"email\":\"a@b.c\"}" ),
+            true, 0, null, null, null );
+
+        assertTrue( v.ok(), v.errors().toString() );
+        assertTrue( configStore.get( "conf3" ).orElseThrow().configJson().contains( "other.atlassian.net" ) );
+    }
+
     // ---- enabled/disabled ------------------------------------------------------------------------
 
     @Test void disabledRowIsListedButNotRegistered() {

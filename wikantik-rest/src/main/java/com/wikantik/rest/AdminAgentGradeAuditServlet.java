@@ -40,11 +40,11 @@ import java.io.IOException;
  * arrives. Returns HTTP 503 if the structural index or reference manager
  * is unavailable.</p>
  *
- * <p>The {@link ConfidenceComputer} is constructed fresh with
- * {@code name -> false} (no trusted-author promotion — stale window only).
- * A follow-up task should wire a real trusted-author predicate via
- * {@link com.wikantik.pagegraph.spine.TrustedAuthorsDao} once that DAO is
- * accessible through the subsystem bridge.</p>
+ * <p>The {@link ConfidenceComputer} is supplied by the Page Graph subsystem
+ * bridge, so this audit honours the operator-configured staleness window
+ * ({@code wikantik.verification.stale_days}) and the trusted-author list from
+ * {@link com.wikantik.pagegraph.spine.TrustedAuthorsDao}. It is null only on
+ * datasource-less boots, where a default computer is used instead.</p>
  */
 public class AdminAgentGradeAuditServlet extends RestServletBase {
 
@@ -98,10 +98,12 @@ public class AdminAgentGradeAuditServlet extends RestServletBase {
                 return null;
             }
 
-            // ConfidenceComputer: no trusted-author predicate available through
-            // the subsystem bridge in this release — use stale-window-only mode.
-            // TODO: wire TrustedAuthorsDao when the bridge exposes it.
-            final ConfidenceComputer confidence = new ConfidenceComputer( name -> false );
+            // Take the ConfidenceComputer from the subsystem bridge so the audit
+            // uses the operator-configured staleness window and trusted-author
+            // list. Null only on datasource-less boots — default there.
+            final ConfidenceComputer bridged = pg.confidenceComputer();
+            final ConfidenceComputer confidence =
+                    bridged != null ? bridged : new ConfidenceComputer( name -> false );
             delegate = new AgentGradeAuditResource( svc, refs, confidence );
         }
         return delegate;

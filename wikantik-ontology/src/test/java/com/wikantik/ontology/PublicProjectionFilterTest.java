@@ -39,11 +39,17 @@ class PublicProjectionFilterTest {
     private static final UUID PUB = UUID.fromString( "00000000-0000-0000-0000-0000000000f1" );
     private static final UUID RES = UUID.fromString( "00000000-0000-0000-0000-0000000000f2" );
     private static final UUID STUB = UUID.fromString( "00000000-0000-0000-0000-0000000000f3" );
+    private static final UUID MSTUB = UUID.fromString( "00000000-0000-0000-0000-0000000000f4" );
 
     private final Predicate< String > isPublic = slug -> "PublicPage".equals( slug );
 
     private KgNode node( final UUID id, final String sourcePage ) {
         return new KgNode( id, "n", "concept", sourcePage, Provenance.HUMAN_AUTHORED, Map.of(), null, null, "human", null );
+    }
+
+    /** A machine-extracted node — the provenance class that must fail closed without a source page. */
+    private KgNode machineNode( final UUID id, final String sourcePage ) {
+        return new KgNode( id, "n", "concept", sourcePage, Provenance.AI_INFERRED, Map.of(), null, null, "machine", null );
     }
 
     @Test
@@ -52,17 +58,23 @@ class PublicProjectionFilterTest {
         // must share this predicate — the rule being expressed twice is how a future
         // refinement could silently apply to only one path.
         assertTrue( PublicProjectionFilter.isNodePublic( node( PUB, "PublicPage" ), isPublic ) );
-        assertTrue( PublicProjectionFilter.isNodePublic( node( STUB, null ), isPublic ), "stub nodes are public" );
+        assertTrue( PublicProjectionFilter.isNodePublic( node( STUB, null ), isPublic ),
+                "a human-authored node with no source page is an explicit act of publication" );
+        assertFalse( PublicProjectionFilter.isNodePublic( machineNode( MSTUB, null ), isPublic ),
+                "a machine-extracted node with no source page must fail closed — it came from some "
+                + "page we can no longer identify, possibly a restricted one" );
         assertFalse( PublicProjectionFilter.isNodePublic( node( RES, "SecretPage" ), isPublic ) );
     }
 
     @Test
-    void publicNodesKeepStubsAndPublicSourcedDropRestricted() {
+    void publicNodesDropRestrictedAndUnprovenancedMachineNodes() {
         final List< KgNode > nodes = List.of(
-                node( PUB, "PublicPage" ), node( RES, "SecretPage" ), node( STUB, null ) );
+                node( PUB, "PublicPage" ), node( RES, "SecretPage" ),
+                node( STUB, null ), machineNode( MSTUB, null ) );
         final List< KgNode > pub = PublicProjectionFilter.publicNodes( nodes, isPublic );
         final Set< UUID > ids = PublicProjectionFilter.publicNodeIds( nodes, isPublic );
         assertTrue( ids.contains( PUB ) && ids.contains( STUB ) );
+        assertFalse( ids.contains( MSTUB ), "unprovenanced machine node excluded — fail closed" );
         assertFalse( ids.contains( RES ), "restricted-sourced node excluded" );
         assertEquals( 2, pub.size() );
     }

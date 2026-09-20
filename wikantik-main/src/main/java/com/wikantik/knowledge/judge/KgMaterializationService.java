@@ -147,9 +147,9 @@ public class KgMaterializationService {
             return;
         }
 
-        final KgNode src = nodes.upsertNodeWithProvenance( source, "concept", null,
+        final KgNode src = nodes.upsertNodeWithProvenance( source, "concept", proposal.sourcePage(),
             Provenance.AI_INFERRED, Map.of(), tier, proposal.id() );
-        final KgNode tgt = nodes.upsertNodeWithProvenance( target, "concept", null,
+        final KgNode tgt = nodes.upsertNodeWithProvenance( target, "concept", proposal.sourcePage(),
             Provenance.AI_INFERRED, Map.of(), tier, proposal.id() );
         // upsertNodeWithProvenance returns null when the post-INSERT read-back
         // is filtered out by the KG inclusion policy (the row IS in kg_nodes,

@@ -84,7 +84,7 @@ class HybridSearchServiceFailureTest {
         // User ran a valid query, embedding succeeded, then vector index exploded.
         // Search must still return the BM25 list verbatim so the page works.
         final List< String > bm25 = List.of( "A", "B", "C" );
-        assertEquals( bm25, svc.rerank( "legit query", bm25 ),
+        assertEquals( bm25, svc.rerankWithChunks( "legit query", bm25 ).fusedPageNames(),
                 "DenseRetriever RuntimeException must be caught and collapsed to BM25 passthrough — "
                         + "otherwise a corrupt vector index takes down /api/search" );
     }
@@ -109,7 +109,7 @@ class HybridSearchServiceFailureTest {
                 new HybridSearchService( embedder, dense, narrowFuser, true );
 
         final List< String > bm25 = List.of( "A", "B", "C", "D", "E" );
-        final List< String > fused = svc.rerank( "legit query", bm25 );
+        final List< String > fused = svc.rerankWithChunks( "legit query", bm25 ).fusedPageNames();
 
         assertTrue( fused.contains( "X" ),
                 "Dense-only hit must appear in fused output" );
@@ -144,7 +144,7 @@ class HybridSearchServiceFailureTest {
         final HybridSearchService svc = new HybridSearchService(
                 embedder, dense, new HybridFuser( 60, 1.0, 1.5, 20 ), true );
 
-        final List< String > fused = svc.rerank( "q", List.of( "A", "B" ) );
+        final List< String > fused = svc.rerankWithChunks( "q", List.of( "A", "B" ) ).fusedPageNames();
 
         assertFalse( fused.isEmpty() );
         try {

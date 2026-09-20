@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.26] - 2026-09-20
+
 ### Security
 - **Knowledge-Graph entities extracted from ACL-restricted pages no longer reach the anonymous
   ontology.** `KgMaterializationService` wrote every materialized node with a null `source_page`,

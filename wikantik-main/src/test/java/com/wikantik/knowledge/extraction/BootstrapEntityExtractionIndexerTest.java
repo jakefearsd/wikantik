@@ -28,6 +28,8 @@ import com.wikantik.api.knowledge.PageExtractionResult;
 import com.wikantik.api.knowledge.PageExtractor;
 import com.wikantik.api.knowledge.ProposalJudge;
 import com.wikantik.api.knowledge.Verdict;
+import com.wikantik.api.knowledge.KgNode;
+import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.kgpolicy.KgExcludedPagesRepository;
@@ -36,6 +38,7 @@ import org.mockito.Mockito;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executor;
@@ -315,6 +318,67 @@ class BootstrapEntityExtractionIndexerTest {
         blocking.release();
         assertEquals( BootstrapEntityExtractionIndexer.State.COMPLETED, indexer.status().state() );
         assertTrue( indexer.start( false ) );
+    }
+
+    /**
+     * A dry run must not write ANYTHING. The upsert of kg_proposals was already
+     * guarded, but mention attribution ran unconditionally off the accepted list
+     * and reached chunk_entity_mentions.upsertAll — so `--dry-run` silently wrote
+     * mention rows to whatever database the smoke run pointed at.
+     *
+     * <p>Drives the full leak path: an accepted NEW_NODE whose display name
+     * resolves to an existing kg_nodes row, plus an attributor that finds it in
+     * the chunk text. Without the dry-run guard, upsertAll is called once.</p>
+     */
+    @Test
+    void dryRunWritesNoMentions() {
+        final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
+        final UUID c1 = UUID.randomUUID();
+        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "P" ) );
+        when( chunkRepo.listChunkIdsForPage( "P" ) ).thenReturn( List.of( c1 ) );
+        when( chunkRepo.findByIds( List.of( c1 ) ) ).thenReturn( List.of(
+            new ContentChunkRepository.MentionableChunk( c1, "P", 0, List.of(),
+                "Python is a programming language." ) ) );
+        when( chunkRepo.stats() ).thenReturn( new ContentChunkRepository.AggregateStats( 0, 0, 1, 0, 0, 0 ) );
+
+        final PageExtractor extractor = Mockito.mock( PageExtractor.class );
+        when( extractor.code() ).thenReturn( "ollama:test" );
+        when( extractor.extract( any(), any() ) ).thenReturn( new PageExtractionResult(
+            "ollama:test", "P",
+            List.of( new ExtractedEntity( "Python", "Technology", "Python", 0.9 ) ), List.of(),
+            new PageExtractionResult.Stats( 1, 0, 0, 0, Duration.ZERO ) ) );
+
+        // The accepted name MUST resolve to an existing node, or attribution
+        // short-circuits and the leak never fires.
+        final UUID nodeId = UUID.randomUUID();
+        final KgNodeRepository kgNodes = Mockito.mock( KgNodeRepository.class );
+        when( kgNodes.getAllNodes() ).thenReturn( List.of() );
+        when( kgNodes.getNodeByName( "Python" ) ).thenReturn( new KgNode(
+            nodeId, "Python", "technology", "P", Provenance.AI_INFERRED,
+            Map.of(), null, null, "machine", null ) );
+
+        final MentionAttributor attributor = Mockito.mock( MentionAttributor.class );
+        when( attributor.attribute( any(), any(), any() ) ).thenReturn( List.of(
+            new MentionAttributor.ChunkMention( c1, nodeId, "Python", 0, 6 ) ) );
+
+        final ChunkEntityMentionRepository mentionRepo =
+            Mockito.mock( ChunkEntityMentionRepository.class );
+
+        final BootstrapEntityExtractionIndexer indexer = BootstrapEntityExtractionIndexer.builder()
+            .pageExtractor( extractor ).upserter( Mockito.mock( ProposalUpserter.class ) )
+            .chunkRepo( chunkRepo ).mentionRepo( mentionRepo ).kgNodes( kgNodes )
+            .mentionAttributor( attributor )
+            .sharedExecutors( directExecutor(), directExecutor() )
+            .build();
+        indexer.setDryRun( true );
+        assertTrue( indexer.start( /*forceOverwrite*/ false ) );
+
+        final BootstrapEntityExtractionIndexer.Status s = indexer.status();
+        assertEquals( BootstrapEntityExtractionIndexer.State.COMPLETED, s.state() );
+        assertEquals( 1, s.judgeAccepted(), "the proposal is still judged on a dry run" );
+        verify( mentionRepo, never() ).upsertAll( any() );
+        verify( mentionRepo, never() ).deleteByChunkId( any() );
+        assertEquals( 0, s.mentionsWritten(), "a dry run must report zero mention writes" );
     }
 
     // ---- helpers ----

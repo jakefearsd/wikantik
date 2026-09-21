@@ -403,8 +403,17 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
             final ExtractionBatchRunner.BatchResult batch =
                 batchRunner.runBatch( overwrite, pageEmbeddings, buildCounters() );
             // Step 7 — mention attribution using accepted proposals from the batch.
-            final int written = mentionRunner.attribute( batch.outcomes(), batch.accepted(), overwrite );
-            mentionsWritten.addAndGet( written );
+            // Skipped on a dry run. Attribution ends at chunk_entity_mentions.upsertAll, so
+            // running it made --dry-run write rows to whatever database a smoke run pointed
+            // at. It is also incoherent there: the accepted proposals were never upserted,
+            // so any node those mentions attach to is one that already existed.
+            if ( dryRun.get() ) {
+                LOG.info( "Bootstrap extraction: dry-run — skipping mention attribution for "
+                    + "{} accepted proposals", batch.accepted().size() );
+            } else {
+                final int written = mentionRunner.attribute( batch.outcomes(), batch.accepted(), overwrite );
+                mentionsWritten.addAndGet( written );
+            }
             state.set( State.COMPLETED );
         } catch ( final RuntimeException e ) {
             state.set( State.ERROR );

@@ -32,6 +32,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `wikantik.kg.judge.{endpoint,model}` are set. Neither has any effect unless
   `WIKANTIK_GENAI_MODE=full` — an embeddings-only ceiling blocks chat inference regardless.
 
+### Fixed
+- **`--dry-run` extraction no longer writes to the database.** The bootstrap entity-extraction
+  batch guarded the `kg_proposals` upsert behind the dry-run flag, but ran mention attribution
+  unconditionally afterwards — keyed on `forceOverwrite`, never on `dryRun` — so a smoke run
+  still reached `chunk_entity_mentions.upsertAll` and wrote rows to whatever database it was
+  pointed at. Attribution is now skipped on a dry run (and logged, like the upsert skip). It was
+  incoherent there in any case: the accepted proposals are never persisted on a dry run, so the
+  only nodes those mentions could attach to are ones that already existed. Affects both
+  `bin/kg-extract.sh --dry-run` and `POST /admin/knowledge-graph/extract-mentions`, which share
+  the same indexer.
+
 ## [2.4.26] - 2026-09-20
 
 ### Security

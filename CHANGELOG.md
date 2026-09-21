@@ -32,6 +32,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `wikantik.kg.judge.{endpoint,model}` are set. Neither has any effect unless
   `WIKANTIK_GENAI_MODE=full` — an embeddings-only ceiling blocks chat inference regardless.
 
+### Added
+- **`wikantik.search.embedding.profile` (`cpu` | `gpu`) — two hardware paths for embedding
+  batch size.** The profile supplies a *default* for
+  `wikantik.search.embedding.batch-size` only; an explicit batch-size still wins, and an
+  absent or unrecognised profile resolves to `cpu` (fail safe, not closed — guessing `gpu`
+  from a typo would hand a CPU-only deployment a batch it cannot finish inside `timeout-ms`,
+  which is the exact failure that made the default 10). `gpu` uses 64, measured as the
+  throughput knee on the inference host. The extractor CLI gains a matching
+  `--embedding-profile`, since it previously hardcoded the CPU-safe batch and so could never
+  benefit from batching at all.
+
+### Changed
+- **KG node-embedding warmup now batches.** `KgNodeEmbeddingService.warmUp` embedded one node
+  per HTTP round-trip, and `BootstrapExtractionCli` compounded it by wrapping a perfectly good
+  batching `OllamaEmbeddingClient` in a single-text adapter — throwing the batching away.
+  Measured against the GPU inference host: **59.9 ms/item sequential vs 9.5 ms/item at batch
+  64**, i.e. ~6.3x, which on the 6,599-node production cache is ~6.6 min down to ~1 min.
+  Concurrency was measured too and deliberately not used: 1/2/4/8 workers all land at
+  ~104-108 emb/s, because the backend serialises embedding work, so threading would add
+  contention for ~3%. The single-text constructor is retained for callers that genuinely have
+  one; a failed batch is reported as an error for every node in it rather than silent success.
+
 ### Fixed
 - **`--dry-run` extraction no longer writes to the database.** The bootstrap entity-extraction
   batch guarded the `kg_proposals` upsert behind the dry-run flag, but ran mention attribution

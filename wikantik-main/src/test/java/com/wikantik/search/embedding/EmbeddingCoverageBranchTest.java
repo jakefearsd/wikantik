@@ -195,7 +195,8 @@ class EmbeddingCoverageBranchTest {
     void create_oneArgOverload_disabledReturnsEmpty() {
         final EmbeddingConfig disabled = new EmbeddingConfig(
             false, "ollama", "http://localhost:11434", null,
-            EmbeddingModel.QWEN3_EMBEDDING_06B, null, 5_000, 8, EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE );
+            EmbeddingModel.QWEN3_EMBEDDING_06B, null, 5_000, 8, EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE,
+            EmbeddingConfig.DEFAULT_PROFILE );
         final Optional< TextEmbeddingClient > result = EmbeddingClientFactory.create( disabled );
         assertFalse( result.isPresent(),
             "one-arg create() with disabled flag must return Optional.empty()" );
@@ -209,7 +210,8 @@ class EmbeddingCoverageBranchTest {
     void create_oneArgOverload_enabledReturnsOllamaClient() {
         final EmbeddingConfig enabled = new EmbeddingConfig(
             true, "ollama", "http://localhost:11434", null,
-            EmbeddingModel.BGE_M3, null, 5_000, 8, EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE );
+            EmbeddingModel.BGE_M3, null, 5_000, 8, EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE,
+            EmbeddingConfig.DEFAULT_PROFILE );
         final Optional< TextEmbeddingClient > result = EmbeddingClientFactory.create( enabled );
         assertTrue( result.isPresent(),
             "one-arg create() with enabled flag must return a client" );

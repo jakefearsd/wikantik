@@ -50,7 +50,8 @@ public record EmbeddingConfig(
     String ollamaTagOverride,
     int timeoutMs,
     int batchSize,
-    int commitBatchSize
+    int commitBatchSize,
+    String profile
 ) {
 
     private static final Logger LOG = LogManager.getLogger( EmbeddingConfig.class );
@@ -63,6 +64,7 @@ public record EmbeddingConfig(
     public static final String PROP_OLLAMA_TAG   = "wikantik.search.embedding.ollama-tag";
     public static final String PROP_TIMEOUT_MS   = "wikantik.search.embedding.timeout-ms";
     public static final String PROP_BATCH_SIZE   = "wikantik.search.embedding.batch-size";
+    public static final String PROP_PROFILE      = "wikantik.search.embedding.profile";
     public static final String PROP_COMMIT_BATCH_SIZE = "wikantik.search.embedding.commit-batch-size";
 
     public static final String BACKEND_OLLAMA = "ollama";
@@ -72,6 +74,19 @@ public record EmbeddingConfig(
     public static final String  DEFAULT_MODEL_CODE = "qwen3-embedding-0.6b";
     public static final int     DEFAULT_TIMEOUT_MS = 30_000;
     public static final int     DEFAULT_BATCH_SIZE = 10;
+
+    /** Conservative hardware profile: the bundled CPU embedder. The default. */
+    public static final String  PROFILE_CPU = "cpu";
+    /** GPU inference host: batching is worth ~6x, measured. */
+    public static final String  PROFILE_GPU = "gpu";
+    public static final String  DEFAULT_PROFILE = PROFILE_CPU;
+    /**
+     * Batch size the {@link #PROFILE_GPU} profile supplies as its DEFAULT. Measured as the
+     * throughput knee on the GPU inference host: 9.5 ms/item at 64, versus 59.9 ms/item
+     * one-at-a-time. 128/256/512 all came in at ~9.8-10.0 ms/item, so larger batches buy
+     * nothing and only widen the timeout window a single failure throws away.
+     */
+    public static final int     GPU_BATCH_SIZE = 64;
     /** @see EmbeddingIndexService#DEFAULT_COMMIT_BATCH_SIZE */
     public static final int     DEFAULT_COMMIT_BATCH_SIZE =
         EmbeddingIndexService.DEFAULT_COMMIT_BATCH_SIZE;
@@ -114,12 +129,35 @@ public record EmbeddingConfig(
         final String  tagOverride = trimOrNull( props.getProperty( PROP_OLLAMA_TAG ) );
         final int     timeoutMs = parsePositiveInt( props.getProperty( PROP_TIMEOUT_MS ),
                                                     DEFAULT_TIMEOUT_MS, PROP_TIMEOUT_MS );
+        final String  profile = resolveProfile( props.getProperty( PROP_PROFILE ) );
+        // The profile only supplies a DEFAULT. An operator who measured their own
+        // hardware and set batch-size explicitly must still win.
+        final int     profileBatchDefault =
+            PROFILE_GPU.equals( profile ) ? GPU_BATCH_SIZE : DEFAULT_BATCH_SIZE;
         final int     batchSize = parsePositiveInt( props.getProperty( PROP_BATCH_SIZE ),
-                                                    DEFAULT_BATCH_SIZE, PROP_BATCH_SIZE );
+                                                    profileBatchDefault, PROP_BATCH_SIZE );
         final int     commitBatchSize = parsePositiveInt( props.getProperty( PROP_COMMIT_BATCH_SIZE ),
                                                     DEFAULT_COMMIT_BATCH_SIZE, PROP_COMMIT_BATCH_SIZE );
         return new EmbeddingConfig( enabled, backend, baseUrl, apiKey, model,
-                                    tagOverride, timeoutMs, batchSize, commitBatchSize );
+                                    tagOverride, timeoutMs, batchSize, commitBatchSize, profile );
+    }
+
+    /**
+     * Normalises the hardware profile. An absent, blank or unrecognised value resolves to
+     * {@link #PROFILE_CPU} — fail safe, not closed: guessing "gpu" from a typo would hand a
+     * CPU-only deployment a batch size it cannot complete inside timeout-ms, which is the
+     * exact failure that made the batch default 10 in the first place.
+     */
+    public static String resolveProfile( final String raw ) {
+        if( raw == null || raw.isBlank() ) {
+            return DEFAULT_PROFILE;
+        }
+        final String key = raw.trim().toLowerCase( Locale.ROOT );
+        if( PROFILE_CPU.equals( key ) || PROFILE_GPU.equals( key ) ) {
+            return key;
+        }
+        LOG.warn( "Unrecognised {}='{}'; falling back to '{}'", PROP_PROFILE, raw, DEFAULT_PROFILE );
+        return DEFAULT_PROFILE;
     }
 
     /** The Ollama model tag this config should use, respecting any override. */

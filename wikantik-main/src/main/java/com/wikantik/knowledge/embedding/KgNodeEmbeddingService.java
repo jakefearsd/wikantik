@@ -20,6 +20,8 @@ package com.wikantik.knowledge.embedding;
 
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.search.embedding.EmbeddingClient;
+import com.wikantik.search.embedding.EmbeddingKind;
+import com.wikantik.search.embedding.TextEmbeddingClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -27,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,17 +44,38 @@ public final class KgNodeEmbeddingService {
 
     private final KgNodeEmbeddingRepository repo;
     private final EmbeddingClient client;
+    /** Batched seam; when present warmUp embeds the whole stale set per round-trip. */
+    private final TextEmbeddingClient batchedClient;
     private final String modelTag;
 
+    /**
+     * Single-text client. Retained for callers that genuinely have one, but warmUp
+     * then issues one HTTP call per node: measured at 59.9 ms/item against the GPU
+     * host versus 9.5 ms/item batched. Prefer the {@link TextEmbeddingClient} ctor.
+     */
     public KgNodeEmbeddingService(final KgNodeEmbeddingRepository repo,
                                    final EmbeddingClient client,
                                    final String modelTag) {
         this.repo = repo;
         this.client = client;
+        this.batchedClient = null;
+        this.modelTag = modelTag;
+    }
+
+    /** Batched client: warmUp embeds every stale node per backend round-trip. */
+    public KgNodeEmbeddingService(final KgNodeEmbeddingRepository repo,
+                                   final TextEmbeddingClient batchedClient,
+                                   final String modelTag) {
+        this.repo = repo;
+        this.client = null;
+        this.batchedClient = batchedClient;
         this.modelTag = modelTag;
     }
 
     public Result warmUp(final List<KgNode> nodes) {
+        if (batchedClient != null) {
+            return warmUpBatched(nodes);
+        }
         int cached = 0, reEmbedded = 0, errors = 0;
         for (final KgNode n : nodes) {
             final String hash = contentHashOf(n);
@@ -93,6 +117,72 @@ public final class KgNodeEmbeddingService {
      * same model slice as the warmer wrote. */
     public String modelTag() {
         return modelTag;
+    }
+
+    /**
+     * Batched warmUp: partition the nodes into cached vs stale exactly as the
+     * per-node path does, then embed the whole stale set through the batching
+     * client (which splits on its own configured batch size) in input order.
+     *
+     * <p>A backend failure fails the whole batch — the per-node path could isolate
+     * one bad node, so the counts fall back to marking every stale node an error
+     * rather than silently reporting success.</p>
+     */
+    private Result warmUpBatched(final List<KgNode> nodes) {
+        int cached = 0, errors = 0;
+        final List<KgNode> stale = new ArrayList<>();
+        final List<String> texts = new ArrayList<>();
+        final List<String> hashes = new ArrayList<>();
+
+        for (final KgNode n : nodes) {
+            final String hash = contentHashOf(n);
+            final Optional<KgNodeEmbeddingRepository.Cached> existing;
+            try {
+                existing = repo.findById(n.id(), modelTag);
+            } catch (final RuntimeException e) {
+                LOG.warn("findById failed for node {}: {}", n.id(), e.getMessage());
+                errors++;
+                continue;
+            }
+            if (existing.isPresent() && hash.equals(existing.get().contentHash())) {
+                cached++;
+                continue;
+            }
+            stale.add(n);
+            texts.add(embeddingTextOf(n));
+            hashes.add(hash);
+        }
+
+        if (stale.isEmpty()) {
+            return new Result(cached, 0, errors);
+        }
+
+        final List<float[]> vectors;
+        try {
+            // DOCUMENT, not QUERY: node text is corpus-side, and the wrong kind applies
+            // the wrong model prefix, silently degrading similarity against the index.
+            vectors = batchedClient.embed(texts, EmbeddingKind.DOCUMENT);
+        } catch (final RuntimeException e) {
+            LOG.warn("batched embed of {} node(s) failed ({}): {}", stale.size(), modelTag, e.getMessage());
+            return new Result(cached, 0, errors + stale.size());
+        }
+        if (vectors == null || vectors.size() != stale.size()) {
+            LOG.warn("batched embed returned {} vector(s) for {} node(s) — discarding batch",
+                vectors == null ? 0 : vectors.size(), stale.size());
+            return new Result(cached, 0, errors + stale.size());
+        }
+
+        int reEmbedded = 0;
+        for (int i = 0; i < stale.size(); i++) {
+            try {
+                repo.upsert(stale.get(i).id(), modelTag, hashes.get(i), vectors.get(i));
+                reEmbedded++;
+            } catch (final RuntimeException e) {
+                LOG.warn("upsert embedding failed for node '{}': {}", stale.get(i).name(), e.getMessage());
+                errors++;
+            }
+        }
+        return new Result(cached, reEmbedded, errors);
     }
 
     static String embeddingTextOf(final KgNode n) {

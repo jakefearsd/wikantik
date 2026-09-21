@@ -66,6 +66,51 @@ class EmbeddingConfigTest {
     }
 
     @Test
+    void defaultProfileIsCpuAndKeepsTheCpuSafeBatchSize() {
+        // Absent profile must behave exactly as before: the bundled CPU embedder
+        // cannot finish a large batch inside timeout-ms, so the conservative
+        // batch size is the safe default for anyone without a GPU.
+        final EmbeddingConfig c = EmbeddingConfig.fromProperties( new Properties() );
+        assertEquals( EmbeddingConfig.PROFILE_CPU, c.profile() );
+        assertEquals( EmbeddingConfig.DEFAULT_BATCH_SIZE, c.batchSize() );
+    }
+
+    @Test
+    void gpuProfileRaisesTheBatchSizeDefault() {
+        // Measured against the GPU inference host: batch 64 is the throughput knee
+        // (9.5 ms/item vs 59.9 sequential); 128+ gains nothing and only widens the
+        // timeout exposure.
+        final Properties p = new Properties();
+        p.setProperty( EmbeddingConfig.PROP_PROFILE, EmbeddingConfig.PROFILE_GPU );
+        final EmbeddingConfig c = EmbeddingConfig.fromProperties( p );
+        assertEquals( EmbeddingConfig.PROFILE_GPU, c.profile() );
+        assertEquals( EmbeddingConfig.GPU_BATCH_SIZE, c.batchSize() );
+        assertTrue( c.batchSize() > EmbeddingConfig.DEFAULT_BATCH_SIZE,
+            "the gpu profile must raise the batch default, or it is pointless" );
+    }
+
+    @Test
+    void explicitBatchSizeBeatsTheProfile() {
+        // The profile only supplies defaults. An operator who has measured their
+        // own hardware must still win.
+        final Properties p = new Properties();
+        p.setProperty( EmbeddingConfig.PROP_PROFILE, EmbeddingConfig.PROFILE_GPU );
+        p.setProperty( EmbeddingConfig.PROP_BATCH_SIZE, "7" );
+        assertEquals( 7, EmbeddingConfig.fromProperties( p ).batchSize() );
+    }
+
+    @Test
+    void unrecognisedProfileFallsBackToCpuRatherThanFailing() {
+        // Fail safe, not closed: a typo must not hand a CPU-only box a batch size
+        // it cannot complete inside the timeout.
+        final Properties p = new Properties();
+        p.setProperty( EmbeddingConfig.PROP_PROFILE, "gpu-ish" );
+        final EmbeddingConfig c = EmbeddingConfig.fromProperties( p );
+        assertEquals( EmbeddingConfig.PROFILE_CPU, c.profile() );
+        assertEquals( EmbeddingConfig.DEFAULT_BATCH_SIZE, c.batchSize() );
+    }
+
+    @Test
     void commitBatchSizeDefaultsWhenAbsent() {
         assertEquals( EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE,
             EmbeddingConfig.fromProperties( new Properties() ).commitBatchSize() );

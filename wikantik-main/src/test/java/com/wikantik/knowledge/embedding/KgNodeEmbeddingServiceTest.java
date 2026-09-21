@@ -21,6 +21,8 @@ package com.wikantik.knowledge.embedding;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.search.embedding.EmbeddingClient;
+import com.wikantik.search.embedding.EmbeddingKind;
+import com.wikantik.search.embedding.TextEmbeddingClient;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -164,6 +166,53 @@ class KgNodeEmbeddingServiceTest {
         verify(repo, never()).findById(eq(id), eq("bge-m3:latest"));
         verify(repo).upsert(eq(id), eq("qwen3-embedding:0.6b"),
             eq(KgNodeEmbeddingService.contentHashOf(node)), any());
+    }
+
+    @Test
+    void batchedClientEmbedsAllStaleNodesInOneRoundTrip() {
+        // warmUp embedded one node per HTTP call. Measured against the live host that
+        // is 59.9 ms/item sequential vs 9.5 ms/item at batch 64 — a 6.3x difference
+        // on a 6,599-node cache. The batched path must issue ONE call for the whole
+        // stale set, preserving input order when mapping vectors back to nodes.
+        final KgNodeEmbeddingRepository repo = mock(KgNodeEmbeddingRepository.class);
+        final TextEmbeddingClient batched = mock(TextEmbeddingClient.class);
+
+        final UUID id1 = UUID.randomUUID();
+        final UUID id2 = UUID.randomUUID();
+        final UUID id3 = UUID.randomUUID();
+        final KgNode a = new KgNode(id1, "Kafka", "Technology", "Kafka",
+            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null);
+        final KgNode b = new KgNode(id2, "Raft", "Concept", "Raft",
+            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null);
+        final KgNode c = new KgNode(id3, "Paxos", "Concept", "Paxos",
+            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null);
+
+        // b is already cached: it must be excluded from the batch entirely.
+        when(repo.findById(any(), eq("qwen3-embedding:0.6b"))).thenReturn(Optional.empty());
+        when(repo.findById(eq(id2), eq("qwen3-embedding:0.6b"))).thenReturn(
+            Optional.of(new KgNodeEmbeddingRepository.Cached(
+                KgNodeEmbeddingService.contentHashOf(b), new float[1024])));
+
+        final float[] vecA = new float[1024]; vecA[0] = 1f;
+        final float[] vecC = new float[1024]; vecC[0] = 3f;
+        when(batched.embed(eq(List.of("Kafka :: Technology :: Kafka", "Paxos :: Concept :: Paxos")),
+                           any(EmbeddingKind.class))).thenReturn(List.of(vecA, vecC));
+
+        final KgNodeEmbeddingService svc =
+            new KgNodeEmbeddingService(repo, batched, "qwen3-embedding:0.6b");
+        final KgNodeEmbeddingService.Result r = svc.warmUp(List.of(a, b, c));
+
+        assertEquals(1, r.cached());
+        assertEquals(2, r.reEmbedded());
+        assertEquals(0, r.errors());
+        // Exactly one round-trip for the two stale nodes.
+        verify(batched, times(1)).embed(any(), any(EmbeddingKind.class));
+        // Vectors map back to the right nodes, in input order.
+        verify(repo).upsert(eq(id1), eq("qwen3-embedding:0.6b"),
+            eq(KgNodeEmbeddingService.contentHashOf(a)), eq(vecA));
+        verify(repo).upsert(eq(id3), eq("qwen3-embedding:0.6b"),
+            eq(KgNodeEmbeddingService.contentHashOf(c)), eq(vecC));
+        verify(repo, never()).upsert(eq(id2), any(), any(), any());
     }
 
     @Test

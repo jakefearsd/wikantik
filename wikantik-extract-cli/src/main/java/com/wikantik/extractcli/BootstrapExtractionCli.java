@@ -40,9 +40,7 @@ import com.wikantik.knowledge.extraction.OllamaProposalJudge;
 import com.wikantik.knowledge.extraction.PageExtractionResponseParser;
 import com.wikantik.knowledge.extraction.ProposalConsolidator;
 import com.wikantik.knowledge.extraction.ProposalUpserter;
-import com.wikantik.search.embedding.EmbeddingClient;
 import com.wikantik.search.embedding.EmbeddingConfig;
-import com.wikantik.search.embedding.EmbeddingKind;
 import com.wikantik.search.embedding.EmbeddingModel;
 import com.wikantik.search.embedding.OllamaEmbeddingClient;
 import com.wikantik.search.embedding.TextEmbeddingClient;
@@ -268,13 +266,19 @@ public final class BootstrapExtractionCli {
             model,
             /*ollamaTagOverride*/ tag,
             /*timeoutMs*/ Math.max( 1, (int) Math.min( a.timeoutMs, Integer.MAX_VALUE ) ),
-            EmbeddingConfig.DEFAULT_BATCH_SIZE,
-            EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE );
+            // Batch size follows the hardware profile. Hardcoding the CPU-safe 10 here
+            // meant the batching win never reached the tool that actually warms the
+            // cache; defaulting to cpu keeps a GPU-less run on the conservative path.
+            EmbeddingConfig.PROFILE_GPU.equals( a.embeddingProfile )
+                ? EmbeddingConfig.GPU_BATCH_SIZE : EmbeddingConfig.DEFAULT_BATCH_SIZE,
+            EmbeddingConfig.DEFAULT_COMMIT_BATCH_SIZE,
+            a.embeddingProfile );
         final TextEmbeddingClient batched = new OllamaEmbeddingClient( http, cfg );
-        // Single-text adapter — KgNodeEmbeddingService never batches.
-        final EmbeddingClient single = text ->
-            batched.embed( List.of( text ), EmbeddingKind.DOCUMENT ).get( 0 );
-        return new KgNodeEmbeddingService( repo, single, tag );
+        // Hand the service the BATCHED client. It previously got a single-text adapter
+        // wrapped around this very object, which threw the batching away: one HTTP call
+        // per node, 59.9 ms/item against the GPU host versus 9.5 ms/item at batch 64.
+        // The client splits on cfg.batchSize(), which the cpu/gpu profile defaults.
+        return new KgNodeEmbeddingService( repo, batched, tag );
     }
 
     /**
@@ -448,6 +452,10 @@ public final class BootstrapExtractionCli {
               --max-entities-per-page <N>           hard cap per LLM response (default 12)
               --max-relations-per-page <N>          hard cap per LLM response (default 8)
               --node-embedding-model <tag>          model for the kg_node_embeddings cache (default qwen3-embedding:0.6b)
+              --embedding-profile <cpu|gpu>         batch size for node-embedding warmup (default cpu).
+                                                    cpu keeps the conservative batch a CPU embedder can
+                                                    finish inside the timeout; gpu uses the measured knee
+                                                    (64) and is ~6x faster on a GPU host.
               --rebuild-node-embeddings             TRUNCATE the embedding cache before warmup
               --max-pages <N>                       stop after first N pages, 0 = unlimited
               --page-pattern <glob>                 limit to page names matching glob (* and ? supported)
@@ -469,6 +477,8 @@ public final class BootstrapExtractionCli {
      */
     public static final class Args extends CommonCliArgs {
         public String ollamaModel          = "gemma4-assist:latest";
+        /** Hardware profile for node-embedding warmup: cpu (default) | gpu. */
+        public String embeddingProfile     = EmbeddingConfig.DEFAULT_PROFILE;
         public String extractor            = "ollama";   // ollama | claude
         public String extractorModel       = null;        // claude model id (claude only); null → DEFAULT_CLAUDE_EXTRACTOR_MODEL
         public int    concurrency          = 2;
@@ -506,6 +516,8 @@ public final class BootstrapExtractionCli {
                 }
                 switch( k ) {
                     case "--ollama-model"            -> a.ollamaModel = req( argv, ++i, k );
+                    case "--embedding-profile"       -> a.embeddingProfile =
+                        EmbeddingConfig.resolveProfile( req( argv, ++i, k ) );
                     case "--extractor"               -> a.extractor = req( argv, ++i, k ).toLowerCase( Locale.ROOT );
                     case "--extractor-model"         -> a.extractorModel = req( argv, ++i, k );
                     case "--concurrency"             -> a.concurrency = parseInt( req( argv, ++i, k ), k );

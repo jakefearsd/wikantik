@@ -6,7 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- `owasp-java-html-sanitizer` 20260313.1 -> 20260922.1, which carries GHSA-vqwm-jvq2-mfwc
+  ("encode CSS URL content after rewriting"). How this surfaced is worth recording: an OSV.dev
+  batch over all 15 current pins reported every one of them clean, and fetching the advisory by
+  id still returns `Vulnerability not found` -- it is not indexed yet. A same-day advisory
+  against the HTML sanitizer is therefore invisible to OSV, and so to CI's `osv-scan` job. This
+  bump was taken on the upstream release notes, not on a scanner result. Upstream shipped
+  20260921.1 and 20260922.1 one day apart; the second is the security fix.
+
 ### Changed
+- Dependency sweep, stable releases only: `anthropic-java` 2.62.0 -> 2.65.0, `caffeine`
+  3.2.4 -> 3.3.0, `mcp-sdk` 2.0.0 -> 2.0.1, `selenide` 7.18.1 -> 7.18.2, `sec.jackson2`
+  2.22.2 -> 2.22.3, `sec.jackson3` 3.2.2 -> 3.2.3, `plugin.install` 3.1.4 -> 3.2.0,
+  `plugin.cargo` 1.10.28 -> 1.10.29,
+  `slf4j` 2.0.19 -> 2.0.20. Frontend, all within their declared ranges:
+  `@codemirror/state` 6.7.6, `@codemirror/view` 6.43.13, `eslint` 10.11.0,
+  `react-router-dom` 7.18.4. `npm audit` stays at 0 across 384 packages.
 - The connector endpoint/credential host rule moved out of `ConnectorConfigService` into
   `ConnectorEndpointBinding`. Inlining it had pushed the service's class-total cyclomatic
   complexity to 82 against the ratchet's limit of 80; the rule now has direct unit coverage, and
@@ -26,6 +42,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   depend on a host outside the stack.
 
 ### Added
+- `build-support/versions-stable-rules.xml`, wired as the versions-maven-plugin `rulesUri` in
+  pluginManagement so CLI sweeps and the reporting run share it. Dependency sweeps now report
+  stable releases only. `docs/dependency-upgrade-log.md` has told readers to "scan with the
+  stable-only rules file" since 2026-08-16, but no such file existed -- so every sweep since has
+  re-proposed the same ~15 alphas, betas and milestones already rejected there by name, which is
+  how a rejected pre-release eventually gets merged by reflex.
+  It also stopped masking a real update on its first run: the plugin reports only the single
+  latest version, so slf4j's `2.1.0-alpha1` had been hiding the stable `2.0.20` patch. Suppressing
+  pre-releases revealed it, and it is included in this sweep.
 - `WIKANTIK_EXTRACTOR_BASE_URL` and `WIKANTIK_EXTRACTOR_MODEL` entrypoint passthroughs, so a
   container deployment can name the KG extractor's Ollama endpoint and model explicitly instead
   of relying on the ini default. The KG judge follows both unless

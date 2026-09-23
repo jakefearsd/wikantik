@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Stable-only ruleset for versions-maven-plugin.
+
+    Without this, every `versions:display-*` sweep re-proposes the same
+    pre-release candidates that have already been rejected by name in
+    docs/dependency-upgrade-log.md — log4j 3.0.0-beta*, slf4j 2.1.0-alpha1,
+    the six maven-* 4.0.0-beta-*, maven-site 4.0.0-M16, the jakarta *-M* APIs,
+    httpclient5 5.7-alpha1, httpcore5 5.5-beta2, micrometer 1.18.0-M1.
+    That noise is how a rejected alpha eventually gets merged by reflex.
+
+    Matching is whole-string (Pattern.matches), so a trailing qualifier only
+    matches when it ends the version. That is what keeps legitimate stable
+    releases visible: 20260922.1 (date-versioned), 33.7.1-jre, 1.10.29, and
+    v3-rev20260901-2.0.0 all fail the pattern.
+
+    ONE CONSEQUENCE, deliberate: commons-fileupload2 is itself on a milestone
+    line (2.0.0-M5), so intermediate M6/M7 bumps are now hidden. That is the
+    wanted behaviour — the M4 -> M5 bump was a breaking API change
+    (setFileSizeMax(int) removed, AttachmentServlet), so this line is pinned by
+    judgement, not by lag. Its eventual GA still surfaces: Maven orders
+    2.0.0-M5 < 2.0.0, so the stable release is reported as an update.
+
+    Per-artifact <rule> ignoreVersions ADD to this global set, they cannot
+    subtract from it — so do not try to re-enable a qualifier for one artifact
+    here. Check that artifact manually instead.
+
+    Usage: wired as <rulesUri> in the root pom's pluginManagement, so both the
+    CLI goals and the reporting run pick it up. To deliberately see
+    pre-releases again for one sweep:
+        mvn versions:display-dependency-updates -Dmaven.version.rules=
+-->
+<ruleset comparisonMethod="maven"
+         xmlns="http://www.mojohaus.org/versions-maven-plugin/rule/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.mojohaus.org/versions-maven-plugin/rule/2.0.0
+                             https://www.mojohaus.org/versions-maven-plugin/xsd/rule-2.0.0.xsd">
+
+  <ignoreVersions>
+    <!-- alpha | beta | milestone | preview | snapshot | pre | rc | cr | ea | dev | m,
+         each optionally followed by a separator and a build number.
+         'preview' precedes 'pre' and 'milestone' precedes 'm' so the longer
+         token wins the alternation. -->
+    <ignoreVersion type="regex">(?i).*[-_.](alpha|beta|milestone|preview|snapshot|pre|rc|cr|ea|dev|m)[-_.]?\d*</ignoreVersion>
+  </ignoreVersions>
+
+</ruleset>

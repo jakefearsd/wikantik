@@ -249,3 +249,109 @@ by this changeset: the identical 4-wide gate passed both **before** the failure
 failures — the same test count as the failing run, so the test did execute).
 Same class as the known `EditIT` CodeMirror flake: a timing assertion that loses
 its race when four IT modules contend for the box.
+
+---
+
+# Dependency Upgrade Sweep — 2026-09-22
+
+Recursive reactor scan (`versions:display-{dependency,plugin,property}-updates`,
+`-DprocessDependencyManagement=true`) plus `npm outdated`/`npm audit` and an
+OSV.dev batch over the 15 current pins. Verified with `bin/run-tests.sh --all`.
+
+## Applied — Maven (stable only)
+
+| Property | From | To | Kind |
+|---|---|---|---|
+| `owasp-html-sanitizer.version` | 20260313.1 | 20260922.1 | **security** |
+| `sec.jackson2.version` | 2.22.2 | 2.22.3 | patch |
+| `sec.jackson3.version` | 3.2.2 | 3.2.3 | patch |
+| `anthropic-java.version` | 2.62.0 | 2.65.0 | minor |
+| `caffeine.version` | 3.2.4 | 3.3.0 | minor |
+| `mcp-sdk.version` | 2.0.0 | 2.0.1 | patch |
+| `selenide.version` | 7.18.1 | 7.18.2 | patch |
+| `plugin.install.version` | 3.1.4 | 3.2.0 | minor (stable 3.x line, not 4.0.0-beta) |
+| `plugin.cargo.version` | 1.10.28 | 1.10.29 | patch |
+| `slf4j.version` | 2.0.19 | 2.0.20 | patch (revealed by the ruleset, see below) |
+
+## Applied — frontend (all in-range)
+
+`@codemirror/state` 6.7.4→6.7.6, `@codemirror/view` 6.43.11→6.43.13,
+`eslint` 10.10.0→10.11.0, `react-router-dom` 7.18.3→7.18.4.
+`npm audit`: 0 vulnerabilities across 384 packages.
+
+## The sanitizer bump — OSV returned a false negative
+
+The OSV.dev batch reported **all 15 pinned versions clean, including
+owasp-java-html-sanitizer 20260313.1**. But 20260922.1 fixes
+**GHSA-vqwm-jvq2-mfwc** ("encode CSS URL content after rewriting"), and
+`GET /v1/vulns/GHSA-vqwm-jvq2-mfwc` returns `Vulnerability not found` — the
+advisory is not indexed yet. Upstream shipped 20260921.1 (a large HTML-parsing
+overhaul) and 20260922.1 (the security fix) one day apart.
+
+**A same-day advisory is invisible to OSV, and therefore to CI's `osv-scan`
+job.** Treat a clean OSV result as "nothing known *and indexed*", not "nothing
+wrong". For a security-critical dependency like the sanitizer, read the upstream
+release notes directly.
+
+## Not taken — Tika 4.0.0 is GA, and it forces the junrar decision
+
+The previous sweep recorded tika 4.0.0-beta-1 as pre-release only. That is now
+stale: Central reports `release=4.0.0`. It is still refused here, for a reason
+that is not "it's a major":
+
+- **`tika-parent` 4.0.0 declares `junrar.version` = 8.1.0.** We pin
+  `sec.junrar.version` = 7.6.1 and `.github/dependabot.yml` explicitly ignores
+  junrar majors, because the RAR parser is reachable from `POST /api/ingest`.
+  Taking Tika 4 therefore forces exactly the untested major this project
+  deliberately deferred — it does not merely coincide with it.
+- Configuration moves **XML → JSON**; `tika-batch`, `tika-dl` and `tika-fuzzing`
+  are removed. Java baseline 11 → 17 (a non-issue; we build on 25).
+
+Needs its own scoped task with an ingest-path regression pass, not a sweep slot.
+The `wikantik-ingest` impact analysis has **not** been done.
+
+## Not taken — vitest 4.1.11 → 5.0.1
+
+`clearMocks` now **defaults to true**, so Vitest calls `vi.clearAllMocks()`
+before every test. That is a silent behavioural flip across 1551 tests, and the
+1→4 upgrade broke 28. Node floor (>= 22.12) is satisfied: local v24.14.1,
+quality-gates pins '22'. `release.yml` pins node '20' but skips tests, so it
+does not gate this. Worth doing deliberately, with the migration guide open.
+
+## Held — unchanged and re-verified
+
+- **katex 0.16.47**, blocked by `rehype-katex@7.0.1`'s hard `katex: ^0.16.0`.
+- **junrar 7.6.1**, the 8.x major stays refused (see Tika above).
+- **bouncycastle 1.85**, the 1.85.2 patch is bcprov-only; one property drives
+  four artifacts.
+
+## Fixed the process gap this sweep kept tripping over
+
+The 2026-08-16 entry ends "Scan with the stable-only rules file or these are
+recommended in error." **That file never existed** — `find` turns up only the
+three PMD rulesets, and the root pom configured versions-maven-plugin with
+report sets but no `rulesUri`. Now added as
+`build-support/versions-stable-rules.xml` and wired in pluginManagement.
+
+On its first run it did more than cut noise -- it revealed an update that had been
+**masked**. `versions:display-*` reports only the single latest version per artifact, so
+slf4j's `2.1.0-alpha1` was standing in front of the stable `2.0.20` patch, which never
+appeared in any sweep. Suppressing pre-releases surfaced it. Post-ruleset the whole reactor
+reports exactly three proposals -- junrar 8.1.1, tika 4.0.0 and slf4j 2.0.20 -- against
+roughly ninety lines before.
+
+Note for whoever edits it: per-artifact `<rule>` `ignoreVersions` **add to** the
+global set, they cannot subtract from it. There is no way to re-enable a
+qualifier for a single artifact — check that artifact by hand instead.
+
+## Two scanning traps hit while producing this sweep
+
+1. **`mvn -q versions:display-*` prints nothing.** The plugin writes its report
+   at INFO, which `-q` suppresses, so the run exits 0 having reported no
+   updates at all. It looks exactly like a clean sweep. Never pass `-q` here.
+2. **Maven Central's search API (`search.maven.org/solrsearch`) returns stale
+   data.** It reported tika-core's latest as 3.3.1 and selenide's as 7.9.3 while
+   this repo was already on 3.3.2 and 7.18.1, and returned empty for
+   `anthropic-java` and `mcp-core`. Use
+   `https://repo1.maven.org/maven2/<path>/maven-metadata.xml` and read
+   `<release>` instead — that is authoritative.

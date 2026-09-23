@@ -44,7 +44,7 @@
     <maven.version>3.5</maven.version>
 
     <akismet-java.version>1.0.0</akismet-java.version>
-    <anthropic-java.version>2.62.0</anthropic-java.version>
+    <anthropic-java.version>2.65.0</anthropic-java.version>
     <awaitility.version>4.3.0</awaitility.version>
     <bcrypt.version>0.10.2</bcrypt.version>
     <commons-collections.version>4.6.0</commons-collections.version>
@@ -93,22 +93,22 @@
     <lucene.version>10.5.1</lucene.version>
     <mockito.version>5.23.0</mockito.version>
     <nekohtml.version>3.0.4</nekohtml.version>
-    <owasp-html-sanitizer.version>20260313.1</owasp-html-sanitizer.version>
+    <owasp-html-sanitizer.version>20260922.1</owasp-html-sanitizer.version>
     <pac4j.version>6.5.8</pac4j.version>
     <rome.version>2.1.0</rome.version>
-    <selenide.version>7.18.1</selenide.version>
+    <selenide.version>7.18.2</selenide.version>
     <selenium.version>4.49.0</selenium.version>
-    <slf4j.version>2.0.19</slf4j.version>
+    <slf4j.version>2.0.20</slf4j.version>
     <tika.version>3.3.2</tika.version>
     <tomcat.version>11.0.24</tomcat.version>
     <xstream.version>1.4.21</xstream.version>
-    <mcp-sdk.version>2.0.0</mcp-sdk.version>
+    <mcp-sdk.version>2.0.1</mcp-sdk.version>
     <snakeyaml.version>2.7</snakeyaml.version>
     <tribuo.version>4.3.2</tribuo.version>
     <xmemcached.version>2.4.9</xmemcached.version>
     <micrometer.version>1.17.1</micrometer.version>
     <testcontainers.version>2.0.5</testcontainers.version>
-    <caffeine.version>3.2.4</caffeine.version>
+    <caffeine.version>3.3.0</caffeine.version>
     <ulid-creator.version>5.2.4</ulid-creator.version>
     <jmustache.version>1.16</jmustache.version>
     <jena.version>6.2.0</jena.version>
@@ -134,8 +134,8 @@
                                                                                  four. Bumping it fails the build; splitting it would mix Bouncy
                                                                                  Castle artifact versions, which upstream advises against. -->
     <sec.commons-beanutils.version>1.11.0</sec.commons-beanutils.version> <!-- via tribuo->opencsv;          CVE-2025-48734 -->
-    <sec.jackson3.version>3.2.2</sec.jackson3.version>                    <!-- via mcp-sdk (Jackson 3 family); CVE-2026-29062 +2 -->
-    <sec.jackson2.version>2.22.2</sec.jackson2.version>                   <!-- via pac4j-core (2.22.0) + tika-parser-cad-module (2.21.3); GHSA-5jmj-h7xm-6q6v + 2.21.x GHSAs, all fixed by 2.22.1 -->
+    <sec.jackson3.version>3.2.3</sec.jackson3.version>                    <!-- via mcp-sdk (Jackson 3 family); CVE-2026-29062 +2 -->
+    <sec.jackson2.version>2.22.3</sec.jackson2.version>                   <!-- via pac4j-core (2.22.0) + tika-parser-cad-module (2.21.3); GHSA-5jmj-h7xm-6q6v + 2.21.x GHSAs, all fixed by 2.22.1 -->
     <sec.junrar.version>7.6.1</sec.junrar.version>                       <!-- via tika-parsers; CVE-2026-41245 (fixed 7.6.0) + path-traversal
                                                                               fix in 7.6.1 ("prevent directory creation outside target
                                                                               directory") — reachable from POST /api/ingest, which feeds
@@ -160,7 +160,7 @@
     <plugin.compiler.version>3.16.0</plugin.compiler.version>
     <plugin.dependency.version>3.11.0</plugin.dependency.version>
     <plugin.enforcer.version>3.6.3</plugin.enforcer.version>
-    <plugin.install.version>3.1.4</plugin.install.version>
+    <plugin.install.version>3.2.0</plugin.install.version>
     <plugin.jar.version>3.5.1</plugin.jar.version>
     <plugin.javadoc.version>3.12.0</plugin.javadoc.version>
     <plugin.jxr.version>3.6.0</plugin.jxr.version>
@@ -173,7 +173,7 @@
     <plugin.war.version>3.5.1</plugin.war.version>
     <plugin.build-helper.version>3.6.2</plugin.build-helper.version>
     <plugin.checksum.version>1.11</plugin.checksum.version>
-    <plugin.cargo.version>1.10.28</plugin.cargo.version>
+    <plugin.cargo.version>1.10.29</plugin.cargo.version>
     <plugin.docker.version>0.49.0</plugin.docker.version>
     <plugin.pmd.version>3.28.0</plugin.pmd.version>
     <plugin.site.version>3.22.0</plugin.site.version>
@@ -184,6 +184,7 @@
     <plugin.wro4j.version>2.1.1</plugin.wro4j.version>
     <plugin.cyclonedx.version>2.9.3</plugin.cyclonedx.version>
     <plugin.sonar.version>5.8.0.7211</plugin.sonar.version>
+    <plugin.versions.version>2.22.0</plugin.versions.version>
     <plugin.sonar-report.version>0.1</plugin.sonar-report.version>
     <!-- Override the parent pom's compiler defaults. Since org.apache:apache 39 the
          parent derives ALL THREE of source/target/release from its own ${javaVersion}
@@ -1359,6 +1360,19 @@
                 </plugins>
             </configuration>
         </plugin>
+        <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>versions-maven-plugin</artifactId>
+            <version>${plugin.versions.version}</version>
+            <configuration>
+                <!-- Stable-only sweeps. Without this every versions:display-*
+                     run re-proposes the pre-releases already rejected by name in
+                     docs/dependency-upgrade-log.md. multiModuleProjectDirectory,
+                     not project.basedir: the latter re-resolves per module, so
+                     child modules would look for the file in their own directory. -->
+                <rulesUri>file://${maven.multiModuleProjectDirectory}/build-support/versions-stable-rules.xml</rulesUri>
+            </configuration>
+        </plugin>
       </plugins>
     </pluginManagement>
   </build>
@@ -1548,7 +1562,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>versions-maven-plugin</artifactId>
-        <version>2.22.0</version>
+        <version>${plugin.versions.version}</version>
         <reportSets>
           <reportSet>
             <reports>

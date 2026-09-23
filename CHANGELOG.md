@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.27] - 2026-09-22
+
 ### Security
 - `owasp-java-html-sanitizer` 20260313.1 -> 20260922.1, which carries GHSA-vqwm-jvq2-mfwc
   ("encode CSS URL content after rewriting"). How this surfaced is worth recording: an OSV.dev

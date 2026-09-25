@@ -39,6 +39,23 @@ set -uo pipefail   # NOT -e: we want to run every module and aggregate, not bail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
 
+# Export ONLY the MAIL_* block from .env, so MailUtilSmtpKeepAliveTest performs its
+# real send during Phase 1 and the Brevo SMTP key is not deactivated for disuse.
+# Deliberately NOT `set -a; . .env`: that would also export WIKANTIK_* (which the
+# suite requires unset — bin/agent-build.sh strips them on purpose), ANTHROPIC_API_KEY
+# (silently enables a paid opt-in test), and the Postgres/MCP secrets into every child
+# process. A value already in the environment wins, so a caller can override one
+# without editing .env.
+if [ -r "${REPO_DIR}/.env" ]; then
+  while IFS='=' read -r _k _v; do
+    case "$_k" in
+      MAIL_SMTP_HOST|MAIL_SMTP_PORT|MAIL_SMTP_ACCOUNT|MAIL_SMTP_PASSWORD|MAIL_FROM)
+        [ -n "${!_k:-}" ] || export "$_k=$_v" ;;
+    esac
+  done < "${REPO_DIR}/.env"
+  unset _k _v
+fi
+
 usage() {
   cat <<'EOF'
 Usage: bin/run-tests.sh [MODE] [OPTIONS]

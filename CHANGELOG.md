@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.28] - 2026-09-26
+
 ### Changed
 - Permission decisions and non-rendering page reads no longer force a full markdown parse.
   `PageManager.getPage` routes through `CachingProvider.refreshMetadata`, which runs a full

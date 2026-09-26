@@ -262,8 +262,9 @@ public final class SearchSubsystemFactory {
         final ChunkVectorIndex chunkVectorIndex = new com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex(
             dataSource, modelCode,
             com.wikantik.search.hybrid.PgVectorChunkVectorIndex.EMBEDDING_DIM, params );
-        LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, ef_search={})",
-            modelCode, params.m(), params.efConstruction(), params.efSearch() );
+        LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, "
+                + "ef_search={}, quantization={})",
+            modelCode, params.m(), params.efConstruction(), params.efSearch(), params.quantization() );
         return chunkVectorIndex;
     }
 

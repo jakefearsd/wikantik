@@ -205,7 +205,7 @@ class RetrievalQualitySmokeTest {
         }
 
         @ParameterizedTest
-        @ValueSource( strings = { "inmemory", "pgvector", "lucene-hnsw" } )
+        @ValueSource( strings = { "inmemory", "pgvector", "lucene-hnsw", "lucene-hnsw-q7" } )
         void core_agent_queries_meet_ndcg_threshold( final String backend ) {
             final DefaultRetrievalQualityRunner runner = buildRunnerFor( backend );
             final RetrievalRunResult report = runner.runNow( QUERY_SET_ID, RetrievalMode.HYBRID );
@@ -253,12 +253,43 @@ class RetrievalQualitySmokeTest {
          * the test from any network embedding service while still exercising the real
          * {@link ChunkVectorIndex} implementation for each backend.</p>
          */
+        /**
+         * Scalar-quantized HNSW must recall at parity with brute force.
+         *
+         * <p>Quantization (added 2026-09-25) is a CPU optimisation: {@code topKChunks} was
+         * 36.77% of all CPU with 58.25% of its leaf samples in {@code readFloats} against
+         * 13.70% in the cosine math, so shrinking the per-candidate vector read is the lever.
+         * It is lossy, so it needs a recall guard before it can ever become the default.</p>
+         *
+         * <p><b>Scope honesty:</b> this gate's corpus is three pages / three chunks with
+         * deterministic query vectors. It catches GROSS breakage (a broken codec, a
+         * permuted result list, a dimension mismatch) and nothing subtler — with three
+         * documents, quantization error cannot plausibly reorder them. Treating a pass here
+         * as proof that 7-bit quantization is recall-neutral on the real corpus would be
+         * wrong; that evidence has to come from the eval/bundle-corpus harness against the
+         * full ~19k-chunk index.</p>
+         */
+        @Test
+        void inmemory_and_quantized_hnsw_within_recall_epsilon() {
+            final RetrievalRunResult memReport =
+                buildRunnerFor( "inmemory" ).runNow( QUERY_SET_ID, RetrievalMode.HYBRID );
+            final RetrievalRunResult q7Report =
+                buildRunnerFor( "lucene-hnsw-q7" ).runNow( QUERY_SET_ID, RetrievalMode.HYBRID );
+            final double delta = Math.abs( memReport.ndcgAt5() - q7Report.ndcgAt5() );
+            assertTrue( delta <= 0.02,
+                "quantized lucene-hnsw nDCG@5 (" + q7Report.ndcgAt5() + ") differs from in-memory ("
+                + memReport.ndcgAt5() + ") by " + delta + " — exceeds the 0.02 parity gate" );
+        }
+
         private DefaultRetrievalQualityRunner buildRunnerFor( final String backend ) {
             final ChunkVectorIndex index;
             if ( "pgvector".equals( backend ) ) {
                 index = new PgVectorChunkVectorIndex( pgDs, MODEL_CODE, EF_SEARCH );
             } else if ( "lucene-hnsw".equals( backend ) ) {
                 index = new LuceneHnswChunkVectorIndex( pgDs, MODEL_CODE, DIM, new HnswParams( 16, 64, EF_SEARCH ) );
+            } else if ( "lucene-hnsw-q7".equals( backend ) ) {
+                index = new LuceneHnswChunkVectorIndex( pgDs, MODEL_CODE, DIM,
+                    new HnswParams( 16, 64, EF_SEARCH, HnswParams.Quantization.SEVEN_BIT ) );
             } else {
                 index = new InMemoryChunkVectorIndex( pgDs, MODEL_CODE );
             }

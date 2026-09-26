@@ -6,6 +6,47 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Permission decisions and non-rendering page reads no longer force a full markdown parse.
+  `PageManager.getPage` routes through `CachingProvider.refreshMetadata`, which runs a full
+  flexmark parse (plus a second inside `collectLinks`) purely to populate `[{SET}]` page
+  variables. An ACL decision reads none of them: `PermissionFactory.getPagePermission` uses only
+  the page's wiki and name, and inline `[{ALLOW ...}]` ACLs are resolved independently by
+  `DefaultAclManager.getPermissions` from the raw page text behind its own version-keyed cache.
+  `DefaultAuthorizationManager.decide`, `PermissionFilter.permissionFor`, `WikiPageFormatFilter`
+  and `PageResource.doGet` (unless `render=true`) now use the metadata-free
+  `getPageWithoutMetadata` accessor, matching what `filterViewable()` already did on the batch
+  path. JFR on a production-shaped host attributed **11.6% of all CPU** to `refreshMetadata`;
+  it is now **0.15%**. Measured across n=4 baseline vs n=3 post-fix 3-minute runs at 40/10 VUs
+  against an 18,792-chunk corpus: **-18.2% CPU per 1,000 requests** (non-overlapping
+  distributions, exact Mann-Whitney U=12/12, p=0.029), **-33% GC collections**, **-21.6% median
+  latency**. p95 moved -4.7% and the failure rate is unchanged, so the gain is headroom rather
+  than user-visible latency.
+- `/admin/derived/status` and `/admin/knowledge-graph/pages-without-frontmatter` memoise their
+  corpus scan behind a short TTL instead of re-scanning every poll — roughly **10x** and **9x**
+  faster respectively on a warm cache. `handleReflow` invalidates the derived-status cache, and
+  the knowledge-graph endpoint caches the scan *result* rather than the response, so `limit` /
+  `offset` pagination is unaffected.
+
+### Added
+- `wikantik.search.dense.lucene.quantization` (default `none`) selects the Lucene HNSW vector
+  codec: `none`, `seven_bit`, `unsigned_byte` or `packed_nibble`. **Shipped opt-in and not
+  recommended on current evidence** — measured, it gave no CPU benefit, because
+  `Lucene104ScalarQuantizedVectorsFormat` retains the raw float32 vectors alongside the quantized
+  ones for exact rescoring, so the reads that dominate the frame do not go away. A recall parity
+  gate (`inmemory_and_quantized_hnsw_within_recall_epsilon`) pins 7-bit quantization within
+  nDCG@5 <= 0.02 of brute force. `SearchWiringHelper` and `SearchSubsystemFactory` now log the
+  resolved `quantization=`: an operator-facing toggle that cannot be observed is not finished.
+- `wikantik.admin.derived.statusCacheTTL` and
+  `wikantik.admin.kg.pagesWithoutFrontmatterCacheTTL` (both default 30s) control the admin
+  memoisation above.
+
+### Fixed
+- `bin/lib/jfr-cpu-report.py` streams `jfr print` output line by line instead of buffering the
+  whole expansion in memory. At `--stack-depth 40` an allocation pass over ~23k events is
+  hundreds of MB of text, arriving at the end of a profiling run when the box is already loaded.
+  Peak RSS is now 878 MB with byte-identical output.
+
 ## [2.4.27] - 2026-09-22
 
 ### Security

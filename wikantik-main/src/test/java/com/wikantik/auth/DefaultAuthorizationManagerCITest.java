@@ -32,6 +32,7 @@ import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.providers.PageProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -77,6 +78,50 @@ class DefaultAuthorizationManagerCITest {
         mgr = new DefaultAuthorizationManager( engine, pageManager, aclManager, groupManager, userManager );
     }
 
+    /**
+     * Regression guard from the 2026-09-25 profiling campaign: an authorization decision
+     * must NOT force a markdown parse.
+     *
+     * <p>{@code decide()} loaded the page with {@link PageManager#getPage(String)}, which
+     * routes through {@code CachingProvider.refreshMetadata} and runs a full flexmark parse
+     * (plus a second one inside {@code collectLinks}) to populate {@code [{SET}]} page
+     * variables. Nothing on this path reads them: the page feeds
+     * {@code aclManager().getPermissions(page)} and {@code decideByAcl}, and inline
+     * {@code [{ALLOW ...}]} ACLs are resolved by {@code DefaultAclManager} from the raw page
+     * text behind its own version-keyed cache. {@code filterViewable} in this same class
+     * already used the metadata-free accessor; {@code decide} was the un-migrated sibling.</p>
+     *
+     * <p>JFR on a production-shaped host attributed 13.65% of ALL CPU to
+     * {@code refreshMetadata}, and the full caller chains showed <b>~90% of it funnelling
+     * through {@code decide}</b> — 74% via {@code checkPermission}, 12% via
+     * {@code isPermitted}, and 3% via {@code DefaultLuceneSearcher.findPages}, which had
+     * already been migrated to the metadata-free accessor only to have {@code decide} undo
+     * it on the next line.</p>
+     *
+     * <p>This guard lives HERE, not on {@code PermissionFilter}: an earlier version asserted
+     * only that {@code PermissionFilter}'s own call site had changed, which passed while the
+     * system carried on parsing on every request. Assert at the layer that actually loads
+     * the page.</p>
+     */
+    @Test
+    void pagePermissionDecisionMustNotForceMetadataParse() {
+        final Page page = mock( Page.class );
+        when( page.getName() ).thenReturn( "GuardedPage" );
+        when( pageManager.getPageWithoutMetadata( "GuardedPage", PageProvider.LATEST_VERSION ) )
+                .thenReturn( page );
+        when( aclManager.getPermissions( page ) ).thenReturn( null );
+
+        final Session session = mockSession( true, new WikiPrincipal( "alice" ) );
+        final DefaultAuthorizationManager spy = spy( mgr );
+        doReturn( false ).doReturn( true ).when( spy ).checkStaticPermission( any(), any() );
+
+        assertTrue( spy.checkPermission( session, new PagePermission( "test:GuardedPage", "view" ) ) );
+
+        verify( pageManager ).getPageWithoutMetadata( "GuardedPage", PageProvider.LATEST_VERSION );
+        verify( pageManager, never() ).getPage( anyString() );
+        verify( pageManager, never() ).getPage( anyString(), anyInt() );
+    }
+
     // ==================== checkPermission — PagePermission with ACL ====================
 
     @Test
@@ -84,7 +129,7 @@ class DefaultAuthorizationManagerCITest {
         // Setup: page exists but has no ACL
         final Page page = mock( Page.class );
         when( page.getName() ).thenReturn( "NoAclPage" );
-        when( pageManager.getPage( "NoAclPage" ) ).thenReturn( page );
+        when( pageManager.getPageWithoutMetadata( "NoAclPage", PageProvider.LATEST_VERSION ) ).thenReturn( page );
         when( aclManager.getPermissions( page ) ).thenReturn( null );
 
         final Session session = mockSession( true, new WikiPrincipal( "alice" ) );
@@ -104,7 +149,7 @@ class DefaultAuthorizationManagerCITest {
         // Setup: page has ACL that doesn't include the user
         final Page page = mock( Page.class );
         when( page.getName() ).thenReturn( "AclPage" );
-        when( pageManager.getPage( "AclPage" ) ).thenReturn( page );
+        when( pageManager.getPageWithoutMetadata( "AclPage", PageProvider.LATEST_VERSION ) ).thenReturn( page );
 
         final Acl acl = mock( Acl.class );
         when( acl.isEmpty() ).thenReturn( false );
@@ -129,7 +174,7 @@ class DefaultAuthorizationManagerCITest {
         // Setup: page has ACL that includes the user
         final Page page = mock( Page.class );
         when( page.getName() ).thenReturn( "AclPage" );
-        when( pageManager.getPage( "AclPage" ) ).thenReturn( page );
+        when( pageManager.getPageWithoutMetadata( "AclPage", PageProvider.LATEST_VERSION ) ).thenReturn( page );
 
         final Acl acl = mock( Acl.class );
         when( acl.isEmpty() ).thenReturn( false );
@@ -165,7 +210,7 @@ class DefaultAuthorizationManagerCITest {
     @Test
     void checkPermissionAllowsWhenPageDoesNotExist() {
         // page not found => allowed (no ACL to restrict)
-        when( pageManager.getPage( "MissingPage" ) ).thenReturn( null );
+        when( pageManager.getPageWithoutMetadata( "MissingPage", PageProvider.LATEST_VERSION ) ).thenReturn( null );
 
         final Session session = mockSession( true, new WikiPrincipal( "alice" ) );
         final DefaultAuthorizationManager spy = spy( mgr );
@@ -181,7 +226,7 @@ class DefaultAuthorizationManagerCITest {
     void checkPermissionResolvesUnresolvedPrincipalInAcl() {
         final Page page = mock( Page.class );
         when( page.getName() ).thenReturn( "AclPage" );
-        when( pageManager.getPage( "AclPage" ) ).thenReturn( page );
+        when( pageManager.getPageWithoutMetadata( "AclPage", PageProvider.LATEST_VERSION ) ).thenReturn( page );
 
         final Acl acl = mock( Acl.class );
         when( acl.isEmpty() ).thenReturn( false );

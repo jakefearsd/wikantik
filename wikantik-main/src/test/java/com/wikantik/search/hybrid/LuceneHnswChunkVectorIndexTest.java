@@ -28,6 +28,53 @@ class LuceneHnswChunkVectorIndexTest {
 
     private static float[] unit( final float... v ) { return v; }
 
+    /** One-hot vector of length {@code dim} with 1.0 at {@code axis}. */
+    private static float[] axis( final int dim, final int axis ) {
+        final float[] v = new float[ dim ];
+        v[ axis ] = 1f;
+        return v;
+    }
+
+    /**
+     * A scalar-quantized index must still rank nearest-first and map ids to pages
+     * correctly. Quantization is lossy, so scores are asserted with a loose bound —
+     * the ORDER and the id/page mapping are the contract, not the exact cosine.
+     *
+     * <p>Motivation (2026-09-25 profiling campaign): topKChunks was 36.77% of all CPU,
+     * with 58.25% of its leaf samples in {@code ByteBuffersDataInput.readFloats} against
+     * 13.70% in {@code cosineBody} — the vector READ dominates the vector MATH. Uses a
+     * realistic dimension rather than 3, because quantization pads/packs dimensions and
+     * a 3-dim index is not representative of the 1024-dim production index.</p>
+     */
+    @Test
+    void quantizedIndexStillRanksNearestFirstAndMapsPages() {
+        final int dim = 64;
+        final LuceneHnswChunkVectorIndex idx = LuceneHnswChunkVectorIndex.forTesting(
+            dim, new HnswParams( 16, 64, 100, HnswParams.Quantization.SEVEN_BIT ) );
+
+        final UUID a = UUID.randomUUID();
+        final UUID b = UUID.randomUUID();
+        final UUID c = UUID.randomUUID();
+        idx.addOrReplace( a, "PageA", axis( dim, 0 ) );
+        idx.addOrReplace( b, "PageB", axis( dim, 1 ) );
+        idx.addOrReplace( c, "PageC", axis( dim, 2 ) );
+        idx.commitAndRefresh();
+
+        assertTrue( idx.isReady() );
+        assertEquals( 3, idx.size() );
+
+        final List< ScoredChunk > top = idx.topKChunks( axis( dim, 0 ), 3 );
+        assertEquals( 3, top.size() );
+        assertEquals( a, top.get( 0 ).chunkId(), "nearest vector must rank first under quantization" );
+        assertEquals( "PageA", top.get( 0 ).pageName(), "id->page mapping must survive quantization" );
+        assertTrue( top.get( 0 ).score() > 0.9,
+            "quantized self-similarity should stay near 1.0, got " + top.get( 0 ).score() );
+        for ( int i = 1; i < top.size(); i++ ) {
+            assertTrue( top.get( i - 1 ).score() >= top.get( i ).score(),
+                "scores must be non-increasing under quantization" );
+        }
+    }
+
     @Test
     void ranksNearestVectorFirstAndMapsCosineScore() {
         final HnswParams params = new HnswParams( 16, 64, 100 );

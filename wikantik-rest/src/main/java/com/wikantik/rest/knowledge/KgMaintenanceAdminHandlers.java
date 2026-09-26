@@ -89,6 +89,76 @@ public final class KgMaintenanceAdminHandlers {
 
     // --- Pages without frontmatter ---
 
+    /**
+     *  Cached result of the corpus scan behind {@code /pages-without-frontmatter}.
+     *
+     *  <p>The handler walks every page and runs {@code getPureText} plus a full YAML parse
+     *  just to test {@code parsed.metadata().isEmpty()}. {@code getAllPages()} and the page
+     *  text are both already cached by {@code CachingProvider}, so the cost is purely the
+     *  per-page SnakeYAML parse — roughly 1,200 of them per request on this corpus. Once the
+     *  sibling derived-status endpoint was memoised, the 2026-09-26 profiling campaign put
+     *  this handler at 46% of {@code FrontmatterParser.parseYaml} and 62% of {@code split}.</p>
+     *
+     *  <p>The SCAN RESULT is cached, not the response: {@code limit}/{@code offset} must
+     *  still paginate per request. Held as a plain volatile snapshot rather than a Caffeine
+     *  cache — one value, and Caffeine is not a dependency of this module.</p>
+     */
+    private volatile List< Map< String, Object > > cachedPagesWithoutFm;
+    private volatile long cachedPagesWithoutFmAtMs;
+
+    /** TTL in seconds for {@link #cachedPagesWithoutFm}; {@code <= 0} disables caching. */
+    private long pagesWithoutFrontmatterCacheTtlSeconds() {
+        final Engine eng = engine.get();
+        if ( eng == null ) {
+            return 30L;
+        }
+        final String raw = eng.getWikiProperties()
+                .getProperty( "wikantik.admin.kg.pagesWithoutFrontmatterCacheTTL", "30" );
+        try {
+            return Long.parseLong( raw.trim() );
+        } catch ( final NumberFormatException e ) {
+            // Fail SAFE, not closed: a typo must not silently restore the full-corpus scan.
+            LOG.warn( "Invalid wikantik.admin.kg.pagesWithoutFrontmatterCacheTTL='{}' — using 30s", raw );
+            return 30L;
+        }
+    }
+
+    /**
+     *  Returns the sorted list of pages lacking frontmatter, rescanning only when the cache
+     *  is empty or older than {@link #pagesWithoutFrontmatterCacheTtlSeconds()}.
+     */
+    private List< Map< String, Object > > pagesWithoutFrontmatterSnapshot(
+            final PageManager pm, final SystemPageRegistry spr ) throws Exception {
+        final long ttl = pagesWithoutFrontmatterCacheTtlSeconds();
+        if ( ttl > 0 ) {
+            final List< Map< String, Object > > cached = cachedPagesWithoutFm;
+            if ( cached != null
+                 && System.currentTimeMillis() - cachedPagesWithoutFmAtMs < ttl * 1000L ) {
+                return cached;
+            }
+        }
+        final List< Map< String, Object > > pages = new ArrayList<>();
+        for ( final Page page : pm.getAllPages() ) {
+            if ( spr != null && spr.isSystemPage( page.getName() ) ) {
+                continue;
+            }
+            final String text = pm.getPureText( page );
+            final ParsedPage parsed = FrontmatterParser.parse( text != null ? text : "" );
+            if ( parsed.metadata().isEmpty() ) {
+                final Map< String, Object > entry = new LinkedHashMap<>();
+                entry.put( "name", page.getName() );
+                entry.put( "lastModified", page.getLastModified() != null
+                        ? page.getLastModified().toInstant().toString() : null );
+                pages.add( entry );
+            }
+        }
+        pages.sort( Comparator.comparing( m -> ( String ) m.get( "name" ) ) );
+        final List< Map< String, Object > > snapshot = List.copyOf( pages );
+        cachedPagesWithoutFm = snapshot;
+        cachedPagesWithoutFmAtMs = System.currentTimeMillis();
+        return snapshot;
+    }
+
     public void handleGetPagesWithoutFrontmatter( final HttpServletRequest request,
                                                    final HttpServletResponse response ) throws IOException {
         final PageManager pm = pageManager.get();
@@ -100,22 +170,7 @@ public final class KgMaintenanceAdminHandlers {
         final int limit = AdminKnowledgeIo.parseIntParam( request, "limit", 100 );
         final int offset = AdminKnowledgeIo.parseIntParam( request, "offset", 0 );
         try {
-            final List< Map< String, Object > > pages = new ArrayList<>();
-            for ( final Page page : pm.getAllPages() ) {
-                if ( spr != null && spr.isSystemPage( page.getName() ) ) {
-                    continue;
-                }
-                final String text = pm.getPureText( page );
-                final ParsedPage parsed = FrontmatterParser.parse( text != null ? text : "" );
-                if ( parsed.metadata().isEmpty() ) {
-                    final Map< String, Object > entry = new LinkedHashMap<>();
-                    entry.put( "name", page.getName() );
-                    entry.put( "lastModified", page.getLastModified() != null
-                            ? page.getLastModified().toInstant().toString() : null );
-                    pages.add( entry );
-                }
-            }
-            pages.sort( Comparator.comparing( m -> ( String ) m.get( "name" ) ) );
+            final List< Map< String, Object > > pages = pagesWithoutFrontmatterSnapshot( pm, spr );
             final int total = pages.size();
             final List< Map< String, Object > > paged = pages.subList(
                     Math.min( offset, total ), Math.min( offset + limit, total ) );

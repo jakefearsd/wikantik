@@ -223,8 +223,10 @@ public final class SearchWiringHelper {
                 vectorIndex = hnswIndex;
                 upsertCallback = hnswIndex::upsertChunks;
                 indexReloadHook = hnswIndex::reload;
-                LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, ef_search={}, size={})",
-                    modelCode, params.m(), params.efConstruction(), params.efSearch(), hnswIndex.size() );
+                LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, "
+                        + "ef_search={}, quantization={}, size={})",
+                    modelCode, params.m(), params.efConstruction(), params.efSearch(),
+                    params.quantization(), hnswIndex.size() );
             } else if ( DenseBackends.INMEMORY.equals( denseBackend ) ) {
                 final InMemoryChunkVectorIndex memIndex = new InMemoryChunkVectorIndex( ds, modelCode );
                 vectorIndex = memIndex;

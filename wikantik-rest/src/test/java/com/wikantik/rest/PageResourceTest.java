@@ -26,6 +26,7 @@ import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.auth.Users;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.providers.PageProvider;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 
@@ -83,8 +84,82 @@ class PageResourceTest {
         engine.deleteQuietly( "RestTestPage", "RestEventPage", "RestTestFrontmatter", "RestPutPage",
                 "RestDeletePage", "RestRenderPage", "RestPluginPage", "RestPluginLinkPage", "RestEditLinkPage",
                 "RestVersionPage", "RestPatchMergePage", "RestPatchReplacePage", "RestRenameSource",
-                "RestRenameTarget", "RestRenameExisting", "RestBadVersionPage" );
+                "RestRenameTarget", "RestRenameExisting", "RestBadVersionPage",
+                "RestNoParsePage", "RestRenderMetaPage" );
         engine.getWikiProperties().remove( "wikantik.cors.allowedOrigins" );
+    }
+
+    /**
+     * Guard from the 2026-09-25 profiling campaign: a page read that is not rendering
+     * must not force a markdown parse.
+     *
+     * <p>After the authorization fix, {@code CachingProvider.refreshMetadata} was still
+     * 10.00% of ALL CPU and <b>100% of it arrived through this endpoint</b> —
+     * {@code doGet}'s own {@code pm.getPage}. The parse exists to populate {@code [{SET}]}
+     * page variables, which only the rendering path consumes: this payload takes its
+     * metadata from {@code FrontmatterParser.parse(rawText)} directly and otherwise reads
+     * only name/version/author/lastModified.</p>
+     *
+     * <p>Asserted as a PROPERTY of the cached page rather than as "which accessor was
+     * called", because an earlier guard in this campaign asserted the call site and passed
+     * while the system carried on parsing on every request.</p>
+     */
+    @Test
+    void nonRenderGetMustNotForceMetadataParse() throws Exception {
+        engine.saveText( "RestNoParsePage", "Body that needs no page variables." );
+
+        final PageManager pm = engine.getManager( PageManager.class );
+
+        // saveText parses the page as a side effect, so the cached instance ALREADY
+        // carries metadata. Clear just the flag (clearHasMetadata preserves attributes
+        // and the ACL) so this guard observes the ENDPOINT instead of its own setup.
+        // Without this the test fails for the wrong reason — it did, on 2026-09-26,
+        // and briefly looked like a doGet defect.
+        final com.wikantik.api.core.Page seeded =
+                pm.getPageWithoutMetadata( "RestNoParsePage", PageProvider.LATEST_VERSION );
+        assertNotNull( seeded );
+        seeded.clearHasMetadata();
+        assertFalse( seeded.hasMetadata(), "PRECONDITION: flag cleared before the GET" );
+
+        doGet( "RestNoParsePage" );
+
+        final com.wikantik.api.core.Page cached =
+                pm.getPageWithoutMetadata( "RestNoParsePage", PageProvider.LATEST_VERSION );
+        assertNotNull( cached );
+        assertFalse( cached.hasMetadata(),
+            "a GET without ?render=true must not trigger refreshMetadata's flexmark parse" );
+    }
+
+    /**
+     * The other direction of the same conditional, and the real risk of the change:
+     * {@code ?render=true} builds {@code Wiki.context().create(engine, request, page)} and
+     * calls {@code textToHTML}, so the metadata parse MUST still happen there or
+     * {@code [{SET}]} page variables silently stop resolving in rendered output.
+     */
+    @Test
+    void renderGetStillPopulatesMetadataForPageVariables() throws Exception {
+        engine.saveText( "RestRenderMetaPage", "Rendered **body** text." );
+
+        final PageManager pmRender = engine.getManager( PageManager.class );
+        // Same trap as the sibling guard: without clearing the flag first, the
+        // assertion below passes whether or not render=true parses anything.
+        final com.wikantik.api.core.Page seededRender =
+                pmRender.getPageWithoutMetadata( "RestRenderMetaPage", PageProvider.LATEST_VERSION );
+        assertNotNull( seededRender );
+        seededRender.clearHasMetadata();
+        assertFalse( seededRender.hasMetadata(), "PRECONDITION: flag cleared before the render GET" );
+
+        final String json = doGetWithParams( "RestRenderMetaPage", Map.of( "render", "true" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        assertNotNull( obj.get( "contentHtml" ), "render=true must return rendered HTML" );
+        assertFalse( obj.get( "contentHtml" ).isJsonNull(),
+            "render=true must not degrade to a null contentHtml" );
+
+        final com.wikantik.api.core.Page cached =
+                pmRender.getPageWithoutMetadata( "RestRenderMetaPage", PageProvider.LATEST_VERSION );
+        assertNotNull( cached );
+        assertTrue( cached.hasMetadata(),
+            "render=true MUST keep the metadata parse so [{SET}] page variables resolve" );
     }
 
     @Test

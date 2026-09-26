@@ -170,6 +170,17 @@ public class PageResource extends RestServletBase {
         final Engine engine = getEngine();
         final PageManager pm = getSubsystems().page().pages();
 
+        // Rendering decision is hoisted ABOVE the page load because it selects the
+        // accessor: only the rendering path needs page metadata. textToHTML builds a
+        // Context on the page, so [{SET}] page variables must be populated there; the
+        // JSON payload otherwise reads name/version/author/lastModified and takes its
+        // metadata from FrontmatterParser.parse(rawText) directly.
+        //
+        // 2026-09-25 profiling campaign: after the authorization fix,
+        // CachingProvider.refreshMetadata was still 10.00% of ALL CPU and 100% of it
+        // arrived through this endpoint's own getPage.
+        final boolean render = "true".equalsIgnoreCase( request.getParameter( "render" ) );
+
         // Version-specific retrieval
         final String versionParam = request.getParameter( "version" );
         final Page page;
@@ -185,7 +196,8 @@ public class PageResource extends RestServletBase {
                 sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid version number: " + versionParam );
                 return;
             }
-            page = pm.getPage( pageName, version );
+            page = render ? pm.getPage( pageName, version )
+                          : pm.getPageWithoutMetadata( pageName, version );
             if ( page == null ) {
                 sendNotFound( response, "Page not found: " + pageName + " version " + version );
                 return;
@@ -196,7 +208,8 @@ public class PageResource extends RestServletBase {
                 return;
             }
         } else {
-            page = pm.getPage( pageName );
+            page = render ? pm.getPage( pageName )
+                          : pm.getPageWithoutMetadata( pageName, PageProvider.LATEST_VERSION );
             if ( page == null ) {
                 sendNotFound( response, "Page not found: " + pageName );
                 return;
@@ -240,7 +253,7 @@ public class PageResource extends RestServletBase {
         result.put( "content", parsed.body() );
 
         // Rendered HTML option
-        if ( "true".equalsIgnoreCase( request.getParameter( "render" ) ) ) {
+        if ( render ) {
             final long t0 = System.nanoTime();
             try {
                 final RenderingManager renderingManager = getSubsystems().rendering().renderingManager();

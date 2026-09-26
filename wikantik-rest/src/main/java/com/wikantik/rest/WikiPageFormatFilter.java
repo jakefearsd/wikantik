@@ -148,7 +148,14 @@ public class WikiPageFormatFilter implements Filter {
             resp.sendError( HttpServletResponse.SC_NOT_FOUND, "Page not found: " + pageName );
             return;
         }
-        final Page page = pm.getPage( pageName );
+        // Metadata-free: this filter reads only page.getName() and page.getLastModified()
+        // (see firePageRequested / writeMarkdown / writeJson). getPage would route through
+        // CachingProvider.refreshMetadata, which runs a full flexmark parse plus a second
+        // one inside collectLinks purely to populate [{SET}] page variables that nothing
+        // here consumes. The 2026-09-25 JFR campaign put refreshMetadata at 13.65% of all
+        // CPU, with 13% of it reached from this filter.
+        final Page page = pm.getPageWithoutMetadata(
+                pageName, com.wikantik.api.providers.PageProvider.LATEST_VERSION );
         if ( page == null ) {
             resp.sendError( HttpServletResponse.SC_NOT_FOUND, "Page not found: " + pageName );
             return;

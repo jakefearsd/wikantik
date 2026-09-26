@@ -277,7 +277,11 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         for ( final String name : fused ) {
             final SearchResult existing = byName.get( name );
             if ( existing != null ) { out.add( existing ); continue; }
-            final Page p = pageManager.getPage( name );
+            // Metadata-free: the page is wrapped in DenseOnlySearchResult, which exposes only
+            // getPage()/getScore()/getContexts(), and consumers read getPage().getName().
+            // 2.9% of the refreshMetadata cost in the 2026-09-25 JFR.
+            final Page p = pageManager.getPageWithoutMetadata(
+                name, com.wikantik.api.providers.PageProvider.LATEST_VERSION );
             if ( p == null ) continue;
             out.add( new DenseOnlySearchResult( p ) );
         }

@@ -126,7 +126,11 @@ public final class BundleServiceWiring {
                         : dao.findBySlug( slug ).map( PageCanonicalIdsDao.Row::canonicalId );
         final Function< String, Integer > versionOf = slug -> {
             if ( pageManager == null ) return 0;
-            final Page p = pageManager.getPage( slug );
+            // Metadata-free: this lambda needs the version and nothing else, so it must not
+            // trigger CachingProvider.refreshMetadata's flexmark parse (4.4% of the
+            // refreshMetadata cost in the 2026-09-25 JFR, reached via citeAndDedup).
+            final Page p = pageManager.getPageWithoutMetadata(
+                slug, com.wikantik.api.providers.PageProvider.LATEST_VERSION );
             return p == null ? 0 : p.getVersion();
         };
 

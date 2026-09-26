@@ -38,7 +38,8 @@ import java.util.List;
  * etc.) into an allow/deny decision by:
  *
  * <ol>
- *   <li>looking the page up via {@link PageManager},</li>
+ *   <li>looking the page up via {@link PageManager#getPageWithoutMetadata(String, int)} —
+ *       metadata-free, because no part of a permission decision reads page variables,</li>
  *   <li>constructing a {@link PagePermission} — via
  *       {@link PermissionFactory#getPagePermission(Page, String)} when the
  *       page exists (so inline {@code [{ALLOW ...}]} ACLs are honoured), or
@@ -60,9 +61,26 @@ public class PermissionFilter {
         this.engine = engine;
     }
 
-    /** Builds the PagePermission for a page+action, honouring inline ACLs when the page exists. */
+    /**
+     * Builds the PagePermission for a page+action, honouring inline ACLs when the page exists.
+     *
+     * <p>Loads the page with {@link PageManager#getPageWithoutMetadata(String, int)}, NOT
+     * {@code getPage}. A permission decision reads only the page's wiki and name (via
+     * {@link PermissionFactory#getPagePermission(Page, String)}); inline {@code [{ALLOW ...}]}
+     * ACLs are resolved separately by {@code DefaultAclManager.getPermissions}, which reads the
+     * raw page text itself behind a version-keyed cache. {@code getPage} routes through
+     * {@code CachingProvider.refreshMetadata}, which runs a full flexmark parse (plus a second
+     * one inside {@code collectLinks}) purely to populate {@code [{SET}]} page variables that
+     * nothing on this path consumes.</p>
+     *
+     * <p>JFR on a production-shaped host (2026-09-25 campaign) attributed <b>13.65% of all
+     * CPU</b> to {@code refreshMetadata}, 88% of it reached from permission checks. This
+     * mirrors what {@code DefaultAuthorizationManager.filterViewable} already does on the
+     * batch path, so the two are now consistent.</p>
+     */
     private Permission permissionFor( final String pageName, final String action ) {
-        final Page page = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
+        final Page page = PageSubsystemBridge.fromLegacyEngine( engine ).pages()
+                .getPageWithoutMetadata( pageName, com.wikantik.api.providers.PageProvider.LATEST_VERSION );
         return ( page != null )
                 ? PermissionFactory.getPagePermission( page, action )
                 : new PagePermission( engine.getApplicationName() + ":" + pageName, action );

@@ -28,24 +28,38 @@ FRAME_RE = re.compile(r'^\s+([a-zA-Z_$][\w$.]*\.[\w$<>]+)\(')
 APP_PREFIX = 'com.wikantik.'
 
 
-def run_jfr(jfr_bin, path, event, depth):
-    """Return `jfr print` stdout for one event type, or '' if it fails."""
+def stream_jfr(jfr_bin, path, event, depth):
+    """Yield `jfr print` stdout LINE BY LINE for one event type.
+
+    Streams deliberately. The previous version used subprocess.run(
+    capture_output=True), which holds the entire expansion of the recording in
+    one Python string — at --stack-depth 40 an allocation pass over ~23k events
+    is hundreds of MB of text, and it lands at the END of a profiling run when
+    the box is already loaded. That OOM-killed a 3-minute iteration on
+    2026-09-25 after the load phase had already completed, losing the run.
+    Memory is now bounded by one line regardless of recording size.
+    """
     try:
-        proc = subprocess.run(
+        proc = subprocess.Popen(
             [jfr_bin, 'print', '--events', event, '--stack-depth', str(depth), str(path)],
-            capture_output=True, text=True, timeout=900)
-    except (OSError, subprocess.TimeoutExpired) as exc:
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    except OSError as exc:
         print(f"  WARN: jfr print {event} failed: {exc}", file=sys.stderr)
-        return ''
-    if proc.returncode != 0:
-        # Not fatal: a recording legitimately may not contain this event type.
-        print(f"  WARN: jfr print {event} exit={proc.returncode}: "
-              f"{proc.stderr.strip()[:200]}", file=sys.stderr)
-        return ''
-    return proc.stdout
+        return
+    try:
+        for line in proc.stdout:
+            yield line.rstrip('\n')
+    finally:
+        proc.stdout.close()
+        err = proc.stderr.read()
+        proc.stderr.close()
+        rc = proc.wait()
+        if rc != 0:
+            # Not fatal: a recording legitimately may not contain this event type.
+            print(f"  WARN: jfr print {event} exit={rc}: {err.strip()[:200]}", file=sys.stderr)
 
 
-def split_samples(text):
+def split_samples(lines):
     """Yield the ordered frame list for each event in `jfr print` output.
 
     Events are separated by a line starting with the event name and '{'. Frames
@@ -54,7 +68,7 @@ def split_samples(text):
     """
     frames = []
     in_stack = False
-    for line in text.splitlines():
+    for line in lines:
         stripped = line.strip()
         # New event: flush whatever the previous one collected.
         if stripped.startswith('jdk.') and stripped.endswith('{'):
@@ -78,12 +92,12 @@ def split_samples(text):
         yield frames
 
 
-def tally(text):
-    """Return (leaf_counter, app_counter, total_samples)."""
+def tally(lines):
+    """Return (leaf_counter, app_counter, total_samples). Consumes a line iterator."""
     leaf = collections.Counter()
     app = collections.Counter()
     total = 0
-    for frames in split_samples(text):
+    for frames in split_samples(lines):
         if not frames:
             continue
         total += 1
@@ -120,8 +134,7 @@ def main():
     jfr_bin = 'jfr'
 
     # --- CPU -----------------------------------------------------------------
-    text = run_jfr(jfr_bin, jfr_path, 'jdk.ExecutionSample', 40)
-    leaf, app, total = tally(text)
+    leaf, app, total = tally(stream_jfr(jfr_bin, jfr_path, 'jdk.ExecutionSample', 40))
     write_table(out_dir / 'cpu-leaf.txt',
                 'CPU by LEAF frame (where cycles are spent)', leaf, total)
     write_table(out_dir / 'cpu-wikantik.txt',
@@ -129,8 +142,7 @@ def main():
     print(f"  ExecutionSample: {total} samples")
 
     # --- allocation ----------------------------------------------------------
-    alloc_text = run_jfr(jfr_bin, jfr_path, 'jdk.ObjectAllocationSample', 40)
-    a_leaf, a_app, a_total = tally(alloc_text)
+    a_leaf, a_app, a_total = tally(stream_jfr(jfr_bin, jfr_path, 'jdk.ObjectAllocationSample', 40))
     lines = ["# Allocation by deepest com.wikantik frame",
              f"# total samples: {a_total}", ""]
     if a_total:
@@ -145,8 +157,7 @@ def main():
     print(f"  ObjectAllocationSample: {a_total} samples")
 
     # --- monitor contention --------------------------------------------------
-    mon_text = run_jfr(jfr_bin, jfr_path, 'jdk.JavaMonitorEnter', 20)
-    m_leaf, m_app, m_total = tally(mon_text)
+    m_leaf, m_app, m_total = tally(stream_jfr(jfr_bin, jfr_path, 'jdk.JavaMonitorEnter', 20))
     lines = ["# Contended monitor ENTER by blocking application frame",
              f"# total events: {m_total}",
              "# (event count, not time — a few long blocks can matter more"

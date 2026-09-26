@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KgNode;
@@ -713,6 +714,48 @@ class AdminKnowledgeResourceMockTest {
         // Either succeeds (returns pages array) or fails with an error code — both paths
         // exercise the handler without needing any KG data.
         assertTrue( obj.has( "pages" ) || obj.has( "error" ) );
+    }
+
+    /**
+     * Guard from the 2026-09-26 profiling campaign: this endpoint must not re-scan and
+     * re-parse the whole corpus on every poll.
+     *
+     * <p>{@code handleGetPagesWithoutFrontmatter} walks {@code pm.getAllPages()} and runs
+     * {@code getPureText} + a full YAML parse per page to test
+     * {@code parsed.metadata().isEmpty()}. Once the sibling derived-status endpoint was
+     * memoised, JFR put this one at <b>46% of {@code FrontmatterParser.parseYaml}</b> and
+     * <b>62% of {@code split}</b>. {@code getAllPages()} and the page text are both already
+     * cached, so the cost is purely the ~1,200 SnakeYAML parses.</p>
+     *
+     * <p>Counted through a delegating {@link PageManager} installed via {@code setManager} —
+     * {@code PageManager} is in {@code SNAPSHOT_REBUILDERS}, so the hot swap is visible to
+     * {@code getSubsystems().page().pages()}. Counting REAL calls rather than asserting a
+     * cache field keeps this from going vacuous, which bit three earlier guards in this
+     * campaign.</p>
+     */
+    @Test
+    void repeatedPagesWithoutFrontmatterPollsMustNotRescanTheCorpus() throws Exception {
+        final WikiEngine wikiEngine = (WikiEngine) engine;
+        final PageManager real = wikiEngine.getManager( PageManager.class );
+        final java.util.concurrent.atomic.AtomicInteger scans = new java.util.concurrent.atomic.AtomicInteger();
+
+        final PageManager counting = Mockito.mock( PageManager.class, Mockito.withSettings()
+                .defaultAnswer( inv -> inv.getMethod().invoke( real, inv.getArguments() ) ) );
+        Mockito.doAnswer( inv -> { scans.incrementAndGet(); return real.getAllPages(); } )
+               .when( counting ).getAllPages();
+
+        try {
+            wikiEngine.setManager( PageManager.class, counting );
+
+            call( request( "/pages-without-frontmatter" ), "GET" );
+            call( request( "/pages-without-frontmatter" ), "GET" );
+            call( request( "/pages-without-frontmatter" ), "GET" );
+
+            assertEquals( 1, scans.get(),
+                "three polls must trigger exactly one corpus scan — the result is cached" );
+        } finally {
+            wikiEngine.setManager( PageManager.class, real );
+        }
     }
 
     // ---- sync-hub-memberships (no HubSyncService registered in test engine) ----

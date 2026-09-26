@@ -24,6 +24,7 @@ import com.wikantik.WikiSessionTest;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.providers.PageProvider;
 import com.wikantik.auth.AuthorizationManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -69,7 +70,8 @@ class PermissionFilterTest {
         final Page page = mock( Page.class );
         when( page.getName() ).thenReturn( "Real" );
         when( page.getWiki() ).thenReturn( "TestWiki" );
-        when( pageManager.getPage( "Real" ) ).thenReturn( page );
+        when( pageManager.getPageWithoutMetadata( "Real", PageProvider.LATEST_VERSION ) )
+                .thenReturn( page );
         when( authMgr.checkPermission( eq( session ), any( Permission.class ) ) )
                 .thenReturn( true );
 
@@ -77,9 +79,46 @@ class PermissionFilterTest {
         verify( authMgr ).checkPermission( eq( session ), any( Permission.class ) );
     }
 
+    /**
+     * Regression guard from the 2026-09-25 profiling campaign: an ACL decision must NOT
+     * force a full markdown parse.
+     *
+     * <p>{@link PageManager#getPage(String)} routes through
+     * {@code CachingProvider.refreshMetadata}, which runs a full flexmark parse (plus a
+     * second one inside {@code collectLinks}) purely to populate {@code [{SET}]} page
+     * variables. A permission decision reads none of them:
+     * {@link PermissionFactory#getPagePermission(Page, String)} uses only the page's wiki
+     * and name, and inline {@code [{ALLOW ...}]} ACLs are resolved independently by
+     * {@code DefaultAclManager.getPermissions}, which reads the raw page text itself
+     * behind its own version-keyed cache.</p>
+     *
+     * <p>JFR on a production-shaped host attributed <b>13.65% of all CPU</b> to
+     * {@code refreshMetadata}, with 88% of it reached from permission checks
+     * ({@code RestServletBase.checkPagePermission} 60%, the knowledge-MCP guest view gate
+     * 15%, {@code WikiPageFormatFilter} 13%). So this must use the metadata-free
+     * accessor.</p>
+     */
+    @Test
+    void permissionCheckMustNotForceMetadataParse() {
+        final Page page = mock( Page.class );
+        when( page.getName() ).thenReturn( "Real" );
+        when( page.getWiki() ).thenReturn( "TestWiki" );
+        when( pageManager.getPageWithoutMetadata( "Real", PageProvider.LATEST_VERSION ) )
+                .thenReturn( page );
+        when( authMgr.checkPermission( eq( session ), any( Permission.class ) ) )
+                .thenReturn( true );
+
+        assertTrue( filter.canAccess( session, "Real", "view" ) );
+
+        verify( pageManager ).getPageWithoutMetadata( "Real", PageProvider.LATEST_VERSION );
+        verify( pageManager, never() ).getPage( anyString() );
+        verify( pageManager, never() ).getPage( anyString(), anyInt() );
+    }
+
     @Test
     void canAccessFallsBackToPolicyGrantWhenPageMissing() {
-        when( pageManager.getPage( "Nope" ) ).thenReturn( null );
+        when( pageManager.getPageWithoutMetadata( "Nope", PageProvider.LATEST_VERSION ) )
+                .thenReturn( null );
         when( authMgr.checkPermission( eq( session ), any( Permission.class ) ) )
                 .thenReturn( false );
 
@@ -89,7 +128,8 @@ class PermissionFilterTest {
 
     @Test
     void canAccessReturnsAuthManagerDecision() {
-        when( pageManager.getPage( "X" ) ).thenReturn( null );
+        when( pageManager.getPageWithoutMetadata( "X", PageProvider.LATEST_VERSION ) )
+                .thenReturn( null );
         when( authMgr.checkPermission( eq( session ), any( Permission.class ) ) )
                 .thenReturn( true, false );
 
@@ -99,7 +139,7 @@ class PermissionFilterTest {
 
     @Test
     void filterAccessiblePreservesOrderAndDropsForbidden() {
-        when( pageManager.getPage( anyString() ) ).thenReturn( null );
+        when( pageManager.getPageWithoutMetadata( anyString(), anyInt() ) ).thenReturn( null );
         when( authMgr.checkPermission( eq( session ), any( Permission.class ) ) )
                 .thenReturn( true, false, true );
 
@@ -117,7 +157,8 @@ class PermissionFilterTest {
 
     @Test
     void canAccessQuietlyMatchesCanAccessWithoutFiringEvents() {
-        when( pageManager.getPage( "QuietPage" ) ).thenReturn( null );
+        when( pageManager.getPageWithoutMetadata( "QuietPage", PageProvider.LATEST_VERSION ) )
+                .thenReturn( null );
         // Both methods should return false (deny) for an anonymous session on "modify"
         when( authMgr.checkPermission( eq( session ), any( Permission.class ) ) ).thenReturn( false );
         when( authMgr.isPermitted( eq( session ), any( Permission.class ) ) ).thenReturn( false );

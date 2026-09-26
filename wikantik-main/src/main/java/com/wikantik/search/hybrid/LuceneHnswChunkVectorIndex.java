@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.lucene104.Lucene104Codec;
+import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -39,6 +40,7 @@ import org.apache.lucene.index.ReaderUtil;
 import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.VectorSimilarityFunction;
+import org.apache.lucene.util.quantization.QuantizedByteVectorValues;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.SearcherManager;
@@ -165,12 +167,41 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
 
     /** Codec that forces our HNSW build params on the vector field. */
     private static Codec hnswCodec( final HnswParams params ) {
+        // Resolved once, outside the anonymous subclass: KnnVectorsFormat instances are
+        // stateless factories, so building one per field lookup would be pure waste.
+        final KnnVectorsFormat format = vectorsFormat( params );
         return new Lucene104Codec() {
             @Override
             public KnnVectorsFormat getKnnVectorsFormatForField( final String field ) {
-                return new Lucene99HnswVectorsFormat( params.m(), params.efConstruction() );
+                return format;
             }
         };
+    }
+
+    /**
+     * float32 by default; scalar-quantized when {@link HnswParams.Quantization} asks for it.
+     *
+     * <p>Quantization targets the dominant cost measured in the 2026-09-25 profiling campaign:
+     * {@code topKChunks} was 36.77% of all CPU and 58.25% of its leaf samples sat in
+     * {@code ByteBuffersDataInput.readFloats} versus 13.70% in the cosine math — the vector
+     * READ, not the arithmetic. A 1024-dim float32 vector costs a 4 KB read for every
+     * candidate the graph visits; 7-bit encoding makes that ~1 KB.</p>
+     *
+     * <p>The field stays a {@code KnnFloatVectorField} either way — only the codec changes —
+     * and the index is rebuilt from {@code content_chunk_embeddings} on boot, so switching
+     * needs no migration.</p>
+     */
+    private static KnnVectorsFormat vectorsFormat( final HnswParams params ) {
+        final QuantizedByteVectorValues.ScalarEncoding encoding = switch ( params.quantization() ) {
+            case NONE -> null;
+            case SEVEN_BIT -> QuantizedByteVectorValues.ScalarEncoding.SEVEN_BIT;
+            case UNSIGNED_BYTE -> QuantizedByteVectorValues.ScalarEncoding.UNSIGNED_BYTE;
+            case PACKED_NIBBLE -> QuantizedByteVectorValues.ScalarEncoding.PACKED_NIBBLE;
+        };
+        return encoding == null
+            ? new Lucene99HnswVectorsFormat( params.m(), params.efConstruction() )
+            : new Lucene104HnswScalarQuantizedVectorsFormat(
+                encoding, params.m(), params.efConstruction() );
     }
 
     /** Add or replace the vector for a chunk. Caller must {@link #commitAndRefresh()} to publish. */

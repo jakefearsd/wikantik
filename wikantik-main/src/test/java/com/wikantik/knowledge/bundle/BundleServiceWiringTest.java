@@ -130,7 +130,7 @@ class BundleServiceWiringTest {
         final PageManager pm = mock( PageManager.class );
         final Page page = mock( Page.class );
         when( page.getVersion() ).thenReturn( 3 );
-        when( pm.getPage( "PageX" ) ).thenReturn( page );
+        when( pm.getPageWithoutMetadata( "PageX", com.wikantik.api.providers.PageProvider.LATEST_VERSION ) ).thenReturn( page );
 
         final BundleAssemblyService svc = BundleServiceWiring.build( retrieval,
             Map.of( RetrievalMode.HYBRID, denseWith( "PageX" ), RetrievalMode.DENSE, denseWith( "PageX" ) ),
@@ -197,7 +197,7 @@ class BundleServiceWiringTest {
         final PageCanonicalIdsDao dao = mock( PageCanonicalIdsDao.class );
         when( dao.findBySlug( "PageX" ) ).thenReturn( Optional.of( row( "01X", "PageX" ) ) );
         final PageManager pm = mock( PageManager.class );
-        when( pm.getPage( "PageX" ) ).thenReturn( null );
+        when( pm.getPageWithoutMetadata( "PageX", com.wikantik.api.providers.PageProvider.LATEST_VERSION ) ).thenReturn( null );
 
         final ContextBundle b = BundleServiceWiring.build( retrieval,
             Map.of( RetrievalMode.HYBRID, denseWith( "PageX" ), RetrievalMode.DENSE, denseWith( "PageX" ) ),

@@ -65,6 +65,44 @@ public class AdminDerivedResource extends RestServletBase {
     // GET
     // -------------------------------------------------------------------------
 
+    /**
+     *  Cached {@code /status} counters. {@code status()} computes three integers by reading
+     *  and YAML-parsing the frontmatter of EVERY page, so an admin dashboard polling this
+     *  endpoint runs a full-corpus scan per poll. The 2026-09-26 profiling campaign
+     *  attributed ~60% of {@code FrontmatterParser.parseYaml} and ~41% of {@code split} to
+     *  this one handler — roughly 5-6% of all CPU — on corpora (both this one and
+     *  production) where {@code derivedTotal} is a constant zero.
+     *
+     *  <p>Deliberately a plain volatile snapshot rather than a Caffeine cache: this is a
+     *  single 3-integer value, and Caffeine is not currently a dependency of this module.
+     *  Dropped outright by {@link #invalidateStatusCache()} after any reflow, so an
+     *  operator action is never reported stale.</p>
+     */
+    private volatile DerivedReflowService.ReflowStatus cachedStatus;
+    private volatile long cachedStatusAtMs;
+
+    /** TTL in seconds for {@link #cachedStatus}; {@code <= 0} disables caching entirely. */
+    private long statusCacheTtlSeconds() {
+        final var eng = getEngine();
+        if ( eng == null ) {
+            return 30L;
+        }
+        final String raw = eng.getWikiProperties()
+                              .getProperty( "wikantik.admin.derived.statusCacheTTL", "30" );
+        try {
+            return Long.parseLong( raw.trim() );
+        } catch ( final NumberFormatException e ) {
+            // Fail SAFE, not closed: a typo must not turn the scan back on silently.
+            LOG.warn( "Invalid wikantik.admin.derived.statusCacheTTL='{}' — using 30s", raw );
+            return 30L;
+        }
+    }
+
+    /** Drops the cached counters so the next poll recomputes them. */
+    private void invalidateStatusCache() {
+        cachedStatus = null;
+    }
+
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
@@ -77,12 +115,31 @@ public class AdminDerivedResource extends RestServletBase {
     }
 
     private void handleStatus( final HttpServletResponse response ) throws IOException {
-        final DerivedReflowService svc = buildReflowService();
-        final DerivedReflowService.ReflowStatus status = svc.status();
+        final DerivedReflowService.ReflowStatus status = statusSnapshot();
         sendJsonWithStatus( response, 200, Map.of(
             "derivedTotal",          status.derivedTotal(),
             "staleCount",            status.staleCount(),
             "currentExtractorVersion", status.currentExtractorVersion() ) );
+    }
+
+    /**
+     *  Returns the derived-fleet counters, recomputing only when the cache is empty or
+     *  older than {@link #statusCacheTtlSeconds()}. Building the reflow service is itself
+     *  per-request work, so it is deliberately inside the miss branch too.
+     */
+    private DerivedReflowService.ReflowStatus statusSnapshot() {
+        final long ttl = statusCacheTtlSeconds();
+        if ( ttl > 0 ) {
+            final DerivedReflowService.ReflowStatus cached = cachedStatus;
+            if ( cached != null
+                 && System.currentTimeMillis() - cachedStatusAtMs < ttl * 1000L ) {
+                return cached;
+            }
+        }
+        final DerivedReflowService.ReflowStatus fresh = buildReflowService().status();
+        cachedStatus = fresh;
+        cachedStatusAtMs = System.currentTimeMillis();
+        return fresh;
     }
 
     // -------------------------------------------------------------------------
@@ -105,6 +162,9 @@ public class AdminDerivedResource extends RestServletBase {
         final DerivedReflowService svc    = buildReflowService();
         final String               page   = request.getParameter( "page" );
         final String               admin  = resolveAdminAuthor( request );
+
+        // A reflow changes the fleet, so the cached counters are no longer valid.
+        invalidateStatusCache();
 
         if ( page != null && !page.isBlank() ) {
             // Single-page reflow

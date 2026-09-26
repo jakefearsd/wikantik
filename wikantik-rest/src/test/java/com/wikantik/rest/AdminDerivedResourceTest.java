@@ -100,6 +100,59 @@ class AdminDerivedResourceTest {
                           json.get( "currentExtractorVersion" ).getAsInt() );
     }
 
+    /**
+     * Guard from the 2026-09-26 profiling campaign: the dashboard must not re-scan the
+     * whole corpus on every poll.
+     *
+     * <p>{@code GET /admin/derived/status} returns three integers, but {@code status()}
+     * streams every page name through {@code readMetadata} — a {@code getPureText} plus a
+     * full YAML parse per page. JFR attributed ~60% of {@code FrontmatterParser.parseYaml}
+     * and ~41% of {@code split} to this one endpoint, roughly 5-6% of ALL CPU, and it is in
+     * the dashboard polling tier. Both this corpus and production report
+     * {@code derivedTotal: 0}, so that scan pays ~1,200 YAML parses to compute a constant.</p>
+     *
+     * <p>Asserted on the mock, which the Stub returns for every {@code buildReflowService()}
+     * call — so a second GET that does not re-invoke {@code status()} is real memoisation,
+     * not an artefact of the fixture.</p>
+     */
+    @Test
+    void repeatedStatusPollsMustNotRescanTheCorpus() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/status" );
+        when( reflowService.status() ).thenReturn(
+            new DerivedReflowService.ReflowStatus( 5, 2, DerivedPageIngestionService.CURRENT_EXTRACTOR_VERSION ) );
+
+        servlet.doGet( req, resp );
+        servlet.doGet( req, resp );
+        servlet.doGet( req, resp );
+
+        verify( reflowService, times( 1 ) ).status();
+    }
+
+    /**
+     * The other half of the contract: a reflow changes the fleet, so the cached counters
+     * must be dropped or the dashboard reports stale numbers after an operator action.
+     */
+    @Test
+    void reflowInvalidatesTheCachedStatus() throws Exception {
+        when( reflowService.status() ).thenReturn(
+            new DerivedReflowService.ReflowStatus( 5, 2, DerivedPageIngestionService.CURRENT_EXTRACTOR_VERSION ) );
+
+        when( req.getPathInfo() ).thenReturn( "/status" );
+        servlet.doGet( req, resp );
+
+        when( req.getPathInfo() ).thenReturn( "/reflow" );
+        when( req.getParameter( "page" ) ).thenReturn( "MyReport" );
+        when( reflowService.reflow( eq( "MyReport" ), eq( STUB_AUTHOR ) ) )
+            .thenReturn( IngestResult.updated( "MyReport" ) );
+        servlet.doPost( req, resp );
+
+        when( req.getPathInfo() ).thenReturn( "/status" );
+        when( req.getParameter( "page" ) ).thenReturn( null );
+        servlet.doGet( req, resp );
+
+        verify( reflowService, times( 2 ) ).status();
+    }
+
     @Test
     void get_unknownAction_returns404() throws Exception {
         when( req.getPathInfo() ).thenReturn( "/unknown" );

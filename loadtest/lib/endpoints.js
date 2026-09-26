@@ -54,10 +54,20 @@ export function mcpCall(cfg, path) {
   return res;
 }
 
-/** GET the OpenAPI tool server. */
+/**
+ * POST the OpenAPI tool server's search_wiki tool.
+ *
+ * MUST be POST with a JSON body: ToolsOpenApiServlet routes search_wiki in
+ * doPost only (doGet serves /openapi.json and /page/*, then falls through to
+ * writeNotImplemented). Driving it with GET returned 501 on every call — a
+ * 5xx, which this surface's responseCallback does NOT exempt, so it silently
+ * inflated http_req_failed and profiled an error path instead of the tool.
+ */
 export function toolsCall(cfg) {
-  const res = http.get(`${cfg.baseUrl}/tools/search_wiki?q=monitoring`, {
-    headers: cfg.toolsKey ? { Authorization: `Bearer ${cfg.toolsKey}` } : {},
+  const res = http.post(`${cfg.baseUrl}/tools/search_wiki`,
+    JSON.stringify({ query: 'monitoring', maxResults: 10 }), {
+    headers: Object.assign({ 'Content-Type': 'application/json' },
+      cfg.toolsKey ? { Authorization: `Bearer ${cfg.toolsKey}` } : {}),
     tags: { surface: 'tools' },
     // As with MCP: a tools probe rejected at the auth layer (4xx) is expected
     // recorded traffic, not a server failure — keep it out of http_req_failed.

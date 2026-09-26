@@ -230,7 +230,20 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             return new Decision( true, null );
         }
         final String pageName = pagePerm.getPage();
-        final Page page = pageManager().getPage( pageName );
+        // Metadata-free on purpose: the page below feeds ONLY aclManager().getPermissions()
+        // and decideByAcl(). getPage() routes through CachingProvider.refreshMetadata, which
+        // runs a full flexmark parse (plus a second inside collectLinks) to populate [{SET}]
+        // page variables that no part of an authorization decision reads; inline
+        // [{ALLOW ...}] ACLs are resolved by DefaultAclManager from the raw page text behind
+        // its own version-keyed cache. filterViewable() above already loads this way --
+        // decide() was simply the un-migrated sibling.
+        //
+        // The 2026-09-25 profiling campaign measured refreshMetadata at 13.65% of ALL CPU and
+        // the full caller chains put ~90% of it through THIS line: 74% via checkPermission,
+        // 12% via isPermitted, and 3% via DefaultLuceneSearcher.findPages -- which had
+        // already been migrated to the metadata-free accessor only for decide() to undo it
+        // on the very next call.
+        final Page page = pageManager().getPageWithoutMetadata( pageName, PageProvider.LATEST_VERSION );
         final Acl acl = ( page == null ) ? null : aclManager().getPermissions( page );
         if( page == null || acl == null || acl.isEmpty() ) {
             return new Decision( true, null );

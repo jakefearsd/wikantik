@@ -104,4 +104,25 @@ class JenaOntologyQueryServiceTest {
         assertTrue( svc.expandQuery( null ).isEmpty() );
         assertTrue( svc.expandQuery( "   " ).isEmpty() );
     }
+
+    @Test
+    void nonLiteralLabelObjectIsIgnoredWithoutError() {
+        // rdfs:label pointing at a resource (not a literal) is malformed data; the scanner
+        // must skip it rather than blow up trying to read it as a literal.
+        final OntologyQueryService svc = new JenaOntologyQueryService( mgrWith( """
+            wk:Algorithm a owl:Class ; rdfs:label wk:NotALiteral .
+            """ ) );
+        assertTrue( svc.expandQuery( "algorithm" ).isEmpty(),
+                "a non-literal label can never token-match and must not throw" );
+    }
+
+    @Test
+    void blankLabelNeverMatches() {
+        // An empty rdfs:label normalizes to a blank string; containsAllTokens must treat
+        // that as "no tokens to satisfy" and refuse the match rather than matching everything.
+        final OntologyQueryService svc = new JenaOntologyQueryService( mgrWith( """
+            wk:Algorithm a owl:Class ; rdfs:label "" .
+            """ ) );
+        assertTrue( svc.expandQuery( "algorithm" ).isEmpty(), "a blank label must never match" );
+    }
 }

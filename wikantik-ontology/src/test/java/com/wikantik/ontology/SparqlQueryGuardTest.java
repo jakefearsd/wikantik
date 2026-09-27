@@ -80,6 +80,24 @@ class SparqlQueryGuardTest {
     }
 
     @Test
+    void javaFunctionIriInBindIsRejected() {
+        final Query q = QueryFactory.create(
+                "PREFIX java: <java:> SELECT * WHERE { ?s ?p ?o "
+                + "BIND ( <java:java.lang.System.getProperty>(\"user.home\") AS ?x ) }" );
+        assertThrows( IllegalArgumentException.class,
+                () -> SparqlQueryGuard.rejectUnsafeConstructs( q ),
+                "a java: custom-function IRI inside a BIND must also be rejected" );
+    }
+
+    @Test
+    void queryWithNoPatternIsAllowed() {
+        // DESCRIBE with no WHERE clause has a null query pattern; the walker must
+        // treat that as trivially safe rather than NPE-ing on a null Element.
+        final Query q = QueryFactory.create( "DESCRIBE <urn:test:subject>" );
+        assertDoesNotThrow( () -> SparqlQueryGuard.rejectUnsafeConstructs( q ) );
+    }
+
+    @Test
     void installDisablesServiceFederationGlobally() {
         SparqlQueryGuard.install();
         assertFalse( ARQ.globalServiceAllowed, "SERVICE federation must be globally disabled" );

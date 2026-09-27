@@ -18,7 +18,9 @@
  */
 package com.wikantik.ontology;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.apache.jena.rdf.model.Model;
@@ -102,5 +104,31 @@ class OntologyModelManagerTest {
         final String iri = Iris.entity( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000ba" ) );
         mgr.replaceNamedGraph( iri, entityGraph( iri, "Concept" ) );
         assertTrue( mgr.namedGraphSnapshot( iri ).size() == 1, "only the resource's own triples" );
+    }
+
+    @Test
+    void namedGraphCountTracksReplacementsAndRemovals() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        assertEquals( 0L, mgr.namedGraphCount(), "no A-Box graphs right after loadTBox" );
+
+        final String iriA = Iris.entity( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000c1" ) );
+        final String iriB = Iris.entity( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000c2" ) );
+        mgr.replaceNamedGraph( iriA, entityGraph( iriA, "Technology" ) );
+        mgr.replaceNamedGraph( iriB, entityGraph( iriB, "Concept" ) );
+        assertEquals( 2L, mgr.namedGraphCount() );
+
+        mgr.removeNamedGraph( iriA );
+        assertEquals( 1L, mgr.namedGraphCount() );
+    }
+
+    @Test
+    void replaceNamedGraphAbortsAndRethrowsOnNullModel() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        // A null triples model can't be committed; the write must abort cleanly and
+        // rethrow rather than leave the transaction open or silently swallow the error.
+        assertThrows( RuntimeException.class, () -> mgr.replaceNamedGraph( "urn:test:bad-write", null ) );
+        assertFalse( mgr.namedGraphExists( "urn:test:bad-write" ), "failed write left no partial graph" );
     }
 }

@@ -43,13 +43,11 @@ class MentionIndexTest {
     @BeforeAll
     static void init() { dataSource = PostgresTestDb.createDataSource(); }
 
-    @AfterEach
-    void cleanUp() throws Exception {
-        try ( final Connection c = dataSource.getConnection() ) {
-            c.createStatement().execute( "DELETE FROM chunk_entity_mentions" );
-            c.createStatement().execute( "DELETE FROM kg_content_chunks" );
-            c.createStatement().execute( "DELETE FROM kg_nodes" );
-        }
+    // Truncate BEFORE each test: the container is shared by every class in the fork, so an
+    // earlier class's leftover kg_nodes row (e.g. "Alpha") collided with seedNode's insert.
+    @BeforeEach
+    void cleanUp() {
+        PostgresTestDb.truncate( "chunk_entity_mentions", "kg_content_chunks", "kg_nodes" );
     }
 
     @Test

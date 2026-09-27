@@ -201,6 +201,19 @@ class JdbcTest {
     }
 
     @Test
+    void supportsTransactionsReturnsFalseAndLogsWarnWhenConnectionFails() {
+        final Jdbc brokenJdbc = new Jdbc( new FakeDataSource( () -> {
+            throw new UncheckedSqlException( new SQLException( "connection refused" ) );
+        } ) );
+        assertFalse( brokenJdbc.supportsTransactions() );
+    }
+
+    @Test
+    void dataSourceReturnsTheConstructorArgument() {
+        assertEquals( realH2, jdbc.dataSource() );
+    }
+
+    @Test
     void withConnectionLendsOneConnectionWithoutATransaction() throws SQLException {
         final Integer count = jdbc.withConnection( conn -> {
             jdbc.update( conn, "INSERT INTO t (id, name) VALUES (?, ?)", ps -> { ps.setInt( 1, 7 ); ps.setString( 2, "x" ); } );

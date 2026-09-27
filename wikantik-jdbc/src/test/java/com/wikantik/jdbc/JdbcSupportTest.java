@@ -77,6 +77,61 @@ class JdbcSupportTest {
         < T > T runInTransaction( final TransactionBody< T > body ) throws SQLException {
             return inTransaction( body );
         }
+
+        List< String > namesOrderedInTx( final Connection conn ) throws SQLException {
+            return query( conn, "SELECT name FROM t ORDER BY id", SqlBinder.NONE, rs -> rs.getString( 1 ) );
+        }
+
+        Optional< String > nameByIdInTx( final Connection conn, final int id ) throws SQLException {
+            return queryOne( conn, "SELECT name FROM t WHERE id = ?", ps -> ps.setInt( 1, id ), rs -> rs.getString( 1 ) );
+        }
+
+        Optional< Long > insertAutoReturningKey( final String name ) throws SQLException {
+            return insertReturningKey( "INSERT INTO auto_t (name) VALUES (?)",
+                ps -> ps.setString( 1, name ), rs -> rs.getLong( 1 ) );
+        }
+
+        Optional< Long > insertAutoReturningKeyInTx( final Connection conn, final String name ) throws SQLException {
+            return insertReturningKey( conn, "INSERT INTO auto_t (name) VALUES (?)",
+                ps -> ps.setString( 1, name ), rs -> rs.getLong( 1 ) );
+        }
+
+        int[] batchInTx( final Connection conn, final List< SqlBinder > binders ) throws SQLException {
+            return batch( conn, "INSERT INTO t (id, name) VALUES (?, ?)", binders );
+        }
+
+        List< Long > batchAutoReturningKeys( final List< SqlBinder > binders ) throws SQLException {
+            return batchReturningKeys( "INSERT INTO auto_t (name) VALUES (?)", binders, rs -> rs.getLong( 1 ) );
+        }
+
+        List< Long > batchAutoReturningKeysInTx( final Connection conn, final List< SqlBinder > binders ) throws SQLException {
+            return batchReturningKeys( conn, "INSERT INTO auto_t (name) VALUES (?)", binders, rs -> rs.getLong( 1 ) );
+        }
+
+        List< String > forEachRowNames() throws SQLException {
+            final List< String > seen = new java.util.ArrayList<>();
+            forEachRow( "SELECT name FROM t ORDER BY id", SqlBinder.NONE, 10, rs -> seen.add( rs.getString( 1 ) ) );
+            return seen;
+        }
+
+        List< String > forEachRowNamesInTx( final Connection conn ) throws SQLException {
+            final List< String > seen = new java.util.ArrayList<>();
+            forEachRow( conn, "SELECT name FROM t ORDER BY id", SqlBinder.NONE, 10, rs -> seen.add( rs.getString( 1 ) ) );
+            return seen;
+        }
+
+        void createOtherTable() throws SQLException {
+            execute( "CREATE TABLE other (id INT PRIMARY KEY)" );
+        }
+
+        void createOtherTableInTx( final Connection conn ) throws SQLException {
+            execute( conn, "CREATE TABLE other2 (id INT PRIMARY KEY)" );
+        }
+
+        int countViaWithConnection() throws SQLException {
+            return withConnection( conn ->
+                queryOne( conn, "SELECT COUNT(*) FROM t", SqlBinder.NONE, rs -> rs.getInt( 1 ) ).orElseThrow() );
+        }
     }
 
     private TestSupport support;
@@ -88,6 +143,7 @@ class JdbcSupportTest {
         this.support = new TestSupport( h2 );
         try ( Connection c = h2.getConnection(); Statement s = c.createStatement() ) {
             s.executeUpdate( "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(50))" );
+            s.executeUpdate( "CREATE TABLE auto_t (id BIGINT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(50))" );
         }
     }
 
@@ -135,6 +191,103 @@ class JdbcSupportTest {
         } ) );
 
         assertTrue( assertDoesNotThrowSql( support::namesOrdered ).isEmpty() );
+    }
+
+    @Test
+    void delegatesQueryAndQueryOneOnAnOpenConnection() throws SQLException {
+        support.insert( 1, "alice" );
+        support.runInTransaction( conn -> {
+            assertEquals( List.of( "alice" ), support.namesOrderedInTx( conn ) );
+            assertEquals( Optional.of( "alice" ), support.nameByIdInTx( conn, 1 ) );
+            return null;
+        } );
+    }
+
+    @Test
+    void delegatesInsertReturningKey() throws SQLException {
+        final Optional< Long > first = support.insertAutoReturningKey( "alice" );
+        final Optional< Long > second = support.insertAutoReturningKey( "bob" );
+
+        assertTrue( first.isPresent() );
+        assertEquals( first.get() + 1, second.orElseThrow() );
+    }
+
+    @Test
+    void delegatesInsertReturningKeyOnAnOpenConnection() throws SQLException {
+        final Optional< Long > key = support.runInTransaction( conn -> support.insertAutoReturningKeyInTx( conn, "carol" ) );
+        assertTrue( key.isPresent() );
+    }
+
+    @Test
+    void delegatesBatchOnAnOpenConnection() throws SQLException {
+        final int[] counts = support.runInTransaction( conn -> support.batchInTx( conn, List.of(
+                ps -> { ps.setInt( 1, 1 ); ps.setString( 2, "alice" ); },
+                ps -> { ps.setInt( 1, 2 ); ps.setString( 2, "bob" ); }
+        ) ) );
+
+        assertEquals( 2, counts.length );
+        assertEquals( List.of( "alice", "bob" ), support.namesOrdered() );
+    }
+
+    @Test
+    void delegatesBatchReturningKeys() throws SQLException {
+        final List< Long > keys = support.batchAutoReturningKeys( List.of(
+                ps -> ps.setString( 1, "alice" ),
+                ps -> ps.setString( 1, "bob" )
+        ) );
+
+        assertEquals( 2, keys.size() );
+    }
+
+    @Test
+    void delegatesBatchReturningKeysOnAnOpenConnection() throws SQLException {
+        final List< Long > keys = support.runInTransaction( conn ->
+                support.batchAutoReturningKeysInTx( conn, List.of( ps -> ps.setString( 1, "carol" ) ) ) );
+
+        assertEquals( 1, keys.size() );
+    }
+
+    @Test
+    void delegatesForEachRow() throws SQLException {
+        support.insert( 1, "alice" );
+        support.insert( 2, "bob" );
+
+        assertEquals( List.of( "alice", "bob" ), support.forEachRowNames() );
+    }
+
+    @Test
+    void delegatesForEachRowOnAnOpenConnection() throws SQLException {
+        support.insert( 1, "alice" );
+
+        final List< String > seen = support.runInTransaction( conn -> support.forEachRowNamesInTx( conn ) );
+
+        assertEquals( List.of( "alice" ), seen );
+    }
+
+    @Test
+    void delegatesExecute() throws SQLException {
+        support.createOtherTable();
+        // A second run against the same table name would fail with a duplicate-table
+        // error, so successfully reaching this point without one is the assertion.
+        assertThrows( SQLException.class, support::createOtherTable );
+    }
+
+    @Test
+    void delegatesExecuteOnAnOpenConnection() throws SQLException {
+        support.withConnection( conn -> {
+            support.createOtherTableInTx( conn );
+            return null;
+        } );
+        assertThrows( SQLException.class, () -> support.withConnection( conn -> {
+            support.createOtherTableInTx( conn );
+            return null;
+        } ) );
+    }
+
+    @Test
+    void delegatesWithConnection() throws SQLException {
+        support.insert( 1, "alice" );
+        assertEquals( 1, support.countViaWithConnection() );
     }
 
     @FunctionalInterface

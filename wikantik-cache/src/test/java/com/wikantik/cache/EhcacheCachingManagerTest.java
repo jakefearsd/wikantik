@@ -22,7 +22,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
+import java.io.Serializable;
 import java.util.Properties;
 
 
@@ -84,6 +86,40 @@ public class EhcacheCachingManagerTest {
         final Properties props = new Properties();
         props.setProperty( CachingManager.PROP_CACHE_CONF_FILE, "ehcache-wikantik-test.xml" );
         Assertions.assertEquals( "/ehcache-wikantik-test.xml", EhcacheCachingManager.resolveConfLocation( props ) );
+    }
+
+    @Test
+    void testInitializeFallsBackToDefaultCachesWhenConfigResourceMissing() throws Exception {
+        // A conf-file name with no matching classpath resource must not fail startup —
+        // it falls back to CacheManagerBuilder-created defaults for every well-known cache.
+        final Properties props = new Properties();
+        props.setProperty( CachingManager.PROP_CACHE_CONF_FILE, "does-not-exist-ehcache.xml" );
+        final EhcacheCachingManager testEcm = new EhcacheCachingManager();
+        try {
+            testEcm.initialize( null, props );
+            Assertions.assertEquals( 8, testEcm.cacheMap.size() );
+            Assertions.assertTrue( testEcm.enabled( CachingManager.CACHE_PAGES ) );
+        } finally {
+            testEcm.shutdown();
+        }
+    }
+
+    @Test
+    void testRegisterCacheFallsBackToDefaultMaxEntriesWhenRuntimeConfigurationThrows() {
+        final EhcacheCachingManager testEcm = new EhcacheCachingManager();
+        final org.ehcache.CacheManager mockCacheManager = Mockito.mock( org.ehcache.CacheManager.class );
+        @SuppressWarnings( "unchecked" )
+        final org.ehcache.Cache< Serializable, Object > mockCache = Mockito.mock( org.ehcache.Cache.class );
+        Mockito.when( mockCacheManager.getCache( "mockedCache", Serializable.class, Object.class ) ).thenReturn( mockCache );
+        Mockito.when( mockCache.getRuntimeConfiguration() ).thenThrow( new RuntimeException( "boom" ) );
+        testEcm.cacheManager = mockCacheManager;
+
+        testEcm.registerCache( "mockedCache" );
+
+        Assertions.assertTrue( testEcm.cacheMap.containsKey( "mockedCache" ) );
+        final CacheInfo info = testEcm.info( "mockedCache" );
+        Assertions.assertNotNull( info );
+        Assertions.assertEquals( 1_000L, info.getMaxElementsAllowed() );
     }
 
     @Test

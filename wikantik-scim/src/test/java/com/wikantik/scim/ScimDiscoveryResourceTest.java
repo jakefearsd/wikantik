@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -126,5 +127,41 @@ class ScimDiscoveryResourceTest {
             "filtering is how an IdP looks a user up by userName before creating it" );
         assertFalse( cfg.getAsJsonArray( "authenticationSchemes" ).isEmpty(),
             "at least one authentication scheme must be advertised" );
+    }
+
+    @Test
+    void schemasPathReturnsUserAndGroupSchemas() throws Exception {
+        final JsonObject schemas = get( "/Schemas" );
+
+        assertEquals( 2, schemas.get( "totalResults" ).getAsInt() );
+        final var resources = schemas.getAsJsonArray( "Resources" );
+        assertEquals( "urn:ietf:params:scim:schemas:core:2.0:User",
+            resources.get( 0 ).getAsJsonObject().get( "id" ).getAsString() );
+    }
+
+    @Test
+    void resourceTypesPathReturnsUserAndGroupEndpoints() throws Exception {
+        final JsonObject types = get( "/ResourceTypes" );
+
+        assertEquals( 2, types.get( "totalResults" ).getAsInt() );
+        final var resources = types.getAsJsonArray( "Resources" );
+        assertEquals( "/Users", resources.get( 0 ).getAsJsonObject().get( "endpoint" ).getAsString() );
+        assertEquals( "/Groups", resources.get( 1 ).getAsJsonObject().get( "endpoint" ).getAsString() );
+    }
+
+    @Test
+    void unrecognizedPathReturns404ScimError() throws Exception {
+        final ScimDiscoveryResource servlet = new ScimDiscoveryResource();
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getServletPath() ).thenReturn( "/scim/v2/NotARealResource" );
+        final StringWriter body = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( body, true ) );
+
+        servlet.doGet( req, resp );
+
+        verify( resp ).setStatus( 404 );
+        final JsonObject error = JsonParser.parseString( body.toString() ).getAsJsonObject();
+        assertEquals( "404", error.get( "status" ).getAsString() );
     }
 }

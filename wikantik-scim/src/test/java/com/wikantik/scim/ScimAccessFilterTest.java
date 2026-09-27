@@ -19,8 +19,11 @@
 package com.wikantik.scim;
 
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -28,6 +31,24 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ScimAccessFilterTest {
+
+    private static final String PROP = "wikantik.scim.token";
+    private String previousSystemToken;
+
+    @BeforeEach
+    void saveSystemToken() {
+        previousSystemToken = System.getProperty( PROP );
+        System.clearProperty( PROP );
+    }
+
+    @AfterEach
+    void restoreSystemToken() {
+        if ( previousSystemToken == null ) {
+            System.clearProperty( PROP );
+        } else {
+            System.setProperty( PROP, previousSystemToken );
+        }
+    }
 
     @Test
     void validBearerPasses() throws Exception {
@@ -55,5 +76,58 @@ class ScimAccessFilterTest {
             verify( chain, never() ).doFilter( any(), any() );
             verify( resp ).setStatus( 401 );
         }
+    }
+
+    @Test
+    void initReadsTokenFromSystemProperty() throws Exception {
+        System.setProperty( PROP, "sys-prop-token" );
+        final ScimAccessFilter f = new ScimAccessFilter();
+        f.init( null );
+
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final FilterChain chain = mock( FilterChain.class );
+        when( req.getHeader( "Authorization" ) ).thenReturn( "Bearer sys-prop-token" );
+
+        f.doFilter( req, resp, chain );
+
+        verify( chain ).doFilter( req, resp );
+        verify( resp, never() ).setStatus( 401 );
+    }
+
+    @Test
+    void initFallsBackToFilterConfigWhenNoSystemProperty() throws Exception {
+        final FilterConfig cfg = mock( FilterConfig.class );
+        when( cfg.getInitParameter( PROP ) ).thenReturn( "cfg-token" );
+        final ScimAccessFilter f = new ScimAccessFilter();
+        f.init( cfg );
+
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final FilterChain chain = mock( FilterChain.class );
+        when( req.getHeader( "Authorization" ) ).thenReturn( "Bearer cfg-token" );
+
+        f.doFilter( req, resp, chain );
+
+        verify( chain ).doFilter( req, resp );
+    }
+
+    @Test
+    void initWithNoTokenAnywhereLeavesFilterClosed() throws Exception {
+        final FilterConfig cfg = mock( FilterConfig.class );
+        final ScimAccessFilter f = new ScimAccessFilter();
+        f.init( cfg );
+
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final FilterChain chain = mock( FilterChain.class );
+        final StringWriter sw = new StringWriter();
+        when( req.getHeader( "Authorization" ) ).thenReturn( "Bearer anything" );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        f.doFilter( req, resp, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( resp ).setStatus( 401 );
     }
 }

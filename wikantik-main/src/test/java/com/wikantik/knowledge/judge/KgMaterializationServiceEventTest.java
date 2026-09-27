@@ -139,9 +139,51 @@ class KgMaterializationServiceEventTest {
             "edge sources that are themselves removed must not also be touched" );
     }
 
+    /**
+     * A materialised {@code new-node} must fire a {@link KgChangeEvent} naming the node.
+     *
+     * <p>{@code KgChangeEventListener} is the only consumer of this event; it feeds
+     * {@code OntologyEntitySync}, which coalesces the ids and calls
+     * {@code EntityProjector.project} for each. A node written without firing is
+     * therefore never projected into the ontology until the nightly rebuild backstop
+     * runs, which defeats the incremental sync path entirely — so firing is part of the
+     * contract, not a nicety.</p>
+     *
+     * <p>The expected id is read back from the database with the admin-bypass overload,
+     * so the (default-exclude) KG inclusion policy cannot turn a written row into a null
+     * lookup and fail this test for an unrelated reason.</p>
+     */
+    @Test
+    void materializeMachine_new_node_fires_change_event_for_the_created_node() {
+        final KgProposal proposal = kgProposals.insertProposal( "new-node", "Kubernetes101",
+            Map.< String, Object >of( "name", "Kubernetes", "nodeType", "technology" ),
+            0.8, "" );
+
+        materialization.materializeMachine( proposal );
+
+        assertEquals( 1, listener.events.size(),
+            "exactly one event per materialize call (no double-fire)" );
+        final UUID nodeId = kgNodes.getNodeByName( "Kubernetes", true ).id();
+        final KgChangeEvent event = listener.events.get( 0 );
+        assertEquals( Set.of( nodeId ), event.touchedEntityIds(),
+            "the created node must be the touched entity" );
+        assertTrue( event.removedEntityIds().isEmpty(),
+            "creating a node removes nothing" );
+    }
+
+    /**
+     * A proposal type nothing handles must fire no change event.
+     *
+     * <p>This used {@code new-node} until 2026-09-26, when {@code materialize} gained a
+     * {@code new-node} branch. It kept passing afterwards, but only because
+     * {@link #persistProposalOfType} supplies empty {@code proposedData} and the new
+     * branch returns early on a blank name — a green for the wrong reason, which would
+     * have gone on passing even if the skip branch were deleted. Retyped to a value no
+     * producer emits so it fails again if that branch stops skipping.</p>
+     */
     @Test
     void unsupportedProposalTypeFiresNothing() {
-        final KgProposal proposal = persistProposalOfType( "new-node" );
+        final KgProposal proposal = persistProposalOfType( "new-attribute" );
         materialization.materializeMachine( proposal );
         assertTrue( listener.events.isEmpty() );
     }

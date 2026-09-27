@@ -94,6 +94,55 @@ class KgMaterializationServiceMaterializeTest {
             && "machine".equals( e.tier() ) ) );
     }
 
+    /**
+     * Regression guard from the 2026-09-26 Knowledge Graph audit: a {@code new-node}
+     * proposal must create a {@code kg_nodes} row.
+     *
+     * <p>{@code materialize} hard-returned unless the proposal type was
+     * {@code new-edge}, discarding every {@code new-node} proposal with only a DEBUG
+     * line, so nodes existed solely as a side effect of edge materialisation. In
+     * production that left <b>30,121 {@code new-node} proposals — 73% of the entire
+     * proposal corpus, 19,603 of them machine-approved — producing exactly 0 nodes</b>,
+     * including all 148 that a human had explicitly approved.</p>
+     *
+     * <p>{@code sourcePage} and {@code provenanceProposalId} are asserted deliberately,
+     * not incidentally: {@code source_page} is null on 6,949 of 6,952 machine-tier
+     * production nodes, and {@code provenance_proposal_id} is the only page-to-node
+     * attribution path that actually works.</p>
+     *
+     * <p>Reads back through {@code getAllNodes( Tier.MACHINE )} rather than
+     * {@code getNodeByName}, because the by-name read-back is subject to the
+     * (default-exclude) KG inclusion policy and would report null for a row that was
+     * in fact written.</p>
+     */
+    @Test
+    void materializeMachine_new_node_inserts_the_entity_at_machine_tier() {
+        final KgProposal p = kgProposals.insertProposal( "new-node", "Kubernetes101",
+            Map.< String, Object >of(
+                "name",       "Kubernetes",
+                "nodeType",   "technology",
+                "properties", Map.< String, Object >of( "aliases", "k8s" ),
+                "extractor",  "ollama" ),
+            0.8, "extractor reasoning" );
+
+        svc.materializeMachine( p );
+
+        final KgNode node = kgNodes.getAllNodes( Tier.MACHINE ).stream()
+            .filter( n -> "Kubernetes".equals( n.name() ) )
+            .findFirst().orElse( null );
+
+        assertNotNull( node, "a new-node proposal must create a kg_nodes row" );
+        assertEquals( "technology", node.nodeType(),
+            "nodeType must come from the proposal, not fall back to 'concept'" );
+        assertEquals( "Kubernetes101", node.sourcePage(),
+            "the node must be attributed to the proposal's source page" );
+        assertEquals( "machine", node.tier() );
+        assertEquals( p.id(), node.provenanceProposalId(),
+            "provenance must link the node back to its proposal" );
+        assertEquals( "k8s", node.properties().get( "aliases" ),
+            "proposed properties must be persisted, not dropped" );
+    }
+
     @Test
     void materializeMachine_is_idempotent() {
         final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
@@ -108,6 +157,37 @@ class KgMaterializationServiceMaterializeTest {
             .filter( e -> "uses".equals( e.relationshipType() )
                 && p.id().equals( e.provenanceProposalId() ) ).count();
         assertEquals( 1L, count, "edge must not be duplicated on retry" );
+    }
+
+    /**
+     * Replaying a {@code new-node} proposal must not duplicate the node row.
+     *
+     * <p><b>Characterization test, not a red-green cycle.</b>
+     * {@code upsertNodeWithProvenance} uses {@code ON CONFLICT ( name )}, so this passed
+     * the first time it was run. It earns its place because the planned backfill replays
+     * 19,603 already machine-approved proposals that were never materialised, and any of
+     * them may be materialised more than once — idempotency is precisely the property
+     * that makes that replay safe to re-run, so it is pinned rather than assumed.</p>
+     *
+     * <p>Asserts row count rather than event count, mirroring
+     * {@link #materializeMachine_is_idempotent}. {@code fireKgChange} is unconditional on
+     * the node path exactly as it is on the edge path, and {@code OntologyEntitySync}
+     * coalesces then re-projects from current database state, so a repeat event is
+     * harmless by design and pinning "one event on retry" would invent a requirement the
+     * edge path does not hold itself to either.</p>
+     */
+    @Test
+    void materializeMachine_new_node_is_idempotent() {
+        final KgProposal p = kgProposals.insertProposal( "new-node", "Page",
+            Map.<String, Object>of( "name", "Istio", "nodeType", "technology" ), 0.8, "" );
+
+        svc.materializeMachine( p );
+        svc.materializeMachine( p );
+
+        final long count = kgNodes.getAllNodes( Tier.MACHINE ).stream()
+            .filter( n -> "Istio".equals( n.name() )
+                && p.id().equals( n.provenanceProposalId() ) ).count();
+        assertEquals( 1L, count, "node must not be duplicated on replay" );
     }
 
     @Test
@@ -144,9 +224,19 @@ class KgMaterializationServiceMaterializeTest {
             "exactly one edge should have been skipped by the ontology gate" );
     }
 
+    /**
+     * The default-skip branch must still hold for a proposal type nothing handles.
+     *
+     * <p>This previously used {@code new-node} as its example, which encoded the defect
+     * fixed on 2026-09-26 — {@code materialize} discarding every {@code new-node}
+     * proposal — as expected behaviour. {@code new-node} is now materialised (see
+     * {@link #materializeMachine_new_node_inserts_the_entity_at_machine_tier}), so the
+     * branch is pinned with a type no producer emits. {@code proposal_type} carries no
+     * CHECK constraint, so a synthetic value persists cleanly.</p>
+     */
     @Test
     void materializeMachine_skips_unsupported_proposal_type() {
-        final KgProposal p = kgProposals.insertProposal( "new-node", "Page",
+        final KgProposal p = kgProposals.insertProposal( "new-attribute", "Page",
             Map.<String, Object>of( "name", "Solo" ), 0.8, "" );
 
         svc.materializeMachine( p );

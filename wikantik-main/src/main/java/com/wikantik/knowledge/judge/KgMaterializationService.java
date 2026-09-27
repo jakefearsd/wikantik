@@ -133,7 +133,58 @@ public class KgMaterializationService {
         WikiEventManager.fireEvent( this, new KgChangeEvent( this, touched, removed ) );
     }
 
+    /**
+     * Materialise a {@code new-node} proposal as a single {@code kg_nodes} row.
+     *
+     * <p>Until 2026-09-26 {@link #materialize} handled only {@code new-edge}, so nodes
+     * existed solely as a side effect of edge materialisation and every {@code new-node}
+     * proposal was discarded. That left 30,121 such proposals in production — 73% of the
+     * proposal corpus, 19,603 machine-approved and 148 human-approved — producing zero
+     * nodes.</p>
+     *
+     * <p>A blank {@code name} is a no-op rather than a failed insert: the extractor is the
+     * only producer of these proposals and always supplies one, so a missing name means
+     * malformed data that must not abort a batch.</p>
+     */
+    private void materializeNode( final KgProposal proposal, final String tier ) {
+        final Map< String, Object > data = proposal.proposedData();
+        final String name = Objects.toString( data.get( "name" ), null );
+        if ( name == null || name.isBlank() ) {
+            LOG.warn( "materialize: missing name on new-node proposal {}", proposal.id() );
+            return;
+        }
+        final String rawType = Objects.toString( data.get( "nodeType" ), null );
+        final String nodeType = ( rawType == null || rawType.isBlank() )
+            ? com.wikantik.api.knowledge.EntityTypeVocabulary.DEFAULT_ENTITY_CLASS
+            : rawType;
+        final Object rawProps = data.get( "properties" );
+        @SuppressWarnings( "unchecked" )
+        final Map< String, Object > properties = rawProps instanceof Map
+            ? ( Map< String, Object > ) rawProps
+            : Map.of();
+
+        final KgNode node = nodes.upsertNodeWithProvenance( name, nodeType, proposal.sourcePage(),
+            Provenance.AI_INFERRED, properties, tier, proposal.id() );
+        // Null read-back means the row IS written but the KG inclusion policy filters it
+        // (its source-page cluster is excluded). Not an error — surface it for auditing.
+        // Nothing is announced because no id came back, mirroring the edge path, which
+        // fires only for the endpoint nodes it actually received.
+        if ( node == null ) {
+            LOG.info( "materialize: new-node '{}' written but filtered by KG inclusion policy "
+                + "(sourcePage='{}')", name, proposal.sourcePage() );
+            return;
+        }
+        // KgChangeEventListener is the sole consumer; it feeds OntologyEntitySync, which
+        // re-projects the entity from this id. Without the event the node reaches kg_nodes
+        // but never the ontology until the nightly rebuild backstop runs.
+        fireKgChange( Set.of( node.id() ), Set.of() );
+    }
+
     void materialize( final KgProposal proposal, final String tier ) {
+        if ( "new-node".equals( proposal.proposalType() ) ) {
+            materializeNode( proposal, tier );
+            return;
+        }
         if ( !"new-edge".equals( proposal.proposalType() ) ) {
             LOG.debug( "materialize: skipping unsupported proposalType={}", proposal.proposalType() );
             return;

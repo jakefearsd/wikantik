@@ -62,13 +62,6 @@ public final class MaterializeApprovedProposalsCli {
         this.err = err;
     }
 
-    /**
-     * Test seam — accepts a pre-built {@link DataSource} so tests drive the real logic
-     * without reflection and without {@code System.exit}, mirroring
-     * {@code KgPolicyCli.runWithDataSource}.
-     *
-     * @return process exit code: 0 completed, 1 failed, 2 bad arguments
-     */
     /** Human verdict still outstanding — excludes anything a human has since rejected. */
     private static final String PENDING = "pending";
     /** The machine judge approved it. */
@@ -77,6 +70,13 @@ public final class MaterializeApprovedProposalsCli {
     private static final String NEW_NODE = "new-node";
     private static final int PAGE_SIZE = 500;
 
+    /**
+     * Test seam — accepts a pre-built {@link DataSource} so tests drive the real logic
+     * without reflection and without {@code System.exit}, mirroring
+     * {@code KgPolicyCli.runWithDataSource}.
+     *
+     * @return process exit code: 0 completed, 1 failed, 2 bad arguments
+     */
     public int runWithDataSource( final DataSource ds, final String[] args ) {
         final Args a;
         try {

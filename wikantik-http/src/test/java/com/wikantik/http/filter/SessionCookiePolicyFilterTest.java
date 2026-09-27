@@ -86,4 +86,30 @@ class SessionCookiePolicyFilterTest {
         Mockito.verify( res, Mockito.never() ).addHeader( Mockito.anyString(), Mockito.anyString() );
         Mockito.verify( res, Mockito.never() ).setHeader( Mockito.anyString(), Mockito.anyString() );
     }
+
+    @Test
+    void second_bad_cookie_within_rate_limit_window_is_not_a_repeat_error() throws Exception {
+        // The ERROR log is rate-limited to once per LOG_INTERVAL_MILLIS. Firing doFilter
+        // twice in quick succession with a STRICT cookie must not throw or block the
+        // chain on the second call — that call takes maybeLog's early-return path.
+        final SessionCookiePolicyFilter filter = new SessionCookiePolicyFilter();
+        final HttpServletResponse res = Mockito.mock( HttpServletResponse.class );
+        Mockito.when( res.isCommitted() ).thenReturn( false );
+        Mockito.when( res.getHeaders( "Set-Cookie" ) )
+                .thenReturn( List.of( "JSESSIONID=abc; Path=/; HttpOnly; SameSite=Strict" ) );
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+        final jakarta.servlet.ServletRequest request = Mockito.mock( jakarta.servlet.ServletRequest.class );
+
+        filter.doFilter( request, res, chain );
+        filter.doFilter( request, res, chain );
+
+        Mockito.verify( chain, Mockito.times( 2 ) ).doFilter( Mockito.any(), Mockito.any() );
+    }
+
+    @Test
+    void init_and_destroy_are_no_ops() {
+        final SessionCookiePolicyFilter filter = new SessionCookiePolicyFilter();
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow( () -> filter.init( null ) );
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow( filter::destroy );
+    }
 }

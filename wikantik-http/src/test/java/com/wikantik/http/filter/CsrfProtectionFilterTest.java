@@ -18,13 +18,25 @@
  */
 package com.wikantik.http.filter;
 
+import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Session;
+import com.wikantik.api.spi.EngineSPI;
+import com.wikantik.api.spi.SessionSPI;
+import com.wikantik.api.spi.Wiki;
+
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
+import java.util.Properties;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -270,5 +282,110 @@ class CsrfProtectionFilterTest {
 
         Mockito.verify( chain ).doFilter( request, response );
         Mockito.verify( response, Mockito.never() ).sendRedirect( Mockito.anyString() );
+    }
+
+    @Test
+    void initIsANoOpAndDoesNotThrow() {
+        assertDoesNotThrow( () -> new CsrfProtectionFilter().init( null ) );
+    }
+
+    @Test
+    void destroyIsANoOpAndDoesNotThrow() {
+        assertDoesNotThrow( () -> new CsrfProtectionFilter().destroy() );
+    }
+
+    @Test
+    void testIsOriginAllowedWhenSchemeIsNull() {
+        // isSameOrigin's null-scheme guard: a Host header present but no scheme
+        // (e.g. a non-standard request object) must not be treated as same-origin.
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "https://wiki.example.com" ).when( request ).getHeader( "Origin" );
+        Mockito.doReturn( "wiki.example.com" ).when( request ).getHeader( "Host" );
+        Mockito.doReturn( null ).when( request ).getScheme();
+        assertFalse( CsrfProtectionFilter.isOriginAllowed( request, "" ) );
+    }
+
+    @Test
+    void testIsStateChangingReturnsFalseForNullMethod() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( null ).when( request ).getMethod();
+        assertFalse( CsrfProtectionFilter.isStateChanging( request ) );
+    }
+
+    /**
+     * A state-changing REST API request whose Origin fails the whitelist check must be
+     * rejected with 403 before the filter chain runs (doFilter's REST-endpoint branch).
+     */
+    @Test
+    void doFilterRejectsRestApiRequestWithDisallowedOrigin() throws Exception {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "POST" ).when( request ).getMethod();
+        Mockito.doReturn( "/api/pages" ).when( request ).getServletPath();
+        Mockito.doReturn( "/api/pages" ).when( request ).getRequestURI();
+        Mockito.doReturn( null ).when( request ).getHeader( "Authorization" );
+        Mockito.doReturn( "https://evil.example.com" ).when( request ).getHeader( "Origin" );
+        Mockito.doReturn( "https" ).when( request ).getScheme();
+        Mockito.doReturn( "wiki.example.com" ).when( request ).getHeader( "Host" );
+        final ServletContext servletContext = Mockito.mock( ServletContext.class );
+        Mockito.doReturn( servletContext ).when( request ).getServletContext();
+
+        final HttpServletResponse response = Mockito.mock( HttpServletResponse.class );
+        final jakarta.servlet.FilterChain chain = Mockito.mock( jakarta.servlet.FilterChain.class );
+
+        final Engine engine = Mockito.mock( Engine.class );
+        final Properties props = new Properties();
+        props.setProperty( CsrfProtectionFilter.PROP_ALLOWED_ORIGINS, "https://wiki.example.com" );
+        Mockito.doReturn( props ).when( engine ).getWikiProperties();
+        final EngineSPI engineSpi = Mockito.mock( EngineSPI.class );
+        Mockito.doReturn( engine ).when( engineSpi ).find( servletContext, null );
+
+        try ( MockedStatic< Wiki > wikiMock = Mockito.mockStatic( Wiki.class ) ) {
+            wikiMock.when( Wiki::engine ).thenReturn( engineSpi );
+
+            new CsrfProtectionFilter().doFilter( request, response, chain );
+        }
+
+        Mockito.verify( response ).sendError( HttpServletResponse.SC_FORBIDDEN, "Cross-origin request refused" );
+        Mockito.verify( chain, Mockito.never() ).doFilter( request, response );
+    }
+
+    /**
+     * A state-changing non-REST request without a valid CSRF token must be redirected
+     * to the Forbidden page (doFilter's synchronizer-token branch).
+     */
+    @Test
+    void doFilterRedirectsNonRestRequestWithInvalidCsrfToken() throws Exception {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "POST" ).when( request ).getMethod();
+        Mockito.doReturn( "/edit/Main" ).when( request ).getServletPath();
+        Mockito.doReturn( "/edit/Main" ).when( request ).getRequestURI();
+        Mockito.doReturn( null ).when( request ).getHeader( "Authorization" );
+        Mockito.doReturn( null ).when( request ).getHeader( "Origin" );
+        Mockito.doReturn( "wrong-token" ).when( request ).getParameter( CsrfProtectionFilter.ANTICSRF_PARAM );
+        final ServletContext servletContext = Mockito.mock( ServletContext.class );
+        Mockito.doReturn( servletContext ).when( request ).getServletContext();
+
+        final HttpServletResponse response = Mockito.mock( HttpServletResponse.class );
+        final jakarta.servlet.FilterChain chain = Mockito.mock( jakarta.servlet.FilterChain.class );
+
+        final Engine engine = Mockito.mock( Engine.class );
+        Mockito.doReturn( new Properties() ).when( engine ).getWikiProperties();
+        final EngineSPI engineSpi = Mockito.mock( EngineSPI.class );
+        Mockito.doReturn( engine ).when( engineSpi ).find( servletContext, null );
+
+        final Session session = Mockito.mock( Session.class );
+        Mockito.doReturn( "real-token" ).when( session ).antiCsrfToken();
+        final SessionSPI sessionSpi = Mockito.mock( SessionSPI.class );
+        Mockito.doReturn( session ).when( sessionSpi ).find( engine, request );
+
+        try ( MockedStatic< Wiki > wikiMock = Mockito.mockStatic( Wiki.class ) ) {
+            wikiMock.when( Wiki::engine ).thenReturn( engineSpi );
+            wikiMock.when( Wiki::session ).thenReturn( sessionSpi );
+
+            new CsrfProtectionFilter().doFilter( request, response, chain );
+        }
+
+        Mockito.verify( response ).sendRedirect( "/error/Forbidden.html" );
+        Mockito.verify( chain, Mockito.never() ).doFilter( request, response );
     }
 }

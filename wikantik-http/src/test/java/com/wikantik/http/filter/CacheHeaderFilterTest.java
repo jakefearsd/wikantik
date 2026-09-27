@@ -166,4 +166,9 @@ class CacheHeaderFilterTest {
         when( request.getRequestURI() ).thenReturn( uri );
         return request;
     }
+
+    @Test
+    void testDestroyIsANoOp() {
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow( filter::destroy );
+    }
 }

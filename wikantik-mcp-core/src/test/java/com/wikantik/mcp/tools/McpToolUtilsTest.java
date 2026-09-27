@@ -19,11 +19,13 @@
 package com.wikantik.mcp.tools;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.managers.PageManager;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -488,5 +490,22 @@ class McpToolUtilsTest {
 
         final String matchingHash = McpToolUtils.computeContentHash( "current text" );
         assertNull( McpToolUtils.checkVersionOrHash( pm, "Existing", 0, matchingHash, McpToolUtils.SHARED_GSON ) );
+    }
+
+    // --- KG_GSON Instant TypeAdapter ------------------------------------------------------
+
+    @Test
+    void kgGsonRoundTripsNullAndNonNullInstantFields() {
+        final Instant modified = Instant.parse( "2026-04-24T08:00:00Z" );
+        final KgNode node = new KgNode( UUID.randomUUID(), "Alpha", "Concept", "AlphaPage",
+                Provenance.HUMAN_AUTHORED, Map.of(), null, modified, "human", null );
+
+        final String json = McpToolUtils.KG_GSON.toJson( node );
+        assertTrue( json.contains( "\"created\":null" ), "null Instant must serialize as JSON null: " + json );
+        assertTrue( json.contains( "2026-04-24T08:00:00Z" ), "non-null Instant must serialize as ISO-8601: " + json );
+
+        final KgNode roundTripped = McpToolUtils.KG_GSON.fromJson( json, KgNode.class );
+        assertNull( roundTripped.created() );
+        assertEquals( modified, roundTripped.modified() );
     }
 }

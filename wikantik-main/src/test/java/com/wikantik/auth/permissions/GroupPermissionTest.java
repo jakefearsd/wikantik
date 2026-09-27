@@ -321,15 +321,26 @@ public class GroupPermissionTest
     }
 
     // -------------------------------------------------------------------------
-    //  No-arg constructor (serialization support) — defaults to "*:*", no actions
+    //  Serialization — needs no no-arg constructor (java.security.Permission is
+    //  itself Serializable, so deserialization never invokes one)
     // -------------------------------------------------------------------------
 
     @Test
-    public final void testNoArgConstructorDefaultsToWildcardTarget()
+    public final void testSerializationRoundTripPreservesTargetAndActions() throws Exception
     {
-        final GroupPermission p = new GroupPermission();
-        Assertions.assertEquals( "*", p.getGroup() );
-        Assertions.assertEquals( "*", p.getWiki() );
+        final GroupPermission original = new GroupPermission( "MyWiki:Editors", "edit" );
+        final java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+        try( java.io.ObjectOutputStream out = new java.io.ObjectOutputStream( bytes ) ) {
+            out.writeObject( original );
+        }
+        try( java.io.ObjectInputStream in = new java.io.ObjectInputStream(
+                new java.io.ByteArrayInputStream( bytes.toByteArray() ) ) ) {
+            final GroupPermission copy = ( GroupPermission )in.readObject();
+            Assertions.assertEquals( original, copy );
+            Assertions.assertEquals( "Editors", copy.getGroup() );
+            Assertions.assertEquals( "MyWiki", copy.getWiki() );
+            Assertions.assertEquals( "edit", copy.getActions() );
+        }
     }
 
     // -------------------------------------------------------------------------

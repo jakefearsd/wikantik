@@ -137,7 +137,9 @@ class ToolsRateLimiterTest {
         boolean cleaned = false;
         for ( int i = 0; i < 5000 && !cleaned; i++ ) {
             limiter.tryAcquire( "fresh-client-" + i );
-            if ( bucketsOf( limiter ).size() < 200 ) {
+            // Check the stale keys themselves: each iteration adds a fresh bucket, so a total-size
+            // test (< 200) misses a sweep that fires after ~200 calls (≈13% of runs).
+            if ( bucketsOf( limiter ).keySet().stream().noneMatch( k -> k.startsWith( "stale-client-" ) ) ) {
                 cleaned = true;
             }
         }

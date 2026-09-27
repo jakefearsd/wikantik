@@ -21,6 +21,7 @@ package com.wikantik.extractcli;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -262,5 +263,23 @@ class BootstrapExtractionCliArgsTest {
         final IllegalArgumentException ex = assertThrows( IllegalArgumentException.class,
             () -> BootstrapExtractionCli.Args.parse( new String[]{ "--confidence-threshold", "abc" } ) );
         assertTrue( ex.getMessage().contains( "expects a number, got: abc" ), ex.getMessage() );
+    }
+
+    /**
+     * {@code --only-missing} is a value-less flag and defaults off.
+     *
+     * <p><b>Characterization test.</b> It could not be driven red-first: before the parse
+     * case existed, {@code Args.parse} threw {@code IllegalArgumentException("unknown
+     * argument")}, which surefire records as an <i>error</i> rather than a failure, and an
+     * error is not a valid red. The behaviour that carries real risk — that the flag
+     * composes with {@code --page-pattern} instead of replacing it — was driven red-first in
+     * {@code BootstrapExtractionCliOnlyMissingTest.page_pattern_and_only_missing_compose}.</p>
+     */
+    @Test
+    void onlyMissingFlagParsesAndDefaultsOff() {
+        assertFalse( BootstrapExtractionCli.Args.parse( new String[]{} ).onlyMissing,
+            "--only-missing must default off: it changes which pages an expensive run touches" );
+        assertTrue( BootstrapExtractionCli.Args.parse( new String[]{ "--only-missing" } ).onlyMissing,
+            "--only-missing takes no value and sets the flag" );
     }
 }

@@ -56,7 +56,12 @@ import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import com.wikantik.jdbc.SqlBinder;
+
+import java.sql.SQLException;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Locale;
 import java.util.regex.Pattern;
 import java.util.concurrent.TimeUnit;
@@ -152,13 +157,12 @@ public final class BootstrapExtractionCli {
         final KgNodeEmbeddingRepository embRepo = new KgNodeEmbeddingRepository( ds );
         final KgNodeEmbeddingService embService = buildEmbeddingService( a, http, embRepo );
 
-        // --page-pattern is implemented by wrapping ContentChunkRepository so
-        // listDistinctPageNames() applies a glob filter — same seam the
-        // PageExtractionPgTestBase uses to scope the IT to its own pages
-        // without modifying the indexer.
-        final ContentChunkRepository chunkRepo = a.pagePattern == null
-            ? new ContentChunkRepository( ds )
-            : pagePatternFiltered( ds, a.pagePattern );
+        // --page-pattern and --only-missing are both implemented by wrapping
+        // ContentChunkRepository so listDistinctPageNames() applies a filter — the same seam
+        // PageExtractionPgTestBase uses to scope the IT to its own pages without modifying
+        // the indexer. They compose; see selectChunkRepo.
+        final ContentChunkRepository chunkRepo =
+            selectChunkRepo( ds, a.pagePattern, a.onlyMissing );
 
         final ChunkEntityMentionRepository mentionRepo = new ChunkEntityMentionRepository( ds );
         final ProposalConsolidator consolidator = new ProposalConsolidator();
@@ -305,16 +309,70 @@ public final class BootstrapExtractionCli {
         return EmbeddingModel.QWEN3_EMBEDDING_06B;
     }
 
-    private static ContentChunkRepository pagePatternFiltered( final DataSource ds, final String glob ) {
-        final Pattern regex = globToRegex( glob );
+    /**
+     * Resolves the {@link ContentChunkRepository} a run should use from the page-scoping
+     * flags. Both {@code --page-pattern} and {@code --only-missing} narrow the same
+     * {@code listDistinctPageNames()} seam, so they have to <b>compose</b>: applying one
+     * must not discard the other.
+     *
+     * <p>{@code --only-missing} restricts the run to pages with <b>no {@code kg_proposals}
+     * rows at all</b> — the pages extraction has genuinely never reached. It is keyed on
+     * "has no proposals", deliberately not "has no nodes": a page whose proposals exist but
+     * were never materialised does not need the extractor again, it needs the
+     * materialisation replay. Keying on nodes would send ~350 such pages back through a 12B
+     * model to re-derive what the database already holds.</p>
+     *
+     * <p>Takes the two values explicitly rather than an {@code Args} so the composition can
+     * be tested without constructing a full argument bag, and is package-private for the
+     * same reason as {@link #globToRegex}.</p>
+     */
+    static ContentChunkRepository selectChunkRepo( final DataSource ds, final String pagePattern,
+                                                   final boolean onlyMissing ) {
+        if ( pagePattern == null && !onlyMissing ) {
+            return new ContentChunkRepository( ds );
+        }
+        java.util.function.Predicate< String > keep = name -> true;
+        if ( pagePattern != null ) {
+            final Pattern regex = globToRegex( pagePattern );
+            keep = keep.and( name -> regex.matcher( name ).matches() );
+        }
+        if ( onlyMissing ) {
+            // Resolved once here, not per page, and only when the flag is set — an ordinary
+            // run must not pay for a SELECT DISTINCT it will never consult.
+            final Set< String > withProposals = pagesWithProposals( ds );
+            keep = keep.and( name -> !withProposals.contains( name ) );
+        }
+        final java.util.function.Predicate< String > filter = keep;
+        // One wrapper carrying a composed predicate, rather than nesting two anonymous
+        // subclasses: the flags narrow the same seam and must layer, not replace.
         return new ContentChunkRepository( ds ) {
             @Override
             public List< String > listDistinctPageNames() {
-                return super.listDistinctPageNames().stream()
-                    .filter( name -> regex.matcher( name ).matches() )
-                    .toList();
+                return super.listDistinctPageNames().stream().filter( filter ).toList();
             }
         };
+    }
+
+    /**
+     * Every {@code source_page} that already has at least one proposal, read in a single
+     * query. Resolved once up front rather than per page: the corpus has ~1,341
+     * chunk-bearing pages, and asking per page would be that many round trips to answer a
+     * question one {@code DISTINCT} settles.
+     *
+     * <p>Goes through {@link Jdbc} rather than a raw {@code Connection} because
+     * {@code JdbcAccessArchTest} (J-1) fails the build on {@code DataSource#getConnection}
+     * or {@code Connection#prepareStatement} outside {@code com.wikantik.jdbc..}.</p>
+     */
+    private static Set< String > pagesWithProposals( final DataSource ds ) {
+        final String sql = "SELECT DISTINCT source_page FROM kg_proposals WHERE source_page IS NOT NULL";
+        try {
+            return new HashSet<>( new Jdbc( ds ).query( sql, SqlBinder.NONE, rs -> rs.getString( 1 ) ) );
+        } catch ( final SQLException e ) {
+            // Fail loudly: silently returning an empty set would widen --only-missing to the
+            // whole corpus, which is the exact waste the flag exists to prevent.
+            LOG.error( "--only-missing: failed to list pages with proposals: {}", e.getMessage(), e );
+            throw new RuntimeException( "--only-missing: could not resolve pages with proposals", e );
+        }
     }
 
     /** Minimal glob → regex (supports {@code *} and {@code ?} only). */
@@ -459,6 +517,7 @@ public final class BootstrapExtractionCli {
               --rebuild-node-embeddings             TRUNCATE the embedding cache before warmup
               --max-pages <N>                       stop after first N pages, 0 = unlimited
               --page-pattern <glob>                 limit to page names matching glob (* and ? supported)
+              --only-missing                        skip pages that already have kg_proposals rows
               --dry-run                             skip the kg_proposals upsert step (smoke runs)
               --report <path>                       on completion, write the final Status as JSON
               --poll-seconds <N>                    progress-log cadence (default 30)
@@ -498,6 +557,7 @@ public final class BootstrapExtractionCli {
         public int    dictionaryTopK       = 12;
         public String nodeEmbeddingModel   = "qwen3-embedding:0.6b";
         public String pagePattern          = null;
+        public boolean onlyMissing         = false;
         public boolean rebuildNodeEmbeddings = false;
         public boolean dryRun              = false;
         public String report               = null;
@@ -534,6 +594,7 @@ public final class BootstrapExtractionCli {
                     case "--dictionary-top-k"        -> a.dictionaryTopK = parseInt( req( argv, ++i, k ), k );
                     case "--node-embedding-model"    -> a.nodeEmbeddingModel = req( argv, ++i, k );
                     case "--page-pattern"            -> a.pagePattern = req( argv, ++i, k );
+                    case "--only-missing"            -> a.onlyMissing = true;
                     case "--rebuild-node-embeddings" -> a.rebuildNodeEmbeddings = true;
                     case "--dry-run"                 -> a.dryRun = true;
                     case "--report"                  -> a.report = req( argv, ++i, k );

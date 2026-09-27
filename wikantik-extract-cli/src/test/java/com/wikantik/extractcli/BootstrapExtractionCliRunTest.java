@@ -222,17 +222,21 @@ class BootstrapExtractionCliRunTest {
         assertEquals( 0, invokeRun( a ) );
     }
 
-    // ---- pagePatternFiltered / globToRegex integration: private, reflection-invoked ----
+    // ---- page-glob scoping of listDistinctPageNames(), via selectChunkRepo ----
 
-    @SuppressWarnings( "unchecked" )
+    /**
+     * This reflected into a private {@code pagePatternFiltered} until 2026-09-26, when that
+     * method was folded into the package-private
+     * {@link BootstrapExtractionCli#selectChunkRepo} so {@code --page-pattern} and
+     * {@code --only-missing} could compose. A direct call is now possible, and is better than
+     * reflection here: removing the target breaks the build instead of throwing
+     * {@code NoSuchMethodException} only once the test runs.
+     */
     private static List< String > listDistinctPageNamesViaPagePatternFiltered(
-            final DataSource dataSource, final String glob ) throws Exception {
-        final Method m = BootstrapExtractionCli.class.getDeclaredMethod(
-            "pagePatternFiltered", DataSource.class, String.class );
-        m.setAccessible( true );
-        final Object chunkRepo = m.invoke( null, dataSource, glob );
-        final Method list = chunkRepo.getClass().getMethod( "listDistinctPageNames" );
-        return ( List< String > ) list.invoke( chunkRepo );
+            final DataSource dataSource, final String glob ) {
+        return BootstrapExtractionCli
+            .selectChunkRepo( dataSource, glob, /*onlyMissing*/ false )
+            .listDistinctPageNames();
     }
 
     @Test

@@ -110,4 +110,24 @@ class WikiEventBaseTest {
         final String str = event.toString();
         assertTrue( str.contains( "MySource" ), "toString should include source, got: " + str );
     }
+
+    @Test
+    void testGetTypeDescriptionForBaseErrorAndUndefined() {
+        // WikiPageEvent's switch falls through to super.getTypeDescription() for
+        // ERROR/UNDEFINED, exercising WikiEvent's own switch branches.
+        final WikiPageEvent errorEvent = new WikiPageEvent( this, WikiEvent.ERROR, "Test" );
+        assertEquals( "exception or error event", errorEvent.getTypeDescription() );
+
+        final WikiPageEvent undefinedEvent = new WikiPageEvent( this, WikiEvent.UNDEFINED, "Test" );
+        assertEquals( "undefined event type", undefinedEvent.getTypeDescription() );
+    }
+
+    @Test
+    void testEventNameForBaseErrorAndUndefined() {
+        final WikiPageEvent errorEvent = new WikiPageEvent( this, WikiEvent.ERROR, "Test" );
+        assertEquals( "ERROR", errorEvent.eventName() );
+
+        final WikiPageEvent undefinedEvent = new WikiPageEvent( this, WikiEvent.UNDEFINED, "Test" );
+        assertEquals( "UNDEFINED", undefinedEvent.eventName() );
+    }
 }

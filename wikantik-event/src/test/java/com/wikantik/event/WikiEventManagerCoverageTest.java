@@ -20,6 +20,7 @@ package com.wikantik.event;
 
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -155,5 +156,97 @@ class WikiEventManagerCoverageTest {
 
         WikiEventManager.shutdown();
         assertFalse( WikiEventManager.isListening( client ) );
+    }
+
+    /** Marker class used only so getDelegateFor()'s Class-preload path has a client type unique to this test. */
+    private static final class ProbeClient {}
+
+    @Test
+    void testUnregisterListenersForRemovesOnlyThatClient() {
+        final Object client1 = new Object();
+        final Object client2 = new Object();
+        final WikiEventListener listener1 = event -> {};
+        final WikiEventListener listener2 = event -> {};
+
+        WikiEventManager.addWikiEventListener( client1, listener1 );
+        WikiEventManager.addWikiEventListener( client2, listener2 );
+
+        WikiEventManager.unregisterListenersFor( client1 );
+
+        assertFalse( WikiEventManager.isListening( client1 ) );
+        assertTrue( WikiEventManager.isListening( client2 ) );
+
+        WikiEventManager.removeWikiEventListener( client2, listener2 );
+    }
+
+    @Test
+    void testDelegateForClassPreloadsCacheAndIsReusedByMatchingInstance() {
+        // A Class-valued client populates the preload cache (getDelegateFor's first branch).
+        WikiEventManager.addWikiEventListener( ProbeClient.class, event -> {} );
+
+        // A subsequent instance of that same class should pick up the preloaded, class-matching
+        // delegate rather than creating a fresh one (getDelegateFor's preload-cache-match branch).
+        final ProbeClient instance = new ProbeClient();
+        final Set<WikiEventListener> listeners = WikiEventManager.getWikiEventListeners( instance );
+        assertEquals( 1, listeners.size() );
+    }
+
+    @Test
+    void testFireEventOnClientWithNoListenersIsNoOp() {
+        // Exercises WikiEventDelegate.fireEvent()'s empty-listener early return.
+        final Object client = new Object();
+        assertDoesNotThrow( () ->
+                WikiEventManager.fireEvent( client, new WikiEngineEvent( client, WikiEngineEvent.INITIALIZED ) ) );
+    }
+
+    @Test
+    void testFireEventSwallowsThrowingListenerAndStillNotifiesOthers() {
+        final Object client = new Object();
+        final AtomicInteger secondListenerCalls = new AtomicInteger();
+        final WikiEventListener throwing = event -> { throw new RuntimeException( "boom" ); };
+        final WikiEventListener wellBehaved = event -> secondListenerCalls.incrementAndGet();
+
+        WikiEventManager.addWikiEventListener( client, throwing );
+        WikiEventManager.addWikiEventListener( client, wellBehaved );
+
+        assertDoesNotThrow( () ->
+                WikiEventManager.fireEvent( client, new WikiEngineEvent( client, WikiEngineEvent.INITIALIZED ) ) );
+        assertEquals( 1, secondListenerCalls.get() );
+
+        WikiEventManager.removeWikiEventListener( client, throwing );
+        WikiEventManager.removeWikiEventListener( client, wellBehaved );
+    }
+
+    @Test
+    void testFireEventNotifiesMonitorWhenSet() throws Exception {
+        final Field monitorField = WikiEventManager.class.getDeclaredField( "c_monitor" );
+        monitorField.setAccessible( true );
+        final AtomicInteger monitorCalls = new AtomicInteger();
+        final WikiEventListener monitor = event -> monitorCalls.incrementAndGet();
+        monitorField.set( null, monitor );
+        try {
+            final Object client = new Object();
+            WikiEventManager.fireEvent( client, new WikiEngineEvent( client, WikiEngineEvent.INITIALIZED ) );
+            assertEquals( 1, monitorCalls.get() );
+        } finally {
+            monitorField.set( null, null );
+        }
+    }
+
+    @Test
+    void testGetWikiEventListenersOrdersDistinctListenersByComparator() {
+        // With 2+ distinct listeners, the backing TreeSet must invoke
+        // WikiEventListenerComparator.compare() on non-equal listeners.
+        final Object client = new Object();
+        final WikiEventListener listenerA = event -> {};
+        final WikiEventListener listenerB = event -> {};
+        WikiEventManager.addWikiEventListener( client, listenerA );
+        WikiEventManager.addWikiEventListener( client, listenerB );
+
+        final Set<WikiEventListener> listeners = WikiEventManager.getWikiEventListeners( client );
+        assertEquals( 2, listeners.size() );
+
+        WikiEventManager.removeWikiEventListener( client, listenerA );
+        WikiEventManager.removeWikiEventListener( client, listenerB );
     }
 }

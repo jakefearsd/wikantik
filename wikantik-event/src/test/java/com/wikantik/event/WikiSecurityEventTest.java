@@ -18,6 +18,9 @@
  */
 package com.wikantik.event;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.config.Configurator;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -113,5 +116,35 @@ class WikiSecurityEventTest {
         final WikiSecurityEvent noAttrs = new WikiSecurityEvent(
             this, WikiSecurityEvent.LOGOUT, alice, null );
         org.junit.jupiter.api.Assertions.assertTrue( noAttrs.getAttributes().isEmpty() );
+    }
+
+    @AfterEach
+    void resetSecurityLogLevel() {
+        Configurator.setLevel( "SecurityLog", ( Level ) null );
+    }
+
+    @Test
+    void constructorLogsAtWarnForAccountExpiryEvents() {
+        // By default the SecurityLog logger is not enabled for WARN, so this exercises
+        // the LOG.isEnabled(Level.WARN) branch when explicitly raised.
+        Configurator.setLevel( "SecurityLog", Level.WARN );
+        final WikiSecurityEvent event = new WikiSecurityEvent(
+                TEST_SOURCE, WikiSecurityEvent.LOGIN_ACCOUNT_EXPIRED, TEST_PRINCIPAL, null );
+        assertEquals( WikiSecurityEvent.LOGIN_ACCOUNT_EXPIRED, event.getType() );
+    }
+
+    @Test
+    void constructorLogsAtInfoForAuthenticatedEvents() {
+        Configurator.setLevel( "SecurityLog", Level.INFO );
+        final WikiSecurityEvent event = new WikiSecurityEvent(
+                TEST_SOURCE, WikiSecurityEvent.LOGIN_AUTHENTICATED, TEST_PRINCIPAL, null );
+        assertEquals( WikiSecurityEvent.LOGIN_AUTHENTICATED, event.getType() );
+    }
+
+    @Test
+    void threeArgConstructorDelegatesWithNullPrincipal() {
+        final WikiSecurityEvent event = new WikiSecurityEvent( TEST_SOURCE, WikiSecurityEvent.ACCESS_DENIED, "target" );
+        assertNull( event.getPrincipal() );
+        assertEquals( "target", event.getTarget() );
     }
 }

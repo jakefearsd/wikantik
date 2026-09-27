@@ -35,7 +35,8 @@ class WikiEngineEventTest {
         return Stream.of(
                 Arguments.of( WikiEngineEvent.INITIALIZING, "INITIALIZING", "wiki engine initializing" ),
                 Arguments.of( WikiEngineEvent.INITIALIZED, "INITIALIZED", "wiki engine initialized" ),
-                Arguments.of( WikiEngineEvent.SHUTDOWN, "SHUTDOWN", "wiki engine shutting down" )
+                Arguments.of( WikiEngineEvent.SHUTDOWN, "SHUTDOWN", "wiki engine shutting down" ),
+                Arguments.of( WikiEngineEvent.STOPPED, "STOPPED", "wiki engine stopped" )
         );
     }
 
@@ -65,5 +66,15 @@ class WikiEngineEventTest {
     void testToString() {
         final WikiEngineEvent event = new WikiEngineEvent( SOURCE, WikiEngineEvent.INITIALIZED );
         assertNotNull( event.toString() );
+    }
+
+    @Test
+    void outOfRangeTypeIsCoercedToError() {
+        // setType()'s else branch: an out-of-range type falls back to WikiEvent.ERROR,
+        // which flows through to the base class's eventName()/getTypeDescription() switches.
+        final WikiEngineEvent event = new WikiEngineEvent( SOURCE, 999 );
+        assertEquals( WikiEvent.ERROR, event.getType() );
+        assertEquals( "ERROR", event.eventName() );
+        assertEquals( "exception or error event", event.getTypeDescription() );
     }
 }

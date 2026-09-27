@@ -31,13 +31,6 @@ public interface Attachment extends Page {
     String getFileName();
 
     /**
-     *  Sets the file name of this attachment. 
-     *  
-     *  @param name The name of the attachment.  Must be a legal file name without the path.
-     */
-    void setFileName( String name );
-
-    /**
      *  Returns the name of the parent of this Attachment, i.e. the page which contains this attachment.
      *  
      *  @return String depicting the parent of the attachment.

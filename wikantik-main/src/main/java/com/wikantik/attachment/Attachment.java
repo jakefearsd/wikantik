@@ -27,7 +27,7 @@ import com.wikantik.api.core.Engine;
  */
 public class Attachment extends WikiPage implements com.wikantik.api.core.Attachment {
 
-    private String fileName;
+    private final String fileName;
     private final String parentName;
     private boolean cacheable = true;
 
@@ -62,16 +62,6 @@ public class Attachment extends WikiPage implements com.wikantik.api.core.Attach
     @Override
     public String getFileName() {
         return fileName;
-    }
-
-    /**
-     * Sets the file name of this attachment.
-     *
-     * @param name The name of the attachment.  Must be a legal file name without  the path.
-     */
-    @Override
-    public void setFileName(final String name ) {
-        fileName = name;
     }
 
     /**

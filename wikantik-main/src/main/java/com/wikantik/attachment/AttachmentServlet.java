@@ -354,12 +354,12 @@ public class AttachmentServlet extends HttpServlet {
         }
         LOG.debug( "Attachment {} sent to {} on {}", att.getFileName(), req.getRemoteUser(), HttpUtil.getRemoteAddress(req) );
         if( nextPage != null ) {
-            res.sendRedirect(
-                validateNextPage(
-                    TextUtil.urlEncodeUTF8(nextPage),
-                    engine.getURL( ContextEnum.WIKI_ERROR.getRequestContext(), "", null )
-                )
-            );
+            // Validate the RAW value first — encoding it beforehand (as this used to do) lets a
+            // protocol-relative "//evil.com" survive, since the encoder keeps '/' unescaped and
+            // only ':' gets encoded, so an "://" denylist check never sees it.
+            final String errorPage = engine.getURL( ContextEnum.WIKI_ERROR.getRequestContext(), "", null );
+            final String validated = validateNextPage( nextPage, errorPage );
+            res.sendRedirect( validated == nextPage ? TextUtil.urlEncodeUTF8( validated ) : validated );
         }
     }
 
@@ -467,15 +467,47 @@ public class AttachmentServlet extends HttpServlet {
     /**
      *  Validates the next page to be on the same server as this webapp.
      *  Fixes [JSPWIKI-46].
+     *
+     *  <p>This is an ALLOWLIST on purpose: {@code engine.getBaseURL()} returns the servlet
+     *  <em>context path</em>, which is {@code ""} for the ROOT deployment this app runs
+     *  under in production — so a same-origin-prefix denylist check never rejects anything.
+     *  A denylist also misses protocol-relative ({@code //evil.com}) and backslash-based
+     *  ({@code /\evil.com}, {@code \\evil.com}) variants, since none of those contain
+     *  {@code "://"}. Only a same-origin relative path is accepted; anything else — an
+     *  absolute URL, a protocol-relative URL, a backslash-led value, or a scheme like
+     *  {@code javascript:} or {@code http:evil.com} — is rejected.
      */
-    private String validateNextPage( String nextPage, final String errorPage ) {
-        // It's an absolute link, so unless it starts with our address, we'll log an error.
-        if( nextPage.contains( "://" ) && !nextPage.startsWith( engine.getBaseURL() ) ) {
+    private String validateNextPage( final String nextPage, final String errorPage ) {
+        if( !isSameOriginRelativePath( nextPage ) ) {
             LOG.warn( "Detected phishing attempt by redirecting to an unsecure location: {}", nextPage );
-            nextPage = errorPage;
+            return errorPage;
         }
 
         return nextPage;
+    }
+
+    /**
+     *  True when {@code value} is safe to use as a same-origin redirect target: a relative
+     *  path that starts with exactly one {@code /} (not {@code //} or {@code /\}), contains
+     *  no backslash, no scheme (no {@code :}), and no control character (including CR/LF,
+     *  which could otherwise be used for response-header/log injection).
+     */
+    private static boolean isSameOriginRelativePath( final String value ) {
+        if( value == null || value.isEmpty() || value.charAt( 0 ) != '/' ) {
+            return false;
+        }
+        if( value.length() > 1 && ( value.charAt( 1 ) == '/' || value.charAt( 1 ) == '\\' ) ) {
+            return false;
+        }
+        if( value.indexOf( '\\' ) >= 0 || value.indexOf( ':' ) >= 0 ) {
+            return false;
+        }
+        for( int i = 0; i < value.length(); i++ ) {
+            if( Character.isISOControl( value.charAt( i ) ) ) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

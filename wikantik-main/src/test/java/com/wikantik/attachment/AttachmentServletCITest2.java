@@ -182,6 +182,90 @@ class AttachmentServletCITest2 {
 
     @Test
     void testGetWithNextPagePhishingAttemptRedirectsToError() throws Exception {
+        stubSuccessfulDownload();
+
+        // nextPage points to a different host — phishing attempt via the nextpage
+        // parameter. validateNextPage is checked against the RAW value (before any
+        // encoding), so an absolute URL is rejected outright and the redirect goes
+        // to the error page, not to an encoded form of the evil URL.
+        when( request.getParameter( "nextpage" ) ).thenReturn( "http://evil.example.com/steal" );
+
+        captureOutput();
+        servlet.doGet( request, response );
+
+        verify( response ).sendRedirect( "http://localhost:8080/error" );
+    }
+
+    // ---- validateNextPage allowlist: further rejected variants (GET) ----
+
+    @Test
+    void testGetWithProtocolRelativeNextPageRejected() throws Exception {
+        stubSuccessfulDownload();
+        when( request.getParameter( "nextpage" ) ).thenReturn( "//evil.com" );
+
+        captureOutput();
+        servlet.doGet( request, response );
+
+        verify( response ).sendRedirect( "http://localhost:8080/error" );
+    }
+
+    @Test
+    void testGetWithBackslashNextPageRejected() throws Exception {
+        stubSuccessfulDownload();
+        when( request.getParameter( "nextpage" ) ).thenReturn( "/\\evil.com" );
+
+        captureOutput();
+        servlet.doGet( request, response );
+
+        verify( response ).sendRedirect( "http://localhost:8080/error" );
+    }
+
+    @Test
+    void testGetWithAbsoluteHttpsNextPageRejected() throws Exception {
+        stubSuccessfulDownload();
+        when( request.getParameter( "nextpage" ) ).thenReturn( "https://evil.com" );
+
+        captureOutput();
+        servlet.doGet( request, response );
+
+        verify( response ).sendRedirect( "http://localhost:8080/error" );
+    }
+
+    @Test
+    void testGetWithSchemeOnlyNextPageRejected() throws Exception {
+        stubSuccessfulDownload();
+        when( request.getParameter( "nextpage" ) ).thenReturn( "http:evil.com" );
+
+        captureOutput();
+        servlet.doGet( request, response );
+
+        verify( response ).sendRedirect( "http://localhost:8080/error" );
+    }
+
+    @Test
+    void testGetWithJavascriptSchemeNextPageRejected() throws Exception {
+        stubSuccessfulDownload();
+        when( request.getParameter( "nextpage" ) ).thenReturn( "javascript:alert(1)" );
+
+        captureOutput();
+        servlet.doGet( request, response );
+
+        verify( response ).sendRedirect( "http://localhost:8080/error" );
+    }
+
+    @Test
+    void testGetWithLegitimateRelativeNextPagePreserved() throws Exception {
+        stubSuccessfulDownload();
+        when( request.getParameter( "nextpage" ) ).thenReturn( "/wiki/Main" );
+
+        captureOutput();
+        servlet.doGet( request, response );
+
+        verify( response ).sendRedirect( "/wiki/Main" );
+    }
+
+    /** Stubs a successful attachment download (existing, cacheable, permitted, no If-Modified-Since). */
+    private void stubSuccessfulDownload() throws ProviderException, IOException {
         final byte[] content = "data".getBytes( StandardCharsets.UTF_8 );
         final Date lastModified = new Date();
 
@@ -195,20 +279,6 @@ class AttachmentServletCITest2 {
         when( attachmentManager.forceDownload( "test.png" ) ).thenReturn( false );
         when( authorizationManager.checkPermission( eq( session ), any( Permission.class ) ) ).thenReturn( true );
         when( request.getDateHeader( "If-Modified-Since" ) ).thenReturn( -1L );
-
-        // nextPage points to a different host — phishing attempt via the nextpage
-        // parameter.  The nextPage value is URL-encoded before validateNextPage
-        // checks it, so "://" gets encoded to "%3A%2F%2F" and the containment
-        // check does NOT detect it as absolute.  The redirect therefore goes to
-        // the URL-encoded value (servlet behaviour, not a security bypass since
-        // the browser won't treat an encoded URL as an absolute link target).
-        when( request.getParameter( "nextpage" ) ).thenReturn( "http://evil.example.com/steal" );
-
-        captureOutput();
-        servlet.doGet( request, response );
-
-        // A redirect must occur — verify sendRedirect was called
-        verify( response ).sendRedirect( anyString() );
     }
 
     // ---- negative size: no Content-Length header ----
@@ -326,32 +396,23 @@ class AttachmentServletCITest2 {
         assertDoesNotThrow( () -> servlet.sendError( response, "too late" ) );
     }
 
-    // ---- validateNextPage: absolute URL on same server ----
+    // ---- validateNextPage: absolute URL on same server is now rejected ----
 
     @Test
-    void testGetWithNextPageOnSameServerIsAllowed() throws Exception {
-        final byte[] content = "data".getBytes( StandardCharsets.UTF_8 );
-        final Date lastModified = new Date();
+    void testGetWithAbsoluteUrlOnSameServerIsRejected() throws Exception {
+        stubSuccessfulDownload();
 
-        final Attachment att = createMockAttachment( "TestPage/test.png", "test.png", lastModified );
-        when( att.isCacheable() ).thenReturn( true );
-        when( att.getSize() ).thenReturn( (long) content.length );
-
-        when( attachmentManager.getAttachmentInfo( eq( "TestPage/test.png" ), anyInt() ) ).thenReturn( att );
-        when( attachmentManager.getAttachmentStream( any( Context.class ), eq( att ) ) )
-                .thenReturn( new ByteArrayInputStream( content ) );
-        when( attachmentManager.forceDownload( "test.png" ) ).thenReturn( false );
-        when( authorizationManager.checkPermission( eq( session ), any( Permission.class ) ) ).thenReturn( true );
-        when( request.getDateHeader( "If-Modified-Since" ) ).thenReturn( -1L );
-
-        // An absolute URL starting with the base URL is fine
+        // Previously allowed because engine.getBaseURL() returns the servlet CONTEXT PATH
+        // (empty string for the ROOT deployment this app runs under in production), so
+        // startsWith("") was always true and nothing absolute was ever actually rejected.
+        // The allowlist accepts only a same-origin RELATIVE path, so even an absolute URL
+        // that happens to match this host is now rejected — the redirect goes to the error page.
         when( request.getParameter( "nextpage" ) ).thenReturn( "http://localhost:8080/wiki/TestPage" );
 
         captureOutput();
         servlet.doGet( request, response );
 
-        // Should redirect to the (encoded) next page URL, not the error page
-        verify( response ).sendRedirect( argThat( url -> url.contains( "localhost%3A8080" ) || url.contains( "localhost:8080" ) ) );
+        verify( response ).sendRedirect( "http://localhost:8080/error" );
     }
 
     // ---- mime type fallback when context has no HTTP request ----

@@ -665,7 +665,7 @@ class AttachmentServletTest {
         final String nextPagePart =
                 "Content-Disposition: form-data; name=\"nextpage\"\r\n" +
                 "\r\n" +
-                "http://localhost:8080/Wiki.jsp?page=TestPage";
+                "/Wiki.jsp?page=TestPage";
 
         final byte[] body = buildMultipartBody( pagePart, nextPagePart, filePart );
         stubMultipartRequest( body );
@@ -677,7 +677,7 @@ class AttachmentServletTest {
 
         final String result = servlet.upload( request );
 
-        assertEquals( "http://localhost:8080/Wiki.jsp?page=TestPage", result );
+        assertEquals( "/Wiki.jsp?page=TestPage", result );
         verify( progressManager ).startProgress( any(), isNull() );
         verify( progressManager ).stopProgress( isNull() );
     }
@@ -733,6 +733,70 @@ class AttachmentServletTest {
                 "Off-site nextPage must be rejected" );
         assertEquals( "http://localhost:8080/error", result,
                 "validateNextPage should rewrite off-site URL to errorPage" );
+    }
+
+    // ---- validateNextPage allowlist: rejected variants (POST) ----
+
+    /** Builds a multipart upload with the given raw {@code nextpage} value and returns the resolved redirect target. */
+    private String uploadWithNextPage( final String nextPageValue ) throws Exception {
+        final String filePart =
+                "Content-Disposition: form-data; name=\"content\"; filename=\"test.txt\"\r\n" +
+                "Content-Type: text/plain\r\n" +
+                "\r\n" +
+                "hello";
+        final String pagePart =
+                "Content-Disposition: form-data; name=\"page\"\r\n" +
+                "\r\n" +
+                "TestPage";
+        final String nextPagePart =
+                "Content-Disposition: form-data; name=\"nextpage\"\r\n" +
+                "\r\n" +
+                nextPageValue;
+
+        final byte[] body = buildMultipartBody( pagePart, nextPagePart, filePart );
+        stubMultipartRequest( body );
+
+        doReturn( false ).when( servlet ).executeUpload(
+                any( Context.class ), any( InputStream.class ),
+                anyString(), anyString(), anyString(), any(), anyLong() );
+
+        return servlet.upload( request );
+    }
+
+    @Test
+    void testUploadWithProtocolRelativeNextPageRejected() throws Exception {
+        assertEquals( "http://localhost:8080/error", uploadWithNextPage( "//evil.com" ),
+                "Protocol-relative nextpage must be rejected" );
+    }
+
+    @Test
+    void testUploadWithBackslashNextPageRejected() throws Exception {
+        assertEquals( "http://localhost:8080/error", uploadWithNextPage( "/\\evil.com" ),
+                "Backslash-led nextpage must be rejected" );
+    }
+
+    @Test
+    void testUploadWithAbsoluteHttpsNextPageRejected() throws Exception {
+        assertEquals( "http://localhost:8080/error", uploadWithNextPage( "https://evil.com" ),
+                "Absolute https nextpage must be rejected" );
+    }
+
+    @Test
+    void testUploadWithSchemeOnlyNextPageRejected() throws Exception {
+        assertEquals( "http://localhost:8080/error", uploadWithNextPage( "http:evil.com" ),
+                "Scheme-with-no-slashes nextpage must be rejected" );
+    }
+
+    @Test
+    void testUploadWithJavascriptSchemeNextPageRejected() throws Exception {
+        assertEquals( "http://localhost:8080/error", uploadWithNextPage( "javascript:alert(1)" ),
+                "javascript: nextpage must be rejected" );
+    }
+
+    @Test
+    void testUploadWithLegitimateRelativeNextPagePreserved() throws Exception {
+        assertEquals( "/wiki/Main", uploadWithNextPage( "/wiki/Main" ),
+                "Same-origin relative nextpage must be preserved" );
     }
 
     // ---- getMimeType fallback → "application/binary" ----

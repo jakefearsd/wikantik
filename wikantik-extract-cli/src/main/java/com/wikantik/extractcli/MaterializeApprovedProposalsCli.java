@@ -94,48 +94,69 @@ public final class MaterializeApprovedProposalsCli {
         final long inScope = proposals.countProposalsFiltered( PENDING, null, APPROVED, false, null );
         out.printf( "replay: %d pending machine-approved proposals of all types in scope%n", inScope );
 
-        int materialized = 0;
-        int skippedOtherType = 0;
-        int failed = 0;
-        int offset = 0;
+        final Tally t = replay( proposals, materialization, a );
 
-        // Offset paging is safe here: materializeMachine writes kg_nodes/kg_edges but never
-        // status or machine_status, so rows cannot drop out of the filter mid-run, and the
-        // query already orders `created DESC, id DESC` with a stable-pagination tiebreak.
-        paging:
+        out.printf( "replay %s: materialized=%d, skipped(other type)=%d, failed=%d%n",
+            a.dryRun ? "DRY RUN (nothing written)" : "complete",
+            t.materialized, t.skippedOtherType, t.failed );
+        return t.failed > 0 ? 1 : 0;
+    }
+
+    /** Running totals for one replay pass. */
+    private static final class Tally {
+        private int materialized;
+        private int skippedOtherType;
+        private int failed;
+    }
+
+    /**
+     * Pages through the in-scope proposals, materialising each.
+     *
+     * <p>Offset paging is safe here: {@code materializeMachine} writes {@code kg_nodes} /
+     * {@code kg_edges} but never {@code status} or {@code machine_status}, so rows cannot drop
+     * out of the filter mid-run, and the query already orders {@code created DESC, id DESC}
+     * with a deliberate stable-pagination tiebreak.</p>
+     */
+    private Tally replay( final KgProposalRepository proposals,
+                          final KgMaterializationService materialization, final Args a ) {
+        final Tally t = new Tally();
+        int offset = 0;
         while ( true ) {
             final List< KgProposal > page = proposals.listProposalsFiltered(
                 PENDING, null, APPROVED, false, null, PAGE_SIZE, offset );
-            if ( page.isEmpty() ) {
-                break;
-            }
-            for ( final KgProposal p : page ) {
-                if ( !NEW_NODE.equals( p.proposalType() ) ) {
-                    skippedOtherType++;
-                    continue;
-                }
-                if ( a.limit > 0 && materialized >= a.limit ) {
-                    break paging;
-                }
-                if ( a.dryRun ) {
-                    materialized++;
-                    continue;
-                }
-                try {
-                    materialization.materializeMachine( p );
-                    materialized++;
-                } catch ( final RuntimeException e ) {
-                    // One bad proposal must not cap the replay — mirrors PgVectorBackfillCli.
-                    failed++;
-                    err.printf( "  failed proposal %s: %s%n", p.id(), e.getMessage() );
-                }
+            if ( page.isEmpty() || !replayPage( page, materialization, a, t ) ) {
+                return t;
             }
             offset += page.size();
         }
+    }
 
-        out.printf( "replay %s: materialized=%d, skipped(other type)=%d, failed=%d%n",
-            a.dryRun ? "DRY RUN (nothing written)" : "complete", materialized, skippedOtherType, failed );
-        return failed > 0 ? 1 : 0;
+    /** Materialises one page. Returns {@code false} when {@code --limit} is reached. */
+    private boolean replayPage( final List< KgProposal > page,
+                                final KgMaterializationService materialization,
+                                final Args a, final Tally t ) {
+        for ( final KgProposal p : page ) {
+            if ( !NEW_NODE.equals( p.proposalType() ) ) {
+                t.skippedOtherType++;
+                continue;
+            }
+            if ( a.limit > 0 && t.materialized >= a.limit ) {
+                return false;
+            }
+            if ( a.dryRun ) {
+                t.materialized++;
+                continue;
+            }
+            try {
+                materialization.materializeMachine( p );
+                t.materialized++;
+            } catch ( final RuntimeException e ) {
+                // One bad proposal must not cap the replay — mirrors PgVectorBackfillCli.
+                t.failed++;
+                err.printf( "  failed proposal %s: %s%n", p.id(), e.getMessage() );
+            }
+        }
+        return true;
     }
 
     public int run( final String[] args ) {

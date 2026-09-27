@@ -249,12 +249,25 @@ public final class MailUtil {
     static final String PROP_MAILS_STARTTLS          = "mail.smtps.starttls.enable";
 
     private static String c_fromAddress;
-    
+
     /**
      *  Private constructor prevents instantiation.
      */
     private MailUtil()
     {
+    }
+
+    /**
+     * Test seam: clears the JVM-lifetime static caches ({@code c_fromAddress}, {@code c_useJndi})
+     * back to their startup state. {@link #setSenderEmailAddress} and {@link #getMailSession}
+     * cache their results for the life of the JVM so a real deployment resolves them once; left
+     * uncleared between tests, one test's resolved sender address or JNDI-failure flag leaks into
+     * every later test sharing the same surefire fork. Package-private: only test code should
+     * ever need to reach into this.
+     */
+    static void resetCachedState() {
+        c_fromAddress = null;
+        c_useJndi = true;
     }
 
     /**

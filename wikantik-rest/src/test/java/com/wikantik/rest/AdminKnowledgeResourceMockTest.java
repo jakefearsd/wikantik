@@ -758,6 +758,89 @@ class AdminKnowledgeResourceMockTest {
         }
     }
 
+    /**
+     * Companion bug to the caching guard above: the frontmatter backfill (POST
+     * /backfill-frontmatter) fixes exactly the pages this endpoint lists, but its
+     * background worker never invalidated {@code cachedPagesWithoutFm} — so for up
+     * to the cache TTL (30s by default) after a backfill, this endpoint kept
+     * reporting pages the backfill had just repaired.
+     *
+     * <p>Uses a dedicated {@link TestEngine} (mirrors {@code
+     * anyRequest_returns503CitingFlagWhenKgDisabled}) because the backfill performs
+     * a real page save — that must not leak mutated page content into the shared
+     * class-level engine other tests in this file rely on.
+     *
+     * <p>Waits on the real, observable post-backfill state (the page dropping out of
+     * the list) rather than a fixed sleep or an unreached branch: without the fix
+     * the cache TTL (30s) outlives this test's 5s budget, so a broken invalidation
+     * fails this assertion for real instead of vacuously passing.
+     */
+    @Test
+    void postBackfillFrontmatter_invalidatesPagesWithoutFrontmatterCache() throws Exception {
+        final TestEngine backfillEngine = TestEngine.build();
+        try {
+            final AdminKnowledgeResource backfillServlet = new AdminKnowledgeResource();
+            final ServletConfig config = Mockito.mock( ServletConfig.class );
+            Mockito.doReturn( backfillEngine.getServletContext() ).when( config ).getServletContext();
+            backfillServlet.init( config );
+            ( (WikiEngine) backfillEngine ).setManager(
+                KnowledgeGraphService.class, Mockito.mock( KnowledgeGraphService.class ) );
+
+            backfillEngine.saveText( "NoFrontmatterPage", "Just a body, no YAML block." );
+
+            // Prime the cache with the pre-backfill state.
+            assertTrue( containsPage( callOn( backfillServlet, "/pages-without-frontmatter", "GET" ),
+                "NoFrontmatterPage" ), "page must be listed before the backfill runs" );
+
+            // Kick off the background backfill.
+            callOn( backfillServlet, "/backfill-frontmatter", "POST" );
+
+            // Bounded poll of the real endpoint for its real post-backfill state.
+            final long deadline = System.currentTimeMillis() + 5000;
+            boolean stillListed = true;
+            while ( System.currentTimeMillis() < deadline ) {
+                stillListed = containsPage(
+                    callOn( backfillServlet, "/pages-without-frontmatter", "GET" ), "NoFrontmatterPage" );
+                if ( !stillListed ) {
+                    break;
+                }
+                Thread.sleep( 50 );
+            }
+            assertFalse( stillListed,
+                "backfill completion must invalidate the pages-without-frontmatter cache" );
+        } finally {
+            backfillEngine.stop();
+        }
+    }
+
+    private JsonObject callOn( final AdminKnowledgeResource targetServlet, final String pathInfo,
+                                final String method ) throws Exception {
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph" + pathInfo );
+        Mockito.doReturn( pathInfo ).when( req ).getPathInfo();
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( resp ).getWriter();
+        switch ( method ) {
+            case "GET"  -> targetServlet.doGet( req, resp );
+            case "POST" -> targetServlet.doPost( req, resp );
+            default -> fail( "unexpected method: " + method );
+        }
+        final String body = sw.toString();
+        return body.isEmpty() ? new JsonObject() : gson.fromJson( body, JsonObject.class );
+    }
+
+    private static boolean containsPage( final JsonObject listResponse, final String pageName ) {
+        if ( !listResponse.has( "pages" ) ) {
+            return false;
+        }
+        for ( final var el : listResponse.getAsJsonArray( "pages" ) ) {
+            if ( pageName.equals( el.getAsJsonObject().get( "name" ).getAsString() ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ---- sync-hub-memberships (no HubSyncService registered in test engine) ----
 
     @Test

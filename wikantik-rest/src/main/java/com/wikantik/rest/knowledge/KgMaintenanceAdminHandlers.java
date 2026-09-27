@@ -123,6 +123,12 @@ public final class KgMaintenanceAdminHandlers {
         }
     }
 
+    /** Drops the cached scan so the next poll rescans. Called once a backfill completes,
+     *  successfully or not, since a partial run can still have fixed some pages. */
+    private void invalidatePagesWithoutFmCache() {
+        cachedPagesWithoutFm = null;
+    }
+
     /**
      *  Returns the sorted list of pages lacking frontmatter, rescanning only when the cache
      *  is empty or older than {@link #pagesWithoutFrontmatterCacheTtlSeconds()}.
@@ -289,6 +295,9 @@ public final class KgMaintenanceAdminHandlers {
             LOG.error( "Backfill failed: {}", e.getMessage(), e );
         } finally {
             backfillRunning = false;
+            // A backfill changes which pages lack frontmatter, so the cached scan is stale —
+            // even a partially-failed run may have fixed some pages (see class javadoc).
+            invalidatePagesWithoutFmCache();
         }
     }
 

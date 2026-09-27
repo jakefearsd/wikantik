@@ -40,8 +40,7 @@ final class RedirectTargets {
      *  under in production — so a same-origin-prefix denylist check never rejects anything.
      *  A denylist also misses protocol-relative ({@code //evil.com}) and backslash-based
      *  ({@code /\evil.com}, {@code \\evil.com}) variants, since none of those contain
-     *  {@code "://"}. The same instance is returned on success, so callers may compare by
-     *  reference to tell whether the fallback was taken.
+     *  {@code "://"}.
      *
      *  @param nextPage  the user-supplied redirect target; may be {@code null}
      *  @param errorPage the fallback target

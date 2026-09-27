@@ -356,7 +356,7 @@ public class AttachmentServlet extends HttpServlet {
             // protocol-relative "//evil.com" survive, since the encoder keeps '/' unescaped and
             // only ':' gets encoded, so an "://" denylist check never sees it.
             final String validated = safeNextPage( nextPage );
-            res.sendRedirect( validated == nextPage ? TextUtil.urlEncodeUTF8( validated ) : validated );
+            res.sendRedirect( validated.equals( nextPage ) ? TextUtil.urlEncodeUTF8( validated ) : validated );
         }
     }
 

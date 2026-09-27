@@ -45,7 +45,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -121,6 +120,10 @@ public class TikaSourceExtractor implements SourceExtractor {
      *  guarded by the task's own flag — if and when that orphan eventually finishes on its own.
      *  Package-private so tests can observe/await it draining. */
     static final AtomicInteger STUCK_WORKERS = new AtomicInteger();
+
+    private static final int TASK_RUNNING  = 0;
+    private static final int TASK_STUCK    = 1;
+    private static final int TASK_FINISHED = 2;
 
     /** MIME types supported in v1. Case-insensitive. */
     private static final Set< String > SUPPORTED_TYPES = Set.of(
@@ -222,10 +225,12 @@ public class TikaSourceExtractor implements SourceExtractor {
 
         boolean truncated = false;
         final AtomicReference< Thread > worker = new AtomicReference<>();
-        // Set true only if this task's timeout was confirmed stuck (worker still alive after
-        // cancel) — guards the STUCK_WORKERS decrement below so a normal completion never
-        // decrements a count it never incremented.
-        final AtomicBoolean countedAsStuck = new AtomicBoolean( false );
+        // Handshake between the timeout path and the task's finally, decided by a single CAS so
+        // neither side can miss the other: the timeout path claims RUNNING -> STUCK (and counts
+        // it), the task swaps in FINISHED on exit and un-counts only if it saw STUCK. A check-
+        // then-set here would leak a count whenever the parse finished in between — and eight
+        // leaked counts would reject every extraction until restart.
+        final AtomicInteger state = new AtomicInteger( TASK_RUNNING );
 
         final Future< Void > future = PER_CALL_EXECUTOR.submit( () -> {
             worker.set( Thread.currentThread() );
@@ -234,7 +239,7 @@ public class TikaSourceExtractor implements SourceExtractor {
                     parser.parse( source, bounded, md, new ParseContext() );
                 }
             } finally {
-                if ( countedAsStuck.get() ) {
+                if ( state.getAndSet( TASK_FINISHED ) == TASK_STUCK ) {
                     STUCK_WORKERS.decrementAndGet();
                 }
             }
@@ -248,8 +253,10 @@ public class TikaSourceExtractor implements SourceExtractor {
             LOG.warn( "Tika extraction timed out after {}s for '{}' (type={})",
                 timeoutSeconds, filename, contentType, e );
             final Thread w = worker.get();
-            if ( w != null && w.isAlive() ) {
-                countedAsStuck.set( true );
+            // A task cancelled before it started never runs its finally, so only a started
+            // worker may be counted. (One that starts just after this read goes uncounted —
+            // that only loosens the cap, it can never leak a count.)
+            if ( w != null && state.compareAndSet( TASK_RUNNING, TASK_STUCK ) ) {
                 STUCK_WORKERS.incrementAndGet();
                 LOG.warn( "Tika extraction worker '{}' for '{}' is still running after cancellation — "
                     + "the parse is likely CPU-bound and ignoring interruption; it will keep "

@@ -18,6 +18,8 @@
  */
 package com.wikantik.render.subsystem.spam;
 
+import java.util.Objects;
+
 /**
  * Internal value type representing a page-content change for spam inspection.
  * Extracted from {@code SpamFilter} in Phase 6 Checkpoint 3 of the
@@ -36,11 +38,11 @@ public final class SpamChange {
 
     @Override
     public boolean equals( final Object o ) {
-        return o instanceof SpamChange c && change.equals( c.change );
+        return o instanceof SpamChange c && Objects.equals( change, c.change );
     }
 
     @Override
     public int hashCode() {
-        return change.hashCode() + 17;
+        return Objects.hashCode( change ) + 17;
     }
 }

@@ -102,9 +102,14 @@ public final class KgMaintenanceAdminHandlers {
      *  <p>The SCAN RESULT is cached, not the response: {@code limit}/{@code offset} must
      *  still paginate per request. Held as a plain volatile snapshot rather than a Caffeine
      *  cache — one value, and Caffeine is not a dependency of this module.</p>
+     *
+     *  <p>Value and timestamp are held together in one immutable {@link CachedScan} behind a
+     *  single volatile field, so a reader can never pair a freshly-written snapshot with a
+     *  stale timestamp (or vice versa) the way two independently-written volatile fields can.</p>
      */
-    private volatile List< Map< String, Object > > cachedPagesWithoutFm;
-    private volatile long cachedPagesWithoutFmAtMs;
+    private record CachedScan( List< Map< String, Object > > pages, long atMs ) {}
+
+    private volatile CachedScan cachedPagesWithoutFm;
 
     /** TTL in seconds for {@link #cachedPagesWithoutFm}; {@code <= 0} disables caching. */
     private long pagesWithoutFrontmatterCacheTtlSeconds() {
@@ -137,10 +142,9 @@ public final class KgMaintenanceAdminHandlers {
             final PageManager pm, final SystemPageRegistry spr ) throws Exception {
         final long ttl = pagesWithoutFrontmatterCacheTtlSeconds();
         if ( ttl > 0 ) {
-            final List< Map< String, Object > > cached = cachedPagesWithoutFm;
-            if ( cached != null
-                 && System.currentTimeMillis() - cachedPagesWithoutFmAtMs < ttl * 1000L ) {
-                return cached;
+            final CachedScan cached = cachedPagesWithoutFm;
+            if ( cached != null && System.currentTimeMillis() - cached.atMs() < ttl * 1000L ) {
+                return cached.pages();
             }
         }
         final List< Map< String, Object > > pages = new ArrayList<>();
@@ -160,8 +164,7 @@ public final class KgMaintenanceAdminHandlers {
         }
         pages.sort( Comparator.comparing( m -> ( String ) m.get( "name" ) ) );
         final List< Map< String, Object > > snapshot = List.copyOf( pages );
-        cachedPagesWithoutFm = snapshot;
-        cachedPagesWithoutFmAtMs = System.currentTimeMillis();
+        cachedPagesWithoutFm = new CachedScan( snapshot, System.currentTimeMillis() );
         return snapshot;
     }
 

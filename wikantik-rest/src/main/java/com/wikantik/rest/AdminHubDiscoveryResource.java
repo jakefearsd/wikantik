@@ -102,9 +102,9 @@ public class AdminHubDiscoveryResource extends RestServletBase {
      * dialect) keeps the pre-refactor matching semantics byte-identical — the original chain
      * mixed exact matches, {@code String.matches} regexes, and prefix/suffix checks.
      */
-    private transient RouteTable< RouteAction > getRoutes;
-    private transient RouteTable< RouteAction > postRoutes;
-    private transient RouteTable< RouteAction > deleteRoutes;
+    private transient volatile RouteTable< RouteAction > getRoutes;
+    private transient volatile RouteTable< RouteAction > postRoutes;
+    private transient volatile RouteTable< RouteAction > deleteRoutes;
 
     private RouteTable< RouteAction > getRoutes() {
         if ( getRoutes == null ) {

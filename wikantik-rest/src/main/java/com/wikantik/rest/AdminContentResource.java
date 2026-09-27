@@ -106,7 +106,7 @@ public class AdminContentResource extends RestServletBase {
      * {@link RouteTable} for the shared matching engine and the
      * transient-field-plus-lazy-rebuild convention every route table here follows.
      */
-    private transient RouteTable< Route > routes;
+    private transient volatile RouteTable< Route > routes;
 
     private RouteTable< Route > routes() {
         if ( routes == null ) {

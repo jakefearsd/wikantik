@@ -115,7 +115,7 @@ public class AdminKnowledgeResource extends RestServletBase {
      * {@link ResourceAction} contract. See {@link RouteTable} for the shared matching engine
      * and the transient-field-plus-lazy-rebuild convention every route table here follows.
      */
-    private transient RouteTable< Resource > routes;
+    private transient volatile RouteTable< Resource > routes;
 
     private RouteTable< Resource > routes() {
         if ( routes == null ) {

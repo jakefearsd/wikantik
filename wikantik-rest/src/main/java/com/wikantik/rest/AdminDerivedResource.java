@@ -77,9 +77,14 @@ public class AdminDerivedResource extends RestServletBase {
      *  single 3-integer value, and Caffeine is not currently a dependency of this module.
      *  Dropped outright by {@link #invalidateStatusCache()} after any reflow, so an
      *  operator action is never reported stale.</p>
+     *
+     *  <p>Value and timestamp are held together in one immutable {@link CachedStatus} behind
+     *  a single volatile field, so a reader can never pair a freshly-written snapshot with a
+     *  stale timestamp (or vice versa) the way two independently-written volatile fields can.</p>
      */
-    private volatile DerivedReflowService.ReflowStatus cachedStatus;
-    private volatile long cachedStatusAtMs;
+    private record CachedStatus( DerivedReflowService.ReflowStatus status, long atMs ) {}
+
+    private volatile CachedStatus cachedStatus;
 
     /** TTL in seconds for {@link #cachedStatus}; {@code <= 0} disables caching entirely. */
     private long statusCacheTtlSeconds() {
@@ -130,15 +135,13 @@ public class AdminDerivedResource extends RestServletBase {
     private DerivedReflowService.ReflowStatus statusSnapshot() {
         final long ttl = statusCacheTtlSeconds();
         if ( ttl > 0 ) {
-            final DerivedReflowService.ReflowStatus cached = cachedStatus;
-            if ( cached != null
-                 && System.currentTimeMillis() - cachedStatusAtMs < ttl * 1000L ) {
-                return cached;
+            final CachedStatus cached = cachedStatus;
+            if ( cached != null && System.currentTimeMillis() - cached.atMs() < ttl * 1000L ) {
+                return cached.status();
             }
         }
         final DerivedReflowService.ReflowStatus fresh = buildReflowService().status();
-        cachedStatus = fresh;
-        cachedStatusAtMs = System.currentTimeMillis();
+        cachedStatus = new CachedStatus( fresh, System.currentTimeMillis() );
         return fresh;
     }
 

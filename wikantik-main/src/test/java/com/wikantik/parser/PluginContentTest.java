@@ -318,6 +318,153 @@ class PluginContentTest {
     //  parsePluginLine
     // -------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------
+    //  getText — delegates to invoke() when a live context is attached
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getTextDelegatesToInvokeWhenContextIsPresent() throws PluginException {
+        final PluginManager pm = mock( PluginManager.class );
+        when( pm.execute( any( Context.class ), eq( PLUGIN_NAME ), anyMap() ) )
+                .thenReturn( "rendered-output" );
+
+        final VariableManager vm = mock( VariableManager.class );
+        when( vm.expandVariables( any( Context.class ), anyString() ) )
+                .thenAnswer( inv -> inv.getArgument( 1 ) );
+
+        final Engine engine = MockEngineBuilder.engine()
+                .with( VariableManager.class, vm )
+                .with( PluginManager.class, pm )
+                .build();
+
+        final Context context = mock( Context.class );
+        when( context.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE ) ).thenReturn( null );
+        when( context.getVariable( Context.VAR_EXECUTE_PLUGINS ) ).thenReturn( null );
+        when( context.getEngine() ).thenReturn( engine );
+
+        final Page page = mock( Page.class );
+        final WikiDocument doc = new WikiDocument( page );
+        doc.setContext( context );
+        doc.setRootElement( new org.jdom2.Element( "root" ) );
+
+        final PluginContent pc = new PluginContent( PLUGIN_NAME, params );
+        doc.getRootElement().addContent( pc );
+
+        assertEquals( "rendered-output", pc.getText() );
+    }
+
+    // -------------------------------------------------------------------------
+    //  executeParse — ParserStagePlugin.executeParser throws ClassCastException
+    // -------------------------------------------------------------------------
+
+    @Test
+    void executeParseWrapsClassCastExceptionFromExecuteParser() throws PluginException {
+        interface TestParserPlugin extends Plugin, ParserStagePlugin {}
+        final TestParserPlugin psp = mock( TestParserPlugin.class );
+        doThrow( new ClassCastException( "boom" ) ).when( psp ).executeParser( any(), any(), anyMap() );
+
+        final PluginManager pm = mock( PluginManager.class );
+        when( pm.pluginsEnabled() ).thenReturn( true );
+        when( pm.newWikiPlugin( eq( PLUGIN_NAME ), any( ResourceBundle.class ) ) )
+                .thenReturn( psp );
+
+        final Engine engine = MockEngineBuilder.engine()
+                .with( PluginManager.class, pm )
+                .build();
+
+        final Context context = mock( Context.class );
+        when( context.getEngine() ).thenReturn( engine );
+
+        final ResourceBundle rb = ResourceBundle.getBundle( Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
+        try ( var ignored = mockStatic( com.wikantik.preferences.Preferences.class ) ) {
+            when( com.wikantik.preferences.Preferences.getBundle( any(), anyString() ) ).thenReturn( rb );
+
+            final PluginContent pc = new PluginContent( PLUGIN_NAME, params );
+            final PluginException ex = assertThrows( PluginException.class, () -> pc.executeParse( context ) );
+            assertTrue( ex.getMessage().contains( PLUGIN_NAME ) );
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    //  parsePluginLine — pos != -1 sets the _bounds parameter
+    // -------------------------------------------------------------------------
+
+    @Test
+    void parsePluginLineSetsBoundsParamWhenPosGiven() throws PluginException, java.io.IOException {
+        final PluginManager pm = mock( PluginManager.class );
+        when( pm.getPluginPattern() ).thenReturn(
+                java.util.regex.Pattern.compile( "\\{?(INSERT)?\\s*([\\w\\._]+)[ \\t]*(WHERE)?[ \\t]*" ) );
+        when( pm.parseArgs( anyString() ) ).thenReturn( new HashMap<>() );
+
+        final Engine engine = MockEngineBuilder.engine()
+                .with( PluginManager.class, pm )
+                .build();
+        final Context context = mock( Context.class );
+        when( context.getEngine() ).thenReturn( engine );
+
+        final String commandline = "SamplePlugin}";
+        final PluginContent result = PluginContent.parsePluginLine( context, commandline, 5 );
+
+        assertNotNull( result );
+        final int expectedEnd = 5 + commandline.length() + 2;
+        assertEquals( "5|" + expectedEnd, result.getParameter( PluginManager.PARAM_BOUNDS ) );
+    }
+
+    // -------------------------------------------------------------------------
+    //  parsePluginLine — parseArgs failures are wrapped in the right exception type
+    // -------------------------------------------------------------------------
+
+    @Test
+    void parsePluginLineWrapsClassCastExceptionFromParseArgs() throws java.io.IOException {
+        final PluginManager pm = mock( PluginManager.class );
+        when( pm.getPluginPattern() ).thenReturn(
+                java.util.regex.Pattern.compile( "\\{?(INSERT)?\\s*([\\w\\._]+)[ \\t]*(WHERE)?[ \\t]*" ) );
+        when( pm.parseArgs( anyString() ) ).thenThrow( new ClassCastException( "boom" ) );
+
+        final Engine engine = MockEngineBuilder.engine()
+                .with( PluginManager.class, pm )
+                .build();
+        final Context context = mock( Context.class );
+        when( context.getEngine() ).thenReturn( engine );
+
+        assertThrows( com.wikantik.InternalWikiException.class,
+                () -> PluginContent.parsePluginLine( context, "SamplePlugin}", -1 ) );
+    }
+
+    @Test
+    void parsePluginLineWrapsNoSuchElementExceptionFromParseArgs() throws java.io.IOException {
+        final PluginManager pm = mock( PluginManager.class );
+        when( pm.getPluginPattern() ).thenReturn(
+                java.util.regex.Pattern.compile( "\\{?(INSERT)?\\s*([\\w\\._]+)[ \\t]*(WHERE)?[ \\t]*" ) );
+        when( pm.parseArgs( anyString() ) ).thenThrow( new java.util.NoSuchElementException( "boom" ) );
+
+        final Engine engine = MockEngineBuilder.engine()
+                .with( PluginManager.class, pm )
+                .build();
+        final Context context = mock( Context.class );
+        when( context.getEngine() ).thenReturn( engine );
+
+        assertThrows( PluginException.class,
+                () -> PluginContent.parsePluginLine( context, "SamplePlugin}", -1 ) );
+    }
+
+    @Test
+    void parsePluginLineWrapsIOExceptionFromParseArgs() throws java.io.IOException {
+        final PluginManager pm = mock( PluginManager.class );
+        when( pm.getPluginPattern() ).thenReturn(
+                java.util.regex.Pattern.compile( "\\{?(INSERT)?\\s*([\\w\\._]+)[ \\t]*(WHERE)?[ \\t]*" ) );
+        when( pm.parseArgs( anyString() ) ).thenThrow( new java.io.IOException( "boom" ) );
+
+        final Engine engine = MockEngineBuilder.engine()
+                .with( PluginManager.class, pm )
+                .build();
+        final Context context = mock( Context.class );
+        when( context.getEngine() ).thenReturn( engine );
+
+        assertThrows( PluginException.class,
+                () -> PluginContent.parsePluginLine( context, "SamplePlugin}", -1 ) );
+    }
+
     @Test
     void parsePluginLineReturnsNullForNonMatchingLine() throws PluginException {
         final PluginManager pm = mock( PluginManager.class );

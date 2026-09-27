@@ -28,6 +28,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.filters.FilterManager;
+import com.wikantik.filters.SpamFilter;
 import com.wikantik.api.managers.PageManager;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.security.Principal;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Properties;
 
@@ -266,6 +268,120 @@ class DefaultUserManagerCITest {
 
         // Cleanup
         m_db.deleteByLoginName( login );
+    }
+
+    // =========================================================================
+    //  validateProfile — spam filter rejects the profile (short-circuits validation)
+    // =========================================================================
+
+    @Test
+    void validateProfileShortCircuitsWhenSpamFilterRejects() throws Exception {
+        final FilterManager filterManager = m_engine.getManager( FilterManager.class );
+        filterManager.addPageFilter( new SpamFilter() {
+            @Override
+            public boolean isValidUserProfile( final Context context, final UserProfile profile ) {
+                return false;
+            }
+        }, 0 );
+
+        final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final UserProfile profile = m_db.newProfile();
+        profile.setLoginName( "spamrejected" + System.currentTimeMillis() );
+        profile.setFullname( "Spam Rejected" );
+        profile.setEmail( "spamrejected@example.com" );
+        profile.setPassword( Users.ALICE_PASS );
+
+        m_mgr.validateProfile( context, profile );
+
+        final String[] messages = context.getWikiSession().getMessages( SESSION_MESSAGES );
+        assertEquals( 1, messages.length,
+                "Spam-filter rejection should short-circuit before any other validation runs" );
+        assertEquals( "Invalid userprofile", messages[ 0 ] );
+    }
+
+    // =========================================================================
+    //  validateProfile — password too short reports the formatted minimum-length message
+    // =========================================================================
+
+    @Test
+    void validateProfileReportsFormattedTooShortPasswordMessage() throws Exception {
+        final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final UserProfile profile = m_db.newProfile();
+        profile.setLoginName( "shortpwd" + System.currentTimeMillis() );
+        profile.setFullname( "Short Pwd User" );
+        profile.setEmail( "shortpwd" + System.currentTimeMillis() + "@example.com" );
+        profile.setPassword( "ab" );
+
+        m_mgr.validateProfile( context, profile );
+
+        final String[] messages = context.getWikiSession().getMessages( SESSION_MESSAGES );
+        assertTrue( Arrays.stream( messages ).anyMatch( m -> m.contains( "at least 8" ) ),
+                "A too-short password should report the formatted minimum-length message; got: " + Arrays.toString( messages ) );
+    }
+
+    // =========================================================================
+    //  validateProfile — full name collides with another user's login name
+    // =========================================================================
+
+    @Test
+    void validateProfileReportsIllegalFullNameWhenItCollidesWithAnotherLoginName() throws Exception {
+        final Context ctx1 = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final String suffix = String.valueOf( System.currentTimeMillis() );
+        final String existingLogin = "collideLogin" + suffix;
+        final UserProfile existing = m_db.newProfile();
+        existing.setLoginName( existingLogin );
+        existing.setFullname( "Existing Full " + suffix );
+        existing.setEmail( "existingfull" + suffix + "@example.com" );
+        existing.setPassword( Users.ALICE_PASS );
+        m_mgr.setUserProfile( ctx1, existing );
+
+        final Context ctx2 = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final UserProfile candidate = m_db.newProfile();
+        candidate.setLoginName( "newlogin" + suffix );
+        candidate.setFullname( existingLogin ); // collides with existing's login name
+        candidate.setEmail( "newlogin" + suffix + "@example.com" );
+        candidate.setPassword( Users.ALICE_PASS );
+
+        m_mgr.validateProfile( ctx2, candidate );
+
+        final String[] messages = ctx2.getWikiSession().getMessages( SESSION_MESSAGES );
+        assertTrue( Arrays.stream( messages ).anyMatch( m -> m.contains( "fails validation checks" ) ),
+                "Full name colliding with another user's login name should be flagged illegal; got: " + Arrays.toString( messages ) );
+
+        m_db.deleteByLoginName( existingLogin );
+    }
+
+    // =========================================================================
+    //  validateProfile — login name collides with another user's full name
+    // =========================================================================
+
+    @Test
+    void validateProfileReportsIllegalLoginNameWhenItCollidesWithAnotherFullName() throws Exception {
+        final Context ctx1 = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final String suffix = String.valueOf( System.currentTimeMillis() );
+        final String existingLogin = "existingLogin" + suffix;
+        final String existingFullName = "Collide Full " + suffix;
+        final UserProfile existing = m_db.newProfile();
+        existing.setLoginName( existingLogin );
+        existing.setFullname( existingFullName );
+        existing.setEmail( "existingcoll" + suffix + "@example.com" );
+        existing.setPassword( Users.ALICE_PASS );
+        m_mgr.setUserProfile( ctx1, existing );
+
+        final Context ctx2 = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final UserProfile candidate = m_db.newProfile();
+        candidate.setLoginName( existingFullName ); // collides with existing's full name
+        candidate.setFullname( "New Full " + suffix );
+        candidate.setEmail( "newfull" + suffix + "@example.com" );
+        candidate.setPassword( Users.ALICE_PASS );
+
+        m_mgr.validateProfile( ctx2, candidate );
+
+        final String[] messages = ctx2.getWikiSession().getMessages( SESSION_MESSAGES );
+        assertTrue( Arrays.stream( messages ).anyMatch( m -> m.contains( "fails validation checks" ) ),
+                "Login name colliding with another user's full name should be flagged illegal; got: " + Arrays.toString( messages ) );
+
+        m_db.deleteByLoginName( existingLogin );
     }
 
     // =========================================================================

@@ -320,4 +320,75 @@ public class GroupPermissionTest
         }
     }
 
+    // -------------------------------------------------------------------------
+    //  No-arg constructor (serialization support) — defaults to "*:*", no actions
+    // -------------------------------------------------------------------------
+
+    @Test
+    public final void testNoArgConstructorDefaultsToWildcardTarget()
+    {
+        final GroupPermission p = new GroupPermission();
+        Assertions.assertEquals( "*", p.getGroup() );
+        Assertions.assertEquals( "*", p.getWiki() );
+    }
+
+    // -------------------------------------------------------------------------
+    //  equals() — non-GroupPermission argument is never equal
+    // -------------------------------------------------------------------------
+
+    @Test
+    public final void testEqualsReturnsFalseForNonGroupPermission()
+    {
+        final GroupPermission p = new GroupPermission( "mywiki:Test", "view" );
+        Assertions.assertNotEquals( p, "not a permission" );
+        Assertions.assertNotEquals( p, null );
+    }
+
+    // -------------------------------------------------------------------------
+    //  getGroup() / getWiki() accessors
+    // -------------------------------------------------------------------------
+
+    @Test
+    public final void testGetGroupAndGetWiki()
+    {
+        final GroupPermission p = new GroupPermission( "mywiki:Test", "view" );
+        Assertions.assertEquals( "Test", p.getGroup() );
+        Assertions.assertEquals( "mywiki", p.getWiki() );
+    }
+
+    // -------------------------------------------------------------------------
+    //  implies() — non-GroupPermission argument is never implied
+    // -------------------------------------------------------------------------
+
+    @Test
+    public final void testImpliesReturnsFalseForNonGroupPermission()
+    {
+        final GroupPermission p = new GroupPermission( "mywiki:Test", "view,edit,delete" );
+        Assertions.assertFalse( p.implies( new java.io.FilePermission( "/tmp/x", "read" ) ) );
+    }
+
+    // -------------------------------------------------------------------------
+    //  createMask() — rejects blank/null and unrecognized actions
+    // -------------------------------------------------------------------------
+
+    @Test
+    public final void testCreateMaskRejectsNullActions()
+    {
+        Assertions.assertThrows( IllegalArgumentException.class, () -> GroupPermission.createMask( null ) );
+    }
+
+    @Test
+    public final void testCreateMaskRejectsEmptyActions()
+    {
+        Assertions.assertThrows( IllegalArgumentException.class, () -> GroupPermission.createMask( "" ) );
+    }
+
+    @Test
+    public final void testCreateMaskRejectsUnrecognizedAction()
+    {
+        final IllegalArgumentException ex = Assertions.assertThrows( IllegalArgumentException.class,
+                () -> GroupPermission.createMask( "fly" ) );
+        Assertions.assertTrue( ex.getMessage().contains( "fly" ) );
+    }
+
 }

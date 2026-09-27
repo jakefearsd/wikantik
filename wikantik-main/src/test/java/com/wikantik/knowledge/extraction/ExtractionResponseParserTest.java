@@ -200,4 +200,96 @@ class ExtractionResponseParserTest {
         assertEquals( 1, r.mentions().size(), "only the well-formed entity is kept" );
         assertFalse( r.mentions().isEmpty() );
     }
+
+    @Test
+    void returnsEmptyResultWhenTopLevelJsonIsNotAnObject() {
+        final ExtractionResult r = ExtractionResponseParser.parse(
+            "[1, 2, 3]", CHUNK, contextWithKnownNodes(), CODE, L, THRESHOLD );
+        assertTrue( r.mentions().isEmpty() );
+        assertTrue( r.nodes().isEmpty() );
+        assertTrue( r.edges().isEmpty() );
+    }
+
+    @Test
+    void missingEntitiesAndRelationsKeysYieldEmptyResult() {
+        final ExtractionResult r = ExtractionResponseParser.parse(
+            "{}", CHUNK, contextWithKnownNodes(), CODE, L, THRESHOLD );
+        assertTrue( r.mentions().isEmpty() );
+        assertTrue( r.nodes().isEmpty() );
+        assertTrue( r.edges().isEmpty() );
+    }
+
+    @Test
+    void skipsMalformedRelationObjectsAndIncompleteRelations() {
+        final String json = "{ \"entities\": ["
+          + " { \"name\": \"Napoleon\", \"type\": \"Person\", \"confidence\": 0.9 },"
+          + " { \"name\": \"Waterloo\", \"type\": \"Place\",  \"confidence\": 0.9 } ],"
+          + "\"relations\": ["
+          + " \"not-an-object\","
+          + " { \"source\": \"Napoleon\", \"type\": \"fought_at\", \"confidence\": 0.9 } ]"
+          + " }";
+        final ExtractionResult r = ExtractionResponseParser.parse(
+            json, CHUNK, contextWithKnownNodes(), CODE, L, THRESHOLD );
+        assertTrue( r.edges().isEmpty(),
+            "a non-object relation and one missing 'target' must both be skipped, not throw" );
+    }
+
+    @Test
+    void dropsRelationsBelowConfidenceThreshold() {
+        final String json = "{ \"entities\": ["
+          + " { \"name\": \"Napoleon\", \"type\": \"Person\", \"confidence\": 0.9 },"
+          + " { \"name\": \"Waterloo\", \"type\": \"Place\",  \"confidence\": 0.9 } ],"
+          + "\"relations\": ["
+          + " { \"source\": \"Napoleon\", \"target\": \"Waterloo\", \"type\": \"fought_at\", \"confidence\": 0.1 } ]"
+          + " }";
+        final ExtractionResult r = ExtractionResponseParser.parse(
+            json, CHUNK, contextWithKnownNodes(), CODE, L, THRESHOLD );
+        assertTrue( r.edges().isEmpty(), "a well-formed but below-threshold relation must be dropped" );
+    }
+
+    @Test
+    void nonPrimitiveConfidenceFallsBackToDefaultZero() {
+        // "confidence": {} is valid JSON but not a JsonPrimitive — numberOr must fall back to 0.0
+        // rather than throw, so the entity is still recorded as a (low-confidence) mention only.
+        final String json = "{ \"entities\": ["
+          + " { \"name\": \"Foo\", \"type\": \"Thing\", \"confidence\": {} } ],"
+          + "\"relations\": [] }";
+        final ExtractionResult r = ExtractionResponseParser.parse(
+            json, CHUNK, contextWithKnownNodes(), CODE, L, THRESHOLD );
+        assertEquals( 1, r.mentions().size() );
+        assertTrue( r.nodes().isEmpty(), "a non-numeric confidence defaults to 0.0, below threshold" );
+    }
+
+    @Test
+    void nonNumericStringConfidenceIsCaughtAndDefaulted() {
+        // "confidence": "abc" IS a JsonPrimitive (a string), so numberOr attempts getAsDouble(),
+        // which throws NumberFormatException — must be caught and default to 0.0, not propagate.
+        final String json = "{ \"entities\": ["
+          + " { \"name\": \"Foo\", \"type\": \"Thing\", \"confidence\": \"abc\" } ],"
+          + "\"relations\": [] }";
+        final ExtractionResult r = ExtractionResponseParser.parse(
+            json, CHUNK, contextWithKnownNodes(), CODE, L, THRESHOLD );
+        assertEquals( 1, r.mentions().size() );
+        assertTrue( r.nodes().isEmpty(), "an unparseable confidence string defaults to 0.0, below threshold" );
+    }
+
+    @Test
+    void nanConfidenceIsClampedToZero() {
+        // Double.parseDouble("NaN") succeeds and yields Double.NaN — clamp() must special-case it
+        // rather than let NaN comparisons silently misbehave in Math.max/Math.min.
+        final String json = "{ \"entities\": ["
+          + " { \"name\": \"Foo\", \"type\": \"Thing\", \"confidence\": \"NaN\", \"reasoning\": \"weird\" } ],"
+          + "\"relations\": [] }";
+        final ExtractionResult r = ExtractionResponseParser.parse(
+            json, CHUNK, contextWithKnownNodes(), CODE, L, THRESHOLD );
+        assertEquals( 1, r.mentions().size() );
+        assertEquals( 0.0, r.mentions().get( 0 ).confidence(), "NaN confidence must clamp to 0.0" );
+    }
+
+    @Test
+    void toJsonRoundTripsAnEmptyResult() {
+        final ExtractionResult empty = ExtractionResult.empty( CODE, L );
+        final String json = ExtractionResponseParser.toJson( empty );
+        assertTrue( json.contains( "\"" + CODE + "\"" ), "serialized JSON should carry the extractor code" );
+    }
 }

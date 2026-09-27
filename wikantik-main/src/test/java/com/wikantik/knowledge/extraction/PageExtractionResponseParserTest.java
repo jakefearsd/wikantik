@@ -106,4 +106,68 @@ class PageExtractionResponseParserTest {
         assertEquals(0, r.entities().size());
         assertEquals(0, r.relations().size());
     }
+
+    @Test
+    void nonObjectTopLevelJsonReturnsEmptyResult() {
+        PageExtractionResult r = parser.parse("[1, 2, 3]", "x", "P", "body", Duration.ZERO);
+        assertEquals(0, r.entities().size());
+        assertEquals(0, r.relations().size());
+    }
+
+    @Test
+    void dropsEntitiesWithUnresolvableType() {
+        String body = "A widget of some kind.";
+        String json = "{\"entities\":["
+                + "{\"name\":\"Widget\",\"type\":\"TotallyBogusType\",\"evidence_span\":\"A widget\",\"confidence\":0.9}"
+                + "],\"relations\":[]}";
+        PageExtractionResult r = parser.parse(json, "x", "P", body, Duration.ZERO);
+        assertEquals(0, r.entities().size(), "an off-vocabulary type with no known synonym must be dropped");
+    }
+
+    @Test
+    void dropsUngroundedRelationsEvenWhenEndpointsAreKnown() {
+        String body = "Python and Guido are both here.";
+        String json = "{\"entities\":["
+                + "{\"name\":\"Python\",\"type\":\"Technology\",\"evidence_span\":\"Python\",\"confidence\":0.9},"
+                + "{\"name\":\"Guido\",\"type\":\"Person\",\"evidence_span\":\"Guido\",\"confidence\":0.9}"
+                + "],\"relations\":["
+                + "{\"source\":\"Python\",\"target\":\"Guido\",\"predicate\":\"created_by\",\"evidence_span\":\"NOT IN BODY AT ALL\",\"confidence\":0.9}"
+                + "]}";
+        PageExtractionResult r = parser.parse(json, "x", "P", body, Duration.ZERO);
+        assertEquals(0, r.relations().size(), "a relation whose evidence_span isn't grounded must be dropped");
+        assertEquals(1, r.stats().rejectedUngrounded());
+    }
+
+    @Test
+    void enforcesRelationCap() {
+        // 9 entities (under the 12-entity cap), all grounded via the shared span "x" in the body.
+        StringBuilder json = new StringBuilder("{\"entities\":[");
+        for (int i = 0; i < 9; i++) {
+            if (i > 0) json.append(',');
+            json.append("{\"name\":\"E").append(i)
+                .append("\",\"type\":\"Concept\",\"evidence_span\":\"x\",\"confidence\":0.9}");
+        }
+        json.append("],\"relations\":[");
+        // 9 relations (over the 8-relation cap), each grounded and between known entities.
+        for (int i = 0; i < 9; i++) {
+            if (i > 0) json.append(',');
+            double conf = (i + 1) / 10.0;
+            json.append("{\"source\":\"E").append(i).append("\",\"target\":\"E").append((i + 1) % 9)
+                .append("\",\"predicate\":\"rel\",\"evidence_span\":\"x\",\"confidence\":").append(conf).append('}');
+        }
+        json.append("]}");
+
+        PageExtractionResult r = parser.parse(json.toString(), "x", "P", "x", Duration.ZERO);
+        assertEquals(8, r.relations().size(), "relations must be capped at maxRelations (8)");
+    }
+
+    @Test
+    void nonNumericConfidenceOnAnEntityDefaultsWithoutThrowing() {
+        String body = "Python is a language.";
+        String json = "{\"entities\":["
+                + "{\"name\":\"Python\",\"type\":\"Technology\",\"evidence_span\":\"Python\",\"confidence\":\"abc\"}"
+                + "],\"relations\":[]}";
+        PageExtractionResult r = parser.parse(json, "x", "P", body, Duration.ZERO);
+        assertEquals(1, r.entities().size(), "an unparseable confidence must default rather than throw");
+    }
 }

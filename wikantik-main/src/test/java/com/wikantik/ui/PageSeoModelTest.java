@@ -257,4 +257,40 @@ class PageSeoModelTest {
         final PageSeoModel model = PageSeoModel.from( "P", body, BASE_URL, APP_NAME, null );
         assertEquals( "My Page", model.metadata().get( "title" ) );
     }
+
+    // ---- strOrEmpty: a SnakeYAML-parsed Date on a non-"date" field is formatted, not toString()'d ----
+
+    @Test
+    void strOrEmptyFormatsAUnquotedDateScalarOnANonDateField() {
+        // canonical_id routes through strOrEmpty (not dateOrString); a bare ISO-looking scalar is
+        // still parsed to java.util.Date by SnakeYAML regardless of the field name.
+        final String body = "---\ncanonical_id: 2026-03-20\n---\n# P\n\nBody.\n";
+        final PageSeoModel model = PageSeoModel.from( "P", body, BASE_URL, APP_NAME, null );
+        assertEquals( "2026-03-20", model.canonicalId() );
+    }
+
+    // ---- dateOrString: a quoted (non-Date) date value falls back to toString() ----
+
+    @Test
+    void dateOrStringFallsBackToToStringForAQuotedNonDateValue() {
+        final String body = "---\ndate: \"not-a-real-date\"\n---\n# P\n\nBody.\n";
+        final PageSeoModel model = PageSeoModel.from( "P", body, BASE_URL, APP_NAME, null );
+        assertEquals( "not-a-real-date", model.pageDate() );
+    }
+
+    // ---- stringList: comma-separated scalar (quoted, so SnakeYAML keeps it a String) ----
+
+    @Test
+    void tagsAsCommaSeparatedScalarAreSplitAndTrimmed() {
+        final String body = "---\ntags: \"graph-theory,  machine-learning\"\n---\n# P\n\nBody.\n";
+        final PageSeoModel model = PageSeoModel.from( "P", body, BASE_URL, APP_NAME, null );
+        assertEquals( java.util.List.of( "graph-theory", "machine-learning" ), model.tags() );
+    }
+
+    @Test
+    void tagsAsBlankScalarYieldsEmptyList() {
+        final String body = "---\ntags: \"\"\n---\n# P\n\nBody.\n";
+        final PageSeoModel model = PageSeoModel.from( "P", body, BASE_URL, APP_NAME, null );
+        assertTrue( model.tags().isEmpty() );
+    }
 }

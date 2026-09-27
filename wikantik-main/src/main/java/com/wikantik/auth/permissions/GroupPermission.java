@@ -122,7 +122,10 @@ public final class GroupPermission extends Permission implements Serializable
     /** For serialization purposes */
     GroupPermission()
     {
-        this("");
+        // NOTE: previously passed "" here, which createMask() always rejects
+        // ("Actions cannot be blank or null"), making this constructor unusable
+        // for its documented purpose. VIEW is as harmless a placeholder as any.
+        this( VIEW_ACTION );
     }
     
     /**

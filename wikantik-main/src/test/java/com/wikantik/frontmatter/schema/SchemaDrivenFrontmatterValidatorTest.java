@@ -270,4 +270,107 @@ class SchemaDrivenFrontmatterValidatorTest {
                 "audience", "both" );
         assertTrue( validator.validate( meta, ValidationCtx.lenient() ).isEmpty() );
     }
+
+    @Test
+    void nullMetadataYieldsNoViolations() {
+        assertTrue( validator.validate( null, ValidationCtx.lenient() ).isEmpty() );
+    }
+
+    // -------------------------------------------------------------------------
+    //  tags — kebab-case check
+    // -------------------------------------------------------------------------
+
+    @Test
+    void nonKebabTagWarnsAndNullEntryIsSkipped() {
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "tags", java.util.Arrays.asList( "valid-tag", null, "Not_Kebab" ) ),
+                ValidationCtx.lenient() );
+        final FieldViolation v = first( vs, "tags" ).orElseThrow();
+        assertEquals( Severity.WARNING, v.severity() );
+        assertEquals( "tags.kebab", v.code() );
+    }
+
+    @Test
+    void allKebabTagsProduceNoViolation() {
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "tags", List.of( "graph-theory", "machine-learning" ) ), ValidationCtx.lenient() );
+        assertTrue( first( vs, "tags" ).isEmpty() );
+    }
+
+    // -------------------------------------------------------------------------
+    //  related — a null list entry is skipped, not dereferenced
+    // -------------------------------------------------------------------------
+
+    @Test
+    void relatedNullEntryIsSkippedWithoutError() {
+        final ValidationCtx noPages = new ValidationCtx( p -> false, a -> true, Severity.WARNING );
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "related", java.util.Arrays.asList( ( Object ) null, "NoSuchPage" ) ), noPages );
+        // Only the non-null entry should have produced a violation (the null was skipped, not NPE'd).
+        assertEquals( 1, vs.stream().filter( v -> v.field().equals( "related" ) ).count() );
+    }
+
+    // -------------------------------------------------------------------------
+    //  date — a well-formed plain ISO date is accepted (LocalDate.parse success path)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void plainIsoDateStringIsAccepted() {
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "date", "2026-01-15" ), ValidationCtx.lenient() );
+        assertTrue( first( vs, "date" ).isEmpty(), "a plain ISO date string must validate" );
+    }
+
+    // -------------------------------------------------------------------------
+    //  verified_at — offset-date-time (no 'Z') falls through Instant to OffsetDateTime
+    // -------------------------------------------------------------------------
+
+    @Test
+    void offsetDateTimeVerifiedAtIsAcceptedAfterInstantFails() {
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "verified_at", "2026-05-02T00:00:00+02:00" ), ValidationCtx.lenient() );
+        assertTrue( first( vs, "verified_at" ).isEmpty(), "an offset-date-time must validate" );
+    }
+
+    @Test
+    void completelyMalformedVerifiedAtFailsAllThreeParsers() {
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "verified_at", "not-a-timestamp-at-all" ), ValidationCtx.lenient() );
+        assertEquals( Severity.WARNING, first( vs, "verified_at" ).orElseThrow().severity() );
+    }
+
+    // -------------------------------------------------------------------------
+    //  runbook — the remaining issue kinds map to their field names
+    // -------------------------------------------------------------------------
+
+    @Test
+    void runbookOtherIssueKindsMapToTheirFieldNames() {
+        final ValidationCtx noPages = new ValidationCtx( p -> false, a -> true, Severity.WARNING );
+        final Map< String, Object > meta = Map.of(
+                "type", "runbook",
+                "runbook", Map.of(
+                        "steps", List.of( "only one step" ),
+                        "related_tools", List.of( "Not A Valid Tool!!" ),
+                        "references", List.of( "NoSuchReference" ) ) );
+        final List< FieldViolation > vs = validator.validate( meta, noPages );
+
+        assertEquals( Severity.ERROR, first( vs, "runbook.when_to_use" ).orElseThrow().severity() );
+        assertEquals( Severity.ERROR, first( vs, "runbook.pitfalls" ).orElseThrow().severity() );
+        assertEquals( Severity.ERROR, first( vs, "runbook.related_tools" ).orElseThrow().severity() );
+        assertEquals( Severity.ERROR, first( vs, "runbook.references" ).orElseThrow().severity() );
+    }
+
+    @Test
+    void runbookMissingBlockMapsToBareRunbookField() {
+        final Map< String, Object > meta = Map.of( "type", "runbook" );
+        final List< FieldViolation > vs = validator.validate( meta, ValidationCtx.lenient() );
+        assertEquals( Severity.ERROR, first( vs, "runbook" ).orElseThrow().severity() );
+    }
+
+    @Test
+    void runbookMalformedBlockMapsToBareRunbookField() {
+        final Map< String, Object > meta = Map.of( "type", "runbook", "runbook", "not-a-map" );
+        final List< FieldViolation > vs = validator.validate( meta, ValidationCtx.lenient() );
+        assertEquals( Severity.ERROR, first( vs, "runbook" ).orElseThrow().severity() );
+    }
 }

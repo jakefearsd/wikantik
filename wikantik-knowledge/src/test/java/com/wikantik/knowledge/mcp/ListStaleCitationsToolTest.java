@@ -109,6 +109,33 @@ class ListStaleCitationsToolTest {
     }
 
     @Test
+    void definition_exposes_the_page_direction_and_limit_parameters() {
+        final CitationRepository repo = mock( CitationRepository.class );
+        final McpSchema.Tool def = new ListStaleCitationsTool( repo ).definition();
+
+        assertEquals( "list_stale_citations", def.name() );
+        assertTrue( def.description().contains( "stale" ) );
+        final Map< String, Object > props = ToolSchemas.properties( def.inputSchema() );
+        assertTrue( props.containsKey( "page" ) );
+        assertTrue( props.containsKey( "direction" ) );
+        assertTrue( props.containsKey( "limit" ) );
+        assertNotNull( def.outputSchema() );
+    }
+
+    @Test
+    void repository_failure_is_reported_as_an_mcp_error_envelope() {
+        final CitationRepository repo = mock( CitationRepository.class );
+        when( repo.findByStatus( CitationStatus.STALE ) ).thenThrow( new RuntimeException( "db down" ) );
+
+        final ListStaleCitationsTool tool = new ListStaleCitationsTool( repo );
+        final McpSchema.CallToolResult result = tool.execute( Map.of() );
+
+        assertTrue( result.isError() );
+        final String text = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "db down" ), "error envelope should carry the underlying message: " + text );
+    }
+
+    @Test
     void no_page_uses_findByStatus_and_caps_at_limit() {
         final CitationRepository repo = mock( CitationRepository.class );
         when( repo.findByStatus( CitationStatus.STALE ) ).thenReturn( List.of(

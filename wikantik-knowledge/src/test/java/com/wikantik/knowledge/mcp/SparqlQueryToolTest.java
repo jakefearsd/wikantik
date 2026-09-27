@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.mcp;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -96,5 +97,29 @@ class SparqlQueryToolTest {
     @Test
     void missingQueryIsAnError() {
         assertTrue( new SparqlQueryTool( loadedManager() ).execute( Map.of() ).isError() );
+    }
+
+    @Test
+    void nameIsSparqlQuery() {
+        assertEquals( "sparql_query", new SparqlQueryTool( loadedManager() ).name() );
+    }
+
+    @Test
+    void constructReturnsTurtle() {
+        final var result = new SparqlQueryTool( loadedManager() ).execute( Map.of( "query",
+                "CONSTRUCT { ?c a <http://www.w3.org/2002/07/owl#Class> } "
+                        + "WHERE { ?c a <http://www.w3.org/2002/07/owl#Class> } LIMIT 1" ) );
+        assertFalse( result.isError() );
+        final String turtle = text( result );
+        assertTrue( turtle.contains( "PREFIX" ) && turtle.contains( "rdf:type" ),
+                "CONSTRUCT should render Turtle: " + turtle );
+    }
+
+    @Test
+    void serviceClauseIsRejectedAsSsrf() {
+        final var result = new SparqlQueryTool( loadedManager() ).execute( Map.of( "query",
+                "SELECT * WHERE { SERVICE <http://example.org/sparql> { ?s ?p ?o } }" ) );
+        assertTrue( result.isError(), "SERVICE (federation/SSRF) must be rejected" );
+        assertTrue( text( result ).contains( "SERVICE" ), text( result ) );
     }
 }

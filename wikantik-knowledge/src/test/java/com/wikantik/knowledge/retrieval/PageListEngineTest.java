@@ -19,13 +19,16 @@
 package com.wikantik.knowledge.retrieval;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.knowledge.PageList;
 import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievedPage;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.knowledge.testfakes.FakePageManager;
 import com.wikantik.search.FrontmatterMetadataCache;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -120,5 +123,55 @@ class PageListEngineTest {
     void stringList_toleratesNonListValuesByReturningEmpty() {
         assertEquals( List.of(), PageListEngine.stringList( "not-a-list" ) );
         assertEquals( List.of( "a", "b" ), PageListEngine.stringList( List.of( "a", "b" ) ) );
+    }
+
+    @Test
+    void stringOrNull_passesThroughOrNullifies() {
+        assertNull( PageListEngine.stringOrNull( null ) );
+        assertEquals( "42", PageListEngine.stringOrNull( 42 ) );
+    }
+
+    @Test
+    void listPages_providerExceptionDuringGetAllPagesReturnsEmptyList() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        when( pm.getAllPages() ).thenThrow( new ProviderException( "fs unavailable" ) );
+
+        final PageListEngine engine = new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage );
+        final PageList result = engine.listPages( PageListFilter.unfiltered() );
+
+        assertEquals( 0, result.totalMatched() );
+        assertTrue( result.pages().isEmpty() );
+    }
+
+    @Test
+    void matchesFilter_modifiedAfterExcludesOlderPages() {
+        final PageListEngine engine = new PageListEngine( new FakePageManager(), null, PageListEngineTest::toRetrievedPage );
+        final Page page = mock( Page.class );
+        when( page.getAuthor() ).thenReturn( "alice" );
+        when( page.getLastModified() ).thenReturn( Date.from( Instant.parse( "2020-01-01T00:00:00Z" ) ) );
+
+        final PageListFilter after2025 = new PageListFilter(
+            null, null, null, null, Instant.parse( "2025-01-01T00:00:00Z" ), null, 50, 0 );
+        final PageListFilter after2019 = new PageListFilter(
+            null, null, null, null, Instant.parse( "2019-01-01T00:00:00Z" ), null, 50, 0 );
+
+        assertFalse( engine.matchesFilter( page, Map.of(), after2025 ), "page predates the cutoff" );
+        assertTrue( engine.matchesFilter( page, Map.of(), after2019 ), "page postdates the cutoff" );
+    }
+
+    @Test
+    void matchesFilter_modifiedBeforeExcludesNewerPages() {
+        final PageListEngine engine = new PageListEngine( new FakePageManager(), null, PageListEngineTest::toRetrievedPage );
+        final Page page = mock( Page.class );
+        when( page.getAuthor() ).thenReturn( "alice" );
+        when( page.getLastModified() ).thenReturn( Date.from( Instant.parse( "2025-06-01T00:00:00Z" ) ) );
+
+        final PageListFilter before2020 = new PageListFilter(
+            null, null, null, null, null, Instant.parse( "2020-01-01T00:00:00Z" ), 50, 0 );
+        final PageListFilter before2030 = new PageListFilter(
+            null, null, null, null, null, Instant.parse( "2030-01-01T00:00:00Z" ), 50, 0 );
+
+        assertFalse( engine.matchesFilter( page, Map.of(), before2020 ), "page postdates the cutoff" );
+        assertTrue( engine.matchesFilter( page, Map.of(), before2030 ), "page predates the cutoff" );
     }
 }

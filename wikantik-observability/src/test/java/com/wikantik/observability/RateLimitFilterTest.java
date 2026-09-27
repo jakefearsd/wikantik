@@ -285,4 +285,76 @@ class RateLimitFilterTest {
         }
         verify( chain, times( 50 ) ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
     }
+
+    // ------------------------------------------------------------------ Config parsing (env-free paths)
+
+    @Test
+    void configOfIgnoresMalformedExemptCidrButKeepsValidOnes() throws Exception {
+        // parseCidrs must skip an unresolvable entry (logging a warning) rather than failing
+        // the whole config, and still honor the entries that DO parse.
+        final RateLimitFilter.Config cfg = RateLimitFilter.Config.of( 100, 1, 0,
+                List.of( "/api/bundle" ), List.of( "not a cidr at all", "192.168.0.0/16" ), ticker );
+        assertEquals( 1, cfg.exemptRanges().size(), "the malformed entry must be dropped, the valid one kept" );
+
+        final RateLimitFilter f = new RateLimitFilter( cfg );
+        f.init( null );
+        final FilterChain chain = mock( FilterChain.class );
+        for ( int i = 0; i < 4; i++ ) {
+            f.doFilter( request( "/api/bundle", "192.168.0.44" ), response(), chain );
+        }
+        verify( chain, times( 4 ) ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+    }
+
+    @Test
+    void fromEnvironmentUsesDocumentedDefaultsWhenUnset() {
+        // No WIKANTIK_RATELIMIT_* vars are set in the test/CI environment; fromEnvironment()
+        // must fall back to the documented DEFAULT_* constants rather than throwing or nulling out.
+        final RateLimitFilter.Config cfg = RateLimitFilter.Config.fromEnvironment();
+        assertEquals( RateLimitFilter.DEFAULT_DEFAULT_PERCLIENT, cfg.defaultPerClient() );
+        assertEquals( RateLimitFilter.DEFAULT_EXPENSIVE_PERCLIENT, cfg.expensivePerClient() );
+        assertEquals( RateLimitFilter.DEFAULT_EXPENSIVE_GLOBAL, cfg.expensiveGlobal() );
+        assertEquals( List.of( "/api/bundle", "/api/search", "/sparql" ), cfg.expensivePathPrefixes() );
+        assertEquals( List.of(), cfg.exemptRanges() );
+    }
+
+    @Test
+    void noArgConstructorResolvesConfigFromEnvironmentOnInit() throws Exception {
+        // The container constructor (no pre-built Config) must resolve one from the
+        // environment during init() rather than NPE-ing on first request.
+        final RateLimitFilter f = new RateLimitFilter();
+        f.init( null );
+
+        final FilterChain chain = mock( FilterChain.class );
+        f.doFilter( request( "/api/health", "8.8.8.8" ), response(), chain );
+        verify( chain, times( 1 ) ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+    }
+
+    // ------------------------------------------------------------------ malformed/degraded request inputs
+
+    @Test
+    void malformedRemoteAddressIsTreatedAsNonExemptWithoutThrowing() throws Exception {
+        final RateLimitFilter f = new RateLimitFilter( config( 100, 1, 0, List.of(), ticker ) );
+        f.init( null );
+
+        final FilterChain chain = mock( FilterChain.class );
+        final String badIp = "not a valid ip/host";
+        f.doFilter( request( "/api/bundle", badIp ), response(), chain );
+        final HttpServletResponse blocked = response();
+        f.doFilter( request( "/api/bundle", badIp ), blocked, chain );
+        verify( blocked ).setStatus( 429 );
+    }
+
+    @Test
+    void nullServletPathFallsBackToRawUriForClassification() throws Exception {
+        // Defensive fallback: when the container hasn't populated getServletPath(), classify
+        // on the raw request URI instead of silently treating everything as the cheap tier.
+        final RateLimitFilter f = new RateLimitFilter( config( 100, 1, 0, List.of(), ticker ) );
+        f.init( null );
+
+        final FilterChain chain = mock( FilterChain.class );
+        f.doFilter( request( "/api/bundle", null, null, "3.3.3.3" ), response(), chain );
+        final HttpServletResponse blocked = response();
+        f.doFilter( request( "/api/bundle", null, null, "3.3.3.3" ), blocked, chain );
+        verify( blocked ).setStatus( 429 );
+    }
 }

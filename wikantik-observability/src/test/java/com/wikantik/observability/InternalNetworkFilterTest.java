@@ -183,4 +183,18 @@ class InternalNetworkFilterTest {
         assertDoesNotThrow( () -> filter.destroy() );
     }
 
+    // --- CidrRange construction ---
+
+    @Test
+    void cidrRangeRejectsAnUnresolvableNetworkAddress() {
+        // A malformed literal/hostname that InetAddress can never resolve must surface as a
+        // caller-actionable IllegalArgumentException naming the bad value, not an opaque
+        // UnknownHostException leaking out of construction.
+        final IllegalArgumentException e = assertThrows( IllegalArgumentException.class,
+            () -> new InternalNetworkFilter.CidrRange( "not a valid host/address", 8 ) );
+        assertTrue( e.getMessage().contains( "not a valid host/address" ),
+            "message must name the offending network value, got: " + e.getMessage() );
+        assertNotNull( e.getCause(), "the original UnknownHostException must be chained" );
+    }
+
 }

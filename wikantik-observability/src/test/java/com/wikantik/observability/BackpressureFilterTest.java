@@ -252,6 +252,47 @@ class BackpressureFilterTest {
         assertEquals( false, BackpressureFilter.isExempt( null ) );
     }
 
+    @Test
+    void resolvesDefaultMaxInflightWhenNeitherPropertyNorEnvSet() {
+        // @BeforeEach already cleared the system property; the WIKANTIK_BACKPRESSURE_MAX_INFLIGHT
+        // env var is not set in the test/CI environment either, so resolution must fall through
+        // to the documented default rather than returning 0 (which would silently disable the filter).
+        final BackpressureFilter f = new BackpressureFilter();
+        assertEquals( BackpressureFilter.DEFAULT_MAX_INFLIGHT, f.resolveMaxInflight() );
+    }
+
+    @Test
+    void unparsableSystemPropertyFallsBackToDefault() {
+        System.setProperty( BackpressureFilter.ENV_MAX_INFLIGHT, "not-a-number" );
+        final BackpressureFilter f = new BackpressureFilter();
+        assertEquals( BackpressureFilter.DEFAULT_MAX_INFLIGHT, f.resolveMaxInflight(),
+            "a malformed override must not propagate — fall back to the safe default" );
+    }
+
+    @Test
+    void initWithoutMeterRegistryStillEnforcesThePermitLimit() throws Exception {
+        // No MeterRegistry registered — init() must log-and-continue (metrics unavailable is
+        // not fatal), and the semaphore must still be wired and enforce the configured limit.
+        MeterRegistryHolder.set( null );
+        System.setProperty( BackpressureFilter.ENV_MAX_INFLIGHT, "5" );
+        final BackpressureFilter f = new BackpressureFilter();
+        f.init( null );
+
+        final HttpServletRequest req = mockHttpRequest( "/api/pages/Foo" );
+        final HttpServletResponse res = mock( HttpServletResponse.class );
+        final FilterChain chain = mock( FilterChain.class );
+        f.doFilter( req, res, chain );
+
+        verify( chain ).doFilter( req, res );
+        assertEquals( 0, f.currentInflight() );
+    }
+
+    @Test
+    void destroyDoesNotThrow() {
+        final BackpressureFilter f = new BackpressureFilter();
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow( f::destroy );
+    }
+
     private static HttpServletRequest mockHttpRequest( final String uri ) {
         final HttpServletRequest req = mock( HttpServletRequest.class );
         when( req.getRequestURI() ).thenReturn( uri );

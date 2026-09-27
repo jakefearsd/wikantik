@@ -82,6 +82,20 @@ class DatabaseHealthCheckTest {
     }
 
     @Test
+    void reportsDownWhenQueryReturnsNoRows() throws Exception {
+        when( dataSource.getConnection() ).thenReturn( connection );
+        when( connection.prepareStatement( anyString() ) ).thenReturn( statement );
+        when( statement.executeQuery() ).thenReturn( resultSet );
+        when( resultSet.next() ).thenReturn( false );
+
+        final DatabaseHealthCheck check = new DatabaseHealthCheck( dataSource );
+        final HealthResult result = check.check();
+
+        assertEquals( HealthStatus.DOWN, result.status() );
+        assertEquals( "Database returned no rows for SELECT 1", result.detail().get( "error" ) );
+    }
+
+    @Test
     void reportsDownWhenJndiLookupFails() {
         // JNDI constructor — no JNDI context available in unit test, so lookup fails
         final DatabaseHealthCheck check = new DatabaseHealthCheck( "jdbc/NonExistent" );

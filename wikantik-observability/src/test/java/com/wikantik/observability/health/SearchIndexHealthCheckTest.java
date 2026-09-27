@@ -66,6 +66,22 @@ class SearchIndexHealthCheckTest {
     }
 
     @Test
+    void reportsUpWhenPageManagerIsNullButLegacyProviderIsAvailable() {
+        // Legacy fallback: PageSubsystemFactory only ever derives pageProvider() from
+        // pages.getProvider() (null when pages is null), so the only way a snapshot can carry
+        // a PageProvider with a null PageManager is a pre-built typed snapshot — mirroring a
+        // caller that registered PageProvider directly, bypassing PageManager entirely.
+        when( engine.getPageSubsystem() ).thenReturn( new com.wikantik.page.subsystem.PageSubsystem.Services(
+            null, null, null, null, pageProvider, null, null, null, null ) );
+
+        final SearchIndexHealthCheck check = new SearchIndexHealthCheck( engine );
+        final HealthResult result = check.check();
+
+        assertEquals( HealthStatus.UP, result.status() );
+        verify( pageProvider ).getProviderInfo();
+    }
+
+    @Test
     void reportsDownWhenPageManagerThrows() {
         when( engine.getManager( PageManager.class ) ).thenThrow( new RuntimeException( "manager error" ) );
 

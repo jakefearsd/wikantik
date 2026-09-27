@@ -23,7 +23,19 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
+import org.apache.tika.mime.MediaType;
 import org.junit.jupiter.api.Test;
+import org.xml.sax.ContentHandler;
 
 class TikaSourceExtractorTest {
 
@@ -234,5 +246,291 @@ class TikaSourceExtractorTest {
         assertNotNull( thrown.getCause(), "the original parse failure must be chained as the cause" );
         assertTrue( thrown.getCause().getMessage().contains( "disk vanished" ),
             "the underlying read failure must be preserved in the cause chain" );
+    }
+
+    // ------------------------------------------------------------------ stuck-worker / orphan-thread defects
+    //
+    // These simulate a CPU-bound parse that ignores Thread.interrupt() (a pathological document,
+    // e.g. a decompression bomb) via a busy-spin on a flag — deliberately NOT Thread.sleep(), which
+    // is itself interruptible and would not reproduce the defect.
+
+    /** A {@link Parser} that spins on a flag instead of returning, ignoring interruption. Counts
+     *  down {@code entered} as soon as it starts spinning so callers can know the worker thread is
+     *  actually running before they act on it, records that thread for inspection, and counts down
+     *  {@code finished} once released — used instead of {@link Thread#join} for detecting
+     *  completion, because the worker runs on a shared {@code ThreadPoolExecutor}: the underlying
+     *  pool thread is reused and never terminates just because one task finished. */
+    private static final class BusyLoopParser implements Parser {
+        private final AtomicBoolean release;
+        private final CountDownLatch entered;
+        private final CountDownLatch finished = new CountDownLatch( 1 );
+        private final AtomicReference< Thread > workerThread = new AtomicReference<>();
+
+        BusyLoopParser( final AtomicBoolean release, final CountDownLatch entered ) {
+            this.release = release;
+            this.entered = entered;
+        }
+
+        @Override
+        public Set< MediaType > getSupportedTypes( final ParseContext context ) {
+            return Set.of();
+        }
+
+        @Override
+        public void parse( final InputStream stream, final ContentHandler handler,
+                            final Metadata metadata, final ParseContext context ) {
+            workerThread.set( Thread.currentThread() );
+            entered.countDown();
+            while ( !release.get() ) {
+                // Deliberately not interruptible: no sleep/wait/blocking call, just a spin —
+                // reproduces a CPU-bound Tika parse that Thread.interrupt() cannot stop.
+            }
+            finished.countDown();
+        }
+    }
+
+    /** A {@link Parser} that counts down {@code started} as soon as it is entered, then blocks on
+     *  {@code gate} (an ordinary, interruptible wait) until released — used to prove several
+     *  extractions ran genuinely concurrently, as opposed to the busy-loop parser above which
+     *  simulates one that never yields the CPU-bound thread back. */
+    private static final class LatchGatedParser implements Parser {
+        private final CountDownLatch started;
+        private final CountDownLatch gate;
+
+        LatchGatedParser( final CountDownLatch started, final CountDownLatch gate ) {
+            this.started = started;
+            this.gate = gate;
+        }
+
+        @Override
+        public Set< MediaType > getSupportedTypes( final ParseContext context ) {
+            return Set.of();
+        }
+
+        @Override
+        public void parse( final InputStream stream, final ContentHandler handler,
+                            final Metadata metadata, final ParseContext context ) {
+            started.countDown();
+            try {
+                assertTrue( gate.await( 30, TimeUnit.SECONDS ), "test gate was never released" );
+            } catch ( final InterruptedException e ) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    /** A trivially successful {@link Parser} — used to prove the extractor works normally again
+     *  once its stuck-worker count has drained back to zero. */
+    private static final class ImmediateParser implements Parser {
+        @Override
+        public Set< MediaType > getSupportedTypes( final ParseContext context ) {
+            return Set.of();
+        }
+
+        @Override
+        public void parse( final InputStream stream, final ContentHandler handler,
+                            final Metadata metadata, final ParseContext context ) {
+            // no-op: succeeds immediately
+        }
+    }
+
+    /** Extractor whose {@link #createParser()} returns an injected parser instead of a real
+     *  {@link org.apache.tika.parser.AutoDetectParser} — the seam this test suite uses to simulate
+     *  pathological parse behavior without needing an actual malformed document. */
+    private static final class InjectableExtractor extends TikaSourceExtractor {
+        private final Parser injected;
+
+        InjectableExtractor( final Parser injected, final int writeLimitChars, final int timeoutSeconds ) {
+            super( writeLimitChars, timeoutSeconds );
+            this.injected = injected;
+        }
+
+        @Override
+        protected Parser createParser() {
+            return injected;
+        }
+    }
+
+    /** Flips the release flag, waits (bounded) for the busy loop to actually have exited, and
+     *  waits for the (per-task-guarded) stuck-worker count to drain back to zero — so a test's
+     *  simulated stuck parse never leaks into, or leaves a stale count for, a later test. Waits on
+     *  {@code finished}, not {@link Thread#join}: the worker runs on a per-call daemon thread that
+     *  this helper has no other handle on once the task itself has returned. */
+    private static void release( final AtomicBoolean release, final CountDownLatch finished ) throws InterruptedException {
+        release.set( true );
+        assertTrue( finished.await( 5, TimeUnit.SECONDS ), "busy-loop parse must return once released" );
+        awaitStuckWorkersDrained();
+    }
+
+    /** Polls (bounded) for {@link TikaSourceExtractor#STUCK_WORKERS} to return to zero. Test order
+     *  is randomized by surefire, so every test that increments this static counter must drain it
+     *  back to zero before finishing, rather than assuming a fresh baseline. */
+    private static void awaitStuckWorkersDrained() throws InterruptedException {
+        final long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos( 5 );
+        while ( TikaSourceExtractor.STUCK_WORKERS.get() != 0 && System.nanoTime() < deadlineNanos ) {
+            Thread.sleep( 10 );
+        }
+        assertEquals( 0, TikaSourceExtractor.STUCK_WORKERS.get(), "stuck-worker count must drain back to zero" );
+    }
+
+    @Test
+    void timeoutExceptionCauseIsChainedNotDropped() throws Exception {
+        final AtomicBoolean release = new AtomicBoolean( false );
+        final CountDownLatch entered = new CountDownLatch( 1 );
+        final BusyLoopParser busy = new BusyLoopParser( release, entered );
+        final TikaSourceExtractor stuck = new InjectableExtractor( busy, TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 1 );
+
+        try {
+            final ExtractionException thrown = assertThrows( ExtractionException.class, () -> {
+                try ( InputStream in = new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ) ) {
+                    stuck.extract( in, "text/plain", "stuck.txt" );
+                }
+            } );
+            assertNotNull( thrown.getCause(), "timeout must chain a cause, not drop it" );
+            assertInstanceOf( TimeoutException.class, thrown.getCause(),
+                "the chained cause must be the TimeoutException, got: " + thrown.getCause() );
+        } finally {
+            assertTrue( entered.await( 5, TimeUnit.SECONDS ), "worker never started" );
+            release( release, busy.finished );
+        }
+    }
+
+    @Test
+    void stuckWorkerThreadIsDaemonAndDescriptivelyNamed() throws Exception {
+        final AtomicBoolean release = new AtomicBoolean( false );
+        final CountDownLatch entered = new CountDownLatch( 1 );
+        final BusyLoopParser busy = new BusyLoopParser( release, entered );
+        final TikaSourceExtractor stuck = new InjectableExtractor( busy, TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 1 );
+
+        try {
+            assertThrows( ExtractionException.class, () -> {
+                try ( InputStream in = new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ) ) {
+                    stuck.extract( in, "text/plain", "stuck.txt" );
+                }
+            } );
+            assertTrue( entered.await( 5, TimeUnit.SECONDS ), "worker never started" );
+            final Thread worker = busy.workerThread.get();
+            assertNotNull( worker, "the busy-loop parser must have recorded its worker thread" );
+            assertTrue( worker.isDaemon(), "the Tika parse worker must be a daemon thread so it "
+                + "cannot block JVM shutdown when it ignores interruption" );
+            assertTrue( worker.getName().startsWith( "tika-extract-" ),
+                "worker thread must be descriptively named, got: " + worker.getName() );
+        } finally {
+            release( release, busy.finished );
+        }
+    }
+
+    /**
+     * Healthy concurrent extractions must never be rejected just because many are in flight —
+     * only confirmed-orphaned (timed-out-and-still-running) parses are bounded. Uses more callers
+     * than the old (now-removed) fixed concurrency cap of 4, and more than {@link
+     * TikaSourceExtractor#MAX_STUCK_EXTRACTIONS}, gated so they provably run at the same time
+     * (all reach the parser before any is released) rather than merely queuing one after another.
+     */
+    @Test
+    void healthyConcurrentExtractionsAreNeverRejectedByTheStuckWorkerCap() throws Exception {
+        final int n = TikaSourceExtractor.MAX_STUCK_EXTRACTIONS + 2;
+        final CountDownLatch allStarted = new CountDownLatch( n );
+        final CountDownLatch releaseGate = new CountDownLatch( 1 );
+        final Thread[] callers = new Thread[ n ];
+        final Throwable[] failures = new Throwable[ n ];
+
+        for ( int i = 0; i < n; i++ ) {
+            final TikaSourceExtractor healthy = new InjectableExtractor(
+                new LatchGatedParser( allStarted, releaseGate ), TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 30 );
+            final int idx = i;
+            callers[ i ] = new Thread( () -> {
+                try ( InputStream in = new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ) ) {
+                    healthy.extract( in, "text/plain", "healthy-" + idx + ".txt" );
+                } catch ( final Throwable t ) {
+                    failures[ idx ] = t;
+                }
+            }, "healthy-caller-" + i );
+            callers[ i ].setDaemon( true );
+            callers[ i ].start();
+        }
+
+        assertTrue( allStarted.await( 5, TimeUnit.SECONDS ),
+            "all " + n + " healthy extractions must run concurrently — none may be rejected just "
+                + "because many are in flight" );
+        releaseGate.countDown();
+
+        for ( final Thread caller : callers ) {
+            caller.join( 5_000 );
+            assertFalse( caller.isAlive(), "caller thread must have completed" );
+        }
+        for ( int i = 0; i < n; i++ ) {
+            assertNull( failures[ i ], "healthy extraction " + i + " must not have been rejected/failed: " + failures[ i ] );
+        }
+        assertEquals( 0, TikaSourceExtractor.STUCK_WORKERS.get(), "no healthy extraction should ever count as stuck" );
+    }
+
+    /**
+     * Once {@link TikaSourceExtractor#MAX_STUCK_EXTRACTIONS} parses are <em>confirmed</em> stuck
+     * (each call's own timeout fired and its worker was still alive after {@code cancel(true)}),
+     * a further call is rejected immediately, without ever submitting its parse. Once every stuck
+     * worker is released and drains out, the extractor must work normally again.
+     */
+    @Test
+    void furtherCallsAreRejectedOnceStuckCapIsReachedThenRecoverAfterDraining() throws Exception {
+        final int bound = TikaSourceExtractor.MAX_STUCK_EXTRACTIONS;
+        final AtomicBoolean release = new AtomicBoolean( false );
+        final BusyLoopParser[] parsers = new BusyLoopParser[ bound ];
+        final Thread[] callers = new Thread[ bound ];
+
+        // Drive `bound` parses to a CONFIRMED timeout — each call's own short timeout fires and
+        // its worker is still alive after cancel(true) — before the extractor is considered
+        // saturated. This is a much stronger precondition than merely "N calls in flight".
+        for ( int i = 0; i < bound; i++ ) {
+            parsers[ i ] = new BusyLoopParser( release, new CountDownLatch( 1 ) );
+            final TikaSourceExtractor stuck =
+                new InjectableExtractor( parsers[ i ], TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 1 );
+            callers[ i ] = new Thread( () -> {
+                try ( InputStream in = new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ) ) {
+                    stuck.extract( in, "text/plain", "stuck-" + Thread.currentThread().getName() + ".txt" );
+                } catch ( final Exception ignored ) {
+                    // Expected: each call times out once its own worker is confirmed stuck.
+                }
+            }, "saturation-caller-" + i );
+            callers[ i ].setDaemon( true );
+            callers[ i ].start();
+        }
+
+        try {
+            for ( final Thread caller : callers ) {
+                caller.join( 5_000 );
+                assertFalse( caller.isAlive(), "caller thread must have returned once its own timeout fired" );
+            }
+            assertEquals( bound, TikaSourceExtractor.STUCK_WORKERS.get(),
+                "all " + bound + " parses must be confirmed stuck before the extractor is considered saturated" );
+
+            final CountDownLatch overflowEntered = new CountDownLatch( 1 );
+            final TikaSourceExtractor overflow = new InjectableExtractor(
+                new BusyLoopParser( release, overflowEntered ), TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 60 );
+            final ExtractionException thrown = assertThrows( ExtractionException.class, () -> {
+                try ( InputStream in = new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ) ) {
+                    overflow.extract( in, "text/plain", "overflow.txt" );
+                }
+            } );
+            assertTrue( thrown.getMessage().toLowerCase( Locale.ROOT ).contains( "saturated" ),
+                "the bound-exceeded rejection must say the extractor is saturated, got: " + thrown.getMessage() );
+            assertEquals( 1, overflowEntered.getCount(),
+                "a saturated call must be rejected before its parse is ever submitted" );
+        } finally {
+            release.set( true );
+            for ( final BusyLoopParser p : parsers ) {
+                assertTrue( p.finished.await( 5, TimeUnit.SECONDS ), "busy-loop parse must return once released" );
+            }
+            awaitStuckWorkersDrained();
+        }
+
+        // Once every stuck worker has actually drained out, the extractor must work normally again.
+        final TikaSourceExtractor recovered =
+            new InjectableExtractor( new ImmediateParser(), TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 5 );
+        assertDoesNotThrow( () -> {
+            try ( InputStream in = new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ) ) {
+                recovered.extract( in, "text/plain", "recovered.txt" );
+            }
+        }, "a new call must succeed once the stuck-worker count has drained back to zero" );
     }
 }

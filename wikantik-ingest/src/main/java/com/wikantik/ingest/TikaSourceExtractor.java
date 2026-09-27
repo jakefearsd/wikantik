@@ -28,6 +28,7 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.ToXMLContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
 import org.xml.sax.SAXException;
@@ -41,8 +42,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Extracts markdown content from a document stream using Apache Tika.
@@ -56,10 +61,18 @@ import java.util.concurrent.TimeoutException;
  *       {@link WriteLimitReachedException}; this extractor catches it,
  *       logs a warning, and returns the partial (truncated) content.
  *       A truncated result is acceptable; an OOM is not.</li>
- *   <li><b>Extraction timeout</b>: {@code parser.parse()} runs on a dedicated
- *       thread; if it does not complete within the configured timeout the thread
- *       is interrupted, the executor is shut down, and an {@link ExtractionException}
- *       is thrown.</li>
+ *   <li><b>Extraction timeout</b>: {@code parser.parse()} runs on its own daemon thread; if
+ *       it does not complete within the configured timeout the thread is interrupted and an
+ *       {@link ExtractionException} (chaining the {@link TimeoutException}) is thrown. Tika
+ *       parsing of a pathological document can be CPU-bound and simply ignore interruption, so
+ *       the worker thread may keep running indefinitely after the timeout fires — being a
+ *       daemon thread at least means it can't block JVM shutdown, but repeated timeouts (e.g. a
+ *       connector sync walking a folder of bad documents) would otherwise still accumulate an
+ *       unbounded number of these permanently-running orphans. Concurrent extractions
+ *       themselves are <em>not</em> bounded (normal concurrent uploads/syncs must not be
+ *       rejected); only orphaned (still running after a timeout + cancel) workers are counted,
+ *       and once {@link #MAX_STUCK_EXTRACTIONS} of those are outstanding, further calls fail
+ *       fast with {@link ExtractionException} instead of piling on more.</li>
  * </ol>
  */
 public class TikaSourceExtractor implements SourceExtractor {
@@ -71,6 +84,43 @@ public class TikaSourceExtractor implements SourceExtractor {
 
     /** Default wall-clock timeout for a single parse call, in seconds. */
     public static final int DEFAULT_TIMEOUT_SECONDS = 60;
+
+    /**
+     * Maximum number of <em>orphaned</em> parses — timed out, cancelled, but still running
+     * because the parse is CPU-bound and ignoring interruption — allowed to accumulate across
+     * every {@link TikaSourceExtractor} instance (extractors are constructed per-use — see call
+     * sites — so the bound lives on the class, not the instance). This is not a concurrency
+     * limit: healthy parses (including many running at once, e.g. concurrent uploads or several
+     * connector syncs) are never rejected. Only once this many parses are confirmed stuck do
+     * further calls fail fast with {@link ExtractionException}, rather than accumulating an
+     * unbounded number of permanently-running orphan threads.
+     */
+    static final int MAX_STUCK_EXTRACTIONS = 8;
+
+    private static final ThreadFactory DAEMON_THREAD_FACTORY = new ThreadFactory() {
+        private final AtomicInteger count = new AtomicInteger();
+
+        @Override
+        public Thread newThread( final Runnable r ) {
+            final Thread t = new Thread( r, "tika-extract-" + count.incrementAndGet() );
+            t.setDaemon( true );
+            return t;
+        }
+    };
+
+    /**
+     * One new daemon thread per extraction — deliberately unbounded (concurrency itself is not
+     * the resource being guarded; see {@link #MAX_STUCK_EXTRACTIONS}). Threads are daemon and
+     * descriptively named so a stuck one shows up in a thread dump as {@code tika-extract-N}
+     * instead of blocking JVM shutdown anonymously.
+     */
+    private static final ExecutorService PER_CALL_EXECUTOR = Executors.newThreadPerTaskExecutor( DAEMON_THREAD_FACTORY );
+
+    /** Count of parses currently known to be orphaned (timed out + still running after {@code
+     *  cancel(true)}). Incremented when a timeout is confirmed stuck; decremented — at most once,
+     *  guarded by the task's own flag — if and when that orphan eventually finishes on its own.
+     *  Package-private so tests can observe/await it draining. */
+    static final AtomicInteger STUCK_WORKERS = new AtomicInteger();
 
     /** MIME types supported in v1. Case-insensitive. */
     private static final Set< String > SUPPORTED_TYPES = Set.of(
@@ -114,7 +164,7 @@ public class TikaSourceExtractor implements SourceExtractor {
     public ExtractionResult extract( final InputStream source, final String contentType, final String filename )
             throws ExtractionException {
 
-        final AutoDetectParser parser  = new AutoDetectParser();
+        final Parser parser  = createParser();
         final ToXMLContentHandler xhtml = new ToXMLContentHandler();
         // WriteOutContentHandler decorates xhtml: it forwards SAX events until the
         // write limit is reached, at which point it throws WriteLimitReachedException.
@@ -142,39 +192,77 @@ public class TikaSourceExtractor implements SourceExtractor {
         return new ExtractionResult( markdown, title, meta );
     }
 
-    /** Runs the bounded Tika parse on a dedicated thread, enforcing {@link #timeoutSeconds}.
-     *  Returns {@code true} iff the write-limit truncated the output. */
-    private boolean parseWithTimeout( final AutoDetectParser parser, final InputStream source,
+    /** Factory seam for the Tika parser used by {@link #extract}. Overridable so tests can inject
+     *  a parser that exercises specific timeout/failure behavior without needing an actual
+     *  pathological document. */
+    protected Parser createParser() {
+        return new AutoDetectParser();
+    }
+
+    /** Runs the Tika parse on its own daemon thread, enforcing {@link #timeoutSeconds}. Returns
+     *  {@code true} iff the write-limit truncated the output. Rejects up front only when {@link
+     *  #MAX_STUCK_EXTRACTIONS} parses are already confirmed orphaned — never merely because many
+     *  parses are running concurrently. */
+    private boolean parseWithTimeout( final Parser parser, final InputStream source,
                                       final WriteOutContentHandler bounded, final Metadata md,
                                       final String filename, final String contentType )
             throws ExtractionException {
-        boolean truncated = false;
+        if ( STUCK_WORKERS.get() >= MAX_STUCK_EXTRACTIONS ) {
+            try {
+                source.close();
+            } catch ( final IOException ioe ) {
+                LOG.warn( "Failed to close source stream for '{}' after extractor saturation: {}",
+                    filename, ioe.getMessage(), ioe );
+            }
+            LOG.warn( "Tika extraction rejected for '{}' (type={}): extractor saturated "
+                + "({} stuck parses already outstanding)", filename, contentType, STUCK_WORKERS.get() );
+            throw new ExtractionException( "extractor saturated: " + STUCK_WORKERS.get()
+                + " stuck parses, rejected '" + filename + "'" );
+        }
 
-        final ExecutorService exec = Executors.newSingleThreadExecutor();
-        try {
-            final Future< Void > future = exec.submit( () -> {
+        boolean truncated = false;
+        final AtomicReference< Thread > worker = new AtomicReference<>();
+        // Set true only if this task's timeout was confirmed stuck (worker still alive after
+        // cancel) — guards the STUCK_WORKERS decrement below so a normal completion never
+        // decrements a count it never incremented.
+        final AtomicBoolean countedAsStuck = new AtomicBoolean( false );
+
+        final Future< Void > future = PER_CALL_EXECUTOR.submit( () -> {
+            worker.set( Thread.currentThread() );
+            try {
                 try ( source ) {
                     parser.parse( source, bounded, md, new ParseContext() );
                 }
-                return null;
-            } );
-
-            try {
-                future.get( timeoutSeconds, TimeUnit.SECONDS );
-            } catch ( final TimeoutException e ) {
-                future.cancel( true );
-                LOG.warn( "Tika extraction timed out after {}s for '{}' (type={})",
-                    timeoutSeconds, filename, contentType );
-                throw new ExtractionException(
-                    "extraction timed out after " + timeoutSeconds + "s for '" + filename + "'" );
-            } catch ( final ExecutionException e ) {
-                truncated = handleParseExecutionException( e, filename, contentType );
-            } catch ( final InterruptedException e ) {
-                Thread.currentThread().interrupt();
-                throw new ExtractionException( "Extraction interrupted for '" + filename + "'", e );
+            } finally {
+                if ( countedAsStuck.get() ) {
+                    STUCK_WORKERS.decrementAndGet();
+                }
             }
-        } finally {
-            exec.shutdownNow();
+            return null;
+        } );
+
+        try {
+            future.get( timeoutSeconds, TimeUnit.SECONDS );
+        } catch ( final TimeoutException e ) {
+            future.cancel( true );
+            LOG.warn( "Tika extraction timed out after {}s for '{}' (type={})",
+                timeoutSeconds, filename, contentType, e );
+            final Thread w = worker.get();
+            if ( w != null && w.isAlive() ) {
+                countedAsStuck.set( true );
+                STUCK_WORKERS.incrementAndGet();
+                LOG.warn( "Tika extraction worker '{}' for '{}' is still running after cancellation — "
+                    + "the parse is likely CPU-bound and ignoring interruption; it will keep "
+                    + "running until it finishes on its own ({} stuck parse(s) now outstanding)",
+                    w.getName(), filename, STUCK_WORKERS.get() );
+            }
+            throw new ExtractionException(
+                "extraction timed out after " + timeoutSeconds + "s for '" + filename + "'", e );
+        } catch ( final ExecutionException e ) {
+            truncated = handleParseExecutionException( e, filename, contentType );
+        } catch ( final InterruptedException e ) {
+            Thread.currentThread().interrupt();
+            throw new ExtractionException( "Extraction interrupted for '" + filename + "'", e );
         }
         return truncated;
     }

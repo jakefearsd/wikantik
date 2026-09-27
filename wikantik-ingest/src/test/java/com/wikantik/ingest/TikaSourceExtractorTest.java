@@ -30,12 +30,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.mime.MediaType;
 import org.junit.jupiter.api.Test;
 import org.xml.sax.ContentHandler;
+import org.xml.sax.SAXException;
 
 class TikaSourceExtractorTest {
 
@@ -334,6 +336,51 @@ class TikaSourceExtractorTest {
         }
     }
 
+    /** A {@link Parser} whose {@code parse} always fails with a {@link SAXException} — used to
+     *  pin the SAX branch of the parse-failure cause dispatch. */
+    private static final class SaxFailingParser implements Parser {
+        @Override
+        public Set< MediaType > getSupportedTypes( final ParseContext context ) {
+            return Set.of();
+        }
+
+        @Override
+        public void parse( final InputStream stream, final ContentHandler handler,
+                            final Metadata metadata, final ParseContext context ) throws SAXException {
+            throw new SAXException( "malformed markup" );
+        }
+    }
+
+    /** A {@link Parser} whose {@code parse} always fails with a {@link TikaException} — used to
+     *  pin the Tika-specific branch of the parse-failure cause dispatch. */
+    private static final class TikaFailingParser implements Parser {
+        @Override
+        public Set< MediaType > getSupportedTypes( final ParseContext context ) {
+            return Set.of();
+        }
+
+        @Override
+        public void parse( final InputStream stream, final ContentHandler handler,
+                            final Metadata metadata, final ParseContext context ) throws TikaException {
+            throw new TikaException( "unsupported format" );
+        }
+    }
+
+    /** A {@link Parser} whose {@code parse} fails with a cause outside the three explicitly
+     *  classified ones (IO/SAX/Tika) — used to pin the fallback "unexpected" branch. */
+    private static final class UnexpectedFailingParser implements Parser {
+        @Override
+        public Set< MediaType > getSupportedTypes( final ParseContext context ) {
+            return Set.of();
+        }
+
+        @Override
+        public void parse( final InputStream stream, final ContentHandler handler,
+                            final Metadata metadata, final ParseContext context ) {
+            throw new IllegalStateException( "totally unexpected" );
+        }
+    }
+
     /** Extractor whose {@link #createParser()} returns an injected parser instead of a real
      *  {@link org.apache.tika.parser.AutoDetectParser} — the seam this test suite uses to simulate
      *  pathological parse behavior without needing an actual malformed document. */
@@ -532,5 +579,138 @@ class TikaSourceExtractorTest {
                 recovered.extract( in, "text/plain", "recovered.txt" );
             }
         }, "a new call must succeed once the stuck-worker count has drained back to zero" );
+    }
+
+    // ------------------------------------------------------------------ parse-failure cause dispatch (SAX/Tika/unexpected)
+
+    @Test
+    void saxParseFailureIsWrappedWithFilenameAndCause() {
+        final TikaSourceExtractor extractor =
+            new InjectableExtractor( new SaxFailingParser(), TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 5 );
+        final ExtractionException thrown = assertThrows( ExtractionException.class, () -> {
+            try ( InputStream in = new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ) ) {
+                extractor.extract( in, "text/html", "bad.html" );
+            }
+        } );
+        assertTrue( thrown.getMessage().startsWith( "Failed to parse document 'bad.html'" ),
+            "got: " + thrown.getMessage() );
+        assertTrue( thrown.getMessage().contains( "malformed markup" ) );
+        assertInstanceOf( SAXException.class, thrown.getCause(), "the SAX cause must be chained" );
+    }
+
+    @Test
+    void tikaParseFailureIsWrappedWithFilenameAndCause() {
+        final TikaSourceExtractor extractor =
+            new InjectableExtractor( new TikaFailingParser(), TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 5 );
+        final ExtractionException thrown = assertThrows( ExtractionException.class, () -> {
+            try ( InputStream in = new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ) ) {
+                extractor.extract( in, "application/pdf", "bad.pdf" );
+            }
+        } );
+        assertTrue( thrown.getMessage().startsWith( "Failed to parse document 'bad.pdf'" ),
+            "got: " + thrown.getMessage() );
+        assertTrue( thrown.getMessage().contains( "unsupported format" ) );
+        assertInstanceOf( TikaException.class, thrown.getCause(), "the Tika cause must be chained" );
+    }
+
+    @Test
+    void unexpectedParseFailureIsWrappedWithFilenameAndCause() {
+        final TikaSourceExtractor extractor =
+            new InjectableExtractor( new UnexpectedFailingParser(), TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 5 );
+        final ExtractionException thrown = assertThrows( ExtractionException.class, () -> {
+            try ( InputStream in = new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ) ) {
+                extractor.extract( in, "text/plain", "weird.txt" );
+            }
+        } );
+        assertTrue( thrown.getMessage().startsWith( "Failed to parse document 'weird.txt'" ),
+            "got: " + thrown.getMessage() );
+        assertTrue( thrown.getMessage().contains( "totally unexpected" ) );
+        assertInstanceOf( IllegalStateException.class, thrown.getCause(),
+            "a cause not classified as IO/SAX/Tika must still be chained, not dropped" );
+    }
+
+    // ------------------------------------------------------------------ waiting-thread interruption
+
+    @Test
+    void interruptedWhileWaitingIsWrappedAndInterruptStatusRestored() throws Exception {
+        final TikaSourceExtractor extractor =
+            new InjectableExtractor( new ImmediateParser(), TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 5 );
+        Thread.currentThread().interrupt();
+        try {
+            final ExtractionException thrown = assertThrows( ExtractionException.class, () -> {
+                try ( InputStream in = new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ) ) {
+                    extractor.extract( in, "text/plain", "interrupted.txt" );
+                }
+            } );
+            assertTrue( thrown.getMessage().contains( "interrupted" ), "got: " + thrown.getMessage() );
+            assertTrue( thrown.getMessage().contains( "interrupted.txt" ), "got: " + thrown.getMessage() );
+            assertTrue( Thread.currentThread().isInterrupted(),
+                "Thread.interrupt() must be re-asserted on the caller, never silently swallowed" );
+        } finally {
+            // Clear the flag so it can't leak into later tests (surefire reuses the JVM thread).
+            Thread.interrupted();
+        }
+    }
+
+    // ------------------------------------------------------------------ saturation-rejection close failure
+
+    /**
+     * Once the stuck-worker cap is reached, an overflow call is rejected before its parse ever
+     * runs — but the extractor still owns the caller's source stream and must attempt to close
+     * it. A stream whose {@code close()} itself throws must not prevent (or replace) the
+     * saturation {@link ExtractionException}; the close failure is logged, not propagated.
+     */
+    @Test
+    void closeFailureDuringSaturationRejectionIsLoggedNotThrown() throws Exception {
+        final int bound = TikaSourceExtractor.MAX_STUCK_EXTRACTIONS;
+        final AtomicBoolean release = new AtomicBoolean( false );
+        final BusyLoopParser[] parsers = new BusyLoopParser[ bound ];
+        final Thread[] callers = new Thread[ bound ];
+
+        for ( int i = 0; i < bound; i++ ) {
+            parsers[ i ] = new BusyLoopParser( release, new CountDownLatch( 1 ) );
+            final TikaSourceExtractor stuck =
+                new InjectableExtractor( parsers[ i ], TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 1 );
+            callers[ i ] = new Thread( () -> {
+                try ( InputStream in = new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ) ) {
+                    stuck.extract( in, "text/plain", "stuck-" + Thread.currentThread().getName() + ".txt" );
+                } catch ( final Exception ignored ) {
+                    // Expected: each call times out once its own worker is confirmed stuck.
+                }
+            }, "close-fail-saturation-caller-" + i );
+            callers[ i ].setDaemon( true );
+            callers[ i ].start();
+        }
+
+        try {
+            for ( final Thread caller : callers ) {
+                caller.join( 5_000 );
+                assertFalse( caller.isAlive(), "caller thread must have returned once its own timeout fired" );
+            }
+            assertEquals( bound, TikaSourceExtractor.STUCK_WORKERS.get(),
+                "all " + bound + " parses must be confirmed stuck before the extractor is considered saturated" );
+
+            final AtomicBoolean closeAttempted = new AtomicBoolean( false );
+            final InputStream failingToClose = new InputStream() {
+                @Override public int read() { return -1; }
+                @Override public void close() throws IOException {
+                    closeAttempted.set( true );
+                    throw new IOException( "close boom" );
+                }
+            };
+            final TikaSourceExtractor overflow = new InjectableExtractor(
+                new ImmediateParser(), TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 5 );
+            final ExtractionException thrown = assertThrows( ExtractionException.class,
+                () -> overflow.extract( failingToClose, "text/plain", "overflow-close.txt" ) );
+            assertTrue( thrown.getMessage().toLowerCase( Locale.ROOT ).contains( "saturated" ),
+                "got: " + thrown.getMessage() );
+            assertTrue( closeAttempted.get(), "the source stream close() must still be attempted on rejection" );
+        } finally {
+            release.set( true );
+            for ( final BusyLoopParser p : parsers ) {
+                assertTrue( p.finished.await( 5, TimeUnit.SECONDS ), "busy-loop parse must return once released" );
+            }
+            awaitStuckWorkersDrained();
+        }
     }
 }

@@ -113,4 +113,68 @@ class ReconciliationJobRunnerTest {
             assertNotNull( st.errorMessage() );
         }
     }
+
+    /**
+     * Regression test: a failure fetching the page list itself (the one line in
+     * {@code runSync} not previously guarded by a try/catch) must surface as
+     * ERROR status, not leave the run stuck at an earlier state forever, and
+     * the synchronous caller must still see the exception.
+     */
+    @Test
+    void runSync_pageNamesIn_failure_records_error_status_and_rethrows() {
+        final KgInclusionPolicy policy = mock( KgInclusionPolicy.class );
+        final KgExcludedPagesRepository repo = mock( KgExcludedPagesRepository.class );
+        final PagesByCluster pages = mock( PagesByCluster.class );
+        when( pages.pageNamesIn( "broken" ) ).thenThrow( new RuntimeException( "db unavailable" ) );
+
+        try ( ReconciliationJobRunner r = runner( policy, repo, pages ) ) {
+            final RuntimeException thrown = assertThrows( RuntimeException.class,
+                    () -> r.runSync( "broken" ) );
+            assertEquals( "db unavailable", thrown.getMessage() );
+
+            final ReconciliationStatus st = r.statusOf( "broken" ).orElseThrow();
+            assertEquals( ReconciliationStatus.State.ERROR, st.state() );
+            assertNotNull( st.startedAt() );
+            assertNotNull( st.finishedAt() );
+            assertNotNull( st.errorMessage() );
+            verify( repo, never() ).exclude( anyString(), any() );
+            verify( repo, never() ).release( anyString(), any() );
+        }
+    }
+
+    /**
+     * Regression test: {@link ReconciliationJobRunner#enqueue} discards the
+     * {@code Future} returned by {@code exec.submit}, so a failure in
+     * {@code pageNamesIn} must not vanish silently — status must eventually
+     * report ERROR. Uses a same-thread (direct) executor so "eventually" is
+     * actually "immediately", with no sleep/poll needed.
+     */
+    @Test
+    void enqueue_pageNamesIn_failure_surfaces_as_error_status_not_stuck_queued() {
+        final KgInclusionPolicy policy = mock( KgInclusionPolicy.class );
+        final KgExcludedPagesRepository repo = mock( KgExcludedPagesRepository.class );
+        final PagesByCluster pages = mock( PagesByCluster.class );
+        when( pages.pageNamesIn( "broken" ) ).thenThrow( new RuntimeException( "db unavailable" ) );
+
+        final java.util.concurrent.ExecutorService directExecutor =
+                new java.util.concurrent.AbstractExecutorService() {
+                    private volatile boolean shutdown = false;
+
+                    @Override public void execute( final Runnable command ) { command.run(); }
+                    @Override public void shutdown() { shutdown = true; }
+                    @Override public java.util.List< Runnable > shutdownNow() { shutdown = true; return List.of(); }
+                    @Override public boolean isShutdown() { return shutdown; }
+                    @Override public boolean isTerminated() { return shutdown; }
+                    @Override public boolean awaitTermination( final long timeout, final java.util.concurrent.TimeUnit unit ) { return true; }
+                };
+
+        try ( ReconciliationJobRunner r = new ReconciliationJobRunner( policy, repo, pages, directExecutor ) ) {
+            r.enqueue( "broken" );
+
+            final ReconciliationStatus st = r.statusOf( "broken" ).orElseThrow();
+            assertEquals( ReconciliationStatus.State.ERROR, st.state(),
+                    "a pageNamesIn failure must surface as ERROR status, not leave the run stuck QUEUED" );
+            assertNotNull( st.errorMessage() );
+        }
+    }
 }

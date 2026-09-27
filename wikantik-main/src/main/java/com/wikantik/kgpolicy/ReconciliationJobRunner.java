@@ -53,10 +53,13 @@ import java.util.concurrent.Executors;
  * <pre>
  *   (not present) → QUEUED → RUNNING → DONE
  *                                    → ERROR (if any per-page errors occurred)
+ *                          → ERROR (if listing the cluster's pages itself fails)
  * </pre>
  *
  * <p>A second {@link #enqueue} for the same cluster replaces the previous
- * status entry atomically.</p>
+ * status entry atomically. A failure anywhere in a run — including listing
+ * the cluster's pages — always transitions status to {@code ERROR} rather
+ * than leaving it stuck at an earlier state, and is logged.</p>
  */
 public class ReconciliationJobRunner implements AutoCloseable {
 
@@ -108,11 +111,25 @@ public class ReconciliationJobRunner implements AutoCloseable {
      * flight) continues to completion but its final status update will be
      * overwritten by the new run.
      *
+     * <p>A failure anywhere in the run — including {@link PagesByCluster#pageNamesIn}
+     * itself — is always observable: {@link #runSync} records {@code ERROR}
+     * status before rethrowing, so this method only needs to stop the
+     * exception from being silently swallowed by the discarded {@code Future}.</p>
+     *
      * @param cluster cluster name to reconcile
      */
     public void enqueue( final String cluster ) {
         status.put( cluster, queued( cluster ) );
-        exec.submit( () -> runSync( cluster ) );
+        exec.submit( () -> {
+            try {
+                runSync( cluster );
+            } catch ( final RuntimeException e ) {
+                // runSync already recorded ERROR status; this catch exists only
+                // to keep the exception from vanishing into the discarded Future.
+                LOG.warn( "Reconciliation run failed for cluster '{}': {}",
+                        cluster, e.getMessage(), e );
+            }
+        } );
     }
 
     /**
@@ -122,13 +139,35 @@ public class ReconciliationJobRunner implements AutoCloseable {
      * <p>Updates the status map after every page so that callers polling
      * {@link #statusOf} can observe progress in real time.</p>
      *
+     * <p>A failure fetching the page list itself (e.g. a DB error from
+     * {@link PagesByCluster#pageNamesIn}) is recorded as {@code ERROR} status
+     * — with {@code startedAt} and {@code finishedAt} both set to the moment
+     * of failure — before being rethrown, so a synchronous caller still sees
+     * the exception while {@link #statusOf} never reports a run stuck in
+     * {@code QUEUED} forever.</p>
+     *
      * @param cluster cluster name to reconcile
+     * @throws RuntimeException if {@link PagesByCluster#pageNamesIn} fails; the
+     *         per-page loop itself never throws (page-level failures are
+     *         caught individually and counted as errors instead)
      */
     public void runSync( final String cluster ) {
-        final List< String > all = pages.pageNamesIn( cluster );
+        final Instant startedAt = Instant.now();
+        final List< String > all;
+        try {
+            all = pages.pageNamesIn( cluster );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Reconciliation failed to list pages for cluster '{}': {}",
+                    cluster, e.getMessage(), e );
+            status.put( cluster, new ReconciliationStatus(
+                    cluster, ReconciliationStatus.State.ERROR,
+                    0, 0, 0, startedAt, Instant.now(), e.getMessage() ) );
+            throw e;
+        }
+
         ReconciliationStatus s = new ReconciliationStatus(
                 cluster, ReconciliationStatus.State.RUNNING,
-                all.size(), 0, 0, Instant.now(), null, null );
+                all.size(), 0, 0, startedAt, null, null );
         status.put( cluster, s );
 
         int processed = 0;

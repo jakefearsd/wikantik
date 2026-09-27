@@ -22,6 +22,8 @@ import com.wikantik.api.querylog.AggregatedQuery;
 import com.wikantik.api.querylog.ActorType;
 import com.wikantik.api.querylog.QueryLogQuery;
 import com.wikantik.api.querylog.QueryLogReader;
+import com.wikantik.api.querylog.SourceSurface;
+import com.wikantik.mcp.ToolSchemas;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -74,5 +76,60 @@ class ListRetrievalQueriesToolTest {
                 .execute( Map.of( "actor", "bogus_actor" ) );
         assertTrue( result.isError() );
         verifyNoInteractions( reader );
+    }
+
+    @Test
+    void nameIsListRetrievalQueries() {
+        assertEquals( "list_retrieval_queries", new ListRetrievalQueriesTool( mock( QueryLogReader.class ) ).name() );
+    }
+
+    @Test
+    void definitionExposesTheFilterParameters() {
+        final var def = new ListRetrievalQueriesTool( mock( QueryLogReader.class ) ).definition();
+        final Map< String, Object > props = ToolSchemas.properties( def.inputSchema() );
+        assertTrue( props.containsKey( "since_days" ) );
+        assertTrue( props.containsKey( "actor" ) );
+        assertTrue( props.containsKey( "surface" ) );
+        assertTrue( props.containsKey( "max_avg_results" ) );
+        assertNotNull( def.outputSchema() );
+    }
+
+    @Test
+    void validSurfaceIsParsedAndPassedToTheQuery() {
+        final QueryLogReader reader = mock( QueryLogReader.class );
+        when( reader.topQueries( any() ) ).thenReturn( List.of() );
+
+        new ListRetrievalQueriesTool( reader ).execute( Map.of( "surface", "api_bundle" ) );
+
+        final ArgumentCaptor< QueryLogQuery > cap = ArgumentCaptor.forClass( QueryLogQuery.class );
+        verify( reader ).topQueries( cap.capture() );
+        assertEquals( SourceSurface.API_BUNDLE, cap.getValue().surface() );
+    }
+
+    @Test
+    void readerFailureIsReportedAsAnMcpError() {
+        final QueryLogReader reader = mock( QueryLogReader.class );
+        when( reader.topQueries( any() ) ).thenThrow( new RuntimeException( "db down" ) );
+
+        final var result = new ListRetrievalQueriesTool( reader ).execute( Map.of() );
+
+        assertTrue( result.isError() );
+        final String text = ( ( io.modelcontextprotocol.spec.McpSchema.TextContent )
+                result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "retrieval query log" ), text );
+    }
+
+    @Test
+    void nonNumericSinceDaysFallsBackToDefault() {
+        final QueryLogReader reader = mock( QueryLogReader.class );
+        when( reader.topQueries( any() ) ).thenReturn( List.of() );
+
+        new ListRetrievalQueriesTool( reader ).execute( Map.of( "since_days", "not-a-number" ) );
+
+        final ArgumentCaptor< QueryLogQuery > cap = ArgumentCaptor.forClass( QueryLogQuery.class );
+        verify( reader ).topQueries( cap.capture() );
+        // default lookback is 30 days; assert the resolved "since" is close to that, not the parse failure's bound.
+        final long daysBack = java.time.Duration.between( cap.getValue().since(), Instant.now() ).toDays();
+        assertEquals( 30, daysBack );
     }
 }

@@ -18,6 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -29,10 +30,12 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -73,5 +76,104 @@ class MarkPageVerifiedToolTest {
         // Refusal happens before the page lookup — no point hitting PageManager.
         verify( pm, never() ).getPage( eq( "CSSRibbon" ) );
         verify( pm, never() ).getPage( eq( "Main" ) );
+    }
+
+    @Test
+    void execute_emptySlugsIsAnError() {
+        final MarkPageVerifiedTool tool = new MarkPageVerifiedTool(
+            mock( PageSaveHelper.class ), mock( PageManager.class ), null );
+
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slugs", List.of() ) );
+
+        assertTrue( result.isError() );
+    }
+
+    @Test
+    void execute_unknownConfidenceOverrideIsAnError() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final MarkPageVerifiedTool tool = new MarkPageVerifiedTool( helper, pm, null );
+
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "slugs", List.of( "Alpha" ), "confidence", "not-a-real-level" ) );
+
+        assertTrue( result.isError() );
+        verify( helper, never() ).saveText( anyString(), anyString(), any( SaveOptions.class ) );
+    }
+
+    @Test
+    void execute_blankSlugEntryIsReportedAsAFailedResultNotAThrow() {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final MarkPageVerifiedTool tool = new MarkPageVerifiedTool( helper, pm, null );
+
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slugs", java.util.Arrays.asList( "  " ) ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "blank page name" ), text );
+        assertTrue( text.contains( "\"succeeded\":0" ), text );
+    }
+
+    @Test
+    void execute_missingPageIsReportedAsAFailedResult() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        when( pm.getPage( "GoneNow" ) ).thenReturn( null );
+        final MarkPageVerifiedTool tool = new MarkPageVerifiedTool( helper, pm, null );
+
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slugs", List.of( "GoneNow" ) ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "page not found" ), text );
+        assertTrue( text.contains( "\"succeeded\":0" ), text );
+        verify( helper, never() ).saveText( anyString(), anyString(), any( SaveOptions.class ) );
+    }
+
+    @Test
+    void execute_savesVerificationMetadataOnSuccess() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page page = mock( Page.class );
+        when( pm.getPage( "HybridRetrieval" ) ).thenReturn( page );
+        when( pm.getPureText( page ) ).thenReturn( "---\ntitle: Hybrid Retrieval\n---\nbody text" );
+
+        final MarkPageVerifiedTool tool = new MarkPageVerifiedTool( helper, pm, null );
+        tool.setDefaultAuthor( "bot" );
+
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "slugs", List.of( "HybridRetrieval" ), "verifier", "jakefear",
+            "confidence", "authoritative", "changeNote", "quarterly review" ) );
+
+        assertFalse( result.isError() );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "\"succeeded\":1" ), text );
+        assertTrue( text.contains( "\"verifiedBy\":\"jakefear\"" ), text );
+        assertTrue( text.contains( "\"confidence\":\"authoritative\"" ), text );
+
+        final org.mockito.ArgumentCaptor< String > savedText = org.mockito.ArgumentCaptor.forClass( String.class );
+        verify( helper ).saveText( eq( "HybridRetrieval" ), savedText.capture(), any( SaveOptions.class ) );
+        assertTrue( savedText.getValue().contains( "verified_by: jakefear" ), savedText.getValue() );
+        assertTrue( savedText.getValue().contains( "confidence: authoritative" ), savedText.getValue() );
+    }
+
+    @Test
+    void execute_saveFailurePerPageIsCapturedNotThrown() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page page = mock( Page.class );
+        when( pm.getPage( "Flaky" ) ).thenReturn( page );
+        when( pm.getPureText( page ) ).thenReturn( "---\ntitle: Flaky\n---\nbody" );
+        doThrow( new RuntimeException( "disk full" ) )
+            .when( helper ).saveText( anyString(), anyString(), any( SaveOptions.class ) );
+
+        final MarkPageVerifiedTool tool = new MarkPageVerifiedTool( helper, pm, null );
+        tool.setDefaultAuthor( "bot" );
+
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slugs", List.of( "Flaky" ) ) );
+
+        assertFalse( result.isError(), "per-page failures are captured, not thrown to the outer envelope" );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "disk full" ), text );
+        assertTrue( text.contains( "\"succeeded\":0" ), text );
     }
 }

@@ -295,6 +295,15 @@
             <groupId>org.tribuo</groupId>
             <artifactId>tribuo-clustering-hdbscan</artifactId>
             <version>${tribuo.version}</version>
+            <exclusions>
+                <!-- olcut-core drags in its interactive-shell stack (jline 3.27.1, open GHSAs
+                     with no fixed release). Wikantik never opens an olcut shell; HDBSCAN only
+                     needs olcut's config annotations. -->
+                <exclusion>
+                    <groupId>org.jline</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>

@@ -40,6 +40,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -152,6 +153,44 @@ class SearchWikiToolTest {
         final String snippet = ( String ) first.get( "snippet" );
         assertTrue( snippet.endsWith( "…" ), "should end with ellipsis" );
         assertEquals( 321, snippet.length(), "320 chars + ellipsis" );
+    }
+
+    @Test
+    void includesLastModifiedAndAuthorWhenPresent() {
+        when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
+        final Date lastModified = new Date( 1_700_000_000_000L );
+        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
+            new RetrievalResult( "hello", List.of( RetrievedPage.builder( "OnePage", 1.0 )
+                .url( "" )
+                .summary( "" )
+                .tags( List.of() )
+                .contributingChunks( List.of() )
+                .relatedPages( List.of() )
+                .author( "alice" )
+                .lastModified( lastModified )
+                .build()
+            ), 1 ) );
+
+        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
+        final Map< String, Object > out = tool.execute( "hello", 5, request );
+
+        final List< ? > results = ( List< ? > ) out.get( "results" );
+        final Map< ?, ? > first = ( Map< ?, ? > ) results.get( 0 );
+        assertEquals( lastModified.toInstant().toString(), first.get( "lastModified" ) );
+        assertEquals( "alice", first.get( "author" ) );
+    }
+
+    @Test
+    void nonPositiveLimitFallsBackToDefaultMaxResults() {
+        when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
+        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
+            new RetrievalResult( "q", List.of(), 0 ) );
+
+        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
+        // limit <= 0 must not throw and must fall back to the default cap rather than 0.
+        final Map< String, Object > out = tool.execute( "q", 0, request );
+
+        assertEquals( 0, out.get( "total" ) );
     }
 
     @Test

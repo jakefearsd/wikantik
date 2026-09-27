@@ -30,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Date;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -121,6 +122,43 @@ class GetPageToolTest {
 
         assertEquals( Boolean.TRUE, out.get( "truncated" ) );
         assertEquals( 20_000, out.get( "truncatedAt" ) );
+    }
+
+    @Test
+    void returnsNullWhenPageLookupThrows() {
+        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
+        when( pageManager.getPage( "Boom" ) ).thenThrow( new RuntimeException( "db unavailable" ) );
+
+        final GetPageTool tool = allowingTool( engine, new ToolsConfig( new Properties() ) );
+        assertNull( tool.execute( "Boom", 0, request ) );
+    }
+
+    @Test
+    void returnsNullWhenBodyLoadThrows() {
+        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
+        when( pageManager.getPage( "Flaky" ) ).thenReturn( page );
+        when( page.getName() ).thenReturn( "Flaky" );
+        when( pageManager.getPureText( "Flaky", -1 ) ).thenThrow( new RuntimeException( "io error" ) );
+
+        final GetPageTool tool = allowingTool( engine, new ToolsConfig( new Properties() ) );
+        assertNull( tool.execute( "Flaky", 0, request ) );
+    }
+
+    @Test
+    void includesLastModifiedAndAuthorWhenPresent() {
+        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
+        when( pageManager.getPage( "Main" ) ).thenReturn( page );
+        when( page.getName() ).thenReturn( "Main" );
+        when( pageManager.getPureText( "Main", -1 ) ).thenReturn( "Body content" );
+        final Date lastModified = new Date( 1_700_000_000_000L );
+        when( page.getLastModified() ).thenReturn( lastModified );
+        when( page.getAuthor() ).thenReturn( "alice" );
+
+        final GetPageTool tool = allowingTool( engine, new ToolsConfig( new Properties() ) );
+        final Map< String, Object > out = tool.execute( "Main", 0, request );
+
+        assertEquals( lastModified.toInstant().toString(), out.get( "lastModified" ) );
+        assertEquals( "alice", out.get( "author" ) );
     }
 
     @Test

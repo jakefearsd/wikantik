@@ -53,6 +53,17 @@ class ToolsMetricsTest {
     }
 
     @Test
+    void errorCountersIncrementIndependently() {
+        final ToolsMetrics metrics = new ToolsMetrics();
+        metrics.recordSearchError();
+        metrics.recordSearchError();
+        metrics.recordGetPageError();
+        assertEquals( 2L, metrics.searchError() );
+        assertEquals( 1L, metrics.getPageError() );
+        assertEquals( 0L, metrics.searchSuccess() );
+    }
+
+    @Test
     void bridgeRegistersAllExpectedMeters() {
         final ToolsMetrics metrics = new ToolsMetrics();
         final SimpleMeterRegistry registry = new SimpleMeterRegistry();

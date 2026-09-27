@@ -180,4 +180,12 @@ class OpenApiDocumentTest {
                 .getAsJsonObject( "items" ).get( "$ref" ).getAsString();
         assertEquals( "#/components/schemas/RelatedPageHint", relatedRef );
     }
+
+    @Test
+    void serverUrlFallsBackToBarePathWhenNoBaseUrlOrRequest() {
+        final String json = OpenApiDocument.render( null, new ToolsConfig( new Properties() ) );
+        final JsonObject root = JsonParser.parseString( json ).getAsJsonObject();
+        final String url = root.getAsJsonArray( "servers" ).get( 0 ).getAsJsonObject().get( "url" ).getAsString();
+        assertEquals( "/tools", url );
+    }
 }

@@ -112,4 +112,28 @@ class ResultShaperTest {
         assertTrue( ResultShaper.frontmatter( null ).isEmpty() );
         assertTrue( ResultShaper.frontmatter( "" ).isEmpty() );
     }
+
+    @Test
+    void citationUrlFallsBackToBarePathWhenNoBaseUrlOrRequest() {
+        assertEquals( "/wiki/Some%20Page", ResultShaper.citationUrl( "Some Page", null, null ) );
+        assertEquals( "/wiki/Blank", ResultShaper.citationUrl( "Blank", null, "   " ) );
+    }
+
+    @Test
+    void bodyOnlyReturnsEmptyStringForNullOrEmptyInput() {
+        assertEquals( "", ResultShaper.bodyOnly( null ) );
+        assertEquals( "", ResultShaper.bodyOnly( "" ) );
+    }
+
+    @Test
+    void snippetReturnsEmptyStringWhenNoContextsAndNoBody() {
+        assertEquals( "", ResultShaper.snippet( null, null ) );
+        assertEquals( "", ResultShaper.snippet( new String[ 0 ], "" ) );
+    }
+
+    @Test
+    void truncateBodyReturnsEmptyStringForNullBody() {
+        assertEquals( "", ResultShaper.truncateBody( null, 10 ) );
+        assertFalse( ResultShaper.wasTruncated( null, 10 ) );
+    }
 }

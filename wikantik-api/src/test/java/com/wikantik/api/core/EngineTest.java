@@ -34,8 +34,11 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import java.util.Properties;
 
 /**
  * Covers {@link Engine#findConfigFile(String)}, the interface's one nontrivial default
@@ -117,6 +120,30 @@ class EngineTest {
         assertNotNull( result, "classpath resource dummy-config-file.txt exists, so a temp-file URL must be returned" );
         final String content = Files.readString( Path.of( result.toURI() ), StandardCharsets.UTF_8 );
         assertEquals( "dummy-config-fixture-content\n", content );
+    }
+
+    @Test
+    void adaptReturnsThisInstanceUnchecked() {
+        final Engine engine = mockEngine();
+        assertSame( engine, engine.adapt( Engine.class ) );
+    }
+
+    @Test
+    void getPluginSearchPathReadsTheConfiguredProperty() {
+        final Engine engine = mockEngine();
+        final Properties props = new Properties();
+        props.setProperty( Engine.PROP_SEARCHPATH, "/opt/plugins" );
+        when( engine.getWikiProperties() ).thenReturn( props );
+
+        assertEquals( "/opt/plugins", engine.getPluginSearchPath() );
+    }
+
+    @Test
+    void getPluginSearchPathReturnsNullWhenPropertyUnset() {
+        final Engine engine = mockEngine();
+        when( engine.getWikiProperties() ).thenReturn( new Properties() );
+
+        assertNull( engine.getPluginSearchPath() );
     }
 
     @Test

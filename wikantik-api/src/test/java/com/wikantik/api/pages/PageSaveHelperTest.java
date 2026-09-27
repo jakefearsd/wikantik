@@ -158,6 +158,25 @@ class PageSaveHelperTest {
     }
 
     @Test
+    void saveTextComputesHashAgainstEmptyBodyWhenNoExistingText() throws Exception {
+        // pm.getPureText returns null (page has no prior text) — the hash comparison must
+        // treat that as an empty string rather than NPE-ing on it.
+        final PageManager pm = mock( PageManager.class );
+        when( pm.getPureText( eq( "New" ), anyInt() ) ).thenReturn( null );
+        final Page saved = mock( Page.class );
+        when( pm.getPage( "New" ) ).thenReturn( saved );
+
+        final SaveOptions options = SaveOptions.builder()
+                .expectedContentHash( PageSaveHelper.computeContentHash( "" ) )
+                .build();
+
+        final Page result = newHelper( pm ).saveText( "New", "body", options );
+
+        assertSame( saved, result );
+        verify( pm ).saveText( any(), eq( "body" ) );
+    }
+
+    @Test
     void saveTextProceedsWhenContentHashMatches() throws Exception {
         final PageManager pm = mock( PageManager.class );
         when( pm.getPureText( eq( "Doc" ), anyInt() ) ).thenReturn( "current text" );

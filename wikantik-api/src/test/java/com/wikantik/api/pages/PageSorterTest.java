@@ -95,4 +95,43 @@ class PageSorterTest {
         // Falls back silently to the natural-order comparator.
         assertTrue( sorter.compare( "Apple", "Banana" ) < 0 );
     }
+
+    @Test
+    void initializeLoadsACustomComparatorClassByName() {
+        final PageSorter sorter = new PageSorter();
+        final Properties props = new Properties();
+        // Resolvable under com.wikantik.util.comparators, has a public no-arg constructor.
+        props.setProperty( PageSorter.PROP_PAGE_NAME_COMPARATOR, "HumanComparator" );
+        sorter.initialize( props );
+        // HumanComparator sorts "File10" after "File2" (numeric-aware), unlike natural order.
+        assertTrue( sorter.compare( "File2", "File10" ) < 0 );
+    }
+
+    @Test
+    void equalsComparesUnderlyingComparatorsByValueWhenNotTheSameInstance() {
+        // Two distinct PageSorter instances wrapping two distinct-but-equal comparator
+        // instances: neither the "same object" nor the "same comparator reference" fast
+        // paths apply, so equals() must fall through to comparator.equals(that.comparator).
+        final PageSorter a = new PageSorter( new EqualByType() );
+        final PageSorter b = new PageSorter( new EqualByType() );
+        assertEquals( a, b );
+    }
+
+    /** A comparator whose equals() is type-based, so two distinct instances are still equal. */
+    private static final class EqualByType implements Comparator< String > {
+        @Override
+        public int compare( final String a, final String b ) {
+            return a.compareTo( b );
+        }
+
+        @Override
+        public boolean equals( final Object o ) {
+            return o instanceof EqualByType;
+        }
+
+        @Override
+        public int hashCode() {
+            return EqualByType.class.hashCode();
+        }
+    }
 }

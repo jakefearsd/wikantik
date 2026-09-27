@@ -116,6 +116,33 @@ public class ReleaseTest {
         Assertions.assertTrue( Release.isOlderOrEqual( rel ) );
     }
 
+    @Test
+    public void getVersionStringReturnsTheVersionString() {
+        Assertions.assertEquals( Release.VERSTR, Release.getVersionString() );
+    }
+
+    @Test
+    public void isNewerOrEqual_matchingVersionDifferingRevision_comparesAtRevisionLevel() {
+        // Same VERSION component but a higher REVISION — exercises the second comparison
+        // rung in compareVersions(), never reached when the two differ at VERSION already.
+        final String rel = Release.VERSION + "." + ( Release.REVISION + 1 ) + ".0";
+        Assertions.assertFalse( Release.isNewerOrEqual( rel ) );
+        Assertions.assertTrue( Release.isOlderOrEqual( rel ) );
+    }
+
+    @Test
+    public void mainPrintsTheVersionStringToStdout() {
+        final java.io.PrintStream originalOut = System.out;
+        final java.io.ByteArrayOutputStream captured = new java.io.ByteArrayOutputStream();
+        System.setOut( new java.io.PrintStream( captured, true, java.nio.charset.StandardCharsets.UTF_8 ) );
+        try {
+            Release.main( new String[ 0 ] );
+        } finally {
+            System.setOut( originalOut );
+        }
+        Assertions.assertTrue( captured.toString( java.nio.charset.StandardCharsets.UTF_8 ).contains( Release.VERSTR ) );
+    }
+
     private static String olderThanCurrent() {
         if ( Release.MINORREVISION != 0 ) {
             return Release.VERSION + "." + Release.REVISION + "." + ( Release.MINORREVISION - 1 ) + "-cvs";

@@ -29,7 +29,6 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
-import java.util.Set;
 
 import org.apache.commons.fileupload2.core.DiskFileItemFactory;
 import org.apache.commons.fileupload2.core.FileItem;
@@ -64,7 +63,6 @@ import com.wikantik.util.HttpUtil;
 import com.wikantik.util.TextUtil;
 
 import jakarta.servlet.ServletConfig;
-import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -327,7 +325,7 @@ public class AttachmentServlet extends HttpServlet {
             return;
         }
 
-        final String mimetype = getMimeType( context, att.getFileName() );
+        final String mimetype = AttachmentContentTypes.mimeTypeOf( context, att.getFileName() );
         res.setContentType( mimetype );
 
         final String contentDisposition = getContentDisposition( att, mimetype );
@@ -357,52 +355,20 @@ public class AttachmentServlet extends HttpServlet {
             // Validate the RAW value first — encoding it beforehand (as this used to do) lets a
             // protocol-relative "//evil.com" survive, since the encoder keeps '/' unescaped and
             // only ':' gets encoded, so an "://" denylist check never sees it.
-            final String errorPage = engine.getURL( ContextEnum.WIKI_ERROR.getRequestContext(), "", null );
-            final String validated = validateNextPage( nextPage, errorPage );
+            final String validated = safeNextPage( nextPage );
             res.sendRedirect( validated == nextPage ? TextUtil.urlEncodeUTF8( validated ) : validated );
         }
     }
-
-    /**
-     * MIME types safe to serve {@code inline} on the wiki's own origin. Everything
-     * else is served as a download. This is an ALLOWLIST on purpose: an active-content
-     * denylist keyed on file extension always misses variants ({@code .xht},
-     * {@code .svgz}, {@code .mhtml}, …), and any such file served inline with its real
-     * content type executes script on the wiki origin (stored XSS). Deciding from the
-     * resolved MIME type and defaulting to attachment closes that whole class.
-     */
-    private static final Set< String > INLINE_SAFE_MIME_TYPES = Set.of(
-            "image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "image/x-icon",
-            "application/pdf", "text/plain",
-            "audio/mpeg", "audio/ogg", "audio/wav",
-            "video/mp4", "video/webm", "video/ogg"
-    );
 
     String getContentDisposition( final Attachment att, final String mimeType ) {
         // Inline ONLY for an allowlist of demonstrably non-active types and only when
         // the attachment is not force-download. Anything else — including SVG, XHTML,
         // HTML, XML and any unknown/octet-stream type — is served as a download.
         final boolean inline = !attachmentManager.forceDownload( att.getFileName() )
-                && isInlineSafeType( mimeType );
+                && AttachmentContentTypes.isInlineSafeType( mimeType );
         final String base = inline ? "inline; filename=\"" : "attachment; filename=\"";
         return base + att.getFileName() + "\";";
     }
-
-    /** True when the resolved MIME type (ignoring any {@code ;charset=…}) is on the inline allowlist. */
-    static boolean isInlineSafeType( final String mimeType ) {
-        if ( mimeType == null ) {
-            return false;
-        }
-        final int semi = mimeType.indexOf( ';' );
-        final String base = ( semi >= 0 ? mimeType.substring( 0, semi ) : mimeType ).trim().toLowerCase( Locale.ROOT );
-        return INLINE_SAFE_MIME_TYPES.contains( base );
-    }
-
-    /**
-     * Returns true if the filename extension can be rendered as active content
-     * in a browser (HTML, SVG, XML). These must always be served as
-     * {@code attachment} rather than {@code inline} to prevent stored XSS.
-     */
 
     void sendError( final HttpServletResponse res, final String message ) throws IOException {
         try {
@@ -411,33 +377,6 @@ public class AttachmentServlet extends HttpServlet {
             LOG.debug( "sendError: response already committed — cannot send error '{}'", message );
         }
     }
-
-    /**
-     *  Returns the mime type for this particular file.  Case does not matter.
-     *
-     * @param ctx WikiContext; required to access the ServletContext of the request.
-     * @param fileName The name to check for.
-     * @return A valid mime type, or application/binary, if not recognized
-     */
-    private static String getMimeType( final Context ctx, final String fileName ) {
-        String mimetype = null;
-
-        final HttpServletRequest req = ctx.getHttpRequest();
-        if( req != null ) {
-            final ServletContext servletContext = req.getSession().getServletContext();
-
-            if( servletContext != null ) {
-                mimetype = servletContext.getMimeType( fileName.toLowerCase( Locale.ROOT ) );
-            }
-        }
-
-        if( mimetype == null ) {
-            mimetype = "application/binary";
-        }
-
-        return mimetype;
-    }
-
 
     /**
      * Grabs mime/multipart data and stores it into the temporary area.
@@ -465,49 +404,12 @@ public class AttachmentServlet extends HttpServlet {
     }
 
     /**
-     *  Validates the next page to be on the same server as this webapp.
-     *  Fixes [JSPWIKI-46].
-     *
-     *  <p>This is an ALLOWLIST on purpose: {@code engine.getBaseURL()} returns the servlet
-     *  <em>context path</em>, which is {@code ""} for the ROOT deployment this app runs
-     *  under in production — so a same-origin-prefix denylist check never rejects anything.
-     *  A denylist also misses protocol-relative ({@code //evil.com}) and backslash-based
-     *  ({@code /\evil.com}, {@code \\evil.com}) variants, since none of those contain
-     *  {@code "://"}. Only a same-origin relative path is accepted; anything else — an
-     *  absolute URL, a protocol-relative URL, a backslash-led value, or a scheme like
-     *  {@code javascript:} or {@code http:evil.com} — is rejected.
+     *  Returns {@code nextPage} when it is a safe same-origin redirect target, otherwise the
+     *  wiki error page. See {@link RedirectTargets#validateNextPage}.
      */
-    private String validateNextPage( final String nextPage, final String errorPage ) {
-        if( !isSameOriginRelativePath( nextPage ) ) {
-            LOG.warn( "Detected phishing attempt by redirecting to an unsecure location: {}", nextPage );
-            return errorPage;
-        }
-
-        return nextPage;
-    }
-
-    /**
-     *  True when {@code value} is safe to use as a same-origin redirect target: a relative
-     *  path that starts with exactly one {@code /} (not {@code //} or {@code /\}), contains
-     *  no backslash, no scheme (no {@code :}), and no control character (including CR/LF,
-     *  which could otherwise be used for response-header/log injection).
-     */
-    private static boolean isSameOriginRelativePath( final String value ) {
-        if( value == null || value.isEmpty() || value.charAt( 0 ) != '/' ) {
-            return false;
-        }
-        if( value.length() > 1 && ( value.charAt( 1 ) == '/' || value.charAt( 1 ) == '\\' ) ) {
-            return false;
-        }
-        if( value.indexOf( '\\' ) >= 0 || value.indexOf( ':' ) >= 0 ) {
-            return false;
-        }
-        for( int i = 0; i < value.length(); i++ ) {
-            if( Character.isISOControl( value.charAt( i ) ) ) {
-                return false;
-            }
-        }
-        return true;
+    private String safeNextPage( final String nextPage ) {
+        return RedirectTargets.validateNextPage(
+            nextPage, engine.getURL( ContextEnum.WIKI_ERROR.getRequestContext(), "", null ) );
     }
 
     /**
@@ -550,7 +452,7 @@ public class AttachmentServlet extends HttpServlet {
 
             final UploadFormData form = UploadFormParser.parse( items );
             if ( form.nextPage() != null ) {
-                nextPage = validateNextPage( form.nextPage(), errorPage );
+                nextPage = safeNextPage( form.nextPage() );
             }
 
             if( form.fileItems().isEmpty() ) {

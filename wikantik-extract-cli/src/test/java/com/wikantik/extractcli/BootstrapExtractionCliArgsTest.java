@@ -236,6 +236,20 @@ class BootstrapExtractionCliArgsTest {
     }
 
     @Test
+    void jdbcPasswordFlagSetsPasswordDirectly() {
+        final BootstrapExtractionCli.Args a = BootstrapExtractionCli.Args.parse(
+            new String[]{ "--jdbc-password", "s3cr3t" } );
+        assertEquals( "s3cr3t", a.jdbcPassword );
+    }
+
+    @Test
+    void ollamaUrlFlagOverridesTheDefault() {
+        final BootstrapExtractionCli.Args a = BootstrapExtractionCli.Args.parse(
+            new String[]{ "--ollama-url", "http://localhost:11434" } );
+        assertEquals( "http://localhost:11434", a.ollamaUrl );
+    }
+
+    @Test
     void jdbcPasswordEnvReadsPopulatedVar() {
         org.junit.jupiter.api.Assumptions.assumeTrue(
             System.getenv( "PATH" ) != null && !System.getenv( "PATH" ).isBlank() );

@@ -18,15 +18,66 @@
  */
 package com.wikantik.extractcli;
 
+import com.sun.net.httpserver.HttpServer;
+
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RemoteCorpusSourceTest {
+
+    private HttpServer server;
+
+    @AfterEach
+    void stopServer() {
+        if ( server != null ) {
+            server.stop( 0 );
+            server = null;
+        }
+    }
+
+    /** Starts a loopback HTTP server that always answers the given status/body pair. */
+    private String startFixedResponseServer( final int httpStatus, final String body ) throws Exception {
+        server = HttpServer.create( new InetSocketAddress( "127.0.0.1", 0 ), 0 );
+        server.createContext( RemoteCorpusSource.SITEMAP_PATH, exchange -> {
+            final byte[] resp = body.getBytes( StandardCharsets.UTF_8 );
+            exchange.sendResponseHeaders( httpStatus, resp.length );
+            try ( OutputStream os = exchange.getResponseBody() ) {
+                os.write( resp );
+            }
+        } );
+        server.start();
+        return "http://127.0.0.1:" + server.getAddress().getPort() + "/";
+    }
+
+    @Test
+    void httpFetcher_readsTheSitemapOverARealLoopbackConnection() throws Exception {
+        // Base URL with a trailing slash exercises the "strip trailing slash" branch too.
+        final String baseUrl = startFixedResponseServer( 200, TWO_PAGES );
+
+        final CorpusSnapshot snap = new RemoteCorpusSource( RemoteCorpusSource.httpFetcher( baseUrl ) ).load();
+
+        assertTrue( snap.complete() );
+        assertEquals( 2, snap.pages().size() );
+    }
+
+    @Test
+    void httpFetcher_nonOkStatusIsWrappedAsAnIncompleteSnapshot() throws Exception {
+        final String baseUrl = startFixedResponseServer( 500, "internal error" );
+
+        final CorpusSnapshot snap = new RemoteCorpusSource( RemoteCorpusSource.httpFetcher( baseUrl ) ).load();
+
+        assertFalse( snap.complete() );
+        assertTrue( snap.errors().get( 0 ).contains( "500" ), snap.errors().toString() );
+    }
 
     private static final String TWO_PAGES = """
             {"data":{"pages":[
@@ -90,5 +141,28 @@ class RemoteCorpusSourceTest {
 
         assertFalse( snap.complete(), "1 page delivered against a claimed 1200 must not read as complete" );
         assertTrue( snap.errors().get( 0 ).contains( "1200" ) );
+    }
+
+    /** A page entry with no slug at all can't be keyed into the snapshot map — it is skipped. */
+    @Test
+    void a_page_with_no_slug_is_skipped_rather_than_crashing() {
+        final CorpusSnapshot snap = new RemoteCorpusSource(
+                path -> "{\"data\":{\"pages\":["
+                        + "{\"id\":\"X\",\"type\":\"article\"},"
+                        + "{\"id\":\"Y\",\"slug\":\"Kept\",\"type\":\"article\"}"
+                        + "],\"count\":2}}" ).load();
+
+        assertEquals( 1, snap.pages().size() );
+        assertTrue( snap.pages().containsKey( "Kept" ) );
+    }
+
+    /** With no {@code count} field at all, the claimed size falls back to the array length. */
+    @Test
+    void a_response_without_a_count_field_is_complete_by_construction() {
+        final CorpusSnapshot snap = new RemoteCorpusSource(
+                path -> "{\"data\":{\"pages\":[{\"id\":\"X\",\"slug\":\"A\",\"type\":\"article\"}]}}" ).load();
+
+        assertTrue( snap.complete() );
+        assertEquals( 1, snap.pages().size() );
     }
 }

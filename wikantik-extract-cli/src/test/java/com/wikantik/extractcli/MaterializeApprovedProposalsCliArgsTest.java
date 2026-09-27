@@ -69,4 +69,14 @@ class MaterializeApprovedProposalsCliArgsTest {
         assertThrows( IllegalArgumentException.class,
             () -> MaterializeApprovedProposalsCli.Args.parse( new String[]{ "--nope" } ) );
     }
+
+    @Test
+    void parse_mixes_a_common_flag_with_its_own_limit_flag() {
+        // Exercises the "consumed a common flag, resume scanning" branch of this class's
+        // own parse() loop, distinct from CommonCliArgs itself.
+        final MaterializeApprovedProposalsCli.Args a = MaterializeApprovedProposalsCli.Args.parse(
+            new String[]{ "--jdbc-url", "jdbc:postgresql://db/x", "--limit", "7" } );
+        assertEquals( "jdbc:postgresql://db/x", a.jdbcUrl );
+        assertEquals( 7, a.limit );
+    }
 }

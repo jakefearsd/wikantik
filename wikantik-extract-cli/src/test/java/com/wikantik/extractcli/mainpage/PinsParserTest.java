@@ -97,4 +97,73 @@ class PinsParserTest {
     void scalar_root_is_rejected() {
         assertThrows( IllegalArgumentException.class, () -> PinsParser.parse( "just-a-string" ) );
     }
+
+    @Test
+    void list_root_is_rejected() {
+        assertThrows( IllegalArgumentException.class, () -> PinsParser.parse( "- a\n- b\n" ) );
+    }
+
+    @Test
+    void missing_sections_key_yields_an_empty_section_list() {
+        final PinsConfig c = PinsParser.parse( "intro: hi\n" );
+        assertTrue( c.sections().isEmpty() );
+    }
+
+    @Test
+    void sections_not_a_list_is_rejected() {
+        assertThrows( IllegalArgumentException.class,
+                () -> PinsParser.parse( "sections: not-a-list\n" ) );
+    }
+
+    @Test
+    void a_section_entry_that_is_not_a_mapping_is_rejected() {
+        final String yaml = """
+                sections:
+                  - "just a string, not a mapping"
+                """;
+        assertThrows( IllegalArgumentException.class, () -> PinsParser.parse( yaml ) );
+    }
+
+    @Test
+    void missing_pages_key_yields_an_empty_page_list() {
+        final String yaml = """
+                sections:
+                  - label: "X"
+                """;
+        final PinsConfig c = PinsParser.parse( yaml );
+        assertEquals( 1, c.sections().size() );
+        assertTrue( c.sections().get( 0 ).pages().isEmpty() );
+    }
+
+    @Test
+    void pages_not_a_list_is_rejected() {
+        final String yaml = """
+                sections:
+                  - label: "X"
+                    pages: not-a-list
+                """;
+        assertThrows( IllegalArgumentException.class, () -> PinsParser.parse( yaml ) );
+    }
+
+    @Test
+    void a_blank_short_form_page_entry_is_rejected() {
+        final String yaml = """
+                sections:
+                  - label: "X"
+                    pages:
+                      - "   "
+                """;
+        assertThrows( IllegalArgumentException.class, () -> PinsParser.parse( yaml ) );
+    }
+
+    @Test
+    void a_page_entry_that_is_neither_string_nor_mapping_is_rejected() {
+        final String yaml = """
+                sections:
+                  - label: "X"
+                    pages:
+                      - 42
+                """;
+        assertThrows( IllegalArgumentException.class, () -> PinsParser.parse( yaml ) );
+    }
 }

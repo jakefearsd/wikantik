@@ -93,4 +93,30 @@ class LocalCorpusSourceTest {
         assertTrue( !snap.complete(),
                     "an unreadable corpus must not masquerade as an empty one" );
     }
+
+    /** A directory named like a page (e.g. a stray {@code Bad.md/}) fails Files.readString
+     *  with an IOException, which must be recorded as an error rather than propagated. */
+    @Test
+    void an_unreadable_md_entry_is_recorded_as_an_error_not_thrown( @TempDir final Path dir ) throws Exception {
+        Files.createDirectory( dir.resolve( "Bad.md" ) );
+
+        final CorpusSnapshot snap = new LocalCorpusSource( dir ).load();
+
+        assertTrue( !snap.pages().containsKey( "Bad" ) );
+        assertTrue( snap.errors().stream().anyMatch( e -> e.contains( "Bad.md" ) ),
+                    "expected an error mentioning Bad.md, got: " + snap.errors() );
+    }
+
+    /** An invalid percent-escape in the on-disk filename can't be URL-decoded; the literal
+     *  stem is used instead of throwing. */
+    @Test
+    void a_filename_with_an_invalid_percent_escape_falls_back_to_the_literal_stem( @TempDir final Path dir )
+            throws Exception {
+        write( dir, "Bad%ZZName.md", "Just a body.\n" );
+
+        final CorpusSnapshot snap = new LocalCorpusSource( dir ).load();
+
+        assertTrue( snap.pages().containsKey( "Bad%ZZName" ),
+                    "expected the literal (undecoded) stem, got: " + snap.pages().keySet() );
+    }
 }

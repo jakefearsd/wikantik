@@ -24,11 +24,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
+import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.sql.SQLException;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * One-shot backfill — decodes BYTEA from {@code content_chunk_embeddings.vec}
@@ -129,21 +131,38 @@ public final class PgVectorBackfillCli {
      * @param args {@code <modelCode> [--force]}
      */
     public static void main( final String[] args ) {
+        System.exit( run( args, System.out, System.err ) );
+    }
+
+    /**
+     * Testable body of {@link #main(String[])}: parses args, runs the backfill, and
+     * returns the process exit code instead of calling {@link System#exit(int)} directly
+     * (0 = success, 1 = failure, 2 = usage error). {@code out}/{@code err} let tests
+     * capture output instead of writing to the real streams.
+     */
+    static int run( final String[] args, final PrintStream out, final PrintStream err ) {
+        return run( args, out, err, PgVectorBackfillCli::resolveDataSourceFromEnv );
+    }
+
+    /** Test seam: as {@link #run(String[], PrintStream, PrintStream)}, with an injectable {@link DataSource}. */
+    static int run( final String[] args, final PrintStream out, final PrintStream err,
+                    final Supplier< DataSource > dataSourceSupplier ) {
         if ( args.length < 1 ) {
-            System.err.println( "Usage: PgVectorBackfillCli <modelCode> [--force]" );
-            System.exit( 2 );
+            err.println( "Usage: PgVectorBackfillCli <modelCode> [--force]" );
+            return 2;
         }
         final String modelCode = args[ 0 ];
         final boolean force = args.length > 1 && "--force".equals( args[ 1 ] );
 
         try {
-            final DataSource ds = resolveDataSourceFromEnv();
+            final DataSource ds = dataSourceSupplier.get();
             final int written = new PgVectorBackfillCli( ds ).run( modelCode, force );
-            System.out.println( "backfill wrote " + written + " rows" );
+            out.println( "backfill wrote " + written + " rows" );
+            return 0;
         } catch ( final Throwable t ) {
             LOG.warn( "PgVectorBackfillCli main failed: {}", t.getMessage(), t );
-            System.err.println( "backfill failed: " + t.getMessage() );
-            System.exit( 1 );
+            err.println( "backfill failed: " + t.getMessage() );
+            return 1;
         }
     }
 
@@ -154,9 +173,10 @@ public final class PgVectorBackfillCli {
      *
      * <p>Env-var names match {@code bin/db/migrate.sh}: {@code PGHOST}, {@code PGPORT},
      * {@code PGUSER}, {@code PGPASSWORD}, {@code DB_NAME} (fallback: {@code PGDATABASE},
-     * then {@code "wikantik"}).</p>
+     * then {@code "wikantik"}). Package-private (rather than {@code private}) so tests can
+     * assert its defaults directly without opening a real connection.</p>
      */
-    private static DataSource resolveDataSourceFromEnv() {
+    static DataSource resolveDataSourceFromEnv() {
         final String host = envOr( "PGHOST", "localhost" );
         final int port = Integer.parseInt( envOr( "PGPORT", "5432" ) );
         final String db = envOr( "DB_NAME", envOr( "PGDATABASE", "wikantik" ) );
@@ -172,7 +192,8 @@ public final class PgVectorBackfillCli {
         return ds;
     }
 
-    private static String envOr( final String key, final String fallback ) {
+    /** Package-private (rather than {@code private}) so tests can exercise both branches directly. */
+    static String envOr( final String key, final String fallback ) {
         final String v = System.getenv( key );
         return v == null || v.isEmpty() ? fallback : v;
     }

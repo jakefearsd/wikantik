@@ -42,7 +42,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -642,5 +644,200 @@ class EmbeddingIndexServiceTest {
         // embed() called exactly twice: 1 failing attempt + 1 successful retry.
         verify( client, times( 2 ) )
             .embed( ArgumentMatchers.anyList(), ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) );
+    }
+
+    // ---- constructor validation ----
+
+    @Test
+    void constructor_rejectsInvalidArguments() {
+        assertThrows( IllegalArgumentException.class,
+            () -> new EmbeddingIndexService( null, client, 32 ),
+            "null dataSource must be rejected" );
+        assertThrows( IllegalArgumentException.class,
+            () -> new EmbeddingIndexService( dataSource, null, 32 ),
+            "null client must be rejected" );
+        assertThrows( IllegalArgumentException.class,
+            () -> new EmbeddingIndexService( dataSource, client, 0 ),
+            "non-positive batchSize must be rejected" );
+        assertThrows( IllegalArgumentException.class,
+            () -> new EmbeddingIndexService( dataSource, client, 32, null, 0 ),
+            "non-positive commitBatchSize must be rejected" );
+    }
+
+    @Test
+    void twoArgConstructor_usesDefaultBatchSize() {
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client );
+        assertEquals( EmbeddingIndexService.DEFAULT_BATCH_SIZE, svc.batchSize() );
+    }
+
+    @Test
+    void batchSize_returnsConfiguredValue() {
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 7 );
+        assertEquals( 7, svc.batchSize() );
+    }
+
+    @Test
+    void publicMethods_rejectBlankModelCode() {
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 32 );
+        assertThrows( IllegalArgumentException.class, () -> svc.indexAll( "" ) );
+        assertThrows( IllegalArgumentException.class, () -> svc.indexStale( " " ) );
+        assertThrows( IllegalArgumentException.class, () -> svc.indexChunks( List.of( UUID.randomUUID() ), null ) );
+        assertThrows( IllegalArgumentException.class, () -> svc.deleteByModel( "" ) );
+        assertThrows( IllegalArgumentException.class, () -> svc.status( null ) );
+    }
+
+    @Test
+    void indexChunks_nullOrEmptyCollectionIsANoOp() {
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 32 );
+        assertEquals( 0, svc.indexChunks( null, MODEL ) );
+        assertEquals( 0, svc.indexChunks( List.of(), MODEL ) );
+    }
+
+    // ---- status() ----
+
+    @Test
+    void status_returnsZeroSnapshotWhenNoRowsForModel() {
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 32 );
+        final EmbeddingIndexService.Status st = svc.status( "no-such-model" );
+        assertEquals( "no-such-model", st.modelCode() );
+        assertEquals( 0, st.dim() );
+        assertEquals( 0, st.rowCount() );
+        assertNull( st.lastUpdated() );
+    }
+
+    @Test
+    void status_reflectsRowCountDimAndLastUpdatedAfterIndexing() throws SQLException {
+        seedChunks( 2 );
+        stubBatchEmbed( 2, false );
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 32 );
+        svc.indexAll( MODEL );
+
+        final EmbeddingIndexService.Status st = svc.status( MODEL );
+        assertEquals( MODEL, st.modelCode() );
+        assertEquals( DIM, st.dim() );
+        assertEquals( 2, st.rowCount() );
+        assertNotNull( st.lastUpdated() );
+    }
+
+    @Test
+    void status_wrapsSqlExceptionAsRuntimeException() throws SQLException {
+        final DataSource failing = mock( DataSource.class );
+        when( failing.getConnection() ).thenThrow( new SQLException( "connection refused" ) );
+        final EmbeddingIndexService svc = new EmbeddingIndexService( failing, client, 32 );
+        final RuntimeException ex = assertThrows( RuntimeException.class, () -> svc.status( MODEL ) );
+        assertTrue( ex.getMessage().contains( "status failed for" ) );
+    }
+
+    @Test
+    void deleteByModel_wrapsSqlExceptionAsRuntimeException() throws SQLException {
+        final DataSource failing = mock( DataSource.class );
+        when( failing.getConnection() ).thenThrow( new SQLException( "connection refused" ) );
+        final EmbeddingIndexService svc = new EmbeddingIndexService( failing, client, 32 );
+        final RuntimeException ex = assertThrows( RuntimeException.class, () -> svc.deleteByModel( MODEL ) );
+        assertTrue( ex.getMessage().contains( "deleteByModel failed for" ) );
+    }
+
+    @Test
+    void indexAll_wrapsSqlExceptionFromConnectionFailure() throws SQLException {
+        final DataSource failing = mock( DataSource.class );
+        when( failing.getConnection() ).thenThrow( new SQLException( "connection refused" ) );
+        final EmbeddingIndexService svc = new EmbeddingIndexService( failing, client, 32 );
+        final RuntimeException ex = assertThrows( RuntimeException.class, () -> svc.indexAll( MODEL ) );
+        assertTrue( ex.getMessage().contains( "indexAll failed for" ) );
+        assertInstanceOf( SQLException.class, ex.getCause() );
+    }
+
+    @Test
+    void indexChunks_wrapsSqlExceptionFromConnectionFailure() throws SQLException {
+        final DataSource failing = mock( DataSource.class );
+        when( failing.getConnection() ).thenThrow( new SQLException( "connection refused" ) );
+        final EmbeddingIndexService svc = new EmbeddingIndexService( failing, client, 32 );
+        final RuntimeException ex = assertThrows( RuntimeException.class,
+            () -> svc.indexChunks( List.of( UUID.randomUUID() ), MODEL ) );
+        assertTrue( ex.getMessage().contains( "indexChunks failed for" ) );
+        assertInstanceOf( SQLException.class, ex.getCause() );
+    }
+
+    /**
+     * A non-SQLException {@link RuntimeException} escaping mid-transaction (here, the
+     * per-page context resolver blowing up) must hit {@code indexChunks}'s OWN
+     * {@code catch(RuntimeException)} — rethrown unwrapped, distinct from the
+     * {@code SQLException} branch above.
+     */
+    @Test
+    void indexChunks_rethrowsRuntimeExceptionFromContextResolverUnwrapped() throws SQLException {
+        final List< UUID > ids = seedChunks( 1 );
+        final java.util.function.Function< String, EmbeddingTextBuilder.PageContext > explodingResolver =
+            pageName -> { throw new IllegalStateException( "resolver exploded" ); };
+        final EmbeddingIndexService svc =
+            new EmbeddingIndexService( dataSource, client, 32, explodingResolver );
+        final IllegalStateException ex = assertThrows( IllegalStateException.class,
+            () -> svc.indexChunks( ids, MODEL ) );
+        assertEquals( "resolver exploded", ex.getMessage() );
+    }
+
+    /**
+     * The batch progress callback ({@code onBatchFlushed}) is best-effort: an exception it
+     * throws must be logged and swallowed, never abort the indexing run.
+     */
+    @Test
+    void indexAll_progressCallbackExceptionIsSwallowed() throws SQLException {
+        seedChunks( 2 );
+        stubBatchEmbed( 2, false );
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 32 );
+        final int embedded = svc.indexAll( MODEL, upserted -> { throw new RuntimeException( "callback boom" ); } );
+        assertEquals( 2, embedded, "a failing progress callback must not abort the run" );
+        assertEquals( 2, countRows() );
+    }
+
+    /**
+     * An {@link InterruptedException} raised by the injected {@link
+     * EmbeddingIndexService.Sleeper} during transient-retry backoff must restore the
+     * interrupt flag and surface as a transient {@link EmbeddingException} — not be
+     * silently dropped.
+     */
+    @Test
+    void embedTransientRetry_interruptedDuringBackoff_restoresInterruptFlagAndAborts() throws SQLException {
+        seedChunks( 1 );
+        when( client.embed( ArgumentMatchers.anyList(), ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) ) )
+            .thenThrow( new EmbeddingException( "transient 503", true ) );
+        final EmbeddingIndexService.Sleeper interruptingSleeper =
+            millis -> { throw new InterruptedException( "interrupted for test" ); };
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 32 );
+        svc.configureTransientRetryForTest( 3, interruptingSleeper );
+
+        try {
+            final EmbeddingException ex = assertThrows( EmbeddingException.class, () -> svc.indexAll( MODEL ) );
+            assertTrue( ex.isTransient() );
+            assertTrue( Thread.currentThread().isInterrupted(), "interrupt flag must be restored" );
+        } finally {
+            Thread.interrupted(); // clear the flag so it doesn't leak into later tests
+        }
+    }
+
+    /**
+     * When the per-item fallback itself hits a TRANSIENT failure (the backend went down
+     * mid-fallback, not the chunk's fault), it must propagate immediately rather than be
+     * treated as a poisoned chunk.
+     */
+    @Test
+    void embedPerItemFallback_transientFailurePropagatesImmediately() throws SQLException {
+        seedChunks( 2 );
+        final AtomicInteger call = new AtomicInteger();
+        when( client.embed( ArgumentMatchers.anyList(), ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) ) )
+            .thenAnswer( ( InvocationOnMock inv ) -> {
+                final int n = call.incrementAndGet();
+                if ( n == 1 ) {
+                    // Non-transient batch failure triggers the per-item fallback.
+                    throw new EmbeddingException( "bad response shape", false );
+                }
+                // First per-item call: backend now unavailable — transient, not poisoned.
+                throw new EmbeddingException( "backend down mid-fallback", true );
+            } );
+
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 32 );
+        final EmbeddingException ex = assertThrows( EmbeddingException.class, () -> svc.indexAll( MODEL ) );
+        assertTrue( ex.isTransient(), "a transient per-item failure must not be treated as a poison chunk" );
+        assertEquals( 0, countRows(), "nothing committed when the per-item fallback aborts" );
     }
 }

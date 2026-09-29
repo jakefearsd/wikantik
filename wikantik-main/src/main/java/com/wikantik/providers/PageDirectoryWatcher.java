@@ -85,14 +85,23 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
     /** Default self-modification guard window when the property is not set. */
     private static final long DEFAULT_INTERNAL_SAVE_GUARD_MILLIS = 5_000L;
 
-    /** How often (in ms) to clean up stale entries from the internal save guard map. */
-    private static final long GUARD_CLEANUP_INTERVAL_MILLIS = 30_000L;
+    /**
+     * Property key for how often (in ms) to clean up stale entries from the internal
+     * save guard map. Default: 30000 ms.
+     * Tests may set this to a much smaller value to exercise the cleanup path without
+     * waiting for the real interval to elapse.
+     */
+    static final String PROP_GUARD_CLEANUP_INTERVAL_MILLIS = "wikantik.watcher.guardCleanupIntervalMillis";
+
+    /** Default cleanup interval when the property is not set. */
+    private static final long DEFAULT_GUARD_CLEANUP_INTERVAL_MILLIS = 30_000L;
 
     private final AbstractFileProvider fileProvider;
     private final CachingManager cachingManager;
     private final Engine engine;
     private final Path pageDirectoryPath;
     private final long internalSaveGuardMillis;
+    private final long guardCleanupIntervalMillis;
 
     private WatchService watchService;
 
@@ -119,6 +128,9 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
         this.internalSaveGuardMillis = com.wikantik.util.TextUtil.getIntegerProperty(
                 engine.getWikiProperties(), PROP_INTERNAL_SAVE_GUARD_MILLIS,
                 ( int ) DEFAULT_INTERNAL_SAVE_GUARD_MILLIS );
+        this.guardCleanupIntervalMillis = com.wikantik.util.TextUtil.getIntegerProperty(
+                engine.getWikiProperties(), PROP_GUARD_CLEANUP_INTERVAL_MILLIS,
+                ( int ) DEFAULT_GUARD_CLEANUP_INTERVAL_MILLIS );
         setName( "JSPWiki Page Directory Watcher" );
     }
 
@@ -259,6 +271,11 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
         recentInternalSaves.put( pageName, System.currentTimeMillis() );
     }
 
+    /** Test-only visibility into the internal save-guard map's current size. */
+    int guardMapSize() {
+        return recentInternalSaves.size();
+    }
+
     /**
      * Processes a file creation or modification event.
      * Invalidates all relevant caches and fires events to trigger re-rendering,
@@ -358,7 +375,7 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
      */
     private void cleanupGuardEntries() {
         final long now = System.currentTimeMillis();
-        if( ( now - lastGuardCleanup ) < GUARD_CLEANUP_INTERVAL_MILLIS ) {
+        if( ( now - lastGuardCleanup ) < guardCleanupIntervalMillis ) {
             return;
         }
         lastGuardCleanup = now;

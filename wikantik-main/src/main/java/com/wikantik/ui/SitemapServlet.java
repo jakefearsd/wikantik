@@ -125,6 +125,20 @@ public class SitemapServlet extends HttpServlet {
     private transient SystemPageRegistry systemPageRegistry;
     private String configuredBaseUrl;
 
+    /** Default constructor used by the servlet container. */
+    public SitemapServlet() {
+    }
+
+    /**
+     * Package-private constructor that accepts dependencies directly, allowing unit tests
+     * to inject mocks without booting a full engine via {@link #init}.
+     */
+    SitemapServlet( final Engine engine, final SystemPageRegistry systemPageRegistry, final String configuredBaseUrl ) {
+        this.engine = engine;
+        this.systemPageRegistry = systemPageRegistry;
+        this.configuredBaseUrl = configuredBaseUrl;
+    }
+
     @Override
     public void init( final ServletConfig config ) throws ServletException {
         super.init( config );

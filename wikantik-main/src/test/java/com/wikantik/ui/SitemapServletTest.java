@@ -24,9 +24,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Attachment;
+import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.auth.AuthorizationManager;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -40,7 +44,15 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Method;
 import java.util.Properties;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 
 @TestInstance( TestInstance.Lifecycle.PER_CLASS )
@@ -908,6 +920,224 @@ class SitemapServletTest {
         Assertions.assertTrue(
                 sitemap.contains( "<lastmod>" + expectedDate + "</lastmod>" ),
                 "Sitemap must contain <lastmod>" + expectedDate + "</lastmod>; was: " + sitemap );
+    }
+
+    // ---- error-handling branches (spy-wrapped real managers, restored per test) --------------
+
+    @Test
+    void testDoGetReturns500WhenFilesystemProviderThrowsProviderException() throws Exception {
+        final PageManager realPm = m_engine.getManager( PageManager.class );
+        final PageManager spyPm = spy( realPm );
+        final PageProvider brokenProvider = mock( PageProvider.class );
+        when( brokenProvider.getAllPages() ).thenThrow( new ProviderException( "filesystem unreachable" ) );
+        doReturn( brokenProvider ).when( spyPm ).getProvider();
+
+        m_engine.setManager( PageManager.class, spyPm );
+        try {
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+
+            servlet.doGet( request, response );
+
+            Mockito.verify( response ).sendError( HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error generating sitemap" );
+        } finally {
+            m_engine.setManager( PageManager.class, realPm );
+        }
+    }
+
+    @Test
+    void testDoGetSkipsPageWhenPermissionCheckThrows() throws Exception {
+        final AuthorizationManager realAuth = m_engine.getManager( AuthorizationManager.class );
+        final AuthorizationManager spyAuth = spy( realAuth );
+        doThrow( new RuntimeException( "ACL backend down" ) ).when( spyAuth ).isPermitted( any(), any() );
+
+        m_engine.setManager( AuthorizationManager.class, spyAuth );
+        try {
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter stringWriter = new StringWriter();
+            Mockito.when( response.getWriter() ).thenReturn( new PrintWriter( stringWriter ) );
+
+            // Must not throw or 500 — every page fails its permission check and is
+            // filtered out, but the sitemap itself must still render successfully.
+            servlet.doGet( request, response );
+
+            final String sitemap = stringWriter.toString();
+            Assertions.assertTrue( sitemap.contains( "<urlset" ), "sitemap must still render a valid (empty) urlset" );
+            Assertions.assertFalse( sitemap.contains( "TestPage1" ), "no page should pass a throwing permission check" );
+        } finally {
+            m_engine.setManager( AuthorizationManager.class, realAuth );
+        }
+    }
+
+    @Test
+    void testDoGetSkipsImageEntriesWhenAttachmentsDisabled() throws Exception {
+        final AttachmentManager realAm = m_engine.getManager( AttachmentManager.class );
+        final AttachmentManager spyAm = spy( realAm );
+        doReturn( false ).when( spyAm ).attachmentsEnabled();
+
+        m_engine.setManager( AttachmentManager.class, spyAm );
+        try {
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter stringWriter = new StringWriter();
+            Mockito.when( response.getWriter() ).thenReturn( new PrintWriter( stringWriter ) );
+
+            servlet.doGet( request, response );
+
+            final String sitemap = stringWriter.toString();
+            Assertions.assertFalse( sitemap.contains( "<image:image>" ),
+                    "no image entries should be written while attachments are disabled" );
+        } finally {
+            m_engine.setManager( AttachmentManager.class, realAm );
+        }
+    }
+
+    @Test
+    void testDoGetToleratesListAttachmentsFailureForOnePage() throws Exception {
+        final AttachmentManager realAm = m_engine.getManager( AttachmentManager.class );
+        final PageManager pm = m_engine.getManager( PageManager.class );
+        final com.wikantik.api.core.Page testPage1 = pm.getPage( "TestPage1" );
+        final AttachmentManager spyAm = spy( realAm );
+        doThrow( new RuntimeException( "attachment store down" ) ).when( spyAm ).listAttachments( testPage1 );
+
+        m_engine.setManager( AttachmentManager.class, spyAm );
+        try {
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter stringWriter = new StringWriter();
+            Mockito.when( response.getWriter() ).thenReturn( new PrintWriter( stringWriter ) );
+
+            // Must not throw or 500 despite the per-page attachment listing failure.
+            servlet.doGet( request, response );
+
+            final String sitemap = stringWriter.toString();
+            Assertions.assertTrue( sitemap.contains( "TestPage1" ),
+                    "the page itself must still be listed despite its broken attachment listing" );
+        } finally {
+            m_engine.setManager( AttachmentManager.class, realAm );
+        }
+    }
+
+    @Test
+    void testDoGetSkipsNewsEntryWhenPageTextIsEmpty() throws Exception {
+        final PageManager realPm = m_engine.getManager( PageManager.class );
+        final com.wikantik.api.core.Page testPage1 = realPm.getPage( "TestPage1" );
+        final PageManager spyPm = spy( realPm );
+        doReturn( "" ).when( spyPm ).getPureText( testPage1 );
+
+        m_engine.setManager( PageManager.class, spyPm );
+        try {
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter stringWriter = new StringWriter();
+            Mockito.when( response.getWriter() ).thenReturn( new PrintWriter( stringWriter ) );
+
+            servlet.doGet( request, response );
+
+            final String sitemap = stringWriter.toString();
+            // The page itself is still listed as a <url>, just without a <news:news> block.
+            Assertions.assertTrue( sitemap.contains( "TestPage1" ) );
+        } finally {
+            m_engine.setManager( PageManager.class, realPm );
+        }
+    }
+
+    @Test
+    void testGetFilesystemProviderUnwrapsPageProviderDecoratorChain() throws Exception {
+        final PageManager realPm = m_engine.getManager( PageManager.class );
+        final PageManager spyPm = spy( realPm );
+        final PageProvider innermost = mock( PageProvider.class );
+        when( innermost.getAllPages() ).thenReturn( java.util.List.of() );
+        final com.wikantik.providers.PageProviderDecorator decorator =
+                mock( com.wikantik.providers.PageProviderDecorator.class );
+        when( decorator.getRealProvider() ).thenReturn( innermost );
+        doReturn( decorator ).when( spyPm ).getProvider();
+
+        m_engine.setManager( PageManager.class, spyPm );
+        try {
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter stringWriter = new StringWriter();
+            Mockito.when( response.getWriter() ).thenReturn( new PrintWriter( stringWriter ) );
+
+            servlet.doGet( request, response );
+
+            Mockito.verify( decorator ).getRealProvider();
+            final String sitemap = stringWriter.toString();
+            Assertions.assertTrue( sitemap.contains( "<urlset" ) );
+        } finally {
+            m_engine.setManager( PageManager.class, realPm );
+        }
+    }
+
+    // ---- pure-logic private helpers, exercised via reflection ---------------------------------
+    // (fixBaseUrl/isImageAttachment/escapeXml/isExcludedPage are private, string-in/string-out
+    // helpers with no engine dependency beyond systemPageRegistry; reflection avoids widening
+    // the class's public surface just for tests. Same technique as AuthThrottleTest.)
+
+    private static Object invokePrivate( final Object target, final String name,
+            final Class<?>[] paramTypes, final Object... args ) throws Exception {
+        final Method m = SitemapServlet.class.getDeclaredMethod( name, paramTypes );
+        m.setAccessible( true );
+        return m.invoke( target, args );
+    }
+
+    @Test
+    void testFixBaseUrlWithNoPathReturnsCorrectBaseUrl() throws Exception {
+        final SitemapServlet s = new SitemapServlet( null, null, null );
+        final String result = ( String ) invokePrivate( s, "fixBaseUrl",
+                new Class<?>[] { String.class, String.class },
+                "http://generated.example", "http://correct.example" );
+        Assertions.assertEquals( "http://correct.example", result );
+    }
+
+    @Test
+    void testFixBaseUrlFallsBackWhenCorrectBaseUrlHasNoContextPath() throws Exception {
+        final SitemapServlet s = new SitemapServlet( null, null, null );
+        final String result = ( String ) invokePrivate( s, "fixBaseUrl",
+                new Class<?>[] { String.class, String.class },
+                "http://generated.example/JSPWiki/wiki/PageName", "http://correct.example" );
+        Assertions.assertEquals( "http://correct.example/JSPWiki/wiki/PageName", result );
+    }
+
+    @Test
+    void testFixBaseUrlStripsDuplicateContextPath() throws Exception {
+        final SitemapServlet s = new SitemapServlet( null, null, null );
+        final String result = ( String ) invokePrivate( s, "fixBaseUrl",
+                new Class<?>[] { String.class, String.class },
+                "http://generated.example/JSPWiki/wiki/PageName", "http://correct.example/JSPWiki" );
+        Assertions.assertEquals( "http://correct.example/JSPWiki/wiki/PageName", result );
+    }
+
+    @Test
+    void testIsImageAttachmentRejectsNullEmptyAndExtensionlessNames() throws Exception {
+        final SitemapServlet s = new SitemapServlet( null, null, null );
+        Assertions.assertEquals( Boolean.FALSE,
+                invokePrivate( s, "isImageAttachment", new Class<?>[] { String.class }, new Object[] { null } ) );
+        Assertions.assertEquals( Boolean.FALSE,
+                invokePrivate( s, "isImageAttachment", new Class<?>[] { String.class }, "" ) );
+        Assertions.assertEquals( Boolean.FALSE,
+                invokePrivate( s, "isImageAttachment", new Class<?>[] { String.class }, "noextension" ) );
+        Assertions.assertEquals( Boolean.FALSE,
+                invokePrivate( s, "isImageAttachment", new Class<?>[] { String.class }, "trailingdot." ) );
+    }
+
+    @Test
+    void testEscapeXmlReturnsEmptyStringForNullInput() throws Exception {
+        final SitemapServlet s = new SitemapServlet( null, null, null );
+        Assertions.assertEquals( "", invokePrivate( s, "escapeXml", new Class<?>[] { String.class }, new Object[] { null } ) );
+    }
+
+    @Test
+    void testIsExcludedPageNeverExcludesMainRegardlessOfRegistry() throws Exception {
+        final SystemPageRegistry registry = mock( SystemPageRegistry.class );
+        when( registry.isSystemPage( "Main" ) ).thenReturn( true );
+        final SitemapServlet s = new SitemapServlet( null, registry, null );
+
+        final Object result = invokePrivate( s, "isExcludedPage", new Class<?>[] { String.class }, "Main" );
+
+        Assertions.assertEquals( Boolean.FALSE, result, "'Main' must never be excluded, even if flagged as a system page" );
     }
 
 }

@@ -22,10 +22,16 @@ package com.wikantik.variables;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.exceptions.NoSuchVariableException;
+import com.wikantik.api.filters.PageFilter;
+import com.wikantik.api.modules.InternalModule;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.filters.FilterManager;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.Properties;
 
 
 public class DefaultVariableManagerTest {
@@ -140,6 +146,115 @@ public class DefaultVariableManagerTest {
     public void testExpand4() {
         final String res = m_variableManager.expandVariables( m_context, "Testing {}, {{{}" );
         Assertions.assertEquals( "Testing {}, {{{}", res );
+    }
+
+    // ---- SystemVariables getters (reflection-dispatched via getValue()) ----
+
+    @Test
+    public void testJspwikiversion() throws Exception {
+        final String res = m_variableManager.getValue( m_context, "jspwikiversion" );
+        Assertions.assertNotNull( res );
+        Assertions.assertFalse( res.isBlank() );
+    }
+
+    @Test
+    public void testEncoding() throws Exception {
+        final String res = m_variableManager.getValue( m_context, "encoding" );
+        Assertions.assertEquals( m_context.getEngine().getContentEncoding().displayName(), res );
+    }
+
+    @Test
+    public void testInterwikilinksListsConfiguredLinks() throws Exception {
+        // TestEngine's default properties declare several wikantik.interWikiRef.* entries.
+        final String res = m_variableManager.getValue( m_context, "interwikilinks" );
+        Assertions.assertTrue( res.contains( "<table" ), "expected a rendered table, got: " + res );
+        Assertions.assertTrue( res.contains( "Wikipedia" ), "expected a known InterWiki name, got: " + res );
+    }
+
+    @Test
+    public void testInterwikilinksEmptyWhenNoneConfigured() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        for ( final String key : new ArrayList<>( props.stringPropertyNames() ) ) {
+            if ( key.startsWith( "wikantik.interWikiRef." ) ) {
+                props.remove( key );
+            }
+        }
+        final TestEngine bareEngine = TestEngine.build( props );
+        try {
+            final VariableManager vm = new DefaultVariableManager( props );
+            final Context ctx = Wiki.context().create( bareEngine, Wiki.contents().page( bareEngine, PAGE_NAME ) );
+            final String res = vm.getValue( ctx, "interwikilinks" );
+            Assertions.assertEquals( "(none configured)", res );
+        } finally {
+            bareEngine.stop();
+        }
+    }
+
+    @Test
+    public void testInlinedimages() throws Exception {
+        final String res = m_variableManager.getValue( m_context, "inlinedimages" );
+        Assertions.assertNotNull( res );
+    }
+
+    @Test
+    public void testPluginpath() throws Exception {
+        final String res = m_variableManager.getValue( m_context, "pluginpath" );
+        Assertions.assertNotNull( res );
+    }
+
+    @Test
+    public void testBaseurl() throws Exception {
+        final String res = m_variableManager.getValue( m_context, "baseurl" );
+        Assertions.assertNotNull( res );
+    }
+
+    @Test
+    public void testUptimeFormatsElapsedTime() throws Exception {
+        final String res = m_variableManager.getValue( m_context, "uptime" );
+        Assertions.assertTrue( res.matches( "\\d+d, \\d+h \\d+m \\d+s" ), "unexpected uptime format: " + res );
+    }
+
+    @Test
+    public void testLoginstatusForAnonymousSession() throws Exception {
+        final String res = m_variableManager.getValue( m_context, "loginstatus" );
+        Assertions.assertNotNull( res );
+        Assertions.assertFalse( res.isBlank() );
+    }
+
+    @Test
+    public void testUsername() throws Exception {
+        final String res = m_variableManager.getValue( m_context, "username" );
+        Assertions.assertNotNull( res );
+    }
+
+    @Test
+    public void testRequestcontext() throws Exception {
+        final String res = m_variableManager.getValue( m_context, "requestcontext" );
+        Assertions.assertNotNull( res );
+    }
+
+    /** Marker-free test filter: should appear in the {@code pagefilters} listing. */
+    public static class PlainTestFilter implements PageFilter {
+    }
+
+    /** {@link InternalModule}-marked test filter: must be excluded from the listing. */
+    public static class InternalTestFilter implements PageFilter, InternalModule {
+    }
+
+    @Test
+    public void testPagefiltersListsPlainFiltersAndSkipsInternalModules() throws Exception {
+        final com.wikantik.WikiEngine engine = ( com.wikantik.WikiEngine ) m_context.getEngine();
+        final FilterManager fm = engine.getManager( FilterManager.class );
+        fm.addPageFilter( new PlainTestFilter(), 0 );
+        fm.addPageFilter( new PlainTestFilter(), 0 );
+        fm.addPageFilter( new InternalTestFilter(), 0 );
+
+        final String res = m_variableManager.getValue( m_context, "pagefilters" );
+
+        Assertions.assertTrue( res.contains( "PlainTestFilter" ), "expected the plain filter, got: " + res );
+        Assertions.assertFalse( res.contains( "InternalTestFilter" ), "InternalModule filter must be excluded: " + res );
+        // Two PlainTestFilter entries -> the comma-separator branch must have fired.
+        Assertions.assertTrue( res.contains( "," ), "expected a comma-separated list, got: " + res );
     }
 
 }

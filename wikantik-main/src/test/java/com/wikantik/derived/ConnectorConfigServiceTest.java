@@ -367,6 +367,160 @@ class ConnectorConfigServiceTest {
         assertTrue( runtime.registry().get( "bad-gh" ).isEmpty(), "invalid row must not produce a registry entry" );
     }
 
+    // ---- PropertiesOriginException -----------------------------------------------------------
+
+    @Test void propertiesOriginExceptionCarriesConnectorId() {
+        final ConnectorConfigService.PropertiesOriginException e =
+            new ConnectorConfigService.PropertiesOriginException( "legacy" );
+        assertEquals( "legacy", e.connectorId() );
+    }
+
+    // ---- list/get over the properties origin --------------------------------------------------
+
+    @Test void listIncludesUnshadowedPropertiesOriginConnector() {
+        final ConnectorConfigService svc = service(
+            Map.of( "legacy", stubConnector( "legacy" ) ), Map.of( "legacy", "feed" ), Map.of() );
+
+        final List< ConnectorConfigService.ConnectorView > list = svc.list();
+
+        assertTrue( list.stream().anyMatch( v -> v.id().equals( "legacy" ) && v.origin().equals( "properties" )
+                && v.type().equals( "feed" ) ), list.toString() );
+    }
+
+    @Test void getReturnsPropertiesViewForUnshadowedPropertiesOriginId() {
+        final ConnectorConfigService svc = service(
+            Map.of( "legacy", stubConnector( "legacy" ) ), Map.of( "legacy", "feed" ), Map.of() );
+
+        final Optional< ConnectorConfigService.ConnectorView > v = svc.get( "legacy" );
+
+        assertTrue( v.isPresent() );
+        assertEquals( "properties", v.get().origin() );
+        assertEquals( "feed", v.get().type() );
+    }
+
+    @Test void getReturnsEmptyForCompletelyUnknownId() {
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        assertTrue( svc.get( "nope" ).isEmpty() );
+    }
+
+    // ---- update/delete against a truly unknown id ---------------------------------------------
+
+    @Test void updateUnknownIdThrowsIllegalArgument() {
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        assertThrows( IllegalArgumentException.class,
+            () -> svc.update( "nope", json( "{}" ), true, 0, null, null, null ) );
+    }
+
+    @Test void deleteUnknownIdThrowsIllegalArgument() {
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        assertThrows( IllegalArgumentException.class, () -> svc.delete( "nope", false ) );
+    }
+
+    // ---- delete tolerates a failing run-history purge ------------------------------------------
+
+    @Test void deleteCompletesWhenRunHistoryPurgeThrows() {
+        final ConnectorConfigService svc = new ConnectorConfigService( configStore, syncState, credStore, runtime,
+            new ConnectorConfigService.PropertiesOrigin( Map.of(), Map.of(), Map.of() ),
+            new ConnectorConfigService.Seams( pageDeletes::add, orphanStamps::add, installedCoordinators::add,
+                id -> { throw new RuntimeException( "purge backend down" ); } ),
+            props );
+        svc.create( "gh9", "github", json( "{\"repo\":\"jake/notes\"}" ), true, 0, null, null, null );
+
+        final ConnectorConfigService.DeleteResult result = svc.delete( "gh9", false );
+
+        assertNotNull( result );
+        assertTrue( configStore.get( "gh9" ).isEmpty(), "delete must still complete despite the purge failure" );
+    }
+
+    // ---- defaultsFor / intervalHoursFor ---------------------------------------------------------
+
+    @Test void defaultsForReturnsStoredContentDefaultsWhenRowExists() {
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        svc.create( "gh10", "github", json( "{\"repo\":\"jake/notes\"}" ), true, 0, "Eng", "a, b", "Gh-" );
+
+        final ConnectorConfigService.ContentDefaults d = svc.defaultsFor( "gh10" );
+
+        assertEquals( "Eng", d.cluster() );
+        assertEquals( List.of( "a", "b" ), d.tags() );
+        assertEquals( "Gh-", d.pagePrefix() );
+    }
+
+    @Test void defaultsForReturnsEmptyWhenRowMissing() {
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        assertEquals( ConnectorConfigService.ContentDefaults.EMPTY, svc.defaultsFor( "nope" ) );
+    }
+
+    @Test void intervalHoursForReturnsStoredValueWhenRowExists() {
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        svc.create( "gh11", "github", json( "{\"repo\":\"jake/notes\"}" ), true, 12, null, null, null );
+        assertEquals( 12L, svc.intervalHoursFor( "gh11" ) );
+    }
+
+    @Test void intervalHoursForFallsBackToGlobalDefaultWhenRowMissing() {
+        props.setProperty( "wikantik.connectors.sync.interval.hours", "6" );
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        assertEquals( 6L, svc.intervalHoursFor( "nope" ) );
+    }
+
+    @Test void globalIntervalDefaultFallsBackToZeroOnUnparsableProperty() {
+        props.setProperty( "wikantik.connectors.sync.interval.hours", "not-a-number" );
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        assertEquals( 0L, svc.intervalHoursFor( "nope" ) );
+    }
+
+    // ---- dbView tolerates a corrupted stored config -------------------------------------------
+
+    @Test void getShowsEmptyConfigWhenStoredJsonIsCorrupted() {
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        configStore.upsert( new ConnectorConfigRow( "bad-json", "github", true, 0, "{not valid json", null, null, null ) );
+
+        final Optional< ConnectorConfigService.ConnectorView > v = svc.get( "bad-json" );
+
+        assertTrue( v.isPresent() );
+        assertEquals( new JsonObject(), v.get().config() );
+    }
+
+    // ---- isAbsent() tolerates a non-string redirect_uri ----------------------------------------
+
+    @Test void gdriveCreatePreservesAnExplicitNonBlankRedirectUri() {
+        props.setProperty( "wikantik.baseURL", "https://w.example" );
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        final JsonObject cfg = json(
+            "{\"folder_ids\":[\"f1\"],\"client_id\":\"cid\",\"redirect_uri\":\"https://custom.example/cb\"}" );
+
+        final ConnectorConfigCodec.Validation v = svc.create( "gd3", "gdrive", cfg, true, 0, null, null, null );
+
+        assertTrue( v.ok(), v.errors().toString() );
+        final String stored = configStore.get( "gd3" ).orElseThrow().configJson();
+        assertTrue( stored.contains( "https://custom.example/cb" ), stored );
+        assertFalse( stored.contains( "w.example/admin/connector-oauth" ), stored );
+    }
+
+    @Test void gdriveCreateTreatsBlankStringRedirectUriAsAbsentAndDefaultsIt() {
+        props.setProperty( "wikantik.baseURL", "https://w.example" );
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        final JsonObject cfg = json(
+            "{\"folder_ids\":[\"f1\"],\"client_id\":\"cid\",\"redirect_uri\":\"   \"}" );
+
+        final ConnectorConfigCodec.Validation v = svc.create( "gd4", "gdrive", cfg, true, 0, null, null, null );
+
+        assertTrue( v.ok(), v.errors().toString() );
+        final String stored = configStore.get( "gd4" ).orElseThrow().configJson();
+        assertTrue( stored.contains( "https://w.example/admin/connector-oauth/gdrive/callback" ), stored );
+    }
+
+    @Test void gdriveCreateTreatsNonStringRedirectUriAsAbsentAndDefaultsIt() {
+        props.setProperty( "wikantik.baseURL", "https://w.example" );
+        final ConnectorConfigService svc = service( Map.of(), Map.of(), Map.of() );
+        final JsonObject cfg = json( "{\"folder_ids\":[\"f1\"],\"client_id\":\"cid\",\"redirect_uri\":[1,2]}" );
+
+        final ConnectorConfigCodec.Validation v = svc.create( "gd2", "gdrive", cfg, true, 0, null, null, null );
+
+        assertTrue( v.ok(), v.errors().toString() );
+        final String stored = configStore.get( "gd2" ).orElseThrow().configJson();
+        assertTrue( stored.contains( "https://w.example/admin/connector-oauth/gdrive/callback" ), stored );
+    }
+
     // ---- fakes -------------------------------------------------------------------------------
 
     private static final class FakeCredentialStore implements CredentialStore {

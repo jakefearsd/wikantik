@@ -427,14 +427,8 @@ public class DefaultVariableManager implements VariableManager {
         private final com.wikantik.api.managers.AttachmentManager attachmentManager;
         private final FilterManager filterManager;
 
-        /** Standard constructor — managers resolved from engine at call time. */
-        public SystemVariables( final Context ctx )
-        {
-            this( ctx, null, null, null );
-        }
-
         /**
-         * Test-friendly constructor — accepts pre-built manager instances.
+         * Standard constructor — managers resolved from engine at call time.
          * A {@code null} manager falls back to {@code context.getEngine().getManager(...)}.
          */
         SystemVariables( final Context ctx,

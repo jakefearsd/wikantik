@@ -29,6 +29,7 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.RedirectException;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.auth.AuthorizationManager;
+import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.ui.progress.ProgressManager;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletContext;
@@ -49,6 +50,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.Permission;
 import java.security.Principal;
 import java.util.Date;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -384,6 +386,72 @@ class AttachmentServletTest {
         servlet.doGet( request, response );
 
         verify( response ).sendError( eq( HttpServletResponse.SC_INTERNAL_SERVER_ERROR ), contains( "storage failed" ) );
+    }
+
+    @Test
+    void testGetNullPageNameReturns400() throws Exception {
+        when( page.getName() ).thenReturn( null );
+
+        servlet.doGet( request, response );
+
+        verify( response ).sendError( HttpServletResponse.SC_BAD_REQUEST );
+        // Should bail out before even opening the response's output stream.
+        verify( response, never() ).getOutputStream();
+    }
+
+    @Test
+    void testGetSocketExceptionDuringStreamingIsSwallowedWithoutSendError() throws Exception {
+        final Attachment att = createMockAttachment( "TestPage/test.png", "test.png", new Date() );
+        when( attachmentManager.getAttachmentInfo( eq( "TestPage/test.png" ), anyInt() ) ).thenReturn( att );
+        when( authorizationManager.checkPermission( eq( session ), any( Permission.class ) ) ).thenReturn( true );
+        when( request.getDateHeader( "If-Modified-Since" ) ).thenReturn( -1L );
+        when( attachmentManager.forceDownload( "test.png" ) ).thenReturn( false );
+        when( attachmentManager.getAttachmentStream( any( Context.class ), eq( att ) ) )
+                .thenThrow( new java.net.SocketException( "Broken pipe" ) );
+
+        captureOutput();
+
+        assertDoesNotThrow( () -> servlet.doGet( request, response ) );
+
+        // A dropped client connection is expected traffic, not an application error.
+        verify( response, never() ).sendError( eq( HttpServletResponse.SC_INTERNAL_SERVER_ERROR ), anyString() );
+    }
+
+    @Test
+    void testGetGenericIOExceptionDuringStreamingSendsError() throws Exception {
+        final Attachment att = createMockAttachment( "TestPage/test.png", "test.png", new Date() );
+        when( attachmentManager.getAttachmentInfo( eq( "TestPage/test.png" ), anyInt() ) ).thenReturn( att );
+        when( authorizationManager.checkPermission( eq( session ), any( Permission.class ) ) ).thenReturn( true );
+        when( request.getDateHeader( "If-Modified-Since" ) ).thenReturn( -1L );
+        when( attachmentManager.forceDownload( "test.png" ) ).thenReturn( false );
+        when( attachmentManager.getAttachmentStream( any( Context.class ), eq( att ) ) )
+                .thenThrow( new IOException( "disk full" ) );
+
+        captureOutput();
+        servlet.doGet( request, response );
+
+        verify( response ).sendError( eq( HttpServletResponse.SC_INTERNAL_SERVER_ERROR ), contains( "disk full" ) );
+    }
+
+    @Test
+    void testGetWithNextPageRedirectsAfterStreaming() throws Exception {
+        final byte[] content = "Hello attachment".getBytes( StandardCharsets.UTF_8 );
+        final Attachment att = createMockAttachment( "TestPage/test.png", "test.png", new Date() );
+        when( att.isCacheable() ).thenReturn( true );
+        when( att.getSize() ).thenReturn( (long) content.length );
+
+        when( attachmentManager.getAttachmentInfo( eq( "TestPage/test.png" ), anyInt() ) ).thenReturn( att );
+        when( attachmentManager.getAttachmentStream( any( Context.class ), eq( att ) ) )
+                .thenReturn( new ByteArrayInputStream( content ) );
+        when( attachmentManager.forceDownload( "test.png" ) ).thenReturn( false );
+        when( authorizationManager.checkPermission( eq( session ), any( Permission.class ) ) ).thenReturn( true );
+        when( request.getDateHeader( "If-Modified-Since" ) ).thenReturn( -1L );
+        when( request.getParameter( "nextpage" ) ).thenReturn( "/Wiki.jsp?page=TestPage" );
+
+        captureOutput();
+        servlet.doGet( request, response );
+
+        verify( response ).sendRedirect( contains( "TestPage" ) );
     }
 
     // ---- doOptions tests ----
@@ -825,6 +893,95 @@ class AttachmentServletTest {
         servlet.doGet( request, response );
 
         verify( response ).setContentType( "application/binary" );
+    }
+
+    // ---- upload() exception-wrapping catch blocks ----
+
+    @Test
+    void testUploadWrapsProviderExceptionFromExecuteUpload() throws Exception {
+        final String filePart =
+                "Content-Disposition: form-data; name=\"content\"; filename=\"test.txt\"\r\n" +
+                "Content-Type: text/plain\r\n\r\n" +
+                "hello";
+        final String pagePart = "Content-Disposition: form-data; name=\"page\"\r\n\r\nTestPage";
+        stubMultipartRequest( buildMultipartBody( pagePart, filePart ) );
+
+        doThrow( new ProviderException( "backend down" ) ).when( servlet ).executeUpload(
+                any( Context.class ), any( InputStream.class ),
+                anyString(), anyString(), anyString(), any(), anyLong() );
+
+        final IOException ex = assertThrows( IOException.class, () -> servlet.upload( request ) );
+        assertTrue( ex.getMessage().contains( "provider failed" ), "unexpected message: " + ex.getMessage() );
+        assertInstanceOf( ProviderException.class, ex.getCause() );
+    }
+
+    @Test
+    void testUploadRethrowsIOExceptionFromExecuteUpload() throws Exception {
+        final String filePart =
+                "Content-Disposition: form-data; name=\"content\"; filename=\"test.txt\"\r\n" +
+                "Content-Type: text/plain\r\n\r\n" +
+                "hello";
+        final String pagePart = "Content-Disposition: form-data; name=\"page\"\r\n\r\nTestPage";
+        stubMultipartRequest( buildMultipartBody( pagePart, filePart ) );
+
+        doThrow( new IOException( "stream broke" ) ).when( servlet ).executeUpload(
+                any( Context.class ), any( InputStream.class ),
+                anyString(), anyString(), anyString(), any(), anyLong() );
+
+        final IOException ex = assertThrows( IOException.class, () -> servlet.upload( request ) );
+        assertEquals( "stream broke", ex.getMessage() );
+    }
+
+    @Test
+    void testUploadFileExceedingMaxSizeThrowsWrappedFileUploadException() throws Exception {
+        // A tight max size forces commons-fileupload2 to abort mid-parse with a real
+        // FileUploadByteCountLimitException, exercising the FileUploadException catch
+        // block (distinct from both ProviderException and the generic IOException one).
+        servlet.setUploadConstraints( new String[0], new String[0], 2L );
+
+        final String filePart =
+                "Content-Disposition: form-data; name=\"content\"; filename=\"test.txt\"\r\n" +
+                "Content-Type: text/plain\r\n\r\n" +
+                "this is definitely more than two bytes";
+        final String pagePart = "Content-Disposition: form-data; name=\"page\"\r\n\r\nTestPage";
+        stubMultipartRequest( buildMultipartBody( pagePart, filePart ) );
+
+        final IOException ex = assertThrows( IOException.class, () -> servlet.upload( request ) );
+        assertTrue( ex.getMessage().contains( "Upload failure" ), "unexpected message: " + ex.getMessage() );
+    }
+
+    // ---- executeUpload i18n-resolved exception messages ----
+
+    @Test
+    void testExecuteUploadEmptyFilenameThrowsRedirectExceptionWithI18nMessage() throws Exception {
+        final InternationalizationManager i18n = mock( InternationalizationManager.class, CALLS_REAL_METHODS );
+        when( ( ( com.wikantik.WikiEngine ) engine ).getManager( InternationalizationManager.class ) ).thenReturn( i18n );
+        when( request.getLocale() ).thenReturn( Locale.ENGLISH );
+
+        final InputStream data = new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) );
+
+        final RedirectException ex = assertThrows( RedirectException.class, () ->
+                servlet.executeUpload( context, data, "", "http://localhost:8080/error", "TestPage", null, 1 ) );
+
+        assertEquals( "Empty file name given.", ex.getMessage() );
+    }
+
+    @Test
+    void testExecuteUploadWrapsProviderExceptionFromStoreAttachmentWithI18nMessage() throws Exception {
+        final InternationalizationManager i18n = mock( InternationalizationManager.class, CALLS_REAL_METHODS );
+        when( ( ( com.wikantik.WikiEngine ) engine ).getManager( InternationalizationManager.class ) ).thenReturn( i18n );
+        when( request.getLocale() ).thenReturn( Locale.ENGLISH );
+
+        final InputStream data = new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) );
+        when( attachmentManager.getAttachmentInfo( "TestPage/test.png" ) ).thenReturn( null );
+        when( authorizationManager.checkPermission( eq( session ), any( Permission.class ) ) ).thenReturn( true );
+        doThrow( new ProviderException( "attach.unwanted.file" ) )
+                .when( attachmentManager ).storeAttachment( any( Attachment.class ), eq( data ) );
+
+        final ProviderException ex = assertThrows( ProviderException.class, () ->
+                servlet.executeUpload( context, data, "test.txt", "http://localhost:8080/error", "TestPage", null, 1 ) );
+
+        assertEquals( "Unwanted file name.", ex.getMessage() );
     }
 
 }

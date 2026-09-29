@@ -4,7 +4,7 @@ cluster: wikantik-development
 canonical_id: 01M1S6EHZHT62VAB8JK3ZWM5BX
 type: article
 status: active
-date: '2026-09-26'
+date: '2026-09-29'
 summary: Every configuration key Wikantik reads, with its shipped default, type, override name and description. Generated from ini/wikantik.properties.
 tags:
 - configuration
@@ -152,6 +152,7 @@ Default is true (use cache).
 | `wikantik.cache.watcherInterval` | `int` | `3` | `wikantik_cache_watcherInterval` | How often (in seconds) the filesystem watcher polls for external changes. |
 | `wikantik.cache.config-file` | `path` | *(blank: the bundled ehcache-wikantik.xml is used.)* | `wikantik_cache_config-file` | Classpath location of the Ehcache XML configuration (bundled at /ehcache-wikantik.xml inside wikantik-cache.jar). … |
 | `wikantik.watcher.internalSaveGuardMillis` | `long` | `5000` | `wikantik_watcher_internalSaveGuardMillis` | Self-modification guard window (in milliseconds). … |
+| `wikantik.watcher.guardCleanupIntervalMillis` | `long` | `30000` | `wikantik_watcher_guardCleanupIntervalMillis` | How often (in milliseconds) the filesystem watcher sweeps its internal save-guard map for stale entries older than internalSaveGuardMillis. |
 | `wikantik.cache.memcached.servers` | `list` | *(blank: memcached adapter disabled (EhCache is the default).)* | `wikantik_cache_memcached_servers` | Comma-separated host:port list of memcached servers. … |
 | `wikantik.cache.memcached.ttl` | `int` | `86400` | `wikantik_cache_memcached_ttl` | TTL, in seconds, for entries written by the memcached adapter. |
 | `wikantik.cache.memcached.max-entries` | `int` | `1000` | `wikantik_cache_memcached_max-entries` | Reported max-entries for the memcached adapter's CacheInfo (a display value only - memcached itself has no per-cache entry cap, so this does not enforce … |

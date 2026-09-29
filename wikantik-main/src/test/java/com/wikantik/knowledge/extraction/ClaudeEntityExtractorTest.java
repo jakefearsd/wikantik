@@ -19,19 +19,34 @@
 package com.wikantik.knowledge.extraction;
 
 import com.anthropic.client.AnthropicClient;
+import com.anthropic.core.JsonValue;
+import com.anthropic.models.messages.ContentBlock;
+import com.anthropic.models.messages.Message;
+import com.anthropic.models.messages.MessageCreateParams;
+import com.anthropic.models.messages.Model;
+import com.anthropic.models.messages.TextBlock;
+import com.anthropic.models.messages.Usage;
+import com.anthropic.services.blocking.MessageService;
 import com.wikantik.api.knowledge.ExtractionChunk;
 import com.wikantik.api.knowledge.ExtractionContext;
 import com.wikantik.api.knowledge.ExtractionResult;
+import com.wikantik.api.knowledge.KgNode;
+import com.wikantik.api.knowledge.Provenance;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for {@link ClaudeEntityExtractor}. We subclass rather than mock
@@ -60,6 +75,56 @@ class ClaudeEntityExtractorTest {
 
     private static ExtractionContext context() {
         return new ExtractionContext( "Page", List.of(), java.util.Map.of() );
+    }
+
+    private static KgNode node( final String name, final String type ) {
+        return new KgNode( UUID.randomUUID(), name, type, null,
+                Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null );
+    }
+
+    /**
+     * Builds a real (not mocked) SDK {@link Message} carrying a single text block — the
+     * Kotlin-backed response types can't be Mockito-mocked (see class javadoc), but they can
+     * be constructed via their public builders, which is enough to drive the real
+     * {@link ClaudeEntityExtractor#callClaude} request-building + response-extraction code
+     * end to end.
+     */
+    private static Message fakeMessage( final String responseText ) {
+        final TextBlock textBlock = TextBlock.builder()
+            .text( responseText )
+            .citations( List.of() )
+            .build();
+        return Message.builder()
+            .id( "msg_test" )
+            .container( Optional.empty() )
+            .content( List.of( ContentBlock.ofText( textBlock ) ) )
+            .model( Model.CLAUDE_HAIKU_4_5 )
+            .role( JsonValue.from( "assistant" ) )
+            .stopDetails( Optional.empty() )
+            .stopReason( Optional.empty() )
+            .stopSequence( Optional.empty() )
+            .type( JsonValue.from( "message" ) )
+            .usage( Usage.builder()
+                .inputTokens( 10 )
+                .outputTokens( 5 )
+                .cacheCreation( Optional.empty() )
+                .cacheCreationInputTokens( Optional.empty() )
+                .cacheReadInputTokens( Optional.empty() )
+                .inferenceGeo( Optional.empty() )
+                .outputTokensDetails( Optional.empty() )
+                .serverToolUse( Optional.empty() )
+                .serviceTier( Optional.empty() )
+                .build() )
+            .build();
+    }
+
+    /** A real {@link AnthropicClient} mock wired to return the given canned response. */
+    private static AnthropicClient clientReturning( final Message response ) {
+        final MessageService messageService = mock( MessageService.class );
+        when( messageService.create( any( MessageCreateParams.class ) ) ).thenReturn( response );
+        final AnthropicClient client = mock( AnthropicClient.class );
+        when( client.messages() ).thenReturn( messageService );
+        return client;
     }
 
     /** Subclass that lets the test script the API response text. */
@@ -111,5 +176,30 @@ class ClaudeEntityExtractorTest {
         final ExtractionResult r = new TestableExtractor( ( c, ctx ) -> null )
             .extract( chunk(), context() );
         assertTrue( r.mentions().isEmpty() );
+    }
+
+    @Test
+    void realCallClaudeBuildsRequestWithoutNodeDictionaryWhenNoExistingNodes() {
+        final AnthropicClient client = clientReturning( fakeMessage(
+            "{\"entities\":[{\"name\":\"Napoleon\",\"type\":\"Person\",\"confidence\":0.9}],\"relations\":[]}" ) );
+
+        final ExtractionResult r = new ClaudeEntityExtractor( client, config() )
+            .extract( chunk(), context() );
+
+        assertEquals( 1, r.mentions().size() );
+        assertEquals( "claude", r.extractorCode() );
+    }
+
+    @Test
+    void realCallClaudeBuildsRequestWithNodeDictionaryWhenExistingNodesPresent() {
+        final AnthropicClient client = clientReturning( fakeMessage( "{\"entities\":[],\"relations\":[]}" ) );
+        final ExtractionContext ctxWithNodes = new ExtractionContext(
+            "Page", List.of( node( "Napoleon", "Person" ), node( "Waterloo", "Place" ) ), Map.of() );
+
+        final ExtractionResult r = new ClaudeEntityExtractor( client, config() )
+            .extract( chunk(), ctxWithNodes );
+
+        assertTrue( r.mentions().isEmpty() );
+        assertEquals( "claude", r.extractorCode() );
     }
 }

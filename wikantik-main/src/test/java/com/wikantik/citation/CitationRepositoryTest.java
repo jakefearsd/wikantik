@@ -97,4 +97,34 @@ class CitationRepositoryTest {
             newRow( "s1", "t2", "H", "b", CitationStatus.STALE ) ) );
         assertEquals( 1, repo.countsByStatus().get( CitationStatus.STALE ) );
     }
+
+    @Test
+    void findAll_returnsEveryRowOrderedById() {
+        repo.replaceForSource( "s1", List.of( newRow( "s1", "t1", "H", "a", CitationStatus.CURRENT ) ) );
+        repo.replaceForSource( "s2", List.of( newRow( "s2", "t2", "H", "b", CitationStatus.STALE ) ) );
+        final List< CitationRow > all = repo.findAll();
+        assertEquals( 2, all.size() );
+        assertTrue( all.get( 0 ).id() < all.get( 1 ).id() );
+    }
+
+    @Test
+    void findByStatus_filtersToMatchingRowsOnly() {
+        repo.replaceForSource( "s1", List.of(
+            newRow( "s1", "t1", "H", "a", CitationStatus.CURRENT ),
+            newRow( "s1", "t2", "H", "b", CitationStatus.STALE ) ) );
+        final List< CitationRow > stale = repo.findByStatus( CitationStatus.STALE );
+        assertEquals( 1, stale.size() );
+        assertEquals( "t2", stale.get( 0 ).targetCanonicalId() );
+    }
+
+    @Test
+    void touchChecked_updatesLastCheckedWithoutChangingStatus() {
+        repo.replaceForSource( "s1", List.of( newRow( "s1", "t1", "H", "span", CitationStatus.CURRENT ) ) );
+        final CitationRow before = repo.findBySource( "s1" ).get( 0 );
+        final java.time.Instant checkedAt = java.time.Instant.now().plusSeconds( 60 );
+        repo.touchChecked( before.id(), checkedAt );
+        final CitationRow after = repo.findBySource( "s1" ).get( 0 );
+        assertEquals( CitationStatus.CURRENT, after.status() );
+        assertEquals( checkedAt.getEpochSecond(), after.lastChecked().getEpochSecond() );
+    }
 }

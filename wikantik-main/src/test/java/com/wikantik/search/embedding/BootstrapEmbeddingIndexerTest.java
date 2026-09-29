@@ -24,15 +24,21 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.mockito.InOrder;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -352,6 +358,199 @@ class BootstrapEmbeddingIndexerTest {
         assertThrows( IllegalArgumentException.class,
             () -> new BootstrapEmbeddingIndexer( ds, null, MODEL, null,
                 Executors.newSingleThreadExecutor() ) );
+    }
+
+    @Test
+    void modelCodeReturnsConfiguredValue() throws Exception {
+        final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
+        final DataSource ds = stubDataSourceReturningChunkCount( 0L );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        try {
+            final BootstrapEmbeddingIndexer boot =
+                new BootstrapEmbeddingIndexer( ds, index, MODEL, null, ex );
+            assertEquals( MODEL, boot.modelCode() );
+        } finally {
+            ex.shutdownNow();
+        }
+    }
+
+    @Test
+    void forceStart_skipsWhenNoChunks() throws Exception {
+        final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
+        final DataSource ds = stubDataSourceReturningChunkCount( 0L );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        try {
+            final BootstrapEmbeddingIndexer boot =
+                new BootstrapEmbeddingIndexer( ds, index, MODEL, null, ex );
+            boot.forceStart();
+            assertEquals( BootstrapEmbeddingIndexer.State.SKIPPED_NO_CHUNKS, boot.progress().state() );
+            assertEquals( 0L, boot.progress().chunksTotal() );
+            verify( index, never() ).deleteByModel( any() );
+            verify( index, never() ).indexAll( any() );
+        } finally {
+            ex.shutdownNow();
+        }
+    }
+
+    @Test
+    void forceStart_indexAllFailureLandsInFailedState() throws Exception {
+        final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
+        when( index.indexAll( MODEL ) ).thenThrow( new RuntimeException( "boom" ) );
+        final DataSource ds = stubDataSourceReturningChunkCount( 5L );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        try {
+            final BootstrapEmbeddingIndexer boot =
+                new BootstrapEmbeddingIndexer( ds, index, MODEL, null, ex );
+            boot.forceStart();
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
+            assertEquals( BootstrapEmbeddingIndexer.State.FAILED, boot.progress().state() );
+            assertEquals( "boom", boot.progress().errorMessage() );
+        } finally {
+            if ( !ex.isTerminated() ) ex.shutdownNow();
+        }
+    }
+
+    @Test
+    void startIfNeeded_executorRejectionLandsInFailedState() throws Exception {
+        final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
+        final DataSource ds = stubDataSourceReturningChunkCount( 5L );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        ex.shutdown(); // any submit() from here on throws RejectedExecutionException
+        final BootstrapEmbeddingIndexer boot =
+            new BootstrapEmbeddingIndexer( ds, index, MODEL, null, ex );
+        boot.startIfNeeded();
+        assertEquals( BootstrapEmbeddingIndexer.State.FAILED, boot.progress().state() );
+        assertTrue( boot.progress().errorMessage().contains( "executor rejected task" ),
+            boot.progress().errorMessage() );
+        verify( index, never() ).indexStale( any() );
+    }
+
+    @Test
+    void forceStart_executorRejectionLandsInFailedStateAfterSuccessfulDelete() throws Exception {
+        final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
+        when( index.deleteByModel( MODEL ) ).thenReturn( 3 );
+        final DataSource ds = stubDataSourceReturningChunkCount( 5L );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        ex.shutdown();
+        final BootstrapEmbeddingIndexer boot =
+            new BootstrapEmbeddingIndexer( ds, index, MODEL, null, ex );
+        boot.forceStart();
+        assertEquals( BootstrapEmbeddingIndexer.State.FAILED, boot.progress().state() );
+        assertTrue( boot.progress().errorMessage().contains( "executor rejected task" ),
+            boot.progress().errorMessage() );
+        verify( index, times( 1 ) ).deleteByModel( MODEL );
+        verify( index, never() ).indexAll( any() );
+    }
+
+    @Test
+    void staleReconcile_interruptedDuringBackoffAbandonsRunWithFailedState() throws Exception {
+        final AtomicReference< Thread > workerThread = new AtomicReference<>();
+        final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
+        when( index.indexStale( MODEL ) ).thenAnswer( inv -> {
+            workerThread.set( Thread.currentThread() );
+            throw new RuntimeException( "cold" );
+        } );
+        final DataSource ds = stubDataSourceReturningChunkCount( 5L );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        try {
+            final BootstrapEmbeddingIndexer boot = new BootstrapEmbeddingIndexer(
+                ds, index, MODEL, null, ex, /*staleAttempts*/ 2, Duration.ofSeconds( 5 ) );
+            boot.startIfNeeded();
+
+            final long deadline = System.currentTimeMillis() + 5_000;
+            while ( workerThread.get() == null && System.currentTimeMillis() < deadline ) {
+                Thread.sleep( 10 );
+            }
+            assertNotNull( workerThread.get(), "the retry-backoff worker thread should have been captured" );
+            Thread.sleep( 50 ); // give the worker a moment to actually enter Thread.sleep(staleRetryDelay)
+            workerThread.get().interrupt();
+
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
+            assertEquals( BootstrapEmbeddingIndexer.State.FAILED, boot.progress().state() );
+            assertEquals( "cold", boot.progress().errorMessage() );
+            // interrupted during the backoff sleep -> the loop breaks, no second attempt is made
+            verify( index, times( 1 ) ).indexStale( MODEL );
+        } finally {
+            if ( !ex.isTerminated() ) ex.shutdownNow();
+        }
+    }
+
+    @Test
+    void close_isNoOpWhenExecutorIsInjectedRatherThanOwned() throws Exception {
+        final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
+        final DataSource ds = stubDataSourceReturningChunkCount( 0L );
+        final ExecutorService ex = mock( ExecutorService.class );
+        final BootstrapEmbeddingIndexer boot =
+            new BootstrapEmbeddingIndexer( ds, index, MODEL, null, ex );
+        boot.close();
+        verify( ex, never() ).shutdown();
+        verify( ex, never() ).shutdownNow();
+    }
+
+    @Test
+    void close_shutsDownOwnedExecutorCleanlyWhenIdle() throws Exception {
+        final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
+        final DataSource ds = stubDataSourceReturningChunkCount( 0L );
+        // The 4-arg public constructor builds and owns its own executor.
+        final BootstrapEmbeddingIndexer boot = new BootstrapEmbeddingIndexer( ds, index, MODEL, null );
+        boot.close(); // nothing was ever submitted; must return promptly
+    }
+
+    @Test
+    void close_forcesShutdownWhenTaskExceedsGracePeriod() throws Exception {
+        final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
+        final CountDownLatch neverCounts = new CountDownLatch( 1 );
+        when( index.indexAll( MODEL ) ).thenAnswer( inv -> {
+            neverCounts.await();
+            return 0;
+        } );
+        final DataSource ds = stubDataSourceReturningChunkCount( 1L );
+        final BootstrapEmbeddingIndexer boot = new BootstrapEmbeddingIndexer( ds, index, MODEL, null );
+        try {
+            boot.forceStart();
+            // give the executor a moment to actually start running indexAll on its worker thread
+            Thread.sleep( 100 );
+            final long t0 = System.nanoTime();
+            boot.close(); // shutdown() + awaitTermination(5s) times out -> shutdownNow()
+            final long elapsedMs = TimeUnit.NANOSECONDS.toMillis( System.nanoTime() - t0 );
+            assertTrue( elapsedMs >= 4_900,
+                "close() must wait out the full 5s grace period before forcing shutdown: " + elapsedMs );
+        } finally {
+            neverCounts.countDown();
+        }
+    }
+
+    @Test
+    void close_interruptedWhileAwaitingTerminationForcesShutdownAndRestoresInterruptFlag() throws Exception {
+        final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
+        final CountDownLatch neverCounts = new CountDownLatch( 1 );
+        when( index.indexAll( MODEL ) ).thenAnswer( inv -> {
+            neverCounts.await();
+            return 0;
+        } );
+        final DataSource ds = stubDataSourceReturningChunkCount( 1L );
+        final BootstrapEmbeddingIndexer boot = new BootstrapEmbeddingIndexer( ds, index, MODEL, null );
+        final AtomicBoolean closerInterruptedFlagAfterReturn = new AtomicBoolean();
+        try {
+            boot.forceStart();
+            Thread.sleep( 100 );
+            final Thread closer = new Thread( () -> {
+                boot.close();
+                closerInterruptedFlagAfterReturn.set( Thread.currentThread().isInterrupted() );
+            } );
+            closer.start();
+            Thread.sleep( 150 ); // let it enter awaitTermination(5, SECONDS)
+            closer.interrupt();
+            closer.join( 2_000 );
+            assertFalse( closer.isAlive(),
+                "close() must return promptly once interrupted, not wait out the full 5s" );
+            assertTrue( closerInterruptedFlagAfterReturn.get(),
+                "the calling thread's interrupt flag must be restored" );
+        } finally {
+            neverCounts.countDown();
+        }
     }
 
     @Test

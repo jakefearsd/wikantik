@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,9 +40,14 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class OllamaEmbeddingClientTest {
 
@@ -353,6 +360,155 @@ class OllamaEmbeddingClientTest {
             () -> client.embed( List.of( "x" ), EmbeddingKind.QUERY ) );
         assertTrue( ex.getMessage().contains( "404" ) );
         assertTrue( !ex.isTransient(), "HTTP 404 must NOT be flagged as transient" );
+    }
+
+    @Test
+    void embedRejectsNullTextsList() {
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+        assertThrows( IllegalArgumentException.class, () -> client.embed( null, EmbeddingKind.QUERY ) );
+    }
+
+    @Test
+    void embedAsyncRejectsNullTextsListWithFailedFuture() {
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+        final CompletableFuture< List< float[] > > future = client.embedAsync( null, EmbeddingKind.QUERY );
+        final java.util.concurrent.ExecutionException ex = assertThrows(
+            java.util.concurrent.ExecutionException.class,
+            () -> future.get( 1, java.util.concurrent.TimeUnit.SECONDS ) );
+        assertInstanceOf( IllegalArgumentException.class, ex.getCause() );
+    }
+
+    @Test
+    void embedAsyncSurfacesNullBatchElementAsFailedFuture() {
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+        final List< String > texts = new ArrayList<>();
+        texts.add( null );
+        final CompletableFuture< List< float[] > > future = client.embedAsync( texts, EmbeddingKind.QUERY );
+        final java.util.concurrent.ExecutionException ex = assertThrows(
+            java.util.concurrent.ExecutionException.class,
+            () -> future.get( 1, java.util.concurrent.TimeUnit.SECONDS ) );
+        assertInstanceOf( IllegalArgumentException.class, ex.getCause() );
+    }
+
+    @Test
+    void embedSurfacesConnectionRefusedAsTransientEmbeddingException() {
+        // No context registered for a fresh, unbound port -> the JDK HttpClient throws
+        // an IOException (ConnectException) synchronously, exercising the sync catch path.
+        server.stop( 0 );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final EmbeddingException ex = assertThrows( EmbeddingException.class,
+            () -> client.embed( List.of( "x" ), EmbeddingKind.QUERY ) );
+        assertTrue( ex.isTransient(), "a connection failure must be flagged transient" );
+        assertTrue( ex.getMessage().contains( "Ollama embed request failed" ) );
+        // @AfterEach calling server.stop(0) again on an already-stopped server is a no-op.
+    }
+
+    @SuppressWarnings( "unchecked" )
+    @Test
+    void embedSyncSurfacesInterruptedExceptionAsTransientAndRestoresInterruptFlag() throws Exception {
+        final HttpClient mockHttp = mock( HttpClient.class );
+        when( mockHttp.send( any( HttpRequest.class ), any( HttpResponse.BodyHandler.class ) ) )
+            .thenThrow( new InterruptedException( "simulated interrupt" ) );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient( mockHttp, config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final EmbeddingException ex = assertThrows( EmbeddingException.class,
+            () -> client.embed( List.of( "x" ), EmbeddingKind.QUERY ) );
+        assertTrue( ex.isTransient() );
+        assertTrue( ex.getMessage().contains( "interrupted" ) );
+        assertTrue( Thread.interrupted(), "the interrupt flag must be restored on the calling thread" );
+    }
+
+    @Test
+    void embedAsyncSurfacesTransportFailureAsCompletionException() {
+        server.stop( 0 );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final CompletableFuture< List< float[] > > future =
+            client.embedAsync( List.of( "x" ), EmbeddingKind.QUERY );
+        final java.util.concurrent.ExecutionException ex = assertThrows(
+            java.util.concurrent.ExecutionException.class,
+            () -> future.get( 5, java.util.concurrent.TimeUnit.SECONDS ) );
+        assertInstanceOf( EmbeddingException.class, ex.getCause() );
+        assertTrue( ( (EmbeddingException) ex.getCause() ).isTransient() );
+    }
+
+    @Test
+    void nonJsonResponseBodyIsRejected() {
+        server.createContext( "/api/embed", exchange -> {
+            final byte[] body = "not json at all".getBytes( StandardCharsets.UTF_8 );
+            exchange.sendResponseHeaders( 200, body.length );
+            try( final OutputStream os = exchange.getResponseBody() ) { os.write( body ); }
+        } );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final EmbeddingException ex = assertThrows( EmbeddingException.class,
+            () -> client.embed( List.of( "x" ), EmbeddingKind.QUERY ) );
+        assertTrue( ex.getMessage().contains( "non-JSON body" ) );
+        assertFalse( ex.isTransient() );
+    }
+
+    @Test
+    void nonObjectJsonResponseBodyIsRejected() {
+        server.createContext( "/api/embed", exchange -> {
+            final byte[] body = "[1, 2, 3]".getBytes( StandardCharsets.UTF_8 );
+            exchange.sendResponseHeaders( 200, body.length );
+            try( final OutputStream os = exchange.getResponseBody() ) { os.write( body ); }
+        } );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final EmbeddingException ex = assertThrows( EmbeddingException.class,
+            () -> client.embed( List.of( "x" ), EmbeddingKind.QUERY ) );
+        assertTrue( ex.getMessage().contains( "non-object body" ) );
+    }
+
+    @Test
+    void missingEmbeddingsArrayInResponseIsRejected() {
+        server.createContext( "/api/embed", exchange -> {
+            final byte[] body = "{\"model\":\"bge-m3\"}".getBytes( StandardCharsets.UTF_8 );
+            exchange.sendResponseHeaders( 200, body.length );
+            try( final OutputStream os = exchange.getResponseBody() ) { os.write( body ); }
+        } );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final EmbeddingException ex = assertThrows( EmbeddingException.class,
+            () -> client.embed( List.of( "x" ), EmbeddingKind.QUERY ) );
+        assertTrue( ex.getMessage().contains( "missing 'embeddings' array" ) );
+    }
+
+    @Test
+    void wrongEmbeddingsCountInResponseIsRejected() {
+        // Server always returns 2 vectors regardless of the single input sent.
+        handleWithFixedDim( 1024, 2 );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final EmbeddingException ex = assertThrows( EmbeddingException.class,
+            () -> client.embed( List.of( "x" ), EmbeddingKind.QUERY ) );
+        assertTrue( ex.getMessage().contains( "returned 2 vectors for 1 inputs" ) );
+    }
+
+    @Test
+    void nonArrayEmbeddingElementIsRejected() {
+        server.createContext( "/api/embed", exchange -> {
+            final byte[] body = "{\"embeddings\":[42]}".getBytes( StandardCharsets.UTF_8 );
+            exchange.sendResponseHeaders( 200, body.length );
+            try( final OutputStream os = exchange.getResponseBody() ) { os.write( body ); }
+        } );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final EmbeddingException ex = assertThrows( EmbeddingException.class,
+            () -> client.embed( List.of( "x" ), EmbeddingKind.QUERY ) );
+        assertTrue( ex.getMessage().contains( "is not an array" ) );
     }
 
     private static float[] makeVec( final int base, final int dim ) {

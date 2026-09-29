@@ -497,7 +497,10 @@ public final class SearchWiringHelper {
      * feature is disabled; the lambda degrades gracefully (falls back to BM25
      * or returns an empty list).</p>
      */
-    private static DefaultRetrievalQualityRunner.Retriever buildRetriever(
+    // Package-private (not private) purely so the branch-heavy retriever lambda can be unit
+    // tested directly, without standing up the DAO/DefaultRetrievalQualityRunner.runNow()
+    // machinery just to invoke it. No behavior change.
+    static DefaultRetrievalQualityRunner.Retriever buildRetriever(
             final WikiEngine engine,
             final SearchManager searchManager,
             final PageManager pageManager,

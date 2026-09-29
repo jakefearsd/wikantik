@@ -18,15 +18,45 @@
  */
 package com.wikantik.search.hybrid;
 
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.KnnFloatVectorField;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.VectorSimilarityFunction;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.SearcherManager;
 import org.junit.jupiter.api.Test;
+import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class LuceneHnswChunkVectorIndexTest {
 
     private static float[] unit( final float... v ) { return v; }
+
+    /** Reflection seam: swaps a private field (e.g. {@code writer}, {@code searcherManager})
+     *  for a fault-injecting mock, so IOException paths that real Lucene never throws in
+     *  practice (a RAM directory basically can't fail) can still be exercised. */
+    private static void setField( final Object target, final String name, final Object value ) throws Exception {
+        final Field f = LuceneHnswChunkVectorIndex.class.getDeclaredField( name );
+        f.setAccessible( true );
+        f.set( target, value );
+    }
+
+    @SuppressWarnings( "unchecked" )
+    private static < T > T getField( final Object target, final String name ) throws Exception {
+        final Field f = LuceneHnswChunkVectorIndex.class.getDeclaredField( name );
+        f.setAccessible( true );
+        return (T) f.get( target );
+    }
 
     /** One-hot vector of length {@code dim} with 1.0 at {@code axis}. */
     private static float[] axis( final int dim, final int axis ) {
@@ -531,5 +561,151 @@ class LuceneHnswChunkVectorIndexTest {
             assertEquals( "Page" + expected, sc.pageName(),
                 "chunk id " + sc.chunkId() + " was paired with the wrong page" );
         }
+    }
+
+    // ---- fault-injected IOException paths (reflection-swapped writer/searcherManager) ----
+
+    @Test
+    void addOrReplaceLogsAndSwallowsWriterIOException() throws Exception {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        final IndexWriter faultyWriter = mock( IndexWriter.class );
+        when( faultyWriter.updateDocument( any(), any() ) ).thenThrow( new IOException( "disk full" ) );
+        setField( idx, "writer", faultyWriter );
+
+        assertDoesNotThrow( () -> idx.addOrReplace( UUID.randomUUID(), "PageA", unit( 1f, 0f, 0f ) ),
+            "a writer failure must be logged, not thrown" );
+    }
+
+    @Test
+    void deleteLogsAndSwallowsWriterIOException() throws Exception {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        final IndexWriter faultyWriter = mock( IndexWriter.class );
+        when( faultyWriter.deleteDocuments( (org.apache.lucene.index.Term[]) any() ) )
+            .thenThrow( new IOException( "disk full" ) );
+        setField( idx, "writer", faultyWriter );
+
+        assertDoesNotThrow( () -> idx.delete( UUID.randomUUID() ),
+            "a writer failure must be logged, not thrown" );
+    }
+
+    @Test
+    void commitAndRefreshReturnsFalseOnWriterIOException() throws Exception {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        final IndexWriter faultyWriter = mock( IndexWriter.class );
+        when( faultyWriter.commit() ).thenThrow( new IOException( "commit failed" ) );
+        setField( idx, "writer", faultyWriter );
+
+        assertFalse( idx.commitAndRefresh(),
+            "a commit failure must be reported to the caller as false, not thrown" );
+    }
+
+    @Test
+    void topKChunksReturnsEmptyWhenSearcherAcquireFails() throws Exception {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        idx.addOrReplace( UUID.randomUUID(), "PageA", unit( 1f, 0f, 0f ) );
+        idx.commitAndRefresh();
+
+        final SearcherManager faultyMgr = mock( SearcherManager.class );
+        when( faultyMgr.acquire() ).thenThrow( new IOException( "acquire failed" ) );
+        setField( idx, "searcherManager", faultyMgr );
+
+        assertEquals( List.of(), idx.topKChunks( unit( 1f, 0f, 0f ), 1 ),
+            "a searcher-acquire failure must degrade to an empty result, not throw" );
+    }
+
+    @Test
+    void topKChunksStillReturnsResultsWhenSearcherReleaseFails() throws Exception {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        idx.addOrReplace( UUID.randomUUID(), "PageA", unit( 1f, 0f, 0f ) );
+        idx.commitAndRefresh();
+
+        final SearcherManager realMgr = getField( idx, "searcherManager" );
+        final IndexSearcher realSearcher = realMgr.acquire();
+        final SearcherManager faultyMgr = mock( SearcherManager.class );
+        when( faultyMgr.acquire() ).thenReturn( realSearcher );
+        doThrow( new IOException( "release failed" ) ).when( faultyMgr ).release( any() );
+        setField( idx, "searcherManager", faultyMgr );
+
+        final List< ScoredChunk > results = idx.topKChunks( unit( 1f, 0f, 0f ), 1 );
+        assertEquals( 1, results.size(),
+            "the query result must not be lost just because releasing the searcher afterward failed" );
+    }
+
+    @Test
+    void sizeReturnsZeroWhenSearcherAcquireFails() throws Exception {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        final SearcherManager faultyMgr = mock( SearcherManager.class );
+        when( faultyMgr.acquire() ).thenThrow( new IOException( "acquire failed" ) );
+        setField( idx, "searcherManager", faultyMgr );
+
+        assertEquals( 0, idx.size(), "an acquire failure must degrade size() to 0, not throw" );
+    }
+
+    @Test
+    void sizeStillReturnsCountWhenSearcherReleaseFails() throws Exception {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        idx.addOrReplace( UUID.randomUUID(), "PageA", unit( 1f, 0f, 0f ) );
+        idx.commitAndRefresh();
+
+        final SearcherManager realMgr = getField( idx, "searcherManager" );
+        final IndexSearcher realSearcher = realMgr.acquire();
+        final SearcherManager faultyMgr = mock( SearcherManager.class );
+        when( faultyMgr.acquire() ).thenReturn( realSearcher );
+        doThrow( new IOException( "release failed" ) ).when( faultyMgr ).release( any() );
+        setField( idx, "searcherManager", faultyMgr );
+
+        assertEquals( 1, idx.size(),
+            "the count must still be returned even though releasing the searcher afterward failed" );
+    }
+
+    @Test
+    void topKChunksSkipsHitsMissingChunkIdDocValues() throws Exception {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        final IndexWriter writer = getField( idx, "writer" );
+        // Bypass addOrReplace() to build a document carrying only the KNN vector field,
+        // with none of the chunk_id_hi/lo docvalues addOrReplace() always attaches.
+        final Document doc = new Document();
+        doc.add( new KnnFloatVectorField(
+            LuceneHnswChunkVectorIndex.FIELD_VEC, unit( 1f, 0f, 0f ), VectorSimilarityFunction.COSINE ) );
+        writer.addDocument( doc );
+        idx.commitAndRefresh();
+
+        final List< ScoredChunk > results = idx.topKChunks( unit( 1f, 0f, 0f ), 5 );
+        assertEquals( 0, results.size(),
+            "a hit with no chunk_id docvalues must be skipped rather than returned with a bogus id" );
+    }
+
+    @Test
+    void upsertChunksFallsBackToReloadWhenCommitFails() throws Exception {
+        // Initial construction succeeds against an empty DB.
+        final java.sql.ResultSet emptyRs = org.mockito.Mockito.mock( java.sql.ResultSet.class );
+        when( emptyRs.next() ).thenReturn( false );
+        final java.sql.PreparedStatement emptyPs = org.mockito.Mockito.mock( java.sql.PreparedStatement.class );
+        when( emptyPs.executeQuery() ).thenReturn( emptyRs );
+        final java.sql.Connection conn = org.mockito.Mockito.mock( java.sql.Connection.class );
+        when( conn.prepareStatement( anyString() ) ).thenReturn( emptyPs );
+        when( conn.createArrayOf( eq( "uuid" ), any() ) ).thenReturn( org.mockito.Mockito.mock( java.sql.Array.class ) );
+        final javax.sql.DataSource ds = org.mockito.Mockito.mock( javax.sql.DataSource.class );
+        when( ds.getConnection() ).thenReturn( conn ); // same working (empty-result) connection every time
+
+        final LuceneHnswChunkVectorIndex idx =
+            new LuceneHnswChunkVectorIndex( ds, "qwen3-embedding-0.6b", 3, new HnswParams( 16, 64, 100 ) );
+
+        // Break the writer so commitAndRefresh() fails from inside upsertChunks — a DIFFERENT
+        // fault than upsertChunksFallsBackToReloadOnSqlException's SQLException path above.
+        final IndexWriter faultyWriter = mock( IndexWriter.class );
+        when( faultyWriter.commit() ).thenThrow( new IOException( "commit failed" ) );
+        setField( idx, "writer", faultyWriter );
+
+        assertDoesNotThrow( () -> idx.upsertChunks( List.of( UUID.randomUUID() ) ),
+            "a failed commit inside upsertChunks must trigger the reload() fallback, not propagate" );
     }
 }

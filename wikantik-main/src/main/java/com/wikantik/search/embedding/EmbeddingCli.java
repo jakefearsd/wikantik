@@ -37,10 +37,23 @@ import java.util.Properties;
 public final class EmbeddingCli {
 
     private EmbeddingCli() {}
+
     public static void main( final String[] args ) throws IOException {
+        System.exit( run( args ) );
+    }
+
+    /**
+     * Testable core of the CLI: identical logic to {@link #main}, but returns an exit
+     * code instead of calling {@link System#exit(int)} directly, so a test can drive it
+     * in-process without killing the JVM. {@code main} is a one-line {@code System.exit}
+     * wrapper around this method.
+     *
+     * @return 0 on success, 2 on a usage error or an unrecognized {@code kind}
+     */
+    static int run( final String[] args ) throws IOException {
         if( args.length < 3 ) {
             usage();
-            System.exit( 2 );
+            return 2;
         }
         final String modelCode = args[ 0 ];
         final EmbeddingKind kind;
@@ -48,8 +61,7 @@ public final class EmbeddingCli {
             kind = EmbeddingKind.valueOf( args[ 1 ].toUpperCase( Locale.ROOT ) );
         } catch( final IllegalArgumentException e ) {
             System.err.println( "invalid kind: " + args[ 1 ] + " (expected 'query' or 'document')" );
-            System.exit( 2 );
-            return;
+            return 2;
         }
         final String text = String.join( " ", Arrays.copyOfRange( args, 2, args.length ) );
 
@@ -84,6 +96,7 @@ public final class EmbeddingCli {
         }
 
         System.out.printf( "latency=%dms  l2_norm=%.4f  head=[%s, …]%n", elapsedMs, norm, head );
+        return 0;
     }
 
     private static Properties loadProperties() throws IOException {

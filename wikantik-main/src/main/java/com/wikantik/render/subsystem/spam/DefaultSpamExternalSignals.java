@@ -24,13 +24,13 @@ import com.wikantik.api.exceptions.RedirectException;
 import com.wikantik.util.HttpUtil;
 import com.wikantik.util.TextUtil;
 import jakarta.servlet.http.HttpServletRequest;
-import net.thauvin.erik.akismet.Akismet;
 import net.thauvin.erik.akismet.AkismetComment;
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Properties;
+import java.util.function.BiFunction;
 
 /**
  * Default implementation of {@link SpamExternalSignals}.
@@ -48,14 +48,30 @@ public class DefaultSpamExternalSignals extends AbstractSpamStrategy implements 
     private static final String REASON_UTF8_TRAP = "UTF8Trap";
     private static final String REASON_AKISMET   = "Akismet";
 
-    private String  akismetAPIKey;
-    private Akismet akismet;
+    private String akismetAPIKey;
+    private AkismetGateway akismet;
+
+    /** Builds the real Akismet client. Swapped out in tests so checkAkismet never hits the network. */
+    private final BiFunction< String, String, AkismetGateway > akismetFactory;
 
     public DefaultSpamExternalSignals( final Properties props,
                                        final boolean stopAtFirstMatch,
                                        final String errorPage ) {
+        this( props, stopAtFirstMatch, errorPage, RealAkismetGateway::new );
+    }
+
+    /**
+     * Package-private constructor for tests: lets a test substitute the Akismet
+     * client factory so {@link #checkAkismet} can be exercised without making a
+     * live network call.
+     */
+    DefaultSpamExternalSignals( final Properties props,
+                                final boolean stopAtFirstMatch,
+                                final String errorPage,
+                                final BiFunction< String, String, AkismetGateway > akismetFactory ) {
         super( stopAtFirstMatch, errorPage );
         this.akismetAPIKey  = TextUtil.getStringProperty( props, "akismet-apikey", null );
+        this.akismetFactory = akismetFactory;
     }
 
     @Override
@@ -92,7 +108,7 @@ public class DefaultSpamExternalSignals extends AbstractSpamStrategy implements 
                 String fullPageUrl = context.getHttpRequest().getRequestURL().toString();
                 String fragment = context.getEngine().getBaseURL();
                 fullPageUrl = fullPageUrl.substring( 0, fullPageUrl.indexOf( fragment ) + fragment.length() );
-                akismet = new Akismet( akismetAPIKey, fullPageUrl );
+                akismet = akismetFactory.apply( akismetAPIKey, fullPageUrl );
                 if( !akismet.verifyKey() ) {
                     // LOG.error justified: Akismet API key is permanently invalid; operator must fix config before spam protection works
                     LOG.error( "Akismet API key cannot be verified.  Please check your config." );

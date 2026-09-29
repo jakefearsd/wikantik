@@ -187,6 +187,17 @@ public class DefaultGroupManagerCITest {
         assertDoesNotThrow( () -> m_groupMgr.validateGroup( context, group ) );
     }
 
+    @Test
+    public void testValidateGroupWithRestrictedNameLogsAndDoesNotThrow() throws Exception {
+        // A restricted name fails checkGroupName() with WikiSecurityException; validateGroup()
+        // must catch and log it (debug), not propagate.
+        final Context context = Wiki.context().create( m_engine,
+                HttpMockFactory.createHttpRequest(), "" );
+        final Group group = new Group( Group.RESTRICTED_GROUPNAMES[ 0 ], m_engine.getApplicationName() );
+
+        assertDoesNotThrow( () -> m_groupMgr.validateGroup( context, group ) );
+    }
+
     // ---- isUserInRole: null role ----
 
     @Test

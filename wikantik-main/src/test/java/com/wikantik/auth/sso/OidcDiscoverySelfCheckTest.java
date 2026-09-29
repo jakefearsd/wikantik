@@ -18,13 +18,19 @@
  */
 package com.wikantik.auth.sso;
 
+import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Classification tests for {@link OidcDiscoverySelfCheck}. The fetcher is
@@ -121,5 +127,78 @@ class OidcDiscoverySelfCheckTest {
     void maxAttemptsBelowOne_throws() {
         org.junit.jupiter.api.Assertions.assertThrows( IllegalArgumentException.class,
                 () -> check.check( URI, uri -> new OidcDiscoverySelfCheck.FetchResult( 200, VALID_BODY ), 0, Duration.ZERO ) );
+    }
+
+    @Test
+    void zeroRetryDelay_retriesImmediatelyWithoutSleeping() {
+        // Covers the sleepQuietly fast-path (isZero()) taken when a caller configures no
+        // inter-attempt delay but still asks for more than one attempt.
+        final AtomicInteger calls = new AtomicInteger();
+        final OidcDiscoverySelfCheck.Outcome outcome = check.check( URI, uri -> {
+            if( calls.incrementAndGet() == 1 ) {
+                throw new SocketTimeoutException( "Connect timed out" );
+            }
+            return new OidcDiscoverySelfCheck.FetchResult( 200, VALID_BODY );
+        }, 2, Duration.ZERO );
+
+        assertEquals( OidcDiscoverySelfCheck.Outcome.OK, outcome );
+        assertEquals( 2, calls.get() );
+    }
+
+    @Test
+    void interruptedDuringRetryWait_stopsRetryingAndRestoresInterruptFlag() {
+        // A shutdown-time interrupt during the inter-attempt sleep must abandon the
+        // remaining retries (never loop through a shutdown) and must not swallow the
+        // interrupt status.
+        final AtomicInteger calls = new AtomicInteger();
+        Thread.currentThread().interrupt();
+        try {
+            final OidcDiscoverySelfCheck.Outcome outcome = check.check( URI, uri -> {
+                calls.incrementAndGet();
+                throw new SocketTimeoutException( "Connect timed out" );
+            }, 3, Duration.ofMillis( 50 ) );
+
+            assertEquals( OidcDiscoverySelfCheck.Outcome.UNREACHABLE, outcome );
+            assertEquals( 1, calls.get(), "must abandon remaining attempts once the wait is interrupted" );
+            assertTrue( Thread.currentThread().isInterrupted(), "interrupt status must be restored, not swallowed" );
+        } finally {
+            // Clear the flag so it doesn't leak into later tests on a reused thread.
+            Thread.interrupted();
+        }
+    }
+
+    @Test
+    void httpFetcher_fetchesRealHttpResponseOverLoopback() throws Exception {
+        final HttpServer server = HttpServer.create( new InetSocketAddress( "127.0.0.1", 0 ), 0 );
+        server.createContext( "/discovery", exchange -> {
+            final byte[] body = VALID_BODY.getBytes( StandardCharsets.UTF_8 );
+            exchange.sendResponseHeaders( 200, body.length );
+            try( OutputStream os = exchange.getResponseBody() ) {
+                os.write( body );
+            }
+        } );
+        server.start();
+        try {
+            final String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/discovery";
+            final OidcDiscoverySelfCheck.FetchResult result =
+                    OidcDiscoverySelfCheck.httpFetcher( Duration.ofSeconds( 5 ) ).fetch( url );
+            assertEquals( 200, result.status() );
+            assertTrue( result.body().contains( "authorization_endpoint" ) );
+        } finally {
+            server.stop( 0 );
+        }
+    }
+
+    @Test
+    void checkAsync_withBlankOrNullUri_returnsWithoutStartingAThread() {
+        assertDoesNotThrow( () -> check.checkAsync( null ) );
+        assertDoesNotThrow( () -> check.checkAsync( "   " ) );
+    }
+
+    @Test
+    void checkAsync_withNonBlankUri_neverThrowsOnTheCallingThread() {
+        // checkAsync must hand the real check off to a daemon thread and return immediately
+        // on the calling thread, regardless of whether the target is reachable.
+        assertDoesNotThrow( () -> check.checkAsync( "http://127.0.0.1:1/unreachable" ) );
     }
 }

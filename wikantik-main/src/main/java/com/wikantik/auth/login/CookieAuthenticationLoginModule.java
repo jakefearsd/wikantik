@@ -258,7 +258,18 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
      */
     public static void setLoginCookie( final Engine engine, final HttpServletResponse response,
             final String username, final boolean secure ) {
-        final UUID uid = UUID.randomUUID();
+        setLoginCookie( engine, response, username, secure, UUID.randomUUID() );
+    }
+
+    /**
+     * Package-private overload accepting an explicit cookie UID rather than generating one
+     * internally. Production callers always go through the 4-arg overload above (a fresh
+     * random UUID); this seam exists solely so tests can deterministically target the
+     * cookie-file write path (e.g. forcing a collision) without the UUID being unpredictable —
+     * behavior is otherwise identical.
+     */
+    static void setLoginCookie( final Engine engine, final HttpServletResponse response,
+            final String username, final boolean secure, final UUID uid ) {
         final int days = TextUtil.getIntegerProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), PROP_LOGIN_EXPIRY_DAYS, DEFAULT_EXPIRY_DAYS );
         final Cookie userId = getLoginCookie( uid.toString(), secure );
         userId.setMaxAge( days * 24 * 60 * 60 );

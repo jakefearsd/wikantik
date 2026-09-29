@@ -19,11 +19,15 @@
 package com.wikantik.auth;
 
 import com.wikantik.MockEngineBuilder;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.AclEntry;
+import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
+import com.wikantik.api.exceptions.NoRequiredPropertyException;
+import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.acl.UnresolvedPrincipal;
 import com.wikantik.auth.authorize.GroupManager;
@@ -33,11 +37,19 @@ import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.i18n.InternationalizationManager;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.security.auth.Subject;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.security.Principal;
+import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -394,6 +406,261 @@ class DefaultAuthorizationManagerCITest {
         assertFalse( spy.checkPermission( session, perm ) );
     }
 
+    // ==================== filterViewable: null session ====================
+
+    @Test
+    void filterViewableReturnsEmptySetForNullSession() {
+        assertTrue( mgr.filterViewable( null, java.util.List.of( "SomePage" ) ).isEmpty() );
+    }
+
+    // ==================== getAuthorizer: not yet initialized ====================
+
+    @Test
+    void getAuthorizerThrowsWhenNeverInitialized() {
+        final DefaultAuthorizationManager fresh = new DefaultAuthorizationManager();
+        assertThrows( WikiSecurityException.class, fresh::getAuthorizer );
+    }
+
+    // ==================== hasAccess ====================
+
+    @Test
+    void hasAccessDeniedForAuthenticatedUserLogsAndRedirectsWithoutThrowing() throws Exception {
+        final InternationalizationManager i18n = mock( InternationalizationManager.class );
+        when( i18n.getBundle( anyString(), any() ) ).thenCallRealMethod();
+        final WikiEngine localEngine = ( WikiEngine ) MockEngineBuilder.engine()
+                .with( PageManager.class, pageManager )
+                .with( AclManager.class, aclManager )
+                .with( GroupManager.class, groupManager )
+                .with( UserManager.class, userManager )
+                .with( InternationalizationManager.class, i18n )
+                .build();
+        when( localEngine.getURL( anyString(), anyString(), any() ) ).thenReturn( "/Login.jsp" );
+        final DefaultAuthorizationManager localMgr =
+                new DefaultAuthorizationManager( localEngine, pageManager, aclManager, groupManager, userManager );
+        final DefaultAuthorizationManager spy = spy( localMgr );
+        doReturn( false ).when( spy ).checkPermission( any(), any() );
+
+        final Session session = mockSession( true, new WikiPrincipal( "alice" ) );
+        when( session.getUserPrincipal() ).thenReturn( new WikiPrincipal( "alice" ) );
+
+        final HttpServletRequest request = mock( HttpServletRequest.class );
+        when( request.getAttribute( Context.ATTR_CONTEXT ) ).thenReturn( null );
+        when( request.getLocale() ).thenReturn( java.util.Locale.ENGLISH );
+        when( request.getSession() ).thenReturn( mock( HttpSession.class ) );
+
+        final Page page = mock( Page.class );
+        when( page.getName() ).thenReturn( "SomePage" );
+
+        final Context context = mock( Context.class );
+        when( context.getWikiSession() ).thenReturn( session );
+        when( context.requiredPermission() ).thenReturn( new PagePermission( "test:SomePage", "view" ) );
+        when( context.getHttpRequest() ).thenReturn( request );
+        when( context.getPage() ).thenReturn( page );
+        when( context.getName() ).thenReturn( "SomePage" );
+        when( context.getEngine() ).thenReturn( localEngine );
+
+        final HttpServletResponse response = mock( HttpServletResponse.class );
+
+        final boolean result = spy.hasAccess( context, response, true );
+
+        assertFalse( result );
+        verify( request ).setAttribute( Context.ATTR_CONTEXT, context );
+        verify( response ).sendRedirect( "/Login.jsp" );
+    }
+
+    @Test
+    void hasAccessDeniedForAnonymousUserLogsAndRedirectsWithoutThrowing() throws Exception {
+        final InternationalizationManager i18n = mock( InternationalizationManager.class );
+        when( i18n.getBundle( anyString(), any() ) ).thenCallRealMethod();
+        final WikiEngine localEngine = ( WikiEngine ) MockEngineBuilder.engine()
+                .with( PageManager.class, pageManager )
+                .with( AclManager.class, aclManager )
+                .with( GroupManager.class, groupManager )
+                .with( UserManager.class, userManager )
+                .with( InternationalizationManager.class, i18n )
+                .build();
+        when( localEngine.getURL( anyString(), anyString(), any() ) ).thenReturn( "/Login.jsp" );
+        final DefaultAuthorizationManager localMgr =
+                new DefaultAuthorizationManager( localEngine, pageManager, aclManager, groupManager, userManager );
+        final DefaultAuthorizationManager spy = spy( localMgr );
+        doReturn( false ).when( spy ).checkPermission( any(), any() );
+
+        final Session session = mockSession( false, new WikiPrincipal( "anon" ) );
+        when( session.getUserPrincipal() ).thenReturn( new WikiPrincipal( "anon" ) );
+
+        final HttpServletRequest request = mock( HttpServletRequest.class );
+        // A non-null ATTR_CONTEXT already stashed -> the stash branch is skipped this time.
+        when( request.getAttribute( Context.ATTR_CONTEXT ) ).thenReturn( new Object() );
+        when( request.getLocale() ).thenReturn( java.util.Locale.ENGLISH );
+        when( request.getSession() ).thenReturn( mock( HttpSession.class ) );
+
+        final Page page = mock( Page.class );
+        when( page.getName() ).thenReturn( "SomePage" );
+
+        final Context context = mock( Context.class );
+        when( context.getWikiSession() ).thenReturn( session );
+        when( context.requiredPermission() ).thenReturn( new PagePermission( "test:SomePage", "view" ) );
+        when( context.getHttpRequest() ).thenReturn( request );
+        when( context.getPage() ).thenReturn( page );
+        when( context.getName() ).thenReturn( "SomePage" );
+        when( context.getEngine() ).thenReturn( localEngine );
+
+        final HttpServletResponse response = mock( HttpServletResponse.class );
+
+        final boolean result = spy.hasAccess( context, response, true );
+
+        assertFalse( result );
+        verify( request, never() ).setAttribute( eq( Context.ATTR_CONTEXT ), any() );
+        verify( response ).sendRedirect( "/Login.jsp" );
+    }
+
+    // ==================== initialize()'s private helpers, exercised via reflection ====================
+    // (Reaching these through the full initialize() chain would also require a working JAAS
+    // Authorizer and either a real JNDI DataSource or a real security-policy file — reflection
+    // targets exactly the branch under test without that unrelated setup.)
+
+    @Test
+    void initializeSecurityPolicyWithDatasourceConfiguredButNoJndiBoundThrowsWikiException() throws Exception {
+        final Properties props = new Properties();
+        props.setProperty( AbstractJDBCDatabase.PROP_DATASOURCE, "jdbc/DefinitelyNotBound" + System.nanoTime() );
+
+        final InvocationTargetException ite = assertThrows( InvocationTargetException.class,
+                () -> invokePrivate( "initializeSecurityPolicy", new Class<?>[]{ Properties.class }, props ) );
+        assertInstanceOf( WikiException.class, ite.getCause() );
+    }
+
+    @Test
+    void initializeFilePolicyWithMissingPolicyFileThrowsWikiException() throws Exception {
+        when( engine.findConfigFile( anyString() ) ).thenReturn( null );
+        final Properties props = new Properties();
+
+        final InvocationTargetException ite = assertThrows( InvocationTargetException.class,
+                () -> invokePrivate( "initializeFilePolicy", new Class<?>[]{ Properties.class }, props ) );
+        assertInstanceOf( WikiException.class, ite.getCause() );
+    }
+
+    @Test
+    void initializeFilePolicyWhenFindConfigFileThrowsWrapsAsWikiException() throws Exception {
+        when( engine.findConfigFile( anyString() ) ).thenThrow( new RuntimeException( "disk error" ) );
+        final Properties props = new Properties();
+
+        final InvocationTargetException ite = assertThrows( InvocationTargetException.class,
+                () -> invokePrivate( "initializeFilePolicy", new Class<?>[]{ Properties.class }, props ) );
+        assertInstanceOf( WikiException.class, ite.getCause() );
+        assertTrue( ite.getCause().getMessage().contains( "disk error" ) );
+    }
+
+    @Test
+    void initializeBootstrapAdminWithValidMaxAgeParsesAndActivates() throws Exception {
+        final Properties props = new Properties();
+        props.setProperty( DefaultAuthorizationManager.PROP_BOOTSTRAP_ADMIN, "bootstrapuser2" );
+        props.setProperty( DefaultAuthorizationManager.PROP_BOOTSTRAP_MAX_AGE, "120" );
+
+        invokePrivate( "initializeBootstrapAdmin", new Class<?>[]{ Properties.class }, props );
+
+        final Session session = mockSession( true, new WikiPrincipal( "bootstrapuser2" ) );
+        assertTrue( mgr.checkPermission( session, new PagePermission( "test:AnyPage", "view" ) ) );
+    }
+
+    @Test
+    void initializeBootstrapAdminWithInvalidMaxAgeFallsBackToDefaultAndStillActivates() throws Exception {
+        final Properties props = new Properties();
+        props.setProperty( DefaultAuthorizationManager.PROP_BOOTSTRAP_ADMIN, "bootstrapuser" );
+        props.setProperty( DefaultAuthorizationManager.PROP_BOOTSTRAP_MAX_AGE, "not-a-number" );
+
+        invokePrivate( "initializeBootstrapAdmin", new Class<?>[]{ Properties.class }, props );
+
+        // The malformed max-age must not prevent the override from activating (using the default).
+        final Session session = mockSession( true, new WikiPrincipal( "bootstrapuser" ) );
+        assertTrue( mgr.checkPermission( session, new PagePermission( "test:AnyPage", "view" ) ) );
+    }
+
+    // ==================== locateImplementation(), exercised via reflection ====================
+
+    @Test
+    void locateImplementationWithUnresolvableClassNameThrowsWikiException() throws Exception {
+        final InvocationTargetException ite = assertThrows( InvocationTargetException.class,
+                () -> invokePrivate( "locateImplementation", new Class<?>[]{ String.class },
+                        "com.wikantik.auth.authorize.NoSuchAuthorizerXYZ" ) );
+        assertInstanceOf( WikiException.class, ite.getCause() );
+    }
+
+    @Test
+    void locateImplementationWithNullClassNameThrowsNoRequiredPropertyException() throws Exception {
+        final InvocationTargetException ite = assertThrows( InvocationTargetException.class,
+                () -> invokePrivate( "locateImplementation", new Class<?>[]{ String.class }, new Object[]{ null } ) );
+        assertInstanceOf( NoRequiredPropertyException.class, ite.getCause() );
+    }
+
+    // ==================== allowedByLocalPolicy: database-backed policy path ====================
+
+    @Test
+    void allowedByLocalPolicyDatabaseBackedGrantsWhenAnyPrincipalMatches() throws Exception {
+        final DatabasePolicy dbPolicy = mock( DatabasePolicy.class );
+        final Principal alice = new WikiPrincipal( "alice" );
+        final PagePermission perm = new PagePermission( "test:SomePage", "view" );
+        when( dbPolicy.implies( alice, perm ) ).thenReturn( true );
+        setField( "databasePolicy", dbPolicy );
+
+        assertTrue( mgr.allowedByLocalPolicy( new Principal[]{ alice }, perm ) );
+    }
+
+    @Test
+    void allowedByLocalPolicyDatabaseBackedDeniesWhenNoPrincipalMatches() throws Exception {
+        final DatabasePolicy dbPolicy = mock( DatabasePolicy.class );
+        final Principal alice = new WikiPrincipal( "alice" );
+        final PagePermission perm = new PagePermission( "test:SomePage", "view" );
+        when( dbPolicy.implies( any(), any() ) ).thenReturn( false );
+        setField( "databasePolicy", dbPolicy );
+
+        assertFalse( mgr.allowedByLocalPolicy( new Principal[]{ alice }, perm ) );
+    }
+
+    // ==================== resolvePrincipal: authorizer role hit + genuinely-unresolved user ====================
+
+    @Test
+    void resolvePrincipalDelegatesToAuthorizerRole() throws Exception {
+        final Authorizer authorizerMock = mock( Authorizer.class );
+        setField( "authorizer", authorizerMock );
+        final Principal authorizerRole = new Role( "CustomAuthorizerRole" );
+        when( authorizerMock.findRole( "CustomAuthorizerRole" ) ).thenReturn( authorizerRole );
+
+        final Principal result = mgr.resolvePrincipal( "CustomAuthorizerRole" );
+        assertEquals( authorizerRole, result );
+    }
+
+    @Test
+    void resolvePrincipalReturnsUnresolvedWhenProfileFoundButNoPrincipalNameMatches() throws Exception {
+        setAuthorizer( mgr );
+        when( groupManager.findRole( "alice" ) ).thenReturn( null );
+
+        final UserProfile profile = mock( UserProfile.class );
+        when( profile.getLoginName() ).thenReturn( "alice" );
+        when( userDatabase.find( "alice" ) ).thenReturn( profile );
+        // Profile is found, but none of its principals' names equal "alice" exactly.
+        when( userDatabase.getPrincipals( "alice" ) ).thenReturn( new Principal[]{ new WikiPrincipal( "SomeoneElse" ) } );
+
+        final Principal result = mgr.resolvePrincipal( "alice" );
+        assertInstanceOf( UnresolvedPrincipal.class, result );
+        assertEquals( "alice", result.getName() );
+    }
+
+    // ==================== getDatabasePolicy / removeWikiEventListener ====================
+
+    @Test
+    void getDatabasePolicyReturnsConfiguredInstance() throws Exception {
+        final DatabasePolicy dbPolicy = mock( DatabasePolicy.class );
+        setField( "databasePolicy", dbPolicy );
+        assertSame( dbPolicy, mgr.getDatabasePolicy() );
+    }
+
+    @Test
+    void removeWikiEventListenerDoesNotThrow() {
+        final com.wikantik.event.WikiEventListener listener = event -> { };
+        assertDoesNotThrow( () -> mgr.addWikiEventListener( listener ) );
+        assertDoesNotThrow( () -> mgr.removeWikiEventListener( listener ) );
+    }
+
     // ==================== Helpers ====================
 
     /**
@@ -427,6 +694,20 @@ class DefaultAuthorizationManagerCITest {
         } catch ( final Exception e ) {
             throw new RuntimeException( e );
         }
+    }
+
+    /** Sets a private field on {@link #mgr} directly, for branches only reachable that way in a unit test. */
+    private void setField( final String fieldName, final Object value ) throws Exception {
+        final Field f = DefaultAuthorizationManager.class.getDeclaredField( fieldName );
+        f.setAccessible( true );
+        f.set( mgr, value );
+    }
+
+    /** Invokes a private method on {@link #mgr} directly, for branches only reachable that way in a unit test. */
+    private Object invokePrivate( final String methodName, final Class<?>[] paramTypes, final Object... args ) throws Exception {
+        final Method m = DefaultAuthorizationManager.class.getDeclaredMethod( methodName, paramTypes );
+        m.setAccessible( true );
+        return m.invoke( mgr, args );
     }
 
 }

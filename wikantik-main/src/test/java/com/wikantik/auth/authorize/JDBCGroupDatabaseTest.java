@@ -38,6 +38,8 @@ import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NameAlreadyBoundException;
 import javax.sql.DataSource;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.security.Principal;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -364,5 +366,132 @@ public class JDBCGroupDatabaseTest
             }
         }
         throw new NoSuchPrincipalException( "No group named " + name );
+    }
+
+    @Test
+    public void testDeleteNonExistentGroupThrowsNoSuchPrincipal() {
+        final Group phantom = new Group( "NoSuchGroup" + System.currentTimeMillis(), m_wiki );
+        Assertions.assertThrows( NoSuchPrincipalException.class, () -> m_db.delete( phantom ),
+            "Deleting a group absent from the back end must throw NoSuchPrincipalException" );
+    }
+
+    /**
+     * {@code delete()} distinguishes a genuine SQL-level failure (its cause is a
+     * {@link SQLException}) from any other mid-transaction failure, reporting the former with
+     * the original SQL error message folded in. Uses a small checked-exception-capable
+     * DataSource proxy (the shared {@code FaultInjectingDataSource} deliberately only injects
+     * unchecked faults) to simulate a real driver-level failure.
+     */
+    @Test
+    public void testDeleteWrapsSqlExceptionCauseWithOriginalMessage() throws Exception {
+        // Fail the DELETE_GROUP statement specifically (matched by SQL text, not statement
+        // position, since the exact number of prepareStatement calls made by the
+        // exists()-check/ping/transaction-support-probe plumbing ahead of it is an
+        // implementation detail of the JDBC driver, not this test's concern).
+        final SqlFaultDataSource faulting = new SqlFaultDataSource( m_ds, "DELETE FROM groups", new SQLException( "simulated driver failure" ) );
+        final Context initCtx = new InitialContext();
+        final Context ctx = ( Context ) initCtx.lookup( "java:comp/env" );
+        final String faultingDsName = "jdbc/SqlFaultGroupDatabase";
+        try {
+            ctx.bind( faultingDsName, faulting );
+        } catch( final NameAlreadyBoundException e ) {
+            ctx.rebind( faultingDsName, faulting );
+        }
+        final Properties props = new Properties();
+        props.setProperty( AbstractJDBCDatabase.PROP_DATASOURCE, faultingDsName );
+        final JDBCGroupDatabase faultingDb = new JDBCGroupDatabase();
+        faultingDb.initialize( m_engine, props );
+
+        // "TV" exists in the seeded data, so exists() succeeds and delete() proceeds into the
+        // transaction, where the very first statement (DELETE_GROUP) hits the fault.
+        final Group tv = new Group( "TV", m_wiki );
+        final WikiSecurityException ex = Assertions.assertThrows( WikiSecurityException.class,
+            () -> faultingDb.delete( tv ) );
+        Assertions.assertTrue( ex.getMessage().contains( "simulated driver failure" ),
+            "a SQLException cause must fold its own message into the reported failure: " + ex.getMessage() );
+
+        // The real group must still exist — the fault fired before any write committed.
+        Assertions.assertNotNull( backendGroup( "TV" ) );
+    }
+
+    /** Same failure point, but with a non-SQL (unchecked) cause: delete() must re-throw as-is. */
+    @Test
+    public void testDeleteRethrowsNonSqlCauseUnchanged() throws Exception {
+        final SqlFaultDataSource faulting = new SqlFaultDataSource( m_ds, "DELETE FROM groups", new RuntimeException( "boom: not a SQL failure" ) );
+        final Context initCtx = new InitialContext();
+        final Context ctx = ( Context ) initCtx.lookup( "java:comp/env" );
+        final String faultingDsName = "jdbc/RuntimeFaultGroupDatabase";
+        try {
+            ctx.bind( faultingDsName, faulting );
+        } catch( final NameAlreadyBoundException e ) {
+            ctx.rebind( faultingDsName, faulting );
+        }
+        final Properties props = new Properties();
+        props.setProperty( AbstractJDBCDatabase.PROP_DATASOURCE, faultingDsName );
+        final JDBCGroupDatabase faultingDb = new JDBCGroupDatabase();
+        faultingDb.initialize( m_engine, props );
+
+        final Group tv = new Group( "TV", m_wiki );
+        final WikiSecurityException ex = Assertions.assertThrows( WikiSecurityException.class,
+            () -> faultingDb.delete( tv ) );
+        Assertions.assertTrue( ex.getMessage().contains( "boom: not a SQL failure" ) );
+        Assertions.assertNotNull( backendGroup( "TV" ) );
+    }
+
+    /**
+     * Minimal {@link DataSource} proxy that makes a {@code prepareStatement}/{@code
+     * createStatement} call whose SQL text contains {@code sqlContains} throw a chosen fault
+     * (checked or unchecked — unlike {@code FaultInjectingDataSource}, which deliberately
+     * accepts only unchecked faults). Matching by SQL text rather than call position is
+     * robust to however many statements the driver/connection-pool plumbing (ping,
+     * transaction-support probe, the pre-existence check) happens to issue first.
+     */
+    private static final class SqlFaultDataSource implements DataSource {
+        private final DataSource delegate;
+        private final String sqlContains;
+        private final Throwable toThrow;
+
+        SqlFaultDataSource( final DataSource delegate, final String sqlContains, final Throwable toThrow ) {
+            this.delegate = delegate;
+            this.sqlContains = sqlContains;
+            this.toThrow = toThrow;
+        }
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            return wrap( delegate.getConnection() );
+        }
+
+        @Override
+        public Connection getConnection( final String username, final String password ) throws SQLException {
+            return wrap( delegate.getConnection( username, password ) );
+        }
+
+        private Connection wrap( final Connection real ) {
+            return ( Connection ) Proxy.newProxyInstance(
+                SqlFaultDataSource.class.getClassLoader(),
+                new Class< ? >[]{ Connection.class },
+                ( proxy, method, args ) -> {
+                    final String name = method.getName();
+                    if( ( "prepareStatement".equals( name ) || "createStatement".equals( name ) )
+                            && args != null && args.length > 0 && args[ 0 ] instanceof String sql
+                            && sql.contains( sqlContains ) ) {
+                        throw toThrow;
+                    }
+                    try {
+                        return method.invoke( real, args );
+                    } catch( final InvocationTargetException e ) {
+                        throw e.getCause();
+                    }
+                } );
+        }
+
+        @Override public java.io.PrintWriter getLogWriter() { throw new UnsupportedOperationException(); }
+        @Override public void setLogWriter( final java.io.PrintWriter out ) { throw new UnsupportedOperationException(); }
+        @Override public void setLoginTimeout( final int seconds ) { throw new UnsupportedOperationException(); }
+        @Override public int getLoginTimeout() { throw new UnsupportedOperationException(); }
+        @Override public java.util.logging.Logger getParentLogger() { throw new UnsupportedOperationException(); }
+        @Override public < T > T unwrap( final Class< T > iface ) { throw new UnsupportedOperationException(); }
+        @Override public boolean isWrapperFor( final Class< ? > iface ) { throw new UnsupportedOperationException(); }
     }
 }

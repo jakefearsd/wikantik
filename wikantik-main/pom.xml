@@ -31,8 +31,8 @@
     <name>Wikantik Main Jar</name>
 
     <properties>
-      <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.95 -->
-      <wikantik.coverage.line.minimum>0.85</wikantik.coverage.line.minimum>
+      <!-- JaCoCo line-coverage floor (root pom coverage-check); only ever goes up, cap 0.90 -->
+      <wikantik.coverage.line.minimum>0.87</wikantik.coverage.line.minimum>
     </properties>
 
     <dependencies>

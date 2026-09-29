@@ -152,7 +152,15 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
               meterRegistry, defaultExecutor(), /*ownsExecutor*/ true, excludedPages );
     }
 
-    private AsyncEntityExtractionListener( final EntityExtractor extractor,
+    /**
+     * Package-private (not {@code private}) so tests can construct an instance with an
+     * explicit {@code ownsExecutor} value decoupled from which executor overload was
+     * used — the public constructors always pair "default executor" with {@code true}
+     * and "caller-supplied executor" with {@code false}, so there is otherwise no way
+     * to exercise {@link #close()}'s owned-executor shutdown branches with a
+     * test-controlled (mock) executor.
+     */
+    AsyncEntityExtractionListener( final EntityExtractor extractor,
                                            final EntityExtractorConfig config,
                                            final ContentChunkRepository chunkRepository,
                                            final ChunkEntityMentionRepository mentionRepository,

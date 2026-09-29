@@ -77,9 +77,9 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
     private final HubSummarySynthesizer hubSynth;
     private final CitationRepository    citationRepository;
 
-    private final HeadingsOutlineExtractor headings  = new HeadingsOutlineExtractor();
-    private final KeyFactsExtractor        keyFacts  = new KeyFactsExtractor();
-    private final McpToolHintsResolver     toolHints = new McpToolHintsResolver();
+    private final HeadingsOutlineExtractor headings;
+    private final KeyFactsExtractor        keyFacts;
+    private final McpToolHintsResolver     toolHints;
     private final RecentChangesAdapter     recents;
 
     public DefaultForAgentProjectionService(
@@ -90,14 +90,40 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             final AgentHintsDeriver hintsDeriver,
             final HubSummarySynthesizer hubSynth,
             final CitationRepository citationRepository ) {
+        this( index, pageManager, cache, metrics, hintsDeriver, hubSynth, citationRepository,
+              new HeadingsOutlineExtractor(), new KeyFactsExtractor(), new McpToolHintsResolver(),
+              new RecentChangesAdapter( pageManager ) );
+    }
+
+    /**
+     * Test-only seam: lets tests substitute the four inner extractor/adapter helpers
+     * directly to exercise per-field graceful-degradation branches without having to
+     * force a real parse failure through {@link PageManager}. The public constructor
+     * always builds the real defaults, so production wiring is unaffected.
+     */
+    DefaultForAgentProjectionService(
+            final StructuralIndexService index,
+            final PageManager pageManager,
+            final CachingManager cache,
+            final ForAgentMetrics metrics,
+            final AgentHintsDeriver hintsDeriver,
+            final HubSummarySynthesizer hubSynth,
+            final CitationRepository citationRepository,
+            final HeadingsOutlineExtractor headings,
+            final KeyFactsExtractor keyFacts,
+            final McpToolHintsResolver toolHints,
+            final RecentChangesAdapter recents ) {
         this.index = index;
         this.pageManager = pageManager;
         this.cache = cache;
         this.metrics = metrics;
-        this.recents = new RecentChangesAdapter( pageManager );
         this.hintsDeriver = hintsDeriver;
         this.hubSynth = hubSynth;
         this.citationRepository = citationRepository;
+        this.headings = headings;
+        this.keyFacts = keyFacts;
+        this.toolHints = toolHints;
+        this.recents = recents;
     }
 
     @Override

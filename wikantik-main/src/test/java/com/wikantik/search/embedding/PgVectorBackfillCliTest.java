@@ -26,18 +26,26 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Integration tests for {@link PgVectorBackfillCli} against a live pgvector
@@ -132,6 +140,76 @@ class PgVectorBackfillCliTest {
         assertEquals( 1, tracking.rollbacks(),
             "the transaction must be explicitly rolled back, even for a failure the "
           + "SQLException-only catch cannot see" );
+    }
+
+    @Test
+    void run_rejectsBlankModelCode() {
+        final PgVectorBackfillCli cli = new PgVectorBackfillCli( dataSource );
+        assertThrows( IllegalArgumentException.class, () -> cli.run( null, false ) );
+        assertThrows( IllegalArgumentException.class, () -> cli.run( " ", false ) );
+    }
+
+    @Test
+    void run_wrapsSqlExceptionFromConnectionFailure() throws Exception {
+        final DataSource failing = mock( DataSource.class );
+        when( failing.getConnection() ).thenThrow( new SQLException( "connection refused" ) );
+        final PgVectorBackfillCli cli = new PgVectorBackfillCli( failing );
+        final RuntimeException ex = assertThrows( RuntimeException.class,
+            () -> cli.run( MODEL_CODE, false ) );
+        assertTrue( ex.getMessage().contains( "Backfill failed for model" ) );
+        assertInstanceOf( SQLException.class, ex.getCause() );
+    }
+
+    // ---- CLI entry point (main()'s logic behind run(args, out, err)) ----
+
+    @Test
+    void cliRun_usageErrorOnMissingArgs() {
+        final ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
+        final ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+        final int exitCode = PgVectorBackfillCli.run(
+            new String[ 0 ], new PrintStream( outBuf ), new PrintStream( errBuf ) );
+        assertEquals( 2, exitCode );
+        assertTrue( errBuf.toString().contains( "Usage: PgVectorBackfillCli" ) );
+    }
+
+    @Test
+    void cliRun_successPathWritesRowCountAndReturnsZero() throws Exception {
+        seedRowsWithByteaOnly( 2, MODEL_CODE );
+        final ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
+        final ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+        final int exitCode = PgVectorBackfillCli.run(
+            new String[]{ MODEL_CODE }, new PrintStream( outBuf ), new PrintStream( errBuf ),
+            () -> dataSource );
+        assertEquals( 0, exitCode );
+        assertTrue( outBuf.toString().contains( "backfill wrote 2 rows" ) );
+    }
+
+    @Test
+    void cliRun_failurePathPrintsMessageAndReturnsOne() {
+        final ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
+        final ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+        final int exitCode = PgVectorBackfillCli.run(
+            new String[]{ MODEL_CODE, "--force" }, new PrintStream( outBuf ), new PrintStream( errBuf ),
+            () -> { throw new RuntimeException( "no datasource available" ); } );
+        assertEquals( 1, exitCode );
+        assertTrue( errBuf.toString().contains( "backfill failed: no datasource available" ) );
+    }
+
+    @Test
+    void resolveDataSourceFromEnv_buildsDataSourceWithFallbackDefaults() {
+        // Without the relevant env vars set (the normal state for this test run), every
+        // field must fall back to the documented default rather than throw or return null.
+        final DataSource ds = PgVectorBackfillCli.resolveDataSourceFromEnv();
+        assertNotNull( ds );
+        assertInstanceOf( org.postgresql.ds.PGSimpleDataSource.class, ds );
+    }
+
+    @Test
+    void envOr_returnsFallbackForAnUnsetVariableAndRealValueForASetOne() {
+        assertEquals( "fallback-value",
+            PgVectorBackfillCli.envOr( "WIKANTIK_TEST_SURELY_UNSET_VAR_XYZ", "fallback-value" ) );
+        // PATH is set in every POSIX shell environment this suite runs under.
+        assertEquals( System.getenv( "PATH" ), PgVectorBackfillCli.envOr( "PATH", "fallback-value" ) );
     }
 
     // ---- seed helpers ----

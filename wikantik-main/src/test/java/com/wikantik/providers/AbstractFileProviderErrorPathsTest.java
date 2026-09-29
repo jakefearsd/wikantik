@@ -27,6 +27,7 @@ import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.spi.Wiki;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -80,6 +81,7 @@ class AbstractFileProviderErrorPathsTest {
         final File readOnlyParent = new File( tempDir, "readonly-parent" );
         Assertions.assertTrue( readOnlyParent.mkdirs() );
         Assertions.assertTrue( readOnlyParent.setWritable( false ) );
+        Assumptions.assumeFalse( readOnlyParent.canWrite(), "permission bits not enforced here (running as root?)" );
         try {
             final File pageDir = new File( readOnlyParent, "pages" );
             engine = TestEngine.build();
@@ -98,6 +100,7 @@ class AbstractFileProviderErrorPathsTest {
     @Test
     void testInitialize_pageDirNotWritable_throwsIOException( @TempDir final File pageDir ) throws Exception {
         Assertions.assertTrue( pageDir.setWritable( false ) );
+        Assumptions.assumeFalse( pageDir.canWrite(), "permission bits not enforced here (running as root?)" );
         try {
             engine = TestEngine.build();
             final Properties props = new Properties();
@@ -176,6 +179,7 @@ class AbstractFileProviderErrorPathsTest {
         }
 
         Assertions.assertTrue( pageDir.setWritable( false ) );
+        Assumptions.assumeFalse( pageDir.canWrite(), "permission bits not enforced here (running as root?)" );
         try {
             final Page page = Wiki.contents().page( engine, "LockedLegacyPage" );
             page.setAttribute( Page.MARKUP_SYNTAX, "markdown" );
@@ -223,6 +227,7 @@ class AbstractFileProviderErrorPathsTest {
         final File propsFile = new File( pageDir, "PropsUnreadable" + FileSystemProvider.PROP_EXT );
         Assertions.assertTrue( propsFile.exists(), "putPageText on FileSystemProvider should also write a .properties file" );
         Assertions.assertTrue( propsFile.setReadable( false ) );
+        Assumptions.assumeFalse( propsFile.canRead(), "permission bits not enforced here (running as root?)" );
         try {
             final Collection< Page > changed = Assertions.assertDoesNotThrow( () -> provider.getAllChangedSince( null ) );
             Assertions.assertTrue( changed.isEmpty(), "a page whose properties can't be read should be skipped, not thrown" );

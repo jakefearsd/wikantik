@@ -27,6 +27,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.util.TextUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -145,6 +146,7 @@ class BasicAttachmentProviderMoveTest {
         final File readOnlyParent = new File( tempDir, "readonly-parent" );
         Assertions.assertTrue( readOnlyParent.mkdirs() );
         Assertions.assertTrue( readOnlyParent.setWritable( false ) );
+        Assumptions.assumeFalse( readOnlyParent.canWrite(), "permission bits not enforced here (running as root?)" );
         try {
             final File storageDir = new File( readOnlyParent, "attachments" );
             engine = TestEngine.build();
@@ -180,6 +182,7 @@ class BasicAttachmentProviderMoveTest {
         final File storageDir = new File( tempDir, "readonly-storage" );
         Assertions.assertTrue( storageDir.mkdirs() );
         Assertions.assertTrue( storageDir.setWritable( false ) );
+        Assumptions.assumeFalse( storageDir.canWrite(), "permission bits not enforced here (running as root?)" );
         try {
             engine = TestEngine.build();
             final Properties props = new Properties();

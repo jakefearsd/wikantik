@@ -25,6 +25,7 @@ import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -97,6 +98,7 @@ class VersioningFileProviderErrorPathsTest {
         final File oldDir = new File( pageDir, VersioningFileProvider.PAGEDIR );
         Assertions.assertTrue( oldDir.mkdirs() );
         Assertions.assertTrue( oldDir.setWritable( false ) );
+        Assumptions.assumeFalse( oldDir.canWrite(), "permission bits not enforced here (running as root?)" );
         try {
             engine = TestEngine.build();
             final Properties props = new Properties();
@@ -172,6 +174,7 @@ class VersioningFileProviderErrorPathsTest {
         final File archived = new File( oldDirFor( pageDir, "UnreadableOldVersion" ), "1.txt" );
         Assertions.assertTrue( archived.exists() );
         Assertions.assertTrue( archived.setReadable( false ) );
+        Assumptions.assumeFalse( archived.canRead(), "permission bits not enforced here (running as root?)" );
         try {
             final ProviderException ex = Assertions.assertThrows( ProviderException.class,
                     () -> provider.getPageText( "UnreadableOldVersion", 1 ) );
@@ -195,6 +198,7 @@ class VersioningFileProviderErrorPathsTest {
             w.write( "author=OldAuthor\n" );
         }
         Assertions.assertTrue( heritageFile.setReadable( false ) );
+        Assumptions.assumeFalse( heritageFile.canRead(), "permission bits not enforced here (running as root?)" );
         try {
             final Page page = Wiki.contents().page( engine, "HeritagePage" );
             Assertions.assertDoesNotThrow( () -> provider.putPageText( page, "new content" ) );
@@ -217,6 +221,7 @@ class VersioningFileProviderErrorPathsTest {
         final File oldDir = oldDirFor( pageDir, "DeleteUnreadable" );
         Assertions.assertTrue( oldDir.isDirectory() );
         Assertions.assertTrue( oldDir.setReadable( false ) );
+        Assumptions.assumeFalse( oldDir.canRead(), "permission bits not enforced here (running as root?)" );
         try {
             Assertions.assertDoesNotThrow( () -> provider.deletePage( "DeleteUnreadable" ) );
             Assertions.assertTrue( oldDir.exists(), "an unlistable OLD dir should be left alone, not deleted" );
@@ -235,6 +240,7 @@ class VersioningFileProviderErrorPathsTest {
         final File oldDir = oldDirFor( pageDir, "DeleteNotWritable" );
         Assertions.assertTrue( oldDir.isDirectory() );
         Assertions.assertTrue( oldDir.setWritable( false ) );
+        Assumptions.assumeFalse( oldDir.canWrite(), "permission bits not enforced here (running as root?)" );
         try {
             Assertions.assertDoesNotThrow( () -> provider.deletePage( "DeleteNotWritable" ) );
             // The directory couldn't be emptied (files undeletable) so it couldn't be removed either.
@@ -269,6 +275,7 @@ class VersioningFileProviderErrorPathsTest {
 
         final File oldDir = oldDirFor( pageDir, "DeleteOldVersionLocked" );
         Assertions.assertTrue( oldDir.setWritable( false ) );
+        Assumptions.assumeFalse( oldDir.canWrite(), "permission bits not enforced here (running as root?)" );
         try {
             Assertions.assertDoesNotThrow( () -> provider.deleteVersion( "DeleteOldVersionLocked", 2 ) );
             Assertions.assertTrue( new File( oldDir, "2.txt" ).exists(),
@@ -288,6 +295,7 @@ class VersioningFileProviderErrorPathsTest {
         final File propsFile = new File( oldDirFor( pageDir, "DeleteLatestPropsLocked" ), VersioningFileProvider.PROPERTYFILE );
         Assertions.assertTrue( propsFile.exists() );
         Assertions.assertTrue( propsFile.setWritable( false ) );
+        Assumptions.assumeFalse( propsFile.canWrite(), "permission bits not enforced here (running as root?)" );
         try {
             Assertions.assertThrows( ProviderException.class,
                     () -> provider.deleteVersion( "DeleteLatestPropsLocked", PageProvider.LATEST_VERSION ) );

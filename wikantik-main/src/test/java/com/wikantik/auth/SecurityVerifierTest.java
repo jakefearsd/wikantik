@@ -530,6 +530,16 @@ class SecurityVerifierTest {
         assertFalse( result );
     }
 
+    // ---- containerRoleTable tests ----
+
+    @Test
+    void testContainerRoleTable_nonWebContainerAuthorizer_throwsIllegalStateException() {
+        // authorizer is a plain mock, not a WebContainerAuthorizer
+        final SecurityVerifier verifier = buildVerifier();
+
+        assertThrows( IllegalStateException.class, verifier::containerRoleTable );
+    }
+
     // ---- webContainerRoles tests ----
 
     @Test
@@ -591,5 +601,64 @@ class SecurityVerifierTest {
         assertTrue( html.contains( "PagePermission" ), "Should contain PagePermission entries" );
         assertTrue( html.contains( "WikiPermission" ), "Should contain WikiPermission entries" );
         assertTrue( html.contains( "AllPermission" ), "Should contain AllPermission entry" );
+    }
+
+    // ---- getFileFromProperty tests ----
+
+    private static final String TEST_PROP = "wikantik.test.securityverifier.getFileFromProperty";
+
+    @org.junit.jupiter.api.AfterEach
+    void clearTestProperty() {
+        System.clearProperty( TEST_PROP );
+    }
+
+    @Test
+    void testGetFileFromProperty_propertyNotSet_addsErrorAndReturnsNull() {
+        System.clearProperty( TEST_PROP );
+        final SecurityVerifier verifier = buildVerifier();
+
+        final java.io.File result = verifier.getFileFromProperty( TEST_PROP );
+
+        assertNull( result );
+        verify( session ).addMessage( eq( "Error." + TEST_PROP ), contains( "is null" ) );
+    }
+
+    @Test
+    void testGetFileFromProperty_existingFileWithEqualsPrefix_stripsPrefixAndReturnsFile() throws Exception {
+        final java.io.File tempFile = java.io.File.createTempFile( "securityVerifierTest", ".txt" );
+        tempFile.deleteOnExit();
+        System.setProperty( TEST_PROP, "=" + tempFile.getAbsolutePath() );
+        final SecurityVerifier verifier = buildVerifier();
+
+        final java.io.File result = verifier.getFileFromProperty( TEST_PROP );
+
+        assertNotNull( result, "An existing file should be returned" );
+        assertEquals( tempFile.getAbsolutePath(), result.getPath() );
+        verify( session ).addMessage( eq( "Info." + TEST_PROP ), contains( "exists in the filesystem" ) );
+    }
+
+    @Test
+    void testGetFileFromProperty_existingFileWithFilePrefix_doesNotDoublePrefix() throws Exception {
+        final java.io.File tempFile = java.io.File.createTempFile( "securityVerifierTest", ".txt" );
+        tempFile.deleteOnExit();
+        System.setProperty( TEST_PROP, "file:" + tempFile.getAbsolutePath() );
+        final SecurityVerifier verifier = buildVerifier();
+
+        final java.io.File result = verifier.getFileFromProperty( TEST_PROP );
+
+        assertNotNull( result );
+        assertEquals( tempFile.getAbsolutePath(), result.getPath() );
+    }
+
+    @Test
+    void testGetFileFromProperty_fileDoesNotExist_addsErrorAndReturnsNull() {
+        System.setProperty( TEST_PROP, "/no/such/path/definitely-not-there-xyz123.txt" );
+        final SecurityVerifier verifier = buildVerifier();
+
+        final java.io.File result = verifier.getFileFromProperty( TEST_PROP );
+
+        assertNull( result );
+        verify( session ).addMessage( eq( "Info." + TEST_PROP ), contains( "is set to" ) );
+        verify( session ).addMessage( eq( "Error." + TEST_PROP ), contains( "doesn't seem to exist" ) );
     }
 }

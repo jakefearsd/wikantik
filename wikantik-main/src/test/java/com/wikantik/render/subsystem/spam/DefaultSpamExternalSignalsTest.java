@@ -19,37 +19,44 @@
 package com.wikantik.render.subsystem.spam;
 
 import com.wikantik.api.core.Context;
+import com.wikantik.api.core.ContextEnum;
+import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.RedirectException;
 import jakarta.servlet.http.HttpServletRequest;
+import net.thauvin.erik.akismet.AkismetComment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
+import java.security.Principal;
 import java.util.Properties;
+import java.util.function.BiFunction;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for {@link DefaultSpamExternalSignals} — local (non-network) checks only.
+ * Unit tests for {@link DefaultSpamExternalSignals}.
  *
- * <p><strong>checkAkismet is NOT tested here.</strong> It constructs a real
- * {@code net.thauvin.erik.akismet.Akismet} instance that makes live network calls
- * to the Akismet service. Covering it without a live API key or a dedicated
- * HTTP-stub would require either a real key (unavailable in CI) or restructuring
- * the class to accept an injectable Akismet factory — neither is in scope for
- * this coverage improvement task.</p>
+ * <p>{@code checkAkismet} is exercised via the package-private
+ * {@code AkismetGateway} factory constructor, which substitutes a Mockito
+ * stub for the real {@code net.thauvin.erik.akismet.Akismet} client so these
+ * tests never make a live network call.</p>
  */
 class DefaultSpamExternalSignalsTest {
 
     /** The correct UTF-8 sentinel value the filter expects. */
     private static final String UTF8_SENTINEL = "ぁ";  // ぁ
 
+    private static final String BASE_URL = "http://localhost:8080/";
+
     private DefaultSpamExternalSignals signals;
     private Context context;
     private Page page;
     private HttpServletRequest request;
+    private Engine engine;
     private SpamChange change;
 
     @BeforeEach
@@ -66,11 +73,20 @@ class DefaultSpamExternalSignalsTest {
 
         request = mock( HttpServletRequest.class );
         when( request.getRemoteAddr() ).thenReturn( "127.0.0.1" );
+        when( request.getRequestURL() ).thenReturn( new StringBuffer( BASE_URL + "edit/TestPage" ) );
+        when( request.getHeader( "User-Agent" ) ).thenReturn( "TestAgent/1.0" );
+
+        engine = mock( Engine.class );
+        when( engine.getBaseURL() ).thenReturn( BASE_URL );
 
         context = mock( Context.class );
         when( context.getPage() ).thenReturn( page );
         when( context.getHttpRequest() ).thenReturn( request );
         when( context.getURL( anyString(), anyString() ) ).thenReturn( "http://localhost/RejectedMessage" );
+        when( context.getEngine() ).thenReturn( engine );
+        when( context.getViewURL( anyString() ) ).thenReturn( "http://localhost:8080/edit/TestPage" );
+        when( context.getCurrentUser() ).thenReturn( ( Principal ) () -> "Fred" );
+        when( context.getRequestContext() ).thenReturn( ContextEnum.PAGE_EDIT.getRequestContext() );
 
         change = new SpamChange();
         change.change = "some wiki content";
@@ -207,5 +223,121 @@ class DefaultSpamExternalSignalsTest {
         final Object score = variables.get( AbstractSpamStrategy.ATTR_SPAMFILTER_SCORE );
         assertNotNull( score, "Score variable should be set after a bot-trap hit" );
         assertEquals( 1, score, "Score should be 1 after one bot-trap hit" );
+    }
+
+    // -----------------------------------------------------------------------
+    // checkAkismet — stubbed AkismetGateway, no network call
+    // -----------------------------------------------------------------------
+
+    private DefaultSpamExternalSignals withAkismetKey( final boolean stopAtFirstMatch,
+                                                        final BiFunction< String, String, AkismetGateway > factory ) {
+        final Properties props = new Properties();
+        props.setProperty( "akismet-apikey", "test-key" );
+        return new DefaultSpamExternalSignals( props, stopAtFirstMatch, "RejectedMessage", factory );
+    }
+
+    @Test
+    void checkAkismet_noApiKey_neverBuildsClient() {
+        // The default `signals` fixture has no akismet-apikey configured.
+        assertDoesNotThrow( () -> signals.checkAkismet( context, change ),
+                "With no Akismet API key the whole check must be a no-op" );
+    }
+
+    @Test
+    void checkAkismet_keyFailsVerification_disablesAkismetAndDoesNotThrow() {
+        final AkismetGateway gateway = mock( AkismetGateway.class );
+        when( gateway.verifyKey() ).thenReturn( false );
+        final DefaultSpamExternalSignals akismetSignals = withAkismetKey( true, ( key, url ) -> gateway );
+
+        assertDoesNotThrow( () -> akismetSignals.checkAkismet( context, change ),
+                "An unverifiable API key must disable Akismet, not throw" );
+
+        verify( gateway ).verifyKey();
+        verify( gateway, never() ).checkComment( any() );
+    }
+
+    @Test
+    void checkAkismet_removalOnlyChange_returnsEarlyWithoutCallingAkismet() {
+        final AkismetGateway gateway = mock( AkismetGateway.class );
+        when( gateway.verifyKey() ).thenReturn( true );
+        final DefaultSpamExternalSignals akismetSignals = withAkismetKey( true, ( key, url ) -> gateway );
+
+        change.adds = 0;
+        change.removals = 3;
+
+        assertDoesNotThrow( () -> akismetSignals.checkAkismet( context, change ) );
+
+        verify( gateway, never() ).checkComment( any() );
+    }
+
+    @Test
+    void checkAkismet_notSpam_doesNotThrowAndPopulatesComment() {
+        final AkismetGateway gateway = mock( AkismetGateway.class );
+        when( gateway.verifyKey() ).thenReturn( true );
+        when( gateway.checkComment( any() ) ).thenReturn( false );
+        final DefaultSpamExternalSignals akismetSignals = withAkismetKey( true, ( key, url ) -> gateway );
+
+        change.adds = 1;
+        change.removals = 0;
+        change.change = "hello world";
+
+        assertDoesNotThrow( () -> akismetSignals.checkAkismet( context, change ) );
+
+        final ArgumentCaptor< AkismetComment > captor = ArgumentCaptor.forClass( AkismetComment.class );
+        verify( gateway ).checkComment( captor.capture() );
+        final AkismetComment comment = captor.getValue();
+        assertEquals( "Fred", comment.getAuthor(), "Comment author should come from the current user" );
+        assertEquals( "edit", comment.getType(), "Non-comment request context should be reported as 'edit'" );
+        assertEquals( "127.0.0.1", comment.getUserIp() );
+    }
+
+    @Test
+    void checkAkismet_commentRequestContext_reportsCommentType() throws RedirectException {
+        final AkismetGateway gateway = mock( AkismetGateway.class );
+        when( gateway.verifyKey() ).thenReturn( true );
+        when( gateway.checkComment( any() ) ).thenReturn( false );
+        final DefaultSpamExternalSignals akismetSignals = withAkismetKey( true, ( key, url ) -> gateway );
+
+        when( context.getRequestContext() ).thenReturn( ContextEnum.PAGE_COMMENT.getRequestContext() );
+        change.adds = 1;
+
+        akismetSignals.checkAkismet( context, change );
+
+        final ArgumentCaptor< AkismetComment > captor = ArgumentCaptor.forClass( AkismetComment.class );
+        verify( gateway ).checkComment( captor.capture() );
+        assertEquals( "comment", captor.getValue().getType() );
+    }
+
+    @Test
+    void checkAkismet_isSpam_throwsRedirectException() {
+        final AkismetGateway gateway = mock( AkismetGateway.class );
+        when( gateway.verifyKey() ).thenReturn( true );
+        when( gateway.checkComment( any() ) ).thenReturn( true );
+        final DefaultSpamExternalSignals akismetSignals = withAkismetKey( true, ( key, url ) -> gateway );
+
+        change.adds = 1;
+
+        assertThrows( RedirectException.class, () -> akismetSignals.checkAkismet( context, change ),
+                "Akismet flagging the change as spam must trigger the redirect strategy" );
+    }
+
+    @Test
+    void checkAkismet_secondCall_reusesInitializedClient() throws RedirectException {
+        final AkismetGateway gateway = mock( AkismetGateway.class );
+        when( gateway.verifyKey() ).thenReturn( true );
+        when( gateway.checkComment( any() ) ).thenReturn( false );
+
+        @SuppressWarnings( "unchecked" )
+        final BiFunction< String, String, AkismetGateway > factory = mock( BiFunction.class );
+        when( factory.apply( anyString(), anyString() ) ).thenReturn( gateway );
+        final DefaultSpamExternalSignals akismetSignals = withAkismetKey( true, factory );
+
+        change.adds = 1;
+
+        akismetSignals.checkAkismet( context, change );
+        akismetSignals.checkAkismet( context, change );
+
+        verify( factory, times( 1 ) ).apply( anyString(), anyString() );
+        verify( gateway, times( 2 ) ).checkComment( any() );
     }
 }

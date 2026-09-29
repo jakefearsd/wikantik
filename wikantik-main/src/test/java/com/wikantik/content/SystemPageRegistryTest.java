@@ -19,15 +19,27 @@
 package com.wikantik.content;
 
 import com.wikantik.TestEngine;
+import com.wikantik.WikiEngine;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.page.subsystem.PageSubsystem;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Properties;
 import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for {@link DefaultSystemPageRegistry}.
@@ -169,5 +181,174 @@ class SystemPageRegistryTest {
         // alongside other .md files. Discovery should enumerate all of them.
         final Set<String> names = registry.getSystemPageNames();
         assertTrue( names.size() >= 2, "Should discover at least About and TextFormattingRules" );
+    }
+
+    // -----------------------------------------------------------------------
+    // warnOnUnreachableSystemPages — reached only through initialize(); these
+    // exercise the null-engine short-circuit, the null-PageManager short-circuit,
+    // the per-page defensive catch, and the outer defensive catch. All of these
+    // are best-effort logging paths: initialize() must never throw because of them.
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testInitializeWithNullEngineDoesNotThrow() {
+        final DefaultSystemPageRegistry customRegistry = new DefaultSystemPageRegistry();
+
+        assertDoesNotThrow( () -> customRegistry.initialize( null, new Properties() ) );
+        // Discovery itself does not depend on the engine, so it still runs.
+        assertFalse( customRegistry.getSystemPageNames().isEmpty() );
+    }
+
+    @Test
+    void testInitializeWithNullPageManagerDoesNotThrow() {
+        final WikiEngine mockEngine = mock( WikiEngine.class );
+        when( mockEngine.getPageSubsystem() ).thenReturn(
+                new PageSubsystem.Services( null, null, null, null, null, null, null, null, null ) );
+
+        final DefaultSystemPageRegistry customRegistry = new DefaultSystemPageRegistry();
+
+        assertDoesNotThrow( () -> customRegistry.initialize( mockEngine, new Properties() ) );
+    }
+
+    @Test
+    void testInitializeSwallowsPerPagePageExistsException() throws Exception {
+        final PageManager pageManager = mock( PageManager.class );
+        when( pageManager.pageExists( anyString() ) ).thenThrow( new RuntimeException( "provider unavailable" ) );
+
+        final WikiEngine mockEngine = mock( WikiEngine.class );
+        when( mockEngine.getPageSubsystem() ).thenReturn(
+                new PageSubsystem.Services( pageManager, null, null, null, null, null, null, null, null ) );
+
+        final DefaultSystemPageRegistry customRegistry = new DefaultSystemPageRegistry();
+
+        assertDoesNotThrow( () -> customRegistry.initialize( mockEngine, new Properties() ) );
+    }
+
+    @Test
+    void testInitializeSwallowsUnexpectedReachabilityCheckException() {
+        final WikiEngine mockEngine = mock( WikiEngine.class );
+        when( mockEngine.getPageSubsystem() ).thenThrow( new RuntimeException( "subsystem not ready" ) );
+
+        final DefaultSystemPageRegistry customRegistry = new DefaultSystemPageRegistry();
+
+        assertDoesNotThrow( () -> customRegistry.initialize( mockEngine, new Properties() ) );
+    }
+
+    // -----------------------------------------------------------------------
+    // discoverSystemPages() dispatch branches — these swap the thread's context
+    // classloader out from under discovery, then restore it, since that is the
+    // only seam the production code reads (Thread.currentThread().getContextClassLoader()).
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testDiscoverySkippedWhenNoContextClassLoader() {
+        final Thread currentThread = Thread.currentThread();
+        final ClassLoader original = currentThread.getContextClassLoader();
+        try {
+            currentThread.setContextClassLoader( null );
+            final DefaultSystemPageRegistry customRegistry = new DefaultSystemPageRegistry();
+
+            customRegistry.initialize( null, new Properties() );
+
+            assertTrue( customRegistry.getSystemPageNames().isEmpty(),
+                    "No context classloader means discovery cannot run" );
+        } finally {
+            currentThread.setContextClassLoader( original );
+        }
+    }
+
+    @Test
+    void testDiscoverySkippedWhenAnchorResourceNotFound() {
+        final Thread currentThread = Thread.currentThread();
+        final ClassLoader original = currentThread.getContextClassLoader();
+        try {
+            currentThread.setContextClassLoader( new ClassLoader( null ) {
+                @Override
+                public URL getResource( final String name ) {
+                    return null;
+                }
+            } );
+            final DefaultSystemPageRegistry customRegistry = new DefaultSystemPageRegistry();
+
+            customRegistry.initialize( null, new Properties() );
+
+            assertTrue( customRegistry.getSystemPageNames().isEmpty(),
+                    "A classloader with no About.md must yield no discovered system pages" );
+        } finally {
+            currentThread.setContextClassLoader( original );
+        }
+    }
+
+    @Test
+    void testDiscoverySkippedForUnsupportedProtocol() throws Exception {
+        final Thread currentThread = Thread.currentThread();
+        final ClassLoader original = currentThread.getContextClassLoader();
+        try {
+            final URL httpUrl = new URL( "http://example.invalid/About.md" );
+            currentThread.setContextClassLoader( new ClassLoader( null ) {
+                @Override
+                public URL getResource( final String name ) {
+                    return "About.md".equals( name ) ? httpUrl : null;
+                }
+            } );
+            final DefaultSystemPageRegistry customRegistry = new DefaultSystemPageRegistry();
+
+            customRegistry.initialize( null, new Properties() );
+
+            assertTrue( customRegistry.getSystemPageNames().isEmpty(),
+                    "An anchor resource served over an unsupported protocol yields no system pages" );
+        } finally {
+            currentThread.setContextClassLoader( original );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // discoverFromJar() — the anchor resource resolves to a jar: URL when
+    // running from a packaged JAR (the production deployment shape).
+    // -----------------------------------------------------------------------
+
+    private static void addJarEntry( final JarOutputStream jos, final String name, final String content ) throws Exception {
+        jos.putNextEntry( new JarEntry( name ) );
+        if ( content != null ) {
+            jos.write( content.getBytes( java.nio.charset.StandardCharsets.UTF_8 ) );
+        }
+        jos.closeEntry();
+    }
+
+    @Test
+    void testDiscoveryFromJarEnumeratesSiblingMarkdownFiles() throws Exception {
+        final File jarFile = File.createTempFile( "systemPagesTest", ".jar" );
+        jarFile.deleteOnExit();
+        try ( JarOutputStream jos = new JarOutputStream( new FileOutputStream( jarFile ) ) ) {
+            addJarEntry( jos, "About.md", "# About" );
+            addJarEntry( jos, "SandBox.md", "# SandBox" );
+            addJarEntry( jos, "notes.txt", "not markdown" );
+            addJarEntry( jos, "sub/", null );
+            addJarEntry( jos, "sub/Nested.md", "# nested — must be excluded, contains '/'" );
+        }
+
+        final Thread currentThread = Thread.currentThread();
+        final ClassLoader original = currentThread.getContextClassLoader();
+        URLClassLoader jarLoader = null;
+        try {
+            jarLoader = new URLClassLoader( new URL[] { jarFile.toURI().toURL() }, null );
+            currentThread.setContextClassLoader( jarLoader );
+
+            final DefaultSystemPageRegistry customRegistry = new DefaultSystemPageRegistry();
+            customRegistry.initialize( null, new Properties() );
+
+            final Set<String> names = customRegistry.getSystemPageNames();
+            assertTrue( names.contains( "About" ), "About.md must be discovered from the jar" );
+            assertTrue( names.contains( "SandBox" ), "SandBox.md must be discovered from the jar" );
+            assertFalse( names.contains( "notes" ), "Non-.md entries must be excluded" );
+            assertTrue( names.stream().noneMatch( n -> n.contains( "/" ) ),
+                    "Nested entries under a subdirectory must be excluded" );
+        } finally {
+            currentThread.setContextClassLoader( original );
+            if ( jarLoader != null ) {
+                jarLoader.close();
+            }
+            jarFile.delete();
+        }
     }
 }

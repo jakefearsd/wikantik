@@ -19,6 +19,8 @@
 package com.wikantik;
 
 import com.wikantik.api.core.Engine;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -241,6 +243,132 @@ class WatchDogTest {
 
         t.interrupt();
         t.join( 500 );
+    }
+
+    // -----------------------------------------------------------------------
+    // check() — direct invocation (bypasses the 30s background-thread schedule)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testCheck_emptyStack_logsWarningAndDoesNotThrow() {
+        final WatchDog wd = new WatchDog( engine, makeWatchable( "empty-stack-watchable" ) );
+        wd.disable();
+
+        Assertions.assertFalse( wd.isStateStackNotEmpty() );
+        Assertions.assertDoesNotThrow( wd::check );
+    }
+
+    @Test
+    void testCheck_expiredState_invokesTimeoutExceeded() throws InterruptedException {
+        final List< String > timedOutStates = new ArrayList<>();
+        final Watchable watchable = new Watchable() {
+            @Override public void timeoutExceeded( final String state ) { timedOutStates.add( state ); }
+            @Override public String getName() { return "check-expired-watchable"; }
+            @Override public boolean isAlive() { return true; }
+        };
+
+        final WatchDog wd = new WatchDog( engine, watchable );
+        wd.disable();
+
+        wd.enterState( "slow-task", 0 ); // expires immediately
+        Thread.sleep( 20 );
+
+        // Debug logging is off by default, so this also exercises
+        // dumpStackTraceForWatchable()'s early-return branch.
+        wd.check();
+
+        Assertions.assertEquals( List.of( "slow-task" ), timedOutStates );
+        // check() only peeks the stack — it never pops on timeout.
+        Assertions.assertTrue( wd.isStateStackNotEmpty() );
+        wd.exitState();
+    }
+
+    @Test
+    void testCheck_expiredState_debugEnabled_dumpsStackTraceForMatchingThread() throws InterruptedException {
+        final String threadName = Thread.currentThread().getName();
+        final List< String > timedOutStates = new ArrayList<>();
+        final Watchable watchable = new Watchable() {
+            @Override public void timeoutExceeded( final String state ) { timedOutStates.add( state ); }
+            @Override public String getName() { return threadName; } // matches current thread, so the dump loop finds it
+            @Override public boolean isAlive() { return true; }
+        };
+
+        final WatchDog wd = new WatchDog( engine, watchable );
+        wd.disable();
+        wd.enterState( "debug-dump-task", 0 );
+        Thread.sleep( 20 );
+
+        final Logger log4jLogger = ( Logger ) org.apache.logging.log4j.LogManager.getLogger( WatchDog.class );
+        final Level originalLevel = log4jLogger.getLevel();
+        org.apache.logging.log4j.core.config.Configurator.setLevel( WatchDog.class.getName(), Level.DEBUG );
+        try {
+            Assertions.assertDoesNotThrow( wd::check );
+        } finally {
+            org.apache.logging.log4j.core.config.Configurator.setLevel( WatchDog.class.getName(), originalLevel );
+        }
+
+        Assertions.assertEquals( List.of( "debug-dump-task" ), timedOutStates );
+        wd.exitState();
+    }
+
+    @Test
+    void testCheck_threadBackedWatchDog_timeoutExceededIsNoOp() throws InterruptedException {
+        final Thread t = new Thread( () -> {
+            try { Thread.sleep( 2_000 ); } catch( final InterruptedException ignored ) {}
+        } );
+        t.setName( "check-threadwrapper-target" );
+        t.start();
+
+        try {
+            // Exercises WatchDog(Engine, Thread) -> ThreadWrapper, whose
+            // timeoutExceeded() is a documented no-op (TODO in source).
+            final WatchDog wd = new WatchDog( engine, t );
+            wd.disable();
+            wd.enterState( "wrapped-thread-task", 0 );
+            Thread.sleep( 20 );
+
+            Assertions.assertDoesNotThrow( wd::check );
+            // No-op timeoutExceeded() never pops the stack.
+            Assertions.assertTrue( wd.isStateStackNotEmpty() );
+            wd.exitState();
+        } finally {
+            t.interrupt();
+            t.join( 500 );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // WatchDogThread.backgroundTask() — direct invocation via the shared
+    // watcher-thread accessor, bypassing the real 30s schedule entirely.
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testBackgroundTask_checksLiveRegisteredWatchdogWithPendingState() throws Exception {
+        final WatchDog wd = WatchDog.getCurrentWatchDog( engine );
+        // Defensive: drain any state left behind by another test sharing this thread's kennel entry.
+        while ( wd.isStateStackNotEmpty() ) {
+            wd.exitState();
+        }
+        // getCurrentWatchDog() may return a cached instance that a prior test's tearDown()
+        // already disabled (the watcher thread is shared, static state) — (re)enable it so
+        // WatchDog.currentWatcherThread() is guaranteed non-null regardless of test order
+        // (surefire 3.6.0 runs JUnit 5 methods in random order within a class).
+        wd.enable();
+
+        wd.enterState( "pending-background-check", 60 ); // non-empty, not yet expired
+        try {
+            final WikiBackgroundThread bg = WatchDog.currentWatcherThread();
+            Assertions.assertNotNull( bg, "watcher thread should exist once a WatchDog has been created" );
+
+            // Synchronous call — this is the exact call the real background thread
+            // makes every 30s from WatchDogThread.backgroundTask(); calling it directly
+            // exercises that line without waiting on the real schedule.
+            Assertions.assertDoesNotThrow( ( org.junit.jupiter.api.function.Executable ) bg::backgroundTask );
+
+            Assertions.assertTrue( wd.isStateStackNotEmpty(), "check() only peeks; state must still be on the stack" );
+        } finally {
+            wd.exitState();
+        }
     }
 
     // -----------------------------------------------------------------------

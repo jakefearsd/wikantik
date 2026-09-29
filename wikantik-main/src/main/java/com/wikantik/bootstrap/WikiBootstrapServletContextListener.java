@@ -175,6 +175,15 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
             WikiSession::removeCurrentGuestSession );
 
         // 6. Shut down Log4j2 last (keeps logging available for all prior steps).
+        shutdownLogging();
+    }
+
+    /**
+     * Test seam: isolates the final, JVM-wide Log4j2 shutdown call so a test can
+     * override it (a real invocation would kill logging for every other test class
+     * sharing this JVM fork).
+     */
+    void shutdownLogging() {
         LogManager.shutdown();
     }
 

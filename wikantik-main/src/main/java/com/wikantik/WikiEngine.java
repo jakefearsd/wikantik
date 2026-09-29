@@ -1379,7 +1379,7 @@ public class WikiEngine implements Engine {
     }
 
     /** Parse the comma-separated {@code wikantik.audit.readClusters} value into a trimmed, non-empty set. */
-    private static java.util.Set< String > parseAuditedClusters( final String raw ) {
+    static java.util.Set< String > parseAuditedClusters( final String raw ) {
         if ( raw == null || raw.isBlank() ) return java.util.Set.of();
         final java.util.Set< String > out = new java.util.HashSet<>();
         for ( final String part : raw.split( "," ) ) {

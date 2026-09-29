@@ -56,6 +56,15 @@ public final class WatchDog {
     private static WikiBackgroundThread watcherThread;
 
     /**
+     * Test seam: exposes the shared watcher thread so a test can invoke
+     * {@code backgroundTask()} synchronously instead of waiting out the real
+     * 30s schedule. Returns {@code null} if no watchdog has been created yet.
+     */
+    static WikiBackgroundThread currentWatcherThread() {
+        return watcherThread;
+    }
+
+    /**
      *  Returns the current watchdog for the current thread. This is the preferred method of getting you a Watchdog, since it
      *  keeps an internal list of Watchdogs for you so that there won't be more than one watchdog per thread.
      *
@@ -241,7 +250,8 @@ public final class WatchDog {
         return watchable != null && watchable.isAlive();
     }
 
-    private void check() {
+    /** Test seam: runs one watchdog check pass directly, bypassing the 30s background-thread schedule. */
+    void check() {
         LOG.debug( "Checking watchdog '{}'", watchable.getName() );
 
         synchronized( stateStack ) {

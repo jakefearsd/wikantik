@@ -278,6 +278,223 @@ class LuceneHnswChunkVectorIndexTest {
         assertTrue( idx.topKChunks( new float[]{ 1f, 0f, 0f }, 1 ).isEmpty() );
     }
 
+    @Test
+    void constructorRejectsBlankModelCode() {
+        final javax.sql.DataSource ds = org.mockito.Mockito.mock( javax.sql.DataSource.class );
+        assertThrows( IllegalArgumentException.class, () ->
+            new LuceneHnswChunkVectorIndex( ds, " ", 3, new HnswParams( 16, 64, 100 ) ) );
+        assertThrows( IllegalArgumentException.class, () ->
+            new LuceneHnswChunkVectorIndex( ds, null, 3, new HnswParams( 16, 64, 100 ) ) );
+    }
+
+    @Test
+    void modelCodeAccessorReturnsConfiguredValue() throws Exception {
+        final java.sql.ResultSet rs = org.mockito.Mockito.mock( java.sql.ResultSet.class );
+        org.mockito.Mockito.when( rs.next() ).thenReturn( false );
+        final java.sql.PreparedStatement ps = org.mockito.Mockito.mock( java.sql.PreparedStatement.class );
+        org.mockito.Mockito.when( ps.executeQuery() ).thenReturn( rs );
+        final java.sql.Connection conn = org.mockito.Mockito.mock( java.sql.Connection.class );
+        org.mockito.Mockito.when( conn.prepareStatement( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( ps );
+        final javax.sql.DataSource ds = org.mockito.Mockito.mock( javax.sql.DataSource.class );
+        org.mockito.Mockito.when( ds.getConnection() ).thenReturn( conn );
+
+        final LuceneHnswChunkVectorIndex idx =
+            new LuceneHnswChunkVectorIndex( ds, "qwen3-embedding-0.6b", 3, new HnswParams( 16, 64, 100 ) );
+        assertEquals( "qwen3-embedding-0.6b", idx.modelCode() );
+    }
+
+    @Test
+    void lastRebuildMillisReflectsMostRecentSuccessfulCommit() {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        assertEquals( 0L, idx.lastRebuildMillis(), "never committed yet" );
+        idx.addOrReplace( UUID.randomUUID(), "PageA", unit( 1f, 0f, 0f ) );
+        final long before = System.currentTimeMillis();
+        idx.commitAndRefresh();
+        assertTrue( idx.lastRebuildMillis() >= before,
+            "lastRebuildMillis must be updated by a successful commitAndRefresh" );
+    }
+
+    @Test
+    void addOrReplaceRejectsNullChunkIdOrVector() {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        assertThrows( IllegalArgumentException.class,
+            () -> idx.addOrReplace( null, "Page", unit( 1f, 0f, 0f ) ) );
+        assertThrows( IllegalArgumentException.class,
+            () -> idx.addOrReplace( UUID.randomUUID(), "Page", null ) );
+    }
+
+    @Test
+    void addOrReplaceSkipsVectorWithWrongDimension() {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        idx.addOrReplace( UUID.randomUUID(), "PageA", unit( 1f, 0f ) ); // 2-dim, index is 3-dim
+        idx.commitAndRefresh();
+        assertEquals( 0, idx.size(), "mismatched-dimension vector must be skipped, not indexed" );
+    }
+
+    @Test
+    void deleteOfNullChunkIdIsANoOp() {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        idx.addOrReplace( UUID.randomUUID(), "PageA", unit( 1f, 0f, 0f ) );
+        idx.commitAndRefresh();
+        assertDoesNotThrow( () -> idx.delete( null ) );
+        assertEquals( 1, idx.size(), "delete(null) must not touch the index" );
+    }
+
+    @Test
+    void topKChunksRejectsQueryVectorWithWrongDimension() {
+        final LuceneHnswChunkVectorIndex idx =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        idx.addOrReplace( UUID.randomUUID(), "PageA", unit( 1f, 0f, 0f ) );
+        idx.commitAndRefresh();
+        assertThrows( IllegalStateException.class, () -> idx.topKChunks( unit( 1f, 0f ), 1 ) );
+    }
+
+    /**
+     * Exercises the two scalar-quantization codec arms not covered by the
+     * {@code SEVEN_BIT} test above — {@code UNSIGNED_BYTE} and {@code PACKED_NIBBLE}
+     * each select a distinct Lucene {@code ScalarEncoding} in {@code vectorsFormat}.
+     */
+    @Test
+    void unsignedByteAndPackedNibbleQuantizationBuildAWorkingIndex() {
+        for ( final HnswParams.Quantization q :
+                new HnswParams.Quantization[]{ HnswParams.Quantization.UNSIGNED_BYTE,
+                                                HnswParams.Quantization.PACKED_NIBBLE } ) {
+            final int dim = 32;
+            final LuceneHnswChunkVectorIndex idx =
+                LuceneHnswChunkVectorIndex.forTesting( dim, new HnswParams( 16, 64, 100, q ) );
+            final UUID a = UUID.randomUUID();
+            idx.addOrReplace( a, "PageA", axis( dim, 0 ) );
+            idx.commitAndRefresh();
+            assertTrue( idx.isReady(), q + ": index must be ready after commit" );
+            assertEquals( 1, idx.size(), q + ": one document expected" );
+            final List< ScoredChunk > top = idx.topKChunks( axis( dim, 0 ), 1 );
+            assertEquals( a, top.get( 0 ).chunkId(), q + ": self-similarity search must return the same chunk" );
+        }
+    }
+
+    @org.junit.jupiter.api.Test
+    void buildsFromDatabaseRows_skipsRowWhoseStoredDimDiffersFromIndexDim() throws Exception {
+        final java.util.UUID mismatched = java.util.UUID.randomUUID();
+        final java.sql.ResultSet rs = org.mockito.Mockito.mock( java.sql.ResultSet.class );
+        org.mockito.Mockito.when( rs.next() ).thenReturn( true, false );
+        org.mockito.Mockito.when( rs.getObject( 1, java.util.UUID.class ) ).thenReturn( mismatched );
+        org.mockito.Mockito.when( rs.getString( 2 ) ).thenReturn( "PageMismatch" );
+        org.mockito.Mockito.when( rs.getInt( 3 ) ).thenReturn( 5 ); // index is dim=3
+        org.mockito.Mockito.when( rs.getBytes( 4 ) ).thenReturn( le( 1f, 0f, 0f, 0f, 0f ) );
+
+        final java.sql.PreparedStatement ps = org.mockito.Mockito.mock( java.sql.PreparedStatement.class );
+        org.mockito.Mockito.when( ps.executeQuery() ).thenReturn( rs );
+        final java.sql.Connection conn = org.mockito.Mockito.mock( java.sql.Connection.class );
+        org.mockito.Mockito.when( conn.prepareStatement( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( ps );
+        final javax.sql.DataSource ds = org.mockito.Mockito.mock( javax.sql.DataSource.class );
+        org.mockito.Mockito.when( ds.getConnection() ).thenReturn( conn );
+
+        final LuceneHnswChunkVectorIndex idx = assertDoesNotThrow( () ->
+            new LuceneHnswChunkVectorIndex( ds, "qwen3-embedding-0.6b", 3, new HnswParams( 16, 64, 100 ) ) );
+        assertEquals( 0, idx.size(), "dim-mismatched row must be skipped" );
+        assertFalse( idx.isReady() );
+    }
+
+    // ---- upsertChunks ----
+
+    @Test
+    void upsertChunksIsANoOpForNullOrEmptyOrTestOnlyIndex() {
+        final LuceneHnswChunkVectorIndex testOnly =
+            LuceneHnswChunkVectorIndex.forTesting( 3, new HnswParams( 16, 64, 100 ) );
+        assertDoesNotThrow( () -> testOnly.upsertChunks( List.of( UUID.randomUUID() ) ),
+            "a test-only instance (jdbc==null) must ignore upsertChunks" );
+    }
+
+    /**
+     * Builds a DB-backed index with an empty initial load, hand-populates one chunk
+     * via the in-memory API, then calls {@code upsertChunks} for a set containing one
+     * id the DB resolves (must be (re)added) and one id the DB does NOT resolve (must
+     * be deleted from the local index if present — here it's simply absent, proving
+     * the "not seen -> delete" branch does not blow up on an unknown id either).
+     */
+    @Test
+    void upsertChunksAddsResolvedIdsAndDeletesUnresolvedTargets() throws Exception {
+        // Initial construction: empty load.
+        final java.sql.ResultSet emptyRs = org.mockito.Mockito.mock( java.sql.ResultSet.class );
+        org.mockito.Mockito.when( emptyRs.next() ).thenReturn( false );
+        final java.sql.PreparedStatement emptyPs = org.mockito.Mockito.mock( java.sql.PreparedStatement.class );
+        org.mockito.Mockito.when( emptyPs.executeQuery() ).thenReturn( emptyRs );
+        final java.sql.Connection conn1 = org.mockito.Mockito.mock( java.sql.Connection.class );
+        org.mockito.Mockito.when( conn1.prepareStatement( org.mockito.ArgumentMatchers.anyString() ) )
+            .thenReturn( emptyPs );
+
+        // upsertChunks() call: resolves chunk "a" only.
+        final UUID a = UUID.randomUUID();
+        final java.sql.ResultSet upsertRs = org.mockito.Mockito.mock( java.sql.ResultSet.class );
+        org.mockito.Mockito.when( upsertRs.next() ).thenReturn( true, false );
+        org.mockito.Mockito.when( upsertRs.getObject( 1, java.util.UUID.class ) ).thenReturn( a );
+        org.mockito.Mockito.when( upsertRs.getString( 2 ) ).thenReturn( "PageA" );
+        org.mockito.Mockito.when( upsertRs.getInt( 3 ) ).thenReturn( 3 );
+        org.mockito.Mockito.when( upsertRs.getBytes( 4 ) ).thenReturn( le( 1f, 0f, 0f ) );
+        final java.sql.PreparedStatement upsertPs = org.mockito.Mockito.mock( java.sql.PreparedStatement.class );
+        org.mockito.Mockito.when( upsertPs.executeQuery() ).thenReturn( upsertRs );
+        final java.sql.Connection conn2 = org.mockito.Mockito.mock( java.sql.Connection.class );
+        org.mockito.Mockito.when( conn2.prepareStatement( org.mockito.ArgumentMatchers.anyString() ) )
+            .thenReturn( upsertPs );
+        org.mockito.Mockito.when( conn2.createArrayOf( org.mockito.ArgumentMatchers.eq( "uuid" ),
+                org.mockito.ArgumentMatchers.any() ) )
+            .thenReturn( org.mockito.Mockito.mock( java.sql.Array.class ) );
+
+        final javax.sql.DataSource ds = org.mockito.Mockito.mock( javax.sql.DataSource.class );
+        org.mockito.Mockito.when( ds.getConnection() ).thenReturn( conn1, conn2 );
+
+        final LuceneHnswChunkVectorIndex idx =
+            new LuceneHnswChunkVectorIndex( ds, "qwen3-embedding-0.6b", 3, new HnswParams( 16, 64, 100 ) );
+        assertEquals( 0, idx.size(), "initial load was empty" );
+
+        final UUID b = UUID.randomUUID();
+        idx.addOrReplace( b, "PageB", unit( 0f, 1f, 0f ) );
+        idx.commitAndRefresh();
+        assertEquals( 1, idx.size(), "PageB hand-added outside upsertChunks" );
+
+        final UUID missing = UUID.randomUUID(); // never resolved by the DB
+        idx.upsertChunks( List.of( a, missing ) );
+
+        assertEquals( 2, idx.size(), "a resolved+added, b untouched, missing absent either way" );
+        final List< ScoredChunk > top = idx.topKChunks( unit( 1f, 0f, 0f ), 2 );
+        assertTrue( top.stream().anyMatch( sc -> sc.chunkId().equals( a ) ), "resolved chunk must be indexed" );
+    }
+
+    /**
+     * A DB failure mid-upsert must be fail-closed: the method falls back to a full
+     * {@link LuceneHnswChunkVectorIndex#reload()} rather than propagating the
+     * {@link java.sql.SQLException}, and that fallback reload's own DB failure is
+     * itself absorbed (logged) rather than thrown — upsertChunks never throws.
+     */
+    @Test
+    void upsertChunksFallsBackToReloadOnSqlException() throws Exception {
+        final java.sql.ResultSet emptyRs = org.mockito.Mockito.mock( java.sql.ResultSet.class );
+        org.mockito.Mockito.when( emptyRs.next() ).thenReturn( false );
+        final java.sql.PreparedStatement emptyPs = org.mockito.Mockito.mock( java.sql.PreparedStatement.class );
+        org.mockito.Mockito.when( emptyPs.executeQuery() ).thenReturn( emptyRs );
+        final java.sql.Connection conn1 = org.mockito.Mockito.mock( java.sql.Connection.class );
+        org.mockito.Mockito.when( conn1.prepareStatement( org.mockito.ArgumentMatchers.anyString() ) )
+            .thenReturn( emptyPs );
+
+        final javax.sql.DataSource ds = org.mockito.Mockito.mock( javax.sql.DataSource.class );
+        // 1st call succeeds (constructor's initial reload); every later call fails,
+        // so both the upsertChunks() withConnection() AND its own reload() fallback fail.
+        org.mockito.Mockito.when( ds.getConnection() )
+            .thenReturn( conn1 )
+            .thenThrow( new java.sql.SQLException( "connection lost" ) );
+
+        final LuceneHnswChunkVectorIndex idx =
+            new LuceneHnswChunkVectorIndex( ds, "qwen3-embedding-0.6b", 3, new HnswParams( 16, 64, 100 ) );
+
+        assertDoesNotThrow( () -> idx.upsertChunks( List.of( UUID.randomUUID() ) ),
+            "upsertChunks must swallow a DB failure and fall back to reload(), not throw" );
+        assertFalse( idx.isReady(), "reload fallback also failed, index stays empty" );
+    }
+
     /**
      * Pins chunk-id round-tripping for UUIDs whose 128 bits are hostile to a numeric
      * encoding: both halves negative, both zero, and the two sign-bit extremes. The index

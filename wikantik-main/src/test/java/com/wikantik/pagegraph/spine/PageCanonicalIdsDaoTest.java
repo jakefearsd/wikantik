@@ -32,9 +32,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -270,5 +275,75 @@ class PageCanonicalIdsDaoTest {
         assertTrue( otherRow.isPresent() );
         assertEquals( targetSlug, otherRow.get().currentSlug(),
                 "other row's slug must remain unchanged" );
+    }
+
+    // -----------------------------------------------------------------------
+    // SQLException paths — a DataSource that always hands back an ALREADY-CLOSED
+    // connection, so every prepareStatement/createStatement call fails with a
+    // genuine (checked) SQLException, exactly like a lost/expired connection would.
+    // Exercises every catch(SQLException) branch's fallback behavior.
+    // -----------------------------------------------------------------------
+
+    private static DataSource closedConnectionDataSource( final DataSource real ) throws SQLException {
+        final Connection closed = real.getConnection();
+        closed.close();
+        return new DataSource() {
+            @Override public Connection getConnection() { return closed; }
+            @Override public Connection getConnection( final String username, final String password ) { return closed; }
+            @Override public PrintWriter getLogWriter() throws SQLException { return real.getLogWriter(); }
+            @Override public void setLogWriter( final PrintWriter out ) throws SQLException { real.setLogWriter( out ); }
+            @Override public void setLoginTimeout( final int seconds ) throws SQLException { real.setLoginTimeout( seconds ); }
+            @Override public int getLoginTimeout() throws SQLException { return real.getLoginTimeout(); }
+            @Override public Logger getParentLogger() throws SQLFeatureNotSupportedException { return real.getParentLogger(); }
+            @Override public < T > T unwrap( final Class< T > iface ) throws SQLException { return real.unwrap( iface ); }
+            @Override public boolean isWrapperFor( final Class< ? > iface ) throws SQLException { return real.isWrapperFor( iface ); }
+        };
+    }
+
+    @Test
+    void log_returnsTheDaosLogger() {
+        assertNotNull( dao.log() );
+    }
+
+    @Test
+    void upsert_sqlExceptionIsWrappedInRuntimeException() throws SQLException {
+        final PageCanonicalIdsDao brokenDao = new PageCanonicalIdsDao( closedConnectionDataSource( ds ) );
+        final RuntimeException ex = assertThrows( RuntimeException.class,
+                () -> brokenDao.upsert( ID_NEW, "AnySlug", "Any Title", "article", null ) );
+        assertEquals( "upsert failed", ex.getMessage() );
+        assertInstanceOf( SQLException.class, ex.getCause() );
+    }
+
+    @Test
+    void findByCanonicalId_sqlException_returnsEmpty() throws SQLException {
+        final PageCanonicalIdsDao brokenDao = new PageCanonicalIdsDao( closedConnectionDataSource( ds ) );
+        assertTrue( brokenDao.findByCanonicalId( ID_NEW ).isEmpty() );
+    }
+
+    @Test
+    void findBySlug_sqlException_returnsEmpty() throws SQLException {
+        final PageCanonicalIdsDao brokenDao = new PageCanonicalIdsDao( closedConnectionDataSource( ds ) );
+        assertTrue( brokenDao.findBySlug( "AnySlug" ).isEmpty() );
+    }
+
+    @Test
+    void findAll_sqlException_returnsEmptyList() throws SQLException {
+        final PageCanonicalIdsDao brokenDao = new PageCanonicalIdsDao( closedConnectionDataSource( ds ) );
+        assertEquals( List.of(), brokenDao.findAll() );
+    }
+
+    @Test
+    void slugHistory_sqlException_returnsEmptyList() throws SQLException {
+        final PageCanonicalIdsDao brokenDao = new PageCanonicalIdsDao( closedConnectionDataSource( ds ) );
+        assertEquals( List.of(), brokenDao.slugHistory( ID_NEW ) );
+    }
+
+    @Test
+    void delete_sqlExceptionIsWrappedInRuntimeException() throws SQLException {
+        final PageCanonicalIdsDao brokenDao = new PageCanonicalIdsDao( closedConnectionDataSource( ds ) );
+        final RuntimeException ex = assertThrows( RuntimeException.class,
+                () -> brokenDao.delete( ID_NEW ) );
+        assertEquals( "delete failed", ex.getMessage() );
+        assertInstanceOf( SQLException.class, ex.getCause() );
     }
 }

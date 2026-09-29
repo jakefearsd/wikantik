@@ -18,15 +18,21 @@
  */
 package com.wikantik.pagegraph;
 
+import com.wikantik.WikiEngine;
+import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.PageGraphEdge;
 import com.wikantik.api.pagegraph.PageGraphNode;
 import com.wikantik.api.pagegraph.PageGraphSnapshot;
 import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.wikantik.auth.AuthorizationManager;
+import com.wikantik.auth.subsystem.AuthSubsystem;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.security.Permission;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -37,8 +43,11 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -169,6 +178,157 @@ class DefaultPageGraphServiceTest {
         service.snapshot( null );
 
         verify( refMgr, times( 2 ) ).findCreated();
+    }
+
+    // -----------------------------------------------------------------------
+    // buildUnredacted() — findCreated() failure -> empty snapshot
+    // -----------------------------------------------------------------------
+
+    @Test
+    void snapshot_findCreatedThrowsRuntimeException_returnsEmptySnapshot() {
+        when( refMgr.findCreated() ).thenThrow( new RuntimeException( "backing store unavailable" ) );
+
+        final PageGraphSnapshot snap = service.snapshot( null );
+
+        assertNotNull( snap );
+        assertEquals( 0, snap.nodeCount() );
+        assertEquals( 0, snap.edgeCount() );
+        assertTrue( snap.nodes().isEmpty() );
+    }
+
+    // -----------------------------------------------------------------------
+    // redactForViewer() — engine wired but not a WikiEngine: no redaction
+    // machinery is reachable, so every node passes through unredacted (also
+    // covers isViewable's authMgr==null short-circuit).
+    // -----------------------------------------------------------------------
+
+    @Test
+    void snapshot_engineSetButNotWikiEngine_nodesPassThroughUnredacted() {
+        when( refMgr.findCreated() ).thenReturn( linkedSet( "A" ) );
+        when( refMgr.findRefersTo( "A" ) ).thenReturn( List.of() );
+
+        service.setEngine( mock( Engine.class ) );
+
+        final PageGraphSnapshot snap = service.snapshot( null );
+
+        assertEquals( 1, snap.nodes().size() );
+        assertEquals( "A", snap.nodes().get( 0 ).name() );
+        assertFalse( snap.nodes().get( 0 ).restricted() );
+    }
+
+    // -----------------------------------------------------------------------
+    // redactForViewer() — AuthSubsystemBridge throws -> unredacted base returned
+    // -----------------------------------------------------------------------
+
+    @Test
+    void snapshot_authSubsystemUnavailable_returnsUnredactedBase() {
+        when( refMgr.findCreated() ).thenReturn( linkedSet( "A" ) );
+        when( refMgr.findRefersTo( "A" ) ).thenReturn( List.of() );
+
+        final WikiEngine wikiEngine = mock( WikiEngine.class );
+        when( wikiEngine.getAuthSubsystem() ).thenThrow( new RuntimeException( "not initialized yet" ) );
+        service.setEngine( wikiEngine );
+
+        final PageGraphSnapshot snap = service.snapshot( null );
+
+        assertEquals( 1, snap.nodes().size() );
+        assertEquals( "A", snap.nodes().get( 0 ).name() );
+        assertFalse( snap.nodes().get( 0 ).restricted() );
+    }
+
+    // -----------------------------------------------------------------------
+    // redactForViewer() / isViewable() — real AuthorizationManager wired: not-
+    // viewable pages get redacted, viewable ones pass through.
+    // -----------------------------------------------------------------------
+
+    @Test
+    void snapshot_redactsPagesNotViewableToViewer() {
+        when( refMgr.findCreated() ).thenReturn( linkedSet( "A", "B" ) );
+        when( refMgr.findRefersTo( "A" ) ).thenReturn( List.of() );
+        when( refMgr.findRefersTo( "B" ) ).thenReturn( List.of() );
+
+        final AuthorizationManager authMgr = mock( AuthorizationManager.class );
+        final WikiEngine wikiEngine = mock( WikiEngine.class );
+        when( wikiEngine.getAuthSubsystem() ).thenReturn(
+                new AuthSubsystem.Services( null, authMgr, null, null, null, null, null, null ) );
+        service.setEngine( wikiEngine );
+
+        final Page pageA = mock( Page.class );
+        when( pageA.getName() ).thenReturn( "A" );
+        when( pageA.getWiki() ).thenReturn( "" );
+        when( pageMgr.getPage( "A" ) ).thenReturn( pageA );
+        final Page pageB = mock( Page.class );
+        when( pageB.getName() ).thenReturn( "B" );
+        when( pageB.getWiki() ).thenReturn( "" );
+        when( pageMgr.getPage( "B" ) ).thenReturn( pageB );
+
+        // Only "A" is denied view access.
+        when( authMgr.isPermitted( any(), any( Permission.class ) ) ).thenAnswer( inv -> {
+            final Permission p = inv.getArgument( 1 );
+            return !"A".equals( p.getName() );
+        } );
+
+        final PageGraphSnapshot snap = service.snapshot( null );
+
+        final PageGraphNode nodeA = nodeNamedOrRestricted( snap, "A" );
+        assertTrue( nodeA.restricted() );
+        assertNull( nodeA.name() );
+        assertEquals( "restricted", nodeA.role() );
+
+        final PageGraphNode nodeB = nodeNamedOrRestricted( snap, "B" );
+        assertFalse( nodeB.restricted() );
+        assertEquals( "B", nodeB.name() );
+    }
+
+    @Test
+    void snapshot_isViewable_pageManagerThrows_treatsPageAsNotViewable() {
+        when( refMgr.findCreated() ).thenReturn( linkedSet( "A" ) );
+        when( refMgr.findRefersTo( "A" ) ).thenReturn( List.of() );
+
+        final AuthorizationManager authMgr = mock( AuthorizationManager.class );
+        when( authMgr.isPermitted( any(), any( Permission.class ) ) ).thenReturn( true );
+        final WikiEngine wikiEngine = mock( WikiEngine.class );
+        when( wikiEngine.getAuthSubsystem() ).thenReturn(
+                new AuthSubsystem.Services( null, authMgr, null, null, null, null, null, null ) );
+        service.setEngine( wikiEngine );
+
+        when( pageMgr.getPage( "A" ) ).thenThrow( new RuntimeException( "provider unavailable" ) );
+
+        final PageGraphSnapshot snap = service.snapshot( null );
+
+        final PageGraphNode nodeA = nodeNamedOrRestricted( snap, "A" );
+        assertTrue( nodeA.restricted(), "a PageManager failure must fail closed (not viewable)" );
+    }
+
+    @Test
+    void snapshot_isViewable_nullPageManager_usesSyntheticPermission() {
+        // Reconstruct the service with a null PageManager to exercise the
+        // "pageMgr == null" branch of isViewable's page lookup.
+        service = new DefaultPageGraphService( structural, refMgr, null );
+        when( refMgr.findCreated() ).thenReturn( linkedSet( "A" ) );
+        when( refMgr.findRefersTo( "A" ) ).thenReturn( List.of() );
+
+        final AuthorizationManager authMgr = mock( AuthorizationManager.class );
+        when( authMgr.isPermitted( any(), any( Permission.class ) ) ).thenReturn( true );
+        final WikiEngine wikiEngine = mock( WikiEngine.class );
+        when( wikiEngine.getAuthSubsystem() ).thenReturn(
+                new AuthSubsystem.Services( null, authMgr, null, null, null, null, null, null ) );
+        when( wikiEngine.getApplicationName() ).thenReturn( "TestWiki" );
+        service.setEngine( wikiEngine );
+
+        final PageGraphSnapshot snap = service.snapshot( null );
+
+        final PageGraphNode nodeA = nodeNamedOrRestricted( snap, "A" );
+        assertFalse( nodeA.restricted() );
+        verify( authMgr ).isPermitted( any(), any( Permission.class ) );
+    }
+
+    private static PageGraphNode nodeNamedOrRestricted( final PageGraphSnapshot snap, final String sourcePageId ) {
+        // Once redacted, name/sourcePage are wiped, so match by id (still the slug here,
+        // since the structural index is empty in every test).
+        return snap.nodes().stream()
+                .filter( n -> sourcePageId.equals( n.id() ) )
+                .findFirst().orElseThrow();
     }
 
     /**

@@ -27,7 +27,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.Permission;
 import java.security.Principal;
 import java.util.List;
-import java.util.Locale;
 import java.util.Properties;
 
 import org.apache.commons.fileupload2.core.DiskFileItemFactory;
@@ -94,12 +93,8 @@ public class AttachmentServlet extends HttpServlet {
     private static final Logger LOG = LogManager.getLogger( AttachmentServlet.class );
     private static final String HDR_VERSION = "version";
 
-    /** The maximum size that an attachment can be. */
-    private long maxSize = Integer.MAX_VALUE;
-
-    /** List of attachment types which are allowed */
-    private String[] allowedPatterns;
-    private String[] forbiddenPatterns;
+    /** Size/type policy for uploads (shared with the REST upload path). */
+    private AttachmentUploadPolicy uploadPolicy = new AttachmentUploadPolicy( null, null, Integer.MAX_VALUE );
 
     //
     // Not static as DateFormat objects are not thread safe.
@@ -143,21 +138,7 @@ public class AttachmentServlet extends HttpServlet {
         progressManager = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).progressManager();
         final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
         final String tmpDir = engine.getWorkDir() + File.separator + "attach-tmp";
-        final String allowed = TextUtil.getStringProperty( props, AttachmentManager.PROP_ALLOWEDEXTENSIONS, null );
-        maxSize = TextUtil.getIntegerProperty( props, AttachmentManager.PROP_MAXSIZE, Integer.MAX_VALUE );
-
-        if( allowed != null && !allowed.isEmpty() ) {
-            allowedPatterns = allowed.toLowerCase( Locale.ROOT ).split( "\\s" );
-        } else {
-            allowedPatterns = new String[ 0 ];
-        }
-
-        final String forbidden = TextUtil.getStringProperty( props, AttachmentManager.PROP_FORBIDDENEXTENSIONS,null );
-        if( forbidden != null && !forbidden.isEmpty() ) {
-            forbiddenPatterns = forbidden.toLowerCase( Locale.ROOT ).split("\\s");
-        } else {
-            forbiddenPatterns = new String[0];
-        }
+        uploadPolicy = AttachmentUploadPolicy.fromProperties( props );
 
         final File tmpDirFile = new File( tmpDir );
         if( !tmpDirFile.exists() ) {
@@ -192,28 +173,7 @@ public class AttachmentServlet extends HttpServlet {
      *  Package-private so unit tests can configure these without calling {@link #init}.
      */
     void setUploadConstraints( final String[] allowedPatterns, final String[] forbiddenPatterns, final long maxSize ) {
-        this.allowedPatterns = allowedPatterns != null ? allowedPatterns : new String[0];
-        this.forbiddenPatterns = forbiddenPatterns != null ? forbiddenPatterns : new String[0];
-        this.maxSize = maxSize;
-    }
-
-    private boolean isTypeAllowed( String name )
-    {
-        if( name == null || name.isEmpty() ) return false;
-
-        name = name.toLowerCase( Locale.ROOT );
-
-        for( final String m_forbiddenPattern : forbiddenPatterns ) {
-            if( name.endsWith( m_forbiddenPattern ) && !m_forbiddenPattern.isEmpty() )
-                return false;
-        }
-
-        for( final String m_allowedPattern : allowedPatterns ) {
-            if( name.endsWith( m_allowedPattern ) && !m_allowedPattern.isEmpty() )
-                return true;
-        }
-
-        return allowedPatterns.length == 0;
+        this.uploadPolicy = new AttachmentUploadPolicy( allowedPatterns, forbiddenPatterns, maxSize );
     }
 
     /**
@@ -445,7 +405,7 @@ public class AttachmentServlet extends HttpServlet {
             final JakartaServletFileUpload upload = new JakartaServletFileUpload( factory );
             upload.setHeaderCharset(StandardCharsets.UTF_8);
             if( !context.hasAdminPermissions() ) {
-                upload.setMaxFileSize( maxSize );
+                upload.setMaxFileSize( uploadPolicy.maxSize() );
             }
             upload.setProgressListener( pl );
             final List<FileItem> items = upload.parseRequest( req );
@@ -531,12 +491,12 @@ public class AttachmentServlet extends HttpServlet {
         //
 
         if( !context.hasAdminPermissions() ) {
-            if( contentLength > maxSize ) {
+            if( !uploadPolicy.isSizeAllowed( contentLength ) ) {
                 // FIXME: Does not delete the received files.
-                throw new RedirectException( "File exceeds maximum size ("+maxSize+" bytes)", errorPage );
+                throw new RedirectException( "File exceeds maximum size (" + uploadPolicy.maxSize() + " bytes)", errorPage );
             }
 
-            if( !isTypeAllowed(filename) ) {
+            if( !uploadPolicy.isTypeAllowed( filename ) ) {
                 throw new RedirectException( "Files of this type may not be uploaded to this wiki", errorPage );
             }
         }

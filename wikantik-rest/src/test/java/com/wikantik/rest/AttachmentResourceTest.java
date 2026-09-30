@@ -630,6 +630,53 @@ class AttachmentResourceTest {
         assertEquals( "Error uploading attachment: disk full", obj.get( "message" ).getAsString() );
     }
 
+    @Test
+    void forbiddenExtensionIs415AndNothingStored() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.attachment.forbidden", ".exe" );
+        try {
+            final Part filePart = mockFilePart( "tool.exe", "MZ".getBytes( StandardCharsets.UTF_8 ) );
+            final JsonObject obj = gson.fromJson(
+                    doUploadAsAuthenticated( "RestAttachPage", filePart, null, "multipart/form-data; boundary=x" ),
+                    JsonObject.class );
+            assertEquals( 415, obj.get( "status" ).getAsInt(), obj.toString() );
+            assertTrue( obj.get( "message" ).getAsString().contains( ".exe" ) );
+            assertNull( engine.getManager( AttachmentManager.class ).getAttachmentInfo( "RestAttachPage/tool.exe" ),
+                    "a rejected upload must not be stored" );
+        } finally {
+            engine.getWikiProperties().remove( "wikantik.attachment.forbidden" );
+        }
+    }
+
+    @Test
+    void oversizeUploadIs413() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.attachment.maxsize", "10" );
+        try {
+            final Part filePart = mockFilePart( "big.txt", "12345678901".getBytes( StandardCharsets.UTF_8 ) );
+            final JsonObject obj = gson.fromJson(
+                    doUploadAsAuthenticated( "RestAttachPage", filePart, null, "multipart/form-data; boundary=x" ),
+                    JsonObject.class );
+            assertEquals( 413, obj.get( "status" ).getAsInt(), obj.toString() );
+            assertTrue( obj.get( "message" ).getAsString().contains( "10 bytes" ) );
+            assertNull( engine.getManager( AttachmentManager.class ).getAttachmentInfo( "RestAttachPage/big.txt" ) );
+        } finally {
+            engine.getWikiProperties().remove( "wikantik.attachment.maxsize" );
+        }
+    }
+
+    @Test
+    void uploadAtExactlyTheSizeLimitIsAccepted() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.attachment.maxsize", "10" );
+        try {
+            final Part filePart = mockFilePart( "edge.txt", "1234567890".getBytes( StandardCharsets.UTF_8 ) );
+            final JsonObject obj = gson.fromJson(
+                    doUploadAsAuthenticated( "RestAttachPage", filePart, null, "multipart/form-data; boundary=x" ),
+                    JsonObject.class );
+            assertTrue( obj.get( "success" ).getAsBoolean(), obj.toString() );
+        } finally {
+            engine.getWikiProperties().remove( "wikantik.attachment.maxsize" );
+        }
+    }
+
     // ----- Delete tests (anonymous lacks "delete"; bypass permission via spy) -----
 
     private String doDeleteAsAuthenticated( final String path ) throws Exception {

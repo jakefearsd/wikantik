@@ -21,6 +21,7 @@ package com.wikantik.rest;
 import com.google.gson.JsonObject;
 
 import com.wikantik.api.attachment.AttachmentNameValidator;
+import com.wikantik.attachment.AttachmentUploadPolicy;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
@@ -199,6 +200,31 @@ public class AttachmentResource extends RestServletBase {
         }
     }
 
+    /**
+     * Applies the operator's upload policy ({@link AttachmentUploadPolicy}) - the same one the legacy
+     * {@code AttachmentServlet} enforces, including its admin exemption. Returns true when a 413/415
+     * has been sent.
+     */
+    private boolean rejectedByUploadPolicy( final HttpServletRequest request, final HttpServletResponse response,
+                                            final Engine engine, final Attachment att, final String fileName,
+                                            final long size ) throws IOException {
+        if ( Wiki.context().create( engine, request, att ).hasAdminPermissions() ) {
+            return false;
+        }
+        final AttachmentUploadPolicy policy = AttachmentUploadPolicy.fromProperties( engine.getWikiProperties() );
+        if ( !policy.isSizeAllowed( size ) ) {
+            sendError( response, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE,
+                    "File exceeds maximum size (" + policy.maxSize() + " bytes)" );
+            return true;
+        }
+        if ( !policy.isTypeAllowed( fileName ) ) {
+            sendError( response, HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE,
+                    "Files of type ." + AttachmentNameValidator.getExtension( fileName ) + " may not be uploaded to this wiki" );
+            return true;
+        }
+        return false;
+    }
+
     @Override
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
@@ -266,6 +292,9 @@ public class AttachmentResource extends RestServletBase {
             final AttachmentManager am = getSubsystems().page().attachments();
 
             final Attachment att = Wiki.contents().attachment( engine, pageName, fileName );
+            if ( rejectedByUploadPolicy( request, response, engine, att, fileName, filePart.getSize() ) ) {
+                return;
+            }
             try ( InputStream in = filePart.getInputStream() ) {
                 am.storeAttachment( att, in );
             }

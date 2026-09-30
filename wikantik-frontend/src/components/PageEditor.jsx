@@ -475,7 +475,11 @@ export default function PageEditor() {
   // Attachments need an existing page; on a new page the paste/drop waits for a first save.
   const [pendingUpload, setPendingUpload] = useState(null);
   const handleFiles = useCallback((files, pos, opts) => {
-    if (isNew) { setPendingUpload({ files, pos, opts }); return; }
+    if (isNew) {
+      // Queue behind any earlier paste/drop (keeping its position) rather than replacing it.
+      setPendingUpload((prev) => (prev ? { ...prev, files: [...prev.files, ...files] } : { files, pos, opts }));
+      return;
+    }
     uploadFiles(files, pos, opts);
   }, [isNew, uploadFiles]);
 

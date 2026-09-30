@@ -112,6 +112,16 @@ describe('paste/drop uploads', () => {
     expect(screen.queryByTestId('upload-needs-save')).toBeNull();
   });
 
+  it('a second paste on an unsaved page is queued with the first, not replacing it', async () => {
+    api.getPage.mockRejectedValue(Object.assign(new Error('not found'), { status: 404 }));
+    renderEditor('Fresh');
+    const paste = await screen.findByTestId('fake-paste');
+    fireEvent.click(paste);
+    fireEvent.click(paste);
+    fireEvent.click(await screen.findByText('Save and upload'));
+    await waitFor(() => expect(api.uploadAttachment).toHaveBeenCalledTimes(2));
+  });
+
   it('on an existing page uploads directly with no banner', async () => {
     renderEditor('Existing');
     fireEvent.click(await screen.findByTestId('fake-paste'));

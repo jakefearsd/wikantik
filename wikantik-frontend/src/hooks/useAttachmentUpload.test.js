@@ -8,7 +8,7 @@ function harness({ upload, existingNames = [] } = {}) {
   const toast = { error: vi.fn() };
   const up = upload || vi.fn(async () => ({ success: true }));
   const { result } = renderHook(() => useAttachmentUpload({ existingNames, upload: up, updateBody, toast }));
-  return { run: (files, pos, opts) => act(() => result.current(files, pos, opts)), body: () => body, toast, upload: up };
+  return { call: (...a) => result.current(...a), run: (files, pos, opts) => act(() => result.current(files, pos, opts)), body: () => body, toast, upload: up };
 }
 
 const img = (name) => new File(['x'], name, { type: 'image/png' });
@@ -55,5 +55,27 @@ describe('useAttachmentUpload', () => {
     await h.run([doc('README')], 0, { pasted: false });
     expect(h.upload).not.toHaveBeenCalled();
     expect(h.toast.error).toHaveBeenCalledWith(expect.stringContaining('README'));
+  });
+
+  it('reserves names of in-flight uploads so overlapping pastes stay distinct', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 30, 14, 12, 3));
+    try {
+      let release;
+      const upload = vi.fn()
+        .mockImplementationOnce(() => new Promise((r) => { release = r; }))
+        .mockResolvedValue({});
+      const h = harness({ upload });
+      let first;
+      first = h.call([img('image.png')], 0, { pasted: true });
+      await h.run([img('image.png')], 0, { pasted: true });
+      release({});
+      await first;
+      const names = upload.mock.calls.map((c) => c[1]);
+      expect(names).toHaveLength(2);
+      expect(names[0]).not.toBe(names[1]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

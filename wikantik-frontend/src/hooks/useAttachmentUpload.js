@@ -17,9 +17,12 @@ const isImage = (file) => /^image\//.test(file.type || '');
 export function useAttachmentUpload({ existingNames, upload, updateBody, toast }) {
   const namesRef = useRef(existingNames);
   useEffect(() => { namesRef.current = existingNames; });
+  // Names claimed by uploads this hook started. The attachment list only learns them after a refresh,
+  // so an overlapping paste would otherwise pick the same name and overwrite the earlier upload.
+  const reservedRef = useRef(new Set());
 
   return useCallback(async (files, pos, { pasted = false } = {}) => {
-    const taken = [...(namesRef.current || [])];
+    const taken = [...(namesRef.current || []), ...reservedRef.current];
     const plan = [];
     for (const file of files) {
       const base = pasted && isImage(file) ? pastedImageName(file.type) : normalizeAttachmentName(file.name);
@@ -29,6 +32,7 @@ export function useAttachmentUpload({ existingNames, upload, updateBody, toast }
       }
       const name = uniqueAttachmentName(base, taken);
       taken.push(name);
+      reservedRef.current.add(name);
       plan.push({ file, name, placeholder: `![Uploading ${name}…]()` });
     }
     if (plan.length === 0) return;

@@ -28,7 +28,9 @@ import com.wikantik.event.WikiEventListener;
 import com.wikantik.event.WikiSecurityEvent;
 import com.wikantik.TestJNDIContext;
 import com.wikantik.auth.AbstractJDBCDatabase;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -62,51 +64,59 @@ import static org.mockito.Mockito.when;
  */
 class DefaultGroupManagerUnitTest {
 
-    private String savedJndiFactory;
+    private static final org.apache.logging.log4j.Logger LOG =
+            org.apache.logging.log4j.LogManager.getLogger( DefaultGroupManagerUnitTest.class );
+
+    private static String priorJndiFactory;
+    private String pollutedJndiFactory;
 
     /**
      * {@link TestJNDIContext#initialize()} (used by the JDBC database tests) installs a JVM-wide
      * initial-context factory that is never removed, so whether {@code new InitialContext()}
-     * resolves depends on which test class ran earlier in the same forked JVM. These tests rely on
-     * there being NO JNDI context, so each one starts with the factory property cleared.
+     * resolves depends on which test class ran earlier in the same forked JVM. To make that
+     * worst case deterministic, the class first installs that ambient JNDI state itself (with the
+     * default datasource bound and valid), and every test then clears the factory property so it
+     * must not depend on it. Everything is restored to the exact prior value afterwards.
      */
-    @BeforeEach
-    void isolateFromAmbientJndi() {
-        savedJndiFactory = System.getProperty( Context.INITIAL_CONTEXT_FACTORY );
-        System.clearProperty( Context.INITIAL_CONTEXT_FACTORY );
-    }
-
-    @AfterEach
-    void restoreAmbientJndi() {
-        if( savedJndiFactory != null ) {
-            System.setProperty( Context.INITIAL_CONTEXT_FACTORY, savedJndiFactory );
-        }
-    }
-
-    @Test
-    void initialize_ignoresAmbientJndiLeftByOtherTests() throws Exception {
-        // Reproduce the pollution: a bound default datasource reachable via a JVM-wide factory.
+    @BeforeAll
+    static void installAmbientJndi() throws Exception {
+        priorJndiFactory = System.getProperty( Context.INITIAL_CONTEXT_FACTORY );
         TestJNDIContext.initialize();
+        // initialize() is a no-op if an earlier class already ran it (and the property may since have been cleared)
+        System.setProperty( Context.INITIAL_CONTEXT_FACTORY, TestJNDIContext.Factory.class.getName() );
         final Context initCtx = new InitialContext();
         try {
             initCtx.bind( "java:comp/env", new TestJNDIContext() );
         } catch( final NameAlreadyBoundException e ) {
-            // already bound by an earlier test in this JVM -- fine
-            assertTrue( true, e.getMessage() );
+            LOG.debug( "java:comp/env already bound by an earlier test in this JVM", e );
         }
         final DataSource ds = mock( DataSource.class );
         final Connection conn = mock( Connection.class );
         when( ds.getConnection() ).thenReturn( conn );
         when( conn.isValid( org.mockito.ArgumentMatchers.anyInt() ) ).thenReturn( true );
         ( (Context) initCtx.lookup( "java:comp/env" ) ).bind( AbstractJDBCDatabase.DEFAULT_DATASOURCE, ds );
-        // the ambient factory is now installed (as after JDBCGroupDatabaseTest); the fixture must not see it
-        isolateFromAmbientJndi();
+    }
 
-        final DefaultGroupManager mgr = new DefaultGroupManager();
-        final WikiEngine engine = mock( WikiEngine.class );
-        final Properties props = new Properties();
-        when( engine.getWikiProperties() ).thenReturn( props );
-        assertThrows( WikiSecurityException.class, () -> mgr.initialize( engine, props ) );
+    @AfterAll
+    static void restoreAmbientJndi() {
+        if( priorJndiFactory != null ) {
+            System.setProperty( Context.INITIAL_CONTEXT_FACTORY, priorJndiFactory );
+        } else {
+            System.clearProperty( Context.INITIAL_CONTEXT_FACTORY );
+        }
+    }
+
+    @BeforeEach
+    void isolateFromAmbientJndi() {
+        pollutedJndiFactory = System.getProperty( Context.INITIAL_CONTEXT_FACTORY );
+        System.clearProperty( Context.INITIAL_CONTEXT_FACTORY );
+    }
+
+    @AfterEach
+    void restorePerTest() {
+        if( pollutedJndiFactory != null ) {
+            System.setProperty( Context.INITIAL_CONTEXT_FACTORY, pollutedJndiFactory );
+        }
     }
 
     // --- getGroupDatabase()/initialize(): default class name + JNDI failure ---

@@ -1,5 +1,5 @@
 // CodeMirror 6 completion source for internal links. Triggers:
-//   [[frag           → live page search; inserts [Name](Name)
+//   [[frag           → live page search (spaces ignored: page names are CamelCase); inserts [Name](Name)
 //   [[Page#frag      → the target page's h2/h3 headings; inserts [Heading](Page#anchor)
 //   ](frag           → pages + this page's attachments; replaces only the link target
 //   ](Page#frag      → headings of Page; ](#frag → headings of the page being edited
@@ -23,6 +23,9 @@ async function safely(label, promiseFn) {
     return null;
   }
 }
+
+// Brackets and backslashes in link text would end or corrupt the link.
+const escapeLinkText = (text) => text.replace(/[\\[\]]/g, '\\$&');
 
 function newPageOption(fragment, names, applyFor) {
   const text = (fragment || '').trim();
@@ -55,7 +58,7 @@ export function createWikiLinkSource({ searchPages, getHeadings, getAttachmentNa
   async function pageNames(fragment, context) {
     await sleep(SEARCH_DEBOUNCE_MS);
     if (context.aborted) return null;
-    const names = await safely('page search', () => searchPages(fragment));
+    const names = await safely('page search', () => searchPages(fragment.replace(/\s+/g, '')));
     return context.aborted ? null : names;
   }
 
@@ -64,7 +67,7 @@ export function createWikiLinkSource({ searchPages, getHeadings, getAttachmentNa
   async function completeWiki(match, context) {
     const [, page, heading] = WIKI_TRIGGER.exec(match.text);
     if (heading !== undefined) {
-      const options = await headingOptions(page, heading, (h) => `[${h.text}](${page}#${h.id})`);
+      const options = await headingOptions(page, heading, (h) => `[${escapeLinkText(h.text)}](${page}#${h.id})`);
       return context.aborted ? null : result(match.from, options);
     }
     const names = await pageNames(page, context);

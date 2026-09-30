@@ -117,4 +117,17 @@ describe('createWikiLinkSource', () => {
     expect(await p).toBeNull();
     expect(d.searchPages).not.toHaveBeenCalled();
   });
+
+  it('I2: [[ with spaces searches the whitespace-free name and offers no new-page item for an existing page', async () => {
+    const searchPages = vi.fn(async (q) => (q === 'machinelearning' ? ['MachineLearning'] : []));
+    const res = await createWikiLinkSource(deps({ searchPages }))(ctx('see [[machine learning'));
+    expect(searchPages).toHaveBeenCalledWith('machinelearning');
+    expect(res.options.map((o) => o.label)).toEqual(['MachineLearning']);
+  });
+
+  it('M8: escapes brackets and backslashes in heading link text', async () => {
+    const getHeadings = vi.fn(async () => [{ level: 2, text: 'Arrays [and] a\\b', line: 1, id: 'arrays-and-a-b' }]);
+    const res = await createWikiLinkSource(deps({ getHeadings }))(ctx('[[Page#arr'));
+    expect(res.options[0].apply).toBe('[Arrays \\[and\\] a\\\\b](Page#arrays-and-a-b)');
+  });
 });

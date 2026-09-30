@@ -227,7 +227,12 @@ export default function PageEditor() {
       if (!cache.has(page)) {
         cache.set(page, api.getPage(page)
           .then((p) => headingsFromMarkdown(p.content || ''))
-          .catch((err) => { cache.delete(page); throw err; }));
+          .catch((err) => {
+            // A page that doesn't exist has no headings — remember that; evict any other failure to retry.
+            if (err?.status === 404) return [];
+            cache.delete(page);
+            throw err;
+          }));
       }
       return cache.get(page);
     },

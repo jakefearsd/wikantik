@@ -88,7 +88,8 @@ class DefaultForAgentProjectionServiceBranchTest {
 
         final DefaultForAgentProjectionService svc = new DefaultForAgentProjectionService(
             idx, pm, cache, new ForAgentMetrics(), null, null, null,
-            throwing, new KeyFactsExtractor(), new McpToolHintsResolver(), new RecentChangesAdapter( pm ) );
+            new DefaultForAgentProjectionService.Extractors(
+                throwing, new KeyFactsExtractor(), new McpToolHintsResolver(), new RecentChangesAdapter( pm ) ) );
 
         final ForAgentProjection p = svc.project( "01ABC" ).orElseThrow();
         assertTrue( p.headingsOutline().isEmpty() );
@@ -103,7 +104,8 @@ class DefaultForAgentProjectionServiceBranchTest {
 
         final DefaultForAgentProjectionService svc = new DefaultForAgentProjectionService(
             idx, pm, cache, new ForAgentMetrics(), null, null, null,
-            new HeadingsOutlineExtractor(), throwing, new McpToolHintsResolver(), new RecentChangesAdapter( pm ) );
+            new DefaultForAgentProjectionService.Extractors(
+                new HeadingsOutlineExtractor(), throwing, new McpToolHintsResolver(), new RecentChangesAdapter( pm ) ) );
 
         final ForAgentProjection p = svc.project( "01ABC" ).orElseThrow();
         assertTrue( p.keyFacts().isEmpty() );
@@ -118,7 +120,8 @@ class DefaultForAgentProjectionServiceBranchTest {
 
         final DefaultForAgentProjectionService svc = new DefaultForAgentProjectionService(
             idx, pm, cache, new ForAgentMetrics(), null, null, null,
-            new HeadingsOutlineExtractor(), new KeyFactsExtractor(), new McpToolHintsResolver(), throwing );
+            new DefaultForAgentProjectionService.Extractors(
+                new HeadingsOutlineExtractor(), new KeyFactsExtractor(), new McpToolHintsResolver(), throwing ) );
 
         final ForAgentProjection p = svc.project( "01ABC" ).orElseThrow();
         assertTrue( p.recentChanges().isEmpty() );
@@ -133,7 +136,8 @@ class DefaultForAgentProjectionServiceBranchTest {
 
         final DefaultForAgentProjectionService svc = new DefaultForAgentProjectionService(
             idx, pm, cache, new ForAgentMetrics(), null, null, null,
-            new HeadingsOutlineExtractor(), new KeyFactsExtractor(), throwing, new RecentChangesAdapter( pm ) );
+            new DefaultForAgentProjectionService.Extractors(
+                new HeadingsOutlineExtractor(), new KeyFactsExtractor(), throwing, new RecentChangesAdapter( pm ) ) );
 
         final ForAgentProjection p = svc.project( "01ABC" ).orElseThrow();
         assertTrue( p.mcpToolHints().isEmpty() );

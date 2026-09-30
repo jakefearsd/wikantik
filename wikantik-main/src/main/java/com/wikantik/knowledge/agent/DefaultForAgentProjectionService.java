@@ -91,8 +91,20 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             final HubSummarySynthesizer hubSynth,
             final CitationRepository citationRepository ) {
         this( index, pageManager, cache, metrics, hintsDeriver, hubSynth, citationRepository,
-              new HeadingsOutlineExtractor(), new KeyFactsExtractor(), new McpToolHintsResolver(),
-              new RecentChangesAdapter( pageManager ) );
+              new Extractors( new HeadingsOutlineExtractor(), new KeyFactsExtractor(),
+                              new McpToolHintsResolver(), new RecentChangesAdapter( pageManager ) ) );
+    }
+
+    /**
+     * Parameter object for the four inner extractor/adapter helpers, so the
+     * test-only seam constructor below stays under the project's
+     * {@code ExcessiveParameterList} complexity-gate threshold (8).
+     */
+    record Extractors(
+            HeadingsOutlineExtractor headings,
+            KeyFactsExtractor keyFacts,
+            McpToolHintsResolver toolHints,
+            RecentChangesAdapter recents ) {
     }
 
     /**
@@ -109,10 +121,7 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             final AgentHintsDeriver hintsDeriver,
             final HubSummarySynthesizer hubSynth,
             final CitationRepository citationRepository,
-            final HeadingsOutlineExtractor headings,
-            final KeyFactsExtractor keyFacts,
-            final McpToolHintsResolver toolHints,
-            final RecentChangesAdapter recents ) {
+            final Extractors extractors ) {
         this.index = index;
         this.pageManager = pageManager;
         this.cache = cache;
@@ -120,10 +129,10 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
         this.hintsDeriver = hintsDeriver;
         this.hubSynth = hubSynth;
         this.citationRepository = citationRepository;
-        this.headings = headings;
-        this.keyFacts = keyFacts;
-        this.toolHints = toolHints;
-        this.recents = recents;
+        this.headings = extractors.headings();
+        this.keyFacts = extractors.keyFacts();
+        this.toolHints = extractors.toolHints();
+        this.recents = extractors.recents();
     }
 
     @Override

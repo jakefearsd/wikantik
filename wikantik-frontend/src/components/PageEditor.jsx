@@ -18,6 +18,8 @@ import Tabs from './ui/Tabs';
 import { remarkAttachments } from '../utils/remarkAttachments';
 import { headingsFromMarkdown } from '../utils/headings';
 import { useAttachments } from '../hooks/useAttachments';
+import { useAttachmentUpload } from '../hooks/useAttachmentUpload';
+import { dragCarriesFiles } from '../utils/editorFileEvents';
 import { useEditorDrop } from '../hooks/useEditorDrop';
 import { useDraft } from '../hooks/useDraft';
 import { useAuth } from '../hooks/useAuth';
@@ -373,7 +375,9 @@ export default function PageEditor() {
   // #4 — extracted save function used by button and keyboard shortcut. Sends body + metadata object
   // (replaceMetadata=true for full-object replace); maps a 422 to inline field violations, surfaces
   // 200 warnings as an advisory toast.
-  const saveContent = async () => {
+  // Resolves true on success-with-stay (`{ stay: true }`), false on every failure branch; without `stay`
+  // a success navigates to the page view. The Save button passes a click event, which destructures to stay=false.
+  const saveContent = async ({ stay = false } = {}) => {
     setSaving(true);
     savingRef.current = true;
     setError(null);
@@ -399,7 +403,14 @@ export default function PageEditor() {
       } else {
         toast.success('Saved');
       }
+      if (stay) {
+        setIsNew(false);
+        setOriginalVersion(res?.version ?? originalVersion);
+        setLoadedContent(reconstructContent(metadata, body));
+        return true;
+      }
       navigate(`/wiki/${name}`);
+      return true;
     } catch (err) {
       if (err.status === 409) {
         try {
@@ -423,6 +434,7 @@ export default function PageEditor() {
       } else {
         setError(err.message || 'Save failed');
       }
+      return false;
     } finally {
       setSaving(false);
       savingRef.current = false;
@@ -454,12 +466,27 @@ export default function PageEditor() {
 
   const dragCounterRef = useRef(0);
 
-  const handleDragEnter = useCallback(() => {
+  const uploadFiles = useAttachmentUpload({
+    existingNames: (attachments.list || []).map((a) => a.fileName),
+    upload: attachments.uploadAttachment,
+    updateBody: setBody,
+    toast,
+  });
+  // Attachments need an existing page; on a new page the paste/drop waits for a first save.
+  const [pendingUpload, setPendingUpload] = useState(null);
+  const handleFiles = useCallback((files, pos, opts) => {
+    if (isNew) { setPendingUpload({ files, pos, opts }); return; }
+    uploadFiles(files, pos, opts);
+  }, [isNew, uploadFiles]);
+
+  const handleDragEnter = useCallback((e) => {
+    if (!dragCarriesFiles(e.dataTransfer)) return;
     dragCounterRef.current += 1;
     setIsDragging(true);
   }, []);
 
-  const handleDragLeave = useCallback(() => {
+  const handleDragLeave = useCallback((e) => {
+    if (!dragCarriesFiles(e.dataTransfer)) return;
     dragCounterRef.current -= 1;
     if (dragCounterRef.current <= 0) {
       dragCounterRef.current = 0;
@@ -468,7 +495,7 @@ export default function PageEditor() {
   }, []);
 
   const handleDragOver = useCallback((e) => {
-    e.preventDefault();
+    if (dragCarriesFiles(e.dataTransfer)) e.preventDefault();
   }, []);
 
   const handleDrop = useCallback(() => {
@@ -608,6 +635,23 @@ export default function PageEditor() {
 
       {error && <div className="error-banner" data-testid="editor-error">{error}</div>}
 
+      {pendingUpload && (
+        <div className="info-banner" role="status" data-testid="upload-needs-save">
+          <span>Save the page once to add attachments.</span>
+          <button type="button" className="btn btn-primary btn-sm" disabled={saving || hasBlockingErrors}
+            onClick={async () => {
+              const p = pendingUpload;
+              if (await saveContent({ stay: true })) {
+                setPendingUpload(null);
+                uploadFiles(p.files, p.pos, p.opts);
+              }
+            }}>
+            Save and upload
+          </button>
+          <button type="button" className="btn-link" onClick={() => setPendingUpload(null)}>Cancel</button>
+        </div>
+      )}
+
       {restorePrompt && (
         <div className="draft-restore-banner" role="status">
           <span title={new Date(draft.savedAt).toLocaleString()}>
@@ -672,7 +716,7 @@ export default function PageEditor() {
         >
           {isDragging && (
             <div className="editor-dropzone-hint" aria-hidden="true">
-              Drop images to upload
+              Drop to upload
             </div>
           )}
           <CodeEditor
@@ -687,6 +731,7 @@ export default function PageEditor() {
             onLink={handleLink}
             linkCompletion={linkCompletion}
             onViewChange={syncPreview}
+            onFiles={handleFiles}
           />
         </div>
         <div className="editor-pane editor-preview" ref={previewRef} onScroll={syncEditor}>

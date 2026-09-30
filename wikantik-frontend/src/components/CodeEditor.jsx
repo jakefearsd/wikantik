@@ -5,6 +5,7 @@ import { EditorView, keymap } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { autocompletion } from '@codemirror/autocomplete';
 import { createWikiLinkSource } from '../utils/wikiLinkComplete';
+import { filesFromPaste, filesFromDrop } from '../utils/editorFileEvents';
 
 /**
  * #19 — CodeMirror 6 markdown source editor.
@@ -32,11 +33,12 @@ import { createWikiLinkSource } from '../utils/wikiLinkComplete';
  *   onItalic    () => void        Mod-i handler
  *   onLink      () => void        Mod-k handler
  *   linkCompletion { searchPages(q), getHeadings(page|null), getAttachmentNames() }  link autocomplete sources
+ *   onFiles     (files, pos, { pasted }) => void   pasted/dropped OS files (e.g. images to upload)
  *   className   string            applied to the wrapping div
  *   'data-testid' string         applied to the wrapping div
  */
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, onViewChange, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, onViewChange, onFiles, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
@@ -50,6 +52,27 @@ const CodeEditor = forwardRef(function CodeEditor(
   // Held in a ref so the extension (built once) always calls the latest handler.
   const onViewChangeRef = useRef(onViewChange);
   onViewChangeRef.current = onViewChange;
+
+  // Pasted / dropped files. Held in a ref like the other callbacks so the extension is built once.
+  const onFilesRef = useRef(onFiles);
+  onFilesRef.current = onFiles;
+  const fileDropExtension = useMemo(() => EditorView.domEventHandlers({
+    paste(event, view) {
+      const files = filesFromPaste(event.clipboardData);
+      if (!files.length || !onFilesRef.current) return false;
+      event.preventDefault();
+      onFilesRef.current(files, view.state.selection.main.head, { pasted: true });
+      return true;
+    },
+    drop(event, view) {
+      const files = filesFromDrop(event.dataTransfer);
+      if (!files.length || !onFilesRef.current) return false;
+      event.preventDefault();
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.head;
+      onFilesRef.current(files, pos, { pasted: false });
+      return true;
+    },
+  }), []);
 
   const handleCreateEditor = useCallback((view) => {
     viewRef.current = view;
@@ -203,8 +226,8 @@ const CodeEditor = forwardRef(function CodeEditor(
   );
 
   const extensions = useMemo(
-    () => [markdown(), EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension],
-    [shortcutKeymap, wikiLinkAutocomplete, syncExtension],
+    () => [markdown(), EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension],
+    [shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension],
   );
 
   return (

@@ -496,7 +496,7 @@ describe('#22 drag-and-drop drop-zone hint', () => {
     fireEvent.dragEnter(pane, { dataTransfer: { types: ['Files'] } });
     await waitFor(() => expect(container.querySelector('.editor-dropzone-hint')).not.toBeNull());
 
-    fireEvent.dragLeave(pane);
+    fireEvent.dragLeave(pane, { dataTransfer: { types: ['Files'] } });
 
     await waitFor(() => expect(container.querySelector('.editor-dropzone-hint')).toBeNull());
   });
@@ -512,6 +512,27 @@ describe('#22 drag-and-drop drop-zone hint', () => {
     fireEvent.drop(pane, { dataTransfer: { types: ['Files'] } });
 
     await waitFor(() => expect(container.querySelector('.editor-dropzone-hint')).toBeNull());
+  });
+});
+
+describe('drop hint', () => {
+  it('reads "Drop to upload" for a file drag', async () => {
+    const { container } = renderEditor();
+    await waitForEditor();
+    fireEvent.dragEnter(container.querySelector('.editor-pane'), { dataTransfer: { types: ['Files'] } });
+    const hint = await waitFor(() => {
+      const el = container.querySelector('.editor-dropzone-hint');
+      expect(el).not.toBeNull();
+      return el;
+    });
+    expect(hint).toHaveTextContent('Drop to upload');
+  });
+
+  it('shows no hint for a text drag', async () => {
+    const { container } = renderEditor();
+    await waitForEditor();
+    fireEvent.dragEnter(container.querySelector('.editor-pane'), { dataTransfer: { types: ['text/plain'] } });
+    expect(container.querySelector('.editor-dropzone-hint')).toBeNull();
   });
 });
 
@@ -1099,13 +1120,24 @@ describe('formatting toolbar — remaining commands', () => {
 
 // ── Drag-over + change-note input + misc UI wiring ──────────────────────────
 describe('misc UI wiring', () => {
-  it('dragover on the editor pane preventDefaults (allows drop)', async () => {
+  it('dragover of files on the editor pane preventDefaults (allows drop)', async () => {
     const { container } = renderEditor();
     await waitForEditor();
     const pane = container.querySelector('.editor-pane');
     const event = new Event('dragover', { bubbles: true, cancelable: true });
+    event.dataTransfer = { types: ['Files'] };
     fireEvent(pane, event);
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('dragover of non-file content is left alone (useEditorDrop owns attachment-row drags)', async () => {
+    const { container } = renderEditor();
+    await waitForEditor();
+    const pane = container.querySelector('.editor-pane');
+    const event = new Event('dragover', { bubbles: true, cancelable: true });
+    event.dataTransfer = { types: ['text/plain'] };
+    fireEvent(pane, event);
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it('typing into the change-note field updates its value', async () => {

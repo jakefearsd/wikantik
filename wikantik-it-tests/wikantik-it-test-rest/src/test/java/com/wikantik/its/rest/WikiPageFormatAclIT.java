@@ -35,12 +35,15 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Regression IT for the {@code /wiki/{slug}?format=md|json} raw-content endpoint
- * (WikiPageFormatFilter): an ACL-restricted page must NOT be served to anonymous
- * callers. Previously the filter performed no permission check and leaked any page.
+ * Regression IT for read-surface ACLs on both {@code /wiki/{slug}?format=md|json}
+ * (WikiPageFormatFilter) and {@code /api/pages} {@code q=}/{@code names=}: an
+ * ACL-restricted page must NOT be served to, searchable by, or reported as existing
+ * to anonymous callers. Previously the format filter performed no permission check
+ * and leaked any page.
  */
 public class WikiPageFormatAclIT {
 
@@ -105,12 +108,17 @@ public class WikiPageFormatAclIT {
     }
 
     private HttpResponse< String > getAnonymous( final String path ) throws IOException, InterruptedException {
+        return getAnonymous( path, "text/markdown" );
+    }
+
+    private HttpResponse< String > getAnonymous( final String path, final String accept )
+            throws IOException, InterruptedException {
         final HttpClient anon = HttpClient.newBuilder()
                 .followRedirects( HttpClient.Redirect.NORMAL )
                 .cookieHandler( secureCookieOverHttp() )
                 .build();
         return anon.send( HttpRequest.newBuilder().uri( URI.create( baseUrl + path ) )
-                .header( "Accept", "text/markdown" ).GET().build(),
+                .header( "Accept", accept ).GET().build(),
                 HttpResponse.BodyHandlers.ofString() );
     }
 
@@ -155,5 +163,31 @@ public class WikiPageFormatAclIT {
                         + anonSecret.statusCode() + ")" );
         assertTrue( !anonSecret.body().contains( "Secret body content" ),
                 "restricted page body must not leak: " + anonSecret.body() );
+    }
+
+    @Test
+    void restrictedPageIsNotDisclosedByPageSearchOrNamesCheck() throws Exception {
+        loginAsAdmin();
+        try {
+            put( "/api/pages/" + PUBLIC_PAGE, GSON.toJson(
+                    Map.of( "content", "Public body content for the format ACL IT.",
+                            "changeNote", "WikiPageFormatAclIT" ) ) );
+            put( "/api/pages/" + SECRET_PAGE, GSON.toJson(
+                    Map.of( "content", "[{ALLOW view Admin}]\n\nSecret body content for the format ACL IT.",
+                            "changeNote", "WikiPageFormatAclIT" ) ) );
+        } finally {
+            logoutAdmin();
+        }
+
+        final HttpResponse< String > q = getAnonymous( "/api/pages?q=FormatAcl&limit=20", "application/json" );
+        assertEquals( 200, q.statusCode(), q.body() );
+        assertTrue( q.body().contains( PUBLIC_PAGE ), "public page must be searchable: " + q.body() );
+        assertFalse( q.body().contains( SECRET_PAGE ), "restricted page must not appear in q= results: " + q.body() );
+
+        final HttpResponse< String > n = getAnonymous(
+                "/api/pages?names=" + PUBLIC_PAGE + "," + SECRET_PAGE, "application/json" );
+        assertEquals( 200, n.statusCode(), n.body() );
+        assertTrue( n.body().contains( PUBLIC_PAGE ) );
+        assertFalse( n.body().contains( SECRET_PAGE ), "restricted page must not be reported as existing: " + n.body() );
     }
 }

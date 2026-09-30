@@ -183,6 +183,75 @@ class PageListResourceTest {
                 "derived is omitted (not false) when the index has no entry" );
     }
 
+    private String doGetParams( final java.util.Map< String, String > params ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages" );
+        params.forEach( ( k, v ) -> Mockito.doReturn( v ).when( request ).getParameter( k ) );
+        // Fresh anonymous session: HttpMockFactory's shared session is polluted by saveText().
+        final jakarta.servlet.http.HttpSession sess = Mockito.mock( jakarta.servlet.http.HttpSession.class );
+        Mockito.doReturn( "anon-pagelist-" + System.nanoTime() ).when( sess ).getId();
+        Mockito.doReturn( sess ).when( request ).getSession();
+        Mockito.doReturn( sess ).when( request ).getSession( Mockito.anyBoolean() );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        servlet.doGet( request, response );
+        return sw.toString();
+    }
+
+    private java.util.List< String > names( final String json ) {
+        final JsonArray pages = gson.fromJson( json, JsonObject.class ).getAsJsonArray( "pages" );
+        final java.util.List< String > out = new java.util.ArrayList<>();
+        pages.forEach( p -> out.add( p.getAsJsonObject().get( "name" ).getAsString() ) );
+        return out;
+    }
+
+    @Test
+    void qMatchesCaseInsensitiveSubstringRanked() throws Exception {
+        engine.saveText( "QzxbetaRestList", "Prefix-ranked sibling." );
+        engine.saveText( "RestListQzxbeta", "Substring-ranked sibling." );
+        try {
+            final java.util.List< String > got = names( doGetParams( java.util.Map.of( "q", "restlistqzxbeta" ) ) );
+            assertEquals( java.util.List.of( "RestListQzxbeta" ), got );
+            final java.util.List< String > ranked = names( doGetParams( java.util.Map.of( "q", "qzxbeta" ) ) );
+            assertEquals( java.util.List.of( "QzxbetaRestList", "RestListQzxbeta" ), ranked,
+                    "prefix match ranks before substring match" );
+        } finally {
+            engine.deleteQuietly( "QzxbetaRestList", "RestListQzxbeta" );
+        }
+    }
+
+    @Test
+    void namesReturnsOnlyExistingPages() throws Exception {
+        final java.util.List< String > got = names( doGetParams(
+                java.util.Map.of( "names", "RestListAlpha,NoSuchPageXyz,RestListGamma" ) ) );
+        assertEquals( java.util.List.of( "RestListAlpha", "RestListGamma" ), got );
+    }
+
+    @Test
+    void namesAboveCapIs400() throws Exception {
+        final String many = java.util.stream.IntStream.rangeClosed( 1, 51 )
+                .mapToObj( i -> "P" + i ).collect( java.util.stream.Collectors.joining( "," ) );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages" );
+        Mockito.doReturn( many ).when( request ).getParameter( "names" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        servlet.doGet( request, response );
+        Mockito.verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+        assertTrue( gson.fromJson( sw.toString(), JsonObject.class ).get( "message" ).getAsString().contains( "50" ) );
+    }
+
+    @Test
+    void qAndNamesHideRestrictedPagesFromAnonymous() throws Exception {
+        engine.saveText( "RestListSecret", "[{ALLOW view Admin}]\nRestricted." );
+        try {
+            assertFalse( names( doGetParams( java.util.Map.of( "q", "RestListSecret" ) ) ).contains( "RestListSecret" ) );
+            assertEquals( java.util.List.of(), names( doGetParams( java.util.Map.of( "names", "RestListSecret" ) ) ) );
+        } finally {
+            engine.deleteQuietly( "RestListSecret" );
+        }
+    }
+
     @Test
     void testListPagesWithInvalidLimit() throws Exception {
         final String json = doGetList( null, "not-a-number", null );

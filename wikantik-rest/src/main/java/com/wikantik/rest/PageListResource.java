@@ -33,7 +33,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -52,6 +51,8 @@ import java.util.Map;
  *   <li>{@code prefix} - Filter pages whose names start with this prefix</li>
  *   <li>{@code limit} - Maximum number of results (default 100)</li>
  *   <li>{@code offset} - Number of results to skip (default 0)</li>
+ *   <li>{@code q} - Case-insensitive substring search on page names, ranked exact, prefix, then substring</li>
+ *   <li>{@code names} - Comma-separated page names (at most 50); returns only those that exist and are viewable</li>
  * </ul>
  */
 public class PageListResource extends RestServletBase {
@@ -73,6 +74,9 @@ public class PageListResource extends RestServletBase {
         final String prefix = request.getParameter( "prefix" );
         final int limit = parseIntParam( request, "limit", DEFAULT_LIMIT );
         final int offset = parseIntParam( request, "offset", 0 );
+        final String q = request.getParameter( "q" );
+        final String namesParam = request.getParameter( "names" );
+        final List< String > wantedNames = PageNameQuery.parseNames( namesParam );
 
         // D8: previously the negative limit (-1) propagated all the way to Stream.limit(-1)
         // which throws IllegalArgumentException — surfacing as a 500 with a stack trace.
@@ -93,11 +97,17 @@ public class PageListResource extends RestServletBase {
             return;
         }
 
+        if ( wantedNames.size() > PageNameQuery.MAX_NAMES ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "names accepts at most " + PageNameQuery.MAX_NAMES + " page names (got " + wantedNames.size() + ")" );
+            return;
+        }
+
         final PageManager pm = getSubsystems().page().pages();
 
-        final Collection< Page > allPages;
+        final Collection< Page > candidates;
         try {
-            allPages = pm.getAllPages();
+            candidates = namesParam != null ? pagesNamed( pm, wantedNames ) : pm.getAllPages();
         } catch ( final ProviderException e ) {
             LOG.error( "Error listing pages: {}", e.getMessage() );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
@@ -105,11 +115,10 @@ public class PageListResource extends RestServletBase {
             return;
         }
 
-        // Filter by prefix if provided, sort alphabetically, then paginate
-        List< Page > filtered = allPages.stream()
-                .filter( page -> prefix == null || page.getName().startsWith( prefix ) )
-                .sorted( Comparator.comparing( Page::getName ) )
-                .toList();
+        // Prefix filter, then q= ranking (alphabetical when q is absent), then the ACL filter below.
+        List< Page > filtered = PageNameQuery.rankBySubstring(
+                candidates.stream().filter( page -> prefix == null || page.getName().startsWith( prefix ) ).toList(),
+                Page::getName, q );
 
         // Authorization: drop pages the caller cannot view so ACL-restricted page names
         // are not disclosed in the global listing. Filter before pagination so `total`
@@ -163,6 +172,11 @@ public class PageListResource extends RestServletBase {
         result.put( "limit", limit );
 
         sendJson( response, result );
+    }
+
+    /** The pages among {@code names} that exist ({@code names=} existence check); unknown names are dropped. */
+    private static Collection< Page > pagesNamed( final PageManager pm, final List< String > names ) {
+        return names.stream().map( pm::getPage ).filter( java.util.Objects::nonNull ).toList();
     }
 
     /**

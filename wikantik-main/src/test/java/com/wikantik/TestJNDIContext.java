@@ -103,10 +103,13 @@ public class TestJNDIContext implements Context
     {
         if ( !initialized )
         {
-            System.setProperty( Context.INITIAL_CONTEXT_FACTORY, Factory.class.getName() );
             Factory.setContext( new TestJNDIContext() );
             initialized = true;
         }
+        // Always re-assert the factory property: it is JVM-global and another test class may have
+        // cleared it since the first call, which would leave this (already "initialized") caller
+        // without any initial context.
+        System.setProperty( Context.INITIAL_CONTEXT_FACTORY, Factory.class.getName() );
     }
 
     /**

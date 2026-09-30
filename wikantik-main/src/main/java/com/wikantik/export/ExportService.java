@@ -89,7 +89,21 @@ public final class ExportService {
 
     /** Reads wikantik.baseURL and wikantik.export.maxPages from the engine properties. */
     public static ExportService fromSubsystems( final Engine engine, final WikiSubsystems subs ) {
-        final String baseUrl = TextUtil.getStringProperty( engine.getWikiProperties(), "wikantik.baseURL", "" );
+        return fromSubsystems( engine, subs, "" );
+    }
+
+    /**
+     * Like {@link #fromSubsystems(Engine, WikiSubsystems)}, but {@code fallbackBaseUrl} is used
+     * in place of {@code wikantik.baseURL} when that property is blank — which is its default.
+     * A blank base URL would make every wiki link written into the export relative (and useless
+     * once the vault is opened outside the wiki), so callers with request context (REST) pass an
+     * absolute, request-derived base URL rather than accepting a relative one. A configured
+     * {@code wikantik.baseURL} always wins over the fallback.
+     */
+    public static ExportService fromSubsystems( final Engine engine, final WikiSubsystems subs,
+                                                final String fallbackBaseUrl ) {
+        final String configured = TextUtil.getStringProperty( engine.getWikiProperties(), "wikantik.baseURL", "" );
+        final String baseUrl = configured.isBlank() ? fallbackBaseUrl : configured;
         final int maxPages = TextUtil.getIntegerProperty( engine.getWikiProperties(), PROP_MAX_PAGES, DEFAULT_MAX_PAGES );
         return new ExportService( subs.pageGraph().structuralIndexService(), subs.page().pages(),
                 subs.pageGraph().referenceManager(), subs.page().attachments(), new PermissionFilter( engine ),

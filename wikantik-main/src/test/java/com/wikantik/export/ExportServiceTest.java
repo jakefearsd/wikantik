@@ -264,4 +264,40 @@ class ExportServiceTest {
         };
         assertThrows( IOException.class, () -> service.stream( prepared, broken ) );
     }
+
+    // ---- fromSubsystems( Engine, WikiSubsystems, String ) base-URL fallback --------------------
+    //
+    // wikantik.baseURL defaults to blank (verified: the wikantik-main test overlay does not set
+    // it), which would make every wiki link written into an export relative and useless once the
+    // vault is opened outside the wiki. Callers with request context (ExportResource) pass an
+    // absolute, request-derived fallback; ExportService uses it only when the property is blank.
+
+    @Test
+    void fromSubsystemsUsesFallback_whenBaseUrlPropertyBlank() throws Exception {
+        assertTrue( engine.getWikiProperties().getProperty( "wikantik.baseURL", "" ).isBlank(),
+                "test fixture is vacuous: wikantik.baseURL is not blank by default" );
+
+        final ExportService svc = ExportService.fromSubsystems( engine, subs, "https://fallback.example" );
+        final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        svc.stream( svc.prepare( guest(), finance( 0 ) ), bos );
+        final String manifest = new String(
+                ObsidianVaultWriterTest.unzip( bos.toByteArray() ).get( ".wikantik/manifest.json" ), StandardCharsets.UTF_8 );
+        assertTrue( manifest.contains( "\"serverBaseUrl\": \"https://fallback.example\"" ), manifest );
+    }
+
+    @Test
+    void fromSubsystemsIgnoresFallback_whenBaseUrlPropertyConfigured() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.baseURL", "https://configured.example" );
+        try {
+            final ExportService svc = ExportService.fromSubsystems( engine, subs, "https://fallback.example" );
+            final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            svc.stream( svc.prepare( guest(), finance( 0 ) ), bos );
+            final String manifest = new String(
+                    ObsidianVaultWriterTest.unzip( bos.toByteArray() ).get( ".wikantik/manifest.json" ), StandardCharsets.UTF_8 );
+            assertTrue( manifest.contains( "\"serverBaseUrl\": \"https://configured.example\"" ), manifest );
+            assertFalse( manifest.contains( "fallback.example" ), manifest );
+        } finally {
+            engine.getWikiProperties().setProperty( "wikantik.baseURL", "" );
+        }
+    }
 }

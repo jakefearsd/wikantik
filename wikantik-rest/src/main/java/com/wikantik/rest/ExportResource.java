@@ -1,0 +1,256 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.rest;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.wikantik.api.core.Session;
+import com.wikantik.api.pagegraph.PageType;
+import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AuthorizationManager;
+import com.wikantik.auth.permissions.WikiPermission;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
+import com.wikantik.export.ExportOptions;
+import com.wikantik.export.ExportPreview;
+import com.wikantik.export.ExportSelection;
+import com.wikantik.export.ExportService;
+import com.wikantik.export.ExportTooLargeException;
+import com.wikantik.export.UnresolvedLinkMode;
+
+/**
+ * {@code GET /api/export}, {@code /api/export/preview}, {@code /api/export/options} — bulk
+ * export of viewer-visible content as an Obsidian-compatible vault zip.
+ *
+ * <p>Every request requires an authenticated session carrying the {@code export} wiki
+ * permission ({@link WikiPermission#EXPORT}). {@code /options} returns the cluster/tag picker
+ * lists; {@code /preview} returns a cheap size estimate for a selection without doing any
+ * conversion work; the bare path streams the zip itself.
+ *
+ * <p>{@code wikantik.baseURL} defaults to blank, which would make every wiki link written
+ * into the export relative and useless once opened outside the wiki. When the property is
+ * blank, {@link ExportService} falls back to a base URL derived from this request
+ * ({@code scheme://host[:port]} + the context path) rather than emitting relative links.
+ */
+public class ExportResource extends RestServletBase {
+
+    private static final long serialVersionUID = 1L;
+    private static final Logger LOG = LogManager.getLogger( ExportResource.class );
+
+    /** Seam for tests. Derives the {@code wikantik.baseURL} fallback from {@code req}. */
+    protected ExportService exportService( final HttpServletRequest req ) {
+        return ExportService.fromSubsystems( getEngine(), getSubsystems(), requestBaseUrl( req ) );
+    }
+
+    /**
+     * Enforces the {@code export} wiki permission. Overridable so tests can exercise the
+     * 403 branch without depending on policy-grant fixtures.
+     */
+    protected boolean canExport( final Session session ) {
+        final AuthorizationManager auth = AuthSubsystemBridge.fromLegacyEngine( getEngine() ).authorization();
+        return auth.checkPermission( session, WikiPermission.EXPORT );
+    }
+
+    @Override
+    protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
+        final Session session = Wiki.session().find( getEngine(), req );
+        if ( !session.isAuthenticated() ) {
+            sendError( resp, HttpServletResponse.SC_UNAUTHORIZED, "Login required to export" );
+            return;
+        }
+        if ( !canExport( session ) ) {
+            sendError( resp, HttpServletResponse.SC_FORBIDDEN, "Forbidden: export permission required" );
+            return;
+        }
+        final String sub = Optional.ofNullable( req.getPathInfo() ).orElse( "" );
+        switch ( sub ) {
+            case "", "/" -> download( req, resp, session );
+            case "/preview" -> preview( req, resp, session );
+            case "/options" -> sendJson( resp, exportService( req ).options() );
+            default -> sendNotFound( resp, "Unknown export path: " + sub );
+        }
+    }
+
+    private void preview( final HttpServletRequest req, final HttpServletResponse resp, final Session session )
+            throws IOException {
+        final ExportSelection selection;
+        try {
+            selection = parseSelection( req );
+        } catch ( final IllegalArgumentException e ) {
+            sendError( resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage() );
+            return;
+        }
+        final ExportPreview preview = exportService( req ).preview( session, selection );
+        sendJson( resp, preview );
+    }
+
+    private void download( final HttpServletRequest req, final HttpServletResponse resp, final Session session )
+            throws IOException {
+        final ExportSelection selection;
+        try {
+            selection = parseSelection( req );
+        } catch ( final IllegalArgumentException e ) {
+            sendError( resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage() );
+            return;
+        }
+        final ExportService service = exportService( req );
+        final ExportService.PreparedExport prepared;
+        try {
+            prepared = service.prepare( session, selection );
+        } catch ( final ExportTooLargeException e ) {
+            sendTooLarge( resp, e );
+            return;
+        }
+        if ( prepared.pages().isEmpty() ) {
+            sendError( resp, HttpServletResponse.SC_BAD_REQUEST, "Selection matches no pages" );
+            return;
+        }
+        resp.setStatus( HttpServletResponse.SC_OK );
+        resp.setContentType( "application/zip" );
+        resp.setHeader( "Content-Disposition", "attachment; filename=\"" + prepared.fileName() + "\"" );
+        resp.setHeader( "Cache-Control", "no-store" );
+        try {
+            service.stream( prepared, resp.getOutputStream() );
+        } catch ( final IOException e ) {
+            // Client disconnected mid-stream (or a similar transport failure) after headers and a
+            // 200 status were already committed — the status can no longer change. Not swallowed
+            // silently: logged at DEBUG (not WARN) because a client hanging up on a large download
+            // is routine, not a defect.
+            LOG.debug( "Export stream aborted (client disconnect?): {}", e.getMessage() );
+        }
+    }
+
+    private void sendTooLarge( final HttpServletResponse resp, final ExportTooLargeException e ) throws IOException {
+        resp.setStatus( HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE );
+        resp.setContentType( "application/json" );
+        resp.setCharacterEncoding( "UTF-8" );
+        resp.getWriter().write( GSON.toJson( Map.of(
+                "error", true,
+                "status", HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE,
+                "message", e.getMessage(),
+                "count", e.count(),
+                "cap", e.cap() ) ) );
+    }
+
+    // -------------------------------------------------------------------------
+    // Selection parsing
+    // -------------------------------------------------------------------------
+
+    /**
+     * Parses the wire query parameters into an {@link ExportSelection}. Throws
+     * {@link IllegalArgumentException} (message names the offending parameter) on any bad
+     * value — callers turn that into a 400.
+     */
+    static ExportSelection parseSelection( final HttpServletRequest req ) {
+        final List< String > clusters = paramList( req, "cluster" );
+        final List< String > tags = paramList( req, "tag" );
+        final boolean subclusters = parseSubclusters( req.getParameter( "subclusters" ) );
+        final Optional< PageType > type = parseType( req.getParameter( "type" ) );
+        final String statusParam = req.getParameter( "status" );
+        final Optional< String > status = ( statusParam == null || statusParam.isBlank() )
+                ? Optional.empty() : Optional.of( statusParam );
+        final int hops = parseHops( req.getParameter( "hops" ) );
+        final UnresolvedLinkMode unresolved;
+        try {
+            unresolved = UnresolvedLinkMode.fromWire( req.getParameter( "unresolved" ) );
+        } catch ( final IllegalArgumentException e ) {
+            throw new IllegalArgumentException( "unresolved: " + e.getMessage() );
+        }
+        return new ExportSelection( clusters, subclusters, tags, type, status, hops, unresolved );
+    }
+
+    private static List< String > paramList( final HttpServletRequest req, final String name ) {
+        final String[] values = req.getParameterValues( name );
+        return values == null ? List.of() : Arrays.asList( values );
+    }
+
+    private static boolean parseSubclusters( final String raw ) {
+        if ( raw == null || raw.isBlank() || "true".equalsIgnoreCase( raw ) ) {
+            return true;
+        }
+        if ( "false".equalsIgnoreCase( raw ) ) {
+            return false;
+        }
+        throw new IllegalArgumentException( "subclusters must be true or false, got: " + raw );
+    }
+
+    private static Optional< PageType > parseType( final String raw ) {
+        if ( raw == null || raw.isBlank() ) {
+            return Optional.empty();
+        }
+        final PageType type = PageType.fromFrontmatter( raw );
+        if ( type == PageType.UNKNOWN ) {
+            throw new IllegalArgumentException( "Unknown type: " + raw );
+        }
+        return Optional.of( type );
+    }
+
+    private static int parseHops( final String raw ) {
+        if ( raw == null || raw.isBlank() ) {
+            return 0;
+        }
+        final int hops;
+        try {
+            hops = Integer.parseInt( raw.trim() );
+        } catch ( final NumberFormatException e ) {
+            throw new IllegalArgumentException( "hops must be an integer between 0 and "
+                    + ExportSelection.MAX_HOPS + ", got: " + raw );
+        }
+        if ( hops < 0 || hops > ExportSelection.MAX_HOPS ) {
+            throw new IllegalArgumentException( "hops must be between 0 and " + ExportSelection.MAX_HOPS
+                    + ", got: " + hops );
+        }
+        return hops;
+    }
+
+    // -------------------------------------------------------------------------
+    // Base URL fallback
+    // -------------------------------------------------------------------------
+
+    /**
+     * Derives an absolute base URL ({@code scheme://host[:port]} + context path) from the
+     * request, for {@link ExportService} to fall back on when {@code wikantik.baseURL} is
+     * blank. Default ports (80 for http, 443 for https) are omitted.
+     */
+    static String requestBaseUrl( final HttpServletRequest req ) {
+        final String scheme = req.getScheme() == null ? "http" : req.getScheme().toLowerCase( Locale.ROOT );
+        final int port = req.getServerPort();
+        final boolean defaultPort = ( "http".equals( scheme ) && port == 80 )
+                || ( "https".equals( scheme ) && port == 443 );
+        final StringBuilder sb = new StringBuilder( scheme ).append( "://" ).append( req.getServerName() );
+        if ( !defaultPort && port > 0 ) {
+            sb.append( ':' ).append( port );
+        }
+        final String contextPath = req.getContextPath();
+        if ( contextPath != null ) {
+            sb.append( contextPath );
+        }
+        return sb.toString();
+    }
+}

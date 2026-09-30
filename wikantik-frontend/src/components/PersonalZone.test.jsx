@@ -13,8 +13,8 @@ import { useAuth } from '../hooks/useAuth';
 
 beforeEach(() => { localStorage.clear(); vi.clearAllMocks(); });
 
-const renderZone = () =>
-  render(<MemoryRouter><PersonalZone onMobileClose={() => {}} onNewArticle={() => {}} /></MemoryRouter>);
+const renderZone = (props = {}) =>
+  render(<MemoryRouter><PersonalZone onMobileClose={() => {}} onNewArticle={() => {}} {...props} /></MemoryRouter>);
 
 describe('PersonalZone', () => {
   it('renders nothing for anonymous users', () => {
@@ -50,5 +50,13 @@ describe('PersonalZone', () => {
     renderZone();
     fireEvent.click(screen.getByText('Me'));
     expect(screen.queryByText(/resume editing/i)).not.toBeInTheDocument();
+  });
+
+  it('calls onExport when the export button is clicked', () => {
+    useAuth.mockReturnValue({ user: { authenticated: true, username: 'Alice', loginPrincipal: 'alice', roles: [] }, logout: () => {} });
+    const onExport = vi.fn();
+    renderZone({ onExport });
+    fireEvent.click(screen.getByTestId('personal-export'));
+    expect(onExport).toHaveBeenCalledTimes(1);
   });
 });

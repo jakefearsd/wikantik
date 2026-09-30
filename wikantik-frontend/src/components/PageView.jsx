@@ -25,6 +25,7 @@ import ChangeNotesPanel from './ChangeNotesPanel';
 import CommentsDrawer from './CommentsDrawer';
 import MentionPicker from './MentionPicker';
 import Modal from './ui/Modal';
+import ExportDialog from './ExportDialog';
 import { useMentionPicker } from '../hooks/useMentionPicker';
 import { captureSelection } from '../utils/commentAnchor';
 import { anchorThreads, clearHighlights, anchorPendingHighlight, clearPendingHighlight } from '../utils/commentHighlight';
@@ -373,6 +374,7 @@ export default function PageView() {
   const [newName, setNewName] = useState('');
   const [renameError, setRenameError] = useState(null);
   const [renaming, setRenaming] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   async function handleDelete() {
     try {
@@ -477,6 +479,13 @@ export default function PageView() {
   if (error) return <div className="error-banner">Failed to load page: {error.message}</div>;
   if (!page) return null;
 
+  // "Export this cluster" surfaces only for a signed-in reader on a declared
+  // hub page whose cluster is known — mirrors the cluster-declaration model
+  // (docs/wikantik-pages/ClusterDeclarationDesign.md): a hub IS its cluster.
+  const isHubPage = String(page.metadata?.type || '').toLowerCase() === 'hub';
+  const pageCluster = page.cluster_status?.path || page.metadata?.cluster;
+  const canExportCluster = !!user?.authenticated && isHubPage && !!pageCluster;
+
   return (
     <div className="page-enter" data-testid="page-view" data-page-name={name}>
       <Breadcrumbs />
@@ -486,6 +495,11 @@ export default function PageView() {
           {threads.length > 0 && (
             <button className="btn btn-ghost" data-testid="comments-toggle-button" onClick={() => setDrawerOpen((o) => !o)}>
               <Icon name="comment" title="Comments" size={15} /> Comments ({threads.filter((t) => t.status === 'open').length})
+            </button>
+          )}
+          {canExportCluster && (
+            <button className="btn btn-ghost" data-testid="export-cluster-button" onClick={() => setExportOpen(true)}>
+              Export this cluster
             </button>
           )}
           {page.permissions?.edit && (
@@ -560,6 +574,14 @@ export default function PageView() {
           </div>
         </form>
       </Modal>
+
+      {canExportCluster && (
+        <ExportDialog
+          isOpen={exportOpen}
+          onClose={() => setExportOpen(false)}
+          initialCluster={pageCluster}
+        />
+      )}
       <DerivedProvenanceBanner metadata={page.metadata} lastModified={page.lastModified} />
       <MetadataPanel metadata={page.metadata} />
       <ChangeNotesPanel pageName={name} />

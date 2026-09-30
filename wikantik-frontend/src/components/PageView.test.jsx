@@ -782,3 +782,19 @@ describe('PageView SSR data-island seeding', () => {
     resolveGet?.({ ...PAGE });
   }, TEST_TIMEOUT);
 });
+
+describe('PageView export-cluster entry point', () => {
+  it('shows the export-cluster button for an authenticated user on a hub page with a known cluster', async () => {
+    api.getPage.mockImplementation(async () => ({
+      ...PAGE,
+      metadata: { type: 'hub', cluster: 'finance' },
+    }));
+    await mountAndSettle();
+    expect(screen.getByTestId('export-cluster-button')).toBeInTheDocument();
+  }, TEST_TIMEOUT);
+
+  it('does not show the export-cluster button for a non-hub page', async () => {
+    await mountAndSettle();
+    expect(screen.queryByTestId('export-cluster-button')).toBeNull();
+  }, TEST_TIMEOUT);
+});

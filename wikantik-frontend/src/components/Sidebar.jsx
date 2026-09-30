@@ -7,6 +7,7 @@ import { useDarkMode } from '../hooks/useDarkMode';
 import PersonalZone from './PersonalZone';
 import UserBadge from './UserBadge';
 import NewArticleModal from './NewArticleModal';
+import ExportDialog from './ExportDialog';
 import CollapsibleSection from './CollapsibleSection';
 import Icon from './ui/Icon';
 
@@ -25,6 +26,7 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
   const [recentChanges, setRecentChanges] = useState([]);
   const [recentChangesError, setRecentChangesError] = useState(false);
   const [newArticleOpen, setNewArticleOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [dark, toggleDark] = useDarkMode();
   const { user } = useAuth();
@@ -129,6 +131,7 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
         <PersonalZone
           onMobileClose={onMobileClose}
           onNewArticle={() => setNewArticleOpen(true)}
+          onExport={() => setExportOpen(true)}
         />
 
         {/* Primary Navigation — matches JSP LeftMenu */}
@@ -290,6 +293,8 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
           existingClusters={existingClusters}
         />
       )}
+
+      <ExportDialog isOpen={exportOpen} onClose={() => setExportOpen(false)} />
     </>
   );
 }

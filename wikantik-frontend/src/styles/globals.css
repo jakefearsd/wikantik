@@ -2004,6 +2004,37 @@ h3:focus-within .heading-anchor {
   justify-content: center;
 }
 
+/* ExportDialog — "Export to Obsidian" control grid + preview summary/sample.
+   Sits on top of the shared .search-dialog / .modal-content padding. */
+.export-dialog-controls {
+  display: grid;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.export-dialog-summary {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-sidebar);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-sm);
+}
+
+.export-dialog-sample {
+  list-style: none;
+  margin: 0 0 var(--space-md);
+  padding: 0;
+  max-height: 8rem;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.export-dialog-sample li {
+  padding: 2px 0;
+}
+
 /* SearchResultsPage — card internals */
 .search-result-title {
   font-family: var(--font-display);

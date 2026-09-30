@@ -115,6 +115,25 @@ export const api = {
     return request(`/api/pages?${params}`);
   },
 
+  // Export to Obsidian: cluster/tag/type-scoped vault zip, with a debounced
+  // preview surfaced by ExportDialog before the download link is enabled.
+  exportVault: {
+    params: ({ clusters = [], subclusters = true, tags = [], type = '', status = '', hops = 0, unresolved = 'keep' } = {}) => {
+      const p = new URLSearchParams();
+      clusters.forEach((c) => p.append('cluster', c));
+      tags.forEach((t) => p.append('tag', t));
+      if (!subclusters) p.set('subclusters', 'false');
+      if (type) p.set('type', type);
+      if (status) p.set('status', status);
+      if (hops) p.set('hops', String(hops));
+      if (unresolved !== 'keep') p.set('unresolved', unresolved);
+      return p;
+    },
+    options: () => request('/api/export/options'),
+    preview: (sel, { signal } = {}) => request(`/api/export/preview?${api.exportVault.params(sel)}`, { signal }),
+    downloadUrl: (sel) => `${BASE}/api/export?${api.exportVault.params(sel)}`,
+  },
+
   // Structured frontmatter editor: server-authoritative schema + dry-run validation.
   getFrontmatterSchema: () => request('/api/frontmatter-schema'),
 

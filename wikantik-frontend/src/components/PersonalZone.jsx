@@ -26,7 +26,7 @@ function PreviewList({ items, render, emptyLabel }) {
   );
 }
 
-export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = () => {} }) {
+export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = () => {}, onExport = () => {} }) {
   const { user, logout } = useAuth();
   const authed = !!user?.authenticated;
   const login = authed ? user.loginPrincipal : null;
@@ -60,6 +60,14 @@ export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = 
         onClick={onNewArticle}
       >
         + New Article
+      </button>
+
+      <button
+        className="btn btn-ghost btn-block"
+        data-testid="personal-export"
+        onClick={onExport}
+      >
+        Export to Obsidian…
       </button>
 
       {/* Everything below the New Article control collapses under one toggle,

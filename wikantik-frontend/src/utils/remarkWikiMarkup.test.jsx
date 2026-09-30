@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -39,5 +39,13 @@ describe('remarkWikiMarkup', () => {
     expect(out).toContain('class="wiki-cite-badge"');
     expect(out).toContain('↗ TargetPage § setup-steps');
     expect(out).toContain('title="the quoted span"');
+  });
+  it('keeps the raw text and warns when a cite target has a malformed escape', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = html('A [claim](cite://Bad%E0%A4%A/h "s") here.');
+    expect(out).toContain('class="wiki-cite-badge"');
+    expect(out).toContain('↗ Bad%E0%A4%A § h');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('[link-targets]'), expect.anything(), expect.anything());
+    warn.mockRestore();
   });
 });

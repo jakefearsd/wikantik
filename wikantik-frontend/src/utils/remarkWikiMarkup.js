@@ -1,5 +1,6 @@
 import { visit, SKIP } from 'unist-util-visit';
 import { toString } from 'mdast-util-to-string';
+import { safeDecode } from './safeDecode';
 
 // Bare `[{…}]`, optionally followed by `()` — remark leaves it as literal text.
 const BARE_PLUGIN = /\[\{([^}\n]*)\}\](?:\(\))?/g;
@@ -31,10 +32,9 @@ function chipNode(inner) {
 function citeParts(url) {
   const rest = url.slice('cite://'.length);
   const slash = rest.indexOf('/');
-  const decode = (s) => { try { return decodeURIComponent(s); } catch { return s; } };
   return slash < 0
-    ? { target: decode(rest), heading: '' }
-    : { target: decode(rest.slice(0, slash)), heading: decode(rest.slice(slash + 1)) };
+    ? { target: safeDecode(rest), heading: '' }
+    : { target: safeDecode(rest.slice(0, slash)), heading: safeDecode(rest.slice(slash + 1)) };
 }
 
 function citeBadge(link) {

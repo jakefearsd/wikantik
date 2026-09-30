@@ -3,6 +3,7 @@ import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import { visit } from 'unist-util-visit';
 import { citeParts } from './remarkWikiMarkup';
+import { safeDecode } from './safeDecode';
 
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 const parser = unified().use(remarkParse).use(remarkGfm);
@@ -10,8 +11,7 @@ const parser = unified().use(remarkParse).use(remarkGfm);
 /** The wiki page a link URL points at, or null for external/anchor/cite/attachment links. */
 export function wikiLinkTarget(url) {
   if (!url || url.startsWith('#') || url.startsWith('/') || SCHEME.test(url)) return null;
-  let page = url.split('#')[0];
-  try { page = decodeURIComponent(page); } catch (err) { console.warn('[link-targets] undecodable link target', url, err?.message); }
+  const page = safeDecode(url.split('#')[0]);
   // A '.' or '/' means an attachment reference (same rule as remarkAttachments).
   if (!page || page.includes('/') || page.includes('.')) return null;
   return page;

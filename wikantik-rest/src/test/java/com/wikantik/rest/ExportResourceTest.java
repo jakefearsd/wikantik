@@ -434,7 +434,7 @@ class ExportResourceTest {
         when( req.getServerPort() ).thenReturn( 80 );
         when( req.getContextPath() ).thenReturn( "" );
 
-        assertEquals( "http://wiki.example.com", ExportResource.requestBaseUrl( req ) );
+        assertEquals( "http://wiki.example.com", ExportRequestParser.requestBaseUrl( req ) );
     }
 
     @Test
@@ -445,7 +445,7 @@ class ExportResourceTest {
         when( req.getServerPort() ).thenReturn( 443 );
         when( req.getContextPath() ).thenReturn( "/wikantik" );
 
-        assertEquals( "https://wiki.example.com/wikantik", ExportResource.requestBaseUrl( req ) );
+        assertEquals( "https://wiki.example.com/wikantik", ExportRequestParser.requestBaseUrl( req ) );
     }
 
     @Test
@@ -456,12 +456,12 @@ class ExportResourceTest {
         when( req.getServerPort() ).thenReturn( 8080 );
         when( req.getContextPath() ).thenReturn( "" );
 
-        assertEquals( "http://localhost:8080", ExportResource.requestBaseUrl( req ) );
+        assertEquals( "http://localhost:8080", ExportRequestParser.requestBaseUrl( req ) );
     }
 
     /**
      * Proves the production {@link ExportResource#exportService} seam actually wires
-     * {@link ExportResource#requestBaseUrl} through to {@code ExportService.fromSubsystems}'s
+     * {@link ExportRequestParser#requestBaseUrl} through to {@code ExportService.fromSubsystems}'s
      * fallback parameter — not just that {@code requestBaseUrl} computes the right string in
      * isolation (covered above). Mocks the static factory itself so the assertion is on the
      * exact fallback argument the seam passed, independent of what {@code fromSubsystems} does

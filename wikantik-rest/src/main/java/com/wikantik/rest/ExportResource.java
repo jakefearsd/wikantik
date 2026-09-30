@@ -19,9 +19,6 @@
 package com.wikantik.rest;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -32,17 +29,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.wikantik.api.core.Session;
-import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
-import com.wikantik.export.ExportOptions;
 import com.wikantik.export.ExportPreview;
 import com.wikantik.export.ExportSelection;
 import com.wikantik.export.ExportService;
 import com.wikantik.export.ExportTooLargeException;
-import com.wikantik.export.UnresolvedLinkMode;
 
 /**
  * {@code GET /api/export}, {@code /api/export/preview}, {@code /api/export/options} — bulk
@@ -65,7 +59,7 @@ public class ExportResource extends RestServletBase {
 
     /** Seam for tests. Derives the {@code wikantik.baseURL} fallback from {@code req}. */
     protected ExportService exportService( final HttpServletRequest req ) {
-        return ExportService.fromSubsystems( getEngine(), getSubsystems(), requestBaseUrl( req ) );
+        return ExportService.fromSubsystems( getEngine(), getSubsystems(), ExportRequestParser.requestBaseUrl( req ) );
     }
 
     /**
@@ -101,7 +95,7 @@ public class ExportResource extends RestServletBase {
             throws IOException {
         final ExportSelection selection;
         try {
-            selection = parseSelection( req );
+            selection = ExportRequestParser.parseSelection( req );
         } catch ( final IllegalArgumentException e ) {
             sendError( resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage() );
             return;
@@ -114,7 +108,7 @@ public class ExportResource extends RestServletBase {
             throws IOException {
         final ExportSelection selection;
         try {
-            selection = parseSelection( req );
+            selection = ExportRequestParser.parseSelection( req );
         } catch ( final IllegalArgumentException e ) {
             sendError( resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage() );
             return;
@@ -158,99 +152,4 @@ public class ExportResource extends RestServletBase {
                 "cap", e.cap() ) ) );
     }
 
-    // -------------------------------------------------------------------------
-    // Selection parsing
-    // -------------------------------------------------------------------------
-
-    /**
-     * Parses the wire query parameters into an {@link ExportSelection}. Throws
-     * {@link IllegalArgumentException} (message names the offending parameter) on any bad
-     * value — callers turn that into a 400.
-     */
-    static ExportSelection parseSelection( final HttpServletRequest req ) {
-        final List< String > clusters = paramList( req, "cluster" );
-        final List< String > tags = paramList( req, "tag" );
-        final boolean subclusters = parseSubclusters( req.getParameter( "subclusters" ) );
-        final Optional< PageType > type = parseType( req.getParameter( "type" ) );
-        final String statusParam = req.getParameter( "status" );
-        final Optional< String > status = ( statusParam == null || statusParam.isBlank() )
-                ? Optional.empty() : Optional.of( statusParam );
-        final int hops = parseHops( req.getParameter( "hops" ) );
-        final UnresolvedLinkMode unresolved;
-        try {
-            unresolved = UnresolvedLinkMode.fromWire( req.getParameter( "unresolved" ) );
-        } catch ( final IllegalArgumentException e ) {
-            throw new IllegalArgumentException( "unresolved: " + e.getMessage() );
-        }
-        return new ExportSelection( clusters, subclusters, tags, type, status, hops, unresolved );
-    }
-
-    private static List< String > paramList( final HttpServletRequest req, final String name ) {
-        final String[] values = req.getParameterValues( name );
-        return values == null ? List.of() : Arrays.asList( values );
-    }
-
-    private static boolean parseSubclusters( final String raw ) {
-        if ( raw == null || raw.isBlank() || "true".equalsIgnoreCase( raw ) ) {
-            return true;
-        }
-        if ( "false".equalsIgnoreCase( raw ) ) {
-            return false;
-        }
-        throw new IllegalArgumentException( "subclusters must be true or false, got: " + raw );
-    }
-
-    private static Optional< PageType > parseType( final String raw ) {
-        if ( raw == null || raw.isBlank() ) {
-            return Optional.empty();
-        }
-        final PageType type = PageType.fromFrontmatter( raw );
-        if ( type == PageType.UNKNOWN ) {
-            throw new IllegalArgumentException( "Unknown type: " + raw );
-        }
-        return Optional.of( type );
-    }
-
-    private static int parseHops( final String raw ) {
-        if ( raw == null || raw.isBlank() ) {
-            return 0;
-        }
-        final int hops;
-        try {
-            hops = Integer.parseInt( raw.trim() );
-        } catch ( final NumberFormatException e ) {
-            throw new IllegalArgumentException( "hops must be an integer between 0 and "
-                    + ExportSelection.MAX_HOPS + ", got: " + raw );
-        }
-        if ( hops < 0 || hops > ExportSelection.MAX_HOPS ) {
-            throw new IllegalArgumentException( "hops must be between 0 and " + ExportSelection.MAX_HOPS
-                    + ", got: " + hops );
-        }
-        return hops;
-    }
-
-    // -------------------------------------------------------------------------
-    // Base URL fallback
-    // -------------------------------------------------------------------------
-
-    /**
-     * Derives an absolute base URL ({@code scheme://host[:port]} + context path) from the
-     * request, for {@link ExportService} to fall back on when {@code wikantik.baseURL} is
-     * blank. Default ports (80 for http, 443 for https) are omitted.
-     */
-    static String requestBaseUrl( final HttpServletRequest req ) {
-        final String scheme = req.getScheme() == null ? "http" : req.getScheme().toLowerCase( Locale.ROOT );
-        final int port = req.getServerPort();
-        final boolean defaultPort = ( "http".equals( scheme ) && port == 80 )
-                || ( "https".equals( scheme ) && port == 443 );
-        final StringBuilder sb = new StringBuilder( scheme ).append( "://" ).append( req.getServerName() );
-        if ( !defaultPort && port > 0 ) {
-            sb.append( ':' ).append( port );
-        }
-        final String contextPath = req.getContextPath();
-        if ( contextPath != null ) {
-            sb.append( contextPath );
-        }
-        return sb.toString();
-    }
 }

@@ -174,32 +174,53 @@ final class ExportZipBuilder {
 
     private Map< String, Object > extraFrontmatter( final PageDescriptor d, final Page page, final String raw,
                                                       final VaultLayout layout ) {
+        final Map< String, Object > metadata = FrontmatterParser.parse( raw ).metadata();
         final Map< String, Object > extra = new LinkedHashMap<>();
         extra.put( "wikantik_url", liveUrl( d.slug() ) );
         extra.put( "wikantik_version", String.valueOf( page.getVersion() ) );
-        addAliases( extra, d, layout );
-        addRelated( extra, raw );
+        addAliases( extra, d, layout, metadata.get( "aliases" ) );
+        addRelated( extra, metadata.get( "related" ), layout );
         return extra;
     }
 
-    private void addAliases( final Map< String, Object > extra, final PageDescriptor d, final VaultLayout layout ) {
-        final LinkedHashSet< String > aliases = new LinkedHashSet<>();
+    /**
+     * Adds the page title and any layout alias to the page's own {@code aliases:} (scalar or
+     * list) — existing entries first, de-duplicated. Only written when something is added, since
+     * {@link FrontmatterPatcher} replaces the whole {@code aliases:} key.
+     */
+    private void addAliases( final Map< String, Object > extra, final PageDescriptor d, final VaultLayout layout,
+                             final Object existingRaw ) {
+        final LinkedHashSet< String > added = new LinkedHashSet<>();
         if ( d.title() != null && !d.title().equals( d.slug() ) ) {
-            aliases.add( d.title() );
+            added.add( d.title() );
         }
-        layout.aliasFor( d.slug() ).ifPresent( aliases::add );
-        if ( !aliases.isEmpty() ) {
-            extra.put( "aliases", List.copyOf( aliases ) );
+        layout.aliasFor( d.slug() ).ifPresent( added::add );
+        if ( added.isEmpty() ) {
+            return;
         }
+        final LinkedHashSet< String > aliases = new LinkedHashSet<>();
+        asList( existingRaw ).forEach( a -> aliases.add( String.valueOf( a ) ) );
+        aliases.addAll( added );
+        extra.put( "aliases", List.copyOf( aliases ) );
     }
 
-    private void addRelated( final Map< String, Object > extra, final String raw ) {
-        final Object relatedRaw = FrontmatterParser.parse( raw ).metadata().get( "related" );
+    /** Frontmatter {@code related:} as wikilinks — to the vault file an in-export page was written as. */
+    private void addRelated( final Map< String, Object > extra, final Object relatedRaw, final VaultLayout layout ) {
         if ( relatedRaw == null ) {
             return;
         }
-        final List< ? > items = relatedRaw instanceof List< ? > list ? list : List.of( relatedRaw );
-        extra.put( "related", items.stream().map( item -> "[[" + item + "]]" ).toList() );
+        extra.put( "related", asList( relatedRaw ).stream().map( item -> {
+            final String name = String.valueOf( item );
+            final String basename = layout.basename( name );
+            return basename == null || basename.equals( name ) ? "[[" + name + "]]" : "[[" + basename + "|" + name + "]]";
+        } ).toList() );
+    }
+
+    private static List< ? > asList( final Object raw ) {
+        if ( raw == null ) {
+            return List.of();
+        }
+        return raw instanceof List< ? > list ? list : List.of( raw );
     }
 
     // ---- attachment writing --------------------------------------------------------------------
@@ -304,7 +325,8 @@ final class ExportZipBuilder {
         if ( page == null ) {
             return Map.of();
         }
-        return HeadingSlugs.headingsBySlug( pages.getPureText( page ) );
+        // Body only: a frontmatter block's closing "---" would turn its last line into a setext H2.
+        return HeadingSlugs.headingsBySlug( FrontmatterParser.parse( pages.getPureText( page ) ).body() );
     }
 
     /**
@@ -317,8 +339,9 @@ final class ExportZipBuilder {
         return session != null && permissions.canAccessQuietly( session, pageName, "view" );
     }
 
+    /** Path-segment encoding: {@link URLEncoder} is form encoding (space → {@code +}), so re-map to {@code %20}. */
     private String liveUrl( final String pageName ) {
-        return baseUrl + "/wiki/" + URLEncoder.encode( pageName, StandardCharsets.UTF_8 );
+        return baseUrl + "/wiki/" + URLEncoder.encode( pageName, StandardCharsets.UTF_8 ).replace( "+", "%20" );
     }
 
     /** {@link ExportLinkContext} bound to one {@link #writeZip} call's resolved page/attachment set. */
@@ -360,6 +383,11 @@ final class ExportZipBuilder {
         public Optional< String > slugForCanonicalId( final String canonicalId ) {
             return index.resolveSlugFromCanonicalId( canonicalId )
                     .filter( slug -> included.contains( slug ) || isViewableToCaller( slug ) );
+        }
+
+        @Override
+        public Optional< String > vaultBasename( final String pageName ) {
+            return included.contains( pageName ) ? Optional.ofNullable( layout.basename( pageName ) ) : Optional.empty();
         }
 
         @Override

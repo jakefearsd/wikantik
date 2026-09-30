@@ -64,6 +64,7 @@ public final class ObsidianVaultWriter implements Closeable {
     }
 
     public String writeStream( final String path, final InputStream in ) throws IOException {
+        requireSafeEntryName( path );
         if ( !written.add( path ) ) {
             throw new IllegalStateException( "duplicate zip entry: " + path );
         }
@@ -100,6 +101,24 @@ public final class ObsidianVaultWriter implements Closeable {
                 throw e;
             } finally {
                 finished = true;
+            }
+        }
+    }
+
+    /**
+     * Zip-slip invariant: an entry name must be relative, {@code /}-separated and free of
+     * {@code .}, {@code ..} and empty segments, so extracting the vault can never write outside
+     * its root. {@link VaultLayout} never produces such a name; this is the backstop.
+     *
+     * @throws IllegalArgumentException if {@code path} violates the invariant
+     */
+    static void requireSafeEntryName( final String path ) {
+        if ( path == null || path.isEmpty() || path.startsWith( "/" ) || path.indexOf( '\\' ) >= 0 ) {
+            throw new IllegalArgumentException( "unsafe zip entry name: " + path );
+        }
+        for ( final String segment : path.split( "/", -1 ) ) {
+            if ( segment.isEmpty() || ".".equals( segment ) || "..".equals( segment ) ) {
+                throw new IllegalArgumentException( "unsafe zip entry name: " + path );
             }
         }
     }

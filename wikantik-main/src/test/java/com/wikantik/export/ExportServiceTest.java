@@ -149,6 +149,64 @@ class ExportServiceTest {
         assertEquals( 1, p.unresolvedLinks() ); // MathPage
     }
 
+    /** A link to an existing page the caller cannot view is not "unresolved" — it must not leak its existence. */
+    @Test
+    void previewUnresolvedCountExcludesRestrictedTargets() throws Exception {
+        engine.saveText( "FinanceLinksSecret", "---\ntype: article\ncluster: finance\n---\n"
+                + "# Links\n\nSee [s](SecretFinance).\n" );
+        subs.pageGraph().structuralIndexService().rebuild();
+
+        final ExportPreview p = service.preview( guest(), finance( 0 ) );
+        assertEquals( 3, p.pages() );
+        assertEquals( 1, p.unresolvedLinks(), "only MathPage is unresolved; SecretFinance is invisible to guest" );
+    }
+
+    private String exportedPage( final ExportSelection selection, final String path ) throws Exception {
+        final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        service.stream( service.prepare( guest(), selection ), bos );
+        final byte[] bytes = ObsidianVaultWriterTest.unzip( bos.toByteArray() ).get( path );
+        assertTrue( bytes != null, "missing zip entry " + path );
+        return new String( bytes, StandardCharsets.UTF_8 );
+    }
+
+    @Test
+    void liveUrlUsesPathSegmentEncoding() throws Exception {
+        engine.saveText( "FinanceSpaceLink", "---\ntype: article\ncluster: finance\n---\n"
+                + "# Space\n\nSee [o](Other%20Page).\n" );
+        subs.pageGraph().structuralIndexService().rebuild();
+        final ExportSelection urlMode = new ExportSelection( List.of( "finance" ), true, List.of(), Optional.empty(),
+                Optional.empty(), 0, UnresolvedLinkMode.URL );
+
+        final String page = exportedPage( urlMode, "finance/FinanceSpaceLink.md" );
+        assertTrue( page.contains( "/wiki/Other%20Page)" ), page );
+        assertFalse( page.contains( "Other+Page" ), page );
+    }
+
+    /** The closing {@code ---} of a frontmatter block must not turn its last line into a setext heading. */
+    @Test
+    void frontmatterIsNotMistakenForAHeading() throws Exception {
+        engine.saveText( "FmTarget", "---\ncluster: finance\n---\n# Fm Target\n\nBody.\n" );
+        engine.saveText( "FmLinker", "---\ncluster: finance\n---\n# Linker\n\n"
+                + "[bogus](FmTarget#cluster-finance) and [real](FmTarget#fm-target)\n" );
+        subs.pageGraph().structuralIndexService().rebuild();
+
+        final String page = exportedPage( finance( 0 ), "finance/FmLinker.md" );
+        assertTrue( page.contains( "[[FmTarget|bogus]]" ), page );
+        assertTrue( page.contains( "[[FmTarget#Fm Target|real]]" ), page );
+    }
+
+    @Test
+    void existingAliasesAreMergedNotReplaced() throws Exception {
+        engine.saveText( "AliasList", "---\ncluster: finance\ntitle: Alias Title\naliases: [Old Name, Older]\n---\n# A\n" );
+        engine.saveText( "AliasScalar", "---\ncluster: finance\ntitle: Scalar Title\naliases: Legacy\n---\n# S\n" );
+        subs.pageGraph().structuralIndexService().rebuild();
+
+        final String list = exportedPage( finance( 0 ), "finance/AliasList.md" );
+        assertTrue( list.contains( "aliases:\n  - \"Old Name\"\n  - \"Older\"\n  - \"Alias Title\"\n" ), list );
+        final String scalar = exportedPage( finance( 0 ), "finance/AliasScalar.md" );
+        assertTrue( scalar.contains( "aliases:\n  - \"Legacy\"\n  - \"Scalar Title\"\n" ), scalar );
+    }
+
     @Test
     void zipIsAWorkingVault() throws Exception {
         final ByteArrayOutputStream bos = new ByteArrayOutputStream();

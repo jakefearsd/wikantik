@@ -474,6 +474,34 @@ class DatabasePolicyTest
     }
 
     /**
+     * Rollback safety: a row carrying an action this build does not know (e.g. a newer WAR's
+     * {@code export} seen by an older one) must be skipped, not abort the whole refresh — an
+     * {@code IllegalArgumentException} escaping {@link DatabasePolicy#refresh()} stops the wiki booting.
+     */
+    @Test
+    void unknownActionRowIsSkippedAndOtherGrantsStillLoad() throws Exception
+    {
+        try( final Connection conn = ds.getConnection();
+             final Statement stmt = conn.createStatement() )
+        {
+            stmt.executeUpdate(
+                "INSERT INTO policy_grants (principal_type, principal_name, permission_type, target, actions) " +
+                "VALUES ('role', 'Authenticated', 'wiki', 'futurewiki', 'createPages,teleport')" );
+            stmt.executeUpdate(
+                "INSERT INTO policy_grants (principal_type, principal_name, permission_type, target, actions) " +
+                "VALUES ('role', 'Authenticated', 'page', 'FuturePage', 'view,teleport')" );
+        }
+
+        final DatabasePolicy reloaded = new DatabasePolicy( ds, "policy_grants" );
+
+        assertTrue( reloaded.implies( Role.AUTHENTICATED, new PagePermission( "*:*", "modify" ) ),
+                "grants on other rows must still load" );
+        assertTrue( reloaded.implies( Role.AUTHENTICATED, new WikiPermission( "*", "createPages" ) ) );
+        assertTrue( reloaded.implies( Role.ALL, new PagePermission( "*:*", "view" ) ) );
+        assertFalse( reloaded.implies( Role.AUTHENTICATED, new PagePermission( "*:FuturePage", "delete" ) ) );
+    }
+
+    /**
      * Verifies that a blank bootstrap admin property is normalized to null.
      */
     @Test

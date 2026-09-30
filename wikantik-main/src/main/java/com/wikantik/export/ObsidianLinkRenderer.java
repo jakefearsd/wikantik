@@ -50,7 +50,7 @@ final class ObsidianLinkRenderer {
         final String url = link.getUrl().toString();
         if ( url.startsWith( "cite://" ) ) {
             state.citeCounter++;
-            return renderCitation( url, link.getTitle().toString(), alias, state.citeCounter, state );
+            return renderCitation( url, link.getTitle().toString(), alias, inTable, state );
         }
         if ( EXTERNAL_SCHEME.matcher( url ).find() ) {
             return null;
@@ -93,7 +93,7 @@ final class ObsidianLinkRenderer {
         if ( slug != null ) {
             final Optional< String > heading = state.ctx.headingText( page, slug );
             if ( heading.isPresent() ) {
-                return wikiLink( page + "#" + heading.get(), alias, inTable );
+                return wikiLink( linkTarget( page, state ) + "#" + heading.get(), alias, inTable );
             }
         }
         return renderPageLink( page, alias, inTable, state );
@@ -111,11 +111,21 @@ final class ObsidianLinkRenderer {
         if ( !state.ctx.inExport( page ) && state.ctx.unresolvedMode() == UnresolvedLinkMode.URL ) {
             return "[" + stripAliasChars( alias ) + "](" + state.ctx.liveUrl( page ) + ")";
         }
-        return wikiLink( page, alias, inTable );
+        return wikiLink( linkTarget( page, state ), alias, inTable );
+    }
+
+    /**
+     * Obsidian link target for a page: the vault file basename the layout chose when the page is
+     * in the export (it differs after sanitising or a case-collision {@code ~N} suffix), else the
+     * page name itself.
+     */
+    static String linkTarget( final String page, final ConversionState state ) {
+        return state.ctx.vaultBasename( page ).orElse( page );
     }
 
     private static String renderCitation( final String url, final String span, final String alias,
-                                           final int citeNumber, final ConversionState state ) {
+                                           final boolean inTable, final ConversionState state ) {
+        final int citeNumber = state.citeCounter;
         final String withoutScheme = url.substring( "cite://".length() );
         final int slash = withoutScheme.indexOf( '/' );
         final String canonicalId = slash < 0 ? withoutScheme : withoutScheme.substring( 0, slash );
@@ -129,7 +139,8 @@ final class ObsidianLinkRenderer {
 
         final Optional< String > pageSlug = state.ctx.slugForCanonicalId( canonicalId );
         if ( pageSlug.isPresent() ) {
-            return "[[" + pageSlug.get() + "#" + headingText + "|" + cleanAlias + "]]" + footnoteRef;
+            return "[[" + linkTarget( pageSlug.get(), state ) + "#" + headingText + ( inTable ? "\\|" : "|" )
+                    + cleanAlias + "]]" + footnoteRef;
         }
         state.warnings.add( state.currentPage + ": citation target " + canonicalId + " not found" );
         return cleanAlias + footnoteRef;

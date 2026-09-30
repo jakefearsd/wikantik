@@ -59,6 +59,19 @@ class ObsidianVaultWriterTest {
         }
     }
 
+    /** Zip-slip invariant: the writer refuses any entry name that could escape the extraction root. */
+    @Test void traversalAndMalformedPathsRejected() throws Exception {
+        try ( ObsidianVaultWriter w = new ObsidianVaultWriter( new ByteArrayOutputStream() ) ) {
+            for ( final String bad : List.of( "../x.md", "a/../../x.md", "/etc/x.md", "a\\b.md", "a//b.md",
+                    "./a.md", "a/./b.md", "a/..", "", "a/" ) ) {
+                assertThrows( IllegalArgumentException.class, () -> w.writeText( bad, "x" ), bad );
+                assertThrows( IllegalArgumentException.class,
+                        () -> w.writeStream( bad, new ByteArrayInputStream( new byte[ 0 ] ) ), bad );
+            }
+            w.writeText( ".wikantik/ok.md", "fine" ); // a dot-prefixed name is not a "." segment
+        }
+    }
+
     static Map< String, byte[] > unzip( final byte[] zip ) throws IOException {
         final Map< String, byte[] > out = new LinkedHashMap<>();
         try ( ZipInputStream zin = new ZipInputStream( new ByteArrayInputStream( zip ) ) ) {

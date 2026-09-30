@@ -42,18 +42,21 @@ public final class VaultLayout {
     private static final String ILLEGAL_CHARS = ":*?\"<>|\\";
 
     private final Map< String, String > pathBySlug;
+    private final Map< String, String > basenameBySlug;
     private final Map< String, String > aliasBySlug;
     private final Map< String, String > linkTargetByRefKey;
 
-    private VaultLayout( final Map< String, String > pathBySlug, final Map< String, String > aliasBySlug,
-                          final Map< String, String > linkTargetByRefKey ) {
+    private VaultLayout( final Map< String, String > pathBySlug, final Map< String, String > basenameBySlug,
+                          final Map< String, String > aliasBySlug, final Map< String, String > linkTargetByRefKey ) {
         this.pathBySlug = pathBySlug;
+        this.basenameBySlug = basenameBySlug;
         this.aliasBySlug = aliasBySlug;
         this.linkTargetByRefKey = linkTargetByRefKey;
     }
 
     public static VaultLayout plan( final List< PageDescriptor > pages, final Collection< AttachmentRef > attachments ) {
         final Map< String, String > pathBySlug = new LinkedHashMap<>();
+        final Map< String, String > basenameBySlug = new LinkedHashMap<>();
         final Map< String, String > aliasBySlug = new LinkedHashMap<>();
         final Map< String, Integer > basenameCounts = new HashMap<>();
 
@@ -64,12 +67,13 @@ public final class VaultLayout {
                     final String folder = page.cluster() == null || page.cluster().isBlank()
                             ? UNCLUSTERED_DIR
                             : sanitizeSegments( page.cluster() );
-                    final String sanitizedBase = sanitize( slug );
+                    final String sanitizedBase = sanitizeBasename( slug );
                     final String lowerKey = sanitizedBase.toLowerCase( Locale.ROOT );
                     final int count = basenameCounts.merge( lowerKey, 1, Integer::sum );
 
                     final String basename = count == 1 ? sanitizedBase : sanitizedBase + "~" + count;
                     pathBySlug.put( slug, folder + "/" + basename + ".md" );
+                    basenameBySlug.put( slug, basename );
 
                     if ( count > 1 || !basename.equals( slug ) ) {
                         aliasBySlug.put( slug, slug );
@@ -78,20 +82,26 @@ public final class VaultLayout {
 
         final Map< String, Integer > fileNameCounts = new HashMap<>();
         for ( final AttachmentRef ref : attachments ) {
-            fileNameCounts.merge( ref.fileName().toLowerCase( Locale.ROOT ), 1, Integer::sum );
+            fileNameCounts.merge( sanitizeBasename( ref.fileName() ).toLowerCase( Locale.ROOT ), 1, Integer::sum );
         }
         final Map< String, String > linkTargetByRefKey = new LinkedHashMap<>();
         for ( final AttachmentRef ref : attachments ) {
             final String path = attachmentPathFor( ref );
-            final boolean ambiguous = fileNameCounts.getOrDefault( ref.fileName().toLowerCase( Locale.ROOT ), 0 ) > 1;
-            linkTargetByRefKey.put( refKey( ref ), ambiguous ? path : ref.fileName() );
+            final String fileBase = sanitizeBasename( ref.fileName() );
+            final boolean ambiguous = fileNameCounts.getOrDefault( fileBase.toLowerCase( Locale.ROOT ), 0 ) > 1;
+            linkTargetByRefKey.put( refKey( ref ), ambiguous ? path : fileBase );
         }
 
-        return new VaultLayout( pathBySlug, aliasBySlug, linkTargetByRefKey );
+        return new VaultLayout( pathBySlug, basenameBySlug, aliasBySlug, linkTargetByRefKey );
     }
 
     public String pagePath( final String slug ) {
         return pathBySlug.get( slug );
+    }
+
+    /** File basename (no {@code .md}) chosen for {@code slug}, or {@code null} if it is not in the plan. */
+    public String basename( final String slug ) {
+        return basenameBySlug.get( slug );
     }
 
     /** Extra alias to add when the file basename differs from the page name (collision suffix / sanitising). */
@@ -109,23 +119,37 @@ public final class VaultLayout {
     }
 
     private static String attachmentPathFor( final AttachmentRef ref ) {
-        return ATTACHMENTS_DIR + "/" + sanitize( ref.pageName() ) + "/" + sanitize( ref.fileName() );
+        return ATTACHMENTS_DIR + "/" + sanitizeBasename( ref.pageName() ) + "/" + sanitizeBasename( ref.fileName() );
     }
 
     private static String refKey( final AttachmentRef ref ) {
         return ref.pageName() + "\u0000" + ref.fileName();
     }
 
+    /**
+     * Sanitises each {@code /}-separated cluster segment. {@code cluster:} values are only
+     * WARNING-validated, so a segment may be {@code ..}, {@code .} or empty — each becomes
+     * {@code _} so the folder can never climb out of (or collapse inside) the vault (zip-slip).
+     */
     private static String sanitizeSegments( final String cluster ) {
-        final String[] segments = cluster.split( "/" );
+        final String[] segments = cluster.split( "/", -1 );
         final StringBuilder sb = new StringBuilder();
-        for ( final String segment : segments ) {
-            if ( sb.length() > 0 ) {
+        for ( int i = 0; i < segments.length; i++ ) {
+            if ( i > 0 ) {
                 sb.append( '/' );
             }
-            sb.append( sanitize( segment ) );
+            sb.append( neutraliseDotSegment( sanitize( segments[ i ] ) ) );
         }
         return sb.toString();
+    }
+
+    /** A single path segment: {@link #sanitize} plus {@code /} → {@code _} and no {@code .}/{@code ..}/empty name. */
+    static String sanitizeBasename( final String name ) {
+        return neutraliseDotSegment( sanitize( name ).replace( '/', '_' ) );
+    }
+
+    private static String neutraliseDotSegment( final String segment ) {
+        return segment.isEmpty() || ".".equals( segment ) || "..".equals( segment ) ? "_" : segment;
     }
 
     /** Replaces {@code : * ? " < > | \} and control characters with {@code '_'}. */

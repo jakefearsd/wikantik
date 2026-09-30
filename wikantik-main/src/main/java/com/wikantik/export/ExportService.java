@@ -60,6 +60,9 @@ public final class ExportService {
 
     public static final String PROP_MAX_PAGES = "wikantik.export.maxPages";
     public static final int DEFAULT_MAX_PAGES = 2000;
+    /** Global cap on simultaneous zip downloads (preview is not gated); excess requests get 429. */
+    public static final String PROP_MAX_CONCURRENT = "wikantik.export.maxConcurrent";
+    public static final int DEFAULT_MAX_CONCURRENT = 2;
 
     private static final Logger LOG = LogManager.getLogger( ExportService.class );
     private static final DateTimeFormatter FILE_TIMESTAMP =
@@ -151,7 +154,9 @@ public final class ExportService {
             outbound.addAll( catalog.outboundPages( d.slug() ) );
         }
         outbound.removeAll( included );
-        return outbound.size();
+        // Only count targets the caller may view: an existing-but-restricted page is not
+        // "unresolved" from their point of view, and counting it would leak its existence.
+        return catalog.viewable( outbound ).size();
     }
 
     private static final class SizeEstimate {

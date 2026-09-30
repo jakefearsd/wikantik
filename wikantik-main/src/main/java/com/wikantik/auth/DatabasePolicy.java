@@ -90,13 +90,13 @@ public class DatabasePolicy
     public void refresh()
     {
         final Map<String, List<Permission>> newGrants = new HashMap<>();
-        final String sql = "SELECT principal_name, permission_type, target, actions FROM " + tableName;
+        final String sql = "SELECT id, principal_name, permission_type, target, actions FROM " + tableName;
 
         try
         {
             for( final PermissionGrant grant : jdbc.query( sql, SqlBinder.NONE, DatabasePolicy::readGrant ) )
             {
-                final Permission perm = buildPermission( grant.permissionType(), grant.target(), grant.actions() );
+                final Permission perm = buildPermissionOrSkip( grant );
                 if( perm != null )
                 {
                     newGrants.computeIfAbsent( grant.principalName(), k -> new ArrayList<>() ).add( perm );
@@ -242,14 +242,36 @@ public class DatabasePolicy
     }
 
     /** One {@code policy_grants} row's raw columns, read verbatim before {@link #buildPermission} interprets them. */
-    private record PermissionGrant( String principalName, String permissionType, String target, String actions ) { }
+    private record PermissionGrant( int id, String principalName, String permissionType, String target, String actions ) { }
 
     private static PermissionGrant readGrant( final java.sql.ResultSet rs ) throws SQLException {
         return new PermissionGrant(
+                rs.getInt( "id" ),
                 rs.getString( "principal_name" ),
                 rs.getString( "permission_type" ),
                 rs.getString( "target" ),
                 rs.getString( "actions" ) );
+    }
+
+    /**
+     * {@link #buildPermission} for one row, skipping (with a WARN) a row whose actions this build
+     * does not recognise. Rollback safety: after a downgrade, a row written by a newer release
+     * (e.g. the {@code export} wiki action) must cost only that one grant — an
+     * {@link IllegalArgumentException} escaping {@link #refresh()} would stop the wiki booting.
+     */
+    private Permission buildPermissionOrSkip( final PermissionGrant grant )
+    {
+        try
+        {
+            return buildPermission( grant.permissionType(), grant.target(), grant.actions() );
+        }
+        catch( final IllegalArgumentException e )
+        {
+            LOG.warn( "Skipping policy grant id={} (principal '{}', type '{}', target '{}', actions '{}') in table '{}': {}",
+                    grant.id(), grant.principalName(), grant.permissionType(), grant.target(), grant.actions(),
+                    tableName, e.getMessage() );
+            return null;
+        }
     }
 
     /**

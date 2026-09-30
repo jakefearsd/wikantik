@@ -47,6 +47,28 @@ class VaultLayoutTest {
         assertEquals( "b/Foobar~2.md", l.pagePath( "Foobar" ) );
         assertEquals( Optional.of( "Foobar" ), l.aliasFor( "Foobar" ) );
         assertEquals( Optional.empty(), l.aliasFor( "FooBar" ) );
+        assertEquals( "FooBar", l.basename( "FooBar" ) );
+        assertEquals( "Foobar~2", l.basename( "Foobar" ) );
+        assertNull( l.basename( "NotInExport" ) );
+    }
+
+    /** A {@code cluster:} value is only WARNING-validated, so it can carry traversal segments. */
+    @Test void traversalClusterStaysInsideVault() {
+        final VaultLayout l = VaultLayout.plan( List.of( p( "Evil", "../../evil" ), p( "Dots", "./a//b/.." ),
+                p( "Lead", "/abs" ) ), List.of() );
+        assertEquals( "_/_/evil/Evil.md", l.pagePath( "Evil" ) );
+        assertEquals( "_/a/_/b/_/Dots.md", l.pagePath( "Dots" ) );
+        assertEquals( "_/abs/Lead.md", l.pagePath( "Lead" ) );
+    }
+
+    @Test void traversalAttachmentAndPageNamesStayInsideVault() {
+        final AttachmentRef evil = new AttachmentRef( "A", "../x.png" );
+        final AttachmentRef dots = new AttachmentRef( "..", ".." );
+        final VaultLayout l = VaultLayout.plan( List.of( p( "A", "x" ), p( "..", "x" ) ), List.of( evil, dots ) );
+        assertEquals( "_attachments/A/.._x.png", l.attachmentPath( evil ) );
+        assertEquals( "_attachments/_/_", l.attachmentPath( dots ) );
+        assertEquals( "x/_.md", l.pagePath( ".." ) );
+        assertEquals( ".._x.png", l.attachmentLinkTarget( evil ) );
     }
 
     @Test void illegalCharactersSanitised() {

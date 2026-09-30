@@ -37,10 +37,14 @@ class ObsidianPageConverterTest {
                 "Here", Map.of( "intro", "Intro" ) );
         Set< String > attachments = Set.of( "Here/chart.png", "Here/report.pdf", "Foo/diagram.svg" );
         UnresolvedLinkMode mode = UnresolvedLinkMode.KEEP;
+        Map< String, String > basenames = Map.of();
         public boolean inExport( String p ) { return pages.contains( p ); }
         public Optional< String > headingText( String p, String s ) { return Optional.ofNullable( headings.getOrDefault( p, Map.of() ).get( s ) ); }
         public Optional< String > attachmentTarget( String p, String f ) { return attachments.contains( p + "/" + f ) ? Optional.of( f ) : Optional.empty(); }
         public Optional< String > slugForCanonicalId( String id ) { return "01FOO".equals( id ) ? Optional.of( "Foo" ) : Optional.empty(); }
+        public Optional< String > vaultBasename( String p ) {
+            return pages.contains( p ) ? Optional.of( basenames.getOrDefault( p, p ) ) : Optional.empty();
+        }
         public String liveUrl( String p ) { return "https://w.example/wiki/" + p; }
         public UnresolvedLinkMode unresolvedMode() { return mode; }
     }
@@ -76,6 +80,19 @@ class ObsidianPageConverterTest {
     @Test void citation() {
         final String out = body( "Claim [it works](cite://01FOO/Setup%20Steps \"exact span\") ok.\n" );
         assertEquals( "Claim [[Foo#Setup Steps|it works]][^c1] ok.\n\n[^c1]: exact span\n", out );
+    }
+    @Test void citationInTableCellEscapesAliasPipe() {
+        final String raw = "| a | b |\n|---|---|\n| [it](cite://01FOO/Setup%20Steps \"span\") | y |\n";
+        assertEquals( "| a | b |\n|---|---|\n| [[Foo#Setup Steps\\|it]][^c1] | y |\n\n[^c1]: span\n", body( raw ) );
+    }
+    /** A case-collided page is written as {@code Foo~2.md}; links must target that file, keeping the page name as alias. */
+    @Test void caseCollidedTargetUsesVaultBasename() {
+        final FakeCtx c = new FakeCtx(); c.basenames = Map.of( "Foo", "Foo~2" );
+        assertEquals( "[[Foo~2|Foo]] [[Foo~2|the foo]] [[Foo~2#Setup Steps|go]]\n",
+                body( "[Foo](Foo) [the foo](Foo) [go](Foo#setup-steps)\n", c ) );
+        assertEquals( "Claim [[Foo~2#Setup Steps|it]][^c1].\n\n[^c1]: s\n",
+                body( "Claim [it](cite://01FOO/Setup%20Steps \"s\").\n", c ) );
+        assertEquals( "![[Foo~2]]\n", body( "[{InsertPage page='Foo'}]\n", c ) );
     }
     @Test void aclAndSetRemoved() {
         assertEquals( "Text\n", body( "[{ALLOW view Admin}]\n[{SET foo=bar}]()\nText\n" ) );

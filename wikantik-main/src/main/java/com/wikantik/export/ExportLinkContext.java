@@ -37,6 +37,13 @@ public interface ExportLinkContext {
 
     Optional< String > slugForCanonicalId( String canonicalId );
 
+    /**
+     * The vault file basename (without {@code .md}) the layout chose for an in-export page —
+     * differs from the page name after sanitising or a case-collision {@code ~N} suffix. Empty
+     * when {@code pageName} is not in the export. Links to in-export pages must target this.
+     */
+    Optional< String > vaultBasename( String pageName );
+
     String liveUrl( String pageName );
 
     UnresolvedLinkMode unresolvedMode();

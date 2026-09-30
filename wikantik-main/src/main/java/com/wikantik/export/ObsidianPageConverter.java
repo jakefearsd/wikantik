@@ -112,7 +112,7 @@ public final class ObsidianPageConverter {
                     : new Edit( m.start(), m.end(), "" );
         }
         if ( "INSERTPAGE".equals( upper ) ) {
-            return new Edit( m.start(), m.end(), "![[" + extractPageParam( inner ) + "]]" );
+            return new Edit( m.start(), m.end(), "![[" + ObsidianLinkRenderer.linkTarget( extractPageParam( inner ), state ) + "]]" );
         }
         return alone
                 ? new Edit( m.start(), m.end(), "> [!note] Wiki plugin omitted: " + name

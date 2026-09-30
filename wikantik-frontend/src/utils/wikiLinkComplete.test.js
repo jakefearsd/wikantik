@@ -2,9 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { createWikiLinkSource } from './wikiLinkComplete';
 
 // Minimal CodeMirror CompletionContext stand-in.
-function ctx(textBefore) {
+function ctx(textBefore, textAfter = '') {
   return {
     aborted: false,
+    pos: textBefore.length,
+    state: { doc: { sliceString: (from, to) => (textBefore + textAfter).slice(from, to) } },
     matchBefore(re) {
       const m = textBefore.match(re);
       if (!m) return null;
@@ -40,6 +42,27 @@ describe('createWikiLinkSource', () => {
     expect(res.from).toBe(4);
     expect(res.filter).toBe(false);
     expect(res.options[0]).toMatchObject({ label: 'MachineLearning', apply: '[MachineLearning](MachineLearning)' });
+  });
+
+  it('[[ replaces the auto-closed ]] that follows the cursor (to = pos + 2)', async () => {
+    const res = await createWikiLinkSource(deps())(ctx('see [[machine', ']] tail'));
+    expect(res.from).toBe(4);
+    expect(res.to).toBe('see [[machine'.length + 2);
+  });
+
+  it('[[ without trailing ]] leaves `to` unset', async () => {
+    const res = await createWikiLinkSource(deps())(ctx('see [[machine', ' tail'));
+    expect(res.to).toBeUndefined();
+  });
+
+  it('[[Page#heading also replaces a trailing auto-closed ]]', async () => {
+    const res = await createWikiLinkSource(deps())(ctx('[[MachineLearning#inst', ']]'));
+    expect(res.to).toBe('[[MachineLearning#inst'.length + 2);
+  });
+
+  it('](target never extends over the auto-closed )', async () => {
+    const res = await createWikiLinkSource(deps())(ctx('[x](not', ')'));
+    expect(res.to).toBeUndefined();
   });
 
   it('[[ offers a new-page link when nothing matches exactly', async () => {

@@ -62,19 +62,28 @@ export function createWikiLinkSource({ searchPages, getHeadings, getAttachmentNa
     return context.aborted ? null : names;
   }
 
-  const result = (from, options) => (options && options.length ? { from, options, filter: false } : null);
+  const result = (from, options, to) => {
+    if (!options || !options.length) return null;
+    return to === undefined ? { from, options, filter: false } : { from, to, options, filter: false };
+  };
+
+  // closeBrackets types `]]` after an opening `[[`; the completion must replace it or it is left behind.
+  const autoClosedBrackets = (context) => (
+    context.state.doc.sliceString(context.pos, context.pos + 2) === ']]' ? context.pos + 2 : undefined
+  );
 
   async function completeWiki(match, context) {
+    const to = autoClosedBrackets(context);
     const [, page, heading] = WIKI_TRIGGER.exec(match.text);
     if (heading !== undefined) {
       const options = await headingOptions(page, heading, (h) => `[${escapeLinkText(h.text)}](${page}#${h.id})`);
-      return context.aborted ? null : result(match.from, options);
+      return context.aborted ? null : result(match.from, options, to);
     }
     const names = await pageNames(page, context);
     if (!names) return null;
     const options = names.slice(0, MAX_OPTIONS).map((name) => ({ label: name, type: 'wikilink', apply: `[${name}](${name})` }));
     const created = newPageOption(page, names, (slug, text) => `[${text}](${slug})`);
-    return result(match.from, created ? [...options, created] : options);
+    return result(match.from, created ? [...options, created] : options, to);
   }
 
   async function completeTarget(match, context) {

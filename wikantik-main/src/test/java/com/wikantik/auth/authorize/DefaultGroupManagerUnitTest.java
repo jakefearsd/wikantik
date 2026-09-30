@@ -26,7 +26,17 @@ import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.event.WikiEventListener;
 import com.wikantik.event.WikiSecurityEvent;
+import com.wikantik.TestJNDIContext;
+import com.wikantik.auth.AbstractJDBCDatabase;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NameAlreadyBoundException;
+import javax.sql.DataSource;
+import java.sql.Connection;
 
 import java.lang.reflect.Field;
 import java.util.Properties;
@@ -51,6 +61,53 @@ import static org.mockito.Mockito.when;
  * collaborators are mocked and injected via reflection.
  */
 class DefaultGroupManagerUnitTest {
+
+    private String savedJndiFactory;
+
+    /**
+     * {@link TestJNDIContext#initialize()} (used by the JDBC database tests) installs a JVM-wide
+     * initial-context factory that is never removed, so whether {@code new InitialContext()}
+     * resolves depends on which test class ran earlier in the same forked JVM. These tests rely on
+     * there being NO JNDI context, so each one starts with the factory property cleared.
+     */
+    @BeforeEach
+    void isolateFromAmbientJndi() {
+        savedJndiFactory = System.getProperty( Context.INITIAL_CONTEXT_FACTORY );
+        System.clearProperty( Context.INITIAL_CONTEXT_FACTORY );
+    }
+
+    @AfterEach
+    void restoreAmbientJndi() {
+        if( savedJndiFactory != null ) {
+            System.setProperty( Context.INITIAL_CONTEXT_FACTORY, savedJndiFactory );
+        }
+    }
+
+    @Test
+    void initialize_ignoresAmbientJndiLeftByOtherTests() throws Exception {
+        // Reproduce the pollution: a bound default datasource reachable via a JVM-wide factory.
+        TestJNDIContext.initialize();
+        final Context initCtx = new InitialContext();
+        try {
+            initCtx.bind( "java:comp/env", new TestJNDIContext() );
+        } catch( final NameAlreadyBoundException e ) {
+            // already bound by an earlier test in this JVM -- fine
+            assertTrue( true, e.getMessage() );
+        }
+        final DataSource ds = mock( DataSource.class );
+        final Connection conn = mock( Connection.class );
+        when( ds.getConnection() ).thenReturn( conn );
+        when( conn.isValid( org.mockito.ArgumentMatchers.anyInt() ) ).thenReturn( true );
+        ( (Context) initCtx.lookup( "java:comp/env" ) ).bind( AbstractJDBCDatabase.DEFAULT_DATASOURCE, ds );
+        // the ambient factory is now installed (as after JDBCGroupDatabaseTest); the fixture must not see it
+        isolateFromAmbientJndi();
+
+        final DefaultGroupManager mgr = new DefaultGroupManager();
+        final WikiEngine engine = mock( WikiEngine.class );
+        final Properties props = new Properties();
+        when( engine.getWikiProperties() ).thenReturn( props );
+        assertThrows( WikiSecurityException.class, () -> mgr.initialize( engine, props ) );
+    }
 
     // --- getGroupDatabase()/initialize(): default class name + JNDI failure ---
 

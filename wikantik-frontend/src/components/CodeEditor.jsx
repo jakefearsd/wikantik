@@ -24,6 +24,8 @@ import { filesFromPaste, filesFromDrop } from '../utils/editorFileEvents';
  *   getSelection()              -> { selStart, selEnd } character offsets
  *   setSelection(start, end)    -> set selection + focus the editor
  *   focus()                     -> focus the editor
+ *   insertText(pos, text)       -> insert via a CodeMirror transaction; false if no view
+ *   replaceText(find, repl)     -> replace first exact match via a transaction; false if no view
  *
  * Props:
  *   value       string            current document text
@@ -116,6 +118,30 @@ const CodeEditor = forwardRef(function CodeEditor(
         topLine = 1;
       }
       return { topLine, totalLines: view.state.doc.lines };
+    },
+    /**
+     * Insert `text` at character offset `pos`. A normal (non-external) transaction, so onChange fires and
+     * the parent's state follows; going through the view also sidesteps react-codemirror's typing latch,
+     * which defers external `value` changes and can overwrite them. Returns false when there is no view.
+     */
+    insertText(pos, text) {
+      const view = viewRef.current;
+      if (!view) return false;
+      const at = Math.max(0, Math.min(pos, view.state.doc.length));
+      view.dispatch({ changes: { from: at, insert: text } });
+      return true;
+    },
+    /**
+     * Replace the first exact occurrence of `find` with `replacement` (literal, like String.replace with
+     * a string pattern but without `$` expansion). A missing `find` is a handled no-op. Returns false
+     * when there is no view.
+     */
+    replaceText(find, replacement) {
+      const view = viewRef.current;
+      if (!view) return false;
+      const at = view.state.sliceDoc(0, view.state.doc.length).indexOf(find);
+      if (at >= 0) view.dispatch({ changes: { from: at, to: at + find.length, insert: replacement } });
+      return true;
     },
     /** Caret position (1-based line/column) and the selected text — drives the status bar. */
     getCursor() {

@@ -108,3 +108,49 @@ describe('useAttachmentUpload', () => {
     expect(h.upload).not.toHaveBeenCalled();
   });
 });
+
+describe('useAttachmentUpload with an editor adapter', () => {
+  function editorHarness(editor) {
+    let body = 'Hello world';
+    const updateBody = vi.fn((fn) => { body = fn(body); });
+    const toast = { error: vi.fn() };
+    const upload = vi.fn(async () => ({ success: true }));
+    const { result } = renderHook(() => useAttachmentUpload({ existingNames: [], upload, updateBody, toast, editor }));
+    return { run: (files, pos, opts) => act(() => result.current(files, pos, opts)), body: () => body, updateBody, upload, toast };
+  }
+
+  it('routes placeholder insert and replacement through the editor, not updateBody', async () => {
+    const editor = { insertText: vi.fn(() => true), replaceText: vi.fn(() => true) };
+    const h = editorHarness(editor);
+    await h.run([doc('a.pdf')], 5, { pasted: false });
+    expect(editor.insertText).toHaveBeenCalledWith(5, '![Uploading a.pdf…]()');
+    expect(editor.replaceText).toHaveBeenCalledWith('![Uploading a.pdf…]()', '[a](a.pdf)');
+    expect(h.updateBody).not.toHaveBeenCalled();
+  });
+
+  it('a failed upload removes the placeholder through the editor', async () => {
+    const editor = { insertText: vi.fn(() => true), replaceText: vi.fn(() => true) };
+    const h = editorHarness(editor);
+    h.upload.mockRejectedValueOnce(new Error('nope'));
+    await h.run([doc('a.pdf')], 0, { pasted: false });
+    expect(editor.replaceText).toHaveBeenCalledWith('![Uploading a.pdf…]()', '');
+    expect(h.toast.error).toHaveBeenCalled();
+  });
+
+  it('falls back to updateBody when the editor has no view (returns false)', async () => {
+    const editor = { insertText: vi.fn(() => false), replaceText: vi.fn(() => false) };
+    const h = editorHarness(editor);
+    await h.run([doc('a.pdf')], 5, { pasted: false });
+    expect(h.body()).toBe('Hello[a](a.pdf) world');
+  });
+
+  it('cancelling a deferred upload removes placeholders through the editor', async () => {
+    const editor = { insertText: vi.fn(() => true), replaceText: vi.fn(() => true) };
+    const h = editorHarness(editor);
+    let handle;
+    await act(async () => { handle = await h.run([doc('a.pdf')], 0, { defer: true, pasted: false }); });
+    expect(h.upload).not.toHaveBeenCalled();
+    act(() => handle.cancel());
+    expect(editor.replaceText).toHaveBeenCalledWith('![Uploading a.pdf…]()', '');
+  });
+});

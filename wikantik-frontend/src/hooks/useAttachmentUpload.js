@@ -13,14 +13,26 @@ const isImage = (file) => /^image\//.test(file.type || '');
  * @param {string[]} o.existingNames  attachment names already on the page
  * @param {(file: File, name: string) => Promise<unknown>} o.upload  uploads and refreshes the list
  * @param {(fn: (prev: string) => string) => void} o.updateBody  functional body setter
+ * @param {{ insertText: (pos: number, text: string) => boolean, replaceText: (find: string, repl: string) => boolean }} [o.editor]
+ *        optional editor adapter: edits are applied as editor transactions so typing cannot clobber them.
+ *        A `false` return (no editor view) falls back to `updateBody`.
  * @param {{ error: (msg: string) => void }} o.toast
  */
-export function useAttachmentUpload({ existingNames, upload, updateBody, toast }) {
+export function useAttachmentUpload({ existingNames, upload, updateBody, toast, editor }) {
   const namesRef = useRef(existingNames);
   useEffect(() => { namesRef.current = existingNames; });
   // Names claimed by uploads this hook started. The attachment list only learns them after a refresh,
   // so an overlapping paste would otherwise pick the same name and overwrite the earlier upload.
   const reservedRef = useRef(new Set());
+
+  const insertAt = useCallback((pos, text) => {
+    if (editor?.insertText(pos, text)) return;
+    updateBody((prev) => prev.slice(0, pos) + text + prev.slice(pos));
+  }, [editor, updateBody]);
+  const replaceOnce = useCallback((find, replacement) => {
+    if (editor?.replaceText(find, replacement)) return;
+    updateBody((prev) => prev.replace(find, () => replacement));
+  }, [editor, updateBody]);
 
   return useCallback(async (files, pos, { pasted = false, defer = false } = {}) => {
     const taken = [...(namesRef.current || []), ...reservedRef.current];
@@ -37,15 +49,15 @@ export function useAttachmentUpload({ existingNames, upload, updateBody, toast }
       plan.push({ file, name, placeholder: `![Uploading ${name}…]()` });
     }
     if (plan.length === 0) return undefined;
-    updateBody((prev) => prev.slice(0, pos) + plan.map((p) => p.placeholder).join('\n') + prev.slice(pos));
+    insertAt(pos, plan.map((p) => p.placeholder).join('\n'));
     const start = async () => {
       for (const { file, name, placeholder } of plan) {
         try {
           // The multipart filename must carry the chosen name's extension (server checks they match).
           await upload(new File([file], name, { type: file.type }), name);
-          updateBody((prev) => prev.replace(placeholder, attachmentMarkup(name, isImage(file))));
+          replaceOnce(placeholder, attachmentMarkup(name, isImage(file)));
         } catch (err) {
-          updateBody((prev) => prev.replace(placeholder, ''));
+          replaceOnce(placeholder, '');
           toast.error(`Upload of ${name} failed: ${err?.message || err}`);
         }
       }
@@ -58,9 +70,9 @@ export function useAttachmentUpload({ existingNames, upload, updateBody, toast }
     const cancel = () => {
       for (const { name, placeholder } of plan) {
         reservedRef.current.delete(name);
-        updateBody((prev) => prev.replace(placeholder, ''));
+        replaceOnce(placeholder, '');
       }
     };
     return { start, cancel };
-  }, [upload, updateBody, toast]);
+  }, [upload, insertAt, replaceOnce, toast]);
 }

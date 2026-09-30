@@ -40,7 +40,7 @@ function lineNumberForOffset(text, pos) {
 
 vi.mock('@uiw/react-codemirror', async () => {
   const React = (await vi.importActual('react')).default;
-  function makeView(ta) {
+  function makeView(ta, onChange) {
     const view = {
       get state() {
         const starts = lineStarts(ta.value);
@@ -67,6 +67,13 @@ vi.mock('@uiw/react-codemirror', async () => {
       },
       focus() { ta.focus(); },
       dispatch(tr) {
+        if (tr && tr.changes) {
+          // Apply {from, to?, insert} like a real (non-external) transaction: doc changes, onChange fires.
+          const { from, to = from, insert = '' } = tr.changes;
+          const next = ta.value.slice(0, from) + insert + ta.value.slice(to);
+          ta.value = next;
+          if (onChange) onChange(next);
+        }
         if (tr && tr.selection) {
           ta.setSelectionRange(tr.selection.anchor, tr.selection.head);
         }
@@ -96,7 +103,7 @@ vi.mock('@uiw/react-codemirror', async () => {
     default: function CodeMirrorStub({ value, onChange, onCreateEditor }) {
       return React.createElement('textarea', {
         ref: (ta) => {
-          if (ta && onCreateEditor && value !== '__NO_VIEW__') onCreateEditor(makeView(ta));
+          if (ta && onCreateEditor && value !== '__NO_VIEW__') onCreateEditor(makeView(ta, onChange));
         },
         'data-testid': 'cm-stub-textarea',
         value: value || '',
@@ -116,6 +123,51 @@ function mount(value = 'hello world') {
   );
   return { ref, ta: getByTestId('cm-stub-textarea') };
 }
+
+describe('CodeEditor insertText / replaceText (upload edits go through the editor)', () => {
+  function mountWith(value) {
+    const ref = createRef();
+    const onChange = vi.fn();
+    render(<CodeEditor ref={ref} value={value} onChange={onChange} />);
+    return { ref, onChange };
+  }
+
+  it('insertText dispatches an insertion at pos, fires onChange, and reports handled', () => {
+    const { ref, onChange } = mountWith('Hello world');
+    expect(ref.current.insertText(5, '[X]')).toBe(true);
+    expect(onChange).toHaveBeenCalledWith('Hello[X] world');
+  });
+
+  it('insertText clamps pos into the document', () => {
+    const { ref, onChange } = mountWith('abc');
+    expect(ref.current.insertText(99, '!')).toBe(true);
+    expect(onChange).toHaveBeenCalledWith('abc!');
+  });
+
+  it('replaceText swaps the first exact occurrence and fires onChange', () => {
+    const { ref, onChange } = mountWith('a [P] b [P]');
+    expect(ref.current.replaceText('[P]', '[Q]')).toBe(true);
+    expect(onChange).toHaveBeenCalledWith('a [Q] b [P]');
+  });
+
+  it('replaceText treats $ in the replacement literally', () => {
+    const { ref, onChange } = mountWith('a [P] b');
+    ref.current.replaceText('[P]', '$& $1');
+    expect(onChange).toHaveBeenCalledWith('a $& $1 b');
+  });
+
+  it('replaceText is a handled no-op when the text is gone (user deleted the placeholder)', () => {
+    const { ref, onChange } = mountWith('nothing here');
+    expect(ref.current.replaceText('[P]', '[Q]')).toBe(true);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('both return false when there is no editor view', () => {
+    const { ref } = mountWith('__NO_VIEW__');
+    expect(ref.current.insertText(0, 'x')).toBe(false);
+    expect(ref.current.replaceText('a', 'b')).toBe(false);
+  });
+});
 
 describe('#19 CodeEditor imperative API', () => {
   it('renders the wrapper with the forwarded data-testid', () => {

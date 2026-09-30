@@ -245,9 +245,18 @@ export default function PageEditor() {
       .then(() => (api.search ? api.search(q) : { results: [] }))
       .then((r) => (r.results || []).map((x) => x.name)), []);
 
+  // Text edits made outside typing go through the editor as transactions: a React `value` change can be
+  // deferred by @uiw/react-codemirror while the user types, and the editor's onChange would then overwrite it.
+  // insertText/replaceText return false when there is no editor view; callers then fall back to setBody.
+  const editorEdits = useMemo(() => ({
+    insertText: (pos, text) => editorRef.current?.insertText?.(pos, text) ?? false,
+    replaceText: (find, replacement) => editorRef.current?.replaceText?.(find, replacement) ?? false,
+  }), []);
+
   const handleInsert = useCallback((text, pos) => {
+    if (editorEdits.insertText(pos, text)) return;
     setBody(prev => prev.slice(0, pos) + text + prev.slice(pos));
-  }, []);
+  }, [editorEdits]);
 
   const getDropOffset = useCallback(() => {
     return editorRef.current ? editorRef.current.getSelection().selStart : 0;
@@ -522,6 +531,7 @@ export default function PageEditor() {
     existingNames: (attachments.list || []).map((a) => a.fileName),
     upload: attachments.uploadAttachment,
     updateBody: setBody,
+    editor: editorEdits,
     toast,
   });
   // Attachments need an existing page; on a new page the paste/drop waits for a first save.

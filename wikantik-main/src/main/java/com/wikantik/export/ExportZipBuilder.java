@@ -66,17 +66,23 @@ final class ExportZipBuilder {
     private final AttachmentManager attachments;
     private final StructuralIndexService index;
     private final PermissionFilter permissions;
-    private final Session guestSession;
+    private final Session session;
     private final String baseUrl;
     private final Clock clock;
 
+    /**
+     * @param session the exporting caller's session ({@link ExportService.PreparedExport#session()}) —
+     *                used for every ACL decision made while streaming, including out-of-export
+     *                link/citation targets. Never a fixed guest fallback: whoever called
+     *                {@code ExportService.prepare} is who these checks run as.
+     */
     ExportZipBuilder( final PageManager pages, final AttachmentManager attachments, final StructuralIndexService index,
-                      final PermissionFilter permissions, final Session guestSession, final String baseUrl, final Clock clock ) {
+                      final PermissionFilter permissions, final Session session, final String baseUrl, final Clock clock ) {
         this.pages = pages;
         this.attachments = attachments;
         this.index = index;
         this.permissions = permissions;
-        this.guestSession = guestSession;
+        this.session = session;
         this.baseUrl = baseUrl;
         this.clock = clock;
     }
@@ -302,12 +308,13 @@ final class ExportZipBuilder {
     }
 
     /**
-     * Session-independent, conservative view check for a page outside the export set — see
-     * {@link ExportService#fromSubsystems}. Pages inside the export set never go through this
-     * (they already passed the exporting session's own ACL check during resolution).
+     * View check for a page outside the export set, evaluated as the exporting caller
+     * ({@link #session}) — the same session {@code ExportService.prepare} resolved the page set
+     * with, never a guest fallback. Pages inside the export set never go through this (they
+     * already passed that session's own ACL check during resolution).
      */
-    private boolean isViewableToGuest( final String pageName ) {
-        return guestSession != null && permissions.canAccessQuietly( guestSession, pageName, "view" );
+    private boolean isViewableToCaller( final String pageName ) {
+        return session != null && permissions.canAccessQuietly( session, pageName, "view" );
     }
 
     private String liveUrl( final String pageName ) {
@@ -337,7 +344,7 @@ final class ExportZipBuilder {
 
         @Override
         public Optional< String > headingText( final String pageName, final String slug ) {
-            if ( !included.contains( pageName ) && !isViewableToGuest( pageName ) ) {
+            if ( !included.contains( pageName ) && !isViewableToCaller( pageName ) ) {
                 return Optional.empty();
             }
             return Optional.ofNullable( headingCache.computeIfAbsent( pageName, ExportZipBuilder.this::loadHeadings ).get( slug ) );
@@ -352,7 +359,7 @@ final class ExportZipBuilder {
         @Override
         public Optional< String > slugForCanonicalId( final String canonicalId ) {
             return index.resolveSlugFromCanonicalId( canonicalId )
-                    .filter( slug -> included.contains( slug ) || isViewableToGuest( slug ) );
+                    .filter( slug -> included.contains( slug ) || isViewableToCaller( slug ) );
         }
 
         @Override

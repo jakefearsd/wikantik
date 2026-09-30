@@ -19,6 +19,8 @@
 package com.wikantik.export;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.List;
@@ -39,7 +41,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.wikantik.TestEngine;
 import com.wikantik.WikiSession;
 import com.wikantik.WikiSubsystems;
+import com.wikantik.WikiSubsystemsTestFactory;
 import com.wikantik.api.core.Session;
+import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.auth.permissions.PermissionFilter;
@@ -48,7 +52,9 @@ import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.jdbc.testing.RequiresPostgres;
-import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
+import com.wikantik.page.subsystem.PageSubsystem;
+import com.wikantik.pagegraph.spine.DefaultStructuralIndexService;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystem;
 import com.wikantik.pagegraph.subsystem.PageGraphWiringHelper;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 import com.wikantik.persistence.subsystem.PersistenceSubsystemFactory;
@@ -83,10 +89,20 @@ class ExportServiceTest {
         engine.saveText( "SecretFinance", "---\ntype: article\ncluster: finance\n---\n"
                 + "[{ALLOW view Admin}]\n# Secret\n" );
 
-        wireStructuralIndex( engine );
+        final DefaultStructuralIndexService structuralIndex = wireStructuralIndex( engine );
+        final PageManager pageManager = engine.getManager( PageManager.class );
+        final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );
+        final ReferenceManager referenceManager = engine.getManager( ReferenceManager.class );
+
+        // Assemble only the services ExportService actually reads (page().pages()/attachments(),
+        // pageGraph().structuralIndexService()/referenceManager()) via the existing test factory,
+        // rather than re-deriving RestServletBase.getSubsystems()'s full bridge-assembly line.
+        subs = WikiSubsystemsTestFactory.builder()
+                .page( new PageSubsystem.Services( pageManager, attachmentManager, null, null, null, null, null, null, referenceManager ) )
+                .pageGraph( new PageGraphSubsystem.Services( structuralIndex, null, referenceManager, null, null, null, null, null, null ) )
+                .build();
 
         // structural index rebuild is async; force it
-        subs = bridgeSubsystems( engine );
         subs.pageGraph().structuralIndexService().rebuild();
 
         // A guest must really be denied SecretFinance, or the exclusion assertions below are vacuous.
@@ -101,12 +117,12 @@ class ExportServiceTest {
 
     /**
      * Wires just the Page Graph subsystem's structural index against a real (Testcontainers)
-     * Postgres, registering it on the engine's legacy manager registry so
-     * {@link #bridgeSubsystems} can pick it up. Mirrors the wiring
-     * {@code WikiEngine.initKnowledgeGraph} performs, minus everything Knowledge-specific this
-     * test does not need.
+     * Postgres. Mirrors the wiring {@code WikiEngine.initKnowledgeGraph} performs, minus
+     * everything Knowledge-specific this test does not need — {@code TestEngine.build()} boots
+     * with {@code wikantik.datasource} blank (deliberately, per the wikantik-main test overlay),
+     * so a bare engine's Page Graph subsystem never wires up.
      */
-    private static void wireStructuralIndex( final TestEngine engine ) throws Exception {
+    private static DefaultStructuralIndexService wireStructuralIndex( final TestEngine engine ) throws Exception {
         final DataSource dataSource = PostgresTestDb.createDataSource();
         final CoreSubsystem.Services core = CoreSubsystemBridge.fromLegacyEngine( engine );
         final PersistenceSubsystem.Services persistence = PersistenceSubsystemFactory.create(
@@ -114,35 +130,8 @@ class ExportServiceTest {
         final PageManager pageManager = engine.getManager( PageManager.class );
         final ReferenceManager referenceManager = engine.getManager( ReferenceManager.class );
         final FilterManager filterManager = engine.getManager( FilterManager.class );
-        PageGraphWiringHelper.wireStructuralSpine(
+        return PageGraphWiringHelper.wireStructuralSpine(
                 engine.getWikiProperties(), persistence, core, pageManager, filterManager, referenceManager, engine );
-    }
-
-    /**
-     * Mirrors {@code RestServletBase.getSubsystems()}'s fallback path: builds a synthetic
-     * {@link WikiSubsystems} bundle from the legacy per-subsystem bridges when the engine never
-     * stashed one on the servlet context (true of every {@code TestEngine} — it boots without a
-     * fully-wired Knowledge subsystem, so the stash never happens).
-     */
-    private static WikiSubsystems bridgeSubsystems( final com.wikantik.api.core.Engine engine ) {
-        final CoreSubsystem.Services coreServices = CoreSubsystemBridge.fromLegacyEngine( engine );
-        final com.wikantik.auth.subsystem.AuthSubsystem.Services authServices =
-                com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine );
-        final com.wikantik.page.subsystem.PageSubsystem.Services pageServices =
-                com.wikantik.page.subsystem.PageSubsystemBridge.fromLegacyEngine( engine );
-        final com.wikantik.render.subsystem.RenderingSubsystem.Services renderingServices =
-                com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine );
-        final com.wikantik.search.subsystem.SearchSubsystem.Services searchServices =
-                com.wikantik.search.subsystem.SearchSubsystemBridge.fromLegacyEngine( engine );
-        final com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services pageGraphServices =
-                PageGraphSubsystemBridge.fromLegacyEngine( engine );
-        com.wikantik.persistence.subsystem.PersistenceSubsystem.Services persistenceServices = null;
-        if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
-            persistenceServices = wikiEngine.getPersistenceSubsystem();
-        }
-        return new WikiSubsystems( coreServices, persistenceServices, authServices, pageServices,
-                renderingServices, searchServices,
-                com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine ), pageGraphServices );
     }
 
     private Session guest() { return WikiSession.guestSession( engine ); }
@@ -208,5 +197,71 @@ class ExportServiceTest {
         assertTrue( manifest.contains( "MathPage" ), manifest );
         assertTrue( manifest.toLowerCase( java.util.Locale.ROOT ).contains( "warning" ) || manifest.contains( "\"warnings\": [" ),
                 manifest );
+    }
+
+    @Test
+    void outOfExportHeadingResolvesOnlyForViewerWithPermission() throws Exception {
+        engine.saveText( "AdminOnlyPage", "---\ntype: article\ncluster: restricted\n---\n"
+                + "[{ALLOW view Admin}]\n# Admin Only\n\n## Secret Note\n\nHush.\n" );
+        engine.saveText( "FinanceLinksOut", "---\ntype: article\ncluster: finance\n---\n"
+                + "# Finance Links Out\n\nSee [Secret](AdminOnlyPage#secret-note).\n" );
+        subs.pageGraph().structuralIndexService().rebuild();
+
+        final Session admin = engine.adminSession();
+        final PermissionFilter perms = new PermissionFilter( engine );
+        assertFalse( perms.canAccessQuietly( guest(), "AdminOnlyPage", "view" ),
+                "test fixture is vacuous: guest can already view AdminOnlyPage" );
+        assertTrue( perms.canAccessQuietly( admin, "AdminOnlyPage", "view" ),
+                "test fixture is vacuous: admin cannot view AdminOnlyPage" );
+
+        // Exporting as guest: the anchor's target is unviewable to the exporting caller, so the
+        // heading never resolves — falls back to a plain (headless) wikilink per converter rules.
+        final ByteArrayOutputStream guestBos = new ByteArrayOutputStream();
+        service.stream( service.prepare( guest(), finance( 0 ) ), guestBos );
+        final String guestPage = new String(
+                ObsidianVaultWriterTest.unzip( guestBos.toByteArray() ).get( "finance/FinanceLinksOut.md" ), StandardCharsets.UTF_8 );
+        assertTrue( guestPage.contains( "[[AdminOnlyPage|Secret]]" ), guestPage );
+        assertFalse( guestPage.contains( "Secret Note" ), guestPage );
+
+        // Exporting as admin: same page, same link — the exporting caller's own permission (not
+        // a fixed guest fallback) now allows the heading to resolve.
+        final ByteArrayOutputStream adminBos = new ByteArrayOutputStream();
+        service.stream( service.prepare( admin, finance( 0 ) ), adminBos );
+        final String adminPage = new String(
+                ObsidianVaultWriterTest.unzip( adminBos.toByteArray() ).get( "finance/FinanceLinksOut.md" ), StandardCharsets.UTF_8 );
+        assertTrue( adminPage.contains( "[[AdminOnlyPage#Secret Note|Secret]]" ), adminPage );
+    }
+
+    @Test
+    void attachmentReadFailureYieldsCompleteZipWithWarning() throws Exception {
+        final AttachmentManager failing = new FailingAttachmentManager( subs.page().attachments(), "chart.png" );
+        final ExportService spied = new ExportService( subs.pageGraph().structuralIndexService(), subs.page().pages(),
+                subs.pageGraph().referenceManager(), failing, new PermissionFilter( engine ),
+                "https://w.example", ExportService.DEFAULT_MAX_PAGES, Clock.systemUTC() );
+
+        final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        spied.stream( spied.prepare( guest(), finance( 0 ) ), bos );
+        final Map< String, byte[] > z = ObsidianVaultWriterTest.unzip( bos.toByteArray() );
+
+        assertFalse( z.containsKey( "_attachments/RothConversions/chart.png" ) );
+        assertTrue( z.containsKey( "finance/retirement/RothConversions.md" ) ); // the page itself is unaffected
+
+        final String manifest = new String( z.get( ".wikantik/manifest.json" ), StandardCharsets.UTF_8 );
+        assertTrue( manifest.contains( "chart.png" ), manifest );
+        assertTrue( manifest.contains( "\"warnings\": [" ), manifest );
+
+        final String readme = new String( z.get( "Wikantik Export.md" ), StandardCharsets.UTF_8 );
+        assertTrue( readme.contains( "chart.png" ), readme );
+    }
+
+    @Test
+    void clientDisconnectDuringStreamPropagates() throws Exception {
+        final ExportService.PreparedExport prepared = service.prepare( guest(), finance( 0 ) );
+        final OutputStream broken = new OutputStream() {
+            @Override public void write( final int b ) throws IOException {
+                throw new IOException( "broken pipe" );
+            }
+        };
+        assertThrows( IOException.class, () -> service.stream( prepared, broken ) );
     }
 }

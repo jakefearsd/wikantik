@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.wikantik.WikiSession;
 import com.wikantik.WikiSubsystems;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Engine;
@@ -75,25 +74,9 @@ public final class ExportService {
     private final int maxPages;
     private final Clock clock;
 
-    /**
-     * Conservative, session-independent view check used only for cross-references to pages
-     * <em>outside</em> the export set (out-of-scope heading lookups, canonical-id resolution) —
-     * mirrors the ontology layer's public-projection guest check. {@code null} when this
-     * instance was built via the public constructor rather than {@link #fromSubsystems}, in
-     * which case such cross-references simply degrade to "unknown" rather than risk leaking
-     * anything.
-     */
-    private final Session guestSession;
-
     public ExportService( final StructuralIndexService index, final PageManager pages, final ReferenceManager refs,
                           final AttachmentManager attachments, final PermissionFilter permissions,
                           final String baseUrl, final int maxPages, final Clock clock ) {
-        this( index, pages, refs, attachments, permissions, baseUrl, maxPages, clock, null );
-    }
-
-    private ExportService( final StructuralIndexService index, final PageManager pages, final ReferenceManager refs,
-                           final AttachmentManager attachments, final PermissionFilter permissions,
-                           final String baseUrl, final int maxPages, final Clock clock, final Session guestSession ) {
         this.index = index;
         this.pages = pages;
         this.refs = refs;
@@ -102,7 +85,6 @@ public final class ExportService {
         this.baseUrl = baseUrl;
         this.maxPages = maxPages;
         this.clock = clock;
-        this.guestSession = guestSession;
     }
 
     /** Reads wikantik.baseURL and wikantik.export.maxPages from the engine properties. */
@@ -111,7 +93,7 @@ public final class ExportService {
         final int maxPages = TextUtil.getIntegerProperty( engine.getWikiProperties(), PROP_MAX_PAGES, DEFAULT_MAX_PAGES );
         return new ExportService( subs.pageGraph().structuralIndexService(), subs.page().pages(),
                 subs.pageGraph().referenceManager(), subs.page().attachments(), new PermissionFilter( engine ),
-                baseUrl, maxPages, Clock.systemUTC(), WikiSession.guestSession( engine ) );
+                baseUrl, maxPages, Clock.systemUTC() );
     }
 
     public ExportOptions options() {
@@ -138,12 +120,12 @@ public final class ExportService {
             throw new ExportTooLargeException( resolved.pages().size(), maxPages );
         }
         final String fileName = "wikantik-export-" + FILE_TIMESTAMP.format( clock.instant() ) + ".zip";
-        return new PreparedExport( selection, resolved.pages(), fileName );
+        return new PreparedExport( selection, resolved.pages(), fileName, session );
     }
 
     /** Streams the zip. Never throws for per-page/attachment problems (they become warnings). */
     public void stream( final PreparedExport export, final OutputStream out ) throws IOException {
-        new ExportZipBuilder( pages, attachments, index, permissions, guestSession, baseUrl, clock ).writeZip( export, out );
+        new ExportZipBuilder( pages, attachments, index, permissions, export.session(), baseUrl, clock ).writeZip( export, out );
     }
 
     // ---- preview helpers --------------------------------------------------------------------
@@ -190,5 +172,11 @@ public final class ExportService {
         }
     }
 
-    public record PreparedExport( ExportSelection selection, List< PageDescriptor > pages, String fileName ) {}
+    /**
+     * @param session the exporting caller's session, threaded through to {@link #stream} so every
+     *                ACL decision made while streaming (including out-of-export link/citation
+     *                targets) uses the same caller's view permission {@link #prepare} resolved
+     *                the page set with — never a fixed guest fallback.
+     */
+    public record PreparedExport( ExportSelection selection, List< PageDescriptor > pages, String fileName, Session session ) {}
 }

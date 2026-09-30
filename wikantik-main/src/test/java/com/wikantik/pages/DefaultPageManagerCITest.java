@@ -67,7 +67,7 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for {@link DefaultPageManager} using constructor injection.
  * Focuses on behaviors NOT covered by the integration-style {@link DefaultPageManagerTest},
- * particularly: locking mechanics, event firing, version history, page deletion cascading,
+ * particularly: event firing, version history, page deletion cascading,
  * edge cases in page text retrieval, and the {@code actionPerformed} ACL-update path.
  */
 class DefaultPageManagerCITest {

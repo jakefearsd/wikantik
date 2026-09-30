@@ -37,7 +37,7 @@ import com.wikantik.persistence.subsystem.PersistenceSubsystem;
  * <p>Phase 5 of the wikantik-main subsystem decomposition. See
  * {@code docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md}.</p>
  *
- * <p>Page owns the page lifecycle (read / save / delete / lock / version /
+ * <p>Page owns the page lifecycle (read / save / delete / version /
  * rename) and attachments behind a typed surface. Phase 5 Checkpoint 1
  * exposes the existing manager-level objects ({@link PageManager},
  * {@link AttachmentManager}, {@link PageRenamer}, {@link PageSaveHelper},

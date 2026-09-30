@@ -218,8 +218,10 @@ public class AttachmentResource extends RestServletBase {
             return true;
         }
         if ( !policy.isTypeAllowed( fileName ) ) {
+            final String ext = AttachmentNameValidator.getExtension( fileName );
             sendError( response, HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE,
-                    "Files of type ." + AttachmentNameValidator.getExtension( fileName ) + " may not be uploaded to this wiki" );
+                    ( ext.isEmpty() ? "Files without an extension" : "Files of type ." + ext )
+                            + " may not be uploaded to this wiki" );
             return true;
         }
         return false;

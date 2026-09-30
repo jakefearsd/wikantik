@@ -19,6 +19,9 @@
 package com.wikantik.export;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.Set;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -46,6 +49,10 @@ public final class HeadingSlugs {
 
     private HeadingSlugs() {}
 
+    private static String headingText( final Heading h ) {
+        return new TextCollectingVisitor().collectAndGetText( h ).trim();
+    }
+
     public static String slug( final String headingText ) {
         String s = headingText.toLowerCase( Locale.ROOT );
         s = WHITESPACE.matcher( s ).replaceAll( "-" );
@@ -63,15 +70,25 @@ public final class HeadingSlugs {
         final Map< String, String > out = new LinkedHashMap<>();
         final Map< String, Integer > seen = new HashMap<>();
         final Document doc = PARSER.parse( markdownBody );
+        // Pass 1: the keys h2/h3 headings own (the view's ids). An h1/h4 sharing a slug must not claim one.
+        final Map< Heading, String > anchored = new IdentityHashMap<>();
+        for ( final Node n : doc.getDescendants() ) {
+            if ( n instanceof Heading h && ( h.getLevel() == 2 || h.getLevel() == 3 ) ) {
+                final String base = slug( headingText( h ) );
+                final int count = seen.merge( base, 1, Integer::sum ) - 1;
+                anchored.put( h, count == 0 ? base : base + "-" + ( count + 1 ) );
+            }
+        }
+        final Set< String > owned = new HashSet<>( anchored.values() );
+        // Pass 2: document order.
         for ( final Node n : doc.getDescendants() ) {
             if ( n instanceof Heading h ) {
-                final String text = new TextCollectingVisitor().collectAndGetText( h ).trim();
-                final String base = slug( text );
-                if ( h.getLevel() == 2 || h.getLevel() == 3 ) {
-                    final int count = seen.merge( base, 1, Integer::sum ) - 1;
-                    out.putIfAbsent( count == 0 ? base : base + "-" + ( count + 1 ), text );
-                } else {
-                    out.putIfAbsent( base, text );
+                final String text = headingText( h );
+                final String key = anchored.get( h );
+                if ( key != null ) {
+                    out.putIfAbsent( key, text );
+                } else if ( !owned.contains( slug( text ) ) ) {
+                    out.putIfAbsent( slug( text ), text );
                 }
             }
         }

@@ -64,4 +64,12 @@ class HeadingSlugsTest {
         final Map< String, String > m = HeadingSlugs.headingsBySlug( "## Setup\n\n### Setup\n\n## Setup\n" );
         assertEquals( java.util.List.of( "setup", "setup-2", "setup-3" ), java.util.List.copyOf( m.keySet() ) );
     }
+
+    @Test void h2AndH3TakePrecedenceOverAnEarlierH1OrH4WithTheSameSlug() {
+        // "Set-up" (h1) and "Set up" (h2) both slug to "set-up"; the view anchors the h2, so it owns the slug
+        final Map< String, String > m = HeadingSlugs.headingsBySlug( "# Set-up\n\n## Set up\n" );
+        assertEquals( "Set up", m.get( "set-up" ) );
+        final Map< String, String > m2 = HeadingSlugs.headingsBySlug( "#### Set-up\n\n### Set up\n" );
+        assertEquals( "Set up", m2.get( "set-up" ) );
+    }
 }

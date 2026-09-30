@@ -21,6 +21,7 @@ package com.wikantik.rest;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 
@@ -176,7 +177,7 @@ public class PageListResource extends RestServletBase {
 
     /** The pages among {@code names} that exist ({@code names=} existence check); unknown names are dropped. */
     private static Collection< Page > pagesNamed( final PageManager pm, final List< String > names ) {
-        return names.stream().map( pm::getPage ).filter( java.util.Objects::nonNull ).toList();
+        return names.stream().map( n -> pm.getPageWithoutMetadata( n, PageProvider.LATEST_VERSION ) ).filter( java.util.Objects::nonNull ).toList();
     }
 
     /**

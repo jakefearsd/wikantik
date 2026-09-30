@@ -648,6 +648,21 @@ class AttachmentResourceTest {
     }
 
     @Test
+    void extensionlessUploadRejectedWithSensibleMessage() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.attachment.allowed", ".png" );
+        try {
+            final Part filePart = mockFilePart( "README", "x".getBytes( StandardCharsets.UTF_8 ) );
+            final JsonObject obj = gson.fromJson(
+                    doUploadAsAuthenticated( "RestAttachPage", filePart, null, "multipart/form-data; boundary=x" ),
+                    JsonObject.class );
+            assertEquals( 415, obj.get( "status" ).getAsInt(), obj.toString() );
+            assertEquals( "Files without an extension may not be uploaded to this wiki", obj.get( "message" ).getAsString() );
+        } finally {
+            engine.getWikiProperties().remove( "wikantik.attachment.allowed" );
+        }
+    }
+
+    @Test
     void oversizeUploadIs413() throws Exception {
         engine.getWikiProperties().setProperty( "wikantik.attachment.maxsize", "10" );
         try {

@@ -24,7 +24,7 @@ import { rehypeHighlightCode } from '../utils/codeHighlight';
 import { headingsFromMarkdown } from '../utils/headings';
 import { useAttachments } from '../hooks/useAttachments';
 import { useAttachmentUpload } from '../hooks/useAttachmentUpload';
-import { dragCarriesFiles } from '../utils/editorFileEvents';
+import { dragCarriesFiles, filesFromDrop } from '../utils/editorFileEvents';
 import { useEditorDrop } from '../hooks/useEditorDrop';
 import { useDraft } from '../hooks/useDraft';
 import { useAuth } from '../hooks/useAuth';
@@ -511,11 +511,13 @@ export default function PageEditor() {
     toast,
   });
   // Attachments need an existing page; on a new page the paste/drop waits for a first save.
+  // Placeholders are inserted at paste time; the uploads start after the first save (or are cancelled).
   const [pendingUpload, setPendingUpload] = useState(null);
   const handleFiles = useCallback((files, pos, opts) => {
     if (isNew) {
-      // Queue behind any earlier paste/drop (keeping its position) rather than replacing it.
-      setPendingUpload((prev) => (prev ? { ...prev, files: [...prev.files, ...files] } : { files, pos, opts }));
+      uploadFiles(files, pos, { ...opts, defer: true }).then((handle) => {
+        if (handle) setPendingUpload((prev) => ({ handles: [...(prev?.handles || []), handle] }));
+      }).catch((err) => console.warn('[editor] could not queue upload', err?.message || err));
       return;
     }
     uploadFiles(files, pos, opts);
@@ -540,10 +542,16 @@ export default function PageEditor() {
     if (dragCarriesFiles(e.dataTransfer)) e.preventDefault();
   }, []);
 
-  const handleDrop = useCallback(() => {
+  const handleDrop = useCallback((e) => {
     dragCounterRef.current = 0;
     setIsDragging(false);
-  }, []);
+    // A file dropped on the pane's padding (outside CodeMirror's content) is not handled by the editor:
+    // cancel the browser's open-the-file default and upload at the caret instead.
+    if (!e.defaultPrevented && dragCarriesFiles(e.dataTransfer)) {
+      e.preventDefault();
+      handleFiles(filesFromDrop(e.dataTransfer), getDropOffset(), { pasted: false });
+    }
+  }, [handleFiles, getDropOffset]);
 
   const handleCancel = () => {
     if (isDirty) {
@@ -689,12 +697,15 @@ export default function PageEditor() {
               const p = pendingUpload;
               if (await saveContent({ stay: true })) {
                 setPendingUpload(null);
-                uploadFiles(p.files, p.pos, p.opts);
+                for (const h of p.handles) await h.start();
               }
             }}>
             Save and upload
           </button>
-          <button type="button" className="btn-link" onClick={() => setPendingUpload(null)}>Cancel</button>
+          <button type="button" className="btn-link" onClick={() => {
+            pendingUpload.handles.forEach((h) => h.cancel());
+            setPendingUpload(null);
+          }}>Cancel</button>
         </div>
       )}
 

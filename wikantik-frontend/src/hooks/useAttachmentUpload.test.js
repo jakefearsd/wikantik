@@ -78,4 +78,33 @@ describe('useAttachmentUpload', () => {
       vi.useRealTimers();
     }
   });
+
+  it('uploads a File whose own name matches the chosen name (M3: image.jpeg pasted as .jpg)', async () => {
+    const h = harness();
+    await h.run([new File(['x'], 'image.jpeg', { type: 'image/jpeg' })], 0, { pasted: true });
+    const [[file, name]] = h.upload.mock.calls;
+    expect(name).toMatch(/\.jpg$/);
+    expect(file.name).toBe(name);
+    expect(file.type).toBe('image/jpeg');
+  });
+
+  it('defer: inserts placeholders at once at the given position and uploads only when started (M1)', async () => {
+    const h = harness();
+    let handle;
+    await act(async () => { handle = await h.call([doc('a.pdf')], 5, { defer: true }); });
+    expect(h.upload).not.toHaveBeenCalled();
+    expect(h.body()).toBe('Hello![Uploading a.pdf…]() world'.replace('![Uploading a.pdf…]()', '![Uploading a.pdf…]()'));
+    await act(async () => { await handle.start(); });
+    expect(h.upload).toHaveBeenCalledTimes(1);
+    expect(h.body()).toBe('Hello[a](a.pdf) world');
+  });
+
+  it('defer: cancel removes the placeholders without uploading (M1)', async () => {
+    const h = harness();
+    let handle;
+    await act(async () => { handle = await h.call([doc('a.pdf')], 5, { defer: true }); });
+    handle.cancel();
+    expect(h.body()).toBe('Hello world');
+    expect(h.upload).not.toHaveBeenCalled();
+  });
 });

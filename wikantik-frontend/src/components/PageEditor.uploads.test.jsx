@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- flush async state between tests
-import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, cleanup, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('./CodeEditor', async () => {
@@ -129,5 +129,38 @@ describe('paste/drop uploads', () => {
     await waitFor(() => expect(api.uploadAttachment).toHaveBeenCalledTimes(1));
     expect(api.uploadAttachment.mock.calls[0][0]).toBe('Existing');
     expect(screen.queryByTestId('upload-needs-save')).toBeNull();
+  });
+
+  it('M1: an unsaved-page paste inserts its placeholder immediately and keeps its own position', async () => {
+    api.getPage.mockRejectedValue(Object.assign(new Error('not found'), { status: 404 }));
+    renderEditor('Fresh');
+    fireEvent.click(await screen.findByTestId('fake-paste'));
+    await screen.findByTestId('upload-needs-save');
+    expect(screen.getByTestId('body-value').textContent).toMatch(/^!\[Uploading pasted-\d{8}-\d{6}\.png…\]\(\)# Fresh/);
+    fireEvent.click(screen.getByText('Save and upload'));
+    await waitFor(() => expect(screen.getByTestId('body-value').textContent).toMatch(/^!\[pasted-\d{8}-\d{6}\]\(pasted-/));
+    expect(screen.getByTestId('body-value').textContent).not.toContain('Uploading');
+  });
+
+  it('M1: cancelling the pending upload removes the placeholder', async () => {
+    api.getPage.mockRejectedValue(Object.assign(new Error('not found'), { status: 404 }));
+    renderEditor('Fresh');
+    fireEvent.click(await screen.findByTestId('fake-paste'));
+    fireEvent.click(within(await screen.findByTestId('upload-needs-save')).getByText('Cancel'));
+    expect(screen.getByTestId('body-value').textContent).not.toContain('Uploading');
+    expect(api.uploadAttachment).not.toHaveBeenCalled();
+  });
+
+  it('M2: a file dropped on the pane padding is cancelled (no browser navigation) and uploaded', async () => {
+    const { container } = renderEditor('Existing');
+    await screen.findByTestId('fake-paste');
+    const pane = container.querySelector('.editor-pane');
+    const file = new File(['x'], 'doc.pdf', { type: 'application/pdf' });
+    const ev = new Event('drop', { bubbles: true, cancelable: true });
+    ev.dataTransfer = { types: ['Files'], files: [file] };
+    await act(async () => { pane.dispatchEvent(ev); });
+    expect(ev.defaultPrevented).toBe(true);
+    await waitFor(() => expect(api.uploadAttachment).toHaveBeenCalledTimes(1));
+    expect(api.uploadAttachment.mock.calls[0][2]).toBe('doc.pdf');
   });
 });

@@ -46,19 +46,24 @@ export default function ExportDialog({ isOpen, onClose, initialCluster = '' }) {
   // array without retriggering the effect below on every render.
   const schedulePreview = useCallback((nextSel) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    // Supersede any in-flight preview now, not when the debounce fires: its result
+    // describes an older selection, so it must neither land nor clear `loading`.
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = null;
     debounceRef.current = setTimeout(() => {
-      if (abortRef.current) abortRef.current.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       setLoading(true);
+      const isActive = () => abortRef.current === controller;
       api.exportVault.preview(nextSel, { signal: controller.signal })
         .then((data) => {
+          if (!isActive()) return;
           setPreview(data);
           setError(null);
           setDenied(false);
         })
         .catch((err) => {
-          if (err?.name === 'AbortError') return;
+          if (err?.name === 'AbortError' || !isActive()) return;
           if (err?.status === 403) {
             setDenied(true);
           } else {
@@ -66,7 +71,7 @@ export default function ExportDialog({ isOpen, onClose, initialCluster = '' }) {
             setError(err?.message || 'Failed to load export preview.');
           }
         })
-        .finally(() => setLoading(false));
+        .finally(() => { if (isActive()) setLoading(false); });
     }, DEBOUNCE_MS);
   }, []);
 
@@ -117,6 +122,9 @@ export default function ExportDialog({ isOpen, onClose, initialCluster = '' }) {
   const update = (patch) => {
     const next = { ...sel, ...patch };
     setSel(next);
+    // The current preview is stale from this moment — keep Download disabled
+    // through the debounce window, not just while the request is in flight.
+    setLoading(true);
     schedulePreview(next);
   };
 
@@ -256,7 +264,7 @@ export default function ExportDialog({ isOpen, onClose, initialCluster = '' }) {
 
           {preview && (
             <div className="export-dialog-summary" data-testid="export-preview-summary">
-              {preview.pages} pages · {preview.attachments} attachments · ~{formatMB(preview.estimatedBytes)} MB · {preview.unresolvedLinks} links unresolved
+              {preview.pages} pages · up to {preview.attachments} attachments · ~{formatMB(preview.estimatedBytes)} MB · {preview.unresolvedLinks} links unresolved
             </div>
           )}
 

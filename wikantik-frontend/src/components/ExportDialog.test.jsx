@@ -24,7 +24,7 @@ describe('ExportDialog', () => {
     await act(() => vi.advanceTimersByTimeAsync(350));
     await waitFor(() => expect(api.exportVault.preview).toHaveBeenCalled());
     expect(api.exportVault.preview.mock.calls.at(-1)[0].clusters).toEqual(['finance']);
-    expect(await screen.findByTestId('export-preview-summary')).toHaveTextContent('12 pages · 3 attachments · ~2.4 MB · 4 links unresolved');
+    expect(await screen.findByTestId('export-preview-summary')).toHaveTextContent('12 pages · up to 3 attachments · ~2.4 MB · 4 links unresolved');
     expect(screen.getByTestId('export-download')).toHaveAttribute('href', '/api/export?cluster=finance');
   });
   it('debounces rapid changes into one preview call', async () => {
@@ -36,6 +36,31 @@ describe('ExportDialog', () => {
     await act(() => vi.advanceTimersByTimeAsync(350));
     expect(api.exportVault.preview).toHaveBeenCalledTimes(1);
     expect(api.exportVault.preview.mock.calls[0][0].hops).toBe(2);
+  });
+  it('disables download while a change is waiting on the debounce', async () => {
+    open();
+    await act(() => vi.advanceTimersByTimeAsync(350));
+    expect(await screen.findByTestId('export-download')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '1' }));
+    // Before the 300 ms debounce fires, the old preview is stale — no download against it.
+    expect(screen.queryByTestId('export-download')).toBeNull();
+    expect(screen.getByTestId('export-disabled-reason')).toHaveTextContent('Updating preview…');
+    await act(() => vi.advanceTimersByTimeAsync(350));
+    expect(await screen.findByTestId('export-download')).toBeInTheDocument();
+  });
+  it('a superseded preview settling does not re-enable download', async () => {
+    open();
+    await act(() => vi.advanceTimersByTimeAsync(350));
+    let resolveSlow;
+    api.exportVault.preview.mockImplementationOnce(() => new Promise((r) => { resolveSlow = r; }));
+    fireEvent.click(screen.getByRole('button', { name: '1' }));
+    await act(() => vi.advanceTimersByTimeAsync(350)); // slow request for hops=1 now in flight
+    fireEvent.click(screen.getByRole('button', { name: '2' })); // new change, debounce pending
+    await act(async () => { resolveSlow({ ...PREVIEW, pages: 99 }); });
+    expect(screen.queryByTestId('export-download')).toBeNull();
+    await act(() => vi.advanceTimersByTimeAsync(350));
+    expect(await screen.findByTestId('export-download')).toBeInTheDocument();
+    expect(screen.getByTestId('export-preview-summary')).toHaveTextContent('12 pages');
   });
   it('disables download over the cap with a reason', async () => {
     api.exportVault.preview.mockResolvedValue({ ...PREVIEW, pages: 2500, overCap: true });

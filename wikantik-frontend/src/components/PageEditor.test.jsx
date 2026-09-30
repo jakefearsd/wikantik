@@ -51,6 +51,13 @@ vi.mock('@uiw/react-codemirror', async () => {
   };
 });
 
+// Capture the deps CodeEditor hands to the completion source, so tests can drive the real
+// PageEditor -> CodeEditor linkCompletion wiring without CodeMirror.
+const linkSourceDeps = vi.hoisted(() => ({ current: null }));
+vi.mock('../utils/wikiLinkComplete', () => ({
+  createWikiLinkSource: (deps) => { linkSourceDeps.current = deps; return () => null; },
+}));
+
 // ── Module mocks (hoisted) ──────────────────────────────────────────────────
 vi.mock('../api/client', () => ({
   api: {
@@ -998,6 +1005,25 @@ describe('derived-page banner + misc', () => {
       renderEditor();
       await waitForEditor();
       expect(api.listPages).not.toHaveBeenCalledWith(expect.objectContaining({ limit: 1000 }));
+    });
+
+    it('a failed heading lookup is not cached (retries), a successful one is', async () => {
+      renderEditor();
+      await waitForEditor();
+      api.getPage.mockReset();
+      api.getPage
+        .mockRejectedValueOnce(new Error('503'))
+        .mockResolvedValueOnce({ content: '## Setup\n' });
+      const { getHeadings } = linkSourceDeps.current;
+
+      await expect(getHeadings('Target')).rejects.toThrow('503');
+      const headings = await getHeadings('Target');
+      expect(headings.map((h) => h.id)).toContain('setup');
+      expect(api.getPage).toHaveBeenCalledTimes(2);
+      expect(api.getPage).toHaveBeenCalledWith('Target');
+
+      await getHeadings('Target');
+      expect(api.getPage).toHaveBeenCalledTimes(2);
     });
   });
 });

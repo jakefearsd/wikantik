@@ -220,6 +220,16 @@ class ExportIT {
         assertEquals( 200, resp.statusCode(), "Admin login should succeed: " + resp.body() );
     }
 
+    /**
+     * Seeded non-admin fixture user ({@code it-test-seed.sql}: role {@code Authenticated} only,
+     * no Admin group membership; password is the literal {@code "password"}).
+     */
+    private static void loginAsNonAdmin() throws IOException, InterruptedException {
+        final String loginBody = GSON.toJson( Map.of( "username", "Alice", "password", "password" ) );
+        final HttpResponse< String > resp = post( "/api/auth/login", loginBody );
+        assertEquals( 200, resp.statusCode(), "Non-admin login should succeed: " + resp.body() );
+    }
+
     private static void logoutAdmin() throws IOException, InterruptedException {
         final HttpResponse< String > resp = post( "/api/auth/logout", "{}" );
         assertEquals( 200, resp.statusCode(), "Logout should succeed: " + resp.body() );
@@ -277,6 +287,25 @@ class ExportIT {
             assertTrue( entries.keySet().stream().anyMatch( k -> k.endsWith( "/" + target + ".md" ) ),
                     "wikilink [[" + target + "]] must resolve to a file in the vault: " + entries.keySet() );
             assertTrue( entries.containsKey( ".wikantik/manifest.json" ), entries.keySet().toString() );
+        } finally {
+            logoutAdmin();
+        }
+    }
+
+    /**
+     * The {@code export} permission reaches ordinary users through the {@code Authenticated}
+     * policy grant (V060), not only through Admin's {@code AllPermission}.
+     */
+    @Test
+    @Order( 3 )
+    void nonAdminAuthenticatedUserCanPreview() throws Exception {
+        loginAsNonAdmin();
+        try {
+            final HttpResponse< String > admin = getString( "/admin/users" );
+            assertEquals( 403, admin.statusCode(), "fixture is vacuous: Alice must not be an admin — " + admin.body() );
+
+            final JsonObject preview = awaitPreviewWithTwoPages();
+            assertEquals( 2, preview.get( "pages" ).getAsInt(), preview.toString() );
         } finally {
             logoutAdmin();
         }

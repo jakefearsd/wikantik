@@ -22,6 +22,11 @@ beforeEach(() => {
 });
 
 describe('BacklinksPanel', () => {
+  it('shows emptyText when there are no backlinks and emptyText is given', async () => {
+    render(<MemoryRouter><BacklinksPanel pageName="T" emptyText="No backlinks yet" /></MemoryRouter>);
+    expect(await screen.findByText('No backlinks yet')).toBeInTheDocument();
+  });
+
   it('lists pages that link to this page', async () => {
     api.getBacklinks.mockResolvedValue({
       name: 'TargetPage',

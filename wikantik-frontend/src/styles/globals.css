@@ -2438,3 +2438,53 @@ h3:focus-within .heading-anchor {
 .hljs-title, .hljs-section { color: var(--code-title); }
 .hljs-type, .hljs-variable, .hljs-template-variable { color: var(--code-type); }
 .hljs-attr, .hljs-attribute, .hljs-name, .hljs-tag { color: var(--code-attr); }
+
+/* ── Editor side rail + status bar ─────────────────────────────────────── */
+.editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: var(--space-sm);
+}
+.editor-layout.rail-open { grid-template-columns: minmax(0, 1fr) 240px; }
+
+.editor-rail {
+  height: 75vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  padding: var(--space-sm);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+}
+.editor-rail.collapsed { padding: var(--space-xs) 0; text-align: center; }
+.editor-rail-toggle { background: none; border: none; cursor: pointer; color: var(--text-muted); }
+.editor-rail-heading {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.editor-rail-outline { list-style: none; margin: 0; padding: 0; }
+.editor-rail-outline button {
+  width: 100%; text-align: left; background: none; border: none; padding: 2px var(--space-xs);
+  border-radius: var(--radius-sm); color: var(--text); cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.editor-rail-outline button:hover { background: var(--bg); }
+.editor-rail-outline button[aria-current="true"] { color: var(--accent); font-weight: 600; }
+.editor-rail-empty { color: var(--text-muted); margin: 0; }
+
+.editor-status-bar {
+  display: flex; gap: var(--space-sm); justify-content: flex-end;
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-ui); font-size: 0.75rem; color: var(--text-muted);
+}
+
+@media (max-width: 1099px) {
+  .editor-layout, .editor-layout.rail-open { grid-template-columns: minmax(0, 1fr); }
+  .editor-rail {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(280px, 85vw); height: auto;
+    z-index: 20; box-shadow: var(--shadow-lg, 0 0 24px rgba(0, 0, 0, 0.2));
+  }
+  .editor-rail.collapsed { display: none; }
+}

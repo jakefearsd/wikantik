@@ -45,7 +45,8 @@ vi.mock('@uiw/react-codemirror', async () => {
       get state() {
         const starts = lineStarts(ta.value);
         return {
-          selection: { main: { from: ta.selectionStart, to: ta.selectionEnd } },
+          selection: { main: { from: ta.selectionStart, to: ta.selectionEnd, head: ta.selectionEnd } },
+          sliceDoc: (from, to) => ta.value.slice(from, to),
           doc: {
             length: ta.value.length,
             lines: starts.length,
@@ -54,7 +55,8 @@ vi.mock('@uiw/react-codemirror', async () => {
               return { from: starts[clamped - 1] };
             },
             lineAt(pos) {
-              return { number: lineNumberForOffset(ta.value, pos) };
+              const number = lineNumberForOffset(ta.value, pos);
+              return { number, from: starts[number - 1] };
             },
           },
         };
@@ -127,6 +129,14 @@ describe('#19 CodeEditor imperative API', () => {
     const { ref, ta } = mount('hello world');
     ta.setSelectionRange(6, 11);
     expect(ref.current.getSelection()).toEqual({ selStart: 6, selEnd: 11 });
+  });
+
+  it('getCursor returns line, column and selected text', () => {
+    const { ref, ta } = mount('abc\ndefgh');
+    ta.setSelectionRange(8, 8);
+    expect(ref.current.getCursor()).toEqual({ line: 2, col: 5, selectionText: '' });
+    ta.setSelectionRange(0, 3);
+    expect(ref.current.getCursor()).toMatchObject({ selectionText: 'abc' });
   });
 
   it('getSelection returns an object with selStart/selEnd shape', () => {

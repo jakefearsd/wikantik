@@ -31,6 +31,7 @@ vi.mock('./CodeEditor', async () => {
 vi.mock('../api/client', () => ({
   api: {
     getPage: vi.fn(),
+    getBacklinks: vi.fn(() => Promise.resolve({ backlinks: [] })),
     savePage: vi.fn(),
     uploadAttachment: vi.fn(),
     listAttachments: vi.fn(),

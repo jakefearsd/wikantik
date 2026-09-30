@@ -7,7 +7,7 @@ import { api } from '../api/client';
  * Backed by GET /api/backlinks/{name}. Degrades silently (renders nothing)
  * when there are no backlinks or the request fails, mirroring SimilarPagesPanel.
  */
-export default function BacklinksPanel({ pageName }) {
+export default function BacklinksPanel({ pageName, emptyText }) {
   const [backlinks, setBacklinks] = useState([]);
 
   useEffect(() => {
@@ -19,7 +19,9 @@ export default function BacklinksPanel({ pageName }) {
     return () => { cancelled = true; };
   }, [pageName]);
 
-  if (backlinks.length === 0) return null;
+  if (backlinks.length === 0) {
+    return emptyText ? <p className="editor-rail-empty">{emptyText}</p> : null;
+  }
 
   return (
     <div data-testid="backlinks-panel" style={{ marginTop: 'var(--space-sm)', padding: 'var(--space-sm) var(--space-md)', background: 'var(--surface-secondary)', borderRadius: 'var(--radius-md)', fontSize: '0.85em' }}>

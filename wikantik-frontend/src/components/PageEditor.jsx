@@ -34,6 +34,10 @@ import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock 
 import { useDarkMode } from '../hooks/useDarkMode';
 import EditorToolbar from './EditorToolbar';
 import CodeEditor from './CodeEditor';
+import EditorRail from './editor/EditorRail';
+import EditorStatusBar from './editor/EditorStatusBar';
+import { createEditorCursorStore } from '../utils/editorCursorStore';
+import { useRailOpen } from '../hooks/useRailOpen';
 import AttachmentPanel from './AttachmentPanel';
 import '../styles/article.css';
 import '../styles/admin.css';
@@ -65,6 +69,8 @@ export default function PageEditor() {
   const [activeMetaTab, setActiveMetaTab] = useState('frontmatter');
   const [isDragging, setIsDragging] = useState(false);
   const editorRef = useRef(null);
+  const [cursorStore] = useState(createEditorCursorStore);
+  const [railOpen, toggleRail] = useRailOpen();
   const dropContainerRef = useRef(null);
   const previewRef = useRef(null);
   const syncRafRef = useRef(0);
@@ -151,6 +157,15 @@ export default function PageEditor() {
       requestAnimationFrame(() => { syncingRef.current = false; });
     });
   }, []);
+
+  const handleViewChange = useCallback(() => {
+    const editor = editorRef.current;
+    const vp = editor?.getViewport?.();
+    const cursor = editor?.getCursor?.();
+    cursorStore.set({ ...(cursor || {}), ...(vp ? { topLine: vp.topLine } : {}) });
+    syncPreview();
+  }, [cursorStore, syncPreview]);
+  const jumpToHeading = useCallback((line) => editorRef.current?.jumpToLineAligned?.(line, 0), []);
 
   const syncEditor = useCallback(() => {
     if (syncingRef.current || editorRafRef.current) return;
@@ -620,6 +635,10 @@ export default function PageEditor() {
             title="Attachments">
             Attach
           </button>
+          <button className="btn btn-ghost" data-testid="editor-rail-toggle" onClick={toggleRail}
+            aria-pressed={railOpen} title="Toggle outline rail">
+            Outline
+          </button>
           <button className="btn btn-ghost" data-testid="editor-cancel" onClick={handleCancel}>
             Cancel
           </button>
@@ -737,6 +756,7 @@ export default function PageEditor() {
 
       <EditorToolbar onCommand={applyFormat} />
 
+      <div className={`editor-layout${railOpen ? ' rail-open' : ''}`}>
       <div className="editor-container">
         <div
           ref={dropContainerRef}
@@ -763,7 +783,7 @@ export default function PageEditor() {
             onItalic={handleItalic}
             onLink={handleLink}
             linkCompletion={linkCompletion}
-            onViewChange={syncPreview}
+            onViewChange={handleViewChange}
             onFiles={handleFiles}
           />
         </div>
@@ -782,6 +802,10 @@ export default function PageEditor() {
           </article>
         </div>
       </div>
+      <EditorRail body={body} pageName={name} isNew={isNew} cursorStore={cursorStore}
+        open={railOpen} onToggle={toggleRail} onJump={jumpToHeading} />
+      </div>
+      <EditorStatusBar body={body} cursorStore={cursorStore} />
 
       {conflict && (
         <div className="modal-overlay" onClick={() => setConflict(null)}>

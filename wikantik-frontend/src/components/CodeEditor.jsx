@@ -117,6 +117,14 @@ const CodeEditor = forwardRef(function CodeEditor(
       }
       return { topLine, totalLines: view.state.doc.lines };
     },
+    /** Caret position (1-based line/column) and the selected text — drives the status bar. */
+    getCursor() {
+      const view = viewRef.current;
+      if (!view) return null;
+      const { from, to, head } = view.state.selection.main;
+      const lineObj = view.state.doc.lineAt(head);
+      return { line: lineObj.number, col: head - lineObj.from + 1, selectionText: view.state.sliceDoc(from, to) };
+    },
     /** Scroll the editor so `line` (1-based) sits at the top — preview→editor sync. */
     scrollToLine(line) {
       const view = viewRef.current;

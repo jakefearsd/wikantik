@@ -62,6 +62,7 @@ vi.mock('../utils/wikiLinkComplete', () => ({
 vi.mock('../api/client', () => ({
   api: {
     getPage: vi.fn(),
+    getBacklinks: vi.fn(() => Promise.resolve({ backlinks: [] })),
     savePage: vi.fn(),
     convertWikiToMarkdown: vi.fn(),
     listAttachments: vi.fn(),
@@ -1310,5 +1311,18 @@ describe('restore mode', () => {
     expect(screen.getByTestId('editor-change-note').value).toBe('');
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe('editor side rail and status bar', () => {
+  it('renders the rail and status bar; the toolbar toggle flips aria-pressed', async () => {
+    renderEditor();
+    await waitForEditor();
+    expect(screen.getByTestId('editor-rail')).toBeInTheDocument();
+    expect(screen.getByTestId('editor-status-bar')).toBeInTheDocument();
+    const toggle = screen.getByTestId('editor-rail-toggle');
+    const before = toggle.getAttribute('aria-pressed');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-pressed')).not.toBe(before);
   });
 });

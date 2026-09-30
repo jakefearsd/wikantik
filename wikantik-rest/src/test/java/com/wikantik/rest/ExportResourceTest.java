@@ -407,6 +407,74 @@ class ExportResourceTest {
         verify( r.mock() ).setStatus( 200 );   // status was already committed before the stream broke
     }
 
+    /**
+     * The zip download is gated by {@code wikantik.export.maxConcurrent}: with one permit and one
+     * download still streaming, a second download is refused with 429 (not queued), and the
+     * permit is released once the first finishes. Preview is not gated.
+     */
+    @Test
+    void secondConcurrentDownloadIs429AndPermitIsReleased() throws Exception {
+        final Session admin = loginAdmin();
+        final PageDescriptor page = new PageDescriptor( "01ABC", "TestPage", "Test Page", PageType.ARTICLE,
+                null, List.of(), null, Instant.now(), Optional.empty(), false );
+        final ExportSelection selection = new ExportSelection(
+                List.of(), true, List.of(), Optional.empty(), Optional.empty(), 0, UnresolvedLinkMode.KEEP );
+        when( stubService.prepare( any(), any() ) ).thenReturn( new ExportService.PreparedExport(
+                selection, List.of( page ), "wikantik-export-20260929-1412.zip", admin ) );
+        when( stubService.preview( any(), any() ) )
+                .thenReturn( new ExportPreview( 1, 0, 0, 0, 2000, false, List.of( "TestPage" ) ) );
+        final java.util.concurrent.CountDownLatch streaming = new java.util.concurrent.CountDownLatch( 1 );
+        final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch( 1 );
+        final java.util.concurrent.atomic.AtomicInteger streams = new java.util.concurrent.atomic.AtomicInteger();
+        Mockito.doAnswer( invocation -> {
+            if ( streams.getAndIncrement() > 0 ) {
+                return null;   // only the first download holds its permit
+            }
+            streaming.countDown();
+            assertTrue( release.await( 30, java.util.concurrent.TimeUnit.SECONDS ), "test never released the first download" );
+            return null;
+        } ).when( stubService ).stream( any(), any() );
+
+        engine.getWikiProperties().setProperty( ExportService.PROP_MAX_CONCURRENT, "1" );
+        final ExportResource servlet;
+        try {
+            servlet = servlet();
+        } finally {
+            engine.getWikiProperties().remove( ExportService.PROP_MAX_CONCURRENT );
+        }
+
+        final Resp first = resp();
+        final Thread holder = new Thread( () -> {
+            try {
+                servlet.doGet( get( null, Map.of() ), first.mock() );
+            } catch ( final IOException e ) {
+                throw new java.io.UncheckedIOException( e );
+            }
+        } );
+        holder.start();
+        try {
+            assertTrue( streaming.await( 30, java.util.concurrent.TimeUnit.SECONDS ), "first download never started streaming" );
+
+            final Resp second = resp();
+            servlet.doGet( get( null, Map.of() ), second.mock() );
+            verify( second.mock() ).setStatus( 429 );
+            final JsonObject o = JsonParser.parseString( second.body().toString() ).getAsJsonObject();
+            assertTrue( o.get( "message" ).getAsString().contains( "Too many exports in progress" ), second.body().toString() );
+
+            final Resp previewWhileBusy = resp();
+            servlet.doGet( get( "/preview", Map.of() ), previewWhileBusy.mock() );
+            verify( previewWhileBusy.mock(), org.mockito.Mockito.never() ).setStatus( 429 );
+        } finally {
+            release.countDown();
+            holder.join( 30_000 );
+        }
+        verify( first.mock() ).setStatus( 200 );
+
+        final Resp third = resp();
+        servlet.doGet( get( null, Map.of() ), third.mock() );
+        verify( third.mock() ).setStatus( 200 );
+    }
+
     // -------------------------------------------------------------------------
     // Unknown sub-path
     // -------------------------------------------------------------------------

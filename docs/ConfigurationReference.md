@@ -903,10 +903,12 @@ Full descriptions (truncated above to keep the table scannable):
 | Key | Type | Default | Override | Description |
 |---|---|---|---|---|
 | `wikantik.export.maxPages` | `int` | `2000` | `wikantik_export_maxPages` | Maximum number of pages a single Obsidian export (GET /api/export) may contain. … |
+| `wikantik.export.maxConcurrent` | `int` | `2` | `wikantik_export_maxConcurrent` | Maximum number of Obsidian export zip downloads (GET /api/export) that may run at the same time across the whole wiki. … |
 
 Full descriptions (truncated above to keep the table scannable):
 
 - **`wikantik.export.maxPages`** — Maximum number of pages a single Obsidian export (GET /api/export) may contain. A selection that resolves to more pages is refused with HTTP 413 and the real count, never silently truncated.
+- **`wikantik.export.maxConcurrent`** — Maximum number of Obsidian export zip downloads (GET /api/export) that may run at the same time across the whole wiki. A download arriving while this many are already streaming is refused with HTTP 429 rather than queued. The size preview (GET /api/export/preview) is not limited by this setting.
 
 The following settings come from `wikantik-admin-mcp/src/main/resources/wikantik-mcp.properties` (bundled in the wikantik-admin-mcp jar, overlaid by a same-named file in `tomcat/lib/`).
 

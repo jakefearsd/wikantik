@@ -21,7 +21,10 @@ package com.wikantik.rest;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Semaphore;
 
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -37,6 +40,7 @@ import com.wikantik.export.ExportPreview;
 import com.wikantik.export.ExportSelection;
 import com.wikantik.export.ExportService;
 import com.wikantik.export.ExportTooLargeException;
+import com.wikantik.util.TextUtil;
 
 /**
  * {@code GET /api/export}, {@code /api/export/preview}, {@code /api/export/options} — bulk
@@ -45,7 +49,8 @@ import com.wikantik.export.ExportTooLargeException;
  * <p>Every request requires an authenticated session carrying the {@code export} wiki
  * permission ({@link WikiPermission#EXPORT}). {@code /options} returns the cluster/tag picker
  * lists; {@code /preview} returns a cheap size estimate for a selection without doing any
- * conversion work; the bare path streams the zip itself.
+ * conversion work; the bare path streams the zip itself. Zip downloads (only) are capped
+ * wiki-wide at {@code wikantik.export.maxConcurrent}; one over the cap gets 429.
  *
  * <p>{@code wikantik.baseURL} defaults to blank, which would make every wiki link written
  * into the export relative and useless once opened outside the wiki. When the property is
@@ -56,6 +61,23 @@ public class ExportResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( ExportResource.class );
+    private static final int SC_TOO_MANY_REQUESTS = 429;
+
+    /**
+     * Global gate on simultaneous zip downloads ({@code wikantik.export.maxConcurrent}) — one
+     * servlet instance per webapp, so this bounds the whole wiki. Preview is deliberately ungated.
+     */
+    private Semaphore downloadPermits = new Semaphore( ExportService.DEFAULT_MAX_CONCURRENT );
+
+    @Override
+    public void init( final ServletConfig config ) throws ServletException {
+        super.init( config );
+        if ( getEngine() != null ) {
+            final int max = TextUtil.getIntegerProperty( getEngine().getWikiProperties(),
+                    ExportService.PROP_MAX_CONCURRENT, ExportService.DEFAULT_MAX_CONCURRENT );
+            downloadPermits = new Semaphore( Math.max( 1, max ) );
+        }
+    }
 
     /** Seam for tests. Derives the {@code wikantik.baseURL} fallback from {@code req}. */
     protected ExportService exportService( final HttpServletRequest req ) {
@@ -113,6 +135,19 @@ public class ExportResource extends RestServletBase {
             sendError( resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage() );
             return;
         }
+        if ( !downloadPermits.tryAcquire() ) {
+            sendError( resp, SC_TOO_MANY_REQUESTS, "Too many exports in progress; try again shortly" );
+            return;
+        }
+        try {
+            prepareAndStream( req, resp, session, selection );
+        } finally {
+            downloadPermits.release();
+        }
+    }
+
+    private void prepareAndStream( final HttpServletRequest req, final HttpServletResponse resp, final Session session,
+                                   final ExportSelection selection ) throws IOException {
         final ExportService service = exportService( req );
         final ExportService.PreparedExport prepared;
         try {

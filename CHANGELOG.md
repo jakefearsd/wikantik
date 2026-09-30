@@ -6,6 +6,35 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `GET /api/pages` gains `q=` (ranked, ACL-filtered page search) and `names=` (existence check,
+  up to 50 names, ACL-filtered) for the editor.
+- Editor: paste/drop uploads of images and files; live link completion (`[[`, `](`, `#` headings,
+  and "Link to new page"); preview signals (missing-page links, plugin/directive chips, citation
+  badges); syntax highlighting of fenced code in the editor, preview and page view; restore a
+  previous version by opening it in the editor; side rail with live outline and backlinks, plus a
+  word-count status bar.
+- `GET /api/export` (with `/preview` and `/options`): Obsidian-vault zip export scoped by
+  clusters, tags, type and status, with 0-2 outbound-link hops, a manifest and ACL checks per hop.
+  New wiki permission `export`, granted to Authenticated by migration V060. Config
+  `wikantik.export.maxPages` (2000) and `wikantik.export.maxConcurrent` (2; over the cap returns 429).
+
+### Changed
+- Obsidian-export heading anchors now match the page view's slugs, so links to headings containing
+  `_`, `&`, non-ASCII characters or repeated hyphens resolve. Previously exported vaults keep
+  their old anchors.
+- Missing-page links (`class="createpage"`) are now styled in the reader view.
+
+### Removed
+- The unused page-locking API (`PageManager.lockPage/unlockPage/getCurrentLock/getActiveLocks`,
+  `com.wikantik.api.pages.PageLock`, `PageLockService` and its reaper thread) and the config key
+  `wikantik.lockExpiryTime` (an existing override is now ignored).
+
+### Security
+- The operator attachment policy (`wikantik.attachment.maxsize/allowed/forbidden`) is now enforced
+  on the REST upload path the SPA uses (`POST /api/attachments/{page}` returns 413/415); previously
+  only the legacy servlet honoured it. Admins remain exempt.
+
 ## [2.4.28] - 2026-09-26
 
 ### Changed

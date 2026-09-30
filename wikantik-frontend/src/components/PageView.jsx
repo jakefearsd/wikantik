@@ -595,7 +595,7 @@ export default function PageView() {
       )}
       <DerivedProvenanceBanner metadata={page.metadata} lastModified={page.lastModified} />
       <MetadataPanel metadata={page.metadata} />
-      <ChangeNotesPanel pageName={name} />
+      <ChangeNotesPanel pageName={name} canEdit={!!page?.permissions?.edit} />
 
       <div className="page-toc-wrapper">
         {articleEl}

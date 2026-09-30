@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 vi.mock('../api/client', () => ({
   api: { getHistory: vi.fn() },
@@ -105,5 +105,51 @@ describe('ChangeNotesPanel', () => {
     fireEvent.click(screen.getByText(/Change Notes/)); // expand again
 
     expect(api.getHistory).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ChangeNotesPanel restore links', () => {
+  const HISTORY = { versions: [{ version: 3 }, { version: 2 }, { version: 1 }] };
+
+  function Probe() {
+    const loc = useLocation();
+    return <div data-testid="probe">{JSON.stringify(loc.state)}</div>;
+  }
+
+  function renderWith(canEdit) {
+    return render(
+      <MemoryRouter initialEntries={['/wiki/SomePage']}>
+        <Routes>
+          <Route path="/wiki/:name" element={<ChangeNotesPanel pageName="SomePage" canEdit={canEdit} />} />
+          <Route path="/edit/:name" element={<Probe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+  }
+
+  it('offers Restore on older versions only, linking to the editor', async () => {
+    api.getHistory.mockResolvedValue(HISTORY);
+    renderWith(true);
+    fireEvent.click(screen.getByText(/Change Notes/));
+    expect(await screen.findByTestId('restore-v2')).toHaveAttribute('href', '/edit/SomePage');
+    expect(screen.getByTestId('restore-v1')).toHaveAttribute('href', '/edit/SomePage');
+    expect(screen.queryByTestId('restore-v3')).not.toBeInTheDocument();
+  });
+
+  it('passes the version to the editor as route state', async () => {
+    api.getHistory.mockResolvedValue(HISTORY);
+    renderWith(true);
+    fireEvent.click(screen.getByText(/Change Notes/));
+    fireEvent.click(await screen.findByTestId('restore-v2'));
+    expect(JSON.parse((await screen.findByTestId('probe')).textContent)).toEqual({ restoreVersion: 2 });
+  });
+
+  it('renders no Restore links without edit permission', async () => {
+    api.getHistory.mockResolvedValue(HISTORY);
+    renderWith(false);
+    fireEvent.click(screen.getByText(/Change Notes/));
+    await screen.findByText('v2');
+    expect(screen.queryByTestId('restore-v2')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('restore-v1')).not.toBeInTheDocument();
   });
 });

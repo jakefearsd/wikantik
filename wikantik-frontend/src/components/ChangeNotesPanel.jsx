@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 
-export default function ChangeNotesPanel({ pageName }) {
+export default function ChangeNotesPanel({ pageName, canEdit = false }) {
   const [expanded, setExpanded] = useState(false);
   const [versions, setVersions] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -23,6 +23,7 @@ export default function ChangeNotesPanel({ pageName }) {
     setExpanded(v => !v);
   };
 
+  const current = versions && versions.length ? Math.max(...versions.map((v) => v.version)) : null;
   const chevron = expanded ? '▾' : '▸';
 
   return (
@@ -62,8 +63,8 @@ export default function ChangeNotesPanel({ pageName }) {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
                   <tr>
-                    {['Version', 'Author', 'Date', 'Note'].map(h => (
-                      <th key={h} style={{
+                    {(canEdit ? ['Version', 'Author', 'Date', 'Note', ''] : ['Version', 'Author', 'Date', 'Note']).map(h => (
+                      <th key={h || 'actions'} style={{
                         textAlign: 'left',
                         color: 'var(--text-muted)',
                         fontSize: '0.75rem',
@@ -91,6 +92,16 @@ export default function ChangeNotesPanel({ pageName }) {
                       <td style={{ padding: 'var(--space-xs) 0 var(--space-xs) var(--space-sm)', color: v.changeNote ? 'inherit' : 'var(--text-muted)' }}>
                         {v.changeNote || '—'}
                       </td>
+                      {canEdit && (
+                        <td style={{ padding: 'var(--space-xs) 0 var(--space-xs) var(--space-sm)', whiteSpace: 'nowrap' }}>
+                          {v.version !== current && (
+                            <Link to={`/edit/${pageName}`} state={{ restoreVersion: v.version }} data-testid={`restore-v${v.version}`}
+                              style={{ fontFamily: 'var(--font-ui)', fontSize: '0.8rem', color: 'var(--accent)', textDecoration: 'none' }}>
+                              Restore
+                            </Link>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

@@ -1,6 +1,6 @@
 import { describe, it, vi, beforeEach, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import DiffViewer from './DiffViewer';
 
@@ -8,14 +8,21 @@ vi.mock('../api/client', () => ({
   api: {
     getHistory: vi.fn(),
     getDiff: vi.fn(),
+    getPage: vi.fn(),
   },
 }));
+
+function EditProbe() {
+  const loc = useLocation();
+  return <div data-testid="edit-probe">{JSON.stringify(loc.state)}</div>;
+}
 
 function renderDiffViewer(name = 'TestPage') {
   return render(
     <MemoryRouter initialEntries={[`/diff/${name}`]}>
       <Routes>
         <Route path="/diff/:name" element={<DiffViewer />} />
+        <Route path="/edit/:name" element={<EditProbe />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -28,6 +35,7 @@ const VERSIONS = [
 
 beforeEach(() => {
   vi.clearAllMocks();
+  api.getPage.mockResolvedValue({ permissions: { edit: false } });
 });
 
 describe('DiffViewer', () => {
@@ -82,5 +90,49 @@ describe('DiffViewer', () => {
     fireEvent.change(screen.getByLabelText(/To version/i), { target: { value: '1' } });
     expect(screen.queryByText(/diff content/)).not.toBeInTheDocument();
     expect(screen.getByText(/Select two different versions/i)).toBeInTheDocument();
+  });
+});
+
+describe('DiffViewer restore link', () => {
+  const V3 = [{ version: 3 }, { version: 2 }, { version: 1 }];
+
+  beforeEach(() => {
+    api.getHistory.mockResolvedValue({ versions: V3 });
+    api.getDiff.mockResolvedValue({ diffHtml: '<p>d</p>' });
+  });
+
+  it('offers Restore of the From version to editors, carrying route state', async () => {
+    api.getPage.mockResolvedValue({ permissions: { edit: true } });
+    renderDiffViewer();
+    const link = await screen.findByText('Restore version 1');
+    expect(link).toHaveAttribute('href', '/edit/TestPage');
+    fireEvent.click(link);
+    expect(JSON.parse((await screen.findByTestId('edit-probe')).textContent)).toEqual({ restoreVersion: 1 });
+  });
+
+  it('hides Restore when From is the current version', async () => {
+    api.getPage.mockResolvedValue({ permissions: { edit: true } });
+    renderDiffViewer();
+    await screen.findByText('Restore version 1');
+    fireEvent.change(screen.getByLabelText(/From version/i), { target: { value: '3' } });
+    expect(screen.queryByTestId('diff-restore')).not.toBeInTheDocument();
+  });
+
+  it('never shows Restore without edit permission', async () => {
+    api.getPage.mockResolvedValue({ permissions: { edit: false } });
+    renderDiffViewer();
+    await screen.findByText('Compare versions: TestPage');
+    await waitFor(() => expect(api.getPage).toHaveBeenCalled());
+    expect(screen.queryByTestId('diff-restore')).not.toBeInTheDocument();
+  });
+
+  it('shows no link and warns when the page lookup fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    api.getPage.mockRejectedValue(new Error('boom'));
+    renderDiffViewer();
+    await screen.findByText('Compare versions: TestPage');
+    await waitFor(() => expect(warn).toHaveBeenCalled());
+    expect(screen.queryByTestId('diff-restore')).not.toBeInTheDocument();
+    warn.mockRestore();
   });
 });

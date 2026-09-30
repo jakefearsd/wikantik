@@ -106,6 +106,7 @@ export default function PageEditor() {
     enabled: !!login,
   });
   const [restorePrompt, setRestorePrompt] = useState(false);
+  const [restoring, setRestoring] = useState(null);
   // The dirty-check baseline (reconstructed text as loaded from the server).
   // State, not a ref, since it's read during render (isDirty below).
   const [loadedContent, setLoadedContent] = useState(null);
@@ -250,20 +251,35 @@ export default function PageEditor() {
     return result;
   }, [attachments]);
 
+  const restoreVersion = location.state?.restoreVersion;
+
   useEffect(() => {
-    api.getPage(name).then(page => {
+    api.getPage(name).then(async (page) => {
       const meta = page.metadata || {};
       const pageBody = page.content || '';
+      const full = reconstructContent(meta, pageBody);
+      setLoadedContent(full); // dirty baseline = current server content
+      setOriginalVersion(page.version); // expectedVersion stays the CURRENT version
+      setMarkupSyntax(page.markupSyntax || 'markdown');
+      setIsNew(false);
+      if (restoreVersion) {
+        try {
+          const old = await api.getPage(name, { version: restoreVersion });
+          setMetadata(old.metadata || {});
+          setBody(old.content || '');
+          setChangeNote(`Restored version ${restoreVersion}`);
+          setRestoring({ from: restoreVersion, current: page.version });
+          return;
+        } catch (err) {
+          console.warn('[editor] could not load version for restore', restoreVersion, err?.message || err);
+          setError(`Could not load version ${restoreVersion}: ${err?.message || 'request failed'}`);
+        }
+      }
       setMetadata(meta);
       setBody(pageBody);
-      const full = reconstructContent(meta, pageBody);
-      setLoadedContent(full);
       if (draft && draft.content && draft.content !== full) {
         setRestorePrompt(true);
       }
-      setOriginalVersion(page.version);
-      setMarkupSyntax(page.markupSyntax || 'markdown');
-      setIsNew(false);
     }).catch(err => {
       if (err.status === 404) {
         const initialBody = location.state?.initialContent || `# ${name}\n\nWrite your content here.`;
@@ -282,7 +298,7 @@ export default function PageEditor() {
     }).finally(() => {
       setLoaded(true);
     });
-  }, [name, draft, location.state?.initialContent, location.state?.initialMetadata]);
+  }, [name, draft, restoreVersion, location.state?.initialContent, location.state?.initialMetadata]);
 
   // Debounced autosave — fires 800 ms after the user stops typing.
   useEffect(() => {
@@ -660,6 +676,12 @@ export default function PageEditor() {
             Save and upload
           </button>
           <button type="button" className="btn-link" onClick={() => setPendingUpload(null)}>Cancel</button>
+        </div>
+      )}
+
+      {restoring && (
+        <div className="info-banner" role="status" data-testid="restore-banner">
+          Editing a copy of version {restoring.from} — saving creates version {restoring.current + 1}.
         </div>
       )}
 

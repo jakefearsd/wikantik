@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { api } from '../api/client';
 import Spinner from './ui/Spinner';
 import '../styles/article.css';
@@ -42,6 +42,16 @@ export default function DiffViewer() {
       .finally(() => { if (!ignore) setLoading(false); });
     return () => { ignore = true; };
   }, [name]);
+
+  const [canEdit, setCanEdit] = useState(false);
+  useEffect(() => {
+    let ignore = false;
+    api.getPage(name)
+      .then((p) => { if (!ignore) setCanEdit(!!p?.permissions?.edit); })
+      .catch((err) => console.warn('[diff] could not load page permissions', err?.message || err));
+    return () => { ignore = true; };
+  }, [name]);
+  const currentVersion = versions && versions.length ? versions[0].version : null;
 
   // A valid, distinct version pair to diff — null while unselected/equal.
   const diffTarget = (fromVer != null && toVer != null && fromVer !== toVer)
@@ -155,6 +165,13 @@ export default function DiffViewer() {
                 ))}
               </select>
             </label>
+
+            {canEdit && fromVer != null && fromVer !== currentVersion && (
+              <Link to={`/edit/${name}`} state={{ restoreVersion: fromVer }} data-testid="diff-restore"
+                className="btn btn-ghost btn-sm">
+                Restore version {fromVer}
+              </Link>
+            )}
           </div>
 
           {error && <div className="error-banner">{error}</div>}

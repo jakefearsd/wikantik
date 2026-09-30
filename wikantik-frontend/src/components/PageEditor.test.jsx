@@ -1234,3 +1234,81 @@ describe('preview: missing-page links', () => {
     expect(api.listPages).toHaveBeenCalledWith({ names: ['Ghost'], limit: 50 });
   }, 10000);
 });
+
+// ── Restore a version (route state restoreVersion) ──────────────────────────
+describe('restore mode', () => {
+  const CURRENT = { content: 'current body', metadata: { tags: ['cur'] }, version: 3, markupSyntax: 'markdown' };
+  const OLD = { content: 'old body', metadata: { tags: ['old'] }, version: 2, markupSyntax: 'markdown' };
+
+  function renderRestore(version = 2) {
+    return render(
+      <MemoryRouter initialEntries={[{ pathname: '/edit/P', state: { restoreVersion: version } }]}>
+        <Routes>
+          <Route path="/edit/:name" element={<PageEditor />} />
+          <Route path="/wiki/:name" element={<div data-testid="wiki-view">WIKI VIEW</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  function mockPages({ oldFails = false } = {}) {
+    api.getPage.mockImplementation((n, opts) => {
+      if (opts && opts.version) {
+        return oldFails ? Promise.reject(new Error('gone')) : Promise.resolve(OLD);
+      }
+      return Promise.resolve(CURRENT);
+    });
+  }
+
+  it('loads the old version into the editor with a restore banner and note', async () => {
+    mockPages();
+    renderRestore();
+    await waitForEditor();
+    expect(api.getPage).toHaveBeenCalledWith('P');
+    expect(api.getPage).toHaveBeenCalledWith('P', { version: 2 });
+    await waitFor(() => expect(getEditable().value).toBe('old body'));
+    expect(screen.getByTestId('editor-change-note').value).toBe('Restored version 2');
+    expect(screen.getByTestId('restore-banner').textContent)
+      .toBe('Editing a copy of version 2 — saving creates version 4.');
+    expect(screen.getByDisplayValue(/old/)).toBeInTheDocument();
+  });
+
+  it('saves the restored content against the current version', async () => {
+    mockPages();
+    renderRestore();
+    await waitForEditor();
+    await waitFor(() => expect(getEditable().value).toBe('old body'));
+    fireEvent.keyDown(window, { key: 's', metaKey: true });
+    await waitFor(() => expect(api.savePage).toHaveBeenCalledTimes(1));
+    const payload = api.savePage.mock.calls[0][1];
+    expect(payload.expectedVersion).toBe(3);
+    expect(payload.content).toBe('old body');
+    expect(payload.metadata).toEqual({ tags: ['old'] });
+  });
+
+  it('does not show the draft-restore prompt', async () => {
+    useDraft.mockReturnValue({
+      draft: { content: 'something else', savedAt: Date.now() },
+      saveDraft: vi.fn(),
+      clearDraft: vi.fn(),
+    });
+    mockPages();
+    renderRestore();
+    await waitForEditor();
+    await waitFor(() => expect(getEditable().value).toBe('old body'));
+    expect(screen.queryByText(/You have unsaved changes/)).not.toBeInTheDocument();
+  });
+
+  it('keeps current content and reports an error when the old version fails to load', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mockPages({ oldFails: true });
+    renderRestore();
+    await waitForEditor();
+    await waitFor(() => expect(getEditable().value).toBe('current body'));
+    expect(screen.getByTestId('editor-error').textContent).toMatch(/version 2/);
+    expect(screen.queryByTestId('restore-banner')).not.toBeInTheDocument();
+    expect(screen.getByTestId('editor-change-note').value).toBe('');
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});

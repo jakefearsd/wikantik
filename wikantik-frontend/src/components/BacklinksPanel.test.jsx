@@ -60,4 +60,23 @@ describe('BacklinksPanel', () => {
     );
     expect(api.getBacklinks).not.toHaveBeenCalled();
   });
+
+  it('M13: with emptyText, shows Loading while pending and never claims "No backlinks yet" early', async () => {
+    let resolve;
+    api.getBacklinks.mockReturnValue(new Promise((r) => { resolve = r; }));
+    render(<MemoryRouter><BacklinksPanel pageName="T" emptyText="No backlinks yet" /></MemoryRouter>);
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByText('No backlinks yet')).toBeNull();
+    resolve({ backlinks: [] });
+    expect(await screen.findByText('No backlinks yet')).toBeInTheDocument();
+  });
+
+  it('M13: a failure is logged with context and (with emptyText) shown as unavailable', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    api.getBacklinks.mockRejectedValue(new Error('boom'));
+    render(<MemoryRouter><BacklinksPanel pageName="T" emptyText="No backlinks yet" /></MemoryRouter>);
+    expect(await screen.findByText('Backlinks unavailable')).toBeInTheDocument();
+    expect(warn).toHaveBeenCalledWith('[backlinks] could not load backlinks for', 'T', 'boom');
+    warn.mockRestore();
+  });
 });

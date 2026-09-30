@@ -68,4 +68,17 @@ describe('EditorRail', () => {
     act(() => { vi.advanceTimersByTime(1); });
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
   });
+
+  it('M7: Escape closes the drawer on a narrow viewport only', () => {
+    const mq = vi.spyOn(window, 'matchMedia').mockImplementation(() => ({ matches: false }));
+    const { onToggle, unmount } = renderRail();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    unmount();
+    mq.mockImplementation(() => ({ matches: true }));
+    const wide = renderRail();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(wide.onToggle).not.toHaveBeenCalled();
+    mq.mockRestore();
+  });
 });

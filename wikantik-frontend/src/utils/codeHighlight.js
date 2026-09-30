@@ -24,6 +24,23 @@ function hastText(node) {
   return (node.children || []).map(hastText).join('');
 }
 
+// The preview re-runs on every keystroke; memoise lowlight output per (language, text), bounded.
+const CACHE_LIMIT = 200;
+const highlightCaches = new WeakMap(); // per lowlight instance
+
+function highlightCached(lowlight, lang, text) {
+  let highlightCache = highlightCaches.get(lowlight);
+  if (!highlightCache) highlightCaches.set(lowlight, highlightCache = new Map());
+  const key = `${lang}\u0000${text}`;
+  let children = highlightCache.get(key);
+  if (!children) {
+    children = lowlight.highlight(lang, text).children;
+    if (highlightCache.size >= CACHE_LIMIT) highlightCache.delete(highlightCache.keys().next().value);
+    highlightCache.set(key, children);
+  }
+  return children;
+}
+
 /** rehype plugin (editor preview): highlight `pre > code.language-x` once `lowlight` has loaded. */
 export function rehypeHighlightCode({ lowlight } = {}) {
   return (tree) => {
@@ -34,7 +51,7 @@ export function rehypeHighlightCode({ lowlight } = {}) {
       if (!lang || !lowlight.registered(lang)) return;
       let children;
       try {
-        children = lowlight.highlight(lang, hastText(node)).children;
+        children = highlightCached(lowlight, lang, hastText(node));
       } catch (err) {
         console.warn(`[highlight] failed to highlight ${lang} block`, err?.message || err);
         return;

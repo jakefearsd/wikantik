@@ -271,7 +271,12 @@ export default function PageEditor() {
     return result;
   }, [attachments]);
 
-  const restoreVersion = location.state?.restoreVersion;
+  // Captured once per page: the route state is cleared after it is applied, so Back / reload to
+  // /edit/P does not re-apply the restore (and clearing it must not re-trigger the load effect).
+  const restoreRef = useRef({ name, version: location.state?.restoreVersion });
+  if (restoreRef.current.name !== name) restoreRef.current = { name, version: location.state?.restoreVersion };
+  const restoreVersion = restoreRef.current.version;
+  const pathname = location.pathname;
 
   useEffect(() => {
     api.getPage(name).then(async (page) => {
@@ -289,6 +294,7 @@ export default function PageEditor() {
           setBody(old.content || '');
           setChangeNote(`Restored version ${restoreVersion}`);
           setRestoring({ from: restoreVersion, current: page.version });
+          navigate(pathname, { replace: true, state: {} });
           return;
         } catch (err) {
           console.warn('[editor] could not load version for restore', restoreVersion, err?.message || err);
@@ -318,7 +324,7 @@ export default function PageEditor() {
     }).finally(() => {
       setLoaded(true);
     });
-  }, [name, draft, restoreVersion, location.state?.initialContent, location.state?.initialMetadata]);
+  }, [name, draft, restoreVersion, pathname, navigate, location.state?.initialContent, location.state?.initialMetadata]);
 
   // Debounced autosave — fires 800 ms after the user stops typing.
   useEffect(() => {

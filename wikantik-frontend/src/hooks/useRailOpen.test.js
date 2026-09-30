@@ -30,4 +30,14 @@ describe('useRailOpen', () => {
     act(() => result.current[1]());
     expect(result.current[0]).toBe(false);
   });
+  it('M7: a stored "open" preference is ignored below 1100px (narrow always starts closed)', () => {
+    localStorage.setItem('wikantik.editor.railOpen', 'true');
+    mq(false);
+    expect(renderHook(() => useRailOpen()).result.current[0]).toBe(false);
+  });
+  it('M7: a stored preference still applies on wide viewports', () => {
+    localStorage.setItem('wikantik.editor.railOpen', 'false');
+    mq(true);
+    expect(renderHook(() => useRailOpen()).result.current[0]).toBe(false);
+  });
 });

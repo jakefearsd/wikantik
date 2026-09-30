@@ -75,3 +75,18 @@ describe('highlighter failures never break rendering', () => {
     expect(warn).toHaveBeenCalledWith('[highlight] failed to highlight js block', 'grammar exploded');
   });
 });
+
+describe('rehypeHighlightCode memoisation (M5)', () => {
+  it('highlights identical (language, text) blocks once across renders', () => {
+    const spy = vi.spyOn(lowlight, 'highlight');
+    const md = '```js\nconst memoised = 42;\n```';
+    const render = () => renderToStaticMarkup(
+      <ReactMarkdown rehypePlugins={[[rehypeHighlightCode, { lowlight }]]}>{md}</ReactMarkdown>,
+    );
+    const first = render();
+    const second = render();
+    expect(second).toBe(first);
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
+});

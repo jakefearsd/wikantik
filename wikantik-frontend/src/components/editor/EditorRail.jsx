@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import BacklinksPanel from '../BacklinksPanel';
 import { headingsFromMarkdown } from '../../utils/headings';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -12,6 +12,17 @@ export default function EditorRail({ body, pageName, isNew, cursorStore, open, o
   const { topLine } = useEditorCursor(cursorStore);
   let active = -1;
   outline.forEach((h, i) => { if (h.line <= topLine) active = i; });
+
+  // Below 1100px the rail is an overlay drawer: Escape dismisses it.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => {
+      const narrow = typeof window.matchMedia === 'function' && !window.matchMedia('(min-width: 1100px)').matches;
+      if (e.key === 'Escape' && narrow) onToggle();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onToggle]);
 
   if (!open) {
     return (

@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- see the afterEach rationale below
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 // ── #19 CodeMirror stub ──────────────────────────────────────────────────────
 // happy-dom cannot run CodeMirror's contenteditable/measuring layer, so the
@@ -1298,6 +1298,30 @@ describe('restore mode', () => {
     await waitForEditor();
     await waitFor(() => expect(getEditable().value).toBe('old body'));
     expect(screen.queryByText(/You have unsaved changes/)).not.toBeInTheDocument();
+  });
+
+  it('M6: consumes the restore route state once, without the load effect overwriting the restored body', async () => {
+    mockPages();
+    function StateProbe() {
+      const loc = useLocation();
+      return <div data-testid="route-state">{JSON.stringify(loc.state)}</div>;
+    }
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/edit/P', state: { restoreVersion: 2 } }]}>
+        <StateProbe />
+        <Routes>
+          <Route path="/edit/:name" element={<PageEditor />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await waitForEditor();
+    await waitFor(() => expect(getEditable().value).toBe('old body'));
+    // route state cleared so Back / reload does not re-apply the restore...
+    await waitFor(() => expect(screen.getByTestId('route-state').textContent).not.toContain('restoreVersion'));
+    // ...and the restored content is still what the editor shows (no reload of the current version over it)
+    await new Promise((r) => { setTimeout(r, 50); });
+    expect(getEditable().value).toBe('old body');
+    expect(screen.getByTestId('restore-banner')).toBeInTheDocument();
   });
 
   it('keeps current content and reports an error when the old version fails to load', async () => {

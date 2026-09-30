@@ -9,6 +9,8 @@ import { useToast } from '../hooks/useToast';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { renderMath } from '../utils/math';
 import { addCopyButtons } from '../utils/codeCopy';
+import { highlightCodeBlocks } from '../utils/codeHighlight';
+import { useLowlight } from '../hooks/useLowlight';
 import { addHeadingAnchors } from '../utils/headingAnchors';
 import Icon from './ui/Icon';
 import Spinner from './ui/Spinner';
@@ -190,6 +192,15 @@ export default function PageView() {
       renderMath(articleRef.current);
     }
   }, [page]);
+
+  // Syntax highlighting for fenced code: the highlighter is only downloaded when the page has
+  // a language-tagged block. Same DOM-pass pattern as renderMath: idempotent, re-runs when
+  // the article HTML is re-injected. It only
+  // rewrites <code> children, never the <pre> wrapper the copy button lives in.
+  const lowlight = useLowlight(!!page?.contentHtml && page.contentHtml.includes('class="language-'));
+  useEffect(() => {
+    highlightCodeBlocks(articleRef.current, lowlight);
+  }, [page, lowlight]);
 
   // Inject copy-to-clipboard buttons into every <pre> block in the article.
   // addCopyButtons is idempotent (data-copy-injected guard), so re-running on

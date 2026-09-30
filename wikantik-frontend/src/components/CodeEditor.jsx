@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useMemo, useCallback } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { markdown } from '@codemirror/lang-markdown';
+import { languages } from '@codemirror/language-data';
 import { EditorView, keymap } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { autocompletion } from '@codemirror/autocomplete';
@@ -226,7 +227,7 @@ const CodeEditor = forwardRef(function CodeEditor(
   );
 
   const extensions = useMemo(
-    () => [markdown(), EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension],
+    () => [markdown({ codeLanguages: languages }), EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension],
     [shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension],
   );
 

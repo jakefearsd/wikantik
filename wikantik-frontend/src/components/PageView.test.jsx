@@ -24,6 +24,11 @@ import PageView from './PageView';
 //     getBoundingClientRect) and a controllable window.getSelection per-test.
 // ---------------------------------------------------------------------------
 vi.mock('../utils/math', () => ({ renderMath: vi.fn() }));
+vi.mock('../utils/codeHighlight', async () => {
+  const actual = await vi.importActual('../utils/codeHighlight');
+  const { createLowlight, common } = await vi.importActual('lowlight');
+  return { ...actual, loadLowlight: () => Promise.resolve(createLowlight(common)) };
+});
 vi.mock('./MetadataPanel', () => ({ default: () => null }));
 vi.mock('./SimilarPagesPanel', () => ({ default: () => null }));
 vi.mock('./BacklinksPanel', () => ({ default: () => null }));
@@ -689,6 +694,17 @@ describe('PageView comment integration', () => {
       '[codeCopy] clipboard write failed',
       expect.anything(),
     );
+  }, TEST_TIMEOUT);
+
+  it('highlights fenced code blocks that declare a language', async () => {
+    api.getPage.mockImplementation(async () => ({
+      ...PAGE,
+      contentHtml: '<pre><code class="language-js">const x = 1;</code></pre>',
+    }));
+    const { container } = renderPageView();
+    expect(await screen.findByTestId('page-view')).toBeInTheDocument();
+    await waitFor(() => expect(container.querySelector('.article-prose .hljs-keyword')).not.toBeNull());
+    expect(container.querySelector('code.language-js').textContent).toBe('const x = 1;');
   }, TEST_TIMEOUT);
 
   // --- Modal shell for delete and rename: #31/#33 ----------------------------

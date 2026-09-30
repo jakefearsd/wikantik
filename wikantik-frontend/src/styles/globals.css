@@ -84,6 +84,8 @@
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --code-keyword: #7c3aed; --code-string: #0b7a3e; --code-number: #b35c00; --code-comment: #8a8580;
+  --code-title: #1f5fbf;   --code-type: #a1307e;   --code-attr: #7a5c00;
 }
 
 [data-theme="dark"] {
@@ -111,6 +113,8 @@
   --danger-bg: #3a1a1a;
   --warning: #fbbf24;
   --warning-bg: #3a2e1a;
+  --code-keyword: #c4a5ff; --code-string: #7fd8a0; --code-number: #ffb27a; --code-comment: #8f877f;
+  --code-title: #8fb8ff;   --code-type: #f08fcf;   --code-attr: #e6c56b;
 }
 
 /* ============================================================
@@ -2425,3 +2429,12 @@ h3:focus-within .heading-anchor {
   white-space: nowrap;
 }
 .wiki-cite-badge { margin-left: 0.25em; }
+
+/* Syntax highlighting (lowlight / highlight.js class names) */
+.hljs-keyword, .hljs-selector-tag, .hljs-built_in { color: var(--code-keyword); }
+.hljs-string, .hljs-regexp, .hljs-addition { color: var(--code-string); }
+.hljs-number, .hljs-literal, .hljs-symbol, .hljs-deletion { color: var(--code-number); }
+.hljs-comment, .hljs-quote, .hljs-meta { color: var(--code-comment); font-style: italic; }
+.hljs-title, .hljs-section { color: var(--code-title); }
+.hljs-type, .hljs-variable, .hljs-template-variable { color: var(--code-type); }
+.hljs-attr, .hljs-attribute, .hljs-name, .hljs-tag { color: var(--code-attr); }

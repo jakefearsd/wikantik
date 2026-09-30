@@ -19,6 +19,8 @@ import { remarkAttachments } from '../utils/remarkAttachments';
 import { remarkWikiMarkup } from '../utils/remarkWikiMarkup';
 import { remarkMissingLinks } from '../utils/wikiLinkTargets';
 import { useMissingPages } from '../hooks/useMissingPages';
+import { useLowlight } from '../hooks/useLowlight';
+import { rehypeHighlightCode } from '../utils/codeHighlight';
 import { headingsFromMarkdown } from '../utils/headings';
 import { useAttachments } from '../hooks/useAttachments';
 import { useAttachmentUpload } from '../hooks/useAttachmentUpload';
@@ -235,6 +237,7 @@ export default function PageEditor() {
   // The editor holds the body only, so the preview renders it directly (no frontmatter to strip).
   const previewContent = useMemo(() => stripFrontmatter(body), [body]);
   const missingPages = useMissingPages(previewContent);
+  const lowlight = useLowlight(/(^|\n)(```|~~~)/.test(previewContent));
 
   const handleRename = useCallback(async (oldName, newName) => {
     const result = await attachments.renameAttachment(oldName, newName);
@@ -751,7 +754,7 @@ export default function PageEditor() {
               remarkWikiMarkup,
               [remarkMissingLinks, { missing: missingPages }],
               [remarkAttachments, { attachments: attachments.list, pageName: name }],
-            ]} rehypePlugins={[rehypeKatex, rehypeSourceLine]}>
+            ]} rehypePlugins={[rehypeKatex, [rehypeHighlightCode, { lowlight }], rehypeSourceLine]}>
               {previewContent}
             </ReactMarkdown>
           </article>

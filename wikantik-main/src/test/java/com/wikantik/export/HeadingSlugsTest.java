@@ -30,7 +30,7 @@ class HeadingSlugsTest {
         assertEquals( "2-advanced-portfolio-optimization-hrp-2025",
                 HeadingSlugs.slug( "2. Advanced Portfolio Optimization (HRP, 2025)" ) );
         assertEquals( "case-study-the-2026-iran-war-shock", HeadingSlugs.slug( "Case Study: The 2026 Iran War Shock" ) );
-        assertEquals( "a--b", HeadingSlugs.slug( "A & B" ) );
+        assertEquals( "a-b", HeadingSlugs.slug( "A & B" ) );
     }
 
     @Test void headingsBySlugIgnoresCodeBlocks() {
@@ -42,5 +42,26 @@ class HeadingSlugsTest {
 
     @Test void inlineMarkupStrippedFromHeadingText() {
         assertEquals( "Using Foo", HeadingSlugs.headingsBySlug( "## Using `Foo`\n" ).get( "using-foo" ) );
+    }
+
+    @Test
+    void slugMatchesSharedFrontendCaseTable() throws Exception {
+        // Shared with wikantik-frontend/src/utils/headings.test.jsx — the page view's slugify is canonical.
+        final java.nio.file.Path fixture = java.nio.file.Path.of(
+                "..", "wikantik-frontend", "src", "utils", "__fixtures__", "heading-slugs.json" );
+        final com.google.gson.JsonArray cases = com.google.gson.JsonParser
+                .parseString( java.nio.file.Files.readString( fixture ) ).getAsJsonArray();
+        assertFalse( cases.isEmpty() );
+        for ( final com.google.gson.JsonElement e : cases ) {
+            final com.google.gson.JsonObject c = e.getAsJsonObject();
+            final String heading = c.get( "heading" ).getAsString();
+            assertEquals( c.get( "slug" ).getAsString(), HeadingSlugs.slug( heading ), heading );
+        }
+    }
+
+    @Test
+    void duplicateH2H3HeadingsAreNumberedLikeThePageView() {
+        final Map< String, String > m = HeadingSlugs.headingsBySlug( "## Setup\n\n### Setup\n\n## Setup\n" );
+        assertEquals( java.util.List.of( "setup", "setup-2", "setup-3" ), java.util.List.copyOf( m.keySet() ) );
     }
 }

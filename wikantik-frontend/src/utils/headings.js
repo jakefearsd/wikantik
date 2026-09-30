@@ -1,3 +1,10 @@
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import { toString } from 'mdast-util-to-string';
+import { visit } from 'unist-util-visit';
+
 /**
  * Extracts h2/h3 headings from an HTML string.
  * Returns an array of { id, text, level } objects.
@@ -29,7 +36,7 @@ export function extractHeadings(html) {
 }
 
 /** Slugify: lowercase, spaces→hyphens, strip non-alphanumeric (keeping hyphens). */
-function slugify(text) {
+export function slugify(text) {
   return text
     .toLowerCase()
     .replace(/\s+/g, '-')
@@ -43,4 +50,30 @@ function uniqueId(baseId, seen) {
   const count = seen[baseId] || 0;
   if (count === 0) return baseId;
   return `${baseId}-${count + 1}`;
+}
+
+// Same syntax extensions as the editor preview, so heading text is extracted the way it renders.
+const markdownParser = unified().use(remarkParse).use(remarkGfm).use(remarkMath);
+
+/**
+ * Headings of a markdown body in document order: { level, text, line, id }.
+ * `id` is the anchor the page view assigns (h2/h3 only — see extractHeadings — same slugify and
+ * duplicate numbering); null for other levels. `line` is the 1-based source line.
+ */
+export function headingsFromMarkdown(md) {
+  if (!md) return [];
+  const tree = markdownParser.parse(md);
+  const seen = {};
+  const out = [];
+  visit(tree, 'heading', (node) => {
+    const text = toString(node).trim();
+    let id = null;
+    if (node.depth === 2 || node.depth === 3) {
+      const base = slugify(text);
+      id = uniqueId(base, seen);
+      seen[base] = (seen[base] || 0) + 1;
+    }
+    out.push({ level: node.depth, text, line: node.position.start.line, id });
+  });
+  return out;
 }

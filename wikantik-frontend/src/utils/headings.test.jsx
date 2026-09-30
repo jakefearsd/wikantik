@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { extractHeadings } from './headings';
+import cases from './__fixtures__/heading-slugs.json';
+import { renderToStaticMarkup } from 'react-dom/server';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import { slugify, headingsFromMarkdown, extractHeadings } from './headings';
 
 describe('extractHeadings', () => {
   it('returns empty array for empty html', () => {
@@ -53,5 +58,43 @@ describe('extractHeadings', () => {
     const html = '<h3>Alpha</h3><h2>Beta</h2><h3>Gamma</h3>';
     const result = extractHeadings(html);
     expect(result.map(h => h.text)).toEqual(['Alpha', 'Beta', 'Gamma']);
+  });
+});
+
+describe('slugify — shared case table (also asserted by HeadingSlugsTest.java)', () => {
+  it.each(cases)('$heading → $slug', ({ heading, slug }) => {
+    expect(slugify(heading)).toBe(slug);
+  });
+});
+
+describe('headingsFromMarkdown', () => {
+  const md = '# Title\n\n## Setup\n\ntext\n\n### Setup\n\n#### Deep\n\n## Using `Foo` and **bold**\n';
+
+  it('returns every heading with level, plain text and 1-based source line', () => {
+    expect(headingsFromMarkdown(md).map(({ level, text, line }) => ({ level, text, line }))).toEqual([
+      { level: 1, text: 'Title', line: 1 },
+      { level: 2, text: 'Setup', line: 3 },
+      { level: 3, text: 'Setup', line: 7 },
+      { level: 4, text: 'Deep', line: 9 },
+      { level: 2, text: 'Using Foo and bold', line: 11 },
+    ]);
+  });
+
+  it('assigns ids only to h2/h3, numbering duplicates like the page view', () => {
+    expect(headingsFromMarkdown(md).map((h) => h.id)).toEqual([null, 'setup', 'setup-2', null, 'using-foo-and-bold']);
+  });
+
+  it('matches extractHeadings ids on the rendered HTML', () => {
+    const html = renderToStaticMarkup(
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]}>{md}</ReactMarkdown>,
+    );
+    const fromHtml = extractHeadings(html).map((h) => h.id);
+    const fromMd = headingsFromMarkdown(md).filter((h) => h.id).map((h) => h.id);
+    expect(fromMd).toEqual(fromHtml);
+  });
+
+  it('returns [] for empty input', () => {
+    expect(headingsFromMarkdown('')).toEqual([]);
+    expect(headingsFromMarkdown(null)).toEqual([]);
   });
 });

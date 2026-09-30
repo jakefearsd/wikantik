@@ -77,6 +77,7 @@ The following settings come from `wikantik-main/src/main/resources/ini/wikantik.
 - [Context bundle & briefing](#context-bundle--briefing)
 - [Content Intelligence](#content-intelligence)
 - [Connectors](#connectors)
+- [Export](#export)
 
 ## General
 
@@ -896,6 +897,16 @@ Full descriptions (truncated above to keep the table scannable):
 - **`wikantik.connectors.sync.interval.hours`** — Per-connector sync interval, in hours, used by properties-origin connectors (a DB-backed connector's interval is set from /admin/connectors instead). <= 0 means manual-only: the due-tick scheduler never syncs the connector automatically, only when triggered by hand.
 - **`wikantik.connectors.egress.allowPrivate`** — SSRF egress policy for connector HTTP fetches (web crawler, sitemap, feed, GitHub, Confluence). false rejects any host that resolves to loopback/private/link-local/multicast/IPv6-ULA, on every redirect hop too. Set true only for a deliberate internal crawl (e.g. an intranet Confluence). Read only as a JVM system property (-Dwikantik.connectors.egress.allowPrivate=true); this file's value is not consulted.
 - **`wikantik.connectors.crypto.key`** — Connector credential encryption (P2.2). Base64-encoded 32-byte AES-256 master key. An invalid key (wrong length/encoding) is also treated as absent, logged with a warning - the key value itself is never logged. Generate: openssl rand -base64 32
+
+## Export
+
+| Key | Type | Default | Override | Description |
+|---|---|---|---|---|
+| `wikantik.export.maxPages` | `int` | `2000` | `wikantik_export_maxPages` | Maximum number of pages a single Obsidian export (GET /api/export) may contain. … |
+
+Full descriptions (truncated above to keep the table scannable):
+
+- **`wikantik.export.maxPages`** — Maximum number of pages a single Obsidian export (GET /api/export) may contain. A selection that resolves to more pages is refused with HTTP 413 and the real count, never silently truncated.
 
 The following settings come from `wikantik-admin-mcp/src/main/resources/wikantik-mcp.properties` (bundled in the wikantik-admin-mcp jar, overlaid by a same-named file in `tomcat/lib/`).
 

@@ -2402,3 +2402,26 @@ h3:focus-within .heading-anchor {
    (Task 17). Shared by search results, sidebar, and admin surfaces. */
 .derived-badge { display: inline-block; margin-left: 0.3rem; font-size: 0.8em;
   opacity: 0.7; cursor: help; }
+
+/* Missing-page links: the server render emits class="createpage"; the editor preview uses the same class. */
+.article-prose a.createpage {
+  color: var(--danger);
+  text-decoration: underline dashed;
+  text-underline-offset: 2px;
+}
+
+.wiki-plugin-chip,
+.wiki-cite-badge {
+  display: inline-block;
+  padding: 0 var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 0.75em;
+  line-height: 1.6;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+.wiki-cite-badge { margin-left: 0.25em; }

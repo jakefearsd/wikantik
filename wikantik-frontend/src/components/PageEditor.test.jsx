@@ -1217,3 +1217,20 @@ describe('autosave debounce', () => {
     expect(clearDraft).toHaveBeenCalled();
   }, 10000);
 });
+
+describe('preview: missing-page links', () => {
+  it('marks a link to a page that does not exist with the createpage class', async () => {
+    useDraft.mockReturnValue({ draft: null, saveDraft: vi.fn(), clearDraft: vi.fn() });
+    api.listPages.mockResolvedValue({ pages: [] });
+    renderEditor();
+    await waitForEditor();
+
+    typeInEditor('See [x](Ghost) here.');
+    await waitFor(() => {
+      const a = document.querySelector('.article-prose a[data-missing-page="Ghost"]');
+      expect(a).not.toBeNull();
+      expect(a).toHaveClass('createpage');
+    }, { timeout: 3000 });
+    expect(api.listPages).toHaveBeenCalledWith({ names: ['Ghost'], limit: 50 });
+  }, 10000);
+});

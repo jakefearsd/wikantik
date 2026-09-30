@@ -36,8 +36,12 @@ import com.wikantik.api.pagegraph.PageDescriptor;
  * <p>Resolution runs in three stages: (1) seed the set from {@code allPages()} by
  * cluster/tag/type/status filters, (2) expand the seed by following outbound links
  * up to {@code selection.hops()} hops (never crossing into pages the catalog doesn't
- * know about), then (3) drop anything the caller may not view. The ACL check runs
- * last and unconditionally, so a hop can never smuggle a restricted page back in.</p>
+ * know about), then (3) drop anything the caller may not view. The ACL check is
+ * applied to the seed <em>and</em> to each hop's newly discovered slugs <em>before</em>
+ * they are traversed further — a restricted page's outbound links are never followed,
+ * so a page reachable only through a restricted page can never leak into the export
+ * (that would reveal the restricted page links to it, which a dropped page must be
+ * indistinguishable from a nonexistent one to avoid).</p>
  */
 public final class ExportSelectionResolver {
     public ResolvedSelection resolve( final ExportSelection selection, final ExportCatalog catalog ) {
@@ -45,34 +49,37 @@ public final class ExportSelectionResolver {
         final Map< String, PageDescriptor > bySlug = all.stream()
                 .collect( Collectors.toMap( PageDescriptor::slug, p -> p, ( a, b ) -> a, LinkedHashMap::new ) );
 
-        final LinkedHashSet< String > included = new LinkedHashSet<>();
+        final LinkedHashSet< String > seedAll = new LinkedHashSet<>();
         for ( final PageDescriptor p : all ) {
             if ( matches( p, selection, catalog ) ) {
-                included.add( p.slug() );
+                seedAll.add( p.slug() );
             }
         }
-        final int seedCount = included.size();
+        final int seedCount = seedAll.size();
+
+        final Set< String > viewableSeed = catalog.viewable( seedAll );
+        final LinkedHashSet< String > included = new LinkedHashSet<>( viewableSeed );
+        int aclDropped = seedAll.size() - viewableSeed.size();
 
         Set< String > frontier = included;
         int hopAdded = 0;
         for ( int h = 0; h < selection.hops(); h++ ) {
-            final LinkedHashSet< String > next = new LinkedHashSet<>();
+            final LinkedHashSet< String > candidates = new LinkedHashSet<>();
             for ( final String slug : frontier ) {
                 for ( final String out : catalog.outboundPages( slug ) ) {
                     if ( bySlug.containsKey( out ) && !included.contains( out ) ) {
-                        next.add( out );
+                        candidates.add( out );
                     }
                 }
             }
-            included.addAll( next );
-            hopAdded += next.size();
-            frontier = next;
+            final Set< String > viewableCandidates = catalog.viewable( candidates );
+            aclDropped += candidates.size() - viewableCandidates.size();
+            included.addAll( viewableCandidates );
+            hopAdded += viewableCandidates.size();
+            frontier = viewableCandidates;
         }
 
-        final Set< String > viewable = catalog.viewable( included );
-        final int aclDropped = included.size() - viewable.size();
-
-        final List< PageDescriptor > pages = viewable.stream()
+        final List< PageDescriptor > pages = included.stream()
                 .map( bySlug::get )
                 .sorted( Comparator.comparing( PageDescriptor::slug ) )
                 .toList();

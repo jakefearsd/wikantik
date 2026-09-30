@@ -89,4 +89,25 @@ class ExportSelectionResolverTest {
         // even if something links to Secret, it never appears
         assertFalse( slugs( sel( List.of( "finance" ), true, List.of(), null, null, 2 ) ).contains( "Secret" ) );
     }
+
+    @Test void hopNeverTraversesARestrictedPage() {
+        // Secret is restricted and links to OnlyViaSecret, which is reachable from nowhere else.
+        // OnlyViaSecret must never surface — traversal must stop at the restricted page, not
+        // merely filter its target out at the very end (which would leak that Secret links to it).
+        final PageDescriptor secret = page( "Secret", List.of( "finance" ), List.of(), PageType.ARTICLE );
+        final PageDescriptor onlyViaSecret = page( "OnlyViaSecret", List.of( "unrelated" ), List.of(), PageType.ARTICLE );
+        final List< PageDescriptor > isolatedPages = List.of( secret, onlyViaSecret );
+        final ExportCatalog leakyCatalog = new ExportCatalog() {
+            public List< PageDescriptor > allPages() { return isolatedPages; }
+            public Optional< String > status( final String s ) { return Optional.empty(); }
+            public Collection< String > outboundPages( final String s ) {
+                return "Secret".equals( s ) ? List.of( "OnlyViaSecret" ) : List.of();
+            }
+            public Set< String > viewable( final Collection< String > s ) { return s.stream().filter( n -> !"Secret".equals( n ) ).collect( Collectors.toSet() ); }
+        };
+        final ResolvedSelection r = resolver.resolve( sel( List.of( "finance" ), true, List.of(), null, null, 1 ), leakyCatalog );
+        assertTrue( r.pages().isEmpty() );
+        assertFalse( r.pages().stream().anyMatch( p -> p.slug().equals( "OnlyViaSecret" ) ) );
+        assertEquals( 1, r.aclDropped() );
+    }
 }

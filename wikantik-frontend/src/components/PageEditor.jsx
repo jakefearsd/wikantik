@@ -16,6 +16,7 @@ import { useFrontmatterValidation } from '../hooks/useFrontmatterValidation';
 import KnowledgeGraphPanel from './knowledge/KnowledgeGraphPanel';
 import Tabs from './ui/Tabs';
 import { remarkAttachments } from '../utils/remarkAttachments';
+import { headingsFromMarkdown } from '../utils/headings';
 import { useAttachments } from '../hooks/useAttachments';
 import { useEditorDrop } from '../hooks/useEditorDrop';
 import { useDraft } from '../hooks/useDraft';
@@ -188,16 +189,27 @@ export default function PageEditor() {
     }, 300);
   }, []);
 
-  // Page names for `[[`-triggered internal-link autocomplete in the editor.
-  const pageNamesRef = useRef([]);
+  // Live link completion: server-ranked, ACL-filtered page search; heading lists per target page are
+  // fetched once per editing session (the page being edited uses the live draft).
+  const headingCacheRef = useRef(new Map());
+  const attachmentNamesRef = useRef([]);
   useEffect(() => {
-    let cancelled = false;
-    api.listPages({ limit: 1000 })
-      .then(d => { if (!cancelled) pageNamesRef.current = (d.pages || []).map(p => p.name); })
-      .catch(() => { /* autocomplete is a nicety; degrade silently */ });
-    return () => { cancelled = true; };
-  }, []);
-  const getPageNames = useCallback(() => pageNamesRef.current, []);
+    attachmentNamesRef.current = (attachments.list || []).map((a) => a.fileName);
+  });
+  const linkCompletion = useMemo(() => ({
+    searchPages: (q) => api.listPages({ q, limit: 20 }).then((d) => (d.pages || []).map((p) => p.name)),
+    getHeadings: (page) => {
+      if (!page) return Promise.resolve(headingsFromMarkdown(bodyRef.current));
+      const cache = headingCacheRef.current;
+      if (!cache.has(page)) {
+        cache.set(page, api.getPage(page)
+          .then((p) => headingsFromMarkdown(p.content || ''))
+          .catch((err) => { cache.delete(page); throw err; }));
+      }
+      return cache.get(page);
+    },
+    getAttachmentNames: () => attachmentNamesRef.current,
+  }), []);
 
   // Search-backed option source for the `related` field's page picker.
   const pageSearch = useCallback((q) =>
@@ -673,7 +685,7 @@ export default function PageEditor() {
             onBold={handleBold}
             onItalic={handleItalic}
             onLink={handleLink}
-            getLinkCompletions={getPageNames}
+            linkCompletion={linkCompletion}
             onViewChange={syncPreview}
           />
         </div>

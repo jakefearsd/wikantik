@@ -31,20 +31,20 @@ import { createWikiLinkSource } from '../utils/wikiLinkComplete';
  *   onBold      () => void        Mod-b handler
  *   onItalic    () => void        Mod-i handler
  *   onLink      () => void        Mod-k handler
+ *   linkCompletion { searchPages(q), getHeadings(page|null), getAttachmentNames() }  link autocomplete sources
  *   className   string            applied to the wrapping div
  *   'data-testid' string         applied to the wrapping div
  */
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, getLinkCompletions, onViewChange, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, onViewChange, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
 
-  // `[[`-triggered internal-link autocomplete. The getter is held in a ref so
-  // the completion source — built once below — always reads the latest page
-  // list without forcing the editor to reconfigure.
-  const linkCompletionsRef = useRef(getLinkCompletions);
-  linkCompletionsRef.current = getLinkCompletions;
+  // `[[` / `](` link autocomplete. The sources are held in a ref so the completion
+  // source — built once below — always calls the latest ones without reconfiguring the editor.
+  const linkCompletionRef = useRef(linkCompletion);
+  linkCompletionRef.current = linkCompletion;
 
   // Fired on scroll / caret move / edit so the parent can sync the preview.
   // Held in a ref so the extension (built once) always calls the latest handler.
@@ -193,7 +193,11 @@ const CodeEditor = forwardRef(function CodeEditor(
 
   const wikiLinkAutocomplete = useMemo(
     () => autocompletion({
-      override: [createWikiLinkSource(() => (linkCompletionsRef.current ? linkCompletionsRef.current() : []))],
+      override: [createWikiLinkSource({
+        searchPages: (q) => linkCompletionRef.current?.searchPages(q) ?? Promise.resolve([]),
+        getHeadings: (page) => linkCompletionRef.current?.getHeadings(page) ?? Promise.resolve([]),
+        getAttachmentNames: () => linkCompletionRef.current?.getAttachmentNames?.() ?? [],
+      })],
     }),
     [],
   );

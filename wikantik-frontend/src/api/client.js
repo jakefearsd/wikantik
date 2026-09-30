@@ -109,9 +109,11 @@ export const api = {
       body: JSON.stringify({ newName }),
     }),
 
-  listPages: ({ prefix, limit = 100, offset = 0 } = {}) => {
+  listPages: ({ prefix, q, names, limit = 100, offset = 0 } = {}) => {
     const params = new URLSearchParams({ limit, offset });
     if (prefix) params.set('prefix', prefix);
+    if (q) params.set('q', q);
+    if (names && names.length) params.set('names', names.join(','));
     return request(`/api/pages?${params}`);
   },
 

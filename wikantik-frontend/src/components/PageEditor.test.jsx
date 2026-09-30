@@ -993,11 +993,12 @@ describe('derived-page banner + misc', () => {
     expect(api.savePage).not.toHaveBeenCalled();
   });
 
-  it('populates the internal-link autocomplete page list from api.listPages', async () => {
-    api.listPages.mockResolvedValue({ pages: [{ name: 'Alpha' }, { name: 'Beta' }] });
-    renderEditor();
-    await waitForEditor();
-    await waitFor(() => expect(api.listPages).toHaveBeenCalledWith({ limit: 1000 }));
+  describe('link completion wiring', () => {
+    it('no longer snapshots the page list on mount', async () => {
+      renderEditor();
+      await waitForEditor();
+      expect(api.listPages).not.toHaveBeenCalledWith(expect.objectContaining({ limit: 1000 }));
+    });
   });
 });
 

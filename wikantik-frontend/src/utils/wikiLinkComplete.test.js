@@ -1,59 +1,120 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createWikiLinkSource } from './wikiLinkComplete';
 
-// Minimal stand-in for a CodeMirror CompletionContext: matchBefore(re) runs the
-// regex against the text immediately before the cursor.
-function fakeContext(textBefore, { explicit = false } = {}) {
+// Minimal CodeMirror CompletionContext stand-in.
+function ctx(textBefore) {
   return {
-    explicit,
+    aborted: false,
     matchBefore(re) {
       const m = textBefore.match(re);
       if (!m) return null;
-      const from = textBefore.length - m[0].length;
-      return { from, to: textBefore.length, text: m[0] };
+      return { from: textBefore.length - m[0].length, to: textBefore.length, text: m[0] };
     },
   };
 }
 
-const PAGES = ['MathematicsHub', 'MachineLearning', 'RiskManagement'];
+const HEADINGS = [
+  { level: 1, text: 'Title', line: 1, id: null },
+  { level: 2, text: 'Setup', line: 3, id: 'setup' },
+  { level: 3, text: 'Install Steps', line: 5, id: 'install-steps' },
+];
+
+function deps(overrides = {}) {
+  return {
+    searchPages: vi.fn(async () => ['MachineLearning', 'MachineLearningHub']),
+    getHeadings: vi.fn(async () => HEADINGS),
+    getAttachmentNames: vi.fn(() => ['diagram.png', 'notes.pdf']),
+    ...overrides,
+  };
+}
 
 describe('createWikiLinkSource', () => {
-  const source = createWikiLinkSource(() => PAGES);
-
-  it('returns null when there is no [[ trigger before the cursor', () => {
-    expect(source(fakeContext('some plain text'))).toBeNull();
+  it('returns null without a trigger', async () => {
+    expect(await createWikiLinkSource(deps())(ctx('plain text'))).toBeNull();
   });
 
-  it('offers all pages right after [[', () => {
-    const res = source(fakeContext('intro [['));
-    expect(res).not.toBeNull();
-    expect(res.options.map(o => o.label)).toEqual(PAGES);
-    // Replacement spans from the [[ so the brackets are consumed.
-    expect(res.from).toBe('intro '.length);
+  it('[[ searches pages live and inserts [Name](Name), unfiltered by CodeMirror', async () => {
+    const d = deps();
+    const res = await createWikiLinkSource(d)(ctx('see [[machine'));
+    expect(d.searchPages).toHaveBeenCalledWith('machine');
+    expect(res.from).toBe(4);
+    expect(res.filter).toBe(false);
+    expect(res.options[0]).toMatchObject({ label: 'MachineLearning', apply: '[MachineLearning](MachineLearning)' });
   });
 
-  it('filters case-insensitively by the typed fragment', () => {
-    const res = source(fakeContext('see [[mach'));
-    expect(res.options.map(o => o.label)).toEqual(['MachineLearning']);
+  it('[[ offers a new-page link when nothing matches exactly', async () => {
+    const res = await createWikiLinkSource(deps())(ctx('[[retirement planning'));
+    const last = res.options[res.options.length - 1];
+    expect(last.label).toBe('Link to new page: RetirementPlanning');
+    expect(last.apply).toBe('[retirement planning](RetirementPlanning)');
   });
 
-  it('applies as a wikilink [Name](Name)', () => {
-    const res = source(fakeContext('[[Risk'));
-    expect(res.options[0].apply).toBe('[RiskManagement](RiskManagement)');
+  it('no new-page item when a result matches exactly (case-insensitive)', async () => {
+    const res = await createWikiLinkSource(deps())(ctx('[[machinelearning'));
+    expect(res.options.some((o) => o.label.startsWith('Link to new page'))).toBe(false);
   });
 
-  it('returns null when nothing matches the fragment', () => {
-    expect(source(fakeContext('[[zzzz'))).toBeNull();
+  it('[[Page# completes h2/h3 headings of the target page with the view anchor', async () => {
+    const d = deps();
+    const res = await createWikiLinkSource(d)(ctx('[[MachineLearning#inst'));
+    expect(d.getHeadings).toHaveBeenCalledWith('MachineLearning');
+    expect(res.options).toHaveLength(1);
+    expect(res.options[0]).toMatchObject({ label: 'Install Steps', apply: '[Install Steps](MachineLearning#install-steps)' });
   });
 
-  it('does not trigger across a closing bracket or newline', () => {
-    expect(source(fakeContext('[[Math] '))).toBeNull();
-    expect(source(fakeContext('[[Math\n'))).toBeNull();
+  it('](target completes pages and attachments, replacing only the target', async () => {
+    const res = await createWikiLinkSource(deps({ searchPages: vi.fn(async () => ['NotesIndex']) }))(ctx('[x](not'));
+    expect(res.from).toBe(4);
+    expect(res.options.map((o) => o.apply)).toEqual(['NotesIndex', 'notes.pdf', 'Not']);
   });
 
-  it('caps the number of options', () => {
-    const many = Array.from({ length: 50 }, (_, i) => `Page${i}`);
-    const s = createWikiLinkSource(() => many);
-    expect(s(fakeContext('[[Page')).options.length).toBeLessThanOrEqual(20);
+  it('](# completes headings of the page being edited', async () => {
+    const d = deps();
+    const res = await createWikiLinkSource(d)(ctx('[x](#se'));
+    expect(d.getHeadings).toHaveBeenCalledWith(null);
+    expect(res.from).toBe(5);
+    expect(res.options[0]).toMatchObject({ label: 'Setup', apply: 'setup' });
+  });
+
+  it('](target stays quiet for URLs with a scheme or a leading slash', async () => {
+    const d = deps();
+    const src = createWikiLinkSource(d);
+    expect(await src(ctx('[x](https://exa'))).toBeNull();
+    expect(await src(ctx('[x](mailto:me'))).toBeNull();
+    expect(await src(ctx('[x](/wiki/Fo'))).toBeNull();
+    expect(d.searchPages).not.toHaveBeenCalled();
+  });
+
+  it('a page named HttpClient is still completable (no literal http suppression)', async () => {
+    const res = await createWikiLinkSource(deps({ searchPages: vi.fn(async () => ['HttpClient']) }))(ctx('[x](Http'));
+    expect(res.options[0].apply).toBe('HttpClient');
+  });
+
+  it('returns null and warns when the page search fails, then retries on the next call', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const searchPages = vi.fn()
+      .mockRejectedValueOnce(new Error('503'))
+      .mockResolvedValueOnce(['MachineLearning']);
+    const src = createWikiLinkSource(deps({ searchPages }));
+    expect(await src(ctx('[[mach'))).toBeNull();
+    expect(warn).toHaveBeenCalled();
+    expect((await src(ctx('[[mach'))).options[0].label).toBe('MachineLearning');
+    warn.mockRestore();
+  });
+
+  it('returns null when the heading fetch fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const res = await createWikiLinkSource(deps({ getHeadings: vi.fn(async () => { throw new Error('404'); }) }))(ctx('[[Page#x'));
+    expect(res).toBeNull();
+    warn.mockRestore();
+  });
+
+  it('returns null when aborted during the debounce', async () => {
+    const d = deps();
+    const c = ctx('[[mach');
+    const p = createWikiLinkSource(d)(c);
+    c.aborted = true;
+    expect(await p).toBeNull();
+    expect(d.searchPages).not.toHaveBeenCalled();
   });
 });

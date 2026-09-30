@@ -150,7 +150,6 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     private static final Set<String> SAFE_DESERIALIZE_CLASSES = Set.of(
         "java.util.HashMap", "java.util.LinkedHashMap", "java.util.TreeMap",
         "java.util.ArrayList", "java.util.HashSet", "java.util.LinkedHashSet", "java.util.TreeSet",
-        "java.util.concurrent.ConcurrentHashMap",
         "java.lang.String", "java.lang.Integer", "java.lang.Long",
         "java.lang.Boolean", "java.lang.Float", "java.lang.Double",
         "java.lang.Number", "java.lang.Enum", "java.util.Date"
@@ -352,8 +351,8 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
             }
 
             saved        = in.readLong();
-            refersTo   = ( Map< String, Collection< String > > ) in.readObject();
-            referredBy = ( Map< String, Set< String > > ) in.readObject();
+            refersTo   = new ConcurrentHashMap<>( ( Map< String, Collection< String > > ) in.readObject() );
+            referredBy = new ConcurrentHashMap<>( ( Map< String, Set< String > > ) in.readObject() );
 
             unmutableReferredBy = Collections.unmodifiableMap( referredBy );
             unmutableRefersTo   = Collections.unmodifiableMap( refersTo );
@@ -367,6 +366,9 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
 
     /**
      *  Serializes hashmaps to disk.  The format is private, don't touch it.
+     *  The live maps are copied into plain {@link HashMap}s: a {@code ConcurrentHashMap}'s serial
+     *  form carries {@code Segment}/{@code ReentrantLock} internals that {@link #SAFE_DESERIALIZE_FILTER}
+     *  rejects, which silently turned every warm start into a full rebuild.
      */
     private synchronized void serializeToDisk() {
         final File serializationFile = new File( engine.getWorkDir(), SERIALIZATION_FILE );
@@ -376,8 +378,8 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
 
             out.writeLong( serialVersionUID );
             out.writeLong( System.currentTimeMillis() ); // Timestamp
-            out.writeObject( refersTo );
-            out.writeObject( referredBy );
+            out.writeObject( new HashMap<>( refersTo ) );
+            out.writeObject( new HashMap<>( referredBy ) );
 
             sw.stop();
 
@@ -455,6 +457,9 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
 
     /**
      *  Serializes hashmaps to disk.  The format is private, don't touch it.
+     *  The live maps are copied into plain {@link HashMap}s: a {@code ConcurrentHashMap}'s serial
+     *  form carries {@code Segment}/{@code ReentrantLock} internals that {@link #SAFE_DESERIALIZE_FILTER}
+     *  rejects, which silently turned every warm start into a full rebuild.
      */
     private synchronized void serializeAttrsToDisk( final Page p ) {
         final StopWatch sw = new StopWatch();

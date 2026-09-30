@@ -288,15 +288,10 @@ class DefaultReferenceManagerDiskRoundTripTest {
         assertTrue( mgr1.isInitialized() );
 
         // mgr1.initialize() wrote a real refmgr-attr cache file for Alpha (used below to
-        // prove the attribute round trip) plus a refmgr.ser written through
-        // ConcurrentHashMap. The reference manager's own SAFE_DESERIALIZE_FILTER rejects
-        // ConcurrentHashMap's internal legacy Segment[] compatibility field on read-back
-        // (a real, independent defect — tracked separately, not this task's target class),
-        // so instead of relying on that read succeeding, we overwrite refmgr.ser here with
-        // an equivalent HashMap-based fixture in the exact on-disk format
-        // unserializeFromDisk() expects. This still exercises the real read path end to
-        // end; it only avoids the CHM-specific write quirk that is orthogonal to what this
-        // test is proving (initialize()'s warm-start branch logic).
+        // prove the attribute round trip). refmgr.ser is overwritten with a fixture whose
+        // "saved" timestamp is pinned, so Alpha's lastModified can be placed after it; the
+        // real serializeToDisk() round trip is covered by
+        // initialize_warmStart_readsCacheWrittenBySerializeToDisk.
         final long saved = System.currentTimeMillis() - 300_000L;
         final File serFile = new File( workDir, "refmgr.ser" );
         final Map< String, java.util.Collection< String > > fixtureRefersTo = new java.util.HashMap<>();
@@ -367,6 +362,69 @@ class DefaultReferenceManagerDiskRoundTripTest {
         // and applied to the fresh Page instance handed to initialize().
         verify( alpha2 ).setAttribute( "greeting", "hello" );
         verify( alpha2 ).setHasMetadata();
+    }
+
+    /**
+     * The cache written by {@code serializeToDisk()} must be readable by
+     * {@code unserializeFromDisk()} through its own deserialization filter. It used to be
+     * written as a {@code ConcurrentHashMap}, whose serial form drags in
+     * {@code ConcurrentHashMap$Segment}/{@code ReentrantLock} internals the filter rejects,
+     * so every restart silently discarded the cache and rebuilt from the full corpus.
+     */
+    @Test
+    void initialize_warmStart_readsCacheWrittenBySerializeToDisk( @TempDir final File workDir ) throws Exception {
+        final Date oldDate = new Date( System.currentTimeMillis() - 600_000L );
+
+        final PageManager pageManager1 = mock( PageManager.class );
+        final AttachmentManager attachmentManager1 = mock( AttachmentManager.class );
+        when( attachmentManager1.listAttachments( org.mockito.ArgumentMatchers.any( Page.class ) ) )
+                .thenReturn( Collections.emptyList() );
+        final Engine engine1 = MockEngineBuilder.engine()
+                .with( PageManager.class, pageManager1 )
+                .with( AttachmentManager.class, attachmentManager1 )
+                .build();
+        when( engine1.getWorkDir() ).thenReturn( workDir.getAbsolutePath() );
+        when( engine1.getFinalPageName( anyString() ) ).thenAnswer( inv -> inv.getArgument( 0 ) );
+        final Page alpha1 = mock( Page.class );
+        when( alpha1.getName() ).thenReturn( "Alpha" );
+        when( alpha1.getLastModified() ).thenReturn( oldDate );
+        when( alpha1.getAttributes() ).thenReturn( Collections.emptyMap() );
+        when( pageManager1.getPage( "Alpha" ) ).thenReturn( alpha1 );
+        when( pageManager1.getPageText( anyString(), anyInt() ) ).thenReturn( "no links" );
+
+        new DefaultReferenceManager( engine1, pageManager1, attachmentManager1 ).initialize( List.of( alpha1 ) );
+        assertTrue( new File( workDir, "refmgr.ser" ).exists(), "cold start must write the cache" );
+
+        final PageManager pageManager2 = mock( PageManager.class );
+        final AttachmentManager attachmentManager2 = mock( AttachmentManager.class );
+        when( attachmentManager2.listAttachments( org.mockito.ArgumentMatchers.any( Page.class ) ) )
+                .thenReturn( Collections.emptyList() );
+        final Engine engine2 = MockEngineBuilder.engine()
+                .with( PageManager.class, pageManager2 )
+                .with( AttachmentManager.class, attachmentManager2 )
+                .build();
+        when( engine2.getWorkDir() ).thenReturn( workDir.getAbsolutePath() );
+        when( engine2.getFinalPageName( anyString() ) ).thenAnswer( inv -> inv.getArgument( 0 ) );
+        final Page alpha2 = mock( Page.class );
+        when( alpha2.getName() ).thenReturn( "Alpha" );
+        when( alpha2.getLastModified() ).thenReturn( oldDate );
+        when( pageManager2.getPage( "Alpha" ) ).thenReturn( alpha2 );
+        when( pageManager2.getPageText( anyString(), anyInt() ) ).thenReturn( "no links" );
+
+        final DefaultReferenceManager mgr2 = new DefaultReferenceManager( engine2, pageManager2, attachmentManager2 );
+        mgr2.initialize( List.of( alpha2 ) );
+
+        // A warm start leaves an unchanged page alone; a rebuild re-reads every page's text.
+        verify( pageManager2, org.mockito.Mockito.never() ).getPageText( anyString(), anyInt() );
+        assertTrue( mgr2.findCreated().contains( "Alpha" ) );
+
+        // The live maps are mutated by concurrent page saves, so what comes back from disk
+        // must be restored into concurrent maps, not left as the plain on-disk HashMaps.
+        for( final String field : List.of( "refersTo", "referredBy" ) ) {
+            final Field f = DefaultReferenceManager.class.getDeclaredField( field );
+            f.setAccessible( true );
+            assertInstanceOf( java.util.concurrent.ConcurrentHashMap.class, f.get( mgr2 ), field );
+        }
     }
 
     // -----------------------------------------------------------------------

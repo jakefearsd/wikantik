@@ -116,7 +116,6 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
             if (scrollRange < 200) return {found: false, reason: 'preview not scrollable (range=' + scrollRange + ')'};
 
             preview.scrollTop = Math.round(scrollRange * 0.4);
-            const scrollBefore = preview.scrollTop;
 
             // Collect all data-line blocks inside the article.
             const blocks = Array.from(
@@ -137,23 +136,23 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
             // the headless-Chrome viewport height varies across CI environments and
             // the preview pane height is not fixed, making percentage-based picks
             // unreliable.  Instead, we find the block nearest the preview-pane top.
+            // The FIRST block fully below the pane's top edge.
             let target = null;
-            let bestDist = Infinity;
             for (const b of blocks) {
                 const r = b.getBoundingClientRect();
-                // Must be at least partially inside the preview pane.
-                if (r.bottom <= previewRect.top || r.top >= previewRect.bottom) continue;
-                if (r.height <= 0) continue;
-                // Prefer the block whose top is closest to previewRect.top (i.e. earliest
-                // visible line).  Use absolute distance so a block starting just above the
-                // pane top (scrolled a little past its edge) is still eligible.
-                const dist = Math.abs(r.top - previewRect.top);
-                if (dist < bestDist) {
-                    bestDist = dist;
-                    target = b;
-                }
+                if (r.height > 0 && r.top >= previewRect.top) { target = b; break; }
             }
-            if (!target) return {found: false, reason: 'no visible block near preview top'};
+            if (!target) return {found: false, reason: 'no block below the preview top edge'};
+
+            // Nudge the preview (still ~40%) so the target sits just inside the pane's top
+            // edge. Only a thin slice of the pane is inside a short browser window, and
+            // WebDriver scrolls an element whose click point is hidden into view before
+            // clicking it; that harness scroll moves the preview's own scrollTop and is
+            // indistinguishable from an app-caused scroll echo. Which block fell in the
+            // visible slice used to be a coincidence of preview width/wrapping, so the
+            // position is now made deterministic instead.
+            preview.scrollTop += target.getBoundingClientRect().top - (previewRect.top + 12);
+            const scrollBefore = preview.scrollTop;
 
             const blockTop = target.getBoundingClientRect().top;
             const dataLine = parseInt(target.getAttribute('data-line'), 10);

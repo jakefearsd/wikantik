@@ -114,7 +114,6 @@ Full descriptions (truncated above to keep the table scannable):
 | `wikantik.pageNameComparator.class` | `class` | *(blank: Java's natural String ordering (the default described above).)* | `wikantik_pageNameComparator_class` | How to order pages in various lists and plugins. … |
 | `wikantik.fileSystemProvider.pageDir` | `path` | *(blank: a "wikantik-files" directory in the user's home folder.)* | `wikantik_fileSystemProvider_pageDir` | Determines where wiki files are kept for FileSystemProvider i.e.: If you're using Windows, then you must duplicate the backslashes. … |
 | `wikantik.versioningFileProvider.cacheSize` | `int` | `100` | `wikantik_versioningFileProvider_cacheSize` | Number of page.properties entries VersioningFileProvider keeps in memory. Set to 0 for single-entry, -1 for no caching. |
-| `wikantik.lockExpiryTime` | `int` | `60` | `wikantik_lockExpiryTime` | Set this to the number of minutes a person can "lock" a page for while he is editing it. |
 | `wikantik.systemPages.extraPatterns` | `list` | *(blank: no additional system-page patterns.)* | `wikantik_systemPages_extraPatterns` | Comma-separated regular expressions naming additional system/template pages, beyond the built-in template-directory discovery. |
 | `wikantik.systemPages.mcpEditable` | `list` | `About` | `wikantik_systemPages_mcpEditable` | Comma-separated, exact system-page names that remain editable via the MCP update_page tool despite being system pages. |
 

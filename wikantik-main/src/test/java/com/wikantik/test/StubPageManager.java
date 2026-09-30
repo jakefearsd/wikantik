@@ -23,7 +23,6 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
-import com.wikantik.api.pages.PageLock;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.api.managers.PageManager;
@@ -50,11 +49,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class StubPageManager implements PageManager {
 
-    private static final long LOCK_DURATION_MINUTES = 60;
-
     private final Map< String, String > pageTexts = new ConcurrentHashMap<>();
     private final Map< String, StubPage > pageInfos = new ConcurrentHashMap<>();
-    private final Map< String, PageLock > locks = new ConcurrentHashMap<>();
 
     /**
      * Convenience method for tests: save a page with content.
@@ -94,36 +90,6 @@ public class StubPageManager implements PageManager {
         pageTexts.put( page.getName(), content );
         pageInfos.computeIfAbsent( page.getName(), k -> new StubPage( page.getName() ) );
     }
-
-    @Override
-    public PageLock lockPage( final Page page, final String user ) {
-        final PageLock existing = locks.get( page.getName() );
-        if ( existing != null && !existing.isExpired() && !existing.getLocker().equals( user ) ) {
-            return null;
-        }
-        final Date now = new Date();
-        final Date expiry = new Date( now.getTime() + LOCK_DURATION_MINUTES * 60 * 1000 );
-        final PageLock lock = new PageLock( page, user, now, expiry );
-        locks.put( page.getName(), lock );
-        return lock;
-    }
-
-    @Override
-    public void unlockPage( final PageLock lock ) {
-        locks.remove( lock.getPage() );
-    }
-
-    @Override
-    public PageLock getCurrentLock( final Page page ) {
-        final PageLock lock = locks.get( page.getName() );
-        if ( lock != null && lock.isExpired() ) {
-            locks.remove( page.getName() );
-            return null;
-        }
-        return lock;
-    }
-
-    @Override public List< PageLock > getActiveLocks() { return new ArrayList<>( locks.values() ); }
 
     @Override
     public Page getPage( final String pagereq ) {

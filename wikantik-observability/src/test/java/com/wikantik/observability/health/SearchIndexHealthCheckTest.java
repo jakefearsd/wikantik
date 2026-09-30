@@ -72,7 +72,7 @@ class SearchIndexHealthCheckTest {
         // a PageProvider with a null PageManager is a pre-built typed snapshot — mirroring a
         // caller that registered PageProvider directly, bypassing PageManager entirely.
         when( engine.getPageSubsystem() ).thenReturn( new com.wikantik.page.subsystem.PageSubsystem.Services(
-            null, null, null, null, pageProvider, null, null, null, null ) );
+            null, null, null, null, pageProvider, null, null, null ) );
 
         final SearchIndexHealthCheck check = new SearchIndexHealthCheck( engine );
         final HealthResult result = check.check();

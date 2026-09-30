@@ -98,7 +98,7 @@ class ExportServiceTest {
         // pageGraph().structuralIndexService()/referenceManager()) via the existing test factory,
         // rather than re-deriving RestServletBase.getSubsystems()'s full bridge-assembly line.
         subs = WikiSubsystemsTestFactory.builder()
-                .page( new PageSubsystem.Services( pageManager, attachmentManager, null, null, null, null, null, null, referenceManager ) )
+                .page( new PageSubsystem.Services( pageManager, attachmentManager, null, null, null, null, null, referenceManager ) )
                 .pageGraph( new PageGraphSubsystem.Services( structuralIndex, null, referenceManager, null, null, null, null, null, null ) )
                 .build();
 

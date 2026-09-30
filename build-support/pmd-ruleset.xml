@@ -42,7 +42,7 @@
              `ps.setString(idx++, ...)`, and `while ((n = in.read(buf)) > 0)` patterns
              used throughout the tree. ~47 sites, almost all legitimate. -->
         <exclude name="AssignmentInOperand"/>
-        <!-- Legacy java.util.Date is baked into public APIs (UserProfile, PageLock,
+        <!-- Legacy java.util.Date is baked into public APIs (UserProfile,
              ArticleSummary) and JDBC column types. A full migration to java.time is
              a separate API-breaking project, not a cleanup sweep — ~128 sites across
              50 files. Suppress until scheduled. -->

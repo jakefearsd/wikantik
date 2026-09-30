@@ -28,7 +28,6 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.pages.PageLock;
 import com.wikantik.api.pages.PageSorter;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.event.WikiEvent;
@@ -66,10 +65,6 @@ final class FailingPureTextPageManager implements PageManager {
     @Override public String getText( final String page, final int version ) { return delegate.getText( page, version ); }
     @Override public void saveText( final Context context, final String text ) throws WikiException { delegate.saveText( context, text ); }
     @Override public void putPageText( final Page page, final String content ) throws ProviderException { delegate.putPageText( page, content ); }
-    @Override public PageLock lockPage( final Page page, final String user ) { return delegate.lockPage( page, user ); }
-    @Override public void unlockPage( final PageLock lock ) { delegate.unlockPage( lock ); }
-    @Override public PageLock getCurrentLock( final Page page ) { return delegate.getCurrentLock( page ); }
-    @Override public List< PageLock > getActiveLocks() { return delegate.getActiveLocks(); }
     @Override public Page getPage( final String pagereq ) { return delegate.getPage( pagereq ); }
     @Override public Page getPage( final String pagereq, final int version ) { return delegate.getPage( pagereq, version ); }
     @Override public Page getPageInfo( final String pageName, final int version ) throws ProviderException {

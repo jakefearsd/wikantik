@@ -30,7 +30,6 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.api.pages.PageLock;
 import com.wikantik.api.pages.PageSorter;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
@@ -40,13 +39,10 @@ import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.event.WikiSecurityEvent;
 import com.wikantik.page.subsystem.lifecycle.DefaultPageLifecycle;
-import com.wikantik.page.subsystem.lifecycle.DefaultPageLockService;
 import com.wikantik.page.subsystem.lifecycle.DefaultPageRepository;
 import com.wikantik.page.subsystem.lifecycle.PageLifecycle;
-import com.wikantik.page.subsystem.lifecycle.PageLockService;
 import com.wikantik.page.subsystem.lifecycle.PageRepository;
 import com.wikantik.ui.CommandResolver;
-import com.wikantik.util.TextUtil;
 
 import java.security.Permission;
 import java.security.Principal;
@@ -62,8 +58,8 @@ import java.util.Set;
 
 /**
  * Manages the WikiPages. This class functions as a thin façade that delegates to three
- * internal helpers: {@link PageRepository} (storage access), {@link PageLifecycle}
- * (save orchestration), and {@link PageLockService} (lock state).
+ * internal helpers: {@link PageRepository} (storage access) and {@link PageLifecycle}
+ * (save orchestration).
  *
  * <p>Phase 5 Checkpoint 3 of the wikantik-main subsystem decomposition extracted
  * all implementation logic into those helpers; this class retains only wiring,
@@ -78,7 +74,6 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
     private final Engine         engine;
     private final PageRepository repository;
     private final PageLifecycle  lifecycle;
-    private final PageLockService lockService;
 
     // pageSorter is initialized here so the test-seam ctor can skip props parsing
     // and the production ctor can call pageSorter.initialize(props) before building helpers.
@@ -112,12 +107,10 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
                                final PageProvider pageProvider ) throws NoSuchElementException {
         this.engine = newEngine;
         final CommandResolver commandResolver = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( newEngine ).commandResolver();
-        final int expiryTime = TextUtil.parseIntParameter( props.getProperty( PROP_LOCKEXPIRY ), 60 );
         pageSorter.initialize( props );
 
         this.repository  = new DefaultPageRepository( newEngine, commandResolver, pageProvider, pageSorter, this );
         this.lifecycle   = new DefaultPageLifecycle( newEngine, repository );
-        this.lockService = new DefaultPageLockService( newEngine, expiryTime, this );
     }
 
     /**
@@ -127,16 +120,13 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
      * @param newEngine         Engine instance (may be a mock)
      * @param commandResolver   Phase 1 CommandResolver (may be a mock)
      * @param pageProvider      Pre-built PageProvider (may be a mock)
-     * @param lockExpiryMinutes Lock expiry time in minutes
      */
     DefaultPageManager( final Engine newEngine,
                         final CommandResolver commandResolver,
-                        final PageProvider pageProvider,
-                        final int lockExpiryMinutes ) {
+                        final PageProvider pageProvider ) {
         this.engine      = newEngine;
         this.repository  = new DefaultPageRepository( newEngine, commandResolver, pageProvider, pageSorter, this );
         this.lifecycle   = new DefaultPageLifecycle( newEngine, repository );
-        this.lockService = new DefaultPageLockService( newEngine, lockExpiryMinutes, this );
     }
 
     // -------------------------------------------------------------------------
@@ -148,9 +138,6 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
 
     /** Returns the internal {@link PageLifecycle}. */
     public PageLifecycle getLifecycle() { return lifecycle; }
-
-    /** Returns the internal {@link PageLockService}. */
-    public PageLockService getLockService() { return lockService; }
 
     // -------------------------------------------------------------------------
     // Engine accessor (kept for subclass use and internal ACL listener)
@@ -190,11 +177,6 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
     @Override public PageSorter getPageSorter()                                                  { return repository.getPageSorter(); }
 
     @Override public void saveText( final Context c, final String t ) throws WikiException       { lifecycle.saveText( c, t ); }
-
-    @Override public PageLock lockPage( final Page p, final String u )                           { return lockService.lockPage( p, u ); }
-    @Override public void unlockPage( final PageLock l )                                         { lockService.unlockPage( l ); }
-    @Override public PageLock getCurrentLock( final Page p )                                     { return lockService.getCurrentLock( p ); }
-    @Override public List<PageLock> getActiveLocks()                                             { return lockService.getActiveLocks(); }
 
     // -------------------------------------------------------------------------
     // Event helper (retained for subclass / listener registration on *this*)

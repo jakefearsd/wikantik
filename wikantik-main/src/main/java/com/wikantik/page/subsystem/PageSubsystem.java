@@ -28,7 +28,6 @@ import com.wikantik.auth.subsystem.AuthSubsystem;
 import com.wikantik.content.PageRenamer;
 import com.wikantik.core.subsystem.CoreSubsystem;
 import com.wikantik.page.subsystem.lifecycle.PageLifecycle;
-import com.wikantik.page.subsystem.lifecycle.PageLockService;
 import com.wikantik.page.subsystem.lifecycle.PageRepository;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 
@@ -45,7 +44,7 @@ import com.wikantik.persistence.subsystem.PersistenceSubsystem;
  * {@link PageProvider}) without changing how they are constructed. Ckpt 2
  * lifts {@link PageProvider} chain construction into
  * {@link PageSubsystemFactory}; Ckpt 3 decomposes {@code DefaultPageManager}
- * into {@code PageRepository} / {@code PageLifecycle} / {@code PageLockService}
+ * into {@code PageRepository} / {@code PageLifecycle}
  * helpers and adds them as additional {@link Services} fields.</p>
  */
 public final class PageSubsystem {
@@ -81,7 +80,7 @@ public final class PageSubsystem {
      * that the large page-scan it performs does not block engine startup.</p>
      *
      * <p>Phase 5 Ckpt 3 will extend this record with the decomposed
-     * {@code PageRepository}, {@code PageLifecycle}, and {@code PageLockService}
+     * {@code PageRepository} and {@code PageLifecycle}
      * helpers.</p>
      */
     public record Services(
@@ -92,7 +91,6 @@ public final class PageSubsystem {
         PageProvider      pageProvider,
         PageRepository    pageRepository,
         PageLifecycle     pageLifecycle,
-        PageLockService   pageLockService,
         ReferenceManager  referenceManager
     ) {}
 }

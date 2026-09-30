@@ -58,7 +58,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -103,8 +102,7 @@ class DefaultPageManagerCITest {
                 .with( CommandResolver.class, commandResolver )
                 .build();
 
-        // Default lock expiry: 60 minutes
-        mgr = new DefaultPageManager( engine, commandResolver, pageProvider, 60 );
+        mgr = new DefaultPageManager( engine, commandResolver, pageProvider );
     }
 
     // --- Helper to create a mock Page ---
@@ -114,125 +112,6 @@ class DefaultPageManagerCITest {
         when( page.getName() ).thenReturn( name );
         when( page.getVersion() ).thenReturn( PageProvider.LATEST_VERSION );
         return page;
-    }
-
-    // ==================== Locking ====================
-
-    @Test
-    void lockPageReturnsLockOnFirstCall() {
-        final Page page = mockPage( "LockTest" );
-        final var lock = mgr.lockPage( page, "alice" );
-        assertNotNull( lock, "First lock should succeed" );
-        assertEquals( "LockTest", lock.getPage() );
-        assertEquals( "alice", lock.getLocker() );
-    }
-
-    @Test
-    void lockPageReturnsNullWhenAlreadyLocked() {
-        final Page page = mockPage( "LockTest" );
-        final var first = mgr.lockPage( page, "alice" );
-        assertNotNull( first );
-
-        final var second = mgr.lockPage( page, "bob" );
-        assertNull( second, "Second lock on same page should return null" );
-    }
-
-    @Test
-    void unlockPageRemovesLock() {
-        final Page page = mockPage( "LockTest" );
-        final var lock = mgr.lockPage( page, "alice" );
-        assertNotNull( lock );
-
-        mgr.unlockPage( lock );
-        assertNull( mgr.getCurrentLock( page ), "Lock should be removed after unlock" );
-    }
-
-    @Test
-    void unlockPageWithNullIsNoOp() {
-        // Should not throw
-        mgr.unlockPage( null );
-    }
-
-    @Test
-    void getCurrentLockReturnsNullWhenNoLock() {
-        final Page page = mockPage( "NoLock" );
-        assertNull( mgr.getCurrentLock( page ) );
-    }
-
-    @Test
-    void getCurrentLockReturnsActiveLock() {
-        final Page page = mockPage( "LockTest" );
-        final var lock = mgr.lockPage( page, "alice" );
-        assertNotNull( lock );
-
-        final var current = mgr.getCurrentLock( page );
-        assertNotNull( current );
-        assertEquals( "alice", current.getLocker() );
-    }
-
-    @Test
-    void getActiveLocksReturnsEmptyWhenNoLocks() {
-        assertTrue( mgr.getActiveLocks().isEmpty() );
-    }
-
-    @Test
-    void getActiveLocksReturnsAllLocks() {
-        final Page p1 = mockPage( "Page1" );
-        final Page p2 = mockPage( "Page2" );
-        mgr.lockPage( p1, "alice" );
-        mgr.lockPage( p2, "bob" );
-
-        final List< com.wikantik.api.pages.PageLock > locks = mgr.getActiveLocks();
-        assertEquals( 2, locks.size() );
-    }
-
-    @Test
-    void lockPageFiresLockEvent() {
-        final Page page = mockPage( "EventTest" );
-        final AtomicReference< WikiEvent > captured = new AtomicReference<>();
-        // WikiEventManager holds listeners weakly — a bare captured::set has no
-        // strong referent and can be GC'd before the event fires.
-        final WikiEventListener listener = captured::set;
-        WikiEventManager.addWikiEventListener( mgr, listener );
-
-        mgr.lockPage( page, "alice" );
-
-        assertNotNull( captured.get() );
-        assertInstanceOf( WikiPageEvent.class, captured.get() );
-        assertEquals( WikiPageEvent.PAGE_LOCK, captured.get().getType() );
-
-        WikiEventManager.removeWikiEventListener( mgr, listener );
-    }
-
-    @Test
-    void unlockPageFiresUnlockEvent() {
-        final Page page = mockPage( "EventTest" );
-        final var lock = mgr.lockPage( page, "alice" );
-
-        final AtomicReference< WikiEvent > captured = new AtomicReference<>();
-        // Same weak-listener anchoring as lockPageFiresLockEvent.
-        final WikiEventListener listener = captured::set;
-        WikiEventManager.addWikiEventListener( mgr, listener );
-
-        mgr.unlockPage( lock );
-
-        assertNotNull( captured.get() );
-        assertInstanceOf( WikiPageEvent.class, captured.get() );
-        assertEquals( WikiPageEvent.PAGE_UNLOCK, captured.get().getType() );
-
-        WikiEventManager.removeWikiEventListener( mgr, listener );
-    }
-
-    @Test
-    void lockAfterUnlockSucceeds() {
-        final Page page = mockPage( "ReLock" );
-        final var lock1 = mgr.lockPage( page, "alice" );
-        assertNotNull( lock1 );
-        mgr.unlockPage( lock1 );
-
-        final var lock2 = mgr.lockPage( page, "bob" );
-        assertNotNull( lock2, "Should be able to lock after unlock" );
-        assertEquals( "bob", lock2.getLocker() );
     }
 
     // ==================== getPageText ====================

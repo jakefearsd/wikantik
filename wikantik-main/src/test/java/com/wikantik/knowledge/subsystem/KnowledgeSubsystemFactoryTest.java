@@ -93,7 +93,7 @@ class KnowledgeSubsystemFactoryTest {
         return new com.wikantik.page.subsystem.PageSubsystem.Services(
             pageManager, /*attachments=*/ null, /*renamer=*/ null,
             pageSaveHelper, /*provider=*/ null,
-            /*repository=*/ null, /*lifecycle=*/ null, /*lockService=*/ null,
+            /*repository=*/ null, /*lifecycle=*/ null,
             /*referenceManager=*/ null );
     }
 

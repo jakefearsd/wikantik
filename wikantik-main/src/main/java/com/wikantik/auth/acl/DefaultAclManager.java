@@ -41,7 +41,6 @@ import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.permissions.PermissionFactory;
-import com.wikantik.api.pages.PageLock;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.util.comparators.PrincipalComparator;
@@ -303,12 +302,6 @@ public class DefaultAclManager implements AclManager {
     @Override
     public void setPermissions( final Page page, final Acl acl ) throws WikiSecurityException {
         final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
-
-        // Forcibly expire any page locks
-        final PageLock lock = pageManager.getCurrentLock( page );
-        if( lock != null ) {
-            pageManager.unlockPage( lock );
-        }
 
         // Remove all of the existing ACLs.
         final String pageText = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page );

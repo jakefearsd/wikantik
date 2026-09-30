@@ -22,7 +22,6 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
-import com.wikantik.api.pages.PageLock;
 import com.wikantik.api.pages.PageSorter;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.event.WikiEventListener;
@@ -37,8 +36,6 @@ public interface PageManager extends WikiEventListener {
 
     /** The property value for setting the current page provider.  Value is {@value}. */
     String PROP_PAGEPROVIDER = "wikantik.pageProvider";
-    /** The property value for setting the amount of time before the page locks expire. Value is {@value}. */
-    String PROP_LOCKEXPIRY = "wikantik.lockExpiryTime";
 
     /**
      * Returns the page provider currently in use.
@@ -158,40 +155,6 @@ public interface PageManager extends WikiEventListener {
      * @throws ProviderException If something goes wrong in the saving phase
      */
     void putPageText( Page page, String content ) throws ProviderException;
-
-    /**
-     * Locks page for editing.  Note, however, that the PageManager will in no way prevent you from actually editing this page;
-     * the lock is just for information.
-     *
-     * @param page WikiPage to lock
-     * @param user Username to use for locking
-     * @return null, if page could not be locked.
-     */
-    PageLock lockPage( Page page, String user );
-
-    /**
-     * Marks a page free to be written again.  If there has not been a lock, will fail quietly.
-     *
-     * @param lock A lock acquired in lockPage().  Safe to be null.
-     */
-    void unlockPage( PageLock lock );
-
-    /**
-     * Returns the current lock owner of a page.  If the page is not locked, will return null.
-     *
-     * @param page The page to check the lock for
-     * @return Current lock, or null, if there is no lock
-     */
-    PageLock getCurrentLock( Page page );
-
-    /**
-     * Returns a list of currently applicable locks.  Note that by the time you get the list,
-     * the locks may have already expired, so use this only for informational purposes.
-     *
-     * @return List of PageLock objects, detailing the locks.  If no locks exist, returns an empty list.
-     * @since 2.0.22.
-     */
-    List< PageLock > getActiveLocks();
 
     /**
      *  Finds the corresponding WikiPage object based on the page name.  It always finds

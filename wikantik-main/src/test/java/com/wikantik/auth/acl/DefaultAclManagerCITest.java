@@ -24,7 +24,6 @@ import com.wikantik.api.core.AclEntry;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
-import com.wikantik.api.pages.PageLock;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.WikiPrincipal;
@@ -306,16 +305,15 @@ class DefaultAclManagerCITest {
     }
 
     // -------------------------------------------------------------------------
-    //  setPermissions — no existing lock
+    //  setPermissions — writes new ACL text
     // -------------------------------------------------------------------------
 
     @Test
-    void setPermissionsWritesNewAclTextWhenNoLockExists() throws Exception {
+    void setPermissionsWritesNewAclText() throws Exception {
         final Page page = mock( Page.class );
         when( page.getName() ).thenReturn( "LocklessPage" );
         when( page.getWiki() ).thenReturn( "" );
 
-        when( pageMgr.getCurrentLock( page ) ).thenReturn( null );
         // Stub both forms of getPureText so the default method works too
         when( pageMgr.getPureText( eq( "LocklessPage" ), anyInt() ) )
                 .thenReturn( "Some content without any ACL rules." );
@@ -337,17 +335,15 @@ class DefaultAclManagerCITest {
     }
 
     // -------------------------------------------------------------------------
-    //  setPermissions — existing lock is released before writing
+    //  setPermissions — strips the old ACL tag before writing
     // -------------------------------------------------------------------------
 
     @Test
-    void setPermissionsUnlocksPageBeforeWriting() throws Exception {
+    void setPermissionsReplacesOldAclTag() throws Exception {
         final Page page = mock( Page.class );
         when( page.getName() ).thenReturn( "LockedPage" );
         when( page.getWiki() ).thenReturn( "" );
 
-        final PageLock lock = mock( PageLock.class );
-        when( pageMgr.getCurrentLock( page ) ).thenReturn( lock );
         when( pageMgr.getPureText( eq( "LockedPage" ), anyInt() ) )
                 .thenReturn( "Content. [{ALLOW view OldUser}]" );
         when( pageMgr.getPureText( any( Page.class ) ) )
@@ -362,8 +358,6 @@ class DefaultAclManagerCITest {
 
         aclMgr.setPermissions( page, acl );
 
-        // The lock should have been released
-        verify( pageMgr ).unlockPage( lock );
         // And the page should have been saved with the old ACL tag stripped
         final ArgumentCaptor<String> textCaptor = ArgumentCaptor.forClass( String.class );
         verify( pageMgr ).putPageText( eq( page ), textCaptor.capture() );

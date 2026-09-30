@@ -23,7 +23,6 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.pages.PageLock;
 import com.wikantik.api.pages.PageSorter;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.event.WikiEvent;
@@ -78,10 +77,6 @@ public class FakePageManager implements PageManager {
     @Override public String getText( String page, int version ) { throw new UnsupportedOperationException(); }
     @Override public void saveText( Context context, String text ) throws WikiException { throw new UnsupportedOperationException(); }
     @Override public void putPageText( Page page, String content ) throws ProviderException { throw new UnsupportedOperationException(); }
-    @Override public PageLock lockPage( Page page, String user ) { throw new UnsupportedOperationException(); }
-    @Override public void unlockPage( PageLock lock ) { throw new UnsupportedOperationException(); }
-    @Override public PageLock getCurrentLock( Page page ) { throw new UnsupportedOperationException(); }
-    @Override public List< PageLock > getActiveLocks() { throw new UnsupportedOperationException(); }
     @Override public Page getPageInfo( String pageName, int version ) throws ProviderException { throw new UnsupportedOperationException(); }
     @Override public < T extends Page > List< T > getVersionHistory( String pageName ) { throw new UnsupportedOperationException(); }
     @Override public String getCurrentProvider() { throw new UnsupportedOperationException(); }

@@ -203,7 +203,7 @@ class SystemPageRegistryTest {
     void testInitializeWithNullPageManagerDoesNotThrow() {
         final WikiEngine mockEngine = mock( WikiEngine.class );
         when( mockEngine.getPageSubsystem() ).thenReturn(
-                new PageSubsystem.Services( null, null, null, null, null, null, null, null, null ) );
+                new PageSubsystem.Services( null, null, null, null, null, null, null, null ) );
 
         final DefaultSystemPageRegistry customRegistry = new DefaultSystemPageRegistry();
 
@@ -217,7 +217,7 @@ class SystemPageRegistryTest {
 
         final WikiEngine mockEngine = mock( WikiEngine.class );
         when( mockEngine.getPageSubsystem() ).thenReturn(
-                new PageSubsystem.Services( pageManager, null, null, null, null, null, null, null, null ) );
+                new PageSubsystem.Services( pageManager, null, null, null, null, null, null, null ) );
 
         final DefaultSystemPageRegistry customRegistry = new DefaultSystemPageRegistry();
 

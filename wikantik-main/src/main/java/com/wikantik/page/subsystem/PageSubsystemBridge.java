@@ -42,7 +42,7 @@ public final class PageSubsystemBridge {
         if ( !( engine instanceof com.wikantik.WikiEngine wikiEngine ) ) {
             // Non-WikiEngine callers cannot reach getManager — return a fully-null record.
             return new PageSubsystem.Services(
-                null, null, null, null, null, null, null, null, null );
+                null, null, null, null, null, null, null, null );
         }
         final PageSubsystem.Services typed = wikiEngine.getPageSubsystem();
         if ( typed != null ) return typed;

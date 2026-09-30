@@ -4,7 +4,7 @@ const UNSET = Symbol('unset');
 
 const ACTION_OPTIONS = {
   page: ['view', 'comment', 'edit', 'modify', 'upload', 'rename', 'delete'],
-  wiki: ['createPages', 'createGroups', 'editPreferences', 'editProfile', 'login'],
+  wiki: ['createPages', 'createGroups', 'editPreferences', 'editProfile', 'login', 'export'],
   group: ['view', 'edit'],
 };
 

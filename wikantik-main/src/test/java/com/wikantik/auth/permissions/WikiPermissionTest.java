@@ -178,4 +178,21 @@ public class WikiPermissionTest
       Assertions.assertEquals(24, WikiPermission.createMask("login,editProfile"));
     }
 
+    @Test
+    public void testExportMask()
+    {
+        Assertions.assertEquals( 32, WikiPermission.createMask( "export" ) );
+        Assertions.assertEquals( 34, WikiPermission.createMask( "createPages,export" ) );
+    }
+
+    @Test
+    public void testExportImplication()
+    {
+        final WikiPermission authed = new WikiPermission( "*", "createPages,createGroups,export" );
+        Assertions.assertTrue( authed.implies( WikiPermission.EXPORT ) );
+        final WikiPermission noExport = new WikiPermission( "*", "createPages,createGroups" );
+        Assertions.assertFalse( noExport.implies( WikiPermission.EXPORT ) );
+        Assertions.assertEquals( "export", WikiPermission.EXPORT.getActions() );
+    }
+
 }

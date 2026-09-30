@@ -92,7 +92,7 @@ grant principal com.wikantik.auth.authorize.Role "Authenticated" {
     permission com.wikantik.auth.permissions.PagePermission "*:*", "modify,rename";
     permission com.wikantik.auth.permissions.GroupPermission "*:*", "view";
     permission com.wikantik.auth.permissions.GroupPermission "*:<groupmember>", "edit";
-    permission com.wikantik.auth.permissions.WikiPermission "*", "createPages,createGroups";
+    permission com.wikantik.auth.permissions.WikiPermission "*", "createPages,createGroups,export";
 };
 
 

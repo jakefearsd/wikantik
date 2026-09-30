@@ -74,7 +74,7 @@ VALUES ('role', 'Asserted', 'group', '*', 'view') ON CONFLICT DO NOTHING;
 INSERT INTO policy_grants (principal_type, principal_name, permission_type, target, actions)
 VALUES ('role', 'Authenticated', 'page', '*', 'modify,rename') ON CONFLICT DO NOTHING;
 INSERT INTO policy_grants (principal_type, principal_name, permission_type, target, actions)
-VALUES ('role', 'Authenticated', 'wiki', '*', 'createPages,createGroups') ON CONFLICT DO NOTHING;
+VALUES ('role', 'Authenticated', 'wiki', '*', 'createPages,createGroups,export') ON CONFLICT DO NOTHING;
 INSERT INTO policy_grants (principal_type, principal_name, permission_type, target, actions)
 VALUES ('role', 'Authenticated', 'group', '*', 'view') ON CONFLICT DO NOTHING;
 INSERT INTO policy_grants (principal_type, principal_name, permission_type, target, actions)

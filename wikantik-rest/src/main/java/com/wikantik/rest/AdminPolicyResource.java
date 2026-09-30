@@ -63,7 +63,7 @@ public class AdminPolicyResource extends RestServletBase {
 
     /** Valid wiki permission actions. */
     private static final Set< String > WIKI_ACTIONS = Set.of(
-            "createPages", "createGroups", "editPreferences", "editProfile", "login" );
+            "createPages", "createGroups", "editPreferences", "editProfile", "login", "export" );
 
     /** Valid group permission actions. */
     private static final Set< String > GROUP_ACTIONS = Set.of( "view", "edit" );

@@ -145,7 +145,7 @@ final class PolicyRoleTable {
      *  single {@code AllPermission} row.
      */
     private void appendWikiAndAllPermissionRows( final StringBuilder table, final Principal[] roles, final String wiki, final int pageActionsLength ) {
-        final String[] wikiPerms = { "createGroups", "createPages", "login", "editPreferences", "editProfile" };
+        final String[] wikiPerms = { "createGroups", "createPages", "login", "editPreferences", "editProfile", "export" };
         for( final String wikiPerm : wikiPerms ) {
             table.append( "  <tr>\n" );
             table.append( "    <td>WikiPermission \"" ).append( wiki ).append( "\",\"" ).append( wikiPerm ).append( "\"</td>\n" );

@@ -28,7 +28,7 @@ import java.util.Locale;
  * <p> Permission to perform an global wiki operation, such as self-registering
  * or creating new pages. Permission actions include: <code>createGroups</code>,
  * <code>createPages</code>, <code>editPreferences</code>,
- * <code>editProfile</code> and <code>login</code>. </p> <p>The target is
+ * <code>editProfile</code>, <code>login</code> and <code>export</code>. </p> <p>The target is
  * a given wiki. The syntax for the target is the wiki name. "All wikis" can be
  * specified using a wildcard (*). Page collections may also be specified using
  * a wildcard. For pages, the wildcard may be a prefix, suffix, or all by
@@ -55,6 +55,9 @@ public final class WikiPermission extends Permission implements Serializable
     /** Name of the action for editProfile permission. */
     public static final String         EDIT_PROFILE_ACTION     = "editProfile";
 
+    /** Action for bulk-exporting content the caller can view (Obsidian vault zip). */
+    public static final String         EXPORT_ACTION           = "export";
+
     /** Value for a generic wildcard. */
     public static final String         WILDCARD                = "*";
 
@@ -67,6 +70,8 @@ public final class WikiPermission extends Permission implements Serializable
     static final int         EDIT_PROFILE_MASK       = 0x8;
 
     static final int         LOGIN_MASK              = 0x10;
+
+    static final int         EXPORT_MASK             = 0x20;
 
     /** A static instance of the createGroups permission. */
     public static final WikiPermission CREATE_GROUPS           = new WikiPermission( WILDCARD, CREATE_GROUPS_ACTION );
@@ -82,6 +87,9 @@ public final class WikiPermission extends Permission implements Serializable
 
     /** A static instance of the editProfile permission. */
     public static final WikiPermission EDIT_PROFILE            = new WikiPermission( WILDCARD, EDIT_PROFILE_ACTION );
+
+    /** A static instance of the export permission. */
+    public static final WikiPermission EXPORT                  = new WikiPermission( WILDCARD, EXPORT_ACTION );
 
     private final String               actionString;
 
@@ -133,7 +141,7 @@ public final class WikiPermission extends Permission implements Serializable
 
     /**
      * Returns the actions for this permission: "createGroups", "createPages",
-     * "editPreferences", "editProfile", or "login". The actions
+     * "editPreferences", "editProfile", "login", or "export". The actions
      * will always be sorted in alphabetic order, and will always appear in
      * lower case.
      * @return the actions
@@ -256,6 +264,8 @@ public final class WikiPermission extends Permission implements Serializable
                 mask |= EDIT_PREFERENCES_MASK;
             } else if (EDIT_PROFILE_ACTION.equalsIgnoreCase(action)) {
                 mask |= EDIT_PROFILE_MASK;
+            } else if (EXPORT_ACTION.equalsIgnoreCase(action)) {
+                mask |= EXPORT_MASK;
             } else {
                 throw new IllegalArgumentException("Unrecognized action: " + action);
             }

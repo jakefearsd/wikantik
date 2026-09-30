@@ -9,18 +9,20 @@ import { api } from '../api/client';
  * (the editor rail) it shows Loading / the empty text / "Backlinks unavailable". Failures are logged.
  */
 export default function BacklinksPanel({ pageName, emptyText }) {
-  const [backlinks, setBacklinks] = useState([]);
-  const [status, setStatus] = useState('loading'); // loading | ready | failed
+  // The result is keyed by page so a page change reads as loading without a setState in the effect.
+  const [result, setResult] = useState({ page: null, backlinks: [], failed: false });
+  const current = result.page === pageName;
+  const backlinks = current ? result.backlinks : [];
+  const status = !current ? 'loading' : result.failed ? 'failed' : 'ready';
 
   useEffect(() => {
     if (!pageName) return;
     let cancelled = false;
-    setStatus('loading');
     api.getBacklinks(pageName)
-      .then(data => { if (!cancelled) { setBacklinks(data.backlinks || []); setStatus('ready'); } })
+      .then(data => { if (!cancelled) setResult({ page: pageName, backlinks: data.backlinks || [], failed: false }); })
       .catch(err => {
         console.warn('[backlinks] could not load backlinks for', pageName, err?.message || err);
-        if (!cancelled) setStatus('failed');
+        if (!cancelled) setResult({ page: pageName, backlinks: [], failed: true });
       });
     return () => { cancelled = true; };
   }, [pageName]);

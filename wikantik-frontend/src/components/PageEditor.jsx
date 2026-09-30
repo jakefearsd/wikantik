@@ -273,9 +273,12 @@ export default function PageEditor() {
 
   // Captured once per page: the route state is cleared after it is applied, so Back / reload to
   // /edit/P does not re-apply the restore (and clearing it must not re-trigger the load effect).
-  const restoreRef = useRef({ name, version: location.state?.restoreVersion });
-  if (restoreRef.current.name !== name) restoreRef.current = { name, version: location.state?.restoreVersion };
-  const restoreVersion = restoreRef.current.version;
+  const [restoreFor, setRestoreFor] = useState({ name, version: location.state?.restoreVersion });
+  let restoreVersion = restoreFor.version;
+  if (restoreFor.name !== name) {
+    restoreVersion = location.state?.restoreVersion;
+    setRestoreFor({ name, version: restoreVersion });
+  }
   const pathname = location.pathname;
 
   useEffect(() => {

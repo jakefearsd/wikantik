@@ -76,12 +76,14 @@ export default defineConfig({
       output: {
         codeSplitting: {
           groups: [
-            { name: 'codemirror', test: /[\\/]node_modules[\\/](@codemirror|@uiw[\\/]react-codemirror|@lezer|crelt|style-mod|w3c-keyname)[\\/]/, priority: 30 },
+            { name: 'codemirror', test: /[\\/]node_modules[\\/](@codemirror[\\/](?!language-data|legacy-modes|lang-(?!markdown))|@uiw[\\/]react-codemirror|@lezer[\\/](common|highlight|lr|markdown)[\\/]|crelt|style-mod|w3c-keyname)/, priority: 30 },
             { name: 'cytoscape', test: /[\\/]node_modules[\\/](cytoscape|cytoscape-cose-bilkent|cose-base|layout-base|react-cytoscapejs)[\\/]/, priority: 30 },
             { name: 'lowlight', test: /[\\/]node_modules[\\/](lowlight|highlight\.js)[\\/]/, priority: 30 },
             { name: 'katex', test: /[\\/]node_modules[\\/]katex[\\/]/, priority: 20 },
             { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/, priority: 10 },
-            { name: 'vendor', test: /[\\/]node_modules[\\/]/, priority: 1 },
+            // Per-language grammars (@codemirror/language-data's dynamic imports, legacy-modes, lezer grammars) are
+            // excluded so Rolldown emits them as separate lazy chunks rather than folding them into this eager catch-all.
+            { name: 'vendor', test: /[\\/]node_modules[\\/](?!@codemirror[\\/](language-data|legacy-modes|lang-)|@lezer[\\/])/, priority: 1 },
           ],
         },
       },

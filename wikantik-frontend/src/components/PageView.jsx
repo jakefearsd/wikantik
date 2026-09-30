@@ -193,10 +193,10 @@ export default function PageView() {
     }
   }, [page]);
 
-  // Syntax highlighting for fenced code: the highlighter is only downloaded when the page has
-  // a language-tagged block. Same DOM-pass pattern as renderMath: idempotent, re-runs when
-  // the article HTML is re-injected. It only
-  // rewrites <code> children, never the <pre> wrapper the copy button lives in.
+  // Syntax highlighting for fenced code. The highlighter is only downloaded when the page has a
+  // language-tagged block. Same DOM-pass pattern as renderMath: idempotent, and it re-runs when
+  // the article HTML is re-injected. It only rewrites <code> children, never the <pre> wrapper
+  // that addCopyButtons decorates.
   const lowlight = useLowlight(!!page?.contentHtml && page.contentHtml.includes('class="language-'));
   useEffect(() => {
     highlightCodeBlocks(articleRef.current, lowlight);

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ReactMarkdown from 'react-markdown';
 import { createLowlight, common } from 'lowlight';
@@ -49,5 +49,29 @@ describe('highlightCodeBlocks (page view DOM pass)', () => {
   it('does nothing without a container or highlighter', () => {
     expect(() => highlightCodeBlocks(null, lowlight)).not.toThrow();
     expect(() => highlightCodeBlocks(document.createElement('div'), null)).not.toThrow();
+  });
+});
+
+describe('highlighter failures never break rendering', () => {
+  const boom = { registered: () => true, highlight: () => { throw new Error('grammar exploded'); } };
+  afterEach(() => vi.restoreAllMocks());
+
+  it('preview: a throwing grammar leaves the block unhighlighted and warns', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = renderToStaticMarkup(
+      <ReactMarkdown rehypePlugins={[[rehypeHighlightCode, { lowlight: boom }]]}>{'```js\nconst x = 1;\n```'}</ReactMarkdown>,
+    );
+    expect(out).toContain('const x = 1;');
+    expect(out).not.toContain('hljs');
+    expect(warn).toHaveBeenCalledWith('[highlight] failed to highlight js block', 'grammar exploded');
+  });
+
+  it('page view: a throwing grammar leaves the block intact and continues with the rest', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const root = document.createElement('div');
+    root.innerHTML = '<pre><code class="language-js">const x = 1;</code></pre>';
+    expect(() => highlightCodeBlocks(root, boom)).not.toThrow();
+    expect(root.querySelector('code').innerHTML).toBe('const x = 1;');
+    expect(warn).toHaveBeenCalledWith('[highlight] failed to highlight js block', 'grammar exploded');
   });
 });

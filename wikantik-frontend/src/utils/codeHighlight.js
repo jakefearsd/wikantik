@@ -32,7 +32,14 @@ export function rehypeHighlightCode({ lowlight } = {}) {
       if (node.tagName !== 'code' || !parent || parent.tagName !== 'pre') return;
       const lang = codeLanguage(node.properties?.className);
       if (!lang || !lowlight.registered(lang)) return;
-      node.children = lowlight.highlight(lang, hastText(node)).children;
+      let children;
+      try {
+        children = lowlight.highlight(lang, hastText(node)).children;
+      } catch (err) {
+        console.warn(`[highlight] failed to highlight ${lang} block`, err?.message || err);
+        return;
+      }
+      node.children = children;
       node.properties.className = [...toArray(node.properties.className), 'hljs'];
     });
   };
@@ -55,7 +62,13 @@ export function highlightCodeBlocks(container, lowlight) {
     if (code.dataset.highlighted) return;
     const lang = codeLanguage(code.className);
     if (!lang || !lowlight.registered(lang)) return;
-    const tree = lowlight.highlight(lang, code.textContent);
+    let tree;
+    try {
+      tree = lowlight.highlight(lang, code.textContent);
+    } catch (err) {
+      console.warn(`[highlight] failed to highlight ${lang} block`, err?.message || err);
+      return;
+    }
     code.replaceChildren(...tree.children.map((n) => hastToDom(n, code.ownerDocument)));
     code.classList.add('hljs');
     code.dataset.highlighted = '1';

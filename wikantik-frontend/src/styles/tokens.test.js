@@ -45,7 +45,7 @@ describe('globals.css custom properties', () => {
     const light = block(':root');
     const dark = block('[data-theme="dark"]');
     const selectors = ['.ui-select,\n.ui-combobox-field,\n.ui-taginput-field {', '.ui-taginput {', '.ui-combobox-list {',
-      '.fm-textarea {', '.fm-cluster {', '.fm-cluster-field {', '.btn-secondary {', '.mention-btn-ignore {', '.mention-btn-link {',
+      '.fm-textarea {', '.fm-cluster {', '.fm-cluster-field {', '.btn-secondary {', '.mention-btn-ignore,\n.draft-btn-discard {', '.mention-btn-link,\n.draft-btn-restore {', '.draft-btn-dismiss {',
       '.mention-line {'];
     for (const sel of selectors) {
       const start = css.indexOf(sel);
@@ -63,4 +63,17 @@ describe('globals.css custom properties', () => {
   it('never falls back to the undefined --surface token (it rendered white fields in dark mode)', () => {
     expect(css).not.toMatch(/var\(--surface\b/);
   });
+
+  // article.css and admin.css read globals' tokens; a fallback on an undeclared one (e.g. var(--surface, #fff))
+  // is what actually renders, in BOTH themes — that is how white panels ended up in dark mode.
+  for (const file of ['article.css', 'admin.css']) {
+    it(`${file} reads only tokens globals.css (or the file itself) declares`, () => {
+      const other = readFileSync(resolve(process.cwd(), `src/styles/${file}`), 'utf8');
+      const own = new Set([...other.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+      const undeclared = [...other.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1])
+        .filter((t) => !declared.has(t) && !own.has(t));
+      expect([...new Set(undeclared)].sort()).toEqual([]);
+      expect(other).not.toMatch(/var\(--surface\b/);
+    });
+  }
 });

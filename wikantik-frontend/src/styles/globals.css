@@ -1619,7 +1619,7 @@ a[data-attachment-missing] {
 .personal-draft-discard { color: var(--text-muted); padding: 0 var(--space-xs); }
 
 .draft-restore-banner {
-  display: flex; align-items: center; gap: var(--space-sm);
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--space-xs);
@@ -2703,16 +2703,33 @@ h3:focus-within .heading-anchor {
 }
 .mention-context-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mention-actions { display: flex; gap: 0.4rem; margin-top: 0.15rem; }
-.mention-btn {
+.draft-restore-text { flex: 1 1 14rem; min-width: 0; color: var(--text); }
+/* Small bordered buttons shared by the mention rail and the draft-restore banner. */
+.mention-btn,
+.draft-btn {
   display: inline-flex; align-items: center; min-height: 26px; padding: 0 0.7rem;
   border-radius: var(--radius-sm); font: inherit; font-size: 0.75rem; font-weight: 500; line-height: 1; cursor: pointer;
   transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease), color var(--duration) var(--ease);
 }
-.mention-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.mention-btn-link { border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--accent); }
-.mention-btn-link:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
-.mention-btn-ignore { border: 1px solid var(--control-border); background: transparent; color: var(--text-secondary); }
-.mention-btn-ignore:hover { border-color: var(--text-muted); background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text); }
+.mention-btn:focus-visible,
+.draft-btn:focus-visible,
+.draft-btn-dismiss:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.mention-btn-link,
+.draft-btn-restore { border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--accent); }
+.mention-btn-link:hover,
+.draft-btn-restore:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.mention-btn-ignore,
+.draft-btn-discard { border: 1px solid var(--control-border); background: transparent; color: var(--text-secondary); }
+.mention-btn-ignore:hover,
+.draft-btn-discard:hover { border-color: var(--text-muted); background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text); }
+/* Icon-only dismiss: a borderless 26px square that tints on hover. */
+.draft-btn-dismiss {
+  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;
+  border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted);
+  font-size: 1.1rem; line-height: 1; cursor: pointer;
+  transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.draft-btn-dismiss:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
 .editor-rail-badge {
   margin-left: 0.4rem; padding: 0 0.4rem; border-radius: 999px; font-size: 0.7rem;
   background: var(--bg-elevated); border: 1px solid var(--accent); color: var(--accent);

@@ -383,6 +383,25 @@ describe('#21 draft banner relative time and dismiss', () => {
     expect(mockClearDraft).not.toHaveBeenCalled();
   });
 
+  it('draft banner offers real small buttons: Restore, Discard and an icon dismiss', async () => {
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    useDraft.mockReturnValue({
+      draft: { content: '# Draft content (different)', savedAt: twoHoursAgo, title: 'TestPage' },
+      saveDraft: vi.fn(),
+      clearDraft: vi.fn(),
+    });
+
+    renderEditor();
+    await waitForEditor();
+    await screen.findByRole('status');
+
+    expect(screen.getByRole('button', { name: 'Restore' })).toHaveClass('draft-btn', 'draft-btn-restore');
+    expect(screen.getByRole('button', { name: 'Discard' })).toHaveClass('draft-btn', 'draft-btn-discard');
+    const dismiss = screen.getByRole('button', { name: 'Dismiss draft notice' });
+    expect(dismiss).toHaveClass('draft-btn-dismiss');
+    expect(dismiss).not.toHaveClass('btn-link');
+  });
+
   it('Discard button in banner calls clearDraft', async () => {
     const mockClearDraft = vi.fn();
     const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;

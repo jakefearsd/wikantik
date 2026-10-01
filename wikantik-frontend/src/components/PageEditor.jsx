@@ -854,21 +854,21 @@ export default function PageEditor() {
 
       {restorePrompt && (
         <div className="draft-restore-banner" role="status">
-          <span title={new Date(draft.savedAt).toLocaleString()}>
+          <span className="draft-restore-text" title={new Date(draft.savedAt).toLocaleString()}>
             You have unsaved changes from{' '}
             {formatRelative(draft.savedAt)}.
           </span>
-          <button type="button" className="btn-link" onClick={restoreDraft}>
+          <button type="button" className="draft-btn draft-btn-restore" onClick={restoreDraft}>
             Restore
           </button>
-          <button type="button" className="btn-link"
+          <button type="button" className="draft-btn draft-btn-discard"
             onClick={() => { clearDraft(); setRestorePrompt(false); }}>
             Discard
           </button>
-          <button type="button" className="btn-link"
+          <button type="button" className="draft-btn-dismiss"
             aria-label="Dismiss draft notice"
             onClick={() => setRestorePrompt(false)}>
-            ×
+            <span aria-hidden="true">×</span>
           </button>
         </div>
       )}

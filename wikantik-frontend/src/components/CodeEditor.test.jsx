@@ -338,3 +338,13 @@ describe('#19 CodeEditor jumpToLineAligned', () => {
     expect(() => ref.current.jumpToLineAligned(2, 0)).not.toThrow();
   });
 });
+
+describe('CodeEditor slashSource prop', () => {
+  it('accepts a slash completion source without error', () => {
+    const slashSource = vi.fn(() => null);
+    const { getByTestId } = render(
+      <CodeEditor data-testid="ce" value="x" onChange={() => {}} slashSource={slashSource} />,
+    );
+    expect(getByTestId('ce')).toBeInTheDocument();
+  });
+});

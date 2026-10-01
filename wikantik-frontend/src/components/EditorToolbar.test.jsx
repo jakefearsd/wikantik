@@ -4,9 +4,7 @@ import EditorToolbar from './EditorToolbar';
 
 describe('EditorToolbar', () => {
   it('renders all formatting buttons', () => {
-    render(<EditorToolbar onCommand={vi.fn()} />);
-
-    // Use title attributes — each button has a unique title
+    render(<EditorToolbar onRun={vi.fn()} />);
     expect(screen.getByTitle(/bold/i)).toBeInTheDocument();
     expect(screen.getByTitle(/italic/i)).toBeInTheDocument();
     expect(screen.getByTitle(/heading/i)).toBeInTheDocument();
@@ -18,9 +16,8 @@ describe('EditorToolbar', () => {
   });
 
   it('each button has an accessible name (aria-label)', () => {
-    render(<EditorToolbar onCommand={vi.fn()} />);
-    const toolbar = screen.getByRole('toolbar');
-    const buttons = toolbar.querySelectorAll('button');
+    render(<EditorToolbar onRun={vi.fn()} />);
+    const buttons = screen.getByRole('toolbar').querySelectorAll('button');
     expect(buttons.length).toBe(8);
     buttons.forEach(btn => {
       expect(btn).toHaveAttribute('aria-label');
@@ -28,59 +25,19 @@ describe('EditorToolbar', () => {
     });
   });
 
-  it('clicking Bold calls onCommand("bold")', () => {
-    const onCommand = vi.fn();
-    render(<EditorToolbar onCommand={onCommand} />);
-    fireEvent.mouseDown(screen.getByTitle(/bold/i));
-    expect(onCommand).toHaveBeenCalledWith('bold');
-  });
-
-  it('clicking Italic calls onCommand("italic")', () => {
-    const onCommand = vi.fn();
-    render(<EditorToolbar onCommand={onCommand} />);
-    fireEvent.mouseDown(screen.getByTitle(/italic/i));
-    expect(onCommand).toHaveBeenCalledWith('italic');
-  });
-
-  it('clicking Heading calls onCommand("heading")', () => {
-    const onCommand = vi.fn();
-    render(<EditorToolbar onCommand={onCommand} />);
-    fireEvent.mouseDown(screen.getByTitle(/heading/i));
-    expect(onCommand).toHaveBeenCalledWith('heading');
-  });
-
-  it('clicking List calls onCommand("list")', () => {
-    const onCommand = vi.fn();
-    render(<EditorToolbar onCommand={onCommand} />);
-    fireEvent.mouseDown(screen.getByTitle(/list/i));
-    expect(onCommand).toHaveBeenCalledWith('list');
-  });
-
-  it('clicking Inline code calls onCommand("code")', () => {
-    const onCommand = vi.fn();
-    render(<EditorToolbar onCommand={onCommand} />);
-    fireEvent.mouseDown(screen.getByTitle(/inline code/i));
-    expect(onCommand).toHaveBeenCalledWith('code');
-  });
-
-  it('clicking Code block calls onCommand("codeblock")', () => {
-    const onCommand = vi.fn();
-    render(<EditorToolbar onCommand={onCommand} />);
-    fireEvent.mouseDown(screen.getByTitle(/code block/i));
-    expect(onCommand).toHaveBeenCalledWith('codeblock');
-  });
-
-  it('clicking Table calls onCommand("table")', () => {
-    const onCommand = vi.fn();
-    render(<EditorToolbar onCommand={onCommand} />);
-    fireEvent.mouseDown(screen.getByTitle(/table/i));
-    expect(onCommand).toHaveBeenCalledWith('table');
-  });
-
-  it('clicking Link calls onCommand("link")', () => {
-    const onCommand = vi.fn();
-    render(<EditorToolbar onCommand={onCommand} />);
-    fireEvent.mouseDown(screen.getByTitle(/link/i));
-    expect(onCommand).toHaveBeenCalledWith('link');
+  it.each([
+    [/bold/i, 'format-bold'],
+    [/italic/i, 'format-italic'],
+    [/heading/i, 'heading-2'],
+    [/list/i, 'format-list'],
+    [/inline code/i, 'format-code'],
+    [/code block/i, 'code-block'],
+    [/table/i, 'insert-table'],
+    [/link/i, 'insert-link'],
+  ])('mousedown on %s runs %s', (title, id) => {
+    const onRun = vi.fn();
+    render(<EditorToolbar onRun={onRun} />);
+    fireEvent.mouseDown(screen.getByTitle(title));
+    expect(onRun).toHaveBeenCalledWith(id);
   });
 });

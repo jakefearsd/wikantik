@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock } from './markdownFormat';
+import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock, setHeading, insertCallout, insertMathBlock, insertRule } from './markdownFormat';
 
 describe('toggleWrap', () => {
   it('wraps selection with marker', () => {
@@ -151,5 +151,25 @@ describe('insertCodeBlock', () => {
     const result = insertCodeBlock(state);
     expect(result.text).toBe('```language\n\n```\n');
     expect(result.text.slice(result.selStart, result.selEnd)).toBe('language');
+  });
+});
+
+describe('block inserts for slash commands', () => {
+  it('setHeading replaces any existing heading prefix on the line', () => {
+    expect(setHeading({ text: '## Old', selStart: 3, selEnd: 3 }, 1).text).toBe('# Old');
+    expect(setHeading({ text: 'plain', selStart: 0, selEnd: 0 }, 3).text).toBe('### plain');
+  });
+  it('insertCallout starts a callout block on its own line with the cursor after the marker', () => {
+    const r = insertCallout({ text: 'para', selStart: 4, selEnd: 4 }, 'warning');
+    expect(r.text).toBe('para\n> [!warning] \n> ');
+    expect(r.text.slice(0, r.selStart)).toBe('para\n> [!warning] ');
+  });
+  it('insertMathBlock puts the cursor on the empty line inside $$', () => {
+    const r = insertMathBlock({ text: '', selStart: 0, selEnd: 0 });
+    expect(r.text).toBe('$$\n\n$$\n');
+    expect(r.selStart).toBe(3);
+  });
+  it('insertRule adds a thematic break on its own line', () => {
+    expect(insertRule({ text: 'a', selStart: 1, selEnd: 1 }).text).toBe('a\n---\n');
   });
 });

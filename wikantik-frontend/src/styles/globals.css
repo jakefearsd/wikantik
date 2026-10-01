@@ -838,6 +838,10 @@ a.tag:hover {
    Editor
    ============================================================ */
 
+.editor-container.preview-hidden {
+  grid-template-columns: 1fr;
+}
+
 .editor-container {
   display: grid;
   grid-template-columns: 1fr 1fr;

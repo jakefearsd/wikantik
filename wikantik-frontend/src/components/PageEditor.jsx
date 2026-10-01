@@ -33,7 +33,7 @@ import { useDraft } from '../hooks/useDraft';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { formatRelative } from '../utils/datetime';
-import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock } from '../utils/markdownFormat';
+import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock, setHeading, insertCallout, insertMathBlock, insertRule } from '../utils/markdownFormat';
 import { useDarkMode } from '../hooks/useDarkMode';
 import EditorToolbar from './EditorToolbar';
 import CodeEditor from './CodeEditor';
@@ -41,6 +41,10 @@ import EditorRail from './editor/EditorRail';
 import EditorStatusBar from './editor/EditorStatusBar';
 import { createEditorCursorStore } from '../utils/editorCursorStore';
 import { useRailOpen } from '../hooks/useRailOpen';
+import { useRunCommand } from '../commands/useCommands';
+import { getCommands, registerCommands } from '../commands/registry';
+import { buildEditorCommands } from '../utils/editorCommands';
+import { createSlashSource } from '../utils/slashComplete';
 import AttachmentPanel from './AttachmentPanel';
 import '../styles/article.css';
 import '../styles/admin.css';
@@ -384,7 +388,9 @@ export default function PageEditor() {
     };
 
     let next;
-    switch (command) {
+    if (command.startsWith('callout:')) {
+      next = insertCallout(state, command.slice('callout:'.length));
+    } else switch (command) {
       case 'bold':    next = toggleWrap(state, '**'); break;
       case 'italic':  next = toggleWrap(state, '*');  break;
       case 'code':    next = toggleWrap(state, '`');  break;
@@ -393,6 +399,11 @@ export default function PageEditor() {
       case 'list':    next = toggleLinePrefix(state, '- ');  break;
       case 'table':   next = insertTable(state); break;
       case 'link':    next = insertLink(state); break;
+      case 'h1':      next = setHeading(state, 1); break;
+      case 'h2':      next = setHeading(state, 2); break;
+      case 'h3':      next = setHeading(state, 3); break;
+      case 'mathblock': next = insertMathBlock(state); break;
+      case 'rule':    next = insertRule(state); break;
       default: return;
     }
 
@@ -418,6 +429,20 @@ export default function PageEditor() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
+
+  const [previewOpen, setPreviewOpen] = useState(true);
+  const imageInputRef = useRef(null);
+  const runCommand = useRunCommand();
+  const saveNow = useCallback(() => { if (!savingRef.current) latestSaveRef.current?.(); }, []);
+  const pickImage = useCallback(() => imageInputRef.current?.click(), []);
+  const togglePreview = useCallback(() => setPreviewOpen((v) => !v), []);
+  const foldAll = useCallback(() => editorRef.current?.foldAll?.(), []);
+  const unfoldAll = useCallback(() => editorRef.current?.unfoldAll?.(), []);
+  // Built inside the effect (not during render): several actions read refs, which render must not touch.
+  useEffect(() => registerCommands(buildEditorCommands({
+    format: applyFormat, save: saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll,
+  })), [applyFormat, saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll]);
+  const slashSource = useMemo(() => createSlashSource(getCommands, (id) => runCommand(id)), [runCommand]);
 
   const handleBold = useCallback(() => applyFormat('bold'), [applyFormat]);
   const handleItalic = useCallback(() => applyFormat('italic'), [applyFormat]);
@@ -789,10 +814,10 @@ export default function PageEditor() {
 
       <MathValidationSummary violations={mathViolations} onJump={jumpToMath} />
 
-      <EditorToolbar onCommand={applyFormat} />
+      <EditorToolbar onRun={runCommand} />
 
       <div className={`editor-layout${railOpen ? ' rail-open' : ''}`}>
-      <div className="editor-container">
+      <div className={`editor-container${previewOpen ? '' : ' preview-hidden'}`}>
         <div
           ref={dropContainerRef}
           className="editor-pane"
@@ -818,10 +843,12 @@ export default function PageEditor() {
             onItalic={handleItalic}
             onLink={handleLink}
             linkCompletion={linkCompletion}
+            slashSource={slashSource}
             onViewChange={handleViewChange}
             onFiles={handleFiles}
           />
         </div>
+        {previewOpen && (
         <div className="editor-pane editor-preview" ref={previewRef} onScroll={syncEditor}>
           <FrontmatterPreview content={fullText} />
           <article className="article-prose" onClick={handlePreviewClick}>
@@ -837,6 +864,19 @@ export default function PageEditor() {
             </ReactMarkdown>
           </article>
         </div>
+        )}
+        <input
+          type="file"
+          ref={imageInputRef}
+          hidden
+          accept="image/*"
+          multiple
+          data-testid="editor-image-input"
+          onChange={(e) => {
+            handleFiles([...e.target.files], editorRef.current?.getSelection().selStart ?? bodyRef.current.length, { pasted: false });
+            e.target.value = '';
+          }}
+        />
       </div>
       <EditorRail body={body} pageName={name} isNew={isNew} cursorStore={cursorStore}
         open={railOpen} onToggle={toggleRail} onJump={jumpToHeading} />

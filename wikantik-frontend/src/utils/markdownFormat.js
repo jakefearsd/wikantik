@@ -187,3 +187,40 @@ export function insertLink(state) {
     };
   }
 }
+
+/** Sets the current line's heading level (replacing any existing #-prefix). */
+export function setHeading(state, level) {
+  const { text, selStart } = state;
+  const lineStart = text.lastIndexOf('\n', selStart - 1) + 1;
+  const lineEndRaw = text.indexOf('\n', selStart);
+  const lineEnd = lineEndRaw === -1 ? text.length : lineEndRaw;
+  const line = text.slice(lineStart, lineEnd).replace(/^#{1,6}\s+/, '');
+  const prefix = '#'.repeat(level) + ' ';
+  const newText = text.slice(0, lineStart) + prefix + line + text.slice(lineEnd);
+  const cursor = lineStart + prefix.length + line.length;
+  return { text: newText, selStart: cursor, selEnd: cursor };
+}
+
+function insertBlockAt(state, block, cursorOffset) {
+  const { text, selStart, selEnd } = state;
+  const lead = blockLead(text, selStart);
+  const newText = text.slice(0, selStart) + lead + block + text.slice(selEnd);
+  const cursor = selStart + lead.length + cursorOffset;
+  return { text: newText, selStart: cursor, selEnd: cursor };
+}
+
+/** Starts a callout block (`> [!type] ` + continuation line) with the cursor after the marker. */
+export function insertCallout(state, type) {
+  const first = `> [!${type}] `;
+  return insertBlockAt(state, `${first}\n> `, first.length);
+}
+
+/** Inserts a `$$` block with the cursor on the empty line inside it. */
+export function insertMathBlock(state) {
+  return insertBlockAt(state, '$$\n\n$$\n', 3);
+}
+
+/** Inserts a thematic break on its own line. */
+export function insertRule(state) {
+  return insertBlockAt(state, '---\n', 4);
+}

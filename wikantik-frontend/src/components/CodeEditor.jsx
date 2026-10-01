@@ -35,13 +35,14 @@ import { filesFromPaste, filesFromDrop } from '../utils/editorFileEvents';
  *   onBold      () => void        Mod-b handler
  *   onItalic    () => void        Mod-i handler
  *   onLink      () => void        Mod-k handler
+ *   slashSource (ctx) => CompletionResult|null  slash-command completion source (optional)
  *   linkCompletion { searchPages(q), getHeadings(page|null), getAttachmentNames() }  link autocomplete sources
  *   onFiles     (files, pos, { pasted }) => void   pasted/dropped OS files (e.g. images to upload)
  *   className   string            applied to the wrapping div
  *   'data-testid' string         applied to the wrapping div
  */
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, onViewChange, onFiles, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onViewChange, onFiles, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
@@ -50,6 +51,8 @@ const CodeEditor = forwardRef(function CodeEditor(
   // source — built once below — always calls the latest ones without reconfiguring the editor.
   const linkCompletionRef = useRef(linkCompletion);
   linkCompletionRef.current = linkCompletion;
+  const slashSourceRef = useRef(slashSource);
+  slashSourceRef.current = slashSource;
 
   // Fired on scroll / caret move / edit so the parent can sync the preview.
   // Held in a ref so the extension (built once) always calls the latest handler.
@@ -255,7 +258,7 @@ const CodeEditor = forwardRef(function CodeEditor(
         searchPages: (q) => linkCompletionRef.current?.searchPages(q) ?? Promise.resolve([]),
         getHeadings: (page) => linkCompletionRef.current?.getHeadings(page) ?? Promise.resolve([]),
         getAttachmentNames: () => linkCompletionRef.current?.getAttachmentNames?.() ?? [],
-      })],
+      }), (ctx) => slashSourceRef.current?.(ctx) ?? null],
     }),
     [],
   );

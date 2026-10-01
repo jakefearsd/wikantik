@@ -1,36 +1,35 @@
 /**
- * Presentational markdown formatting toolbar.
+ * Presentational markdown formatting toolbar; each button runs a command-registry id.
  *
  * Props:
- *   onCommand(commandName) — called with one of:
- *     'bold' | 'italic' | 'heading' | 'list' | 'code' | 'codeblock' | 'table' | 'link'
+ *   onRun(commandId) — e.g. 'format-bold', 'heading-2', 'insert-table'
  */
-export default function EditorToolbar({ onCommand }) {
+export default function EditorToolbar({ onRun }) {
   const buttons = [
-    { command: 'bold',      label: 'B',   title: 'Bold (⌘B)',   style: { fontWeight: 'bold' } },
-    { command: 'italic',    label: 'I',   title: 'Italic (⌘I)', style: { fontStyle: 'italic' } },
-    { command: 'heading',   label: 'H',   title: 'Heading',     style: {} },
-    { command: 'list',      label: '≡',   title: 'List',        style: {} },
-    { command: 'code',      label: '`',   title: 'Inline code', style: { fontFamily: 'monospace' } },
-    { command: 'codeblock', label: '{ }', title: 'Code block',  style: { fontFamily: 'monospace' } },
-    { command: 'table',     label: '▦',   title: 'Table',       style: {} },
-    { command: 'link',      label: '⌘K',  title: 'Link (⌘K)',   style: {} },
+    { id: 'format-bold',   label: 'B',   title: 'Bold (⌘B)',   style: { fontWeight: 'bold' } },
+    { id: 'format-italic', label: 'I',   title: 'Italic (⌘I)', style: { fontStyle: 'italic' } },
+    { id: 'heading-2',     label: 'H',   title: 'Heading',     style: {} },
+    { id: 'format-list',   label: '≡',   title: 'List',        style: {} },
+    { id: 'format-code',   label: '`',   title: 'Inline code', style: { fontFamily: 'monospace' } },
+    { id: 'code-block',    label: '{ }', title: 'Code block',  style: { fontFamily: 'monospace' } },
+    { id: 'insert-table',  label: '▦',   title: 'Table',       style: {} },
+    { id: 'insert-link',   label: '⌘K',  title: 'Link (⌘K)',   style: {} },
   ];
 
   return (
     <div className="editor-format-toolbar" role="toolbar" aria-label="Formatting toolbar">
-      {buttons.map(({ command, label, title, style }) => (
+      {buttons.map(({ id, label, title, style }) => (
         <button
-          key={command}
+          key={id}
           type="button"
           className="editor-format-btn"
           title={title}
           aria-label={title}
           style={style}
           onMouseDown={e => {
-            // Prevent textarea focus loss on click
+            // Prevent editor focus loss on click
             e.preventDefault();
-            onCommand(command);
+            onRun(id);
           }}
         >
           {label}

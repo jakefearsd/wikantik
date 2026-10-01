@@ -45,40 +45,63 @@ public class CalloutPostProcessor extends NodePostProcessor {
         if ( !( node instanceof BlockQuote bq ) || !( bq.getFirstChild() instanceof Paragraph p ) ) {
             return;
         }
-        final String paragraph = p.getChars().toString();
-        final Matcher m = MARKER.matcher( paragraph );
+        final Matcher m = MARKER.matcher( p.getChars().toString() );
         if ( !m.find() ) {
             return;
         }
-        final CalloutBlock.Fold fold = switch ( m.group( 2 ) ) {
+        final int titleStart = p.getStartOffset() + m.end();
+        final List< Node > firstLine = firstLineInlineNodes( p );
+        // A non-Text inline node straddling the marker end (e.g. "[!note](url)") is a malformed marker:
+        // bail out before mutating anything so the blockquote stays a plain blockquote.
+        if ( straddlesWithNonText( firstLine, titleStart ) ) {
+            return;
+        }
+        final CalloutBlock callout = new CalloutBlock( bq.getChars(), m.group( 1 ), fold( m.group( 2 ) ) );
+        final CalloutTitle title = new CalloutTitle();
+        callout.appendChild( title );
+
+        moveTitleNodes( p, firstLine, titleStart, title );
+        moveBody( bq, callout );
+        bq.insertBefore( callout );
+        bq.unlink();
+        state.nodeRemoved( bq );
+        state.nodeAddedWithChildren( callout );
+    }
+
+    private static CalloutBlock.Fold fold( final String marker ) {
+        return switch ( marker ) {
             case "-" -> CalloutBlock.Fold.COLLAPSED;
             case "+" -> CalloutBlock.Fold.EXPANDED;
             default -> CalloutBlock.Fold.NONE;
         };
-        // A non-Text inline node straddling the marker end (e.g. "[!note](url)") is a malformed marker:
-        // bail out before mutating anything so the blockquote stays a plain blockquote.
-        final int markerEnd = p.getStartOffset() + m.end();
-        for ( Node c = p.getFirstChild(); c != null && !( c instanceof SoftLineBreak || c instanceof HardLineBreak );
-              c = c.getNext() ) {
-            if ( !( c instanceof Text ) && c.getStartOffset() < markerEnd && c.getEndOffset() > markerEnd ) {
-                return;
-            }
-        }
-        final CalloutBlock callout = new CalloutBlock( bq.getChars(), m.group( 1 ), fold );
-        final CalloutTitle title = new CalloutTitle();
-        callout.appendChild( title );
+    }
 
-        // Move the first line's inline nodes (minus the marker) into the title.
-        final int titleStart = p.getStartOffset() + m.end();
+    private static boolean isLineBreak( final Node n ) {
+        return n instanceof SoftLineBreak || n instanceof HardLineBreak;
+    }
+
+    /** The paragraph's inline nodes up to (not including) the first line break. */
+    private static List< Node > firstLineInlineNodes( final Paragraph p ) {
         final List< Node > firstLine = new ArrayList<>();
-        Node lineBreak = null;
-        for ( Node c = p.getFirstChild(); c != null; c = c.getNext() ) {
-            if ( c instanceof SoftLineBreak || c instanceof HardLineBreak ) {
-                lineBreak = c;
-                break;
-            }
+        for ( Node c = p.getFirstChild(); c != null && !isLineBreak( c ); c = c.getNext() ) {
             firstLine.add( c );
         }
+        return firstLine;
+    }
+
+    private static boolean straddlesWithNonText( final List< Node > firstLine, final int markerEnd ) {
+        for ( final Node c : firstLine ) {
+            if ( !( c instanceof Text ) && c.getStartOffset() < markerEnd && c.getEndOffset() > markerEnd ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Move the first line's inline nodes (minus the marker) into the title, dropping the line break. */
+    private static void moveTitleNodes( final Paragraph p, final List< Node > firstLine, final int titleStart,
+                                        final CalloutTitle title ) {
+        final Node lineBreak = firstLine.isEmpty() ? p.getFirstChild() : firstLine.get( firstLine.size() - 1 ).getNext();
         for ( final Node c : firstLine ) {
             if ( c.getEndOffset() <= titleStart ) {
                 c.unlink();
@@ -93,21 +116,19 @@ public class CalloutPostProcessor extends NodePostProcessor {
                 title.appendChild( c );
             }
         }
-        if ( lineBreak != null ) {
+        if ( lineBreak != null && isLineBreak( lineBreak ) ) {
             lineBreak.unlink();
         }
         if ( !p.hasChildren() ) {
             p.unlink();
         }
+    }
 
-        // Body: everything left in the blockquote, in order.
+    /** Body: everything left in the blockquote, in order. */
+    private static void moveBody( final BlockQuote bq, final CalloutBlock callout ) {
         while ( bq.getFirstChild() != null ) {
             callout.appendChild( bq.getFirstChild() );
         }
-        bq.insertBefore( callout );
-        bq.unlink();
-        state.nodeRemoved( bq );
-        state.nodeAddedWithChildren( callout );
     }
 
     public static class Factory extends NodePostProcessorFactory {

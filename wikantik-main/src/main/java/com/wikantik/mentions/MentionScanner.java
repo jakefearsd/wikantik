@@ -50,7 +50,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -78,9 +77,6 @@ public final class MentionScanner {
     private static final Parser PARSER = Parser.builder( MarkdownDocument.structuralOptions() )
             .customInlineParserExtensionFactory( new InlineMathParser.Factory() )
             .build();
-    private static final Pattern PLUGIN = Pattern.compile( "\\[\\{.*?}]", Pattern.DOTALL );
-    private static final Pattern BARE_URL = Pattern.compile( "\\b(?:https?://|www\\.)[^\\s)>\\]\"]+" );
-    private static final Pattern TOKEN = Pattern.compile( "[\\p{L}\\p{N}]+" );
     private static final Set< Class< ? extends Node > > INELIGIBLE = Set.of(
             Heading.class, Code.class, FencedCodeBlock.class, IndentedCodeBlock.class, HtmlBlock.class,
             Link.class, LinkRef.class, Image.class, ImageRef.class, AutoLink.class, MailLink.class,
@@ -88,20 +84,14 @@ public final class MentionScanner {
 
     private MentionScanner() {}
 
-    /** A phrase trie keyed by lowercase word tokens; terminals name the target page. */
-    private static final class Trie {
-        final Map< String, Trie > next = new HashMap<>();
-        TitleEntry target;
-    }
-
     public static List< Mention > scan( final String text, final String selfPage, final List< TitleEntry > entries ) {
         if ( text == null || text.isBlank() ) {
             return List.of();
         }
         final Set< String > linked = MarkdownLinkScanner.findLocalLinks( text ).stream()
                 .map( s -> s.toLowerCase( Locale.ROOT ) ).collect( Collectors.toSet() );
-        final Trie root = buildTrie( entries, selfPage, linked );
-        final String masked = mask( text );
+        final PhraseTrie root = PhraseTrie.build( entries, selfPage, linked );
+        final String masked = MentionMasking.mask( text );
 
         final Map< String, Mention > firstByTarget = new LinkedHashMap<>();
         final Map< String, Integer > extra = new HashMap<>();
@@ -117,68 +107,6 @@ public final class MentionScanner {
                 .toList();
     }
 
-    private static Trie buildTrie( final List< TitleEntry > entries, final String selfPage, final Set< String > linked ) {
-        final Trie root = new Trie();
-        final List< TitleEntry > sorted = entries.stream()
-                .sorted( Comparator.comparing( TitleEntry::slug ) ).toList();  // deterministic winner on collisions
-        for ( final TitleEntry e : sorted ) {
-            if ( e.slug().equalsIgnoreCase( selfPage ) || linked.contains( e.slug().toLowerCase( Locale.ROOT ) ) ) {
-                continue;
-            }
-            for ( final String phrase : e.phrases() ) {
-                final List< String > tokens = tokens( phrase );
-                if ( tokens.isEmpty() || phrase.trim().length() < MIN_PHRASE_CHARS
-                        || ( tokens.size() == 1 && COMMON_WORDS.contains( tokens.get( 0 ) ) ) ) {
-                    continue;
-                }
-                Trie node = root;
-                for ( final String tok : tokens ) {
-                    node = node.next.computeIfAbsent( tok, k -> new Trie() );
-                }
-                if ( node.target == null ) {
-                    node.target = e;
-                }
-            }
-        }
-        return root;
-    }
-
-    /**
-     * Replaces frontmatter, plugin spans and bare URLs with spaces (newlines kept) so they can't match, while
-     * every offset and line number stays identical to {@code text}.
-     */
-    static String mask( final String text ) {
-        final char[] chars = text.toCharArray();
-        final int fmEnd = frontmatterEnd( text );
-        for ( int i = 0; i < fmEnd; i++ ) {
-            blank( chars, i );
-        }
-        for ( final Pattern p : List.of( PLUGIN, BARE_URL ) ) {
-            final Matcher m = p.matcher( text );
-            while ( m.find() ) {
-                for ( int i = m.start(); i < m.end(); i++ ) {
-                    blank( chars, i );
-                }
-            }
-        }
-        return new String( chars );
-    }
-
-    private static void blank( final char[] chars, final int i ) {
-        if ( chars[ i ] != '\n' && chars[ i ] != '\r' ) {
-            chars[ i ] = ' ';
-        }
-    }
-
-    /** Offset just past a leading {@code ---} … {@code ---} frontmatter block, or 0 when there is none. */
-    static int frontmatterEnd( final String text ) {
-        if ( !text.startsWith( "---" ) ) {
-            return 0;
-        }
-        final Matcher close = Pattern.compile( "\\r?\\n---[ \\t]*(\\r?\\n|$)" ).matcher( text );
-        return close.find( 3 ) ? close.end() : 0;
-    }
-
     private static boolean eligible( final Text t ) {
         boolean inProse = false;
         for ( Node p = t.getParent(); p != null; p = p.getParent() ) {
@@ -192,32 +120,22 @@ public final class MentionScanner {
         return inProse;
     }
 
-    private static void matchSegment( final String text, final String masked, final int start, final int end, final Trie root,
+    private static void matchSegment( final String text, final String masked, final int start, final int end, final PhraseTrie root,
                                       final Map< String, Mention > firstByTarget, final Map< String, Integer > extra ) {
         final List< int[] > spans = new ArrayList<>();   // [from, to] per token
-        final Matcher m = TOKEN.matcher( masked ).region( start, end );
+        final Matcher m = PhraseTrie.TOKEN.matcher( masked ).region( start, end );
         while ( m.find() ) {
             spans.add( new int[]{ m.start(), m.end() } );
         }
         int i = 0;
         while ( i < spans.size() ) {
-            Trie node = root;
-            TitleEntry hit = null;
-            int hitEnd = -1;
-            for ( int j = i; j < spans.size(); j++ ) {
-                node = node.next.get( masked.substring( spans.get( j )[ 0 ], spans.get( j )[ 1 ] ).toLowerCase( Locale.ROOT ) );
-                if ( node == null ) {
-                    break;
-                }
-                if ( node.target != null ) {
-                    hit = node.target;
-                    hitEnd = j;
-                }
-            }
-            if ( hit == null ) {
+            final PhraseTrie.Match match = root.longestMatch( masked, spans, i );
+            if ( match == null ) {
                 i++;
                 continue;
             }
+            final TitleEntry hit = match.target();
+            final int hitEnd = match.lastToken();
             final int from = spans.get( i )[ 0 ];
             final int to = spans.get( hitEnd )[ 1 ];
             if ( firstByTarget.containsKey( hit.slug() ) ) {
@@ -228,15 +146,6 @@ public final class MentionScanner {
             }
             i = hitEnd + 1;
         }
-    }
-
-    private static List< String > tokens( final String phrase ) {
-        final List< String > out = new ArrayList<>();
-        final Matcher m = TOKEN.matcher( phrase );
-        while ( m.find() ) {
-            out.add( m.group().toLowerCase( Locale.ROOT ) );
-        }
-        return out;
     }
 
     private static int lineOf( final String text, final int offset ) {

@@ -26,7 +26,7 @@ vi.mock('@uiw/react-codemirror', async () => {
       get state() {
         return {
           selection: { main: { from: ta.selectionStart, to: ta.selectionEnd } },
-          doc: { length: ta.value.length },
+          doc: { length: ta.value.length, toString: () => ta.value },
         };
       },
       focus() { ta.focus(); },
@@ -410,6 +410,21 @@ describe('#18 formatting toolbar', () => {
     fireEvent.mouseDown(screen.getByTitle(/bold/i));
 
     await waitFor(() => expect(getEditable().value).toBe('hello **world**'));
+  });
+
+  it('formats the editor\'s live text, not the last rendered body (slash apply runs before React re-renders)', async () => {
+    renderEditor();
+    await waitForEditor();
+
+    const editable = getEditable();
+    fireEvent.change(editable, { target: { value: 'a /bold' } });
+    // Simulate CodeMirror having already deleted "/bold" while React has not re-rendered yet.
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+    act(() => { setter.call(editable, 'a '); editable.setSelectionRange(2, 2); });
+
+    fireEvent.mouseDown(screen.getByTitle(/heading/i));
+
+    await waitFor(() => expect(getEditable().value).toBe('## a '));
   });
 
   it('Link toolbar button inserts a markdown link via markdownFormat', async () => {

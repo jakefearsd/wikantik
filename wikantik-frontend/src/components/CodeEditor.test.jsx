@@ -49,6 +49,7 @@ vi.mock('@uiw/react-codemirror', async () => {
           sliceDoc: (from, to) => ta.value.slice(from, to),
           doc: {
             length: ta.value.length,
+            toString: () => ta.value,
             lines: starts.length,
             line(n) {
               const clamped = Math.max(1, Math.min(n, starts.length));
@@ -364,5 +365,12 @@ describe('CodeEditor slashSource prop', () => {
       <CodeEditor data-testid="ce" value="x" onChange={() => {}} slashSource={slashSource} />,
     );
     expect(getByTestId('ce')).toBeInTheDocument();
+  });
+});
+
+describe('CodeEditor getText', () => {
+  it('returns the live document text', () => {
+    const { ref } = mount('hello');
+    expect(ref.current.getText()).toBe('hello');
   });
 });

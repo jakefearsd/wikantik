@@ -161,8 +161,8 @@ describe('block inserts for slash commands', () => {
   });
   it('insertCallout starts a callout block on its own line with the cursor after the marker', () => {
     const r = insertCallout({ text: 'para', selStart: 4, selEnd: 4 }, 'warning');
-    expect(r.text).toBe('para\n> [!warning] \n> ');
-    expect(r.text.slice(0, r.selStart)).toBe('para\n> [!warning] ');
+    expect(r.text).toBe('para\n\n> [!warning] \n> ');
+    expect(r.text.slice(0, r.selStart)).toBe('para\n\n> [!warning] ');
   });
   it('insertMathBlock puts the cursor on the empty line inside $$', () => {
     const r = insertMathBlock({ text: '', selStart: 0, selEnd: 0 });
@@ -170,6 +170,17 @@ describe('block inserts for slash commands', () => {
     expect(r.selStart).toBe(3);
   });
   it('insertRule adds a thematic break on its own line', () => {
-    expect(insertRule({ text: 'a', selStart: 1, selEnd: 1 }).text).toBe('a\n---\n');
+    expect(insertRule({ text: 'a', selStart: 1, selEnd: 1 }).text).toBe('a\n\n---\n');
+  });
+  it('adds only one newline when the cursor is at the start of a line below a paragraph', () => {
+    expect(insertRule({ text: 'a\nb', selStart: 2, selEnd: 2 }).text).toBe('a\n\n---\n\nb');
+  });
+  it('adds no lead when the previous line is already blank', () => {
+    expect(insertRule({ text: 'a\n\nb', selStart: 3, selEnd: 3 }).text).toBe('a\n\n---\n\nb');
+  });
+  it('keeps a blank line after a math block when text follows', () => {
+    const r = insertMathBlock({ text: 'x\n\nnext', selStart: 3, selEnd: 3 });
+    expect(r.text).toBe('x\n\n$$\n\n$$\n\nnext');
+    expect(r.selStart).toBe(6);
   });
 });

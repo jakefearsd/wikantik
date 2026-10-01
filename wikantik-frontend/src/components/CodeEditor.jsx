@@ -23,6 +23,7 @@ import { filesFromPaste, filesFromDrop } from '../utils/editorFileEvents';
  *     formatting toolbar and drag-and-drop insertion.
  *
  * Imperative API (via ref):
+ *   getText()                   -> the live document text, or null without a view
  *   getSelection()              -> { selStart, selEnd } character offsets
  *   setSelection(start, end)    -> set selection + focus the editor
  *   focus()                     -> focus the editor
@@ -97,6 +98,9 @@ const CodeEditor = forwardRef(function CodeEditor(
   }, []);
 
   useImperativeHandle(ref, () => ({
+    getText() {
+      return viewRef.current ? viewRef.current.state.doc.toString() : null;
+    },
     getSelection() {
       const view = viewRef.current;
       if (!view) return { selStart: 0, selEnd: 0 };

@@ -382,7 +382,8 @@ export default function PageEditor() {
 
     const { selStart, selEnd } = editor.getSelection();
     const state = {
-      text: bodyRef.current,
+      // Live editor text: bodyRef lags a render behind edits made just before this runs (slash apply).
+      text: editor.getText?.() ?? bodyRef.current,
       selStart,
       selEnd,
     };

@@ -201,10 +201,23 @@ export function setHeading(state, level) {
   return { text: newText, selStart: cursor, selEnd: cursor };
 }
 
-function insertBlockAt(state, block, cursorOffset) {
+/**
+ * Lead for a block that needs a blank line before it (callout, $$, ---): none at the document start or
+ * after a blank line, one newline at the start of a line below text, two otherwise.
+ */
+function blankLineLead(text, pos) {
+  if (pos === 0) return '';
+  if (text[pos - 1] !== '\n') return '\n\n';
+  return (pos === 1 || text[pos - 2] === '\n') ? '' : '\n';
+}
+
+function insertBlockAt(state, block, cursorOffset, { blankAfter = false } = {}) {
   const { text, selStart, selEnd } = state;
-  const lead = blockLead(text, selStart);
-  const newText = text.slice(0, selStart) + lead + block + text.slice(selEnd);
+  const lead = blankLineLead(text, selStart);
+  const rest = text.slice(selEnd);
+  // A following non-blank line must not fuse with the block ($$ / --- need a blank line after).
+  const tail = blankAfter && rest.length > 0 && rest[0] !== '\n' ? '\n' : '';
+  const newText = text.slice(0, selStart) + lead + block + tail + rest;
   const cursor = selStart + lead.length + cursorOffset;
   return { text: newText, selStart: cursor, selEnd: cursor };
 }
@@ -217,10 +230,10 @@ export function insertCallout(state, type) {
 
 /** Inserts a `$$` block with the cursor on the empty line inside it. */
 export function insertMathBlock(state) {
-  return insertBlockAt(state, '$$\n\n$$\n', 3);
+  return insertBlockAt(state, '$$\n\n$$\n', 3, { blankAfter: true });
 }
 
 /** Inserts a thematic break on its own line. */
 export function insertRule(state) {
-  return insertBlockAt(state, '---\n', 4);
+  return insertBlockAt(state, '---\n', 4, { blankAfter: true });
 }

@@ -79,7 +79,7 @@ public final class MentionScanner {
             .customInlineParserExtensionFactory( new InlineMathParser.Factory() )
             .build();
     private static final Pattern PLUGIN = Pattern.compile( "\\[\\{.*?}]", Pattern.DOTALL );
-    private static final Pattern BARE_URL = Pattern.compile( "\\b(?:https?://|www\\.)\\S+" );
+    private static final Pattern BARE_URL = Pattern.compile( "\\b(?:https?://|www\\.)[^\\s)>\\]\"]+" );
     private static final Pattern TOKEN = Pattern.compile( "[\\p{L}\\p{N}]+" );
     private static final Set< Class< ? extends Node > > INELIGIBLE = Set.of(
             Heading.class, Code.class, FencedCodeBlock.class, IndentedCodeBlock.class, HtmlBlock.class,

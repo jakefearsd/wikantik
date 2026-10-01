@@ -69,7 +69,11 @@ class MentionScannerTest {
             "![index fund](pic.png)\n",
             "Before [{Plugin text='index fund'}] after.\n",
             "<div>index fund</div>\n",
-            "---\ntitle: index fund\n---\nbody\n" } )
+            "---\ntitle: index fund\n---\nbody\n",
+            "Read [an index fund](https://example.com) now.\n",
+            "![index fund](https://e.com/p.png)\n",
+            "<https://e.com/index-fund>\n",
+            "Visit www.example.com/index-fund today.\n" } )
     void ineligibleContextsAreSkipped( final String text ) {
         assertTrue( scan( text ).stream().noneMatch( m -> m.target().equals( "IndexFundsHub" ) ), text );
     }

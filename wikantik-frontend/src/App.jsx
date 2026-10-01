@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import AdminSidebar from './components/admin/AdminSidebar';
 import { useAuth } from './hooks/useAuth';
 import { ToastProvider } from './components/ui/ToastProvider';
+import { NavigationGuardProvider } from './navigation/NavigationGuardProvider';
 import SearchOverlay from './components/SearchOverlay';
 import { useGlobalHotkeys } from './hooks/useGlobalHotkeys';
 
@@ -68,6 +69,7 @@ export default function App() {
 
   return (
     <ToastProvider>
+    <NavigationGuardProvider>
     <div className="app-layout">
       <a href="#main-content" className="skip-link">Skip to content</a>
       {updateAvailable && (
@@ -108,6 +110,7 @@ export default function App() {
       </main>
     </div>
       {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}
+    </NavigationGuardProvider>
     </ToastProvider>
   );
 }

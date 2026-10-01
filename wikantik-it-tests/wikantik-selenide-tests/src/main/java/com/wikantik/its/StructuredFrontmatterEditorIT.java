@@ -202,16 +202,14 @@ public class StructuredFrontmatterEditorIT extends WithIntegrationTestSetup {
                 .shouldBe( Condition.disabled, ASYNC_WAIT );
 
         // Cancel so the fixture is left unmodified.  Because we typed content (making
-        // the editor dirty), Cancel shows a "Discard unsaved changes?" confirmation
-        // dialog — click the "Discard" button to confirm and navigate to the view page.
+        // the editor dirty), Cancel shows the unsaved-changes guard dialog —
+        // click "Leave without saving" to confirm and navigate to the view page.
         $( "[data-testid=editor-cancel]" )
                 .shouldBe( visible, ASYNC_WAIT )
                 .click();
-        // The editor is dirty (we typed new content), so a discard-confirm modal appears;
-        // click "Discard" to confirm navigation away from the editor.
-        $$( "button" ).findBy( text( "Discard" ) )
-                .shouldBe( visible, Duration.ofSeconds( 3 ) )
-                .click();
+        // The editor is dirty (we typed new content), so the unsaved-changes guard dialog appears;
+        // click "Leave without saving" to confirm navigation away from the editor.
+        $( "[data-testid=guard-leave]" ).shouldBe( visible, ASYNC_WAIT ).click();
         $( "[data-testid=page-view]" ).shouldBe( visible, ASYNC_WAIT );
     }
 

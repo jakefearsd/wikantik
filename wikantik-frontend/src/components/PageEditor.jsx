@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigationGuard, useGuardedNavigate } from '../navigation/NavigationGuardProvider';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -68,7 +69,6 @@ export default function PageEditor() {
   const [converting, setConverting] = useState(false);
   const [conversionWarnings, setConversionWarnings] = useState([]);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [activeMetaTab, setActiveMetaTab] = useState('frontmatter');
   const [isDragging, setIsDragging] = useState(false);
   const editorRef = useRef(null);
@@ -126,6 +126,8 @@ export default function PageEditor() {
 
   // #20 — isDirty: true only once the page has loaded and the reconstructed text differs from baseline.
   const isDirty = loaded && fullText !== loadedContent;
+  useNavigationGuard(isDirty);
+  const guardedNavigate = useGuardedNavigate();
 
   // Keep the body in a ref so the stable scroll-sync / format callbacks read current text.
   // Written in an effect (runs after every render) rather than during render,
@@ -580,13 +582,7 @@ export default function PageEditor() {
     }
   }, [handleFiles, getDropOffset]);
 
-  const handleCancel = () => {
-    if (isDirty) {
-      setShowDiscardConfirm(true);
-    } else {
-      navigate(`/wiki/${name}`);
-    }
-  };
+  const handleCancel = () => guardedNavigate(`/wiki/${name}`);
 
   const handleOverwrite = async () => {
     setSaving(true);
@@ -876,41 +872,6 @@ export default function PageEditor() {
               </button>
               <button className="btn btn-ghost" onClick={handleCopyAndLoad}>
                 Copy my text to clipboard, then load server version
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDiscardConfirm && (
-        <div className="modal-overlay" onClick={() => setShowDiscardConfirm(false)}>
-          <div className="modal-content admin-modal" onClick={e => e.stopPropagation()}>
-            <h3 style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              marginBottom: 'var(--space-md)',
-            }}>
-              Discard unsaved changes?
-            </h3>
-            <p style={{
-              fontFamily: 'var(--font-ui)',
-              fontSize: '0.9rem',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.6,
-              marginBottom: 'var(--space-lg)',
-            }}>
-              You have unsaved changes. If you leave now they will be lost.
-            </p>
-            <div className="modal-actions">
-              <button className="btn btn-ghost" onClick={() => setShowDiscardConfirm(false)}>
-                Keep editing
-              </button>
-              <button className="btn btn-primary" onClick={() => {
-                setShowDiscardConfirm(false);
-                navigate(`/wiki/${name}`);
-              }}>
-                Discard
               </button>
             </div>
           </div>

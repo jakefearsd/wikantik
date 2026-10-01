@@ -44,6 +44,7 @@ vi.mock('../hooks/useEditorDrop', () => ({ useEditorDrop: vi.fn() }));
 vi.mock('../hooks/useToast', () => ({ useToast: vi.fn() }));
 
 import PageEditor from './PageEditor';
+import { NavigationGuardProvider } from '../navigation/NavigationGuardProvider';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useDraft } from '../hooks/useDraft';
@@ -53,10 +54,12 @@ import { useToast } from '../hooks/useToast';
 function renderEditor(pageName) {
   return render(
     <MemoryRouter initialEntries={[`/edit/${pageName}`]}>
+      <NavigationGuardProvider>
       <Routes>
         <Route path="/edit/:name" element={<PageEditor />} />
         <Route path="/wiki/:name" element={<div data-testid="wiki-view">WIKI VIEW</div>} />
       </Routes>
+</NavigationGuardProvider>
     </MemoryRouter>,
   );
 }

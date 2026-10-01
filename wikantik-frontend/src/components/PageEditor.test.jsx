@@ -94,6 +94,7 @@ vi.mock('../hooks/useToast', () => ({
 }));
 
 import PageEditor from './PageEditor';
+import { NavigationGuardProvider } from '../navigation/NavigationGuardProvider';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useDraft } from '../hooks/useDraft';
@@ -108,10 +109,12 @@ const PAGE_CONTENT = '# Test Page\n\nSome content here.';
 function renderEditor(pageName = 'TestPage') {
   return render(
     <MemoryRouter initialEntries={[`/edit/${pageName}`]}>
+      <NavigationGuardProvider>
       <Routes>
         <Route path="/edit/:name" element={<PageEditor />} />
         <Route path="/wiki/:name" element={<div data-testid="wiki-view">WIKI VIEW</div>} />
       </Routes>
+</NavigationGuardProvider>
     </MemoryRouter>,
   );
 }
@@ -271,7 +274,7 @@ describe('#20 unsaved-changes guard', () => {
 
     fireEvent.click(screen.getByTestId('editor-cancel'));
 
-    expect(await screen.findByText(/discard unsaved changes/i)).toBeInTheDocument();
+    expect(await screen.findByTestId('guard-dialog')).toBeInTheDocument();
     expect(screen.queryByTestId('wiki-view')).toBeNull();
   });
 
@@ -282,7 +285,7 @@ describe('#20 unsaved-changes guard', () => {
     fireEvent.click(screen.getByTestId('editor-cancel'));
 
     await screen.findByTestId('wiki-view');
-    expect(screen.queryByText(/discard unsaved changes/i)).toBeNull();
+    expect(screen.queryByTestId('guard-dialog')).toBeNull();
   });
 
   it('Discard button in confirm modal navigates away', async () => {
@@ -291,9 +294,9 @@ describe('#20 unsaved-changes guard', () => {
 
     typeInEditor('# Modified');
     fireEvent.click(screen.getByTestId('editor-cancel'));
-    await screen.findByText(/discard unsaved changes/i);
+    await screen.findByTestId('guard-dialog');
 
-    fireEvent.click(screen.getByRole('button', { name: /^discard$/i }));
+    fireEvent.click(screen.getByTestId('guard-leave'));
 
     await screen.findByTestId('wiki-view');
   });
@@ -304,11 +307,11 @@ describe('#20 unsaved-changes guard', () => {
 
     typeInEditor('# Modified');
     fireEvent.click(screen.getByTestId('editor-cancel'));
-    await screen.findByText(/discard unsaved changes/i);
+    await screen.findByTestId('guard-dialog');
 
-    fireEvent.click(screen.getByRole('button', { name: /keep editing/i }));
+    fireEvent.click(screen.getByTestId('guard-stay'));
 
-    expect(screen.queryByText(/discard unsaved changes/i)).toBeNull();
+    expect(screen.queryByTestId('guard-dialog')).toBeNull();
     expect(screen.queryByTestId('wiki-view')).toBeNull();
   });
 });
@@ -895,10 +898,12 @@ describe('page load: new page vs. error', () => {
         pathname: '/edit/SeedPage',
         state: { initialContent: 'Seeded body', initialMetadata: { cluster: 'dev' } },
       }]}>
+        <NavigationGuardProvider>
         <Routes>
           <Route path="/edit/:name" element={<PageEditor />} />
           <Route path="/wiki/:name" element={<div data-testid="wiki-view">WIKI VIEW</div>} />
         </Routes>
+</NavigationGuardProvider>
       </MemoryRouter>,
     );
     await waitForEditor();
@@ -1150,15 +1155,15 @@ describe('misc UI wiring', () => {
     expect(input).toHaveValue('Fixed a typo');
   });
 
-  it('the discard-confirm modal overlay dismisses without navigating', async () => {
-    const { container } = renderEditor();
+  it('the guard dialog dismisses on Escape without navigating', async () => {
+    renderEditor();
     await waitForEditor();
     typeInEditor('# changed content');
     fireEvent.click(screen.getByTestId('editor-cancel'));
-    await screen.findByText('Discard unsaved changes?');
+    await screen.findByTestId('guard-dialog');
 
-    fireEvent.click(container.querySelector('.modal-overlay'));
-    await waitFor(() => expect(screen.queryByText('Discard unsaved changes?')).not.toBeInTheDocument());
+    fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByTestId('guard-dialog')).not.toBeInTheDocument());
     expect(screen.queryByTestId('wiki-view')).not.toBeInTheDocument();
   });
 
@@ -1245,10 +1250,12 @@ describe('restore mode', () => {
   function renderRestore(version = 2) {
     return render(
       <MemoryRouter initialEntries={[{ pathname: '/edit/P', state: { restoreVersion: version } }]}>
+        <NavigationGuardProvider>
         <Routes>
           <Route path="/edit/:name" element={<PageEditor />} />
           <Route path="/wiki/:name" element={<div data-testid="wiki-view">WIKI VIEW</div>} />
         </Routes>
+</NavigationGuardProvider>
       </MemoryRouter>,
     );
   }
@@ -1310,9 +1317,11 @@ describe('restore mode', () => {
     render(
       <MemoryRouter initialEntries={[{ pathname: '/edit/P', state: { restoreVersion: 2 } }]}>
         <StateProbe />
+        <NavigationGuardProvider>
         <Routes>
           <Route path="/edit/:name" element={<PageEditor />} />
         </Routes>
+</NavigationGuardProvider>
       </MemoryRouter>,
     );
     await waitForEditor();

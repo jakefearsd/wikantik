@@ -76,6 +76,7 @@ vi.mock('../hooks/useToast', () => ({
 
 import AttachmentPanel from './AttachmentPanel';
 import PageEditor from './PageEditor';
+import { NavigationGuardProvider } from '../navigation/NavigationGuardProvider';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useDraft } from '../hooks/useDraft';
@@ -103,10 +104,12 @@ function renderPanel(overrides = {}) {
 function renderEditor(pageName = 'TestPage') {
   return render(
     <MemoryRouter initialEntries={[`/edit/${pageName}`]}>
+      <NavigationGuardProvider>
       <Routes>
         <Route path="/edit/:name" element={<PageEditor />} />
         <Route path="/wiki/:name" element={<div data-testid="wiki-view">WIKI VIEW</div>} />
       </Routes>
+</NavigationGuardProvider>
     </MemoryRouter>,
   );
 }

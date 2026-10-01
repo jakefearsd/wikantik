@@ -5,6 +5,8 @@ import { languages } from '@codemirror/language-data';
 import { EditorView, keymap } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { autocompletion } from '@codemirror/autocomplete';
+import { foldAll, unfoldAll } from '@codemirror/language';
+import { frontmatterFold, revealEffects } from '../utils/markdownFold';
 import { createWikiLinkSource } from '../utils/wikiLinkComplete';
 import { filesFromPaste, filesFromDrop } from '../utils/editorFileEvents';
 
@@ -41,6 +43,16 @@ import { filesFromPaste, filesFromDrop } from '../utils/editorFileEvents';
  *   className   string            applied to the wrapping div
  *   'data-testid' string         applied to the wrapping div
  */
+/**
+ * Reveal rule (R9): any programmatic cursor/scroll jump unfolds the fold containing its target first.
+ * No-op when the view has no fold state (e.g. the textarea stub in tests).
+ */
+function reveal(view, pos) {
+  if (typeof view.state.field !== 'function') return;
+  const effects = revealEffects(view.state, pos);
+  if (effects.length > 0) view.dispatch({ effects });
+}
+
 const CodeEditor = forwardRef(function CodeEditor(
   { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onViewChange, onFiles, className, ...rest },
   ref,
@@ -97,11 +109,22 @@ const CodeEditor = forwardRef(function CodeEditor(
       const len = view.state.doc.length;
       const from = Math.max(0, Math.min(selStart, len));
       const to = Math.max(0, Math.min(selEnd, len));
+      reveal(view, from);
+      reveal(view, to);
       view.focus();
       view.dispatch({ selection: { anchor: from, head: to } });
     },
     focus() {
       viewRef.current?.focus();
+    },
+    /** Fold every foldable heading / frontmatter block. */
+    foldAll() {
+      const view = viewRef.current;
+      if (view) foldAll(view);
+    },
+    unfoldAll() {
+      const view = viewRef.current;
+      if (view) unfoldAll(view);
     },
     /**
      * The 1-based source line currently at the top of the editor viewport, plus
@@ -161,6 +184,7 @@ const CodeEditor = forwardRef(function CodeEditor(
       const total = view.state.doc.lines;
       const clamped = Math.max(1, Math.min(Math.round(line), total));
       const pos = view.state.doc.line(clamped).from;
+      reveal(view, pos);
       try {
         view.scrollDOM.scrollTop = view.lineBlockAt(pos).top;
       } catch {
@@ -195,6 +219,7 @@ const CodeEditor = forwardRef(function CodeEditor(
       const total = view.state.doc.lines;
       const clamped = Math.max(1, Math.min(Math.round(line), total));
       const pos = view.state.doc.line(clamped).from;
+      reveal(view, pos);
       view.focus();
       view.dispatch({ selection: { anchor: pos } }); // caret only — no scrollIntoView
       try {
@@ -264,7 +289,7 @@ const CodeEditor = forwardRef(function CodeEditor(
   );
 
   const extensions = useMemo(
-    () => [markdown({ codeLanguages: languages }), EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension],
+    () => [markdown({ codeLanguages: languages }), EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, frontmatterFold],
     [shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension],
   );
 
@@ -278,7 +303,7 @@ const CodeEditor = forwardRef(function CodeEditor(
         theme={dark ? 'dark' : 'light'}
         basicSetup={{
           lineNumbers: false,
-          foldGutter: false,
+          foldGutter: true,
           highlightActiveLine: false,
           highlightActiveLineGutter: false,
           autocompletion: false,

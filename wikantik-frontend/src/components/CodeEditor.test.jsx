@@ -124,6 +124,24 @@ function mount(value = 'hello world') {
   return { ref, ta: getByTestId('cm-stub-textarea') };
 }
 
+describe('CodeEditor reveal rule', () => {
+  it('setSelection still works when the view has no fold state (reveal is a no-op)', () => {
+    const { ref, ta } = mount('hello world');
+    ref.current.setSelection(2, 5);
+    expect([ta.selectionStart, ta.selectionEnd]).toEqual([2, 5]);
+  });
+  it('scrollToLine and jumpToLineAligned work without fold state', () => {
+    const { ref } = mount('a\nb\nc');
+    expect(() => ref.current.scrollToLine(2)).not.toThrow();
+    expect(() => ref.current.jumpToLineAligned(3, 0)).not.toThrow();
+  });
+  it('foldAll / unfoldAll are exposed on the handle', () => {
+    const { ref } = mount('# A\nx');
+    expect(typeof ref.current.foldAll).toBe('function');
+    expect(typeof ref.current.unfoldAll).toBe('function');
+  });
+});
+
 describe('CodeEditor insertText / replaceText (upload edits go through the editor)', () => {
   function mountWith(value) {
     const ref = createRef();

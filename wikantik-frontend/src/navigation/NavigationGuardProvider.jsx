@@ -1,14 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../components/ui/Modal';
-import { interceptableHref } from './navigationGuard';
+import { interceptableHref, isSpaPath } from './navigationGuard';
 
 const GuardContext = createContext(null);
 
 export function NavigationGuardProvider({ children }) {
   const navigate = useNavigate();
   const active = useRef(0);
-  const [pending, setPending] = useState(null); // { to, options }
+  const [pending, setPending] = useState(null); // { to, options } for router routes, { href } for full loads
 
   const register = useCallback(() => {
     active.current += 1;
@@ -28,7 +28,8 @@ export function NavigationGuardProvider({ children }) {
       if (!to) return;
       e.preventDefault();
       e.stopPropagation();
-      setPending({ to });
+      // Server-served links (attachments, /sparql, …) have no route: Leave must load them as a full page.
+      setPending(isSpaPath(to) ? { to } : { href: e.target.closest('a[href]').href });
     };
     document.addEventListener('click', onClick, true);
     return () => document.removeEventListener('click', onClick, true);
@@ -39,7 +40,8 @@ export function NavigationGuardProvider({ children }) {
   const leave = () => {
     const p = pending;
     setPending(null);
-    navigate(p.to, p.options);
+    if (p.href) window.location.assign(p.href);
+    else navigate(p.to, p.options);
   };
 
   return (

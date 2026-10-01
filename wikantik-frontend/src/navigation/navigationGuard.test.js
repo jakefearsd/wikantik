@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { interceptableHref } from './navigationGuard';
+import { interceptableHref, isSpaPath } from './navigationGuard';
 
 const loc = { href: 'http://w.test/edit/Page', origin: 'http://w.test', pathname: '/edit/Page', search: '' };
 
@@ -35,4 +35,17 @@ describe('interceptableHref', () => {
     const based = { ...loc, href: 'http://w.test/wk/edit/Page', pathname: '/wk/edit/Page' };
     expect(interceptableHref(clickOn('<a href="/wk/wiki/Other">x</a>'), based, '/wk')).toBe('/wiki/Other');
   });
+});
+
+describe('isSpaPath', () => {
+  it.each([
+    '/', '/wiki/Main', '/wiki', '/edit/Page', '/diff/Page?v=2', '/search?q=x', '/page-graph', '/knowledge-graph',
+    '/preferences', '/me/mentions', '/reset-password?t=1', '/login', '/change-password', '/admin',
+    '/admin/users', '/wiki/Page#section',
+  ])('%s is a router route', (path) => { expect(isSpaPath(path)).toBe(true); });
+
+  it.each([
+    '/attach/Page/file.pdf', '/privacy-policy.html', '/sparql', '/export/ontology.ttl', '/api/pages/X',
+    '/wikipedia', '/administrator', '/searchable', '/login.html', '/id/page/abc',
+  ])('%s is not a router route', (path) => { expect(isSpaPath(path)).toBe(false); });
 });

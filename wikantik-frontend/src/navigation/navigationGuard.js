@@ -13,3 +13,15 @@ export function interceptableHref(e, loc = window.location, base = window.__WIKA
   if (base && base !== '/' && path.startsWith(base)) path = path.slice(base.length) || '/';
   return path + url.search + url.hash;
 }
+
+// The client-side routes declared in main.jsx. Anything else on this origin (attachments, /sparql, /export/*,
+// static .html pages) is served by the server and must be loaded as a full page, not handed to the router.
+const SPA_EXACT = new Set(['/', '/wiki', '/search', '/page-graph', '/knowledge-graph', '/preferences',
+  '/reset-password', '/login', '/change-password', '/admin']);
+const SPA_PREFIXES = ['/wiki/', '/edit/', '/diff/', '/me/', '/admin/'];
+
+/** True when the router serves `path` (a basename-stripped path, optionally with ?query / #hash). */
+export function isSpaPath(path) {
+  const pathname = path.split(/[?#]/, 1)[0];
+  return SPA_EXACT.has(pathname) || SPA_PREFIXES.some((p) => pathname.startsWith(p));
+}

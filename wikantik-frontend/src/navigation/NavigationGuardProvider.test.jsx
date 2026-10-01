@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NavigationGuardProvider, useNavigationGuard, useGuardedNavigate } from './NavigationGuardProvider';
 
 function Where() { return <div data-testid="where">{useLocation().pathname}</div>; }
@@ -11,6 +11,7 @@ function Dirty({ dirty }) {
   return (
     <>
       <Link to="/wiki/B" data-testid="link">B</Link>
+      <a href="/attach/A/report.pdf" data-testid="attachment">report</a>
       <button type="button" onClick={() => go('/wiki/C')}>go</button>
     </>
   );
@@ -63,5 +64,39 @@ describe('NavigationGuardProvider', () => {
     setup(true);
     fireEvent.click(screen.getByTestId('link'), { ctrlKey: true });
     expect(screen.queryByTestId('guard-dialog')).toBeNull();
+  });
+
+  describe('links the router does not serve', () => {
+    // happy-dom performs an un-prevented link's default navigation (the ctrl-click test above moves
+    // window.location to /wiki/B), so start each case from a neutral document URL.
+    beforeEach(() => { window.history.replaceState(null, '', '/'); });
+    afterEach(() => { vi.restoreAllMocks(); });
+
+    it('Leave without saving loads a non-SPA same-origin link as a full page, not a router route', () => {
+      const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
+      setup(true);
+      fireEvent.click(screen.getByTestId('attachment'));
+      expect(screen.getByTestId('guard-dialog')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('guard-leave'));
+      expect(assign).toHaveBeenCalledWith(new URL('/attach/A/report.pdf', window.location.href).href);
+      expect(screen.getByTestId('where').textContent).toBe('/edit/A');
+    });
+
+    it('Stay on a non-SPA link loads nothing', () => {
+      const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
+      setup(true);
+      fireEvent.click(screen.getByTestId('attachment'));
+      fireEvent.click(screen.getByTestId('guard-stay'));
+      expect(assign).not.toHaveBeenCalled();
+    });
+
+    it('SPA links still navigate in-app on Leave', () => {
+      const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
+      setup(true);
+      fireEvent.click(screen.getByTestId('link'));
+      fireEvent.click(screen.getByTestId('guard-leave'));
+      expect(assign).not.toHaveBeenCalled();
+      expect(screen.getByTestId('where').textContent).toBe('/wiki/B');
+    });
   });
 });

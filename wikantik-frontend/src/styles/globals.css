@@ -86,9 +86,17 @@
   --radius-lg: 12px;
   --code-keyword: #7c3aed; --code-string: #0b7a3e; --code-number: #b35c00; --code-comment: #8a8580;
   --code-title: #1f5fbf;   --code-type: #a1307e;   --code-attr: #7a5c00;
+  --callout-note: #4a76c9; --callout-abstract: #2aa6a6; --callout-info: #4a76c9; --callout-todo: #4a76c9;
+  --callout-tip: #1f9e89; --callout-success: #3a9a4a; --callout-question: #c98a1f; --callout-warning: #d9822b;
+  --callout-failure: #d14b4b; --callout-danger: #c93c3c; --callout-bug: #c93c3c; --callout-example: #8a5cc9;
+  --callout-quote: #8a8f98; --callout-bg-mix: 8%;
 }
 
 [data-theme="dark"] {
+  --callout-note: #7aa2f7; --callout-abstract: #5fd1d1; --callout-info: #7aa2f7; --callout-todo: #7aa2f7;
+  --callout-tip: #4fd1b5; --callout-success: #6cc77a; --callout-question: #e6b450; --callout-warning: #f0a35e;
+  --callout-failure: #f07a7a; --callout-danger: #f06c6c; --callout-bug: #f06c6c; --callout-example: #b392f0;
+  --callout-quote: #a0a6b0; --callout-bg-mix: 14%;
   --bg: #1A1A1E;
   --bg-elevated: #222226;
   --bg-sidebar: #18181C;

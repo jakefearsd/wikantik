@@ -498,3 +498,44 @@ mark.comment-highlight-pulse { animation: comment-pulse 1.2s ease-out; }
   border-radius: 4px; font-size: 0.85rem; }
 .derived-banner-icon { font-weight: 700; }
 .derived-banner-orphaned { font-style: italic; opacity: 0.8; }
+
+/* Obsidian callouts */
+.article-prose .callout {
+  --c: var(--callout-note);
+  border-left: 4px solid var(--c);
+  background: color-mix(in srgb, var(--c) var(--callout-bg-mix), transparent);
+  border-radius: var(--radius-md, 6px);
+  padding: 0.6rem 0.9rem;
+  margin: 1rem 0;
+}
+.article-prose .callout-abstract { --c: var(--callout-abstract); }
+.article-prose .callout-info { --c: var(--callout-info); }
+.article-prose .callout-todo { --c: var(--callout-todo); }
+.article-prose .callout-tip { --c: var(--callout-tip); }
+.article-prose .callout-success { --c: var(--callout-success); }
+.article-prose .callout-question { --c: var(--callout-question); }
+.article-prose .callout-warning { --c: var(--callout-warning); }
+.article-prose .callout-failure { --c: var(--callout-failure); }
+.article-prose .callout-danger { --c: var(--callout-danger); }
+.article-prose .callout-bug { --c: var(--callout-bug); }
+.article-prose .callout-example { --c: var(--callout-example); }
+.article-prose .callout-quote { --c: var(--callout-quote); }
+.article-prose .callout-title { display: flex; align-items: center; gap: 0.4rem; font-weight: 600; color: var(--c); }
+.article-prose summary.callout-title { cursor: pointer; list-style: none; }
+.article-prose summary.callout-title::-webkit-details-marker { display: none; }
+.article-prose summary.callout-title::after { content: '▸'; margin-left: auto; transition: transform 0.15s; }
+.article-prose details.callout[open] > summary.callout-title::after { transform: rotate(90deg); }
+.article-prose .callout-icon::before { content: 'ℹ'; }
+.article-prose .callout-tip .callout-icon::before,
+.article-prose .callout-success .callout-icon::before { content: '✓'; }
+.article-prose .callout-question .callout-icon::before { content: '?'; }
+.article-prose .callout-warning .callout-icon::before,
+.article-prose .callout-danger .callout-icon::before,
+.article-prose .callout-failure .callout-icon::before,
+.article-prose .callout-bug .callout-icon::before { content: '!'; }
+.article-prose .callout-example .callout-icon::before { content: '☰'; }
+.article-prose .callout-quote .callout-icon::before { content: '“'; }
+.article-prose .callout-todo .callout-icon::before { content: '☐'; }
+.article-prose .callout-abstract .callout-icon::before { content: '≡'; }
+.article-prose .callout-content > :first-child { margin-top: 0.4rem; }
+.article-prose .callout-content > :last-child { margin-bottom: 0; }

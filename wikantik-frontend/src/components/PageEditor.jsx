@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import remarkCallouts from '../utils/remarkCallouts';
 import rehypeKatex from 'rehype-katex';
 import { api } from '../api/client';
 import { reconstructContent, stripFrontmatter, frontmatterOffsetLines } from '../utils/frontmatterUtils';
@@ -831,6 +832,7 @@ export default function PageEditor() {
             <ReactMarkdown remarkPlugins={[
               remarkGfm,
               remarkMath,
+              remarkCallouts,
               remarkWikiMarkup,
               [remarkMissingLinks, { missing: missingPages }],
               [remarkAttachments, { attachments: attachments.list, pageName: name }],

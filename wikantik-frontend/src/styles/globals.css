@@ -2507,7 +2507,22 @@ h3:focus-within .heading-anchor {
 /* Quick overlay (title switcher / full-text / create / command palette).
    Rows are full-width flex rows; exactly one row — the .focused one — paints a background. Hover does not
    paint: onMouseEnter moves .focused, so mouse and keyboard can never highlight two rows at once. */
-.quick-overlay .search-results { padding: var(--space-xs) var(--space-sm) var(--space-sm); }
+/* Height-capped column: input, then the scrolling results, then the pinned action footer. The cap keeps the
+   footer on screen on short viewports (15vh top offset + 70vh). */
+.quick-overlay { display: flex; flex-direction: column; max-height: 70vh; }
+.quick-overlay .search-input { flex: none; }
+.quick-overlay .quick-overlay-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.quick-overlay .quick-overlay-results {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  padding: var(--space-xs) var(--space-sm);
+}
+.quick-overlay .quick-overlay-results:empty { display: none; }
+.quick-overlay .quick-overlay-results:last-child { padding-bottom: var(--space-sm); }
+.quick-overlay .quick-overlay-footer { flex: none; padding: 0 var(--space-sm) var(--space-sm); }
+.quick-overlay .quick-overlay-results:empty + .quick-overlay-footer { padding-top: var(--space-xs); }
 .quick-overlay .quick-row {
   display: flex;
   align-items: center;

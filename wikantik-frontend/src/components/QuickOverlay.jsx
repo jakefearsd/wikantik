@@ -12,7 +12,8 @@ import Icon from './ui/Icon';
 
 const BASE = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
 const ROW_ICONS = { page: 'page', fulltext: 'search', search: 'search', create: 'plus' };
-const NOT_SELECTABLE = new Set(['error', 'section', 'divider']);
+const NOT_SELECTABLE = new Set(['error', 'section']);
+const ACTIONS = new Set(['search', 'create']);
 
 const section = (label) => ({ kind: 'section', key: `s:${label}`, label });
 const pageRow = (kind, prefix, { name, title }) => ({ kind, key: `${prefix}:${name}`, name, label: title || beautify(name) });
@@ -32,7 +33,7 @@ function recentRows(entries) {
   return rows.length ? [section('Recent'), ...rows] : rows;
 }
 
-/** Page matches, then full-text matches not already listed, then a divider and the search / create actions. */
+/** Page matches, then full-text matches not already listed, then the search / create actions (rendered in the footer). */
 function queryRows({ term, pages, fullText, pageError }) {
   const out = [];
   if (pages.length || pageError) out.push(section('Pages'));
@@ -41,7 +42,6 @@ function queryRows({ term, pages, fullText, pageError }) {
   const extra = fullText.filter((f) => !pages.some((p) => p.name === f.name));
   if (extra.length) out.push(section('Full-text matches'));
   extra.forEach((f) => out.push(pageRow('fulltext', 'f', f)));
-  if (out.length) out.push({ kind: 'divider', key: 'divider' });
   out.push({ kind: 'search', key: 'search', label: `Search full text for “${term}”` });
   const exact = pages.some((p) => p.name.toLowerCase() === term.replace(/\s+/g, '').toLowerCase());
   if (!exact) out.push({ kind: 'create', key: 'create', label: `Create page “${term}”` });
@@ -126,7 +126,9 @@ export default function QuickOverlay({ mode = 'pages', onClose }) {
     return queryRows({ term, pages, fullText, pageError });
   }, [isCommand, commands, term, login, recentlyViewed, recentChanges, pages, fullText, pageError]);
 
-  const selectable = rows.filter((r) => !NOT_SELECTABLE.has(r.kind));
+  const results = rows.filter((r) => !ACTIONS.has(r.kind));
+  const actions = rows.filter((r) => ACTIONS.has(r.kind));
+  const selectable = [...results, ...actions].filter((r) => !NOT_SELECTABLE.has(r.kind));
   const current = selectable[Math.min(focused, selectable.length - 1)];
 
   const activate = (row, { newTab = false } = {}) => {
@@ -156,6 +158,11 @@ export default function QuickOverlay({ mode = 'pages', onClose }) {
     listRef.current?.querySelector('.focused')?.scrollIntoView?.({ block: 'nearest' });
   }, [current]);
 
+  const renderRow = (row) => (
+    <QuickRow key={row.key} row={row} focused={row === current}
+              onHover={() => setFocused(selectable.indexOf(row))} onActivate={() => activate(row)} />
+  );
+
   const onKeyDown = (e) => {
     if (e.key === 'Escape') { e.preventDefault(); onClose(); }
     else if (e.key === 'ArrowDown') { e.preventDefault(); keyboardMove.current = true; setFocused((f) => Math.min(f + 1, selectable.length - 1)); }
@@ -171,23 +178,26 @@ export default function QuickOverlay({ mode = 'pages', onClose }) {
                placeholder="Go to page…  (type > for commands)" value={query}
                onChange={(e) => { setQuery(e.target.value); setFocused(0); }} onKeyDown={onKeyDown}
                aria-controls="quick-overlay-rows" />
-        <div className="search-results" id="quick-overlay-rows" role="listbox" ref={listRef}>
-          {rows.map((row) => <QuickRow key={row.key} row={row} focused={row === current}
-                                       onHover={() => setFocused(selectable.indexOf(row))}
-                                       onActivate={() => activate(row)} />)}
+        {/* One listbox, two visual parts: the results scroll; the search/create actions sit in a footer pinned
+            below them so they never scroll out of view. Keyboard order runs straight through both. */}
+        <div className="quick-overlay-list" id="quick-overlay-rows" role="listbox" ref={listRef}>
+          <div className="search-results quick-overlay-results" role="none">{results.map(renderRow)}</div>
+          {actions.length > 0 && (
+            <div className="quick-overlay-footer" role="none">
+              {results.length > 0 && <div className="quick-divider" data-testid="quick-divider" aria-hidden="true" />}
+              {actions.map(renderRow)}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-/** One overlay entry: a section header, the divider, the error notice, or a selectable row. */
+/** One overlay entry: a section header, the error notice, or a selectable row. */
 function QuickRow({ row, focused, onHover, onActivate }) {
   if (row.kind === 'section') {
     return <div className="quick-section" data-testid="quick-section" aria-hidden="true">{row.label}</div>;
-  }
-  if (row.kind === 'divider') {
-    return <div className="quick-divider" data-testid="quick-divider" aria-hidden="true" />;
   }
   if (row.kind === 'error') {
     return (

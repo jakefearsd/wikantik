@@ -191,7 +191,7 @@ describe('QuickOverlay', () => {
     screen.getAllByTestId('quick-section').forEach((h) => expect(h).not.toHaveAttribute('role', 'option'));
     const divider = screen.getByTestId('quick-divider');
     expect(divider.nextElementSibling.dataset.kind).toBe('search');
-    expect(divider.previousElementSibling.dataset.kind).toBe('fulltext');
+    expect(divider.closest('.quick-overlay-footer')).not.toBeNull();
   });
 
   it('omits the Pages header when only full-text matches exist', async () => {
@@ -242,7 +242,10 @@ describe('QuickOverlay', () => {
     type('bond');
     await settle();
     const listbox = screen.getByRole('listbox');
-    const children = [...listbox.children];
+    // The scrolling results area and the pinned footer are role="none" wrappers, flattened out of the a11y tree.
+    const wrappers = [...listbox.children];
+    wrappers.forEach((w) => expect(w).toHaveAttribute('role', 'none'));
+    const children = wrappers.flatMap((w) => [...w.children]);
     expect(children.length).toBeGreaterThan(0);
     children.forEach((el) => {
       if (el.getAttribute('aria-hidden') === 'true') return;
@@ -273,6 +276,36 @@ describe('QuickOverlay', () => {
     } finally {
       Element.prototype.scrollIntoView = original;
     }
+  });
+
+  it('pins the search and create actions in a footer outside the scrolling results, reachable by arrow keys', async () => {
+    const many = Array.from({ length: 8 }, (_, i) => ({ name: `IndexPage${i}` }));
+    api.listPages.mockResolvedValue({ pages: many });
+    api.search.mockResolvedValue({ results: [{ name: 'FullA' }, { name: 'FullB' }, { name: 'FullC' }] });
+    renderOverlay();
+    type('index fund');
+    await settle();
+    const byKind = (kind) => screen.getAllByTestId('quick-row').filter((r) => r.dataset.kind === kind);
+    const scroller = document.querySelector('.quick-overlay-results');
+    expect(scroller).not.toBeNull();
+    [...byKind('page'), ...byKind('fulltext')].forEach((r) => expect(scroller.contains(r)).toBe(true));
+    for (const kind of ['search', 'create']) {
+      const [row] = byKind(kind);
+      expect(scroller.contains(row), kind).toBe(false);
+      expect(row.closest('.quick-overlay-footer'), kind).not.toBeNull();
+    }
+    const focusedKind = () => screen.getAllByTestId('quick-row').find((r) => r.classList.contains('focused')).dataset;
+    for (let i = 0; i < 11; i += 1) fireEvent.keyDown(input(), { key: 'ArrowDown' });
+    expect(focusedKind().kind).toBe('search');
+    fireEvent.keyDown(input(), { key: 'ArrowDown' });
+    expect(focusedKind().kind).toBe('create');
+    fireEvent.keyDown(input(), { key: 'ArrowUp' });
+    fireEvent.keyDown(input(), { key: 'ArrowUp' });
+    expect(focusedKind().pageName).toBe('FullC');
+    fireEvent.keyDown(input(), { key: 'ArrowDown' });
+    fireEvent.keyDown(input(), { key: 'ArrowDown' });
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    expect(openNewPage).toHaveBeenCalledWith('index fund');
   });
 
   it('Escape closes', () => {

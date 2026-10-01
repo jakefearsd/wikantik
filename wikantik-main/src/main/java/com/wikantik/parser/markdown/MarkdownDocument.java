@@ -32,6 +32,7 @@ import com.vladsch.flexmark.util.data.MutableDataSet;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.markdown.MarkdownForWikantikExtension;
+import com.wikantik.markdown.extensions.callouts.CalloutExtension;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
 
@@ -51,6 +52,7 @@ public class MarkdownDocument extends WikiDocument {
     // own guidance is to create them once and share across parsers/renderers.
     // Only MarkdownForWikantikExtension is context-bound and must stay per-call.
     private static final com.vladsch.flexmark.util.misc.Extension ATTRIBUTES_EXT = AttributesExtension.create();
+    private static final com.vladsch.flexmark.util.misc.Extension CALLOUT_EXT = CalloutExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension DEFINITION_EXT = DefinitionExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension FOOTNOTE_EXT = FootnoteExtension.create();
     private static final com.vladsch.flexmark.util.misc.Extension GITLAB_EXT = GitLabExtension.create();
@@ -79,7 +81,7 @@ public class MarkdownDocument extends WikiDocument {
         options.set( HtmlRenderer.ESCAPE_HTML, !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) );
         options.set( Parser.EXTENSIONS, Arrays.asList( new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),
                                                        ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
-                                                       GITLAB_EXT, TABLES_EXT, TOC_EXT ) );
+                                                       GITLAB_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT ) );
         return options;
     }
 
@@ -110,7 +112,7 @@ public class MarkdownDocument extends WikiDocument {
         options.set( GitLabExtension.RENDER_VIDEO_LINK, false );
         options.set( GitLabExtension.RENDER_BLOCK_MERMAID, false );
         options.set( Parser.EXTENSIONS, Arrays.asList( ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
-                                                       GITLAB_EXT, TABLES_EXT, TOC_EXT ) );
+                                                       GITLAB_EXT, TABLES_EXT, TOC_EXT, CALLOUT_EXT ) );
         return options;
     }
 

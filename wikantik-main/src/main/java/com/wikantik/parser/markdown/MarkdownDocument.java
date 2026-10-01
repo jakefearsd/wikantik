@@ -75,12 +75,27 @@ public class MarkdownDocument extends WikiDocument {
      * @return configuration options for MarkdownRenderers.
      */
     public static MutableDataSet options( final Context context, final boolean isImageInlining, final List< Pattern > inlineImagePatterns ) {
+        final MutableDataSet options = structuralOptions();
+        options.set( HtmlRenderer.ESCAPE_HTML, !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) );
+        options.set( Parser.EXTENSIONS, Arrays.asList( new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),
+                                                       ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
+                                                       GITLAB_EXT, TABLES_EXT, TOC_EXT ) );
+        return options;
+    }
+
+    /**
+     * The context-free parser/renderer options and stateless extensions every Wikantik Markdown parse uses.
+     * {@link #options} layers the context-bound extension and the HTML-escape policy on top; the mention scan
+     * parses with this alone so its AST has the same node kinds as the rendered page.
+     *
+     * @return a fresh option set
+     */
+    public static MutableDataSet structuralOptions() {
         final MutableDataSet options = new MutableDataSet();
         options.setFrom( ParserEmulationProfile.COMMONMARK );
         options.set( AttributesExtension.ASSIGN_TEXT_ATTRIBUTES, true );
         // align style of Markdown's footnotes extension with wikantik footnotes refs
         options.set( FootnoteExtension.FOOTNOTE_LINK_REF_CLASS, MarkupParser.CLASS_FOOTNOTE_REF );
-        options.set( HtmlRenderer.ESCAPE_HTML, !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) );
         // GitLab extension: enable only block math rendering (```math fenced blocks).
         // Disable the GitLab inline math parser ($`...`$ syntax) — we register our own
         // InlineMathParser for the standard $...$ convention instead.
@@ -94,8 +109,7 @@ public class MarkdownDocument extends WikiDocument {
         options.set( GitLabExtension.RENDER_VIDEO_IMAGES, false );
         options.set( GitLabExtension.RENDER_VIDEO_LINK, false );
         options.set( GitLabExtension.RENDER_BLOCK_MERMAID, false );
-        options.set( Parser.EXTENSIONS, Arrays.asList( new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),
-                                                       ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
+        options.set( Parser.EXTENSIONS, Arrays.asList( ATTRIBUTES_EXT, DEFINITION_EXT, FOOTNOTE_EXT,
                                                        GITLAB_EXT, TABLES_EXT, TOC_EXT ) );
         return options;
     }

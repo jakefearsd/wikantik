@@ -88,10 +88,10 @@ export const api = {
     return request(`/api/pages/${encodeURIComponent(name)}${qs ? '?' + qs : ''}`, { signal });
   },
 
-  savePage: (name, { content, metadata, changeNote, author, expectedVersion, expectedContentHash, markupSyntax }) =>
+  savePage: (name, { content, metadata, replaceMetadata, changeNote, author, expectedVersion, expectedContentHash, markupSyntax }) =>
     request(`/api/pages/${encodeURIComponent(name)}`, {
       method: 'PUT',
-      body: JSON.stringify({ content, metadata, changeNote, author, expectedVersion, expectedContentHash, markupSyntax }),
+      body: JSON.stringify({ content, metadata, replaceMetadata, changeNote, author, expectedVersion, expectedContentHash, markupSyntax }),
     }),
 
   patchMetadata: (name, metadata, action = 'merge') =>

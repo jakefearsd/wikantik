@@ -1614,3 +1614,23 @@ describe('api.connectors methods', () => {
     expect(opts2.method).toBe('DELETE');
   });
 });
+
+describe('api.savePage', () => {
+  beforeEach(() => { global.fetch = vi.fn(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('forwards replaceMetadata so a field removed in the structured editor is removed on save', async () => {
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 200, body: { success: true } }));
+    await api.savePage('P', { content: 'b', metadata: { type: 'article' }, replaceMetadata: true });
+    const sent = JSON.parse(global.fetch.mock.calls[0][1].body);
+    expect(sent.replaceMetadata).toBe(true);
+    expect(sent.metadata).toEqual({ type: 'article' });
+  });
+
+  it('omits replaceMetadata when the caller does not ask for it', async () => {
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 200, body: { success: true } }));
+    await api.savePage('P', { content: 'b' });
+    const sent = JSON.parse(global.fetch.mock.calls[0][1].body);
+    expect(sent).not.toHaveProperty('replaceMetadata');
+  });
+});

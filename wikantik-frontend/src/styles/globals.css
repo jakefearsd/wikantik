@@ -2496,3 +2496,8 @@ h3:focus-within .heading-anchor {
   }
   .editor-rail.collapsed { display: none; }
 }
+
+/* Quick overlay (title switcher / full-text / create / command palette) */
+.quick-overlay .quick-row-search, .quick-overlay .quick-row-create { color: var(--text-secondary); }
+.quick-overlay .quick-row-fulltext::before { content: '🔍'; margin-right: 0.4rem; opacity: 0.6; }
+.quick-overlay .quick-row-error { color: var(--text-muted); font-style: italic; }

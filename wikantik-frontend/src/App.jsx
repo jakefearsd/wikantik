@@ -6,7 +6,7 @@ import { useAuth } from './hooks/useAuth';
 import { ToastProvider } from './components/ui/ToastProvider';
 import { NavigationGuardProvider } from './navigation/NavigationGuardProvider';
 import { NewPageProvider } from './newpage/NewPageProvider';
-import SearchOverlay from './components/SearchOverlay';
+import QuickOverlay from './components/QuickOverlay';
 import { useGlobalHotkeys } from './hooks/useGlobalHotkeys';
 import { useGlobalCommands } from './commands/useGlobalCommands';
 
@@ -120,8 +120,8 @@ export default function App() {
         )}
       </main>
     </div>
+      {overlayMode !== null && <QuickOverlay mode={overlayMode} onClose={() => setOverlayMode(null)} />}
     </NewPageProvider>
-      {overlayMode !== null && <SearchOverlay onClose={() => setOverlayMode(null)} />}
     </NavigationGuardProvider>
     </ToastProvider>
   );

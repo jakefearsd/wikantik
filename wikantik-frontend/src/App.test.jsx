@@ -16,7 +16,7 @@ vi.mock('./components/Sidebar', () => ({
   },
 }));
 vi.mock('./components/admin/AdminSidebar', () => ({ default: () => <div data-testid="admin-sidebar" /> }));
-vi.mock('./components/SearchOverlay', () => ({
+vi.mock('./components/QuickOverlay', () => ({
   default: ({ onClose }) => (
     <div data-testid="search-overlay">
       <input data-testid="search-overlay-input" autoFocus />
@@ -86,7 +86,7 @@ describe('App — mobile sidebar closes on authentication', () => {
   });
 });
 
-describe('App #23 — single shared SearchOverlay', () => {
+describe('App #23 — single shared QuickOverlay', () => {
   it('passes onOpenSearch prop to Sidebar', async () => {
     renderApp('/wiki/Main');
     expect(typeof capturedOnOpenSearch).toBe('function');

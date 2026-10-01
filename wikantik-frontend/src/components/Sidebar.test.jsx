@@ -19,7 +19,7 @@ vi.mock('./PersonalZone', () => ({
   default: ({ onNewArticle }) => <button data-testid="pz-new" onClick={onNewArticle} />,
 }));
 vi.mock('./UserBadge', () => ({ default: () => null }));
-vi.mock('./SearchOverlay', () => ({ default: () => null }));
+vi.mock('./QuickOverlay', () => ({ default: () => null }));
 const mockOpenNewPage = vi.fn();
 vi.mock('../newpage/NewPageProvider', () => ({ useNewPage: () => ({ openNewPage: mockOpenNewPage }) }));
 
@@ -71,16 +71,16 @@ describe('Sidebar', () => {
       expect(onOpenSearch).toHaveBeenCalledTimes(1);
     });
 
-    it('sidebar does NOT mount its own SearchOverlay when the button is clicked', () => {
-      // SearchOverlay is mocked to () => null, so if Sidebar were rendering one
+    it('sidebar does NOT mount its own QuickOverlay when the button is clicked', () => {
+      // QuickOverlay is mocked to () => null, so if Sidebar were rendering one
       // this would still return null — but what matters is onOpenSearch is
       // called instead of Sidebar toggling local state that would render an overlay.
       // Verified by the call-count assertion above; this just double-checks no
-      // SearchOverlay instance appears inside Sidebar's own subtree.
+      // QuickOverlay instance appears inside Sidebar's own subtree.
       const onOpenSearch = vi.fn();
       renderSidebar('/', { onOpenSearch });
       fireEvent.click(screen.getByTestId('sidebar-search-trigger'));
-      // The mock for SearchOverlay renders null, so querying for search-overlay
+      // The mock for QuickOverlay renders null, so querying for search-overlay
       // testid returns nothing — Sidebar no longer owns one.
       expect(screen.queryByTestId('search-overlay')).not.toBeInTheDocument();
     });

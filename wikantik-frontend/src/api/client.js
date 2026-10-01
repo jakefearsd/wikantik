@@ -112,6 +112,9 @@ export const api = {
       body: JSON.stringify({ newName }),
     }),
 
+  scanMentions: ({ page, text, signal }) =>
+    request('/api/mentions/scan', { method: 'POST', body: JSON.stringify({ page, text }), signal }),
+
   getPageTemplates: () => request('/api/page-templates'),
   listClusters: () => request('/api/structure/clusters'),
 

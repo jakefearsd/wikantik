@@ -211,6 +211,22 @@ describe('CodeEditor insertText / replaceText (upload edits go through the edito
   });
 });
 
+describe('CodeEditor replaceRange', () => {
+  it('replaces the range in one non-external transaction and reports handled', () => {
+    const ref = createRef();
+    const onChange = vi.fn();
+    render(<CodeEditor ref={ref} value="Hello brave world" onChange={onChange} />);
+    expect(ref.current.replaceRange(6, 11, '[brave](B)')).toBe(true);
+    expect(onChange).toHaveBeenCalledWith('Hello [brave](B) world');
+  });
+
+  it('returns false without a view', () => {
+    const ref = createRef();
+    render(<CodeEditor ref={ref} value="__NO_VIEW__" onChange={() => {}} />);
+    expect(ref.current.replaceRange(0, 1, 'x')).toBe(false);
+  });
+});
+
 describe('#19 CodeEditor imperative API', () => {
   it('renders the wrapper with the forwarded data-testid', () => {
     const { getByTestId } = render(

@@ -25,7 +25,7 @@ async function safely(label, promiseFn) {
 }
 
 // Brackets and backslashes in link text would end or corrupt the link.
-const escapeLinkText = (text) => text.replace(/[\\[\]]/g, '\\$&');
+export const escapeLinkText = (text) => text.replace(/[\\[\]]/g, '\\$&');
 
 function newPageOption(fragment, names, applyFor) {
   const text = (fragment || '').trim();

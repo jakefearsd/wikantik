@@ -69,6 +69,14 @@ describe('EditorRail', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
   });
 
+  it('renders children as extra sections when open, not when collapsed', () => {
+    const { unmount } = renderRail({ children: <section data-testid="extra">extra</section> });
+    expect(screen.getByTestId('extra')).toBeInTheDocument();
+    unmount();
+    renderRail({ open: false, children: <section data-testid="extra">extra</section> });
+    expect(screen.queryByTestId('extra')).toBeNull();
+  });
+
   it('M7: Escape closes the drawer on a narrow viewport only', () => {
     const mq = vi.spyOn(window, 'matchMedia').mockImplementation(() => ({ matches: false }));
     const { onToggle, unmount } = renderRail();

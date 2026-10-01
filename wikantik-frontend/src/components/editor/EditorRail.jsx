@@ -6,7 +6,7 @@ import { useEditorCursor } from '../../hooks/useEditorCursor';
 
 const OUTLINE_DEBOUNCE_MS = 300;
 
-export default function EditorRail({ body, pageName, isNew, cursorStore, open, onToggle, onJump }) {
+export default function EditorRail({ body, pageName, isNew, cursorStore, open, onToggle, onJump, children }) {
   const debounced = useDebouncedValue(body, OUTLINE_DEBOUNCE_MS);
   const outline = useMemo(() => headingsFromMarkdown(debounced).filter((h) => h.level <= 4), [debounced]);
   const { topLine } = useEditorCursor(cursorStore);
@@ -53,6 +53,7 @@ export default function EditorRail({ body, pageName, isNew, cursorStore, open, o
         {isNew ? <p className="editor-rail-empty">No backlinks yet</p>
           : <BacklinksPanel pageName={pageName} emptyText="No backlinks yet" />}
       </section>
+      {children}
     </aside>
   );
 }

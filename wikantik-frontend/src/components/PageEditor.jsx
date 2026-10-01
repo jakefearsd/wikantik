@@ -43,6 +43,9 @@ import EditorToolbar from './EditorToolbar';
 import CodeEditor from './CodeEditor';
 import EditorRail from './editor/EditorRail';
 import EditorStatusBar from './editor/EditorStatusBar';
+import UnlinkedMentionsPanel from './editor/UnlinkedMentionsPanel';
+import { useUnlinkedMentions } from '../hooks/useUnlinkedMentions';
+import { locatePhrase, linkMarkup } from '../utils/mentionLink';
 import { createEditorCursorStore } from '../utils/editorCursorStore';
 import { useRailOpen } from '../hooks/useRailOpen';
 import { useRunCommand } from '../commands/useCommands';
@@ -179,6 +182,31 @@ export default function PageEditor() {
     syncPreview();
   }, [cursorStore, syncPreview]);
   const jumpToHeading = useCallback((line) => editorRef.current?.jumpToLineAligned?.(line, 0), []);
+
+  const [ignoredMentions, setIgnoredMentions] = useState(() => new Set());
+  const mentionScan = useUnlinkedMentions({ page: name, text: body, enabled: railOpen && loaded });
+  const rescanMentions = mentionScan.rescan;
+  const visibleMentions = mentionScan.mentions.filter((m) => !ignoredMentions.has(m.target));
+  const ignoreMention = useCallback((m) => setIgnoredMentions((s) => new Set(s).add(m.target)), []);
+
+  const linkMention = useCallback((m) => {
+    const loc = locatePhrase(bodyRef.current, m);
+    if (!loc) {
+      toast.info('Text changed — rescanned');
+      rescanMentions();
+      return;
+    }
+    const markup = linkMarkup(bodyRef.current.slice(loc.from, loc.to), m.target);
+    if (!editorRef.current?.replaceRange?.(loc.from, loc.to, markup)) {
+      setBody((prev) => prev.slice(0, loc.from) + markup + prev.slice(loc.to));
+    }
+    ignoreMention(m); // hidden until the next scan drops it as linked
+  }, [toast, rescanMentions, ignoreMention]);
+
+  const jumpToMention = useCallback((m) => {
+    editorRef.current?.setSelection(m.from, m.to);
+    editorRef.current?.scrollToLine(m.line);
+  }, []);
 
   const syncEditor = useCallback(() => {
     if (syncingRef.current || editorRafRef.current) return;
@@ -917,7 +945,11 @@ export default function PageEditor() {
         />
       </div>
       <EditorRail body={body} pageName={name} isNew={isNew} cursorStore={cursorStore}
-        open={railOpen} onToggle={toggleRail} onJump={jumpToHeading} />
+        open={railOpen} onToggle={toggleRail} onJump={jumpToHeading}>
+        <UnlinkedMentionsPanel status={mentionScan.status} mentions={visibleMentions}
+          onLink={linkMention} onIgnore={ignoreMention}
+          onJump={jumpToMention} onRetry={mentionScan.rescan} />
+      </EditorRail>
       </div>
       <EditorStatusBar body={body} cursorStore={cursorStore} />
 

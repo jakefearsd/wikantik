@@ -163,6 +163,17 @@ const CodeEditor = forwardRef(function CodeEditor(
       return true;
     },
     /**
+     * Replace the character range [from, to) with `text` in one normal (non-external) transaction, so
+     * it is a single undoable edit and onChange fires. Returns false when there is no view.
+     */
+    replaceRange(from, to, text) {
+      const view = viewRef.current;
+      if (!view) return false;
+      const len = view.state.doc.length;
+      view.dispatch({ changes: { from: Math.min(from, len), to: Math.min(to, len), insert: text } });
+      return true;
+    },
+    /**
      * Replace the first exact occurrence of `find` with `replacement` (literal, like String.replace with
      * a string pattern but without `$` expansion). A missing `find` is a handled no-op. Returns false
      * when there is no view.

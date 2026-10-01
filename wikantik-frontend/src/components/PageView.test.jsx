@@ -29,6 +29,10 @@ vi.mock('../utils/codeHighlight', async () => {
   const { createLowlight, common } = await vi.importActual('lowlight');
   return { ...actual, loadLowlight: () => Promise.resolve(createLowlight(common)) };
 });
+vi.mock('../hooks/usePagePreview', () => ({
+  loadPreview: vi.fn(async () => ({ status: 'ok', data: { title: 'Linked Hub', summary: 'About the hub.' } })),
+  evictPreview: vi.fn(),
+}));
 vi.mock('./MetadataPanel', () => ({ default: () => null }));
 vi.mock('./SimilarPagesPanel', () => ({ default: () => null }));
 vi.mock('./BacklinksPanel', () => ({ default: () => null }));
@@ -812,5 +816,25 @@ describe('PageView export-cluster entry point', () => {
   it('does not show the export-cluster button for a non-hub page', async () => {
     await mountAndSettle();
     expect(screen.queryByTestId('export-cluster-button')).toBeNull();
+  }, TEST_TIMEOUT);
+});
+
+describe('PageView link previews', () => {
+  it('hovering an internal link in the article shows the preview card after the open delay', async () => {
+    api.getPage.mockImplementation(async () => ({
+      ...PAGE,
+      contentHtml: '<p>See <a href="/wiki/LinkedHub">the hub</a></p>',
+    }));
+    const { container } = await mountAndSettle();
+    const link = container.querySelector('a[href="/wiki/LinkedHub"]');
+    expect(link).toBeTruthy();
+    vi.useFakeTimers();
+    try {
+      fireEvent.mouseOver(link);
+      await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(screen.getByTestId('link-preview-card')).toHaveTextContent('About the hub.');
   }, TEST_TIMEOUT);
 });

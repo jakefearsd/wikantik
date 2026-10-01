@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
+import { useLinkPreview } from '../hooks/useLinkPreview';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { usePageTrail } from '../hooks/usePageTrail';
 import { useToast } from '../hooks/useToast';
@@ -477,6 +478,9 @@ export default function PageView() {
     />
   ), [articleHtml, handleContentClick, onArticleMouseUp]);
 
+  // Rendered as a sibling of the memoised article (never inside it — React 19 would re-apply innerHTML).
+  const { card: linkPreviewCard } = useLinkPreview(articleRef, articleHtml);
+
   // Show the spinner only when we have nothing to display for THIS page yet.
   // Once we have data for `name` (seeded from the SSR island or fetched), a
   // background refresh (e.g. the auth-state-driven refetch) keeps the content
@@ -599,6 +603,7 @@ export default function PageView() {
 
       <div className="page-toc-wrapper">
         {articleEl}
+        {linkPreviewCard}
         <TableOfContents headings={headings} activeId={activeHeadingId} />
       </div>
 

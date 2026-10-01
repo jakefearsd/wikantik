@@ -80,6 +80,9 @@ function unwrapEnvelope(parsed) {
 
 export const api = {
   // Pages
+  getPagePreview: (name, { section, signal } = {}) =>
+    request(`/api/pages/${encodeURIComponent(name)}/preview${section ? `?section=${encodeURIComponent(section)}` : ''}`,
+      { signal }),
   getPage: (name, { version, render, signal } = {}) => {
     const params = new URLSearchParams();
     if (version) params.set('version', version);

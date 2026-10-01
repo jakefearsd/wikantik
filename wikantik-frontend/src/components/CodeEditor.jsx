@@ -9,6 +9,7 @@ import { foldAll, unfoldAll } from '@codemirror/language';
 import { frontmatterFold, revealEffects } from '../utils/markdownFold';
 import { createWikiLinkSource } from '../utils/wikiLinkComplete';
 import { filesFromPaste, filesFromDrop } from '../utils/editorFileEvents';
+import { linkInteraction } from '../utils/linkInteraction';
 
 /**
  * #19 — CodeMirror 6 markdown source editor.
@@ -53,9 +54,8 @@ function reveal(view, ...positions) {
   const effects = positions.flatMap((pos) => revealEffects(view.state, pos));
   if (effects.length > 0) view.dispatch({ effects });
 }
-
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onViewChange, onFiles, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onLinkHover, onViewChange, onFiles, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
@@ -66,6 +66,8 @@ const CodeEditor = forwardRef(function CodeEditor(
   linkCompletionRef.current = linkCompletion;
   const slashSourceRef = useRef(slashSource);
   slashSourceRef.current = slashSource;
+  const onLinkHoverRef = useRef(onLinkHover);
+  onLinkHoverRef.current = onLinkHover;
 
   // Fired on scroll / caret move / edit so the parent can sync the preview.
   // Held in a ref so the extension (built once) always calls the latest handler.
@@ -294,9 +296,14 @@ const CodeEditor = forwardRef(function CodeEditor(
     [],
   );
 
+  const linkExtension = useMemo(
+    () => linkInteraction({ onHover: (url, rect) => onLinkHoverRef.current?.(url, rect) }),
+    [],
+  );
+
   const extensions = useMemo(
-    () => [markdown({ codeLanguages: languages }), EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, frontmatterFold],
-    [shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension],
+    () => [markdown({ codeLanguages: languages }), EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, linkExtension, frontmatterFold],
+    [shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, linkExtension],
   );
 
   return (

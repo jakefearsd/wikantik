@@ -29,6 +29,10 @@ import { useAttachments } from '../hooks/useAttachments';
 import { useAttachmentUpload } from '../hooks/useAttachmentUpload';
 import { dragCarriesFiles, filesFromDrop } from '../utils/editorFileEvents';
 import { useEditorDrop } from '../hooks/useEditorDrop';
+import LinkPreviewCard from './LinkPreviewCard';
+import { useLinkPreview } from '../hooks/useLinkPreview';
+import { loadPreview, evictPreview } from '../hooks/usePagePreview';
+import { wikiLinkTarget } from '../utils/wikiLinkTargets';
 import { useDraft } from '../hooks/useDraft';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -432,6 +436,35 @@ export default function PageEditor() {
   }, []);
 
   const [previewOpen, setPreviewOpen] = useState(true);
+
+  const previewArticleRef = useRef(null);
+  const { card: previewCard } = useLinkPreview(previewArticleRef, previewOpen);
+
+  // Ctrl/Cmd-hover over a link in the source editor.
+  const [sourceHover, setSourceHover] = useState(null); // { url, rect }
+  const [sourceResult, setSourceResult] = useState(null);
+  const handleLinkHover = useCallback((url, rect) => {
+    setSourceHover((prev) => {
+      if (!url || !rect) return prev ? null : prev;
+      return prev && prev.url === url ? prev : { url, rect };
+    });
+  }, []);
+  const sourceUrl = sourceHover?.url;
+  useEffect(() => {
+    const target = sourceUrl ? wikiLinkTarget(sourceUrl) : null;
+    if (!target) return undefined;
+    const section = sourceUrl.includes('#') ? sourceUrl.slice(sourceUrl.indexOf('#') + 1) : null;
+    const ctl = new AbortController();
+    loadPreview(target, section, ctl.signal)
+      .then((r) => { if (!ctl.signal.aborted) setSourceResult({ url: sourceUrl, r }); })
+      .catch((err) => {
+        if (err?.name !== 'AbortError') console.warn('[link-preview] source preview failed', target, err?.message || err);
+      });
+    return () => ctl.abort();
+  }, [sourceUrl]);
+  const sourceCard = sourceHover && wikiLinkTarget(sourceHover.url)
+    ? <LinkPreviewCard rect={sourceHover.rect} result={sourceResult?.url === sourceHover.url ? sourceResult.r : null} /> : null;
+
   const imageInputRef = useRef(null);
   const runCommand = useRunCommand();
   const saveNow = useCallback(() => { if (!savingRef.current) latestSaveRef.current?.(); }, []);
@@ -485,6 +518,7 @@ export default function PageEditor() {
       setViolations([]);
       setMathViolations([]);
       clearDraft();
+      evictPreview(name);
       const warns = (res && res.warnings) || [];
       const mathWarns = (res && res.mathWarnings) || [];
       if (mathWarns.length) {
@@ -845,6 +879,7 @@ export default function PageEditor() {
             onLink={handleLink}
             linkCompletion={linkCompletion}
             slashSource={slashSource}
+            onLinkHover={handleLinkHover}
             onViewChange={handleViewChange}
             onFiles={handleFiles}
           />
@@ -852,7 +887,7 @@ export default function PageEditor() {
         {previewOpen && (
         <div className="editor-pane editor-preview" ref={previewRef} onScroll={syncEditor}>
           <FrontmatterPreview content={fullText} />
-          <article className="article-prose" onClick={handlePreviewClick}>
+          <article className="article-prose" ref={previewArticleRef} onClick={handlePreviewClick}>
             <ReactMarkdown remarkPlugins={[
               remarkGfm,
               remarkMath,
@@ -864,8 +899,10 @@ export default function PageEditor() {
               {previewContent}
             </ReactMarkdown>
           </article>
+          {previewCard}
         </div>
         )}
+        {sourceCard}
         <input
           type="file"
           ref={imageInputRef}

@@ -82,6 +82,7 @@ vi.mock('../api/client', () => ({
     rejectEdge: vi.fn(() => Promise.resolve(null)),
   },
 }));
+vi.mock('../hooks/usePagePreview', () => ({ loadPreview: vi.fn(), evictPreview: vi.fn() }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('../hooks/useDraft', () => ({ useDraft: vi.fn() }));
 vi.mock('../hooks/useAttachments', () => ({ useAttachments: vi.fn() }));
@@ -96,6 +97,7 @@ vi.mock('../hooks/useToast', () => ({
 import PageEditor from './PageEditor';
 import { NavigationGuardProvider } from '../navigation/NavigationGuardProvider';
 import { api } from '../api/client';
+import { evictPreview } from '../hooks/usePagePreview';
 import { useAuth } from '../hooks/useAuth';
 import { useDraft } from '../hooks/useDraft';
 import { useAttachments } from '../hooks/useAttachments';
@@ -202,6 +204,14 @@ describe('#4 Cmd/Ctrl+S save', () => {
 
     fireEvent.keyDown(window, { key: 's', metaKey: true });
     await waitFor(() => expect(api.savePage).toHaveBeenCalledTimes(1));
+  });
+
+  it('a successful save evicts the page from the link-preview cache', async () => {
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.keyDown(window, { key: 's', metaKey: true });
+    await waitFor(() => expect(evictPreview).toHaveBeenCalledTimes(1));
   });
 
   it('Ctrl+S triggers savePage', async () => {

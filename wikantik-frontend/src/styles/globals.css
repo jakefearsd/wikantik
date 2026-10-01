@@ -2505,3 +2505,14 @@ h3:focus-within .heading-anchor {
 .quick-overlay .quick-row-search, .quick-overlay .quick-row-create { color: var(--text-secondary); }
 .quick-overlay .quick-row-fulltext::before { content: '🔍'; margin-right: 0.4rem; opacity: 0.6; }
 .quick-overlay .quick-row-error { color: var(--text-muted); font-style: italic; }
+
+/* Link hover preview card */
+.link-preview-card { z-index: 1000; max-width: 22rem; padding: 0.6rem 0.75rem; background: var(--bg-elevated);
+  color: var(--text); border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow-strong);
+  font-size: 0.85rem; line-height: 1.4; pointer-events: auto; }
+.link-preview-head { display: flex; gap: 0.5rem; align-items: baseline; }
+.link-preview-type { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); }
+.link-preview-cluster { color: var(--text-secondary); font-size: 0.75rem; }
+.link-preview-text { margin: 0.35rem 0 0; color: var(--text-secondary); }
+.link-preview-missing, .link-preview-loading { margin: 0; color: var(--text-muted); font-style: italic; }
+.cm-mod-held .cm-content .cm-link-range { cursor: pointer; text-decoration: underline; }

@@ -30,14 +30,17 @@ export function useLinkPreview(containerRef, rebindKey = null) {
   const openTimer = useRef(null);
   const closeTimer = useRef(null);
   const ctl = useRef(null);
+  const shown = useRef(null); // the anchor the card currently belongs to
 
   const cancelTimers = useCallback(() => { clearTimeout(openTimer.current); clearTimeout(closeTimer.current); }, []);
   const close = useCallback(() => {
     cancelTimers();
     ctl.current?.abort();
+    shown.current = null;
     setState(null);
   }, [cancelTimers]);
   const scheduleClose = useCallback(() => {
+    clearTimeout(openTimer.current); // a pointer that left before the open delay must not open later
     clearTimeout(closeTimer.current);
     closeTimer.current = setTimeout(close, GRACE_MS);
   }, [close]);
@@ -47,9 +50,11 @@ export function useLinkPreview(containerRef, rebindKey = null) {
   const open = useCallback((anchor) => {
     const target = previewTargetOf(anchor);
     if (!target) return;
+    if (shown.current === anchor) { clearTimeout(closeTimer.current); return; }
     cancelTimers();
     openTimer.current = setTimeout(() => {
       const rect = anchor.getBoundingClientRect();
+      shown.current = anchor;
       if (target.missing) { setState({ rect, result: { status: 'missing' } }); return; }
       ctl.current?.abort();
       ctl.current = new AbortController();

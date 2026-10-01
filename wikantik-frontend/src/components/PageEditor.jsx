@@ -478,6 +478,16 @@ export default function PageEditor() {
     });
   }, []);
   const sourceUrl = sourceHover?.url;
+  const sourceOpen = !!sourceHover;
+  useEffect(() => {
+    if (!sourceOpen) return undefined;
+    const onKey = (e) => {
+      if (e.type === 'keydown' ? e.key === 'Escape' : (e.key === 'Control' || e.key === 'Meta')) setSourceHover(null);
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKey);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); };
+  }, [sourceOpen]);
   useEffect(() => {
     const target = sourceUrl ? wikiLinkTarget(sourceUrl) : null;
     if (!target) return undefined;

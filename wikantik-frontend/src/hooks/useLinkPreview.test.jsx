@@ -98,6 +98,30 @@ describe('useLinkPreview', () => {
     expect(screen.queryByTestId('link-preview-card')).toBeNull();
   });
 
+  it('a pointer that leaves before the open delay never shows the card or fetches', async () => {
+    render(<Host />);
+    const link = screen.getByText('hub');
+    fireEvent.mouseOver(link);
+    await advance(250);
+    fireEvent.mouseOut(link);
+    await advance(300);
+    expect(screen.queryByTestId('link-preview-card')).toBeNull();
+    expect(loadPreview).not.toHaveBeenCalled();
+  });
+
+  it('re-entering the anchor already showing does not reload the card', async () => {
+    render(<Host />);
+    const link = screen.getByText('hub');
+    fireEvent.mouseOver(link);
+    await advance(400);
+    expect(loadPreview).toHaveBeenCalledTimes(1);
+    fireEvent.mouseOut(link);
+    fireEvent.mouseOver(link);
+    await advance(600);
+    expect(loadPreview).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('link-preview-card')).toHaveTextContent('About index funds.');
+  });
+
   it('extracts the section from a hash', () => {
     expect(previewTargetOf(anchor('/wiki/Page#usage'))).toEqual({ name: 'Page', section: 'usage', missing: false });
     expect(previewTargetOf(anchor('Page#usage'))).toEqual({ name: 'Page', section: 'usage', missing: false });

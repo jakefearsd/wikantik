@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
-import { linkAt, hrefFor } from './linkInteraction';
+import { EditorView } from '@codemirror/view';
+import { linkAt, hrefFor, linkInteraction } from './linkInteraction';
 
 const at = (doc, pos) => {
   const state = EditorState.create({ doc, extensions: [markdown()] });
@@ -28,5 +29,19 @@ describe('hrefFor', () => {
     expect(hrefFor('https://example.com/a')).toBe('https://example.com/a');
     expect(hrefFor('javascript:alert(1)')).toBeNull();
     expect(hrefFor('#local')).toBeNull();
+  });
+});
+
+describe('mod-held class', () => {
+  it('is cleared when the window loses focus', () => {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const view = new EditorView({ parent, doc: 'x', extensions: [linkInteraction({ onHover: () => {} })] });
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Control', ctrlKey: true }));
+    expect(view.dom.classList.contains('cm-mod-held')).toBe(true);
+    window.dispatchEvent(new Event('blur'));
+    expect(view.dom.classList.contains('cm-mod-held')).toBe(false);
+    view.destroy();
+    parent.remove();
   });
 });

@@ -34,7 +34,7 @@ export function linkInteraction({ onHover }) {
   // (the editor theme's highlight classes are generated, so there is no stable token class).
   const linkRanges = ViewPlugin.fromClass(class {
     constructor(view) { this.decorations = this.build(view); }
-    update(u) { if (u.docChanged || u.viewportChanged) this.decorations = this.build(u.view); }
+    update(u) { if (u.docChanged || u.viewportChanged || syntaxTree(u.startState) !== syntaxTree(u.state)) this.decorations = this.build(u.view); }
     build(view) {
       const ranges = [];
       for (const { from, to } of view.visibleRanges) {
@@ -52,10 +52,13 @@ export function linkInteraction({ onHover }) {
       this.sync = (e) => view.dom.classList.toggle('cm-mod-held', e.ctrlKey || e.metaKey);
       window.addEventListener('keydown', this.sync);
       window.addEventListener('keyup', this.sync);
+      this.clear = () => view.dom.classList.remove('cm-mod-held');
+      window.addEventListener('blur', this.clear);
     }
     destroy() {
       window.removeEventListener('keydown', this.sync);
       window.removeEventListener('keyup', this.sync);
+      window.removeEventListener('blur', this.clear);
     }
   });
 

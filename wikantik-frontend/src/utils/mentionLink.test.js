@@ -26,6 +26,21 @@ describe('locatePhrase', () => {
     const loc = locatePhrase(text, m('expense ratio', 3));
     expect(text.slice(loc.from, loc.to)).toBe('Expense Ratio');
   });
+  it('skips an occurrence inside inline code and relocates to the prose one', () => {
+    const text = 'Use `index fund` here; an index fund later';
+    expect(locatePhrase(text, m('index fund', 0))).toEqual({ from: 26, to: 36 });
+  });
+  it('skips occurrences inside existing link text and link URLs', () => {
+    const text = 'See [an index fund](IndexFundsHub) or [x](index fund) — then index fund.';
+    const loc = locatePhrase(text, m('index fund', 0));
+    expect(loc).toEqual({ from: text.lastIndexOf('index fund'), to: text.lastIndexOf('index fund') + 10 });
+  });
+  it('returns null (so the caller rescans) when only code or link occurrences remain', () => {
+    expect(locatePhrase('only `index fund` and [index fund](X) left', m('index fund', 0))).toBeNull();
+  });
+  it('does not accept the recorded span once the text there became inline code', () => {
+    expect(locatePhrase('`index fund`', m('index fund', 1))).toBeNull();
+  });
 });
 
 describe('linkMarkup', () => {

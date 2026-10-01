@@ -68,8 +68,9 @@ Exceeding any limit → 413 with a message naming the limit (plan and apply).
 From scratch — the codebase has no zip reader. Reject the archive (400) on: an entry name that is
 absolute, contains `\`, NUL, a `.`/`..` segment, or is not valid UTF-8; cumulative uncompressed bytes
 over the cap (counted while streaming, never trusting header sizes); entry count over the cap; any
-entry whose compression ratio exceeds 100:1 once over 1 MB. Directories are implicit. Symlink entries
-(unix mode bits) are skipped. Read into memory per entry only for `.md` (≤ `wikantik.api.maxPageBytes`)
+entry whose compression ratio exceeds 100:1 once over 1 MB. Directories are implicit. Entries are
+read with `ZipInputStream` only and never written to disk, so symlink entries are inert ordinary files
+(**Ruling**, 2026-10-01: no hand-written central-directory parser). Read into memory per entry only for `.md` (≤ `wikantik.api.maxPageBytes`)
 and attachment candidates; skip everything else without buffering.
 
 Ignored paths (silently): `.obsidian/`, `.trash/`, `.git/`, `__MACOSX/`, any dot-file or dot-folder,

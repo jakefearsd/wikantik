@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.29] - 2026-10-01
+
 ### Added
 - Editor workspace: quick overlay (Ctrl-K/Ctrl-O pages with title/alias/fuzzy ranking, Ctrl-P commands,
   full-text and create rows); command palette shared with the toolbar and a `/` slash menu; link hover

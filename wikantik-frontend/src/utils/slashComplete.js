@@ -1,6 +1,23 @@
 import { syntaxTree } from '@codemirror/language';
 import { fuzzyRank } from './fuzzy';
 import { formatKeys } from './keyHints';
+import { styleOf } from './remarkCallouts';
+
+const ICON_KIND = {
+  'insert-table': 'table', 'code-block': 'code', 'math-block': 'math', 'horizontal-rule': 'rule',
+  'insert-image': 'image', 'insert-link': 'link',
+};
+
+/**
+ * The CodeMirror completion {@code type} for a slash command: space-separated classes that become
+ * {@code .cm-completionIcon-slash-*} on the option's icon, so the editor theme can draw a per-kind glyph
+ * (and tint callouts with their style colour).
+ */
+export function slashIconType(id) {
+  if (/^heading-\d$/.test(id)) return `slash slash-${id}`;
+  if (id.startsWith('callout-')) return `slash slash-callout slash-callout-${styleOf(id.slice('callout-'.length))}`;
+  return ICON_KIND[id] ? `slash slash-${ICON_KIND[id]}` : 'slash';
+}
 
 const CODE_NODES = new Set(['FencedCode', 'CodeBlock', 'InlineCode', 'CodeText', 'CodeMark', 'URL', 'Autolink']);
 
@@ -43,6 +60,7 @@ export function createSlashSource(getCommands, run) {
       .sort((a, b) => a.r - b.r || (a.c.slashLabel || a.c.title).localeCompare(b.c.slashLabel || b.c.title))
       .map(({ c }) => ({
         label: c.slashLabel || c.title,
+        type: slashIconType(c.id),
         detail: c.keys ? formatKeys(c.keys) : undefined,
         apply: (view, _completion, _from, to) => {
           view.dispatch({ changes: { from: slashPos, to, insert: '' } });

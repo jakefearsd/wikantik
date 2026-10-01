@@ -3,7 +3,7 @@ import { EditorState } from '@codemirror/state';
 import { CompletionContext } from '@codemirror/autocomplete';
 import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
-import { createSlashSource } from './slashComplete';
+import { createSlashSource, slashIconType } from './slashComplete';
 
 const COMMANDS = [
   { id: 'heading-2', title: 'Heading 2', slash: true, run: vi.fn() },
@@ -50,5 +50,27 @@ describe('slash completion', () => {
     r.options[0].apply({ dispatch, state }, r.options[0], r.from, 6);
     expect(dispatch).toHaveBeenCalledWith({ changes: { from: 2, to: 6, insert: '' } });
     expect(run).toHaveBeenCalledWith('heading-2');
+  });
+
+  it('tags each option with a completion type that picks its per-kind icon', () => {
+    expect(complete('/').options.map((o) => o.type)).toEqual(['slash slash-heading-2', 'slash slash-callout slash-callout-warning']);
+  });
+});
+
+describe('slashIconType', () => {
+  it.each([
+    ['heading-1', 'slash slash-heading-1'],
+    ['heading-3', 'slash slash-heading-3'],
+    ['callout-tip', 'slash slash-callout slash-callout-tip'],
+    ['callout-caution', 'slash slash-callout slash-callout-warning'],
+    ['insert-table', 'slash slash-table'],
+    ['code-block', 'slash slash-code'],
+    ['math-block', 'slash slash-math'],
+    ['horizontal-rule', 'slash slash-rule'],
+    ['insert-image', 'slash slash-image'],
+    ['insert-link', 'slash slash-link'],
+    ['something-else', 'slash'],
+  ])('%s → %s', (id, type) => {
+    expect(slashIconType(id)).toBe(type);
   });
 });

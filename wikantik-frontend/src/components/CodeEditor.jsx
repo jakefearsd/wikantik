@@ -6,7 +6,9 @@ import { EditorView, keymap } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { autocompletion } from '@codemirror/autocomplete';
 import { foldAll, unfoldAll } from '@codemirror/language';
-import { frontmatterFold, revealEffects } from '../utils/markdownFold';
+import { editorFoldConfig, frontmatterFold, revealEffects } from '../utils/markdownFold';
+import { calloutMarkers } from '../utils/calloutMarkers';
+import { editorChrome } from '../utils/editorTheme';
 import { createWikiLinkSource } from '../utils/wikiLinkComplete';
 import { filesFromPaste, filesFromDrop } from '../utils/editorFileEvents';
 import { linkInteraction } from '../utils/linkInteraction';
@@ -344,7 +346,12 @@ const CodeEditor = forwardRef(function CodeEditor(
   );
 
   const extensions = useMemo(
-    () => [markdown({ codeLanguages: languages }), EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, linkExtension, frontmatterFold],
+    () => [
+      // Folds: headings, the frontmatter block and fenced code only (editorFoldConfig + frontmatterFold).
+      markdown({ codeLanguages: languages, extensions: editorFoldConfig }),
+      EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, linkExtension,
+      frontmatterFold, calloutMarkers, editorChrome,
+    ],
     [shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, linkExtension],
   );
 

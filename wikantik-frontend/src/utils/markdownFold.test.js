@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
-import { codeFolding, foldEffect, foldedRanges, unfoldEffect } from '@codemirror/language';
-import { frontmatterFoldRange, revealEffects } from './markdownFold';
+import { codeFolding, foldEffect, foldable, foldedRanges, unfoldEffect } from '@codemirror/language';
+import { editorFoldConfig, frontmatterFold, frontmatterFoldRange, revealEffects } from './markdownFold';
 
 describe('frontmatterFoldRange', () => {
   it('folds a leading frontmatter block from the end of the opening fence to the closing fence', () => {
@@ -28,5 +28,76 @@ describe('revealEffects', () => {
   });
   it('returns nothing outside folds or without the fold state', () => {
     expect(revealEffects(EditorState.create({ doc: 'x' }), 0)).toEqual([]);
+  });
+});
+
+describe('editorFoldConfig — fold markers only for headings, frontmatter and fences', () => {
+  const DOC = [
+    '---',                    // 1 frontmatter open
+    'title: x',               // 2
+    'tags: [a]',              // 3
+    '---',                    // 4 frontmatter close (would be a setext underline)
+    '# One',                  // 5
+    'para line one',          // 6 multi-line paragraph
+    'para line two',          // 7
+    '',                       // 8
+    '> quote one',            // 9 multi-line blockquote
+    '> quote two',            // 10
+    '',                       // 11
+    '- item one',             // 12 list with a multi-line item
+    '  continued',            // 13
+    '- item two',             // 14
+    '',                       // 15
+    '## Sub',                 // 16
+    'sub body',               // 17
+    '',                       // 18
+    '```js',                  // 19 fence
+    'const a = 1;',           // 20
+    '```',                    // 21
+    '',                       // 22
+    '# Two',                  // 23
+    'tail',                   // 24
+  ].join('\n');
+
+  const state = EditorState.create({
+    doc: DOC,
+    extensions: [markdown({ extensions: editorFoldConfig }), frontmatterFold],
+  });
+  const at = (n) => foldable(state, state.doc.line(n).from, state.doc.line(n).to);
+
+  it('offers no fold on paragraph, blockquote or list lines', () => {
+    expect(at(6)).toBeNull();
+    expect(at(9)).toBeNull();
+    expect(at(12)).toBeNull();
+    expect(at(13)).toBeNull();
+  });
+
+  it('offers no fold inside the frontmatter body (no setext heading there)', () => {
+    expect(at(2)).toBeNull();
+    expect(at(3)).toBeNull();
+  });
+
+  it('folds the leading frontmatter block', () => {
+    expect(at(1)).toEqual({ from: state.doc.line(1).to, to: state.doc.line(4).to });
+  });
+
+  it('folds a heading up to (not into) the next heading of the same or higher level', () => {
+    const h1 = at(5);
+    expect(h1.from).toBe(state.doc.line(5).to);
+    expect(h1.to).toBeLessThan(state.doc.line(23).from);
+    expect(h1.to).toBeGreaterThanOrEqual(state.doc.line(21).to);
+    const h2 = at(16);
+    expect(h2.from).toBe(state.doc.line(16).to);
+    expect(h2.to).toBeLessThan(state.doc.line(23).from);
+  });
+
+  it('folds a fenced code block from the end of its opening fence', () => {
+    expect(at(19)).toEqual({ from: state.doc.line(19).to, to: state.doc.line(21).to });
+  });
+
+  it('offers no fold for an unclosed leading --- block', () => {
+    const s = EditorState.create({ doc: '---\npara one\npara two\n', extensions: [markdown({ extensions: editorFoldConfig }), frontmatterFold] });
+    expect(foldable(s, 0, 3)).toBeNull();
+    expect(foldable(s, s.doc.line(2).from, s.doc.line(2).to)).toBeNull();
   });
 });

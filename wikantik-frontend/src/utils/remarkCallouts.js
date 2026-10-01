@@ -9,7 +9,7 @@ const STYLE = {
   attention: 'warning', failure: 'failure', fail: 'failure', missing: 'failure', danger: 'danger',
   error: 'danger', bug: 'bug', example: 'example', quote: 'quote', cite: 'quote',
 };
-const MARKER = /^\[!([A-Za-z][A-Za-z0-9_-]*)\]([+-]?)[ \t]*/;
+export const MARKER = /^\[!([A-Za-z][A-Za-z0-9_-]*)\]([+-]?)[ \t]*/;
 
 export function styleOf(rawType) {
   return STYLE[rawType.toLowerCase()] || 'note';

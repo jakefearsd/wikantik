@@ -8,7 +8,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, act } from '@testing-library/react';
 import { createRef } from 'react';
 import { EditorView } from '@codemirror/view';
-import { foldedRanges } from '@codemirror/language';
+import { foldable, foldedRanges } from '@codemirror/language';
 import CodeEditor from './CodeEditor';
 
 function mount(value) {
@@ -58,5 +58,32 @@ describe('CodeEditor on real CodeMirror', () => {
       if (from <= at && to >= at) foldedOverEdit = true;
     });
     expect(foldedOverEdit).toBe(false);
+  });
+
+  it('marks a callout [!type] in the source as a callout marker, not a link', () => {
+    const { container } = mount('> [!warning]- Careful\n> body\n');
+    const marker = container.querySelector('.cm-callout-marker');
+    expect(marker).not.toBeNull();
+    expect(marker.textContent).toBe('[!warning]-');
+    expect(marker.classList.contains('cm-callout-marker-warning')).toBe(true);
+  });
+
+  it('offers fold markers only on headings, frontmatter and fences; folds show a ⋯ placeholder', () => {
+    const doc = '---\ntitle: x\n---\n# One\npara one\npara two\n\n> q one\n> q two\n\n# Two\nend\n';
+    const { ref, view, container } = mount(doc);
+    const lineNo = (text) => view.state.doc.toString().split('\n').indexOf(text) + 1;
+    const foldableAt = (text) => {
+      const line = view.state.doc.line(lineNo(text));
+      return foldable(view.state, line.from, line.to);
+    };
+    expect(foldableAt('para one')).toBeNull();
+    expect(foldableAt('> q one')).toBeNull();
+    expect(foldableAt('title: x')).toBeNull();
+    expect(foldableAt('# One')).not.toBeNull();
+    expect(foldableAt('---')).not.toBeNull();
+    act(() => { ref.current.foldAll(); });
+    const placeholder = container.querySelector('.cm-foldPlaceholder');
+    expect(placeholder).not.toBeNull();
+    expect(placeholder.textContent).toBe('⋯');
   });
 });

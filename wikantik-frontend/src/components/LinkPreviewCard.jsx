@@ -1,9 +1,11 @@
 import { useLayoutEffect, useRef } from 'react';
 import { placeCard } from '../utils/placeCard';
+import { clusterLabel } from '../utils/clusterLabel';
 
 // Size used before the card has been measured (and where there is no layout, e.g. tests): the CSS max-width.
 const ESTIMATE = { width: 352, height: 140 }; // 22rem
 const viewport = () => ({ width: window.innerWidth, height: window.innerHeight });
+const clean = (v) => (typeof v === 'string' ? v.trim() : '');
 
 /** Text-only preview of a wiki page, positioned under the hovered link. Never renders Markdown or HTML. */
 export default function LinkPreviewCard({ rect, result, onMouseEnter, onMouseLeave }) {
@@ -25,18 +27,22 @@ export default function LinkPreviewCard({ rect, result, onMouseEnter, onMouseLea
   const pos = placeCard(rect, ESTIMATE, viewport());
   const style = { position: 'fixed', top: pos.top, left: pos.left };
   let body;
-  if (!result) body = <p className="link-preview-loading">Loading…</p>;
-  else if (result.status === 'missing') body = <p className="link-preview-missing">Not created yet</p>;
+  if (!result) body = <div className="link-preview-loading">Loading…</div>;
+  else if (result.status === 'missing') body = <div className="link-preview-missing">Not created yet</div>;
   else {
+    // Only non-empty parts render, so the card's flex gap never spaces around an empty element.
     const d = result.data;
+    const type = clean(d.type);
+    const cluster = clusterLabel(d.cluster);
+    const text = clean(d.summary) || clean(d.excerpt);
     body = (
       <>
         <div className="link-preview-head">
-          <strong className="link-preview-title">{d.title || d.name}</strong>
-          {d.type && <span className="link-preview-type">{d.type}</span>}
+          <strong className="link-preview-title">{clean(d.title) || d.name}</strong>
+          {type && <span className="badge badge-default link-preview-type">{type}</span>}
         </div>
-        {d.cluster && <div className="link-preview-cluster">{d.cluster}</div>}
-        {(d.summary || d.excerpt) && <p className="link-preview-text">{d.summary || d.excerpt}</p>}
+        {cluster && <div className="link-preview-cluster" data-testid="link-preview-cluster">{cluster}</div>}
+        {text && <div className="link-preview-text">{text}</div>}
       </>
     );
   }

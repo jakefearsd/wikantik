@@ -46,6 +46,18 @@ describe('NavigationGuardProvider', () => {
     expect(screen.getByTestId('where').textContent).toBe('/edit/A');
   });
 
+  it('renders Stay as the focused secondary button and Leave as a danger button', () => {
+    setup(true);
+    fireEvent.click(screen.getByTestId('link'));
+    const stay = screen.getByTestId('guard-stay');
+    const leave = screen.getByTestId('guard-leave');
+    expect(stay).toHaveClass('btn', 'btn-secondary');
+    expect(leave).toHaveClass('btn', 'btn-danger');
+    expect(leave).not.toHaveClass('btn-primary');
+    expect(document.activeElement).toBe(stay);
+    expect(screen.getByTestId('guard-dialog')).toHaveClass('guard-dialog');
+  });
+
   it('Leave without saving completes the navigation', () => {
     setup(true);
     fireEvent.click(screen.getByTestId('link'));

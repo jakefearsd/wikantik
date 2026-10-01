@@ -48,11 +48,11 @@ export function NavigationGuardProvider({ children }) {
     <GuardContext.Provider value={value}>
       {children}
       {pending && (
-        <Modal isOpen onClose={stay} labelledBy="guard-dialog-title" testId="guard-dialog">
-          <h2 id="guard-dialog-title">Unsaved changes</h2>
-          <p>You have unsaved changes. Your draft is kept in this browser but isn&apos;t saved to the wiki.</p>
+        <Modal isOpen onClose={stay} labelledBy="guard-dialog-title" testId="guard-dialog" className="guard-dialog">
+          <h2 id="guard-dialog-title" className="guard-dialog-title">Unsaved changes</h2>
+          <p className="guard-dialog-body">You have unsaved changes. Your draft is kept in this browser but isn&apos;t saved to the wiki.</p>
           <div className="modal-actions">
-            <button type="button" className="btn" data-testid="guard-stay" onClick={stay} autoFocus>Stay</button>
+            <button type="button" className="btn btn-secondary" data-testid="guard-stay" onClick={stay} autoFocus>Stay</button>
             <button type="button" className="btn btn-danger" data-testid="guard-leave" onClick={leave}>
               Leave without saving
             </button>

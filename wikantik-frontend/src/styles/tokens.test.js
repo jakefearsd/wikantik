@@ -40,4 +40,27 @@ describe('globals.css custom properties', () => {
     expect(block(':root')).toContain('--row-selected-bg:');
     expect(block('[data-theme="dark"]')).toContain('--row-selected-bg:');
   });
+
+  it('frontmatter controls, bordered buttons and the mention rail read only tokens both themes define', () => {
+    const light = block(':root');
+    const dark = block('[data-theme="dark"]');
+    const selectors = ['.ui-select,\n.ui-combobox-field,\n.ui-taginput-field {', '.ui-taginput {', '.ui-combobox-list {',
+      '.fm-textarea {', '.fm-cluster {', '.fm-cluster-field {', '.btn-secondary {', '.mention-btn-ignore {', '.mention-btn-link {',
+      '.mention-line {'];
+    for (const sel of selectors) {
+      const start = css.indexOf(sel);
+      expect(start, `${sel} rule exists`).toBeGreaterThanOrEqual(0);
+      const rule = css.slice(start, css.indexOf('}', start));
+      expect(rule, `${sel} has no hard-coded white fallback`).not.toMatch(/var\(--[\w-]+,\s*#/);
+      for (const [, token] of rule.matchAll(/var\((--[\w-]+)/g)) {
+        expect(light, `${token} (${sel}) in :root`).toContain(`${token}:`);
+        if (/^--(space|radius|font|duration|ease)/.test(token)) continue; // theme-independent metrics
+        expect(dark, `${token} (${sel}) in dark theme`).toContain(`${token}:`);
+      }
+    }
+  });
+
+  it('never falls back to the undefined --surface token (it rendered white fields in dark mode)', () => {
+    expect(css).not.toMatch(/var\(--surface\b/);
+  });
 });

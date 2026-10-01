@@ -142,7 +142,7 @@ describe('PageEditor unlinked mentions', () => {
   it('Jump relocates against the live editor text', async () => {
     api.scanMentions.mockResolvedValue({ mentions: [{ ...MENTION, from: 0, to: 10 }] });
     await scanned();
-    fireEvent.click(screen.getByText(/line 1/));
+    fireEvent.click(screen.getByTestId('mention-context'));
     expect(setSel).toHaveBeenCalledWith(3, 13);
   });
 

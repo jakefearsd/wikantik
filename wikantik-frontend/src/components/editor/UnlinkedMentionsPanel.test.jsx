@@ -15,7 +15,8 @@ describe('UnlinkedMentionsPanel', () => {
     const row = screen.getByTestId('mention-row');
     expect(row).toHaveTextContent('index fund');
     expect(row).toHaveTextContent('Index Funds');
-    expect(row).toHaveTextContent('line 4');
+    expect(screen.getByTestId('mention-line')).toHaveTextContent('L4');
+    expect(screen.getByTestId('mention-context')).toHaveAccessibleName('Jump to line 4: an index fund here');
     expect(row).toHaveTextContent('an index fund here');
     expect(screen.getByTestId('mentions-panel')).toHaveTextContent('Unlinked mentions1');
   });
@@ -25,6 +26,17 @@ describe('UnlinkedMentionsPanel', () => {
     fireEvent.click(screen.getByTestId('mention-ignore'));
     expect(h.onLink).toHaveBeenCalledWith(mention);
     expect(h.onIgnore).toHaveBeenCalledWith(mention);
+  });
+  it('keeps the arrow and the title together as one wrapping unit', () => {
+    setup();
+    const target = screen.getByTestId('mention-target');
+    expect(target.textContent).toBe('→\u00a0Index Funds');
+    expect(target.parentElement.querySelector('.mention-phrase')).toHaveTextContent('“index fund”');
+  });
+  it('renders Link and Ignore as real small buttons', () => {
+    setup();
+    expect(screen.getByTestId('mention-link')).toHaveClass('mention-btn', 'mention-btn-link');
+    expect(screen.getByTestId('mention-ignore')).toHaveClass('mention-btn', 'mention-btn-ignore');
   });
   it('clicking the context jumps', () => {
     const h = setup();

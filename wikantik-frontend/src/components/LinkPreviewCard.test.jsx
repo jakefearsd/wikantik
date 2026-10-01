@@ -10,9 +10,30 @@ describe('LinkPreviewCard', () => {
     const card = screen.getByTestId('link-preview-card');
     expect(card).toHaveTextContent('Hub');
     expect(card).toHaveTextContent('hub');
-    expect(card).toHaveTextContent('finance');
+    expect(card).toHaveTextContent('Finance');
     expect(card).toHaveTextContent('About funds.');
     expect(card).not.toHaveTextContent('ex');
+  });
+  it('prettifies the cluster slug', () => {
+    render(<LinkPreviewCard rect={rect} result={{ status: 'ok', data: { title: 'T', cluster: 'index-fund-investing/bond-funds' } }} />);
+    expect(screen.getByTestId('link-preview-cluster')).toHaveTextContent('Index Fund Investing › Bond Funds');
+  });
+  it('renders the type as a badge pill', () => {
+    render(<LinkPreviewCard rect={rect} result={{ status: 'ok', data: { title: 'T', type: 'hub' } }} />);
+    expect(screen.getByText('hub')).toHaveClass('badge', 'link-preview-type');
+  });
+  it('renders no empty element nodes when cluster and summary are blank', () => {
+    render(<LinkPreviewCard rect={rect} result={{ status: 'ok', data: { title: 'T', type: '', cluster: '  ', summary: '  ', excerpt: 'Body text.' } }} />);
+    const card = screen.getByTestId('link-preview-card');
+    const empty = [...card.querySelectorAll('*')].filter((el) => el.textContent.trim() === '');
+    expect(empty).toEqual([]);
+    expect(screen.queryByTestId('link-preview-cluster')).toBeNull();
+    expect(card).toHaveTextContent('Body text.');
+  });
+  it('uses no paragraph elements, so copied text has no blank lines', () => {
+    render(<LinkPreviewCard rect={rect} result={{ status: 'ok', data: { title: 'T', cluster: 'c', summary: 'S' } }} />);
+    const card = screen.getByTestId('link-preview-card');
+    expect(card.querySelectorAll('p')).toHaveLength(0);
   });
   it('falls back to the excerpt without a summary', () => {
     render(<LinkPreviewCard rect={rect} result={{ status: 'ok', data: { title: 'T', excerpt: 'An excerpt.' } }} />);

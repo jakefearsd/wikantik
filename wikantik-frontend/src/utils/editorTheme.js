@@ -181,7 +181,7 @@ export const editorChromeSpec = {
     textDecoration: 'none',
   },
   // The marker wraps the link highlight spans (and the Ctrl-hover link mark): neutralise their colour/underline.
-  [`${ROOT} .cm-callout-marker *`]: { color: 'inherit', textDecoration: 'none' },
+  [`${ROOT} .cm-content .cm-callout-marker *`]: { color: 'inherit', textDecoration: 'none', cursor: 'text' },
 
   ...iconRules(),
 };

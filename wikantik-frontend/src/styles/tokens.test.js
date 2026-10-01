@@ -15,6 +15,16 @@ describe('globals.css custom properties', () => {
   const declared = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
   const usedWithoutFallback = new Set([...css.matchAll(/var\((--[\w-]+)\s*\)/g)].map((m) => m[1]));
 
+  it('small secondary text never uses the low-contrast --text-muted (fails AA)', () => {
+    for (const sel of ['.link-preview-cluster', '.link-preview-missing', '.link-preview-loading',
+      '.quick-overlay .quick-row-error', '.mention-context']) {
+      const start = css.indexOf(`${sel} {`) >= 0 ? css.indexOf(`${sel} {`) : css.indexOf(`${sel},`);
+      expect(start, sel).toBeGreaterThanOrEqual(0);
+      const rule = css.slice(start, css.indexOf('}', start));
+      expect(rule, sel).not.toContain('--text-muted');
+    }
+  });
+
   it('reads the real stylesheet', () => {
     expect(css.length).toBeGreaterThan(10000);
     expect(declared.has('--text')).toBe(true);

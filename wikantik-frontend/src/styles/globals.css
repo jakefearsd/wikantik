@@ -2370,6 +2370,8 @@ h3:focus-within .heading-anchor {
 /* The field sits inside the bordered .ui-taginput box, which owns the background. */
 .ui-taginput-field { flex: 1 1 6rem; min-width: 6rem; border: none; padding: 0.25rem; background: transparent; }
 .ui-taginput-field:focus-visible { outline: none; }
+/* The borderless field hides its own outline, so the box shows a 2px accent ring instead of a 1px border change. */
+.ui-taginput:focus-within { box-shadow: 0 0 0 1px var(--accent); }
 .ui-tabs-list { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border, #ccc); }
 .ui-tab {
   font: inherit;
@@ -2433,6 +2435,7 @@ h3:focus-within .heading-anchor {
   background: transparent; color: var(--text);
 }
 .fm-cluster-field:focus-visible { outline: none; }
+.fm-cluster:focus-within { box-shadow: 0 0 0 1px var(--accent); }
 .fm-editor input::placeholder,
 .fm-editor textarea::placeholder { color: var(--text-muted); opacity: 1; }
 .fm-text { display: flex; align-items: center; gap: var(--space-sm); }
@@ -2660,7 +2663,7 @@ h3:focus-within .heading-anchor {
   padding: 0.4rem 0.65rem;
   text-align: left;
   font-size: 0.85rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-style: italic;
 }
 
@@ -2674,10 +2677,10 @@ h3:focus-within .heading-anchor {
 .link-preview-card .link-preview-type { flex: none; margin-top: 0.1rem; padding: 1px 8px; border-radius: 999px;
   border: 1px solid var(--border-strong); background: var(--bg-sidebar); color: var(--text-secondary);
   font-size: 0.62rem; line-height: 1.5; }
-.link-preview-cluster { font-size: 0.75rem; letter-spacing: 0.01em; color: var(--text-muted); }
+.link-preview-cluster { font-size: 0.75rem; letter-spacing: 0.01em; color: var(--text-secondary); }
 .link-preview-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4;
   overflow: hidden; color: var(--text-secondary); }
-.link-preview-missing, .link-preview-loading { color: var(--text-muted); font-style: italic; }
+.link-preview-missing, .link-preview-loading { color: var(--text-secondary); font-style: italic; }
 .cm-mod-held .cm-content .cm-link-range { cursor: pointer; text-decoration: underline; }
 
 /* Unlinked mentions (editor rail): phrase → title / jump-to context / actions, rows split by a hairline. */
@@ -2692,9 +2695,9 @@ h3:focus-within .heading-anchor {
 .mention-context {
   display: flex; align-items: center; gap: 0.4rem; width: 100%; min-width: 0; padding: 0;
   border: 0; border-radius: var(--radius-sm); background: none; font: inherit; font-size: 0.75rem;
-  color: var(--text-muted); text-align: left; cursor: pointer;
+  color: var(--text-secondary); text-align: left; cursor: pointer;
 }
-.mention-context:hover { color: var(--text-secondary); }
+.mention-context:hover { color: var(--text); }
 .mention-context:hover .mention-context-text { text-decoration: underline; }
 .mention-context:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .mention-line {

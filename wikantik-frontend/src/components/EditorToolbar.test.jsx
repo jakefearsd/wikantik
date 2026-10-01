@@ -25,6 +25,14 @@ describe('EditorToolbar', () => {
     });
   });
 
+  it('the link button face is a glyph, not the shortcut text', () => {
+    render(<EditorToolbar onRun={vi.fn()} />);
+    const btn = screen.getByTitle('Link (Ctrl+K)');
+    expect(btn.textContent).not.toMatch(/Ctrl|K/);
+    expect(btn.querySelector('svg')).not.toBeNull();
+    expect(btn).toHaveAttribute('aria-label', 'Link (Ctrl+K)');
+  });
+
   it('tooltips spell out the shortcut for this platform', () => {
     render(<EditorToolbar onRun={vi.fn()} />); // jsdom is not a Mac
     expect(screen.getByTitle('Bold (Ctrl+B)')).toBeInTheDocument();

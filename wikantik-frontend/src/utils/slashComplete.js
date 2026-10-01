@@ -2,7 +2,7 @@ import { syntaxTree } from '@codemirror/language';
 import { fuzzyRank } from './fuzzy';
 import { formatKeys } from './keyHints';
 import { styleOf } from './remarkCallouts';
-import { frontmatterCloseLine } from './markdownFold';
+import { frontmatterCloseLine, YAML_KEY } from './markdownFold';
 
 const ICON_KIND = {
   'insert-table': 'table', 'code-block': 'code', 'math-block': 'math', 'horizontal-rule': 'rule',
@@ -22,14 +22,20 @@ export function slashIconType(id) {
 
 const CODE_NODES = new Set(['FencedCode', 'CodeBlock', 'InlineCode', 'CodeText', 'CodeMark', 'URL', 'Autolink']);
 
+/** An unclosed {@code ---} + {@code key:} opener only claims the lines before its first blank line. */
+function inUnclosedFrontmatter(doc, slashLine) {
+  if (doc.lines < 2 || doc.line(1).text.trim() !== '---' || !YAML_KEY.test(doc.line(2).text)) return false;
+  for (let n = 2; n < slashLine; n += 1) if (doc.line(n).text.trim() === '') return false;
+  return true;
+}
+
 /** True when a slash at {@code slashPos} may open the menu: not in frontmatter, code, URLs or math. */
 export function slashAllowed(state, slashPos) {
   const doc = state.doc;
   const slashLine = doc.lineAt(slashPos).number;
   const close = frontmatterCloseLine((n) => doc.line(n).text, doc.lines);
   if (close > 0 && slashLine <= close) return false;                               // inside frontmatter
-  if (close === 0 && doc.lines >= 2 && doc.line(1).text.trim() === '---'
-      && /^[A-Za-z_][\w-]*\s*:/.test(doc.line(2).text)) return false;              // frontmatter still being typed
+  if (close === 0 && inUnclosedFrontmatter(doc, slashLine)) return false;           // frontmatter still being typed
   for (let node = syntaxTree(state).resolveInner(slashPos, 1); node; node = node.parent) {
     if (CODE_NODES.has(node.name)) return false;
   }

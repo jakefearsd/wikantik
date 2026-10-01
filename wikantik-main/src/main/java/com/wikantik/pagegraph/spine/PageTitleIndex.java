@@ -96,8 +96,8 @@ public final class PageTitleIndex implements PageTitleLookup {
         }
         final Map< String, Integer > tiers = new HashMap<>();
         for ( final String name : names ) {
-            final List< MatchKey > keys = normalizedKeysBySlug.getOrDefault( name,
-                    normalizedKeys( name, List.of( phraseOf( name ) ) ) );
+            final List< MatchKey > known = normalizedKeysBySlug.get( name );
+            final List< MatchKey > keys = known != null ? known : normalizedKeys( name, List.of( phraseOf( name ) ) );
             int best = NO_MATCH;
             for ( final MatchKey key : keys ) {
                 best = Math.min( best, tier( key, needle ) );

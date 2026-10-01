@@ -47,6 +47,7 @@ describe('slash completion', () => {
     ['after a leading horizontal rule', '---\n\ntext /he'],
     ['between two rules around prose', '---\n\nprose /he\n\n---\n'],
     ['after closed frontmatter', '---\ntitle: x\n---\n/he'],
+    ['after an unclosed look-alike once a blank line ends it', '---\ntitle: x\n\nprose /he'],
   ])('does trigger %s', (_name, doc) => {
     expect(complete(doc, doc.indexOf('/he') + 3)).not.toBeNull();
   });

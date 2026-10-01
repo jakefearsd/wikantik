@@ -1,7 +1,7 @@
 import { foldNodeProp, foldService, foldState, foldedRanges, unfoldEffect } from '@codemirror/language';
 
 const isFence = (text) => text != null && text.trim() === '---';
-const YAML_KEY = /^[A-Za-z_][\w-]*\s*:/;
+export const YAML_KEY = /^[A-Za-z_][\w-]*\s*:/;
 /** How far ahead the parser looks for a closing fence; a larger leading block is not treated as frontmatter. */
 const FRONTMATTER_SCAN_CHARS = 64 * 1024;
 

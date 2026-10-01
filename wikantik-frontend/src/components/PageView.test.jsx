@@ -32,6 +32,7 @@ vi.mock('../utils/codeHighlight', async () => {
 vi.mock('../hooks/usePagePreview', () => ({
   loadPreview: vi.fn(async () => ({ status: 'ok', data: { title: 'Linked Hub', summary: 'About the hub.' } })),
   evictPreview: vi.fn(),
+  clearPreviewCache: vi.fn(),
 }));
 vi.mock('./MetadataPanel', () => ({ default: () => null }));
 vi.mock('./SimilarPagesPanel', () => ({ default: () => null }));

@@ -41,7 +41,8 @@ import { formatRelative } from '../utils/datetime';
 import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock, setHeading, insertCallout, insertMathBlock, insertRule } from '../utils/markdownFormat';
 import { useDarkMode } from '../hooks/useDarkMode';
 import EditorToolbar from './EditorToolbar';
-import CodeEditor from './CodeEditor';
+import CodeEditor, { minimalChange } from './CodeEditor';
+import { attachmentLinkChanges, rewriteAttachmentLinks } from '../utils/attachmentLinks';
 import EditorRail from './editor/EditorRail';
 import EditorStatusBar from './editor/EditorStatusBar';
 import UnlinkedMentionsPanel from './editor/UnlinkedMentionsPanel';
@@ -308,6 +309,17 @@ export default function PageEditor() {
     replaceText: (find, replacement) => editorRef.current?.replaceText?.(find, replacement) ?? false,
   }), []);
 
+  // Replace the whole body while the editor is open (conversion, draft restore, conflict reload): through the view
+  // as one undoable transaction touching only the changed span, so the caret is mapped and nothing is parked behind
+  // react-codemirror's typing latch to be replayed over later keystrokes. setBody only when there is no view.
+  const replaceBody = useCallback((text) => {
+    const editor = editorRef.current;
+    const live = editor?.getText?.();
+    if (live === text) return;
+    if (live != null && editor.applyChanges?.([minimalChange(live, text)])) return;
+    setBody(text);
+  }, []);
+
   const handleInsert = useCallback((text, pos) => {
     if (editorEdits.insertText(pos, text)) return;
     setBody(prev => prev.slice(0, pos) + text + prev.slice(pos));
@@ -326,12 +338,13 @@ export default function PageEditor() {
 
   const handleRename = useCallback(async (oldName, newName) => {
     const result = await attachments.renameAttachment(oldName, newName);
-    setBody(prev => {
-      const escaped = oldName.replace(/\./g, '\\.');
-      return prev
-        .replace(new RegExp(`(!\\[[^\\]]*\\])\\(${escaped}\\)`, 'g'), `$1(${newName})`)
-        .replace(new RegExp(`(\\[[^\\]]*\\])\\(${escaped}\\)`, 'g'), `$1(${newName})`);
-    });
+    // This resolves at an arbitrary moment, typically while the user types. Rewrite the links in the LIVE editor
+    // text as one transaction (the caret is mapped through it); a setBody here would be parked by the typing
+    // latch and later replayed stale over the keystrokes typed in between.
+    const editor = editorRef.current;
+    const live = editor?.getText?.();
+    if (live != null && editor.applyChanges?.(attachmentLinkChanges(live, oldName, newName))) return result;
+    setBody((prev) => rewriteAttachmentLinks(prev, oldName, newName));
     return result;
   }, [attachments]);
 
@@ -358,6 +371,9 @@ export default function PageEditor() {
         try {
           const old = await api.getPage(name, { version: restoreVersion });
           setMetadata(old.metadata || {});
+          // Load-time setBody calls (here, below and the 404 bootstrap) may bypass the editor: on first load they run
+          // before it mounts (`loaded` is false), and on a switch to another page the user has already left this one
+          // (a dirty editor must pass the navigation guard first), so no keystrokes are in flight for them to race.
           setBody(old.content || '');
           setChangeNote(`Restored version ${restoreVersion}`);
           setRestoring({ from: restoreVersion, current: page.version });
@@ -537,14 +553,23 @@ export default function PageEditor() {
   const handleLink = useCallback(() => applyFormat('link'), [applyFormat]);
 
   const handleConvert = async () => {
+    // Convert exactly what the editor shows, and apply the result only if it still shows that: anything typed
+    // during the request would otherwise be silently discarded by the replacement.
+    const sent = editorRef.current?.getText?.() ?? bodyRef.current;
     setConverting(true);
     setError(null);
     try {
-      const result = await api.convertWikiToMarkdown(body);
-      setBody(result.markdown);
+      const result = await api.convertWikiToMarkdown(sent);
+      const live = editorRef.current?.getText?.() ?? bodyRef.current;
+      if (live !== sent) {
+        setError('The page changed while converting — run Convert again.');
+        return;
+      }
+      replaceBody(result.markdown);
       setMarkupSyntax('markdown');
       setConversionWarnings(result.warnings || []);
     } catch (err) {
+      console.warn('[editor] wiki-to-markdown conversion failed', err?.message || err);
       setError('Conversion failed: ' + (err.message || 'Unknown error'));
     } finally {
       setConverting(false);
@@ -629,20 +654,21 @@ export default function PageEditor() {
 
   const restoreDraft = useCallback(async () => {
     const full = draft?.content || '';
-    setBody(stripFrontmatter(full));
+    replaceBody(stripFrontmatter(full));
     const m = full.match(/^---\r?\n([\s\S]*?)\r?\n---/);
     if (m) {
       try {
         const result = await api.validateFrontmatter({ frontmatter: m[1] });
         setMetadata(result?.metadata || {});
-      } catch {
+      } catch (err) {
+        console.warn('[editor] could not parse the draft frontmatter; restoring without metadata', err?.message || err);
         setMetadata({});
       }
     } else {
       setMetadata({});
     }
     setRestorePrompt(false);
-  }, [draft]);
+  }, [draft, replaceBody]);
 
   const dragCounterRef = useRef(0);
 
@@ -720,7 +746,7 @@ export default function PageEditor() {
 
   const handleDiscard = () => {
     setMetadata(conflict.serverMetadata);
-    setBody(conflict.serverBody);
+    replaceBody(conflict.serverBody);
     setOriginalVersion(conflict.serverVersion);
     setConflict(null);
   };
@@ -728,11 +754,12 @@ export default function PageEditor() {
   const handleCopyAndLoad = async () => {
     try {
       await navigator.clipboard.writeText(fullText);
-    } catch {
-      // Fallback: clipboard not available in all contexts; proceed anyway
+    } catch (err) {
+      // Clipboard is not available in all contexts; load the server version anyway.
+      console.warn('[editor] could not copy the local text to the clipboard', err?.message || err);
     }
     setMetadata(conflict.serverMetadata);
-    setBody(conflict.serverBody);
+    replaceBody(conflict.serverBody);
     setOriginalVersion(conflict.serverVersion);
     setConflict(null);
   };

@@ -227,6 +227,16 @@ describe('CodeEditor replaceRange', () => {
   });
 });
 
+describe('CodeEditor applyChanges', () => {
+  it('returns false without a view so the caller can fall back to setBody', () => {
+    const ref = createRef();
+    const onChange = vi.fn();
+    render(<CodeEditor ref={ref} value="__NO_VIEW__" onChange={onChange} />);
+    expect(ref.current.applyChanges([{ from: 0, to: 1, insert: 'x' }])).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
 describe('#19 CodeEditor imperative API', () => {
   it('renders the wrapper with the forwarded data-testid', () => {
     const { getByTestId } = render(

@@ -6,6 +6,7 @@ import { EditorView, keymap } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { autocompletion } from '@codemirror/autocomplete';
 import { foldAll, unfoldAll } from '@codemirror/language';
+import { isolateHistory } from '@codemirror/commands';
 import { editorFoldConfig, frontmatterFold, revealEffects } from '../utils/markdownFold';
 import { calloutMarkers } from '../utils/calloutMarkers';
 import { editorChrome } from '../utils/editorTheme';
@@ -33,6 +34,8 @@ import { linkInteraction } from '../utils/linkInteraction';
  *   insertText(pos, text)       -> insert via a CodeMirror transaction; false if no view
  *   replaceText(find, repl)     -> replace first exact match via a transaction; false if no view
  *   applyEdit(text, start, end) -> make the document `text` with selection [start, end] in one transaction
+ *   applyChanges(changes)       -> apply [{from, to, insert}] (all against the current doc) as one isolated
+ *                                  undo step, the selection mapped through them; false if no view
  *
  * Props:
  *   value       string            current document text
@@ -204,6 +207,28 @@ const CodeEditor = forwardRef(function CodeEditor(
       reveal(view, Math.min(anchor, view.state.doc.length));
       view.dispatch({ changes: minimalChange(view.state.doc.toString(), text), selection: { anchor, head } });
       view.focus();
+      return true;
+    },
+    /**
+     * Apply `changes` — `{ from, to, insert }` ranges that all refer to the CURRENT document — as one normal
+     * transaction: onChange fires once and the caret/selection is mapped through the edits, so a background edit
+     * (attachment rename, conversion, draft or conflict reload) never moves the user's caret or races
+     * react-codemirror's typing latch the way a `value` change does. Positions are clamped to the document and a
+     * reversed range is ordered. The edit is its own undo step (never merged with adjacent typing). It neither
+     * focuses the editor nor reveals folds. Returns false when there is no view.
+     */
+    applyChanges(changes) {
+      const view = viewRef.current;
+      if (!view) return false;
+      const len = view.state.doc.length;
+      const clamp = (pos) => Math.max(0, Math.min(pos ?? 0, len));
+      const spec = (changes || []).map((c) => {
+        const a = clamp(c.from);
+        const b = clamp(c.to ?? c.from);
+        return { from: Math.min(a, b), to: Math.max(a, b), insert: c.insert ?? '' };
+      });
+      if (spec.length === 0) return true;
+      view.dispatch({ changes: spec, annotations: isolateHistory.of('full') });
       return true;
     },
     /**

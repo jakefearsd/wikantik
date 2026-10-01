@@ -38,6 +38,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Removing a field in the structured frontmatter editor now removes it on save (`replaceMetadata`
   was dropped by the client); the new-page dialog detects existing pages beyond the first 500;
   Ctrl/Cmd-K inside the editor no longer also opens the search overlay.
+- Renaming an attachment, converting wiki markup, restoring a draft or reloading after a save conflict no longer races typing in the editor; converting while you type now refuses rather than discarding your edits.
 
 ### Removed
 - The unused page-locking API (`PageManager.lockPage/unlockPage/getCurrentLock/getActiveLocks`,

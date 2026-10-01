@@ -33,8 +33,10 @@ vi.mock('@uiw/react-codemirror', async () => {
       dispatch(tr) {
         // A normal (non-external) transaction: apply the change and report it, as CodeMirror's onChange does.
         if (tr && tr.changes) {
-          const { from, to = from, insert = '' } = tr.changes;
-          const next = ta.value.slice(0, from) + insert + ta.value.slice(to);
+          // One change or a list of changes that all refer to the current doc (CodeMirror's ChangeSpec forms).
+          const list = Array.isArray(tr.changes) ? tr.changes : [tr.changes];
+          const next = [...list].sort((a, b) => b.from - a.from)
+            .reduce((text, { from, to = from, insert = '' }) => text.slice(0, from) + insert + text.slice(to), ta.value);
           Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(ta, next);
           if (onChange) onChange(next);
         }

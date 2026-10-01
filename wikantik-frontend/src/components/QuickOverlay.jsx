@@ -10,12 +10,20 @@ import { fuzzyRank } from '../utils/fuzzy';
 const BASE = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
 
 export default function QuickOverlay({ mode = 'pages', onClose }) {
-  const [query, setQuery] = useState(mode === 'commands' ? '>' : '');
+  const seedFor = (m) => (m === 'commands' ? '>' : '');
+  const [query, setQuery] = useState(seedFor(mode));
   const [pages, setPages] = useState([]);
   const [pageError, setPageError] = useState(false);
   const [fullText, setFullText] = useState([]);
   const [recentChanges, setRecentChanges] = useState([]);
   const [focused, setFocused] = useState(0);
+  // Re-seed when the mode changes while open (Ctrl-P over Ctrl-K): adjust during render, not in an effect.
+  const [seededMode, setSeededMode] = useState(mode);
+  if (mode !== seededMode) {
+    setSeededMode(mode);
+    setQuery(seedFor(mode));
+    setFocused(0);
+  }
   const inputRef = useRef(null);
   const go = useGuardedNavigate();
   const { openNewPage } = useNewPage();

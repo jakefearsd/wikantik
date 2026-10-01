@@ -129,6 +129,16 @@ describe('QuickOverlay', () => {
     expect(names).toEqual(['NewPage']);
   });
 
+  it('switching mode while open (Ctrl-P over Ctrl-K, and back) re-seeds the query', () => {
+    const onClose = vi.fn();
+    const { rerender } = renderOverlay({ onClose });
+    type('some page');
+    rerender(<MemoryRouter><QuickOverlay mode="commands" onClose={onClose} /></MemoryRouter>);
+    expect(input().value).toBe('>');
+    rerender(<MemoryRouter><QuickOverlay mode="pages" onClose={onClose} /></MemoryRouter>);
+    expect(input().value).toBe('');
+  });
+
   it('command mode lists commands by fuzzy title and runs the chosen one after closing', async () => {
     const run = vi.fn();
     registerCommands([{ id: 'fold-all', title: 'Fold all headings', keys: 'Ctrl-Alt-[', run },

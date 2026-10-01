@@ -39,6 +39,9 @@ public final class PageExcerpts {
     /** {@code [{ALLOW …}]}, {@code [{DENY …}]} and every other {@code [{Plugin …}]} span. */
     private static final Pattern PLUGIN = Pattern.compile( "\\[\\{.*?}]", Pattern.DOTALL );
     private static final Pattern SPACES = Pattern.compile( "\\s+" );
+    /** A callout's {@code [!type]} marker plus optional fold marker at the start of a blockquote line. */
+    private static final Pattern CALLOUT_MARKER = Pattern.compile(
+            "^((?:[ \\t]{0,3}>[ \\t]?)+)\\[![A-Za-z][A-Za-z0-9_-]*][+-]?[ \\t]*", Pattern.MULTILINE );
 
     private PageExcerpts() {}
 
@@ -46,7 +49,7 @@ public final class PageExcerpts {
         if ( markdownBody == null || markdownBody.isBlank() ) {
             return "";
         }
-        final String masked = PLUGIN.matcher( markdownBody ).replaceAll( " " );
+        final String masked = CALLOUT_MARKER.matcher( PLUGIN.matcher( markdownBody ).replaceAll( " " ) ).replaceAll( "$1" );
         final StringBuilder text = new StringBuilder();
         for ( final Node block : PARSER.parse( masked ).getChildren() ) {
             if ( block instanceof Heading || block instanceof FencedCodeBlock || block instanceof IndentedCodeBlock

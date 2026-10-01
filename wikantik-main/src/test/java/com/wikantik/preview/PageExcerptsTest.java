@@ -41,4 +41,19 @@ class PageExcerptsTest {
         assertEquals( "", PageExcerpts.excerpt( "", 280 ) );
         assertEquals( "", PageExcerpts.excerpt( "## Only a heading\n", 280 ) );
     }
+
+    @Test void calloutMarkersAreNotPartOfTheExcerpt() {
+        final String md = "> [!warning] Draft\n> Numbers are provisional.\n\nThen prose.\n";
+        assertEquals( "Draft Numbers are provisional. Then prose.", PageExcerpts.excerpt( md, 280 ) );
+    }
+
+    @Test void foldMarkerAndTitlelessCalloutsAreStrippedToo() {
+        assertEquals( "Hidden detail.", PageExcerpts.excerpt( "> [!note]- \n> Hidden detail.\n", 280 ) );
+        assertEquals( "Tip body.", PageExcerpts.excerpt( "> [!TIP]+\n> Tip body.\n", 280 ) );
+    }
+
+    @Test void onlyTheCalloutMarkerIsStrippedNotOtherBracketedText() {
+        // Guard: a plain "[sic]" is not a callout marker, so its text survives (the collector drops brackets).
+        assertEquals( "sic as quoted.", PageExcerpts.excerpt( "> [sic] as quoted.\n", 280 ) );
+    }
 }

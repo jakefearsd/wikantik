@@ -194,6 +194,9 @@ class PgVectorChunkVectorIndexPgTest {
     private void cleanTestRows() throws Exception {
         try ( Connection conn = dataSource.getConnection();
               Statement st = conn.createStatement() ) {
+            // size()/isReady() count every embedding row for the model, so rows left by other
+            // classes sharing the container must go too, not just this class's IT_PgVec_ chunks.
+            st.execute( "DELETE FROM content_chunk_embeddings WHERE model_code = '" + MODEL_CODE + "'" );
             st.execute( "DELETE FROM kg_content_chunks WHERE page_name LIKE 'IT_PgVec_%'" );
         }
     }

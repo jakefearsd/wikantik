@@ -35,6 +35,7 @@ import com.wikantik.search.hybrid.ChunkVectorIndex;
 import com.wikantik.search.hybrid.InMemoryChunkVectorIndex;
 import com.wikantik.knowledge.chunking.ChunkProjector;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -71,6 +72,12 @@ import static org.mockito.Mockito.when;
  */
 @RequiresPostgres
 class SearchWiringHelperPostgresTest {
+
+    @AfterEach
+    void removeSeededChunksAndEmbeddings() {
+        // The embedding test leaves bge-m3 rows that would skew other classes sharing the container.
+        PostgresTestDb.truncate( "content_chunk_embeddings", "kg_content_chunks" );
+    }
 
     @Test
     void wireHybridRetrieval_noEmbeddingClient_wiresLexicalRefreshSinkOntoRealBm25Index() throws Exception {

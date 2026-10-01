@@ -18,8 +18,9 @@ export function useUnlinkedMentions({ page, text, enabled }) {
     let retry;
     const id = setTimeout(() => {
       setState((s) => ({ ...s, status: 'loading' }));
-      api.scanMentions({ page, text, signal: ctl.signal })
-        .then((d) => setState({ status: 'ok', mentions: d?.mentions || [] }))
+      // The editor document is LF-only; normalise so server offsets index the same text.
+      api.scanMentions({ page, text: text.replace(/\r\n?/g, '\n'), signal: ctl.signal })
+        .then((d) => setState({ status: 'ok', mentions: [...(d?.mentions || [])] }))
         .catch((err) => {
           if (err?.name === 'AbortError') return;
           if (err?.status === 503) {

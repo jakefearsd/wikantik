@@ -36,6 +36,12 @@ describe('useUnlinkedMentions', () => {
     expect(result.current.mentions).toHaveLength(1);
   });
 
+  it('sends LF-normalised text so offsets match the editor document', () => {
+    renderHook(() => useUnlinkedMentions({ page: 'P', text: 'a\r\nb\rc\nd', enabled: true }));
+    act(() => { vi.advanceTimersByTime(1500); });
+    expect(api.scanMentions.mock.calls[0][0].text).toBe('a\nb\nc\nd');
+  });
+
   it('aborts a superseded in-flight scan', () => {
     api.scanMentions.mockReturnValue(new Promise(() => {}));
     const { rerender } = renderHook((p) => useUnlinkedMentions(p),

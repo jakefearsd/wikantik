@@ -184,27 +184,40 @@ export default function PageEditor() {
   const jumpToHeading = useCallback((line) => editorRef.current?.jumpToLineAligned?.(line, 0), []);
 
   const [ignoredMentions, setIgnoredMentions] = useState(() => new Set());
+  // Linked targets stay hidden only until the next scan result (identity of `mentions` changes), so an
+  // Undo of the link makes the row reappear; Ignore is session-long.
+  const [justLinked, setJustLinked] = useState({ forScan: null, targets: new Set() });
   const mentionScan = useUnlinkedMentions({ page: name, text: body, enabled: railOpen && loaded });
   const rescanMentions = mentionScan.rescan;
-  const visibleMentions = mentionScan.mentions.filter((m) => !ignoredMentions.has(m.target));
+  const linkedNow = justLinked.forScan === mentionScan.mentions ? justLinked.targets : null;
+  const visibleMentions = mentionScan.mentions.filter((m) => !ignoredMentions.has(m.target) && !linkedNow?.has(m.target));
   const ignoreMention = useCallback((m) => setIgnoredMentions((s) => new Set(s).add(m.target)), []);
+  const currentScan = mentionScan.mentions;
 
+  // Server offsets index the LF-only editor document, so locate against its live text.
   const linkMention = useCallback((m) => {
-    const loc = locatePhrase(bodyRef.current, m);
+    const text = editorRef.current?.getText?.() ?? bodyRef.current;
+    const loc = locatePhrase(text, m);
     if (!loc) {
       toast.info('Text changed — rescanned');
       rescanMentions();
       return;
     }
-    const markup = linkMarkup(bodyRef.current.slice(loc.from, loc.to), m.target);
+    const markup = linkMarkup(text.slice(loc.from, loc.to), m.target);
     if (!editorRef.current?.replaceRange?.(loc.from, loc.to, markup)) {
       setBody((prev) => prev.slice(0, loc.from) + markup + prev.slice(loc.to));
     }
-    ignoreMention(m); // hidden until the next scan drops it as linked
-  }, [toast, rescanMentions, ignoreMention]);
+    setJustLinked((prev) => {
+      const forScan = currentScan;
+      const targets = new Set(prev.forScan === forScan ? prev.targets : []);
+      return { forScan, targets: targets.add(m.target) };
+    });
+  }, [toast, rescanMentions, currentScan]);
 
   const jumpToMention = useCallback((m) => {
-    editorRef.current?.setSelection(m.from, m.to);
+    const text = editorRef.current?.getText?.() ?? bodyRef.current;
+    const loc = locatePhrase(text, m) || m;
+    editorRef.current?.setSelection(loc.from, loc.to);
     editorRef.current?.scrollToLine(m.line);
   }, []);
 

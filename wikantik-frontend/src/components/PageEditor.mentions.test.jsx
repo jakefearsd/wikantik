@@ -5,14 +5,16 @@ import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-libra
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 const replaceRange = vi.hoisted(() => vi.fn(() => true));
+const setSel = vi.hoisted(() => vi.fn());
 vi.mock('./CodeEditor', async () => {
   const React = (await vi.importActual('react')).default;
   return {
     default: React.forwardRef(function CodeEditorStub({ value, onChange }, ref) {
       React.useImperativeHandle(ref, () => ({
         getSelection: () => ({ selStart: 0, selEnd: 0 }),
-        setSelection() {}, focus() {}, getViewport: () => null, scrollToLine() {},
-        getScrollerRect: () => null, jumpToLineAligned() {}, replaceRange,
+        focus() {}, getViewport: () => null, scrollToLine() {},
+        getScrollerRect: () => null, jumpToLineAligned() {}, replaceRange, setSelection: setSel,
+        getText: () => value.replace(/\r\n?/g, '\n'),
       }));
       return React.createElement('div', null,
         React.createElement('pre', { 'data-testid': 'body-value' }, value),
@@ -66,10 +68,14 @@ function renderEditor() {
 }
 
 async function scanned() {
+  return scannedPage();
+}
+
+async function scannedPage() {
   renderEditor();
   await screen.findByTestId('body-value');
   await act(async () => { await vi.advanceTimersByTimeAsync(1600); });
-  return screen.findByTestId('mention-row');
+  return (await screen.findAllByTestId('mention-row'))[0];
 }
 
 beforeEach(() => {
@@ -120,5 +126,38 @@ describe('PageEditor unlinked mentions', () => {
     await scanned();
     fireEvent.click(screen.getByTestId('mention-ignore'));
     expect(screen.queryByTestId('mention-row')).toBeNull();
+  });
+
+  it('CRLF body: Link rewrites exactly the phrase (editor doc is LF)', async () => {
+    const crlf = 'Intro\r\nMore\r\nAn index fund is cheap.';
+    const lf = crlf.replace(/\r\n/g, '\n');
+    const from = lf.indexOf('index fund');
+    api.getPage.mockResolvedValue({ content: crlf, metadata: {}, version: 1, markupSyntax: 'markdown' });
+    api.scanMentions.mockResolvedValue({ mentions: [{ ...MENTION, from, to: from + 10, line: 3 }] });
+    await scanned();
+    fireEvent.click(screen.getByTestId('mention-link'));
+    expect(replaceRange).toHaveBeenCalledWith(from, from + 10, '[index fund](IndexFundsHub)');
+  });
+
+  it('Jump relocates against the live editor text', async () => {
+    api.scanMentions.mockResolvedValue({ mentions: [{ ...MENTION, from: 0, to: 10 }] });
+    await scanned();
+    fireEvent.click(screen.getByText(/line 1/));
+    expect(setSel).toHaveBeenCalledWith(3, 13);
+  });
+
+  it('Link hides the row only until the next scan; Ignore persists across scans', async () => {
+    const other = { ...MENTION, target: 'Other', title: 'Other', phrase: 'cheap', from: 17, to: 22 };
+    api.scanMentions.mockResolvedValue({ mentions: [MENTION, other] });
+    await scanned();
+    fireEvent.click(screen.getAllByTestId('mention-link')[0]);
+    fireEvent.click(screen.getAllByTestId('mention-ignore')[0]);
+    expect(screen.queryAllByTestId('mention-row')).toHaveLength(0);
+    fireEvent.click(screen.getByTestId('edit-body'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1600); });
+    // the same mentions come back (as after an Undo): the linked one reappears, the ignored one does not
+    const rows = await screen.findAllByTestId('mention-row');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent('index fund');
   });
 });

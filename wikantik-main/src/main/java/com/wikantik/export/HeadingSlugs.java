@@ -18,13 +18,16 @@
  */
 package com.wikantik.export;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Set;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 import com.vladsch.flexmark.ast.Heading;
@@ -61,17 +64,11 @@ public final class HeadingSlugs {
         return EDGE_HYPHEN.matcher( s ).replaceAll( "" );
     }
 
-    /**
-     * Slug to heading text for every heading. h2/h3 get the page view's ids (duplicates numbered
-     * {@code -2}, {@code -3}, ...); other levels have no anchor in the view and are recorded under
-     * their base slug only when it is free.
-     */
-    public static Map< String, String > headingsBySlug( final String markdownBody ) {
-        final Map< String, String > out = new LinkedHashMap<>();
+    /** Each heading's view anchor, in document order (h2/h3 own their numbered slugs; others only a free base slug). */
+    private static Map< Heading, String > anchors( final Document doc ) {
         final Map< String, Integer > seen = new HashMap<>();
-        final Document doc = PARSER.parse( markdownBody );
-        // Pass 1: the keys h2/h3 headings own (the view's ids). An h1/h4 sharing a slug must not claim one.
         final Map< Heading, String > anchored = new IdentityHashMap<>();
+        // Pass 1: the keys h2/h3 headings own (the view's ids). An h1/h4 sharing a slug must not claim one.
         for ( final Node n : doc.getDescendants() ) {
             if ( n instanceof Heading h && ( h.getLevel() == 2 || h.getLevel() == 3 ) ) {
                 final String base = slug( headingText( h ) );
@@ -81,17 +78,60 @@ public final class HeadingSlugs {
         }
         final Set< String > owned = new HashSet<>( anchored.values() );
         // Pass 2: document order.
+        final Map< Heading, String > out = new LinkedHashMap<>();
         for ( final Node n : doc.getDescendants() ) {
             if ( n instanceof Heading h ) {
-                final String text = headingText( h );
                 final String key = anchored.get( h );
                 if ( key != null ) {
-                    out.putIfAbsent( key, text );
-                } else if ( !owned.contains( slug( text ) ) ) {
-                    out.putIfAbsent( slug( text ), text );
+                    out.put( h, key );
+                } else if ( !owned.contains( slug( headingText( h ) ) ) ) {
+                    out.put( h, slug( headingText( h ) ) );
                 }
             }
         }
         return out;
+    }
+
+    /**
+     * Slug to heading text for every heading. h2/h3 get the page view's ids (duplicates numbered
+     * {@code -2}, {@code -3}, ...); other levels have no anchor in the view and are recorded under
+     * their base slug only when it is free.
+     */
+    public static Map< String, String > headingsBySlug( final String markdownBody ) {
+        final Map< String, String > out = new LinkedHashMap<>();
+        anchors( PARSER.parse( markdownBody ) ).forEach( ( h, key ) -> out.putIfAbsent( key, headingText( h ) ) );
+        return out;
+    }
+
+    /**
+     * The Markdown source of the section whose view anchor is {@code slug}: everything after that heading up to
+     * the next heading of the same or a higher level (deeper subsections are included).
+     */
+    public static Optional< String > sectionBody( final String markdownBody, final String slug ) {
+        final Document doc = PARSER.parse( markdownBody );
+        Heading target = null;
+        for ( final Map.Entry< Heading, String > e : anchors( doc ).entrySet() ) {
+            if ( e.getValue().equals( slug ) ) {
+                target = e.getKey();
+                break;
+            }
+        }
+        if ( target == null ) {
+            return Optional.empty();
+        }
+        final List< Heading > all = new ArrayList<>();
+        for ( final Node n : doc.getDescendants() ) {
+            if ( n instanceof Heading h ) {
+                all.add( h );
+            }
+        }
+        int end = markdownBody.length();
+        for ( int i = all.indexOf( target ) + 1; i < all.size(); i++ ) {
+            if ( all.get( i ).getLevel() <= target.getLevel() ) {
+                end = all.get( i ).getStartOffset();
+                break;
+            }
+        }
+        return Optional.of( markdownBody.substring( target.getEndOffset(), end ) );
     }
 }

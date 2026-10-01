@@ -85,7 +85,7 @@ class PageResourceTest {
                 "RestDeletePage", "RestRenderPage", "RestPluginPage", "RestPluginLinkPage", "RestEditLinkPage",
                 "RestVersionPage", "RestPatchMergePage", "RestPatchReplacePage", "RestRenameSource",
                 "RestRenameTarget", "RestRenameExisting", "RestBadVersionPage",
-                "RestNoParsePage", "RestRenderMetaPage" );
+                "RestNoParsePage", "RestRenderMetaPage", "RestPreviewPage", "RestPreviewBare" );
         engine.getWikiProperties().remove( "wikantik.cors.allowedOrigins" );
     }
 
@@ -964,6 +964,61 @@ class PageResourceTest {
         final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
         assertTrue( obj.get( "success" ).getAsBoolean(),
                 "service() should route PATCH to doPatch" );
+    }
+
+    // ----- Feature: link-preview card -----
+
+    @Test
+    void previewReturnsTitleTypeClusterSummaryAndExcerpt() throws Exception {
+        engine.saveText( "RestPreviewPage", "---\ntitle: Preview Page\ntype: reference\ncluster: finance\n"
+                + "summary: A short summary that is long enough to be a real summary of the page.\n---\n"
+                + "# Preview Page\n\nFirst paragraph with [a link](Other).\n\n## Usage\n\nRun it.\n" );
+        final JsonObject obj = gson.fromJson( doGet( "RestPreviewPage/preview" ), JsonObject.class );
+        assertEquals( "RestPreviewPage", obj.get( "name" ).getAsString() );
+        assertEquals( "Preview Page", obj.get( "title" ).getAsString() );
+        assertEquals( "reference", obj.get( "type" ).getAsString() );
+        assertEquals( "finance", obj.get( "cluster" ).getAsString() );
+        assertTrue( obj.get( "summary" ).getAsString().startsWith( "A short summary" ) );
+        assertEquals( "First paragraph with a link. Run it.", obj.get( "excerpt" ).getAsString() );
+    }
+
+    @Test
+    void previewSectionParamExcerptsThatSection() throws Exception {
+        engine.saveText( "RestPreviewPage", "# T\n\nIntro.\n\n## Usage\n\nRun it.\n" );
+        final JsonObject obj = gson.fromJson(
+                doGetWithParams( "RestPreviewPage/preview", Map.of( "section", "usage" ) ), JsonObject.class );
+        assertEquals( "Run it.", obj.get( "excerpt" ).getAsString() );
+    }
+
+    @Test
+    void previewTitleFallsBackToTheDeCamelCasedName() throws Exception {
+        engine.saveText( "RestPreviewBare", "Just text." );
+        final JsonObject obj = gson.fromJson( doGet( "RestPreviewBare/preview" ), JsonObject.class );
+        assertEquals( "Rest Preview Bare", obj.get( "title" ).getAsString() );
+        assertFalse( obj.has( "summary" ) );
+    }
+
+    @Test
+    void previewOfAMissingPageAndOfAnUnviewablePageAreIndistinguishable() throws Exception {
+        engine.saveText( "RestPreviewPage", "Secret." );
+        final PageResource spy = Mockito.spy( servlet );
+        Mockito.doReturn( false ).when( spy ).hasPagePermission( Mockito.any(), Mockito.eq( "RestPreviewPage" ),
+                Mockito.eq( "view" ) );
+
+        final HttpServletResponse hidden = HttpMockFactory.createHttpResponse();
+        final StringWriter hiddenBody = new StringWriter();
+        Mockito.doReturn( new PrintWriter( hiddenBody ) ).when( hidden ).getWriter();
+        spy.doGet( createRequest( "RestPreviewPage/preview" ), hidden );
+
+        final HttpServletResponse missing = HttpMockFactory.createHttpResponse();
+        final StringWriter missingBody = new StringWriter();
+        Mockito.doReturn( new PrintWriter( missingBody ) ).when( missing ).getWriter();
+        servlet.doGet( createRequest( "RestPreviewNoSuchPage/preview" ), missing );
+
+        Mockito.verify( hidden ).setStatus( 404 );
+        Mockito.verify( missing ).setStatus( 404 );
+        assertEquals( missingBody.toString(), hiddenBody.toString() );
+        assertFalse( hiddenBody.toString().contains( "Secret" ) );
     }
 
     // ----- Helper methods -----

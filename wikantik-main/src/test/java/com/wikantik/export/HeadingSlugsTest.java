@@ -72,4 +72,20 @@ class HeadingSlugsTest {
         final Map< String, String > m2 = HeadingSlugs.headingsBySlug( "#### Set-up\n\n### Set up\n" );
         assertEquals( "Set up", m2.get( "set-up" ) );
     }
+
+    @Test void sectionBodyReturnsTheSectionUpToTheNextSameLevelHeading() {
+        final String body = "# Top\n\nintro\n\n## Setup\n\nInstall it.\n\n### Detail\n\nmore\n\n## Usage\n\nRun it.\n";
+        assertEquals( "Install it.\n\n### Detail\n\nmore",
+                HeadingSlugs.sectionBody( body, "setup" ).orElseThrow().trim() );
+        assertEquals( "Run it.", HeadingSlugs.sectionBody( body, "usage" ).orElseThrow().trim() );
+    }
+
+    @Test void sectionBodyUsesTheViewsDuplicateNumbering() {
+        final String body = "## Setup\n\nfirst\n\n## Setup\n\nsecond\n";
+        assertEquals( "second", HeadingSlugs.sectionBody( body, "setup-2" ).orElseThrow().trim() );
+    }
+
+    @Test void sectionBodyIsEmptyForAnUnknownSlug() {
+        assertTrue( HeadingSlugs.sectionBody( "## A\n\nx\n", "nope" ).isEmpty() );
+    }
 }

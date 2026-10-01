@@ -44,6 +44,9 @@ import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.content.PageRenamer;
+import com.wikantik.export.HeadingSlugs;
+import com.wikantik.preview.PageExcerpts;
+import com.wikantik.util.TextUtil;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.content.WikiToMarkdownConverter;
 import com.wikantik.render.RenderingManager;
@@ -159,6 +162,12 @@ public class PageResource extends RestServletBase {
             final String pageName = pathParam.substring( 0, pathParam.length() - "/similar".length() );
             if ( !checkPagePermission( request, response, pageName, "view" ) ) return;
             handleGetSimilarPages( request, response, pageName );
+            return;
+        }
+
+        // GET /api/pages/{name}/preview — link-preview card data; missing and unviewable are the same 404
+        if ( pathParam.endsWith( "/preview" ) ) {
+            handlePreview( request, response, pathParam.substring( 0, pathParam.length() - "/preview".length() ) );
             return;
         }
 
@@ -787,6 +796,42 @@ public class PageResource extends RestServletBase {
             LOG.error( "Error renaming page {} to {}: {}", pageName, newName, e.getMessage() );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Error renaming page: " + e.getMessage() );
+        }
+    }
+
+    private void handlePreview( final HttpServletRequest request, final HttpServletResponse response,
+                                final String pageName ) throws IOException {
+        final PageManager pm = getSubsystems().page().pages();
+        final Page page = pm.getPageWithoutMetadata( pageName, PageProvider.LATEST_VERSION );
+        if ( page == null || !hasPagePermission( request, pageName, "view" ) ) {
+            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Page not found" );
+            return;
+        }
+        final ParsedPage parsed = FrontmatterParser.parse( pm.getPureText( pageName, PageProvider.LATEST_VERSION ) );
+        final Map< String, Object > fm = parsed.metadata();
+        String body = parsed.body();
+        final String section = request.getParameter( "section" );
+        if ( section != null && !section.isBlank() ) {
+            body = HeadingSlugs.sectionBody( body, section ).orElse( body );
+        }
+        final Map< String, Object > out = new LinkedHashMap<>();
+        out.put( "name", pageName );
+        final Object title = fm.get( "title" );
+        out.put( "title", title != null && !title.toString().isBlank()
+                ? title.toString().trim() : TextUtil.beautifyString( pageName ) );
+        putIfText( out, "type", fm.get( "type" ) );
+        final Object cluster = fm.get( "cluster" );
+        putIfText( out, "cluster", cluster instanceof List< ? > l && !l.isEmpty() ? l.get( 0 ) : cluster );
+        putIfText( out, "summary", fm.get( "summary" ) );
+        out.put( "excerpt", PageExcerpts.excerpt( body, PageExcerpts.MAX_CHARS ) );
+        out.put( "lastModified", page.getLastModified() );
+        response.setHeader( "Cache-Control", "private, max-age=60" );
+        sendJson( response, out );
+    }
+
+    private static void putIfText( final Map< String, Object > out, final String key, final Object value ) {
+        if ( value != null && !value.toString().isBlank() ) {
+            out.put( key, value.toString().trim() );
         }
     }
 

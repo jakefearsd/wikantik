@@ -95,6 +95,22 @@ public class MarkdownSanitizerTest {
                 "safe external HTTPS link should survive sanitization: " + out );
     }
 
+    @Test
+    public void rendersCalloutThroughProductionPipeline() throws Exception {
+        final String out = translate( "> [!note] Title\n> Body.\n" );
+        Assertions.assertTrue( out.contains( "callout-note" ), out );
+        Assertions.assertTrue( out.contains( "data-callout=\"note\"" ), "sanitizer must keep data-callout: " + out );
+        Assertions.assertTrue( out.contains( "Title" ) && out.contains( "Body." ), out );
+        Assertions.assertFalse( out.contains( "<blockquote" ), out );
+    }
+
+    @Test
+    public void ordinaryBlockquoteStaysBlockquoteInProductionPipeline() throws Exception {
+        final String out = translate( "> just a quote\n" );
+        Assertions.assertTrue( out.contains( "<blockquote" ), out );
+        Assertions.assertFalse( out.contains( "callout" ), out );
+    }
+
     private String translate( final String src ) throws Exception {
         final Page page = Wiki.contents().page( engine, PAGE_NAME );
         engine.saveText( PAGE_NAME, "placeholder" );

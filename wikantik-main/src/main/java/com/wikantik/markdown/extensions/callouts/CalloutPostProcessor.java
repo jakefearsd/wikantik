@@ -55,6 +55,15 @@ public class CalloutPostProcessor extends NodePostProcessor {
             case "+" -> CalloutBlock.Fold.EXPANDED;
             default -> CalloutBlock.Fold.NONE;
         };
+        // A non-Text inline node straddling the marker end (e.g. "[!note](url)") is a malformed marker:
+        // bail out before mutating anything so the blockquote stays a plain blockquote.
+        final int markerEnd = p.getStartOffset() + m.end();
+        for ( Node c = p.getFirstChild(); c != null && !( c instanceof SoftLineBreak || c instanceof HardLineBreak );
+              c = c.getNext() ) {
+            if ( !( c instanceof Text ) && c.getStartOffset() < markerEnd && c.getEndOffset() > markerEnd ) {
+                return;
+            }
+        }
         final CalloutBlock callout = new CalloutBlock( bq.getChars(), m.group( 1 ), fold );
         final CalloutTitle title = new CalloutTitle();
         callout.appendChild( title );

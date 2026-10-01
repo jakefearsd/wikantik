@@ -540,6 +540,10 @@
        <servlet-class>com.wikantik.rest.FrontmatterSchemaResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>PageTemplatesResource</servlet-name>
+       <servlet-class>com.wikantik.rest.PageTemplatesResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>FrontmatterValidateResource</servlet-name>
        <servlet-class>com.wikantik.rest.FrontmatterValidateResource</servlet-class>
    </servlet>
@@ -860,6 +864,10 @@
    <servlet-mapping>
        <servlet-name>FrontmatterSchemaResource</servlet-name>
        <url-pattern>/api/frontmatter-schema</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>PageTemplatesResource</servlet-name>
+       <url-pattern>/api/page-templates</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>FrontmatterValidateResource</servlet-name>

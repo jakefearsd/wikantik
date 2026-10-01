@@ -58,6 +58,8 @@ public final class FrontmatterSchema {
         final List< FieldSpec > f = List.of(
                 FieldSpec.readonly( "canonical_id", "Canonical ID" ),
                 FieldSpec.text( "title", "Title" ),
+                new FieldSpec( "aliases", "Aliases", Widget.STRING_LIST, List.of(), false,
+                        null, 100, null, Map.of() ),
                 enumField( "type", "Type", true,
                         List.of( "article", "hub", "reference", "runbook", "design" ),
                         typeSuggestions() ),

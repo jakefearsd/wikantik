@@ -13,6 +13,7 @@
 //   schema        optional injected schema (tests); otherwise fetched via schemaClient
 //   validateRaw   optional ({frontmatter}) => Promise<{metadata,violations}> for Raw→Form sync
 //   pageSearch    optional (query) => Promise<options> for the related-pages picker
+//   tagSuggestions optional string[] of existing tags offered as autocomplete in the tags field
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Tabs from '../ui/Tabs';
 import FieldWidget from './FieldWidget';
@@ -107,6 +108,7 @@ export default function FrontmatterEditor({
   schema: schemaProp,
   validateRaw = (payload) => api.validateFrontmatter(payload),
   pageSearch,
+  tagSuggestions,
 }) {
   // `schema` is schemaProp when the caller supplies one (no fetch needed — that
   // case is a pure derivation, not effect-worthy); otherwise it's whatever the
@@ -200,6 +202,7 @@ export default function FrontmatterEditor({
       violations={violationsFor(f.key)}
       onApplySuggestion={(s) => setField(f.key, s)}
       pageSearch={pageSearch}
+      tagSuggestions={tagSuggestions}
     />
   );
 

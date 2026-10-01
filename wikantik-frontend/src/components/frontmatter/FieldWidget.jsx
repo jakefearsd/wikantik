@@ -124,7 +124,7 @@ function PageRefs({ value, onChange, pageSearch }) {
   );
 }
 
-export default function FieldWidget({ spec, value, onChange, violations = [], onApplySuggestion, pageSearch }) {
+export default function FieldWidget({ spec, value, onChange, violations = [], onApplySuggestion, pageSearch, tagSuggestions = [] }) {
   const { key, label, widget, canonicalValues, open } = spec;
 
   let control;
@@ -144,6 +144,9 @@ export default function FieldWidget({ spec, value, onChange, violations = [], on
       );
       break;
     case 'TAGS':
+      control = <TagInput value={Array.isArray(value) ? value : []} onChange={onChange} placeholder={label} id={key} suggestions={tagSuggestions} />;
+      break;
+    case 'STRING_LIST':
       control = <TagInput value={Array.isArray(value) ? value : []} onChange={onChange} placeholder={label} id={key} />;
       break;
     case 'PAGE_REFS':

@@ -24,6 +24,7 @@ Standard frontmatter fields (all optional):
   related     — list of CamelCase page names this page relates to
   status      — lifecycle status (draft, active, archived)
   summary     — one-line description of the page
+  aliases     — list of alternative names for the page; used by the quick switcher and unlinked-mention matching
   verified_at — ISO timestamp recording the last human verification (set by mark_page_verified)
   verified_by — login name of the verifier
   confidence  — authoritative | provisional | stale (usually computed; can be pinned)

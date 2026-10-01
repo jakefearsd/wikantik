@@ -373,4 +373,34 @@ class SchemaDrivenFrontmatterValidatorTest {
         final List< FieldViolation > vs = validator.validate( meta, ValidationCtx.lenient() );
         assertEquals( Severity.ERROR, first( vs, "runbook" ).orElseThrow().severity() );
     }
+
+    @Test
+    void aliasesAcceptsAListOfPhrases() {
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "aliases", List.of( "index fund", "Index Funds" ) ), ValidationCtx.lenient() );
+        assertTrue( first( vs, "aliases" ).isEmpty(), "plain phrases with spaces are valid aliases" );
+    }
+
+    @Test
+    void aliasesWarnsOnBlankAndOverlongEntries() {
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "aliases", List.of( " ", "x".repeat( 101 ) ) ), ValidationCtx.lenient() );
+        assertTrue( vs.stream().anyMatch( v -> v.code().equals( "aliases.blank" ) && v.severity() == Severity.WARNING ) );
+        assertTrue( vs.stream().anyMatch( v -> v.code().equals( "aliases.length" ) && v.severity() == Severity.WARNING ) );
+    }
+
+    @Test
+    void aliasesWarnsWhenNotAList() {
+        final FieldViolation v = first( validator.validate( Map.of( "aliases", "solo" ), ValidationCtx.lenient() ),
+                "aliases" ).orElseThrow();
+        assertEquals( "aliases.list", v.code() );
+        assertEquals( Severity.WARNING, v.severity() );
+    }
+
+    @Test
+    void aliasesIsDeclaredInTheSchemaAsAStringList() {
+        final var spec = FrontmatterSchema.defaultSchema().field( "aliases" ).orElseThrow();
+        assertEquals( com.wikantik.api.frontmatter.schema.Widget.STRING_LIST, spec.widget() );
+        assertEquals( 100, spec.maxLen() );
+    }
 }

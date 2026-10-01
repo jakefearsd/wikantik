@@ -49,6 +49,7 @@ vi.mock('../api/client', () => ({
     listAttachments: vi.fn(),
     listPages: vi.fn(() => Promise.resolve({ pages: [] })),
     getFrontmatterSchema: vi.fn(() => Promise.resolve({ fields: [] })),
+    listTags: vi.fn(() => Promise.resolve({ tags: [] })),
     validateFrontmatter: vi.fn(() => Promise.resolve({ metadata: {}, violations: [] })),
     search: vi.fn(() => Promise.resolve({ results: [] })),
     ingestDocument: vi.fn(),

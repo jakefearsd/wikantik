@@ -19,6 +19,7 @@ import { remarkAttachments } from '../utils/remarkAttachments';
 import { remarkWikiMarkup } from '../utils/remarkWikiMarkup';
 import { remarkMissingLinks } from '../utils/wikiLinkTargets';
 import { useMissingPages } from '../hooks/useMissingPages';
+import { useTagSuggestions } from '../hooks/useTagSuggestions';
 import { useLowlight } from '../hooks/useLowlight';
 import { rehypeHighlightCode } from '../utils/codeHighlight';
 import { headingsFromMarkdown } from '../utils/headings';
@@ -47,6 +48,7 @@ export default function PageEditor() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
+  const tagSuggestions = useTagSuggestions();
   // The frontmatter object and the markdown BODY are the two canonical pieces; CodeMirror edits the
   // body only, the structured FrontmatterEditor edits the object. Full text is derived where needed
   // (draft autosave, dirty baseline, frontmatter preview, clipboard).
@@ -778,6 +780,7 @@ export default function PageEditor() {
                 onChange={setMetadata}
                 violations={displayViolations}
                 pageSearch={pageSearch}
+                tagSuggestions={tagSuggestions}
               />
             </>
           )}

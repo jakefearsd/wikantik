@@ -137,6 +137,7 @@ export const api = {
   },
 
   // Structured frontmatter editor: server-authoritative schema + dry-run validation.
+  listTags: () => request('/api/structure/tags'),
   getFrontmatterSchema: () => request('/api/frontmatter-schema'),
 
   validateFrontmatter: ({ frontmatter, metadata } = {}) =>

@@ -74,6 +74,7 @@ public final class SchemaDrivenFrontmatterValidator {
                 case DATE -> validateDate( spec, raw, out, false );
                 case DATETIME -> validateDate( spec, raw, out, true );
                 case TAGS -> validateTags( spec, raw, out );
+                case STRING_LIST -> validateStringList( spec, raw, out );
                 case PAGE_REFS -> validatePageRefs( spec, raw, ctx, out );
                 case RUNBOOK_BLOCK -> validateRunbook( metadata, ctx, out );
                 default -> { /* TRISTATE, READONLY: no value constraints */ }
@@ -183,6 +184,27 @@ public final class SchemaDrivenFrontmatterValidator {
                 "'" + spec.key() + "' is not a valid "
                         + ( allowInstant ? "ISO-8601 timestamp" : "ISO date (YYYY-MM-DD)" )
                         + ": \"" + val + "\"." ) );
+    }
+
+    private void validateStringList( final FieldSpec spec, final Object raw, final List< FieldViolation > out ) {
+        if ( raw == null ) {
+            return;
+        }
+        if ( !( raw instanceof List< ? > list ) ) {
+            out.add( FieldViolation.of( spec.key(), Severity.WARNING, spec.key() + ".list",
+                    "'" + spec.key() + "' should be a list, e.g. [first name, second name]." ) );
+            return;
+        }
+        for ( final Object o : list ) {
+            final String s = o == null ? "" : o.toString().trim();
+            if ( s.isEmpty() ) {
+                out.add( FieldViolation.of( spec.key(), Severity.WARNING, spec.key() + ".blank",
+                        "'" + spec.key() + "' contains a blank entry." ) );
+            } else if ( spec.maxLen() != null && s.length() > spec.maxLen() ) {
+                out.add( FieldViolation.of( spec.key(), Severity.WARNING, spec.key() + ".length",
+                        "'" + spec.key() + "' entry is longer than " + spec.maxLen() + " characters." ) );
+            }
+        }
     }
 
     private void validateTags( final FieldSpec spec, final Object raw, final List< FieldViolation > out ) {

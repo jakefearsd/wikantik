@@ -28,6 +28,8 @@ public enum Widget {
     TEXTAREA,
     ENUM,
     TAGS,
+    /** A list of free-text strings (spaces allowed), e.g. {@code aliases}. */
+    STRING_LIST,
     PAGE_REFS,
     DATE,
     DATETIME,

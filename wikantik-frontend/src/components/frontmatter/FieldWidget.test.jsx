@@ -120,4 +120,22 @@ describe('FieldWidget', () => {
       expect(onChange).toHaveBeenCalledWith('solo-cluster');
     });
   });
+
+  it('renders a STRING_LIST field as a chip list that accepts phrases with spaces', () => {
+    const onChange = vi.fn();
+    render(<FieldWidget spec={{ key: 'aliases', label: 'Aliases', widget: 'STRING_LIST' }}
+      value={['index fund']} onChange={onChange} />);
+    expect(screen.getByText('index fund')).toBeInTheDocument();
+    const input = screen.getByPlaceholderText('Aliases');
+    fireEvent.change(input, { target: { value: 'low cost funds' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith(['index fund', 'low cost funds']);
+  });
+
+  it('offers tag suggestions to the TAGS widget', () => {
+    const { container } = render(<FieldWidget spec={{ key: 'tags', label: 'Tags', widget: 'TAGS' }}
+      value={[]} onChange={() => {}} tagSuggestions={['finance', 'investing']} />);
+    const options = [...container.querySelectorAll('datalist option')].map((o) => o.value);
+    expect(options).toEqual(['finance', 'investing']);
+  });
 });

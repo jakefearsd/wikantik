@@ -188,14 +188,19 @@ export function insertLink(state) {
   }
 }
 
-/** Sets the current line's heading level (replacing any existing #-prefix). */
+/**
+ * Sets the current line's heading level (replacing any existing #-prefix); a line already at exactly that
+ * level toggles back to plain text, so the toolbar's H button can undo itself.
+ */
 export function setHeading(state, level) {
   const { text, selStart } = state;
   const lineStart = text.lastIndexOf('\n', selStart - 1) + 1;
   const lineEndRaw = text.indexOf('\n', selStart);
   const lineEnd = lineEndRaw === -1 ? text.length : lineEndRaw;
-  const line = text.slice(lineStart, lineEnd).replace(/^#{1,6}\s+/, '');
-  const prefix = '#'.repeat(level) + ' ';
+  const raw = text.slice(lineStart, lineEnd);
+  const line = raw.replace(/^#{1,6}\s+/, '');
+  const current = /^(#{1,6})\s/.exec(raw);
+  const prefix = current && current[1].length === level ? '' : '#'.repeat(level) + ' ';
   const newText = text.slice(0, lineStart) + prefix + line + text.slice(lineEnd);
   const cursor = lineStart + prefix.length + line.length;
   return { text: newText, selStart: cursor, selEnd: cursor };

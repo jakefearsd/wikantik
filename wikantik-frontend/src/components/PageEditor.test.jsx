@@ -445,6 +445,20 @@ describe('#18 formatting toolbar', () => {
     await waitFor(() => expect(getEditable().value).toBe('## a '));
   });
 
+  it('the H toolbar button toggles a level-2 heading off again', async () => {
+    renderEditor();
+    await waitForEditor();
+    const editable = getEditable();
+    fireEvent.change(editable, { target: { value: 'Title' } });
+    editable.focus();
+    editable.setSelectionRange(0, 0);
+    fireEvent.mouseDown(screen.getByTitle('Heading'));
+    await waitFor(() => expect(getEditable().value).toBe('## Title'));
+    getEditable().setSelectionRange(4, 4);
+    fireEvent.mouseDown(screen.getByTitle('Heading'));
+    await waitFor(() => expect(getEditable().value).toBe('Title'));
+  });
+
   it('Link toolbar button inserts a markdown link via markdownFormat', async () => {
     renderEditor();
     await waitForEditor();

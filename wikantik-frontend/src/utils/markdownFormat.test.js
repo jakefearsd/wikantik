@@ -159,6 +159,12 @@ describe('block inserts for slash commands', () => {
     expect(setHeading({ text: '## Old', selStart: 3, selEnd: 3 }, 1).text).toBe('# Old');
     expect(setHeading({ text: 'plain', selStart: 0, selEnd: 0 }, 3).text).toBe('### plain');
   });
+  it('setHeading toggles the heading off when the line already has exactly that level', () => {
+    const r = setHeading({ text: 'intro\n## Title', selStart: 10, selEnd: 10 }, 2);
+    expect(r.text).toBe('intro\nTitle');
+    expect(r.selStart).toBe(11);
+    expect(setHeading({ text: '### Deep', selStart: 4, selEnd: 4 }, 2).text).toBe('## Deep'); // other level: set
+  });
   it('insertCallout starts a callout block on its own line with the cursor after the marker', () => {
     const r = insertCallout({ text: 'para', selStart: 4, selEnd: 4 }, 'warning');
     expect(r.text).toBe('para\n\n> [!warning] \n> ');

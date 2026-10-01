@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
-import { codeFolding, foldEffect, foldable, foldedRanges, unfoldEffect } from '@codemirror/language';
+import { codeFolding, foldEffect, foldable, foldedRanges, syntaxTree, unfoldEffect } from '@codemirror/language';
 import { editorFoldConfig, frontmatterFold, frontmatterFoldRange, revealEffects } from './markdownFold';
 
 describe('frontmatterFoldRange', () => {
@@ -101,3 +101,42 @@ describe('editorFoldConfig — fold markers only for headings, frontmatter and f
     expect(foldable(s, s.doc.line(2).from, s.doc.line(2).to)).toBeNull();
   });
 });
+
+describe('editorFoldConfig — only YAML-looking, closed leading blocks are frontmatter', () => {
+  const mk = (doc) => EditorState.create({ doc, extensions: [markdown({ extensions: editorFoldConfig }), frontmatterFold] });
+  const foldAtLine = (state, n) => foldable(state, state.doc.line(n).from, state.doc.line(n).to);
+  const topNodes = (state) => {
+    const names = [];
+    for (let c = syntaxTree(state).topNode.firstChild; c; c = c.nextSibling) names.push(c.name);
+    return names;
+  };
+
+  it('an unclosed leading --- is a horizontal rule and the rest of the document still parses', () => {
+    const state = mk('---\n\n# Title\nbody one\n\n```js\nx\n```\n\n# Next\n');
+    expect(topNodes(state)).not.toContain('Frontmatter');
+    expect(topNodes(state)[0]).toBe('HorizontalRule');
+    expect(foldAtLine(state, 1)).toBeNull();
+    expect(foldAtLine(state, 3)).not.toBeNull();   // # Title
+    expect(foldAtLine(state, 6)).not.toBeNull();   // ```js
+  });
+
+  it('two rules around prose are not frontmatter', () => {
+    const state = mk('---\n\nSome text\n\n---\n\n# After\nx\n');
+    expect(topNodes(state)).not.toContain('Frontmatter');
+    expect(foldAtLine(state, 1)).toBeNull();
+    expect(foldAtLine(state, 7)).not.toBeNull();
+  });
+
+  it('a closed block whose first line is not a key: line is not frontmatter', () => {
+    expect(topNodes(mk('---\nplain words\n---\n'))).not.toContain('Frontmatter');
+    expect(topNodes(mk('---\n\ntitle: x\n---\n'))).not.toContain('Frontmatter');
+  });
+
+  it('real frontmatter still parses as one block and folds', () => {
+    const state = mk('---\ntitle: x\ntags: [a]\n---\n# H\nbody\n');
+    expect(topNodes(state)[0]).toBe('Frontmatter');
+    expect(foldAtLine(state, 1)).toEqual({ from: 3, to: state.doc.line(4).to });
+    expect(foldAtLine(state, 2)).toBeNull();
+  });
+});
+

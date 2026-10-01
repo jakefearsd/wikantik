@@ -2,6 +2,7 @@ import { syntaxTree } from '@codemirror/language';
 import { fuzzyRank } from './fuzzy';
 import { formatKeys } from './keyHints';
 import { styleOf } from './remarkCallouts';
+import { frontmatterCloseLine } from './markdownFold';
 
 const ICON_KIND = {
   'insert-table': 'table', 'code-block': 'code', 'math-block': 'math', 'horizontal-rule': 'rule',
@@ -16,7 +17,7 @@ const ICON_KIND = {
 export function slashIconType(id) {
   if (/^heading-\d$/.test(id)) return `slash slash-${id}`;
   if (id.startsWith('callout-')) return `slash slash-callout slash-callout-${styleOf(id.slice('callout-'.length))}`;
-  return ICON_KIND[id] ? `slash slash-${ICON_KIND[id]}` : 'slash';
+  return `slash slash-${ICON_KIND[id] || 'command'}`;
 }
 
 const CODE_NODES = new Set(['FencedCode', 'CodeBlock', 'InlineCode', 'CodeText', 'CodeMark', 'URL', 'Autolink']);
@@ -24,15 +25,11 @@ const CODE_NODES = new Set(['FencedCode', 'CodeBlock', 'InlineCode', 'CodeText',
 /** True when a slash at {@code slashPos} may open the menu: not in frontmatter, code, URLs or math. */
 export function slashAllowed(state, slashPos) {
   const doc = state.doc;
-  if (doc.line(1).text.trim() === '---') {
-    let closed = false;
-    for (let n = 2; n <= doc.lines; n += 1) {
-      const line = doc.line(n);
-      if (line.from > slashPos) break;
-      if (line.text.trim() === '---') { closed = true; if (line.to >= slashPos) return false; break; }
-    }
-    if (!closed) return false;
-  }
+  const slashLine = doc.lineAt(slashPos).number;
+  const close = frontmatterCloseLine((n) => doc.line(n).text, doc.lines);
+  if (close > 0 && slashLine <= close) return false;                               // inside frontmatter
+  if (close === 0 && doc.lines >= 2 && doc.line(1).text.trim() === '---'
+      && /^[A-Za-z_][\w-]*\s*:/.test(doc.line(2).text)) return false;              // frontmatter still being typed
   for (let node = syntaxTree(state).resolveInner(slashPos, 1); node; node = node.parent) {
     if (CODE_NODES.has(node.name)) return false;
   }
@@ -45,6 +42,14 @@ export function slashAllowed(state, slashPos) {
   return mathFences % 2 === 0;                                                      // inside $$ … $$
 }
 
+/** The slash menu's logical order (headings, callouts, blocks, media) — used as-is for short queries. */
+const SLASH_ORDER = ['heading-1', 'heading-2', 'heading-3', 'callout-note', 'callout-tip', 'callout-info',
+  'callout-warning', 'callout-danger', 'insert-table', 'code-block', 'math-block', 'horizontal-rule', 'insert-image',
+  'insert-link'];
+const orderOf = (id) => { const i = SLASH_ORDER.indexOf(id); return i < 0 ? SLASH_ORDER.length : i; };
+const labelOf = (c) => c.slashLabel || c.title;
+const byFixedOrder = (a, b) => orderOf(a.id) - orderOf(b.id) || labelOf(a).localeCompare(labelOf(b));
+
 /** CodeMirror completion source that lists the registry's slash commands after a line-initial or spaced "/". */
 export function createSlashSource(getCommands, run) {
   return (ctx) => {
@@ -55,11 +60,12 @@ export function createSlashSource(getCommands, run) {
     const query = ctx.state.sliceDoc(slashPos + 1, ctx.pos);
     const options = getCommands()
       .filter((c) => c.slash)
-      .map((c) => ({ c, r: fuzzyRank(c.slashLabel || c.title, query) }))
+      .map((c) => ({ c, r: fuzzyRank(labelOf(c), query) }))
       .filter((x) => x.r >= 0)
-      .sort((a, b) => a.r - b.r || (a.c.slashLabel || a.c.title).localeCompare(b.c.slashLabel || b.c.title))
+      // Empty / one-character queries keep the fixed logical order; longer ones rank by match quality.
+      .sort((a, b) => (query.length > 1 ? a.r - b.r : 0) || byFixedOrder(a.c, b.c))
       .map(({ c }) => ({
-        label: c.slashLabel || c.title,
+        label: labelOf(c),
         type: slashIconType(c.id),
         detail: c.keys ? formatKeys(c.keys) : undefined,
         apply: (view, _completion, _from, to) => {

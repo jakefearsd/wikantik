@@ -33,4 +33,11 @@ describe('buildEditorCommands', () => {
     expect(d.save).toHaveBeenCalled();
     expect(d.pickImage).toHaveBeenCalled();
   });
+
+  it('gives callouts a short slash-menu label but keeps the palette title', () => {
+    const byId = Object.fromEntries(buildEditorCommands(deps()).map((c) => [c.id, c]));
+    expect(byId['callout-warning'].slashLabel).toBe('Callout: Warning');
+    expect(byId['callout-warning'].title).toBe('Insert callout: Warning');
+    expect(byId['callout-note'].slashLabel).toBe('Callout: Note');
+  });
 });

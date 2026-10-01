@@ -38,8 +38,17 @@ describe('slash completion', () => {
     ['inline math', 'value $a /he'],
     ['math block', '$$\n/he'],
     ['frontmatter', '---\ntitle: x\n/he'],
+    ['closed frontmatter', '---\ntitle: x\n/he\n---\nbody'],
   ])('does not trigger in %s', (_name, doc) => {
     expect(complete(doc)).toBeNull();
+  });
+
+  it.each([
+    ['after a leading horizontal rule', '---\n\ntext /he'],
+    ['between two rules around prose', '---\n\nprose /he\n\n---\n'],
+    ['after closed frontmatter', '---\ntitle: x\n---\n/he'],
+  ])('does trigger %s', (_name, doc) => {
+    expect(complete(doc, doc.indexOf('/he') + 3)).not.toBeNull();
   });
 
   it('applying an option deletes the typed /query and runs the command', () => {
@@ -69,8 +78,43 @@ describe('slashIconType', () => {
     ['horizontal-rule', 'slash slash-rule'],
     ['insert-image', 'slash slash-image'],
     ['insert-link', 'slash slash-link'],
-    ['something-else', 'slash'],
+    ['something-else', 'slash slash-command'],
   ])('%s → %s', (id, type) => {
     expect(slashIconType(id)).toBe(type);
   });
 });
+
+describe('slash menu order', () => {
+  const ALL = [
+    'insert-link', 'heading-1', 'heading-2', 'heading-3', 'callout-note', 'callout-tip', 'callout-warning',
+    'callout-danger', 'callout-info', 'insert-table', 'code-block', 'math-block', 'horizontal-rule', 'insert-image',
+  ].map((id) => ({ id, title: id, slashLabel: id.replace(/-/g, ' '), slash: true, run: vi.fn() }));
+  const FIXED = ['heading-1', 'heading-2', 'heading-3', 'callout-note', 'callout-tip', 'callout-info', 'callout-warning',
+    'callout-danger', 'insert-table', 'code-block', 'math-block', 'horizontal-rule', 'insert-image', 'insert-link'];
+  const ids = (doc, cmds = ALL) => {
+    const state = EditorState.create({ doc, extensions: [markdown()] });
+    const r = createSlashSource(() => cmds, vi.fn())(new CompletionContext(state, doc.length, false));
+    return r ? r.options.map((o) => o.label.replace(/ /g, '-')) : [];
+  };
+
+  it('lists every command in the fixed logical order for an empty query', () => {
+    expect(ids('/')).toEqual(FIXED);
+  });
+
+  it('keeps the fixed order (filtered) for a one-character query', () => {
+    const one = ids('/c');
+    expect(one).toEqual(FIXED.filter((id) => one.includes(id)));
+    expect(one.length).toBeGreaterThan(3);
+  });
+
+  it('ranks longer queries by match quality, ties broken by the fixed order', () => {
+    expect(ids('/callout')).toEqual(['callout-note', 'callout-tip', 'callout-info', 'callout-warning', 'callout-danger']);
+    expect(ids('/table')[0]).toBe('insert-table');
+  });
+
+  it('puts unknown commands after the known ones, alphabetically', () => {
+    const extra = [{ id: 'zeta', title: 'zeta', slash: true }, { id: 'alpha', title: 'alpha', slash: true }];
+    expect(ids('/', [...extra, ...ALL]).slice(-2)).toEqual(['alpha', 'zeta']);
+  });
+});
+

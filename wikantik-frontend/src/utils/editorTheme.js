@@ -19,6 +19,7 @@ const MASK_ICONS = {
   'slash-code': "<path d='M8.5 7 3.5 12l5 5'/><path d='m15.5 7 5 5-5 5'/>",
   'slash-math': "<path d='M18 5H6l6.5 7L6 19h12'/>",
   'slash-rule': "<path d='M3 12h18'/>",
+  'slash-command': "<circle cx='12' cy='12' r='3.5' fill='black'/>",
   'slash-image': "<rect x='3' y='4' width='18' height='16' rx='2'/><circle cx='9' cy='10' r='1.75'/><path d='m21 16-5-5-10 9'/>",
   'slash-link': "<path d='M10 14a4.2 4.2 0 0 0 6 0l3-3a4.2 4.2 0 0 0-6-6l-1 1'/><path d='M14 10a4.2 4.2 0 0 0-6 0l-3 3a4.2 4.2 0 0 0 6 6l1-1'/>",
   wikilink: "<path d='M6 3h8l4 4v14H6z'/><path d='M14 3v4h4'/>",

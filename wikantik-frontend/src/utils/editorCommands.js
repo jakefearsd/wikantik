@@ -12,7 +12,7 @@ export function buildEditorCommands({ format, save, pickImage, togglePreview, to
     cmd('insert-link', 'Insert link', 'Insert', () => format('link'), { keys: 'Mod-K', slash: true }),
     ...[1, 2, 3].map((n) => cmd(`heading-${n}`, `Heading ${n}`, 'Insert', () => format(`h${n}`), { slash: true })),
     ...CALLOUTS.map(([type, label]) => cmd(`callout-${type}`, `Insert callout: ${label}`, 'Insert',
-      () => format(`callout:${type}`), { slash: true, keywords: ['callout', type] })),
+      () => format(`callout:${type}`), { slash: true, slashLabel: `Callout: ${label}`, keywords: ['callout', type] })),
     cmd('insert-table', 'Insert table', 'Insert', () => format('table'), { slash: true }),
     cmd('code-block', 'Code block', 'Insert', () => format('codeblock'), { slash: true }),
     cmd('math-block', 'Math block', 'Insert', () => format('mathblock'), { slash: true }),

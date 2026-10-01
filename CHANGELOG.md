@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Editor workspace: quick overlay (Ctrl-K/Ctrl-O pages with title/alias/fuzzy ranking, Ctrl-P commands,
+  full-text and create rows); command palette shared with the toolbar and a `/` slash menu; link hover
+  previews (read view and editor) and Ctrl/Cmd-click to open links from the editor; type-aware page
+  templates for all five page types; `aliases:` frontmatter field; outgoing unlinked mentions in the
+  editor rail; heading/frontmatter folding; tag autocomplete; Obsidian callouts (`> [!type]`,
+  foldable `+`/`-`) in pages and the editor preview; endpoints `GET /api/pages/{name}/preview`,
+  `GET /api/page-templates`, `POST /api/mentions/scan`; `GET /api/pages?q=` ranks titles, aliases
+  and fuzzy matches.
 - `GET /api/pages` gains `q=` (ranked, ACL-filtered page search) and `names=` (existence check,
   up to 50 names, ACL-filtered) for the editor.
 - Editor: paste/drop uploads of images and files; live link completion (`[[`, `](`, `#` headings,
@@ -20,10 +28,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `wikantik.export.maxPages` (2000) and `wikantik.export.maxConcurrent` (2; over the cap returns 429).
 
 ### Changed
+- In-app navigation away from an unsaved draft now asks first (the editor's Cancel uses the same dialog).
 - Obsidian-export heading anchors now match the page view's slugs, so links to headings containing
   `_`, `&`, non-ASCII characters or repeated hyphens resolve. Previously exported vaults keep
   their old anchors.
 - Missing-page links (`class="createpage"`) are now styled in the reader view.
+
+### Fixed
+- Removing a field in the structured frontmatter editor now removes it on save (`replaceMetadata`
+  was dropped by the client); the new-page dialog detects existing pages beyond the first 500;
+  Ctrl/Cmd-K inside the editor no longer also opens the search overlay.
 
 ### Removed
 - The unused page-locking API (`PageManager.lockPage/unlockPage/getCurrentLock/getActiveLocks`,

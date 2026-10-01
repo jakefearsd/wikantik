@@ -75,7 +75,7 @@ Modules are layered: `wikantik-api` defines the contracts (ports); everything el
 | `wikantik-util` | core | Helpers, crypto utilities. |
 | `wikantik-cache` / `-cache-memcached` | core | EhCache render/object caches; Memcached adapter for distributed deploys. |
 | `wikantik-http` | edge | Servlet filters: CSRF, CORS, CSP, security headers, SPA routing, the `/wiki/{slug}?format=md\|json` content filter. |
-| `wikantik-rest` | edge | REST `/api/*` (33 resources, incl. `POST /api/ingest`, `GET /api/bundle`) and admin `/admin/*` (audit, drift, ontology, derived, kg-policy). Public RDF servlets. |
+| `wikantik-rest` | edge | REST `/api/*` (35 resources, incl. `POST /api/ingest`, `GET /api/bundle`) and admin `/admin/*` (audit, drift, ontology, derived, kg-policy). Public RDF servlets. |
 | `wikantik-admin-mcp` | agent | MCP server at `/wikantik-admin-mcp` — 27 write/analytics/KG-curation tools. |
 | `wikantik-knowledge` | agent + brain | MCP server at `/knowledge-mcp` (21 read tools) **and** the KG service: pgvector embeddings, co-mention graph, hybrid retriever, the context-bundle assembler. |
 | `wikantik-tools` | agent | OpenAPI 3.1 tool server `/tools/*` (2 tools) for non-MCP clients. |

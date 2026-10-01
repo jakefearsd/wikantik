@@ -1,6 +1,6 @@
 # Editor Workspace & Callouts — Design
 
-**Status:** approved design, not yet implemented (2026-09-30)
+**Status:** implemented on main (2026-09-30), not yet released.
 **Scope:** Group A of the second Obsidian editing-gap review (quick switcher + command palette +
 slash commands, link hover preview + Ctrl-click, type-aware templates, outgoing unlinked mentions,
 heading folding, tag autocomplete, in-app unsaved-changes guard) plus Obsidian-style callouts.

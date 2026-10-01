@@ -48,9 +48,9 @@ import { filesFromPaste, filesFromDrop } from '../utils/editorFileEvents';
  * Reveal rule (R9): any programmatic cursor/scroll jump unfolds the fold containing its target first.
  * No-op when the view has no fold state (e.g. the textarea stub in tests).
  */
-function reveal(view, pos) {
+function reveal(view, ...positions) {
   if (typeof view.state.field !== 'function') return;
-  const effects = revealEffects(view.state, pos);
+  const effects = positions.flatMap((pos) => revealEffects(view.state, pos));
   if (effects.length > 0) view.dispatch({ effects });
 }
 
@@ -113,8 +113,7 @@ const CodeEditor = forwardRef(function CodeEditor(
       const len = view.state.doc.length;
       const from = Math.max(0, Math.min(selStart, len));
       const to = Math.max(0, Math.min(selEnd, len));
-      reveal(view, from);
-      reveal(view, to);
+      reveal(view, from, to);
       view.focus();
       view.dispatch({ selection: { anchor: from, head: to } });
     },
@@ -181,14 +180,17 @@ const CodeEditor = forwardRef(function CodeEditor(
       const lineObj = view.state.doc.lineAt(head);
       return { line: lineObj.number, col: head - lineObj.from + 1, selectionText: view.state.sliceDoc(from, to) };
     },
-    /** Scroll the editor so `line` (1-based) sits at the top — preview→editor sync. */
-    scrollToLine(line) {
+    /**
+     * Scroll the editor so `line` (1-based) sits at the top — preview→editor sync. Reveals the target's
+     * folds by default; passive scroll sync passes `{ reveal: false }` so folds survive.
+     */
+    scrollToLine(line, { reveal: doReveal = true } = {}) {
       const view = viewRef.current;
       if (!view) return;
       const total = view.state.doc.lines;
       const clamped = Math.max(1, Math.min(Math.round(line), total));
       const pos = view.state.doc.line(clamped).from;
-      reveal(view, pos);
+      if (doReveal) reveal(view, pos);
       try {
         view.scrollDOM.scrollTop = view.lineBlockAt(pos).top;
       } catch {

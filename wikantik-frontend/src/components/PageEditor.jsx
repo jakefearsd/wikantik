@@ -188,7 +188,7 @@ export default function PageEditor() {
       const total = bodyRef.current ? bodyRef.current.split('\n').length : 1;
       const fm = frontmatterLineCount(bodyRef.current);
       syncingRef.current = true;
-      editor.scrollToLine(previewFractionToLine(fraction, total, fm));
+      editor.scrollToLine(previewFractionToLine(fraction, total, fm), { reveal: false });
       requestAnimationFrame(() => { syncingRef.current = false; });
     });
   }, []);

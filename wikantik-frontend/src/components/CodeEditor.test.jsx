@@ -17,6 +17,8 @@ import { createRef } from 'react';
 // (scrollDOM.scrollTop, throw-flags) without going through the imperative
 // handle — needed for getViewport/scrollToLine/jumpToLineAligned coverage.
 let lastView = null;
+const revealSpy = vi.hoisted(() => vi.fn(() => []));
+vi.mock('../utils/markdownFold', async (orig) => ({ ...(await orig()), revealEffects: revealSpy }));
 
 function lineStarts(text) {
   const lines = text.split('\n');
@@ -47,6 +49,7 @@ vi.mock('@uiw/react-codemirror', async () => {
         return {
           selection: { main: { from: ta.selectionStart, to: ta.selectionEnd, head: ta.selectionEnd } },
           sliceDoc: (from, to) => ta.value.slice(from, to),
+          field: () => undefined,
           doc: {
             length: ta.value.length,
             toString: () => ta.value,
@@ -135,6 +138,26 @@ describe('CodeEditor reveal rule', () => {
     const { ref } = mount('a\nb\nc');
     expect(() => ref.current.scrollToLine(2)).not.toThrow();
     expect(() => ref.current.jumpToLineAligned(3, 0)).not.toThrow();
+  });
+  it('scrollToLine reveals the target by default but not with { reveal: false }', () => {
+    const { ref } = mount('a\nb\nc');
+    revealSpy.mockClear();
+    ref.current.scrollToLine(2, { reveal: false });
+    expect(revealSpy).not.toHaveBeenCalled();
+    ref.current.scrollToLine(2);
+    expect(revealSpy).toHaveBeenCalledTimes(1);
+    expect(revealSpy.mock.calls[0][1]).toBe(2); // start of line 2 ('a\n' -> offset 2)
+  });
+  it('setSelection collects reveal effects for both ends and dispatches them once', () => {
+    const { ref } = mount('hello world');
+    const effect = { id: 'unfold' };
+    revealSpy.mockImplementation((_s, pos) => (pos === 2 ? [effect] : [{ id: 'other' }]));
+    const dispatch = vi.spyOn(lastView, 'dispatch');
+    ref.current.setSelection(2, 7);
+    const effectCalls = dispatch.mock.calls.filter(([tr]) => tr && tr.effects);
+    expect(effectCalls).toHaveLength(1);
+    expect(effectCalls[0][0].effects).toEqual([effect, { id: 'other' }]);
+    revealSpy.mockImplementation(() => []);
   });
   it('foldAll / unfoldAll are exposed on the handle', () => {
     const { ref } = mount('# A\nx');

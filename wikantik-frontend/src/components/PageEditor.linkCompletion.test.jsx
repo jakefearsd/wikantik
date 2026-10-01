@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- flush async state between tests
 import { render, screen, act, cleanup } from '@testing-library/react';
+import { fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('./CodeEditor', async () => {
@@ -13,7 +14,7 @@ vi.mock('./CodeEditor', async () => {
     default: React.forwardRef(function CodeEditorStub({ linkCompletion, value }, ref) {
       React.useImperativeHandle(ref, () => ({
         getSelection: () => ({ selStart: 0, selEnd: 0 }),
-        setSelection() {}, focus() {}, getViewport: () => null, scrollToLine() {},
+        setSelection() {}, focus() {}, getViewport: () => null, scrollToLine: (...args) => { (globalThis.__scrollCalls ||= []).push(args); },
         getScrollerRect: () => null, jumpToLineAligned() {},
       }));
       globalThis.__linkCompletion = linkCompletion;
@@ -110,5 +111,19 @@ describe('link completion heading cache', () => {
     await expect(lc.getHeadings('Flaky')).rejects.toThrow('boom');
     await expect(lc.getHeadings('Flaky')).rejects.toThrow('boom');
     expect(api.getPage.mock.calls.filter((c) => c[0] === 'Flaky')).toHaveLength(2);
+  });
+});
+
+describe('preview scroll sync', () => {
+  it('syncEditor scrolls the editor without revealing folds (passive sync must not unfold)', async () => {
+    globalThis.__scrollCalls = [];
+    const { container } = renderEditor('Existing');
+    await screen.findByTestId('body-value');
+    const preview = container.querySelector('.editor-preview');
+    expect(preview).not.toBeNull();
+    fireEvent.scroll(preview);
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(globalThis.__scrollCalls.length).toBeGreaterThan(0);
+    expect(globalThis.__scrollCalls[0][1]).toEqual({ reveal: false });
   });
 });

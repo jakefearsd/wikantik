@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { isLeaving, resetLeaving } from './navigationGuard';
 import { NavigationGuardProvider, useNavigationGuard, useGuardedNavigate } from './NavigationGuardProvider';
 
 function Where() { return <div data-testid="where">{useLocation().pathname}</div>; }
@@ -80,6 +81,18 @@ describe('NavigationGuardProvider', () => {
       fireEvent.click(screen.getByTestId('guard-leave'));
       expect(assign).toHaveBeenCalledWith(new URL('/attach/A/report.pdf', window.location.href).href);
       expect(screen.getByTestId('where').textContent).toBe('/edit/A');
+    });
+
+    it('marks the page as leaving before location.assign so beforeunload can stand down', () => {
+      resetLeaving();
+      let leavingAtAssign = null;
+      vi.spyOn(window.location, 'assign').mockImplementation(() => { leavingAtAssign = isLeaving(); });
+      setup(true);
+      fireEvent.click(screen.getByTestId('attachment'));
+      expect(isLeaving()).toBe(false);
+      fireEvent.click(screen.getByTestId('guard-leave'));
+      expect(leavingAtAssign).toBe(true);
+      resetLeaving();
     });
 
     it('Stay on a non-SPA link loads nothing', () => {

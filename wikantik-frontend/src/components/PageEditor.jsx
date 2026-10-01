@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useNavigationGuard, useGuardedNavigate } from '../navigation/NavigationGuardProvider';
+import { isLeaving } from '../navigation/navigationGuard';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -412,6 +413,7 @@ export default function PageEditor() {
 
   useEffect(() => {
     const handler = (e) => {
+      if (isLeaving()) return; // the user already confirmed Leave in the guard dialog
       e.preventDefault();
       e.returnValue = '';
     };

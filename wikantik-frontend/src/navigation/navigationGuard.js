@@ -25,3 +25,16 @@ export function isSpaPath(path) {
   const pathname = path.split(/[?#]/, 1)[0];
   return SPA_EXACT.has(pathname) || SPA_PREFIXES.some((p) => pathname.startsWith(p));
 }
+
+// Set immediately before a confirmed full-page load (location.assign) so the editor's own beforeunload
+// handler does not raise a second, native "Leave site?" prompt. The flag self-clears after a short window
+// because a load that never unloads the page (e.g. an attachment download) must not disarm the editor.
+let leaving = false;
+let leavingTimer = null;
+export function markLeaving() {
+  leaving = true;
+  clearTimeout(leavingTimer);
+  leavingTimer = setTimeout(() => { leaving = false; }, 2000);
+}
+export function isLeaving() { return leaving; }
+export function resetLeaving() { leaving = false; clearTimeout(leavingTimer); }

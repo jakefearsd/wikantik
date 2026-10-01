@@ -14,6 +14,8 @@ function Host() {
       <div ref={ref}>
         <a href="/wiki/IndexFundsHub">hub</a>
         <a className="createpage" href="/wiki/Nope">nope</a>
+        <a className="createpage" href="/edit/Nope%20Page">nope2</a>
+        <a href="/edit/Plain">plainedit</a>
         <a href="https://x.example/">ext</a>
         <a href="/attach/P/f.png">att</a>
         <a href="#sec">anchor</a>
@@ -70,6 +72,27 @@ describe('useLinkPreview', () => {
     await advance(400);
     expect(screen.getByTestId('link-preview-card')).toHaveTextContent('Not created yet');
     expect(loadPreview).not.toHaveBeenCalled();
+  });
+
+  it('shows "Not created yet" for a server createpage /edit/ link without fetching', async () => {
+    render(<Host />);
+    fireEvent.mouseOver(screen.getByText('nope2'));
+    await advance(400);
+    expect(screen.getByTestId('link-preview-card')).toHaveTextContent('Not created yet');
+    expect(loadPreview).not.toHaveBeenCalled();
+  });
+
+  it('gives a plain /edit/ link (no createpage class) no card', async () => {
+    render(<Host />);
+    fireEvent.mouseOver(screen.getByText('plainedit'));
+    await advance(500);
+    expect(screen.queryByTestId('link-preview-card')).toBeNull();
+    expect(previewTargetOf(anchor('/edit/Plain'))).toBeNull();
+  });
+
+  it('decodes the /edit/ name of a createpage anchor', () => {
+    const a = anchor('/edit/Nope%20Page'); a.className = 'createpage';
+    expect(previewTargetOf(a)).toEqual({ name: 'Nope Page', section: null, missing: true });
   });
 
   it('ignores external, attachment and same-page anchors', async () => {

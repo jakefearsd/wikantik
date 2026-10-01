@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { interceptableHref, isSpaPath } from './navigationGuard';
+import { interceptableHref, isSpaPath, markLeaving, isLeaving, resetLeaving } from './navigationGuard';
 
 const loc = { href: 'http://w.test/edit/Page', origin: 'http://w.test', pathname: '/edit/Page', search: '' };
 
@@ -48,4 +48,15 @@ describe('isSpaPath', () => {
     '/attach/Page/file.pdf', '/privacy-policy.html', '/sparql', '/export/ontology.ttl', '/api/pages/X',
     '/wikipedia', '/administrator', '/searchable', '/login.html', '/id/page/abc',
   ])('%s is not a router route', (path) => { expect(isSpaPath(path)).toBe(false); });
+});
+
+describe('leaving flag', () => {
+  it('is off by default, set by markLeaving, cleared by resetLeaving', () => {
+    resetLeaving();
+    expect(isLeaving()).toBe(false);
+    markLeaving();
+    expect(isLeaving()).toBe(true);
+    resetLeaving();
+    expect(isLeaving()).toBe(false);
+  });
 });

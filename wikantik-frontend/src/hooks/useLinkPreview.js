@@ -15,6 +15,11 @@ export function previewTargetOf(anchor) {
   const local = href.startsWith(`${BASE}/wiki/`) ? href.slice(BASE.length) : href;
   const wiki = /^\/wiki\/([^?#]+)(?:\?[^#]*)?(?:#(.*))?$/.exec(local);
   if (wiki) return { name: safeDecode(wiki[1]), section: wiki[2] || null, missing };
+  // The server renders a missing page as <a class="createpage" href="/edit/Name">; a bare /edit/ link is an
+  // edit action, not a page reference.
+  const localEdit = href.startsWith(`${BASE}/edit/`) ? href.slice(BASE.length) : href;
+  const edit = /^\/edit\/([^?#/]+)(?:\?[^#]*)?(?:#(.*))?$/.exec(localEdit);
+  if (edit) return missing ? { name: safeDecode(edit[1]), section: edit[2] || null, missing: true } : null;
   const name = wikiLinkTarget(href);
   if (!name) return null;
   const hash = href.includes('#') ? href.slice(href.indexOf('#') + 1) : '';

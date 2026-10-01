@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../components/ui/Modal';
-import { interceptableHref, isSpaPath } from './navigationGuard';
+import { interceptableHref, isSpaPath, markLeaving } from './navigationGuard';
 
 const GuardContext = createContext(null);
 
@@ -40,7 +40,7 @@ export function NavigationGuardProvider({ children }) {
   const leave = () => {
     const p = pending;
     setPending(null);
-    if (p.href) window.location.assign(p.href);
+    if (p.href) { markLeaving(); window.location.assign(p.href); }
     else navigate(p.to, p.options);
   };
 

@@ -111,6 +111,7 @@ import { useDraft } from '../hooks/useDraft';
 import { useAttachments } from '../hooks/useAttachments';
 import { useEditorDrop } from '../hooks/useEditorDrop';
 import { useToast } from '../hooks/useToast';
+import { markLeaving, resetLeaving } from '../navigation/navigationGuard';
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -282,6 +283,18 @@ describe('#20 unsaved-changes guard', () => {
       window.dispatchEvent(event);
     });
     expect(event.returnValue).toBe('');
+  });
+
+  it('beforeunload handler stands down once the guard has marked the page as leaving', async () => {
+    renderEditor();
+    await waitForEditor();
+    typeInEditor('# Different content');
+    markLeaving();
+    try {
+      const event = new Event('beforeunload', { cancelable: true });
+      await waitFor(() => { window.dispatchEvent(event); });
+      expect(event.defaultPrevented).toBe(false);
+    } finally { resetLeaving(); }
   });
 
   it('Cancel while dirty shows confirm modal (does not navigate immediately)', async () => {

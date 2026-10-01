@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import LinkPreviewCard from './LinkPreviewCard';
 
@@ -31,5 +31,19 @@ describe('LinkPreviewCard', () => {
     const card = screen.getByTestId('link-preview-card');
     expect(card.querySelector('b')).toBeNull();
     expect(card).toHaveTextContent('a <b>bold</b> move');
+  });
+
+  describe('viewport clamping', () => {
+    const saved = { w: window.innerWidth, h: window.innerHeight };
+    afterEach(() => { window.innerWidth = saved.w; window.innerHeight = saved.h; });
+
+    it('keeps a card for a link near the bottom-right corner inside the viewport', () => {
+      window.innerWidth = 800;
+      window.innerHeight = 600;
+      render(<LinkPreviewCard rect={{ left: 780, top: 570, bottom: 590 }} result={{ status: 'missing' }} />);
+      const card = screen.getByTestId('link-preview-card');
+      expect(parseInt(card.style.left, 10)).toBeLessThanOrEqual(800 - 8 - 352);
+      expect(parseInt(card.style.top, 10)).toBeLessThan(570); // flipped above the link
+    });
   });
 });

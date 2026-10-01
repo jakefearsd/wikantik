@@ -33,4 +33,11 @@ describe('globals.css custom properties', () => {
       expect(dark, `${token} in dark theme`).toContain(`${token}:`);
     }
   });
+
+  it('the quick overlay highlights its single focused row with a token both themes define', () => {
+    const rule = css.slice(css.indexOf('.quick-overlay .quick-row.focused,'), css.indexOf('}', css.indexOf('.quick-overlay .quick-row.focused,')));
+    expect(rule).toContain('var(--row-selected-bg)');
+    expect(block(':root')).toContain('--row-selected-bg:');
+    expect(block('[data-theme="dark"]')).toContain('--row-selected-bg:');
+  });
 });

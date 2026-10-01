@@ -28,7 +28,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -46,11 +45,11 @@ public final class PageTitleIndex implements PageTitleLookup {
     private static final int NO_MATCH = Integer.MAX_VALUE;
 
     private final List< TitleEntry > entries;
-    private final Map< String, List< String > > normalizedKeysBySlug;
+    private final Map< String, List< MatchKey > > normalizedKeysBySlug;
 
     private PageTitleIndex( final List< TitleEntry > entries ) {
         this.entries = List.copyOf( entries );
-        final Map< String, List< String > > keys = new HashMap<>();
+        final Map< String, List< MatchKey > > keys = new HashMap<>();
         for ( final TitleEntry e : entries ) {
             keys.put( e.slug(), normalizedKeys( e.slug(), e.phrases() ) );
         }
@@ -97,10 +96,10 @@ public final class PageTitleIndex implements PageTitleLookup {
         }
         final Map< String, Integer > tiers = new HashMap<>();
         for ( final String name : names ) {
-            final List< String > keys = normalizedKeysBySlug.getOrDefault( name,
+            final List< MatchKey > keys = normalizedKeysBySlug.getOrDefault( name,
                     normalizedKeys( name, List.of( phraseOf( name ) ) ) );
             int best = NO_MATCH;
-            for ( final String key : keys ) {
+            for ( final MatchKey key : keys ) {
                 best = Math.min( best, tier( key, needle ) );
             }
             if ( best != NO_MATCH ) {
@@ -112,31 +111,23 @@ public final class PageTitleIndex implements PageTitleLookup {
                 .toList();
     }
 
-    private static List< String > normalizedKeys( final String slug, final List< String > phrases ) {
-        final Set< String > keys = new LinkedHashSet<>();
-        keys.add( normalize( slug ) );
-        phrases.forEach( p -> keys.add( normalize( p ) ) );
-        return List.copyOf( keys );
+    /** Match keys built from the ORIGINAL-case slug and phrases, so CamelCase word starts survive. */
+    private static List< MatchKey > normalizedKeys( final String slug, final List< String > phrases ) {
+        final Set< String > originals = new LinkedHashSet<>();
+        originals.add( slug );
+        originals.addAll( phrases );
+        return originals.stream().map( MatchKey::of ).toList();
     }
 
     private static String normalize( final String s ) {
-        return s.toLowerCase( Locale.ROOT ).replaceAll( "\\s+", "" );
+        return MatchKey.normalize( s );
     }
 
-    private static int tier( final String key, final String needle ) {
-        if ( key.equals( needle ) ) return EXACT;
-        if ( key.startsWith( needle ) ) return PREFIX;
-        if ( key.contains( needle ) ) return SUBSTRING;
-        return isSubsequence( needle, key ) ? SUBSEQUENCE : NO_MATCH;
-    }
-
-    private static boolean isSubsequence( final String needle, final String key ) {
-        int i = 0;
-        for ( int j = 0; j < key.length() && i < needle.length(); j++ ) {
-            if ( key.charAt( j ) == needle.charAt( i ) ) {
-                i++;
-            }
-        }
-        return i == needle.length();
+    private static int tier( final MatchKey key, final String needle ) {
+        final String text = key.text();
+        if ( text.equals( needle ) ) return EXACT;
+        if ( text.startsWith( needle ) ) return PREFIX;
+        if ( text.contains( needle ) ) return SUBSTRING;
+        return key.matchesWordStarts( needle ) ? SUBSEQUENCE : NO_MATCH;
     }
 }

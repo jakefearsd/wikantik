@@ -149,7 +149,8 @@ describe('QuickOverlay', () => {
     type('>fold');
     const ids = screen.getAllByTestId('quick-row').map((r) => r.dataset.commandId);
     expect(ids).toEqual(['fold-all', 'unfold-all']);
-    expect(screen.getByText('Ctrl-Alt-[')).toBeInTheDocument();
+    expect(screen.getByText('Ctrl+Alt+[').tagName).toBe('KBD'); // jsdom is not a Mac
+    expect(screen.getAllByTestId('quick-section').map((h) => h.textContent)).toEqual(['Commands']);
     fireEvent.keyDown(input(), { key: 'Enter' });
     expect(onClose).toHaveBeenCalled();
     await waitFor(() => expect(run).toHaveBeenCalled());
@@ -161,6 +162,76 @@ describe('QuickOverlay', () => {
     type('>tog');
     expect(screen.getAllByTestId('quick-row')[0].dataset.commandId).toBe('x');
     expect(api.listPages).not.toHaveBeenCalled();
+  });
+
+  it('page and full-text rows show the title (or the de-CamelCased name) over the page name', async () => {
+    api.listPages.mockResolvedValue({ pages: [
+      { name: 'LowCostIndexFundInvesting', title: 'Low-Cost Index Fund Investing' }, { name: 'IndexFundsHub' }] });
+    api.search.mockResolvedValue({ results: [{ name: 'BondLadders' }, { name: 'Still' }] });
+    renderOverlay();
+    type('index fund');
+    await settle();
+    const text = (name) => {
+      const row = screen.getAllByTestId('quick-row').find((r) => r.dataset.pageName === name);
+      return [row.querySelector('.quick-row-title')?.textContent, row.querySelector('.quick-row-name')?.textContent];
+    };
+    expect(text('LowCostIndexFundInvesting')).toEqual(['Low-Cost Index Fund Investing', 'LowCostIndexFundInvesting']);
+    expect(text('IndexFundsHub')).toEqual(['Index Funds Hub', 'IndexFundsHub']);
+    expect(text('BondLadders')).toEqual(['Bond Ladders', 'BondLadders']);
+    expect(text('Still')).toEqual(['Still', undefined]); // no repeated name when the title is the name
+  });
+
+  it('groups results under non-selectable section headers with a divider before the actions', async () => {
+    api.listPages.mockResolvedValue({ pages: [{ name: 'IndexFundsHub' }] });
+    api.search.mockResolvedValue({ results: [{ name: 'BondLadders' }] });
+    renderOverlay();
+    type('index');
+    await settle();
+    expect(screen.getAllByTestId('quick-section').map((h) => h.textContent)).toEqual(['Pages', 'Full-text matches']);
+    screen.getAllByTestId('quick-section').forEach((h) => expect(h).not.toHaveAttribute('role', 'option'));
+    const divider = screen.getByTestId('quick-divider');
+    expect(divider.nextElementSibling.dataset.kind).toBe('search');
+    expect(divider.previousElementSibling.dataset.kind).toBe('fulltext');
+  });
+
+  it('omits the Pages header when only full-text matches exist', async () => {
+    api.listPages.mockResolvedValue({ pages: [] });
+    api.search.mockResolvedValue({ results: [{ name: 'BondLadders' }] });
+    renderOverlay();
+    type('bond');
+    await settle();
+    expect(screen.getAllByTestId('quick-section').map((h) => h.textContent)).toEqual(['Full-text matches']);
+  });
+
+  it('labels the empty-query list "Recent"', () => {
+    renderOverlay();
+    expect(screen.getAllByTestId('quick-section').map((h) => h.textContent)).toEqual(['Recent']);
+  });
+
+  it('full-text, search and create rows carry an inline SVG icon', async () => {
+    api.listPages.mockResolvedValue({ pages: [] });
+    api.search.mockResolvedValue({ results: [{ name: 'BondLadders' }] });
+    renderOverlay();
+    type('bond');
+    await settle();
+    for (const kind of ['fulltext', 'search', 'create']) {
+      const row = screen.getAllByTestId('quick-row').find((r) => r.dataset.kind === kind);
+      expect(row.querySelector('svg'), kind).not.toBeNull();
+    }
+  });
+
+  it('only one row is highlighted: hovering moves the single focus', async () => {
+    api.listPages.mockResolvedValue({ pages: [{ name: 'A1' }, { name: 'A2' }] });
+    api.search.mockResolvedValue({ results: [] });
+    renderOverlay();
+    type('a');
+    await settle();
+    const rows = screen.getAllByTestId('quick-row');
+    fireEvent.mouseEnter(rows[1]);
+    const focused = screen.getAllByTestId('quick-row').filter((r) => r.classList.contains('focused'));
+    expect(focused).toEqual([rows[1]]);
+    expect(rows[1]).toHaveAttribute('aria-selected', 'true');
+    expect(rows[0]).toHaveAttribute('aria-selected', 'false');
   });
 
   it('Escape closes', () => {

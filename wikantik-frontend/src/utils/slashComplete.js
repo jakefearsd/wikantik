@@ -1,5 +1,6 @@
 import { syntaxTree } from '@codemirror/language';
 import { fuzzyRank } from './fuzzy';
+import { formatKeys } from './keyHints';
 
 const CODE_NODES = new Set(['FencedCode', 'CodeBlock', 'InlineCode', 'CodeText', 'CodeMark', 'URL', 'Autolink']);
 
@@ -42,7 +43,7 @@ export function createSlashSource(getCommands, run) {
       .sort((a, b) => a.r - b.r || (a.c.slashLabel || a.c.title).localeCompare(b.c.slashLabel || b.c.title))
       .map(({ c }) => ({
         label: c.slashLabel || c.title,
-        detail: c.keys,
+        detail: c.keys ? formatKeys(c.keys) : undefined,
         apply: (view, _completion, _from, to) => {
           view.dispatch({ changes: { from: slashPos, to, insert: '' } });
           run(c.id);

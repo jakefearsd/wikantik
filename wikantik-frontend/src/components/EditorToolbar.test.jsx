@@ -25,6 +25,13 @@ describe('EditorToolbar', () => {
     });
   });
 
+  it('tooltips spell out the shortcut for this platform', () => {
+    render(<EditorToolbar onRun={vi.fn()} />); // jsdom is not a Mac
+    expect(screen.getByTitle('Bold (Ctrl+B)')).toBeInTheDocument();
+    expect(screen.getByTitle('Italic (Ctrl+I)')).toBeInTheDocument();
+    expect(screen.getByTitle('Link (Ctrl+K)')).toBeInTheDocument();
+  });
+
   it.each([
     [/bold/i, 'format-bold'],
     [/italic/i, 'format-italic'],

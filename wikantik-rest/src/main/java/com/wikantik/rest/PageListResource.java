@@ -149,21 +149,7 @@ public class PageListResource extends RestServletBase {
         final SpineMeta spineMeta = loadSpineMeta( sliceNames );
 
         final List< Map< String, Object > > pageList = filtered.stream()
-                .map( page -> {
-                    final Map< String, Object > entry = new LinkedHashMap<>();
-                    entry.put( "name", page.getName() );
-                    entry.put( "lastModified", page.getLastModified() );
-                    entry.put( "version", Math.max( page.getVersion(), 1 ) );
-                    entry.put( "author", page.getAuthor() );
-                    final String cluster = spineMeta.clusterBySlug().get( page.getName() );
-                    if ( cluster != null ) {
-                        entry.put( "cluster", cluster );
-                    }
-                    if ( spineMeta.derivedSlugs().contains( page.getName() ) ) {
-                        entry.put( "derived", true );
-                    }
-                    return entry;
-                } )
+                .map( page -> toEntry( page, spineMeta ) )
                 .toList();
 
         final Map< String, Object > result = new LinkedHashMap<>();
@@ -175,18 +161,58 @@ public class PageListResource extends RestServletBase {
         sendJson( response, result );
     }
 
+    /** One {@code pages[]} entry; the structural-index fields are present only when the index knows them. */
+    private static Map< String, Object > toEntry( final Page page, final SpineMeta spineMeta ) {
+        final Map< String, Object > entry = new LinkedHashMap<>();
+        entry.put( "name", page.getName() );
+        entry.put( "lastModified", page.getLastModified() );
+        entry.put( "version", Math.max( page.getVersion(), 1 ) );
+        entry.put( "author", page.getAuthor() );
+        putIfPresent( entry, "cluster", spineMeta.clusterBySlug().get( page.getName() ) );
+        if ( spineMeta.derivedSlugs().contains( page.getName() ) ) {
+            entry.put( "derived", true );
+        }
+        putIfPresent( entry, "title", spineMeta.titleBySlug().get( page.getName() ) );
+        return entry;
+    }
+
+    private static void putIfPresent( final Map< String, Object > entry, final String key, final String value ) {
+        if ( value != null ) {
+            entry.put( key, value );
+        }
+    }
+
     /** The pages among {@code names} that exist ({@code names=} existence check); unknown names are dropped. */
     private static Collection< Page > pagesNamed( final PageManager pm, final List< String > names ) {
         return names.stream().map( n -> pm.getPageWithoutMetadata( n, PageProvider.LATEST_VERSION ) ).filter( java.util.Objects::nonNull ).toList();
     }
 
     /**
-     * Slug → cluster map, and the set of derived-page slugs, both sourced from
+     * Slug → cluster map, the set of derived-page slugs, and slug → display title
+     * (only where the frontmatter title differs from the slug), all sourced from
      * the structural index in a single {@code sitemap()} pass, restricted to
      * {@code wanted} (the page names actually returned in this response, i.e.
      * the post-pagination slice).
      */
-    private record SpineMeta( Map< String, String > clusterBySlug, java.util.Set< String > derivedSlugs ) {}
+    private record SpineMeta( Map< String, String > clusterBySlug, java.util.Set< String > derivedSlugs,
+                              Map< String, String > titleBySlug ) {
+
+        SpineMeta() {
+            this( new HashMap<>(), new java.util.HashSet<>(), new HashMap<>() );
+        }
+
+        void accept( final PageDescriptor d ) {
+            if ( d.cluster() != null && !d.cluster().isBlank() ) {
+                clusterBySlug.put( d.slug(), d.cluster() );
+            }
+            if ( d.derived() ) {
+                derivedSlugs.add( d.slug() );
+            }
+            if ( d.title() != null && !d.title().isBlank() && !d.title().equals( d.slug() ) ) {
+                titleBySlug.put( d.slug(), d.title().trim() );
+            }
+        }
+    }
 
     /**
      * Loads {@link SpineMeta} for {@code wanted}. Returns empty collections
@@ -195,34 +221,27 @@ public class PageListResource extends RestServletBase {
      * sidebar.
      */
     private SpineMeta loadSpineMeta( final java.util.Set< String > wanted ) {
-        final Map< String, String > clusterBySlug = new HashMap<>();
-        final java.util.Set< String > derivedSlugs = new java.util.HashSet<>();
+        final SpineMeta meta = new SpineMeta();
         if ( wanted.isEmpty() ) {
-            return new SpineMeta( clusterBySlug, derivedSlugs );
+            return meta;
         }
         try {
             final StructuralIndexService idx = getSubsystems().pageGraph().structuralIndexService();
             if ( idx == null ) {
-                return new SpineMeta( clusterBySlug, derivedSlugs );
+                return meta;
             }
             // Use sitemap() — the full, unbounded projection. listPagesByFilter
             // (with StructuralFilter.none()) silently caps at 100 pages, which
             // would leave all but the first 100 pages clusterless in the sidebar.
             for ( final PageDescriptor d : idx.sitemap().pages() ) {
-                if ( !wanted.contains( d.slug() ) ) {
-                    continue;
-                }
-                if ( d.cluster() != null && !d.cluster().isBlank() ) {
-                    clusterBySlug.put( d.slug(), d.cluster() );
-                }
-                if ( d.derived() ) {
-                    derivedSlugs.add( d.slug() );
+                if ( wanted.contains( d.slug() ) ) {
+                    meta.accept( d );
                 }
             }
         } catch ( final RuntimeException e ) {
-            LOG.warn( "Could not load cluster/derived metadata for page list: {}", e.getMessage() );
+            LOG.warn( "Could not load cluster/derived/title metadata for page list: {}", e.getMessage() );
         }
-        return new SpineMeta( clusterBySlug, derivedSlugs );
+        return meta;
     }
 
 

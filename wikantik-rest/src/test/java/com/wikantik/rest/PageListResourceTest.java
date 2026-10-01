@@ -329,28 +329,7 @@ class PageListResourceTest {
     void qMatchesAFrontmatterAlias() throws Exception {
         engine.saveText( "RestListAliasPage", "---\naliases: [zebra crossing]\n---\nBody." );
         try {
-            // The bare TestEngine wires no structural index; build a real one over its page manager and serve
-            // it to the servlet through the subsystems seam.
-            final com.wikantik.pagegraph.spine.DefaultStructuralIndexService index =
-                    new com.wikantik.pagegraph.spine.DefaultStructuralIndexService(
-                            engine.getManager( com.wikantik.api.managers.PageManager.class ),
-                            Mockito.mock( com.wikantik.pagegraph.spine.PageCanonicalIdsDao.class ) );
-            index.rebuild();
-            final com.wikantik.WikiSubsystems real = servlet.getSubsystems();
-            final com.wikantik.WikiSubsystems subs = Mockito.mock( com.wikantik.WikiSubsystems.class,
-                    org.mockito.AdditionalAnswers.delegatesTo( real ) );
-            final com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services pageGraph =
-                    Mockito.mock( com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services.class );
-            Mockito.doReturn( index ).when( pageGraph ).structuralIndexService();
-            Mockito.doReturn( pageGraph ).when( subs ).pageGraph();
-            final PageListResource aliasAware = new PageListResource() {
-                @Override protected com.wikantik.WikiSubsystems getSubsystems() {
-                    return subs;
-                }
-            };
-            final ServletConfig cfg = Mockito.mock( ServletConfig.class );
-            Mockito.doReturn( engine.getServletContext() ).when( cfg ).getServletContext();
-            aliasAware.init( cfg );
+            final PageListResource aliasAware = indexAwareServlet();
             // name-only ranking cannot match "zebra crossing"; the alias can
             final String json = doGetListQ( aliasAware, "zebra crossing" );
             final JsonObject obj = gson.fromJson( json, JsonObject.class );
@@ -359,6 +338,50 @@ class PageListResourceTest {
             assertTrue( names.contains( "RestListAliasPage" ), names.toString() );
         } finally {
             engine.deleteQuietly( "RestListAliasPage" );
+        }
+    }
+
+    /**
+     * The bare TestEngine wires no structural index; build a real one over its page manager and serve it to a
+     * servlet through the subsystems seam.
+     */
+    private PageListResource indexAwareServlet() throws Exception {
+        final com.wikantik.pagegraph.spine.DefaultStructuralIndexService index =
+                new com.wikantik.pagegraph.spine.DefaultStructuralIndexService(
+                        engine.getManager( com.wikantik.api.managers.PageManager.class ),
+                        Mockito.mock( com.wikantik.pagegraph.spine.PageCanonicalIdsDao.class ) );
+        index.rebuild();
+        final com.wikantik.WikiSubsystems real = servlet.getSubsystems();
+        final com.wikantik.WikiSubsystems subs = Mockito.mock( com.wikantik.WikiSubsystems.class,
+                org.mockito.AdditionalAnswers.delegatesTo( real ) );
+        final com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services pageGraph =
+                Mockito.mock( com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services.class );
+        Mockito.doReturn( index ).when( pageGraph ).structuralIndexService();
+        Mockito.doReturn( pageGraph ).when( subs ).pageGraph();
+        final PageListResource indexAware = new PageListResource() {
+            @Override protected com.wikantik.WikiSubsystems getSubsystems() {
+                return subs;
+            }
+        };
+        final ServletConfig cfg = Mockito.mock( ServletConfig.class );
+        Mockito.doReturn( engine.getServletContext() ).when( cfg ).getServletContext();
+        indexAware.init( cfg );
+        return indexAware;
+    }
+
+    @Test
+    void entriesCarryTheFrontmatterTitleOnlyWhenItDiffersFromTheName() throws Exception {
+        engine.saveText( "RestListTitled", "---\ntitle: Zebra Crossing Field Guide\n---\nBody." );
+        try {
+            final JsonArray pages = gson.fromJson( doGetListQ( indexAwareServlet(), "restlist" ), JsonObject.class )
+                    .getAsJsonArray( "pages" );
+            final java.util.Map< String, JsonObject > byName = new java.util.HashMap<>();
+            pages.forEach( p -> byName.put( p.getAsJsonObject().get( "name" ).getAsString(), p.getAsJsonObject() ) );
+            assertEquals( "Zebra Crossing Field Guide", byName.get( "RestListTitled" ).get( "title" ).getAsString() );
+            assertFalse( byName.get( "RestListAlpha" ).has( "title" ),
+                    "a page whose descriptor title is just its slug carries no title" );
+        } finally {
+            engine.deleteQuietly( "RestListTitled" );
         }
     }
 

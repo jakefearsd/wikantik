@@ -81,7 +81,7 @@ describe('PageEditor formatting on real CodeMirror', () => {
     const view = await editorView();
     typeAtEnd(view, ' x');                                         // a keystroke arms the typing latch
     act(() => { view.dispatch({ selection: { anchor: 0, head: 5 } }); });
-    fireEvent.mouseDown(screen.getByRole('button', { name: 'Bold (⌘B)' }));
+    fireEvent.mouseDown(screen.getByRole('button', { name: /^Bold \(/ }));
     expect(view.state.doc.toString()).toBe('**hello** world x');   // not deferred behind the latch
     expect(view.state.selection.main.from).toBe(2);
     expect(view.state.selection.main.to).toBe(7);

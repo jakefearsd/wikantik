@@ -75,6 +75,31 @@ class PageTitleIndexTest {
         assertEquals( List.of( "Ladder", "LowAdDer" ), idx.rank( List.of( "LowAdDer", "Ladder" ), "ladd" ) );
     }
 
+    @Test void subsequenceCharactersMustStartAWordOrContinueARun() {
+        final PageTitleIndex idx = PageTitleIndex.of(
+                List.of( page( "BackgroundJobProcessing", "BackgroundJobProcessing" ),
+                         page( "BasicsOfCompoundInterest", "BasicsOfCompoundInterest" ),
+                         page( "BondLadders", "Bond Ladders" ) ), Map.of() );
+        assertEquals( List.of( "BondLadders" ), idx.rank(
+                List.of( "BackgroundJobProcessing", "BasicsOfCompoundInterest", "BondLadders" ), "bond" ) );
+    }
+
+    @Test void wordStartsIncludeSeparatorsAcronymsAndDigits() {
+        final PageTitleIndex idx = PageTitleIndex.of(
+                List.of( page( "HTMLParserGuide", "HTMLParserGuide" ), page( "Api2Client", "Api2Client" ),
+                         page( "SnakeCase", "snake_case/kebab-case notes" ) ), Map.of() );
+        assertEquals( List.of( "HTMLParserGuide" ), idx.rank( List.of( "HTMLParserGuide" ), "hpg" ) );
+        assertEquals( List.of( "Api2Client" ), idx.rank( List.of( "Api2Client" ), "a2c" ) );
+        assertEquals( List.of( "SnakeCase" ), idx.rank( List.of( "SnakeCase" ), "sckcn" ) );
+    }
+
+    @Test void aLaterWordStartIsFoundWhenTheGreedyFirstMatchDeadEnds() {
+        // greedy binds "a" to Ax and then finds no word-start "b"; binding "a" to Ab instead matches
+        final PageTitleIndex idx = PageTitleIndex.of( List.of( page( "AxQAbQYes", "AxQAbQYes" ) ), Map.of() );
+        assertEquals( List.of( "AxQAbQYes" ), idx.rank( List.of( "AxQAbQYes" ), "aby" ) );
+        assertEquals( List.of(), idx.rank( List.of( "AxQAbQYes" ), "ae" ) );
+    }
+
     @Test void unknownNamesStillMatchOnTheirOwnName() {
         assertEquals( List.of( "NotIndexedYet" ), index.rank( List.of( "NotIndexedYet", "BondLadders" ), "notindexed" ) );
     }

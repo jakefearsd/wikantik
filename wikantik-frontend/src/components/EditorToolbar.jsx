@@ -1,3 +1,5 @@
+import { formatKeys } from '../utils/keyHints';
+
 /**
  * Presentational markdown formatting toolbar; each button runs a command-registry id.
  *
@@ -6,14 +8,14 @@
  */
 export default function EditorToolbar({ onRun }) {
   const buttons = [
-    { id: 'format-bold',   label: 'B',   title: 'Bold (⌘B)',   style: { fontWeight: 'bold' } },
-    { id: 'format-italic', label: 'I',   title: 'Italic (⌘I)', style: { fontStyle: 'italic' } },
+    { id: 'format-bold',   label: 'B',   title: `Bold (${formatKeys('Mod-B')})`, style: { fontWeight: 'bold' } },
+    { id: 'format-italic', label: 'I',   title: `Italic (${formatKeys('Mod-I')})`, style: { fontStyle: 'italic' } },
     { id: 'heading-2',     label: 'H',   title: 'Heading',     style: {} },
     { id: 'format-list',   label: '≡',   title: 'List',        style: {} },
     { id: 'format-code',   label: '`',   title: 'Inline code', style: { fontFamily: 'monospace' } },
     { id: 'code-block',    label: '{ }', title: 'Code block',  style: { fontFamily: 'monospace' } },
     { id: 'insert-table',  label: '▦',   title: 'Table',       style: {} },
-    { id: 'insert-link',   label: '⌘K',  title: 'Link (⌘K)',   style: {} },
+    { id: 'insert-link',   label: formatKeys('Mod-K'), title: `Link (${formatKeys('Mod-K')})`, style: {} },
   ];
 
   return (

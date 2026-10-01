@@ -34,8 +34,8 @@ import { linkInteraction } from '../utils/linkInteraction';
  *   insertText(pos, text)       -> insert via a CodeMirror transaction; false if no view
  *   replaceText(find, repl)     -> replace first exact match via a transaction; false if no view
  *   applyEdit(text, start, end) -> make the document `text` with selection [start, end] in one transaction
- *   applyChanges(changes)       -> apply [{from, to, insert}] (all against the current doc) as one isolated
- *                                  undo step, the selection mapped through them; false if no view
+ *   applyChanges(changes)       -> apply non-overlapping [{from, to, insert}] (all against the current doc) as one
+ *                                  isolated undo step, the selection mapped through them; false if no view
  *
  * Props:
  *   value       string            current document text
@@ -60,13 +60,32 @@ function reveal(view, ...positions) {
   const effects = positions.flatMap((pos) => revealEffects(view.state, pos));
   if (effects.length > 0) view.dispatch({ effects });
 }
-/** The single change turning `prev` into `next`: their common prefix and suffix are left alone. */
+const isHighSurrogate = (code) => code >= 0xD800 && code <= 0xDBFF;
+const isLowSurrogate = (code) => code >= 0xDC00 && code <= 0xDFFF;
+
+/**
+ * The single change turning `prev` into `next`: their common prefix and suffix are left alone. The boundaries never
+ * split a CRLF pair or a UTF-16 surrogate pair: a change ending in a lone `\r` (an LF document diffed against CRLF
+ * text) would make CodeMirror insert an extra line break.
+ */
 export function minimalChange(prev, next) {
   let from = 0;
   const max = Math.min(prev.length, next.length);
   while (from < max && prev[from] === next[from]) from += 1;
+  // The prefix is identical in both strings, so checking `prev` is enough.
+  while (from > 0 && (prev[from - 1] === '\r' || isHighSurrogate(prev.charCodeAt(from - 1)))) from -= 1;
   let tail = 0;
   while (tail < max - from && prev[prev.length - 1 - tail] === next[next.length - 1 - tail]) tail += 1;
+  // The suffix must not start on the \n of a CRLF pair (in either string) or on a low surrogate.
+  for (;;) {
+    if (tail === 0) break;
+    const p = prev.length - tail;
+    const n = next.length - tail;
+    const startsInsidePair = (prev[p] === '\n' && (prev[p - 1] === '\r' || next[n - 1] === '\r'))
+      || isLowSurrogate(prev.charCodeAt(p));
+    if (!startsInsidePair) break;
+    tail -= 1;
+  }
   return { from, to: prev.length - tail, insert: next.slice(from, next.length - tail) };
 }
 
@@ -214,19 +233,30 @@ const CodeEditor = forwardRef(function CodeEditor(
      * transaction: onChange fires once and the caret/selection is mapped through the edits, so a background edit
      * (attachment rename, conversion, draft or conflict reload) never moves the user's caret or races
      * react-codemirror's typing latch the way a `value` change does. Positions are clamped to the document and a
-     * reversed range is ordered. The edit is its own undo step (never merged with adjacent typing). It neither
-     * focuses the editor nor reveals folds. Returns false when there is no view.
+     * reversed range is ordered, and CRLF / lone CR in inserted text become LF (the document is always LF).
+     * Changes must NOT overlap: after sorting by position, a change that starts inside an earlier one is skipped
+     * with a console warning (the rest still apply). The edit is its own undo step (never merged with adjacent
+     * typing). It neither focuses the editor nor reveals folds. Returns false when there is no view.
      */
     applyChanges(changes) {
       const view = viewRef.current;
       if (!view) return false;
       const len = view.state.doc.length;
       const clamp = (pos) => Math.max(0, Math.min(pos ?? 0, len));
-      const spec = (changes || []).map((c) => {
+      const sorted = (changes || []).map((c) => {
         const a = clamp(c.from);
         const b = clamp(c.to ?? c.from);
-        return { from: Math.min(a, b), to: Math.max(a, b), insert: c.insert ?? '' };
-      });
+        return { from: Math.min(a, b), to: Math.max(a, b), insert: String(c.insert ?? '').replace(/\r\n?/g, '\n') };
+      }).sort((x, y) => x.from - y.from || x.to - y.to);
+      const spec = [];
+      for (const c of sorted) {
+        const prev = spec[spec.length - 1];
+        if (prev && c.from < prev.to) {
+          console.warn('[editor] applyChanges: skipping a change that overlaps an earlier one', c, prev);
+          continue;
+        }
+        spec.push(c);
+      }
       if (spec.length === 0) return true;
       view.dispatch({ changes: spec, annotations: isolateHistory.of('full') });
       return true;

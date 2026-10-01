@@ -117,7 +117,7 @@ vi.mock('@uiw/react-codemirror', async () => {
   };
 });
 
-import CodeEditor from './CodeEditor';
+import CodeEditor, { minimalChange } from './CodeEditor';
 
 
 function mount(value = 'hello world') {
@@ -234,6 +234,36 @@ describe('CodeEditor applyChanges', () => {
     render(<CodeEditor ref={ref} value="__NO_VIEW__" onChange={onChange} />);
     expect(ref.current.applyChanges([{ from: 0, to: 1, insert: 'x' }])).toBe(false);
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('minimalChange', () => {
+  const apply = (prev, c) => prev.slice(0, c.from) + c.insert + prev.slice(c.to);
+
+  it('keeps the common prefix and suffix out of the change', () => {
+    expect(minimalChange('hello world', 'hello brave world')).toEqual({ from: 6, to: 6, insert: 'brave ' });
+    expect(minimalChange('same', 'same')).toEqual({ from: 4, to: 4, insert: '' });
+  });
+
+  it('never starts the common suffix on the \\n of a CRLF pair (no lone \\r left at the end of the insert)', () => {
+    const c1 = minimalChange('a\nb', 'a\r\nb');
+    expect(c1).toEqual({ from: 1, to: 2, insert: '\r\n' });
+    const c2 = minimalChange('x\nfoo\nEND', 'x\r\nbar\r\nEND');
+    expect(c2.insert.endsWith('\r')).toBe(false);
+    expect(c2).toEqual({ from: 1, to: 6, insert: '\r\nbar\r\n' });
+    expect(apply('x\nfoo\nEND', c2)).toBe('x\r\nbar\r\nEND');
+  });
+
+  it('never ends the common prefix right after a \\r', () => {
+    const c = minimalChange('a\r\nb', 'a\rb');
+    expect(c.from).toBe(1);
+    expect(apply('a\r\nb', c)).toBe('a\rb');
+  });
+
+  it('never splits a surrogate pair at either boundary', () => {
+    expect(minimalChange('a\u{1F600}b', 'a\u{1F601}b')).toEqual({ from: 1, to: 3, insert: '\u{1F601}' });
+    // U+1F600 and U+10600 share their low surrogate (\uDE00): the suffix must not start on it.
+    expect(minimalChange('x\u{1F600}', 'x\u{10600}')).toEqual({ from: 1, to: 3, insert: '\u{10600}' });
   });
 });
 

@@ -10,7 +10,7 @@ import { createRef } from 'react';
 import { EditorView } from '@codemirror/view';
 import { foldable, foldedRanges } from '@codemirror/language';
 import { undo } from '@codemirror/commands';
-import CodeEditor from './CodeEditor';
+import CodeEditor, { minimalChange } from './CodeEditor';
 
 function mount(value) {
   const ref = createRef();
@@ -78,6 +78,29 @@ describe('CodeEditor on real CodeMirror', () => {
     expect(view.state.doc.toString()).toBe('>abc!');
     act(() => { ref.current.applyChanges([{ from: 3, to: 1, insert: 'X' }]); });
     expect(view.state.doc.toString()).toBe('>Xc!');
+  });
+
+  it('applyChanges skips (and warns about) a change that overlaps an earlier one', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const { ref, view } = mount('0123456789');
+      act(() => {
+        expect(ref.current.applyChanges([{ from: 3, to: 8, insert: 'Y' }, { from: 0, to: 5, insert: 'X' }, { from: 9, to: 10, insert: 'Z' }])).toBe(true);
+      });
+      expect(view.state.doc.toString()).toBe('X5678Z');   // sorted: [0,5) applied, [3,8) overlaps it -> skipped
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0][0])).toContain('overlap');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('applyChanges normalises CRLF in inserted text, and a minimalChange of LF vs CRLF text adds no blank line', () => {
+    const { ref, view } = mount('x\nfoo\nEND');
+    act(() => { ref.current.applyChanges([minimalChange('x\nfoo\nEND', 'x\r\nbar\r\nEND')]); });
+    expect(view.state.doc.toString()).toBe('x\nbar\nEND');
+    act(() => { ref.current.applyChanges([{ from: 0, to: 1, insert: 'p\r\nq\rr' }]); });
+    expect(view.state.doc.toString()).toBe('p\nq\nr\nbar\nEND');
   });
 
   it('applyChanges with no changes is a handled no-op', () => {

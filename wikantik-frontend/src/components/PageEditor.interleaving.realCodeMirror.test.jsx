@@ -112,8 +112,10 @@ afterEach(async () => {
 const SEEDS = Array.from({ length: 50 }, (_, i) => 1009 + i * 7919);
 
 // Guard against a vacuous run: across all seeds the interleavings must actually hit the races under test.
-const stats = { rewrites: 0, rewritesInLatch: 0, caretShifted: 0, caretInsideName: 0, rejected: 0, saves: 0, keystrokes: 0 };
+// The floors only apply to a full run: a filtered run (`-t 'seed 1009'`) is too small to meet them.
+const stats = { seeds: 0, rewrites: 0, rewritesInLatch: 0, caretShifted: 0, caretInsideName: 0, rejected: 0, saves: 0, keystrokes: 0 };
 afterAll(() => {
+  if (stats.seeds < SEEDS.length) return;
   expect(stats.rewrites).toBeGreaterThanOrEqual(40);         // renames that changed the text
   expect(stats.rewritesInLatch).toBeGreaterThanOrEqual(20);  // ...landing while the typing latch was armed
   expect(stats.caretShifted).toBeGreaterThanOrEqual(10);     // ...with the caret after a rewritten link
@@ -232,5 +234,6 @@ describe('randomized interleaving of typing, attachment renames and the typing l
     expect(typedChars).toBeGreaterThan(0);
     // Every typed character is present: the editor text is the model text, which holds each keystroke.
     expect(docOf(view).length).toBe(model.text.length);
+    stats.seeds += 1;
   }, 20000);
 });

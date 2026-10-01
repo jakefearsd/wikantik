@@ -11,6 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- flush async state between tests
 import { act, cleanup, fireEvent, screen } from '@testing-library/react';
+import { undoDepth } from '@codemirror/commands';
 
 vi.mock('../api/client', () => ({
   api: {
@@ -289,5 +290,82 @@ describe('save conflict reload', () => {
     expect(docOf(view)).toBe('server textzz');
     const payload = saveAndExpectVisibleText(api, view);
     expect(payload.expectedVersion).toBe(5);
+  });
+});
+
+// The server stores page text with CRLF line endings and returns it raw; the editor (CodeMirror) always holds LF.
+// A whole-body replacement must normalise first — a diff of LF vs CRLF text used to leave a lone \r at the end of
+// the inserted span, which CodeMirror turns into an extra blank line (and the next save persists it).
+describe('CRLF text from the server, a draft or the converter', () => {
+  async function conflictWithServerBody(local, serverBody) {
+    api.getPage
+      .mockResolvedValueOnce({ content: local, metadata: {}, version: 1, markupSyntax: 'markdown' })
+      .mockResolvedValueOnce({ content: serverBody, metadata: {}, version: 7 });
+    api.savePage.mockRejectedValueOnce(Object.assign(new Error('conflict'), { status: 409 }));
+    const view = await mount(local);
+    fakeLatchClock();
+    fireEvent.keyDown(window, { key: 's', ctrlKey: true });
+    await until(() => screen.queryByText('Version Conflict'));
+    return view;
+  }
+
+  it('Discard: a server body equal to mine except for CRLF changes nothing at all (no edit, no undo step)', async () => {
+    const view = await conflictWithServerBody('one\ntwo\nthreeq', 'one\r\ntwo\r\nthreeq');
+    const depth = undoDepth(view.state);
+    fireEvent.click(screen.getByRole('button', { name: /Discard my changes/ }));
+    advanceLatch();
+    expect(docOf(view)).toBe('one\ntwo\nthreeq');
+    expect(undoDepth(view.state)).toBe(depth);
+    const payload = saveAndExpectVisibleText(api, view);
+    expect(payload.expectedVersion).toBe(7);
+  });
+
+  it('Discard: a different CRLF server body lands as exactly its LF form, with no extra lines', async () => {
+    const view = await conflictWithServerBody('one\ntwo\nthreeq\nend', 'one\r\nTWO\r\nthree\r\nend');
+    fireEvent.click(screen.getByRole('button', { name: /Discard my changes/ }));
+    advanceLatch();
+    expect(docOf(view)).toBe('one\nTWO\nthree\nend');
+    saveAndExpectVisibleText(api, view);
+  });
+
+  it('Copy-and-load: a different CRLF server body lands as exactly its LF form, with no extra lines', async () => {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue() }, configurable: true });
+    const view = await conflictWithServerBody('x\nfoo\nEND', 'x\r\nbar\r\nEND');
+    fireEvent.click(screen.getByRole('button', { name: /Copy my text to clipboard/ }));
+    await flush();
+    advanceLatch();
+    expect(docOf(view)).toBe('x\nbar\nEND');
+    saveAndExpectVisibleText(api, view);
+  });
+
+  it('Restore: a CRLF draft body lands as exactly its LF form, with no extra lines', async () => {
+    useDraft.mockReturnValue({
+      draft: { content: 'hello\r\nthere\r\nend', savedAt: Date.now() },
+      saveDraft: vi.fn(), clearDraft: vi.fn(),
+    });
+    api.getPage.mockResolvedValue({ content: 'hello\nworld\nend', metadata: {}, version: 1, markupSyntax: 'markdown' });
+    const view = await mount('hello\nworld\nend');
+    fakeLatchClock();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    await flush();
+    advanceLatch();
+    expect(docOf(view)).toBe('hello\nthere\nend');
+    saveAndExpectVisibleText(api, view);
+  });
+
+  it('Convert: a CRLF conversion result lands as exactly its LF form, with no extra lines, and undoes in one step', async () => {
+    api.getPage.mockResolvedValue({ content: '!!Head\n\nend', metadata: {}, version: 1, markupSyntax: 'wiki' });
+    api.convertWikiToMarkdown.mockResolvedValue({ markdown: '# Head\r\n\r\nend', warnings: [] });
+    const view = await mount('!!Head\n\nend');
+    fakeLatchClock();
+    fireEvent.click(screen.getByRole('button', { name: 'Convert to Markdown' }));
+    await flush();
+    expect(docOf(view)).toBe('# Head\n\nend');
+    fireEvent.keyDown(view.contentDOM, { key: 'z', ctrlKey: true });
+    expect(docOf(view)).toBe('!!Head\n\nend');
+    fireEvent.keyDown(view.contentDOM, { key: 'y', ctrlKey: true });
+    advanceLatch();
+    expect(docOf(view)).toBe('# Head\n\nend');
+    saveAndExpectVisibleText(api, view);
   });
 });

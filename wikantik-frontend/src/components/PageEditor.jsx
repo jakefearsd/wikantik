@@ -312,7 +312,10 @@ export default function PageEditor() {
   // Replace the whole body while the editor is open (conversion, draft restore, conflict reload): through the view
   // as one undoable transaction touching only the changed span, so the caret is mapped and nothing is parked behind
   // react-codemirror's typing latch to be replayed over later keystrokes. setBody only when there is no view.
-  const replaceBody = useCallback((text) => {
+  // Incoming text is normalised to LF first: the server stores CRLF, the editor always holds LF, and text that
+  // differs only in line endings must not count as a change.
+  const replaceBody = useCallback((raw) => {
+    const text = String(raw ?? '').replace(/\r\n?/g, '\n');
     const editor = editorRef.current;
     const live = editor?.getText?.();
     if (live === text) return;
@@ -625,7 +628,8 @@ export default function PageEditor() {
             serverBody: serverPage.content || '',
             serverVersion: serverPage.version,
           });
-        } catch {
+        } catch (fetchErr) {
+          console.warn('[editor] version conflict, and fetching the current server version failed', fetchErr?.message || fetchErr);
           setError('Version conflict, and failed to fetch the current server version.');
         }
       } else if (err.status === 422) {

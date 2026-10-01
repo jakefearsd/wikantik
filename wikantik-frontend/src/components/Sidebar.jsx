@@ -6,7 +6,7 @@ import { useCapabilities } from '../hooks/useCapabilities';
 import { useDarkMode } from '../hooks/useDarkMode';
 import PersonalZone from './PersonalZone';
 import UserBadge from './UserBadge';
-import NewArticleModal from './NewArticleModal';
+import { useNewPage } from '../newpage/NewPageProvider';
 import ExportDialog from './ExportDialog';
 import CollapsibleSection from './CollapsibleSection';
 import Icon from './ui/Icon';
@@ -25,7 +25,7 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
   const [pagesError, setPagesError] = useState(false);
   const [recentChanges, setRecentChanges] = useState([]);
   const [recentChangesError, setRecentChangesError] = useState(false);
-  const [newArticleOpen, setNewArticleOpen] = useState(false);
+  const { openNewPage } = useNewPage();
   const [exportOpen, setExportOpen] = useState(false);
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [dark, toggleDark] = useDarkMode();
@@ -55,7 +55,6 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
     }
   });
 
-  const existingPageNames = new Set(pages.map(p => p.name));
   const existingClusters = Object.keys(clusters).sort();
 
   // The cluster (or the Uncategorized bucket) holding the active page opens by
@@ -130,7 +129,7 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
 
         <PersonalZone
           onMobileClose={onMobileClose}
-          onNewArticle={() => setNewArticleOpen(true)}
+          onNewArticle={() => openNewPage()}
           onExport={() => setExportOpen(true)}
         />
 
@@ -284,15 +283,6 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
         )}
 
       </aside>
-
-      {newArticleOpen && (
-        <NewArticleModal
-          isOpen={newArticleOpen}
-          onClose={() => setNewArticleOpen(false)}
-          existingPageNames={existingPageNames}
-          existingClusters={existingClusters}
-        />
-      )}
 
       <ExportDialog isOpen={exportOpen} onClose={() => setExportOpen(false)} />
     </>

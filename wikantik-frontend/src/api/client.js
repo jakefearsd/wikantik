@@ -109,6 +109,9 @@ export const api = {
       body: JSON.stringify({ newName }),
     }),
 
+  getPageTemplates: () => request('/api/page-templates'),
+  listClusters: () => request('/api/structure/clusters'),
+
   listPages: ({ prefix, q, names, limit = 100, offset = 0 } = {}) => {
     const params = new URLSearchParams({ limit, offset });
     if (prefix) params.set('prefix', prefix);

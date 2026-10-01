@@ -15,10 +15,13 @@ vi.mock('../hooks/useCapabilities', () => ({ useCapabilities: vi.fn() }));
 const mockToggleDark = vi.fn();
 vi.mock('../hooks/useDarkMode', () => ({ useDarkMode: vi.fn(() => [false, mockToggleDark]) }));
 
-vi.mock('./PersonalZone', () => ({ default: () => null }));
+vi.mock('./PersonalZone', () => ({
+  default: ({ onNewArticle }) => <button data-testid="pz-new" onClick={onNewArticle} />,
+}));
 vi.mock('./UserBadge', () => ({ default: () => null }));
 vi.mock('./SearchOverlay', () => ({ default: () => null }));
-vi.mock('./NewArticleModal', () => ({ default: () => null }));
+const mockOpenNewPage = vi.fn();
+vi.mock('../newpage/NewPageProvider', () => ({ useNewPage: () => ({ openNewPage: mockOpenNewPage }) }));
 
 import Sidebar from './Sidebar';
 import { api } from '../api/client';
@@ -53,6 +56,12 @@ beforeEach(() => {
 });
 
 describe('Sidebar', () => {
+  it('opens the new-page dialog through the provider', () => {
+    renderSidebar('/');
+    fireEvent.click(screen.getByTestId('pz-new'));
+    expect(mockOpenNewPage).toHaveBeenCalledTimes(1);
+  });
+
   describe('#23 — single shared search overlay', () => {
     it('sidebar search button calls the onOpenSearch prop (not its own local state)', () => {
       const onOpenSearch = vi.fn();

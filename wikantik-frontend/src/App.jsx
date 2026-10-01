@@ -5,6 +5,7 @@ import AdminSidebar from './components/admin/AdminSidebar';
 import { useAuth } from './hooks/useAuth';
 import { ToastProvider } from './components/ui/ToastProvider';
 import { NavigationGuardProvider } from './navigation/NavigationGuardProvider';
+import { NewPageProvider } from './newpage/NewPageProvider';
 import SearchOverlay from './components/SearchOverlay';
 import { useGlobalHotkeys } from './hooks/useGlobalHotkeys';
 import { useGlobalCommands } from './commands/useGlobalCommands';
@@ -78,6 +79,7 @@ export default function App() {
   return (
     <ToastProvider>
     <NavigationGuardProvider>
+    <NewPageProvider>
     <GlobalCommands openOverlay={openOverlay} toggleSidebar={toggleSidebar} />
     <div className="app-layout">
       <a href="#main-content" className="skip-link">Skip to content</a>
@@ -118,6 +120,7 @@ export default function App() {
         )}
       </main>
     </div>
+    </NewPageProvider>
       {overlayMode !== null && <SearchOverlay onClose={() => setOverlayMode(null)} />}
     </NavigationGuardProvider>
     </ToastProvider>

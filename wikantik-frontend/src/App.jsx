@@ -7,6 +7,13 @@ import { ToastProvider } from './components/ui/ToastProvider';
 import { NavigationGuardProvider } from './navigation/NavigationGuardProvider';
 import SearchOverlay from './components/SearchOverlay';
 import { useGlobalHotkeys } from './hooks/useGlobalHotkeys';
+import { useGlobalCommands } from './commands/useGlobalCommands';
+
+// Needs the NavigationGuardProvider context, so it renders inside it rather than in App's own body.
+function GlobalCommands(props) {
+  useGlobalCommands(props);
+  return null;
+}
 
 /* global __APP_VERSION__ */
 // Semantic version baked in at build time (Maven project.version → vite define).
@@ -19,12 +26,13 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [overlayMode, setOverlayMode] = useState(null); // null | 'pages' | 'commands'
   const { user } = useAuth();
 
-  // Cmd/Ctrl+K opens search from any route (admin or wiki)
-  const openSearch = useCallback(() => setSearchOpen(true), []);
-  useGlobalHotkeys({ onSearch: openSearch });
+  // Mod-K/O open the quick overlay on pages, Mod-P on commands, from any route (admin or wiki)
+  const openOverlay = useCallback((mode) => setOverlayMode(mode), []);
+  useGlobalHotkeys({ onOpenOverlay: openOverlay });
+  const toggleSidebar = useCallback(() => setSidebarCollapsed((c) => !c), []);
   const location = useLocation();
   const navigate = useNavigate();
   const isEditorRoute = location.pathname.startsWith('/edit/');
@@ -70,6 +78,7 @@ export default function App() {
   return (
     <ToastProvider>
     <NavigationGuardProvider>
+    <GlobalCommands openOverlay={openOverlay} toggleSidebar={toggleSidebar} />
     <div className="app-layout">
       <a href="#main-content" className="skip-link">Skip to content</a>
       {updateAvailable && (
@@ -91,7 +100,7 @@ export default function App() {
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
           onMobileOpen={() => setMobileOpen(true)}
-          onOpenSearch={openSearch}
+          onOpenSearch={() => openOverlay('pages')}
         />
       )}
       <main className={`app-main ${sidebarCollapsed ? 'expanded' : ''}`}>
@@ -109,7 +118,7 @@ export default function App() {
         )}
       </main>
     </div>
-      {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}
+      {overlayMode !== null && <SearchOverlay onClose={() => setOverlayMode(null)} />}
     </NavigationGuardProvider>
     </ToastProvider>
   );

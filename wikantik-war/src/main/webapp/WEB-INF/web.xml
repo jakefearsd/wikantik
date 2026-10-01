@@ -544,6 +544,10 @@
        <servlet-class>com.wikantik.rest.PageTemplatesResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>MentionScanResource</servlet-name>
+       <servlet-class>com.wikantik.rest.MentionScanResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>FrontmatterValidateResource</servlet-name>
        <servlet-class>com.wikantik.rest.FrontmatterValidateResource</servlet-class>
    </servlet>
@@ -868,6 +872,10 @@
    <servlet-mapping>
        <servlet-name>PageTemplatesResource</servlet-name>
        <url-pattern>/api/page-templates</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>MentionScanResource</servlet-name>
+       <url-pattern>/api/mentions/scan</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>FrontmatterValidateResource</servlet-name>

@@ -325,6 +325,53 @@ class PageListResourceTest {
         assertEquals( 0, obj.getAsJsonArray( "pages" ).size() );
     }
 
+    @Test
+    void qMatchesAFrontmatterAlias() throws Exception {
+        engine.saveText( "RestListAliasPage", "---\naliases: [zebra crossing]\n---\nBody." );
+        try {
+            // The bare TestEngine wires no structural index; build a real one over its page manager and serve
+            // it to the servlet through the subsystems seam.
+            final com.wikantik.pagegraph.spine.DefaultStructuralIndexService index =
+                    new com.wikantik.pagegraph.spine.DefaultStructuralIndexService(
+                            engine.getManager( com.wikantik.api.managers.PageManager.class ),
+                            Mockito.mock( com.wikantik.pagegraph.spine.PageCanonicalIdsDao.class ) );
+            index.rebuild();
+            final com.wikantik.WikiSubsystems real = servlet.getSubsystems();
+            final com.wikantik.WikiSubsystems subs = Mockito.mock( com.wikantik.WikiSubsystems.class,
+                    org.mockito.AdditionalAnswers.delegatesTo( real ) );
+            final com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services pageGraph =
+                    Mockito.mock( com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services.class );
+            Mockito.doReturn( index ).when( pageGraph ).structuralIndexService();
+            Mockito.doReturn( pageGraph ).when( subs ).pageGraph();
+            final PageListResource aliasAware = new PageListResource() {
+                @Override protected com.wikantik.WikiSubsystems getSubsystems() {
+                    return subs;
+                }
+            };
+            final ServletConfig cfg = Mockito.mock( ServletConfig.class );
+            Mockito.doReturn( engine.getServletContext() ).when( cfg ).getServletContext();
+            aliasAware.init( cfg );
+            // name-only ranking cannot match "zebra crossing"; the alias can
+            final String json = doGetListQ( aliasAware, "zebra crossing" );
+            final JsonObject obj = gson.fromJson( json, JsonObject.class );
+            final java.util.List< String > names = new java.util.ArrayList<>();
+            obj.getAsJsonArray( "pages" ).forEach( p -> names.add( p.getAsJsonObject().get( "name" ).getAsString() ) );
+            assertTrue( names.contains( "RestListAliasPage" ), names.toString() );
+        } finally {
+            engine.deleteQuietly( "RestListAliasPage" );
+        }
+    }
+
+    private String doGetListQ( final PageListResource target, final String q ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages" );
+        Mockito.doReturn( q ).when( request ).getParameter( "q" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        target.doGet( request, response );
+        return sw.toString();
+    }
+
     // ----- Helper methods -----
 
     private String doGetList( final String prefix, final String limit, final String offset ) throws Exception {

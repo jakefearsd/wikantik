@@ -56,4 +56,24 @@ class PageNameQueryTest {
         assertEquals( List.of(), PageNameQuery.parseNames( null ) );
         assertEquals( List.of(), PageNameQuery.parseNames( " , " ) );
     }
+
+    @Test
+    void rankUsesTheTitleLookupWhenPresent() {
+        final com.wikantik.api.pagegraph.PageTitleLookup lookup = new com.wikantik.api.pagegraph.PageTitleLookup() {
+            @Override public java.util.List< String > rank( final java.util.Collection< String > names, final String q ) {
+                return java.util.List.of( "Zed", "Alpha" ); // deliberately not alphabetical
+            }
+            @Override public java.util.List< TitleEntry > entries() { return java.util.List.of(); }
+        };
+        assertEquals( java.util.List.of( "Zed", "Alpha" ),
+                PageNameQuery.rank( java.util.List.of( "Alpha", "Zed", "Unmatched" ), s -> s, "x",
+                        java.util.Optional.of( lookup ) ) );
+    }
+
+    @Test
+    void rankFallsBackToNameSubstringWhileWarming() {
+        assertEquals( java.util.List.of( "Index", "IndexFunds", "LowIndex" ),
+                PageNameQuery.rank( java.util.List.of( "LowIndex", "Index", "IndexFunds", "Other" ), s -> s, "index",
+                        java.util.Optional.empty() ) );
+    }
 }

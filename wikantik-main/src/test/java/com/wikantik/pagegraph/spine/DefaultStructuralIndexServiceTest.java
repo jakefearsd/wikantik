@@ -310,4 +310,49 @@ class DefaultStructuralIndexServiceTest {
         assertTrue( svc.getByCanonicalId( "01CCCCCCCCCCCCCCCCCCCCCCCC" ).orElseThrow().derived() );
         assertFalse( svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow().derived() );
     }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void titleLookup_isEmptyUntilTheFirstRebuild_thenServesTitlesAndAliases() throws Exception {
+        assertTrue( svc.titleLookup().isEmpty(), "warming: no lookup before the first rebuild" );
+        final Page k = fakePage( "Kubernetes",
+                "canonical_id: 01H8G3Z1K6Q5W7P9X2V4R0T8K8\ntitle: Kubernetes\naliases: [k8s, kube]", "body" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( k ) );
+        svc.rebuild();
+        assertEquals( List.of( "Kubernetes" ),
+                svc.titleLookup().orElseThrow().rank( List.of( "Kubernetes", "Other" ), "kube" ) );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void titleLookup_followsSavesAndDeletes() throws Exception {
+        final Page a = fakePage( "AlphaPage", "canonical_id: 01H8G3Z1K6Q5W7P9X2V4R0T8A1\ntitle: Alpha", "b" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a ) );
+        svc.rebuild();
+        assertTrue( svc.titleLookup().orElseThrow().rank( List.of( "AlphaPage" ), "zeta" ).isEmpty() );
+
+        final Page a2 = fakePage( "AlphaPage",
+                "canonical_id: 01H8G3Z1K6Q5W7P9X2V4R0T8A1\ntitle: Alpha\naliases: [zeta]", "b" );
+        when( pageManager.getPage( "AlphaPage" ) ).thenReturn( a2 );
+        svc.onPageSaved( "AlphaPage" );
+        assertEquals( List.of( "AlphaPage" ), svc.titleLookup().orElseThrow().rank( List.of( "AlphaPage" ), "zeta" ) );
+
+        svc.onPageDeleted( "AlphaPage" );
+        assertTrue( svc.titleLookup().orElseThrow().entries().stream().noneMatch( e -> e.slug().equals( "AlphaPage" ) ) );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void titleLookup_renameUnderTheSameCanonicalIdDropsTheOldSlug() throws Exception {
+        final Page oldPage = fakePage( "OldName", "canonical_id: 01H8G3Z1K6Q5W7P9X2V4R0T8R1\naliases: [legacy]", "b" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( oldPage ) );
+        svc.rebuild();
+        final Page renamed = fakePage( "NewName", "canonical_id: 01H8G3Z1K6Q5W7P9X2V4R0T8R1\naliases: [legacy]", "b" );
+        when( pageManager.getPage( "NewName" ) ).thenReturn( renamed );
+        svc.onPageSaved( "NewName" );
+        final var slugs = svc.titleLookup().orElseThrow().entries().stream()
+                .map( com.wikantik.api.pagegraph.PageTitleLookup.TitleEntry::slug ).toList();
+        assertTrue( slugs.contains( "NewName" ), slugs.toString() );
+        assertFalse( slugs.contains( "OldName" ), slugs.toString() );
+    }
 }

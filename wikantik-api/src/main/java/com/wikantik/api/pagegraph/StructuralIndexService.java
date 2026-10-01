@@ -116,6 +116,14 @@ public interface StructuralIndexService {
         return new VerificationCounts( authoritative, provisional, stale, noVerification );
     }
 
+    /**
+     * Title/alias lookup over the current projection; empty while the index is still warming
+     * (no rebuild has completed yet) or for implementations that don't maintain one.
+     */
+    default java.util.Optional< PageTitleLookup > titleLookup() {
+        return java.util.Optional.empty();
+    }
+
     /** Snapshot of the current projection used by metrics and admin UIs. Stable for the duration of the call. */
     StructuralProjectionSnapshot snapshot();
 

@@ -117,9 +117,9 @@ public class PageListResource extends RestServletBase {
         }
 
         // Prefix filter, then q= ranking (alphabetical when q is absent), then the ACL filter below.
-        List< Page > filtered = PageNameQuery.rankBySubstring(
+        List< Page > filtered = PageNameQuery.rank(
                 candidates.stream().filter( page -> prefix == null || page.getName().startsWith( prefix ) ).toList(),
-                Page::getName, q );
+                Page::getName, q, titleLookup() );
 
         // Authorization: drop pages the caller cannot view so ACL-restricted page names
         // are not disclosed in the global listing. Filter before pagination so `total`
@@ -225,4 +225,15 @@ public class PageListResource extends RestServletBase {
         return new SpineMeta( clusterBySlug, derivedSlugs );
     }
 
+
+    private java.util.Optional< com.wikantik.api.pagegraph.PageTitleLookup > titleLookup() {
+        try {
+            final com.wikantik.api.pagegraph.StructuralIndexService idx =
+                    getSubsystems().pageGraph().structuralIndexService();
+            return idx == null ? java.util.Optional.empty() : idx.titleLookup();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Title lookup unavailable; ranking by page name only: {}", e.getMessage(), e );
+            return java.util.Optional.empty();
+        }
+    }
 }

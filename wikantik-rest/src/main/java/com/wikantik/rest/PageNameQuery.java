@@ -52,6 +52,21 @@ final class PageNameQuery {
                 .toList();
     }
 
+    /**
+     * Ranks items for {@code q}: through the structural index's title lookup when it is ready (name, title,
+     * aliases, fuzzy), else by name substring ({@link #rankBySubstring}). Blank {@code q} → alphabetical.
+     */
+    static < T > List< T > rank( final Collection< T > items, final Function< T, String > nameOf, final String q,
+                                 final java.util.Optional< com.wikantik.api.pagegraph.PageTitleLookup > lookup ) {
+        if ( q == null || q.isBlank() || lookup.isEmpty() ) {
+            return rankBySubstring( items, nameOf, q );
+        }
+        final java.util.Map< String, T > byName = new java.util.LinkedHashMap<>();
+        items.forEach( item -> byName.putIfAbsent( nameOf.apply( item ), item ) );
+        return lookup.get().rank( byName.keySet(), q ).stream()
+                .map( byName::get ).filter( java.util.Objects::nonNull ).toList();
+    }
+
     private static int rank( final String name, final String needle ) {
         final String lower = name.toLowerCase( Locale.ROOT );
         if ( lower.equals( needle ) ) {

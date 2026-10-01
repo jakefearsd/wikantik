@@ -28,6 +28,7 @@ import com.wikantik.api.pagegraph.ClusterSummary;
 import com.wikantik.api.pagegraph.IndexHealth;
 import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.PageTitleLookup;
 import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.api.pagegraph.Sitemap;
 import com.wikantik.api.pagegraph.StructuralConflict;
@@ -41,6 +42,7 @@ import org.apache.logging.log4j.Logger;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -111,6 +113,15 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 new StructuralIndexMetrics() );
     }
 
+    /** canonical_id to aliases, copy-on-write; swapped alongside {@link #current}. */
+    private volatile Map< String, List< String > > aliasesByCanonicalId = Map.of();
+    /** True once a rebuild has completed — before that the title lookup is "warming". */
+    private volatile boolean titlesReady;
+    private volatile CachedTitles cachedTitles;
+
+    private record CachedTitles( StructuralProjection projection, Map< String, List< String > > aliases,
+                                 PageTitleIndex index ) {}
+
     @Override
     public synchronized void rebuild() {
         final Instant start = Instant.now();
@@ -129,6 +140,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
         // Parse pages, record canonical_ids.
         final List< StructuralConflict > foundConflicts = new ArrayList<>();
+        final Map< String, List< String > > nextAliases = new HashMap<>();
         int missing = 0;
         int indexed = 0;
 
@@ -151,6 +163,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
                 final PageDescriptor descriptor = toDescriptor( canonicalId, p, fm );
                 builder.addPage( descriptor );
+                nextAliases.put( canonicalId, aliasesOf( fm ) );
 
                 // Only persist canonical_ids authored in frontmatter. Synthesised IDs live
                 // in memory until an author (or the save-time validator) writes them to disk —
@@ -167,6 +180,8 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
         final StructuralProjection projection = builder.build();
         current.set( projection );
+        this.aliasesByCanonicalId = Map.copyOf( nextAliases );
+        this.titlesReady = true;
         this.unclaimed = missing;
         // Per-page defects found while parsing, plus the taxonomy defects only visible
         // once every page has been indexed (duplicate/headless/orphan clusters).
@@ -350,6 +365,9 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         }
         builder.addPage( next );
         current.set( builder.build() );
+        final Map< String, List< String > > nextAliases = new HashMap<>( aliasesByCanonicalId );
+        nextAliases.put( canonicalId, aliasesOf( fm ) );
+        this.aliasesByCanonicalId = Map.copyOf( nextAliases );
 
         final List< StructuralConflict > nextConflicts = new ArrayList<>( conflicts );
         nextConflicts.removeIf( c -> slug.equals( c.slug() ) );
@@ -399,6 +417,9 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             builder.addPage( existing );
         }
         current.set( builder.build() );
+        final Map< String, List< String > > nextAliases = new HashMap<>( aliasesByCanonicalId );
+        nextAliases.remove( canonicalId );
+        this.aliasesByCanonicalId = Map.copyOf( nextAliases );
 
         this.conflicts = conflicts.stream()
                 .filter( c -> !slug.equals( c.slug() ) )
@@ -473,6 +494,34 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
     private static String firstNonBlank( final String a, final String b ) {
         return ( a == null || a.isBlank() ) ? b : a;
+    }
+
+    @Override
+    public Optional< PageTitleLookup > titleLookup() {
+        if ( !titlesReady ) {
+            return Optional.empty();
+        }
+        final StructuralProjection proj = current.get();
+        final Map< String, List< String > > aliases = aliasesByCanonicalId;
+        final CachedTitles cached = cachedTitles;
+        if ( cached != null && cached.projection() == proj && cached.aliases() == aliases ) {
+            return Optional.of( cached.index() );
+        }
+        final Map< String, List< String > > aliasesBySlug = new HashMap<>();
+        for ( final PageDescriptor d : proj.allPages() ) {
+            final List< String > a = aliases.get( d.canonicalId() );
+            if ( a != null && !a.isEmpty() ) {
+                aliasesBySlug.put( d.slug(), a );
+            }
+        }
+        final PageTitleIndex index = PageTitleIndex.of( proj.allPages(), aliasesBySlug );
+        cachedTitles = new CachedTitles( proj, aliases, index );
+        return Optional.of( index );
+    }
+
+    private static List< String > aliasesOf( final Map< String, Object > fm ) {
+        return stringList( fm.get( "aliases" ) ).stream()
+                .map( String::trim ).filter( s -> !s.isEmpty() ).toList();
     }
 
     @SuppressWarnings( "unchecked" )

@@ -147,15 +147,19 @@ export default function QuickOverlay({ mode = 'pages', onClose }) {
     }
   };
 
+  // Keep the keyboard-selected row visible when arrowing through a list taller than the panel. Only arrow keys
+  // scroll: a hover-driven focus change must not nudge the list under the pointer.
+  const keyboardMove = useRef(false);
   useEffect(() => {
-    // Keep the keyboard-selected row visible when arrowing through a list taller than the panel.
+    if (!keyboardMove.current) return;
+    keyboardMove.current = false;
     listRef.current?.querySelector('.focused')?.scrollIntoView?.({ block: 'nearest' });
   }, [current]);
 
   const onKeyDown = (e) => {
     if (e.key === 'Escape') { e.preventDefault(); onClose(); }
-    else if (e.key === 'ArrowDown') { e.preventDefault(); setFocused((f) => Math.min(f + 1, selectable.length - 1)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setFocused((f) => Math.max(f - 1, 0)); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); keyboardMove.current = true; setFocused((f) => Math.min(f + 1, selectable.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); keyboardMove.current = true; setFocused((f) => Math.max(f - 1, 0)); }
     else if (e.key === 'Enter') { e.preventDefault(); activate(current, { newTab: e.ctrlKey || e.metaKey }); }
   };
 
@@ -180,13 +184,16 @@ export default function QuickOverlay({ mode = 'pages', onClose }) {
 /** One overlay entry: a section header, the divider, the error notice, or a selectable row. */
 function QuickRow({ row, focused, onHover, onActivate }) {
   if (row.kind === 'section') {
-    return <div className="quick-section" data-testid="quick-section" role="presentation">{row.label}</div>;
+    return <div className="quick-section" data-testid="quick-section" aria-hidden="true">{row.label}</div>;
   }
   if (row.kind === 'divider') {
-    return <div className="quick-divider" data-testid="quick-divider" role="separator" />;
+    return <div className="quick-divider" data-testid="quick-divider" aria-hidden="true" />;
   }
   if (row.kind === 'error') {
-    return <div className="search-empty quick-row-error" data-testid="quick-row" data-kind="error">{row.label}</div>;
+    return (
+      <div className="search-empty quick-row-error" data-testid="quick-row" data-kind="error"
+           role="option" aria-disabled="true" aria-selected="false">{row.label}</div>
+    );
   }
   const keys = row.command?.keys;
   return (

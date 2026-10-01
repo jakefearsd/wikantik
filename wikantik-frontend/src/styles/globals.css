@@ -2528,7 +2528,7 @@ h3:focus-within .heading-anchor {
 }
 .quick-overlay .quick-row:hover { background: transparent; }
 .quick-overlay .quick-row.focused, .quick-overlay .quick-row.focused:hover { background: var(--row-selected-bg); }
-.quick-overlay .quick-row-icon { flex: none; color: var(--text-muted); }
+.quick-overlay .quick-row-icon { flex: none; color: var(--text-secondary); }
 .quick-overlay .quick-row.focused .quick-row-icon { color: var(--accent); }
 .quick-overlay .quick-row-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .quick-overlay .quick-row-title, .quick-overlay .quick-row-name {
@@ -2547,11 +2547,11 @@ h3:focus-within .heading-anchor {
 .quick-overlay .quick-section {
   padding: 0.6rem 0.65rem 0.25rem;
   font-family: var(--font-ui);
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   user-select: none;
 }
 .quick-overlay .quick-section:first-child { padding-top: 0.3rem; }

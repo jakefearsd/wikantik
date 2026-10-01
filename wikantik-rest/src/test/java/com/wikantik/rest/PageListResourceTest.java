@@ -184,6 +184,10 @@ class PageListResourceTest {
     }
 
     private String doGetParams( final java.util.Map< String, String > params ) throws Exception {
+        return doGetParams( servlet, params );
+    }
+
+    private String doGetParams( final PageListResource target, final java.util.Map< String, String > params ) throws Exception {
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages" );
         params.forEach( ( k, v ) -> Mockito.doReturn( v ).when( request ).getParameter( k ) );
         // Fresh anonymous session: HttpMockFactory's shared session is polluted by saveText().
@@ -194,7 +198,7 @@ class PageListResourceTest {
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         final StringWriter sw = new StringWriter();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
-        servlet.doGet( request, response );
+        target.doGet( request, response );
         return sw.toString();
     }
 
@@ -382,6 +386,21 @@ class PageListResourceTest {
                     "a page whose descriptor title is just its slug carries no title" );
         } finally {
             engine.deleteQuietly( "RestListTitled" );
+        }
+    }
+
+    @Test
+    void aRestrictedPagesTitleIsNotDisclosedToACallerWhoCannotViewIt() throws Exception {
+        engine.saveText( "RestListSecretTitled",
+                "---\ntitle: Classified Zebra Dossier\n---\n[{ALLOW view Admin}]\nRestricted." );
+        try {
+            // Fresh anonymous session (doGetParams): the ACL must drop the page before titles are attached.
+            final String json = doGetParams( indexAwareServlet(), java.util.Map.of( "q", "restlist" ) );
+            assertFalse( names( json ).contains( "RestListSecretTitled" ), json );
+            assertFalse( json.contains( "Classified Zebra Dossier" ), json );
+            assertTrue( names( json ).contains( "RestListAlpha" ), "viewable pages still listed: " + json );
+        } finally {
+            engine.deleteQuietly( "RestListSecretTitled" );
         }
     }
 

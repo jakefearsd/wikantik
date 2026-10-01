@@ -234,6 +234,47 @@ describe('QuickOverlay', () => {
     expect(rows[0]).toHaveAttribute('aria-selected', 'false');
   });
 
+  it('the listbox exposes only options: headers and the divider are aria-hidden, the error is a disabled option', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    api.listPages.mockRejectedValue(new Error('x'));
+    api.search.mockResolvedValue({ results: [{ name: 'BondLadders' }] });
+    renderOverlay();
+    type('bond');
+    await settle();
+    const listbox = screen.getByRole('listbox');
+    const children = [...listbox.children];
+    expect(children.length).toBeGreaterThan(0);
+    children.forEach((el) => {
+      if (el.getAttribute('aria-hidden') === 'true') return;
+      expect(el).toHaveAttribute('role', 'option');
+    });
+    screen.getAllByTestId('quick-section').forEach((h) => expect(h).toHaveAttribute('aria-hidden', 'true'));
+    expect(screen.getByTestId('quick-divider')).toHaveAttribute('aria-hidden', 'true');
+    const error = screen.getAllByTestId('quick-row').find((r) => r.dataset.kind === 'error');
+    expect(error).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('scrolls the focused row into view on arrow keys but not when the mouse moves the focus', async () => {
+    const scroll = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scroll;
+    try {
+      api.listPages.mockResolvedValue({ pages: [{ name: 'A1' }, { name: 'A2' }, { name: 'A3' }] });
+      api.search.mockResolvedValue({ results: [] });
+      renderOverlay();
+      type('a');
+      await settle();
+      scroll.mockClear();
+      fireEvent.mouseEnter(screen.getAllByTestId('quick-row')[2]);
+      expect(scroll).not.toHaveBeenCalled();
+      fireEvent.keyDown(input(), { key: 'ArrowUp' });
+      expect(scroll).toHaveBeenCalledTimes(1);
+      expect(scroll.mock.contexts[0].dataset.pageName).toBe('A2');
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
   it('Escape closes', () => {
     const onClose = vi.fn();
     renderOverlay({ onClose });

@@ -30,6 +30,7 @@ import { linkInteraction } from '../utils/linkInteraction';
  *   focus()                     -> focus the editor
  *   insertText(pos, text)       -> insert via a CodeMirror transaction; false if no view
  *   replaceText(find, repl)     -> replace first exact match via a transaction; false if no view
+ *   applyEdit(text, start, end) -> make the document `text` with selection [start, end] in one transaction
  *
  * Props:
  *   value       string            current document text
@@ -54,6 +55,16 @@ function reveal(view, ...positions) {
   const effects = positions.flatMap((pos) => revealEffects(view.state, pos));
   if (effects.length > 0) view.dispatch({ effects });
 }
+/** The single change turning `prev` into `next`: their common prefix and suffix are left alone. */
+export function minimalChange(prev, next) {
+  let from = 0;
+  const max = Math.min(prev.length, next.length);
+  while (from < max && prev[from] === next[from]) from += 1;
+  let tail = 0;
+  while (tail < max - from && prev[prev.length - 1 - tail] === next[next.length - 1 - tail]) tail += 1;
+  return { from, to: prev.length - tail, insert: next.slice(from, next.length - tail) };
+}
+
 const CodeEditor = forwardRef(function CodeEditor(
   { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, onLinkHover, onViewChange, onFiles, className, ...rest },
   ref,
@@ -170,7 +181,27 @@ const CodeEditor = forwardRef(function CodeEditor(
       const view = viewRef.current;
       if (!view) return false;
       const len = view.state.doc.length;
-      view.dispatch({ changes: { from: Math.min(from, len), to: Math.min(to, len), insert: text } });
+      const a = Math.min(from, len);
+      const b = Math.min(to, len);
+      reveal(view, a, b); // never edit text hidden inside a fold
+      view.dispatch({ changes: { from: a, to: b, insert: text } });
+      return true;
+    },
+    /**
+     * Turn the document into `text` with the selection [selStart, selEnd], as ONE normal transaction (only the
+     * changed span is replaced). Editor commands must use this rather than the `value` prop: react-codemirror
+     * defers a `value` change that arrives within its typing latch and later replays it over newer keystrokes.
+     * Returns false when there is no view.
+     */
+    applyEdit(text, selStart, selEnd) {
+      const view = viewRef.current;
+      if (!view) return false;
+      const len = text.length;
+      const anchor = Math.max(0, Math.min(selStart, len));
+      const head = Math.max(0, Math.min(selEnd, len));
+      reveal(view, Math.min(anchor, view.state.doc.length));
+      view.dispatch({ changes: minimalChange(view.state.doc.toString(), text), selection: { anchor, head } });
+      view.focus();
       return true;
     },
     /**

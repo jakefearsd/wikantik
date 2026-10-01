@@ -21,7 +21,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 // the running renderer's React instance.
 vi.mock('@uiw/react-codemirror', async () => {
   const React = (await vi.importActual('react')).default;
-  function makeView(ta) {
+  function makeView(ta, onChange) {
     return {
       get state() {
         return {
@@ -31,6 +31,13 @@ vi.mock('@uiw/react-codemirror', async () => {
       },
       focus() { ta.focus(); },
       dispatch(tr) {
+        // A normal (non-external) transaction: apply the change and report it, as CodeMirror's onChange does.
+        if (tr && tr.changes) {
+          const { from, to = from, insert = '' } = tr.changes;
+          const next = ta.value.slice(0, from) + insert + ta.value.slice(to);
+          Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(ta, next);
+          if (onChange) onChange(next);
+        }
         if (tr && tr.selection) {
           ta.setSelectionRange(tr.selection.anchor, tr.selection.head);
         }
@@ -40,7 +47,7 @@ vi.mock('@uiw/react-codemirror', async () => {
   return {
     default: function CodeMirrorStub({ value, onChange, onCreateEditor }) {
       return React.createElement('textarea', {
-        ref: (ta) => { if (ta && onCreateEditor) onCreateEditor(makeView(ta)); },
+        ref: (ta) => { if (ta && onCreateEditor) onCreateEditor(makeView(ta, onChange)); },
         'data-testid': 'cm-stub-textarea',
         className: 'editor-textarea',
         value: value || '',

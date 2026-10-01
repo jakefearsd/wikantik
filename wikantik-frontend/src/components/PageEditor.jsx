@@ -453,8 +453,9 @@ export default function PageEditor() {
       default: return;
     }
 
+    // Through the view as one transaction: setBody would be deferred by react-codemirror's typing latch.
+    if (editor.applyEdit?.(next.text, next.selStart, next.selEnd)) return;
     setBody(next.text);
-
     requestAnimationFrame(() => {
       editorRef.current?.setSelection(next.selStart, next.selEnd);
     });

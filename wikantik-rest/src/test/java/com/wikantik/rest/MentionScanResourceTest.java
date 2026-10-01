@@ -95,6 +95,25 @@ class MentionScanResourceTest {
         assertFalse( r.body().contains( "SecretTopic" ) );
     }
 
+    @Test void aRestrictedPageSharingAPhraseDoesNotShadowAViewableOne() throws Exception {
+        // "AlphaRestricted" sorts first, so it would own the shared phrase in the trie; the caller can only view
+        // "BetaPublic", which must still be suggested.
+        final PageTitleLookup shared = new PageTitleLookup() {
+            @Override public List< String > rank( final Collection< String > names, final String q ) { return List.of(); }
+            @Override public List< TitleEntry > entries() {
+                return List.of( new TitleEntry( "AlphaRestricted", "Alpha", List.of( "Shared Phrase" ) ),
+                                new TitleEntry( "BetaPublic", "Beta", List.of( "Shared Phrase" ) ) );
+            }
+        };
+        final MentionScanResource spy = ready( Set.of( "BetaPublic" ) );
+        Mockito.doReturn( Optional.of( shared ) ).when( spy ).titleLookup();
+        final Result r = post( spy, "{\"page\":\"Draft\",\"text\":\"About the shared phrase here.\"}" );
+        final JsonObject obj = gson.fromJson( r.body(), JsonObject.class );
+        assertEquals( 1, obj.getAsJsonArray( "mentions" ).size(), r.body() );
+        assertEquals( "BetaPublic", obj.getAsJsonArray( "mentions" ).get( 0 ).getAsJsonObject().get( "target" ).getAsString() );
+        assertFalse( r.body().contains( "AlphaRestricted" ) );
+    }
+
     @Test void warmingIndexAnswers503() throws Exception {
         final MentionScanResource spy = Mockito.spy( servlet );
         Mockito.doReturn( Optional.empty() ).when( spy ).titleLookup();

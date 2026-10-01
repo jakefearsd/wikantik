@@ -42,6 +42,7 @@ import com.wikantik.markdown.extensions.math.InlineMathParser;
 import com.wikantik.parser.markdown.MarkdownDocument;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -95,9 +96,11 @@ public final class MentionScanner {
 
         final Map< String, Mention > firstByTarget = new LinkedHashMap<>();
         final Map< String, Integer > extra = new HashMap<>();
+        final LineIndex lines = new LineIndex( text );
         for ( final Node n : PARSER.parse( masked ).getDescendants() ) {
             if ( n instanceof Text t && eligible( t ) ) {
-                matchSegment( text, masked, t.getStartOffset(), t.getEndOffset(), root, firstByTarget, extra );
+                matchSegment( new Segment( text, masked, lines, t.getStartOffset(), t.getEndOffset() ), root,
+                        firstByTarget, extra );
             }
         }
         return firstByTarget.values().stream()
@@ -120,10 +123,15 @@ public final class MentionScanner {
         return inProse;
     }
 
-    private static void matchSegment( final String text, final String masked, final int start, final int end, final PhraseTrie root,
+    /** One eligible text run: the original and masked text, their shared line index, and the run's bounds. */
+    private record Segment( String text, String masked, LineIndex lines, int start, int end ) {}
+
+    private static void matchSegment( final Segment seg, final PhraseTrie root,
                                       final Map< String, Mention > firstByTarget, final Map< String, Integer > extra ) {
+        final String text = seg.text();
+        final String masked = seg.masked();
         final List< int[] > spans = new ArrayList<>();   // [from, to] per token
-        final Matcher m = PhraseTrie.TOKEN.matcher( masked ).region( start, end );
+        final Matcher m = PhraseTrie.TOKEN.matcher( masked ).region( seg.start(), seg.end() );
         while ( m.find() ) {
             spans.add( new int[]{ m.start(), m.end() } );
         }
@@ -142,20 +150,30 @@ public final class MentionScanner {
                 extra.merge( hit.slug(), 1, Integer::sum );
             } else {
                 firstByTarget.put( hit.slug(), new Mention( hit.slug(), hit.title(), text.substring( from, to ),
-                        from, to, lineOf( text, from ), context( text, from, to ), 0 ) );
+                        from, to, seg.lines().lineOf( from ), context( text, from, to ), 0 ) );
             }
             i = hitEnd + 1;
         }
     }
 
-    private static int lineOf( final String text, final int offset ) {
-        int line = 1;
-        for ( int i = 0; i < offset; i++ ) {
-            if ( text.charAt( i ) == '\n' ) {
-                line++;
+    /** Line starts computed once per scan, so each lookup is a binary search instead of a walk from offset 0. */
+    static final class LineIndex {
+        private final int[] starts;
+
+        LineIndex( final String text ) {
+            final List< Integer > found = new ArrayList<>();
+            found.add( 0 );
+            for ( int i = text.indexOf( '\n' ); i >= 0; i = text.indexOf( '\n', i + 1 ) ) {
+                found.add( i + 1 );
             }
+            starts = found.stream().mapToInt( Integer::intValue ).toArray();
         }
-        return line;
+
+        /** The 1-based line holding {@code offset}. */
+        int lineOf( final int offset ) {
+            final int at = Arrays.binarySearch( starts, offset );
+            return at >= 0 ? at + 1 : -at - 1;
+        }
     }
 
     private static String context( final String text, final int from, final int to ) {

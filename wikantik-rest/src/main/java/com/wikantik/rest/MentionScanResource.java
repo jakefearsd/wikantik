@@ -22,6 +22,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.wikantik.api.pagegraph.PageTitleLookup;
+import com.wikantik.api.pagegraph.PageTitleLookup.TitleEntry;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.mentions.Mention;
 import com.wikantik.mentions.MentionScanner;
@@ -77,10 +78,13 @@ public class MentionScanResource extends RestServletBase {
             return;
         }
         final String page = Optional.ofNullable( getJsonString( body, "page" ) ).orElse( "" );
-        final List< Mention > all = MentionScanner.scan( text, page, lookup.get().entries() );
-        final Set< String > viewable = filterViewable( request, all.stream().map( Mention::target ).distinct().toList() );
+        // Filter before scanning: a restricted page sharing a phrase would otherwise win it and shadow a viewable one.
+        final List< TitleEntry > entries = lookup.get().entries();
+        final Set< String > viewable = filterViewable( request, entries.stream().map( TitleEntry::slug ).toList() );
+        final List< Mention > all = MentionScanner.scan( text, page,
+                entries.stream().filter( e -> viewable.contains( e.slug() ) ).toList() );
         final List< Map< String, Object > > out = all.stream()
-                .filter( m -> viewable.contains( m.target() ) )
+                .filter( m -> viewable.contains( m.target() ) )   // defence in depth
                 .limit( MentionScanner.MAX_RESULTS )
                 .map( MentionScanResource::toJson )
                 .toList();

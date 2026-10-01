@@ -123,4 +123,14 @@ class MentionScannerTest {
             assertTrue( ms.get( i ).from() > ms.get( i - 1 ).from() );
         }
     }
+
+    @Test void lineIndexMapsOffsetsToOneBasedLines() {
+        final MentionScanner.LineIndex idx = new MentionScanner.LineIndex( "ab\ncd\n\nef" );
+        assertEquals( 1, idx.lineOf( 0 ) );
+        assertEquals( 1, idx.lineOf( 2 ) );   // the newline itself belongs to its line
+        assertEquals( 2, idx.lineOf( 3 ) );
+        assertEquals( 3, idx.lineOf( 6 ) );
+        assertEquals( 4, idx.lineOf( 7 ) );
+        assertEquals( 4, idx.lineOf( 9 ) );
+    }
 }

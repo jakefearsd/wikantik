@@ -29,6 +29,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 - In-app navigation away from an unsaved draft now asks first (the editor's Cancel uses the same dialog).
+- Editor workspace polish: the quick overlay shows page titles (with the page name muted), labelled
+  sections, a single full-width selection, platform-aware key hints (Ctrl+B on Linux/Windows, ⌘B on Mac), word-start fuzzy matching
+  (so "bond" no longer matches BackgroundJobProcessing) and a pinned "Search full text" / "Create page"
+  footer; `GET /api/pages` entries carry `title` when it differs from the page name. Themed slash and
+  link-completion popups with per-kind icons, logical slash ordering and short "Callout: X" labels;
+  fold markers only on headings, frontmatter and code fences, with a visible fold placeholder; callout
+  `[!type]` markers styled as markers in the source; real buttons in the guard dialog, mention rail and
+  draft banner; a tidier link-preview card; SVG callout icons.
 - Obsidian-export heading anchors now match the page view's slugs, so links to headings containing
   `_`, `&`, non-ASCII characters or repeated hyphens resolve. Previously exported vaults keep
   their old anchors.
@@ -39,6 +47,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   was dropped by the client); the new-page dialog detects existing pages beyond the first 500;
   Ctrl/Cmd-K inside the editor no longer also opens the search overlay.
 - Renaming an attachment, converting wiki markup, restoring a draft or reloading after a save conflict no longer races typing in the editor; converting while you type now refuses rather than discarding your edits.
+- Hovering a link to a missing page on the read view now shows the "Not created yet" preview card;
+  "Leave without saving" on a non-SPA link no longer triggers a second browser prompt; a page body
+  that starts with a horizontal rule no longer loses editor highlighting, folding and the slash menu.
+- Dark mode: the frontmatter form, shared select/combobox/tag inputs, comments drawer, code-copy
+  button, derived-page banner and drift progress bar no longer render white or unreadable (undefined
+  colour tokens are now a build-time test failure); secondary text in the new editor surfaces meets
+  WCAG AA contrast.
 
 ### Removed
 - The unused page-locking API (`PageManager.lockPage/unlockPage/getCurrentLock/getActiveLocks`,

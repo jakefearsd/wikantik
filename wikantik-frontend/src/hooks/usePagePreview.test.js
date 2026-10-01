@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../api/client', () => ({ api: { getPagePreview: vi.fn() } }));
 import { api } from '../api/client';
-import { loadPreview, evictPreview, __resetPreviewCacheForTest } from './usePagePreview';
+import { loadPreview, evictPreview, clearPreviewCache, __resetPreviewCacheForTest } from './usePagePreview';
 
 describe('page preview cache', () => {
   beforeEach(() => { vi.clearAllMocks(); __resetPreviewCacheForTest(); });
@@ -40,5 +40,17 @@ describe('page preview cache', () => {
     api.getPagePreview.mockResolvedValue({ name: 'D' });
     await loadPreview('D', 'setup');
     expect(api.getPagePreview).toHaveBeenCalledWith('D', expect.objectContaining({ section: 'setup' }));
+  });
+
+  it('a fetch still in flight when the cache is cleared is not cached afterwards', async () => {
+    let resolve;
+    api.getPagePreview.mockReturnValueOnce(new Promise((r) => { resolve = r; }))
+      .mockResolvedValueOnce({ name: 'E', excerpt: 'fresh' });
+    const pending = loadPreview('E', null);
+    clearPreviewCache(); // e.g. logout while the hover fetch is in flight
+    resolve({ name: 'E', excerpt: 'stale' });
+    await pending;
+    expect((await loadPreview('E', null)).data.excerpt).toBe('fresh');
+    expect(api.getPagePreview).toHaveBeenCalledTimes(2);
   });
 });

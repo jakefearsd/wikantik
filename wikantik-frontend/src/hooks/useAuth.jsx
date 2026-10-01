@@ -1,5 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { api } from '../api/client';
+import { clearPreviewCache } from './usePagePreview';
 
 const AuthContext = createContext(null);
 
@@ -54,6 +55,11 @@ export function AuthProvider({ children }) {
       });
 
   useEffect(() => { refresh(); }, []);
+
+  // Link previews are filtered by what the viewer may see, so a cached one must not outlive the identity
+  // that fetched it (a restricted page's preview would otherwise reach the next anonymous hover).
+  const identity = user ? `${user.authenticated ? 'auth' : 'anon'}:${user.username ?? ''}` : null;
+  useEffect(() => { clearPreviewCache(); }, [identity]);
 
   // When a request returns 401/403, /api/auth/user gets re-queried so
   // RequireAuth can route to login. Debounced via `pending` so a burst of

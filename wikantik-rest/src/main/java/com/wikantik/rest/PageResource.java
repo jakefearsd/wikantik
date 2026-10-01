@@ -825,7 +825,8 @@ public class PageResource extends RestServletBase {
         putIfText( out, "summary", fm.get( "summary" ) );
         out.put( "excerpt", PageExcerpts.excerpt( body, PageExcerpts.MAX_CHARS ) );
         out.put( "lastModified", page.getLastModified() );
-        response.setHeader( "Cache-Control", "private, max-age=60" );
+        // Per-viewer (ACL-filtered) and stale after a save: always revalidate, never reuse from the HTTP cache.
+        response.setHeader( "Cache-Control", "private, no-cache" );
         sendJson( response, out );
     }
 

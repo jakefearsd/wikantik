@@ -999,6 +999,17 @@ class PageResourceTest {
     }
 
     @Test
+    void previewIsRevalidatedOnEveryUseNeverServedFromTheHttpCache() throws Exception {
+        // Previews depend on the viewer's identity and change on save; "private" alone is per-browser, not
+        // per-user, so a max-age would hand a restricted page's preview to the next anonymous hover.
+        engine.saveText( "RestPreviewPage", "Body." );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
+        servlet.doGet( createRequest( "RestPreviewPage/preview" ), response );
+        Mockito.verify( response ).setHeader( "Cache-Control", "private, no-cache" );
+    }
+
+    @Test
     void previewOfAMissingPageAndOfAnUnviewablePageAreIndistinguishable() throws Exception {
         engine.saveText( "RestPreviewPage", "Secret." );
         final PageResource spy = Mockito.spy( servlet );

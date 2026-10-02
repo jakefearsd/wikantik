@@ -186,6 +186,7 @@ public class DefaultPageRenamer implements PageRenamer {
 
             final String sourceText = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( referrerPage );
             String newText = replaceReferrerString(sourceText, fromPage.getName(), toPage.getName() );
+            newText = rewriteWikiLinks( newText, fromPage.getName(), toPage.getName() );
 
             camelCase = TextUtil.getBooleanProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), MarkupParser.PROP_CAMELCASELINKS, camelCase );
             if( camelCase ) {
@@ -249,6 +250,11 @@ public class DefaultPageRenamer implements PageRenamer {
         sb.append( sourceText.substring( start ) );
         
         return sb.toString();
+    }
+
+    /** Rewrites native {@code [[ ]]} links and embeds naming {@code from}; see {@link WikiLinkRenamer}. */
+    static String rewriteWikiLinks( final String text, final String from, final String to ) {
+        return WikiLinkRenamer.rewrite( text, from, to );
     }
 
     private String replaceReferrerString( final String sourceText, final String from, final String to ) {

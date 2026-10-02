@@ -210,6 +210,26 @@ public class PageRenamerTest {
     }
 
     @Test
+    public void testReferrerChangeNativeWikilinks() throws Exception {
+        m_engine.saveText( "TestPage", "foofoo" );
+        m_engine.saveText( "TestPage2", "See [[TestPage#heading1|here]] and ![[TestPage]]." );
+        final Page p = m_engine.getManager( PageManager.class ).getPage( "TestPage" );
+        m_engine.getManager( PageRenamer.class ).renamePage( Wiki.context().create( m_engine, p ), "TestPage", "FooTest", true );
+        Assertions.assertEquals( "See [[FooTest#heading1|here]] and ![[FooTest]].",
+                m_engine.getManager( PageManager.class ).getPureText( "TestPage2", WikiProvider.LATEST_VERSION ).trim() );
+    }
+
+    @Test
+    public void testReferrerChangeLowercaseNativeWikilink() throws Exception {
+        m_engine.saveText( "TestPage", "foofoo" );
+        m_engine.saveText( "TestPage2", "See [[testpage]] and [[test page|x]]." );
+        final Page p = m_engine.getManager( PageManager.class ).getPage( "TestPage" );
+        m_engine.getManager( PageRenamer.class ).renamePage( Wiki.context().create( m_engine, p ), "TestPage", "FooTest", true );
+        Assertions.assertEquals( "See [[FooTest]] and [[FooTest|x]].",
+                m_engine.getManager( PageManager.class ).getPureText( "TestPage2", WikiProvider.LATEST_VERSION ).trim() );
+    }
+
+    @Test
     public void testReferrerChangeMultilink()
         throws Exception
     {

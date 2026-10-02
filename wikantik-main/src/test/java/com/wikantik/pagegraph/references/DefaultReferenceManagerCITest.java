@@ -30,6 +30,8 @@ import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.pagegraph.PageTitleLookup;
+import com.wikantik.wikilink.WikiLinkResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -562,6 +564,18 @@ class DefaultReferenceManagerCITest {
         // Empty string should be filtered out by the !name.isEmpty() check
         assertFalse( links.contains( "" ), "Empty related entries should be ignored" );
         assertTrue( links.contains( "ValidLink" ) );
+    }
+
+    @Test
+    void scanWikiLinksResolvesNativeTargets() {
+        final PageTitleLookup lookup = mock( PageTitleLookup.class );
+        when( lookup.entries() ).thenReturn( List.of(
+                new PageTitleLookup.TitleEntry( "FooBar", "FooBar", List.of( "Foo Bar Notes" ) ) ) );
+        mgr.setWikiLinkResolver( new WikiLinkResolver( n -> n.equals( "FooBar" ) ? "FooBar" : null,
+                () -> Optional.of( lookup ) ) );
+        final Collection< String > links = mgr.scanWikiLinks( mockPage( "P" ),
+                "[[foo bar notes]] [[FooBar#H|x]] ![[FooBar]] ![[FooBar/pic.png]] [[#Local]] `[[Code]]` [[new page]]" );
+        assertEquals( List.of( "FooBar", "FooBar/pic.png", "New page" ), List.copyOf( links ) );
     }
 
     @Test

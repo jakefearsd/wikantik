@@ -39,6 +39,8 @@ import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.parser.MarkdownLinkScanner;
+import com.wikantik.api.parser.WikiLinkSyntax;
+import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.util.TextUtil;
 
 import java.io.*;
@@ -112,6 +114,8 @@ import java.util.stream.Collectors;
 public class DefaultReferenceManager implements PageFilter, com.wikantik.api.managers.ReferenceManager, Serializable {
 
     protected transient Engine engine;
+
+    private transient volatile WikiLinkResolver wikiLinkResolver;
 
     /**
      *  Maps page wikiname to a Collection of pages it refers to. The Collection must contain Strings. The Collection may contain
@@ -543,7 +547,8 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         final ParsedPage parsed = FrontmatterParser.parse( pagedata );
 
         // Extract explicit Markdown links from body via regex (microseconds, not milliseconds)
-        final Set< String > links = new LinkedHashSet<>( MarkdownLinkScanner.findLocalLinks( parsed.body() ) );
+        final Set< String > links = new LinkedHashSet<>( MarkdownLinkScanner.findMarkdownLinks( parsed.body() ) );
+        addNativeWikiLinks( links, parsed.body() );
 
         // Also extract "related" links from frontmatter metadata
         final Object related = parsed.metadata().get( "related" );
@@ -557,6 +562,34 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         }
 
         return links;
+    }
+
+    /** Adds the resolved targets of {@code [[ ]]} links and {@code ![[ ]]} embeds found in {@code body}. */
+    private void addNativeWikiLinks( final Set< String > links, final String body ) {
+        for ( final WikiLinkSyntax.WikiLinkRef ref : WikiLinkSyntax.findAll( body ) ) {
+            if ( ref.isSamePage() ) {
+                continue;
+            }
+            if ( ref.isAttachment() ) {
+                links.add( resolver().resolve( ref.pageName() ).pageName() + "/" + ref.fileName() );
+            } else {
+                links.add( resolver().resolve( ref.target() ).pageName() );
+            }
+        }
+    }
+
+    private WikiLinkResolver resolver() {
+        WikiLinkResolver r = wikiLinkResolver;
+        if ( r == null ) {
+            r = WikiLinkResolver.forEngine( engine );
+            wikiLinkResolver = r;
+        }
+        return r;
+    }
+
+    /** Test seam: replaces the resolver used to canonicalise native link targets. */
+    void setWikiLinkResolver( final WikiLinkResolver resolver ) {
+        this.wikiLinkResolver = resolver;
     }
 
     /**

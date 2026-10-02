@@ -148,6 +148,7 @@ public class JDBCUserDatabaseTest {
 
     @AfterAll
     void stopDatabase() {
+        TestJNDIContext.reset();
         // Container is managed by PostgresTestDb singleton
     }
 

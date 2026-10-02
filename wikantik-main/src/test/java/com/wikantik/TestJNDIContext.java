@@ -60,6 +60,9 @@ public class TestJNDIContext implements Context
 
     private static boolean initialized;
 
+    /** The factory property as it was before the first {@link #initialize()} since the last {@link #reset()}. */
+    private static String priorFactoryProperty;
+
     /**
      * InitialContextFactory class that configures the JVM to
      * always return a particular TestJNDIContext.
@@ -73,6 +76,12 @@ public class TestJNDIContext implements Context
         public Context getInitialContext(final Hashtable<?,?> environment ) throws NamingException
         {
             return ctx;
+        }
+
+        /** Drops the installed root context so a later {@link #initialize()} starts empty. */
+        static void clearContext()
+        {
+            ctx = null;
         }
 
         protected static void setContext(final Context context )
@@ -103,6 +112,7 @@ public class TestJNDIContext implements Context
     {
         if ( !initialized )
         {
+            priorFactoryProperty = System.getProperty( Context.INITIAL_CONTEXT_FACTORY );
             Factory.setContext( new TestJNDIContext() );
             initialized = true;
         }
@@ -110,6 +120,32 @@ public class TestJNDIContext implements Context
         // cleared it since the first call, which would leave this (already "initialized") caller
         // without any initial context.
         System.setProperty( Context.INITIAL_CONTEXT_FACTORY, Factory.class.getName() );
+    }
+
+    /**
+     * Undoes {@link #initialize()}: discards the JVM-wide root context (and every datasource bound
+     * into it) and restores the initial-context-factory system property to what it was before
+     * {@code initialize()} first ran. Test classes that call {@code initialize()} must call this
+     * from {@code @AfterAll}; otherwise the factory and bound {@code jdbc/WikiDatabase} leak into
+     * later classes in the same forked JVM (e.g. making a TestEngine resolve a datasource and
+     * start the audit subsystem). Safe to call when never initialized.
+     */
+    public static synchronized void reset()
+    {
+        Factory.clearContext();
+        if ( initialized )
+        {
+            if ( priorFactoryProperty != null )
+            {
+                System.setProperty( Context.INITIAL_CONTEXT_FACTORY, priorFactoryProperty );
+            }
+            else
+            {
+                System.clearProperty( Context.INITIAL_CONTEXT_FACTORY );
+            }
+        }
+        initialized = false;
+        priorFactoryProperty = null;
     }
 
     /**

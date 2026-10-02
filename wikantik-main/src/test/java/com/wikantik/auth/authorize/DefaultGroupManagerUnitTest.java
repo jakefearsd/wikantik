@@ -99,6 +99,7 @@ class DefaultGroupManagerUnitTest {
 
     @AfterAll
     static void restoreAmbientJndi() {
+        TestJNDIContext.reset();
         if( priorJndiFactory != null ) {
             System.setProperty( Context.INITIAL_CONTEXT_FACTORY, priorJndiFactory );
         } else {

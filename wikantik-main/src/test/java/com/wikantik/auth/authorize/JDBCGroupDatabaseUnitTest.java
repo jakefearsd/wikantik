@@ -203,6 +203,11 @@ class JDBCGroupDatabaseUnitTest {
                 "a member-lookup failure must fail closed to an empty membership list, not throw" );
     }
 
+    @org.junit.jupiter.api.AfterAll
+    static void resetJndi() {
+        TestJNDIContext.reset();
+    }
+
     // --- test helpers -------------------------------------------------------
 
     private static Context bindEnv() throws Exception {

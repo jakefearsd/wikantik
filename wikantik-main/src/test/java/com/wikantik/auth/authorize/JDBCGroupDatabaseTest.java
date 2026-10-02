@@ -116,6 +116,7 @@ public class JDBCGroupDatabaseTest
     @AfterAll
     void stopDatabase()
     {
+        TestJNDIContext.reset();
         // Container is managed by PostgresTestDb singleton
     }
 

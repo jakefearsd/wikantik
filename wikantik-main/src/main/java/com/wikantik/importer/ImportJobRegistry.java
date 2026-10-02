@@ -85,15 +85,23 @@ public final class ImportJobRegistry implements AutoCloseable {
         ensureCanStart( owner );
         final String id = UUID.randomUUID().toString();
         final VaultImportJob job = factory.apply( id );
+        job.useClock( clock );
         jobs.put( id, job );
         try {
             executor.execute( job );
         } catch ( final RejectedExecutionException e ) {
-            jobs.remove( id );
-            job.discardUpload();
+            abandon( id, job );
             throw new IllegalStateException( "import executor rejected the job", e );
+        } catch ( final RuntimeException e ) {
+            abandon( id, job );
+            throw e;
         }
         return job;
+    }
+
+    private void abandon( final String id, final VaultImportJob job ) {
+        jobs.remove( id );
+        job.discardUpload();
     }
 
     public synchronized Optional< VaultImportJob > find( final String jobId ) {

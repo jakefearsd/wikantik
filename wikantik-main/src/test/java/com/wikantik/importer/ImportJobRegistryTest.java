@@ -96,4 +96,26 @@ class ImportJobRegistryTest {
         registry.close();
         assertFalse( Files.exists( up.file() ) );
     }
+
+    @Test
+    void anyExecutorFailureAbandonsTheJob() throws Exception {
+        final ImportJobRegistry failing = new ImportJobRegistry( 1, clock, r -> {
+            throw new IllegalArgumentException( "boom" );
+        } );
+        final SpooledUpload up = TestVaults.upload( TestVaults.zipText( Map.of( "A.md", "a" ) ), "v.zip" );
+        assertThrows( IllegalArgumentException.class,
+            () -> failing.start( "alice", id -> ImportTestJobs.job( id, "alice", up ) ) );
+        assertFalse( Files.exists( up.file() ) );
+        assertTrue( failing.current( "alice" ).isEmpty() );
+        failing.ensureCanStart( "alice" );
+    }
+
+    @Test
+    void finishedAtComesFromTheRegistryClock() throws Exception {
+        final Instant fixed = Instant.parse( "2030-01-01T00:00:00Z" );
+        now.set( fixed );
+        final VaultImportJob job = registry.start( "alice", id -> ImportTestJobs.job( id, "alice" ) );
+        queued.get( 0 ).run();
+        assertEquals( fixed, job.finishedAt() );
+    }
 }

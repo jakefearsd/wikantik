@@ -44,9 +44,17 @@ public final class EngineImportPageSink implements ImportPageSink {
     private final PageManager pages;
     private final AttachmentManager attachments;
     private final PageSaveHelper saveHelper;
+    private final AttachmentGate gate;
 
     public EngineImportPageSink( final Engine engine, final PageManager pages, final AttachmentManager attachments,
                                  final PageSaveHelper saveHelper ) {
+        this( engine, pages, attachments, saveHelper, null );
+    }
+
+    /** As above; {@code gate} (nullable) is re-applied to every attachment at apply time. */
+    public EngineImportPageSink( final Engine engine, final PageManager pages, final AttachmentManager attachments,
+                                 final PageSaveHelper saveHelper, final AttachmentGate gate ) {
+        this.gate = gate;
         this.engine = engine;
         this.pages = pages;
         this.attachments = attachments;
@@ -54,10 +62,21 @@ public final class EngineImportPageSink implements ImportPageSink {
     }
 
     @Override
+    public java.util.Optional< String > attachmentRejection( final String fileName, final long size ) {
+        return gate == null ? java.util.Optional.empty() : gate.rejection( fileName, size );
+    }
+
+    @Override
     public boolean pageExists( final String name ) {
         return pages.wikiPageExists( name );
     }
 
+    /**
+     * Saves a new page. Note: {@code PageSaveHelper} has no create-only guard (its {@code expectedVersion}
+     * check only fires for an existing page), so a page created by someone else between the job's
+     * {@code pageExists} check and this save would be overwritten. The window is the few milliseconds
+     * between those two calls; the job re-checks existence immediately before each save.
+     */
     @Override
     public List< String > savePage( final String name, final String body, final Map< String, Object > metadata,
                                     final String author, final String changeNote ) throws ImportSaveException {

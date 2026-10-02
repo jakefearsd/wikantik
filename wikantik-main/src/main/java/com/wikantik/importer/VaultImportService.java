@@ -47,13 +47,14 @@ public final class VaultImportService {
     public static VaultImportService fromSubsystems( final Engine engine, final WikiSubsystems subs ) {
         final Properties props = engine.getWikiProperties();
         final ImportLimits limits = ImportLimits.fromProperties( props );
+        final AttachmentGate gate = AttachmentGate.fromProperties( props );
         final VaultImportPlanner planner = new VaultImportPlanner( FrontmatterSchema.defaultSchema(),
-            AttachmentGate.fromProperties( props ), limits.maxPages() );
+            gate, limits.maxPages() );
         final WikiSnapshotSource snapshots = () -> EngineWikiSnapshot.capture( subs.page().pages(),
             subs.core().systemPageRegistry(),
             subs.pageGraph() == null ? null : subs.pageGraph().structuralIndexService() );
         final ImportPageSink sink = new EngineImportPageSink( engine, subs.page().pages(),
-            subs.page().attachments(), subs.page().pageSaveHelper() );
+            subs.page().attachments(), subs.page().pageSaveHelper(), gate );
         return new VaultImportService( limits, planner, snapshots, sink );
     }
 

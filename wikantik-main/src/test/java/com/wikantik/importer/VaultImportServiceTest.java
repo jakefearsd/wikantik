@@ -213,4 +213,95 @@ class VaultImportServiceTest {
         assertFalse( pm.wikiPageExists( "A" ) );
         assertFalse( Files.exists( up.file() ) );
     }
+
+    private ImportPageSink decorate( final java.util.function.Function< String, Throwable > savePageThrows,
+                                     final String rejection, final AtomicInteger stored ) {
+        return new ImportPageSink() {
+            @Override public boolean pageExists( final String name ) {
+                return sink.pageExists( name );
+            }
+            @Override public List< String > savePage( final String name, final String body,
+                    final Map< String, Object > metadata, final String author, final String changeNote )
+                    throws ImportSaveException {
+                final Throwable t = savePageThrows.apply( name );
+                if ( t instanceof Error err ) {
+                    throw err;
+                }
+                if ( t instanceof RuntimeException re ) {
+                    throw re;
+                }
+                return sink.savePage( name, body, metadata, author, changeNote );
+            }
+            @Override public java.util.Optional< String > attachmentRejection( final String f, final long size ) {
+                return java.util.Optional.ofNullable( rejection );
+            }
+            @Override public void storeAttachment( final String page, final String fileName, final InputStream in,
+                    final String author ) throws Exception {
+                stored.incrementAndGet();
+                sink.storeAttachment( page, fileName, in, author );
+            }
+        };
+    }
+
+    @Test
+    void errorFromSinkFailsJobAndFreesRegistrySlot() throws Exception {
+        final VaultImportService svc = serviceWith( decorate( n -> new AssertionError(), null, new AtomicInteger() ) );
+        final SpooledUpload up = TestVaults.upload( TestVaults.zipText( Map.of( "A.md", "a" ) ), "v.zip" );
+        final PlanResult plan = svc.plan( up, ImportOptions.parse( "none", null ) );
+        final List< Runnable > queued = new java.util.ArrayList<>();
+        final ImportJobRegistry registry = new ImportJobRegistry( 1, java.time.Clock.systemUTC(), queued::add );
+        final VaultImportJob job = registry.start( "alice", id -> svc.newJob( id, "alice", "alice", up, plan, () -> true ) );
+        try {
+            queued.get( 0 ).run();
+        } catch ( final AssertionError e ) {
+            fail( "non-VM errors must not escape the job: " + e );
+        }
+        assertEquals( JobState.FAILED, job.view().state() );
+        assertEquals( "java.lang.AssertionError", job.view().message() );
+        assertFalse( job.isRunning() );
+        assertFalse( Files.exists( up.file() ) );
+        registry.start( "alice", id -> ImportTestJobs.job( id, "alice" ) );   // slot and user are free again
+    }
+
+    @Test
+    void attachmentPolicyIsRecheckedAtApply() throws Exception {
+        final AtomicInteger stored = new AtomicInteger();
+        final VaultImportService svc = serviceWith( decorate( n -> null, "type no longer allowed", stored ) );
+        final SpooledUpload up = TestVaults.upload( TestVaults.zip( TestVaults.fixture() ), "fixture.zip" );
+        final PlanResult plan = svc.plan( up, ImportOptions.parse( "folders", null ) );
+        assertFalse( plan.attachmentsToImport().isEmpty() );
+        final VaultImportJob job = svc.newJob( "j7", "admin", "admin", up, plan, () -> true );
+        job.run();
+        assertEquals( 0, stored.get() );
+        final ItemResult r = result( job.view(), "Welcome/diagram.png" );
+        assertEquals( ItemStatus.FAILED, r.status() );
+        assertTrue( r.reason().contains( "type no longer allowed" ), r.reason() );
+        assertEquals( JobState.DONE, job.view().state() );
+    }
+
+    @Test
+    void engineSinkAppliesItsGate() {
+        final ImportPageSink gated = new EngineImportPageSink( engine, pm, am, new PageSaveHelper( engine, pm ),
+            AttachmentGate.fromProperties( new Properties() ) );
+        assertTrue( gated.attachmentRejection( "evil.svg", 10 ).isPresent() );
+        assertTrue( gated.attachmentRejection( "ok.png", 10 ).isEmpty() );
+        assertTrue( sink.attachmentRejection( "evil.svg", 10 ).isEmpty() );   // no gate configured
+    }
+
+    @Test
+    void interruptedThreadFailsJobAndDiscardsUpload() throws Exception {
+        final SpooledUpload up = TestVaults.upload( TestVaults.zipText( Map.of( "A.md", "a" ) ), "v.zip" );
+        final PlanResult plan = service.plan( up, ImportOptions.parse( "none", null ) );
+        final VaultImportJob job = service.newJob( "j8", "admin", "admin", up, plan, () -> true );
+        Thread.currentThread().interrupt();
+        try {
+            job.run();
+        } finally {
+            Thread.interrupted();   // clear the flag for later tests
+        }
+        assertEquals( JobState.FAILED, job.view().state() );
+        assertEquals( "interrupted", job.view().message() );
+        assertFalse( pm.wikiPageExists( "A" ) );
+        assertFalse( Files.exists( up.file() ) );
+    }
 }

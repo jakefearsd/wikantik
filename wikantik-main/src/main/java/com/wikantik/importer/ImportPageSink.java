@@ -36,6 +36,11 @@ public interface ImportPageSink {
     List< String > savePage( String name, String body, Map< String, Object > metadata, String author,
                              String changeNote ) throws ImportSaveException;
 
+    /** The reason an attachment is refused by the current upload policy, or empty when it may be stored. */
+    default java.util.Optional< String > attachmentRejection( final String fileName, final long size ) {
+        return java.util.Optional.empty();
+    }
+
     /** Stores one attachment on an existing page. */
     void storeAttachment( String page, String fileName, InputStream in, String author ) throws Exception;
 }

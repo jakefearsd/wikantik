@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -59,6 +60,7 @@ public final class VaultImportJob implements Runnable {
     private String current;
     private String message;
     private Instant finishedAt;
+    private Clock clock = Clock.systemUTC();
 
     public VaultImportJob( final String id, final String owner, final String author, final SpooledUpload upload,
                            final PlanResult plan, final ImportPageSink sink, final BooleanSupplier permitted ) {
@@ -107,12 +109,30 @@ public final class VaultImportJob implements Runnable {
             }
             importAttachments( created );
             finish( JobState.DONE, null );
-        } catch ( final IOException | RuntimeException e ) {
-            LOG.warn( "Obsidian import job {} failed: {}", id, e.getMessage(), e );
-            finish( JobState.FAILED, e.getMessage() );
+        } catch ( final Throwable e ) { // NOPMD - a job must always reach a terminal state, even on an Error
+            LOG.warn( "Obsidian import job {} failed: {}", id, e.toString(), e );
+            finish( JobState.FAILED, describe( e ) );
+            if ( e instanceof VirtualMachineError ) {
+                throw (VirtualMachineError) e;
+            }
         } finally {
             discardUpload();
         }
+    }
+
+    private static String describe( final Throwable e ) {
+        return e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+    }
+
+    private static void checkNotInterrupted() {
+        if ( Thread.currentThread().isInterrupted() ) {
+            throw new IllegalStateException( "interrupted" );
+        }
+    }
+
+    /** Lets the registry stamp {@code finishedAt} from its own clock. */
+    synchronized void useClock( final Clock c ) {
+        this.clock = c;
     }
 
     /** Deletes the spooled zip. Idempotent. */
@@ -138,6 +158,7 @@ public final class VaultImportJob implements Runnable {
     }
 
     private void createPage( final PageDraft d, final Set< String > created ) {
+        checkNotInterrupted();
         setCurrent( d.name() );
         if ( sink.pageExists( d.name() ) ) {
             record( "page", d.name(), d.vaultPath(), ItemStatus.SKIPPED_EXISTS, "created by someone else after planning", List.of() );
@@ -169,13 +190,17 @@ public final class VaultImportJob implements Runnable {
 
     private void importAttachment( final ZipFile zip, final PlannedAttachment a, final Set< String > created ) {
         final String name = a.owner() + "/" + a.fileName();
+        checkNotInterrupted();
         setCurrent( name );
+        final String rejection = sink.attachmentRejection( a.fileName(), a.size() ).orElse( null );
         if ( !created.contains( a.owner() ) ) {
             record( "attachment", name, a.vaultPath(), ItemStatus.FAILED, "owner page " + a.owner() + " was not created", List.of() );
         } else {
             final ZipEntry entry = zip.getEntry( a.entryName() );
             if ( entry == null ) {
                 record( "attachment", name, a.vaultPath(), ItemStatus.FAILED, "file missing from archive: " + a.entryName(), List.of() );
+            } else if ( rejection != null ) {
+                record( "attachment", name, a.vaultPath(), ItemStatus.FAILED, "refused by attachment policy: " + rejection, List.of() );
             } else {
                 storeAttachment( zip, entry, a, name );
             }
@@ -212,7 +237,7 @@ public final class VaultImportJob implements Runnable {
         state = finalState;
         message = msg;
         current = null;
-        finishedAt = Instant.now();
+        finishedAt = clock.instant();
     }
 
     private long count( final String kind, final ItemStatus status ) {

@@ -7,7 +7,8 @@ import { Prec } from '@codemirror/state';
 import { autocompletion } from '@codemirror/autocomplete';
 import { foldAll, unfoldAll } from '@codemirror/language';
 import { isolateHistory } from '@codemirror/commands';
-import { editorFoldConfig, frontmatterFold, revealEffects } from '../utils/markdownFold';
+import { frontmatterFold, revealEffects } from '../utils/markdownFold';
+import { editorMarkdownConfig } from '../utils/editorMarkdown';
 import { calloutMarkers } from '../utils/calloutMarkers';
 import { editorChrome } from '../utils/editorTheme';
 import { createWikiLinkSource } from '../utils/wikiLinkComplete';
@@ -409,7 +410,7 @@ const CodeEditor = forwardRef(function CodeEditor(
   const extensions = useMemo(
     () => [
       // Folds: headings, the frontmatter block and fenced code only (editorFoldConfig + frontmatterFold).
-      markdown({ codeLanguages: languages, extensions: editorFoldConfig }),
+      markdown({ ...editorMarkdownConfig, codeLanguages: languages }),
       EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, linkExtension,
       frontmatterFold, calloutMarkers, editorChrome,
     ],

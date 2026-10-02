@@ -8,7 +8,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, act } from '@testing-library/react';
 import { createRef } from 'react';
 import { EditorView } from '@codemirror/view';
-import { foldable, foldedRanges } from '@codemirror/language';
+import { ensureSyntaxTree, foldable, foldedRanges, syntaxTree } from '@codemirror/language';
 import { undo } from '@codemirror/commands';
 import CodeEditor, { minimalChange } from './CodeEditor';
 
@@ -21,6 +21,14 @@ function mount(value) {
 }
 
 describe('CodeEditor on real CodeMirror', () => {
+  it('parses GitHub-flavoured markdown (task lists, strikethrough, tables)', () => {
+    const { view } = mount('- [ ] todo ~~gone~~\n\n| a | b |\n|---|---|\n| 1 | 2 |\n');
+    ensureSyntaxTree(view.state, view.state.doc.length, 5000);
+    const names = new Set();
+    syntaxTree(view.state).iterate({ enter: (n) => { names.add(n.name); } });
+    expect([...names]).toEqual(expect.arrayContaining(['Task', 'TaskMarker', 'Strikethrough', 'Table']));
+  });
+
   it('applyEdit applies the text and selection in one normal transaction that fires onChange', () => {
     const { ref, onChange, view } = mount('hello world');
     act(() => { expect(ref.current.applyEdit('**hello** world', 2, 7)).toBe(true); });

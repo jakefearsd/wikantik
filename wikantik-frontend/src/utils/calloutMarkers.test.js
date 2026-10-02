@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
-import { markdown } from '@codemirror/lang-markdown';
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { calloutMarkerRanges } from './calloutMarkers';
 
+const DIALECTS = [['CommonMark', {}], ['GFM', { base: markdownLanguage }]];
+
+describe.each(DIALECTS)('calloutMarkers (%s)', (_label, base) => {
 function stateOf(doc) {
-  const state = EditorState.create({ doc, extensions: [markdown()] });
+  const state = EditorState.create({ doc, extensions: [markdown(base)] });
   ensureSyntaxTree(state, state.doc.length, 5000);
   return state;
 }
@@ -40,4 +43,5 @@ describe('calloutMarkerRanges', () => {
     const second = state.doc.line(3);
     expect(calloutMarkerRanges(state, second.from, second.to).map((r) => r.style)).toEqual(['tip']);
   });
+});
 });

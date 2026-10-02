@@ -2,7 +2,8 @@ import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { useGlobalHotkeys } from './useGlobalHotkeys';
 
-// happy-dom reports AltGraph whenever altKey is set; real browsers only do for an actual AltGr, so pin it.
+// happy-dom reports AltGraph whenever altKey is set; pin it per test. Real browsers differ (Windows reports it for a
+// plain Ctrl+Alt, Firefox on macOS for Option), which is why the hook must not consult it.
 const press = ({ altGraph = false, ...init } = {}) => {
   const e = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
   Object.defineProperty(e, 'getModifierState', { value: (k) => k === 'AltGraph' && altGraph });
@@ -56,6 +57,14 @@ describe('useGlobalHotkeys', () => {
     expect(onDailyNote).toHaveBeenCalledTimes(1);
     press({ key: 'n', code: 'KeyN', ctrlKey: true }); // no Alt → not ours
     expect(onDailyNote).toHaveBeenCalledTimes(1);
+  });
+
+  it('Mod-Alt-N still works when the browser reports AltGraph (Windows Ctrl+Alt, Firefox macOS Option)', () => {
+    const onDailyNote = vi.fn();
+    renderHook(() => useGlobalHotkeys({ onDailyNote }));
+    press({ ctrlKey: true, altKey: true, code: 'KeyN', key: 'n', altGraph: true });
+    press({ metaKey: true, altKey: true, code: 'KeyN', key: '˜', altGraph: true });
+    expect(onDailyNote).toHaveBeenCalledTimes(2);
   });
 
   it('Mod-Alt-N ignores AltGr+N (Polish layout types a character with ctrl+alt)', () => {

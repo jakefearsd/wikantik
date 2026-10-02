@@ -173,6 +173,38 @@ class ConvertResourceTest {
         }
     }
 
+    @Test
+    void markdownToHtml_doesNotMutateFrontPageAclOrAttributes() throws Exception {
+        final String front = engine.getFrontPage();
+        engine.saveText( front, "---\ntitle: Original\n---\nFront body" );
+        final com.wikantik.api.core.Page before = engine.getManager( com.wikantik.api.managers.PageManager.class ).getPage( front );
+        assertNull( before.getAcl() == null ? null : ( before.getAcl().isEmpty() ? null : before.getAcl() ),
+            "precondition: front page has no ACL" );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        // The servlet reads the action from the path once; later lookups (the page-command resolver) see no
+        // path-derived page, so the headless context defaults to the shared front page.
+        Mockito.when( request.getPathInfo() ).thenReturn( "/markdown-to-html", (String) null );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "---\ntitle: Hacked\n---\n[{ALLOW view Admin}]\n\nhello" );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final Session authed = Mockito.mock( com.wikantik.WikiSession.class );
+        Mockito.when( authed.isAuthenticated() ).thenReturn( true );
+        try ( final MockedStatic< Wiki > wiki = mockWikiSession( authed ) ) {
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter sw = new StringWriter();
+            Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+            servlet.doPost( request, response );
+            assertTrue( gson.fromJson( sw.toString(), JsonObject.class ).has( "html" ), sw.toString() );
+        }
+
+        final com.wikantik.api.core.Page after = engine.getManager( com.wikantik.api.managers.PageManager.class ).getPage( front );
+        assertTrue( after.getAcl() == null || after.getAcl().isEmpty(),
+            "convert must not apply a caller-supplied ACL to the front page" );
+        assertNotEquals( "Hacked", after.getAttribute( "title" ), "convert must not overwrite front-page attributes" );
+    }
+
     private HttpServletRequest createRequest( final String action ) {
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/convert/" + action );
         Mockito.doReturn( "/" + action ).when( request ).getPathInfo();

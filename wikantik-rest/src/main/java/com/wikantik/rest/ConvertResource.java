@@ -51,6 +51,9 @@ public class ConvertResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( ConvertResource.class );
 
+    /** Name of the throwaway page the markdown-to-html preview renders against; never a real page. */
+    private static final String CONVERT_SCRATCH_PAGE = "<convert>";
+
     @Override
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
@@ -106,9 +109,15 @@ public class ConvertResource extends RestServletBase {
         try {
             final com.wikantik.render.RenderingManager rm =
                     getSubsystems().rendering().renderingManager();
-            // Headless context — no current page needed for ad-hoc conversion.
+            // Headless context on a THROWAWAY page used as both page and real page. A null page would default
+            // the context to the shared (cached) front page, and rendering caller-supplied text applies any
+            // [{ALLOW/DENY}] line and frontmatter to that live object.
+            final com.wikantik.api.core.Page scratch =
+                    com.wikantik.api.spi.Wiki.contents().page( getEngine(), CONVERT_SCRATCH_PAGE );
             final com.wikantik.api.core.Context ctx =
-                    com.wikantik.api.spi.Wiki.context().create( getEngine(), request, (com.wikantik.api.core.Page) null );
+                    com.wikantik.api.spi.Wiki.context().create( getEngine(), request, scratch );
+            ctx.setPage( scratch );
+            ctx.setRealPage( scratch );
             // SECURITY: this is a preview of attacker-supplied markup for any
             // authenticated caller. A preview must not EXECUTE plugins — they have
             // real side effects (search queries, ACL-consulting inserts, expensive

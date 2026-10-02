@@ -23,9 +23,12 @@ import com.vladsch.flexmark.ast.Link;
 import com.vladsch.flexmark.ast.Paragraph;
 import com.vladsch.flexmark.ast.SoftLineBreak;
 import com.vladsch.flexmark.ast.Text;
+import com.vladsch.flexmark.ext.attributes.AttributesExtension;
+import com.vladsch.flexmark.ext.attributes.internal.NodeAttributeRepository;
 import com.vladsch.flexmark.ext.wikilink.WikiImage;
 import com.vladsch.flexmark.ext.wikilink.WikiLink;
 import com.vladsch.flexmark.parser.block.NodePostProcessor;
+import com.vladsch.flexmark.util.ast.Document;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.NodeTracker;
 import com.vladsch.flexmark.util.sequence.BasedSequence;
@@ -215,7 +218,23 @@ public class NativeWikiLinkPostProcessor extends NodePostProcessor {
         return node;
     }
 
+    /**
+     * The attributes extension keys a trailing {@code {.cls}} by the node it follows, in a document-level repository, so
+     * swapping the wikilink node for its replacement would orphan them; re-key them onto the replacement.
+     */
+    private static void carryAttributes( final Node from, final Node to ) {
+        final Document document = from.getDocument();
+        if ( document == null ) {
+            return;
+        }
+        final NodeAttributeRepository repository = AttributesExtension.NODE_ATTRIBUTES.getFrom( document );
+        if ( repository != null && repository.containsKey( from ) ) {
+            repository.put( to, repository.remove( from ) );
+        }
+    }
+
     private static void replace( final NodeTracker state, final Node node, final Node replacement ) {
+        carryAttributes( node, replacement );
         node.insertBefore( replacement );
         node.unlink();
         state.nodeRemoved( node );

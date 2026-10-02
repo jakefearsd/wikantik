@@ -132,6 +132,14 @@ class NativeWikiLinkRenderingTest {
         testEngine.getManager( AttachmentManager.class ).storeAttachment( att, testEngine.makeAttachmentFile() );
     }
 
+    @Test void trailingAttributesStillApplyToANativeLink() throws Exception {
+        newPage( "WlTarget" );
+        final String html = translate( "See [[WlTarget]]{.cls} now" );
+        assertEquals( translate( "See [WlTarget](WlTarget){.cls} now" ), html, "same as the equivalent markdown link" );
+        assertTrue( html.matches( "(?s).*<a [^>]*class=\"[^\"]*\\bcls\\b[^\"]*\"[^>]*>WlTarget</a>.*" ), html );
+        assertFalse( html.contains( "{.cls}" ), html );
+    }
+
     @Test void renderThatResolvedWithoutTheTitleIndexIsFlaggedUncacheable() throws Exception {
         newPage( "WlTarget" );
         final Context exact = render( "See [[WlTarget]]" );

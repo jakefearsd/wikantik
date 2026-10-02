@@ -39,7 +39,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{js,jsx}'],
-      exclude: ['src/**/*.test.{js,jsx}', 'src/test/**', 'src/setupTests.js', 'src/main.jsx'],
+      exclude: ['src/**/*.test.{js,jsx}', 'src/test/**', 'src/bench/**', 'src/setupTests.js', 'src/main.jsx'],
       reporter: ['text-summary', 'json-summary', 'html'],
       // Coverage ratchet (enforced by `npm run test:coverage`, which CI runs):
       // each floor is the measured level rounded DOWN to a whole percent at the

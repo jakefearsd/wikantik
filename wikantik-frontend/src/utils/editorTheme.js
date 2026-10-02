@@ -65,6 +65,7 @@ function iconRules() {
       backgroundColor: `color-mix(in srgb, var(--callout-${style}) 14%, transparent)`,
     };
     rules[`${ROOT} .cm-callout-marker-${style}`] = { '--cm-callout-tint': `var(--callout-${style})` };
+    rules[`${ROOT} .cm-lp-callout-${style}`] = { '--cm-callout-tint': `var(--callout-${style})` };
   }
   return rules;
 }
@@ -182,6 +183,40 @@ export const editorChromeSpec = {
   },
   // The marker wraps the link highlight spans (and the Ctrl-hover link mark): neutralise their colour/underline.
   [`${ROOT} .cm-content .cm-callout-marker *`]: { color: 'inherit', textDecoration: 'none', cursor: 'text' },
+
+  // ── Live preview ─────────────────────────────────────────────────────────
+  ...Object.fromEntries([['1', '1.6em'], ['2', '1.38em'], ['3', '1.2em'], ['4', '1.08em'], ['5', '1em'], ['6', '0.95em']]
+    .map(([n, size]) => [`${ROOT} .cm-lp-h${n}`, {
+      fontFamily: 'var(--font-display)', fontSize: size, fontWeight: '700', lineHeight: '1.35',
+      ...(n === '6' ? { color: 'var(--text-secondary)' } : {}),
+    }])),
+  [`${ROOT} .cm-lp-strong`]: { fontWeight: '700' },
+  [`${ROOT} .cm-lp-em`]: { fontStyle: 'italic' },
+  [`${ROOT} .cm-lp-del`]: { textDecoration: 'line-through', color: 'var(--text-secondary)' },
+  [`${ROOT} .cm-lp-code`]: { fontFamily: 'var(--font-mono)', backgroundColor: 'var(--code-bg)', borderRadius: 'var(--radius-sm)', padding: '0 3px' },
+  [`${ROOT} .cm-lp-link`]: { color: 'var(--accent)', textDecoration: 'underline', textDecorationColor: 'color-mix(in srgb, var(--accent) 45%, transparent)' },
+  [`${ROOT} .cm-lp-quote`]: { borderLeft: '3px solid var(--border)', paddingLeft: '0.75em', color: 'var(--text-secondary)' },
+  [`${ROOT} .cm-lp-callout`]: { '--cm-callout-tint': 'var(--callout-note)', borderLeft: '3px solid var(--cm-callout-tint)', paddingLeft: '0.75em', backgroundColor: 'color-mix(in srgb, var(--cm-callout-tint) 8%, transparent)' },
+  [`${ROOT} .cm-lp-callout-title`]: { fontWeight: '600', color: 'var(--cm-callout-tint)' },
+  [`${ROOT} .cm-lp-callout-title-widget`]: { display: 'inline-flex', alignItems: 'center', gap: '0.35em', fontWeight: '600', color: 'var(--cm-callout-tint)', marginRight: '0.35em' },
+  [`${ROOT} .cm-lp-callout-icon`]: { display: 'inline-block', width: '1em', height: '1em', backgroundColor: 'currentColor',
+    WebkitMask: `${svgMask(MASK_ICONS['slash-callout'])} center / contain no-repeat`, mask: `${svgMask(MASK_ICONS['slash-callout'])} center / contain no-repeat` },
+  [`${ROOT} .cm-lp-bullet`]: { color: 'var(--text-secondary)', fontWeight: '700' },
+  [`${ROOT} .cm-lp-task`]: { margin: '0 0.4em 0 0', verticalAlign: 'middle', accentColor: 'var(--accent)', cursor: 'pointer' },
+  [`${ROOT} .cm-lp-rule`]: { display: 'inline-block', width: '100%', verticalAlign: 'middle', borderTop: '1px solid var(--border)' },
+  [`${ROOT} .cm-lp-image-wrap`]: { display: 'inline-block', maxWidth: '100%', verticalAlign: 'middle' },
+  [`${ROOT} .cm-lp-image`]: { maxWidth: '100%', verticalAlign: 'middle', borderRadius: 'var(--radius-sm)' },
+  [`${ROOT} .cm-lp-image-missing`]: { color: 'var(--text-secondary)', fontStyle: 'italic' },
+  [`${ROOT} .cm-lp-math`]: { cursor: 'text' },
+  [`${ROOT} .cm-lp-math-block`]: { display: 'block', textAlign: 'center', padding: '0.4em 0' },
+  [`${ROOT} .cm-lp-math-error`]: { color: 'var(--callout-danger)', fontFamily: 'var(--font-mono)' },
+  [`${ROOT} .cm-lp-fence`]: { color: 'var(--text-secondary)', backgroundColor: 'var(--code-bg)' },
+  [`${ROOT} .cm-lp-codeblock`]: { backgroundColor: 'var(--code-bg)' },
+  [`${ROOT} .cm-lp-plugin`]: { padding: '0 6px', borderRadius: '999px', color: 'var(--text-secondary)', backgroundColor: 'color-mix(in srgb, var(--text) 7%, transparent)', fontFamily: 'var(--font-ui)', fontSize: '0.85em' },
+  [`${ROOT} .cm-lp-embed`]: { margin: '0.4em 0', padding: '0.5em 0.75em', border: '1px solid var(--border)', borderLeft: '3px solid var(--accent)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-elevated)', cursor: 'text' },
+  [`${ROOT} .cm-lp-embed-title`]: { fontFamily: 'var(--font-ui)', fontSize: '0.8em', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.3em' },
+  [`${ROOT} .cm-lp-embed-body`]: { lineHeight: '1.5' },
+  ...Object.fromEntries(['loading', 'missing', 'restricted', 'error'].map((s) => [`${ROOT} .cm-lp-embed-${s}`, { color: 'var(--text-secondary)', fontStyle: 'italic' }])),
 
   ...iconRules(),
 };

@@ -90,7 +90,7 @@ public final class WikiLinkSyntax {
             return target.isEmpty() ? heading : target + " > " + heading;
         }
 
-        /** Image size from a numeric alias: {@code 300} gives {300,-1}, {@code 300x200} gives {300,200}; else null. */
+        /** Image size from a numeric alias (consumers must check {@link #embed()} first; a link alias "300" is also numeric): {@code 300} gives {300,-1}, {@code 300x200} gives {300,200}; else null. */
         public int[] size() {
             if ( alias == null ) {
                 return null;
@@ -106,10 +106,10 @@ public final class WikiLinkSyntax {
     /** Parses a single token such as {@code [[Page|Alias]]}; offsets are relative to the token. */
     public static Optional< WikiLinkRef > parse( final String token ) {
         final Matcher m = TOKEN.matcher( token == null ? "" : token );
-        return m.matches() ? build( m ) : Optional.empty();
+        return m.matches() ? build( m, false ) : Optional.empty();
     }
 
-    private static Optional< WikiLinkRef > build( final Matcher m ) {
+    private static Optional< WikiLinkRef > build( final Matcher m, final boolean bangEscaped ) {
         final String inner = m.group( 2 );
         if ( inner.isEmpty() || Character.isWhitespace( inner.charAt( 0 ) ) ) {
             return Optional.empty();
@@ -118,10 +118,11 @@ public final class WikiLinkSyntax {
         final boolean escaped = pipe > 0 && inner.charAt( pipe - 1 ) == '\\';
         final String targetPart = pipe < 0 ? inner : inner.substring( 0, escaped ? pipe - 1 : pipe );
         final String alias = pipe < 0 ? null : blankToNull( inner.substring( pipe + 1 ).trim() );
-        return buildFrom( m, targetPart, alias );
+        return buildFrom( m, targetPart, alias, bangEscaped );
     }
 
-    private static Optional< WikiLinkRef > buildFrom( final Matcher m, final String targetPart, final String alias ) {
+    private static Optional< WikiLinkRef > buildFrom( final Matcher m, final String targetPart, final String alias,
+                                                      final boolean bangEscaped ) {
         final int hash = targetPart.indexOf( '#' );
         final String target = ( hash < 0 ? targetPart : targetPart.substring( 0, hash ) ).stripTrailing();
         final String heading = hash < 0 ? null : blankToNull( targetPart.substring( hash + 1 ).trim() );
@@ -130,7 +131,7 @@ public final class WikiLinkSyntax {
         }
         final int slash = target.indexOf( '/' );
         final int nameFrom = m.start( 2 );
-        return Optional.of( new WikiLinkRef( m.start(), m.end(), !m.group( 1 ).isEmpty(), target, heading, alias,
+        return Optional.of( new WikiLinkRef( m.start() + ( bangEscaped ? 1 : 0 ), m.end(), !bangEscaped && !m.group( 1 ).isEmpty(), target, heading, alias,
                 nameFrom, nameFrom + ( slash > 0 ? slash : target.length() ) ) );
     }
 
@@ -148,11 +149,25 @@ public final class WikiLinkSyntax {
         final Matcher m = TOKEN.matcher( markdown );
         while ( m.find() ) {
             final int s = m.start();
-            if ( !code[ s ] && !( s > 0 && markdown.charAt( s - 1 ) == '\\' ) ) {
-                build( m ).ifPresent( out::add );
+            if ( code[ s ] ) {
+                continue;
             }
+            final boolean escaped = oddBackslashesBefore( markdown, s );
+            if ( escaped && m.group( 1 ).isEmpty() ) {
+                continue;
+            }
+            build( m, escaped ).ifPresent( out::add );
         }
         return out;
+    }
+
+    /** True when the character at {@code pos} is preceded by an odd number of backslashes. */
+    private static boolean oddBackslashesBefore( final String s, final int pos ) {
+        int n = 0;
+        while ( pos - n - 1 >= 0 && s.charAt( pos - n - 1 ) == '\\' ) {
+            n++;
+        }
+        return n % 2 == 1;
     }
 
     /**

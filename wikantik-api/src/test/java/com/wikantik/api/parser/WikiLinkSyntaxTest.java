@@ -91,4 +91,45 @@ class WikiLinkSyntaxTest {
     @Test void toPlainTextUsesDisplayTextAndDropsEmbeds() {
         assertEquals( "See Alias and T > H. ", WikiLinkSyntax.toPlainText( "See [[T|Alias]] and [[T#H]]. ![[Other]]" ) );
     }
+
+    private static List< String > targets( final String md ) {
+        return WikiLinkSyntax.findAll( md ).stream().map( WikiLinkSyntax.WikiLinkRef::target ).toList();
+    }
+
+    @Test void indentedCodeIsMaskedButListContinuationIsNot() {
+        assertEquals( List.of(), targets( "para\n\n    [[x]]" ) );
+        assertEquals( List.of(), targets( "    [[x]]" ) );
+        assertEquals( List.of(), targets( "para\n\n\t[[x]]\n\n    [[y]]" ) );
+        assertEquals( List.of( "x" ), targets( "- item\n\n    [[x]]" ) );
+        assertEquals( List.of( "x" ), targets( "para\n    [[x]]" ) );
+    }
+
+    @Test void fenceInfoStringAndClosingRules() {
+        assertEquals( List.of( "A" ), targets( "```foo``` [[A]]" ) );
+        assertEquals( List.of(), targets( "```\n```java\n[[A]]\n```\n" ) );
+        assertEquals( List.of( "B" ), targets( "````\n```\n[[A]]\n````\n[[B]]" ) );
+        assertEquals( List.of( "B" ), targets( "   ```\n[[A]]\n   ```\n[[B]]" ) );
+        assertEquals( List.of(), targets( "```\n[[A]]" ) );
+    }
+
+    @Test void escapes() {
+        assertEquals( List.of( "x" ), targets( "\\\\[[x]]" ) );
+        final var r = WikiLinkSyntax.findAll( "\\![[x]]" ).get( 0 );
+        assertEquals( "x", r.target() );  assertEquals( false, r.embed() );  assertEquals( 2, r.start() );
+    }
+
+    @Test void edgeCases() {
+        final var crlf = WikiLinkSyntax.findAll( "a\r\n[[T]]" ).get( 0 );
+        assertEquals( 3, crlf.start() );  assertEquals( 8, crlf.end() );
+        assertEquals( List.of(), targets( "``[[x]]``" ) );
+        assertEquals( "a", one( "[[a]]" ).target() );
+        assertEquals( "a", WikiLinkSyntax.findAll( "[[a]]]" ).get( 0 ).target() );
+        assertEquals( "b|c", one( "[[a|b|c]]" ).alias() );
+        final var cell = WikiLinkSyntax.findAll( "[[Page\\|cell]]" ).get( 0 );
+        assertEquals( "cell", cell.alias() );
+        final var h = one( "[[T#H|A]]" );
+        assertEquals( "T", "[[T#H|A]]".substring( h.nameFrom(), h.nameTo() ) );
+        final var s = one( "[[#H]]" );
+        assertEquals( s.nameFrom(), s.nameTo() );
+    }
 }

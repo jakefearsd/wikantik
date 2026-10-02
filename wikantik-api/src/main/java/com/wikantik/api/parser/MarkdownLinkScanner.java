@@ -29,7 +29,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Lightweight utility for extracting Markdown-style links ({@code [text](Page)}) and native wikilinks ({@code [[Page]]}) from raw wiki page text
+ * Lightweight utility for extracting Markdown-style links ({@code [text](Page)}) and native
+ * wikilinks ({@code [[Page]]}) from raw wiki page text
  * without invoking the full rendering pipeline.
  *
  * <p>Used by the {@link com.wikantik.pagegraph.references.DefaultReferenceManager} for fast

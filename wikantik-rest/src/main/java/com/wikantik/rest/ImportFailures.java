@@ -48,7 +48,8 @@ final class ImportFailures {
                 ? HttpServletResponse.SC_CONFLICT : SC_TOO_MANY_REQUESTS, c.getMessage() );
         } else {
             LOG.warn( "Obsidian import failed: {}", e.getMessage(), e );
-            RestJson.sendError( resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Import failed: " + e.getMessage() );
+            // The detail (paths, SQL, provider internals) goes to the log only, never to the client.
+            RestJson.sendError( resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Import failed; see server log" );
         }
     }
 }

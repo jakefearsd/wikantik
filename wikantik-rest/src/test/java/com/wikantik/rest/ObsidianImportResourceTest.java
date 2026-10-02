@@ -439,4 +439,80 @@ class ObsidianImportResourceTest {
         assertTrue( Files.notExists( old ), "a spool file older than 1 h must be swept at init" );
         assertTrue( Files.exists( fresh ), "a recent spool file may belong to a running import" );
     }
+
+    @Test
+    void unexpectedFailureIs500WithoutInternalDetail() throws Exception {
+        loginAdmin();
+        final ObsidianImportResource r = new ObsidianImportResource() {
+            @Override protected ImportJobRegistry newRegistry( final ImportLimits l ) {
+                return new ImportJobRegistry( l.maxConcurrent(), Clock.systemUTC(), new Queued() );
+            }
+            @Override protected com.wikantik.importer.VaultImportService importService() {
+                throw new IllegalStateException( "secret /var/lib/internal detail" );
+            }
+            @Override protected boolean canCreatePages( final Session s ) { return true; }
+            @Override protected Path spoolDir() { return spool; }
+        };
+        final ServletConfig cfg = mock( ServletConfig.class );
+        doReturn( engine.getServletContext() ).when( cfg ).getServletContext();
+        r.init( cfg );
+        final Resp resp = resp();
+        r.doPost( post( "/plan", oneNote() ), resp.mock() );
+        verify( resp.mock() ).setStatus( 500 );
+        assertTrue( resp.body().toString().contains( "Import failed; see server log" ), resp.body().toString() );
+        assertTrue( !resp.body().toString().contains( "secret" ), resp.body().toString() );
+    }
+
+    @Test
+    void realPolicyWithoutCreatePagesIs403() throws Exception {
+        final java.util.Properties props = TestEngine.getTestProperties();
+        props.put( com.wikantik.auth.AuthorizationManager.POLICY, "wikantik-testUserPolicy.policy" );
+        final TestEngine restricted = new TestEngine( props );
+        try {
+            final HttpServletRequest login = HttpMockFactory.createHttpRequest();
+            final Session session = WikiSession.getWikiSession( restricted, login );
+            restricted.getManager( AuthenticationManager.class ).login( session, login, Users.JANNE, Users.JANNE_PASS );
+            assertTrue( session.isAuthenticated() );
+            final ObsidianImportResource r = new ObsidianImportResource() {
+                @Override protected ImportJobRegistry newRegistry( final ImportLimits l ) {
+                    return new ImportJobRegistry( l.maxConcurrent(), Clock.systemUTC(), new Queued() );
+                }
+                @Override protected Path spoolDir() { return spool; }
+            };
+            final ServletConfig cfg = mock( ServletConfig.class );
+            doReturn( restricted.getServletContext() ).when( cfg ).getServletContext();
+            r.init( cfg );
+            final Resp resp = resp();
+            r.doPost( post( "/plan", oneNote() ), resp.mock() );
+            verify( resp.mock() ).setStatus( 403 );
+            assertEquals( 0, spoolFileCount(), "nothing may be spooled for a forbidden caller" );
+        } finally {
+            SessionMonitor.getInstance( restricted ).remove( HttpMockFactory.SHARED_SESSION_ID );
+            restricted.stop();
+        }
+    }
+
+    @Test
+    void currentJobNeverReturnsAnotherUsersJob() throws Exception {
+        loginAdmin();
+        final ObsidianImportResource s = new ObsidianImportResource() {   // admin, and room for two jobs
+            @Override protected ImportJobRegistry newRegistry( final ImportLimits l ) {
+                return new ImportJobRegistry( 2, Clock.systemUTC(), new Queued() );
+            }
+            @Override protected boolean canCreatePages( final Session ss ) { return true; }
+            @Override protected boolean isAdmin( final Session ss ) { return true; }
+            @Override protected Path spoolDir() { return spool; }
+        };
+        final ServletConfig cfg = mock( ServletConfig.class );
+        doReturn( engine.getServletContext() ).when( cfg ).getServletContext();
+        s.init( cfg );
+        s.registry().start( "Bob", id -> ImportTestJobs.job( id, "Bob" ) );
+        final Resp r = resp();
+        s.doGet( get( "/jobs/current" ), r.mock() );
+        verify( r.mock() ).setStatus( 404 );
+        final String mine = s.registry().start( Users.ADMIN, id -> ImportTestJobs.job( id, Users.ADMIN ) ).id();
+        final Resp r2 = resp();
+        s.doGet( get( "/jobs/current" ), r2.mock() );
+        assertEquals( mine, json( r2 ).get( "jobId" ).getAsString() );
+    }
 }

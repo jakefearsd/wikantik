@@ -618,6 +618,8 @@
    <servlet>
        <servlet-name>ObsidianImportResource</servlet-name>
        <servlet-class>com.wikantik.rest.ObsidianImportResource</servlet-class>
+       <!-- Load at startup (after the bootstrap listener has created the engine) so init() sweeps stale upload spools. -->
+       <load-on-startup>1</load-on-startup>
        <multipart-config>
            <max-file-size>209715200</max-file-size>
            <max-request-size>209715200</max-request-size>

@@ -170,6 +170,28 @@ public class ObsidianImportIT {
 
     @Test
     @Order( 6 )
+    void renderedPageShowsImageAndResolvedLink() throws Exception {
+        final HttpResponse< String > r = get( "/api/pages/" + enc( SOURCE ) + "?render=true" );
+        assertEquals( 200, r.statusCode(), r.body() );
+        final JsonElement htmlEl = json( r ).get( "contentHtml" );
+        assertNotNull( htmlEl, r.body() );
+        final String html = htmlEl.getAsString();
+        final java.util.regex.Matcher img = java.util.regex.Pattern.compile( "<img[^>]*\\ssrc=\"([^\"]*)\"" ).matcher( html );
+        assertTrue( img.find(), "the imported ![[Owner/pic.png]] embed must render as an <img>: " + html );
+        assertTrue( img.group( 1 ).contains( PIC ), "the <img> must point at the imported attachment: " + html );
+        assertTrue( !html.contains( "wiki-embed-missing" ), "the embed must resolve: " + html );
+        // class="wikipage" marks a resolved page link (a missing target renders as an edit link instead).
+        final java.util.regex.Matcher link = java.util.regex.Pattern.compile(
+                "<a href=\"([^\"]*/wiki/[^\"]*)\" class=\"wikipage\"" ).matcher( html );
+        boolean resolved = false;
+        while ( link.find() ) {
+            resolved |= java.net.URLDecoder.decode( link.group( 1 ), StandardCharsets.UTF_8 ).contains( TARGET );
+        }
+        assertTrue( resolved, "[[" + TARGET + "]] must render as a resolved /wiki/ link: " + html );
+    }
+
+    @Test
+    @Order( 7 )
     void hubDeclaresCluster() throws Exception {
         final HttpResponse< String > r = get( "/api/pages/" + enc( FOLDER ) );
         assertEquals( 200, r.statusCode(), r.body() );
@@ -182,7 +204,7 @@ public class ObsidianImportIT {
     }
 
     @Test
-    @Order( 7 )
+    @Order( 8 )
     void staleHashIsRejectedWith409() throws Exception {
         final HttpResponse< String > r = postMultipart( "/api/import/obsidian/apply", vault,
                 Map.of( "clusterMode", "folders", "planHash", planHash ) );
@@ -190,7 +212,7 @@ public class ObsidianImportIT {
     }
 
     @Test
-    @Order( 8 )
+    @Order( 9 )
     void reimportSkipsEverything() throws Exception {
         final HttpResponse< String > plan = postMultipart( "/api/import/obsidian/plan", vault, Map.of( "clusterMode", "folders" ) );
         assertEquals( 200, plan.statusCode(), plan.body() );
@@ -204,7 +226,7 @@ public class ObsidianImportIT {
     }
 
     @Test
-    @Order( 9 )
+    @Order( 10 )
     void zipSlipEntryIsRejectedWith400() throws Exception {
         final Map< String, byte[] > evil = new LinkedHashMap<>();
         evil.put( "../evil" + U + ".md", "# x\n".getBytes( StandardCharsets.UTF_8 ) );

@@ -3,7 +3,7 @@ import { EditorState, EditorSelection } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { editorMarkdownConfig } from '../editorMarkdown';
-import { activeLinesOf, livePreviewSpecs, resolveImageSrc } from './ranges';
+import { activeLinesOf, livePreviewSpecs, resolveImageSrc, blockSpecs, parseWikiTarget } from './ranges';
 function stateOf(doc, selection) {
   const state = EditorState.create({
     doc, selection,
@@ -129,5 +129,97 @@ describe('livePreviewSpecs — blocks', () => {
     const rep = replacing(specs);
     expect(rep.every((s) => !state.sliceDoc(s.from, s.to).includes('\n'))).toBe(true);
     for (let i = 1; i < rep.length; i += 1) expect(rep[i].from).toBeGreaterThanOrEqual(rep[i - 1].to);
+  });
+});
+
+describe('parseWikiTarget', () => {
+  it('splits target, heading and alias', () => {
+    expect(parseWikiTarget('Page')).toEqual({ target: 'Page', heading: null, alias: null });
+    expect(parseWikiTarget('Page#Setup Steps|Go')).toEqual({ target: 'Page', heading: 'Setup Steps', alias: 'Go' });
+    expect(parseWikiTarget('#Intro')).toEqual({ target: '', heading: 'Intro', alias: null });
+  });
+});
+describe('livePreviewSpecs — wikilinks', () => {
+  const ctx = { pageName: 'Here', attachments: ['pic.png'] };
+  it.each([
+    ['[[Page]]', 'Page'], ['[[Page|Alias]]', 'Alias'], ['[[Page#Setup]]', 'Page > Setup'],
+    ['[[#Setup]]', 'Setup'], ['[[Page#Setup|Go]]', 'Go'],
+  ])('%s reads as %s', (src, shown) => {
+    const { state, specs } = specsOf(`x ${src} y\n\nend`, [3], ctx);
+    expect(visible(state, specs, 1)).toBe(`x ${shown} y`);
+    expect(specs.some((s) => s.kind === 'mark' && s.cls === 'cm-lp-link')).toBe(true);
+  });
+  it('keeps the link style but hides nothing on the active line', () => {
+    const { specs } = specsOf('x [[Page]] y', [1], ctx);
+    expect(replacing(specs)).toEqual([]);
+    expect(specs.some((s) => s.cls === 'cm-lp-link')).toBe(true);
+  });
+  it('leaves prose brackets, inline code and fenced code alone', () => {
+    const doc = 'if [[ -f "$x" ]] then\n\n`[[Page]]`\n\n```\n[[Page]]\n```\n\nend';
+    const { state, specs } = specsOf(doc, [9], ctx);
+    expect(visible(state, specs, 1)).toBe('if [[ -f "$x" ]] then');
+    expect(specs.filter((s) => s.cls === 'cm-lp-link')).toEqual([]);
+  });
+  it('renders attachment image embeds inline, honouring the size', () => {
+    const { specs } = specsOf('![[Owner/a.png|300]] ![[pic.png|300x200]] ![[pic.png|A cat]]\n\nend', [3], ctx);
+    expect(specs.filter((s) => s.kind === 'widget').map((s) => s.widget)).toEqual([
+      { type: 'image', src: '/attach/Owner/a.png', alt: 'a.png', width: 300 },
+      { type: 'image', src: '/attach/Here/pic.png', alt: 'pic.png', width: 300, height: 200 },
+      { type: 'image', src: '/attach/Here/pic.png', alt: 'A cat' },
+    ]);
+  });
+  it('shows a non-image attachment embed and an inline page embed as links', () => {
+    const { state, specs } = specsOf('get ![[Owner/doc.pdf]] or see ![[Other#Intro]] here\n\nend', [3], ctx);
+    expect(visible(state, specs, 1)).toBe('get Owner/doc.pdf or see Other > Intro here');
+  });
+  it('leaves a whole-line page embed to blockSpecs (no inline specs)', () => {
+    const { specs } = specsOf('![[Other]]\n\nend', [3], ctx);
+    expect(specs).toEqual([]);
+  });
+  it('shows a whole-line page embed inside a list as a link', () => {
+    const { state, specs } = specsOf('- ![[Other]]\n\nend', [3], ctx);
+    expect(visible(state, specs, 1)).toContain('Other');
+    expect(visible(state, specs, 1)).not.toContain('[[');
+  });
+  it('drops emphasis that would cut through a wikilink, keeps emphasis around one', () => {
+    const { state, specs } = specsOf('**bold [[Page|P]]** and *a [[B*c]]*\n\nend', [3], ctx);
+    expect(visible(state, specs, 1)).toMatch(/^bold P and (\*a B\*c\*|a B\*c)$/);
+  });
+});
+describe('livePreviewSpecs — math and plugins', () => {
+  it('renders inline math on inactive lines', () => {
+    const { specs } = specsOf('a $x+y$ b\n\nend', [3]);
+    expect(specs.filter((s) => s.kind === 'widget').map((s) => s.widget)).toEqual([{ type: 'math', tex: 'x+y', display: false }]);
+  });
+  it.each(['$5 and $10', 'costs $5 or $6 today', '$ x $', '\\$5$', '`$x$`', '$$x$ y'])('currency is never math: %s', (src) => {
+    const { specs } = specsOf(`${src}\n\nend`, [3]);
+    expect(specs.filter((s) => s.widget?.type === 'math' && s.widget.tex !== 'x')).toEqual([]);
+    if (src !== '$$x$ y') expect(specs.filter((s) => s.widget?.type === 'math')).toEqual([]);
+  });
+  it('does not style emphasis inside math, and math on the active line stays source', () => {
+    expect(specsOf('$a*b*c$\n\nend', [3]).specs.filter((s) => s.cls === 'cm-lp-em')).toEqual([]);
+    expect(replacing(specsOf('$x$', [1]).specs)).toEqual([]);
+  });
+  it('marks wiki plugins as a pill and leaves them visible', () => {
+    const { state, specs } = specsOf('[{TableOfContents}] and [{Image src=a}]()\n\nend', [3]);
+    expect(show(state, specs)).toEqual(expect.arrayContaining(['mark cm-lp-plugin "[{TableOfContents}]"', 'mark cm-lp-plugin "[{Image src=a}]()"']));
+    expect(visible(state, specs, 1)).toBe('[{TableOfContents}] and [{Image src=a}]()');
+  });
+  it('a $$ block paragraph gets no inline specs', () => {
+    expect(specsOf('$$\na*b*c\n$$\n\nend', [5]).specs).toEqual([]);
+  });
+});
+describe('blockSpecs', () => {
+  const block = (doc, active, ctx) => { const state = stateOf(doc); return { state, specs: blockSpecs(state, new Set(active), ctx) }; };
+  it('replaces an inactive $$ paragraph with a display-math block covering whole lines', () => {
+    const { specs } = block('$$\nx^2\n$$\n\nend', [5]);
+    expect(specs).toEqual([{ kind: 'block', from: 0, to: 9, widget: { type: 'math', tex: 'x^2', display: true } }]);
+  });
+  it('is inactive only while no line of the block is active', () => {
+    expect(block('$$\nx^2\n$$\n\nend', [2]).specs).toEqual([]);
+  });
+  it('embeds a page (or section) alone on its line, not attachments or inline embeds', () => {
+    const { specs } = block('![[Other#Intro]]\n\n![[Owner/a.png]]\n\nsee ![[X]]\n\n![[pic.png]]\n\nend', [9], { attachments: ['pic.png'] });
+    expect(specs.map((s) => s.widget)).toEqual([{ type: 'embed', target: 'Other', section: 'Intro' }]);
   });
 });

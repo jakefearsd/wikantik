@@ -88,6 +88,11 @@ public class MarkdownParser extends MarkupParser {
         // Collect links from a clean AST (before JSPWiki post-processors modify URLs)
         collectLinks( body );
 
+        // The post-processor runs inside parseReader; hand it THIS parser's access-rule flag (it is toggled after
+        // construction by RenderingManager.textToHTML) instead of letting it consult a fresh parser's default.
+        context.setVariable( com.wikantik.markdown.extensions.wikilinks.postprocessor.AccessRuleLinkNodePostProcessorState
+                .VAR_PARSE_ACCESS_RULES, isParseAccessRules() );
+
         final Node document = parser.parseReader( new BufferedReader( new StringReader( body ) ) );
         final MarkdownDocument md = new MarkdownDocument( context.getPage(), document );
         md.setContext( context );

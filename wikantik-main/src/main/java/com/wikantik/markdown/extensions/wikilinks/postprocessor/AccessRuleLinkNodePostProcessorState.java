@@ -38,6 +38,13 @@ public class AccessRuleLinkNodePostProcessorState implements NodePostProcessorSt
     private final Context wikiContext;
     private final boolean wysiwygEditorMode;
 
+    /**
+     * Context variable the owning {@code MarkdownParser} sets (to {@link Boolean#FALSE}) for the duration of a
+     * parse whose access rules were disabled via {@code MarkupParser.disableAccessRules()}. Absent or anything
+     * else means rules are parsed.
+     */
+    public static final String VAR_PARSE_ACCESS_RULES = "_Markdown.parseAccessRules";
+
     public AccessRuleLinkNodePostProcessorState( final Context wikiContext ) {
         this.wikiContext = wikiContext;
         final Boolean wysiwygVariable = wikiContext.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE );
@@ -52,7 +59,7 @@ public class AccessRuleLinkNodePostProcessorState implements NodePostProcessorSt
     @Override
     public void process( final NodeTracker state, final WikantikLink link ) {
         String ruleLine = NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, wysiwygEditorMode );
-        if( com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( wikiContext.getEngine() ).renderingManager().getParser( wikiContext, link.getUrl().toString() ).isParseAccessRules() ) {
+        if( !Boolean.FALSE.equals( wikiContext.getVariable( VAR_PARSE_ACCESS_RULES ) ) ) {
             final Page page = wikiContext.getRealPage();
             if( ruleLine.startsWith( "{" ) ) {
                 ruleLine = ruleLine.substring( 1 );

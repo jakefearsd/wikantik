@@ -2110,6 +2110,96 @@ h3:focus-within .heading-anchor {
   padding: 2px 0;
 }
 
+/* ImportDialog — "Import Obsidian vault": option group, plan table, progress. */
+.import-dialog-modes {
+  display: grid;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+  font-size: 0.9rem;
+}
+
+.import-dialog-modes label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.import-dialog-totals {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-sidebar);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-sm);
+}
+
+.import-dialog-totals div + div {
+  margin-top: 2px;
+}
+
+.import-dialog-tablewrap {
+  max-height: 16rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.import-dialog-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.import-dialog-table th,
+.import-dialog-table td {
+  text-align: left;
+  padding: 4px var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.import-dialog-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.import-dialog-more,
+.import-dialog-warnings {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-sm);
+}
+
+.import-dialog-warnings {
+  padding-left: var(--space-lg);
+}
+
+.import-dialog-status-bad {
+  color: var(--danger);
+}
+
+.import-dialog-progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.import-dialog-progress-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: var(--space-xs) 0 var(--space-md);
+}
+
+.import-dialog-result-list {
+  max-height: 12rem;
+  overflow-y: auto;
+  margin: 0 0 var(--space-md);
+  padding-left: var(--space-lg);
+  font-size: 0.88rem;
+}
+
 /* SearchResultsPage — card internals */
 .search-result-title {
   font-family: var(--font-display);

@@ -1634,3 +1634,27 @@ describe('api.savePage', () => {
     expect(sent).not.toHaveProperty('replaceMetadata');
   });
 });
+
+describe('api.importVault', () => {
+  beforeEach(() => { global.fetch = vi.fn(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('plan posts multipart with clusterMode', async () => {
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 200, body: { planHash: 'h' } }));
+    const file = new File(['z'], 'v.zip');
+    const out = await api.importVault.plan(file, { clusterMode: 'fixed', cluster: 'fin' });
+    expect(out.planHash).toBe('h');
+    const [url, init] = global.fetch.mock.calls[0];
+    expect(url).toBe('/api/import/obsidian/plan');
+    expect(init.method).toBe('POST');
+    expect(init.body.get('clusterMode')).toBe('fixed');
+    expect(init.body.get('cluster')).toBe('fin');
+  });
+
+  it('apply sends planHash; failures keep status and body', async () => {
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 409, body: { message: 'changed since' } }));
+    await expect(api.importVault.apply(new File(['z'], 'v.zip'), {}, 'h1'))
+      .rejects.toMatchObject({ status: 409, message: 'changed since', body: { message: 'changed since' } });
+    expect(global.fetch.mock.calls[0][1].body.get('planHash')).toBe('h1');
+  });
+});

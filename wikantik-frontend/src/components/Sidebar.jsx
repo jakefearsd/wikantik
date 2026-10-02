@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -8,6 +8,8 @@ import PersonalZone from './PersonalZone';
 import UserBadge from './UserBadge';
 import { useNewPage } from '../newpage/NewPageProvider';
 import ExportDialog from './ExportDialog';
+import ImportDialog from './ImportDialog';
+import { useRegisterCommands } from '../commands/useCommands';
 import CollapsibleSection from './CollapsibleSection';
 import Icon from './ui/Icon';
 
@@ -27,9 +29,14 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
   const [recentChangesError, setRecentChangesError] = useState(false);
   const { openNewPage } = useNewPage();
   const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [dark, toggleDark] = useDarkMode();
   const { user } = useAuth();
+  const importCommands = useMemo(() => (user?.canCreatePages
+    ? [{ id: 'import-vault', title: 'Import Obsidian vault…', section: 'Page', run: () => setImportOpen(true) }]
+    : []), [user?.canCreatePages]);
+  useRegisterCommands(importCommands, [importCommands]);
   const { capabilities } = useCapabilities();
   useEffect(() => {
     api.listPages({ limit: 500 }).then(d => setPages(d.pages || [])).catch((e) => {
@@ -131,6 +138,7 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
           onMobileClose={onMobileClose}
           onNewArticle={() => openNewPage()}
           onExport={() => setExportOpen(true)}
+          onImport={() => setImportOpen(true)}
         />
 
         {/* Primary Navigation — matches JSP LeftMenu */}
@@ -285,6 +293,7 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
       </aside>
 
       <ExportDialog isOpen={exportOpen} onClose={() => setExportOpen(false)} />
+      <ImportDialog isOpen={importOpen} onClose={() => setImportOpen(false)} />
     </>
   );
 }

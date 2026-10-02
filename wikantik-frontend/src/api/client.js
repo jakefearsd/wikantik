@@ -63,6 +63,31 @@ async function request(path, options = {}) {
   return unwrapEnvelope(JSON.parse(text));
 }
 
+// Multipart POST for the vault-import endpoints. Mirrors request()'s error
+// contract (status + body on the thrown Error) so callers can branch on 409/413.
+async function postMultipart(path, form) {
+  const resp = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    body: form,
+    credentials: 'same-origin',
+    headers: { Accept: 'application/json' },
+  });
+  const body = await resp.json().catch(() => ({ message: resp.statusText }));
+  if (!resp.ok) {
+    throw Object.assign(new Error(body.message || resp.statusText), { status: resp.status, body });
+  }
+  return body;
+}
+
+function vaultForm(file, { clusterMode = 'folders', cluster = '' } = {}, planHash) {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('clusterMode', clusterMode);
+  if (clusterMode === 'fixed' && cluster) form.append('cluster', cluster);
+  if (planHash) form.append('planHash', planHash);
+  return form;
+}
+
 // House style on the REST side wraps newer resources in `{ data: ... }`
 // (PageByIdResource, PageForAgentResource, AdminVerificationResource,
 // AdminStructuralConflictsResource, AdminRetrievalQualityResource,
@@ -147,6 +172,14 @@ export const api = {
     options: () => request('/api/export/options'),
     preview: (sel, { signal } = {}) => request(`/api/export/preview?${api.exportVault.params(sel)}`, { signal }),
     downloadUrl: (sel) => `${BASE}/api/export?${api.exportVault.params(sel)}`,
+  },
+
+  // Import an Obsidian vault zip: plan (dry run) -> apply (background job) -> poll.
+  importVault: {
+    plan: (file, opts) => postMultipart('/api/import/obsidian/plan', vaultForm(file, opts)),
+    apply: (file, opts, planHash) => postMultipart('/api/import/obsidian/apply', vaultForm(file, opts, planHash)),
+    job: (id) => request(`/api/import/obsidian/jobs/${encodeURIComponent(id)}`),
+    current: () => request('/api/import/obsidian/jobs/current'),
   },
 
   // Structured frontmatter editor: server-authoritative schema + dry-run validation.

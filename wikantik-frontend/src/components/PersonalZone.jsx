@@ -26,7 +26,7 @@ function PreviewList({ items, render, emptyLabel }) {
   );
 }
 
-export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = () => {}, onExport = () => {} }) {
+export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = () => {}, onExport = () => {}, onImport = () => {} }) {
   const { user, logout } = useAuth();
   const authed = !!user?.authenticated;
   const login = authed ? user.loginPrincipal : null;
@@ -69,6 +69,16 @@ export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = 
       >
         Export to Obsidian…
       </button>
+
+      {user.canCreatePages && (
+        <button
+          className="btn btn-ghost btn-block"
+          data-testid="personal-import"
+          onClick={onImport}
+        >
+          Import Obsidian vault…
+        </button>
+      )}
 
       {/* Everything below the New Article control collapses under one toggle,
           default collapsed, so the personal zone stays out of the way until

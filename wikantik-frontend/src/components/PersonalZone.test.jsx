@@ -60,3 +60,17 @@ describe('PersonalZone', () => {
     expect(onExport).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('PersonalZone import button', () => {
+  it('shows only when canCreatePages', () => {
+    useAuth.mockReturnValue({ user: { authenticated: true, username: 'A', loginPrincipal: 'a', roles: [], canCreatePages: false }, logout: () => {} });
+    const { unmount } = renderZone();
+    expect(screen.queryByTestId('personal-import')).toBeNull();
+    unmount();
+    useAuth.mockReturnValue({ user: { authenticated: true, username: 'A', loginPrincipal: 'a', roles: [], canCreatePages: true }, logout: () => {} });
+    const onImport = vi.fn();
+    renderZone({ onImport });
+    fireEvent.click(screen.getByTestId('personal-import'));
+    expect(onImport).toHaveBeenCalled();
+  });
+});

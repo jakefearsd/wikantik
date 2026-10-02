@@ -77,6 +77,7 @@ public final class ObsidianPageConverter {
 
         collectPluginEdits( body, codeRanges, state, edits );
         collectLinkEdits( doc, codeRanges, edits, state );
+        collectWikiLinkEdits( body, edits, state );
 
         final String newBody = applyEdits( body, edits, state.footnoteLines );
         final String markdown = FrontmatterPatcher.patch( frontmatterPrefix + newBody, extraFrontmatter );
@@ -156,6 +157,14 @@ public final class ObsidianPageConverter {
                     ObsidianLinkRenderer.render( link, n instanceof Image, alias, ObsidianLinkRenderer.inTableCell( n ), state );
             if ( replacement != null ) {
                 edits.add( new Edit( start, end, replacement ) );
+            }
+        }
+    }
+
+    private static void collectWikiLinkEdits( final String body, final List< Edit > edits, final ConversionState state ) {
+        for ( final ObsidianWikiLinks.Span sp : ObsidianWikiLinks.collect( body, state ) ) {
+            if ( !overlapsAny( edits, sp.refStart(), sp.refEnd() ) ) {
+                edits.add( new Edit( sp.start(), sp.end(), sp.replacement() ) );
             }
         }
     }

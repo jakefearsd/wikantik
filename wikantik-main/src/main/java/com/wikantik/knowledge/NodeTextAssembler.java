@@ -19,6 +19,7 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.api.knowledge.KgNode;
+import com.wikantik.api.parser.WikiLinkSyntax;
 
 import java.util.List;
 import java.util.Map;
@@ -58,6 +59,7 @@ public final class NodeTextAssembler {
         String s = markdown;
         s = FRONTMATTER.matcher( s ).replaceAll( "" );
         s = CODE_FENCE.matcher( s ).replaceAll( " " );
+        s = WikiLinkSyntax.toPlainText( s );
         s = IMAGE.matcher( s ).replaceAll( "$1" );
         s = LINK.matcher( s ).replaceAll( "$1" );
         s = HEADING.matcher( s ).replaceAll( "" );

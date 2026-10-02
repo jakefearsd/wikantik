@@ -133,4 +133,11 @@ class MentionScannerTest {
         assertEquals( 4, idx.lineOf( 7 ) );
         assertEquals( 4, idx.lineOf( 9 ) );
     }
+
+    @Test void nativeWikiLinkSuppressesItsTargetAndNeverMatchesInsideBrackets() {
+        final List< TitleEntry > k = List.of( new TitleEntry( "Kubernetes", "Kubernetes",
+                List.of( "Kubernetes", "K8s Platform" ) ) );
+        assertTrue( MentionScanner.scan( "Read [[k8s platform]] about Kubernetes.\n", "Other", k ).isEmpty() );
+        assertTrue( MentionScanner.scan( "[[Kubernetes]]\n", "Other", k ).isEmpty() );
+    }
 }

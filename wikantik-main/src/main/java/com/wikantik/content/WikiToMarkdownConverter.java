@@ -329,8 +329,8 @@ public final class WikiToMarkdownConverter {
         // 7. Line breaks: \\ → two trailing spaces
         result = LINE_BREAK.matcher( result ).replaceAll( "  " );
 
-        // 8. Restore escaped brackets: [[ → [
-        result = result.replace( ESCAPED_BRACKET, "[" );
+        // 8. Restore escaped brackets: [[ → \\[ (never emit native wikilink syntax)
+        result = result.replace( ESCAPED_BRACKET, "\\[" );
 
         return result;
     }

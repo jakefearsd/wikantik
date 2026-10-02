@@ -122,4 +122,19 @@ class ObsidianPageConverterTest {
         final String md = conv.convert( "Here", raw, Map.of( "wikantik_version", "4" ), new FakeCtx() ).markdown();
         assertEquals( "---\ntype: article\ndate: 2026-01-15\nwikantik_version: \"4\"\n---\nx\n", md );
     }
+
+    @Test void nativeWikilinksRemapToVaultBasenamesAndCollectAttachments() {
+        final FakeCtx c = new FakeCtx();
+        c.pages = Set.of( "Here", "Hub Page" );
+        c.basenames = Map.of( "Hub Page", "Hub Page~2" );
+        c.attachments = Set.of( "Hub Page/pic.png" );
+        final ConvertedPage p = conv.convert( "Here", "[[Hub Page|h]] ![[Hub Page#Usage]] ![[Hub Page/pic.png|300]]\n",
+                Map.of(), c );
+        assertTrue( p.markdown().endsWith( "[[Hub Page~2|h]] ![[Hub Page~2#Usage]] ![[pic.png|300]]\n" ), p.markdown() );
+        assertEquals( List.of( new AttachmentRef( "Hub Page", "pic.png" ) ), p.attachments() );
+    }
+    @Test void nativeWikilinkInCodeAndSamePageUntouched() {
+        final String raw = "`[[Foo]]` [[#Intro]]\n";
+        assertEquals( raw, body( raw ) );
+    }
 }

@@ -33,6 +33,9 @@ import com.vladsch.flexmark.ast.MailLink;
 import com.vladsch.flexmark.ast.Paragraph;
 import com.vladsch.flexmark.ast.Text;
 import com.vladsch.flexmark.ext.gitlab.GitLabInlineMath;
+import com.vladsch.flexmark.ext.wikilink.WikiImage;
+import com.vladsch.flexmark.ext.wikilink.WikiLink;
+import com.wikantik.api.parser.WikiLinkSyntax;
 import com.vladsch.flexmark.ext.tables.TableCell;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
@@ -45,12 +48,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -81,7 +86,7 @@ public final class MentionScanner {
     private static final Set< Class< ? extends Node > > INELIGIBLE = Set.of(
             Heading.class, Code.class, FencedCodeBlock.class, IndentedCodeBlock.class, HtmlBlock.class,
             Link.class, LinkRef.class, Image.class, ImageRef.class, AutoLink.class, MailLink.class,
-            GitLabInlineMath.class );
+            GitLabInlineMath.class, WikiLink.class, WikiImage.class );
 
     private MentionScanner() {}
 
@@ -90,7 +95,8 @@ public final class MentionScanner {
             return List.of();
         }
         final Set< String > linked = MarkdownLinkScanner.findLocalLinks( text ).stream()
-                .map( s -> s.toLowerCase( Locale.ROOT ) ).collect( Collectors.toSet() );
+                .map( s -> s.toLowerCase( Locale.ROOT ) ).collect( Collectors.toCollection( HashSet::new ) );
+        linked.addAll( nativeLinkedSlugs( text, entries ) );
         final PhraseTrie root = PhraseTrie.build( entries, selfPage, linked );
         final String masked = MentionMasking.mask( text );
 
@@ -108,6 +114,32 @@ public final class MentionScanner {
                         extra.getOrDefault( m.target(), 0 ) ) )
                 .sorted( Comparator.comparingInt( Mention::from ) )
                 .toList();
+    }
+
+    private static final Pattern WS = Pattern.compile( "\\s+" );
+
+    /** Lower-cased slugs of every entry that has a phrase equal to a native {@code [[ ]]} page target in the text. */
+    private static Set< String > nativeLinkedSlugs( final String text, final List< TitleEntry > entries ) {
+        final Set< String > targets = new HashSet<>();
+        for ( final WikiLinkSyntax.WikiLinkRef ref : WikiLinkSyntax.findAll( text ) ) {
+            if ( !ref.isSamePage() && !ref.isAttachment() ) {
+                targets.add( fold( ref.pageName() ) );
+            }
+        }
+        final Set< String > slugs = new HashSet<>();
+        if ( targets.isEmpty() ) {
+            return slugs;
+        }
+        for ( final TitleEntry e : entries ) {
+            if ( e.phrases().stream().anyMatch( p -> targets.contains( fold( p ) ) ) ) {
+                slugs.add( e.slug().toLowerCase( Locale.ROOT ) );
+            }
+        }
+        return slugs;
+    }
+
+    private static String fold( final String s ) {
+        return WS.matcher( s.trim() ).replaceAll( " " ).toLowerCase( Locale.ROOT );
     }
 
     private static boolean eligible( final Text t ) {

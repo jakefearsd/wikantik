@@ -87,7 +87,7 @@ public class WikiToMarkdownConverterTest {
     @Test
     void testEscapedBrackets() {
         // Double brackets [[ in JSPWiki are an escape that produces a literal single bracket
-        assertEquals( "[Literal]", convert( "[[Literal]" ) );
+        assertEquals( "\\[Literal]", convert( "[[Literal]" ) );
     }
 
     // ==================== Lists ====================
@@ -353,5 +353,10 @@ public class WikiToMarkdownConverterTest {
 
     private static String convert( final String wiki ) {
         return WikiToMarkdownConverter.convert( wiki ).markdown();
+    }
+
+    @Test
+    void escapedBracketsNeverEmitNativeWikilinkSyntax() {
+        assertFalse( convert( "[[[[x]" ).contains( "[[" ) );
     }
 }

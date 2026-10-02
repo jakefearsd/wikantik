@@ -56,4 +56,9 @@ class PageExcerptsTest {
         // Guard: a plain "[sic]" is not a callout marker, so its text survives (the collector drops brackets).
         assertEquals( "sic as quoted.", PageExcerpts.excerpt( "> [sic] as quoted.\n", 280 ) );
     }
+
+    @Test void nativeWikiLinksReadAsPlainText() {
+        assertEquals( "See the target, T > H done.",
+                PageExcerpts.excerpt( "See [[Target|the target]], [[T#H]] ![[Embedded]] done.", 280 ) );
+    }
 }

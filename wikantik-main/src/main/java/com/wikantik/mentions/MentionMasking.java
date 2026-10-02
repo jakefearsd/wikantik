@@ -18,6 +18,8 @@
  */
 package com.wikantik.mentions;
 
+import com.wikantik.api.parser.WikiLinkSyntax;
+
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,7 +42,7 @@ final class MentionMasking {
         for ( int i = 0; i < fmEnd; i++ ) {
             blank( chars, i );
         }
-        for ( final Pattern p : List.of( PLUGIN, BARE_URL ) ) {
+        for ( final Pattern p : List.of( PLUGIN, BARE_URL, WikiLinkSyntax.TOKEN ) ) {
             final Matcher m = p.matcher( text );
             while ( m.find() ) {
                 for ( int i = m.start(); i < m.end(); i++ ) {

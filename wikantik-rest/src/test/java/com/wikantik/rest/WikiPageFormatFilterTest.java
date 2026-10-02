@@ -303,4 +303,15 @@ class WikiPageFormatFilterTest {
                 WikiPageFormatFilter.rewriteInternalLinks(
                         "![a](one.png)![b](two.png)", "https://wiki.example.com" ) );
     }
+
+    @Test
+    void rewriteWikiLinksProducesStandardMarkdownLinks() {
+        final String in = "[[Target|A]] [[Target#My H]] [[#Intro]] ![[Target]] ![[Owner/p.png|300]] ![[local.png]] `[[Code]]`";
+        final String out = WikiPageFormatFilter.rewriteWikiLinks( in, "https://w.example/", "Cur",
+                java.util.function.UnaryOperator.identity(), "local.png"::equals );
+        assertEquals( "[A](https://w.example/wiki/Target) [Target > My H](https://w.example/wiki/Target#my-h) "
+                + "[Intro](https://w.example/wiki/Cur#intro) [Embedded: Target](https://w.example/wiki/Target) "
+                + "![](https://w.example/attach/Owner/p.png) ![](https://w.example/attach/Cur/local.png) `[[Code]]`", out );
+        assertEquals( out, WikiPageFormatFilter.rewriteInternalLinks( out, "https://w.example" ) );
+    }
 }

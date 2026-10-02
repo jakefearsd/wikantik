@@ -28,6 +28,8 @@ import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.TextCollectingVisitor;
 
+import com.wikantik.api.parser.WikiLinkSyntax;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -49,7 +51,8 @@ public final class PageExcerpts {
         if ( markdownBody == null || markdownBody.isBlank() ) {
             return "";
         }
-        final String masked = CALLOUT_MARKER.matcher( PLUGIN.matcher( markdownBody ).replaceAll( " " ) ).replaceAll( "$1" );
+        final String masked = WikiLinkSyntax.toPlainText(
+                CALLOUT_MARKER.matcher( PLUGIN.matcher( markdownBody ).replaceAll( " " ) ).replaceAll( "$1" ) );
         final StringBuilder text = new StringBuilder();
         for ( final Node block : PARSER.parse( masked ).getChildren() ) {
             if ( block instanceof Heading || block instanceof FencedCodeBlock || block instanceof IndentedCodeBlock

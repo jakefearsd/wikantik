@@ -22,6 +22,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.parser.WikiLinkSyntax;
+import com.wikantik.export.HeadingSlugs;
+import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
@@ -53,6 +57,9 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
+import java.net.URLEncoder;
 
 /**
  * Serves page content directly for <code>/wiki/{slug}?format=md</code> and
@@ -177,7 +184,7 @@ public class WikiPageFormatFilter implements Filter {
         final String baseUrl = BaseUrlResolver.resolve( eng, req, null );
 
         if ( "md".equalsIgnoreCase( format ) ) {
-            writeMarkdown( resp, page, parsed, baseUrl );
+            writeMarkdown( resp, eng, page, parsed, baseUrl );
         } else {
             writeJson( resp, page, parsed, baseUrl );
         }
@@ -214,11 +221,14 @@ public class WikiPageFormatFilter implements Filter {
         }
     }
 
-    private void writeMarkdown( final HttpServletResponse resp, final Page page,
+    private void writeMarkdown( final HttpServletResponse resp, final Engine eng, final Page page,
                                  final ParsedPage parsed, final String baseUrl ) throws IOException {
         final String title = extractTitle( page, parsed );
         String body = parsed.body() == null ? "" : parsed.body();
         body = stripLeadingH1( body, title );
+        final WikiLinkResolver resolver = WikiLinkResolver.forEngine( eng );
+        body = rewriteWikiLinks( body, baseUrl, page.getName(), t -> resolver.resolve( t ).pageName(),
+                f -> hasAttachment( eng, page.getName(), f ) );
         body = rewriteInternalLinks( body, baseUrl );
         final String md = "# " + title + "\n\n" + body;
         final byte[] bytes = md.getBytes( StandardCharsets.UTF_8 );
@@ -355,6 +365,64 @@ public class WikiPageFormatFilter implements Filter {
             return "";
         }
         return trimmed.substring( nl + 1 ).stripLeading();
+    }
+
+    private static boolean hasAttachment( final Engine eng, final String owner, final String file ) {
+        try {
+            return PageSubsystemBridge.fromLegacyEngine( eng ).attachments()
+                    .getAttachmentInfo( owner + "/" + file ) != null;
+        } catch ( final ProviderException | RuntimeException e ) {
+            LOG.warn( "WikiPageFormatFilter: attachment lookup failed for '{}/{}': {}", owner, file, e.getMessage() );
+            return false;
+        }
+    }
+
+    /**
+     * Rewrites native {@code [[ ]]} wikilinks and {@code ![[ ]]} embeds into standard markdown links with
+     * absolute URLs. Page embeds are not expanded: they become a link labelled {@code Embedded: ...}.
+     * Code spans and fences are left untouched.
+     */
+    static String rewriteWikiLinks( final String body, final String baseUrl, final String currentPage,
+                                    final UnaryOperator< String > resolvePage,
+                                    final Predicate< String > isCurrentPageAttachment ) {
+        final String base = baseUrl == null ? ""
+                : ( baseUrl.endsWith( "/" ) ? baseUrl.substring( 0, baseUrl.length() - 1 ) : baseUrl );
+        return WikiLinkSyntax.replaceAll( body, ref -> {
+            if ( !ref.isSamePage() && ( ref.isAttachment() || isCurrentPageAttachment.test( ref.target() ) ) ) {
+                return attachmentMarkdown( ref, base, currentPage );
+            }
+            final String page = ref.isSamePage() ? currentPage : resolvedPage( resolvePage, ref.target() );
+            final String url = base + "/wiki/" + encodeSegment( page )
+                    + ( ref.heading() == null ? "" : "#" + HeadingSlugs.slug( ref.heading() ) );
+            final String label = ref.embed() ? "Embedded: " + ref.displayText()
+                    : ref.isSamePage() && ref.alias() == null ? ref.heading() : ref.displayText();
+            return "[" + label + "](" + url + ")";
+        } );
+    }
+
+    private static String resolvedPage( final UnaryOperator< String > resolvePage, final String target ) {
+        final String resolved = resolvePage.apply( target );
+        return resolved == null || resolved.isEmpty() ? target : resolved;
+    }
+
+    private static String attachmentMarkdown( final WikiLinkSyntax.WikiLinkRef ref, final String base,
+                                              final String currentPage ) {
+        final String owner = ref.isAttachment() ? ref.pageName() : currentPage;
+        final String url = base + "/attach/" + encodeSegment( owner ) + "/" + encodeSegment( ref.fileName() );
+        final String shown = ref.isAttachment() ? ref.target() : ref.fileName();
+        return ref.embed() ? "![](" + url + ")" : "[" + ( ref.alias() != null ? ref.alias() : shown ) + "](" + url + ")";
+    }
+
+    private static String encodeSegment( final String name ) {
+        final String[] parts = name.split( "/", -1 );
+        final StringBuilder sb = new StringBuilder();
+        for ( int i = 0; i < parts.length; i++ ) {
+            if ( i > 0 ) {
+                sb.append( '/' );
+            }
+            sb.append( URLEncoder.encode( parts[ i ], StandardCharsets.UTF_8 ).replace( "+", "%20" ) );
+        }
+        return sb.toString();
     }
 
     static String rewriteInternalLinks( final String body, final String baseUrl ) {

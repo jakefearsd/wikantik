@@ -22,6 +22,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -62,9 +63,6 @@ public final class VaultArchiveReader {
      */
     public VaultArchive read( final Path zip ) throws IOException, VaultArchiveException, ImportLimitException {
         final List< String > names = readNames( zip );
-        for ( final String name : names ) {
-            VaultEntryNames.requireSafe( name );
-        }
         final String prefix = VaultEntryNames.wrapperPrefix( names );
         return readData( zip, prefix );
     }
@@ -79,6 +77,7 @@ public final class VaultArchiveReader {
               ZipInputStream zin = new ZipInputStream( raw, StandardCharsets.UTF_8 ) ) {
             ZipEntry entry = zin.getNextEntry();
             while ( entry != null ) {
+                VaultEntryNames.requireSafe( entry.getName() );
                 names.add( entry.getName() );
                 if ( names.size() > limits.maxEntries() ) {
                     throw new ImportLimitException( ImportLimits.PROP_MAX_ENTRIES, limits.maxEntries(), "zip entry count" );
@@ -89,7 +88,7 @@ public final class VaultArchiveReader {
             }
         } catch ( final IllegalArgumentException e ) {
             throw badEncoding( e );
-        } catch ( final ZipException e ) {
+        } catch ( final ZipException | EOFException e ) {
             throw malformed( e );
         }
         if ( names.isEmpty() && !startsWithPk( zip ) ) {
@@ -111,7 +110,7 @@ public final class VaultArchiveReader {
     }
 
     /** ZipInputStream reports an undecodable entry name as a ZipException caused by IllegalArgumentException. */
-    private static VaultArchiveException malformed( final ZipException e ) {
+    private static VaultArchiveException malformed( final IOException e ) {
         if ( e.getCause() instanceof IllegalArgumentException iae ) {
             return badEncoding( iae );
         }
@@ -133,6 +132,7 @@ public final class VaultArchiveReader {
             ZipEntry entry = zin.getNextEntry();
             while ( entry != null ) {
                 final String name = entry.getName();
+                VaultEntryNames.requireSafe( name );
                 final String rel = VaultEntryNames.relative( name, prefix );
                 final boolean skip = VaultEntryNames.ignored( name, rel );
                 final boolean keepText = !skip && VaultPaths.isNote( rel );
@@ -147,7 +147,7 @@ public final class VaultArchiveReader {
                 }
                 entry = zin.getNextEntry();
             }
-        } catch ( final ZipException e ) {
+        } catch ( final ZipException | EOFException e ) {
             throw malformed( e );
         } catch ( final IllegalArgumentException e ) {
             throw badEncoding( e );
@@ -187,7 +187,8 @@ public final class VaultArchiveReader {
                                             limits.maxUncompressedBytes(), "uncompressed vault" );
         }
         if ( entryBytes > RATIO_FLOOR_BYTES && entryBytes > MAX_RATIO * Math.max( 1, rawBytes ) ) {
-            throw new VaultArchiveException( "zip entry '" + name + "' expands more than 100:1 (zip bomb?)" );
+            throw new VaultArchiveException( "zip entry '" + name + "' expands more than 100:1 (possible zip bomb; "
+                                              + "very highly compressible files over 1 MiB are rejected)" );
         }
     }
 

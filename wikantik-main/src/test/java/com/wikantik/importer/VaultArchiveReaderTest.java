@@ -136,7 +136,26 @@ class VaultArchiveReaderTest {
         final byte[] full = TestVaults.zip( Map.of( "big.bin", new byte[ 10 * 1024 * 1024 ] ) );
         final byte[] cut = java.util.Arrays.copyOf( full, full.length / 2 );
         final VaultArchiveException e = assertThrows( VaultArchiveException.class, () -> read( cut ) );
-        assertTrue( e.getMessage().contains( "100:1" ), e.getMessage() );
+        assertTrue( e.getMessage().contains( "100:1" ) && e.getMessage().contains( "big.bin" ), e.getMessage() );
+    }
+
+    @Test
+    void truncatedZipIsMalformedNotAnIoError() {
+        final byte[] full = TestVaults.zipText( Map.of( "A.md", "# hello ".repeat( 500 ) ) );
+        final byte[] cut = java.util.Arrays.copyOf( full, full.length / 2 );
+        final VaultArchiveException e = assertThrows( VaultArchiveException.class, () -> read( cut ) );
+        assertTrue( e.getMessage().startsWith( "malformed zip" ), e.getMessage() );
+    }
+
+    @Test
+    void slipNameRejectedBeforeLaterEntriesAreInflated() {
+        // The later entry is a bomb; reaching it first would raise the 100:1 error instead.
+        final Map< String, byte[] > m = new LinkedHashMap<>();
+        m.put( "../evil.md", new byte[ 1 ] );
+        m.put( "big.bin", new byte[ 10 * 1024 * 1024 ] );
+        final byte[] full = TestVaults.zip( m );
+        final VaultArchiveException e = assertThrows( VaultArchiveException.class, () -> read( full ) );
+        assertTrue( e.getMessage().contains( "unsafe zip entry" ) );
     }
 
     @Test
@@ -179,7 +198,7 @@ class VaultArchiveReaderTest {
     }
 
     @Test
-    void nonNoteEntriesAreNotBuffered() throws Exception {
+    void largeNonNoteIsListedWithSizeAndRawEntryName() throws Exception {
         final byte[] img = new byte[ 3 * 1024 * 1024 ];
         new Random( 1 ).nextBytes( img );
         final Map< String, byte[] > m = new LinkedHashMap<>();

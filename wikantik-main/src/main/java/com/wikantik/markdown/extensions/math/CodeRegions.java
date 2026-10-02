@@ -72,27 +72,33 @@ public final class CodeRegions {
         for (int p = start; p < start + len && p < masked.length; p++) { masked[p] = true; }
     }
 
-    /** Masks paired backtick runs (run of N backticks closed by a run of exactly N). */
+    /**
+     * Masks paired backtick runs (run of N backticks closed by the next run of exactly N). Each run's partner is
+     * precomputed right-to-left, so a line of many unmatched runs is linear instead of every opener rescanning the
+     * rest of the line (same pairing as {@code com.wikantik.api.parser.CodeMask}).
+     */
     private static void maskInlineCode(final boolean[] masked, final String line, final int base) {
-        int i = 0;
-        while (i < line.length()) {
-            if (line.charAt(i) != '`') { i++; continue; }
-            final int runStart = i;
-            int n = 0;
-            while (i < line.length() && line.charAt(i) == '`') { i++; n++; }
-            int j = i;
-            while (j < line.length()) {
-                if (line.charAt(j) == '`') {
-                    int k = j, m = 0;
-                    while (k < line.length() && line.charAt(k) == '`') { k++; m++; }
-                    if (m == n) {
-                        for (int p = base + runStart; p < base + k && p < masked.length; p++) { masked[p] = true; }
-                        i = k; break;
-                    }
-                    j = k;
-                } else { j++; }
-            }
-            // unterminated run: leave unmasked, scan continues past opener
+        final java.util.List<int[]> runs = new java.util.ArrayList<>();   // {start, length}
+        int i = line.indexOf('`');
+        while (i >= 0) {
+            int k = i;
+            while (k < line.length() && line.charAt(k) == '`') { k++; }
+            runs.add(new int[] { i, k - i });
+            i = line.indexOf('`', k);
+        }
+        final int[] partner = new int[runs.size()];
+        final java.util.Map<Integer, Integer> nextOfLength = new java.util.HashMap<>();
+        for (int r = runs.size() - 1; r >= 0; r--) {
+            final Integer next = nextOfLength.put(runs.get(r)[1], r);
+            partner[r] = next == null ? -1 : next;
+        }
+        int r = 0;
+        while (r < runs.size()) {
+            final int close = partner[r];
+            if (close < 0) { r++; continue; }   // unterminated run: leave unmasked, scan continues past opener
+            final int end = runs.get(close)[0] + runs.get(close)[1];
+            for (int p = base + runs.get(r)[0]; p < base + end && p < masked.length; p++) { masked[p] = true; }
+            r = close + 1;
         }
     }
 }

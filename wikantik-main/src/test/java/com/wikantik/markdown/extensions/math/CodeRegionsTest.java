@@ -20,6 +20,7 @@ package com.wikantik.markdown.extensions.math;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CodeRegionsTest {
@@ -41,5 +42,37 @@ class CodeRegionsTest {
         final String math = "```math\n\\frac{a}{b}\n```";
         assertFalse(CodeRegions.scan(math).isMasked(math.indexOf("\\frac")),
                     "a ```math fence is NOT code — it is math");
+    }
+
+    /**
+     * A 256 KB page (wikantik.api.maxPageBytes) of unmatched backtick runs of distinct lengths: each opener used to
+     * rescan the rest of the line, O(n^1.5) — about 100 ms per scan. Twenty scans must fit well inside a second.
+     */
+    @Test
+    void inlineCodeScanIsLinearOnUnmatchedRunStaircase() {
+        final StringBuilder sb = new StringBuilder();
+        for (int k = 1; sb.length() + k + 1 < 262_144; k++) {
+            sb.append("`".repeat(k)).append('a');
+        }
+        final String body = sb.toString();
+        final CodeRegions last = assertTimeoutPreemptively(java.time.Duration.ofSeconds(1), () -> {
+            CodeRegions r = null;
+            for (int i = 0; i < 20; i++) {
+                r = CodeRegions.scan(body);
+            }
+            return r;
+        });
+        assertFalse(last.isMasked(body.length() - 1));
+    }
+
+    @Test
+    void inlineCodePairsTheNextRunOfEqualLengthSkippingEnclosedRuns() {
+        final String md = "a ``x ` y`` b `z` c ``` d `e";
+        final CodeRegions r = CodeRegions.scan(md);
+        assertTrue(r.isMasked(md.indexOf('x')) && r.isMasked(md.indexOf('y')));
+        assertFalse(r.isMasked(md.indexOf('b')));
+        assertTrue(r.isMasked(md.indexOf('z')));
+        assertFalse(r.isMasked(md.indexOf('d')));
+        assertFalse(r.isMasked(md.indexOf('e')));
     }
 }

@@ -1,16 +1,13 @@
 // Obsidian-style wikilinks: [[Page]], [[Page|Alias]], [[Page#Heading]], [[#Heading]], ![[Page]],
 // ![[Owner/file.png|300]]. Mirrors com.wikantik.api.parser.WikiLinkSyntax (Java) rule for rule.
 // findWikiLinks does no code masking: callers pass prose (remark text nodes are never code).
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
 import { visit } from 'unist-util-visit';
 import { slugify } from './headings';
+import { parseGfm } from './gfmParse';
 
 export const WIKILINK_TOKEN = /(!?)\[\[([^[\]\n]+?)\]\]/g;
 export const isImageFileName = /\.(png|jpe?g|gif|svg|webp|bmp|avif)$/i;
 const SIZE = /^(\d{1,5})(?:x(\d{1,5}))?$/;
-const parser = unified().use(remarkParse).use(remarkGfm);
 
 const blankToNull = (s) => (s === '' ? null : s);
 
@@ -115,7 +112,7 @@ export function wikiLinksInTextNode(node, source) {
 export function collectNativeWikiLinkTargets(md) {
   const out = new Set();
   if (!md || !md.includes('[[')) return [];
-  visit(parser.parse(md), 'text', (node, _i, parent) => {
+  visit(parseGfm(md), 'text', (node, _i, parent) => {
     if (parent && (parent.type === 'link' || parent.type === 'linkReference')) return;
     for (const ref of wikiLinksInTextNode(node, md)) {
       if (!ref.isSamePage && !ref.isAttachment && !ref.target.includes(',')) out.add(ref.target);

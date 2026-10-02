@@ -1,12 +1,9 @@
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
 import { visit } from 'unist-util-visit';
 import { citeParts } from './remarkWikiMarkup';
 import { safeDecode } from './safeDecode';
+import { parseGfm } from './gfmParse';
 
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
-const parser = unified().use(remarkParse).use(remarkGfm);
 
 /** The wiki page a link URL points at, or null for external/anchor/cite/attachment links. */
 export function wikiLinkTarget(url) {
@@ -28,7 +25,7 @@ export function citeTarget(url) {
  */
 export function collectWikiLinkTargets(md) {
   const out = new Set();
-  visit(parser.parse(md || ''), 'link', (node) => {
+  visit(parseGfm(md || ''), 'link', (node) => {
     const t = wikiLinkTarget(node.url) || citeTarget(node.url);
     if (t && !t.includes(',')) out.add(t);
   });

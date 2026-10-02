@@ -83,6 +83,9 @@ export const api = {
   getPagePreview: (name, { section, signal } = {}) =>
     request(`/api/pages/${encodeURIComponent(name)}/preview${section ? `?section=${encodeURIComponent(section)}` : ''}`,
       { signal }),
+  getPageEmbed: (name, { section, signal } = {}) =>
+    request(`/api/pages/${encodeURIComponent(name)}/embed${section ? `?section=${encodeURIComponent(section)}` : ''}`,
+      { signal }),
   getPage: (name, { version, render, signal } = {}) => {
     const params = new URLSearchParams();
     if (version) params.set('version', version);
@@ -118,11 +121,12 @@ export const api = {
   getPageTemplates: () => request('/api/page-templates'),
   listClusters: () => request('/api/structure/clusters'),
 
-  listPages: ({ prefix, q, names, limit = 100, offset = 0 } = {}) => {
+  listPages: ({ prefix, q, names, resolve, limit = 100, offset = 0 } = {}) => {
     const params = new URLSearchParams({ limit, offset });
     if (prefix) params.set('prefix', prefix);
     if (q) params.set('q', q);
     if (names && names.length) params.set('names', names.join(','));
+    if (resolve) params.set('resolve', 'true');
     return request(`/api/pages?${params}`);
   },
 

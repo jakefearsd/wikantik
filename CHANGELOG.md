@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Native Obsidian-style wikilinks and embeds: `[[Page]]`, `[[Page|Alias]]`, `[[Page#Heading]]`, `[[#Heading]]`,
+  `![[Page]]`, `![[Page#Heading]]`, `![[Owner/file.png|300]]` render in pages and the editor preview and are
+  understood by the Page Graph, backlinks, rename, unlinked mentions, `?format=md`, excerpts and Obsidian export.
+  `[[` targets resolve case-insensitively and by title/alias. The `[[` completion now inserts native syntax.
+- `GET /api/pages/{name}/embed` (rendered embed body, view-gated) and `GET /api/pages?names=…&resolve=true`.
+- Config `wikantik.embed.maxChars` (20000).
+
+### Fixed
+- `RenderingManager.textToHTML` no longer writes viewer-sensitive renders (ACL-aware plugins, embeds) to the
+  shared HTML cache.
+- The legacy-syntax converter emits `\[` for JSPWiki `[[` escapes so its output can never form a wikilink.
+
+### Security
+- Pages included with `[{InsertPage}]` (and the new `![[embeds]]`) no longer apply their own `[{ALLOW}]`/`[{DENY}]` rules to the host page; previously an authorised view of a host could restrict it — or, when the included page granted wider access, widen it — for every later reader.
+
 ## [2.4.29] - 2026-10-01
 
 ### Added

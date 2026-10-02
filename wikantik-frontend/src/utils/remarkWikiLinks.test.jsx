@@ -59,4 +59,25 @@ describe('remarkWikiLinks', () => {
     expect(b.classList.contains('createpage')).toBe(true);
     expect(b.getAttribute('data-missing-page')).toBe('Nope');
   });
+
+  const renderLinks = (md) => {
+    const { container } = render(<ReactMarkdown remarkPlugins={[[remarkWikiLinks, {}]]}>{md}</ReactMarkdown>);
+    return container;
+  };
+
+  it('decides escaping from the source: an escaped backslash does not escape the bracket', () => {
+    expect(renderLinks('\\\\[[x]]').querySelector('a')).not.toBeNull();
+    expect(renderLinks('\\[[x]]').querySelector('a')).toBeNull();
+  });
+
+  it('handles entities in targets with and without an escape', () => {
+    expect(renderLinks('\\[[A &amp; B]]').querySelector('a')).toBeNull();
+    expect(renderLinks('[[A &amp; B]]').querySelector('a')).not.toBeNull();
+  });
+
+  it('known divergence: emphasis inside a token splits the text node, so the preview shows it literally', () => {
+    const c = renderLinks('[[a *b* c]]');
+    expect(c.querySelector('a')).toBeNull();
+    expect(c.textContent).toContain('[[a b c]]');
+  });
 });

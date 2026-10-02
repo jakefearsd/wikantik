@@ -121,13 +121,13 @@ export const api = {
   getPageTemplates: () => request('/api/page-templates'),
   listClusters: () => request('/api/structure/clusters'),
 
-  listPages: ({ prefix, q, names, resolve, limit = 100, offset = 0 } = {}) => {
+  listPages: ({ prefix, q, names, resolve, limit = 100, offset = 0, signal } = {}) => {
     const params = new URLSearchParams({ limit, offset });
     if (prefix) params.set('prefix', prefix);
     if (q) params.set('q', q);
     if (names && names.length) params.set('names', names.join(','));
     if (resolve) params.set('resolve', 'true');
-    return request(`/api/pages?${params}`);
+    return request(`/api/pages?${params}`, { signal });
   },
 
   // Export to Obsidian: cluster/tag/type-scoped vault zip, with a debounced

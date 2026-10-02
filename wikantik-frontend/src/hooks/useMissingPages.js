@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
+import { MAX_NAMES } from '../utils/pageNameQuery';
 import { collectWikiLinkTargets } from '../utils/wikiLinkTargets';
 
 const CHECK_DELAY_MS = 500;
-const MAX_NAMES = 50;
 
 /**
  * Lowercased names of pages linked from `markdown` that do not exist (or that the caller cannot

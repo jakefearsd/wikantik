@@ -86,25 +86,28 @@ export function wikiLinkHref(ref, resolvedName) {
 }
 
 /**
- * The wikilinks of a remark text node, with the markdown source consulted so that tokens produced by
- * backslash escapes (`\[[x]]`) are dropped; `\![[x]]` becomes a plain link starting at `[[`.
- * Without source/position information every token counts.
+ * The wikilinks of a remark text node. Escaping is decided from the markdown SOURCE (the backslash
+ * run before each `[[`), because `node.value` is already unescaped (`\\[[x]]` has value `\[[x]]`).
+ * `\![[x]]` becomes a plain link starting at `[[`. Source tokens pair with value tokens in order;
+ * without position/source info, or when the counts disagree, every value token counts (fail open).
+ * Known divergence: emphasis inside a token (`[[a *b* c]]`) splits the text node, so the preview
+ * shows it literally while the server renders a link.
  */
 export function wikiLinksInTextNode(node, source) {
-  const refs = findWikiLinks(node.value);
   const start = node.position?.start?.offset;
   const end = node.position?.end?.offset;
-  if (!refs.length || typeof source !== 'string' || start == null || end == null) return refs;
-  const slice = source.slice(start, end).replace(/\\\|/g, '|');
-  let cursor = 0;
+  if (typeof source !== 'string' || start == null || end == null) return findWikiLinks(node.value);
+  const slice = source.slice(start, end);
+  const valueTokens = [...(node.value || '').matchAll(WIKILINK_TOKEN)];
+  const sourceTokens = [...slice.matchAll(WIKILINK_TOKEN)];
+  if (valueTokens.length !== sourceTokens.length) return findWikiLinks(node.value);
   const out = [];
-  for (const ref of refs) {
-    const idx = slice.indexOf(ref.raw, cursor);
-    if (idx < 0) { out.push(ref); continue; }
-    cursor = idx + ref.raw.length;
-    if (!oddBackslashesBefore(slice, idx)) { out.push(ref); continue; }
-    if (ref.embed) out.push({ ...ref, embed: false, from: ref.from + 1, raw: ref.raw.slice(1) });
-  }
+  valueTokens.forEach((m, i) => {
+    const escaped = oddBackslashesBefore(slice, sourceTokens[i].index);
+    if (escaped && m[1] === '') return;
+    const ref = build(m[1], m[2], m.index, m.index + m[0].length, m[0], escaped);
+    if (ref) out.push(ref);
+  });
   return out;
 }
 

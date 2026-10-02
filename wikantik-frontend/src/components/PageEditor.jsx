@@ -22,6 +22,9 @@ import { remarkAttachments } from '../utils/remarkAttachments';
 import { remarkWikiMarkup } from '../utils/remarkWikiMarkup';
 import { remarkMissingLinks } from '../utils/wikiLinkTargets';
 import { useMissingPages } from '../hooks/useMissingPages';
+import { remarkWikiLinks } from '../utils/remarkWikiLinks';
+import { useWikiLinkResolution } from '../hooks/useWikiLinkResolution';
+import { WikiEmbedElement, clearWikiEmbedCache } from './WikiEmbed';
 import { useTagSuggestions } from '../hooks/useTagSuggestions';
 import { useLowlight } from '../hooks/useLowlight';
 import { rehypeHighlightCode } from '../utils/codeHighlight';
@@ -337,6 +340,8 @@ export default function PageEditor() {
   // The editor holds the body only, so the preview renders it directly (no frontmatter to strip).
   const previewContent = useMemo(() => stripFrontmatter(body), [body]);
   const missingPages = useMissingPages(previewContent);
+  const wikiLinkResolution = useWikiLinkResolution(previewContent);
+  const previewComponents = useMemo(() => ({ 'wiki-embed': WikiEmbedElement }), []);
   const lowlight = useLowlight(/(^|\n)(```|~~~)/.test(previewContent));
 
   const handleRename = useCallback(async (oldName, newName) => {
@@ -499,6 +504,8 @@ export default function PageEditor() {
   }, []);
 
   const [previewOpen, setPreviewOpen] = useState(true);
+  // Re-fetch embeds whenever the preview is (re)opened so edits to embedded pages show up.
+  useEffect(() => { if (previewOpen) clearWikiEmbedCache(); }, [previewOpen]);
 
   const previewArticleRef = useRef(null);
   const { card: previewCard } = useLinkPreview(previewArticleRef, previewOpen);
@@ -973,11 +980,12 @@ export default function PageEditor() {
         <div className="editor-pane editor-preview" ref={previewRef} onScroll={syncEditor}>
           <FrontmatterPreview content={fullText} />
           <article className="article-prose" ref={previewArticleRef} onClick={handlePreviewClick}>
-            <ReactMarkdown remarkPlugins={[
+            <ReactMarkdown components={previewComponents} remarkPlugins={[
               remarkGfm,
               remarkMath,
               remarkCallouts,
               remarkWikiMarkup,
+              [remarkWikiLinks, { resolved: wikiLinkResolution, attachments: attachments.list, pageName: name }],
               [remarkMissingLinks, { missing: missingPages }],
               [remarkAttachments, { attachments: attachments.list, pageName: name }],
             ]} rehypePlugins={[rehypeKatex, [rehypeHighlightCode, { lowlight }], rehypeSourceLine]}>

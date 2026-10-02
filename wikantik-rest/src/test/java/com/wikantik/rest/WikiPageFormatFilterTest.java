@@ -314,4 +314,22 @@ class WikiPageFormatFilterTest {
                 + "![](https://w.example/attach/Owner/p.png) ![](https://w.example/attach/Cur/local.png) `[[Code]]`", out );
         assertEquals( out, WikiPageFormatFilter.rewriteInternalLinks( out, "https://w.example" ) );
     }
+
+    @Test
+    void rewriteWikiLinksEscapesLabelCharactersThatWouldBreakTheMarkdownLinkAndEncodesTheUrl() {
+        // the token grammar admits no brackets, but a trailing backslash would escape the closing ] of the label
+        final String out = WikiPageFormatFilter.rewriteWikiLinks(
+                "[[T|a\\]] [[Caf\u00e9 & Bar#H|x\\y]] ![[Caf\u00e9 & Bar]]", "https://w.example", "Cur",
+                java.util.function.UnaryOperator.identity(), t -> false );
+        assertEquals( "[a\\\\](https://w.example/wiki/T) "
+                + "[x\\\\y](https://w.example/wiki/Caf%C3%A9%20%26%20Bar#h) "
+                + "[Embedded: Caf\u00e9 & Bar](https://w.example/wiki/Caf%C3%A9%20%26%20Bar)", out );
+    }
+
+    @Test
+    void rewriteWikiLinksFallsBackToTheTargetWhenTheResolverGivesNothing() {
+        final String out = WikiPageFormatFilter.rewriteWikiLinks( "[[Some Page]] [[Other]]", "https://w.example", "Cur",
+                t -> t.equals( "Other" ) ? "" : null, t -> false );
+        assertEquals( "[Some Page](https://w.example/wiki/Some%20Page) [Other](https://w.example/wiki/Other)", out );
+    }
 }

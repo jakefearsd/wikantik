@@ -396,7 +396,7 @@ public class WikiPageFormatFilter implements Filter {
                     + ( ref.heading() == null ? "" : "#" + HeadingSlugs.slug( ref.heading() ) );
             final String label = ref.embed() ? "Embedded: " + ref.displayText()
                     : ref.isSamePage() && ref.alias() == null ? ref.heading() : ref.displayText();
-            return "[" + label + "](" + url + ")";
+            return "[" + escapeLabel( label ) + "](" + url + ")";
         } );
     }
 
@@ -410,7 +410,12 @@ public class WikiPageFormatFilter implements Filter {
         final String owner = ref.isAttachment() ? ref.pageName() : currentPage;
         final String url = base + "/attach/" + encodeSegment( owner ) + "/" + encodeSegment( ref.fileName() );
         final String shown = ref.isAttachment() ? ref.target() : ref.fileName();
-        return ref.embed() ? "![](" + url + ")" : "[" + ( ref.alias() != null ? ref.alias() : shown ) + "](" + url + ")";
+        return ref.embed() ? "![](" + url + ")" : "[" + escapeLabel( ref.alias() != null ? ref.alias() : shown ) + "](" + url + ")";
+    }
+
+    /** Escapes backslash and square brackets so a label can never end or escape the markdown link it sits in. */
+    private static String escapeLabel( final String label ) {
+        return label.replace( "\\", "\\\\" ).replace( "[", "\\[" ).replace( "]", "\\]" );
     }
 
     private static String encodeSegment( final String name ) {

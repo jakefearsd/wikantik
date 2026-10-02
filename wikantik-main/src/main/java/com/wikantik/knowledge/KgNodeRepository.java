@@ -163,7 +163,13 @@ public final class KgNodeRepository extends KgJdbcSupport {
             LOG.warn( "Failed to upsert node '{}': {}", name, e.getMessage(), e );
             throw new RuntimeException( "Failed to upsert node: " + e.getMessage(), e );
         }
-        return getNodeByName( name );
+        // Read back the row just written, unfiltered: a kept (COALESCEd) source page that is excluded from the KG
+        // would otherwise hide it and return null. Visibility is the caller's concern, not the write's result.
+        final KgNode written = getNodeByName( name, true );
+        if ( written == null ) {
+            throw new IllegalStateException( "Upserted node '" + name + "' could not be read back" );
+        }
+        return written;
     }
 
     public KgNode getNode( final UUID id ) {

@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -56,8 +57,28 @@ class KgNodeRepositoryTest {
         try ( final Connection conn = dataSource.getConnection() ) {
             conn.createStatement().execute( "DELETE FROM kg_edges" );
             conn.createStatement().execute( "DELETE FROM kg_nodes" );
+            conn.createStatement().execute( "DELETE FROM kg_excluded_pages" );
         }
         nodes = new KgNodeRepository( dataSource );
+    }
+
+    /**
+     * Re-upserting a node without a source page keeps its old one (COALESCE). When that page is excluded from the KG,
+     * the filtered read-back used to hide the row it had just written and return null, so callers NPE'd on .id().
+     */
+    @Test
+    void upsertReturnsTheNodeEvenWhenItsKeptSourcePageIsExcluded() throws Exception {
+        assertNotNull( nodes.upsertNode( "Hidden", "concept", "ExcludedPage", Provenance.HUMAN_AUTHORED, Map.of() ) );
+        try ( final Connection conn = dataSource.getConnection() ) {
+            conn.createStatement().execute(
+                    "INSERT INTO kg_excluded_pages ( page_name, reason ) VALUES ( 'ExcludedPage', 'cluster_policy' )" );
+        }
+
+        final KgNode again = nodes.upsertNode( "Hidden", "concept", null, Provenance.HUMAN_AUTHORED, Map.of() );
+
+        assertNotNull( again, "the upsert returns the row it wrote" );
+        assertEquals( "Hidden", again.name() );
+        assertEquals( "ExcludedPage", again.sourcePage() );
     }
 
     private KgNode node( final String name, final Provenance provenance ) {

@@ -250,10 +250,8 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         }
         final KgNode result = nodes.upsertNode( name, nodeType, sourcePage, provenance, properties );
         snapshotBuilder.invalidateCache();
-        // KgNodeRepository.upsertNode's read-back can come back null when the KG inclusion policy
-        // excludes the node's source-page cluster (row IS written, just not visible); callers such
-        // as DefaultKgCurationOps.tryUpsertNode rely on that clean null to report the exclusion
-        // instead of an NPE.
+        // KgNodeRepository.upsertNode returns the row it wrote even when the KG inclusion policy
+        // hides it (excluded source page); callers that care about visibility check getNode().
         if ( result != null ) {
             fireKgChange( Set.of( result.id() ), Set.of() );
         }

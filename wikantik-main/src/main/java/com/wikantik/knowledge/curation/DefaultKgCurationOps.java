@@ -209,7 +209,8 @@ public class DefaultKgCurationOps implements KgCurationOps {
                     final com.wikantik.api.knowledge.KgNode node = kg.upsertNode( name, nodeType, sourcePage,
                             Provenance.HUMAN_AUTHORED,
                             properties == null ? Map.of() : properties );
-                    if ( node == null ) {
+                    // the upsert returns the row it wrote; a policy-excluded source page still hides it from readers
+                    if ( node == null || kg.getNode( node.id() ) == null ) {
                         return NodeResult.fail( "node not visible after insert (excluded source page or other policy filter)" );
                     }
                     return NodeResult.ok( node.id() );

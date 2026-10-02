@@ -558,6 +558,8 @@ class AdminKnowledgeResourceMockTest {
             .thenReturn( alphaNode );
         // After routing through the facade, the resource re-fetches the node for the response.
         Mockito.when( service.getNode( id, true ) ).thenReturn( alphaNode );
+        // curation checks the written node is visible (not hidden by the KG inclusion policy)
+        Mockito.when( service.getNode( id ) ).thenReturn( alphaNode );
 
         final JsonObject body = new JsonObject();
         body.addProperty( "name", "Alpha" );

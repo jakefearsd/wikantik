@@ -256,10 +256,25 @@ public class DefaultKgCurationOpsTest {
         when( kg.upsertNode( eq( "Raft" ), eq( "concept" ), eq( "PaxosAndRaft" ),
                 eq( com.wikantik.api.knowledge.Provenance.HUMAN_AUTHORED ),
                 any() ) ).thenReturn( node );
+        when( kg.getNode( nodeId ) ).thenReturn( node );
 
         final KgCurationOps.NodeResult r = ops.tryUpsertNode( "Raft", "concept", "PaxosAndRaft",
                 java.util.Map.of(), "alice" );
         assertEquals( nodeId, r.nodeId().orElseThrow() );
+    }
+
+    /** The repository now returns the written row even when policy hides it; curation still reports the exclusion. */
+    @Test
+    void tryUpsertNodeWrittenButHiddenByPolicyReportsConflict() {
+        final UUID nodeId = UUID.randomUUID();
+        final com.wikantik.api.knowledge.KgNode node = Mockito.mock( com.wikantik.api.knowledge.KgNode.class );
+        when( node.id() ).thenReturn( nodeId );
+        when( kg.upsertNode( any(), any(), any(), any(), any() ) ).thenReturn( node );
+        when( kg.getNode( nodeId ) ).thenReturn( null );
+
+        final KgCurationOps.NodeResult r = ops.tryUpsertNode( "Raft", "concept", "Excluded", java.util.Map.of(), "alice" );
+
+        assertTrue( r.error().orElseThrow().contains( "not visible after insert" ) );
     }
 
     @Test
